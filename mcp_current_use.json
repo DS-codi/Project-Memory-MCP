@@ -1,0 +1,33 @@
+{
+  "servers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "${workspaceFolder}"
+      ]
+    },
+    "git": {
+      "command": "uvx",
+      "args": [
+        "--native-tls",
+        "mcp-server-git"
+      ]
+    },
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ]
+    },
+    "microsoft/markitdown": {
+      "command": "uvx",
+      "args": [
+        "--native-tls",
+        "markitdown-mcp"
+      ]
+    }
+  }
+}
