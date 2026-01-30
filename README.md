@@ -93,17 +93,20 @@ Add to your VS Code settings or workspace `.vscode/mcp.json`:
 
 ### 3. Available Tools
 
+### 3. Project-Memory MCP Tools
+
 #### Workspace Management
 | Tool | Description |
 |------|-------------|
-| `register_workspace` | Register a workspace directory |
+| `register_workspace` | Register a workspace directory (triggers indexing on first use) |
+| `reindex_workspace` | Re-index workspace after significant changes |
 | `list_workspaces` | List all registered workspaces |
 | `get_workspace_plans` | Get all plans for a workspace |
 
 #### Plan Lifecycle
 | Tool | Description |
 |------|-------------|
-| `create_plan` | Create a new plan in a workspace |
+| `create_plan` | Create a new plan in a workspace (requires category) |
 | `get_plan_state` | Get full plan state (steps, lineage, sessions) |
 | `update_step` | Update a step's status |
 | `modify_plan` | Replace plan steps (Architect/Revisionist) |
@@ -116,7 +119,6 @@ Add to your VS Code settings or workspace `.vscode/mcp.json`:
 | `complete_agent` | Mark agent session complete with summary |
 | `handoff` | Transfer control to another agent |
 | `get_mission_briefing` | Get deployment context for new agent |
-| `get_lineage` | Get full handoff history |
 
 #### Context Storage
 | Tool | Description |
@@ -124,7 +126,6 @@ Add to your VS Code settings or workspace `.vscode/mcp.json`:
 | `store_context` | Save context data (audit, research, etc.) |
 | `get_context` | Retrieve stored context by type |
 | `append_research` | Add a research note file |
-| `list_context` | List all context files |
 | `list_research_notes` | List research note files |
 
 #### Agent Deployment
