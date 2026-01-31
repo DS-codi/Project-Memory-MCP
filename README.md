@@ -33,10 +33,10 @@ Add to your VS Code settings or workspace `.vscode/mcp.json`:
     "project-memory": {
       "type": "stdio",
       "command": "node",
-      "args": ["C:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\server\\dist\\index.js"],
+      "args": ["C:\\Users\\user\\vscode_ModularAgenticProcedureSystem\\server\\dist\\index.js"],
       "env": {
-        "MBS_DATA_ROOT": "C:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\data",
-        "MBS_AGENTS_ROOT": "C:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\agents"
+        "MBS_DATA_ROOT": "C:\\Users\\user\\vscode_ModularAgenticProcedureSystem\\data",
+        "MBS_AGENTS_ROOT": "C:\\Users\\user\\vscode_ModularAgenticProcedureSystem\\agents"
       }
     },
     "filesystem": {
@@ -259,4 +259,141 @@ When agents detect suspicious content, they should store a security alert:
     "agent": "Researcher"
   }
 }
+```
+
+## VS Code Copilot Integration
+
+Project Memory integrates with VS Code Copilot through three native file types that are deployed to target workspaces.
+
+### Deployment
+
+Deploy Copilot configuration to a workspace using the MCP tool:
+
+```
+deploy_agents_to_workspace(workspace_id, include_prompts=true, include_instructions=true)
+```
+
+This creates:
+```
+target-workspace/
+└── .github/
+    ├── agents/           # Agent instruction files
+    ├── prompts/          # Workflow prompt templates
+    └── instructions/     # Coding guidelines
+```
+
+### Agent Files (`.github/agents/*.agent.md`)
+
+Custom Copilot agents with specialized instructions. Invoke with `@AgentName` in Copilot Chat.
+
+**Handoff Buttons**: Agents include `handoffs` frontmatter that creates UI buttons for switching between agents:
+
+```yaml
+---
+name: Coordinator
+description: 'Master orchestrator for multi-agent workflows'
+handoffs:
+  - label: "🔬 Research with Researcher"
+    agent: researcher
+    prompt: "Research the following:"
+  - label: "📐 Design with Architect"
+    agent: architect
+    prompt: "Create implementation plan for:"
+---
+```
+
+**Available Agents**:
+| Agent | Purpose | Handoffs To |
+|-------|---------|-------------|
+| `@Coordinator` | Entry point, orchestrates workflow | All specialists |
+| `@Researcher` | Gathers documentation and research | Coordinator |
+| `@Architect` | Designs implementation plans | Coordinator |
+| `@Executor` | Writes code, runs commands | Coordinator |
+| `@Reviewer` | Reviews code quality | Coordinator |
+| `@Tester` | Writes and runs tests | Coordinator |
+| `@Revisionist` | Fixes failed steps, adjusts plans | Coordinator |
+| `@Archivist` | Archives completed work | Coordinator |
+
+### Prompt Files (`.github/prompts/*.prompt.md`)
+
+Reusable workflow templates invoked with `#prompt-name` in Copilot Chat.
+
+**Available Prompts**:
+| Prompt | Description |
+|--------|-------------|
+| `#new-feature` | Full feature implementation workflow |
+| `#fix-bug` | Bug investigation and fix workflow |
+| `#refactor` | Code refactoring workflow |
+| `#add-tests` | Test coverage improvement |
+| `#code-review` | Review existing code |
+| `#document` | Generate documentation |
+
+**Prompt Variables**: Use `{{variableName}}` syntax for dynamic values:
+```markdown
+---
+mode: agent
+description: "Implement a new feature"
+---
+
+Implement the following feature: {{featureDescription}}
+Target files: {{targetFiles}}
+```
+
+### Instruction Files (`.github/instructions/*.instructions.md`)
+
+Coding guidelines automatically applied by Copilot. Path-specific instructions use `applyTo` frontmatter.
+
+**General Instructions** (always applied):
+- `mcp-usage.instructions.md` - How to use Project Memory MCP tools
+- `plan-context.instructions.md` - Working with plan state files
+- `handoff-protocol.instructions.md` - Hub-and-spoke handoff rules
+
+**Path-Specific Instructions**:
+| File | Applied To |
+|------|------------|
+| `tests.instructions.md` | `**/*.test.ts`, `**/*.spec.ts` |
+| `components.instructions.md` | `**/components/**` |
+| `api.instructions.md` | `**/api/**`, `**/routes/**` |
+
+### Hub-and-Spoke Workflow
+
+All agents follow a hub-and-spoke pattern with Coordinator as the central hub:
+
+```
+                    ┌─────────────┐
+                    │ Coordinator │  ← Central Hub
+                    │    (Hub)    │
+                    └──────┬──────┘
+                           │
+        ┌──────────────────┼──────────────────┐
+        ▼                  ▼                  ▼
+   Researcher         Architect           Executor
+                                              │
+                    ┌─────────────────────────┼─────────────────────────┐
+                    ▼                         ▼                         ▼
+                Reviewer                   Tester                  Revisionist
+```
+
+1. User invokes `@Coordinator` with a request
+2. Coordinator analyzes, creates plan, delegates to specialist
+3. Specialist completes work, hands back to Coordinator
+4. Coordinator continues workflow until plan complete
+5. Archivist archives the completed plan
+
+### Dashboard
+
+The Memory Observer Dashboard provides a visual interface for managing agents, prompts, and instructions:
+
+- **Agents Page**: View, edit, and deploy agent templates
+- **Prompts Page**: Create and manage prompt templates
+- **Instructions Page**: Configure path-specific coding guidelines
+- **Workspace View**: See Copilot status and deploy configuration
+
+Start the dashboard:
+```powershell
+cd dashboard
+npm install
+npm run dev        # Frontend on http://localhost:5173
+cd server
+npm run dev        # API on http://localhost:3001
 ```

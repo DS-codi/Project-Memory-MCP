@@ -15,7 +15,51 @@ import * as planTools from './tools/plan.tools.js';
 import * as handoffTools from './tools/handoff.tools.js';
 import * as contextTools from './tools/context.tools.js';
 import * as agentTools from './tools/agent.tools.js';
+import * as validationTools from './tools/agent-validation.tools.js';
 import * as store from './storage/file-store.js';
+import { logToolCall, setCurrentAgent } from './logging/tool-logger.js';
+
+// =============================================================================
+// Logging Helper
+// =============================================================================
+
+/**
+ * Wrap a tool execution with logging
+ */
+async function withLogging<T>(
+  toolName: string,
+  params: Record<string, unknown>,
+  fn: () => Promise<T>
+): Promise<T> {
+  const startTime = Date.now();
+  
+  try {
+    const result = await fn();
+    const durationMs = Date.now() - startTime;
+    
+    // Extract success/error from result if it has that shape
+    const resultObj = result as { success?: boolean; error?: string };
+    await logToolCall(
+      toolName,
+      params,
+      resultObj.success !== false ? 'success' : 'error',
+      resultObj.error,
+      durationMs
+    );
+    
+    return result;
+  } catch (error) {
+    const durationMs = Date.now() - startTime;
+    await logToolCall(
+      toolName,
+      params,
+      'error',
+      (error as Error).message,
+      durationMs
+    );
+    throw error;
+  }
+}
 
 // =============================================================================
 // Server Setup
@@ -68,9 +112,11 @@ server.tool(
     workspace_path: z.string().describe('Absolute path to the workspace directory')
   },
   async (params) => {
-    const result = await workspaceTools.registerWorkspace({
-      workspace_path: params.workspace_path
-    });
+    const result = await withLogging('register_workspace', params, () =>
+      workspaceTools.registerWorkspace({
+        workspace_path: params.workspace_path
+      })
+    );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
     };
@@ -81,8 +127,10 @@ server.tool(
   'list_workspaces',
   'List all registered workspaces with their metadata.',
   {},
-  async () => {
-    const result = await workspaceTools.listWorkspaces();
+  async (params) => {
+    const result = await withLogging('list_workspaces', params, () =>
+      workspaceTools.listWorkspaces()
+    );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
     };
@@ -96,9 +144,11 @@ server.tool(
     workspace_id: z.string().describe('The workspace ID returned from register_workspace')
   },
   async (params) => {
-    const result = await workspaceTools.getWorkspacePlans({
-      workspace_id: params.workspace_id
-    });
+    const result = await withLogging('get_workspace_plans', params, () =>
+      workspaceTools.getWorkspacePlans({
+        workspace_id: params.workspace_id
+      })
+    );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
     };
@@ -112,9 +162,11 @@ server.tool(
     workspace_id: z.string().describe('The workspace ID to re-index')
   },
   async (params) => {
-    const result = await workspaceTools.reindexWorkspace({
-      workspace_id: params.workspace_id
-    });
+    const result = await withLogging('reindex_workspace', params, () =>
+      workspaceTools.reindexWorkspace({
+        workspace_id: params.workspace_id
+      })
+    );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
     };
@@ -124,6 +176,44 @@ server.tool(
 // =============================================================================
 // Plan Tools
 // =============================================================================
+
+server.tool(
+  'find_plan',
+  'Find a plan by just its ID (hash) - searches across all workspaces. Use this when you only have a plan_id and need to find the workspace_id. Returns full plan state and resume instructions.',
+  {
+    plan_id: z.string().describe('The plan ID (e.g., plan_ml0ops06_603c6237)')
+  },
+  async (params) => {
+    const result = await withLogging('find_plan', params, () =>
+      planTools.findPlan({
+        plan_id: params.plan_id
+      })
+    );
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+    };
+  }
+);
+
+server.tool(
+  'list_plans',
+  'List all plans for a workspace. Shows active plans with progress summary, current agent, and status. Use workspace_id or workspace_path.',
+  {
+    workspace_id: z.string().optional().describe('The workspace ID (from register_workspace)'),
+    workspace_path: z.string().optional().describe('The absolute path to the workspace directory')
+  },
+  async (params) => {
+    const result = await withLogging('list_plans', params, () =>
+      planTools.listPlans({
+        workspace_id: params.workspace_id,
+        workspace_path: params.workspace_path
+      })
+    );
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+    };
+  }
+);
 
 server.tool(
   'create_plan',
@@ -137,14 +227,16 @@ server.tool(
     categorization: RequestCategorizationSchema.optional().describe('Full categorization details including confidence and suggested workflow')
   },
   async (params) => {
-    const result = await planTools.createPlan({
-      workspace_id: params.workspace_id,
-      title: params.title,
-      description: params.description,
-      category: params.category,
-      priority: params.priority,
-      categorization: params.categorization
-    });
+    const result = await withLogging('create_plan', params, () =>
+      planTools.createPlan({
+        workspace_id: params.workspace_id,
+        title: params.title,
+        description: params.description,
+        category: params.category,
+        priority: params.priority,
+        categorization: params.categorization
+      })
+    );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
     };
@@ -159,10 +251,12 @@ server.tool(
     plan_id: z.string().describe('The plan ID')
   },
   async (params) => {
-    const result = await planTools.getPlanState({
-      workspace_id: params.workspace_id,
-      plan_id: params.plan_id
-    });
+    const result = await withLogging('get_plan_state', params, () =>
+      planTools.getPlanState({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id
+      })
+    );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
     };
@@ -180,13 +274,41 @@ server.tool(
     notes: z.string().optional().describe('Optional notes about the step')
   },
   async (params) => {
-    const result = await planTools.updateStep({
-      workspace_id: params.workspace_id,
-      plan_id: params.plan_id,
-      step_index: params.step_index,
-      status: params.status,
-      notes: params.notes
-    });
+    const result = await withLogging('update_step', params, () =>
+      planTools.updateStep({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id,
+        step_index: params.step_index,
+        status: params.status,
+        notes: params.notes
+      })
+    );
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+    };
+  }
+);
+
+server.tool(
+  'batch_update_steps',
+  'Update multiple steps at once. Useful for marking several steps done or changing statuses in bulk.',
+  {
+    workspace_id: z.string().describe('The workspace ID'),
+    plan_id: z.string().describe('The plan ID'),
+    updates: z.array(z.object({
+      step_index: z.number().describe('Index of the step to update'),
+      status: StepStatusSchema.describe('New status (pending, active, done, blocked)'),
+      notes: z.string().optional().describe('Optional notes about the step')
+    })).describe('Array of step updates to apply')
+  },
+  async (params) => {
+    const result = await withLogging('batch_update_steps', params, () =>
+      planTools.batchUpdateSteps({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id,
+        updates: params.updates
+      })
+    );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
     };
@@ -206,15 +328,17 @@ server.tool(
     })).describe('Array of new steps')
   },
   async (params) => {
-    const result = await planTools.modifyPlan({
-      workspace_id: params.workspace_id,
-      plan_id: params.plan_id,
-      new_steps: params.new_steps.map(s => ({
-        phase: s.phase,
-        task: s.task,
-        status: s.status || 'pending' as const
-      }))
-    });
+    const result = await withLogging('modify_plan', params, () =>
+      planTools.modifyPlan({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id,
+        new_steps: params.new_steps.map(s => ({
+          phase: s.phase,
+          task: s.task,
+          status: s.status || 'pending' as const
+        }))
+      })
+    );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
     };
@@ -229,10 +353,40 @@ server.tool(
     plan_id: z.string().describe('The plan ID')
   },
   async (params) => {
-    const result = await planTools.archivePlan({
-      workspace_id: params.workspace_id,
-      plan_id: params.plan_id
-    });
+    const result = await withLogging('archive_plan', params, () =>
+      planTools.archivePlan({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id
+      })
+    );
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+    };
+  }
+);
+
+server.tool(
+  'import_plan',
+  'Import an existing plan file from the workspace into the MCP server. Copies the plan to the data directory, extracts steps from checkbox patterns, and moves the original file to an /archive folder in the workspace. Use this when pointed at a pre-existing plan document.',
+  {
+    workspace_id: z.string().describe('The workspace ID'),
+    plan_file_path: z.string().describe('Absolute path to the plan file in the workspace (e.g., a .md file)'),
+    title: z.string().optional().describe('Optional title override (otherwise extracted from first # heading or filename)'),
+    category: RequestCategorySchema.describe('Type of request: feature, bug, change, analysis, debug, refactor, or documentation'),
+    priority: PrioritySchema.optional().describe('Priority level (low, medium, high, critical)'),
+    categorization: RequestCategorizationSchema.optional().describe('Full categorization details including confidence and suggested workflow')
+  },
+  async (params) => {
+    const result = await withLogging('import_plan', params, () =>
+      planTools.importPlan({
+        workspace_id: params.workspace_id,
+        plan_file_path: params.plan_file_path,
+        title: params.title,
+        category: params.category,
+        priority: params.priority,
+        categorization: params.categorization
+      })
+    );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
     };
@@ -245,20 +399,26 @@ server.tool(
 
 server.tool(
   'initialise_agent',
-  'REQUIRED: Must be called first by every agent. Records agent activation with full context snapshot for traceability.',
+  'REQUIRED: Must be called first by every agent. Records agent activation and returns full plan state for context. If workspace_id or plan_id are missing, returns status info to help the agent proceed (e.g., list of registered workspaces or active plans).',
   {
-    workspace_id: z.string().describe('The workspace ID'),
-    plan_id: z.string().describe('The plan ID'),
+    workspace_id: z.string().optional().describe('The workspace ID (if not provided, returns workspace registration status)'),
+    plan_id: z.string().optional().describe('The plan ID (if not provided, returns list of active plans)'),
     agent_type: AgentTypeSchema.describe('Type of agent being initialized'),
     context: z.record(z.unknown()).describe('Full context object specific to this agent type')
   },
   async (params) => {
-    const result = await handoffTools.initialiseAgent({
-      workspace_id: params.workspace_id,
-      plan_id: params.plan_id,
-      agent_type: params.agent_type,
-      context: params.context
-    });
+    // Set current agent for logging purposes
+    if (params.plan_id) {
+      setCurrentAgent(params.plan_id, params.agent_type);
+    }
+    const result = await withLogging('initialise_agent', params, () =>
+      handoffTools.initialiseAgent({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id,
+        agent_type: params.agent_type,
+        context: params.context
+      })
+    );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
     };
@@ -276,13 +436,15 @@ server.tool(
     artifacts: z.array(z.string()).optional().describe('List of artifact filenames created')
   },
   async (params) => {
-    const result = await handoffTools.completeAgent({
-      workspace_id: params.workspace_id,
-      plan_id: params.plan_id,
-      agent_type: params.agent_type,
-      summary: params.summary,
-      artifacts: params.artifacts
-    });
+    const result = await withLogging('complete_agent', params, () =>
+      handoffTools.completeAgent({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id,
+        agent_type: params.agent_type,
+        summary: params.summary,
+        artifacts: params.artifacts
+      })
+    );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
     };
@@ -301,14 +463,20 @@ server.tool(
     data: z.record(z.unknown()).optional().describe('Optional data to pass to next agent')
   },
   async (params) => {
-    const result = await handoffTools.handoff({
-      workspace_id: params.workspace_id,
-      plan_id: params.plan_id,
-      from_agent: params.from_agent,
-      to_agent: params.to_agent,
-      reason: params.reason,
-      data: params.data
-    });
+    // Update current agent tracking on handoff
+    if (params.plan_id) {
+      setCurrentAgent(params.plan_id, params.to_agent);
+    }
+    const result = await withLogging('handoff', params, () =>
+      handoffTools.handoff({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id,
+        from_agent: params.from_agent,
+        to_agent: params.to_agent,
+        reason: params.reason,
+        data: params.data
+      })
+    );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
     };
@@ -323,10 +491,12 @@ server.tool(
     plan_id: z.string().describe('The plan ID')
   },
   async (params) => {
-    const result = await handoffTools.getMissionBriefing({
-      workspace_id: params.workspace_id,
-      plan_id: params.plan_id
-    });
+    const result = await withLogging('get_mission_briefing', params, () =>
+      handoffTools.getMissionBriefing({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id
+      })
+    );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
     };
@@ -341,10 +511,12 @@ server.tool(
     plan_id: z.string().describe('The plan ID')
   },
   async (params) => {
-    const result = await handoffTools.getLineage({
-      workspace_id: params.workspace_id,
-      plan_id: params.plan_id
-    });
+    const result = await withLogging('get_lineage', params, () =>
+      handoffTools.getLineage({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id
+      })
+    );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
     };
@@ -356,6 +528,42 @@ server.tool(
 // =============================================================================
 
 server.tool(
+  'store_initial_context',
+  'Store the initial user request and all associated context for a plan. Use this when creating a new plan to capture what the user wants. Only Researcher and Architect will read this.',
+  {
+    workspace_id: z.string().describe('The workspace ID'),
+    plan_id: z.string().describe('The plan ID'),
+    user_request: z.string().describe('The verbatim user request'),
+    files_mentioned: z.array(z.string()).optional().describe('Files the user referenced'),
+    file_contents: z.record(z.string()).optional().describe('Attached file contents (path -> content)'),
+    requirements: z.array(z.string()).optional().describe('Explicit requirements from user'),
+    constraints: z.array(z.string()).optional().describe('Constraints or limitations mentioned'),
+    examples: z.array(z.string()).optional().describe('Examples or references provided'),
+    conversation_context: z.string().optional().describe('Any prior conversation context'),
+    additional_notes: z.string().optional().describe('Any other relevant notes')
+  },
+  async (params) => {
+    const result = await withLogging('store_initial_context', params, () =>
+      contextTools.storeInitialContext({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id,
+        user_request: params.user_request,
+        files_mentioned: params.files_mentioned,
+        file_contents: params.file_contents,
+        requirements: params.requirements,
+        constraints: params.constraints,
+        examples: params.examples,
+        conversation_context: params.conversation_context,
+        additional_notes: params.additional_notes
+      })
+    );
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+    };
+  }
+);
+
+server.tool(
   'store_context',
   'Store context data (audit findings, research results, decisions, etc.) as JSON.',
   {
@@ -365,12 +573,14 @@ server.tool(
     data: z.record(z.unknown()).describe('The context data to store')
   },
   async (params) => {
-    const result = await contextTools.storeContext({
-      workspace_id: params.workspace_id,
-      plan_id: params.plan_id,
-      type: params.type,
-      data: params.data
-    });
+    const result = await withLogging('store_context', params, () =>
+      contextTools.storeContext({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id,
+        type: params.type,
+        data: params.data
+      })
+    );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
     };
@@ -386,11 +596,13 @@ server.tool(
     type: z.string().describe('Type of context to retrieve')
   },
   async (params) => {
-    const result = await contextTools.getContext({
-      workspace_id: params.workspace_id,
-      plan_id: params.plan_id,
-      type: params.type
-    });
+    const result = await withLogging('get_context', params, () =>
+      contextTools.getContext({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id,
+        type: params.type
+      })
+    );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
     };
@@ -407,12 +619,14 @@ server.tool(
     content: z.string().describe('Content of the research note')
   },
   async (params) => {
-    const result = await contextTools.appendResearch({
-      workspace_id: params.workspace_id,
-      plan_id: params.plan_id,
-      filename: params.filename,
-      content: params.content
-    });
+    const result = await withLogging('append_research', params, () =>
+      contextTools.appendResearch({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id,
+        filename: params.filename,
+        content: params.content
+      })
+    );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
     };
@@ -427,10 +641,12 @@ server.tool(
     plan_id: z.string().describe('The plan ID')
   },
   async (params) => {
-    const result = await contextTools.listContext({
-      workspace_id: params.workspace_id,
-      plan_id: params.plan_id
-    });
+    const result = await withLogging('list_context', params, () =>
+      contextTools.listContext({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id
+      })
+    );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
     };
@@ -445,10 +661,34 @@ server.tool(
     plan_id: z.string().describe('The plan ID')
   },
   async (params) => {
-    const result = await contextTools.listResearchNotes({
-      workspace_id: params.workspace_id,
-      plan_id: params.plan_id
-    });
+    const result = await withLogging('list_research_notes', params, () =>
+      contextTools.listResearchNotes({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id
+      })
+    );
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+    };
+  }
+);
+
+server.tool(
+  'generate_plan_instructions',
+  'Generate a dynamic .instructions.md file with current plan context. Optionally writes to a file path for Copilot to discover.',
+  {
+    workspace_id: z.string().describe('The workspace ID'),
+    plan_id: z.string().describe('The plan ID'),
+    output_path: z.string().optional().describe('Optional path to write the instructions file (e.g., .github/instructions/current-plan.instructions.md)')
+  },
+  async (params) => {
+    const result = await withLogging('generate_plan_instructions', params, () =>
+      contextTools.generatePlanInstructions({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id,
+        output_path: params.output_path
+      })
+    );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
     };
@@ -463,8 +703,10 @@ server.tool(
   'list_agents',
   'List all available agent instruction files that can be deployed to workspaces.',
   {},
-  async () => {
-    const result = await agentTools.listAgents();
+  async (params) => {
+    const result = await withLogging('list_agents', params, () =>
+      agentTools.listAgents()
+    );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
     };
@@ -473,16 +715,22 @@ server.tool(
 
 server.tool(
   'deploy_agents_to_workspace',
-  'Copy agent instruction files (.agent.md) to a workspace\'s .github/agents/ directory for VS Code to discover.',
+  'Copy agent instruction files (.agent.md), prompt files (.prompt.md), and instruction files (.instructions.md) to a workspace\'s .github/ directory for VS Code Copilot to discover.',
   {
     workspace_path: z.string().describe('Absolute path to the target workspace'),
-    agents: z.array(z.string()).optional().describe('Optional list of specific agents to deploy (e.g., ["auditor", "executor"]). Deploys all if omitted.')
+    agents: z.array(z.string()).optional().describe('Optional list of specific agents to deploy (e.g., ["auditor", "executor"]). Deploys all if omitted.'),
+    include_prompts: z.boolean().optional().describe('Whether to deploy prompt files. Defaults to true.'),
+    include_instructions: z.boolean().optional().describe('Whether to deploy instruction files. Defaults to true.')
   },
   async (params) => {
-    const result = await agentTools.deployAgentsToWorkspace({
-      workspace_path: params.workspace_path,
-      agents: params.agents
-    });
+    const result = await withLogging('deploy_agents_to_workspace', params, () =>
+      agentTools.deployAgentsToWorkspace({
+        workspace_path: params.workspace_path,
+        agents: params.agents,
+        include_prompts: params.include_prompts,
+        include_instructions: params.include_instructions
+      })
+    );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
     };
@@ -496,9 +744,132 @@ server.tool(
     agent_name: z.string().describe('Name of the agent (e.g., "auditor", "executor")')
   },
   async (params) => {
-    const result = await agentTools.getAgentInstructions({
-      agent_name: params.agent_name
-    });
+    const result = await withLogging('get_agent_instructions', params, () =>
+      agentTools.getAgentInstructions({
+        agent_name: params.agent_name
+      })
+    );
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+    };
+  }
+);
+
+// =============================================================================
+// Agent Validation Tools - MUST be called after initialise_agent
+// =============================================================================
+
+const ValidationParamsSchema = {
+  workspace_id: z.string().describe('The workspace ID'),
+  plan_id: z.string().describe('The plan ID')
+};
+
+server.tool(
+  'validate_coordinator',
+  'REQUIRED after initialise_agent for Coordinator. Validates this is the correct agent and returns role boundaries. If wrong agent, returns switch instruction.',
+  ValidationParamsSchema,
+  async (params) => {
+    const result = await withLogging('validate_coordinator', params, () =>
+      validationTools.validateCoordinator(params)
+    );
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+    };
+  }
+);
+
+server.tool(
+  'validate_researcher',
+  'REQUIRED after initialise_agent for Researcher. Validates this is the correct agent and returns role boundaries. If wrong agent, returns switch instruction.',
+  ValidationParamsSchema,
+  async (params) => {
+    const result = await withLogging('validate_researcher', params, () =>
+      validationTools.validateResearcher(params)
+    );
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+    };
+  }
+);
+
+server.tool(
+  'validate_architect',
+  'REQUIRED after initialise_agent for Architect. Validates this is the correct agent and returns role boundaries. If wrong agent, returns switch instruction.',
+  ValidationParamsSchema,
+  async (params) => {
+    const result = await withLogging('validate_architect', params, () =>
+      validationTools.validateArchitect(params)
+    );
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+    };
+  }
+);
+
+server.tool(
+  'validate_executor',
+  'REQUIRED after initialise_agent for Executor. Validates this is the correct agent and returns role boundaries. If wrong agent, returns switch instruction.',
+  ValidationParamsSchema,
+  async (params) => {
+    const result = await withLogging('validate_executor', params, () =>
+      validationTools.validateExecutor(params)
+    );
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+    };
+  }
+);
+
+server.tool(
+  'validate_reviewer',
+  'REQUIRED after initialise_agent for Reviewer. Validates this is the correct agent and returns role boundaries. If wrong agent, returns switch instruction.',
+  ValidationParamsSchema,
+  async (params) => {
+    const result = await withLogging('validate_reviewer', params, () =>
+      validationTools.validateReviewer(params)
+    );
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+    };
+  }
+);
+
+server.tool(
+  'validate_tester',
+  'REQUIRED after initialise_agent for Tester. Validates this is the correct agent and returns role boundaries. If wrong agent, returns switch instruction.',
+  ValidationParamsSchema,
+  async (params) => {
+    const result = await withLogging('validate_tester', params, () =>
+      validationTools.validateTester(params)
+    );
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+    };
+  }
+);
+
+server.tool(
+  'validate_revisionist',
+  'REQUIRED after initialise_agent for Revisionist. Validates this is the correct agent and returns role boundaries. If wrong agent, returns switch instruction.',
+  ValidationParamsSchema,
+  async (params) => {
+    const result = await withLogging('validate_revisionist', params, () =>
+      validationTools.validateRevisionist(params)
+    );
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+    };
+  }
+);
+
+server.tool(
+  'validate_archivist',
+  'REQUIRED after initialise_agent for Archivist. Validates this is the correct agent and returns role boundaries. If wrong agent, returns switch instruction.',
+  ValidationParamsSchema,
+  async (params) => {
+    const result = await withLogging('validate_archivist', params, () =>
+      validationTools.validateArchivist(params)
+    );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
     };

@@ -3,10 +3,10 @@
     "project-memory": {
       "type": "stdio",
       "command": "node",
-      "args": ["C:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\server\\dist\\index.js"],
+      "args": ["${workspaceFolder}\\server\\dist\\index.js"],
       "env": {
-        "MBS_DATA_ROOT": "C:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\data",
-        "MBS_AGENTS_ROOT": "C:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\agents"
+        "MBS_DATA_ROOT": "${workspaceFolder}\\data",
+        "MBS_AGENTS_ROOT": "${workspaceFolder}\\agents"
       }
     },
     "filesystem": {
@@ -29,13 +29,6 @@
       "args": [
         "-y",
         "@modelcontextprotocol/server-memory"
-      ]
-    },
-    "microsoft/markitdown": {
-      "command": "uvx",
-      "args": [
-        "--native-tls",
-        "markitdown-mcp"
       ]
     }
   }

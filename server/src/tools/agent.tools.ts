@@ -8,6 +8,8 @@ import type { ToolResponse } from '../types/index.js';
 
 // Path to the agents directory (relative to the server)
 const AGENTS_ROOT = process.env.MBS_AGENTS_ROOT || path.join(process.cwd(), '..', 'agents');
+const PROMPTS_ROOT = process.env.MBS_PROMPTS_ROOT || path.join(process.cwd(), '..', 'prompts');
+const INSTRUCTIONS_ROOT = process.env.MBS_INSTRUCTIONS_ROOT || path.join(process.cwd(), '..', 'instructions');
 
 /**
  * List available agent instruction files
@@ -30,13 +32,14 @@ export async function listAgents(): Promise<ToolResponse<string[]>> {
 }
 
 /**
- * Deploy agent instruction files to a workspace's .vscode/agents directory
+ * Deploy agent instruction files to a workspace's .github/agents directory
+ * Also deploys prompts and instructions if available
  */
 export async function deployAgentsToWorkspace(
-  params: { workspace_path: string; agents?: string[] }
-): Promise<ToolResponse<{ deployed: string[]; target_path: string }>> {
+  params: { workspace_path: string; agents?: string[]; include_prompts?: boolean; include_instructions?: boolean }
+): Promise<ToolResponse<{ deployed: string[]; prompts_deployed: string[]; instructions_deployed: string[]; target_path: string }>> {
   try {
-    const { workspace_path, agents } = params;
+    const { workspace_path, agents, include_prompts = true, include_instructions = true } = params;
     
     if (!workspace_path) {
       return {
@@ -45,11 +48,13 @@ export async function deployAgentsToWorkspace(
       };
     }
     
-    // Target directory: {workspace}/.github/agents/
-    const targetDir = path.join(workspace_path, '.github', 'agents');
+    // Target directories under {workspace}/.github/
+    const agentsDir = path.join(workspace_path, '.github', 'agents');
+    const promptsDir = path.join(workspace_path, '.github', 'prompts');
+    const instructionsDir = path.join(workspace_path, '.github', 'instructions');
     
-    // Ensure target directory exists
-    await fs.mkdir(targetDir, { recursive: true });
+    // Ensure target directories exist
+    await fs.mkdir(agentsDir, { recursive: true });
     
     // Get list of agent files to deploy
     const allAgentFiles = await fs.readdir(AGENTS_ROOT);
@@ -71,18 +76,68 @@ export async function deployAgentsToWorkspace(
     const deployed: string[] = [];
     for (const file of filesToDeploy) {
       const sourcePath = path.join(AGENTS_ROOT, file);
-      const targetPath = path.join(targetDir, file);
+      const targetPath = path.join(agentsDir, file);
       
       const content = await fs.readFile(sourcePath, 'utf-8');
       await fs.writeFile(targetPath, content, 'utf-8');
       deployed.push(file);
     }
     
+    // Deploy prompts if requested and directory exists
+    const prompts_deployed: string[] = [];
+    if (include_prompts) {
+      try {
+        const promptFiles = await fs.readdir(PROMPTS_ROOT);
+        const promptMdFiles = promptFiles.filter(f => f.endsWith('.prompt.md'));
+        
+        if (promptMdFiles.length > 0) {
+          await fs.mkdir(promptsDir, { recursive: true });
+          
+          for (const file of promptMdFiles) {
+            const sourcePath = path.join(PROMPTS_ROOT, file);
+            const targetPath = path.join(promptsDir, file);
+            
+            const content = await fs.readFile(sourcePath, 'utf-8');
+            await fs.writeFile(targetPath, content, 'utf-8');
+            prompts_deployed.push(file);
+          }
+        }
+      } catch {
+        // Prompts directory doesn't exist, skip
+      }
+    }
+    
+    // Deploy instructions if requested and directory exists
+    const instructions_deployed: string[] = [];
+    if (include_instructions) {
+      try {
+        const instructionFiles = await fs.readdir(INSTRUCTIONS_ROOT);
+        const instructionMdFiles = instructionFiles.filter(f => f.endsWith('.instructions.md'));
+        
+        if (instructionMdFiles.length > 0) {
+          await fs.mkdir(instructionsDir, { recursive: true });
+          
+          for (const file of instructionMdFiles) {
+            const sourcePath = path.join(INSTRUCTIONS_ROOT, file);
+            const targetPath = path.join(instructionsDir, file);
+            
+            const content = await fs.readFile(sourcePath, 'utf-8');
+            await fs.writeFile(targetPath, content, 'utf-8');
+            instructions_deployed.push(file);
+          }
+        }
+      } catch {
+        // Instructions directory doesn't exist, skip
+      }
+    }
+    
     return {
       success: true,
       data: {
         deployed,
-        target_path: targetDir
+        prompts_deployed,
+        instructions_deployed,
+        target_path: agentsDir
       }
     };
   } catch (error) {

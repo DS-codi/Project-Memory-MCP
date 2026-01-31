@@ -125,14 +125,15 @@ export function verifyLineageIntegrity(
   const issues: string[] = [];
   
   // Valid deployment paths
+  // Note: Coordinator is the master orchestrator and can delegate to ANY agent
   const validTransitions: Record<string, string[]> = {
     'User': ['Coordinator'],
-    'Coordinator': ['Researcher', 'Architect'],
+    'Coordinator': ['Researcher', 'Architect', 'Executor', 'Reviewer', 'Tester', 'Revisionist', 'Archivist'],
     'Researcher': ['Architect', 'Coordinator'],
     'Architect': ['Executor', 'Researcher', 'Coordinator'],
     'Executor': ['Reviewer', 'Revisionist'],
     'Revisionist': ['Executor', 'Researcher', 'Coordinator'],
-    'Reviewer': ['Tester', 'Executor', 'Revisionist'],
+    'Reviewer': ['Tester', 'Executor', 'Revisionist', 'Archivist'],
     'Tester': ['Archivist', 'Executor', 'Revisionist'],
     'Archivist': []  // Terminal state
   };

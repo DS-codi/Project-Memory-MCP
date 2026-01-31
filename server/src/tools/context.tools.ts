@@ -7,6 +7,7 @@
 
 import type {
   StoreContextParams,
+  StoreInitialContextParams,
   GetContextParams,
   AppendResearchParams,
   ToolResponse
@@ -102,6 +103,94 @@ export async function getContext(
     return {
       success: false,
       error: `Failed to get context: ${(error as Error).message}`
+    };
+  }
+}
+
+/**
+ * Store the initial user context for a plan.
+ * 
+ * This is a specialized tool for Coordinators to capture the full user request
+ * and all associated context when creating a new plan. This data is used by
+ * Researcher and Architect to understand what the user wants.
+ * 
+ * Creates: original_request.json in the plan folder
+ */
+export async function storeInitialContext(
+  params: StoreInitialContextParams
+): Promise<ToolResponse<{ path: string; context_summary: string }>> {
+  try {
+    const { 
+      workspace_id, 
+      plan_id, 
+      user_request,
+      files_mentioned,
+      file_contents,
+      requirements,
+      constraints,
+      examples,
+      conversation_context,
+      additional_notes
+    } = params;
+    
+    if (!workspace_id || !plan_id || !user_request) {
+      return {
+        success: false,
+        error: 'workspace_id, plan_id, and user_request are required'
+      };
+    }
+    
+    // Verify plan exists
+    const state = await store.getPlanState(workspace_id, plan_id);
+    if (!state) {
+      return {
+        success: false,
+        error: `Plan not found: ${plan_id}`
+      };
+    }
+    
+    const contextPath = store.getContextPath(workspace_id, plan_id, 'original_request');
+    
+    // Structure the initial context
+    const initialContext = {
+      type: 'original_request',
+      plan_id,
+      workspace_id,
+      captured_at: store.nowISO(),
+      user_request: sanitizeContent(user_request),
+      context: {
+        files_mentioned: files_mentioned || [],
+        file_contents: file_contents ? sanitizeJsonData(file_contents) : {},
+        requirements: requirements || [],
+        constraints: constraints || [],
+        examples: examples || [],
+        conversation_context: conversation_context ? sanitizeContent(conversation_context) : null,
+        additional_notes: additional_notes ? sanitizeContent(additional_notes) : null
+      }
+    };
+    
+    await store.writeJson(contextPath, initialContext);
+    
+    // Generate a summary for the response
+    const contextSummary = [
+      `User request: ${user_request.substring(0, 100)}${user_request.length > 100 ? '...' : ''}`,
+      files_mentioned?.length ? `Files mentioned: ${files_mentioned.length}` : null,
+      file_contents ? `File contents attached: ${Object.keys(file_contents).length}` : null,
+      requirements?.length ? `Requirements: ${requirements.length}` : null,
+      constraints?.length ? `Constraints: ${constraints.length}` : null,
+    ].filter(Boolean).join(' | ');
+    
+    return {
+      success: true,
+      data: { 
+        path: contextPath,
+        context_summary: contextSummary
+      }
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to store initial context: ${(error as Error).message}`
     };
   }
 }
@@ -257,6 +346,131 @@ export async function listResearchNotes(
     return {
       success: false,
       error: `Failed to list research notes: ${(error as Error).message}`
+    };
+  }
+}
+
+/**
+ * Generate a dynamic .instructions.md file with current plan context
+ * This can be written to the workspace for Copilot to pick up
+ */
+export async function generatePlanInstructions(
+  params: { workspace_id: string; plan_id: string; output_path?: string }
+): Promise<ToolResponse<{ content: string; written_to?: string }>> {
+  try {
+    const { workspace_id, plan_id, output_path } = params;
+    
+    if (!workspace_id || !plan_id) {
+      return {
+        success: false,
+        error: 'workspace_id and plan_id are required'
+      };
+    }
+    
+    // Get plan state
+    const state = await store.getPlanState(workspace_id, plan_id);
+    if (!state) {
+      return {
+        success: false,
+        error: `Plan not found: ${plan_id}`
+      };
+    }
+    
+    // Get recent handoffs (last 5)
+    const recentHandoffs = state.lineage?.slice(-5) || [];
+    
+    // Get active/pending steps
+    const activeSteps = state.steps?.filter(s => s.status === 'active') || [];
+    const pendingSteps = state.steps?.filter(s => s.status === 'pending')?.slice(0, 5) || [];
+    
+    // Get current agent session
+    const currentSession = state.agent_sessions?.find(s => !s.completed_at);
+    
+    // Generate markdown content
+    const content = `---
+applyTo: "**/*"
+---
+
+# Current Plan Context
+
+> Auto-generated instructions for plan: ${state.title}
+> Generated: ${new Date().toISOString()}
+
+## Plan Overview
+
+- **Plan ID**: ${plan_id}
+- **Title**: ${state.title}
+- **Category**: ${state.category || 'unknown'}
+- **Priority**: ${state.priority || 'medium'}
+- **Status**: ${state.status}
+- **Current Phase**: ${state.current_phase || 'not set'}
+
+## Current Agent
+
+${currentSession ? `
+- **Agent**: ${currentSession.agent_type}
+- **Started**: ${currentSession.started_at}
+` : 'No active agent session'}
+
+## Active Steps
+
+${activeSteps.length > 0 
+  ? activeSteps.map(s => `- [ ] **${s.task}** (step ${s.index})`).join('\n')
+  : 'No active steps'}
+
+## Upcoming Steps
+
+${pendingSteps.length > 0
+  ? pendingSteps.map(s => `- ${s.task}`).join('\n')
+  : 'No pending steps'}
+
+## Recent Handoffs
+
+${recentHandoffs.length > 0
+  ? recentHandoffs.map(h => `- ${h.from_agent} → ${h.to_agent}: ${h.reason}`).join('\n')
+  : 'No handoff history'}
+
+## Recommended Next Agent
+
+${state.recommended_next_agent 
+  ? `**${state.recommended_next_agent}** is recommended as the next agent.`
+  : 'No recommendation set'}
+
+## Instructions
+
+When working on this plan:
+1. Use \`get_plan_state\` to fetch the latest state before making decisions
+2. Use \`update_step\` to mark progress on active steps
+3. Call \`handoff\` to recommend the next agent when done
+4. Call \`complete_agent\` to finalize your session
+`;
+
+    // Write to file if output path provided
+    if (output_path) {
+      const { promises: fs } = await import('fs');
+      const path = await import('path');
+      
+      // Ensure directory exists
+      await fs.mkdir(path.dirname(output_path), { recursive: true });
+      await fs.writeFile(output_path, content, 'utf-8');
+      
+      return {
+        success: true,
+        data: {
+          content,
+          written_to: output_path
+        }
+      };
+    }
+    
+    return {
+      success: true,
+      data: { content }
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to generate plan instructions: ${(error as Error).message}`
     };
   }
 }

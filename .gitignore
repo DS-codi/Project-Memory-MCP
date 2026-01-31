@@ -25,3 +25,11 @@ npm-debug.log*
 
 # Data directory (may contain local state)
 data/
+
+# Playwright
+e2e-report/
+playwright-report/
+test-results/
+
+# Plan documentation
+docs/plans/

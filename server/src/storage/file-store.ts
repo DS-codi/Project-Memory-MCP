@@ -20,6 +20,51 @@ import type { PlanState, WorkspaceMeta, WorkspaceProfile, RequestCategory, Reque
 const DATA_ROOT = process.env.MBS_DATA_ROOT || path.join(process.cwd(), '..', 'data');
 
 // =============================================================================
+// File Locking for Concurrent Access
+// =============================================================================
+
+/**
+ * Simple in-memory lock manager to prevent concurrent file access race conditions.
+ * Uses a Map of promises to serialize access to the same file path.
+ */
+class FileLockManager {
+  private locks: Map<string, Promise<void>> = new Map();
+
+  /**
+   * Execute an operation with exclusive access to a file path.
+   * Multiple calls to the same path will be serialized.
+   */
+  async withLock<T>(filePath: string, operation: () => Promise<T>): Promise<T> {
+    const normalizedPath = path.normalize(filePath).toLowerCase();
+    
+    // Wait for any existing lock on this path
+    const existingLock = this.locks.get(normalizedPath);
+    if (existingLock) {
+      await existingLock.catch(() => {}); // Ignore errors from previous operations
+    }
+
+    // Create a new lock for this operation
+    let resolveLock: () => void;
+    const lockPromise = new Promise<void>((resolve) => {
+      resolveLock = resolve;
+    });
+    this.locks.set(normalizedPath, lockPromise);
+
+    try {
+      return await operation();
+    } finally {
+      resolveLock!();
+      // Clean up lock if it's still ours
+      if (this.locks.get(normalizedPath) === lockPromise) {
+        this.locks.delete(normalizedPath);
+      }
+    }
+  }
+}
+
+const fileLockManager = new FileLockManager();
+
+// =============================================================================
 // Utility Functions
 // =============================================================================
 
@@ -141,11 +186,11 @@ export async function listDirs(dirPath: string): Promise<string[]> {
 }
 
 // =============================================================================
-// JSON File Operations
+// JSON File Operations (with file locking to prevent race conditions)
 // =============================================================================
 
 /**
- * Read a JSON file
+ * Read a JSON file (not locked - use readJsonLocked for concurrent access)
  */
 export async function readJson<T>(filePath: string): Promise<T | null> {
   try {
@@ -157,11 +202,27 @@ export async function readJson<T>(filePath: string): Promise<T | null> {
 }
 
 /**
- * Write a JSON file with pretty formatting
+ * Write a JSON file with pretty formatting (not locked - use writeJsonLocked for concurrent access)
  */
 export async function writeJson<T>(filePath: string, data: T): Promise<void> {
   await ensureDir(path.dirname(filePath));
   await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
+}
+
+/**
+ * Read-modify-write a JSON file with locking to prevent race conditions.
+ * Use this for operations that read, modify, and save state.
+ */
+export async function modifyJsonLocked<T>(
+  filePath: string,
+  modifier: (data: T | null) => Promise<T> | T
+): Promise<T> {
+  return fileLockManager.withLock(filePath, async () => {
+    const data = await readJson<T>(filePath);
+    const modified = await modifier(data);
+    await writeJson(filePath, modified);
+    return modified;
+  });
 }
 
 /**
@@ -273,18 +334,43 @@ export async function createWorkspace(
 // =============================================================================
 
 /**
- * Get a plan state by ID
+ * Find a plan by ID across all workspaces
+ * Returns the workspace_id and plan state if found
  */
-export async function getPlanState(workspaceId: string, planId: string): Promise<PlanState | null> {
-  return readJson<PlanState>(getPlanStatePath(workspaceId, planId));
+export async function findPlanById(planId: string): Promise<{ workspace_id: string; plan: PlanState } | null> {
+  const workspaceIds = await listDirs(DATA_ROOT);
+  
+  for (const workspaceId of workspaceIds) {
+    const planPath = getPlanStatePath(workspaceId, planId);
+    const plan = await readJson<PlanState>(planPath);
+    if (plan) {
+      return { workspace_id: workspaceId, plan };
+    }
+  }
+  
+  return null;
 }
 
 /**
- * Save plan state
+ * Get a plan state by ID
+ */
+export async function getPlanState(workspaceId: string, planId: string): Promise<PlanState | null> {
+  const filePath = getPlanStatePath(workspaceId, planId);
+  // Use lock to ensure we don't read during a concurrent write
+  return fileLockManager.withLock(filePath, async () => {
+    return readJson<PlanState>(filePath);
+  });
+}
+
+/**
+ * Save plan state with locking to prevent race conditions
  */
 export async function savePlanState(state: PlanState): Promise<void> {
-  state.updated_at = nowISO();
-  await writeJson(getPlanStatePath(state.workspace_id, state.id), state);
+  const filePath = getPlanStatePath(state.workspace_id, state.id);
+  await fileLockManager.withLock(filePath, async () => {
+    state.updated_at = nowISO();
+    await writeJson(filePath, state);
+  });
 }
 
 /**

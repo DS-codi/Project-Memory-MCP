@@ -1,0 +1,1222 @@
+log.ts:440  INFO Started local extension host with pid 6088.
+log.ts:450  WARN [redhat.vscode-xml]: Cannot register 'redhat.telemetry.enabled'. This property is already registered.
+warn @ log.ts:450
+warn @ log.ts:559
+warn @ logService.ts:47
+Lb @ abstractExtensionService.ts:1153
+n @ abstractExtensionService.ts:1114
+d @ extensionsRegistry.ts:40
+warn @ extensionsRegistry.ts:53
+o @ configurationExtensionPoint.ts:279
+n @ configurationExtensionPoint.ts:252
+(anonymous) @ configurationExtensionPoint.ts:316
+d @ extensionsRegistry.ts:154
+acceptUsers @ extensionsRegistry.ts:145
+Mb @ abstractExtensionService.ts:1191
+Jb @ abstractExtensionService.ts:1121
+nb @ abstractExtensionService.ts:549
+webviewElement.ts:409 Unrecognized feature: 'local-network-access'.
+gb @ webviewElement.ts:409
+G$e @ webviewElement.ts:188
+vAt @ webviewElement.ts:60
+o @ instantiationService.ts:162
+createInstance @ instantiationService.ts:128
+createWebviewElement @ webviewService.ts:13
+P @ overlayWebview.ts:225
+claim @ overlayWebview.ts:136
+oc @ webviewViewPane.ts:165
+(anonymous) @ webviewViewPane.ts:96
+C @ event.ts:1212
+D @ event.ts:1223
+fire @ event.ts:1247
+setVisible @ viewPane.ts:409
+(anonymous) @ viewPaneContainer.ts:675
+setVisible @ viewPaneContainer.ts:675
+setVisible @ panecomposite.ts:53
+Eb @ compositePart.ts:287
+Eb @ paneCompositePart.ts:234
+Cb @ compositePart.ts:165
+Bb @ compositePart.ts:129
+Bc @ paneCompositePart.ts:536
+openPaneComposite @ paneCompositePart.ts:510
+webviewElement.ts:489 An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing.
+mountTo @ webviewElement.ts:489
+P @ overlayWebview.ts:250
+claim @ overlayWebview.ts:136
+oc @ webviewViewPane.ts:165
+(anonymous) @ webviewViewPane.ts:96
+C @ event.ts:1212
+D @ event.ts:1223
+fire @ event.ts:1247
+setVisible @ viewPane.ts:409
+(anonymous) @ viewPaneContainer.ts:675
+setVisible @ viewPaneContainer.ts:675
+setVisible @ panecomposite.ts:53
+Eb @ compositePart.ts:287
+Eb @ paneCompositePart.ts:234
+Cb @ compositePart.ts:165
+Bb @ compositePart.ts:129
+Bc @ paneCompositePart.ts:536
+openPaneComposite @ paneCompositePart.ts:510
+amdX.ts:166  GET vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/node_modules/@xterm/addon-ligatures/lib/addon-ligatures.js net::ERR_FILE_NOT_FOUND
+(anonymous) @ amdX.ts:166
+h @ amdX.ts:140
+load @ amdX.ts:108
+up @ amdX.ts:226
+importAddon @ xtermAddonImporter.ts:46
+W @ terminalStickyScrollOverlay.ts:429
+P @ terminalStickyScrollOverlay.ts:203
+(anonymous) @ decorators.ts:84
+setTimeout
+e.setTimeout @ window.ts:124
+(anonymous) @ decorators.ts:83
+O @ terminalStickyScrollOverlay.ts:194
+U @ terminalStickyScrollOverlay.ts:342
+S @ terminalStickyScrollOverlay.ts:258
+(anonymous) @ terminalStickyScrollOverlay.ts:220
+script
+(anonymous) @ amdX.ts:141
+h @ amdX.ts:140
+load @ amdX.ts:108
+up @ amdX.ts:226
+importAddon @ xtermAddonImporter.ts:49
+(anonymous) @ terminalStickyScrollOverlay.ts:133
+Promise.then
+Oz @ terminalStickyScrollOverlay.ts:103
+o @ instantiationService.ts:162
+createInstance @ instantiationService.ts:128
+s @ terminalStickyScrollContribution.ts:101
+r @ terminalStickyScrollContribution.ts:73
+(anonymous) @ terminalStickyScrollContribution.ts:112
+C @ event.ts:1212
+fire @ event.ts:1243
+setHasRichCommandDetection @ commandDetectionCapability.ts:245
+deserialize @ commandDetectionCapability.ts:472
+deserialize @ shellIntegrationAddon.ts:743
+(anonymous) @ terminalInstance.ts:878
+C @ event.ts:1212
+fire @ event.ts:1243
+(anonymous) @ terminalProcessManager.ts:404
+C @ event.ts:1212
+fire @ event.ts:1243
+handleReplay @ basePty.ts:108
+await in handleReplay
+(anonymous) @ localTerminalBackend.ts:160
+C @ event.ts:1212
+fire @ event.ts:1243
+C @ event.ts:1212
+fire @ event.ts:1243
+l @ ipc.ts:689
+t @ ipc.ts:757
+s @ ipc.ts:746
+(anonymous) @ ipc.ts:547
+C @ event.ts:1212
+D @ event.ts:1223
+fire @ event.ts:1247
+he @ event.ts:601
+log.ts:460   ERR An unknown error occurred. Please consult the log for more details.
+error @ log.ts:460
+error @ log.ts:565
+error @ logService.ts:51
+oc @ workbench.ts:123
+(anonymous) @ workbench.ts:104
+onUnexpectedError @ errors.ts:65
+vt @ errors.ts:110
+(anonymous) @ workbench.ts:97
+log.ts:440  INFO MCP Registry configured: https://api.mcp.github.com
+TMScopeRegistry.ts:46 Overwriting grammar scope name to file mapping for scope source.python.
+Old grammar file: file:///c%3A/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/extensions/python/syntaxes/MagicPython.tmLanguage.json.
+New grammar file: file:///c%3A/Users/User/.vscode/extensions/ms-python.vscode-pylance-2025.10.4/grammars/PylancePython.tmLanguage
+register @ TMScopeRegistry.ts:46
+cWs @ TMGrammarFactory.ts:74
+U @ textMateTokenizationFeatureImpl.ts:273
+await in U
+W @ textMateTokenizationFeatureImpl.ts:293
+(anonymous) @ textMateTokenizationFeatureImpl.ts:131
+get tokenizationSupport @ languages.ts:2498
+j @ tokenizationRegistry.ts:146
+resolve @ tokenizationRegistry.ts:140
+getOrCreate @ tokenizationRegistry.ts:76
+requestRichLanguageFeatures @ languageService.ts:145
+dg @ textModel.ts:412
+o @ instantiationService.ts:162
+createInstance @ instantiationService.ts:128
+I @ modelService.ts:310
+createModel @ modelService.ts:444
+I @ textEditorModel.ts:172
+H @ textEditorModel.ts:166
+Gb @ textFileEditorModel.ts:565
+Fb @ textFileEditorModel.ts:547
+Eb @ textFileEditorModel.ts:471
+await in Eb
+Ab @ textFileEditorModel.ts:329
+await in Ab
+resolve @ textFileEditorModel.ts:307
+W @ textFileEditorModelManager.ts:423
+resolve @ textFileEditorModelManager.ts:364
+r @ textModelResolverService.ts:70
+f @ textModelResolverService.ts:38
+acquire @ lifecycle.ts:694
+acquire @ lifecycle.ts:724
+createModelReference @ textModelResolverService.ts:238
+h @ installedMcpServersDiscovery.ts:52
+(anonymous) @ installedMcpServersDiscovery.ts:72
+j @ installedMcpServersDiscovery.ts:74
+(anonymous) @ installedMcpServersDiscovery.ts:45
+queue @ async.ts:271
+(anonymous) @ installedMcpServersDiscovery.ts:45
+C @ event.ts:1212
+fire @ event.ts:1243
+Q @ mcpWorkbenchService.ts:270
+(anonymous) @ mcpWorkbenchService.ts:198
+C @ event.ts:1212
+fire @ event.ts:1243
+(anonymous) @ mcpWorkbenchManagementService.ts:185
+C @ event.ts:1212
+fire @ event.ts:1243
+I @ mcpWorkbenchManagementService.ts:614
+await in I
+(anonymous) @ mcpWorkbenchManagementService.ts:591
+H @ mcpWorkbenchManagementService.ts:591
+await in H
+F @ mcpWorkbenchManagementService.ts:566
+await in F
+qdt @ mcpWorkbenchManagementService.ts:560
+o @ instantiationService.ts:162
+createInstance @ instantiationService.ts:128
+Hdt @ mcpWorkbenchManagementService.ts:134
+aLt @ mcpWorkbenchManagementService.ts:35
+o @ instantiationService.ts:162
+(anonymous) @ instantiationService.ts:316
+V$t.g @ async.ts:1507
+get value @ async.ts:1524
+get @ instantiationService.ts:367
+queryLocal @ mcpWorkbenchService.ts:372
+fmt @ mcpWorkbenchService.ts:202
+o @ instantiationService.ts:162
+x @ instantiationService.ts:295
+w @ instantiationService.ts:284
+v @ instantiationService.ts:273
+u @ instantiationService.ts:206
+s @ instantiationService.ts:190
+o @ instantiationService.ts:140
+createInstance @ instantiationService.ts:125
+(anonymous) @ mcpDiscovery.ts:34
+l @ autorunImpl.ts:110
+_8 @ autorunImpl.ts:58
+Le @ autorun.ts:18
+qpt @ mcpDiscovery.ts:27
+o @ instantiationService.ts:162
+createInstance @ instantiationService.ts:128
+F @ contributions.ts:381
+l @ contributions.ts:349
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+C @ contributions.ts:366
+z @ contributions.ts:332
+(anonymous) @ contributions.ts:292
+TMScopeRegistry.ts:46 Overwriting grammar scope name to file mapping for scope source.java.
+Old grammar file: file:///c%3A/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/extensions/java/syntaxes/java.tmLanguage.json.
+New grammar file: file:///c%3A/Users/User/.vscode/extensions/redhat.java-1.52.0-win32-x64/language-support/java/java.tmLanguage.json
+register @ TMScopeRegistry.ts:46
+cWs @ TMGrammarFactory.ts:74
+U @ textMateTokenizationFeatureImpl.ts:273
+await in U
+W @ textMateTokenizationFeatureImpl.ts:293
+(anonymous) @ textMateTokenizationFeatureImpl.ts:131
+get tokenizationSupport @ languages.ts:2498
+j @ tokenizationRegistry.ts:146
+resolve @ tokenizationRegistry.ts:140
+getOrCreate @ tokenizationRegistry.ts:76
+requestRichLanguageFeatures @ languageService.ts:145
+dg @ textModel.ts:412
+o @ instantiationService.ts:162
+createInstance @ instantiationService.ts:128
+I @ modelService.ts:310
+createModel @ modelService.ts:444
+I @ textEditorModel.ts:172
+H @ textEditorModel.ts:166
+Gb @ textFileEditorModel.ts:565
+Fb @ textFileEditorModel.ts:547
+Eb @ textFileEditorModel.ts:471
+await in Eb
+Ab @ textFileEditorModel.ts:329
+await in Ab
+resolve @ textFileEditorModel.ts:307
+W @ textFileEditorModelManager.ts:423
+resolve @ textFileEditorModelManager.ts:364
+r @ textModelResolverService.ts:70
+f @ textModelResolverService.ts:38
+acquire @ lifecycle.ts:694
+acquire @ lifecycle.ts:724
+createModelReference @ textModelResolverService.ts:238
+h @ installedMcpServersDiscovery.ts:52
+(anonymous) @ installedMcpServersDiscovery.ts:72
+j @ installedMcpServersDiscovery.ts:74
+(anonymous) @ installedMcpServersDiscovery.ts:45
+queue @ async.ts:271
+(anonymous) @ installedMcpServersDiscovery.ts:45
+C @ event.ts:1212
+fire @ event.ts:1243
+Q @ mcpWorkbenchService.ts:270
+(anonymous) @ mcpWorkbenchService.ts:198
+C @ event.ts:1212
+fire @ event.ts:1243
+(anonymous) @ mcpWorkbenchManagementService.ts:185
+C @ event.ts:1212
+fire @ event.ts:1243
+I @ mcpWorkbenchManagementService.ts:614
+await in I
+(anonymous) @ mcpWorkbenchManagementService.ts:591
+H @ mcpWorkbenchManagementService.ts:591
+await in H
+F @ mcpWorkbenchManagementService.ts:566
+await in F
+qdt @ mcpWorkbenchManagementService.ts:560
+o @ instantiationService.ts:162
+createInstance @ instantiationService.ts:128
+Hdt @ mcpWorkbenchManagementService.ts:134
+aLt @ mcpWorkbenchManagementService.ts:35
+o @ instantiationService.ts:162
+(anonymous) @ instantiationService.ts:316
+V$t.g @ async.ts:1507
+get value @ async.ts:1524
+get @ instantiationService.ts:367
+queryLocal @ mcpWorkbenchService.ts:372
+fmt @ mcpWorkbenchService.ts:202
+o @ instantiationService.ts:162
+x @ instantiationService.ts:295
+w @ instantiationService.ts:284
+v @ instantiationService.ts:273
+u @ instantiationService.ts:206
+s @ instantiationService.ts:190
+o @ instantiationService.ts:140
+createInstance @ instantiationService.ts:125
+(anonymous) @ mcpDiscovery.ts:34
+l @ autorunImpl.ts:110
+_8 @ autorunImpl.ts:58
+Le @ autorun.ts:18
+qpt @ mcpDiscovery.ts:27
+o @ instantiationService.ts:162
+createInstance @ instantiationService.ts:128
+F @ contributions.ts:381
+l @ contributions.ts:349
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+C @ contributions.ts:366
+z @ contributions.ts:332
+(anonymous) @ contributions.ts:292
+TMScopeRegistry.ts:46 Overwriting grammar scope name to file mapping for scope source.groovy.
+Old grammar file: file:///c%3A/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/extensions/groovy/syntaxes/groovy.tmLanguage.json.
+New grammar file: file:///c%3A/Users/User/.vscode/extensions/vscjava.vscode-gradle-3.17.2/syntaxes/groovy.tmLanguage.json
+register @ TMScopeRegistry.ts:46
+cWs @ TMGrammarFactory.ts:74
+U @ textMateTokenizationFeatureImpl.ts:273
+await in U
+W @ textMateTokenizationFeatureImpl.ts:293
+(anonymous) @ textMateTokenizationFeatureImpl.ts:131
+get tokenizationSupport @ languages.ts:2498
+j @ tokenizationRegistry.ts:146
+resolve @ tokenizationRegistry.ts:140
+getOrCreate @ tokenizationRegistry.ts:76
+requestRichLanguageFeatures @ languageService.ts:145
+dg @ textModel.ts:412
+o @ instantiationService.ts:162
+createInstance @ instantiationService.ts:128
+I @ modelService.ts:310
+createModel @ modelService.ts:444
+I @ textEditorModel.ts:172
+H @ textEditorModel.ts:166
+Gb @ textFileEditorModel.ts:565
+Fb @ textFileEditorModel.ts:547
+Eb @ textFileEditorModel.ts:471
+await in Eb
+Ab @ textFileEditorModel.ts:329
+await in Ab
+resolve @ textFileEditorModel.ts:307
+W @ textFileEditorModelManager.ts:423
+resolve @ textFileEditorModelManager.ts:364
+r @ textModelResolverService.ts:70
+f @ textModelResolverService.ts:38
+acquire @ lifecycle.ts:694
+acquire @ lifecycle.ts:724
+createModelReference @ textModelResolverService.ts:238
+h @ installedMcpServersDiscovery.ts:52
+(anonymous) @ installedMcpServersDiscovery.ts:72
+j @ installedMcpServersDiscovery.ts:74
+(anonymous) @ installedMcpServersDiscovery.ts:45
+queue @ async.ts:271
+(anonymous) @ installedMcpServersDiscovery.ts:45
+C @ event.ts:1212
+fire @ event.ts:1243
+Q @ mcpWorkbenchService.ts:270
+(anonymous) @ mcpWorkbenchService.ts:198
+C @ event.ts:1212
+fire @ event.ts:1243
+(anonymous) @ mcpWorkbenchManagementService.ts:185
+C @ event.ts:1212
+fire @ event.ts:1243
+I @ mcpWorkbenchManagementService.ts:614
+await in I
+(anonymous) @ mcpWorkbenchManagementService.ts:591
+H @ mcpWorkbenchManagementService.ts:591
+await in H
+F @ mcpWorkbenchManagementService.ts:566
+await in F
+qdt @ mcpWorkbenchManagementService.ts:560
+o @ instantiationService.ts:162
+createInstance @ instantiationService.ts:128
+Hdt @ mcpWorkbenchManagementService.ts:134
+aLt @ mcpWorkbenchManagementService.ts:35
+o @ instantiationService.ts:162
+(anonymous) @ instantiationService.ts:316
+V$t.g @ async.ts:1507
+get value @ async.ts:1524
+get @ instantiationService.ts:367
+queryLocal @ mcpWorkbenchService.ts:372
+fmt @ mcpWorkbenchService.ts:202
+o @ instantiationService.ts:162
+x @ instantiationService.ts:295
+w @ instantiationService.ts:284
+v @ instantiationService.ts:273
+u @ instantiationService.ts:206
+s @ instantiationService.ts:190
+o @ instantiationService.ts:140
+createInstance @ instantiationService.ts:125
+(anonymous) @ mcpDiscovery.ts:34
+l @ autorunImpl.ts:110
+_8 @ autorunImpl.ts:58
+Le @ autorun.ts:18
+qpt @ mcpDiscovery.ts:27
+o @ instantiationService.ts:162
+createInstance @ instantiationService.ts:128
+F @ contributions.ts:381
+l @ contributions.ts:349
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+l @ contributions.ts:352
+requestIdleCallback
+RK @ async.ts:1479
+c4 @ async.ts:1492
+C @ contributions.ts:366
+z @ contributions.ts:332
+(anonymous) @ contributions.ts:292
+log.ts:460   ERR [Extension Host] (node:6088) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `Code --trace-deprecation ...` to show where the warning was created)
+error @ log.ts:460
+error @ log.ts:565
+error @ logService.ts:51
+Uxs @ remoteConsoleUtil.ts:58
+$logExtensionHostMessage @ mainThreadConsole.ts:38
+S @ rpcProtocol.ts:458
+Q @ rpcProtocol.ts:443
+M @ rpcProtocol.ts:373
+L @ rpcProtocol.ts:299
+(anonymous) @ rpcProtocol.ts:161
+C @ event.ts:1212
+fire @ event.ts:1243
+fire @ ipc.net.ts:652
+l.onmessage @ localProcessExtensionHost.ts:385
+console.ts:139 [Extension Host] (node:6088) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `Code --trace-deprecation ...` to show where the warning was created)
+jxs @ console.ts:139
+$logExtensionHostMessage @ mainThreadConsole.ts:39
+S @ rpcProtocol.ts:458
+Q @ rpcProtocol.ts:443
+M @ rpcProtocol.ts:373
+L @ rpcProtocol.ts:299
+(anonymous) @ rpcProtocol.ts:161
+C @ event.ts:1212
+fire @ event.ts:1243
+fire @ ipc.net.ts:652
+l.onmessage @ localProcessExtensionHost.ts:385
+log.ts:460   ERR [Extension Host] (node:6088) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+error @ log.ts:460
+error @ log.ts:565
+error @ logService.ts:51
+Uxs @ remoteConsoleUtil.ts:58
+$logExtensionHostMessage @ mainThreadConsole.ts:38
+S @ rpcProtocol.ts:458
+Q @ rpcProtocol.ts:443
+M @ rpcProtocol.ts:373
+L @ rpcProtocol.ts:299
+(anonymous) @ rpcProtocol.ts:161
+C @ event.ts:1212
+fire @ event.ts:1243
+fire @ ipc.net.ts:652
+l.onmessage @ localProcessExtensionHost.ts:385
+console.ts:139 [Extension Host] (node:6088) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+jxs @ console.ts:139
+$logExtensionHostMessage @ mainThreadConsole.ts:39
+S @ rpcProtocol.ts:458
+Q @ rpcProtocol.ts:443
+M @ rpcProtocol.ts:373
+L @ rpcProtocol.ts:299
+(anonymous) @ rpcProtocol.ts:161
+C @ event.ts:1212
+fire @ event.ts:1243
+fire @ ipc.net.ts:652
+l.onmessage @ localProcessExtensionHost.ts:385
+TMScopeRegistry.ts:46 Overwriting grammar scope name to file mapping for scope source.python.
+Old grammar file: file:///c%3A/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/extensions/python/syntaxes/MagicPython.tmLanguage.json.
+New grammar file: file:///c%3A/Users/User/.vscode/extensions/ms-python.vscode-pylance-2025.10.4/grammars/PylancePython.tmLanguage
+register @ TMScopeRegistry.ts:46
+Is @ TMGrammarFactory.ts:74
+f @ textMateTokenizationWorker.worker.ts:91
+await in f
+$init @ textMateTokenizationWorker.worker.ts:72
+d @ webWorker.ts:479
+handleMessage @ webWorker.ts:453
+k @ webWorker.ts:225
+h @ webWorker.ts:188
+handleMessage @ webWorker.ts:157
+onmessage @ webWorker.ts:460
+globalThis.onmessage @ webWorkerBootstrap.ts:31
+TMScopeRegistry.ts:46 Overwriting grammar scope name to file mapping for scope source.java.
+Old grammar file: file:///c%3A/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/extensions/java/syntaxes/java.tmLanguage.json.
+New grammar file: file:///c%3A/Users/User/.vscode/extensions/redhat.java-1.52.0-win32-x64/language-support/java/java.tmLanguage.json
+register @ TMScopeRegistry.ts:46
+Is @ TMGrammarFactory.ts:74
+f @ textMateTokenizationWorker.worker.ts:91
+await in f
+$init @ textMateTokenizationWorker.worker.ts:72
+d @ webWorker.ts:479
+handleMessage @ webWorker.ts:453
+k @ webWorker.ts:225
+h @ webWorker.ts:188
+handleMessage @ webWorker.ts:157
+onmessage @ webWorker.ts:460
+globalThis.onmessage @ webWorkerBootstrap.ts:31
+TMScopeRegistry.ts:46 Overwriting grammar scope name to file mapping for scope source.groovy.
+Old grammar file: file:///c%3A/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/extensions/groovy/syntaxes/groovy.tmLanguage.json.
+New grammar file: file:///c%3A/Users/User/.vscode/extensions/vscjava.vscode-gradle-3.17.2/syntaxes/groovy.tmLanguage.json
+register @ TMScopeRegistry.ts:46
+Is @ TMGrammarFactory.ts:74
+f @ textMateTokenizationWorker.worker.ts:91
+await in f
+$init @ textMateTokenizationWorker.worker.ts:72
+d @ webWorker.ts:479
+handleMessage @ webWorker.ts:453
+k @ webWorker.ts:225
+h @ webWorker.ts:188
+handleMessage @ webWorker.ts:157
+onmessage @ webWorker.ts:460
+globalThis.onmessage @ webWorkerBootstrap.ts:31
+console.ts:139 [Extension Host] Project Memory Dashboard extension activating...
+console.ts:139 [Extension Host] Agent watcher started for: c:\Users\User\Project_Memory_MCP\Project-Memory-MCP\agents\*.agent.md
+console.ts:139 [Extension Host] agent watcher started for: c:\Users\User\Project_Memory_MCP\Project-Memory-MCP\agents\*.agent.md
+console.ts:139 [Extension Host] Project Memory Dashboard extension activated
+index.html?id=1e035155-920b-408e-9109-f5a39fc22ae9&parentId=1&origin=86a05687-a5fb-4c9b-955d-dff36647525c&swVersion=4&extensionId=project-memory.project-memory-dashboard&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app&purpose=webviewView:1060 Unrecognized feature: 'local-network-access'.
+(anonymous) @ index.html?id=1e035155-920b-408e-9109-f5a39fc22ae9&parentId=1&origin=86a05687-a5fb-4c9b-955d-dff36647525c&swVersion=4&extensionId=project-memory.project-memory-dashboard&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app&purpose=webviewView:1060
+await in (anonymous)
+HostMessaging.channel.port1.onmessage @ index.html?id=1e035155-920b-408e-9109-f5a39fc22ae9&parentId=1&origin=86a05687-a5fb-4c9b-955d-dff36647525c&swVersion=4&extensionId=project-memory.project-memory-dashboard&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app&purpose=webviewView:342
+log.ts:440  INFO Settings Sync: Account status changed from uninitialized to available
+console.ts:139 [Extension Host] Received message from webview: {type: 'ready'}
+requestImpl.ts:33  GET https://api.github.com/copilot/mcp_registry 404 (Not Found)
+DSn @ requestImpl.ts:33
+(anonymous) @ requestService.ts:38
+c @ request.ts:81
+request @ requestService.ts:38
+I @ defaultAccount.ts:359
+y @ defaultAccount.ts:235
+await in y
+t @ defaultAccount.ts:193
+log.ts:460   ERR Failed to fetch MCP registry providers Server returned 404
+error @ log.ts:460
+error @ log.ts:565
+error @ logService.ts:51
+I @ defaultAccount.ts:375
+await in I
+y @ defaultAccount.ts:235
+await in y
+t @ defaultAccount.ts:193
+log.ts:460   ERR [Extension Host] (node:6088) [DEP0051] DeprecationWarning: The `util.isNullOrUndefined` API is deprecated. Please use `arg === null || arg === undefined` instead.
+error @ log.ts:460
+error @ log.ts:565
+error @ logService.ts:51
+Uxs @ remoteConsoleUtil.ts:58
+$logExtensionHostMessage @ mainThreadConsole.ts:38
+S @ rpcProtocol.ts:458
+Q @ rpcProtocol.ts:443
+M @ rpcProtocol.ts:373
+L @ rpcProtocol.ts:299
+(anonymous) @ rpcProtocol.ts:161
+C @ event.ts:1212
+fire @ event.ts:1243
+fire @ ipc.net.ts:652
+l.onmessage @ localProcessExtensionHost.ts:385
+console.ts:139 [Extension Host] (node:6088) [DEP0051] DeprecationWarning: The `util.isNullOrUndefined` API is deprecated. Please use `arg === null || arg === undefined` instead.
+jxs @ console.ts:139
+$logExtensionHostMessage @ mainThreadConsole.ts:39
+S @ rpcProtocol.ts:458
+Q @ rpcProtocol.ts:443
+M @ rpcProtocol.ts:373
+L @ rpcProtocol.ts:299
+(anonymous) @ rpcProtocol.ts:161
+C @ event.ts:1212
+fire @ event.ts:1243
+fire @ ipc.net.ts:652
+l.onmessage @ localProcessExtensionHost.ts:385
+requestImpl.ts:33  GET https://marketplace.visualstudio.com/_apis/public/gallery/vscode/project-memory/project-memory-dashboard/latest 404 (Not Found)
+DSn @ requestImpl.ts:33
+(anonymous) @ requestService.ts:38
+c @ request.ts:81
+request @ requestService.ts:38
+L @ extensionGalleryService.ts:1455
+await in L
+K @ extensionGalleryService.ts:1381
+C @ extensionGalleryService.ts:826
+(anonymous) @ extensionGalleryService.ts:753
+B @ extensionGalleryService.ts:750
+getExtensions @ extensionGalleryService.ts:633
+await in getExtensions
+checkForUpdates @ extensionsWorkbenchService.ts:1940
+await in checkForUpdates
+(anonymous) @ extensionsWorkbenchService.ts:2083
+queue @ async.ts:271
+(anonymous) @ async.ts:471
+(anonymous) @ async.ts:412
+Promise.then
+trigger @ async.ts:406
+trigger @ async.ts:471
+Rb @ extensionsWorkbenchService.ts:2081
+tb @ extensionsWorkbenchService.ts:1158
+sb @ extensionsWorkbenchService.ts:1104
+requestImpl.ts:33  GET https://marketplace.visualstudio.com/_apis/public/gallery/vscode/robocorp/robotframework-lsp/latest 404 (Not Found)
+DSn @ requestImpl.ts:33
+(anonymous) @ requestService.ts:38
+c @ request.ts:81
+request @ requestService.ts:38
+L @ extensionGalleryService.ts:1455
+await in L
+K @ extensionGalleryService.ts:1381
+C @ extensionGalleryService.ts:826
+(anonymous) @ extensionGalleryService.ts:753
+B @ extensionGalleryService.ts:750
+getExtensions @ extensionGalleryService.ts:633
+await in getExtensions
+checkForUpdates @ extensionsWorkbenchService.ts:1940
+await in checkForUpdates
+(anonymous) @ extensionsWorkbenchService.ts:2083
+queue @ async.ts:271
+(anonymous) @ async.ts:471
+(anonymous) @ async.ts:412
+Promise.then
+trigger @ async.ts:406
+trigger @ async.ts:471
+Rb @ extensionsWorkbenchService.ts:2081
+tb @ extensionsWorkbenchService.ts:1158
+sb @ extensionsWorkbenchService.ts:1104
+log.ts:460   ERR chatParticipant must be declared in package.json: claude-code
+error @ log.ts:460
+error @ log.ts:565
+error @ logService.ts:51
+oc @ workbench.ts:123
+(anonymous) @ workbench.ts:104
+onUnexpectedError @ errors.ts:65
+vt @ errors.ts:110
+$onUnexpectedError @ mainThreadErrors.ts:21
+S @ rpcProtocol.ts:458
+Q @ rpcProtocol.ts:443
+M @ rpcProtocol.ts:373
+L @ rpcProtocol.ts:299
+(anonymous) @ rpcProtocol.ts:161
+C @ event.ts:1212
+fire @ event.ts:1243
+fire @ ipc.net.ts:652
+l.onmessage @ localProcessExtensionHost.ts:385
+log.ts:440  INFO [perf] Render performance baseline is 46ms
+event.ts:903 [844] potential listener LEAK detected, having 175 listeners already. MOST frequent listener (1):
+check @ event.ts:903
+u @ event.ts:1121
+dg @ textModel.ts:414
+o @ instantiationService.ts:162
+createInstance @ instantiationService.ts:128
+I @ modelService.ts:310
+createModel @ modelService.ts:444
+ZDe @ chatEditingModifiedDocumentEntry.ts:125
+o @ instantiationService.ts:162
+createInstance @ instantiationService.ts:128
+a @ chatEditingSession.ts:934
+await in a
+eb @ chatEditingSession.ts:939
+db @ chatEditingSession.ts:884
+$ @ chatEditingSession.ts:791
+await in $
+N @ chatEditingSession.ts:281
+event.ts:904 Error
+    at n5i.create (event.ts:935:15)
+    at _4e.u [as onDidChange] (event.ts:1120:34)
+    at new dg (textModel.ts:414:53)
+    at NRt.o (instantiationService.ts:162:18)
+    at NRt.createInstance (instantiationService.ts:128:18)
+    at aZe.I (modelService.ts:310:55)
+    at aZe.createModel (modelService.ts:444:21)
+    at new ZDe (chatEditingModifiedDocumentEntry.ts:125:17)
+    at NRt.o (instantiationService.ts:162:18)
+    at NRt.createInstance (instantiationService.ts:128:18)
+check @ event.ts:904
+u @ event.ts:1121
+dg @ textModel.ts:414
+o @ instantiationService.ts:162
+createInstance @ instantiationService.ts:128
+I @ modelService.ts:310
+createModel @ modelService.ts:444
+ZDe @ chatEditingModifiedDocumentEntry.ts:125
+o @ instantiationService.ts:162
+createInstance @ instantiationService.ts:128
+a @ chatEditingSession.ts:934
+await in a
+eb @ chatEditingSession.ts:939
+db @ chatEditingSession.ts:884
+$ @ chatEditingSession.ts:791
+await in $
+N @ chatEditingSession.ts:281
+log.ts:460   ERR [844] potential listener LEAK detected, having 175 listeners already. MOST frequent listener (1):: Error
+    at n5i.create (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:27:12074)
+    at _4e.u [as onDidChange] (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:29:1377)
+    at new dg (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:279:31555)
+    at NRt.o (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:1406:1580)
+    at NRt.createInstance (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:1406:1077)
+    at aZe.I (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:1347:1910)
+    at aZe.createModel (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:1348:870)
+    at new ZDe (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:2246:76832)
+    at NRt.o (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:1406:1580)
+    at NRt.createInstance (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:1406:1077)
+error @ log.ts:460
+error @ log.ts:565
+error @ logService.ts:51
+oc @ workbench.ts:123
+(anonymous) @ workbench.ts:104
+onUnexpectedError @ errors.ts:65
+vt @ errors.ts:110
+check @ event.ts:907
+u @ event.ts:1121
+dg @ textModel.ts:414
+o @ instantiationService.ts:162
+createInstance @ instantiationService.ts:128
+I @ modelService.ts:310
+createModel @ modelService.ts:444
+ZDe @ chatEditingModifiedDocumentEntry.ts:125
+o @ instantiationService.ts:162
+createInstance @ instantiationService.ts:128
+a @ chatEditingSession.ts:934
+await in a
+eb @ chatEditingSession.ts:939
+db @ chatEditingSession.ts:884
+$ @ chatEditingSession.ts:791
+await in $
+N @ chatEditingSession.ts:281
+event.ts:903 [1bf] potential listener LEAK detected, having 175 listeners already. MOST frequent listener (1):
+check @ event.ts:903
+u @ event.ts:1121
+v9e @ documentSemanticTokens.ts:170
+a @ documentSemanticTokens.ts:43
+(anonymous) @ documentSemanticTokens.ts:70
+C @ event.ts:1212
+D @ event.ts:1223
+fire @ event.ts:1247
+createModel @ modelService.ts:449
+ZDe @ chatEditingModifiedDocumentEntry.ts:125
+o @ instantiationService.ts:162
+createInstance @ instantiationService.ts:128
+a @ chatEditingSession.ts:934
+await in a
+eb @ chatEditingSession.ts:939
+db @ chatEditingSession.ts:884
+$ @ chatEditingSession.ts:791
+await in $
+N @ chatEditingSession.ts:281
+event.ts:904 Error
+    at n5i.create (event.ts:935:15)
+    at YWi.u (event.ts:1120:34)
+    at new v9e (documentSemanticTokens.ts:170:33)
+    at a (documentSemanticTokens.ts:43:34)
+    at Nce.value (documentSemanticTokens.ts:70:5)
+    at D.C (event.ts:1212:13)
+    at D (event.ts:1223:9)
+    at D.fire (event.ts:1247:9)
+    at aZe.createModel (modelService.ts:449:22)
+    at new ZDe (chatEditingModifiedDocumentEntry.ts:125:17)
+check @ event.ts:904
+u @ event.ts:1121
+v9e @ documentSemanticTokens.ts:170
+a @ documentSemanticTokens.ts:43
+(anonymous) @ documentSemanticTokens.ts:70
+C @ event.ts:1212
+D @ event.ts:1223
+fire @ event.ts:1247
+createModel @ modelService.ts:449
+ZDe @ chatEditingModifiedDocumentEntry.ts:125
+o @ instantiationService.ts:162
+createInstance @ instantiationService.ts:128
+a @ chatEditingSession.ts:934
+await in a
+eb @ chatEditingSession.ts:939
+db @ chatEditingSession.ts:884
+$ @ chatEditingSession.ts:791
+await in $
+N @ chatEditingSession.ts:281
+log.ts:460   ERR [1bf] potential listener LEAK detected, having 175 listeners already. MOST frequent listener (1):: Error
+    at n5i.create (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:27:12074)
+    at YWi.u (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:29:1377)
+    at new v9e (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:501:41309)
+    at a (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:501:39749)
+    at Nce.value (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:501:39991)
+    at D.C (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:29:2349)
+    at D (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:29:2419)
+    at D.fire (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:29:2637)
+    at aZe.createModel (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:1348:907)
+    at new ZDe (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:2246:76832)
+error @ log.ts:460
+error @ log.ts:565
+error @ logService.ts:51
+oc @ workbench.ts:123
+(anonymous) @ workbench.ts:104
+onUnexpectedError @ errors.ts:65
+vt @ errors.ts:110
+check @ event.ts:907
+u @ event.ts:1121
+v9e @ documentSemanticTokens.ts:170
+a @ documentSemanticTokens.ts:43
+(anonymous) @ documentSemanticTokens.ts:70
+C @ event.ts:1212
+D @ event.ts:1223
+fire @ event.ts:1247
+createModel @ modelService.ts:449
+ZDe @ chatEditingModifiedDocumentEntry.ts:125
+o @ instantiationService.ts:162
+createInstance @ instantiationService.ts:128
+a @ chatEditingSession.ts:934
+await in a
+eb @ chatEditingSession.ts:939
+db @ chatEditingSession.ts:884
+$ @ chatEditingSession.ts:791
+await in $
+N @ chatEditingSession.ts:281
+log.ts:440  INFO Auto updating outdated extensions. rooveterinaryinc.roo-cline
+event.ts:903 [844] potential listener LEAK detected, having 258 listeners already. MOST frequent listener (42):
+check @ event.ts:903
+u @ event.ts:1121
+dg @ textModel.ts:414
+o @ instantiationService.ts:162
+createInstance @ instantiationService.ts:128
+s @ chatEditingCheckpointTimelineImpl.ts:715
+O @ chatEditingCheckpointTimelineImpl.ts:719
+L @ chatEditingCheckpointTimelineImpl.ts:630
+K @ chatEditingCheckpointTimelineImpl.ts:557
+await in K
+getContentAtStop @ chatEditingCheckpointTimelineImpl.ts:355
+await in getContentAtStop
+getSnapshotModel @ chatEditingSession.ts:358
+await in getSnapshotModel
+provideTextContent @ chatEditingTextModelContentProviders.ts:78
+u @ textModelResolverService.ts:187
+r @ textModelResolverService.ts:78
+f @ textModelResolverService.ts:38
+acquire @ lifecycle.ts:694
+acquire @ lifecycle.ts:724
+createModelReference @ textModelResolverService.ts:238
+(anonymous) @ chatEditingCheckpointTimelineImpl.ts:806
+A @ derivedImpl.ts:201
+get @ derivedImpl.ts:159
+readObservable @ derivedImpl.ts:344
+read @ baseObservable.ts:54
+(anonymous) @ chatEditingCheckpointTimelineImpl.ts:833
+A @ derivedImpl.ts:201
+get @ derivedImpl.ts:159
+readObservable @ derivedImpl.ts:344
+read @ baseObservable.ts:54
+(anonymous) @ chatEditingCheckpointTimelineImpl.ts:855
+A @ derivedImpl.ts:201
+get @ derivedImpl.ts:159
+readObservable @ derivedImpl.ts:344
+read @ baseObservable.ts:54
+(anonymous) @ chatMarkdownContentPart.ts:587
+(anonymous) @ baseObservable.ts:89
+A @ derivedImpl.ts:201
+get @ derivedImpl.ts:159
+reportChanges @ baseObservable.ts:45
+endUpdate @ autorunImpl.ts:157
+endUpdate @ derivedImpl.ts:281
+endUpdate @ derivedImpl.ts:281
+finish @ transaction.ts:102
+set @ observableValue.ts:77
+db @ chatEditingSession.ts:912
+await in db
+$ @ chatEditingSession.ts:791
+await in $
+N @ chatEditingSession.ts:281
+event.ts:904 Error
+    at n5i.create (event.ts:935:15)
+    at _4e.u [as onDidChange] (event.ts:1120:34)
+    at new dg (textModel.ts:414:53)
+    at NRt.o (instantiationService.ts:162:18)
+    at NRt.createInstance (instantiationService.ts:128:18)
+    at aZe.I (modelService.ts:310:55)
+    at aZe.createModel (modelService.ts:444:21)
+    at new ZDe (chatEditingModifiedDocumentEntry.ts:125:17)
+    at NRt.o (instantiationService.ts:162:18)
+    at NRt.createInstance (instantiationService.ts:128:18)
+check @ event.ts:904
+u @ event.ts:1121
+dg @ textModel.ts:414
+o @ instantiationService.ts:162
+createInstance @ instantiationService.ts:128
+s @ chatEditingCheckpointTimelineImpl.ts:715
+O @ chatEditingCheckpointTimelineImpl.ts:719
+L @ chatEditingCheckpointTimelineImpl.ts:630
+K @ chatEditingCheckpointTimelineImpl.ts:557
+await in K
+getContentAtStop @ chatEditingCheckpointTimelineImpl.ts:355
+await in getContentAtStop
+getSnapshotModel @ chatEditingSession.ts:358
+await in getSnapshotModel
+provideTextContent @ chatEditingTextModelContentProviders.ts:78
+u @ textModelResolverService.ts:187
+r @ textModelResolverService.ts:78
+f @ textModelResolverService.ts:38
+acquire @ lifecycle.ts:694
+acquire @ lifecycle.ts:724
+createModelReference @ textModelResolverService.ts:238
+(anonymous) @ chatEditingCheckpointTimelineImpl.ts:806
+A @ derivedImpl.ts:201
+get @ derivedImpl.ts:159
+readObservable @ derivedImpl.ts:344
+read @ baseObservable.ts:54
+(anonymous) @ chatEditingCheckpointTimelineImpl.ts:833
+A @ derivedImpl.ts:201
+get @ derivedImpl.ts:159
+readObservable @ derivedImpl.ts:344
+read @ baseObservable.ts:54
+(anonymous) @ chatEditingCheckpointTimelineImpl.ts:855
+A @ derivedImpl.ts:201
+get @ derivedImpl.ts:159
+readObservable @ derivedImpl.ts:344
+read @ baseObservable.ts:54
+(anonymous) @ chatMarkdownContentPart.ts:587
+(anonymous) @ baseObservable.ts:89
+A @ derivedImpl.ts:201
+get @ derivedImpl.ts:159
+reportChanges @ baseObservable.ts:45
+endUpdate @ autorunImpl.ts:157
+endUpdate @ derivedImpl.ts:281
+endUpdate @ derivedImpl.ts:281
+finish @ transaction.ts:102
+set @ observableValue.ts:77
+db @ chatEditingSession.ts:912
+await in db
+$ @ chatEditingSession.ts:791
+await in $
+N @ chatEditingSession.ts:281
+log.ts:460   ERR [844] potential listener LEAK detected, having 258 listeners already. MOST frequent listener (42):: Error
+    at n5i.create (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:27:12074)
+    at _4e.u [as onDidChange] (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:29:1377)
+    at new dg (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:279:31555)
+    at NRt.o (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:1406:1580)
+    at NRt.createInstance (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:1406:1077)
+    at aZe.I (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:1347:1910)
+    at aZe.createModel (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:1348:870)
+    at new ZDe (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:2246:76832)
+    at NRt.o (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:1406:1580)
+    at NRt.createInstance (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:1406:1077)
+error @ log.ts:460
+error @ log.ts:565
+error @ logService.ts:51
+oc @ workbench.ts:123
+(anonymous) @ workbench.ts:104
+onUnexpectedError @ errors.ts:65
+vt @ errors.ts:110
+check @ event.ts:907
+u @ event.ts:1121
+dg @ textModel.ts:414
+o @ instantiationService.ts:162
+createInstance @ instantiationService.ts:128
+s @ chatEditingCheckpointTimelineImpl.ts:715
+O @ chatEditingCheckpointTimelineImpl.ts:719
+L @ chatEditingCheckpointTimelineImpl.ts:630
+K @ chatEditingCheckpointTimelineImpl.ts:557
+await in K
+getContentAtStop @ chatEditingCheckpointTimelineImpl.ts:355
+await in getContentAtStop
+getSnapshotModel @ chatEditingSession.ts:358
+await in getSnapshotModel
+provideTextContent @ chatEditingTextModelContentProviders.ts:78
+u @ textModelResolverService.ts:187
+r @ textModelResolverService.ts:78
+f @ textModelResolverService.ts:38
+acquire @ lifecycle.ts:694
+acquire @ lifecycle.ts:724
+createModelReference @ textModelResolverService.ts:238
+(anonymous) @ chatEditingCheckpointTimelineImpl.ts:806
+A @ derivedImpl.ts:201
+get @ derivedImpl.ts:159
+readObservable @ derivedImpl.ts:344
+read @ baseObservable.ts:54
+(anonymous) @ chatEditingCheckpointTimelineImpl.ts:833
+A @ derivedImpl.ts:201
+get @ derivedImpl.ts:159
+readObservable @ derivedImpl.ts:344
+read @ baseObservable.ts:54
+(anonymous) @ chatEditingCheckpointTimelineImpl.ts:855
+A @ derivedImpl.ts:201
+get @ derivedImpl.ts:159
+readObservable @ derivedImpl.ts:344
+read @ baseObservable.ts:54
+(anonymous) @ chatMarkdownContentPart.ts:587
+(anonymous) @ baseObservable.ts:89
+A @ derivedImpl.ts:201
+get @ derivedImpl.ts:159
+reportChanges @ baseObservable.ts:45
+endUpdate @ autorunImpl.ts:157
+endUpdate @ derivedImpl.ts:281
+endUpdate @ derivedImpl.ts:281
+finish @ transaction.ts:102
+set @ observableValue.ts:77
+db @ chatEditingSession.ts:912
+await in db
+$ @ chatEditingSession.ts:791
+await in $
+N @ chatEditingSession.ts:281
+event.ts:903 [1bf] potential listener LEAK detected, having 258 listeners already. MOST frequent listener (42):
+check @ event.ts:903
+u @ event.ts:1121
+v9e @ documentSemanticTokens.ts:170
+a @ documentSemanticTokens.ts:43
+(anonymous) @ documentSemanticTokens.ts:70
+C @ event.ts:1212
+D @ event.ts:1223
+fire @ event.ts:1247
+createModel @ modelService.ts:449
+I @ textEditorModel.ts:172
+H @ textEditorModel.ts:166
+Gb @ textFileEditorModel.ts:565
+Fb @ textFileEditorModel.ts:547
+Eb @ textFileEditorModel.ts:471
+await in Eb
+Ab @ textFileEditorModel.ts:329
+await in Ab
+resolve @ textFileEditorModel.ts:307
+W @ textFileEditorModelManager.ts:423
+resolve @ textFileEditorModelManager.ts:364
+r @ textModelResolverService.ts:70
+f @ textModelResolverService.ts:38
+acquire @ lifecycle.ts:694
+acquire @ lifecycle.ts:724
+createModelReference @ textModelResolverService.ts:238
+a @ chatEditingSession.ts:933
+eb @ chatEditingSession.ts:939
+db @ chatEditingSession.ts:884
+$ @ chatEditingSession.ts:791
+await in $
+N @ chatEditingSession.ts:281
+event.ts:904 Error
+    at n5i.create (event.ts:935:15)
+    at YWi.u (event.ts:1120:34)
+    at new v9e (documentSemanticTokens.ts:170:33)
+    at a (documentSemanticTokens.ts:43:34)
+    at Nce.value (documentSemanticTokens.ts:70:5)
+    at D.C (event.ts:1212:13)
+    at D (event.ts:1223:9)
+    at D.fire (event.ts:1247:9)
+    at aZe.createModel (modelService.ts:449:22)
+    at new ZDe (chatEditingModifiedDocumentEntry.ts:125:17)
+check @ event.ts:904
+u @ event.ts:1121
+v9e @ documentSemanticTokens.ts:170
+a @ documentSemanticTokens.ts:43
+(anonymous) @ documentSemanticTokens.ts:70
+C @ event.ts:1212
+D @ event.ts:1223
+fire @ event.ts:1247
+createModel @ modelService.ts:449
+I @ textEditorModel.ts:172
+H @ textEditorModel.ts:166
+Gb @ textFileEditorModel.ts:565
+Fb @ textFileEditorModel.ts:547
+Eb @ textFileEditorModel.ts:471
+await in Eb
+Ab @ textFileEditorModel.ts:329
+await in Ab
+resolve @ textFileEditorModel.ts:307
+W @ textFileEditorModelManager.ts:423
+resolve @ textFileEditorModelManager.ts:364
+r @ textModelResolverService.ts:70
+f @ textModelResolverService.ts:38
+acquire @ lifecycle.ts:694
+acquire @ lifecycle.ts:724
+createModelReference @ textModelResolverService.ts:238
+a @ chatEditingSession.ts:933
+eb @ chatEditingSession.ts:939
+db @ chatEditingSession.ts:884
+$ @ chatEditingSession.ts:791
+await in $
+N @ chatEditingSession.ts:281
+log.ts:460   ERR [1bf] potential listener LEAK detected, having 258 listeners already. MOST frequent listener (42):: Error
+    at n5i.create (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:27:12074)
+    at YWi.u (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:29:1377)
+    at new v9e (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:501:41309)
+    at a (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:501:39749)
+    at Nce.value (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:501:39991)
+    at D.C (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:29:2349)
+    at D (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:29:2419)
+    at D.fire (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:29:2637)
+    at aZe.createModel (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:1348:907)
+    at new ZDe (vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:2246:76832)
+error @ log.ts:460
+error @ log.ts:565
+error @ logService.ts:51
+oc @ workbench.ts:123
+(anonymous) @ workbench.ts:104
+onUnexpectedError @ errors.ts:65
+vt @ errors.ts:110
+check @ event.ts:907
+u @ event.ts:1121
+v9e @ documentSemanticTokens.ts:170
+a @ documentSemanticTokens.ts:43
+(anonymous) @ documentSemanticTokens.ts:70
+C @ event.ts:1212
+D @ event.ts:1223
+fire @ event.ts:1247
+createModel @ modelService.ts:449
+I @ textEditorModel.ts:172
+H @ textEditorModel.ts:166
+Gb @ textFileEditorModel.ts:565
+Fb @ textFileEditorModel.ts:547
+Eb @ textFileEditorModel.ts:471
+await in Eb
+Ab @ textFileEditorModel.ts:329
+await in Ab
+resolve @ textFileEditorModel.ts:307
+W @ textFileEditorModelManager.ts:423
+resolve @ textFileEditorModelManager.ts:364
+r @ textModelResolverService.ts:70
+f @ textModelResolverService.ts:38
+acquire @ lifecycle.ts:694
+acquire @ lifecycle.ts:724
+createModelReference @ textModelResolverService.ts:238
+a @ chatEditingSession.ts:933
+eb @ chatEditingSession.ts:939
+db @ chatEditingSession.ts:884
+$ @ chatEditingSession.ts:791
+await in $
+N @ chatEditingSession.ts:281

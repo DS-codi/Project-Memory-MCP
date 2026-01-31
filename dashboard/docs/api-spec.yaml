@@ -1,0 +1,984 @@
+openapi: 3.0.3
+info:
+  title: Memory Observer Dashboard API
+  description: |
+    REST API for the Memory Observer Dashboard, providing access to workspaces, plans, agents, and events
+    from the Project Memory MCP Server.
+    
+    ## Overview
+    
+    The Memory Observer Dashboard API allows you to:
+    - View and manage MCP workspaces
+    - Browse, create, and manage project plans
+    - View and deploy agent templates
+    - Subscribe to real-time MCP events
+    - Search across all workspaces and plans
+    
+    ## Authentication
+    
+    Currently, the API runs locally and does not require authentication.
+    Future versions may support authentication for remote access.
+    
+  version: 0.1.0
+  contact:
+    name: Project Memory MCP
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3001
+    description: Local Development Server
+
+tags:
+  - name: Workspaces
+    description: Workspace management operations
+  - name: Plans
+    description: Plan CRUD and management operations
+  - name: Agents
+    description: Agent template management and deployment
+  - name: Events
+    description: Real-time event streaming and history
+  - name: Stats
+    description: Dashboard statistics and metrics
+  - name: Search
+    description: Global search functionality
+
+paths:
+  /api/workspaces:
+    get:
+      tags:
+        - Workspaces
+      summary: List all workspaces
+      description: Returns all registered workspaces with their metadata
+      responses:
+        '200':
+          description: List of workspaces
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  workspaces:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Workspace'
+                  total:
+                    type: integer
+                    example: 5
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/workspaces/{workspaceId}:
+    get:
+      tags:
+        - Workspaces
+      summary: Get workspace details
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+      responses:
+        '200':
+          description: Workspace details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceDetails'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/workspaces/{workspaceId}/philosophy:
+    get:
+      tags:
+        - Workspaces
+      summary: Get project philosophy file
+      description: Retrieves the project-philosophy.md content for a workspace
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+      responses:
+        '200':
+          description: Philosophy file content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  exists:
+                    type: boolean
+                  content:
+                    type: string
+                  path:
+                    type: string
+                  lastModified:
+                    type: string
+                    format: date-time
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      tags:
+        - Workspaces
+      summary: Update project philosophy file
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+                  description: Markdown content for the philosophy file
+      responses:
+        '200':
+          description: Philosophy file updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  path:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/plans:
+    get:
+      tags:
+        - Plans
+      summary: List all plans
+      description: Returns all plans, optionally filtered by workspace
+      parameters:
+        - name: workspaceId
+          in: query
+          description: Filter plans by workspace ID
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Filter plans by status
+          schema:
+            type: string
+            enum: [active, paused, completed, archived, failed]
+      responses:
+        '200':
+          description: List of plans
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plans:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PlanSummary'
+                  total:
+                    type: integer
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags:
+        - Plans
+      summary: Create a new plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePlanRequest'
+      responses:
+        '201':
+          description: Plan created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Plan'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/plans/{workspaceId}/{planId}:
+    get:
+      tags:
+        - Plans
+      summary: Get plan details
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/PlanId'
+      responses:
+        '200':
+          description: Plan details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Plan'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags:
+        - Plans
+      summary: Delete a plan
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/PlanId'
+        - name: permanent
+          in: query
+          description: Permanently delete the plan files
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Plan deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  planId:
+                    type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/plans/{workspaceId}/{planId}/archive:
+    post:
+      tags:
+        - Plans
+      summary: Archive a plan
+      description: Move a plan to archived status
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/PlanId'
+      responses:
+        '200':
+          description: Plan archived
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  planId:
+                    type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/plans/{workspaceId}/{planId}/duplicate:
+    post:
+      tags:
+        - Plans
+      summary: Duplicate a plan
+      description: Create a copy of a plan as a template
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/PlanId'
+      responses:
+        '201':
+          description: Plan duplicated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  newPlanId:
+                    type: string
+                  newPlan:
+                    $ref: '#/components/schemas/Plan'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/plans/{workspaceId}/import:
+    post:
+      tags:
+        - Plans
+      summary: Import a plan from file
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - filePath
+              properties:
+                filePath:
+                  type: string
+                  description: Path to the markdown file to import
+      responses:
+        '201':
+          description: Plan imported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  planId:
+                    type: string
+                  plan:
+                    $ref: '#/components/schemas/Plan'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/agents:
+    get:
+      tags:
+        - Agents
+      summary: List all agent templates
+      responses:
+        '200':
+          description: List of agents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Agent'
+                  total:
+                    type: integer
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags:
+        - Agents
+      summary: Create a new agent template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAgentRequest'
+      responses:
+        '201':
+          description: Agent created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/agents/{agentId}:
+    get:
+      tags:
+        - Agents
+      summary: Get agent template details
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+      responses:
+        '200':
+          description: Agent details with content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentDetails'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      tags:
+        - Agents
+      summary: Update agent template
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                  description: Updated markdown content
+      responses:
+        '200':
+          description: Agent updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags:
+        - Agents
+      summary: Delete agent template
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+      responses:
+        '200':
+          description: Agent deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/agents/{agentId}/deploy:
+    post:
+      tags:
+        - Agents
+      summary: Deploy agent to workspaces
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - workspaceIds
+              properties:
+                workspaceIds:
+                  type: array
+                  items:
+                    type: string
+                  description: List of workspace IDs to deploy to
+      responses:
+        '200':
+          description: Agent deployed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  deployed:
+                    type: array
+                    items:
+                      type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/agents/{agentId}/diff/{workspaceId}:
+    get:
+      tags:
+        - Agents
+      summary: Get diff between template and deployed version
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+        - $ref: '#/components/parameters/WorkspaceId'
+      responses:
+        '200':
+          description: Diff result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hasChanges:
+                    type: boolean
+                  templateHash:
+                    type: string
+                  deployedHash:
+                    type: string
+                  diff:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DiffLine'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/events:
+    get:
+      tags:
+        - Events
+      summary: Get event history
+      parameters:
+        - name: since
+          in: query
+          description: Only return events after this timestamp
+          schema:
+            type: string
+            format: date-time
+        - name: type
+          in: query
+          description: Filter by event type
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of events to return
+          schema:
+            type: integer
+            default: 100
+      responses:
+        '200':
+          description: List of events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/events/stream:
+    get:
+      tags:
+        - Events
+      summary: Subscribe to real-time events (SSE)
+      description: |
+        Server-Sent Events endpoint for real-time event streaming.
+        Connect with EventSource to receive live updates.
+      responses:
+        '200':
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: SSE formatted events
+
+  /api/stats:
+    get:
+      tags:
+        - Stats
+      summary: Get dashboard statistics
+      responses:
+        '200':
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardStats'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/search:
+    get:
+      tags:
+        - Search
+      summary: Global search
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query
+          schema:
+            type: string
+        - name: type
+          in: query
+          description: Filter by type (plans, workspaces, agents)
+          schema:
+            type: string
+            enum: [all, plans, workspaces, agents]
+            default: all
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResults'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      description: Workspace ID
+      schema:
+        type: string
+        example: ds_my-project-abc123
+    PlanId:
+      name: planId
+      in: path
+      required: true
+      description: Plan ID
+      schema:
+        type: string
+        example: plan_abc123_xyz789
+    AgentId:
+      name: agentId
+      in: path
+      required: true
+      description: Agent template ID (filename without .agent.md)
+      schema:
+        type: string
+        example: coordinator
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: Resource not found
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: Invalid request parameters
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: An unexpected error occurred
+
+  schemas:
+    Workspace:
+      type: object
+      properties:
+        id:
+          type: string
+          example: ds_my-project-abc123
+        name:
+          type: string
+          example: My Project
+        path:
+          type: string
+          example: /Users/dev/my-project
+        registeredAt:
+          type: string
+          format: date-time
+        lastAccessed:
+          type: string
+          format: date-time
+        activePlanCount:
+          type: integer
+        archivedPlanCount:
+          type: integer
+        indexed:
+          type: boolean
+
+    WorkspaceDetails:
+      allOf:
+        - $ref: '#/components/schemas/Workspace'
+        - type: object
+          properties:
+            plans:
+              type: array
+              items:
+                $ref: '#/components/schemas/PlanSummary'
+            deployedAgents:
+              type: array
+              items:
+                type: string
+            profile:
+              type: object
+              description: Workspace profile/indexing data
+
+    PlanSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          example: plan_abc123_xyz789
+        workspaceId:
+          type: string
+        title:
+          type: string
+          example: Add Authentication
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+        status:
+          type: string
+          enum: [active, paused, completed, archived, failed]
+        category:
+          type: string
+          enum: [feature, bug, change, analysis, debug, refactor, documentation]
+        currentAgent:
+          type: string
+          nullable: true
+        stepCount:
+          type: integer
+        completedStepCount:
+          type: integer
+        updatedAt:
+          type: string
+          format: date-time
+
+    Plan:
+      allOf:
+        - $ref: '#/components/schemas/PlanSummary'
+        - type: object
+          properties:
+            description:
+              type: string
+            currentPhase:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+            steps:
+              type: array
+              items:
+                $ref: '#/components/schemas/PlanStep'
+            agentSessions:
+              type: array
+              items:
+                $ref: '#/components/schemas/AgentSession'
+            lineage:
+              type: array
+              items:
+                $ref: '#/components/schemas/LineageEntry'
+
+    PlanStep:
+      type: object
+      properties:
+        phase:
+          type: string
+        task:
+          type: string
+        status:
+          type: string
+          enum: [pending, active, done, blocked]
+        notes:
+          type: string
+          nullable: true
+
+    AgentSession:
+      type: object
+      properties:
+        agentType:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          enum: [active, completed, failed]
+        summary:
+          type: string
+          nullable: true
+
+    LineageEntry:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        fromAgent:
+          type: string
+        toAgent:
+          type: string
+        reason:
+          type: string
+
+    CreatePlanRequest:
+      type: object
+      required:
+        - workspaceId
+        - title
+      properties:
+        workspaceId:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+          default: medium
+        category:
+          type: string
+          enum: [feature, bug, change, analysis, debug, refactor, documentation]
+          default: feature
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanStep'
+
+    Agent:
+      type: object
+      properties:
+        id:
+          type: string
+          example: coordinator
+        name:
+          type: string
+          example: Coordinator
+        description:
+          type: string
+        lastModified:
+          type: string
+          format: date-time
+        deployedCount:
+          type: integer
+        isTemplate:
+          type: boolean
+
+    AgentDetails:
+      allOf:
+        - $ref: '#/components/schemas/Agent'
+        - type: object
+          properties:
+            content:
+              type: string
+              description: Raw markdown content
+            deployments:
+              type: array
+              items:
+                type: object
+                properties:
+                  workspaceId:
+                    type: string
+                  workspaceName:
+                    type: string
+                  syncStatus:
+                    type: string
+                    enum: [synced, outdated, customized, missing]
+                  hash:
+                    type: string
+
+    CreateAgentRequest:
+      type: object
+      required:
+        - name
+        - content
+      properties:
+        name:
+          type: string
+          description: Agent name (will be converted to filename)
+        content:
+          type: string
+          description: Markdown content for the agent template
+
+    DiffLine:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [unchanged, added, removed]
+        lineNumber:
+          type: integer
+        content:
+          type: string
+
+    Event:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum:
+            - step_updated
+            - plan_created
+            - plan_archived
+            - plan_deleted
+            - plan_duplicated
+            - plan_imported
+            - handoff
+            - agent_session_started
+            - agent_session_completed
+            - workspace_registered
+        timestamp:
+          type: string
+          format: date-time
+        data:
+          type: object
+          additionalProperties: true
+
+    DashboardStats:
+      type: object
+      properties:
+        totalWorkspaces:
+          type: integer
+        activePlans:
+          type: integer
+        completedPlans:
+          type: integer
+        deployedAgents:
+          type: integer
+        eventsToday:
+          type: integer
+
+    SearchResults:
+      type: object
+      properties:
+        query:
+          type: string
+        total:
+          type: integer
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [plan, workspace, agent]
+              id:
+                type: string
+              title:
+                type: string
+              description:
+                type: string
+              matches:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    field:
+                      type: string
+                    highlight:
+                      type: string

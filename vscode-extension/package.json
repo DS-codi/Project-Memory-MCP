@@ -1,0 +1,272 @@
+{
+  "name": "project-memory-dashboard",
+  "displayName": "Project Memory Dashboard",
+  "description": "Visual dashboard for the Project Memory MCP server - track agent workflows, plans, and handoffs",
+  "version": "0.2.0",
+  "publisher": "project-memory",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/project-memory/project-memory-mcp"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Visualization"
+  ],
+  "keywords": [
+    "mcp",
+    "model context protocol",
+    "ai agents",
+    "project management",
+    "copilot"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "projectMemory.showDashboard",
+        "title": "Show Dashboard",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.openDashboardPanel",
+        "title": "Open Full Dashboard (PMD Tab)",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.createPlan",
+        "title": "Create New Plan",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.deployAgents",
+        "title": "Deploy Agents to Workspace",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.deployPrompts",
+        "title": "Deploy Prompts to Workspace",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.deployInstructions",
+        "title": "Deploy Instructions to Workspace",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.deployCopilotConfig",
+        "title": "Deploy All Copilot Config (Agents, Prompts, Instructions)",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.deployDefaults",
+        "title": "Deploy Default Agents & Instructions",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.updateDefaults",
+        "title": "Update Deployed Files from Source",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.refreshData",
+        "title": "Refresh Dashboard",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.addToPlan",
+        "title": "Add to Plan",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.openAgentFile",
+        "title": "Open Agent File",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.openPromptFile",
+        "title": "Open Prompt File",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.showCopilotStatus",
+        "title": "Show Copilot Status",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.toggleServer",
+        "title": "Toggle Server",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.startServer",
+        "title": "Start Server",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.stopServer",
+        "title": "Stop Server",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.restartServer",
+        "title": "Restart Server",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.showServerLogs",
+        "title": "Show Server Logs",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.openSettings",
+        "title": "Open Settings",
+        "category": "Project Memory"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "projectMemory",
+          "title": "Project Memory",
+          "icon": "resources/sidebar-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "projectMemory": [
+        {
+          "type": "webview",
+          "id": "projectMemory.dashboardView",
+          "name": "Dashboard"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Project Memory",
+      "properties": {
+        "projectMemory.dataRoot": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the Project Memory data directory (MBS_DATA_ROOT)"
+        },
+        "projectMemory.agentsRoot": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the agent templates directory (MBS_AGENTS_ROOT)"
+        },
+        "projectMemory.autoRefresh": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically refresh dashboard when files change"
+        },
+        "projectMemory.autoDeployAgents": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically deploy agents when template files are saved"
+        },
+        "projectMemory.apiPort": {
+          "type": "number",
+          "default": 3001,
+          "description": "Port for the dashboard API server"
+        },
+        "projectMemory.serverPort": {
+          "type": "number",
+          "default": 3001,
+          "description": "Port for the dashboard API server (same as apiPort)"
+        },
+        "projectMemory.wsPort": {
+          "type": "number",
+          "default": 3002,
+          "description": "Port for the WebSocket server (live updates)"
+        },
+        "projectMemory.autoStartServer": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically start the dashboard server when extension activates"
+        },
+        "projectMemory.promptsRoot": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the prompt templates directory (MBS_PROMPTS_ROOT)"
+        },
+        "projectMemory.instructionsRoot": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the instruction files directory (MBS_INSTRUCTIONS_ROOT)"
+        },
+        "projectMemory.defaultAgents": {
+          "type": "array",
+          "default": ["coordinator", "researcher", "architect", "executor", "reviewer", "tester", "archivist", "revisionist"],
+          "description": "List of agent names to auto-deploy to new workspaces"
+        },
+        "projectMemory.defaultInstructions": {
+          "type": "array",
+          "default": ["mvc-architecture", "handoff-protocol"],
+          "description": "List of instruction files to auto-deploy to new workspaces"
+        },
+        "projectMemory.autoDeployOnWorkspaceOpen": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically deploy default agents and instructions when opening a workspace"
+        }
+      }
+    },
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "projectMemory.createPlan",
+          "group": "projectMemory",
+          "when": "explorerResourceIsFolder"
+        },
+        {
+          "command": "projectMemory.addToPlan",
+          "group": "projectMemory@2",
+          "when": "!explorerResourceIsFolder"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "projectMemory.addToPlan",
+          "group": "projectMemory",
+          "when": "editorHasSelection"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run esbuild-base -- --production",
+    "esbuild-base": "node esbuild.js",
+    "esbuild": "npm run esbuild-base -- --sourcemap",
+    "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
+    "compile": "npm run esbuild",
+    "watch": "npm run esbuild-watch",
+    "pretest": "npm run esbuild",
+    "test": "node ./out/test/runTest.js",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package",
+    "build-webview": "cd webview && npm run build"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^8.54.0",
+    "@typescript-eslint/parser": "^8.54.0",
+    "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.27.2",
+    "eslint": "^9.39.2",
+    "mocha": "^11.3.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "chokidar": "^3.5.3",
+    "glob": "^13.0.0"
+  }
+}
