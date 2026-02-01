@@ -5138,14 +5138,15 @@ var DashboardViewProvider = class {
       }
     }
   }
-  // Compute workspace ID to match MCP server format
+  // Compute workspace ID to match MCP server format exactly
   getWorkspaceId() {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
     if (!workspaceFolder) return null;
     const workspacePath = workspaceFolder.uri.fsPath;
-    const name = path.basename(workspacePath).toLowerCase().replace(/[^a-z0-9]/g, "_").substring(0, 20);
-    const hash = crypto.createHash("md5").update(workspacePath).digest("hex").substring(0, 12);
-    return `${name}-${hash}`;
+    const normalizedPath = path.normalize(workspacePath).toLowerCase();
+    const hash = crypto.createHash("sha256").update(normalizedPath).digest("hex").substring(0, 12);
+    const folderName = path.basename(workspacePath).replace(/[^a-zA-Z0-9-_]/g, "-");
+    return `${folderName}-${hash}`;
   }
   resolveWebviewView(webviewView, context, _token) {
     this.dispose();
@@ -5263,15 +5264,15 @@ var DashboardViewProvider = class {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}'; connect-src http://localhost:*; frame-src http://localhost:*;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}'; connect-src http://localhost:* ws://localhost:*; frame-src http://localhost:*;">
     <title>Project Memory Dashboard</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: var(--vscode-font-family); 
-            background: var(--vscode-editor-background);
-            color: var(--vscode-editor-foreground);
-            height: 100vh;
+        html, body { 
+            font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif); 
+            background: var(--vscode-editor-background, #1e1e1e);
+            color: var(--vscode-editor-foreground, #cccccc);
+            min-height: 100%;
             display: flex;
             flex-direction: column;
             overflow-y: auto;
@@ -5573,11 +5574,17 @@ var DashboardViewProvider = class {
         }
         
         async function fetchPlans() {
-            if (!workspaceId) return;
+            if (!workspaceId) {
+                console.log('No workspaceId, skipping plan fetch');
+                return;
+            }
+            console.log('Fetching plans for workspace:', workspaceId);
             try {
                 const response = await fetch('http://localhost:' + apiPort + '/api/plans/workspace/' + workspaceId);
+                console.log('Plans response status:', response.status);
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('Plans data:', data);
                     activePlans = (data.plans || []).filter(p => p.status === 'active');
                     archivedPlans = (data.plans || []).filter(p => p.status === 'archived');
                     updatePlanLists();
@@ -5631,6 +5638,8 @@ var DashboardViewProvider = class {
                             <ul>
                                 <li><button class="btn btn-secondary" style="width:100%" data-action="run-command" data-command="projectMemory.createPlan">Create New Plan</button></li>
                                 <li><button class="btn btn-secondary" style="width:100%" data-action="run-command" data-command="projectMemory.deployAgents">Deploy Agents</button></li>
+                                <li><button class="btn btn-secondary" style="width:100%" data-action="run-command" data-command="projectMemory.deployInstructions">Deploy Instructions</button></li>
+                                <li><button class="btn btn-secondary" style="width:100%" data-action="run-command" data-command="projectMemory.deployPrompts">Deploy Prompts</button></li>
                             </ul>
                         </div>
                         
@@ -6653,17 +6662,20 @@ var DashboardPanel = class _DashboardPanel {
     ></iframe>
     
     <script nonce="${nonce}">
-        const iframe = document.getElementById('dashboard-frame');
-        
-        iframe.onerror = function() {
-            document.body.innerHTML = \`
-                <div class="error">
-                    <h2>Unable to load dashboard</h2>
-                    <p>Make sure the dashboard server is running on ${dashboardUrl}</p>
-                    <button onclick="location.reload()">Retry</button>
-                </div>
-            \`;
-        };
+        (function() {
+            const iframe = document.getElementById('dashboard-frame');
+            if (iframe) {
+                iframe.onerror = function() {
+                    document.body.innerHTML = \`
+                        <div class="error">
+                            <h2>Unable to load dashboard</h2>
+                            <p>Make sure the dashboard server is running on ${dashboardUrl}</p>
+                            <button onclick="location.reload()">Retry</button>
+                        </div>
+                    \`;
+                };
+            }
+        })();
     </script>
 </body>
 </html>`;
@@ -6970,6 +6982,7 @@ function activate(context) {
       }
       const config2 = vscode8.workspace.getConfiguration("projectMemory");
       const agentsRoot2 = config2.get("agentsRoot") || getDefaultAgentsRoot();
+      const defaultAgents2 = config2.get("defaultAgents") || [];
       if (!agentsRoot2) {
         vscode8.window.showErrorMessage("Agents root not configured. Set projectMemory.agentsRoot in settings.");
         return;
@@ -6978,9 +6991,15 @@ function activate(context) {
       const fs2 = require("fs");
       const path6 = require("path");
       try {
-        const agentFiles = fs2.readdirSync(agentsRoot2).filter((f) => f.endsWith(".agent.md"));
+        let agentFiles = fs2.readdirSync(agentsRoot2).filter((f) => f.endsWith(".agent.md"));
+        if (defaultAgents2.length > 0) {
+          agentFiles = agentFiles.filter((f) => {
+            const name = f.replace(".agent.md", "");
+            return defaultAgents2.includes(name);
+          });
+        }
         if (agentFiles.length === 0) {
-          vscode8.window.showWarningMessage("No agent files found in agents root");
+          vscode8.window.showWarningMessage("No agent files found matching your defaults");
           return;
         }
         const targetDir = path6.join(workspacePath, ".github", "agents");
@@ -7018,11 +7037,49 @@ function activate(context) {
         vscode8.window.showErrorMessage("No workspace folder open");
         return;
       }
-      dashboardProvider.postMessage({
-        type: "deployPrompts",
-        data: { workspacePath: workspaceFolders[0].uri.fsPath }
-      });
-      vscode8.window.showInformationMessage("Deploying prompts to workspace...");
+      const config2 = vscode8.workspace.getConfiguration("projectMemory");
+      const promptsRoot2 = config2.get("promptsRoot") || getDefaultPromptsRoot();
+      if (!promptsRoot2) {
+        vscode8.window.showErrorMessage("Prompts root not configured. Set projectMemory.promptsRoot in settings.");
+        return;
+      }
+      const workspacePath = workspaceFolders[0].uri.fsPath;
+      const fs2 = require("fs");
+      const path6 = require("path");
+      try {
+        const promptFiles = fs2.readdirSync(promptsRoot2).filter((f) => f.endsWith(".prompt.md"));
+        if (promptFiles.length === 0) {
+          vscode8.window.showWarningMessage("No prompt files found in prompts root");
+          return;
+        }
+        const targetDir = path6.join(workspacePath, ".github", "prompts");
+        fs2.mkdirSync(targetDir, { recursive: true });
+        let copiedCount = 0;
+        for (const file of promptFiles) {
+          const sourcePath = path6.join(promptsRoot2, file);
+          const targetPath = path6.join(targetDir, file);
+          fs2.copyFileSync(sourcePath, targetPath);
+          copiedCount++;
+        }
+        dashboardProvider.postMessage({
+          type: "deploymentComplete",
+          data: {
+            type: "prompts",
+            count: copiedCount,
+            targetDir
+          }
+        });
+        vscode8.window.showInformationMessage(
+          `\u2705 Deployed ${copiedCount} prompt(s) to ${path6.relative(workspacePath, targetDir)}`,
+          "Open Folder"
+        ).then((selection) => {
+          if (selection === "Open Folder") {
+            vscode8.commands.executeCommand("revealInExplorer", vscode8.Uri.file(targetDir));
+          }
+        });
+      } catch (error) {
+        vscode8.window.showErrorMessage(`Failed to deploy prompts: ${error}`);
+      }
     }),
     vscode8.commands.registerCommand("projectMemory.deployInstructions", async () => {
       const workspaceFolders = vscode8.workspace.workspaceFolders;
@@ -7030,11 +7087,56 @@ function activate(context) {
         vscode8.window.showErrorMessage("No workspace folder open");
         return;
       }
-      dashboardProvider.postMessage({
-        type: "deployInstructions",
-        data: { workspacePath: workspaceFolders[0].uri.fsPath }
-      });
-      vscode8.window.showInformationMessage("Deploying instructions to workspace...");
+      const config2 = vscode8.workspace.getConfiguration("projectMemory");
+      const instructionsRoot2 = config2.get("instructionsRoot") || getDefaultInstructionsRoot();
+      const defaultInstructions2 = config2.get("defaultInstructions") || [];
+      if (!instructionsRoot2) {
+        vscode8.window.showErrorMessage("Instructions root not configured. Set projectMemory.instructionsRoot in settings.");
+        return;
+      }
+      const workspacePath = workspaceFolders[0].uri.fsPath;
+      const fs2 = require("fs");
+      const path6 = require("path");
+      try {
+        let instructionFiles = fs2.readdirSync(instructionsRoot2).filter((f) => f.endsWith(".instructions.md"));
+        if (defaultInstructions2.length > 0) {
+          instructionFiles = instructionFiles.filter((f) => {
+            const name = f.replace(".instructions.md", "");
+            return defaultInstructions2.includes(name);
+          });
+        }
+        if (instructionFiles.length === 0) {
+          vscode8.window.showWarningMessage("No instruction files found matching your defaults");
+          return;
+        }
+        const targetDir = path6.join(workspacePath, ".github", "instructions");
+        fs2.mkdirSync(targetDir, { recursive: true });
+        let copiedCount = 0;
+        for (const file of instructionFiles) {
+          const sourcePath = path6.join(instructionsRoot2, file);
+          const targetPath = path6.join(targetDir, file);
+          fs2.copyFileSync(sourcePath, targetPath);
+          copiedCount++;
+        }
+        dashboardProvider.postMessage({
+          type: "deploymentComplete",
+          data: {
+            type: "instructions",
+            count: copiedCount,
+            targetDir
+          }
+        });
+        vscode8.window.showInformationMessage(
+          `\u2705 Deployed ${copiedCount} instruction(s) to ${path6.relative(workspacePath, targetDir)}`,
+          "Open Folder"
+        ).then((selection) => {
+          if (selection === "Open Folder") {
+            vscode8.commands.executeCommand("revealInExplorer", vscode8.Uri.file(targetDir));
+          }
+        });
+      } catch (error) {
+        vscode8.window.showErrorMessage(`Failed to deploy instructions: ${error}`);
+      }
     }),
     vscode8.commands.registerCommand("projectMemory.deployCopilotConfig", async () => {
       const workspaceFolders = vscode8.workspace.workspaceFolders;
@@ -7281,6 +7383,13 @@ function getDefaultInstructionsRoot() {
   const workspaceFolders = vscode8.workspace.workspaceFolders;
   if (workspaceFolders) {
     return vscode8.Uri.joinPath(workspaceFolders[0].uri, "instructions").fsPath;
+  }
+  return "";
+}
+function getDefaultPromptsRoot() {
+  const workspaceFolders = vscode8.workspace.workspaceFolders;
+  if (workspaceFolders) {
+    return vscode8.Uri.joinPath(workspaceFolders[0].uri, "prompts").fsPath;
   }
   return "";
 }

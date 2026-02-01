@@ -11,6 +11,7 @@ import { reportsRouter } from './routes/reports.js';
 import { metricsRouter } from './routes/metrics.js';
 import { promptsRouter } from './routes/prompts.js';
 import { instructionsRouter } from './routes/instructions.js';
+import { deployRouter } from './routes/deploy.js';
 import { setupFileWatcher } from './services/fileWatcher.js';
 
 const PORT = process.env.PORT || 3001;
@@ -53,6 +54,7 @@ app.use('/api/reports', reportsRouter);
 app.use('/api/metrics', metricsRouter);
 app.use('/api/prompts', promptsRouter);
 app.use('/api/instructions', instructionsRouter);
+app.use('/api/deploy', deployRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

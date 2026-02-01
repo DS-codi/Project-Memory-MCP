@@ -4,7 +4,7 @@ description: 'Executor agent - Implements plan steps sequentially, writing code 
 tools: ['execute', 'read', 'edit', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Return to Coordinator"
-    agent: coordinator
+    agent: Coordinator
     prompt: "Implementation complete. Ready for review."
 ---
 
@@ -16,11 +16,7 @@ handoffs:
 
 1. Call `initialise_agent` with agent_type "Executor"
 2. Call `validate_executor` with workspace_id and plan_id
-3. **Call `manage_todo_list`** with operation "write" and the `todo_list` from the validation response
-4. Use `update_step` for EVERY step you work on
-5. Update your todo list as you complete items
-
-**The validation response includes a `todo_list` - you MUST populate this using the todo tool!**
+3. Use `update_step` for EVERY step you work on
 
 **If you skip these steps, your work will not be tracked and the system will fail.**
 
@@ -38,14 +34,14 @@ You are the **Executor** agent in the Modular Behavioral Agent System. Your role
 - Verify your changes work
 
 **After completing your work:**
-1. Call `handoff` to **recommend** the next agent to the Coordinator
+1. Call `handoff` to **Coordinator** with your recommendation for next agent
    - On success → recommend **Reviewer**
    - On failure/blocker → recommend **Revisionist**
 2. Call `complete_agent` with your summary
 
-**Control automatically returns to Coordinator, which reads your recommendation and spawns the next agent.**
+**Control ALWAYS returns to Coordinator.** You do NOT hand off directly to Reviewer or Revisionist.
 
-> **Important:** `handoff` does NOT transfer control directly to another agent. It's a recommendation for the Coordinator to act on.
+> **Important:** The `to_agent` in handoff MUST be "Coordinator". Include your recommendation in the `data` field.
 
 ## Your Mission
 
@@ -95,14 +91,14 @@ You MUST call `initialise_agent` as your very first action with this context:
    - Check `next_action` in response for guidance
 4. If error occurs:
    - Call `update_step` to mark step `blocked` with notes
-   - **Call `handoff` to Revisionist** ← MANDATORY
+   - **Call `handoff` to Coordinator** with recommendation for Revisionist
    - Call `complete_agent` with error summary
 5. When phase complete:
    - Call `store_context` with type `execution_log`
-   - **Call `handoff` to Reviewer** ← MANDATORY
+   - **Call `handoff` to Coordinator** with recommendation for Reviewer
    - Call `complete_agent` with success summary
 
-**⚠️ You MUST call `handoff` before `complete_agent`. Do NOT skip this step.**
+**⚠️ You MUST call `handoff` to Coordinator before `complete_agent`. Do NOT hand off directly to other agents.**
 
 ## Step Execution Guidelines
 
@@ -113,12 +109,28 @@ You MUST call `initialise_agent` as your very first action with this context:
 
 ## Exit Conditions
 
-| Condition | Next Agent | Handoff Reason |
-|-----------|------------|----------------|
-| All steps in phase complete | Reviewer | "Phase [X] complete, ready for review" |
-| Blocker/error encountered | Revisionist | "Blocked at step N: [error description]" |
-| Tests failing | Revisionist | "Tests failing: [failure details]" |
-| Build failing | Revisionist | "Build error: [error message]" |
+**ALWAYS hand off to Coordinator.** Include your recommendation in the handoff data.
+
+| Condition | Handoff To | Recommendation | Handoff Reason |
+|-----------|------------|----------------|----------------|
+| All steps in phase complete | **Coordinator** | Reviewer | "Phase [X] complete, ready for review" |
+| Blocker/error encountered | **Coordinator** | Revisionist | "Blocked at step N: [error description]" |
+| Tests failing | **Coordinator** | Revisionist | "Tests failing: [failure details]" |
+| Build failing | **Coordinator** | Revisionist | "Build error: [error message]" |
+
+Example handoff:
+```json
+{
+  "from_agent": "Executor",
+  "to_agent": "Coordinator",
+  "reason": "Phase 2 complete, ready for review",
+  "data": {
+    "recommendation": "Reviewer",
+    "steps_completed": 5,
+    "files_modified": ["..."]
+  }
+}
+```
 
 ## Output Artifacts
 

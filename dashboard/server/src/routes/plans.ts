@@ -199,12 +199,15 @@ plansRouter.post('/:workspaceId/:planId/archive', async (req, res) => {
     
     await fs.writeFile(statePath, JSON.stringify(state, null, 2));
     
-    // Remove from active_plans in workspace meta
+    // Update workspace meta: remove from active_plans, add to archived_plans
     const metaPath = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'workspace.meta.json');
     try {
       const metaContent = await fs.readFile(metaPath, 'utf-8');
       const meta = JSON.parse(metaContent);
       meta.active_plans = meta.active_plans.filter((p: string) => p !== planId);
+      if (!meta.archived_plans.includes(planId)) {
+        meta.archived_plans.push(planId);
+      }
       meta.last_accessed = new Date().toISOString();
       await fs.writeFile(metaPath, JSON.stringify(meta, null, 2));
     } catch (e) {
@@ -216,10 +219,57 @@ plansRouter.post('/:workspaceId/:planId/archive', async (req, res) => {
       plan_title: state.title,
     }, { workspace_id: workspaceId, plan_id: planId });
     
-    res.json({ success: true, message: 'Plan archived', state });
+    res.json({ success: true, plan: state });
   } catch (error) {
     console.error('Error archiving plan:', error);
     res.status(500).json({ error: 'Failed to archive plan' });
+  }
+});
+
+// POST /api/plans/:workspaceId/:planId/notes - Add a note to the plan
+plansRouter.post('/:workspaceId/:planId/notes', async (req, res) => {
+  try {
+    const { workspaceId, planId } = req.params;
+    const { note, type = 'info' } = req.body;
+    
+    if (!note) {
+      return res.status(400).json({ error: 'Note is required' });
+    }
+    
+    const statePath = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'plans', planId, 'state.json');
+    const content = await fs.readFile(statePath, 'utf-8');
+    const state = JSON.parse(content);
+    
+    // Initialize pending_notes if it doesn't exist
+    if (!state.pending_notes) {
+      state.pending_notes = [];
+    }
+    
+    // Add the note
+    state.pending_notes.push({
+      note,
+      type,
+      added_at: new Date().toISOString(),
+      added_by: 'user'
+    });
+    
+    state.updated_at = new Date().toISOString();
+    
+    await fs.writeFile(statePath, JSON.stringify(state, null, 2));
+    
+    // Emit event
+    await emitEvent('note_added', {
+      note,
+      type,
+    }, { workspace_id: workspaceId, plan_id: planId });
+    
+    res.json({ 
+      success: true, 
+      notes_count: state.pending_notes.length 
+    });
+  } catch (error) {
+    console.error('Error adding note:', error);
+    res.status(500).json({ error: 'Failed to add note' });
   }
 });
 

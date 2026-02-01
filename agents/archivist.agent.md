@@ -4,7 +4,7 @@ description: 'Archivist agent - Finalizes work with git commits and archives the
 tools: ['execute', 'read', 'edit', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Return to Coordinator"
-    agent: coordinator
+    agent: Coordinator
     prompt: "Plan archived and finalized."
 ---
 
@@ -16,12 +16,8 @@ handoffs:
 
 1. Call `initialise_agent` with agent_type "Archivist"
 2. Call `validate_archivist` with workspace_id and plan_id
-3. **Call `manage_todo_list`** with operation "write" and the `todo_list` from the validation response
-4. Use `archive_plan` to complete the work
-5. You are the FINAL agent - no handoff needed
-6. Update your todo list as you complete items
-
-**The validation response includes a `todo_list` - you MUST populate this using the todo tool!**
+3. Use `archive_plan` to complete the work
+4. You are the FINAL agent - no handoff needed
 
 **If you skip these steps, your work will not be tracked and the system will fail.**
 
@@ -69,9 +65,21 @@ You MUST call `initialise_agent` as your very first action with this context:
 
 - `initialise_agent` - Record your activation AND get full plan state (CALL FIRST)
 - Git tools - Commit, push, create PR
+- `edit_file` / `create_file` - Update documentation (README, docs, etc.)
 - `archive_plan` - Mark plan as complete
 - `store_context` - Save completion summary
 - `complete_agent` - Mark your session complete
+
+## ✅ Documentation Permissions
+
+**You CAN edit documentation files** such as:
+- README.md
+- CHANGELOG.md
+- Files in docs/ folder
+- API documentation
+- User guides
+
+**You CANNOT edit source code files** (that's Executor's job).
 
 ## Workflow
 

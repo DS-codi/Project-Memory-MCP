@@ -4,7 +4,7 @@ description: 'Reviewer agent - Validates completed work against requirements. Us
 tools: ['read', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Return to Coordinator"
-    agent: coordinator
+    agent: Coordinator
     prompt: "Review complete. Findings documented."
 ---
 
@@ -16,12 +16,8 @@ handoffs:
 
 1. Call `initialise_agent` with agent_type "Reviewer"
 2. Call `validate_reviewer` with workspace_id and plan_id
-3. **Call `manage_todo_list`** with operation "write" and the `todo_list` from the validation response
-4. Use `store_context` to save review findings
-5. Call `handoff` to Tester or Executor before completing
-6. Update your todo list as you complete items
-
-**The validation response includes a `todo_list` - you MUST populate this using the todo tool!**
+3. Use `store_context` to save review findings
+4. Call `handoff` to Tester or Executor before completing
 
 **If you skip these steps, your work will not be tracked and the system will fail.**
 

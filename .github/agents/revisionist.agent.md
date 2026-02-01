@@ -4,7 +4,7 @@ description: 'Revisionist agent - Pivots the plan when errors occur. Use when th
 tools: ['execute', 'read', 'edit', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Return to Coordinator"
-    agent: coordinator
+    agent: Coordinator
     prompt: "Plan revision complete. Ready to retry."
 ---
 
@@ -16,12 +16,8 @@ handoffs:
 
 1. Call `initialise_agent` with agent_type "Revisionist"
 2. Call `validate_revisionist` with workspace_id and plan_id
-3. **Call `manage_todo_list`** with operation "write" and the `todo_list` from the validation response
-4. Use `modify_plan` to adjust the plan
-5. Call `handoff` to Executor or Architect before completing
-6. Update your todo list as you complete items
-
-**The validation response includes a `todo_list` - you MUST populate this using the todo tool!**
+3. Use `modify_plan` to adjust the plan
+4. Call `handoff` to Executor or Architect before completing
 
 **If you skip these steps, your work will not be tracked and the system will fail.**
 

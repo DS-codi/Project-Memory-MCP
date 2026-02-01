@@ -1,13 +1,23 @@
+import { useState } from 'react';
+import { Edit2 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { Badge } from '../common/Badge';
 import { statusColors, statusIcons } from '@/utils/colors';
+import { StepEditor } from './StepEditor';
+import { useStepMutations } from '@/hooks/useStepMutations';
 import type { PlanStep } from '@/types';
 
 interface StepListProps {
   steps: PlanStep[];
+  workspaceId?: string;
+  planId?: string;
+  editable?: boolean;
 }
 
-export function StepList({ steps }: StepListProps) {
+export function StepList({ steps, workspaceId, planId, editable = false }: StepListProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const { updateSteps } = useStepMutations();
+
   // Group steps by phase
   const groupedSteps = steps.reduce((acc, step) => {
     if (!acc[step.phase]) {
@@ -17,8 +27,45 @@ export function StepList({ steps }: StepListProps) {
     return acc;
   }, {} as Record<string, PlanStep[]>);
 
+  const handleSave = async (editedSteps: PlanStep[]) => {
+    if (!workspaceId || !planId) return;
+    
+    try {
+      await updateSteps.mutateAsync({
+        workspaceId,
+        planId,
+        steps: editedSteps,
+      });
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Failed to update steps:', error);
+    }
+  };
+
+  if (isEditing && workspaceId && planId) {
+    return (
+      <StepEditor
+        steps={steps}
+        onSave={handleSave}
+        onCancel={() => setIsEditing(false)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {editable && workspaceId && planId && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => setIsEditing(true)}
+            className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg transition-colors flex items-center gap-2"
+          >
+            <Edit2 size={16} />
+            Edit Steps
+          </button>
+        </div>
+      )}
+
       {Object.entries(groupedSteps).map(([phase, phaseSteps]) => (
         <div key={phase}>
           <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">

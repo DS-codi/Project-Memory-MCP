@@ -516,6 +516,28 @@ export async function modifyPlan(
     const currentAgent = state.current_agent || 'Coordinator';
     const boundaries = AGENT_BOUNDARIES[currentAgent];
     
+    // SAFEGUARD: Prevent accidental mass deletion of steps
+    const existingStepCount = state.steps.length;
+    const newStepCount = new_steps.length;
+    const completedSteps = state.steps.filter(s => s.status === 'done').length;
+    
+    // If plan has significant work done and new steps would lose >50% of them, require confirmation
+    if (existingStepCount > 20 && newStepCount < existingStepCount * 0.5) {
+      return {
+        success: false,
+        error: `SAFEGUARD: Refusing to replace ${existingStepCount} steps (${completedSteps} done) with only ${newStepCount} steps. ` +
+          `This would lose ${existingStepCount - newStepCount} steps. ` +
+          `If you intend to ADD steps to a specific phase, use batch_update_steps instead. ` +
+          `If you truly need to replace all steps, first call archive_plan to preserve current state.`
+      };
+    }
+    
+    // If there are completed steps that would be lost, warn strongly
+    if (completedSteps > 0 && newStepCount < existingStepCount) {
+      const wouldLose = existingStepCount - newStepCount;
+      console.warn(`[modify_plan] WARNING: Replacing ${existingStepCount} steps with ${newStepCount}. ${completedSteps} completed steps exist.`);
+    }
+    
     // Add index to each step
     const indexedSteps: PlanStep[] = new_steps.map((step, index) => ({
       ...step,
@@ -554,6 +576,69 @@ export async function modifyPlan(
     return {
       success: false,
       error: `Failed to modify plan: ${(error as Error).message}`
+    };
+  }
+}
+
+/**
+ * Append steps to an existing plan (safer than modify_plan for adding phases)
+ * Preserves all existing steps and adds new ones at the end
+ */
+export async function appendSteps(
+  params: { workspace_id: string; plan_id: string; new_steps: Omit<PlanStep, 'index'>[] }
+): Promise<ToolResponse<PlanOperationResult>> {
+  try {
+    const { workspace_id, plan_id, new_steps } = params;
+    
+    if (!workspace_id || !plan_id || !new_steps || new_steps.length === 0) {
+      return {
+        success: false,
+        error: 'workspace_id, plan_id, and new_steps are required'
+      };
+    }
+    
+    const state = await store.getPlanState(workspace_id, plan_id);
+    if (!state) {
+      return {
+        success: false,
+        error: `Plan not found: ${plan_id}`
+      };
+    }
+    
+    const currentAgent = state.current_agent || 'Coordinator';
+    const boundaries = AGENT_BOUNDARIES[currentAgent];
+    
+    // Get the next index
+    const startIndex = state.steps.length;
+    
+    // Add new steps with proper indexing
+    const indexedNewSteps: PlanStep[] = new_steps.map((step, i) => ({
+      ...step,
+      index: startIndex + i,
+      status: step.status || 'pending'
+    }));
+    
+    // Append to existing steps
+    state.steps = [...state.steps, ...indexedNewSteps];
+    
+    await store.savePlanState(state);
+    await store.generatePlanMd(state);
+    
+    return {
+      success: true,
+      data: {
+        plan_state: state,
+        role_boundaries: boundaries,
+        next_action: {
+          should_handoff: !boundaries.can_implement,
+          message: `Appended ${indexedNewSteps.length} steps (indices ${startIndex}-${startIndex + indexedNewSteps.length - 1}). Plan now has ${state.steps.length} total steps.`
+        }
+      }
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to append steps: ${(error as Error).message}`
     };
   }
 }
@@ -606,6 +691,65 @@ export async function archivePlan(
     return {
       success: false,
       error: `Failed to archive plan: ${(error as Error).message}`
+    };
+  }
+}
+
+/**
+ * Add a note to the plan that will be included in the next agent/tool response
+ * Notes are auto-cleared after delivery with an audit log entry
+ */
+export async function addPlanNote(
+  params: { workspace_id: string; plan_id: string; note: string; type?: 'info' | 'warning' | 'instruction' }
+): Promise<ToolResponse<{ plan_id: string; notes_count: number }>> {
+  try {
+    const { workspace_id, plan_id, note, type = 'info' } = params;
+    
+    if (!workspace_id || !plan_id || !note) {
+      return {
+        success: false,
+        error: 'workspace_id, plan_id, and note are required'
+      };
+    }
+    
+    const state = await store.getPlanState(workspace_id, plan_id);
+    if (!state) {
+      return {
+        success: false,
+        error: `Plan not found: ${plan_id}`
+      };
+    }
+    
+    // Initialize pending_notes if it doesn't exist
+    if (!state.pending_notes) {
+      state.pending_notes = [];
+    }
+    
+    // Add the note
+    state.pending_notes.push({
+      note,
+      type,
+      added_at: store.nowISO(),
+      added_by: 'user'
+    });
+    
+    await store.savePlanState(state);
+    await store.generatePlanMd(state);
+    
+    // Emit event for audit log
+    await events.noteAdded(workspace_id, plan_id, note, type);
+    
+    return {
+      success: true,
+      data: {
+        plan_id,
+        notes_count: state.pending_notes.length
+      }
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to add note: ${(error as Error).message}`
     };
   }
 }

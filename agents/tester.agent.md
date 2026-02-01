@@ -4,7 +4,7 @@ description: 'Tester agent - Writes tests after each phase review, runs all test
 tools: ['execute', 'read', 'edit', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Return to Coordinator"
-    agent: coordinator
+    agent: Coordinator
     prompt: "Testing complete. Results documented."
 ---
 
@@ -16,9 +16,8 @@ handoffs:
 
 1. Call `initialise_agent` with agent_type "Tester"
 2. Call `validate_tester` with workspace_id and plan_id
-3. **Call `manage_todo_list`** with operation "write" and the `todo_list` from the validation response
-4. **Check your MODE** from the Coordinator's prompt (WRITE or RUN)
-5. Follow the appropriate workflow below
+3. **Check your MODE** from the Coordinator's prompt (WRITE or RUN)
+4. Follow the appropriate workflow below
 
 **If the MCP tools are not available, STOP and tell the user that Project Memory MCP is not connected.**
 

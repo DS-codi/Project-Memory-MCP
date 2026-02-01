@@ -349,6 +349,7 @@ export function activate(context: vscode.ExtensionContext) {
 
             const config = vscode.workspace.getConfiguration('projectMemory');
             const agentsRoot = config.get<string>('agentsRoot') || getDefaultAgentsRoot();
+            const defaultAgents = config.get<string[]>('defaultAgents') || [];
             
             if (!agentsRoot) {
                 vscode.window.showErrorMessage('Agents root not configured. Set projectMemory.agentsRoot in settings.');
@@ -360,12 +361,20 @@ export function activate(context: vscode.ExtensionContext) {
             const path = require('path');
             
             try {
-                // Get list of agent files
-                const agentFiles = fs.readdirSync(agentsRoot)
+                // Get list of agent files - only defaults if configured
+                let agentFiles = fs.readdirSync(agentsRoot)
                     .filter((f: string) => f.endsWith('.agent.md'));
                 
+                // Filter to only default agents if any are configured
+                if (defaultAgents.length > 0) {
+                    agentFiles = agentFiles.filter((f: string) => {
+                        const name = f.replace('.agent.md', '');
+                        return defaultAgents.includes(name);
+                    });
+                }
+                
                 if (agentFiles.length === 0) {
-                    vscode.window.showWarningMessage('No agent files found in agents root');
+                    vscode.window.showWarningMessage('No agent files found matching your defaults');
                     return;
                 }
 
@@ -412,11 +421,62 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
 
-            dashboardProvider.postMessage({
-                type: 'deployPrompts',
-                data: { workspacePath: workspaceFolders[0].uri.fsPath }
-            });
-            vscode.window.showInformationMessage('Deploying prompts to workspace...');
+            const config = vscode.workspace.getConfiguration('projectMemory');
+            const promptsRoot = config.get<string>('promptsRoot') || getDefaultPromptsRoot();
+            
+            if (!promptsRoot) {
+                vscode.window.showErrorMessage('Prompts root not configured. Set projectMemory.promptsRoot in settings.');
+                return;
+            }
+
+            const workspacePath = workspaceFolders[0].uri.fsPath;
+            const fs = require('fs');
+            const path = require('path');
+            
+            try {
+                // Get list of prompt files
+                const promptFiles = fs.readdirSync(promptsRoot)
+                    .filter((f: string) => f.endsWith('.prompt.md'));
+                
+                if (promptFiles.length === 0) {
+                    vscode.window.showWarningMessage('No prompt files found in prompts root');
+                    return;
+                }
+
+                // Create target directory
+                const targetDir = path.join(workspacePath, '.github', 'prompts');
+                fs.mkdirSync(targetDir, { recursive: true });
+
+                // Copy each prompt file
+                let copiedCount = 0;
+                for (const file of promptFiles) {
+                    const sourcePath = path.join(promptsRoot, file);
+                    const targetPath = path.join(targetDir, file);
+                    fs.copyFileSync(sourcePath, targetPath);
+                    copiedCount++;
+                }
+
+                // Update the sidebar to show success
+                dashboardProvider.postMessage({
+                    type: 'deploymentComplete',
+                    data: { 
+                        type: 'prompts',
+                        count: copiedCount,
+                        targetDir 
+                    }
+                });
+
+                vscode.window.showInformationMessage(
+                    `✅ Deployed ${copiedCount} prompt(s) to ${path.relative(workspacePath, targetDir)}`,
+                    'Open Folder'
+                ).then(selection => {
+                    if (selection === 'Open Folder') {
+                        vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(targetDir));
+                    }
+                });
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to deploy prompts: ${error}`);
+            }
         }),
 
         vscode.commands.registerCommand('projectMemory.deployInstructions', async () => {
@@ -426,11 +486,71 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
 
-            dashboardProvider.postMessage({
-                type: 'deployInstructions',
-                data: { workspacePath: workspaceFolders[0].uri.fsPath }
-            });
-            vscode.window.showInformationMessage('Deploying instructions to workspace...');
+            const config = vscode.workspace.getConfiguration('projectMemory');
+            const instructionsRoot = config.get<string>('instructionsRoot') || getDefaultInstructionsRoot();
+            const defaultInstructions = config.get<string[]>('defaultInstructions') || [];
+            
+            if (!instructionsRoot) {
+                vscode.window.showErrorMessage('Instructions root not configured. Set projectMemory.instructionsRoot in settings.');
+                return;
+            }
+
+            const workspacePath = workspaceFolders[0].uri.fsPath;
+            const fs = require('fs');
+            const path = require('path');
+            
+            try {
+                // Get list of instruction files - only defaults if configured
+                let instructionFiles = fs.readdirSync(instructionsRoot)
+                    .filter((f: string) => f.endsWith('.instructions.md'));
+                
+                // Filter to only default instructions if any are configured
+                if (defaultInstructions.length > 0) {
+                    instructionFiles = instructionFiles.filter((f: string) => {
+                        const name = f.replace('.instructions.md', '');
+                        return defaultInstructions.includes(name);
+                    });
+                }
+                
+                if (instructionFiles.length === 0) {
+                    vscode.window.showWarningMessage('No instruction files found matching your defaults');
+                    return;
+                }
+
+                // Create target directory
+                const targetDir = path.join(workspacePath, '.github', 'instructions');
+                fs.mkdirSync(targetDir, { recursive: true });
+
+                // Copy each instruction file
+                let copiedCount = 0;
+                for (const file of instructionFiles) {
+                    const sourcePath = path.join(instructionsRoot, file);
+                    const targetPath = path.join(targetDir, file);
+                    fs.copyFileSync(sourcePath, targetPath);
+                    copiedCount++;
+                }
+
+                // Update the sidebar to show success
+                dashboardProvider.postMessage({
+                    type: 'deploymentComplete',
+                    data: { 
+                        type: 'instructions',
+                        count: copiedCount,
+                        targetDir 
+                    }
+                });
+
+                vscode.window.showInformationMessage(
+                    `✅ Deployed ${copiedCount} instruction(s) to ${path.relative(workspacePath, targetDir)}`,
+                    'Open Folder'
+                ).then(selection => {
+                    if (selection === 'Open Folder') {
+                        vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(targetDir));
+                    }
+                });
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to deploy instructions: ${error}`);
+            }
         }),
 
         vscode.commands.registerCommand('projectMemory.deployCopilotConfig', async () => {
@@ -739,6 +859,14 @@ function getDefaultInstructionsRoot(): string {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (workspaceFolders) {
         return vscode.Uri.joinPath(workspaceFolders[0].uri, 'instructions').fsPath;
+    }
+    return '';
+}
+
+function getDefaultPromptsRoot(): string {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (workspaceFolders) {
+        return vscode.Uri.joinPath(workspaceFolders[0].uri, 'prompts').fsPath;
     }
     return '';
 }

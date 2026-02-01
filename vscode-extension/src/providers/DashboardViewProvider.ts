@@ -40,15 +40,17 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    // Compute workspace ID to match MCP server format
+    // Compute workspace ID to match MCP server format exactly
     private getWorkspaceId(): string | null {
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
         if (!workspaceFolder) return null;
         
         const workspacePath = workspaceFolder.uri.fsPath;
-        const name = path.basename(workspacePath).toLowerCase().replace(/[^a-z0-9]/g, '_').substring(0, 20);
-        const hash = crypto.createHash('md5').update(workspacePath).digest('hex').substring(0, 12);
-        return `${name}-${hash}`;
+        // Must match server's generateWorkspaceId: sha256, normalized lowercase path
+        const normalizedPath = path.normalize(workspacePath).toLowerCase();
+        const hash = crypto.createHash('sha256').update(normalizedPath).digest('hex').substring(0, 12);
+        const folderName = path.basename(workspacePath).replace(/[^a-zA-Z0-9-_]/g, '-');
+        return `${folderName}-${hash}`;
     }
 
     public resolveWebviewView(
@@ -196,15 +198,15 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}'; connect-src http://localhost:*; frame-src http://localhost:*;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}'; connect-src http://localhost:* ws://localhost:*; frame-src http://localhost:*;">
     <title>Project Memory Dashboard</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: var(--vscode-font-family); 
-            background: var(--vscode-editor-background);
-            color: var(--vscode-editor-foreground);
-            height: 100vh;
+        html, body { 
+            font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif); 
+            background: var(--vscode-editor-background, #1e1e1e);
+            color: var(--vscode-editor-foreground, #cccccc);
+            min-height: 100%;
             display: flex;
             flex-direction: column;
             overflow-y: auto;
@@ -506,11 +508,17 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
         }
         
         async function fetchPlans() {
-            if (!workspaceId) return;
+            if (!workspaceId) {
+                console.log('No workspaceId, skipping plan fetch');
+                return;
+            }
+            console.log('Fetching plans for workspace:', workspaceId);
             try {
                 const response = await fetch('http://localhost:' + apiPort + '/api/plans/workspace/' + workspaceId);
+                console.log('Plans response status:', response.status);
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('Plans data:', data);
                     activePlans = (data.plans || []).filter(p => p.status === 'active');
                     archivedPlans = (data.plans || []).filter(p => p.status === 'archived');
                     updatePlanLists();
@@ -564,6 +572,8 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                             <ul>
                                 <li><button class="btn btn-secondary" style="width:100%" data-action="run-command" data-command="projectMemory.createPlan">Create New Plan</button></li>
                                 <li><button class="btn btn-secondary" style="width:100%" data-action="run-command" data-command="projectMemory.deployAgents">Deploy Agents</button></li>
+                                <li><button class="btn btn-secondary" style="width:100%" data-action="run-command" data-command="projectMemory.deployInstructions">Deploy Instructions</button></li>
+                                <li><button class="btn btn-secondary" style="width:100%" data-action="run-command" data-command="projectMemory.deployPrompts">Deploy Prompts</button></li>
                             </ul>
                         </div>
                         

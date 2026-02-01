@@ -18,6 +18,7 @@ export type EventType =
   | 'plan_updated'
   | 'plan_archived'
   | 'step_updated'
+  | 'note_added'
   | 'handoff'
   | 'agent_session_started'
   | 'agent_session_completed'
@@ -202,6 +203,15 @@ export const events = {
       plan_id: planId,
       agent_type: agentType,
       data: { summary, artifacts },
+    });
+  },
+  
+  noteAdded: async (workspaceId: string, planId: string, note: string, type: string) => {
+    await emitEvent({
+      type: 'note_added',
+      workspace_id: workspaceId,
+      plan_id: planId,
+      data: { note, type },
     });
   },
 };

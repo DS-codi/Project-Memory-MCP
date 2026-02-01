@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Clock, GitBranch, ListChecks, FileText, Activity, BarChart } from 'lucide-react';
+import { ArrowLeft, Clock, GitBranch, ListChecks, FileText, Activity, BarChart, Info, AlertTriangle, MessageSquare } from 'lucide-react';
 import { Badge } from '@/components/common/Badge';
 import { ProgressBar } from '@/components/common/ProgressBar';
 import { StepList } from '@/components/plan/StepList';
@@ -9,6 +9,8 @@ import { StepProgress } from '@/components/plan/StepProgress';
 import { ResearchNotesViewer } from '@/components/plan/ResearchNotesViewer';
 import { AuditLogViewer } from '@/components/plan/AuditLogViewer';
 import { ExportReport } from '@/components/plan/ExportReport';
+import { PlanActions } from '@/components/plan/PlanActions';
+import { AddNoteForm } from '@/components/plan/AddNoteForm';
 import { HandoffTimeline } from '@/components/timeline/HandoffTimeline';
 import { BallInCourt } from '@/components/timeline/BallInCourt';
 import { formatDate, formatRelative } from '@/utils/formatters';
@@ -105,6 +107,11 @@ export function PlanDetailPage() {
                 planId={planId!} 
                 planTitle={plan.title} 
               />
+              <PlanActions
+                workspaceId={workspaceId!}
+                planId={planId!}
+                planTitle={plan.title}
+              />
             </div>
             <div className="font-mono mb-1">{plan.id}</div>
             <div className="flex items-center gap-1 justify-end">
@@ -123,6 +130,33 @@ export function PlanDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Pending Notes */}
+      {plan.pending_notes && plan.pending_notes.length > 0 && (
+        <div className="bg-slate-800 border-l-4 border-violet-500 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <MessageSquare size={18} className="text-violet-400" />
+            <h3 className="font-semibold">Pending Notes for Next Agent</h3>
+            <Badge variant="violet">{plan.pending_notes.length}</Badge>
+          </div>
+          <div className="space-y-2">
+            {plan.pending_notes.map((note, idx) => (
+              <div key={idx} className="bg-slate-900/50 rounded p-3 border border-slate-700">
+                <div className="flex items-center gap-2 mb-1">
+                  {note.type === 'info' && <Info size={14} className="text-blue-400" />}
+                  {note.type === 'warning' && <AlertTriangle size={14} className="text-amber-400" />}
+                  {note.type === 'instruction' && <MessageSquare size={14} className="text-violet-400" />}
+                  <Badge variant={note.type === 'info' ? 'blue' : note.type === 'warning' ? 'amber' : 'violet'}>
+                    {note.type}
+                  </Badge>
+                  <span className="text-xs text-slate-500">{formatRelative(note.added_at)}</span>
+                </div>
+                <p className="text-slate-200 text-sm">{note.note}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Ball in Court */}
       <BallInCourt currentAgent={plan.current_agent as AgentType} currentSession={currentSession} />
@@ -155,6 +189,9 @@ export function PlanDetailPage() {
         )}
         {activeTab === 'steps' && (
           <div className="space-y-6">
+            {/* Add Note Form */}
+            <AddNoteForm workspaceId={workspaceId!} planId={planId!} />
+
             {/* View Toggle */}
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-lg">Step Progress</h3>
@@ -192,7 +229,12 @@ export function PlanDetailPage() {
             {/* Detailed Step List */}
             <div className="border-t border-slate-700 pt-6">
               <h3 className="font-semibold text-lg mb-4">All Steps</h3>
-              <StepList steps={plan.steps || []} />
+              <StepList 
+                steps={plan.steps || []} 
+                workspaceId={workspaceId}
+                planId={planId}
+                editable={true}
+              />
             </div>
           </div>
         )}

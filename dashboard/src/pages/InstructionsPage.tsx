@@ -109,9 +109,11 @@ export function InstructionsPage() {
           <div>
             <h3 className="font-medium text-white">{instruction.name}</h3>
             {instruction.applyTo && (
-              <code className="text-xs text-slate-400 bg-slate-900 px-1 rounded">
-                {instruction.applyTo}
-              </code>
+              <div className="mt-1 inline-flex max-w-full">
+                <code className="text-xs text-slate-300 bg-slate-900 px-2 py-1 rounded font-mono break-words whitespace-normal">
+                  {instruction.applyTo}
+                </code>
+              </div>
             )}
           </div>
         </div>

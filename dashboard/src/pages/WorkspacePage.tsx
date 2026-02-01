@@ -6,6 +6,7 @@ import { PlanList } from '@/components/plan/PlanList';
 import { CreatePlanForm } from '@/components/plan/CreatePlanForm';
 import { HealthIndicator } from '@/components/workspace/HealthIndicator';
 import { CopilotStatusPanel } from '@/components/workspace/CopilotStatusPanel';
+import { DeployModal } from '@/components/workspace/DeployModal';
 import { useCopilotStatus } from '@/hooks/useCopilotStatus';
 import { formatDate, formatRelative } from '@/utils/formatters';
 import type { WorkspaceMeta, PlanSummary, WorkspaceHealth } from '@/types';
@@ -27,6 +28,7 @@ export function WorkspacePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showDeployModal, setShowDeployModal] = useState(false);
 
   const { data: workspace, isLoading: wsLoading } = useQuery({
     queryKey: ['workspace', workspaceId],
@@ -145,7 +147,7 @@ export function WorkspacePage() {
         status={copilotData?.status || null}
         isLoading={copilotLoading}
         onRefresh={() => refetchCopilot()}
-        onDeploy={() => navigate('/agents')}
+        onDeploy={() => setShowDeployModal(true)}
       />
 
       {/* Plans */}
@@ -175,6 +177,17 @@ export function WorkspacePage() {
           onCancel={() => setShowCreateForm(false)}
         />
       )}
+
+      {/* Deploy Modal */}
+      <DeployModal
+        isOpen={showDeployModal}
+        onClose={() => {
+          setShowDeployModal(false);
+          refetchCopilot();
+        }}
+        workspaceId={workspaceId!}
+        workspacePath={workspace?.path || ''}
+      />
     </div>
   );
 }

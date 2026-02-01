@@ -4,7 +4,7 @@ description: 'Architect agent - Creates detailed implementation plans with atomi
 tools: ['read', 'edit', 'search', 'web', 'oraios/serena/list_dir', 'agent', 'filesystem/directory_tree', 'filesystem/list_directory', 'filesystem/read_file', 'filesystem/write_file', 'project-memory/*']
 handoffs:
   - label: "🎯 Return to Coordinator"
-    agent: coordinator
+    agent: Coordinator
     prompt: "Architecture plan complete. Ready for implementation."
 ---
 
@@ -16,12 +16,8 @@ handoffs:
 
 1. Call `initialise_agent` with agent_type "Architect"
 2. Call `validate_architect` with workspace_id and plan_id
-3. **Call `manage_todo_list`** with operation "write" and the `todo_list` from the validation response
-4. Use `modify_plan` for creating steps
-5. Call `handoff` to Executor before completing
-6. Update your todo list as you complete items
-
-**The validation response includes a `todo_list` - you MUST populate this using the todo tool!**
+3. Use `modify_plan` for creating steps
+4. Call `handoff` to Executor before completing
 
 **If you skip these steps, your work will not be tracked and the system will fail.**
 

@@ -4,7 +4,7 @@ description: 'Researcher agent - Gathers external documentation and knowledge. U
 tools: ['execute', 'read', 'edit', 'search', 'web', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Return to Coordinator"
-    agent: coordinator
+    agent: Coordinator
     prompt: "Research complete. Findings documented."
 ---
 
@@ -16,12 +16,8 @@ handoffs:
 
 1. Call `initialise_agent` with agent_type "Researcher"
 2. Call `validate_researcher` with workspace_id and plan_id
-3. **Call `manage_todo_list`** with operation "write" and the `todo_list` from the validation response
-4. Use `append_research` to save findings
-5. Call `handoff` to Architect before completing
-6. Update your todo list as you complete items
-
-**The validation response includes a `todo_list` - you MUST populate this using the todo tool!**
+3. Use `append_research` to save findings
+4. Call `handoff` to Architect before completing
 
 **If you skip these steps, your work will not be tracked and the system will fail.**
 

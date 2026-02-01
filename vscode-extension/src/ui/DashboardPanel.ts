@@ -132,17 +132,20 @@ export class DashboardPanel {
     ></iframe>
     
     <script nonce="${nonce}">
-        const iframe = document.getElementById('dashboard-frame');
-        
-        iframe.onerror = function() {
-            document.body.innerHTML = \`
-                <div class="error">
-                    <h2>Unable to load dashboard</h2>
-                    <p>Make sure the dashboard server is running on ${dashboardUrl}</p>
-                    <button onclick="location.reload()">Retry</button>
-                </div>
-            \`;
-        };
+        (function() {
+            const iframe = document.getElementById('dashboard-frame');
+            if (iframe) {
+                iframe.onerror = function() {
+                    document.body.innerHTML = \`
+                        <div class="error">
+                            <h2>Unable to load dashboard</h2>
+                            <p>Make sure the dashboard server is running on ${dashboardUrl}</p>
+                            <button onclick="location.reload()">Retry</button>
+                        </div>
+                    \`;
+                };
+            }
+        })();
     </script>
 </body>
 </html>`;

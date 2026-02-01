@@ -154,12 +154,14 @@
         "projectMemory.dataRoot": {
           "type": "string",
           "default": "",
-          "description": "Path to the Project Memory data directory (MBS_DATA_ROOT)"
+          "description": "Path to the Project Memory data directory (MBS_DATA_ROOT)",
+          "scope": "application"
         },
         "projectMemory.agentsRoot": {
           "type": "string",
           "default": "",
-          "description": "Path to the agent templates directory (MBS_AGENTS_ROOT)"
+          "description": "Path to the agent templates directory (MBS_AGENTS_ROOT)",
+          "scope": "application"
         },
         "projectMemory.autoRefresh": {
           "type": "boolean",
@@ -194,12 +196,14 @@
         "projectMemory.promptsRoot": {
           "type": "string",
           "default": "",
-          "description": "Path to the prompt templates directory (MBS_PROMPTS_ROOT)"
+          "description": "Path to the prompt templates directory (MBS_PROMPTS_ROOT)",
+          "scope": "application"
         },
         "projectMemory.instructionsRoot": {
           "type": "string",
           "default": "",
-          "description": "Path to the instruction files directory (MBS_INSTRUCTIONS_ROOT)"
+          "description": "Path to the instruction files directory (MBS_INSTRUCTIONS_ROOT)",
+          "scope": "application"
         },
         "projectMemory.defaultAgents": {
           "type": "array",

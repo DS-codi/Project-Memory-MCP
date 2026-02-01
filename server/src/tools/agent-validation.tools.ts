@@ -189,7 +189,7 @@ function getAllowedTools(agentType: AgentType): string[] {
     Reviewer: [...commonTools, 'update_step', 'store_context'],
     Tester: [...commonTools, 'update_step', 'store_context', 'run_tests'],
     Revisionist: [...commonTools, 'modify_plan', 'update_step', 'store_context'],
-    Archivist: [...commonTools, 'archive_plan', 'reindex_workspace']
+    Archivist: [...commonTools, 'archive_plan', 'reindex_workspace', 'edit_file', 'create_file']
   };
   
   return agentTools[agentType];
@@ -392,8 +392,10 @@ async function validateAgent(
       instructions += `Current task: "${currentStep.task}". `;
     }
     
-    if (!boundaries.can_implement) {
-      instructions += `⚠️ You CANNOT create or edit code files. `;
+    if (!boundaries.can_implement && !boundaries.can_edit_docs) {
+      instructions += `⚠️ You CANNOT create or edit files. `;
+    } else if (!boundaries.can_implement && boundaries.can_edit_docs) {
+      instructions += `📝 You CAN edit documentation files (README, docs, etc.) but NOT source code. `;
     }
     
     if (!boundaries.can_finalize) {

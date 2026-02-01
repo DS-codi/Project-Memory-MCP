@@ -73,6 +73,7 @@ export interface AgentSession {
 export interface AgentRoleBoundaries {
   agent_type: AgentType;
   can_implement: boolean;         // Can create/edit code files
+  can_edit_docs?: boolean;        // Can edit documentation files (README, docs, etc.)
   can_finalize: boolean;          // Can complete without handoff (only Archivist)
   must_handoff_to: AgentType[];   // Recommended next agents (Coordinator will deploy)
   forbidden_actions: string[];    // Actions this agent must NOT take
@@ -148,10 +149,11 @@ export const AGENT_BOUNDARIES: Record<AgentType, AgentRoleBoundaries> = {
   Archivist: {
     agent_type: 'Archivist',
     can_implement: false,
+    can_edit_docs: true,  // Can edit documentation files (README, docs, etc.)
     can_finalize: true,  // ONLY agent that can complete without handoff
     must_handoff_to: [],
-    forbidden_actions: ['create files', 'edit code', 'implement features'],
-    primary_responsibility: 'Archive completed plan, document outcomes'
+    forbidden_actions: ['create source files', 'edit source code', 'implement features'],
+    primary_responsibility: 'Archive completed plan, update documentation, commit changes'
   }
 };
 
@@ -166,6 +168,19 @@ export interface PlanStep {
   status: StepStatus;
   notes?: string;
   completed_at?: string;
+}
+
+// =============================================================================
+// Plan Notes - User annotations for agents
+// =============================================================================
+
+export type PlanNoteType = 'info' | 'warning' | 'instruction';
+
+export interface PlanNote {
+  note: string;
+  type: PlanNoteType;
+  added_at: string;
+  added_by: 'user' | 'agent';
 }
 
 // =============================================================================
@@ -184,6 +199,7 @@ export interface PlanState {
   current_phase: string;
   current_agent: AgentType | null;  // Agent currently deployed by Coordinator
   recommended_next_agent?: AgentType;  // Subagent recommendation for Coordinator
+  pending_notes?: PlanNote[];  // Notes for next agent/tool call (auto-cleared after delivery)
   created_at: string;
   updated_at: string;
   agent_sessions: AgentSession[];

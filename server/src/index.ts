@@ -317,7 +317,7 @@ server.tool(
 
 server.tool(
   'modify_plan',
-  'Replace the plan steps with a new set of steps. Used by Architect to create plan or Revisionist to pivot.',
+  'Replace ALL plan steps with a new set. WARNING: This replaces existing steps. Use append_steps to add steps to an existing plan. Has safeguards against accidental mass deletion.',
   {
     workspace_id: z.string().describe('The workspace ID'),
     plan_id: z.string().describe('The plan ID'),
@@ -346,6 +346,36 @@ server.tool(
 );
 
 server.tool(
+  'append_steps',
+  'Append new steps to an existing plan. Safer than modify_plan - preserves all existing steps and adds new ones at the end. Use this for adding new phases.',
+  {
+    workspace_id: z.string().describe('The workspace ID'),
+    plan_id: z.string().describe('The plan ID'),
+    new_steps: z.array(z.object({
+      phase: z.string().describe('Phase name (e.g., phase-8-new-feature)'),
+      task: z.string().describe('Description of the task'),
+      status: StepStatusSchema.optional().describe('Initial status (defaults to pending)')
+    })).describe('Array of steps to append')
+  },
+  async (params) => {
+    const result = await withLogging('append_steps', params, () =>
+      planTools.appendSteps({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id,
+        new_steps: params.new_steps.map(s => ({
+          phase: s.phase,
+          task: s.task,
+          status: s.status || 'pending' as const
+        }))
+      })
+    );
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+    };
+  }
+);
+
+server.tool(
   'archive_plan',
   'Archive a completed plan. Moves it from active to archived status.',
   {
@@ -357,6 +387,30 @@ server.tool(
       planTools.archivePlan({
         workspace_id: params.workspace_id,
         plan_id: params.plan_id
+      })
+    );
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+    };
+  }
+);
+
+server.tool(
+  'add_plan_note',
+  'Add a note to the plan that will be included in the next agent/tool response. Notes are auto-cleared after delivery with an audit log entry. Use this for user feedback, additional context, or instructions for the next agent.',
+  {
+    workspace_id: z.string().describe('The workspace ID'),
+    plan_id: z.string().describe('The plan ID'),
+    note: z.string().describe('The note content'),
+    type: z.enum(['info', 'warning', 'instruction']).optional().describe('Note type (defaults to info)')
+  },
+  async (params) => {
+    const result = await withLogging('add_plan_note', params, () =>
+      planTools.addPlanNote({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id,
+        note: params.note,
+        type: params.type
       })
     );
     return {

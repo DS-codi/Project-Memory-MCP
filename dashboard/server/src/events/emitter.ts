@@ -20,6 +20,7 @@ export type EventType =
   | 'plan_deleted'
   | 'plan_duplicated'
   | 'plan_imported'
+  | 'note_added'
   | 'agent_session_started'
   | 'agent_session_completed'
   | 'handoff_started'

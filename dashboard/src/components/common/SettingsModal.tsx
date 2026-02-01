@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Save, FolderOpen, Server, Palette } from 'lucide-react';
+import { X, Save, FolderOpen, Server, Palette, Package } from 'lucide-react';
 import { cn } from '@/utils/cn';
 
 interface SettingsModalProps {
@@ -15,7 +15,32 @@ interface Settings {
   theme: 'dark' | 'light' | 'system';
   autoRefresh: boolean;
   refreshInterval: number;
+  defaultAgents: string[];
+  defaultInstructions: string[];
+  autoDeployOnWorkspaceOpen: boolean;
 }
+
+const ALL_AGENTS = [
+  'coordinator',
+  'researcher', 
+  'architect',
+  'executor',
+  'reviewer',
+  'tester',
+  'archivist',
+  'revisionist',
+  'brainstorm',
+];
+
+const ALL_INSTRUCTIONS = [
+  'mvc-architecture',
+  'handoff-protocol',
+  'api',
+  'components',
+  'mcp-usage',
+  'plan-context',
+  'tests',
+];
 
 const defaultSettings: Settings = {
   apiUrl: 'http://localhost:3001',
@@ -25,11 +50,14 @@ const defaultSettings: Settings = {
   theme: 'dark',
   autoRefresh: true,
   refreshInterval: 5000,
+  defaultAgents: ['coordinator', 'researcher', 'architect', 'executor', 'reviewer', 'tester', 'archivist', 'revisionist', 'brainstorm'],
+  defaultInstructions: ['mvc-architecture', 'handoff-protocol'],
+  autoDeployOnWorkspaceOpen: false,
 };
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
-  const [activeTab, setActiveTab] = useState<'connection' | 'appearance' | 'advanced'>('connection');
+  const [activeTab, setActiveTab] = useState<'connection' | 'defaults' | 'appearance' | 'advanced'>('connection');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -57,10 +85,25 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     }
   };
 
+  const toggleAgent = (agent: string) => {
+    const newAgents = settings.defaultAgents.includes(agent)
+      ? settings.defaultAgents.filter(a => a !== agent)
+      : [...settings.defaultAgents, agent];
+    setSettings({ ...settings, defaultAgents: newAgents });
+  };
+
+  const toggleInstruction = (instruction: string) => {
+    const newInstructions = settings.defaultInstructions.includes(instruction)
+      ? settings.defaultInstructions.filter(i => i !== instruction)
+      : [...settings.defaultInstructions, instruction];
+    setSettings({ ...settings, defaultInstructions: newInstructions });
+  };
+
   if (!isOpen) return null;
 
   const tabs = [
     { id: 'connection' as const, label: 'Connection', icon: Server },
+    { id: 'defaults' as const, label: 'Defaults', icon: Package },
     { id: 'appearance' as const, label: 'Appearance', icon: Palette },
     { id: 'advanced' as const, label: 'Advanced', icon: FolderOpen },
   ];
@@ -151,6 +194,127 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <option value="light">Light</option>
                   <option value="system">System</option>
                 </select>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'defaults' && (
+            <div className="space-y-6">
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300">
+                      Auto Deploy on Workspace Open
+                    </label>
+                    <p className="text-xs text-slate-500">Automatically deploy defaults when opening a new workspace</p>
+                  </div>
+                  <button
+                    onClick={() => setSettings({ ...settings, autoDeployOnWorkspaceOpen: !settings.autoDeployOnWorkspaceOpen })}
+                    className={cn(
+                      'relative w-12 h-6 rounded-full transition-colors',
+                      settings.autoDeployOnWorkspaceOpen ? 'bg-violet-500' : 'bg-slate-600'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform',
+                        settings.autoDeployOnWorkspaceOpen && 'translate-x-6'
+                      )}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Default Agents
+                </label>
+                <p className="text-xs text-slate-500 mb-3">Select which agents to deploy to new workspaces</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {ALL_AGENTS.map((agent) => (
+                    <button
+                      key={agent}
+                      onClick={() => toggleAgent(agent)}
+                      className={cn(
+                        'flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors text-left',
+                        settings.defaultAgents.includes(agent)
+                          ? 'bg-violet-500/20 border-violet-500 text-violet-300'
+                          : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
+                      )}
+                    >
+                      <span className={cn(
+                        'w-4 h-4 rounded border flex items-center justify-center text-xs',
+                        settings.defaultAgents.includes(agent)
+                          ? 'bg-violet-500 border-violet-500 text-white'
+                          : 'border-slate-600'
+                      )}>
+                        {settings.defaultAgents.includes(agent) && '✓'}
+                      </span>
+                      <span className="capitalize">{agent}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={() => setSettings({ ...settings, defaultAgents: [...ALL_AGENTS] })}
+                    className="text-xs text-violet-400 hover:text-violet-300"
+                  >
+                    Select All
+                  </button>
+                  <span className="text-slate-600">|</span>
+                  <button
+                    onClick={() => setSettings({ ...settings, defaultAgents: [] })}
+                    className="text-xs text-slate-400 hover:text-slate-300"
+                  >
+                    Deselect All
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Default Instructions
+                </label>
+                <p className="text-xs text-slate-500 mb-3">Select which instruction files to deploy to new workspaces</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {ALL_INSTRUCTIONS.map((instruction) => (
+                    <button
+                      key={instruction}
+                      onClick={() => toggleInstruction(instruction)}
+                      className={cn(
+                        'flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors text-left',
+                        settings.defaultInstructions.includes(instruction)
+                          ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
+                          : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
+                      )}
+                    >
+                      <span className={cn(
+                        'w-4 h-4 rounded border flex items-center justify-center text-xs',
+                        settings.defaultInstructions.includes(instruction)
+                          ? 'bg-emerald-500 border-emerald-500 text-white'
+                          : 'border-slate-600'
+                      )}>
+                        {settings.defaultInstructions.includes(instruction) && '✓'}
+                      </span>
+                      <span>{instruction}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={() => setSettings({ ...settings, defaultInstructions: [...ALL_INSTRUCTIONS] })}
+                    className="text-xs text-emerald-400 hover:text-emerald-300"
+                  >
+                    Select All
+                  </button>
+                  <span className="text-slate-600">|</span>
+                  <button
+                    onClick={() => setSettings({ ...settings, defaultInstructions: [] })}
+                    className="text-xs text-slate-400 hover:text-slate-300"
+                  >
+                    Deselect All
+                  </button>
+                </div>
               </div>
             </div>
           )}

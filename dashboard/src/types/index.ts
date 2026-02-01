@@ -73,6 +73,19 @@ export interface PlanStep {
 }
 
 // =============================================================================
+// Plan Notes
+// =============================================================================
+
+export type PlanNoteType = 'info' | 'warning' | 'instruction';
+
+export interface PlanNote {
+  note: string;
+  type: PlanNoteType;
+  added_at: string;
+  added_by: 'user' | 'agent';
+}
+
+// =============================================================================
 // Plan State
 // =============================================================================
 
@@ -95,6 +108,7 @@ export interface PlanState {
   categorization?: RequestCategorization;
   current_phase: string;
   current_agent: AgentType | null;
+  pending_notes?: PlanNote[];
   created_at: string;
   updated_at: string;
   agent_sessions: AgentSession[];
