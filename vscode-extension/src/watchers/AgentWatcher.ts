@@ -8,6 +8,14 @@ import * as vscode from 'vscode';
 import * as chokidar from 'chokidar';
 import * as path from 'path';
 
+function notify(message: string, ...items: string[]): Thenable<string | undefined> {
+    const config = vscode.workspace.getConfiguration('projectMemory');
+    if (config.get<boolean>('showNotifications', true)) {
+        return vscode.window.showInformationMessage(message, ...items);
+    }
+    return Promise.resolve(undefined);
+}
+
 export class AgentWatcher {
     private watcher: chokidar.FSWatcher | null = null;
     private agentsRoot: string;
@@ -35,11 +43,11 @@ export class AgentWatcher {
             
             if (this.autoDeploy) {
                 // Auto-deploy the agent
-                vscode.window.showInformationMessage(`Deploying updated agent: ${agentName}`);
+                notify(`Deploying updated agent: ${agentName}`);
                 // TODO: Call deploy API
             } else {
                 // Show notification with action
-                const action = await vscode.window.showInformationMessage(
+                const action = await notify(
                     `Agent template updated: ${agentName}`,
                     'Deploy to All Workspaces',
                     'Ignore'
@@ -53,7 +61,7 @@ export class AgentWatcher {
 
         this.watcher.on('add', (filePath) => {
             const agentName = path.basename(filePath, '.agent.md');
-            vscode.window.showInformationMessage(`New agent template detected: ${agentName}`);
+            notify(`New agent template detected: ${agentName}`);
         });
 
         console.log(`Agent watcher started for: ${pattern}`);

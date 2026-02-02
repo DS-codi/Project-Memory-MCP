@@ -3,6 +3,14 @@ import { spawn, ChildProcess } from 'child_process';
 import * as path from 'path';
 import * as http from 'http';
 
+function notify(message: string, ...items: string[]): Thenable<string | undefined> {
+    const config = vscode.workspace.getConfiguration('projectMemory');
+    if (config.get<boolean>('showNotifications', true)) {
+        return vscode.window.showInformationMessage(message, ...items);
+    }
+    return Promise.resolve(undefined);
+}
+
 export interface ServerConfig {
     dataRoot: string;
     agentsRoot: string;
@@ -69,7 +77,7 @@ export class ServerManager implements vscode.Disposable {
             this._isExternalServer = true;
             this.restartAttempts = 0;
             this.updateStatusBar('connected');
-            vscode.window.showInformationMessage('Connected to existing Project Memory server');
+            notify('Connected to existing Project Memory server');
             return true;
         }
 
@@ -350,8 +358,13 @@ export class ServerManager implements vscode.Disposable {
         this.log(`Looking for dashboard - workspacePath: ${workspacePath}, extensionPath: ${extensionPath}`);
         
         const possiblePaths = [
+            // Direct dashboard folder in workspace
             workspacePath ? path.join(workspacePath, 'dashboard') : null,
+            // Monorepo structure: Project_Memory_MCP/Project-Memory-MCP/dashboard
+            workspacePath ? path.join(workspacePath, 'Project-Memory-MCP', 'dashboard') : null,
+            // Bundled with extension
             extensionPath ? path.join(extensionPath, 'dashboard') : null,
+            // Sibling to extension
             extensionPath ? path.join(extensionPath, '..', 'dashboard') : null,
         ].filter(Boolean) as string[];
 

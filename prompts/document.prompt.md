@@ -23,8 +23,8 @@ description: "Generate documentation for code or project"
 
 **Instructions for Coordinator:**
 
-1. Use `store_initial_context` to capture this request
-2. Create a plan with category "documentation"
+1. Use `memory_context` (action: store_initial) to capture this request
+2. Create a plan with `memory_plan` (action: create, category: "documentation")
 3. Spawn Researcher to gather information about the code
 4. Spawn Architect to outline documentation structure
 5. Spawn Executor to write documentation

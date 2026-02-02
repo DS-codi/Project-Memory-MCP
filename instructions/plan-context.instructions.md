@@ -21,31 +21,29 @@ data/{workspace_id}/plans/{plan_id}/
 
 ## Reading Context
 
-Use `get_plan_state` to fetch current plan state including:
+Use `memory_plan` (action: get) to fetch current plan state including:
 - Steps and their statuses
 - Current phase
 - Agent sessions history
 - Lineage (handoff history)
 
-Use `get_context` to read specific context files:
+Use `memory_context` (action: get) to read specific context files:
 ```
-mcp_project-memor_get_context({
+memory_context (action: get) with
   workspace_id: "...",
   plan_id: "...",
-  context_type: "original_request|research|architecture|review"
-})
+  type: "original_request|research|architecture|review"
 ```
 
 ## Writing Context
 
-Use `store_context` to save findings:
+Use `memory_context` (action: store) to save findings:
 ```
-mcp_project-memor_store_context({
+memory_context (action: store) with
   workspace_id: "...",
   plan_id: "...",
-  context_type: "research|architecture|review|audit",
+  type: "research|architecture|review|audit",
   data: { ... }
-})
 ```
 
 ## Who Reads What

@@ -1,15 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Settings, RefreshCw } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ThemeToggle } from '../common/ThemeToggle';
 import { SettingsModal } from '../common/SettingsModal';
+import { GlobalSearch } from '../common/GlobalSearch';
 
 export function Header() {
-  const [search, setSearch] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const queryClient = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
-
+  // Keyboard shortcut for search (Ctrl+K or Cmd+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowSearch(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await queryClient.invalidateQueries();
@@ -25,10 +36,13 @@ export function Header() {
           <input
             type="text"
             placeholder="Search plans, workspaces..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-sm"
+            readOnly
+            onClick={() => setShowSearch(true)}
+            className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 text-sm cursor-pointer"
           />
+          <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1 px-2 py-0.5 bg-slate-700 rounded text-xs text-slate-400">
+            Ctrl+K
+          </kbd>
         </div>
 
         {/* Actions */}
@@ -58,6 +72,7 @@ export function Header() {
       </header>
       
       <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
+      <GlobalSearch isOpen={showSearch} onClose={() => setShowSearch(false)} />
     </>
   );
 }

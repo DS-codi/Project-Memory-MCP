@@ -9,6 +9,14 @@ import * as vscode from 'vscode';
 import * as chokidar from 'chokidar';
 import * as path from 'path';
 
+function notify(message: string, ...items: string[]): Thenable<string | undefined> {
+    const config = vscode.workspace.getConfiguration('projectMemory');
+    if (config.get<boolean>('showNotifications', true)) {
+        return vscode.window.showInformationMessage(message, ...items);
+    }
+    return Promise.resolve(undefined);
+}
+
 export type CopilotFileType = 'agent' | 'prompt' | 'instruction';
 
 interface WatcherConfig {
@@ -92,16 +100,16 @@ export class CopilotFileWatcher {
         }
 
         if (action === 'add') {
-            vscode.window.showInformationMessage(`New ${label.toLowerCase()} detected: ${fileName}`);
+            notify(`New ${label.toLowerCase()} detected: ${fileName}`);
             return;
         }
 
         // Handle change
         if (this.config.autoDeploy) {
-            vscode.window.showInformationMessage(`Auto-deploying updated ${label.toLowerCase()}: ${fileName}`);
+            notify(`Auto-deploying updated ${label.toLowerCase()}: ${fileName}`);
             this.triggerDeploy(type);
         } else {
-            const deployAction = await vscode.window.showInformationMessage(
+            const deployAction = await notify(
                 `${label} updated: ${fileName}`,
                 'Deploy to All Workspaces',
                 'Ignore'

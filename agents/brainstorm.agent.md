@@ -1,7 +1,7 @@
 ---
 name: Brainstorm
 description: 'Brainstorm agent - Collaborative idea exploration and plan refinement. Use to iterate on ideas, explore alternatives, and develop concrete plans through discussion before formal implementation.'
-tools: ['vscode', 'read', 'search', 'web', 'filesystem/*', 'project-memory/*', 'microsoft/markitdown/*']
+tools: ['vscode', 'read', 'search', 'web', 'filesystem/*', 'microsoft/markitdown/*', 'project-memory/*']
 ---
 
 # Brainstorm Agent

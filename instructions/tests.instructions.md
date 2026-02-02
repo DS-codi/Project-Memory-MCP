@@ -16,10 +16,10 @@ When working with test files in this workspace:
 ## MCP Integration
 
 When the Tester agent writes tests:
-1. Initialize with `initialise_agent(agent_type: "Tester")`
+1. Initialize with `memory_agent` (action: init, agent_type: "Tester")
 2. Check mode from Coordinator prompt (WRITE or RUN)
-3. Use `update_step` to track progress
-4. Call `handoff` then `complete_agent` when done
+3. Use `memory_steps` (action: update) to track progress
+4. Call `memory_agent` (action: handoff) then `memory_agent` (action: complete) when done
 
 ## Test Coverage Goals
 

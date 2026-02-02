@@ -1,0 +1,26 @@
+/**
+ * Consolidated MCP Tools Index
+ * 
+ * This module exports 5 consolidated tools that replace the 39 individual tools:
+ * 
+ * 1. memory_workspace - Workspace management (4 actions)
+ *    Actions: register, list, info, reindex
+ * 
+ * 2. memory_plan - Plan lifecycle management (8 actions)
+ *    Actions: list, get, create, update, archive, import, find, add_note
+ * 
+ * 3. memory_steps - Step management (3 actions)
+ *    Actions: add, update, batch_update
+ * 
+ * 4. memory_agent - Agent lifecycle and deployment (9 actions)
+ *    Actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage
+ * 
+ * 5. memory_context - Context and research management (7 actions)
+ *    Actions: store, get, store_initial, list, list_research, append_research, generate_instructions
+ */
+
+export { memoryWorkspace, type MemoryWorkspaceParams, type WorkspaceAction } from './memory_workspace.js';
+export { memoryPlan, type MemoryPlanParams, type PlanAction } from './memory_plan.js';
+export { memorySteps, type MemoryStepsParams, type StepsAction } from './memory_steps.js';
+export { memoryAgent, type MemoryAgentParams, type AgentAction } from './memory_agent.js';
+export { memoryContext, type MemoryContextParams, type ContextAction } from './memory_context.js';

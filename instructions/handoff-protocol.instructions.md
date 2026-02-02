@@ -33,22 +33,22 @@ This workspace uses a **hub-and-spoke** model for agent orchestration.
 
 ### For Other Agents (Spokes)
 - **You are a subagent** - you don't transfer control directly
-- Call `handoff` to **recommend** the next agent (not transfer)
-- Call `complete_agent` when your work is done
+- Call `memory_agent` (action: handoff) to **recommend** the next agent (not transfer)
+- Call `memory_agent` (action: complete) when your work is done
 - Control automatically returns to Coordinator
 
 ## Handoff Flow
 
 1. **Coordinator spawns Executor**
-2. **Executor implements** → calls `handoff(to: "Reviewer")` → calls `complete_agent`
+2. **Executor implements** → calls `memory_agent` (action: handoff, to: "Reviewer") → calls `memory_agent` (action: complete)
 3. **Coordinator reads** `recommended_next_agent` → spawns Reviewer
-4. **Reviewer validates** → calls `handoff(to: "Tester")` → calls `complete_agent`
+4. **Reviewer validates** → calls `memory_agent` (action: handoff, to: "Tester") → calls `memory_agent` (action: complete)
 5. **Coordinator reads** → spawns Tester
 6. **Repeat** until Archivist archives the plan
 
 ## What Handoff Does
 
-The `handoff` tool:
+The `memory_agent` (action: handoff) tool:
 - Records the transition in lineage history
 - Sets `recommended_next_agent` on the plan state
 - **Does NOT** transfer control to another agent

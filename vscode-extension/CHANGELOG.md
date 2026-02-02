@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Copilot Chat Integration**
+  - New `@memory` chat participant for conversational access to Project Memory
+  - Slash commands: `/plan`, `/status`, `/context`, `/handoff`
+  - Language Model Tools for autonomous Copilot use:
+    - `memory_getPlanState` - Retrieve plan state
+    - `memory_updateStep` - Update step status
+    - `memory_createPlan` - Create new plans
+    - `memory_getWorkspaceContext` - Get workspace info
+    - `memory_handoff` - Execute agent handoffs
+    - `memory_addNote` - Add notes to plans
+  - MCP Bridge for stdio JSON-RPC communication with MCP server
+  - Support for bundled, Podman, and external server modes
+  - Status bar indicator for MCP connection state
+  - Auto-reconnection on server disconnect
+
+- **New Commands**
+  - `projectMemory.chat.reconnect` - Reconnect to MCP server
+
+- **New Settings**
+  - `projectMemory.chat.serverMode` - MCP server mode (bundled/podman/external)
+  - `projectMemory.chat.autoConnect` - Auto-connect on activation
+  - `projectMemory.chat.podmanImage` - Podman image name
+  - `projectMemory.chat.externalServerPath` - External server path
+
+### Changed
+- Updated VS Code engine requirement to 1.99.0 for Chat API support
+- Added `github.copilot-chat` as extension dependency
+- Added `@modelcontextprotocol/sdk` dependency
+
 ## [0.2.0] - 2025-01-XX
 
 ### Added

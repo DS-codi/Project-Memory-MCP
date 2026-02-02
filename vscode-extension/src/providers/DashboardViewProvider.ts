@@ -9,6 +9,14 @@ import * as vscode from 'vscode';
 import * as crypto from 'crypto';
 import * as path from 'path';
 
+function notify(message: string, ...items: string[]): Thenable<string | undefined> {
+    const config = vscode.workspace.getConfiguration('projectMemory');
+    if (config.get<boolean>('showNotifications', true)) {
+        return vscode.window.showInformationMessage(message, ...items);
+    }
+    return Promise.resolve(undefined);
+}
+
 export interface Message {
     type: string;
     data?: unknown;
@@ -119,7 +127,7 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                 case 'copyToClipboard':
                     const { text } = message.data as { text: string };
                     await vscode.env.clipboard.writeText(text);
-                    vscode.window.showInformationMessage(`Copied to clipboard: ${text}`);
+                    notify(`Copied to clipboard: ${text}`);
                     break;
 
                 case 'showNotification':
@@ -129,7 +137,7 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                     } else if (level === 'warning') {
                         vscode.window.showWarningMessage(notifText);
                     } else {
-                        vscode.window.showInformationMessage(notifText);
+                        notify(notifText);
                     }
                     break;
 

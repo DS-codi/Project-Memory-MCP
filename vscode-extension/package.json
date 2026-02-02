@@ -10,7 +10,7 @@
     "url": "https://github.com/project-memory/project-memory-mcp"
   },
   "engines": {
-    "vscode": "^1.85.0"
+    "vscode": "^1.99.0"
   },
   "categories": [
     "Other",
@@ -28,6 +28,134 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "chatParticipants": [
+      {
+        "id": "project-memory.memory",
+        "name": "memory",
+        "description": "Access project plans, context, and agent workflows from Project Memory",
+        "isSticky": true,
+        "commands": [
+          { "name": "plan", "description": "View, create, or manage plans" },
+          { "name": "context", "description": "Get workspace context and codebase profile" },
+          { "name": "handoff", "description": "Execute an agent handoff" },
+          { "name": "status", "description": "Show current plan progress" }
+        ]
+      }
+    ],
+    "languageModelTools": [
+      {
+        "name": "memory_plan",
+        "displayName": "Project Memory Plan",
+        "description": "Manage project plans - list, get, create, or archive",
+        "modelDescription": "Manage Project Memory plans. Actions: 'list' to see all plans, 'get' to retrieve a specific plan by planId, 'create' to start a new plan (requires title, description, category), 'archive' to archive a completed plan.",
+        "parametersSchema": {
+          "type": "object",
+          "properties": {
+            "action": { 
+              "type": "string", 
+              "enum": ["list", "get", "create", "archive"], 
+              "description": "The action to perform" 
+            },
+            "planId": { "type": "string", "description": "The plan ID (required for get/archive)" },
+            "title": { "type": "string", "description": "Plan title (for create)" },
+            "description": { "type": "string", "description": "Plan description (for create)" },
+            "category": { 
+              "type": "string", 
+              "enum": ["feature", "bug", "change", "analysis", "debug", "refactor", "documentation"], 
+              "description": "Plan category (for create)" 
+            },
+            "priority": { 
+              "type": "string", 
+              "enum": ["low", "medium", "high", "critical"], 
+              "description": "Plan priority (for create)" 
+            },
+            "includeArchived": { "type": "boolean", "description": "Include archived plans (for list)" }
+          },
+          "required": ["action"]
+        },
+        "canBeInvokedManually": true
+      },
+      {
+        "name": "memory_steps",
+        "displayName": "Project Memory Steps",
+        "description": "Manage plan steps - update status, batch update, or add new steps",
+        "modelDescription": "Manage Project Memory plan steps. Actions: 'update' to change a single step status (requires planId, stepIndex, status), 'batch_update' to update multiple steps (requires planId, updates array), 'add' to append new steps (requires planId, newSteps array).",
+        "parametersSchema": {
+          "type": "object",
+          "properties": {
+            "action": { 
+              "type": "string", 
+              "enum": ["update", "batch_update", "add"], 
+              "description": "The action to perform" 
+            },
+            "planId": { "type": "string", "description": "The plan ID" },
+            "stepIndex": { "type": "number", "description": "Step index (for update action)" },
+            "status": { 
+              "type": "string", 
+              "enum": ["pending", "active", "done", "blocked"], 
+              "description": "New status (for update action)" 
+            },
+            "notes": { "type": "string", "description": "Notes to add (for update action)" },
+            "updates": { 
+              "type": "array", 
+              "items": {
+                "type": "object",
+                "properties": {
+                  "step_index": { "type": "number" },
+                  "status": { "type": "string" },
+                  "notes": { "type": "string" }
+                }
+              },
+              "description": "Array of step updates (for batch_update action)" 
+            },
+            "newSteps": { 
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "phase": { "type": "string" },
+                  "task": { "type": "string" },
+                  "status": { "type": "string" }
+                }
+              },
+              "description": "New steps to add (for add action)" 
+            }
+          },
+          "required": ["action", "planId"]
+        }
+      },
+      {
+        "name": "memory_context",
+        "displayName": "Project Memory Context",
+        "description": "Manage context - add notes, get briefing, handoff, or workspace info",
+        "modelDescription": "Manage Project Memory context. Actions: 'add_note' to add a note to a plan (requires planId, note), 'briefing' to get mission briefing for an agent (requires planId), 'handoff' to transfer to another agent (requires planId, targetAgent, reason), 'workspace' to get workspace info and codebase profile.",
+        "parametersSchema": {
+          "type": "object",
+          "properties": {
+            "action": { 
+              "type": "string", 
+              "enum": ["add_note", "briefing", "handoff", "workspace"], 
+              "description": "The action to perform" 
+            },
+            "planId": { "type": "string", "description": "The plan ID (required for add_note, briefing, handoff)" },
+            "note": { "type": "string", "description": "Note content (for add_note action)" },
+            "noteType": { 
+              "type": "string", 
+              "enum": ["info", "warning", "instruction"], 
+              "description": "Note type (for add_note action)" 
+            },
+            "targetAgent": { 
+              "type": "string", 
+              "enum": ["Coordinator", "Researcher", "Architect", "Executor", "Reviewer", "Tester", "Archivist"],
+              "description": "Target agent (for handoff action)" 
+            },
+            "reason": { "type": "string", "description": "Reason for handoff (for handoff action)" }
+          },
+          "required": ["action"]
+        },
+        "canBeInvokedManually": true
+      }
+    ],
     "commands": [
       {
         "command": "projectMemory.showDashboard",
@@ -128,6 +256,11 @@
         "command": "projectMemory.openSettings",
         "title": "Open Settings",
         "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.chat.reconnect",
+        "title": "Reconnect Chat to MCP Server",
+        "category": "Project Memory"
       }
     ],
     "viewsContainers": {
@@ -215,10 +348,46 @@
           "default": ["mvc-architecture", "handoff-protocol"],
           "description": "List of instruction files to auto-deploy to new workspaces"
         },
+        "projectMemory.defaultPrompts": {
+          "type": "array",
+          "default": ["new-feature", "fix-bug", "refactor", "document"],
+          "description": "List of prompt files to pre-select when deploying prompts"
+        },
         "projectMemory.autoDeployOnWorkspaceOpen": {
           "type": "boolean",
           "default": false,
           "description": "Automatically deploy default agents and instructions when opening a workspace"
+        },
+        "projectMemory.showNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show toast notifications for deployment and server events"
+        },
+        "projectMemory.chat.serverMode": {
+          "type": "string",
+          "enum": ["bundled", "podman", "external"],
+          "default": "bundled",
+          "description": "How to run the MCP server for chat integration",
+          "enumDescriptions": [
+            "Spawn bundled server automatically",
+            "Run in Podman container",
+            "Connect to external server"
+          ]
+        },
+        "projectMemory.chat.podmanImage": {
+          "type": "string",
+          "default": "project-memory-mcp:latest",
+          "description": "Podman/Docker image name for MCP server (when serverMode is 'podman')"
+        },
+        "projectMemory.chat.externalServerPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to external MCP server executable (when serverMode is 'external')"
+        },
+        "projectMemory.chat.autoConnect": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically connect to MCP server when extension activates"
         }
       }
     },
@@ -260,7 +429,7 @@
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.10.0",
-    "@types/vscode": "^1.85.0",
+    "@types/vscode": "^1.99.0",
     "@typescript-eslint/eslint-plugin": "^8.54.0",
     "@typescript-eslint/parser": "^8.54.0",
     "@vscode/test-electron": "^2.5.2",
@@ -270,6 +439,7 @@
     "typescript": "^5.3.0"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
     "chokidar": "^3.5.3",
     "glob": "^13.0.0"
   }

@@ -35,13 +35,12 @@ handoffs:
 
 ### ⛔ MCP TOOLS REQUIRED - NO EXCEPTIONS
 
-**Before doing ANYTHING, verify you have access to these MCP tools:**
-- `initialise_agent`
-- `validate_coordinator`
-- `create_plan` / `find_plan` / `list_plans`
-- `get_plan_state`
-- `handoff`
-- `complete_agent`
+**Before doing ANYTHING, verify you have access to these MCP tools (consolidated v2.0):**
+- `memory_workspace` (action: register)
+- `memory_plan` (actions: list, get, create)
+- `memory_steps` (actions: update, batch_update)
+- `memory_agent` (actions: init, validate, complete, handoff)
+- `memory_context` (actions: store_initial, add_note, briefing)
 
 **If these tools are NOT available:**
 
@@ -186,24 +185,23 @@ Example flow with Analyst:
 
 ## 🔧 YOUR TOOLS
 
-### MCP Tools (Project Memory)
-| Tool | Purpose |
-|------|---------|
-| `initialise_agent` | Record your activation (CALL FIRST) |
-| `validate_coordinator` | Verify you're the correct agent |
-| `register_workspace` | Register a new workspace |
-| `create_plan` | Create a new plan |
-| `find_plan` | Find a plan by ID |
-| `list_plans` | List plans in a workspace |
-| `get_plan_state` | **Get current plan progress** - includes `recommended_next_agent` from subagents |
-| `store_initial_context` | **Store user request + context** for Researcher/Architect to read |
-| `update_step` | Update a single step's status |
-| `batch_update_steps` | **Update multiple steps at once** |
-| `handoff` | **NOT for you** - subagents use this to recommend next agent |
-| `store_context` | Save audit findings (generic) |
-| `complete_agent` | Mark session complete |
+### MCP Tools (Project Memory v2.0 - Consolidated)
+| Tool | Action | Purpose |
+|------|--------|---------|
+| `memory_agent` | `init` | Record your activation (CALL FIRST) |
+| `memory_agent` | `validate` | Verify you're the correct agent (agent_type: Coordinator) |
+| `memory_agent` | `complete` | Mark session complete |
+| `memory_workspace` | `register` | Register a new workspace |
+| `memory_workspace` | `list` | List all registered workspaces |
+| `memory_plan` | `create` | Create a new plan |
+| `memory_plan` | `get` | **Get current plan progress** - includes `recommended_next_agent` |
+| `memory_plan` | `list` | List plans in a workspace |
+| `memory_steps` | `update` | Update a single step's status |
+| `memory_steps` | `batch_update` | **Update multiple steps at once** |
+| `memory_context` | `store_initial` | **Store user request + context** for Researcher/Architect |
+| `memory_context` | `briefing` | Get mission briefing for an agent |
 
-> **Note:** The `handoff` tool is used by **subagents** to tell you (Coordinator) which agent to deploy next. When a subagent calls `handoff`, it sets `recommended_next_agent` in the plan state. You read this via `get_plan_state` and then spawn the appropriate subagent.
+> **Note:** Subagents use `memory_agent` (action: handoff) to recommend which agent to deploy next. When a subagent calls handoff, it sets `recommended_next_agent` in the plan state. You read this via `memory_plan` (action: get) and then spawn the appropriate subagent.
 
 ### Sub-Agent Tool
 ```javascript
@@ -220,7 +218,7 @@ runSubagent({
 
 **After EVERY sub-agent returns, you MUST:**
 
-1. Call `get_plan_state` to see updated steps/status
+1. Call `memory_plan` (action: get) to see updated steps/status
 2. Check `recommended_next_agent` - the subagent's recommendation
 3. Determine what phase you're in
 4. Deploy the recommended agent (or override if needed)
@@ -228,7 +226,7 @@ runSubagent({
 
 **Example check:**
 ```
-get_plan_state(workspace_id, plan_id)
+memory_plan (action: get) with workspace_id, plan_id
 
 Response shows:
 - steps: 8/15 done
@@ -250,18 +248,18 @@ If the user simply says **"continue"**, **"resume"**, or **"pick up where we lef
 
 ```javascript
 // First, list plans to find what's in progress
-list_plans({ workspace_id: "..." })
+plan (action: list) with workspace_id: "..."
 
 // Or if you don't know the workspace, check recently active:
 // Look at the workspace folder name and register it
-register_workspace({ workspace_path: "/path/to/current/workspace" })
+workspace (action: register) with workspace_path: "/path/to/current/workspace"
 ```
 
 ### Step 2: Get Current State
 
 ```javascript
 // Get the plan state to see exactly where we are
-get_plan_state({ workspace_id: "...", plan_id: "..." })
+plan (action: get) with workspace_id: "...", plan_id: "..."
 ```
 
 ### Step 3: Determine What's Next
@@ -298,15 +296,15 @@ Ready to continue? (Or type 'status' for more details)
 // User says: "continue"
 
 // 1. Initialize yourself
-initialise_agent({ agent_type: "Coordinator", context: { resuming: true } })
+agent (action: init) with agent_type: "Coordinator", context: { resuming: true }
 
 // 2. Find the workspace and active plan
-register_workspace({ workspace_path: currentWorkspacePath })
-const plans = list_plans({ workspace_id: workspaceId })
+workspace (action: register) with workspace_path: currentWorkspacePath
+const plans = plan (action: list) with workspace_id: workspaceId
 const activePlan = plans.find(p => p.status === "active")
 
 // 3. Get full state
-const state = get_plan_state({ workspace_id: workspaceId, plan_id: activePlan.id })
+const state = plan (action: get) with workspace_id: workspaceId, plan_id: activePlan.id
 
 // 4. Report to user
 "Resuming plan '{title}' - {done}/{total} steps complete. 
@@ -321,8 +319,8 @@ const state = get_plan_state({ workspace_id: workspaceId, plan_id: activePlan.id
 
 ### 1. Initialize
 ```
-1. Call initialise_agent(agent_type: "Coordinator", context: {...})
-2. Call validate_coordinator(workspace_id, plan_id)
+1. Call agent (action: init) with agent_type: "Coordinator", context: {...}
+2. Call agent (action: validate) with workspace_id, plan_id
 3. Call manage_todo_list with your planning todos (see below)
 ```
 
@@ -330,21 +328,21 @@ const state = get_plan_state({ workspace_id: workspaceId, plan_id: activePlan.id
 
 **If user provides a plan ID:**
 ```
-find_plan(plan_id) → get workspace_id, plan_state
+plan (action: get) with plan_id → get workspace_id, plan_state
 ```
 
 **If user says "continue" or "resume":**
 ```
-list_plans(workspace_id) → find active plan
-get_plan_state(workspace_id, plan_id) → determine next action
+plan (action: list) with workspace_id → find active plan
+plan (action: get) with workspace_id, plan_id → determine next action
 Brief user on current state → wait for confirmation
 ```
 
 **If new request:**
 ```
-register_workspace(workspace_path)
-create_plan(workspace_id, title, description, category, ...)
-store_context(type: "audit", data: {...})
+workspace (action: register) with workspace_path
+plan (action: create) with workspace_id, title, description, category, ...
+context (action: store) with type: "audit", data: {...}
 ```
 
 ### 3. Begin Planning or Orchestration
@@ -364,7 +362,7 @@ When a user asks you to "create a plan", "write a plan", or "plan out" a feature
 - Make technical decisions
 
 **YOU DO:**
-1. Create an empty plan shell via `create_plan`
+1. Create an empty plan shell via `memory_plan` (action: create)
 2. Deploy **Researcher** to gather context and requirements
 3. Deploy **Architect** to design the solution and define steps
 4. Track this with a todo list
@@ -404,7 +402,7 @@ manage_todo_list({
 │                                                                  │
 │  3. ARCHITECT    → Design the solution                          │
 │                    - Read Researcher findings                    │
-│                    - Create plan steps via modify_plan           │
+│                    - Create plan steps via steps (action: add)   |
 │                    - Define phases and dependencies              │
 │                    - Recommend → Executor                        │
 │                                                                  │
@@ -478,16 +476,15 @@ manage_todo_list({
 manage_todo_list({ operation: "write", todoList: [...] })
 
 // 2. Create plan shell with brief description
-create_plan({
+plan (action: create) with
   workspace_id: "...",
   title: "Add Dark Mode Support",
   description: "Implement dark mode theming for the application",  // Brief!
   category: "feature",
   priority: "medium"
-})
 
 // 3. Store the full user request using the dedicated tool
-store_initial_context({
+context (action: store_initial) with
   workspace_id: "...",
   plan_id: "...",
   user_request: "Add dark mode support to the application with a toggle in the header",
@@ -538,7 +535,7 @@ runSubagent({
     - User requirements from original_request.json
     - Codebase context from Researcher
     
-    Create plan steps using modify_plan tool.
+    Create plan steps using steps (action: add) tool.
     Organize into logical phases.
     
     Recommend handoff to Executor when ready.
@@ -571,7 +568,7 @@ When you create a plan, the following context files should exist:
 
 while plan.status != "archived":
     
-    state = get_plan_state(workspace_id, plan_id)
+    state = plan (action: get) with workspace_id, plan_id
     current_phase = state.current_phase
     all_phases_done = all(step.status == "done" for step in state.steps)
     
@@ -602,7 +599,7 @@ while plan.status != "archived":
             spawn("Archivist", "Commit changes and archive plan")
             
         elif plan.status == "archived":
-            complete_agent("Plan completed successfully")
+            agent (action: complete) with "Plan completed successfully"
             break
 ```
 
@@ -622,8 +619,8 @@ TASK: Implement the following steps:
 {list of pending steps for this phase}
 
 After completing all steps:
-1. Call handoff to Reviewer
-2. Call complete_agent with summary
+1. Call `memory_agent` (action: handoff) to Reviewer
+2. Call `memory_agent` (action: complete) with summary
 ```
 
 ### For Reviewer:
@@ -708,14 +705,14 @@ TASK: Finalize the completed plan.
 2. Update documentation if needed
 3. Archive the plan
 
-After archiving: complete_agent with final summary
+After archiving: `memory_agent` (action: complete) with final summary
 ```
 
 ---
 
 ## ⚠️ COMMON MISTAKES TO AVOID
 
-1. **Forgetting to call `get_plan_state`** after a sub-agent returns
+1. **Forgetting to call `memory_plan` (action: get)** after a sub-agent returns
 2. **Running tests too early** - tests are only RUN after ALL phases
 3. **Skipping the Reviewer** - every phase must be reviewed
 4. **Implementing code yourself** - you are an orchestrator only

@@ -59,8 +59,8 @@ Add to your VS Code settings or workspace `.vscode/mcp.json`:
 
 | Agent | MCP Tools | VS Code Tools | Purpose |
 |-------|-----------|---------------|---------|
-| **Coordinator** | `mcp_project-memor_*`, `mcp_filesystem_*` | `read_file`, `list_dir`, `semantic_search`, `grep_search`, `file_search` | Scan codebase, categorize requests, create plans |
-| **Researcher** | `mcp_project-memor_*`, `mcp_microsoft_mar_*` | `fetch_webpage`, `read_file`, `semantic_search`, `github_repo` | Fetch docs, research libraries, convert formats |
+| **Coordinator** | 'vscode', 'execute', 'read', 'edit', 'search', 'filesystem/*', 'git/*', 'project-memory/*', 'agent', 'todo' | `read_file`, `list_dir`, `semantic_search`, `grep_search`, `file_search` | Scan codebase, categorize requests, create plans |
+| **Researcher** |'execute', 'read', 'edit', 'search', 'web', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo' | `fetch_webpage`, `read_file`, `semantic_search`, `github_repo` | Fetch docs, research libraries, convert formats |
 | **Architect** | `mcp_project-memor_*`, `mcp_filesystem_*` | `read_file`, `list_dir`, `semantic_search`, `grep_search`, `list_code_usages` | Analyze code, find usages, design implementation |
 | **Executor** | `mcp_project-memor_*`, `mcp_filesystem_*`, `mcp_git_*` | `read_file`, `create_file`, `replace_string_in_file`, `run_in_terminal`, `get_terminal_output`, `get_errors` | Write code, run commands, full implementation |
 | **Revisionist** | `mcp_project-memor_*`, `mcp_filesystem_*` | `read_file`, `semantic_search`, `grep_search`, `get_errors`, `get_terminal_output`, `terminal_last_command` | Analyze errors, modify plans |

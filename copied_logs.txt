@@ -1,122 +1,34 @@
-[2026-02-01T20:58:15.824Z] Checking if server already exists on port 3001...
-[2026-02-01T20:58:15.935Z] Extension path: c:\Users\codi.f\.vscode\extensions\project-memory.project-memory-dashboard-0.2.0
-[2026-02-01T20:58:15.935Z] Workspace path: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem
-[2026-02-01T20:58:15.935Z] Checking paths: ["c:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\dashboard\\server","c:\\Users\\codi.f\\.vscode\\extensions\\project-memory.project-memory-dashboard-0.2.0\\server","c:\\Users\\codi.f\\.vscode\\extensions\\dashboard\\server","c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\dashboard\\server"]
-[2026-02-01T20:58:15.935Z] Checking: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server\package.json
-[2026-02-01T20:58:15.935Z] Found server at: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server
-[2026-02-01T20:58:15.935Z] Starting server from: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server
-[2026-02-01T20:58:17.495Z] [stderr] node:internal/modules/run_main:123
-    triggerUncaughtException(
-    ^
-[2026-02-01T20:58:17.496Z] [stderr] Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'express' imported from c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server\src\index.ts
-    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:255:9)
-    at packageResolve (node:internal/modules/esm/resolve:767:81)
-    at moduleResolve (node:internal/modules/esm/resolve:853:18)
-    at defaultResolve (node:internal/modules/esm/resolve:983:11)
-    at nextResolve (node:internal/modules/esm/hooks:748:28)
-    at resolveBase (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979497377:2:3744)
-    at resolveDirectory (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979497377:2:4243)
-    at resolveTsPaths (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979497377:2:4984)
-    at resolve (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979497377:2:5361)
-    at nextResolve (node:internal/modules/esm/hooks:748:28) {
-  code: 'ERR_MODULE_NOT_FOUND'
-}
-
-Node.js v22.18.0
-[2026-02-01T20:58:17.532Z] Server exited with code 1, signal null
-[2026-02-01T20:58:17.532Z] Attempting restart (1/3)...
-[2026-02-01T20:58:19.538Z] Checking if server already exists on port 3001...
-[2026-02-01T20:58:19.540Z] Extension path: c:\Users\codi.f\.vscode\extensions\project-memory.project-memory-dashboard-0.2.0
-[2026-02-01T20:58:19.540Z] Workspace path: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem
-[2026-02-01T20:58:19.540Z] Checking paths: ["c:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\dashboard\\server","c:\\Users\\codi.f\\.vscode\\extensions\\project-memory.project-memory-dashboard-0.2.0\\server","c:\\Users\\codi.f\\.vscode\\extensions\\dashboard\\server","c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\dashboard\\server"]
-[2026-02-01T20:58:19.540Z] Checking: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server\package.json
-[2026-02-01T20:58:19.540Z] Found server at: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server
-[2026-02-01T20:58:19.540Z] Starting server from: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server
-[2026-02-01T20:58:20.759Z] [stderr] node:internal/modules/run_main:123
-    triggerUncaughtException(
-    ^
-[2026-02-01T20:58:20.759Z] [stderr] Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'express' imported from c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server\src\index.ts
-    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:255:9)
-    at packageResolve (node:internal/modules/esm/resolve:767:81)
-    at moduleResolve (node:internal/modules/esm/resolve:853:18)
-    at defaultResolve (node:internal/modules/esm/resolve:983:11)
-    at nextResolve (node:internal/modules/esm/hooks:748:28)
-    at resolveBase (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979500645:2:3744)
-    at resolveDirectory (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979500645:2:4243)
-    at resolveTsPaths (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979500645:2:4984)
-    at resolve (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979500645:2:5361)
-    at nextResolve (node:internal/modules/esm/hooks:748:28) {
-  code: 'ERR_MODULE_NOT_FOUND'
-}
-
-Node.js v22.18.0
-[2026-02-01T20:58:20.797Z] Server exited with code 1, signal null
-[2026-02-01T20:58:20.797Z] Attempting restart (2/3)...
-[2026-02-01T20:58:22.304Z] Checking if server already exists on port 3001...
-[2026-02-01T20:58:22.306Z] Extension path: c:\Users\codi.f\.vscode\extensions\project-memory.project-memory-dashboard-0.2.0
-[2026-02-01T20:58:22.306Z] Workspace path: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem
-[2026-02-01T20:58:22.306Z] Checking paths: ["c:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\dashboard\\server","c:\\Users\\codi.f\\.vscode\\extensions\\project-memory.project-memory-dashboard-0.2.0\\server","c:\\Users\\codi.f\\.vscode\\extensions\\dashboard\\server","c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\dashboard\\server"]
-[2026-02-01T20:58:22.306Z] Checking: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server\package.json
-[2026-02-01T20:58:22.306Z] Found server at: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server
-[2026-02-01T20:58:22.306Z] Starting server from: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server
-[2026-02-01T20:58:22.811Z] Checking if server already exists on port 3001...
-[2026-02-01T20:58:22.814Z] Extension path: c:\Users\codi.f\.vscode\extensions\project-memory.project-memory-dashboard-0.2.0
-[2026-02-01T20:58:22.814Z] Workspace path: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem
-[2026-02-01T20:58:22.814Z] Checking paths: ["c:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\dashboard\\server","c:\\Users\\codi.f\\.vscode\\extensions\\project-memory.project-memory-dashboard-0.2.0\\server","c:\\Users\\codi.f\\.vscode\\extensions\\dashboard\\server","c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\dashboard\\server"]
-[2026-02-01T20:58:22.814Z] Checking: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server\package.json
-[2026-02-01T20:58:22.814Z] Found server at: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server
-[2026-02-01T20:58:22.814Z] Starting server from: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server
-[2026-02-01T20:58:23.544Z] [stderr] node:internal/modules/run_main:123
-    triggerUncaughtException(
-    ^
-[2026-02-01T20:58:23.544Z] [stderr] Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'express' imported from c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server\src\index.ts
-    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:255:9)
-    at packageResolve (node:internal/modules/esm/resolve:767:81)
-    at moduleResolve (node:internal/modules/esm/resolve:853:18)
-    at defaultResolve (node:internal/modules/esm/resolve:983:11)
-    at nextResolve (node:internal/modules/esm/hooks:748:28)
-    at resolveBase (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979503422:2:3744)
-    at resolveDirectory (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979503422:2:4243)
-    at resolveTsPaths (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979503422:2:4984)
-    at resolve (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979503422:2:5361)
-    at nextResolve (node:internal/modules/esm/hooks:748:28) {
-  code: 'ERR_MODULE_NOT_FOUND'
-}
-
-Node.js v22.18.0
-[2026-02-01T20:58:23.581Z] Server exited with code 1, signal null
-[2026-02-01T20:58:23.581Z] Attempting restart (3/3)...
-[2026-02-01T20:58:23.991Z] [stderr] node:internal/modules/run_main:123
-    triggerUncaughtException(
-    ^
-[2026-02-01T20:58:23.991Z] [stderr] Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'express' imported from c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server\src\index.ts
-    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:255:9)
-    at packageResolve (node:internal/modules/esm/resolve:767:81)
-    at moduleResolve (node:internal/modules/esm/resolve:853:18)
-    at defaultResolve (node:internal/modules/esm/resolve:983:11)
-    at nextResolve (node:internal/modules/esm/hooks:748:28)
-    at resolveBase (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979503881:2:3744)
-    at resolveDirectory (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979503881:2:4243)
-    at resolveTsPaths (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979503881:2:4984)
-    at resolve (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979503881:2:5361)
-    at nextResolve (node:internal/modules/esm/hooks:748:28) {
-  code: 'ERR_MODULE_NOT_FOUND'
-}
-
-Node.js v22.18.0
-[2026-02-01T20:58:24.027Z] Server exited with code 1, signal null
-[2026-02-01T20:58:25.581Z] Checking if server already exists on port 3001...
-[2026-02-01T20:58:25.583Z] Extension path: c:\Users\codi.f\.vscode\extensions\project-memory.project-memory-dashboard-0.2.0
-[2026-02-01T20:58:25.583Z] Workspace path: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem
-[2026-02-01T20:58:25.583Z] Checking paths: ["c:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\dashboard\\server","c:\\Users\\codi.f\\.vscode\\extensions\\project-memory.project-memory-dashboard-0.2.0\\server","c:\\Users\\codi.f\\.vscode\\extensions\\dashboard\\server","c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\dashboard\\server"]
-[2026-02-01T20:58:25.583Z] Checking: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server\package.json
-[2026-02-01T20:58:25.583Z] Found server at: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server
-[2026-02-01T20:58:25.583Z] Starting server from: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server
-[2026-02-01T20:58:26.321Z] Server failed to start within timeout
-[2026-02-01T20:58:26.321Z] Stopping server...
-[2026-02-01T20:58:26.410Z] Server exited with code 1, signal null
-[2026-02-01T20:58:26.410Z] Server stopped
-[2026-02-01T20:58:29.735Z] Server failed to start within timeout
-[2026-02-01T20:58:32.512Z] Server failed to start within timeout
-[2026-02-01T20:58:33.015Z] Server failed to start within timeout
-[2026-02-01T20:58:35.774Z] Server failed to start within timeout
+[2026-02-02T07:02:23.409Z] Server not found. Tried paths:
+[2026-02-02T07:02:23.409Z]   - c:\Users\User\.vscode\Project-Memory-MCP\server\dist\index.js
+[2026-02-02T07:02:23.409Z]   - c:\Users\User\.vscode\server\dist\index.js
+[2026-02-02T07:02:23.409Z]   - c:\Users\User\.vscode\extensions\project-memory.project-memory-dashboard-0.2.0\server\dist\index.js
+[2026-02-02T07:02:23.409Z]   - c:\Users\User\.vscode\extensions\server\dist\index.js
+[2026-02-02T07:02:23.409Z]   - c:\Users\User\.vscode\server\dist\index.js
+[2026-02-02T07:02:23.409Z]   - c:\Users\User\.vscode\Project-Memory-MCP\server\dist\index.js
+[2026-02-02T07:02:23.409Z]   - d:\2026\ds_cad\server\dist\index.js
+[2026-02-02T07:02:23.409Z]   - d:\2026\ds_cad\Project-Memory-MCP\server\dist\index.js
+[2026-02-02T07:02:23.409Z] Failed to find bundled server: MCP server not found. Please either:
+1. Build the server: cd server && npm run build
+2. Set projectMemory.chat.serverMode to "external" and configure the path
+3. Use Podman mode with a pre-built container
+[2026-02-02T07:02:23.418Z] Connection failed: Error: MCP server not found. Please either:
+1. Build the server: cd server && npm run build
+2. Set projectMemory.chat.serverMode to "external" and configure the path
+3. Use Podman mode with a pre-built container
+[2026-02-02T07:35:41.764Z] Server not found. Tried paths:
+[2026-02-02T07:35:41.764Z]   - c:\Users\User\.vscode\Project-Memory-MCP\server\dist\index.js
+[2026-02-02T07:35:41.764Z]   - c:\Users\User\.vscode\server\dist\index.js
+[2026-02-02T07:35:41.764Z]   - c:\Users\User\.vscode\extensions\project-memory.project-memory-dashboard-0.2.0\server\dist\index.js
+[2026-02-02T07:35:41.764Z]   - c:\Users\User\.vscode\extensions\server\dist\index.js
+[2026-02-02T07:35:41.764Z]   - c:\Users\User\.vscode\server\dist\index.js
+[2026-02-02T07:35:41.764Z]   - c:\Users\User\.vscode\Project-Memory-MCP\server\dist\index.js
+[2026-02-02T07:35:41.764Z]   - d:\2026\ds_cad\server\dist\index.js
+[2026-02-02T07:35:41.764Z]   - d:\2026\ds_cad\Project-Memory-MCP\server\dist\index.js
+[2026-02-02T07:35:41.764Z] Failed to find bundled server: MCP server not found. Please either:
+1. Build the server: cd server && npm run build
+2. Set projectMemory.chat.serverMode to "external" and configure the path
+3. Use Podman mode with a pre-built container
+[2026-02-02T07:35:41.764Z] Connection failed: Error: MCP server not found. Please either:
+1. Build the server: cd server && npm run build
+2. Set projectMemory.chat.serverMode to "external" and configure the path
+3. Use Podman mode with a pre-built container

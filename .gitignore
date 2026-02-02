@@ -34,3 +34,5 @@ test-results/
 # Plan documentation
 docs/plans/
 backup/
+*.vsix
+.vscode-test/

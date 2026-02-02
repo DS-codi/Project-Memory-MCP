@@ -11,6 +11,7 @@ This guide walks you through setting up the Project Memory Dashboard VS Code ext
   - [Method 2: Build from Source](#method-2-build-from-source)
 - [MCP Server Setup](#mcp-server-setup)
 - [Dashboard Server Setup](#dashboard-server-setup)
+- [Copilot Chat Integration](#copilot-chat-integration)
 - [Configuration](#configuration)
 - [Deploying Agents to Your Workspace](#deploying-agents-to-your-workspace)
 - [Verification & Testing](#verification--testing)
@@ -236,6 +237,68 @@ npm run dev:all
 This starts:
 - Vite dev server on `http://localhost:5173`
 - API server on `http://localhost:3001`
+
+---
+
+## Copilot Chat Integration
+
+The extension provides a `@memory` chat participant that enables conversational access to Project Memory features directly in Copilot Chat.
+
+### Requirements
+
+- VS Code 1.99.0 or higher
+- GitHub Copilot Chat extension installed
+- MCP server running (bundled, Podman, or external)
+
+### Quick Start
+
+1. **Ensure MCP server is connected** - Check the status bar for "$(plug) MCP"
+2. **Open Copilot Chat** - Press `Ctrl+Shift+I`
+3. **Use @memory participant**:
+
+```
+@memory /status              # Check connection and plan status
+@memory /plan list           # List all plans
+@memory /plan create <title> # Create a new plan
+@memory /context             # Get workspace context
+@memory /handoff Executor plan_id  # Hand off to an agent
+```
+
+### Available Commands
+
+| Command | Description |
+|---------|-------------|
+| `/plan` | View, create, or manage plans |
+| `/status` | Show MCP connection and plan progress |
+| `/context` | Get workspace context and codebase profile |
+| `/handoff` | Execute agent handoff |
+
+### Language Model Tools
+
+Copilot can also autonomously use these tools during conversations:
+
+- `memory_getPlanState` - Get current plan state
+- `memory_updateStep` - Update step status
+- `memory_createPlan` - Create a new plan
+- `memory_getWorkspaceContext` - Get workspace info
+- `memory_handoff` - Initiate agent handoff
+- `memory_addNote` - Add note to plan
+
+### Server Modes
+
+Configure how the MCP server is run via `projectMemory.chat.serverMode`:
+
+- **bundled** (default): Extension spawns the MCP server automatically
+- **podman**: Run MCP server in a Podman container
+- **external**: Connect to an externally running server
+
+### Troubleshooting Chat Integration
+
+1. **Check status bar** - Look for "MCP" indicator
+2. **Reconnect** - Run "Project Memory: Reconnect Chat to MCP Server" command
+3. **View logs** - Check "Project Memory MCP Bridge" output channel
+
+For detailed documentation, see [CHAT_INTEGRATION.md](./CHAT_INTEGRATION.md).
 
 ---
 

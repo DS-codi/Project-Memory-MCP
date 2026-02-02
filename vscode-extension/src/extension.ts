@@ -13,6 +13,7 @@ import { StatusBarManager } from './ui/StatusBarManager';
 import { ServerManager } from './server/ServerManager';
 import { DefaultDeployer } from './deployer/DefaultDeployer';
 import { DashboardPanel } from './ui/DashboardPanel';
+import { McpBridge, ChatParticipant, ToolProvider } from './chat';
 
 let dashboardProvider: DashboardViewProvider;
 let agentWatcher: AgentWatcher;
@@ -20,6 +21,22 @@ let copilotFileWatcher: CopilotFileWatcher;
 let statusBarManager: StatusBarManager;
 let serverManager: ServerManager;
 let defaultDeployer: DefaultDeployer;
+
+// Chat integration components
+let mcpBridge: McpBridge | null = null;
+let chatParticipant: ChatParticipant | null = null;
+let toolProvider: ToolProvider | null = null;
+
+/**
+ * Show an information message if notifications are enabled
+ */
+function notify(message: string, ...items: string[]): Thenable<string | undefined> {
+    const config = vscode.workspace.getConfiguration('projectMemory');
+    if (config.get<boolean>('showNotifications', true)) {
+        return vscode.window.showInformationMessage(message, ...items);
+    }
+    return Promise.resolve(undefined);
+}
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('Project Memory Dashboard extension activating...');
@@ -50,7 +67,7 @@ export function activate(context: vscode.ExtensionContext) {
         const workspacePath = vscode.workspace.workspaceFolders[0].uri.fsPath;
         defaultDeployer.deployToWorkspace(workspacePath).then(result => {
             if (result.agents.length > 0 || result.instructions.length > 0) {
-                vscode.window.showInformationMessage(
+                notify(
                     `Deployed ${result.agents.length} agents and ${result.instructions.length} instructions`
                 );
             }
@@ -73,9 +90,9 @@ export function activate(context: vscode.ExtensionContext) {
         serverManager.start().then(async success => {
             if (success) {
                 if (serverManager.isExternalServer) {
-                    vscode.window.showInformationMessage('Connected to existing Project Memory server');
+                    notify('Connected to existing Project Memory server');
                 } else {
-                    vscode.window.showInformationMessage('Project Memory API server started');
+                    notify('Project Memory API server started');
                 }
                 // Frontend is now started on-demand when "Open Full Dashboard" is clicked
             } else {
@@ -90,6 +107,9 @@ export function activate(context: vscode.ExtensionContext) {
             }
         });
     }
+
+    // ========== Chat Integration Setup ==========
+    initializeChatIntegration(context, config, dataRoot);
 
     // Create dashboard view provider
     dashboardProvider = new DashboardViewProvider(context.extensionUri, dataRoot, agentsRoot);
@@ -163,11 +183,11 @@ export function activate(context: vscode.ExtensionContext) {
             if (serverManager.isRunning) {
                 await serverManager.stopFrontend();
                 await serverManager.stop();
-                vscode.window.showInformationMessage('Project Memory server stopped');
+                notify('Project Memory server stopped');
             } else {
                 const success = await serverManager.start();
                 if (success) {
-                    vscode.window.showInformationMessage('Project Memory server started');
+                    notify('Project Memory server started');
                 } else {
                     vscode.window.showErrorMessage('Failed to start Project Memory server');
                 }
@@ -176,12 +196,12 @@ export function activate(context: vscode.ExtensionContext) {
 
         vscode.commands.registerCommand('projectMemory.startServer', async () => {
             if (serverManager.isRunning) {
-                vscode.window.showInformationMessage('Server is already running');
+                notify('Server is already running');
                 return;
             }
             const success = await serverManager.start();
             if (success) {
-                vscode.window.showInformationMessage('Project Memory server started');
+                notify('Project Memory server started');
             } else {
                 vscode.window.showErrorMessage('Failed to start server. Check logs for details.');
                 serverManager.showLogs();
@@ -191,15 +211,15 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('projectMemory.stopServer', async () => {
             await serverManager.stopFrontend();
             await serverManager.stop();
-            vscode.window.showInformationMessage('Project Memory server stopped');
+            notify('Project Memory server stopped');
         }),
 
         vscode.commands.registerCommand('projectMemory.restartServer', async () => {
-            vscode.window.showInformationMessage('Restarting Project Memory server...');
+            notify('Restarting Project Memory server...');
             await serverManager.stopFrontend();
             const success = await serverManager.restart();
             if (success) {
-                vscode.window.showInformationMessage('Project Memory server restarted');
+                notify('Project Memory server restarted');
             } else {
                 vscode.window.showErrorMessage('Failed to restart server');
             }
@@ -209,8 +229,114 @@ export function activate(context: vscode.ExtensionContext) {
             serverManager.showLogs();
         }),
 
-        vscode.commands.registerCommand('projectMemory.openSettings', () => {
-            vscode.commands.executeCommand('workbench.action.openSettings', '@ext:project-memory.project-memory-dashboard');
+        vscode.commands.registerCommand('projectMemory.openSettings', async () => {
+            // Show a menu to configure defaults
+            const config = vscode.workspace.getConfiguration('projectMemory');
+            const agentsRoot = config.get<string>('agentsRoot') || getDefaultAgentsRoot();
+            const instructionsRoot = config.get<string>('instructionsRoot') || getDefaultInstructionsRoot();
+            const promptsRoot = config.get<string>('promptsRoot') || getDefaultPromptsRoot();
+            
+            const choice = await vscode.window.showQuickPick([
+                { label: '$(person) Configure Default Agents', description: 'Select which agents to deploy by default', value: 'agents' },
+                { label: '$(book) Configure Default Instructions', description: 'Select which instructions to deploy by default', value: 'instructions' },
+                { label: '$(file) Configure Default Prompts', description: 'Select which prompts to deploy by default', value: 'prompts' },
+                { label: '$(gear) Open All Settings', description: 'Open VS Code settings for Project Memory', value: 'settings' }
+            ], {
+                placeHolder: 'What would you like to configure?'
+            });
+
+            if (!choice) return;
+
+            const fs = require('fs');
+
+            if (choice.value === 'settings') {
+                vscode.commands.executeCommand('workbench.action.openSettings', '@ext:project-memory.project-memory-dashboard');
+                return;
+            }
+
+            if (choice.value === 'agents' && agentsRoot) {
+                try {
+                    const allAgentFiles = fs.readdirSync(agentsRoot)
+                        .filter((f: string) => f.endsWith('.agent.md'))
+                        .map((f: string) => f.replace('.agent.md', ''));
+                    
+                    const currentDefaults = config.get<string[]>('defaultAgents') || [];
+                    
+                    const items: vscode.QuickPickItem[] = allAgentFiles.map((name: string) => ({
+                        label: name,
+                        picked: currentDefaults.length === 0 || currentDefaults.includes(name)
+                    }));
+
+                    const selected = await vscode.window.showQuickPick(items, {
+                        canPickMany: true,
+                        placeHolder: 'Select default agents (these will be pre-selected when deploying)',
+                        title: 'Configure Default Agents'
+                    });
+
+                    if (selected) {
+                        await config.update('defaultAgents', selected.map(s => s.label), vscode.ConfigurationTarget.Global);
+                        notify(`✅ Updated default agents (${selected.length} selected)`);
+                    }
+                } catch (error) {
+                    vscode.window.showErrorMessage(`Failed to read agents: ${error}`);
+                }
+            }
+
+            if (choice.value === 'instructions' && instructionsRoot) {
+                try {
+                    const allInstructionFiles = fs.readdirSync(instructionsRoot)
+                        .filter((f: string) => f.endsWith('.instructions.md'))
+                        .map((f: string) => f.replace('.instructions.md', ''));
+                    
+                    const currentDefaults = config.get<string[]>('defaultInstructions') || [];
+                    
+                    const items: vscode.QuickPickItem[] = allInstructionFiles.map((name: string) => ({
+                        label: name,
+                        picked: currentDefaults.length === 0 || currentDefaults.includes(name)
+                    }));
+
+                    const selected = await vscode.window.showQuickPick(items, {
+                        canPickMany: true,
+                        placeHolder: 'Select default instructions (these will be pre-selected when deploying)',
+                        title: 'Configure Default Instructions'
+                    });
+
+                    if (selected) {
+                        await config.update('defaultInstructions', selected.map(s => s.label), vscode.ConfigurationTarget.Global);
+                        notify(`✅ Updated default instructions (${selected.length} selected)`);
+                    }
+                } catch (error) {
+                    vscode.window.showErrorMessage(`Failed to read instructions: ${error}`);
+                }
+            }
+
+            if (choice.value === 'prompts' && promptsRoot) {
+                try {
+                    const allPromptFiles = fs.readdirSync(promptsRoot)
+                        .filter((f: string) => f.endsWith('.prompt.md'))
+                        .map((f: string) => f.replace('.prompt.md', ''));
+                    
+                    const currentDefaults = config.get<string[]>('defaultPrompts') || [];
+                    
+                    const items: vscode.QuickPickItem[] = allPromptFiles.map((name: string) => ({
+                        label: name,
+                        picked: currentDefaults.length === 0 || currentDefaults.includes(name)
+                    }));
+
+                    const selected = await vscode.window.showQuickPick(items, {
+                        canPickMany: true,
+                        placeHolder: 'Select default prompts (these will be pre-selected when deploying)',
+                        title: 'Configure Default Prompts'
+                    });
+
+                    if (selected) {
+                        await config.update('defaultPrompts', selected.map(s => s.label), vscode.ConfigurationTarget.Global);
+                        notify(`✅ Updated default prompts (${selected.length} selected)`);
+                    }
+                } catch (error) {
+                    vscode.window.showErrorMessage(`Failed to read prompts: ${error}`);
+                }
+            }
         }),
 
         vscode.commands.registerCommand('projectMemory.createPlan', async () => {
@@ -254,7 +380,7 @@ export function activate(context: vscode.ExtensionContext) {
                     );
                     if (result === 'Copy Prompt') {
                         await vscode.env.clipboard.writeText(`@brainstorm ${initialPrompt}`);
-                        vscode.window.showInformationMessage('Prompt copied to clipboard');
+                        notify('Prompt copied to clipboard');
                     }
                 }
                 return;
@@ -325,7 +451,7 @@ export function activate(context: vscode.ExtensionContext) {
 
                 if (response.ok) {
                     const data = await response.json();
-                    vscode.window.showInformationMessage(`Plan created: ${title}`, 'Open Dashboard').then(selection => {
+                    notify(`Plan created: ${title}`, 'Open Dashboard').then(selection => {
                         if (selection === 'Open Dashboard') {
                             vscode.commands.executeCommand('projectMemory.openDashboardPanel', 
                                 `http://localhost:5173/workspace/${workspaceId}/plan/${data.planId}`);
@@ -361,30 +487,44 @@ export function activate(context: vscode.ExtensionContext) {
             const path = require('path');
             
             try {
-                // Get list of agent files - only defaults if configured
-                let agentFiles = fs.readdirSync(agentsRoot)
+                // Get list of all agent files
+                const allAgentFiles = fs.readdirSync(agentsRoot)
                     .filter((f: string) => f.endsWith('.agent.md'));
                 
-                // Filter to only default agents if any are configured
-                if (defaultAgents.length > 0) {
-                    agentFiles = agentFiles.filter((f: string) => {
-                        const name = f.replace('.agent.md', '');
-                        return defaultAgents.includes(name);
-                    });
-                }
-                
-                if (agentFiles.length === 0) {
-                    vscode.window.showWarningMessage('No agent files found matching your defaults');
+                if (allAgentFiles.length === 0) {
+                    vscode.window.showWarningMessage('No agent files found in agents root');
                     return;
+                }
+
+                // Create quick pick items with pre-selection based on defaults
+                const items: vscode.QuickPickItem[] = allAgentFiles.map((f: string) => {
+                    const name = f.replace('.agent.md', '');
+                    return {
+                        label: name,
+                        description: f,
+                        picked: defaultAgents.length === 0 || defaultAgents.includes(name)
+                    };
+                });
+
+                // Show multi-select quick pick
+                const selectedItems = await vscode.window.showQuickPick(items, {
+                    canPickMany: true,
+                    placeHolder: 'Select agents to deploy',
+                    title: 'Deploy Agents'
+                });
+
+                if (!selectedItems || selectedItems.length === 0) {
+                    return; // User cancelled or selected nothing
                 }
 
                 // Create target directory
                 const targetDir = path.join(workspacePath, '.github', 'agents');
                 fs.mkdirSync(targetDir, { recursive: true });
 
-                // Copy each agent file
+                // Copy selected agent files
                 let copiedCount = 0;
-                for (const file of agentFiles) {
+                for (const item of selectedItems) {
+                    const file = `${item.label}.agent.md`;
                     const sourcePath = path.join(agentsRoot, file);
                     const targetPath = path.join(targetDir, file);
                     fs.copyFileSync(sourcePath, targetPath);
@@ -401,7 +541,7 @@ export function activate(context: vscode.ExtensionContext) {
                     }
                 });
 
-                vscode.window.showInformationMessage(
+                notify(
                     `✅ Deployed ${copiedCount} agent(s) to ${path.relative(workspacePath, targetDir)}`,
                     'Open Folder'
                 ).then(selection => {
@@ -423,6 +563,7 @@ export function activate(context: vscode.ExtensionContext) {
 
             const config = vscode.workspace.getConfiguration('projectMemory');
             const promptsRoot = config.get<string>('promptsRoot') || getDefaultPromptsRoot();
+            const defaultPrompts = config.get<string[]>('defaultPrompts') || [];
             
             if (!promptsRoot) {
                 vscode.window.showErrorMessage('Prompts root not configured. Set projectMemory.promptsRoot in settings.');
@@ -434,22 +575,44 @@ export function activate(context: vscode.ExtensionContext) {
             const path = require('path');
             
             try {
-                // Get list of prompt files
-                const promptFiles = fs.readdirSync(promptsRoot)
+                // Get list of all prompt files
+                const allPromptFiles = fs.readdirSync(promptsRoot)
                     .filter((f: string) => f.endsWith('.prompt.md'));
                 
-                if (promptFiles.length === 0) {
+                if (allPromptFiles.length === 0) {
                     vscode.window.showWarningMessage('No prompt files found in prompts root');
                     return;
+                }
+
+                // Create quick pick items with pre-selection based on defaults
+                const items: vscode.QuickPickItem[] = allPromptFiles.map((f: string) => {
+                    const name = f.replace('.prompt.md', '');
+                    return {
+                        label: name,
+                        description: f,
+                        picked: defaultPrompts.length === 0 || defaultPrompts.includes(name)
+                    };
+                });
+
+                // Show multi-select quick pick
+                const selectedItems = await vscode.window.showQuickPick(items, {
+                    canPickMany: true,
+                    placeHolder: 'Select prompts to deploy',
+                    title: 'Deploy Prompts'
+                });
+
+                if (!selectedItems || selectedItems.length === 0) {
+                    return; // User cancelled or selected nothing
                 }
 
                 // Create target directory
                 const targetDir = path.join(workspacePath, '.github', 'prompts');
                 fs.mkdirSync(targetDir, { recursive: true });
 
-                // Copy each prompt file
+                // Copy selected prompt files
                 let copiedCount = 0;
-                for (const file of promptFiles) {
+                for (const item of selectedItems) {
+                    const file = `${item.label}.prompt.md`;
                     const sourcePath = path.join(promptsRoot, file);
                     const targetPath = path.join(targetDir, file);
                     fs.copyFileSync(sourcePath, targetPath);
@@ -466,7 +629,7 @@ export function activate(context: vscode.ExtensionContext) {
                     }
                 });
 
-                vscode.window.showInformationMessage(
+                notify(
                     `✅ Deployed ${copiedCount} prompt(s) to ${path.relative(workspacePath, targetDir)}`,
                     'Open Folder'
                 ).then(selection => {
@@ -500,30 +663,44 @@ export function activate(context: vscode.ExtensionContext) {
             const path = require('path');
             
             try {
-                // Get list of instruction files - only defaults if configured
-                let instructionFiles = fs.readdirSync(instructionsRoot)
+                // Get list of all instruction files
+                const allInstructionFiles = fs.readdirSync(instructionsRoot)
                     .filter((f: string) => f.endsWith('.instructions.md'));
                 
-                // Filter to only default instructions if any are configured
-                if (defaultInstructions.length > 0) {
-                    instructionFiles = instructionFiles.filter((f: string) => {
-                        const name = f.replace('.instructions.md', '');
-                        return defaultInstructions.includes(name);
-                    });
-                }
-                
-                if (instructionFiles.length === 0) {
-                    vscode.window.showWarningMessage('No instruction files found matching your defaults');
+                if (allInstructionFiles.length === 0) {
+                    vscode.window.showWarningMessage('No instruction files found in instructions root');
                     return;
+                }
+
+                // Create quick pick items with pre-selection based on defaults
+                const items: vscode.QuickPickItem[] = allInstructionFiles.map((f: string) => {
+                    const name = f.replace('.instructions.md', '');
+                    return {
+                        label: name,
+                        description: f,
+                        picked: defaultInstructions.length === 0 || defaultInstructions.includes(name)
+                    };
+                });
+
+                // Show multi-select quick pick
+                const selectedItems = await vscode.window.showQuickPick(items, {
+                    canPickMany: true,
+                    placeHolder: 'Select instructions to deploy',
+                    title: 'Deploy Instructions'
+                });
+
+                if (!selectedItems || selectedItems.length === 0) {
+                    return; // User cancelled or selected nothing
                 }
 
                 // Create target directory
                 const targetDir = path.join(workspacePath, '.github', 'instructions');
                 fs.mkdirSync(targetDir, { recursive: true });
 
-                // Copy each instruction file
+                // Copy selected instruction files
                 let copiedCount = 0;
-                for (const file of instructionFiles) {
+                for (const item of selectedItems) {
+                    const file = `${item.label}.instructions.md`;
                     const sourcePath = path.join(instructionsRoot, file);
                     const targetPath = path.join(targetDir, file);
                     fs.copyFileSync(sourcePath, targetPath);
@@ -540,7 +717,7 @@ export function activate(context: vscode.ExtensionContext) {
                     }
                 });
 
-                vscode.window.showInformationMessage(
+                notify(
                     `✅ Deployed ${copiedCount} instruction(s) to ${path.relative(workspacePath, targetDir)}`,
                     'Open Folder'
                 ).then(selection => {
@@ -569,7 +746,7 @@ export function activate(context: vscode.ExtensionContext) {
                     type: 'deployAllCopilotConfig',
                     data: { workspacePath: workspaceFolders[0].uri.fsPath }
                 });
-                vscode.window.showInformationMessage('Deploying all Copilot configuration...');
+                notify('Deploying all Copilot configuration...');
             }
         }),
 
@@ -587,7 +764,7 @@ export function activate(context: vscode.ExtensionContext) {
 
             if (confirm === 'Yes') {
                 const result = await defaultDeployer.deployToWorkspace(workspaceFolders[0].uri.fsPath);
-                vscode.window.showInformationMessage(
+                notify(
                     `Deployed ${result.agents.length} agents and ${result.instructions.length} instructions`
                 );
             }
@@ -602,11 +779,11 @@ export function activate(context: vscode.ExtensionContext) {
 
             const result = await defaultDeployer.updateWorkspace(workspaceFolders[0].uri.fsPath);
             if (result.updated.length > 0 || result.added.length > 0) {
-                vscode.window.showInformationMessage(
+                notify(
                     `Updated ${result.updated.length} files, added ${result.added.length} new files`
                 );
             } else {
-                vscode.window.showInformationMessage('All files are up to date');
+                notify('All files are up to date');
             }
         }),
 
@@ -761,7 +938,7 @@ export function activate(context: vscode.ExtensionContext) {
                 }
             });
 
-            vscode.window.showInformationMessage(`Added step to plan: "${stepTask}"`);
+            notify(`Added step to plan: "${stepTask}"`);
         })
     );
 
@@ -817,6 +994,21 @@ export function activate(context: vscode.ExtensionContext) {
 export async function deactivate() {
     console.log('Project Memory Dashboard extension deactivating...');
     
+    // Dispose chat integration components
+    if (mcpBridge) {
+        await mcpBridge.disconnect();
+        mcpBridge.dispose();
+        mcpBridge = null;
+    }
+    if (chatParticipant) {
+        chatParticipant.dispose();
+        chatParticipant = null;
+    }
+    if (toolProvider) {
+        toolProvider.dispose();
+        toolProvider = null;
+    }
+    
     // Dispose dashboard provider listeners
     if (dashboardProvider) {
         dashboardProvider.dispose();
@@ -869,4 +1061,109 @@ function getDefaultPromptsRoot(): string {
         return vscode.Uri.joinPath(workspaceFolders[0].uri, 'prompts').fsPath;
     }
     return '';
+}
+
+/**
+ * Initialize Chat Integration (Copilot Chat participant and LM Tools)
+ */
+function initializeChatIntegration(
+    context: vscode.ExtensionContext,
+    config: vscode.WorkspaceConfiguration,
+    dataRoot: string
+): void {
+    // Get chat-specific configuration
+    const serverMode = config.get<'bundled' | 'podman' | 'external'>('chat.serverMode') || 'bundled';
+    const podmanImage = config.get<string>('chat.podmanImage') || 'project-memory-mcp:latest';
+    const externalServerPath = config.get<string>('chat.externalServerPath') || '';
+    const autoConnect = config.get<boolean>('chat.autoConnect') ?? true;
+
+    // Create MCP Bridge
+    mcpBridge = new McpBridge({
+        serverMode,
+        podmanImage,
+        externalServerPath,
+        dataRoot
+    });
+    context.subscriptions.push(mcpBridge);
+
+    // Listen for connection state changes
+    mcpBridge.onConnectionChange((connected) => {
+        if (connected) {
+            // Reset workspace in chat components when reconnected
+            chatParticipant?.resetWorkspace();
+            toolProvider?.resetWorkspace();
+        }
+    });
+
+    // Create Chat Participant
+    chatParticipant = new ChatParticipant(mcpBridge);
+    context.subscriptions.push(chatParticipant);
+
+    // Create Tool Provider
+    toolProvider = new ToolProvider(mcpBridge);
+    context.subscriptions.push(toolProvider);
+
+    // Register reconnect command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('projectMemory.chat.reconnect', async () => {
+            if (!mcpBridge) {
+                vscode.window.showErrorMessage('MCP Bridge not initialized');
+                return;
+            }
+
+            try {
+                await vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    title: 'Reconnecting to MCP server...',
+                    cancellable: false
+                }, async () => {
+                    await mcpBridge!.reconnect();
+                });
+
+                notify('Connected to MCP server');
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                vscode.window.showErrorMessage(`Failed to connect: ${message}`);
+                mcpBridge.showLogs();
+            }
+        })
+    );
+
+    // Auto-connect if configured
+    if (autoConnect) {
+        mcpBridge.connect().then(() => {
+            console.log('MCP Bridge connected');
+        }).catch((error) => {
+            console.warn('MCP Bridge auto-connect failed:', error);
+            // Don't show error on auto-connect failure - user can manually reconnect
+        });
+    }
+
+    // Listen for configuration changes
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeConfiguration(e => {
+            if (e.affectsConfiguration('projectMemory.chat')) {
+                // Notify user that restart may be needed for some settings
+                notify(
+                    'Chat configuration changed. Some changes may require reconnecting.',
+                    'Reconnect'
+                ).then(selection => {
+                    if (selection === 'Reconnect') {
+                        vscode.commands.executeCommand('projectMemory.chat.reconnect');
+                    }
+                });
+            }
+        })
+    );
+
+    // Listen for workspace folder changes
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeWorkspaceFolders(() => {
+            // Reset workspace ID when folders change
+            chatParticipant?.resetWorkspace();
+            toolProvider?.resetWorkspace();
+        })
+    );
+
+    console.log('Chat integration initialized');
 }

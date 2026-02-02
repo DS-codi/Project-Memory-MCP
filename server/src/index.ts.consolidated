@@ -1,0 +1,756 @@
+#!/usr/bin/env node
+/**
+ * Project Memory MCP Server - Consolidated Tools v2.0
+ * 
+ * Reduces 31+ individual tools down to 5 unified tools with action parameters:
+ * 1. workspace - Register, info, list, reindex workspaces
+ * 2. plan - CRUD operations for plans (list, get, create, update, archive, import)
+ * 3. steps - Step management (add, update, batch_update)
+ * 4. agent - Agent lifecycle and deployment (init, complete, handoff, validate, list, get_instructions, deploy)
+ * 5. context - Context and research management (get, store, list, add_note, add_research, list_research, briefing)
+ */
+
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { z } from 'zod';
+
+// Import tools
+import * as workspaceTools from './tools/workspace.tools.js';
+import * as planTools from './tools/plan.tools.js';
+import * as handoffTools from './tools/handoff.tools.js';
+import * as contextTools from './tools/context.tools.js';
+import * as agentTools from './tools/agent.tools.js';
+import * as validationTools from './tools/agent-validation.tools.js';
+import * as store from './storage/file-store.js';
+import { logToolCall } from './logging/tool-logger.js';
+import type { AgentType, StepStatus } from './types/index.js';
+
+// =============================================================================
+// Shared Schemas
+// =============================================================================
+
+const AgentTypeSchema = z.enum([
+  'Coordinator', 'Researcher', 'Architect', 'Executor',
+  'Revisionist', 'Reviewer', 'Tester', 'Archivist', 'Analyst'
+]);
+
+const StepStatusSchema = z.enum(['pending', 'active', 'done', 'blocked']);
+
+const CategorySchema = z.enum([
+  'feature', 'bug', 'change', 'analysis', 'debug', 'refactor', 'documentation'
+]);
+
+const PrioritySchema = z.enum(['low', 'medium', 'high', 'critical']);
+
+// =============================================================================
+// Logging Helper
+// =============================================================================
+
+async function withLogging<T>(
+  toolName: string,
+  params: Record<string, unknown>,
+  fn: () => Promise<T>
+): Promise<T> {
+  const startTime = Date.now();
+  
+  try {
+    const result = await fn();
+    const durationMs = Date.now() - startTime;
+    
+    const resultObj = result as { success?: boolean; error?: string };
+    await logToolCall(
+      toolName,
+      params,
+      resultObj.success !== false ? 'success' : 'error',
+      resultObj.error,
+      durationMs
+    );
+    
+    return result;
+  } catch (error) {
+    const durationMs = Date.now() - startTime;
+    await logToolCall(
+      toolName,
+      params,
+      'error',
+      error instanceof Error ? error.message : String(error),
+      durationMs
+    );
+    throw error;
+  }
+}
+
+// =============================================================================
+// Server Instance
+// =============================================================================
+
+const server = new McpServer({
+  name: 'project-memory',
+  version: '2.0.0',
+});
+
+// =============================================================================
+// TOOL 1: workspace
+// Actions: register, info, list, reindex
+// =============================================================================
+
+server.tool(
+  'workspace',
+  `Manage workspaces for Project Memory. Actions:
+- register: Register a new workspace directory
+- info: Get workspace metadata and plans
+- list: List all registered workspaces
+- reindex: Re-analyze workspace after code changes`,
+  {
+    action: z.enum(['register', 'info', 'list', 'reindex'])
+      .describe('The action to perform'),
+    workspace_path: z.string().optional()
+      .describe('Absolute path to workspace (required for register)'),
+    workspace_id: z.string().optional()
+      .describe('Workspace ID (required for info, reindex)')
+  },
+  async (params) => {
+    const { action, workspace_path, workspace_id } = params;
+    
+    let result: unknown;
+    
+    switch (action) {
+      case 'register':
+        if (!workspace_path) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'workspace_path required for register action' }) }] };
+        }
+        result = await withLogging('workspace.register', params, () =>
+          workspaceTools.registerWorkspace({ workspace_path })
+        );
+        break;
+        
+      case 'info':
+        if (!workspace_id) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'workspace_id required for info action' }) }] };
+        }
+        result = await withLogging('workspace.info', params, () =>
+          workspaceTools.getWorkspacePlans({ workspace_id })
+        );
+        break;
+        
+      case 'list':
+        result = await withLogging('workspace.list', params, () =>
+          workspaceTools.listWorkspaces()
+        );
+        break;
+        
+      case 'reindex':
+        if (!workspace_id) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'workspace_id required for reindex action' }) }] };
+        }
+        result = await withLogging('workspace.reindex', params, () =>
+          workspaceTools.reindexWorkspace({ workspace_id })
+        );
+        break;
+        
+      default:
+        return { content: [{ type: 'text', text: JSON.stringify({ error: `Unknown action: ${action}` }) }] };
+    }
+    
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+// =============================================================================
+// TOOL 2: plan
+// Actions: list, get, create, update, archive, import
+// =============================================================================
+
+server.tool(
+  'plan',
+  `Manage project plans. Actions:
+- list: List all plans in a workspace
+- get: Get complete plan state with steps
+- create: Create a new plan
+- update: Modify existing plan steps (replace all)
+- archive: Archive a completed plan
+- import: Import plan from external markdown file`,
+  {
+    action: z.enum(['list', 'get', 'create', 'update', 'archive', 'import'])
+      .describe('The action to perform'),
+    workspace_id: z.string().optional()
+      .describe('Workspace ID'),
+    workspace_path: z.string().optional()
+      .describe('Workspace path (alternative to workspace_id for list)'),
+    plan_id: z.string().optional()
+      .describe('Plan ID (required for get, update, archive)'),
+    // Create params
+    title: z.string().optional()
+      .describe('Plan title (for create)'),
+    description: z.string().optional()
+      .describe('Plan description (for create)'),
+    category: CategorySchema.optional()
+      .describe('Plan category (for create)'),
+    priority: PrioritySchema.optional()
+      .describe('Priority level (for create)'),
+    categorization: z.object({
+      category: CategorySchema,
+      confidence: z.number().min(0).max(1),
+      reasoning: z.string(),
+      suggested_workflow: z.array(AgentTypeSchema),
+      skip_agents: z.array(AgentTypeSchema).optional()
+    }).optional().describe('Full categorization details (for create)'),
+    // Update params
+    new_steps: z.array(z.object({
+      phase: z.string(),
+      task: z.string(),
+      status: StepStatusSchema.optional()
+    })).optional().describe('New steps array (for update)'),
+    // Import params
+    plan_file_path: z.string().optional()
+      .describe('Path to markdown file (for import)'),
+    import_category: CategorySchema.optional()
+      .describe('Category for imported plan')
+  },
+  async (params) => {
+    const { action, workspace_id, workspace_path, plan_id } = params;
+    
+    let result: unknown;
+    
+    switch (action) {
+      case 'list':
+        result = await withLogging('plan.list', params, () =>
+          planTools.listPlans({ workspace_id, workspace_path })
+        );
+        break;
+        
+      case 'get':
+        if (!workspace_id || !plan_id) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'workspace_id and plan_id required for get action' }) }] };
+        }
+        result = await withLogging('plan.get', params, () =>
+          planTools.getPlanState({ workspace_id, plan_id })
+        );
+        break;
+        
+      case 'create':
+        if (!workspace_id || !params.title || !params.description || !params.category) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'workspace_id, title, description, and category required for create action' }) }] };
+        }
+        result = await withLogging('plan.create', params, () =>
+          planTools.createPlan({
+            workspace_id,
+            title: params.title!,
+            description: params.description!,
+            category: params.category!,
+            priority: params.priority,
+            categorization: params.categorization
+          })
+        );
+        break;
+        
+      case 'update':
+        if (!workspace_id || !plan_id || !params.new_steps) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'workspace_id, plan_id, and new_steps required for update action' }) }] };
+        }
+        // Ensure each step has a status (default to 'pending')
+        const stepsWithStatus = params.new_steps.map(s => ({
+          ...s,
+          status: (s.status || 'pending') as StepStatus
+        }));
+        result = await withLogging('plan.update', params, () =>
+          planTools.modifyPlan({
+            workspace_id,
+            plan_id,
+            new_steps: stepsWithStatus
+          })
+        );
+        break;
+        
+      case 'archive':
+        if (!workspace_id || !plan_id) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'workspace_id and plan_id required for archive action' }) }] };
+        }
+        result = await withLogging('plan.archive', params, () =>
+          planTools.archivePlan({ workspace_id, plan_id })
+        );
+        break;
+        
+      case 'import':
+        if (!workspace_id || !params.plan_file_path || !params.import_category) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'workspace_id, plan_file_path, and import_category required for import action' }) }] };
+        }
+        result = await withLogging('plan.import', params, () =>
+          planTools.importPlan({
+            workspace_id,
+            plan_file_path: params.plan_file_path!,
+            category: params.import_category!
+          })
+        );
+        break;
+        
+      default:
+        return { content: [{ type: 'text', text: JSON.stringify({ error: `Unknown action: ${action}` }) }] };
+    }
+    
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+// =============================================================================
+// TOOL 3: steps
+// Actions: add, update, batch_update
+// =============================================================================
+
+server.tool(
+  'steps',
+  `Manage plan steps. Actions:
+- add: Append new steps to a plan (preserves existing)
+- update: Update a single step's status or details
+- batch_update: Update multiple steps at once`,
+  {
+    action: z.enum(['add', 'update', 'batch_update'])
+      .describe('The action to perform'),
+    workspace_id: z.string()
+      .describe('Workspace ID'),
+    plan_id: z.string()
+      .describe('Plan ID'),
+    // Add params
+    new_steps: z.array(z.object({
+      phase: z.string(),
+      task: z.string(),
+      status: StepStatusSchema.optional()
+    })).optional().describe('Steps to append (for add action)'),
+    // Update params
+    step_index: z.number().optional()
+      .describe('Step index (for update action)'),
+    status: StepStatusSchema.optional()
+      .describe('New status (for update action)'),
+    notes: z.string().optional()
+      .describe('Notes to add (for update action)'),
+    // Batch update params
+    updates: z.array(z.object({
+      step_index: z.number(),
+      status: StepStatusSchema,
+      notes: z.string().optional()
+    })).optional().describe('Array of step updates (for batch_update)')
+  },
+  async (params) => {
+    const { action, workspace_id, plan_id } = params;
+    
+    let result: unknown;
+    
+    switch (action) {
+      case 'add':
+        if (!params.new_steps) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'new_steps required for add action' }) }] };
+        }
+        // Ensure each step has a status (default to 'pending')
+        const addStepsWithStatus = params.new_steps.map(s => ({
+          ...s,
+          status: (s.status || 'pending') as StepStatus
+        }));
+        result = await withLogging('steps.add', params, () =>
+          planTools.appendSteps({
+            workspace_id,
+            plan_id,
+            new_steps: addStepsWithStatus
+          })
+        );
+        break;
+        
+      case 'update':
+        if (params.step_index === undefined || !params.status) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'step_index and status required for update action' }) }] };
+        }
+        result = await withLogging('steps.update', params, () =>
+          planTools.updateStep({
+            workspace_id,
+            plan_id,
+            step_index: params.step_index!,
+            status: params.status!,
+            notes: params.notes
+          })
+        );
+        break;
+        
+      case 'batch_update':
+        if (!params.updates) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'updates array required for batch_update action' }) }] };
+        }
+        result = await withLogging('steps.batch_update', params, () =>
+          planTools.batchUpdateSteps({
+            workspace_id,
+            plan_id,
+            updates: params.updates!
+          })
+        );
+        break;
+        
+      default:
+        return { content: [{ type: 'text', text: JSON.stringify({ error: `Unknown action: ${action}` }) }] };
+    }
+    
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+// =============================================================================
+// TOOL 4: agent
+// Actions: init, complete, handoff, validate, list, get_instructions, deploy
+// =============================================================================
+
+server.tool(
+  'agent',
+  `Manage agent lifecycle and deployment. Actions:
+- init: Initialize agent session (MUST be called first)
+- complete: Mark agent session as complete
+- handoff: Transfer to another agent with context
+- validate: Validate agent type and get role boundaries
+- list: List available agents
+- get_instructions: Get agent instruction file content
+- deploy: Deploy agent files to workspace`,
+  {
+    action: z.enum(['init', 'complete', 'handoff', 'validate', 'list', 'get_instructions', 'deploy'])
+      .describe('The action to perform'),
+    workspace_id: z.string().optional()
+      .describe('Workspace ID'),
+    plan_id: z.string().optional()
+      .describe('Plan ID'),
+    agent_type: AgentTypeSchema.optional()
+      .describe('Agent type (for init, complete, handoff, validate)'),
+    // Complete params
+    summary: z.string().optional()
+      .describe('Summary of work done (for complete)'),
+    artifacts: z.array(z.string()).optional()
+      .describe('List of artifacts created (for complete)'),
+    // Handoff params
+    target_agent: AgentTypeSchema.optional()
+      .describe('Target agent for handoff'),
+    reason: z.string().optional()
+      .describe('Reason for handoff'),
+    handoff_data: z.record(z.unknown()).optional()
+      .describe('Data to pass to next agent'),
+    // Get instructions params
+    agent_name: z.string().optional()
+      .describe('Agent name for get_instructions'),
+    // Deploy params
+    workspace_path: z.string().optional()
+      .describe('Workspace path for deploy'),
+    agents: z.array(z.string()).optional()
+      .describe('Specific agents to deploy (optional)'),
+    include_prompts: z.boolean().optional()
+      .describe('Include prompt files (default true)'),
+    include_instructions: z.boolean().optional()
+      .describe('Include instruction files (default true)')
+  },
+  async (params) => {
+    const { action, workspace_id, plan_id, agent_type } = params;
+    
+    let result: unknown;
+    
+    switch (action) {
+      case 'init':
+        if (!agent_type) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'agent_type required for init action' }) }] };
+        }
+        result = await withLogging('agent.init', params, () =>
+          handoffTools.initialiseAgent({
+            workspace_id,
+            plan_id,
+            agent_type,
+            context: {}
+          })
+        );
+        break;
+        
+      case 'complete':
+        if (!workspace_id || !plan_id || !agent_type || !params.summary) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'workspace_id, plan_id, agent_type, and summary required for complete action' }) }] };
+        }
+        result = await withLogging('agent.complete', params, () =>
+          handoffTools.completeAgent({
+            workspace_id,
+            plan_id,
+            agent_type,
+            summary: params.summary!,
+            artifacts: params.artifacts
+          })
+        );
+        break;
+        
+      case 'handoff':
+        if (!workspace_id || !plan_id || !agent_type || !params.target_agent || !params.reason) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'workspace_id, plan_id, agent_type, target_agent, and reason required for handoff action' }) }] };
+        }
+        result = await withLogging('agent.handoff', params, () =>
+          handoffTools.handoff({
+            workspace_id,
+            plan_id,
+            from_agent: agent_type,
+            to_agent: params.target_agent!,
+            reason: params.reason!,
+            data: params.handoff_data
+          })
+        );
+        break;
+        
+      case 'validate':
+        if (!workspace_id || !plan_id || !agent_type) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'workspace_id, plan_id, and agent_type required for validate action' }) }] };
+        }
+        // Route to appropriate validator
+        const validators: Record<string, (p: { workspace_id: string; plan_id: string }) => Promise<unknown>> = {
+          Coordinator: validationTools.validateCoordinator,
+          Researcher: validationTools.validateResearcher,
+          Architect: validationTools.validateArchitect,
+          Executor: validationTools.validateExecutor,
+          Reviewer: validationTools.validateReviewer,
+          Tester: validationTools.validateTester,
+          Revisionist: validationTools.validateRevisionist,
+          Archivist: validationTools.validateArchivist,
+          Analyst: validationTools.validateAnalyst
+        };
+        const validator = validators[agent_type];
+        if (!validator) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: `Unknown agent type: ${agent_type}` }) }] };
+        }
+        result = await withLogging('agent.validate', params, () =>
+          validator({ workspace_id, plan_id })
+        );
+        break;
+        
+      case 'list':
+        result = await withLogging('agent.list', params, () =>
+          agentTools.listAgents()
+        );
+        break;
+        
+      case 'get_instructions':
+        if (!params.agent_name) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'agent_name required for get_instructions action' }) }] };
+        }
+        result = await withLogging('agent.get_instructions', params, () =>
+          agentTools.getAgentInstructions({ agent_name: params.agent_name! })
+        );
+        break;
+        
+      case 'deploy':
+        if (!params.workspace_path) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'workspace_path required for deploy action' }) }] };
+        }
+        result = await withLogging('agent.deploy', params, () =>
+          agentTools.deployAgentsToWorkspace({
+            workspace_path: params.workspace_path!,
+            agents: params.agents,
+            include_prompts: params.include_prompts,
+            include_instructions: params.include_instructions
+          })
+        );
+        break;
+        
+      default:
+        return { content: [{ type: 'text', text: JSON.stringify({ error: `Unknown action: ${action}` }) }] };
+    }
+    
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+// =============================================================================
+// TOOL 5: context
+// Actions: get, store, store_initial, list, add_note, add_research, list_research, briefing, generate_instructions, lineage
+// =============================================================================
+
+server.tool(
+  'context',
+  `Manage plan context and research. Actions:
+- get: Retrieve stored context by type
+- store: Store context data (audit, research, etc.)
+- store_initial: Store initial user request context
+- list: List all stored context types
+- add_note: Add a note to the plan
+- add_research: Add research file to plan
+- list_research: List all research files
+- briefing: Get mission briefing for agent
+- generate_instructions: Generate dynamic instructions file
+- lineage: Get full handoff history`,
+  {
+    action: z.enum(['get', 'store', 'store_initial', 'list', 'add_note', 'add_research', 'list_research', 'briefing', 'generate_instructions', 'lineage'])
+      .describe('The action to perform'),
+    workspace_id: z.string().optional()
+      .describe('Workspace ID'),
+    plan_id: z.string().optional()
+      .describe('Plan ID'),
+    // Get/Store params
+    context_type: z.string().optional()
+      .describe('Type of context (e.g., audit, research, initial_request)'),
+    data: z.record(z.unknown()).optional()
+      .describe('Context data to store'),
+    // Store initial params
+    user_request: z.string().optional()
+      .describe('Original user request (for store_initial)'),
+    files: z.array(z.string()).optional()
+      .describe('Relevant files (for store_initial)'),
+    // Add note params
+    note: z.string().optional()
+      .describe('Note content'),
+    note_type: z.enum(['info', 'warning', 'instruction']).optional()
+      .describe('Note type'),
+    // Add research params
+    filename: z.string().optional()
+      .describe('Research filename'),
+    content: z.string().optional()
+      .describe('Research content'),
+    // Generate instructions params
+    output_path: z.string().optional()
+      .describe('Output path for instructions file')
+  },
+  async (params) => {
+    const { action, workspace_id, plan_id } = params;
+    
+    let result: unknown;
+    
+    switch (action) {
+      case 'get':
+        if (!workspace_id || !plan_id || !params.context_type) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'workspace_id, plan_id, and context_type required for get action' }) }] };
+        }
+        result = await withLogging('context.get', params, () =>
+          contextTools.getContext({
+            workspace_id,
+            plan_id,
+            type: params.context_type!
+          })
+        );
+        break;
+        
+      case 'store':
+        if (!workspace_id || !plan_id || !params.context_type || !params.data) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'workspace_id, plan_id, context_type, and data required for store action' }) }] };
+        }
+        result = await withLogging('context.store', params, () =>
+          contextTools.storeContext({
+            workspace_id,
+            plan_id,
+            type: params.context_type!,
+            data: params.data!
+          })
+        );
+        break;
+        
+      case 'store_initial':
+        if (!workspace_id || !plan_id || !params.user_request) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'workspace_id, plan_id, and user_request required for store_initial action' }) }] };
+        }
+        result = await withLogging('context.store_initial', params, () =>
+          contextTools.storeInitialContext({
+            workspace_id,
+            plan_id,
+            user_request: params.user_request!
+          })
+        );
+        break;
+        
+      case 'list':
+        if (!workspace_id || !plan_id) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'workspace_id and plan_id required for list action' }) }] };
+        }
+        result = await withLogging('context.list', params, () =>
+          contextTools.listContext({ workspace_id, plan_id })
+        );
+        break;
+        
+      case 'add_note':
+        if (!workspace_id || !plan_id || !params.note) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'workspace_id, plan_id, and note required for add_note action' }) }] };
+        }
+        result = await withLogging('context.add_note', params, () =>
+          planTools.addPlanNote({
+            workspace_id,
+            plan_id,
+            note: params.note!,
+            type: params.note_type
+          })
+        );
+        break;
+        
+      case 'add_research':
+        if (!workspace_id || !plan_id || !params.filename || !params.content) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'workspace_id, plan_id, filename, and content required for add_research action' }) }] };
+        }
+        result = await withLogging('context.add_research', params, () =>
+          contextTools.appendResearch({
+            workspace_id,
+            plan_id,
+            filename: params.filename!,
+            content: params.content!
+          })
+        );
+        break;
+        
+      case 'list_research':
+        if (!workspace_id || !plan_id) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'workspace_id and plan_id required for list_research action' }) }] };
+        }
+        result = await withLogging('context.list_research', params, () =>
+          contextTools.listResearchNotes({ workspace_id, plan_id })
+        );
+        break;
+        
+      case 'briefing':
+        if (!workspace_id || !plan_id) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'workspace_id and plan_id required for briefing action' }) }] };
+        }
+        result = await withLogging('context.briefing', params, () =>
+          handoffTools.getMissionBriefing({ workspace_id, plan_id })
+        );
+        break;
+        
+      case 'generate_instructions':
+        if (!workspace_id || !plan_id) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'workspace_id and plan_id required for generate_instructions action' }) }] };
+        }
+        result = await withLogging('context.generate_instructions', params, () =>
+          contextTools.generatePlanInstructions({
+            workspace_id,
+            plan_id,
+            output_path: params.output_path
+          })
+        );
+        break;
+        
+      case 'lineage':
+        if (!workspace_id || !plan_id) {
+          return { content: [{ type: 'text', text: JSON.stringify({ error: 'workspace_id and plan_id required for lineage action' }) }] };
+        }
+        result = await withLogging('context.lineage', params, () =>
+          handoffTools.getLineage({ workspace_id, plan_id })
+        );
+        break;
+        
+      default:
+        return { content: [{ type: 'text', text: JSON.stringify({ error: `Unknown action: ${action}` }) }] };
+    }
+    
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+// =============================================================================
+// Server Startup
+// =============================================================================
+
+async function main() {
+  // Initialize data root
+  await store.initDataRoot();
+  
+  console.error('Project Memory MCP Server v2.0 starting...');
+  console.error('Consolidated Tools: workspace, plan, steps, agent, context');
+  console.error(`Data root: ${store.getDataRoot()}`);
+  
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  
+  console.error('Project Memory MCP Server running');
+}
+
+main().catch((error) => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
+});

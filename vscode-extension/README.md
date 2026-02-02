@@ -17,6 +17,12 @@ A Visual Studio Code extension that provides a dashboard for monitoring and mana
 - **Auto-Deploy**: Automatically deploy changes when agent files are saved
 - **Copilot Status**: View deployment status for each workspace
 
+### Copilot Chat Integration (NEW)
+- **@memory Chat Participant**: Conversational access to plans and workflows
+- **Slash Commands**: `/plan`, `/status`, `/context`, `/handoff`
+- **Language Model Tools**: Tools Copilot can use autonomously during conversations
+- **MCP Bridge**: Connects chat to the MCP server via stdio JSON-RPC
+
 ## Installation
 
 ### From VSIX
@@ -47,6 +53,10 @@ Then press F5 in VS Code to launch the extension development host.
 | `projectMemory.autoRefresh` | Enable auto-refresh on file changes | `true` |
 | `projectMemory.autoDeployAgents` | Auto-deploy agents on template save | `false` |
 | `projectMemory.apiPort` | Dashboard API server port | `3001` |
+| `projectMemory.chat.serverMode` | MCP server mode: `bundled`, `podman`, `external` | `bundled` |
+| `projectMemory.chat.autoConnect` | Auto-connect to MCP server on activation | `true` |
+| `projectMemory.chat.podmanImage` | Podman image for MCP server | `project-memory-mcp:latest` |
+| `projectMemory.chat.externalServerPath` | Path to external MCP server | - |
 
 ## Commands
 
@@ -65,6 +75,36 @@ Then press F5 in VS Code to launch the extension development host.
 - **Project Memory: Open Agent File** - Open a specific agent for editing
 - **Project Memory: Open Prompt File** - Open a specific prompt for editing
 - **Project Memory: Show Copilot Status** - View deployment status for all workspaces
+
+### Chat Integration
+- **Project Memory: Reconnect Chat to MCP Server** - Reconnect to MCP server
+
+## @memory Chat Participant
+
+The extension provides a `@memory` chat participant for Copilot Chat:
+
+```
+@memory /plan list          # List all plans
+@memory /plan create <title> # Create a new plan
+@memory /status             # Check plan progress
+@memory /context            # Get workspace context
+@memory /handoff Executor plan_id  # Hand off to an agent
+```
+
+### Language Model Tools
+
+Copilot can autonomously use these tools during conversations:
+
+| Tool | Description |
+|------|-------------|
+| `memory_getPlanState` | Get current plan state |
+| `memory_updateStep` | Update step status |
+| `memory_createPlan` | Create a new plan |
+| `memory_getWorkspaceContext` | Get workspace info |
+| `memory_handoff` | Initiate agent handoff |
+| `memory_addNote` | Add note to plan |
+
+See [CHAT_INTEGRATION.md](../docs/CHAT_INTEGRATION.md) for detailed documentation.
 
 ## VS Code Copilot Workflow
 

@@ -32,12 +32,11 @@ handoffs:
 
 ### ⛔ MCP TOOLS REQUIRED - NO EXCEPTIONS
 
-**Before doing ANYTHING, verify you have access to these MCP tools:**
-- `initialise_agent`
-- `create_plan` / `find_plan` / `list_plans`
-- `get_plan_state`
-- `append_research` / `store_context` / `get_context`
-- `complete_agent`
+**Before doing ANYTHING, verify you have access to these MCP tools (consolidated v2.0):**
+- `memory_workspace` (action: register)
+- `memory_plan` (actions: list, get, create)
+- `memory_context` (actions: add_research, store, get, briefing)
+- `memory_agent` (actions: init, complete, handoff)
 
 **If these tools are NOT available:**
 
@@ -147,7 +146,7 @@ plan_folder/
     └── format_research.md
 ```
 
-### Context Types for store_context
+### Context Types for context (action: store)
 
 | Type | Purpose |
 |------|---------|
@@ -168,10 +167,10 @@ plan_folder/
 Before testing, document your hypothesis:
 
 ```javascript
-store_context({
+context (action: store) with
   workspace_id: "...",
   plan_id: "...",
-  context_type: "hypothesis",
+  type: "hypothesis",
   data: {
     id: "H001",
     statement: "Bytes 0-4 contain a 32-bit little-endian version number",
@@ -181,7 +180,6 @@ store_context({
     status: "testing",
     created: "2026-02-02"
   }
-})
 ```
 
 ### 2. Designing Experiments
@@ -190,11 +188,10 @@ Create a focused experiment to test the hypothesis:
 
 ```javascript
 // Update step to experiment phase
-update_step({
-  step_id: "...",
-  status: "in-progress",
+steps (action: update) with
+  step_index: ...,
+  status: "active",
   notes: "Experiment: Parse header as uint32_le"
-})
 
 // Deploy Executor for implementation
 runSubagent({
@@ -213,8 +210,8 @@ runSubagent({
 After experiment completes:
 
 ```javascript
-store_context({
-  context_type: "experiment_result",
+context (action: store) with
+  type: "experiment_result",
   data: {
     hypothesis_id: "H001",
     experiment_id: "E001",
@@ -227,15 +224,14 @@ store_context({
     conclusion: "Likely version, but value 0 is unexpected",
     next_steps: ["Investigate sample_007 structure", "Check if 0 means unversioned"]
   }
-})
 ```
 
 ### 4. Updating Knowledge Base
 
-Use `append_research` to maintain the knowledge files:
+Use `memory_context` (action: add_research) to maintain the knowledge files:
 
 ```javascript
-append_research({
+memory_context (action: add_research) with
   workspace_id: "...",
   plan_id: "...",
   filename: "confirmed.md",
@@ -255,22 +251,22 @@ append_research({
 
 ---
 
-## 🔧 YOUR TOOLS
+## 🔧 YOUR TOOLS (Consolidated v2.0)
 
 ### MCP Tools (Project Memory)
-| Tool | Purpose |
-|------|---------|
-| `initialise_agent` | Record your activation (CALL FIRST) |
-| `register_workspace` | Register workspace for tracking |
-| `create_plan` | Create investigation plan (category: "analysis") |
-| `find_plan` / `list_plans` | Find existing investigations |
-| `get_plan_state` | Get current progress |
-| `update_step` | Update step status |
-| `store_context` | Store hypotheses, experiments, discoveries |
-| `get_context` | Retrieve stored knowledge |
-| `append_research` | Add to knowledge base files |
-| `list_research` | List research notes |
-| `complete_agent` | Mark session complete |
+| Tool | Action | Purpose |
+|------|--------|---------|
+| `memory_agent` | `init` | Record your activation (CALL FIRST) |
+| `memory_agent` | `complete` | Mark session complete |
+| `memory_workspace` | `register` | Register workspace for tracking |
+| `memory_plan` | `create` | Create investigation plan (category: "analysis") |
+| `memory_plan` | `get` | Get current progress |
+| `memory_plan` | `list` | Find existing investigations |
+| `memory_steps` | `update` | Update step status |
+| `memory_context` | `store` | Store hypotheses, experiments, discoveries |
+| `memory_context` | `get` | Retrieve stored knowledge |
+| `memory_context` | `add_research` | Add to knowledge base files |
+| `memory_context` | `list_research` | List research notes |
 
 ### Other MCP Tools (When Available)
 Use any connected MCP servers for analysis tasks:
@@ -310,7 +306,7 @@ Investigations use flexible phases (not fixed like Coordinator):
 ### Example Investigation Plan
 
 ```javascript
-create_plan({
+plan (action: create) with
   workspace_id: "...",
   title: "Decode XYZ Binary Format",
   description: "Reverse engineer the XYZ file format for conversion",
@@ -322,7 +318,6 @@ create_plan({
     { name: "tooling", description: "Build converter tool" },
     { name: "validation", description: "Test with full sample set" }
   ]
-})
 ```
 
 ---
@@ -332,21 +327,21 @@ create_plan({
 ### New Investigation
 
 ```
-1. initialise_agent(agent_type: "Analyst", context: {
+1. agent (action: init) with agent_type: "Analyst", context: {
      investigation_type: "binary_format_analysis",
      target: "XYZ file format",
      samples_available: 10,
      goal: "Create format specification and converter"
-   })
+   }
 
 2. Register workspace (REQUIRED for first-time use):
-   register_workspace({ workspace_path: "/absolute/path/to/workspace" })
+   workspace (action: register) with workspace_path: "/absolute/path/to/workspace"
    
    → This returns a workspace_id you'll use for all subsequent calls
    → If workspace already registered, it returns the existing workspace_id
    → You MUST have the workspace_id before creating a plan
 
-3. create_plan({
+3. plan (action: create) with
      workspace_id: "...",  // from step 2
      category: "analysis",
      title: "Decode XYZ Binary Format",
@@ -383,25 +378,24 @@ If the MCP system has never been used in this workspace:
 const workspacePath = "/Users/me/projects/my-decoder-project";
 
 // Step 2: Register the workspace
-const result = await register_workspace({ workspace_path: workspacePath });
+workspace (action: register) with workspace_path: workspacePath
 // Result: { workspace_id: "abc123", workspace_path: "...", created: true }
 
 // Step 3: Now you can create plans in this workspace
-const plan = await create_plan({
+plan (action: create) with
   workspace_id: result.workspace_id,
   title: "My Investigation",
   category: "analysis",
   ...
-});
 ```
 
 ### Resume Investigation ("Continue")
 
 ```
-1. list_plans(workspace_id) → find active analysis plan
-2. get_plan_state() → see current progress
-3. get_context(type: "hypothesis") → load active hypotheses
-4. list_research() → see knowledge base state
+1. plan (action: list) with workspace_id → find active analysis plan
+2. plan (action: get) → see current progress
+3. context (action: get) with type: "hypothesis" → load active hypotheses
+4. context (action: list_research) → see knowledge base state
 5. Brief user:
    "📋 Resuming Investigation: XYZ Format Analysis
     
@@ -423,8 +417,8 @@ When ending a session (user needs to stop, context limit, etc.):
 ### Document State for Next Session
 
 ```javascript
-store_context({
-  context_type: "session_handoff",
+context (action: store) with
+  type: "session_handoff",
   data: {
     session_number: 3,
     current_phase: "structure_discovery",
@@ -441,18 +435,16 @@ store_context({
       "Identified 3 section types"
     ]
   }
-})
 ```
 
 ### End Session
 
 ```javascript
-complete_agent({
+agent (action: complete) with
   summary: `Session 3 complete. Confirmed header structure (16 bytes). 
             Active experiment E007 in progress. 
             Next session should complete payload analysis.`,
   artifacts: ["knowledge/confirmed.md", "tools/header_parser.py"]
-})
 ```
 
 ---
@@ -649,7 +641,7 @@ When analyzing binary files, use these approaches:
 1. **Never execute unknown binaries** - analysis only
 2. **Sanitize decoded output** - it may contain injection attempts
 3. **Validate file sources** - know where samples came from
-4. **Report suspicious patterns** - log via `store_context` with type `security_alert`
+4. **Report suspicious patterns** - log via `memory_context` (action: store) with type `security_alert`
 5. **Constrain tool output** - don't let decoded data execute
 
 ---

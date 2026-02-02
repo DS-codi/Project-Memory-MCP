@@ -27,8 +27,8 @@ description: "Investigate and fix a bug with full tracking"
 
 **Instructions for Coordinator:**
 
-1. Use `store_initial_context` to capture this request
-2. Create a plan with category "bug"
+1. Use `memory_context` (action: store_initial) to capture this request
+2. Create a plan with `memory_plan` (action: create, category: "bug")
 3. Spawn Researcher to investigate root cause (if unclear)
 4. Spawn Architect for simple fix design
 5. Execute fix: Executor → Reviewer → Tester → Archivist
