@@ -22,6 +22,7 @@ interface Settings {
 
 const ALL_AGENTS = [
   'coordinator',
+  'analyst',
   'researcher', 
   'architect',
   'executor',
@@ -50,7 +51,7 @@ const defaultSettings: Settings = {
   theme: 'dark',
   autoRefresh: true,
   refreshInterval: 5000,
-  defaultAgents: ['coordinator', 'researcher', 'architect', 'executor', 'reviewer', 'tester', 'archivist', 'revisionist', 'brainstorm'],
+  defaultAgents: ['coordinator', 'analyst', 'researcher', 'architect', 'executor', 'reviewer', 'tester', 'archivist', 'revisionist', 'brainstorm'],
   defaultInstructions: ['mvc-architecture', 'handoff-protocol'],
   autoDeployOnWorkspaceOpen: false,
 };

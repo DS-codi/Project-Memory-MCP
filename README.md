@@ -33,10 +33,10 @@ Add to your VS Code settings or workspace `.vscode/mcp.json`:
     "project-memory": {
       "type": "stdio",
       "command": "node",
-      "args": ["C:\\Users\\user\\vscode_ModularAgenticProcedureSystem\\server\\dist\\index.js"],
+      "args": ["C:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\server\\dist\\index.js"],
       "env": {
-        "MBS_DATA_ROOT": "C:\\Users\\user\\vscode_ModularAgenticProcedureSystem\\data",
-        "MBS_AGENTS_ROOT": "C:\\Users\\user\\vscode_ModularAgenticProcedureSystem\\agents"
+        "MBS_DATA_ROOT": "C:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\data",
+        "MBS_AGENTS_ROOT": "C:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\agents"
       }
     },
     "filesystem": {

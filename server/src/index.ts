@@ -930,6 +930,20 @@ server.tool(
   }
 );
 
+server.tool(
+  'validate_analyst',
+  'REQUIRED after initialise_agent for Analyst. Validates this is the correct agent and returns role boundaries. If wrong agent, returns switch instruction.',
+  ValidationParamsSchema,
+  async (params) => {
+    const result = await withLogging('validate_analyst', params, () =>
+      validationTools.validateAnalyst(params)
+    );
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+    };
+  }
+);
+
 // =============================================================================
 // Server Startup
 // =============================================================================

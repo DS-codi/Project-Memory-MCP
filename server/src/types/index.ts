@@ -10,6 +10,7 @@
 
 export type AgentType = 
   | 'Coordinator'
+  | 'Analyst'
   | 'Researcher'
   | 'Architect'
   | 'Executor'
@@ -97,6 +98,14 @@ export const AGENT_BOUNDARIES: Record<AgentType, AgentRoleBoundaries> = {
     must_handoff_to: ['Researcher', 'Architect'],  // Initial deployment options
     forbidden_actions: ['create files', 'edit code', 'run tests', 'implement features'],
     primary_responsibility: 'Orchestrate plan execution by deploying appropriate subagents'
+  },
+  Analyst: {
+    agent_type: 'Analyst',
+    can_implement: true,  // Can make small changes to get analysis/experiments working
+    can_finalize: false,
+    must_handoff_to: ['Coordinator', 'Executor', 'Archivist'],  // Can spawn subagents or hand back to Coordinator
+    forbidden_actions: [],  // Analyst can edit files for analysis purposes
+    primary_responsibility: 'Long-term iterative analysis and investigation - manages hypothesis-driven exploration cycles, reverse engineering, and format discovery. Can make small code changes to support analysis.'
   },
   Researcher: {
     agent_type: 'Researcher',

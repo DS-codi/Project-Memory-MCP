@@ -158,6 +158,7 @@ export function AgentsPage() {
         <AgentDetails
           agent={agents.find((a) => a.agent_id === selectedAgent)!}
           onClose={() => setSelectedAgent(null)}
+          onRefresh={() => refetch()}
         />
       )}
     </div>
@@ -291,11 +292,51 @@ function DeploymentMatrix({
   );
 }
 
-function AgentDetails({ agent, onClose: _onClose }: { agent: AgentWithDeployments; onClose: () => void }) {
+function AgentDetails({ agent, onClose: _onClose, onRefresh }: { agent: AgentWithDeployments; onClose: () => void; onRefresh: () => void }) {
+  const [isDeploying, setIsDeploying] = useState(false);
   const agentType = agent.agent_id.charAt(0).toUpperCase() + agent.agent_id.slice(1);
   const icon = agentIcons[agentType as AgentType] || '🤖';
   const bgClass = agentBgColors[agentType as AgentType] || 'bg-slate-500/20 text-slate-300';
   const navigate = useNavigate();
+
+  const handleDeployAll = async () => {
+    setIsDeploying(true);
+    try {
+      const res = await fetch(`/api/agents/${agent.agent_id}/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Deployment failed');
+      }
+      const result = await res.json();
+      
+      // Show feedback
+      if (result.synced?.length > 0 || result.failed?.length > 0) {
+        const messages: string[] = [];
+        if (result.synced?.length > 0) {
+          messages.push(`✓ Synced to ${result.synced.length} workspace(s)`);
+        }
+        if (result.skipped?.length > 0) {
+          messages.push(`⊘ Skipped ${result.skipped.length} customized workspace(s)`);
+        }
+        if (result.failed?.length > 0) {
+          messages.push(`✗ Failed: ${result.failed.map((f: {workspace_id: string; error: string}) => f.error).join(', ')}`);
+        }
+        alert(messages.join('\n'));
+      } else {
+        alert('All workspaces are already up to date');
+      }
+      
+      onRefresh();
+    } catch (error) {
+      console.error('Deploy failed:', error);
+      alert(`Deploy failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsDeploying(false);
+    }
+  };
 
   return (
     <div className="bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
@@ -320,9 +361,13 @@ function AgentDetails({ agent, onClose: _onClose }: { agent: AgentWithDeployment
             <Edit3 size={14} />
             Edit Template
           </button>
-          <button className="px-3 py-1.5 bg-violet-500/20 text-violet-300 rounded-lg hover:bg-violet-500/30 transition-colors flex items-center gap-2 text-sm">
-            <Upload size={14} />
-            Deploy All
+          <button 
+            onClick={handleDeployAll}
+            disabled={isDeploying}
+            className="px-3 py-1.5 bg-violet-500/20 text-violet-300 rounded-lg hover:bg-violet-500/30 transition-colors flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Upload size={14} className={isDeploying ? 'animate-pulse' : ''} />
+            {isDeploying ? 'Deploying...' : 'Deploy All'}
           </button>
         </div>
       </div>

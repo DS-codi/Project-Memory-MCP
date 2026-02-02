@@ -347,15 +347,20 @@ export class ServerManager implements vscode.Disposable {
         const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         const extensionPath = vscode.extensions.getExtension('project-memory.project-memory-dashboard')?.extensionPath;
         
+        this.log(`Looking for dashboard - workspacePath: ${workspacePath}, extensionPath: ${extensionPath}`);
+        
         const possiblePaths = [
             workspacePath ? path.join(workspacePath, 'dashboard') : null,
+            extensionPath ? path.join(extensionPath, 'dashboard') : null,
             extensionPath ? path.join(extensionPath, '..', 'dashboard') : null,
-            'c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\dashboard',
         ].filter(Boolean) as string[];
+
+        this.log(`Checking dashboard paths: ${JSON.stringify(possiblePaths)}`);
 
         const fs = require('fs');
         for (const p of possiblePaths) {
             const packageJson = path.join(p, 'package.json');
+            this.log(`Checking: ${packageJson} - exists: ${fs.existsSync(packageJson)}`);
             if (fs.existsSync(packageJson)) {
                 return p;
             }

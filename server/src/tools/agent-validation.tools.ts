@@ -30,9 +30,21 @@ const PHASE_AGENT_MAP: Record<string, AgentType[]> = {
   // Planning phases
   'planning': ['Coordinator', 'Architect'],
   'categorization': ['Coordinator'],
-  'analysis': ['Coordinator', 'Researcher'],
+  'analysis': ['Analyst', 'Coordinator', 'Researcher'],
   'audit': ['Researcher', 'Coordinator'],
-  'research': ['Researcher'],
+  'research': ['Analyst', 'Researcher'],  // Analyst can do research phases directly
+  
+  // Investigation phases (Analyst-specific)
+  'investigation': ['Analyst'],
+  'reconnaissance': ['Analyst'],
+  'structure_discovery': ['Analyst'],
+  'content_decoding': ['Analyst'],
+  'hypothesis': ['Analyst'],
+  'experiment': ['Analyst'],
+  'discovery': ['Analyst'],
+  'schema_exploration': ['Analyst'],
+  'data_mapping': ['Analyst'],
+  'format_analysis': ['Analyst'],
   
   // Design phases
   'design': ['Architect'],
@@ -47,10 +59,12 @@ const PHASE_AGENT_MAP: Record<string, AgentType[]> = {
   'creation': ['Executor'],
   
   // Testing phases
-  'testing': ['Tester'],
-  'verification': ['Tester'],
-  'validation': ['Tester'],
+  'testing': ['Tester', 'Analyst'],  // Analyst can handle comparison/validation testing
+  'verification': ['Tester', 'Analyst'],
+  'validation': ['Tester', 'Analyst'],
   'test': ['Tester'],
+  'comparison': ['Analyst'],
+  'ground_truth': ['Analyst'],
   
   // Review phases
   'review': ['Reviewer'],
@@ -72,7 +86,8 @@ const PHASE_AGENT_MAP: Record<string, AgentType[]> = {
 // Task keywords that indicate which agent should handle
 const TASK_KEYWORDS: Record<AgentType, string[]> = {
   Coordinator: ['categorize', 'analyze request', 'create plan', 'delegate', 'coordinate'],
-  Researcher: ['research', 'investigate', 'gather', 'document findings', 'explore', 'understand'],
+  Analyst: ['investigate', 'decode', 'reverse engineer', 'analyze binary', 'hypothesis', 'experiment', 'parse format', 'discover structure', 'interpret bytes', 'compare with ground truth', 'compare output', 'validate against', 'analyze differences', 'verify data'],
+  Researcher: ['research', 'gather', 'document findings', 'explore', 'understand'],
   Architect: ['design', 'specify', 'architecture', 'structure', 'plan implementation', 'define'],
   Executor: ['implement', 'create', 'build', 'code', 'develop', 'write', 'add', 'modify code'],
   Reviewer: ['review', 'check', 'verify code', 'quality', 'assess', 'evaluate'],
@@ -183,6 +198,7 @@ function getAllowedTools(agentType: AgentType): string[] {
   
   const agentTools: Record<AgentType, string[]> = {
     Coordinator: [...commonTools, 'create_plan', 'modify_plan', 'get_lineage'],
+    Analyst: [...commonTools, 'create_plan', 'append_research', 'store_context', 'get_context', 'list_research_notes', 'modify_plan'],
     Researcher: [...commonTools, 'append_research', 'store_context', 'list_research_notes'],
     Architect: [...commonTools, 'modify_plan', 'update_step', 'store_context'],
     Executor: [...commonTools, 'update_step', 'store_context', 'create_file', 'edit_file'],
@@ -475,4 +491,10 @@ export async function validateArchivist(
   params: ValidateAgentParams
 ): Promise<ToolResponse<AgentValidationResult>> {
   return validateAgent('Archivist', params);
+}
+
+export async function validateAnalyst(
+  params: ValidateAgentParams
+): Promise<ToolResponse<AgentValidationResult>> {
+  return validateAgent('Analyst', params);
 }

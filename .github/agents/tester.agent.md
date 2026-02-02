@@ -74,9 +74,11 @@ You are called after Reviewer approves a phase. Your job is to **write tests onl
    }
    ```
 
-6. **Handoff** - Back to Coordinator (NOT Archivist)
+6. **Handoff** - Back to your deploying agent (Coordinator or Analyst)
    ```
    handoff(to_agent: "Coordinator", reason: "Tests written for {phase}, ready for next phase")
+   // OR for Analyst workflow:
+   handoff(to_agent: "Analyst", reason: "Tests written for experiment, ready to analyze results")
    ```
 
 7. **Complete**
@@ -89,6 +91,7 @@ You are called after Reviewer approves a phase. Your job is to **write tests onl
 - **DO NOT** handoff to Archivist (plan isn't done yet)
 - **DO** create comprehensive test files
 - **DO** document what tests you created
+- **DO** check `deployed_by` context to know who to hand off to
 
 ---
 

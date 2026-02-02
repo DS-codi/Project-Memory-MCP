@@ -1,179 +1,122 @@
-  INFO Started local extension host with pid 36064.
-  WARN [redhat.vscode-xml]: Cannot register 'redhat.telemetry.enabled'. This property is already registered.
-warn @ workbench.desktop.main.js:38
-workbench.desktop.main.js:sourcemap:38  INFO MCP Registry configured: https://api.mcp.github.com
-workbench.desktop.main.js:sourcemap:1366 Overwriting grammar scope name to file mapping for scope source.java.
-Old grammar file: file:///c%3A/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/extensions/java/syntaxes/java.tmLanguage.json.
-New grammar file: file:///c%3A/Users/User/.vscode/extensions/redhat.java-1.52.0-win32-x64/language-support/java/java.tmLanguage.json
-register @ workbench.desktop.main.js:sourcemap:1366
-workbench.desktop.main.js:sourcemap:1366 Overwriting grammar scope name to file mapping for scope source.groovy.
-Old grammar file: file:///c%3A/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/extensions/groovy/syntaxes/groovy.tmLanguage.json.
-New grammar file: file:///c%3A/Users/User/.vscode/extensions/vscjava.vscode-gradle-3.17.2/syntaxes/groovy.tmLanguage.json
-register @ workbench.desktop.main.js:sourcemap:1366
-workbench.desktop.main.js:sourcemap:38   ERR [Extension Host] (node:36064) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
-(Use `Code --trace-deprecation ...` to show where the warning was created)
-error @ workbench.desktop.main.js:sourcemap:38
-workbench.desktop.main.js:sourcemap:537 [Extension Host] (node:36064) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
-(Use `Code --trace-deprecation ...` to show where the warning was created)
-jxs @ workbench.desktop.main.js:sourcemap:537
-workbench.desktop.main.js:sourcemap:38   ERR [Extension Host] (node:36064) ExperimentalWarning: SQLite is an experimental feature and might change at any time
-error @ workbench.desktop.main.js:sourcemap:38
-workbench.desktop.main.js:sourcemap:537 [Extension Host] (node:36064) ExperimentalWarning: SQLite is an experimental feature and might change at any time
-jxs @ workbench.desktop.main.js:sourcemap:537
-workbench.desktop.main.js:sourcemap:38  INFO Settings Sync: Account status changed from uninitialized to available
- Overwriting grammar scope name to file mapping for scope source.java.
-Old grammar file: file:///c%3A/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/extensions/java/syntaxes/java.tmLanguage.json.
-New grammar file: file:///c%3A/Users/User/.vscode/extensions/redhat.java-1.52.0-win32-x64/language-support/java/java.tmLanguage.json
-register @ textMateTokenization…er.workerMain.js:26
- Overwriting grammar scope name to file mapping for scope source.groovy.
-Old grammar file: file:///c%3A/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/extensions/groovy/syntaxes/groovy.tmLanguage.json.
-New grammar file: file:///c%3A/Users/User/.vscode/extensions/vscjava.vscode-gradle-3.17.2/syntaxes/groovy.tmLanguage.json
-register @ textMateTokenization…er.workerMain.js:26
-marketplace.visualstudio.com/_apis/public/gallery/vscode/robocorp/robotframework-lsp/latest:1  Failed to load resource: the server responded with a status of 404 ()
-marketplace.visualstudio.com/_apis/public/gallery/vscode/project-memory/project-memory-dashboard/latest:1  Failed to load resource: the server responded with a status of 404 ()
-workbench.desktop.main.js:sourcemap:537 [Extension Host] Project Memory Dashboard extension activating...
-workbench.desktop.main.js:sourcemap:537 [Extension Host] Agent watcher started for: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\agents\*.agent.md
-workbench.desktop.main.js:sourcemap:537 [Extension Host] agent watcher started for: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\agents\*.agent.md
-workbench.desktop.main.js:sourcemap:537 [Extension Host] prompt watcher started for: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\prompts\*.prompt.md
-workbench.desktop.main.js:sourcemap:537 [Extension Host] instruction watcher started for: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\instructions\*.instructions.md
-workbench.desktop.main.js:sourcemap:537 [Extension Host] Project Memory Dashboard extension activated
-workbench.desktop.main.js:sourcemap:38   ERR [Extension Host] (node:36064) [DEP0051] DeprecationWarning: The `util.isNullOrUndefined` API is deprecated. Please use `arg === null || arg === undefined` instead.
-error @ workbench.desktop.main.js:sourcemap:38
-workbench.desktop.main.js:sourcemap:537 [Extension Host] (node:36064) [DEP0051] DeprecationWarning: The `util.isNullOrUndefined` API is deprecated. Please use `arg === null || arg === undefined` instead.
-jxs @ workbench.desktop.main.js:sourcemap:537
-api.github.com/copilot/mcp_registry:1  Failed to load resource: the server responded with a status of 404 ()
-workbench.desktop.main.js:sourcemap:38   ERR chatParticipant must be declared in package.json: claude-code
-error @ workbench.desktop.main.js:sourcemap:38
-workbench.desktop.main.js:sourcemap:38   ERR Failed to fetch MCP registry providers Server returned 404
-error @ workbench.desktop.main.js:sourcemap:38
-workbench.desktop.main.js:sourcemap:38  INFO [perf] Render performance baseline is 55ms
-workbench.desktop.main.js:sourcemap:38  INFO Auto updating outdated extensions. rooveterinaryinc.roo-cline
- Unrecognized feature: 'local-network-access'.
-gb @ workbench.desktop.main.js:4167
- An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing.
-mountTo @ workbench.desktop.main.js:4167
-index.html?id=8f21279f-996c-424f-86bb-579a36000ba3&parentId=1&origin=86a05687-a5fb-4c9b-955d-dff36647525c&swVersion=4&extensionId=project-memory.project-memory-dashboard&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app&purpose=webviewView:303 No service worker controller found. Waiting for controllerchange.
-index.html?id=8f21279f-996c-424f-86bb-579a36000ba3&parentId=1&origin=86a05687-a5fb-4c9b-955d-dff36647525c&swVersion=4&extensionId=project-memory.project-memory-dashboard&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app&purpose=webviewView:1060 Unrecognized feature: 'local-network-access'.
-(anonymous) @ index.html?id=8f21279f-996c-424f-86bb-579a36000ba3&parentId=1&origin=86a05687-a5fb-4c9b-955d-dff36647525c&swVersion=4&extensionId=project-memory.project-memory-dashboard&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app&purpose=webviewView:1060
-workbench.desktop.main.js:sourcemap:537 [Extension Host] Received message from webview: Object
-VM7:107 Fetching plans for workspace: Project_Memory_MCP-b65525cccb5f
-VM7:110 Plans response status: 200
-VM7:113 Plans data: Object
-workbench.desktop.main.js:sourcemap:537 [Extension Host] Received message from webview: Object
-workbench.desktop.main.js:sourcemap:537 [Extension Host] Opening dashboard panel: http://localhost:5173
- An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing.
-mountTo @ workbench.desktop.main.js:4167
-index.html?id=30c48b4d-7ae2-4e16-9907-3177874ddd09&parentId=1&origin=77531f2b-553c-4b8f-b3d0-97a7743e1782&swVersion=4&extensionId=project-memory.project-memory-dashboard&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app:303 No service worker controller found. Waiting for controllerchange.
-index.html?id=30c48b4d-7ae2-4e16-9907-3177874ddd09&parentId=1&origin=77531f2b-553c-4b8f-b3d0-97a7743e1782&swVersion=4&extensionId=project-memory.project-memory-dashboard&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app:1060 Unrecognized feature: 'local-network-access'.
-(anonymous) @ index.html?id=30c48b4d-7ae2-4e16-9907-3177874ddd09&parentId=1&origin=77531f2b-553c-4b8f-b3d0-97a7743e1782&swVersion=4&extensionId=project-memory.project-memory-dashboard&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app:1060
-index.html?id=30c48b4d-7ae2-4e16-9907-3177874ddd09&parentId=1&origin=77531f2b-553c-4b8f-b3d0-97a7743e1782&swVersion=4&extensionId=project-memory.project-memory-dashboard&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app:1086 Executing inline script violates the following Content Security Policy directive 'default-src 'none''. Either the 'unsafe-inline' keyword, a hash ('sha256-pa18SfOE1itrg2CWnekl+X+xda12SgHTBphL3LjtFAY='), or a nonce ('nonce-...') is required to enable inline execution. Note also that 'script-src' was not explicitly set, so 'default-src' is used as a fallback. The action has been blocked.
-(anonymous) @ index.html?id=30c48b4d-7ae2-4e16-9907-3177874ddd09&parentId=1&origin=77531f2b-553c-4b8f-b3d0-97a7743e1782&swVersion=4&extensionId=project-memory.project-memory-dashboard&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app:1086
-react-router-dom.js?v=18caecd7:4436 ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
-warnOnce @ react-router-dom.js?v=18caecd7:4436
-react-router-dom.js?v=18caecd7:4436 ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
-warnOnce @ react-router-dom.js?v=18caecd7:4436
-ActivityFeed.tsx:128 WebSocket connection to 'ws://localhost:3002/' failed: WebSocket is closed before the connection is established.
-(anonymous) @ ActivityFeed.tsx:128
-useLiveUpdates.ts:79 WebSocket connection to 'ws://localhost:3002/' failed: WebSocket is closed before the connection is established.
-(anonymous) @ useLiveUpdates.ts:79
-useLiveUpdates.ts:62 WebSocket error: Event
-ws.onerror @ useLiveUpdates.ts:62
-useLiveUpdates.ts:57 WebSocket disconnected, reconnecting...
-localhost:5173/api/events/stream:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
-localhost:5173/api/workspaces:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
-localhost:5173/api/events/stream:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
-localhost:5173/api/workspaces:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
-ActivityFeed.tsx:107 WebSocket connection to 'ws://localhost:3002/' failed: 
-(anonymous) @ ActivityFeed.tsx:107
-localhost:5173/api/workspaces:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
-useLiveUpdates.ts:20 WebSocket connection to 'ws://localhost:3002/' failed: 
-(anonymous) @ useLiveUpdates.ts:20
-useLiveUpdates.ts:62 WebSocket error: Event
-ws.onerror @ useLiveUpdates.ts:62
-useLiveUpdates.ts:57 WebSocket disconnected, reconnecting...
-useLiveUpdates.ts:20 WebSocket connection to 'ws://localhost:3002/' failed: 
-(anonymous) @ useLiveUpdates.ts:20
-useLiveUpdates.ts:62 WebSocket error: Event
-ws.onerror @ useLiveUpdates.ts:62
-useLiveUpdates.ts:57 WebSocket disconnected, reconnecting...
-localhost:5173/api/workspaces:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
-useLiveUpdates.ts:20 WebSocket connection to 'ws://localhost:3002/' failed: 
-(anonymous) @ useLiveUpdates.ts:20
-useLiveUpdates.ts:62 WebSocket error: Event
-ws.onerror @ useLiveUpdates.ts:62
-useLiveUpdates.ts:57 WebSocket disconnected, reconnecting...
-localhost:5173/api/agents:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
-useLiveUpdates.ts:20 WebSocket connection to 'ws://localhost:3002/' failed: 
-(anonymous) @ useLiveUpdates.ts:20
-useLiveUpdates.ts:62 WebSocket error: Event
-ws.onerror @ useLiveUpdates.ts:62
-useLiveUpdates.ts:57 WebSocket disconnected, reconnecting...
-localhost:5173/api/agents:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
-ActivityFeed.tsx:128 WebSocket connection to 'ws://localhost:3002/' failed: WebSocket is closed before the connection is established.
-(anonymous) @ ActivityFeed.tsx:128
-localhost:5173/api/workspaces:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
-localhost:5173/api/events/stream:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
-localhost:5173/api/workspaces:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
-ActivityFeed.tsx:107 WebSocket connection to 'ws://localhost:3002/' failed: 
-(anonymous) @ ActivityFeed.tsx:107
-localhost:5173/api/workspaces:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
-useLiveUpdates.ts:20 WebSocket connection to 'ws://localhost:3002/' failed: 
-(anonymous) @ useLiveUpdates.ts:20
-useLiveUpdates.ts:62 WebSocket error: Event
-ws.onerror @ useLiveUpdates.ts:62
-useLiveUpdates.ts:57 WebSocket disconnected, reconnecting...
-useLiveUpdates.ts:20 WebSocket connection to 'ws://localhost:3002/' failed: 
-(anonymous) @ useLiveUpdates.ts:20
-useLiveUpdates.ts:62 WebSocket error: Event
-ws.onerror @ useLiveUpdates.ts:62
-useLiveUpdates.ts:57 WebSocket disconnected, reconnecting...
-localhost:5173/api/workspaces:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
-useLiveUpdates.ts:20 WebSocket connection to 'ws://localhost:3002/' failed: 
-(anonymous) @ useLiveUpdates.ts:20
-useLiveUpdates.ts:62 WebSocket error: Event
-ws.onerror @ useLiveUpdates.ts:62
-useLiveUpdates.ts:57 WebSocket disconnected, reconnecting...
-useLiveUpdates.ts:20 WebSocket connection to 'ws://localhost:3002/' failed: 
-(anonymous) @ useLiveUpdates.ts:20
-useLiveUpdates.ts:62 WebSocket error: Event
-ws.onerror @ useLiveUpdates.ts:62
-useLiveUpdates.ts:57 WebSocket disconnected, reconnecting...
-The FetchEvent for "http://localhost:3001/api/health" resulted in a network error response: the promise was rejected.
-service-worker.js:463  Uncaught (in promise) TypeError: Failed to fetch
-    at p (service-worker.js:463:11)
-localhost:3001/api/health:1  Failed to load resource: net::ERR_FAILED
-useLiveUpdates.ts:20 WebSocket connection to 'ws://localhost:3002/' failed: 
-(anonymous) @ useLiveUpdates.ts:20
-useLiveUpdates.ts:62 WebSocket error: Event
-ws.onerror @ useLiveUpdates.ts:62
-useLiveUpdates.ts:57 WebSocket disconnected, reconnecting...
-useLiveUpdates.ts:20 WebSocket connection to 'ws://localhost:3002/' failed: 
-(anonymous) @ useLiveUpdates.ts:20
-useLiveUpdates.ts:62 WebSocket error: Event
-ws.onerror @ useLiveUpdates.ts:62
-useLiveUpdates.ts:57 WebSocket disconnected, reconnecting...
-useLiveUpdates.ts:20 WebSocket connection to 'ws://localhost:3002/' failed: 
-(anonymous) @ useLiveUpdates.ts:20
-useLiveUpdates.ts:62 WebSocket error: Event
-ws.onerror @ useLiveUpdates.ts:62
-useLiveUpdates.ts:57 WebSocket disconnected, reconnecting...
-useLiveUpdates.ts:20 WebSocket connection to 'ws://localhost:3002/' failed: 
-(anonymous) @ useLiveUpdates.ts:20
-useLiveUpdates.ts:62 WebSocket error: Event
-ws.onerror @ useLiveUpdates.ts:62
-useLiveUpdates.ts:57 WebSocket disconnected, reconnecting...
-useLiveUpdates.ts:20 WebSocket connection to 'ws://localhost:3002/' failed: 
-(anonymous) @ useLiveUpdates.ts:20
-useLiveUpdates.ts:62 WebSocket error: Event
-ws.onerror @ useLiveUpdates.ts:62
-useLiveUpdates.ts:57 WebSocket disconnected, reconnecting...
-useLiveUpdates.ts:20 WebSocket connection to 'ws://localhost:3002/' failed: 
-(anonymous) @ useLiveUpdates.ts:20
-useLiveUpdates.ts:62 WebSocket error: Event {isTrusted: true, type: 'error', target: WebSocket, currentTarget: WebSocket, eventPhase: 2, …}
-ws.onerror @ useLiveUpdates.ts:62
-useLiveUpdates.ts:57 WebSocket disconnected, reconnecting...
-useLiveUpdates.ts:20 WebSocket connection to 'ws://localhost:3002/' failed: 
-(anonymous) @ useLiveUpdates.ts:20
-useLiveUpdates.ts:62 WebSocket error: Event {isTrusted: true, type: 'error', target: WebSocket, currentTarget: WebSocket, eventPhase: 2, …}
-ws.onerror @ useLiveUpdates.ts:62
-useLiveUpdates.ts:57 WebSocket disconnected, reconnecting...
+[2026-02-01T20:58:15.824Z] Checking if server already exists on port 3001...
+[2026-02-01T20:58:15.935Z] Extension path: c:\Users\codi.f\.vscode\extensions\project-memory.project-memory-dashboard-0.2.0
+[2026-02-01T20:58:15.935Z] Workspace path: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem
+[2026-02-01T20:58:15.935Z] Checking paths: ["c:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\dashboard\\server","c:\\Users\\codi.f\\.vscode\\extensions\\project-memory.project-memory-dashboard-0.2.0\\server","c:\\Users\\codi.f\\.vscode\\extensions\\dashboard\\server","c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\dashboard\\server"]
+[2026-02-01T20:58:15.935Z] Checking: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server\package.json
+[2026-02-01T20:58:15.935Z] Found server at: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server
+[2026-02-01T20:58:15.935Z] Starting server from: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server
+[2026-02-01T20:58:17.495Z] [stderr] node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+[2026-02-01T20:58:17.496Z] [stderr] Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'express' imported from c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server\src\index.ts
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:255:9)
+    at packageResolve (node:internal/modules/esm/resolve:767:81)
+    at moduleResolve (node:internal/modules/esm/resolve:853:18)
+    at defaultResolve (node:internal/modules/esm/resolve:983:11)
+    at nextResolve (node:internal/modules/esm/hooks:748:28)
+    at resolveBase (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979497377:2:3744)
+    at resolveDirectory (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979497377:2:4243)
+    at resolveTsPaths (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979497377:2:4984)
+    at resolve (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979497377:2:5361)
+    at nextResolve (node:internal/modules/esm/hooks:748:28) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v22.18.0
+[2026-02-01T20:58:17.532Z] Server exited with code 1, signal null
+[2026-02-01T20:58:17.532Z] Attempting restart (1/3)...
+[2026-02-01T20:58:19.538Z] Checking if server already exists on port 3001...
+[2026-02-01T20:58:19.540Z] Extension path: c:\Users\codi.f\.vscode\extensions\project-memory.project-memory-dashboard-0.2.0
+[2026-02-01T20:58:19.540Z] Workspace path: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem
+[2026-02-01T20:58:19.540Z] Checking paths: ["c:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\dashboard\\server","c:\\Users\\codi.f\\.vscode\\extensions\\project-memory.project-memory-dashboard-0.2.0\\server","c:\\Users\\codi.f\\.vscode\\extensions\\dashboard\\server","c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\dashboard\\server"]
+[2026-02-01T20:58:19.540Z] Checking: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server\package.json
+[2026-02-01T20:58:19.540Z] Found server at: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server
+[2026-02-01T20:58:19.540Z] Starting server from: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server
+[2026-02-01T20:58:20.759Z] [stderr] node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+[2026-02-01T20:58:20.759Z] [stderr] Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'express' imported from c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server\src\index.ts
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:255:9)
+    at packageResolve (node:internal/modules/esm/resolve:767:81)
+    at moduleResolve (node:internal/modules/esm/resolve:853:18)
+    at defaultResolve (node:internal/modules/esm/resolve:983:11)
+    at nextResolve (node:internal/modules/esm/hooks:748:28)
+    at resolveBase (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979500645:2:3744)
+    at resolveDirectory (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979500645:2:4243)
+    at resolveTsPaths (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979500645:2:4984)
+    at resolve (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979500645:2:5361)
+    at nextResolve (node:internal/modules/esm/hooks:748:28) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v22.18.0
+[2026-02-01T20:58:20.797Z] Server exited with code 1, signal null
+[2026-02-01T20:58:20.797Z] Attempting restart (2/3)...
+[2026-02-01T20:58:22.304Z] Checking if server already exists on port 3001...
+[2026-02-01T20:58:22.306Z] Extension path: c:\Users\codi.f\.vscode\extensions\project-memory.project-memory-dashboard-0.2.0
+[2026-02-01T20:58:22.306Z] Workspace path: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem
+[2026-02-01T20:58:22.306Z] Checking paths: ["c:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\dashboard\\server","c:\\Users\\codi.f\\.vscode\\extensions\\project-memory.project-memory-dashboard-0.2.0\\server","c:\\Users\\codi.f\\.vscode\\extensions\\dashboard\\server","c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\dashboard\\server"]
+[2026-02-01T20:58:22.306Z] Checking: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server\package.json
+[2026-02-01T20:58:22.306Z] Found server at: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server
+[2026-02-01T20:58:22.306Z] Starting server from: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server
+[2026-02-01T20:58:22.811Z] Checking if server already exists on port 3001...
+[2026-02-01T20:58:22.814Z] Extension path: c:\Users\codi.f\.vscode\extensions\project-memory.project-memory-dashboard-0.2.0
+[2026-02-01T20:58:22.814Z] Workspace path: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem
+[2026-02-01T20:58:22.814Z] Checking paths: ["c:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\dashboard\\server","c:\\Users\\codi.f\\.vscode\\extensions\\project-memory.project-memory-dashboard-0.2.0\\server","c:\\Users\\codi.f\\.vscode\\extensions\\dashboard\\server","c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\dashboard\\server"]
+[2026-02-01T20:58:22.814Z] Checking: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server\package.json
+[2026-02-01T20:58:22.814Z] Found server at: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server
+[2026-02-01T20:58:22.814Z] Starting server from: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server
+[2026-02-01T20:58:23.544Z] [stderr] node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+[2026-02-01T20:58:23.544Z] [stderr] Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'express' imported from c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server\src\index.ts
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:255:9)
+    at packageResolve (node:internal/modules/esm/resolve:767:81)
+    at moduleResolve (node:internal/modules/esm/resolve:853:18)
+    at defaultResolve (node:internal/modules/esm/resolve:983:11)
+    at nextResolve (node:internal/modules/esm/hooks:748:28)
+    at resolveBase (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979503422:2:3744)
+    at resolveDirectory (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979503422:2:4243)
+    at resolveTsPaths (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979503422:2:4984)
+    at resolve (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979503422:2:5361)
+    at nextResolve (node:internal/modules/esm/hooks:748:28) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v22.18.0
+[2026-02-01T20:58:23.581Z] Server exited with code 1, signal null
+[2026-02-01T20:58:23.581Z] Attempting restart (3/3)...
+[2026-02-01T20:58:23.991Z] [stderr] node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+[2026-02-01T20:58:23.991Z] [stderr] Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'express' imported from c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server\src\index.ts
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:255:9)
+    at packageResolve (node:internal/modules/esm/resolve:767:81)
+    at moduleResolve (node:internal/modules/esm/resolve:853:18)
+    at defaultResolve (node:internal/modules/esm/resolve:983:11)
+    at nextResolve (node:internal/modules/esm/hooks:748:28)
+    at resolveBase (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979503881:2:3744)
+    at resolveDirectory (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979503881:2:4243)
+    at resolveTsPaths (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979503881:2:4984)
+    at resolve (file:///c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/dashboard/node_modules/tsx/dist/esm/index.mjs?1769979503881:2:5361)
+    at nextResolve (node:internal/modules/esm/hooks:748:28) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v22.18.0
+[2026-02-01T20:58:24.027Z] Server exited with code 1, signal null
+[2026-02-01T20:58:25.581Z] Checking if server already exists on port 3001...
+[2026-02-01T20:58:25.583Z] Extension path: c:\Users\codi.f\.vscode\extensions\project-memory.project-memory-dashboard-0.2.0
+[2026-02-01T20:58:25.583Z] Workspace path: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem
+[2026-02-01T20:58:25.583Z] Checking paths: ["c:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\dashboard\\server","c:\\Users\\codi.f\\.vscode\\extensions\\project-memory.project-memory-dashboard-0.2.0\\server","c:\\Users\\codi.f\\.vscode\\extensions\\dashboard\\server","c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\dashboard\\server"]
+[2026-02-01T20:58:25.583Z] Checking: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server\package.json
+[2026-02-01T20:58:25.583Z] Found server at: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server
+[2026-02-01T20:58:25.583Z] Starting server from: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\dashboard\server
+[2026-02-01T20:58:26.321Z] Server failed to start within timeout
+[2026-02-01T20:58:26.321Z] Stopping server...
+[2026-02-01T20:58:26.410Z] Server exited with code 1, signal null
+[2026-02-01T20:58:26.410Z] Server stopped
+[2026-02-01T20:58:29.735Z] Server failed to start within timeout
+[2026-02-01T20:58:32.512Z] Server failed to start within timeout
+[2026-02-01T20:58:33.015Z] Server failed to start within timeout
+[2026-02-01T20:58:35.774Z] Server failed to start within timeout
