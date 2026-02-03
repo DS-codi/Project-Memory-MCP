@@ -70,6 +70,7 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 | `memory_agent` | `complete` | Mark your session complete |
 | `memory_plan` | `archive` | Mark plan as complete |
 | `memory_context` | `store` | Save completion summary |
+| `memory_workspace` | `reindex` | Final workspace state update |
 | Git tools | - | Commit, push, create PR |
 | `edit_file` / `create_file` | - | Update documentation (README, docs, etc.) |
 

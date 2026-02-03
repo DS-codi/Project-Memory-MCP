@@ -69,7 +69,7 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 | `memory_agent` | `validate` | Verify you're the correct agent (agent_type: Researcher) |
 | `memory_agent` | `handoff` | Transfer to Architect |
 | `memory_agent` | `complete` | Mark your session complete with summary |
-| `memory_context` | `add_research` | Save research notes to plan folder |
+| `memory_context` | `append_research` | Save research notes to plan folder |
 | `memory_context` | `store` | Save structured research summary |
 | Web search tools | - | Search the web for documentation |
 | Fetch tools | - | Retrieve documentation pages |
@@ -84,7 +84,7 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 3. For each research target:
    - Search for relevant documentation
    - Fetch and read key pages
-   - Call `memory_context` (action: add_research) to save notes as `.md` files
+   - Call `memory_context` (action: append_research) to save notes as `.md` files
 4. Call `memory_context` (action: store) with type `research` and structured findings
 5. **Call `memory_agent` (action: handoff) to Architect** ← MANDATORY
 6. Call `memory_agent` (action: complete) with your summary

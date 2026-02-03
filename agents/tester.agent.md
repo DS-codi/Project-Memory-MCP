@@ -64,7 +64,7 @@ You are called after Reviewer approves a phase. Your job is to **write tests onl
    - Edge cases and error handling
    - Integration points if applicable
 
-5. **Store** - Call `memory_context` (action: store) with context_type "test_plan":
+5. **Store** - Call `memory_context` (action: store) with type "test_plan":
    ```json
    {
      "phase": "Week 1",

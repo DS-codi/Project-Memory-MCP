@@ -36,11 +36,11 @@ handoffs:
 ### ⛔ MCP TOOLS REQUIRED - NO EXCEPTIONS
 
 **Before doing ANYTHING, verify you have access to these MCP tools (consolidated v2.0):**
-- `memory_workspace` (action: register)
-- `memory_plan` (actions: list, get, create)
-- `memory_steps` (actions: update, batch_update)
-- `memory_agent` (actions: init, validate, complete, handoff)
-- `memory_context` (actions: store_initial, add_note, briefing)
+- `memory_workspace` (actions: register, info, list, reindex)
+- `memory_plan` (actions: list, get, create, update, archive, import, find, add_note)
+- `memory_steps` (actions: add, update, batch_update)
+- `memory_agent` (actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage)
+- `memory_context` (actions: get, store, store_initial, list, append_research, list_research, generate_instructions)
 
 **If these tools are NOT available:**
 

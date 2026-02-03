@@ -73,6 +73,7 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 | `memory_context` | `get` | Compare against audit findings |
 | `memory_context` | `store` | Save review report |
 | `memory_workspace` | `reindex` | Update codebase profile after successful review |
+| `memory_plan` | `get` | Get current plan state and context |
 | Git tools | - | Get diff of changes |
 | Linter tools | - | Check code quality |
 

@@ -13,6 +13,7 @@ export type AgentType =
   | 'Researcher'
   | 'Architect'
   | 'Executor'
+  | 'Builder'
   | 'Revisionist'
   | 'Reviewer'
   | 'Tester'
@@ -35,6 +36,8 @@ export type RequestCategory =
 
 // Alias for convenience
 export type PlanCategory = RequestCategory;
+
+export type PlanTab = 'overview' | 'steps' | 'goals' | 'build-scripts' | 'agents' | 'files';
 
 export type WorkspaceHealth = 'active' | 'stale' | 'blocked' | 'idle';
 
@@ -70,6 +73,22 @@ export interface PlanStep {
   status: StepStatus;
   notes?: string;
   completed_at?: string;
+}
+
+// =============================================================================
+// Build Scripts
+// =============================================================================
+
+export interface BuildScript {
+  id: string;
+  name: string;
+  description: string;
+  command: string;
+  directory: string;
+  created_at: string;
+  plan_id?: string;
+  workspace_id: string;
+  mcp_handle?: string;
 }
 
 // =============================================================================
@@ -109,6 +128,9 @@ export interface PlanState {
   current_phase: string;
   current_agent: AgentType | null;
   pending_notes?: PlanNote[];
+  goals?: string[];
+  success_criteria?: string[];
+  build_scripts?: BuildScript[];
   created_at: string;
   updated_at: string;
   agent_sessions: AgentSession[];
@@ -150,6 +172,7 @@ export interface WorkspaceMeta {
   archived_plans: string[];
   indexed: boolean;
   profile?: WorkspaceProfile;
+  workspace_build_scripts?: BuildScript[];
 }
 
 // =============================================================================

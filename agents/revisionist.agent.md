@@ -77,6 +77,7 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 | `memory_context` | `get` | Review audit/research for missed info |
 | `memory_context` | `store` | Record pivot reasoning |
 | `memory_plan` | `update` | Alter steps to fix the issue |
+| `memory_steps` | `update` | Update individual step status |
 
 ## Workflow
 

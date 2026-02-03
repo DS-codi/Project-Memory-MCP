@@ -11,8 +11,12 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import type { PlanState, WorkspaceMeta, WorkspaceProfile, RequestCategory, RequestCategorization } from '../types/index.js';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import type { PlanState, WorkspaceMeta, WorkspaceProfile, RequestCategory, RequestCategorization, BuildScript } from '../types/index.js';
 import { STEP_TYPE_BEHAVIORS } from '../types/index.js';
+
+const execAsync = promisify(exec);
 
 // =============================================================================
 // Configuration
@@ -507,3 +511,153 @@ export async function generatePlanMd(state: PlanState): Promise<void> {
   
   await writeText(getPlanMdPath(state.workspace_id, state.id), lines.join('\n'));
 }
+
+// =============================================================================
+// Build Scripts Operations
+// =============================================================================
+
+/**
+ * Get all build scripts for a workspace/plan
+ * Combines workspace-level and plan-level scripts
+ */
+export async function getBuildScripts(workspaceId: string, planId?: string): Promise<BuildScript[]> {
+  const scripts: BuildScript[] = [];
+  
+  // Get workspace-level scripts
+  const workspace = await getWorkspace(workspaceId);
+  if (workspace?.workspace_build_scripts) {
+    scripts.push(...workspace.workspace_build_scripts);
+  }
+  
+  // Get plan-level scripts if planId provided
+  if (planId) {
+    const plan = await getPlanState(workspaceId, planId);
+    if (plan?.build_scripts) {
+      scripts.push(...plan.build_scripts);
+    }
+  }
+  
+  return scripts;
+}
+
+/**
+ * Add a build script to workspace or plan
+ */
+export async function addBuildScript(
+  workspaceId: string,
+  scriptData: Omit<BuildScript, 'id' | 'created_at' | 'workspace_id'>,
+  planId?: string
+): Promise<BuildScript> {
+  const script: BuildScript = {
+    ...scriptData,
+    id: `script_${Date.now().toString(36)}_${crypto.randomBytes(4).toString('hex')}`,
+    workspace_id: workspaceId,
+    plan_id: planId,
+    created_at: nowISO()
+  };
+  
+  if (planId) {
+    // Add to plan
+    await modifyJsonLocked<PlanState>(
+      getPlanStatePath(workspaceId, planId),
+      (state) => {
+        if (!state) throw new Error(`Plan ${planId} not found`);
+        if (!state.build_scripts) state.build_scripts = [];
+        state.build_scripts.push(script);
+        state.updated_at = nowISO();
+        return state;
+      }
+    );
+  } else {
+    // Add to workspace
+    await modifyJsonLocked<WorkspaceMeta>(
+      getWorkspaceMetaPath(workspaceId),
+      (meta) => {
+        if (!meta) throw new Error(`Workspace ${workspaceId} not found`);
+        if (!meta.workspace_build_scripts) meta.workspace_build_scripts = [];
+        meta.workspace_build_scripts.push(script);
+        meta.last_accessed = nowISO();
+        return meta;
+      }
+    );
+  }
+  
+  return script;
+}
+
+/**
+ * Delete a build script
+ */
+export async function deleteBuildScript(
+  workspaceId: string,
+  scriptId: string,
+  planId?: string
+): Promise<boolean> {
+  if (planId) {
+    // Delete from plan
+    await modifyJsonLocked<PlanState>(
+      getPlanStatePath(workspaceId, planId),
+      (state) => {
+        if (!state) throw new Error(`Plan ${planId} not found`);
+        if (!state.build_scripts) return state;
+        state.build_scripts = state.build_scripts.filter(s => s.id !== scriptId);
+        state.updated_at = nowISO();
+        return state;
+      }
+    );
+  } else {
+    // Delete from workspace
+    await modifyJsonLocked<WorkspaceMeta>(
+      getWorkspaceMetaPath(workspaceId),
+      (meta) => {
+        if (!meta) throw new Error(`Workspace ${workspaceId} not found`);
+        if (!meta.workspace_build_scripts) return meta;
+        meta.workspace_build_scripts = meta.workspace_build_scripts.filter(s => s.id !== scriptId);
+        meta.last_accessed = nowISO();
+        return meta;
+      }
+    );
+  }
+  
+  return true;
+}
+
+/**
+ * Run a build script
+ */
+export async function runBuildScript(
+  workspaceId: string,
+  scriptId: string
+): Promise<{ success: boolean; output: string; error?: string }> {
+  // Find the script
+  const scripts = await getBuildScripts(workspaceId);
+  const script = scripts.find(s => s.id === scriptId);
+  
+  if (!script) {
+    return {
+      success: false,
+      output: '',
+      error: `Script ${scriptId} not found`
+    };
+  }
+  
+  try {
+    const { stdout, stderr } = await execAsync(script.command, {
+      cwd: script.directory,
+      timeout: 300000 // 5 minute timeout
+    });
+    
+    return {
+      success: true,
+      output: stdout + (stderr ? `\n\nSTDERR:\n${stderr}` : '')
+    };
+  } catch (error) {
+    const err = error as { stdout?: string; stderr?: string; message: string };
+    return {
+      success: false,
+      output: err.stdout || '',
+      error: err.stderr || err.message
+    };
+  }
+}
+

@@ -510,3 +510,257 @@ plansRouter.post('/:workspaceId/import', async (req, res) => {
     res.status(500).json({ error: 'Failed to import plan' });
   }
 });
+// ============================================================================
+// Goals and Success Criteria Endpoints
+// ============================================================================
+
+// PATCH /api/plans/:workspaceId/:planId/goals - Update goals/success_criteria
+plansRouter.patch('/:workspaceId/:planId/goals', async (req, res) => {
+  try {
+    const { goals, success_criteria } = req.body;
+    const { workspaceId, planId } = req.params;
+    
+    const statePath = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'plans', planId, 'state.json');
+    const content = await fs.readFile(statePath, 'utf-8');
+    const state = JSON.parse(content);
+    
+    if (goals !== undefined) {
+      state.goals = goals;
+    }
+    if (success_criteria !== undefined) {
+      state.success_criteria = success_criteria;
+    }
+    state.updated_at = new Date().toISOString();
+    
+    await fs.writeFile(statePath, JSON.stringify(state, null, 2));
+    
+    res.json({ success: true, state });
+  } catch (error) {
+    console.error('Error updating goals:', error);
+    res.status(500).json({ error: 'Failed to update goals' });
+  }
+});
+
+// ============================================================================
+// Build Scripts Endpoints
+// ============================================================================
+
+// GET /api/plans/:planId/build-scripts - Get all build scripts for a plan
+plansRouter.get('/:planId/build-scripts', async (req, res) => {
+  try {
+    const { planId } = req.params;
+    
+    // Find workspace ID by scanning
+    const workspacesDir = globalThis.MBS_DATA_ROOT;
+    const workspaces = await fs.readdir(workspacesDir);
+    let workspaceId = '';
+    
+    for (const ws of workspaces) {
+      const wsPath = path.join(workspacesDir, ws);
+      const stat = await fs.stat(wsPath).catch(() => null);
+      if (stat?.isDirectory()) {
+        const planPath = path.join(wsPath, 'plans', planId, 'state.json');
+        try {
+          await fs.access(planPath);
+          workspaceId = ws;
+          break;
+        } catch {}
+      }
+    }
+    
+    if (!workspaceId) {
+      return res.status(404).json({ error: 'Plan not found' });
+    }
+    
+    const statePath = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'plans', planId, 'state.json');
+    const content = await fs.readFile(statePath, 'utf-8');
+    const state = JSON.parse(content);
+    
+    const scripts = state.build_scripts || [];
+    res.json({ scripts });
+  } catch (error) {
+    console.error('Error getting build scripts:', error);
+    res.status(500).json({ error: 'Failed to get build scripts' });
+  }
+});
+
+// POST /api/plans/:planId/build-scripts - Add a build script to a plan
+plansRouter.post('/:planId/build-scripts', async (req, res) => {
+  try {
+    const { name, description, command, directory, mcp_handle } = req.body;
+    const { planId } = req.params;
+    
+    if (!name || !command) {
+      return res.status(400).json({ error: 'Missing required fields: name, command' });
+    }
+    
+    // Find workspace ID
+    const workspacesDir = globalThis.MBS_DATA_ROOT;
+    const workspaces = await fs.readdir(workspacesDir);
+    let workspaceId = '';
+    
+    for (const ws of workspaces) {
+      const wsPath = path.join(workspacesDir, ws);
+      const stat = await fs.stat(wsPath).catch(() => null);
+      if (stat?.isDirectory()) {
+        const planPath = path.join(wsPath, 'plans', planId, 'state.json');
+        try {
+          await fs.access(planPath);
+          workspaceId = ws;
+          break;
+        } catch {}
+      }
+    }
+    
+    if (!workspaceId) {
+      return res.status(404).json({ error: 'Plan not found' });
+    }
+    
+    const statePath = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'plans', planId, 'state.json');
+    const content = await fs.readFile(statePath, 'utf-8');
+    const state = JSON.parse(content);
+    
+    const scriptId = `script_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
+    const newScript = {
+      id: scriptId,
+      name,
+      description: description || '',
+      command,
+      directory: directory || './',
+      workspace_id: workspaceId,
+      plan_id: planId,
+      mcp_handle: mcp_handle || undefined,
+      created_at: new Date().toISOString(),
+    };
+    
+    if (!state.build_scripts) {
+      state.build_scripts = [];
+    }
+    state.build_scripts.push(newScript);
+    state.updated_at = new Date().toISOString();
+    
+    await fs.writeFile(statePath, JSON.stringify(state, null, 2));
+    
+    res.status(201).json({ script: newScript });
+  } catch (error) {
+    console.error('Error adding build script:', error);
+    res.status(500).json({ error: 'Failed to add build script' });
+  }
+});
+
+// DELETE /api/plans/:planId/build-scripts/:scriptId - Delete a build script
+plansRouter.delete('/:planId/build-scripts/:scriptId', async (req, res) => {
+  try {
+    const { planId, scriptId } = req.params;
+    
+    // Find workspace ID
+    const workspacesDir = globalThis.MBS_DATA_ROOT;
+    const workspaces = await fs.readdir(workspacesDir);
+    let workspaceId = '';
+    
+    for (const ws of workspaces) {
+      const wsPath = path.join(workspacesDir, ws);
+      const stat = await fs.stat(wsPath).catch(() => null);
+      if (stat?.isDirectory()) {
+        const planPath = path.join(wsPath, 'plans', planId, 'state.json');
+        try {
+          await fs.access(planPath);
+          workspaceId = ws;
+          break;
+        } catch {}
+      }
+    }
+    
+    if (!workspaceId) {
+      return res.status(404).json({ error: 'Plan not found' });
+    }
+    
+    const statePath = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'plans', planId, 'state.json');
+    const content = await fs.readFile(statePath, 'utf-8');
+    const state = JSON.parse(content);
+    
+    if (!state.build_scripts) {
+      return res.status(404).json({ error: 'Script not found' });
+    }
+    
+    const initialLength = state.build_scripts.length;
+    state.build_scripts = state.build_scripts.filter((s: { id: string }) => s.id !== scriptId);
+    
+    if (state.build_scripts.length === initialLength) {
+      return res.status(404).json({ error: 'Script not found' });
+    }
+    
+    state.updated_at = new Date().toISOString();
+    await fs.writeFile(statePath, JSON.stringify(state, null, 2));
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting build script:', error);
+    res.status(500).json({ error: 'Failed to delete build script' });
+  }
+});
+
+// POST /api/plans/:planId/build-scripts/:scriptId/run - Run a build script
+plansRouter.post('/:planId/build-scripts/:scriptId/run', async (req, res) => {
+  try {
+    const { planId, scriptId } = req.params;
+    
+    // Find workspace ID
+    const workspacesDir = globalThis.MBS_DATA_ROOT;
+    const workspaces = await fs.readdir(workspacesDir);
+    let workspaceId = '';
+    let wsPath = '';
+    
+    for (const ws of workspaces) {
+      wsPath = path.join(workspacesDir, ws);
+      const stat = await fs.stat(wsPath).catch(() => null);
+      if (stat?.isDirectory()) {
+        const planPath = path.join(wsPath, 'plans', planId, 'state.json');
+        try {
+          await fs.access(planPath);
+          workspaceId = ws;
+          break;
+        } catch {}
+      }
+    }
+    
+    if (!workspaceId) {
+      return res.status(404).json({ error: 'Plan not found' });
+    }
+    
+    const statePath = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'plans', planId, 'state.json');
+    const content = await fs.readFile(statePath, 'utf-8');
+    const state = JSON.parse(content);
+    
+    const script = state.build_scripts?.find((s: { id: string }) => s.id === scriptId);
+    if (!script) {
+      return res.status(404).json({ error: 'Script not found' });
+    }
+    
+    // Execute the script
+    const execAsync = promisify(require('child_process').exec);
+    const workingDir = path.join(wsPath, script.directory);
+    
+    try {
+      const { stdout, stderr } = await execAsync(script.command, {
+        cwd: workingDir,
+        timeout: 300000, // 5 minute timeout
+      });
+      
+      res.json({ 
+        success: true, 
+        output: stdout,
+        error: stderr || undefined
+      });
+    } catch (execError: any) {
+      res.json({
+        success: false,
+        output: execError.stdout || '',
+        error: execError.stderr || execError.message
+      });
+    }
+  } catch (error: any) {
+    console.error('Error running build script:', error);
+    res.status(500).json({ error: 'Failed to run build script', message: error.message });
+  }
+});

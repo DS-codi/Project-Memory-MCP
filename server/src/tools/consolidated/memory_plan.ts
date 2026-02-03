@@ -14,11 +14,13 @@ import type {
   PlanOperationResult,
   ImportPlanResult,
   RequestCategorization,
-  AgentType
+  AgentType,
+  BuildScript
 } from '../../types/index.js';
 import * as planTools from '../plan.tools.js';
+import * as fileStore from '../../storage/file-store.js';
 
-export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate';
+export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate' | 'add_build_script' | 'list_build_scripts' | 'run_build_script' | 'delete_build_script';
 
 export interface MemoryPlanParams {
   action: PlanAction;
@@ -38,6 +40,13 @@ export interface MemoryPlanParams {
   confirm?: boolean;  // For delete action
   step_indices?: number[];  // For consolidate action
   consolidated_task?: string;  // For consolidate action
+  // Build script params
+  script_name?: string;
+  script_description?: string;
+  script_command?: string;
+  script_directory?: string;
+  script_mcp_handle?: string;
+  script_id?: string;
 }
 
 type PlanResult = 
@@ -50,7 +59,11 @@ type PlanResult =
   | { action: 'find'; data: planTools.FindPlanResult }
   | { action: 'add_note'; data: { plan_id: string; notes_count: number } }
   | { action: 'delete'; data: { deleted: boolean; plan_id: string } }
-  | { action: 'consolidate'; data: PlanOperationResult };
+  | { action: 'consolidate'; data: PlanOperationResult }
+  | { action: 'add_build_script'; data: { script: any } }
+  | { action: 'list_build_scripts'; data: { scripts: any[] } }
+  | { action: 'run_build_script'; data: { success: boolean; output: string; error?: string } }
+  | { action: 'delete_build_script'; data: { deleted: boolean; script_id: string } };
 
 export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse<PlanResult>> {
   const { action } = params;
@@ -277,6 +290,77 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
       return {
         success: true,
         data: { action: 'consolidate', data: result.data! }
+      };
+    }
+
+    case 'add_build_script': {
+      if (!params.workspace_id || !params.script_name || !params.script_command || !params.script_directory) {
+        return {
+          success: false,
+          error: 'workspace_id, script_name, script_command, and script_directory are required for action: add_build_script'
+        };
+      }
+      const scriptData = {
+        name: params.script_name,
+        description: params.script_description || '',
+        command: params.script_command,
+        directory: params.script_directory,
+        mcp_handle: params.script_mcp_handle
+      };
+      const script = await fileStore.addBuildScript(
+        params.workspace_id,
+        scriptData,
+        params.plan_id
+      );
+      return {
+        success: true,
+        data: { action: 'add_build_script', data: { script } }
+      };
+    }
+
+    case 'list_build_scripts': {
+      if (!params.workspace_id) {
+        return {
+          success: false,
+          error: 'workspace_id is required for action: list_build_scripts'
+        };
+      }
+      const scripts = await fileStore.getBuildScripts(params.workspace_id, params.plan_id);
+      return {
+        success: true,
+        data: { action: 'list_build_scripts', data: { scripts } }
+      };
+    }
+
+    case 'run_build_script': {
+      if (!params.workspace_id || !params.script_id) {
+        return {
+          success: false,
+          error: 'workspace_id and script_id are required for action: run_build_script'
+        };
+      }
+      const result = await fileStore.runBuildScript(params.workspace_id, params.script_id);
+      return {
+        success: true,
+        data: { action: 'run_build_script', data: result }
+      };
+    }
+
+    case 'delete_build_script': {
+      if (!params.workspace_id || !params.script_id) {
+        return {
+          success: false,
+          error: 'workspace_id and script_id are required for action: delete_build_script'
+        };
+      }
+      const deleted = await fileStore.deleteBuildScript(
+        params.workspace_id,
+        params.script_id,
+        params.plan_id
+      );
+      return {
+        success: true,
+        data: { action: 'delete_build_script', data: { deleted, script_id: params.script_id } }
       };
     }
 

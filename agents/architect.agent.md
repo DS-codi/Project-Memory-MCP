@@ -76,6 +76,7 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 | `memory_context` | `store` | Save architectural decisions |
 | `memory_plan` | `update` | Define implementation steps (replace all) |
 | `memory_steps` | `add` | Append new steps to plan |
+| `memory_workspace` | `info` | Get workspace plans and metadata |
 
 ## Workflow
 

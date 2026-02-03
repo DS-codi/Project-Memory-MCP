@@ -76,6 +76,7 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 | `memory_agent` | `complete` | Mark your session complete |
 | `memory_steps` | `update` | Mark steps as active/done/blocked |
 | `memory_context` | `store` | Save execution log |
+| `memory_context` | `append_research` | Add research/experiment notes |
 | File system tools | - | Create/modify source files |
 | Terminal tools | - | Run build/lint/test commands |
 

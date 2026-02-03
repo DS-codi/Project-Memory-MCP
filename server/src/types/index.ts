@@ -14,6 +14,7 @@ export type AgentType =
   | 'Researcher'
   | 'Architect'
   | 'Executor'
+  | 'Builder'
   | 'Revisionist'
   | 'Reviewer'
   | 'Tester'
@@ -154,6 +155,22 @@ export interface AgentSession {
 }
 
 // =============================================================================
+// Build Scripts
+// =============================================================================
+
+export interface BuildScript {
+  id: string;
+  name: string;
+  description: string;
+  command: string;
+  directory: string;
+  created_at: string;
+  plan_id?: string;       // If associated with a specific plan
+  workspace_id: string;   // Workspace this script belongs to
+  mcp_handle?: string;    // Optional MCP tool handle for programmatic execution
+}
+
+// =============================================================================
 // Agent Role Boundaries - Enforced constraints per agent type
 // =============================================================================
 
@@ -213,9 +230,17 @@ export const AGENT_BOUNDARIES: Record<AgentType, AgentRoleBoundaries> = {
     agent_type: 'Executor',
     can_implement: true,
     can_finalize: false,
-    must_handoff_to: ['Reviewer', 'Tester'],
+    must_handoff_to: ['Builder', 'Reviewer', 'Tester'],
     forbidden_actions: [],
     primary_responsibility: 'Implement code changes according to Architect design'
+  },
+  Builder: {
+    agent_type: 'Builder',
+    can_implement: false,
+    can_finalize: false,
+    must_handoff_to: ['Tester', 'Revisionist'],
+    forbidden_actions: ['create files', 'edit code', 'implement features'],
+    primary_responsibility: 'Execute build scripts, verify builds succeed, diagnose build failures'
   },
   Reviewer: {
     agent_type: 'Reviewer',
@@ -298,6 +323,9 @@ export interface PlanState {
   current_agent: AgentType | null;  // Agent currently deployed by Coordinator
   recommended_next_agent?: AgentType;  // Subagent recommendation for Coordinator
   pending_notes?: PlanNote[];  // Notes for next agent/tool call (auto-cleared after delivery)
+  goals?: string[];  // Project goals
+  success_criteria?: string[];  // Success criteria for completion
+  build_scripts?: BuildScript[];  // Plan-specific build scripts
   created_at: string;
   updated_at: string;
   agent_sessions: AgentSession[];
@@ -319,6 +347,7 @@ export interface WorkspaceMeta {
   archived_plans: string[];
   indexed: boolean;  // Whether codebase has been indexed
   profile?: WorkspaceProfile;  // Codebase profile from indexing
+  workspace_build_scripts?: BuildScript[];  // Workspace-level build scripts
 }
 
 // =============================================================================
