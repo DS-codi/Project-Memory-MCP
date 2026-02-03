@@ -13,7 +13,7 @@ import type {
 } from '../../types/index.js';
 import * as planTools from '../plan.tools.js';
 
-export type StepsAction = 'add' | 'update' | 'batch_update';
+export type StepsAction = 'add' | 'update' | 'batch_update' | 'insert' | 'delete';
 
 export interface MemoryStepsParams {
   action: StepsAction;
@@ -22,6 +22,10 @@ export interface MemoryStepsParams {
   
   // For 'add' action
   steps?: Omit<PlanStep, 'index'>[];
+  
+  // For 'insert' action
+  at_index?: number;
+  step?: Omit<PlanStep, 'index'>;
   
   // For 'update' action
   step_index?: number;
@@ -40,7 +44,9 @@ export interface MemoryStepsParams {
 type StepsResult = 
   | { action: 'add'; data: PlanOperationResult }
   | { action: 'update'; data: PlanOperationResult }
-  | { action: 'batch_update'; data: PlanOperationResult };
+  | { action: 'batch_update'; data: PlanOperationResult }
+  | { action: 'insert'; data: PlanOperationResult }
+  | { action: 'delete'; data: PlanOperationResult };
 
 export async function memorySteps(params: MemoryStepsParams): Promise<ToolResponse<StepsResult>> {
   const { action, workspace_id, plan_id } = params;
@@ -48,7 +54,7 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
   if (!action) {
     return {
       success: false,
-      error: 'action is required. Valid actions: add, update, batch_update'
+      error: 'action is required. Valid actions: add, update, batch_update, insert, delete'
     };
   }
 
@@ -131,10 +137,53 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
       };
     }
 
+    case 'insert': {
+      if (params.at_index === undefined || !params.step) {
+        return {
+          success: false,
+          error: 'at_index and step are required for action: insert'
+        };
+      }
+      const result = await planTools.insertStep({
+        workspace_id,
+        plan_id,
+        at_index: params.at_index,
+        step: params.step
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'insert', data: result.data! }
+      };
+    }
+
+    case 'delete': {
+      if (params.step_index === undefined) {
+        return {
+          success: false,
+          error: 'step_index is required for action: delete'
+        };
+      }
+      const result = await planTools.deleteStep({
+        workspace_id,
+        plan_id,
+        step_index: params.step_index
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'delete', data: result.data! }
+      };
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: add, update, batch_update`
+        error: `Unknown action: ${action}. Valid actions: add, update, batch_update, insert, delete`
       };
   }
 }

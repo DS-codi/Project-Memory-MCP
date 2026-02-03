@@ -84,6 +84,11 @@ const AgentTypeSchema = z.enum([
 
 const StepStatusSchema = z.enum(['pending', 'active', 'done', 'blocked']);
 
+const StepTypeSchema = z.enum([
+  'standard', 'analysis', 'validation', 'user_validation', 'complex', 
+  'critical', 'build', 'fix', 'refactor', 'confirmation'
+]).optional().default('standard');
+
 const PrioritySchema = z.enum(['low', 'medium', 'high', 'critical']);
 
 const RequestCategorySchema = z.enum([
@@ -128,9 +133,9 @@ server.tool(
 
 server.tool(
   'memory_plan',
-  'Consolidated plan lifecycle management. Actions: list (list plans), get (get plan state), create (create new plan), update (modify plan steps), archive (archive completed plan), import (import existing plan file), find (find plan by ID), add_note (add note to plan).',
+  'Consolidated plan lifecycle management. Actions: list (list plans), get (get plan state), create (create new plan), update (modify plan steps), archive (archive completed plan), import (import existing plan file), find (find plan by ID), add_note (add note to plan), delete (delete plan), consolidate (consolidate steps).',
   {
-    action: z.enum(['list', 'get', 'create', 'update', 'archive', 'import', 'find', 'add_note']).describe('The action to perform'),
+    action: z.enum(['list', 'get', 'create', 'update', 'archive', 'import', 'find', 'add_note', 'delete', 'consolidate']).describe('The action to perform'),
     workspace_id: z.string().optional().describe('Workspace ID'),
     workspace_path: z.string().optional().describe('Workspace path (alternative to workspace_id for list)'),
     plan_id: z.string().optional().describe('Plan ID'),
@@ -141,6 +146,7 @@ server.tool(
     steps: z.array(z.object({
       phase: z.string(),
       task: z.string(),
+      type: StepTypeSchema,
       status: StepStatusSchema.optional().default('pending'),
       notes: z.string().optional(),
       assignee: z.string().optional()
@@ -149,7 +155,10 @@ server.tool(
     plan_file_path: z.string().optional().describe('Path to plan file (for import)'),
     note: z.string().optional().describe('Note content (for add_note)'),
     note_type: z.enum(['info', 'warning', 'instruction']).optional().describe('Note type'),
-    categorization: RequestCategorizationSchema.optional().describe('Full categorization details')
+    categorization: RequestCategorizationSchema.optional().describe('Full categorization details'),
+    confirm: z.boolean().optional().describe('Confirmation required for destructive delete action'),
+    step_indices: z.array(z.number()).optional().describe('Step indices to consolidate (for consolidate action)'),
+    consolidated_task: z.string().optional().describe('Consolidated task description (for consolidate action)')
   },
   async (params) => {
     const result = await withLogging('memory_plan', params, () =>
@@ -163,14 +172,15 @@ server.tool(
 
 server.tool(
   'memory_steps',
-  'Consolidated step management tool. Actions: add (append new steps), update (update single step status), batch_update (update multiple steps at once).',
+  'Consolidated step management tool. Actions: add (append new steps), update (update single step status), batch_update (update multiple steps at once), insert (insert step at index), delete (delete step at index).',
   {
-    action: z.enum(['add', 'update', 'batch_update']).describe('The action to perform'),
+    action: z.enum(['add', 'update', 'batch_update', 'insert', 'delete']).describe('The action to perform'),
     workspace_id: z.string().describe('Workspace ID'),
     plan_id: z.string().describe('Plan ID'),
     steps: z.array(z.object({
       phase: z.string(),
       task: z.string(),
+      type: StepTypeSchema,
       status: StepStatusSchema.optional().default('pending'),
       notes: z.string().optional(),
       assignee: z.string().optional()
@@ -183,7 +193,16 @@ server.tool(
       index: z.number(),
       status: StepStatusSchema.optional(),
       notes: z.string().optional()
-    })).optional().describe('Batch updates (for batch_update action)')
+    })).optional().describe('Batch updates (for batch_update action)'),
+    at_index: z.number().optional().describe('Index at which to insert step (for insert action)'),
+    step: z.object({
+      phase: z.string(),
+      task: z.string(),
+      type: StepTypeSchema,
+      status: StepStatusSchema.optional().default('pending'),
+      notes: z.string().optional(),
+      assignee: z.string().optional()
+    }).optional().describe('Single step to insert (for insert action)')
   },
   async (params) => {
     const result = await withLogging('memory_steps', params, () =>

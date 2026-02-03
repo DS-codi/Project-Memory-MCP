@@ -18,7 +18,7 @@ import type {
 } from '../../types/index.js';
 import * as planTools from '../plan.tools.js';
 
-export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note';
+export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate';
 
 export interface MemoryPlanParams {
   action: PlanAction;
@@ -35,6 +35,9 @@ export interface MemoryPlanParams {
   note?: string;
   note_type?: 'info' | 'warning' | 'instruction';
   categorization?: RequestCategorization;
+  confirm?: boolean;  // For delete action
+  step_indices?: number[];  // For consolidate action
+  consolidated_task?: string;  // For consolidate action
 }
 
 type PlanResult = 
@@ -45,7 +48,9 @@ type PlanResult =
   | { action: 'archive'; data: PlanState }
   | { action: 'import'; data: ImportPlanResult }
   | { action: 'find'; data: planTools.FindPlanResult }
-  | { action: 'add_note'; data: { plan_id: string; notes_count: number } };
+  | { action: 'add_note'; data: { plan_id: string; notes_count: number } }
+  | { action: 'delete'; data: { deleted: boolean; plan_id: string } }
+  | { action: 'consolidate'; data: PlanOperationResult };
 
 export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse<PlanResult>> {
   const { action } = params;
@@ -223,6 +228,55 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
       return {
         success: true,
         data: { action: 'add_note', data: result.data! }
+      };
+    }
+
+    case 'delete': {
+      if (!params.workspace_id || !params.plan_id) {
+        return {
+          success: false,
+          error: 'workspace_id and plan_id are required for action: delete'
+        };
+      }
+      if (params.confirm !== true) {
+        return {
+          success: false,
+          error: 'confirm=true is required for plan deletion. This action cannot be undone.'
+        };
+      }
+      const result = await planTools.deletePlan({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id,
+        confirm: params.confirm
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'delete', data: result.data! }
+      };
+    }
+
+    case 'consolidate': {
+      if (!params.workspace_id || !params.plan_id || !params.step_indices || !params.consolidated_task) {
+        return {
+          success: false,
+          error: 'workspace_id, plan_id, step_indices, and consolidated_task are required for action: consolidate'
+        };
+      }
+      const result = await planTools.consolidateSteps({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id,
+        step_indices: params.step_indices,
+        consolidated_task: params.consolidated_task
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'consolidate', data: result.data! }
       };
     }
 

@@ -12,6 +12,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import type { PlanState, WorkspaceMeta, WorkspaceProfile, RequestCategory, RequestCategorization } from '../types/index.js';
+import { STEP_TYPE_BEHAVIORS } from '../types/index.js';
 
 // =============================================================================
 // Configuration
@@ -471,7 +472,23 @@ export async function generatePlanMd(state: PlanState): Promise<void> {
     for (const step of state.steps) {
       const checkbox = step.status === 'done' ? '[x]' : '[ ]';
       const statusBadge = step.status === 'active' ? ' ⏳' : step.status === 'blocked' ? ' 🚫' : '';
-      lines.push(`- ${checkbox} **${step.phase}:** ${step.task}${statusBadge}`);
+      
+      // Get step type and visual indicators
+      const stepType = step.type ?? 'standard';
+      const typeBehavior = STEP_TYPE_BEHAVIORS[stepType];
+      
+      // Add visual indicators based on step type
+      let typeIndicator = '';
+      if (stepType !== 'standard') {
+        typeIndicator = ` [${stepType}]`;
+      }
+      
+      let visualMarker = '';
+      if (typeBehavior.blocking) {
+        visualMarker = stepType === 'user_validation' ? ' 👤' : stepType === 'critical' ? ' ⚠️' : ' 🔒';
+      }
+      
+      lines.push(`- ${checkbox} **${step.phase}:**${typeIndicator} ${step.task}${statusBadge}${visualMarker}`);
       if (step.notes) {
         lines.push(`  - _${step.notes}_`);
       }

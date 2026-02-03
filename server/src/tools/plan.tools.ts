@@ -18,9 +18,10 @@ import type {
   PlanStep,
   RequestCategory,
   PlanOperationResult,
-  AgentType
+  AgentType,
+  OrderValidationWarning
 } from '../types/index.js';
-import { AGENT_BOUNDARIES } from '../types/index.js';
+import { AGENT_BOUNDARIES, STEP_TYPE_BEHAVIORS } from '../types/index.js';
 import * as store from '../storage/file-store.js';
 import { events } from '../events/event-emitter.js';
 
@@ -285,6 +286,32 @@ export async function getPlanState(
   }
 }
 
+// =============================================================================
+// Order Validation Helper
+// =============================================================================
+
+/**
+ * Validate step completion order
+ * Returns warning if prior steps are not completed yet
+ * This is a non-blocking warning, not an error
+ */
+function validateStepOrder(steps: PlanStep[], completedIndex: number): OrderValidationWarning | null {
+  // Find all prior steps (lower index) that are not done
+  const priorPending = steps
+    .filter(s => s.index < completedIndex && s.status !== 'done')
+    .map(s => s.index);
+  
+  if (priorPending.length === 0) {
+    return null;  // No warnings
+  }
+  
+  return {
+    step_completed: completedIndex,
+    prior_pending: priorPending,
+    message: `Step ${completedIndex} completed before prior steps: ${priorPending.join(', ')}. This may indicate out-of-order execution.`
+  };
+}
+
 /**
  * Update the status of a specific step
  * Returns role_boundaries to remind agent of their constraints
@@ -332,6 +359,29 @@ export async function updateStep(
       step.completed_at = store.nowISO();
     }
     
+    // Validate step order when marking a step as 'done'
+    let orderWarning: OrderValidationWarning | null = null;
+    if (status === 'done') {
+      orderWarning = validateStepOrder(state.steps, step_index);
+      
+      // Type-aware validation: warn if user_validation/confirmation step auto-completed
+      const stepType = step.type ?? 'standard';
+      const behavior = STEP_TYPE_BEHAVIORS[stepType];
+      if (!behavior.auto_completable) {
+        // Add additional warning for non-auto-completable steps
+        const typeWarning = `⚠️ Step ${step_index} is type '${stepType}' which requires explicit user confirmation. Ensure this was intentionally marked done.`;
+        if (orderWarning) {
+          orderWarning.message += `\n${typeWarning}`;
+        } else {
+          orderWarning = {
+            step_completed: step_index,
+            prior_pending: [],
+            message: typeWarning
+          };
+        }
+      }
+    }
+    
     // Update phase if needed
     const phases = [...new Set(state.steps.map(s => s.phase))];
     const currentPhaseSteps = state.steps.filter(s => s.phase === step.phase);
@@ -353,21 +403,28 @@ export async function updateStep(
     const shouldHandoff = !boundaries.can_finalize;
     const pendingSteps = state.steps.filter(s => s.status === 'pending').length;
     
+    const result: PlanOperationResult = {
+      plan_state: state,
+      role_boundaries: boundaries,
+      next_action: {
+        should_handoff: shouldHandoff && pendingSteps === 0,
+        handoff_to: boundaries.must_handoff_to.length > 0 ? boundaries.must_handoff_to : undefined,
+        message: pendingSteps > 0 
+          ? `${pendingSteps} steps remaining. Continue with your work.`
+          : shouldHandoff
+            ? `⚠️ All your steps are complete. You MUST handoff to ${boundaries.must_handoff_to.join(' or ')} before calling complete_agent.`
+            : 'All steps complete. You may archive the plan.'
+      }
+    };
+    
+    // Include order warning if present
+    if (orderWarning) {
+      result.order_warning = orderWarning;
+    }
+    
     return {
       success: true,
-      data: {
-        plan_state: state,
-        role_boundaries: boundaries,
-        next_action: {
-          should_handoff: shouldHandoff && pendingSteps === 0,
-          handoff_to: boundaries.must_handoff_to.length > 0 ? boundaries.must_handoff_to : undefined,
-          message: pendingSteps > 0 
-            ? `${pendingSteps} steps remaining. Continue with your work.`
-            : shouldHandoff
-              ? `⚠️ All your steps are complete. You MUST handoff to ${boundaries.must_handoff_to.join(' or ')} before calling complete_agent.`
-              : 'All steps complete. You may archive the plan.'
-        }
-      }
+      data: result
     };
   } catch (error) {
     return {
@@ -415,6 +472,7 @@ export async function batchUpdateSteps(
     
     let updatedCount = 0;
     const errors: string[] = [];
+    const warnings: string[] = [];
     
     // Apply each update
     for (const update of updates) {
@@ -430,6 +488,19 @@ export async function batchUpdateSteps(
       }
       if (update.status === 'done') {
         step.completed_at = store.nowISO();
+        
+        // Collect order validation warnings for each completed step
+        const orderWarning = validateStepOrder(state.steps, update.step_index);
+        if (orderWarning) {
+          warnings.push(orderWarning.message);
+        }
+        
+        // Type-aware validation
+        const stepType = step.type ?? 'standard';
+        const behavior = STEP_TYPE_BEHAVIORS[stepType];
+        if (!behavior.auto_completable) {
+          warnings.push(`⚠️ Step ${update.step_index} is type '${stepType}' which requires explicit user confirmation.`);
+        }
       }
       updatedCount++;
     }
@@ -460,6 +531,23 @@ export async function batchUpdateSteps(
     const pendingSteps = state.steps.filter(s => s.status === 'pending').length;
     const doneSteps = state.steps.filter(s => s.status === 'done').length;
     
+    // Build message including errors and warnings
+    let message = '';
+    if (errors.length > 0) {
+      message = `Updated ${updatedCount} steps with ${errors.length} errors: ${errors.join(', ')}`;
+    } else if (pendingSteps > 0) {
+      message = `Updated ${updatedCount} steps. ${pendingSteps} pending, ${doneSteps} done.`;
+    } else if (shouldHandoff) {
+      message = `⚠️ All steps complete. You MUST handoff to ${boundaries.must_handoff_to.join(' or ')} before calling complete_agent.`;
+    } else {
+      message = 'All steps complete. You may archive the plan.';
+    }
+    
+    // Append warnings if present
+    if (warnings.length > 0) {
+      message += `\n⚠️ Warnings: ${warnings.join('; ')}`;
+    }
+    
     return {
       success: true,
       data: {
@@ -469,13 +557,7 @@ export async function batchUpdateSteps(
         next_action: {
           should_handoff: shouldHandoff && pendingSteps === 0,
           handoff_to: boundaries.must_handoff_to.length > 0 ? boundaries.must_handoff_to : undefined,
-          message: errors.length > 0
-            ? `Updated ${updatedCount} steps with ${errors.length} errors: ${errors.join(', ')}`
-            : pendingSteps > 0 
-              ? `Updated ${updatedCount} steps. ${pendingSteps} pending, ${doneSteps} done.`
-              : shouldHandoff
-                ? `⚠️ All steps complete. You MUST handoff to ${boundaries.must_handoff_to.join(' or ')} before calling complete_agent.`
-                : 'All steps complete. You may archive the plan.'
+          message
         }
       }
     };
@@ -576,6 +658,331 @@ export async function modifyPlan(
     return {
       success: false,
       error: `Failed to modify plan: ${(error as Error).message}`
+    };
+  }
+}
+
+/**
+ * Insert a step at a specific index with re-indexing
+ * All steps at or after the insertion point have their indices shifted up by 1
+ */
+export async function insertStep(
+  params: { workspace_id: string; plan_id: string; at_index: number; step: Omit<PlanStep, 'index'> }
+): Promise<ToolResponse<PlanOperationResult>> {
+  try {
+    const { workspace_id, plan_id, at_index, step } = params;
+    
+    if (!workspace_id || !plan_id || at_index === undefined || !step) {
+      return {
+        success: false,
+        error: 'workspace_id, plan_id, at_index, and step are required'
+      };
+    }
+    
+    const state = await store.getPlanState(workspace_id, plan_id);
+    if (!state) {
+      return {
+        success: false,
+        error: `Plan not found: ${plan_id}`
+      };
+    }
+    
+    const currentAgent = state.current_agent || 'Coordinator';
+    const boundaries = AGENT_BOUNDARIES[currentAgent];
+    
+    // Validate at_index
+    if (at_index < 0 || at_index > state.steps.length) {
+      return {
+        success: false,
+        error: `Invalid at_index: ${at_index}. Must be between 0 and ${state.steps.length}`
+      };
+    }
+    
+    // Shift indices >= at_index up by 1
+    const updatedSteps = state.steps.map(s => {
+      if (s.index >= at_index) {
+        return { ...s, index: s.index + 1 };
+      }
+      return s;
+    });
+    
+    // Insert new step with the target index
+    const newStep: PlanStep = {
+      ...step,
+      index: at_index,
+      status: step.status || 'pending'
+    };
+    
+    // Combine and sort by index
+    state.steps = [...updatedSteps, newStep].sort((a, b) => a.index - b.index);
+    
+    await store.savePlanState(state);
+    await store.generatePlanMd(state);
+    
+    return {
+      success: true,
+      data: {
+        plan_state: state,
+        role_boundaries: boundaries,
+        next_action: {
+          should_handoff: !boundaries.can_implement,
+          message: `Inserted step at index ${at_index}. Plan now has ${state.steps.length} total steps.`
+        }
+      }
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to insert step: ${(error as Error).message}`
+    };
+  }
+}
+
+/**
+ * Delete a step at a specific index with re-indexing
+ * All steps after the deletion point have their indices shifted down by 1
+ */
+export async function deleteStep(
+  params: { workspace_id: string; plan_id: string; step_index: number }
+): Promise<ToolResponse<PlanOperationResult>> {
+  try {
+    const { workspace_id, plan_id, step_index } = params;
+    
+    if (!workspace_id || !plan_id || step_index === undefined) {
+      return {
+        success: false,
+        error: 'workspace_id, plan_id, and step_index are required'
+      };
+    }
+    
+    const state = await store.getPlanState(workspace_id, plan_id);
+    if (!state) {
+      return {
+        success: false,
+        error: `Plan not found: ${plan_id}`
+      };
+    }
+    
+    const currentAgent = state.current_agent || 'Coordinator';
+    const boundaries = AGENT_BOUNDARIES[currentAgent];
+    
+    // Validate step_index exists
+    const stepToDelete = state.steps.find(s => s.index === step_index);
+    if (!stepToDelete) {
+      return {
+        success: false,
+        error: `Step with index ${step_index} not found`
+      };
+    }
+    
+    // Remove the step
+    const remainingSteps = state.steps.filter(s => s.index !== step_index);
+    
+    // Shift indices > step_index down by 1
+    state.steps = remainingSteps.map(s => {
+      if (s.index > step_index) {
+        return { ...s, index: s.index - 1 };
+      }
+      return s;
+    }).sort((a, b) => a.index - b.index);
+    
+    await store.savePlanState(state);
+    await store.generatePlanMd(state);
+    
+    return {
+      success: true,
+      data: {
+        plan_state: state,
+        role_boundaries: boundaries,
+        next_action: {
+          should_handoff: !boundaries.can_implement,
+          message: `Deleted step at index ${step_index}. Plan now has ${state.steps.length} total steps.`
+        }
+      }
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to delete step: ${(error as Error).message}`
+    };
+  }
+}
+
+// =============================================================================
+// Plan Deletion
+// =============================================================================
+
+/**
+ * Delete an entire plan with safety confirmation
+ * Requires confirm=true to prevent accidental deletion
+ */
+export async function deletePlan(
+  params: { workspace_id: string; plan_id: string; confirm?: boolean }
+): Promise<ToolResponse<{ deleted: boolean; plan_id: string }>> {
+  try {
+    const { workspace_id, plan_id, confirm } = params;
+    
+    // Safety check: require explicit confirmation
+    if (confirm !== true) {
+      return {
+        success: false,
+        error: 'Plan deletion requires confirm=true for safety. This action cannot be undone.'
+      };
+    }
+    
+    // Get workspace and verify plan exists
+    const workspace = await store.getWorkspace(workspace_id);
+    if (!workspace) {
+      return {
+        success: false,
+        error: `Workspace not found: ${workspace_id}`
+      };
+    }
+    
+    if (!workspace.active_plans.includes(plan_id)) {
+      return {
+        success: false,
+        error: `Plan ${plan_id} not found in workspace ${workspace_id}`
+      };
+    }
+    
+    // Remove from workspace active_plans
+    workspace.active_plans = workspace.active_plans.filter(p => p !== plan_id);
+    await store.saveWorkspace(workspace);
+    
+    // Delete plan directory
+    const planPath = store.getPlanPath(workspace_id, plan_id);
+    await fs.rm(planPath, { recursive: true, force: true });
+    
+    // Emit event - using planUpdated since there's no planDeleted event type
+    await events.planUpdated(workspace_id, plan_id, { deleted: true });
+    
+    return {
+      success: true,
+      data: {
+        deleted: true,
+        plan_id
+      }
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to delete plan: ${(error as Error).message}`
+    };
+  }
+}
+
+// =============================================================================
+// Step Consolidation
+// =============================================================================
+
+/**
+ * Consolidate multiple steps into a single step
+ * Merges notes and re-indexes remaining steps
+ */
+export async function consolidateSteps(
+  params: { workspace_id: string; plan_id: string; step_indices: number[]; consolidated_task: string }
+): Promise<ToolResponse<PlanOperationResult>> {
+  try {
+    const { workspace_id, plan_id, step_indices, consolidated_task } = params;
+    
+    if (!workspace_id || !plan_id || !step_indices || !consolidated_task) {
+      return {
+        success: false,
+        error: 'workspace_id, plan_id, step_indices, and consolidated_task are required'
+      };
+    }
+    
+    if (step_indices.length < 2) {
+      return {
+        success: false,
+        error: 'At least 2 steps are required for consolidation'
+      };
+    }
+    
+    const state = await store.getPlanState(workspace_id, plan_id);
+    if (!state) {
+      return {
+        success: false,
+        error: `Plan not found: ${plan_id}`
+      };
+    }
+    
+    const currentAgent = state.current_agent || 'Coordinator';
+    const boundaries = AGENT_BOUNDARIES[currentAgent];
+    
+    // Validate all indices exist
+    const sortedIndices = [...step_indices].sort((a, b) => a - b);
+    const stepsToMerge = sortedIndices.map(idx => {
+      const step = state.steps.find(s => s.index === idx);
+      if (!step) {
+        throw new Error(`Step ${idx} not found`);
+      }
+      return step;
+    });
+    
+    // Validate indices are consecutive
+    for (let i = 1; i < sortedIndices.length; i++) {
+      if (sortedIndices[i] !== sortedIndices[i - 1] + 1) {
+        return {
+          success: false,
+          error: `Step indices must be consecutive. Found gap between ${sortedIndices[i - 1]} and ${sortedIndices[i]}`
+        };
+      }
+    }
+    
+    // Get first step's phase and metadata
+    const firstStep = stepsToMerge[0];
+    const phase = firstStep.phase;
+    
+    // Merge all notes
+    const mergedNotes = stepsToMerge
+      .map(s => s.notes)
+      .filter(n => n && n.trim().length > 0)
+      .join('; ');
+    
+    // Create consolidated step
+    const consolidatedStep: PlanStep = {
+      index: sortedIndices[0],
+      phase,
+      task: consolidated_task,
+      status: 'pending',
+      notes: mergedNotes || undefined,
+      type: firstStep.type,
+      requires_validation: firstStep.requires_validation,
+      assignee: firstStep.assignee
+    };
+    
+    // Remove merged steps and add consolidated step
+    const remainingSteps = state.steps.filter(s => !sortedIndices.includes(s.index));
+    const newSteps = [consolidatedStep, ...remainingSteps];
+    
+    // Re-index all steps
+    newSteps.sort((a, b) => a.index - b.index);
+    const reindexedSteps = newSteps.map((s, newIndex) => ({
+      ...s,
+      index: newIndex
+    }));
+    
+    state.steps = reindexedSteps;
+    await store.savePlanState(state);
+    await store.generatePlanMd(state);
+    
+    return {
+      success: true,
+      data: {
+        plan_state: state,
+        role_boundaries: boundaries,
+        next_action: {
+          should_handoff: false,
+          message: `Consolidated ${sortedIndices.length} steps into 1. Plan now has ${state.steps.length} total steps.`
+        }
+      }
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to consolidate steps: ${(error as Error).message}`
     };
   }
 }

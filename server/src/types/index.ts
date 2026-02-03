@@ -21,9 +21,95 @@ export type AgentType =
 
 export type StepStatus = 'pending' | 'active' | 'done' | 'blocked';
 
+export type StepType = 
+  | 'standard'
+  | 'analysis'
+  | 'validation'
+  | 'user_validation'
+  | 'complex'
+  | 'critical'
+  | 'build'
+  | 'fix'
+  | 'refactor'
+  | 'confirmation';
+
 export type PlanStatus = 'active' | 'paused' | 'completed' | 'archived' | 'failed';
 
 export type PlanPriority = 'low' | 'medium' | 'high' | 'critical';
+
+// =============================================================================
+// Step Type Metadata - Behavioral properties for each step type
+// =============================================================================
+
+export interface StepTypeMetadata {
+  id: StepType;
+  auto_completable: boolean;  // Can agent mark this step done without user confirmation?
+  blocking: boolean;          // Does this step block subsequent steps?
+  description: string;
+}
+
+export const STEP_TYPE_BEHAVIORS: Record<StepType, StepTypeMetadata> = {
+  standard: {
+    id: 'standard',
+    auto_completable: true,
+    blocking: false,
+    description: 'Standard implementation step'
+  },
+  analysis: {
+    id: 'analysis',
+    auto_completable: true,
+    blocking: false,
+    description: 'Research or analysis task'
+  },
+  validation: {
+    id: 'validation',
+    auto_completable: true,
+    blocking: false,
+    description: 'Automated validation or verification'
+  },
+  user_validation: {
+    id: 'user_validation',
+    auto_completable: false,
+    blocking: true,
+    description: 'Requires explicit user approval'
+  },
+  complex: {
+    id: 'complex',
+    auto_completable: true,
+    blocking: false,
+    description: 'Complex multi-part implementation'
+  },
+  critical: {
+    id: 'critical',
+    auto_completable: true,
+    blocking: true,
+    description: 'Critical step that blocks progress if failed'
+  },
+  build: {
+    id: 'build',
+    auto_completable: true,
+    blocking: false,
+    description: 'Build or compile step'
+  },
+  fix: {
+    id: 'fix',
+    auto_completable: true,
+    blocking: false,
+    description: 'Bug fix or correction'
+  },
+  refactor: {
+    id: 'refactor',
+    auto_completable: true,
+    blocking: false,
+    description: 'Code refactoring without behavior change'
+  },
+  confirmation: {
+    id: 'confirmation',
+    auto_completable: false,
+    blocking: true,
+    description: 'Checkpoint requiring user confirmation to proceed'
+  }
+};
 
 // =============================================================================
 // Request Categories - Different types of user prompts
@@ -175,6 +261,9 @@ export interface PlanStep {
   phase: string;
   task: string;
   status: StepStatus;
+  type?: StepType;                // Step type for behavioral hints (defaults to 'standard')
+  requires_validation?: boolean;  // Explicit flag for steps needing validation
+  assignee?: string;              // Agent or role assigned to this step
   notes?: string;
   completed_at?: string;
 }
@@ -448,6 +537,15 @@ export interface ToolResponse<T = unknown> {
 }
 
 /**
+ * Warning when steps are completed out of order
+ */
+export interface OrderValidationWarning {
+  step_completed: number;   // Index of the step that was completed
+  prior_pending: number[];  // Indices of prior steps still pending
+  message: string;
+}
+
+/**
  * Enhanced response for plan modification tools
  * Includes role_boundaries to remind agent of their constraints
  */
@@ -459,6 +557,7 @@ export interface PlanOperationResult {
     handoff_to?: AgentType[];
     message: string;
   };
+  order_warning?: OrderValidationWarning;  // Present if steps completed out of order
 }
 
 export interface MissionBriefing {
