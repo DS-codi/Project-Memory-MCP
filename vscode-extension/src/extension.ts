@@ -85,8 +85,9 @@ export function activate(context: vscode.ExtensionContext) {
     });
     context.subscriptions.push(serverManager);
 
-    // Auto-start server if configured (frontend is started on-demand only)
-    if (autoStartServer) {
+    // Auto-start server if configured AND server directory exists
+    // Only try to start if we can actually find the dashboard server
+    if (autoStartServer && serverManager.hasServerDirectory()) {
         serverManager.start().then(async success => {
             if (success) {
                 if (serverManager.isExternalServer) {

@@ -1,34 +1,23 @@
-[2026-02-02T07:02:23.409Z] Server not found. Tried paths:
-[2026-02-02T07:02:23.409Z]   - c:\Users\User\.vscode\Project-Memory-MCP\server\dist\index.js
-[2026-02-02T07:02:23.409Z]   - c:\Users\User\.vscode\server\dist\index.js
-[2026-02-02T07:02:23.409Z]   - c:\Users\User\.vscode\extensions\project-memory.project-memory-dashboard-0.2.0\server\dist\index.js
-[2026-02-02T07:02:23.409Z]   - c:\Users\User\.vscode\extensions\server\dist\index.js
-[2026-02-02T07:02:23.409Z]   - c:\Users\User\.vscode\server\dist\index.js
-[2026-02-02T07:02:23.409Z]   - c:\Users\User\.vscode\Project-Memory-MCP\server\dist\index.js
-[2026-02-02T07:02:23.409Z]   - d:\2026\ds_cad\server\dist\index.js
-[2026-02-02T07:02:23.409Z]   - d:\2026\ds_cad\Project-Memory-MCP\server\dist\index.js
-[2026-02-02T07:02:23.409Z] Failed to find bundled server: MCP server not found. Please either:
-1. Build the server: cd server && npm run build
-2. Set projectMemory.chat.serverMode to "external" and configure the path
-3. Use Podman mode with a pre-built container
-[2026-02-02T07:02:23.418Z] Connection failed: Error: MCP server not found. Please either:
-1. Build the server: cd server && npm run build
-2. Set projectMemory.chat.serverMode to "external" and configure the path
-3. Use Podman mode with a pre-built container
-[2026-02-02T07:35:41.764Z] Server not found. Tried paths:
-[2026-02-02T07:35:41.764Z]   - c:\Users\User\.vscode\Project-Memory-MCP\server\dist\index.js
-[2026-02-02T07:35:41.764Z]   - c:\Users\User\.vscode\server\dist\index.js
-[2026-02-02T07:35:41.764Z]   - c:\Users\User\.vscode\extensions\project-memory.project-memory-dashboard-0.2.0\server\dist\index.js
-[2026-02-02T07:35:41.764Z]   - c:\Users\User\.vscode\extensions\server\dist\index.js
-[2026-02-02T07:35:41.764Z]   - c:\Users\User\.vscode\server\dist\index.js
-[2026-02-02T07:35:41.764Z]   - c:\Users\User\.vscode\Project-Memory-MCP\server\dist\index.js
-[2026-02-02T07:35:41.764Z]   - d:\2026\ds_cad\server\dist\index.js
-[2026-02-02T07:35:41.764Z]   - d:\2026\ds_cad\Project-Memory-MCP\server\dist\index.js
-[2026-02-02T07:35:41.764Z] Failed to find bundled server: MCP server not found. Please either:
-1. Build the server: cd server && npm run build
-2. Set projectMemory.chat.serverMode to "external" and configure the path
-3. Use Podman mode with a pre-built container
-[2026-02-02T07:35:41.764Z] Connection failed: Error: MCP server not found. Please either:
-1. Build the server: cd server && npm run build
-2. Set projectMemory.chat.serverMode to "external" and configure the path
-3. Use Podman mode with a pre-built container
+[2026-02-02T23:41:17.343Z] Checking if server already exists on port 3001...
+[2026-02-02T23:41:18.099Z] Found existing server - connecting without spawning new process
+[2026-02-03T00:17:17.664Z] Looking for dashboard - workspacePath: c:\ds_file_decoder, extensionPath: c:\Users\codi.f\.vscode\extensions\project-memory.project-memory-dashboard-0.2.0
+[2026-02-03T00:17:17.664Z] Checking dashboard paths: ["c:\\ds_file_decoder\\dashboard","c:\\ds_file_decoder\\Project-Memory-MCP\\dashboard","c:\\Users\\codi.f\\.vscode\\extensions\\project-memory.project-memory-dashboard-0.2.0\\dashboard","c:\\Users\\codi.f\\.vscode\\extensions\\dashboard"]
+[2026-02-03T00:17:17.664Z] Checking: c:\ds_file_decoder\dashboard\package.json - exists: false
+[2026-02-03T00:17:17.664Z] Checking: c:\ds_file_decoder\Project-Memory-MCP\dashboard\package.json - exists: false
+[2026-02-03T00:17:17.664Z] Checking: c:\Users\codi.f\.vscode\extensions\project-memory.project-memory-dashboard-0.2.0\dashboard\package.json - exists: false
+[2026-02-03T00:17:17.664Z] Checking: c:\Users\codi.f\.vscode\extensions\dashboard\package.json - exists: false
+[2026-02-03T00:17:17.664Z] Could not find dashboard directory for frontend
+[2026-02-03T00:17:22.848Z] Looking for dashboard - workspacePath: c:\ds_file_decoder, extensionPath: c:\Users\codi.f\.vscode\extensions\project-memory.project-memory-dashboard-0.2.0
+[2026-02-03T00:17:22.848Z] Checking dashboard paths: ["c:\\ds_file_decoder\\dashboard","c:\\ds_file_decoder\\Project-Memory-MCP\\dashboard","c:\\Users\\codi.f\\.vscode\\extensions\\project-memory.project-memory-dashboard-0.2.0\\dashboard","c:\\Users\\codi.f\\.vscode\\extensions\\dashboard"]
+[2026-02-03T00:17:22.848Z] Checking: c:\ds_file_decoder\dashboard\package.json - exists: false
+[2026-02-03T00:17:22.848Z] Checking: c:\ds_file_decoder\Project-Memory-MCP\dashboard\package.json - exists: false
+[2026-02-03T00:17:22.849Z] Checking: c:\Users\codi.f\.vscode\extensions\project-memory.project-memory-dashboard-0.2.0\dashboard\package.json - exists: false
+[2026-02-03T00:17:22.849Z] Checking: c:\Users\codi.f\.vscode\extensions\dashboard\package.json - exists: false
+[2026-02-03T00:17:22.849Z] Could not find dashboard directory for frontend
+[2026-02-03T00:17:53.488Z] Looking for dashboard - workspacePath: c:\ds_file_decoder, extensionPath: c:\Users\codi.f\.vscode\extensions\project-memory.project-memory-dashboard-0.2.0
+[2026-02-03T00:17:53.488Z] Checking dashboard paths: ["c:\\ds_file_decoder\\dashboard","c:\\ds_file_decoder\\Project-Memory-MCP\\dashboard","c:\\Users\\codi.f\\.vscode\\extensions\\project-memory.project-memory-dashboard-0.2.0\\dashboard","c:\\Users\\codi.f\\.vscode\\extensions\\dashboard"]
+[2026-02-03T00:17:53.488Z] Checking: c:\ds_file_decoder\dashboard\package.json - exists: false
+[2026-02-03T00:17:53.488Z] Checking: c:\ds_file_decoder\Project-Memory-MCP\dashboard\package.json - exists: false
+[2026-02-03T00:17:53.489Z] Checking: c:\Users\codi.f\.vscode\extensions\project-memory.project-memory-dashboard-0.2.0\dashboard\package.json - exists: false
+[2026-02-03T00:17:53.489Z] Checking: c:\Users\codi.f\.vscode\extensions\dashboard\package.json - exists: false
+[2026-02-03T00:17:53.489Z] Could not find dashboard directory for frontend

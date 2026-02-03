@@ -1,10 +1,5277 @@
-"use strict";var Vo=Object.create;var ot=Object.defineProperty;var Yo=Object.getOwnPropertyDescriptor;var Qo=Object.getOwnPropertyNames;var Xo=Object.getPrototypeOf,Zo=Object.prototype.hasOwnProperty;var F=(s,e)=>()=>(e||s((e={exports:{}}).exports,e),e.exports),Jo=(s,e)=>{for(var t in e)ot(s,t,{get:e[t],enumerable:!0})},Bs=(s,e,t,r)=>{if(e&&typeof e=="object"||typeof e=="function")for(let o of Qo(e))!Zo.call(s,o)&&o!==t&&ot(s,o,{get:()=>e[o],enumerable:!(r=Yo(e,o))||r.enumerable});return s};var q=(s,e,t)=>(t=s!=null?Vo(Xo(s)):{},Bs(e||!s||!s.__esModule?ot(t,"default",{value:s,enumerable:!0}):t,s)),en=s=>Bs(ot({},"__esModule",{value:!0}),s);var Fe=F((_c,Ks)=>{"use strict";var sn=require("path"),ge="\\\\/",Us=`[^${ge}]`,me="\\.",rn="\\+",on="\\?",at="\\/",nn="(?=.)",Gs="[^/]",Ht=`(?:${at}|$)`,qs=`(?:^|${at})`,Ot=`${me}{1,2}${Ht}`,an=`(?!${me})`,cn=`(?!${qs}${Ot})`,ln=`(?!${me}{0,1}${Ht})`,dn=`(?!${Ot})`,un=`[^.${at}]`,pn=`${Gs}*?`,zs={DOT_LITERAL:me,PLUS_LITERAL:rn,QMARK_LITERAL:on,SLASH_LITERAL:at,ONE_CHAR:nn,QMARK:Gs,END_ANCHOR:Ht,DOTS_SLASH:Ot,NO_DOT:an,NO_DOTS:cn,NO_DOT_SLASH:ln,NO_DOTS_SLASH:dn,QMARK_NO_DOT:un,STAR:pn,START_ANCHOR:qs},hn={...zs,SLASH_LITERAL:`[${ge}]`,QMARK:Us,STAR:`${Us}*?`,DOTS_SLASH:`${me}{1,2}(?:[${ge}]|$)`,NO_DOT:`(?!${me})`,NO_DOTS:`(?!(?:^|[${ge}])${me}{1,2}(?:[${ge}]|$))`,NO_DOT_SLASH:`(?!${me}{0,1}(?:[${ge}]|$))`,NO_DOTS_SLASH:`(?!${me}{1,2}(?:[${ge}]|$))`,QMARK_NO_DOT:`[^.${ge}]`,START_ANCHOR:`(?:^|[${ge}])`,END_ANCHOR:`(?:[${ge}]|$)`},fn={alnum:"a-zA-Z0-9",alpha:"a-zA-Z",ascii:"\\x00-\\x7F",blank:" \\t",cntrl:"\\x00-\\x1F\\x7F",digit:"0-9",graph:"\\x21-\\x7E",lower:"a-z",print:"\\x20-\\x7E ",punct:"\\-!\"#$%&'()\\*+,./:;<=>?@[\\]^_`{|}~",space:" \\t\\r\\n\\v\\f",upper:"A-Z",word:"A-Za-z0-9_",xdigit:"A-Fa-f0-9"};Ks.exports={MAX_LENGTH:1024*64,POSIX_REGEX_SOURCE:fn,REGEX_BACKSLASH:/\\(?![*+?^${}(|)[\]])/g,REGEX_NON_SPECIAL_CHARS:/^[^@![\].,$*+?^{}()|\\/]+/,REGEX_SPECIAL_CHARS:/[-*+?.^${}(|)[\]]/,REGEX_SPECIAL_CHARS_BACKREF:/(\\?)((\W)(\3*))/g,REGEX_SPECIAL_CHARS_GLOBAL:/([-*+?.^${}(|)[\]])/g,REGEX_REMOVE_BACKSLASH:/(?:\[.*?[^\\]\]|\\(?=.))/g,REPLACEMENTS:{"***":"*","**/**":"**","**/**/**":"**"},CHAR_0:48,CHAR_9:57,CHAR_UPPERCASE_A:65,CHAR_LOWERCASE_A:97,CHAR_UPPERCASE_Z:90,CHAR_LOWERCASE_Z:122,CHAR_LEFT_PARENTHESES:40,CHAR_RIGHT_PARENTHESES:41,CHAR_ASTERISK:42,CHAR_AMPERSAND:38,CHAR_AT:64,CHAR_BACKWARD_SLASH:92,CHAR_CARRIAGE_RETURN:13,CHAR_CIRCUMFLEX_ACCENT:94,CHAR_COLON:58,CHAR_COMMA:44,CHAR_DOT:46,CHAR_DOUBLE_QUOTE:34,CHAR_EQUAL:61,CHAR_EXCLAMATION_MARK:33,CHAR_FORM_FEED:12,CHAR_FORWARD_SLASH:47,CHAR_GRAVE_ACCENT:96,CHAR_HASH:35,CHAR_HYPHEN_MINUS:45,CHAR_LEFT_ANGLE_BRACKET:60,CHAR_LEFT_CURLY_BRACE:123,CHAR_LEFT_SQUARE_BRACKET:91,CHAR_LINE_FEED:10,CHAR_NO_BREAK_SPACE:160,CHAR_PERCENT:37,CHAR_PLUS:43,CHAR_QUESTION_MARK:63,CHAR_RIGHT_ANGLE_BRACKET:62,CHAR_RIGHT_CURLY_BRACE:125,CHAR_RIGHT_SQUARE_BRACKET:93,CHAR_SEMICOLON:59,CHAR_SINGLE_QUOTE:39,CHAR_SPACE:32,CHAR_TAB:9,CHAR_UNDERSCORE:95,CHAR_VERTICAL_LINE:124,CHAR_ZERO_WIDTH_NOBREAK_SPACE:65279,SEP:sn.sep,extglobChars(s){return{"!":{type:"negate",open:"(?:(?!(?:",close:`))${s.STAR})`},"?":{type:"qmark",open:"(?:",close:")?"},"+":{type:"plus",open:"(?:",close:")+"},"*":{type:"star",open:"(?:",close:")*"},"@":{type:"at",open:"(?:",close:")"}}},globChars(s){return s===!0?hn:zs}}});var ct=F(re=>{"use strict";var gn=require("path"),mn=process.platform==="win32",{REGEX_BACKSLASH:wn,REGEX_REMOVE_BACKSLASH:vn,REGEX_SPECIAL_CHARS:yn,REGEX_SPECIAL_CHARS_GLOBAL:_n}=Fe();re.isObject=s=>s!==null&&typeof s=="object"&&!Array.isArray(s);re.hasRegexChars=s=>yn.test(s);re.isRegexChar=s=>s.length===1&&re.hasRegexChars(s);re.escapeRegex=s=>s.replace(_n,"\\$1");re.toPosixSlashes=s=>s.replace(wn,"/");re.removeBackslashes=s=>s.replace(vn,e=>e==="\\"?"":e);re.supportsLookbehinds=()=>{let s=process.version.slice(1).split(".").map(Number);return s.length===3&&s[0]>=9||s[0]===8&&s[1]>=10};re.isWindows=s=>s&&typeof s.windows=="boolean"?s.windows:mn===!0||gn.sep==="\\";re.escapeLast=(s,e,t)=>{let r=s.lastIndexOf(e,t);return r===-1?s:s[r-1]==="\\"?re.escapeLast(s,e,r-1):`${s.slice(0,r)}\\${s.slice(r)}`};re.removePrefix=(s,e={})=>{let t=s;return t.startsWith("./")&&(t=t.slice(2),e.prefix="./"),t};re.wrapOutput=(s,e={},t={})=>{let r=t.contains?"":"^",o=t.contains?"":"$",i=`${r}(?:${s})${o}`;return e.negated===!0&&(i=`(?:^(?!${i}).*$)`),i}});var tr=F((kc,er)=>{"use strict";var Vs=ct(),{CHAR_ASTERISK:Nt,CHAR_AT:bn,CHAR_BACKWARD_SLASH:Le,CHAR_COMMA:kn,CHAR_DOT:Bt,CHAR_EXCLAMATION_MARK:jt,CHAR_FORWARD_SLASH:Js,CHAR_LEFT_CURLY_BRACE:Wt,CHAR_LEFT_PARENTHESES:Ut,CHAR_LEFT_SQUARE_BRACKET:Cn,CHAR_PLUS:Rn,CHAR_QUESTION_MARK:Ys,CHAR_RIGHT_CURLY_BRACE:En,CHAR_RIGHT_PARENTHESES:Qs,CHAR_RIGHT_SQUARE_BRACKET:xn}=Fe(),Xs=s=>s===Js||s===Le,Zs=s=>{s.isPrefix!==!0&&(s.depth=s.isGlobstar?1/0:1)},Sn=(s,e)=>{let t=e||{},r=s.length-1,o=t.parts===!0||t.scanToEnd===!0,i=[],n=[],a=[],c=s,u=-1,d=0,p=0,l=!1,f=!1,v=!1,y=!1,R=!1,P=!1,S=!1,E=!1,H=!1,T=!1,C=0,M,b,A={value:"",depth:0,isGlob:!1},U=()=>u>=r,w=()=>c.charCodeAt(u+1),W=()=>(M=b,c.charCodeAt(++u));for(;u<r;){b=W();let te;if(b===Le){S=A.backslashes=!0,b=W(),b===Wt&&(P=!0);continue}if(P===!0||b===Wt){for(C++;U()!==!0&&(b=W());){if(b===Le){S=A.backslashes=!0,W();continue}if(b===Wt){C++;continue}if(P!==!0&&b===Bt&&(b=W())===Bt){if(l=A.isBrace=!0,v=A.isGlob=!0,T=!0,o===!0)continue;break}if(P!==!0&&b===kn){if(l=A.isBrace=!0,v=A.isGlob=!0,T=!0,o===!0)continue;break}if(b===En&&(C--,C===0)){P=!1,l=A.isBrace=!0,T=!0;break}}if(o===!0)continue;break}if(b===Js){if(i.push(u),n.push(A),A={value:"",depth:0,isGlob:!1},T===!0)continue;if(M===Bt&&u===d+1){d+=2;continue}p=u+1;continue}if(t.noext!==!0&&(b===Rn||b===bn||b===Nt||b===Ys||b===jt)===!0&&w()===Ut){if(v=A.isGlob=!0,y=A.isExtglob=!0,T=!0,b===jt&&u===d&&(H=!0),o===!0){for(;U()!==!0&&(b=W());){if(b===Le){S=A.backslashes=!0,b=W();continue}if(b===Qs){v=A.isGlob=!0,T=!0;break}}continue}break}if(b===Nt){if(M===Nt&&(R=A.isGlobstar=!0),v=A.isGlob=!0,T=!0,o===!0)continue;break}if(b===Ys){if(v=A.isGlob=!0,T=!0,o===!0)continue;break}if(b===Cn){for(;U()!==!0&&(te=W());){if(te===Le){S=A.backslashes=!0,W();continue}if(te===xn){f=A.isBracket=!0,v=A.isGlob=!0,T=!0;break}}if(o===!0)continue;break}if(t.nonegate!==!0&&b===jt&&u===d){E=A.negated=!0,d++;continue}if(t.noparen!==!0&&b===Ut){if(v=A.isGlob=!0,o===!0){for(;U()!==!0&&(b=W());){if(b===Ut){S=A.backslashes=!0,b=W();continue}if(b===Qs){T=!0;break}}continue}break}if(v===!0){if(T=!0,o===!0)continue;break}}t.noext===!0&&(y=!1,v=!1);let N=c,ve="",g="";d>0&&(ve=c.slice(0,d),c=c.slice(d),p-=d),N&&v===!0&&p>0?(N=c.slice(0,p),g=c.slice(p)):v===!0?(N="",g=c):N=c,N&&N!==""&&N!=="/"&&N!==c&&Xs(N.charCodeAt(N.length-1))&&(N=N.slice(0,-1)),t.unescape===!0&&(g&&(g=Vs.removeBackslashes(g)),N&&S===!0&&(N=Vs.removeBackslashes(N)));let m={prefix:ve,input:s,start:d,base:N,glob:g,isBrace:l,isBracket:f,isGlob:v,isExtglob:y,isGlobstar:R,negated:E,negatedExtglob:H};if(t.tokens===!0&&(m.maxDepth=0,Xs(b)||n.push(A),m.tokens=n),t.parts===!0||t.tokens===!0){let te;for(let D=0;D<i.length;D++){let he=te?te+1:d,fe=i[D],oe=s.slice(he,fe);t.tokens&&(D===0&&d!==0?(n[D].isPrefix=!0,n[D].value=ve):n[D].value=oe,Zs(n[D]),m.maxDepth+=n[D].depth),(D!==0||oe!=="")&&a.push(oe),te=fe}if(te&&te+1<s.length){let D=s.slice(te+1);a.push(D),t.tokens&&(n[n.length-1].value=D,Zs(n[n.length-1]),m.maxDepth+=n[n.length-1].depth)}m.slashes=i,m.parts=a}return m};er.exports=Sn});var or=F((Cc,rr)=>{"use strict";var lt=Fe(),ne=ct(),{MAX_LENGTH:dt,POSIX_REGEX_SOURCE:Pn,REGEX_NON_SPECIAL_CHARS:An,REGEX_SPECIAL_CHARS_BACKREF:Tn,REPLACEMENTS:sr}=lt,$n=(s,e)=>{if(typeof e.expandRange=="function")return e.expandRange(...s,e);s.sort();let t=`[${s.join("-")}]`;try{new RegExp(t)}catch{return s.map(o=>ne.escapeRegex(o)).join("..")}return t},xe=(s,e)=>`Missing ${s}: "${e}" - use "\\\\${e}" to match literal characters`,Gt=(s,e)=>{if(typeof s!="string")throw new TypeError("Expected a string");s=sr[s]||s;let t={...e},r=typeof t.maxLength=="number"?Math.min(dt,t.maxLength):dt,o=s.length;if(o>r)throw new SyntaxError(`Input length: ${o}, exceeds maximum allowed length: ${r}`);let i={type:"bos",value:"",output:t.prepend||""},n=[i],a=t.capture?"":"?:",c=ne.isWindows(e),u=lt.globChars(c),d=lt.extglobChars(u),{DOT_LITERAL:p,PLUS_LITERAL:l,SLASH_LITERAL:f,ONE_CHAR:v,DOTS_SLASH:y,NO_DOT:R,NO_DOT_SLASH:P,NO_DOTS_SLASH:S,QMARK:E,QMARK_NO_DOT:H,STAR:T,START_ANCHOR:C}=u,M=k=>`(${a}(?:(?!${C}${k.dot?y:p}).)*?)`,b=t.dot?"":R,A=t.dot?E:H,U=t.bash===!0?M(t):T;t.capture&&(U=`(${U})`),typeof t.noext=="boolean"&&(t.noextglob=t.noext);let w={input:s,index:-1,start:0,dot:t.dot===!0,consumed:"",output:"",prefix:"",backtrack:!1,negated:!1,brackets:0,braces:0,parens:0,quotes:0,globstar:!1,tokens:n};s=ne.removePrefix(s,w),o=s.length;let W=[],N=[],ve=[],g=i,m,te=()=>w.index===o-1,D=w.peek=(k=1)=>s[w.index+k],he=w.advance=()=>s[++w.index]||"",fe=()=>s.slice(w.index+1),oe=(k="",B=0)=>{w.consumed+=k,w.index+=B},et=k=>{w.output+=k.output!=null?k.output:k.value,oe(k.value)},zo=()=>{let k=1;for(;D()==="!"&&(D(2)!=="("||D(3)==="?");)he(),w.start++,k++;return k%2===0?!1:(w.negated=!0,w.start++,!0)},tt=k=>{w[k]++,ve.push(k)},ye=k=>{w[k]--,ve.pop()},I=k=>{if(g.type==="globstar"){let B=w.braces>0&&(k.type==="comma"||k.type==="brace"),_=k.extglob===!0||W.length&&(k.type==="pipe"||k.type==="paren");k.type!=="slash"&&k.type!=="paren"&&!B&&!_&&(w.output=w.output.slice(0,-g.output.length),g.type="star",g.value="*",g.output=U,w.output+=g.output)}if(W.length&&k.type!=="paren"&&(W[W.length-1].inner+=k.value),(k.value||k.output)&&et(k),g&&g.type==="text"&&k.type==="text"){g.value+=k.value,g.output=(g.output||"")+k.value;return}k.prev=g,n.push(k),g=k},st=(k,B)=>{let _={...d[B],conditions:1,inner:""};_.prev=g,_.parens=w.parens,_.output=w.output;let $=(t.capture?"(":"")+_.open;tt("parens"),I({type:k,value:B,output:w.output?"":v}),I({type:"paren",extglob:!0,value:he(),output:$}),W.push(_)},Ko=k=>{let B=k.close+(t.capture?")":""),_;if(k.type==="negate"){let $=U;if(k.inner&&k.inner.length>1&&k.inner.includes("/")&&($=M(t)),($!==U||te()||/^\)+$/.test(fe()))&&(B=k.close=`)$))${$}`),k.inner.includes("*")&&(_=fe())&&/^\.[^\\/.]+$/.test(_)){let G=Gt(_,{...e,fastpaths:!1}).output;B=k.close=`)${G})${$})`}k.prev.type==="bos"&&(w.negatedExtglob=!0)}I({type:"paren",extglob:!0,value:m,output:B}),ye("parens")};if(t.fastpaths!==!1&&!/(^[*!]|[/()[\]{}"])/.test(s)){let k=!1,B=s.replace(Tn,(_,$,G,se,V,Lt)=>se==="\\"?(k=!0,_):se==="?"?$?$+se+(V?E.repeat(V.length):""):Lt===0?A+(V?E.repeat(V.length):""):E.repeat(G.length):se==="."?p.repeat(G.length):se==="*"?$?$+se+(V?U:""):U:$?_:`\\${_}`);return k===!0&&(t.unescape===!0?B=B.replace(/\\/g,""):B=B.replace(/\\+/g,_=>_.length%2===0?"\\\\":_?"\\":"")),B===s&&t.contains===!0?(w.output=s,w):(w.output=ne.wrapOutput(B,w,e),w)}for(;!te();){if(m=he(),m==="\0")continue;if(m==="\\"){let _=D();if(_==="/"&&t.bash!==!0||_==="."||_===";")continue;if(!_){m+="\\",I({type:"text",value:m});continue}let $=/^\\+/.exec(fe()),G=0;if($&&$[0].length>2&&(G=$[0].length,w.index+=G,G%2!==0&&(m+="\\")),t.unescape===!0?m=he():m+=he(),w.brackets===0){I({type:"text",value:m});continue}}if(w.brackets>0&&(m!=="]"||g.value==="["||g.value==="[^")){if(t.posix!==!1&&m===":"){let _=g.value.slice(1);if(_.includes("[")&&(g.posix=!0,_.includes(":"))){let $=g.value.lastIndexOf("["),G=g.value.slice(0,$),se=g.value.slice($+2),V=Pn[se];if(V){g.value=G+V,w.backtrack=!0,he(),!i.output&&n.indexOf(g)===1&&(i.output=v);continue}}}(m==="["&&D()!==":"||m==="-"&&D()==="]")&&(m=`\\${m}`),m==="]"&&(g.value==="["||g.value==="[^")&&(m=`\\${m}`),t.posix===!0&&m==="!"&&g.value==="["&&(m="^"),g.value+=m,et({value:m});continue}if(w.quotes===1&&m!=='"'){m=ne.escapeRegex(m),g.value+=m,et({value:m});continue}if(m==='"'){w.quotes=w.quotes===1?0:1,t.keepQuotes===!0&&I({type:"text",value:m});continue}if(m==="("){tt("parens"),I({type:"paren",value:m});continue}if(m===")"){if(w.parens===0&&t.strictBrackets===!0)throw new SyntaxError(xe("opening","("));let _=W[W.length-1];if(_&&w.parens===_.parens+1){Ko(W.pop());continue}I({type:"paren",value:m,output:w.parens?")":"\\)"}),ye("parens");continue}if(m==="["){if(t.nobracket===!0||!fe().includes("]")){if(t.nobracket!==!0&&t.strictBrackets===!0)throw new SyntaxError(xe("closing","]"));m=`\\${m}`}else tt("brackets");I({type:"bracket",value:m});continue}if(m==="]"){if(t.nobracket===!0||g&&g.type==="bracket"&&g.value.length===1){I({type:"text",value:m,output:`\\${m}`});continue}if(w.brackets===0){if(t.strictBrackets===!0)throw new SyntaxError(xe("opening","["));I({type:"text",value:m,output:`\\${m}`});continue}ye("brackets");let _=g.value.slice(1);if(g.posix!==!0&&_[0]==="^"&&!_.includes("/")&&(m=`/${m}`),g.value+=m,et({value:m}),t.literalBrackets===!1||ne.hasRegexChars(_))continue;let $=ne.escapeRegex(g.value);if(w.output=w.output.slice(0,-g.value.length),t.literalBrackets===!0){w.output+=$,g.value=$;continue}g.value=`(${a}${$}|${g.value})`,w.output+=g.value;continue}if(m==="{"&&t.nobrace!==!0){tt("braces");let _={type:"brace",value:m,output:"(",outputIndex:w.output.length,tokensIndex:w.tokens.length};N.push(_),I(_);continue}if(m==="}"){let _=N[N.length-1];if(t.nobrace===!0||!_){I({type:"text",value:m,output:m});continue}let $=")";if(_.dots===!0){let G=n.slice(),se=[];for(let V=G.length-1;V>=0&&(n.pop(),G[V].type!=="brace");V--)G[V].type!=="dots"&&se.unshift(G[V].value);$=$n(se,t),w.backtrack=!0}if(_.comma!==!0&&_.dots!==!0){let G=w.output.slice(0,_.outputIndex),se=w.tokens.slice(_.tokensIndex);_.value=_.output="\\{",m=$="\\}",w.output=G;for(let V of se)w.output+=V.output||V.value}I({type:"brace",value:m,output:$}),ye("braces"),N.pop();continue}if(m==="|"){W.length>0&&W[W.length-1].conditions++,I({type:"text",value:m});continue}if(m===","){let _=m,$=N[N.length-1];$&&ve[ve.length-1]==="braces"&&($.comma=!0,_="|"),I({type:"comma",value:m,output:_});continue}if(m==="/"){if(g.type==="dot"&&w.index===w.start+1){w.start=w.index+1,w.consumed="",w.output="",n.pop(),g=i;continue}I({type:"slash",value:m,output:f});continue}if(m==="."){if(w.braces>0&&g.type==="dot"){g.value==="."&&(g.output=p);let _=N[N.length-1];g.type="dots",g.output+=m,g.value+=m,_.dots=!0;continue}if(w.braces+w.parens===0&&g.type!=="bos"&&g.type!=="slash"){I({type:"text",value:m,output:p});continue}I({type:"dot",value:m,output:p});continue}if(m==="?"){if(!(g&&g.value==="(")&&t.noextglob!==!0&&D()==="("&&D(2)!=="?"){st("qmark",m);continue}if(g&&g.type==="paren"){let $=D(),G=m;if($==="<"&&!ne.supportsLookbehinds())throw new Error("Node.js v10 or higher is required for regex lookbehinds");(g.value==="("&&!/[!=<:]/.test($)||$==="<"&&!/<([!=]|\w+>)/.test(fe()))&&(G=`\\${m}`),I({type:"text",value:m,output:G});continue}if(t.dot!==!0&&(g.type==="slash"||g.type==="bos")){I({type:"qmark",value:m,output:H});continue}I({type:"qmark",value:m,output:E});continue}if(m==="!"){if(t.noextglob!==!0&&D()==="("&&(D(2)!=="?"||!/[!=<:]/.test(D(3)))){st("negate",m);continue}if(t.nonegate!==!0&&w.index===0){zo();continue}}if(m==="+"){if(t.noextglob!==!0&&D()==="("&&D(2)!=="?"){st("plus",m);continue}if(g&&g.value==="("||t.regex===!1){I({type:"plus",value:m,output:l});continue}if(g&&(g.type==="bracket"||g.type==="paren"||g.type==="brace")||w.parens>0){I({type:"plus",value:m});continue}I({type:"plus",value:l});continue}if(m==="@"){if(t.noextglob!==!0&&D()==="("&&D(2)!=="?"){I({type:"at",extglob:!0,value:m,output:""});continue}I({type:"text",value:m});continue}if(m!=="*"){(m==="$"||m==="^")&&(m=`\\${m}`);let _=An.exec(fe());_&&(m+=_[0],w.index+=_[0].length),I({type:"text",value:m});continue}if(g&&(g.type==="globstar"||g.star===!0)){g.type="star",g.star=!0,g.value+=m,g.output=U,w.backtrack=!0,w.globstar=!0,oe(m);continue}let k=fe();if(t.noextglob!==!0&&/^\([^?]/.test(k)){st("star",m);continue}if(g.type==="star"){if(t.noglobstar===!0){oe(m);continue}let _=g.prev,$=_.prev,G=_.type==="slash"||_.type==="bos",se=$&&($.type==="star"||$.type==="globstar");if(t.bash===!0&&(!G||k[0]&&k[0]!=="/")){I({type:"star",value:m,output:""});continue}let V=w.braces>0&&(_.type==="comma"||_.type==="brace"),Lt=W.length&&(_.type==="pipe"||_.type==="paren");if(!G&&_.type!=="paren"&&!V&&!Lt){I({type:"star",value:m,output:""});continue}for(;k.slice(0,3)==="/**";){let rt=s[w.index+4];if(rt&&rt!=="/")break;k=k.slice(3),oe("/**",3)}if(_.type==="bos"&&te()){g.type="globstar",g.value+=m,g.output=M(t),w.output=g.output,w.globstar=!0,oe(m);continue}if(_.type==="slash"&&_.prev.type!=="bos"&&!se&&te()){w.output=w.output.slice(0,-(_.output+g.output).length),_.output=`(?:${_.output}`,g.type="globstar",g.output=M(t)+(t.strictSlashes?")":"|$)"),g.value+=m,w.globstar=!0,w.output+=_.output+g.output,oe(m);continue}if(_.type==="slash"&&_.prev.type!=="bos"&&k[0]==="/"){let rt=k[1]!==void 0?"|$":"";w.output=w.output.slice(0,-(_.output+g.output).length),_.output=`(?:${_.output}`,g.type="globstar",g.output=`${M(t)}${f}|${f}${rt})`,g.value+=m,w.output+=_.output+g.output,w.globstar=!0,oe(m+he()),I({type:"slash",value:"/",output:""});continue}if(_.type==="bos"&&k[0]==="/"){g.type="globstar",g.value+=m,g.output=`(?:^|${f}|${M(t)}${f})`,w.output=g.output,w.globstar=!0,oe(m+he()),I({type:"slash",value:"/",output:""});continue}w.output=w.output.slice(0,-g.output.length),g.type="globstar",g.output=M(t),g.value+=m,w.output+=g.output,w.globstar=!0,oe(m);continue}let B={type:"star",value:m,output:U};if(t.bash===!0){B.output=".*?",(g.type==="bos"||g.type==="slash")&&(B.output=b+B.output),I(B);continue}if(g&&(g.type==="bracket"||g.type==="paren")&&t.regex===!0){B.output=m,I(B);continue}(w.index===w.start||g.type==="slash"||g.type==="dot")&&(g.type==="dot"?(w.output+=P,g.output+=P):t.dot===!0?(w.output+=S,g.output+=S):(w.output+=b,g.output+=b),D()!=="*"&&(w.output+=v,g.output+=v)),I(B)}for(;w.brackets>0;){if(t.strictBrackets===!0)throw new SyntaxError(xe("closing","]"));w.output=ne.escapeLast(w.output,"["),ye("brackets")}for(;w.parens>0;){if(t.strictBrackets===!0)throw new SyntaxError(xe("closing",")"));w.output=ne.escapeLast(w.output,"("),ye("parens")}for(;w.braces>0;){if(t.strictBrackets===!0)throw new SyntaxError(xe("closing","}"));w.output=ne.escapeLast(w.output,"{"),ye("braces")}if(t.strictSlashes!==!0&&(g.type==="star"||g.type==="bracket")&&I({type:"maybe_slash",value:"",output:`${f}?`}),w.backtrack===!0){w.output="";for(let k of w.tokens)w.output+=k.output!=null?k.output:k.value,k.suffix&&(w.output+=k.suffix)}return w};Gt.fastpaths=(s,e)=>{let t={...e},r=typeof t.maxLength=="number"?Math.min(dt,t.maxLength):dt,o=s.length;if(o>r)throw new SyntaxError(`Input length: ${o}, exceeds maximum allowed length: ${r}`);s=sr[s]||s;let i=ne.isWindows(e),{DOT_LITERAL:n,SLASH_LITERAL:a,ONE_CHAR:c,DOTS_SLASH:u,NO_DOT:d,NO_DOTS:p,NO_DOTS_SLASH:l,STAR:f,START_ANCHOR:v}=lt.globChars(i),y=t.dot?p:d,R=t.dot?l:d,P=t.capture?"":"?:",S={negated:!1,prefix:""},E=t.bash===!0?".*?":f;t.capture&&(E=`(${E})`);let H=b=>b.noglobstar===!0?E:`(${P}(?:(?!${v}${b.dot?u:n}).)*?)`,T=b=>{switch(b){case"*":return`${y}${c}${E}`;case".*":return`${n}${c}${E}`;case"*.*":return`${y}${E}${n}${c}${E}`;case"*/*":return`${y}${E}${a}${c}${R}${E}`;case"**":return y+H(t);case"**/*":return`(?:${y}${H(t)}${a})?${R}${c}${E}`;case"**/*.*":return`(?:${y}${H(t)}${a})?${R}${E}${n}${c}${E}`;case"**/.*":return`(?:${y}${H(t)}${a})?${n}${c}${E}`;default:{let A=/^(.*?)\.(\w+)$/.exec(b);if(!A)return;let U=T(A[1]);return U?U+n+A[2]:void 0}}},C=ne.removePrefix(s,S),M=T(C);return M&&t.strictSlashes!==!0&&(M+=`${a}?`),M};rr.exports=Gt});var ir=F((Rc,nr)=>{"use strict";var In=require("path"),Mn=tr(),qt=or(),zt=ct(),Dn=Fe(),Fn=s=>s&&typeof s=="object"&&!Array.isArray(s),K=(s,e,t=!1)=>{if(Array.isArray(s)){let d=s.map(l=>K(l,e,t));return l=>{for(let f of d){let v=f(l);if(v)return v}return!1}}let r=Fn(s)&&s.tokens&&s.input;if(s===""||typeof s!="string"&&!r)throw new TypeError("Expected pattern to be a non-empty string");let o=e||{},i=zt.isWindows(e),n=r?K.compileRe(s,e):K.makeRe(s,e,!1,!0),a=n.state;delete n.state;let c=()=>!1;if(o.ignore){let d={...e,ignore:null,onMatch:null,onResult:null};c=K(o.ignore,d,t)}let u=(d,p=!1)=>{let{isMatch:l,match:f,output:v}=K.test(d,n,e,{glob:s,posix:i}),y={glob:s,state:a,regex:n,posix:i,input:d,output:v,match:f,isMatch:l};return typeof o.onResult=="function"&&o.onResult(y),l===!1?(y.isMatch=!1,p?y:!1):c(d)?(typeof o.onIgnore=="function"&&o.onIgnore(y),y.isMatch=!1,p?y:!1):(typeof o.onMatch=="function"&&o.onMatch(y),p?y:!0)};return t&&(u.state=a),u};K.test=(s,e,t,{glob:r,posix:o}={})=>{if(typeof s!="string")throw new TypeError("Expected input to be a string");if(s==="")return{isMatch:!1,output:""};let i=t||{},n=i.format||(o?zt.toPosixSlashes:null),a=s===r,c=a&&n?n(s):s;return a===!1&&(c=n?n(s):s,a=c===r),(a===!1||i.capture===!0)&&(i.matchBase===!0||i.basename===!0?a=K.matchBase(s,e,t,o):a=e.exec(c)),{isMatch:!!a,match:a,output:c}};K.matchBase=(s,e,t,r=zt.isWindows(t))=>(e instanceof RegExp?e:K.makeRe(e,t)).test(In.basename(s));K.isMatch=(s,e,t)=>K(e,t)(s);K.parse=(s,e)=>Array.isArray(s)?s.map(t=>K.parse(t,e)):qt(s,{...e,fastpaths:!1});K.scan=(s,e)=>Mn(s,e);K.compileRe=(s,e,t=!1,r=!1)=>{if(t===!0)return s.output;let o=e||{},i=o.contains?"":"^",n=o.contains?"":"$",a=`${i}(?:${s.output})${n}`;s&&s.negated===!0&&(a=`^(?!${a}).*$`);let c=K.toRegex(a,e);return r===!0&&(c.state=s),c};K.makeRe=(s,e={},t=!1,r=!1)=>{if(!s||typeof s!="string")throw new TypeError("Expected a non-empty string");let o={negated:!1,fastpaths:!0};return e.fastpaths!==!1&&(s[0]==="."||s[0]==="*")&&(o.output=qt.fastpaths(s,e)),o.output||(o=qt(s,e)),K.compileRe(o,e,t,r)};K.toRegex=(s,e)=>{try{let t=e||{};return new RegExp(s,t.flags||(t.nocase?"i":""))}catch(t){if(e&&e.debug===!0)throw t;return/$^/}};K.constants=Dn;nr.exports=K});var Kt=F((Ec,ar)=>{"use strict";ar.exports=ir()});var gr=F((xc,fr)=>{"use strict";var Oe=require("fs"),{Readable:Ln}=require("stream"),He=require("path"),{promisify:ft}=require("util"),Vt=Kt(),Hn=ft(Oe.readdir),On=ft(Oe.stat),cr=ft(Oe.lstat),Nn=ft(Oe.realpath),Bn="!",pr="READDIRP_RECURSIVE_ERROR",jn=new Set(["ENOENT","EPERM","EACCES","ELOOP",pr]),Yt="files",hr="directories",pt="files_directories",ut="all",lr=[Yt,hr,pt,ut],Wn=s=>jn.has(s.code),[dr,Un]=process.versions.node.split(".").slice(0,2).map(s=>Number.parseInt(s,10)),Gn=process.platform==="win32"&&(dr>10||dr===10&&Un>=5),ur=s=>{if(s!==void 0){if(typeof s=="function")return s;if(typeof s=="string"){let e=Vt(s.trim());return t=>e(t.basename)}if(Array.isArray(s)){let e=[],t=[];for(let r of s){let o=r.trim();o.charAt(0)===Bn?t.push(Vt(o.slice(1))):e.push(Vt(o))}return t.length>0?e.length>0?r=>e.some(o=>o(r.basename))&&!t.some(o=>o(r.basename)):r=>!t.some(o=>o(r.basename)):r=>e.some(o=>o(r.basename))}}},ht=class s extends Ln{static get defaultOptions(){return{root:".",fileFilter:e=>!0,directoryFilter:e=>!0,type:Yt,lstat:!1,depth:2147483648,alwaysStat:!1}}constructor(e={}){super({objectMode:!0,autoDestroy:!0,highWaterMark:e.highWaterMark||4096});let t={...s.defaultOptions,...e},{root:r,type:o}=t;this._fileFilter=ur(t.fileFilter),this._directoryFilter=ur(t.directoryFilter);let i=t.lstat?cr:On;Gn?this._stat=n=>i(n,{bigint:!0}):this._stat=i,this._maxDepth=t.depth,this._wantsDir=[hr,pt,ut].includes(o),this._wantsFile=[Yt,pt,ut].includes(o),this._wantsEverything=o===ut,this._root=He.resolve(r),this._isDirent="Dirent"in Oe&&!t.alwaysStat,this._statsProp=this._isDirent?"dirent":"stats",this._rdOptions={encoding:"utf8",withFileTypes:this._isDirent},this.parents=[this._exploreDir(r,1)],this.reading=!1,this.parent=void 0}async _read(e){if(!this.reading){this.reading=!0;try{for(;!this.destroyed&&e>0;){let{path:t,depth:r,files:o=[]}=this.parent||{};if(o.length>0){let i=o.splice(0,e).map(n=>this._formatEntry(n,t));for(let n of await Promise.all(i)){if(this.destroyed)return;let a=await this._getEntryType(n);a==="directory"&&this._directoryFilter(n)?(r<=this._maxDepth&&this.parents.push(this._exploreDir(n.fullPath,r+1)),this._wantsDir&&(this.push(n),e--)):(a==="file"||this._includeAsFile(n))&&this._fileFilter(n)&&this._wantsFile&&(this.push(n),e--)}}else{let i=this.parents.pop();if(!i){this.push(null);break}if(this.parent=await i,this.destroyed)return}}}catch(t){this.destroy(t)}finally{this.reading=!1}}}async _exploreDir(e,t){let r;try{r=await Hn(e,this._rdOptions)}catch(o){this._onError(o)}return{files:r,depth:t,path:e}}async _formatEntry(e,t){let r;try{let o=this._isDirent?e.name:e,i=He.resolve(He.join(t,o));r={path:He.relative(this._root,i),fullPath:i,basename:o},r[this._statsProp]=this._isDirent?e:await this._stat(i)}catch(o){this._onError(o)}return r}_onError(e){Wn(e)&&!this.destroyed?this.emit("warn",e):this.destroy(e)}async _getEntryType(e){let t=e&&e[this._statsProp];if(t){if(t.isFile())return"file";if(t.isDirectory())return"directory";if(t&&t.isSymbolicLink()){let r=e.fullPath;try{let o=await Nn(r),i=await cr(o);if(i.isFile())return"file";if(i.isDirectory()){let n=o.length;if(r.startsWith(o)&&r.substr(n,1)===He.sep){let a=new Error(`Circular symlink detected: "${r}" points to "${o}"`);return a.code=pr,this._onError(a)}return"directory"}}catch(o){this._onError(o)}}}}_includeAsFile(e){let t=e&&e[this._statsProp];return t&&this._wantsEverything&&!t.isDirectory()}},Se=(s,e={})=>{let t=e.entryType||e.type;if(t==="both"&&(t=pt),t&&(e.type=t),s){if(typeof s!="string")throw new TypeError("readdirp: root argument must be a string. Usage: readdirp(root, options)");if(t&&!lr.includes(t))throw new Error(`readdirp: Invalid type passed. Use one of ${lr.join(", ")}`)}else throw new Error("readdirp: root argument is required. Usage: readdirp(root, options)");return e.root=s,new ht(e)},qn=(s,e={})=>new Promise((t,r)=>{let o=[];Se(s,e).on("data",i=>o.push(i)).on("end",()=>t(o)).on("error",i=>r(i))});Se.promise=qn;Se.ReaddirpStream=ht;Se.default=Se;fr.exports=Se});var Qt=F((Sc,mr)=>{mr.exports=function(s,e){if(typeof s!="string")throw new TypeError("expected path to be a string");if(s==="\\"||s==="/")return"/";var t=s.length;if(t<=1)return s;var r="";if(t>4&&s[3]==="\\"){var o=s[2];(o==="?"||o===".")&&s.slice(0,2)==="\\\\"&&(s=s.slice(2),r="//")}var i=s.split(/[/\\]+/);return e!==!1&&i[i.length-1]===""&&i.pop(),r+i.join("/")}});var kr=F((_r,br)=>{"use strict";Object.defineProperty(_r,"__esModule",{value:!0});var yr=Kt(),zn=Qt(),wr="!",Kn={returnIndex:!1},Vn=s=>Array.isArray(s)?s:[s],Yn=(s,e)=>{if(typeof s=="function")return s;if(typeof s=="string"){let t=yr(s,e);return r=>s===r||t(r)}return s instanceof RegExp?t=>s.test(t):t=>!1},vr=(s,e,t,r)=>{let o=Array.isArray(t),i=o?t[0]:t;if(!o&&typeof i!="string")throw new TypeError("anymatch: second argument must be a string: got "+Object.prototype.toString.call(i));let n=zn(i,!1);for(let c=0;c<e.length;c++){let u=e[c];if(u(n))return r?-1:!1}let a=o&&[n].concat(t.slice(1));for(let c=0;c<s.length;c++){let u=s[c];if(o?u(...a):u(n))return r?c:!0}return r?-1:!1},Xt=(s,e,t=Kn)=>{if(s==null)throw new TypeError("anymatch: specify first argument");let r=typeof t=="boolean"?{returnIndex:t}:t,o=r.returnIndex||!1,i=Vn(s),n=i.filter(c=>typeof c=="string"&&c.charAt(0)===wr).map(c=>c.slice(1)).map(c=>yr(c,r)),a=i.filter(c=>typeof c!="string"||typeof c=="string"&&c.charAt(0)!==wr).map(c=>Yn(c,r));return e==null?(c,u=!1)=>vr(a,n,c,typeof u=="boolean"?u:!1):vr(a,n,e,o)};Xt.default=Xt;br.exports=Xt});var Rr=F((Pc,Cr)=>{Cr.exports=function(e){if(typeof e!="string"||e==="")return!1;for(var t;t=/(\\).|([@?!+*]\(.*\))/g.exec(e);){if(t[2])return!0;e=e.slice(t.index+t[0].length)}return!1}});var Zt=F((Ac,xr)=>{var Qn=Rr(),Er={"{":"}","(":")","[":"]"},Xn=function(s){if(s[0]==="!")return!0;for(var e=0,t=-2,r=-2,o=-2,i=-2,n=-2;e<s.length;){if(s[e]==="*"||s[e+1]==="?"&&/[\].+)]/.test(s[e])||r!==-1&&s[e]==="["&&s[e+1]!=="]"&&(r<e&&(r=s.indexOf("]",e)),r>e&&(n===-1||n>r||(n=s.indexOf("\\",e),n===-1||n>r)))||o!==-1&&s[e]==="{"&&s[e+1]!=="}"&&(o=s.indexOf("}",e),o>e&&(n=s.indexOf("\\",e),n===-1||n>o))||i!==-1&&s[e]==="("&&s[e+1]==="?"&&/[:!=]/.test(s[e+2])&&s[e+3]!==")"&&(i=s.indexOf(")",e),i>e&&(n=s.indexOf("\\",e),n===-1||n>i))||t!==-1&&s[e]==="("&&s[e+1]!=="|"&&(t<e&&(t=s.indexOf("|",e)),t!==-1&&s[t+1]!==")"&&(i=s.indexOf(")",t),i>t&&(n=s.indexOf("\\",t),n===-1||n>i))))return!0;if(s[e]==="\\"){var a=s[e+1];e+=2;var c=Er[a];if(c){var u=s.indexOf(c,e);u!==-1&&(e=u+1)}if(s[e]==="!")return!0}else e++}return!1},Zn=function(s){if(s[0]==="!")return!0;for(var e=0;e<s.length;){if(/[*?{}()[\]]/.test(s[e]))return!0;if(s[e]==="\\"){var t=s[e+1];e+=2;var r=Er[t];if(r){var o=s.indexOf(r,e);o!==-1&&(e=o+1)}if(s[e]==="!")return!0}else e++}return!1};xr.exports=function(e,t){if(typeof e!="string"||e==="")return!1;if(Qn(e))return!0;var r=Xn;return t&&t.strict===!1&&(r=Zn),r(e)}});var Pr=F((Tc,Sr)=>{"use strict";var Jn=Zt(),ei=require("path").posix.dirname,ti=require("os").platform()==="win32",Jt="/",si=/\\/g,ri=/[\{\[].*[\}\]]$/,oi=/(^|[^\\])([\{\[]|\([^\)]+$)/,ni=/\\([\!\*\?\|\[\]\(\)\{\}])/g;Sr.exports=function(e,t){var r=Object.assign({flipBackslashes:!0},t);r.flipBackslashes&&ti&&e.indexOf(Jt)<0&&(e=e.replace(si,Jt)),ri.test(e)&&(e+=Jt),e+="a";do e=ei(e);while(Jn(e)||oi.test(e));return e.replace(ni,"$1")}});var gt=F(ce=>{"use strict";ce.isInteger=s=>typeof s=="number"?Number.isInteger(s):typeof s=="string"&&s.trim()!==""?Number.isInteger(Number(s)):!1;ce.find=(s,e)=>s.nodes.find(t=>t.type===e);ce.exceedsLimit=(s,e,t=1,r)=>r===!1||!ce.isInteger(s)||!ce.isInteger(e)?!1:(Number(e)-Number(s))/Number(t)>=r;ce.escapeNode=(s,e=0,t)=>{let r=s.nodes[e];r&&(t&&r.type===t||r.type==="open"||r.type==="close")&&r.escaped!==!0&&(r.value="\\"+r.value,r.escaped=!0)};ce.encloseBrace=s=>s.type!=="brace"?!1:s.commas>>0+s.ranges>>0===0?(s.invalid=!0,!0):!1;ce.isInvalidBrace=s=>s.type!=="brace"?!1:s.invalid===!0||s.dollar?!0:s.commas>>0+s.ranges>>0===0||s.open!==!0||s.close!==!0?(s.invalid=!0,!0):!1;ce.isOpenOrClose=s=>s.type==="open"||s.type==="close"?!0:s.open===!0||s.close===!0;ce.reduce=s=>s.reduce((e,t)=>(t.type==="text"&&e.push(t.value),t.type==="range"&&(t.type="text"),e),[]);ce.flatten=(...s)=>{let e=[],t=r=>{for(let o=0;o<r.length;o++){let i=r[o];if(Array.isArray(i)){t(i);continue}i!==void 0&&e.push(i)}return e};return t(s),e}});var mt=F((Ic,Tr)=>{"use strict";var Ar=gt();Tr.exports=(s,e={})=>{let t=(r,o={})=>{let i=e.escapeInvalid&&Ar.isInvalidBrace(o),n=r.invalid===!0&&e.escapeInvalid===!0,a="";if(r.value)return(i||n)&&Ar.isOpenOrClose(r)?"\\"+r.value:r.value;if(r.value)return r.value;if(r.nodes)for(let c of r.nodes)a+=t(c);return a};return t(s)}});var Ir=F((Mc,$r)=>{"use strict";$r.exports=function(s){return typeof s=="number"?s-s===0:typeof s=="string"&&s.trim()!==""?Number.isFinite?Number.isFinite(+s):isFinite(+s):!1}});var jr=F((Dc,Br)=>{"use strict";var Mr=Ir(),_e=(s,e,t)=>{if(Mr(s)===!1)throw new TypeError("toRegexRange: expected the first argument to be a number");if(e===void 0||s===e)return String(s);if(Mr(e)===!1)throw new TypeError("toRegexRange: expected the second argument to be a number.");let r={relaxZeros:!0,...t};typeof r.strictZeros=="boolean"&&(r.relaxZeros=r.strictZeros===!1);let o=String(r.relaxZeros),i=String(r.shorthand),n=String(r.capture),a=String(r.wrap),c=s+":"+e+"="+o+i+n+a;if(_e.cache.hasOwnProperty(c))return _e.cache[c].result;let u=Math.min(s,e),d=Math.max(s,e);if(Math.abs(u-d)===1){let y=s+"|"+e;return r.capture?`(${y})`:r.wrap===!1?y:`(?:${y})`}let p=Nr(s)||Nr(e),l={min:s,max:e,a:u,b:d},f=[],v=[];if(p&&(l.isPadded=p,l.maxLen=String(l.max).length),u<0){let y=d<0?Math.abs(d):1;v=Dr(y,Math.abs(u),l,r),u=l.a=0}return d>=0&&(f=Dr(u,d,l,r)),l.negatives=v,l.positives=f,l.result=ii(v,f,r),r.capture===!0?l.result=`(${l.result})`:r.wrap!==!1&&f.length+v.length>1&&(l.result=`(?:${l.result})`),_e.cache[c]=l,l.result};function ii(s,e,t){let r=es(s,e,"-",!1,t)||[],o=es(e,s,"",!1,t)||[],i=es(s,e,"-?",!0,t)||[];return r.concat(i).concat(o).join("|")}function ai(s,e){let t=1,r=1,o=Lr(s,t),i=new Set([e]);for(;s<=o&&o<=e;)i.add(o),t+=1,o=Lr(s,t);for(o=Hr(e+1,r)-1;s<o&&o<=e;)i.add(o),r+=1,o=Hr(e+1,r)-1;return i=[...i],i.sort(di),i}function ci(s,e,t){if(s===e)return{pattern:s,count:[],digits:0};let r=li(s,e),o=r.length,i="",n=0;for(let a=0;a<o;a++){let[c,u]=r[a];c===u?i+=c:c!=="0"||u!=="9"?i+=ui(c,u,t):n++}return n&&(i+=t.shorthand===!0?"\\d":"[0-9]"),{pattern:i,count:[n],digits:o}}function Dr(s,e,t,r){let o=ai(s,e),i=[],n=s,a;for(let c=0;c<o.length;c++){let u=o[c],d=ci(String(n),String(u),r),p="";if(!t.isPadded&&a&&a.pattern===d.pattern){a.count.length>1&&a.count.pop(),a.count.push(d.count[0]),a.string=a.pattern+Or(a.count),n=u+1;continue}t.isPadded&&(p=pi(u,t,r)),d.string=p+d.pattern+Or(d.count),i.push(d),n=u+1,a=d}return i}function es(s,e,t,r,o){let i=[];for(let n of s){let{string:a}=n;!r&&!Fr(e,"string",a)&&i.push(t+a),r&&Fr(e,"string",a)&&i.push(t+a)}return i}function li(s,e){let t=[];for(let r=0;r<s.length;r++)t.push([s[r],e[r]]);return t}function di(s,e){return s>e?1:e>s?-1:0}function Fr(s,e,t){return s.some(r=>r[e]===t)}function Lr(s,e){return Number(String(s).slice(0,-e)+"9".repeat(e))}function Hr(s,e){return s-s%Math.pow(10,e)}function Or(s){let[e=0,t=""]=s;return t||e>1?`{${e+(t?","+t:"")}}`:""}function ui(s,e,t){return`[${s}${e-s===1?"":"-"}${e}]`}function Nr(s){return/^-?(0+)\d/.test(s)}function pi(s,e,t){if(!e.isPadded)return s;let r=Math.abs(e.maxLen-String(s).length),o=t.relaxZeros!==!1;switch(r){case 0:return"";case 1:return o?"0?":"0";case 2:return o?"0{0,2}":"00";default:return o?`0{0,${r}}`:`0{${r}}`}}_e.cache={};_e.clearCache=()=>_e.cache={};Br.exports=_e});var rs=F((Fc,Vr)=>{"use strict";var hi=require("util"),Ur=jr(),Wr=s=>s!==null&&typeof s=="object"&&!Array.isArray(s),fi=s=>e=>s===!0?Number(e):String(e),ts=s=>typeof s=="number"||typeof s=="string"&&s!=="",Ne=s=>Number.isInteger(+s),ss=s=>{let e=`${s}`,t=-1;if(e[0]==="-"&&(e=e.slice(1)),e==="0")return!1;for(;e[++t]==="0";);return t>0},gi=(s,e,t)=>typeof s=="string"||typeof e=="string"?!0:t.stringify===!0,mi=(s,e,t)=>{if(e>0){let r=s[0]==="-"?"-":"";r&&(s=s.slice(1)),s=r+s.padStart(r?e-1:e,"0")}return t===!1?String(s):s},vt=(s,e)=>{let t=s[0]==="-"?"-":"";for(t&&(s=s.slice(1),e--);s.length<e;)s="0"+s;return t?"-"+s:s},wi=(s,e,t)=>{s.negatives.sort((a,c)=>a<c?-1:a>c?1:0),s.positives.sort((a,c)=>a<c?-1:a>c?1:0);let r=e.capture?"":"?:",o="",i="",n;return s.positives.length&&(o=s.positives.map(a=>vt(String(a),t)).join("|")),s.negatives.length&&(i=`-(${r}${s.negatives.map(a=>vt(String(a),t)).join("|")})`),o&&i?n=`${o}|${i}`:n=o||i,e.wrap?`(${r}${n})`:n},Gr=(s,e,t,r)=>{if(t)return Ur(s,e,{wrap:!1,...r});let o=String.fromCharCode(s);if(s===e)return o;let i=String.fromCharCode(e);return`[${o}-${i}]`},qr=(s,e,t)=>{if(Array.isArray(s)){let r=t.wrap===!0,o=t.capture?"":"?:";return r?`(${o}${s.join("|")})`:s.join("|")}return Ur(s,e,t)},zr=(...s)=>new RangeError("Invalid range arguments: "+hi.inspect(...s)),Kr=(s,e,t)=>{if(t.strictRanges===!0)throw zr([s,e]);return[]},vi=(s,e)=>{if(e.strictRanges===!0)throw new TypeError(`Expected step "${s}" to be a number`);return[]},yi=(s,e,t=1,r={})=>{let o=Number(s),i=Number(e);if(!Number.isInteger(o)||!Number.isInteger(i)){if(r.strictRanges===!0)throw zr([s,e]);return[]}o===0&&(o=0),i===0&&(i=0);let n=o>i,a=String(s),c=String(e),u=String(t);t=Math.max(Math.abs(t),1);let d=ss(a)||ss(c)||ss(u),p=d?Math.max(a.length,c.length,u.length):0,l=d===!1&&gi(s,e,r)===!1,f=r.transform||fi(l);if(r.toRegex&&t===1)return Gr(vt(s,p),vt(e,p),!0,r);let v={negatives:[],positives:[]},y=S=>v[S<0?"negatives":"positives"].push(Math.abs(S)),R=[],P=0;for(;n?o>=i:o<=i;)r.toRegex===!0&&t>1?y(o):R.push(mi(f(o,P),p,l)),o=n?o-t:o+t,P++;return r.toRegex===!0?t>1?wi(v,r,p):qr(R,null,{wrap:!1,...r}):R},_i=(s,e,t=1,r={})=>{if(!Ne(s)&&s.length>1||!Ne(e)&&e.length>1)return Kr(s,e,r);let o=r.transform||(l=>String.fromCharCode(l)),i=`${s}`.charCodeAt(0),n=`${e}`.charCodeAt(0),a=i>n,c=Math.min(i,n),u=Math.max(i,n);if(r.toRegex&&t===1)return Gr(c,u,!1,r);let d=[],p=0;for(;a?i>=n:i<=n;)d.push(o(i,p)),i=a?i-t:i+t,p++;return r.toRegex===!0?qr(d,null,{wrap:!1,options:r}):d},wt=(s,e,t,r={})=>{if(e==null&&ts(s))return[s];if(!ts(s)||!ts(e))return Kr(s,e,r);if(typeof t=="function")return wt(s,e,1,{transform:t});if(Wr(t))return wt(s,e,0,t);let o={...r};return o.capture===!0&&(o.wrap=!0),t=t||o.step||1,Ne(t)?Ne(s)&&Ne(e)?yi(s,e,t,o):_i(s,e,Math.max(Math.abs(t),1),o):t!=null&&!Wr(t)?vi(t,o):wt(s,e,1,t)};Vr.exports=wt});var Xr=F((Lc,Qr)=>{"use strict";var bi=rs(),Yr=gt(),ki=(s,e={})=>{let t=(r,o={})=>{let i=Yr.isInvalidBrace(o),n=r.invalid===!0&&e.escapeInvalid===!0,a=i===!0||n===!0,c=e.escapeInvalid===!0?"\\":"",u="";if(r.isOpen===!0)return c+r.value;if(r.isClose===!0)return console.log("node.isClose",c,r.value),c+r.value;if(r.type==="open")return a?c+r.value:"(";if(r.type==="close")return a?c+r.value:")";if(r.type==="comma")return r.prev.type==="comma"?"":a?r.value:"|";if(r.value)return r.value;if(r.nodes&&r.ranges>0){let d=Yr.reduce(r.nodes),p=bi(...d,{...e,wrap:!1,toRegex:!0,strictZeros:!0});if(p.length!==0)return d.length>1&&p.length>1?`(${p})`:p}if(r.nodes)for(let d of r.nodes)u+=t(d,r);return u};return t(s)};Qr.exports=ki});var eo=F((Hc,Jr)=>{"use strict";var Ci=rs(),Zr=mt(),Pe=gt(),be=(s="",e="",t=!1)=>{let r=[];if(s=[].concat(s),e=[].concat(e),!e.length)return s;if(!s.length)return t?Pe.flatten(e).map(o=>`{${o}}`):e;for(let o of s)if(Array.isArray(o))for(let i of o)r.push(be(i,e,t));else for(let i of e)t===!0&&typeof i=="string"&&(i=`{${i}}`),r.push(Array.isArray(i)?be(o,i,t):o+i);return Pe.flatten(r)},Ri=(s,e={})=>{let t=e.rangeLimit===void 0?1e3:e.rangeLimit,r=(o,i={})=>{o.queue=[];let n=i,a=i.queue;for(;n.type!=="brace"&&n.type!=="root"&&n.parent;)n=n.parent,a=n.queue;if(o.invalid||o.dollar){a.push(be(a.pop(),Zr(o,e)));return}if(o.type==="brace"&&o.invalid!==!0&&o.nodes.length===2){a.push(be(a.pop(),["{}"]));return}if(o.nodes&&o.ranges>0){let p=Pe.reduce(o.nodes);if(Pe.exceedsLimit(...p,e.step,t))throw new RangeError("expanded array length exceeds range limit. Use options.rangeLimit to increase or disable the limit.");let l=Ci(...p,e);l.length===0&&(l=Zr(o,e)),a.push(be(a.pop(),l)),o.nodes=[];return}let c=Pe.encloseBrace(o),u=o.queue,d=o;for(;d.type!=="brace"&&d.type!=="root"&&d.parent;)d=d.parent,u=d.queue;for(let p=0;p<o.nodes.length;p++){let l=o.nodes[p];if(l.type==="comma"&&o.type==="brace"){p===1&&u.push(""),u.push("");continue}if(l.type==="close"){a.push(be(a.pop(),u,c));continue}if(l.value&&l.type!=="open"){u.push(be(u.pop(),l.value));continue}l.nodes&&r(l,o)}return u};return Pe.flatten(r(s))};Jr.exports=Ri});var so=F((Oc,to)=>{"use strict";to.exports={MAX_LENGTH:1e4,CHAR_0:"0",CHAR_9:"9",CHAR_UPPERCASE_A:"A",CHAR_LOWERCASE_A:"a",CHAR_UPPERCASE_Z:"Z",CHAR_LOWERCASE_Z:"z",CHAR_LEFT_PARENTHESES:"(",CHAR_RIGHT_PARENTHESES:")",CHAR_ASTERISK:"*",CHAR_AMPERSAND:"&",CHAR_AT:"@",CHAR_BACKSLASH:"\\",CHAR_BACKTICK:"`",CHAR_CARRIAGE_RETURN:"\r",CHAR_CIRCUMFLEX_ACCENT:"^",CHAR_COLON:":",CHAR_COMMA:",",CHAR_DOLLAR:"$",CHAR_DOT:".",CHAR_DOUBLE_QUOTE:'"',CHAR_EQUAL:"=",CHAR_EXCLAMATION_MARK:"!",CHAR_FORM_FEED:"\f",CHAR_FORWARD_SLASH:"/",CHAR_HASH:"#",CHAR_HYPHEN_MINUS:"-",CHAR_LEFT_ANGLE_BRACKET:"<",CHAR_LEFT_CURLY_BRACE:"{",CHAR_LEFT_SQUARE_BRACKET:"[",CHAR_LINE_FEED:`
-`,CHAR_NO_BREAK_SPACE:"\xA0",CHAR_PERCENT:"%",CHAR_PLUS:"+",CHAR_QUESTION_MARK:"?",CHAR_RIGHT_ANGLE_BRACKET:">",CHAR_RIGHT_CURLY_BRACE:"}",CHAR_RIGHT_SQUARE_BRACKET:"]",CHAR_SEMICOLON:";",CHAR_SINGLE_QUOTE:"'",CHAR_SPACE:" ",CHAR_TAB:"	",CHAR_UNDERSCORE:"_",CHAR_VERTICAL_LINE:"|",CHAR_ZERO_WIDTH_NOBREAK_SPACE:"\uFEFF"}});var ao=F((Nc,io)=>{"use strict";var Ei=mt(),{MAX_LENGTH:ro,CHAR_BACKSLASH:os,CHAR_BACKTICK:xi,CHAR_COMMA:Si,CHAR_DOT:Pi,CHAR_LEFT_PARENTHESES:Ai,CHAR_RIGHT_PARENTHESES:Ti,CHAR_LEFT_CURLY_BRACE:$i,CHAR_RIGHT_CURLY_BRACE:Ii,CHAR_LEFT_SQUARE_BRACKET:oo,CHAR_RIGHT_SQUARE_BRACKET:no,CHAR_DOUBLE_QUOTE:Mi,CHAR_SINGLE_QUOTE:Di,CHAR_NO_BREAK_SPACE:Fi,CHAR_ZERO_WIDTH_NOBREAK_SPACE:Li}=so(),Hi=(s,e={})=>{if(typeof s!="string")throw new TypeError("Expected a string");let t=e||{},r=typeof t.maxLength=="number"?Math.min(ro,t.maxLength):ro;if(s.length>r)throw new SyntaxError(`Input length (${s.length}), exceeds max characters (${r})`);let o={type:"root",input:s,nodes:[]},i=[o],n=o,a=o,c=0,u=s.length,d=0,p=0,l,f=()=>s[d++],v=y=>{if(y.type==="text"&&a.type==="dot"&&(a.type="text"),a&&a.type==="text"&&y.type==="text"){a.value+=y.value;return}return n.nodes.push(y),y.parent=n,y.prev=a,a=y,y};for(v({type:"bos"});d<u;)if(n=i[i.length-1],l=f(),!(l===Li||l===Fi)){if(l===os){v({type:"text",value:(e.keepEscaping?l:"")+f()});continue}if(l===no){v({type:"text",value:"\\"+l});continue}if(l===oo){c++;let y;for(;d<u&&(y=f());){if(l+=y,y===oo){c++;continue}if(y===os){l+=f();continue}if(y===no&&(c--,c===0))break}v({type:"text",value:l});continue}if(l===Ai){n=v({type:"paren",nodes:[]}),i.push(n),v({type:"text",value:l});continue}if(l===Ti){if(n.type!=="paren"){v({type:"text",value:l});continue}n=i.pop(),v({type:"text",value:l}),n=i[i.length-1];continue}if(l===Mi||l===Di||l===xi){let y=l,R;for(e.keepQuotes!==!0&&(l="");d<u&&(R=f());){if(R===os){l+=R+f();continue}if(R===y){e.keepQuotes===!0&&(l+=R);break}l+=R}v({type:"text",value:l});continue}if(l===$i){p++;let R={type:"brace",open:!0,close:!1,dollar:a.value&&a.value.slice(-1)==="$"||n.dollar===!0,depth:p,commas:0,ranges:0,nodes:[]};n=v(R),i.push(n),v({type:"open",value:l});continue}if(l===Ii){if(n.type!=="brace"){v({type:"text",value:l});continue}let y="close";n=i.pop(),n.close=!0,v({type:y,value:l}),p--,n=i[i.length-1];continue}if(l===Si&&p>0){if(n.ranges>0){n.ranges=0;let y=n.nodes.shift();n.nodes=[y,{type:"text",value:Ei(n)}]}v({type:"comma",value:l}),n.commas++;continue}if(l===Pi&&p>0&&n.commas===0){let y=n.nodes;if(p===0||y.length===0){v({type:"text",value:l});continue}if(a.type==="dot"){if(n.range=[],a.value+=l,a.type="range",n.nodes.length!==3&&n.nodes.length!==5){n.invalid=!0,n.ranges=0,a.type="text";continue}n.ranges++,n.args=[];continue}if(a.type==="range"){y.pop();let R=y[y.length-1];R.value+=a.value+l,a=R,n.ranges--;continue}v({type:"dot",value:l});continue}v({type:"text",value:l})}do if(n=i.pop(),n.type!=="root"){n.nodes.forEach(P=>{P.nodes||(P.type==="open"&&(P.isOpen=!0),P.type==="close"&&(P.isClose=!0),P.nodes||(P.type="text"),P.invalid=!0)});let y=i[i.length-1],R=y.nodes.indexOf(n);y.nodes.splice(R,1,...n.nodes)}while(i.length>0);return v({type:"eos"}),o};io.exports=Hi});var uo=F((Bc,lo)=>{"use strict";var co=mt(),Oi=Xr(),Ni=eo(),Bi=ao(),ie=(s,e={})=>{let t=[];if(Array.isArray(s))for(let r of s){let o=ie.create(r,e);Array.isArray(o)?t.push(...o):t.push(o)}else t=[].concat(ie.create(s,e));return e&&e.expand===!0&&e.nodupes===!0&&(t=[...new Set(t)]),t};ie.parse=(s,e={})=>Bi(s,e);ie.stringify=(s,e={})=>co(typeof s=="string"?ie.parse(s,e):s,e);ie.compile=(s,e={})=>(typeof s=="string"&&(s=ie.parse(s,e)),Oi(s,e));ie.expand=(s,e={})=>{typeof s=="string"&&(s=ie.parse(s,e));let t=Ni(s,e);return e.noempty===!0&&(t=t.filter(Boolean)),e.nodupes===!0&&(t=[...new Set(t)]),t};ie.create=(s,e={})=>s===""||s.length<3?[s]:e.expand!==!0?ie.compile(s,e):ie.expand(s,e);lo.exports=ie});var po=F((jc,ji)=>{ji.exports=["3dm","3ds","3g2","3gp","7z","a","aac","adp","afdesign","afphoto","afpub","ai","aif","aiff","alz","ape","apk","appimage","ar","arj","asf","au","avi","bak","baml","bh","bin","bk","bmp","btif","bz2","bzip2","cab","caf","cgm","class","cmx","cpio","cr2","cur","dat","dcm","deb","dex","djvu","dll","dmg","dng","doc","docm","docx","dot","dotm","dra","DS_Store","dsk","dts","dtshd","dvb","dwg","dxf","ecelp4800","ecelp7470","ecelp9600","egg","eol","eot","epub","exe","f4v","fbs","fh","fla","flac","flatpak","fli","flv","fpx","fst","fvt","g3","gh","gif","graffle","gz","gzip","h261","h263","h264","icns","ico","ief","img","ipa","iso","jar","jpeg","jpg","jpgv","jpm","jxr","key","ktx","lha","lib","lvp","lz","lzh","lzma","lzo","m3u","m4a","m4v","mar","mdi","mht","mid","midi","mj2","mka","mkv","mmr","mng","mobi","mov","movie","mp3","mp4","mp4a","mpeg","mpg","mpga","mxu","nef","npx","numbers","nupkg","o","odp","ods","odt","oga","ogg","ogv","otf","ott","pages","pbm","pcx","pdb","pdf","pea","pgm","pic","png","pnm","pot","potm","potx","ppa","ppam","ppm","pps","ppsm","ppsx","ppt","pptm","pptx","psd","pya","pyc","pyo","pyv","qt","rar","ras","raw","resources","rgb","rip","rlc","rmf","rmvb","rpm","rtf","rz","s3m","s7z","scpt","sgi","shar","snap","sil","sketch","slk","smv","snk","so","stl","suo","sub","swf","tar","tbz","tbz2","tga","tgz","thmx","tif","tiff","tlz","ttc","ttf","txz","udf","uvh","uvi","uvm","uvp","uvs","uvu","viv","vob","war","wav","wax","wbmp","wdp","weba","webm","webp","whl","wim","wm","wma","wmv","wmx","woff","woff2","wrm","wvx","xbm","xif","xla","xlam","xls","xlsb","xlsm","xlsx","xlt","xltm","xltx","xm","xmind","xpi","xpm","xwd","xz","z","zip","zipx"]});var fo=F((Wc,ho)=>{ho.exports=po()});var mo=F((Uc,go)=>{"use strict";var Wi=require("path"),Ui=fo(),Gi=new Set(Ui);go.exports=s=>Gi.has(Wi.extname(s).slice(1).toLowerCase())});var yt=F(x=>{"use strict";var{sep:qi}=require("path"),{platform:ns}=process,zi=require("os");x.EV_ALL="all";x.EV_READY="ready";x.EV_ADD="add";x.EV_CHANGE="change";x.EV_ADD_DIR="addDir";x.EV_UNLINK="unlink";x.EV_UNLINK_DIR="unlinkDir";x.EV_RAW="raw";x.EV_ERROR="error";x.STR_DATA="data";x.STR_END="end";x.STR_CLOSE="close";x.FSEVENT_CREATED="created";x.FSEVENT_MODIFIED="modified";x.FSEVENT_DELETED="deleted";x.FSEVENT_MOVED="moved";x.FSEVENT_CLONED="cloned";x.FSEVENT_UNKNOWN="unknown";x.FSEVENT_FLAG_MUST_SCAN_SUBDIRS=1;x.FSEVENT_TYPE_FILE="file";x.FSEVENT_TYPE_DIRECTORY="directory";x.FSEVENT_TYPE_SYMLINK="symlink";x.KEY_LISTENERS="listeners";x.KEY_ERR="errHandlers";x.KEY_RAW="rawEmitters";x.HANDLER_KEYS=[x.KEY_LISTENERS,x.KEY_ERR,x.KEY_RAW];x.DOT_SLASH=`.${qi}`;x.BACK_SLASH_RE=/\\/g;x.DOUBLE_SLASH_RE=/\/\//;x.SLASH_OR_BACK_SLASH_RE=/[/\\]/;x.DOT_RE=/\..*\.(sw[px])$|~$|\.subl.*\.tmp/;x.REPLACER_RE=/^\.[/\\]/;x.SLASH="/";x.SLASH_SLASH="//";x.BRACE_START="{";x.BANG="!";x.ONE_DOT=".";x.TWO_DOTS="..";x.STAR="*";x.GLOBSTAR="**";x.ROOT_GLOBSTAR="/**/*";x.SLASH_GLOBSTAR="/**";x.DIR_SUFFIX="Dir";x.ANYMATCH_OPTS={dot:!0};x.STRING_TYPE="string";x.FUNCTION_TYPE="function";x.EMPTY_STR="";x.EMPTY_FN=()=>{};x.IDENTITY_FN=s=>s;x.isWindows=ns==="win32";x.isMacos=ns==="darwin";x.isLinux=ns==="linux";x.isIBMi=zi.type()==="OS400"});var ko=F((qc,bo)=>{"use strict";var we=require("fs"),Q=require("path"),{promisify:Ue}=require("util"),Ki=mo(),{isWindows:Vi,isLinux:Yi,EMPTY_FN:Qi,EMPTY_STR:Xi,KEY_LISTENERS:Ae,KEY_ERR:is,KEY_RAW:Be,HANDLER_KEYS:Zi,EV_CHANGE:bt,EV_ADD:_t,EV_ADD_DIR:Ji,EV_ERROR:vo,STR_DATA:ea,STR_END:ta,BRACE_START:sa,STAR:ra}=yt(),oa="watch",na=Ue(we.open),yo=Ue(we.stat),ia=Ue(we.lstat),aa=Ue(we.close),as=Ue(we.realpath),ca={lstat:ia,stat:yo},ls=(s,e)=>{s instanceof Set?s.forEach(e):e(s)},je=(s,e,t)=>{let r=s[e];r instanceof Set||(s[e]=r=new Set([r])),r.add(t)},la=s=>e=>{let t=s[e];t instanceof Set?t.clear():delete s[e]},We=(s,e,t)=>{let r=s[e];r instanceof Set?r.delete(t):r===t&&delete s[e]},_o=s=>s instanceof Set?s.size===0:!s,kt=new Map;function wo(s,e,t,r,o){let i=(n,a)=>{t(s),o(n,a,{watchedPath:s}),a&&s!==a&&Ct(Q.resolve(s,a),Ae,Q.join(s,a))};try{return we.watch(s,e,i)}catch(n){r(n)}}var Ct=(s,e,t,r,o)=>{let i=kt.get(s);i&&ls(i[e],n=>{n(t,r,o)})},da=(s,e,t,r)=>{let{listener:o,errHandler:i,rawEmitter:n}=r,a=kt.get(e),c;if(!t.persistent)return c=wo(s,t,o,i,n),c.close.bind(c);if(a)je(a,Ae,o),je(a,is,i),je(a,Be,n);else{if(c=wo(s,t,Ct.bind(null,e,Ae),i,Ct.bind(null,e,Be)),!c)return;c.on(vo,async u=>{let d=Ct.bind(null,e,is);if(a.watcherUnusable=!0,Vi&&u.code==="EPERM")try{let p=await na(s,"r");await aa(p),d(u)}catch{}else d(u)}),a={listeners:o,errHandlers:i,rawEmitters:n,watcher:c},kt.set(e,a)}return()=>{We(a,Ae,o),We(a,is,i),We(a,Be,n),_o(a.listeners)&&(a.watcher.close(),kt.delete(e),Zi.forEach(la(a)),a.watcher=void 0,Object.freeze(a))}},cs=new Map,ua=(s,e,t,r)=>{let{listener:o,rawEmitter:i}=r,n=cs.get(e),a=new Set,c=new Set,u=n&&n.options;return u&&(u.persistent<t.persistent||u.interval>t.interval)&&(a=n.listeners,c=n.rawEmitters,we.unwatchFile(e),n=void 0),n?(je(n,Ae,o),je(n,Be,i)):(n={listeners:o,rawEmitters:i,options:t,watcher:we.watchFile(e,t,(d,p)=>{ls(n.rawEmitters,f=>{f(bt,e,{curr:d,prev:p})});let l=d.mtimeMs;(d.size!==p.size||l>p.mtimeMs||l===0)&&ls(n.listeners,f=>f(s,d))})},cs.set(e,n)),()=>{We(n,Ae,o),We(n,Be,i),_o(n.listeners)&&(cs.delete(e),we.unwatchFile(e),n.options=n.watcher=void 0,Object.freeze(n))}},ds=class{constructor(e){this.fsw=e,this._boundHandleError=t=>e._handleError(t)}_watchWithNodeFs(e,t){let r=this.fsw.options,o=Q.dirname(e),i=Q.basename(e);this.fsw._getWatchedDir(o).add(i);let a=Q.resolve(e),c={persistent:r.persistent};t||(t=Qi);let u;return r.usePolling?(c.interval=r.enableBinaryInterval&&Ki(i)?r.binaryInterval:r.interval,u=ua(e,a,c,{listener:t,rawEmitter:this.fsw._emitRaw})):u=da(e,a,c,{listener:t,errHandler:this._boundHandleError,rawEmitter:this.fsw._emitRaw}),u}_handleFile(e,t,r){if(this.fsw.closed)return;let o=Q.dirname(e),i=Q.basename(e),n=this.fsw._getWatchedDir(o),a=t;if(n.has(i))return;let c=async(d,p)=>{if(this.fsw._throttle(oa,e,5)){if(!p||p.mtimeMs===0)try{let l=await yo(e);if(this.fsw.closed)return;let f=l.atimeMs,v=l.mtimeMs;(!f||f<=v||v!==a.mtimeMs)&&this.fsw._emit(bt,e,l),Yi&&a.ino!==l.ino?(this.fsw._closeFile(d),a=l,this.fsw._addPathCloser(d,this._watchWithNodeFs(e,c))):a=l}catch{this.fsw._remove(o,i)}else if(n.has(i)){let l=p.atimeMs,f=p.mtimeMs;(!l||l<=f||f!==a.mtimeMs)&&this.fsw._emit(bt,e,p),a=p}}},u=this._watchWithNodeFs(e,c);if(!(r&&this.fsw.options.ignoreInitial)&&this.fsw._isntIgnored(e)){if(!this.fsw._throttle(_t,e,0))return;this.fsw._emit(_t,e,t)}return u}async _handleSymlink(e,t,r,o){if(this.fsw.closed)return;let i=e.fullPath,n=this.fsw._getWatchedDir(t);if(!this.fsw.options.followSymlinks){this.fsw._incrReadyCount();let a;try{a=await as(r)}catch{return this.fsw._emitReady(),!0}return this.fsw.closed?void 0:(n.has(o)?this.fsw._symlinkPaths.get(i)!==a&&(this.fsw._symlinkPaths.set(i,a),this.fsw._emit(bt,r,e.stats)):(n.add(o),this.fsw._symlinkPaths.set(i,a),this.fsw._emit(_t,r,e.stats)),this.fsw._emitReady(),!0)}if(this.fsw._symlinkPaths.has(i))return!0;this.fsw._symlinkPaths.set(i,!0)}_handleRead(e,t,r,o,i,n,a){if(e=Q.join(e,Xi),!r.hasGlob&&(a=this.fsw._throttle("readdir",e,1e3),!a))return;let c=this.fsw._getWatchedDir(r.path),u=new Set,d=this.fsw._readdirp(e,{fileFilter:p=>r.filterPath(p),directoryFilter:p=>r.filterDir(p),depth:0}).on(ea,async p=>{if(this.fsw.closed){d=void 0;return}let l=p.path,f=Q.join(e,l);if(u.add(l),!(p.stats.isSymbolicLink()&&await this._handleSymlink(p,e,f,l))){if(this.fsw.closed){d=void 0;return}(l===o||!o&&!c.has(l))&&(this.fsw._incrReadyCount(),f=Q.join(i,Q.relative(i,f)),this._addToNodeFs(f,t,r,n+1))}}).on(vo,this._boundHandleError);return new Promise(p=>d.once(ta,()=>{if(this.fsw.closed){d=void 0;return}let l=a?a.clear():!1;p(),c.getChildren().filter(f=>f!==e&&!u.has(f)&&(!r.hasGlob||r.filterPath({fullPath:Q.resolve(e,f)}))).forEach(f=>{this.fsw._remove(e,f)}),d=void 0,l&&this._handleRead(e,!1,r,o,i,n,a)}))}async _handleDir(e,t,r,o,i,n,a){let c=this.fsw._getWatchedDir(Q.dirname(e)),u=c.has(Q.basename(e));!(r&&this.fsw.options.ignoreInitial)&&!i&&!u&&(!n.hasGlob||n.globFilter(e))&&this.fsw._emit(Ji,e,t),c.add(Q.basename(e)),this.fsw._getWatchedDir(e);let d,p,l=this.fsw.options.depth;if((l==null||o<=l)&&!this.fsw._symlinkPaths.has(a)){if(!i&&(await this._handleRead(e,r,n,i,e,o,d),this.fsw.closed))return;p=this._watchWithNodeFs(e,(f,v)=>{v&&v.mtimeMs===0||this._handleRead(f,!1,n,i,e,o,d)})}return p}async _addToNodeFs(e,t,r,o,i){let n=this.fsw._emitReady;if(this.fsw._isIgnored(e)||this.fsw.closed)return n(),!1;let a=this.fsw._getWatchHelpers(e,o);!a.hasGlob&&r&&(a.hasGlob=r.hasGlob,a.globFilter=r.globFilter,a.filterPath=c=>r.filterPath(c),a.filterDir=c=>r.filterDir(c));try{let c=await ca[a.statMethod](a.watchPath);if(this.fsw.closed)return;if(this.fsw._isIgnored(a.watchPath,c))return n(),!1;let u=this.fsw.options.followSymlinks&&!e.includes(ra)&&!e.includes(sa),d;if(c.isDirectory()){let p=Q.resolve(e),l=u?await as(e):e;if(this.fsw.closed||(d=await this._handleDir(a.watchPath,c,t,o,i,a,l),this.fsw.closed))return;p!==l&&l!==void 0&&this.fsw._symlinkPaths.set(p,l)}else if(c.isSymbolicLink()){let p=u?await as(e):e;if(this.fsw.closed)return;let l=Q.dirname(a.watchPath);if(this.fsw._getWatchedDir(l).add(a.watchPath),this.fsw._emit(_t,a.watchPath,c),d=await this._handleDir(l,c,t,o,e,a,p),this.fsw.closed)return;p!==void 0&&this.fsw._symlinkPaths.set(Q.resolve(e),p)}else d=this._handleFile(a.watchPath,c,t);return n(),this.fsw._addPathCloser(e,d),!1}catch(c){if(this.fsw._handleError(c))return n(),e}}};bo.exports=ds});var Ao=F((zc,vs)=>{"use strict";var ms=require("fs"),X=require("path"),{promisify:ws}=require("util"),Te;try{Te=require("fsevents")}catch(s){process.env.CHOKIDAR_PRINT_FSEVENTS_REQUIRE_ERROR&&console.error(s)}if(Te){let s=process.version.match(/v(\d+)\.(\d+)/);if(s&&s[1]&&s[2]){let e=Number.parseInt(s[1],10),t=Number.parseInt(s[2],10);e===8&&t<16&&(Te=void 0)}}var{EV_ADD:us,EV_CHANGE:pa,EV_ADD_DIR:Co,EV_UNLINK:Rt,EV_ERROR:ha,STR_DATA:fa,STR_END:ga,FSEVENT_CREATED:ma,FSEVENT_MODIFIED:wa,FSEVENT_DELETED:va,FSEVENT_MOVED:ya,FSEVENT_UNKNOWN:_a,FSEVENT_FLAG_MUST_SCAN_SUBDIRS:ba,FSEVENT_TYPE_FILE:ka,FSEVENT_TYPE_DIRECTORY:Ge,FSEVENT_TYPE_SYMLINK:Po,ROOT_GLOBSTAR:Ro,DIR_SUFFIX:Ca,DOT_SLASH:Eo,FUNCTION_TYPE:ps,EMPTY_FN:Ra,IDENTITY_FN:Ea}=yt(),xa=s=>isNaN(s)?{}:{depth:s},fs=ws(ms.stat),Sa=ws(ms.lstat),xo=ws(ms.realpath),Pa={stat:fs,lstat:Sa},ke=new Map,Aa=10,Ta=new Set([69888,70400,71424,72704,73472,131328,131840,262912]),$a=(s,e)=>({stop:Te.watch(s,e)});function Ia(s,e,t,r){let o=X.extname(e)?X.dirname(e):e,i=X.dirname(o),n=ke.get(o);Ma(i)&&(o=i);let a=X.resolve(s),c=a!==e,u=(p,l,f)=>{c&&(p=p.replace(e,a)),(p===a||!p.indexOf(a+X.sep))&&t(p,l,f)},d=!1;for(let p of ke.keys())if(e.indexOf(X.resolve(p)+X.sep)===0){o=p,n=ke.get(o),d=!0;break}return n||d?n.listeners.add(u):(n={listeners:new Set([u]),rawEmitter:r,watcher:$a(o,(p,l)=>{if(!n.listeners.size||l&ba)return;let f=Te.getInfo(p,l);n.listeners.forEach(v=>{v(p,l,f)}),n.rawEmitter(f.event,p,f)})},ke.set(o,n)),()=>{let p=n.listeners;if(p.delete(u),!p.size&&(ke.delete(o),n.watcher))return n.watcher.stop().then(()=>{n.rawEmitter=n.watcher=void 0,Object.freeze(n)})}}var Ma=s=>{let e=0;for(let t of ke.keys())if(t.indexOf(s)===0&&(e++,e>=Aa))return!0;return!1},Da=()=>Te&&ke.size<128,hs=(s,e)=>{let t=0;for(;!s.indexOf(e)&&(s=X.dirname(s))!==e;)t++;return t},So=(s,e)=>s.type===Ge&&e.isDirectory()||s.type===Po&&e.isSymbolicLink()||s.type===ka&&e.isFile(),gs=class{constructor(e){this.fsw=e}checkIgnored(e,t){let r=this.fsw._ignoredPaths;if(this.fsw._isIgnored(e,t))return r.add(e),t&&t.isDirectory()&&r.add(e+Ro),!0;r.delete(e),r.delete(e+Ro)}addOrChange(e,t,r,o,i,n,a,c){let u=i.has(n)?pa:us;this.handleEvent(u,e,t,r,o,i,n,a,c)}async checkExists(e,t,r,o,i,n,a,c){try{let u=await fs(e);if(this.fsw.closed)return;So(a,u)?this.addOrChange(e,t,r,o,i,n,a,c):this.handleEvent(Rt,e,t,r,o,i,n,a,c)}catch(u){u.code==="EACCES"?this.addOrChange(e,t,r,o,i,n,a,c):this.handleEvent(Rt,e,t,r,o,i,n,a,c)}}handleEvent(e,t,r,o,i,n,a,c,u){if(!(this.fsw.closed||this.checkIgnored(t)))if(e===Rt){let d=c.type===Ge;(d||n.has(a))&&this.fsw._remove(i,a,d)}else{if(e===us){if(c.type===Ge&&this.fsw._getWatchedDir(t),c.type===Po&&u.followSymlinks){let p=u.depth===void 0?void 0:hs(r,o)+1;return this._addToFsEvents(t,!1,!0,p)}this.fsw._getWatchedDir(i).add(a)}let d=c.type===Ge?e+Ca:e;this.fsw._emit(d,t),d===Co&&this._addToFsEvents(t,!1,!0)}}_watchWithFsEvents(e,t,r,o){if(this.fsw.closed||this.fsw._isIgnored(e))return;let i=this.fsw.options,a=Ia(e,t,async(c,u,d)=>{if(this.fsw.closed||i.depth!==void 0&&hs(c,t)>i.depth)return;let p=r(X.join(e,X.relative(e,c)));if(o&&!o(p))return;let l=X.dirname(p),f=X.basename(p),v=this.fsw._getWatchedDir(d.type===Ge?p:l);if(Ta.has(u)||d.event===_a)if(typeof i.ignored===ps){let y;try{y=await fs(p)}catch{}if(this.fsw.closed||this.checkIgnored(p,y))return;So(d,y)?this.addOrChange(p,c,t,l,v,f,d,i):this.handleEvent(Rt,p,c,t,l,v,f,d,i)}else this.checkExists(p,c,t,l,v,f,d,i);else switch(d.event){case ma:case wa:return this.addOrChange(p,c,t,l,v,f,d,i);case va:case ya:return this.checkExists(p,c,t,l,v,f,d,i)}},this.fsw._emitRaw);return this.fsw._emitReady(),a}async _handleFsEventsSymlink(e,t,r,o){if(!(this.fsw.closed||this.fsw._symlinkPaths.has(t))){this.fsw._symlinkPaths.set(t,!0),this.fsw._incrReadyCount();try{let i=await xo(e);if(this.fsw.closed)return;if(this.fsw._isIgnored(i))return this.fsw._emitReady();this.fsw._incrReadyCount(),this._addToFsEvents(i||e,n=>{let a=e;return i&&i!==Eo?a=n.replace(i,e):n!==Eo&&(a=X.join(e,n)),r(a)},!1,o)}catch(i){if(this.fsw._handleError(i))return this.fsw._emitReady()}}}emitAdd(e,t,r,o,i){let n=r(e),a=t.isDirectory(),c=this.fsw._getWatchedDir(X.dirname(n)),u=X.basename(n);a&&this.fsw._getWatchedDir(n),!c.has(u)&&(c.add(u),(!o.ignoreInitial||i===!0)&&this.fsw._emit(a?Co:us,n,t))}initWatch(e,t,r,o){if(this.fsw.closed)return;let i=this._watchWithFsEvents(r.watchPath,X.resolve(e||r.watchPath),o,r.globFilter);this.fsw._addPathCloser(t,i)}async _addToFsEvents(e,t,r,o){if(this.fsw.closed)return;let i=this.fsw.options,n=typeof t===ps?t:Ea,a=this.fsw._getWatchHelpers(e);try{let c=await Pa[a.statMethod](a.watchPath);if(this.fsw.closed)return;if(this.fsw._isIgnored(a.watchPath,c))throw null;if(c.isDirectory()){if(a.globFilter||this.emitAdd(n(e),c,n,i,r),o&&o>i.depth)return;this.fsw._readdirp(a.watchPath,{fileFilter:u=>a.filterPath(u),directoryFilter:u=>a.filterDir(u),...xa(i.depth-(o||0))}).on(fa,u=>{if(this.fsw.closed||u.stats.isDirectory()&&!a.filterPath(u))return;let d=X.join(a.watchPath,u.path),{fullPath:p}=u;if(a.followSymlinks&&u.stats.isSymbolicLink()){let l=i.depth===void 0?void 0:hs(d,X.resolve(a.watchPath))+1;this._handleFsEventsSymlink(d,p,n,l)}else this.emitAdd(d,u.stats,n,i,r)}).on(ha,Ra).on(ga,()=>{this.fsw._emitReady()})}else this.emitAdd(a.watchPath,c,n,i,r),this.fsw._emitReady()}catch(c){(!c||this.fsw._handleError(c))&&(this.fsw._emitReady(),this.fsw._emitReady())}if(i.persistent&&r!==!0)if(typeof t===ps)this.initWatch(void 0,e,a,n);else{let c;try{c=await xo(a.watchPath)}catch{}this.initWatch(c,e,a,n)}}};vs.exports=gs;vs.exports.canUse=Da});var Ds=F(Ms=>{"use strict";var{EventEmitter:Fa}=require("events"),$s=require("fs"),L=require("path"),{promisify:Lo}=require("util"),La=gr(),Rs=kr().default,Ha=Pr(),ys=Zt(),Oa=uo(),Na=Qt(),Ba=ko(),To=Ao(),{EV_ALL:_s,EV_READY:ja,EV_ADD:Et,EV_CHANGE:qe,EV_UNLINK:$o,EV_ADD_DIR:Wa,EV_UNLINK_DIR:Ua,EV_RAW:Ga,EV_ERROR:bs,STR_CLOSE:qa,STR_END:za,BACK_SLASH_RE:Ka,DOUBLE_SLASH_RE:Io,SLASH_OR_BACK_SLASH_RE:Va,DOT_RE:Ya,REPLACER_RE:Qa,SLASH:ks,SLASH_SLASH:Xa,BRACE_START:Za,BANG:Es,ONE_DOT:Ho,TWO_DOTS:Ja,GLOBSTAR:ec,SLASH_GLOBSTAR:Cs,ANYMATCH_OPTS:xs,STRING_TYPE:Is,FUNCTION_TYPE:tc,EMPTY_STR:Ss,EMPTY_FN:sc,isWindows:rc,isMacos:oc,isIBMi:nc}=yt(),ic=Lo($s.stat),ac=Lo($s.readdir),Ps=(s=[])=>Array.isArray(s)?s:[s],Oo=(s,e=[])=>(s.forEach(t=>{Array.isArray(t)?Oo(t,e):e.push(t)}),e),Mo=s=>{let e=Oo(Ps(s));if(!e.every(t=>typeof t===Is))throw new TypeError(`Non-string provided as watch path: ${e}`);return e.map(No)},Do=s=>{let e=s.replace(Ka,ks),t=!1;for(e.startsWith(Xa)&&(t=!0);e.match(Io);)e=e.replace(Io,ks);return t&&(e=ks+e),e},No=s=>Do(L.normalize(Do(s))),Fo=(s=Ss)=>e=>typeof e!==Is?e:No(L.isAbsolute(e)?e:L.join(s,e)),cc=(s,e)=>L.isAbsolute(s)?s:s.startsWith(Es)?Es+L.join(e,s.slice(1)):L.join(e,s),ue=(s,e)=>s[e]===void 0,As=class{constructor(e,t){this.path=e,this._removeWatcher=t,this.items=new Set}add(e){let{items:t}=this;t&&e!==Ho&&e!==Ja&&t.add(e)}async remove(e){let{items:t}=this;if(!t||(t.delete(e),t.size>0))return;let r=this.path;try{await ac(r)}catch{this._removeWatcher&&this._removeWatcher(L.dirname(r),L.basename(r))}}has(e){let{items:t}=this;if(t)return t.has(e)}getChildren(){let{items:e}=this;if(e)return[...e.values()]}dispose(){this.items.clear(),delete this.path,delete this._removeWatcher,delete this.items,Object.freeze(this)}},lc="stat",dc="lstat",Ts=class{constructor(e,t,r,o){this.fsw=o,this.path=e=e.replace(Qa,Ss),this.watchPath=t,this.fullWatchPath=L.resolve(t),this.hasGlob=t!==e,e===Ss&&(this.hasGlob=!1),this.globSymlink=this.hasGlob&&r?void 0:!1,this.globFilter=this.hasGlob?Rs(e,void 0,xs):!1,this.dirParts=this.getDirParts(e),this.dirParts.forEach(i=>{i.length>1&&i.pop()}),this.followSymlinks=r,this.statMethod=r?lc:dc}checkGlobSymlink(e){return this.globSymlink===void 0&&(this.globSymlink=e.fullParentDir===this.fullWatchPath?!1:{realPath:e.fullParentDir,linkPath:this.fullWatchPath}),this.globSymlink?e.fullPath.replace(this.globSymlink.realPath,this.globSymlink.linkPath):e.fullPath}entryPath(e){return L.join(this.watchPath,L.relative(this.watchPath,this.checkGlobSymlink(e)))}filterPath(e){let{stats:t}=e;if(t&&t.isSymbolicLink())return this.filterDir(e);let r=this.entryPath(e);return(this.hasGlob&&typeof this.globFilter===tc?this.globFilter(r):!0)&&this.fsw._isntIgnored(r,t)&&this.fsw._hasReadPermissions(t)}getDirParts(e){if(!this.hasGlob)return[];let t=[];return(e.includes(Za)?Oa.expand(e):[e]).forEach(o=>{t.push(L.relative(this.watchPath,o).split(Va))}),t}filterDir(e){if(this.hasGlob){let t=this.getDirParts(this.checkGlobSymlink(e)),r=!1;this.unmatchedGlob=!this.dirParts.some(o=>o.every((i,n)=>(i===ec&&(r=!0),r||!t[0][n]||Rs(i,t[0][n],xs))))}return!this.unmatchedGlob&&this.fsw._isntIgnored(this.entryPath(e),e.stats)}},xt=class extends Fa{constructor(e){super();let t={};e&&Object.assign(t,e),this._watched=new Map,this._closers=new Map,this._ignoredPaths=new Set,this._throttled=new Map,this._symlinkPaths=new Map,this._streams=new Set,this.closed=!1,ue(t,"persistent")&&(t.persistent=!0),ue(t,"ignoreInitial")&&(t.ignoreInitial=!1),ue(t,"ignorePermissionErrors")&&(t.ignorePermissionErrors=!1),ue(t,"interval")&&(t.interval=100),ue(t,"binaryInterval")&&(t.binaryInterval=300),ue(t,"disableGlobbing")&&(t.disableGlobbing=!1),t.enableBinaryInterval=t.binaryInterval!==t.interval,ue(t,"useFsEvents")&&(t.useFsEvents=!t.usePolling),To.canUse()||(t.useFsEvents=!1),ue(t,"usePolling")&&!t.useFsEvents&&(t.usePolling=oc),nc&&(t.usePolling=!0);let o=process.env.CHOKIDAR_USEPOLLING;if(o!==void 0){let c=o.toLowerCase();c==="false"||c==="0"?t.usePolling=!1:c==="true"||c==="1"?t.usePolling=!0:t.usePolling=!!c}let i=process.env.CHOKIDAR_INTERVAL;i&&(t.interval=Number.parseInt(i,10)),ue(t,"atomic")&&(t.atomic=!t.usePolling&&!t.useFsEvents),t.atomic&&(this._pendingUnlinks=new Map),ue(t,"followSymlinks")&&(t.followSymlinks=!0),ue(t,"awaitWriteFinish")&&(t.awaitWriteFinish=!1),t.awaitWriteFinish===!0&&(t.awaitWriteFinish={});let n=t.awaitWriteFinish;n&&(n.stabilityThreshold||(n.stabilityThreshold=2e3),n.pollInterval||(n.pollInterval=100),this._pendingWrites=new Map),t.ignored&&(t.ignored=Ps(t.ignored));let a=0;this._emitReady=()=>{a++,a>=this._readyCount&&(this._emitReady=sc,this._readyEmitted=!0,process.nextTick(()=>this.emit(ja)))},this._emitRaw=(...c)=>this.emit(Ga,...c),this._readyEmitted=!1,this.options=t,t.useFsEvents?this._fsEventsHandler=new To(this):this._nodeFsHandler=new Ba(this),Object.freeze(t)}add(e,t,r){let{cwd:o,disableGlobbing:i}=this.options;this.closed=!1;let n=Mo(e);return o&&(n=n.map(a=>{let c=cc(a,o);return i||!ys(a)?c:Na(c)})),n=n.filter(a=>a.startsWith(Es)?(this._ignoredPaths.add(a.slice(1)),!1):(this._ignoredPaths.delete(a),this._ignoredPaths.delete(a+Cs),this._userIgnored=void 0,!0)),this.options.useFsEvents&&this._fsEventsHandler?(this._readyCount||(this._readyCount=n.length),this.options.persistent&&(this._readyCount+=n.length),n.forEach(a=>this._fsEventsHandler._addToFsEvents(a))):(this._readyCount||(this._readyCount=0),this._readyCount+=n.length,Promise.all(n.map(async a=>{let c=await this._nodeFsHandler._addToNodeFs(a,!r,0,0,t);return c&&this._emitReady(),c})).then(a=>{this.closed||a.filter(c=>c).forEach(c=>{this.add(L.dirname(c),L.basename(t||c))})})),this}unwatch(e){if(this.closed)return this;let t=Mo(e),{cwd:r}=this.options;return t.forEach(o=>{!L.isAbsolute(o)&&!this._closers.has(o)&&(r&&(o=L.join(r,o)),o=L.resolve(o)),this._closePath(o),this._ignoredPaths.add(o),this._watched.has(o)&&this._ignoredPaths.add(o+Cs),this._userIgnored=void 0}),this}close(){if(this.closed)return this._closePromise;this.closed=!0,this.removeAllListeners();let e=[];return this._closers.forEach(t=>t.forEach(r=>{let o=r();o instanceof Promise&&e.push(o)})),this._streams.forEach(t=>t.destroy()),this._userIgnored=void 0,this._readyCount=0,this._readyEmitted=!1,this._watched.forEach(t=>t.dispose()),["closers","watched","streams","symlinkPaths","throttled"].forEach(t=>{this[`_${t}`].clear()}),this._closePromise=e.length?Promise.all(e).then(()=>{}):Promise.resolve(),this._closePromise}getWatched(){let e={};return this._watched.forEach((t,r)=>{let o=this.options.cwd?L.relative(this.options.cwd,r):r;e[o||Ho]=t.getChildren().sort()}),e}emitWithAll(e,t){this.emit(...t),e!==bs&&this.emit(_s,...t)}async _emit(e,t,r,o,i){if(this.closed)return;let n=this.options;rc&&(t=L.normalize(t)),n.cwd&&(t=L.relative(n.cwd,t));let a=[e,t];i!==void 0?a.push(r,o,i):o!==void 0?a.push(r,o):r!==void 0&&a.push(r);let c=n.awaitWriteFinish,u;if(c&&(u=this._pendingWrites.get(t)))return u.lastChange=new Date,this;if(n.atomic){if(e===$o)return this._pendingUnlinks.set(t,a),setTimeout(()=>{this._pendingUnlinks.forEach((d,p)=>{this.emit(...d),this.emit(_s,...d),this._pendingUnlinks.delete(p)})},typeof n.atomic=="number"?n.atomic:100),this;e===Et&&this._pendingUnlinks.has(t)&&(e=a[0]=qe,this._pendingUnlinks.delete(t))}if(c&&(e===Et||e===qe)&&this._readyEmitted){let d=(p,l)=>{p?(e=a[0]=bs,a[1]=p,this.emitWithAll(e,a)):l&&(a.length>2?a[2]=l:a.push(l),this.emitWithAll(e,a))};return this._awaitWriteFinish(t,c.stabilityThreshold,e,d),this}if(e===qe&&!this._throttle(qe,t,50))return this;if(n.alwaysStat&&r===void 0&&(e===Et||e===Wa||e===qe)){let d=n.cwd?L.join(n.cwd,t):t,p;try{p=await ic(d)}catch{}if(!p||this.closed)return;a.push(p)}return this.emitWithAll(e,a),this}_handleError(e){let t=e&&e.code;return e&&t!=="ENOENT"&&t!=="ENOTDIR"&&(!this.options.ignorePermissionErrors||t!=="EPERM"&&t!=="EACCES")&&this.emit(bs,e),e||this.closed}_throttle(e,t,r){this._throttled.has(e)||this._throttled.set(e,new Map);let o=this._throttled.get(e),i=o.get(t);if(i)return i.count++,!1;let n,a=()=>{let u=o.get(t),d=u?u.count:0;return o.delete(t),clearTimeout(n),u&&clearTimeout(u.timeoutObject),d};n=setTimeout(a,r);let c={timeoutObject:n,clear:a,count:0};return o.set(t,c),c}_incrReadyCount(){return this._readyCount++}_awaitWriteFinish(e,t,r,o){let i,n=e;this.options.cwd&&!L.isAbsolute(e)&&(n=L.join(this.options.cwd,e));let a=new Date,c=u=>{$s.stat(n,(d,p)=>{if(d||!this._pendingWrites.has(e)){d&&d.code!=="ENOENT"&&o(d);return}let l=Number(new Date);u&&p.size!==u.size&&(this._pendingWrites.get(e).lastChange=l);let f=this._pendingWrites.get(e);l-f.lastChange>=t?(this._pendingWrites.delete(e),o(void 0,p)):i=setTimeout(c,this.options.awaitWriteFinish.pollInterval,p)})};this._pendingWrites.has(e)||(this._pendingWrites.set(e,{lastChange:a,cancelWait:()=>(this._pendingWrites.delete(e),clearTimeout(i),r)}),i=setTimeout(c,this.options.awaitWriteFinish.pollInterval))}_getGlobIgnored(){return[...this._ignoredPaths.values()]}_isIgnored(e,t){if(this.options.atomic&&Ya.test(e))return!0;if(!this._userIgnored){let{cwd:r}=this.options,o=this.options.ignored,i=o&&o.map(Fo(r)),n=Ps(i).filter(c=>typeof c===Is&&!ys(c)).map(c=>c+Cs),a=this._getGlobIgnored().map(Fo(r)).concat(i,n);this._userIgnored=Rs(a,void 0,xs)}return this._userIgnored([e,t])}_isntIgnored(e,t){return!this._isIgnored(e,t)}_getWatchHelpers(e,t){let r=t||this.options.disableGlobbing||!ys(e)?e:Ha(e),o=this.options.followSymlinks;return new Ts(e,r,o,this)}_getWatchedDir(e){this._boundRemove||(this._boundRemove=this._remove.bind(this));let t=L.resolve(e);return this._watched.has(t)||this._watched.set(t,new As(t,this._boundRemove)),this._watched.get(t)}_hasReadPermissions(e){if(this.options.ignorePermissionErrors)return!0;let r=(e&&Number.parseInt(e.mode,10))&511;return!!(4&Number.parseInt(r.toString(8)[0],10))}_remove(e,t,r){let o=L.join(e,t),i=L.resolve(o);if(r=r??(this._watched.has(o)||this._watched.has(i)),!this._throttle("remove",o,100))return;!r&&!this.options.useFsEvents&&this._watched.size===1&&this.add(e,t,!0),this._getWatchedDir(o).getChildren().forEach(l=>this._remove(o,l));let c=this._getWatchedDir(e),u=c.has(t);c.remove(t),this._symlinkPaths.has(i)&&this._symlinkPaths.delete(i);let d=o;if(this.options.cwd&&(d=L.relative(this.options.cwd,o)),this.options.awaitWriteFinish&&this._pendingWrites.has(d)&&this._pendingWrites.get(d).cancelWait()===Et)return;this._watched.delete(o),this._watched.delete(i);let p=r?Ua:$o;u&&!this._isIgnored(o)&&this._emit(p,o),this.options.useFsEvents||this._closePath(o)}_closePath(e){this._closeFile(e);let t=L.dirname(e);this._getWatchedDir(t).remove(L.basename(e))}_closeFile(e){let t=this._closers.get(e);t&&(t.forEach(r=>r()),this._closers.delete(e))}_addPathCloser(e,t){if(!t)return;let r=this._closers.get(e);r||(r=[],this._closers.set(e,r)),r.push(t)}_readdirp(e,t){if(this.closed)return;let r={type:_s,alwaysStat:!0,lstat:!0,...t},o=La(e,r);return this._streams.add(o),o.once(qa,()=>{o=void 0}),o.once(za,()=>{o&&(this._streams.delete(o),o=void 0)}),o}};Ms.FSWatcher=xt;var uc=(s,e)=>{let t=new xt(e);return t.add(s),t};Ms.watch=uc});var wc={};Jo(wc,{activate:()=>fc,deactivate:()=>gc});module.exports=en(wc);var h=q(require("vscode"));var z=q(require("vscode")),Ws=q(require("crypto")),it=q(require("path"));function js(s,...e){return z.workspace.getConfiguration("projectMemory").get("showNotifications",!0)?z.window.showInformationMessage(s,...e):Promise.resolve(void 0)}var nt=class{constructor(e,t,r){this._extensionUri=e;this._dataRoot=t,this._agentsRoot=r}static viewType="projectMemory.dashboardView";_view;_dataRoot;_agentsRoot;_disposables=[];dispose(){for(;this._disposables.length;){let e=this._disposables.pop();e&&e.dispose()}}getWorkspaceId(){let e=z.workspace.workspaceFolders?.[0];if(!e)return null;let t=e.uri.fsPath,r=it.normalize(t).toLowerCase(),o=Ws.createHash("sha256").update(r).digest("hex").substring(0,12);return`${it.basename(t).replace(/[^a-zA-Z0-9-_]/g,"-")}-${o}`}resolveWebviewView(e,t,r){this.dispose(),this._view=e,e.webview.options={enableScripts:!0,localResourceRoots:[z.Uri.joinPath(this._extensionUri,"webview","dist"),z.Uri.joinPath(this._extensionUri,"resources")]},e.webview.html=this._getHtmlForWebview(e.webview),this._disposables.push(e.onDidDispose(()=>{this._view=void 0})),this._disposables.push(e.webview.onDidReceiveMessage(async o=>{switch(console.log("Received message from webview:",o),o.type){case"openFile":let{filePath:i,line:n}=o.data;z.commands.executeCommand("projectMemory.openFile",i,n);break;case"runCommand":let{command:a}=o.data;console.log("Executing command:",a);try{await z.commands.executeCommand(a),console.log("Command executed successfully")}catch(R){console.error("Command execution failed:",R),z.window.showErrorMessage(`Command failed: ${R}`)}break;case"openExternal":let{url:c}=o.data;console.log("Opening dashboard panel:",c),z.commands.executeCommand("projectMemory.openDashboardPanel",c);break;case"openPlan":let{planId:u,workspaceId:d}=o.data,p=`http://localhost:5173/workspace/${d}/plan/${u}`;console.log("Opening plan:",p),z.commands.executeCommand("projectMemory.openDashboardPanel",p);break;case"copyToClipboard":let{text:l}=o.data;await z.env.clipboard.writeText(l),js(`Copied to clipboard: ${l}`);break;case"showNotification":let{level:f,text:v}=o.data;f==="error"?z.window.showErrorMessage(v):f==="warning"?z.window.showWarningMessage(v):js(v);break;case"revealInExplorer":let{path:y}=o.data;z.commands.executeCommand("revealInExplorer",z.Uri.file(y));break;case"getConfig":this.postMessage({type:"config",data:{dataRoot:this._dataRoot,agentsRoot:this._agentsRoot,workspaceFolders:z.workspace.workspaceFolders?.map(R=>({name:R.name,path:R.uri.fsPath}))||[]}});break;case"ready":this.postMessage({type:"init",data:{dataRoot:this._dataRoot,agentsRoot:this._agentsRoot}});break}}))}postMessage(e){this._view&&this._view.webview.postMessage(e)}updateConfig(e,t){this._dataRoot=e,this._agentsRoot=t,this.postMessage({type:"configUpdated",data:{dataRoot:e,agentsRoot:t}})}_getHtmlForWebview(e){let t=tn(),r=z.workspace.getConfiguration("projectMemory"),o=r.get("serverPort")||r.get("apiPort")||3001,i="http://localhost:5173",n=this.getWorkspaceId()||"",a=z.workspace.workspaceFolders?.[0]?.name||"No workspace";return`<!DOCTYPE html>
+"use strict";
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __commonJS = (cb, mod) => function __require() {
+  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+};
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+// node_modules/picomatch/lib/constants.js
+var require_constants = __commonJS({
+  "node_modules/picomatch/lib/constants.js"(exports2, module2) {
+    "use strict";
+    var path6 = require("path");
+    var WIN_SLASH = "\\\\/";
+    var WIN_NO_SLASH = `[^${WIN_SLASH}]`;
+    var DOT_LITERAL = "\\.";
+    var PLUS_LITERAL = "\\+";
+    var QMARK_LITERAL = "\\?";
+    var SLASH_LITERAL = "\\/";
+    var ONE_CHAR = "(?=.)";
+    var QMARK = "[^/]";
+    var END_ANCHOR = `(?:${SLASH_LITERAL}|$)`;
+    var START_ANCHOR = `(?:^|${SLASH_LITERAL})`;
+    var DOTS_SLASH = `${DOT_LITERAL}{1,2}${END_ANCHOR}`;
+    var NO_DOT = `(?!${DOT_LITERAL})`;
+    var NO_DOTS = `(?!${START_ANCHOR}${DOTS_SLASH})`;
+    var NO_DOT_SLASH = `(?!${DOT_LITERAL}{0,1}${END_ANCHOR})`;
+    var NO_DOTS_SLASH = `(?!${DOTS_SLASH})`;
+    var QMARK_NO_DOT = `[^.${SLASH_LITERAL}]`;
+    var STAR = `${QMARK}*?`;
+    var POSIX_CHARS = {
+      DOT_LITERAL,
+      PLUS_LITERAL,
+      QMARK_LITERAL,
+      SLASH_LITERAL,
+      ONE_CHAR,
+      QMARK,
+      END_ANCHOR,
+      DOTS_SLASH,
+      NO_DOT,
+      NO_DOTS,
+      NO_DOT_SLASH,
+      NO_DOTS_SLASH,
+      QMARK_NO_DOT,
+      STAR,
+      START_ANCHOR
+    };
+    var WINDOWS_CHARS = {
+      ...POSIX_CHARS,
+      SLASH_LITERAL: `[${WIN_SLASH}]`,
+      QMARK: WIN_NO_SLASH,
+      STAR: `${WIN_NO_SLASH}*?`,
+      DOTS_SLASH: `${DOT_LITERAL}{1,2}(?:[${WIN_SLASH}]|$)`,
+      NO_DOT: `(?!${DOT_LITERAL})`,
+      NO_DOTS: `(?!(?:^|[${WIN_SLASH}])${DOT_LITERAL}{1,2}(?:[${WIN_SLASH}]|$))`,
+      NO_DOT_SLASH: `(?!${DOT_LITERAL}{0,1}(?:[${WIN_SLASH}]|$))`,
+      NO_DOTS_SLASH: `(?!${DOT_LITERAL}{1,2}(?:[${WIN_SLASH}]|$))`,
+      QMARK_NO_DOT: `[^.${WIN_SLASH}]`,
+      START_ANCHOR: `(?:^|[${WIN_SLASH}])`,
+      END_ANCHOR: `(?:[${WIN_SLASH}]|$)`
+    };
+    var POSIX_REGEX_SOURCE = {
+      alnum: "a-zA-Z0-9",
+      alpha: "a-zA-Z",
+      ascii: "\\x00-\\x7F",
+      blank: " \\t",
+      cntrl: "\\x00-\\x1F\\x7F",
+      digit: "0-9",
+      graph: "\\x21-\\x7E",
+      lower: "a-z",
+      print: "\\x20-\\x7E ",
+      punct: "\\-!\"#$%&'()\\*+,./:;<=>?@[\\]^_`{|}~",
+      space: " \\t\\r\\n\\v\\f",
+      upper: "A-Z",
+      word: "A-Za-z0-9_",
+      xdigit: "A-Fa-f0-9"
+    };
+    module2.exports = {
+      MAX_LENGTH: 1024 * 64,
+      POSIX_REGEX_SOURCE,
+      // regular expressions
+      REGEX_BACKSLASH: /\\(?![*+?^${}(|)[\]])/g,
+      REGEX_NON_SPECIAL_CHARS: /^[^@![\].,$*+?^{}()|\\/]+/,
+      REGEX_SPECIAL_CHARS: /[-*+?.^${}(|)[\]]/,
+      REGEX_SPECIAL_CHARS_BACKREF: /(\\?)((\W)(\3*))/g,
+      REGEX_SPECIAL_CHARS_GLOBAL: /([-*+?.^${}(|)[\]])/g,
+      REGEX_REMOVE_BACKSLASH: /(?:\[.*?[^\\]\]|\\(?=.))/g,
+      // Replace globs with equivalent patterns to reduce parsing time.
+      REPLACEMENTS: {
+        "***": "*",
+        "**/**": "**",
+        "**/**/**": "**"
+      },
+      // Digits
+      CHAR_0: 48,
+      /* 0 */
+      CHAR_9: 57,
+      /* 9 */
+      // Alphabet chars.
+      CHAR_UPPERCASE_A: 65,
+      /* A */
+      CHAR_LOWERCASE_A: 97,
+      /* a */
+      CHAR_UPPERCASE_Z: 90,
+      /* Z */
+      CHAR_LOWERCASE_Z: 122,
+      /* z */
+      CHAR_LEFT_PARENTHESES: 40,
+      /* ( */
+      CHAR_RIGHT_PARENTHESES: 41,
+      /* ) */
+      CHAR_ASTERISK: 42,
+      /* * */
+      // Non-alphabetic chars.
+      CHAR_AMPERSAND: 38,
+      /* & */
+      CHAR_AT: 64,
+      /* @ */
+      CHAR_BACKWARD_SLASH: 92,
+      /* \ */
+      CHAR_CARRIAGE_RETURN: 13,
+      /* \r */
+      CHAR_CIRCUMFLEX_ACCENT: 94,
+      /* ^ */
+      CHAR_COLON: 58,
+      /* : */
+      CHAR_COMMA: 44,
+      /* , */
+      CHAR_DOT: 46,
+      /* . */
+      CHAR_DOUBLE_QUOTE: 34,
+      /* " */
+      CHAR_EQUAL: 61,
+      /* = */
+      CHAR_EXCLAMATION_MARK: 33,
+      /* ! */
+      CHAR_FORM_FEED: 12,
+      /* \f */
+      CHAR_FORWARD_SLASH: 47,
+      /* / */
+      CHAR_GRAVE_ACCENT: 96,
+      /* ` */
+      CHAR_HASH: 35,
+      /* # */
+      CHAR_HYPHEN_MINUS: 45,
+      /* - */
+      CHAR_LEFT_ANGLE_BRACKET: 60,
+      /* < */
+      CHAR_LEFT_CURLY_BRACE: 123,
+      /* { */
+      CHAR_LEFT_SQUARE_BRACKET: 91,
+      /* [ */
+      CHAR_LINE_FEED: 10,
+      /* \n */
+      CHAR_NO_BREAK_SPACE: 160,
+      /* \u00A0 */
+      CHAR_PERCENT: 37,
+      /* % */
+      CHAR_PLUS: 43,
+      /* + */
+      CHAR_QUESTION_MARK: 63,
+      /* ? */
+      CHAR_RIGHT_ANGLE_BRACKET: 62,
+      /* > */
+      CHAR_RIGHT_CURLY_BRACE: 125,
+      /* } */
+      CHAR_RIGHT_SQUARE_BRACKET: 93,
+      /* ] */
+      CHAR_SEMICOLON: 59,
+      /* ; */
+      CHAR_SINGLE_QUOTE: 39,
+      /* ' */
+      CHAR_SPACE: 32,
+      /*   */
+      CHAR_TAB: 9,
+      /* \t */
+      CHAR_UNDERSCORE: 95,
+      /* _ */
+      CHAR_VERTICAL_LINE: 124,
+      /* | */
+      CHAR_ZERO_WIDTH_NOBREAK_SPACE: 65279,
+      /* \uFEFF */
+      SEP: path6.sep,
+      /**
+       * Create EXTGLOB_CHARS
+       */
+      extglobChars(chars) {
+        return {
+          "!": { type: "negate", open: "(?:(?!(?:", close: `))${chars.STAR})` },
+          "?": { type: "qmark", open: "(?:", close: ")?" },
+          "+": { type: "plus", open: "(?:", close: ")+" },
+          "*": { type: "star", open: "(?:", close: ")*" },
+          "@": { type: "at", open: "(?:", close: ")" }
+        };
+      },
+      /**
+       * Create GLOB_CHARS
+       */
+      globChars(win32) {
+        return win32 === true ? WINDOWS_CHARS : POSIX_CHARS;
+      }
+    };
+  }
+});
+
+// node_modules/picomatch/lib/utils.js
+var require_utils = __commonJS({
+  "node_modules/picomatch/lib/utils.js"(exports2) {
+    "use strict";
+    var path6 = require("path");
+    var win32 = process.platform === "win32";
+    var {
+      REGEX_BACKSLASH,
+      REGEX_REMOVE_BACKSLASH,
+      REGEX_SPECIAL_CHARS,
+      REGEX_SPECIAL_CHARS_GLOBAL
+    } = require_constants();
+    exports2.isObject = (val) => val !== null && typeof val === "object" && !Array.isArray(val);
+    exports2.hasRegexChars = (str) => REGEX_SPECIAL_CHARS.test(str);
+    exports2.isRegexChar = (str) => str.length === 1 && exports2.hasRegexChars(str);
+    exports2.escapeRegex = (str) => str.replace(REGEX_SPECIAL_CHARS_GLOBAL, "\\$1");
+    exports2.toPosixSlashes = (str) => str.replace(REGEX_BACKSLASH, "/");
+    exports2.removeBackslashes = (str) => {
+      return str.replace(REGEX_REMOVE_BACKSLASH, (match) => {
+        return match === "\\" ? "" : match;
+      });
+    };
+    exports2.supportsLookbehinds = () => {
+      const segs = process.version.slice(1).split(".").map(Number);
+      if (segs.length === 3 && segs[0] >= 9 || segs[0] === 8 && segs[1] >= 10) {
+        return true;
+      }
+      return false;
+    };
+    exports2.isWindows = (options) => {
+      if (options && typeof options.windows === "boolean") {
+        return options.windows;
+      }
+      return win32 === true || path6.sep === "\\";
+    };
+    exports2.escapeLast = (input, char, lastIdx) => {
+      const idx = input.lastIndexOf(char, lastIdx);
+      if (idx === -1) return input;
+      if (input[idx - 1] === "\\") return exports2.escapeLast(input, char, idx - 1);
+      return `${input.slice(0, idx)}\\${input.slice(idx)}`;
+    };
+    exports2.removePrefix = (input, state = {}) => {
+      let output = input;
+      if (output.startsWith("./")) {
+        output = output.slice(2);
+        state.prefix = "./";
+      }
+      return output;
+    };
+    exports2.wrapOutput = (input, state = {}, options = {}) => {
+      const prepend = options.contains ? "" : "^";
+      const append = options.contains ? "" : "$";
+      let output = `${prepend}(?:${input})${append}`;
+      if (state.negated === true) {
+        output = `(?:^(?!${output}).*$)`;
+      }
+      return output;
+    };
+  }
+});
+
+// node_modules/picomatch/lib/scan.js
+var require_scan = __commonJS({
+  "node_modules/picomatch/lib/scan.js"(exports2, module2) {
+    "use strict";
+    var utils = require_utils();
+    var {
+      CHAR_ASTERISK,
+      /* * */
+      CHAR_AT,
+      /* @ */
+      CHAR_BACKWARD_SLASH,
+      /* \ */
+      CHAR_COMMA,
+      /* , */
+      CHAR_DOT,
+      /* . */
+      CHAR_EXCLAMATION_MARK,
+      /* ! */
+      CHAR_FORWARD_SLASH,
+      /* / */
+      CHAR_LEFT_CURLY_BRACE,
+      /* { */
+      CHAR_LEFT_PARENTHESES,
+      /* ( */
+      CHAR_LEFT_SQUARE_BRACKET,
+      /* [ */
+      CHAR_PLUS,
+      /* + */
+      CHAR_QUESTION_MARK,
+      /* ? */
+      CHAR_RIGHT_CURLY_BRACE,
+      /* } */
+      CHAR_RIGHT_PARENTHESES,
+      /* ) */
+      CHAR_RIGHT_SQUARE_BRACKET
+      /* ] */
+    } = require_constants();
+    var isPathSeparator = (code) => {
+      return code === CHAR_FORWARD_SLASH || code === CHAR_BACKWARD_SLASH;
+    };
+    var depth = (token) => {
+      if (token.isPrefix !== true) {
+        token.depth = token.isGlobstar ? Infinity : 1;
+      }
+    };
+    var scan = (input, options) => {
+      const opts = options || {};
+      const length = input.length - 1;
+      const scanToEnd = opts.parts === true || opts.scanToEnd === true;
+      const slashes = [];
+      const tokens = [];
+      const parts = [];
+      let str = input;
+      let index = -1;
+      let start = 0;
+      let lastIndex = 0;
+      let isBrace = false;
+      let isBracket = false;
+      let isGlob = false;
+      let isExtglob = false;
+      let isGlobstar = false;
+      let braceEscaped = false;
+      let backslashes = false;
+      let negated = false;
+      let negatedExtglob = false;
+      let finished = false;
+      let braces = 0;
+      let prev;
+      let code;
+      let token = { value: "", depth: 0, isGlob: false };
+      const eos = () => index >= length;
+      const peek = () => str.charCodeAt(index + 1);
+      const advance = () => {
+        prev = code;
+        return str.charCodeAt(++index);
+      };
+      while (index < length) {
+        code = advance();
+        let next;
+        if (code === CHAR_BACKWARD_SLASH) {
+          backslashes = token.backslashes = true;
+          code = advance();
+          if (code === CHAR_LEFT_CURLY_BRACE) {
+            braceEscaped = true;
+          }
+          continue;
+        }
+        if (braceEscaped === true || code === CHAR_LEFT_CURLY_BRACE) {
+          braces++;
+          while (eos() !== true && (code = advance())) {
+            if (code === CHAR_BACKWARD_SLASH) {
+              backslashes = token.backslashes = true;
+              advance();
+              continue;
+            }
+            if (code === CHAR_LEFT_CURLY_BRACE) {
+              braces++;
+              continue;
+            }
+            if (braceEscaped !== true && code === CHAR_DOT && (code = advance()) === CHAR_DOT) {
+              isBrace = token.isBrace = true;
+              isGlob = token.isGlob = true;
+              finished = true;
+              if (scanToEnd === true) {
+                continue;
+              }
+              break;
+            }
+            if (braceEscaped !== true && code === CHAR_COMMA) {
+              isBrace = token.isBrace = true;
+              isGlob = token.isGlob = true;
+              finished = true;
+              if (scanToEnd === true) {
+                continue;
+              }
+              break;
+            }
+            if (code === CHAR_RIGHT_CURLY_BRACE) {
+              braces--;
+              if (braces === 0) {
+                braceEscaped = false;
+                isBrace = token.isBrace = true;
+                finished = true;
+                break;
+              }
+            }
+          }
+          if (scanToEnd === true) {
+            continue;
+          }
+          break;
+        }
+        if (code === CHAR_FORWARD_SLASH) {
+          slashes.push(index);
+          tokens.push(token);
+          token = { value: "", depth: 0, isGlob: false };
+          if (finished === true) continue;
+          if (prev === CHAR_DOT && index === start + 1) {
+            start += 2;
+            continue;
+          }
+          lastIndex = index + 1;
+          continue;
+        }
+        if (opts.noext !== true) {
+          const isExtglobChar = code === CHAR_PLUS || code === CHAR_AT || code === CHAR_ASTERISK || code === CHAR_QUESTION_MARK || code === CHAR_EXCLAMATION_MARK;
+          if (isExtglobChar === true && peek() === CHAR_LEFT_PARENTHESES) {
+            isGlob = token.isGlob = true;
+            isExtglob = token.isExtglob = true;
+            finished = true;
+            if (code === CHAR_EXCLAMATION_MARK && index === start) {
+              negatedExtglob = true;
+            }
+            if (scanToEnd === true) {
+              while (eos() !== true && (code = advance())) {
+                if (code === CHAR_BACKWARD_SLASH) {
+                  backslashes = token.backslashes = true;
+                  code = advance();
+                  continue;
+                }
+                if (code === CHAR_RIGHT_PARENTHESES) {
+                  isGlob = token.isGlob = true;
+                  finished = true;
+                  break;
+                }
+              }
+              continue;
+            }
+            break;
+          }
+        }
+        if (code === CHAR_ASTERISK) {
+          if (prev === CHAR_ASTERISK) isGlobstar = token.isGlobstar = true;
+          isGlob = token.isGlob = true;
+          finished = true;
+          if (scanToEnd === true) {
+            continue;
+          }
+          break;
+        }
+        if (code === CHAR_QUESTION_MARK) {
+          isGlob = token.isGlob = true;
+          finished = true;
+          if (scanToEnd === true) {
+            continue;
+          }
+          break;
+        }
+        if (code === CHAR_LEFT_SQUARE_BRACKET) {
+          while (eos() !== true && (next = advance())) {
+            if (next === CHAR_BACKWARD_SLASH) {
+              backslashes = token.backslashes = true;
+              advance();
+              continue;
+            }
+            if (next === CHAR_RIGHT_SQUARE_BRACKET) {
+              isBracket = token.isBracket = true;
+              isGlob = token.isGlob = true;
+              finished = true;
+              break;
+            }
+          }
+          if (scanToEnd === true) {
+            continue;
+          }
+          break;
+        }
+        if (opts.nonegate !== true && code === CHAR_EXCLAMATION_MARK && index === start) {
+          negated = token.negated = true;
+          start++;
+          continue;
+        }
+        if (opts.noparen !== true && code === CHAR_LEFT_PARENTHESES) {
+          isGlob = token.isGlob = true;
+          if (scanToEnd === true) {
+            while (eos() !== true && (code = advance())) {
+              if (code === CHAR_LEFT_PARENTHESES) {
+                backslashes = token.backslashes = true;
+                code = advance();
+                continue;
+              }
+              if (code === CHAR_RIGHT_PARENTHESES) {
+                finished = true;
+                break;
+              }
+            }
+            continue;
+          }
+          break;
+        }
+        if (isGlob === true) {
+          finished = true;
+          if (scanToEnd === true) {
+            continue;
+          }
+          break;
+        }
+      }
+      if (opts.noext === true) {
+        isExtglob = false;
+        isGlob = false;
+      }
+      let base = str;
+      let prefix = "";
+      let glob = "";
+      if (start > 0) {
+        prefix = str.slice(0, start);
+        str = str.slice(start);
+        lastIndex -= start;
+      }
+      if (base && isGlob === true && lastIndex > 0) {
+        base = str.slice(0, lastIndex);
+        glob = str.slice(lastIndex);
+      } else if (isGlob === true) {
+        base = "";
+        glob = str;
+      } else {
+        base = str;
+      }
+      if (base && base !== "" && base !== "/" && base !== str) {
+        if (isPathSeparator(base.charCodeAt(base.length - 1))) {
+          base = base.slice(0, -1);
+        }
+      }
+      if (opts.unescape === true) {
+        if (glob) glob = utils.removeBackslashes(glob);
+        if (base && backslashes === true) {
+          base = utils.removeBackslashes(base);
+        }
+      }
+      const state = {
+        prefix,
+        input,
+        start,
+        base,
+        glob,
+        isBrace,
+        isBracket,
+        isGlob,
+        isExtglob,
+        isGlobstar,
+        negated,
+        negatedExtglob
+      };
+      if (opts.tokens === true) {
+        state.maxDepth = 0;
+        if (!isPathSeparator(code)) {
+          tokens.push(token);
+        }
+        state.tokens = tokens;
+      }
+      if (opts.parts === true || opts.tokens === true) {
+        let prevIndex;
+        for (let idx = 0; idx < slashes.length; idx++) {
+          const n = prevIndex ? prevIndex + 1 : start;
+          const i = slashes[idx];
+          const value = input.slice(n, i);
+          if (opts.tokens) {
+            if (idx === 0 && start !== 0) {
+              tokens[idx].isPrefix = true;
+              tokens[idx].value = prefix;
+            } else {
+              tokens[idx].value = value;
+            }
+            depth(tokens[idx]);
+            state.maxDepth += tokens[idx].depth;
+          }
+          if (idx !== 0 || value !== "") {
+            parts.push(value);
+          }
+          prevIndex = i;
+        }
+        if (prevIndex && prevIndex + 1 < input.length) {
+          const value = input.slice(prevIndex + 1);
+          parts.push(value);
+          if (opts.tokens) {
+            tokens[tokens.length - 1].value = value;
+            depth(tokens[tokens.length - 1]);
+            state.maxDepth += tokens[tokens.length - 1].depth;
+          }
+        }
+        state.slashes = slashes;
+        state.parts = parts;
+      }
+      return state;
+    };
+    module2.exports = scan;
+  }
+});
+
+// node_modules/picomatch/lib/parse.js
+var require_parse = __commonJS({
+  "node_modules/picomatch/lib/parse.js"(exports2, module2) {
+    "use strict";
+    var constants = require_constants();
+    var utils = require_utils();
+    var {
+      MAX_LENGTH,
+      POSIX_REGEX_SOURCE,
+      REGEX_NON_SPECIAL_CHARS,
+      REGEX_SPECIAL_CHARS_BACKREF,
+      REPLACEMENTS
+    } = constants;
+    var expandRange = (args, options) => {
+      if (typeof options.expandRange === "function") {
+        return options.expandRange(...args, options);
+      }
+      args.sort();
+      const value = `[${args.join("-")}]`;
+      try {
+        new RegExp(value);
+      } catch (ex) {
+        return args.map((v) => utils.escapeRegex(v)).join("..");
+      }
+      return value;
+    };
+    var syntaxError = (type, char) => {
+      return `Missing ${type}: "${char}" - use "\\\\${char}" to match literal characters`;
+    };
+    var parse = (input, options) => {
+      if (typeof input !== "string") {
+        throw new TypeError("Expected a string");
+      }
+      input = REPLACEMENTS[input] || input;
+      const opts = { ...options };
+      const max = typeof opts.maxLength === "number" ? Math.min(MAX_LENGTH, opts.maxLength) : MAX_LENGTH;
+      let len = input.length;
+      if (len > max) {
+        throw new SyntaxError(`Input length: ${len}, exceeds maximum allowed length: ${max}`);
+      }
+      const bos = { type: "bos", value: "", output: opts.prepend || "" };
+      const tokens = [bos];
+      const capture = opts.capture ? "" : "?:";
+      const win32 = utils.isWindows(options);
+      const PLATFORM_CHARS = constants.globChars(win32);
+      const EXTGLOB_CHARS = constants.extglobChars(PLATFORM_CHARS);
+      const {
+        DOT_LITERAL,
+        PLUS_LITERAL,
+        SLASH_LITERAL,
+        ONE_CHAR,
+        DOTS_SLASH,
+        NO_DOT,
+        NO_DOT_SLASH,
+        NO_DOTS_SLASH,
+        QMARK,
+        QMARK_NO_DOT,
+        STAR,
+        START_ANCHOR
+      } = PLATFORM_CHARS;
+      const globstar = (opts2) => {
+        return `(${capture}(?:(?!${START_ANCHOR}${opts2.dot ? DOTS_SLASH : DOT_LITERAL}).)*?)`;
+      };
+      const nodot = opts.dot ? "" : NO_DOT;
+      const qmarkNoDot = opts.dot ? QMARK : QMARK_NO_DOT;
+      let star = opts.bash === true ? globstar(opts) : STAR;
+      if (opts.capture) {
+        star = `(${star})`;
+      }
+      if (typeof opts.noext === "boolean") {
+        opts.noextglob = opts.noext;
+      }
+      const state = {
+        input,
+        index: -1,
+        start: 0,
+        dot: opts.dot === true,
+        consumed: "",
+        output: "",
+        prefix: "",
+        backtrack: false,
+        negated: false,
+        brackets: 0,
+        braces: 0,
+        parens: 0,
+        quotes: 0,
+        globstar: false,
+        tokens
+      };
+      input = utils.removePrefix(input, state);
+      len = input.length;
+      const extglobs = [];
+      const braces = [];
+      const stack = [];
+      let prev = bos;
+      let value;
+      const eos = () => state.index === len - 1;
+      const peek = state.peek = (n = 1) => input[state.index + n];
+      const advance = state.advance = () => input[++state.index] || "";
+      const remaining = () => input.slice(state.index + 1);
+      const consume = (value2 = "", num = 0) => {
+        state.consumed += value2;
+        state.index += num;
+      };
+      const append = (token) => {
+        state.output += token.output != null ? token.output : token.value;
+        consume(token.value);
+      };
+      const negate = () => {
+        let count = 1;
+        while (peek() === "!" && (peek(2) !== "(" || peek(3) === "?")) {
+          advance();
+          state.start++;
+          count++;
+        }
+        if (count % 2 === 0) {
+          return false;
+        }
+        state.negated = true;
+        state.start++;
+        return true;
+      };
+      const increment = (type) => {
+        state[type]++;
+        stack.push(type);
+      };
+      const decrement = (type) => {
+        state[type]--;
+        stack.pop();
+      };
+      const push = (tok) => {
+        if (prev.type === "globstar") {
+          const isBrace = state.braces > 0 && (tok.type === "comma" || tok.type === "brace");
+          const isExtglob = tok.extglob === true || extglobs.length && (tok.type === "pipe" || tok.type === "paren");
+          if (tok.type !== "slash" && tok.type !== "paren" && !isBrace && !isExtglob) {
+            state.output = state.output.slice(0, -prev.output.length);
+            prev.type = "star";
+            prev.value = "*";
+            prev.output = star;
+            state.output += prev.output;
+          }
+        }
+        if (extglobs.length && tok.type !== "paren") {
+          extglobs[extglobs.length - 1].inner += tok.value;
+        }
+        if (tok.value || tok.output) append(tok);
+        if (prev && prev.type === "text" && tok.type === "text") {
+          prev.value += tok.value;
+          prev.output = (prev.output || "") + tok.value;
+          return;
+        }
+        tok.prev = prev;
+        tokens.push(tok);
+        prev = tok;
+      };
+      const extglobOpen = (type, value2) => {
+        const token = { ...EXTGLOB_CHARS[value2], conditions: 1, inner: "" };
+        token.prev = prev;
+        token.parens = state.parens;
+        token.output = state.output;
+        const output = (opts.capture ? "(" : "") + token.open;
+        increment("parens");
+        push({ type, value: value2, output: state.output ? "" : ONE_CHAR });
+        push({ type: "paren", extglob: true, value: advance(), output });
+        extglobs.push(token);
+      };
+      const extglobClose = (token) => {
+        let output = token.close + (opts.capture ? ")" : "");
+        let rest;
+        if (token.type === "negate") {
+          let extglobStar = star;
+          if (token.inner && token.inner.length > 1 && token.inner.includes("/")) {
+            extglobStar = globstar(opts);
+          }
+          if (extglobStar !== star || eos() || /^\)+$/.test(remaining())) {
+            output = token.close = `)$))${extglobStar}`;
+          }
+          if (token.inner.includes("*") && (rest = remaining()) && /^\.[^\\/.]+$/.test(rest)) {
+            const expression = parse(rest, { ...options, fastpaths: false }).output;
+            output = token.close = `)${expression})${extglobStar})`;
+          }
+          if (token.prev.type === "bos") {
+            state.negatedExtglob = true;
+          }
+        }
+        push({ type: "paren", extglob: true, value, output });
+        decrement("parens");
+      };
+      if (opts.fastpaths !== false && !/(^[*!]|[/()[\]{}"])/.test(input)) {
+        let backslashes = false;
+        let output = input.replace(REGEX_SPECIAL_CHARS_BACKREF, (m, esc, chars, first, rest, index) => {
+          if (first === "\\") {
+            backslashes = true;
+            return m;
+          }
+          if (first === "?") {
+            if (esc) {
+              return esc + first + (rest ? QMARK.repeat(rest.length) : "");
+            }
+            if (index === 0) {
+              return qmarkNoDot + (rest ? QMARK.repeat(rest.length) : "");
+            }
+            return QMARK.repeat(chars.length);
+          }
+          if (first === ".") {
+            return DOT_LITERAL.repeat(chars.length);
+          }
+          if (first === "*") {
+            if (esc) {
+              return esc + first + (rest ? star : "");
+            }
+            return star;
+          }
+          return esc ? m : `\\${m}`;
+        });
+        if (backslashes === true) {
+          if (opts.unescape === true) {
+            output = output.replace(/\\/g, "");
+          } else {
+            output = output.replace(/\\+/g, (m) => {
+              return m.length % 2 === 0 ? "\\\\" : m ? "\\" : "";
+            });
+          }
+        }
+        if (output === input && opts.contains === true) {
+          state.output = input;
+          return state;
+        }
+        state.output = utils.wrapOutput(output, state, options);
+        return state;
+      }
+      while (!eos()) {
+        value = advance();
+        if (value === "\0") {
+          continue;
+        }
+        if (value === "\\") {
+          const next = peek();
+          if (next === "/" && opts.bash !== true) {
+            continue;
+          }
+          if (next === "." || next === ";") {
+            continue;
+          }
+          if (!next) {
+            value += "\\";
+            push({ type: "text", value });
+            continue;
+          }
+          const match = /^\\+/.exec(remaining());
+          let slashes = 0;
+          if (match && match[0].length > 2) {
+            slashes = match[0].length;
+            state.index += slashes;
+            if (slashes % 2 !== 0) {
+              value += "\\";
+            }
+          }
+          if (opts.unescape === true) {
+            value = advance();
+          } else {
+            value += advance();
+          }
+          if (state.brackets === 0) {
+            push({ type: "text", value });
+            continue;
+          }
+        }
+        if (state.brackets > 0 && (value !== "]" || prev.value === "[" || prev.value === "[^")) {
+          if (opts.posix !== false && value === ":") {
+            const inner = prev.value.slice(1);
+            if (inner.includes("[")) {
+              prev.posix = true;
+              if (inner.includes(":")) {
+                const idx = prev.value.lastIndexOf("[");
+                const pre = prev.value.slice(0, idx);
+                const rest2 = prev.value.slice(idx + 2);
+                const posix = POSIX_REGEX_SOURCE[rest2];
+                if (posix) {
+                  prev.value = pre + posix;
+                  state.backtrack = true;
+                  advance();
+                  if (!bos.output && tokens.indexOf(prev) === 1) {
+                    bos.output = ONE_CHAR;
+                  }
+                  continue;
+                }
+              }
+            }
+          }
+          if (value === "[" && peek() !== ":" || value === "-" && peek() === "]") {
+            value = `\\${value}`;
+          }
+          if (value === "]" && (prev.value === "[" || prev.value === "[^")) {
+            value = `\\${value}`;
+          }
+          if (opts.posix === true && value === "!" && prev.value === "[") {
+            value = "^";
+          }
+          prev.value += value;
+          append({ value });
+          continue;
+        }
+        if (state.quotes === 1 && value !== '"') {
+          value = utils.escapeRegex(value);
+          prev.value += value;
+          append({ value });
+          continue;
+        }
+        if (value === '"') {
+          state.quotes = state.quotes === 1 ? 0 : 1;
+          if (opts.keepQuotes === true) {
+            push({ type: "text", value });
+          }
+          continue;
+        }
+        if (value === "(") {
+          increment("parens");
+          push({ type: "paren", value });
+          continue;
+        }
+        if (value === ")") {
+          if (state.parens === 0 && opts.strictBrackets === true) {
+            throw new SyntaxError(syntaxError("opening", "("));
+          }
+          const extglob = extglobs[extglobs.length - 1];
+          if (extglob && state.parens === extglob.parens + 1) {
+            extglobClose(extglobs.pop());
+            continue;
+          }
+          push({ type: "paren", value, output: state.parens ? ")" : "\\)" });
+          decrement("parens");
+          continue;
+        }
+        if (value === "[") {
+          if (opts.nobracket === true || !remaining().includes("]")) {
+            if (opts.nobracket !== true && opts.strictBrackets === true) {
+              throw new SyntaxError(syntaxError("closing", "]"));
+            }
+            value = `\\${value}`;
+          } else {
+            increment("brackets");
+          }
+          push({ type: "bracket", value });
+          continue;
+        }
+        if (value === "]") {
+          if (opts.nobracket === true || prev && prev.type === "bracket" && prev.value.length === 1) {
+            push({ type: "text", value, output: `\\${value}` });
+            continue;
+          }
+          if (state.brackets === 0) {
+            if (opts.strictBrackets === true) {
+              throw new SyntaxError(syntaxError("opening", "["));
+            }
+            push({ type: "text", value, output: `\\${value}` });
+            continue;
+          }
+          decrement("brackets");
+          const prevValue = prev.value.slice(1);
+          if (prev.posix !== true && prevValue[0] === "^" && !prevValue.includes("/")) {
+            value = `/${value}`;
+          }
+          prev.value += value;
+          append({ value });
+          if (opts.literalBrackets === false || utils.hasRegexChars(prevValue)) {
+            continue;
+          }
+          const escaped = utils.escapeRegex(prev.value);
+          state.output = state.output.slice(0, -prev.value.length);
+          if (opts.literalBrackets === true) {
+            state.output += escaped;
+            prev.value = escaped;
+            continue;
+          }
+          prev.value = `(${capture}${escaped}|${prev.value})`;
+          state.output += prev.value;
+          continue;
+        }
+        if (value === "{" && opts.nobrace !== true) {
+          increment("braces");
+          const open = {
+            type: "brace",
+            value,
+            output: "(",
+            outputIndex: state.output.length,
+            tokensIndex: state.tokens.length
+          };
+          braces.push(open);
+          push(open);
+          continue;
+        }
+        if (value === "}") {
+          const brace = braces[braces.length - 1];
+          if (opts.nobrace === true || !brace) {
+            push({ type: "text", value, output: value });
+            continue;
+          }
+          let output = ")";
+          if (brace.dots === true) {
+            const arr = tokens.slice();
+            const range = [];
+            for (let i = arr.length - 1; i >= 0; i--) {
+              tokens.pop();
+              if (arr[i].type === "brace") {
+                break;
+              }
+              if (arr[i].type !== "dots") {
+                range.unshift(arr[i].value);
+              }
+            }
+            output = expandRange(range, opts);
+            state.backtrack = true;
+          }
+          if (brace.comma !== true && brace.dots !== true) {
+            const out = state.output.slice(0, brace.outputIndex);
+            const toks = state.tokens.slice(brace.tokensIndex);
+            brace.value = brace.output = "\\{";
+            value = output = "\\}";
+            state.output = out;
+            for (const t of toks) {
+              state.output += t.output || t.value;
+            }
+          }
+          push({ type: "brace", value, output });
+          decrement("braces");
+          braces.pop();
+          continue;
+        }
+        if (value === "|") {
+          if (extglobs.length > 0) {
+            extglobs[extglobs.length - 1].conditions++;
+          }
+          push({ type: "text", value });
+          continue;
+        }
+        if (value === ",") {
+          let output = value;
+          const brace = braces[braces.length - 1];
+          if (brace && stack[stack.length - 1] === "braces") {
+            brace.comma = true;
+            output = "|";
+          }
+          push({ type: "comma", value, output });
+          continue;
+        }
+        if (value === "/") {
+          if (prev.type === "dot" && state.index === state.start + 1) {
+            state.start = state.index + 1;
+            state.consumed = "";
+            state.output = "";
+            tokens.pop();
+            prev = bos;
+            continue;
+          }
+          push({ type: "slash", value, output: SLASH_LITERAL });
+          continue;
+        }
+        if (value === ".") {
+          if (state.braces > 0 && prev.type === "dot") {
+            if (prev.value === ".") prev.output = DOT_LITERAL;
+            const brace = braces[braces.length - 1];
+            prev.type = "dots";
+            prev.output += value;
+            prev.value += value;
+            brace.dots = true;
+            continue;
+          }
+          if (state.braces + state.parens === 0 && prev.type !== "bos" && prev.type !== "slash") {
+            push({ type: "text", value, output: DOT_LITERAL });
+            continue;
+          }
+          push({ type: "dot", value, output: DOT_LITERAL });
+          continue;
+        }
+        if (value === "?") {
+          const isGroup = prev && prev.value === "(";
+          if (!isGroup && opts.noextglob !== true && peek() === "(" && peek(2) !== "?") {
+            extglobOpen("qmark", value);
+            continue;
+          }
+          if (prev && prev.type === "paren") {
+            const next = peek();
+            let output = value;
+            if (next === "<" && !utils.supportsLookbehinds()) {
+              throw new Error("Node.js v10 or higher is required for regex lookbehinds");
+            }
+            if (prev.value === "(" && !/[!=<:]/.test(next) || next === "<" && !/<([!=]|\w+>)/.test(remaining())) {
+              output = `\\${value}`;
+            }
+            push({ type: "text", value, output });
+            continue;
+          }
+          if (opts.dot !== true && (prev.type === "slash" || prev.type === "bos")) {
+            push({ type: "qmark", value, output: QMARK_NO_DOT });
+            continue;
+          }
+          push({ type: "qmark", value, output: QMARK });
+          continue;
+        }
+        if (value === "!") {
+          if (opts.noextglob !== true && peek() === "(") {
+            if (peek(2) !== "?" || !/[!=<:]/.test(peek(3))) {
+              extglobOpen("negate", value);
+              continue;
+            }
+          }
+          if (opts.nonegate !== true && state.index === 0) {
+            negate();
+            continue;
+          }
+        }
+        if (value === "+") {
+          if (opts.noextglob !== true && peek() === "(" && peek(2) !== "?") {
+            extglobOpen("plus", value);
+            continue;
+          }
+          if (prev && prev.value === "(" || opts.regex === false) {
+            push({ type: "plus", value, output: PLUS_LITERAL });
+            continue;
+          }
+          if (prev && (prev.type === "bracket" || prev.type === "paren" || prev.type === "brace") || state.parens > 0) {
+            push({ type: "plus", value });
+            continue;
+          }
+          push({ type: "plus", value: PLUS_LITERAL });
+          continue;
+        }
+        if (value === "@") {
+          if (opts.noextglob !== true && peek() === "(" && peek(2) !== "?") {
+            push({ type: "at", extglob: true, value, output: "" });
+            continue;
+          }
+          push({ type: "text", value });
+          continue;
+        }
+        if (value !== "*") {
+          if (value === "$" || value === "^") {
+            value = `\\${value}`;
+          }
+          const match = REGEX_NON_SPECIAL_CHARS.exec(remaining());
+          if (match) {
+            value += match[0];
+            state.index += match[0].length;
+          }
+          push({ type: "text", value });
+          continue;
+        }
+        if (prev && (prev.type === "globstar" || prev.star === true)) {
+          prev.type = "star";
+          prev.star = true;
+          prev.value += value;
+          prev.output = star;
+          state.backtrack = true;
+          state.globstar = true;
+          consume(value);
+          continue;
+        }
+        let rest = remaining();
+        if (opts.noextglob !== true && /^\([^?]/.test(rest)) {
+          extglobOpen("star", value);
+          continue;
+        }
+        if (prev.type === "star") {
+          if (opts.noglobstar === true) {
+            consume(value);
+            continue;
+          }
+          const prior = prev.prev;
+          const before = prior.prev;
+          const isStart = prior.type === "slash" || prior.type === "bos";
+          const afterStar = before && (before.type === "star" || before.type === "globstar");
+          if (opts.bash === true && (!isStart || rest[0] && rest[0] !== "/")) {
+            push({ type: "star", value, output: "" });
+            continue;
+          }
+          const isBrace = state.braces > 0 && (prior.type === "comma" || prior.type === "brace");
+          const isExtglob = extglobs.length && (prior.type === "pipe" || prior.type === "paren");
+          if (!isStart && prior.type !== "paren" && !isBrace && !isExtglob) {
+            push({ type: "star", value, output: "" });
+            continue;
+          }
+          while (rest.slice(0, 3) === "/**") {
+            const after = input[state.index + 4];
+            if (after && after !== "/") {
+              break;
+            }
+            rest = rest.slice(3);
+            consume("/**", 3);
+          }
+          if (prior.type === "bos" && eos()) {
+            prev.type = "globstar";
+            prev.value += value;
+            prev.output = globstar(opts);
+            state.output = prev.output;
+            state.globstar = true;
+            consume(value);
+            continue;
+          }
+          if (prior.type === "slash" && prior.prev.type !== "bos" && !afterStar && eos()) {
+            state.output = state.output.slice(0, -(prior.output + prev.output).length);
+            prior.output = `(?:${prior.output}`;
+            prev.type = "globstar";
+            prev.output = globstar(opts) + (opts.strictSlashes ? ")" : "|$)");
+            prev.value += value;
+            state.globstar = true;
+            state.output += prior.output + prev.output;
+            consume(value);
+            continue;
+          }
+          if (prior.type === "slash" && prior.prev.type !== "bos" && rest[0] === "/") {
+            const end = rest[1] !== void 0 ? "|$" : "";
+            state.output = state.output.slice(0, -(prior.output + prev.output).length);
+            prior.output = `(?:${prior.output}`;
+            prev.type = "globstar";
+            prev.output = `${globstar(opts)}${SLASH_LITERAL}|${SLASH_LITERAL}${end})`;
+            prev.value += value;
+            state.output += prior.output + prev.output;
+            state.globstar = true;
+            consume(value + advance());
+            push({ type: "slash", value: "/", output: "" });
+            continue;
+          }
+          if (prior.type === "bos" && rest[0] === "/") {
+            prev.type = "globstar";
+            prev.value += value;
+            prev.output = `(?:^|${SLASH_LITERAL}|${globstar(opts)}${SLASH_LITERAL})`;
+            state.output = prev.output;
+            state.globstar = true;
+            consume(value + advance());
+            push({ type: "slash", value: "/", output: "" });
+            continue;
+          }
+          state.output = state.output.slice(0, -prev.output.length);
+          prev.type = "globstar";
+          prev.output = globstar(opts);
+          prev.value += value;
+          state.output += prev.output;
+          state.globstar = true;
+          consume(value);
+          continue;
+        }
+        const token = { type: "star", value, output: star };
+        if (opts.bash === true) {
+          token.output = ".*?";
+          if (prev.type === "bos" || prev.type === "slash") {
+            token.output = nodot + token.output;
+          }
+          push(token);
+          continue;
+        }
+        if (prev && (prev.type === "bracket" || prev.type === "paren") && opts.regex === true) {
+          token.output = value;
+          push(token);
+          continue;
+        }
+        if (state.index === state.start || prev.type === "slash" || prev.type === "dot") {
+          if (prev.type === "dot") {
+            state.output += NO_DOT_SLASH;
+            prev.output += NO_DOT_SLASH;
+          } else if (opts.dot === true) {
+            state.output += NO_DOTS_SLASH;
+            prev.output += NO_DOTS_SLASH;
+          } else {
+            state.output += nodot;
+            prev.output += nodot;
+          }
+          if (peek() !== "*") {
+            state.output += ONE_CHAR;
+            prev.output += ONE_CHAR;
+          }
+        }
+        push(token);
+      }
+      while (state.brackets > 0) {
+        if (opts.strictBrackets === true) throw new SyntaxError(syntaxError("closing", "]"));
+        state.output = utils.escapeLast(state.output, "[");
+        decrement("brackets");
+      }
+      while (state.parens > 0) {
+        if (opts.strictBrackets === true) throw new SyntaxError(syntaxError("closing", ")"));
+        state.output = utils.escapeLast(state.output, "(");
+        decrement("parens");
+      }
+      while (state.braces > 0) {
+        if (opts.strictBrackets === true) throw new SyntaxError(syntaxError("closing", "}"));
+        state.output = utils.escapeLast(state.output, "{");
+        decrement("braces");
+      }
+      if (opts.strictSlashes !== true && (prev.type === "star" || prev.type === "bracket")) {
+        push({ type: "maybe_slash", value: "", output: `${SLASH_LITERAL}?` });
+      }
+      if (state.backtrack === true) {
+        state.output = "";
+        for (const token of state.tokens) {
+          state.output += token.output != null ? token.output : token.value;
+          if (token.suffix) {
+            state.output += token.suffix;
+          }
+        }
+      }
+      return state;
+    };
+    parse.fastpaths = (input, options) => {
+      const opts = { ...options };
+      const max = typeof opts.maxLength === "number" ? Math.min(MAX_LENGTH, opts.maxLength) : MAX_LENGTH;
+      const len = input.length;
+      if (len > max) {
+        throw new SyntaxError(`Input length: ${len}, exceeds maximum allowed length: ${max}`);
+      }
+      input = REPLACEMENTS[input] || input;
+      const win32 = utils.isWindows(options);
+      const {
+        DOT_LITERAL,
+        SLASH_LITERAL,
+        ONE_CHAR,
+        DOTS_SLASH,
+        NO_DOT,
+        NO_DOTS,
+        NO_DOTS_SLASH,
+        STAR,
+        START_ANCHOR
+      } = constants.globChars(win32);
+      const nodot = opts.dot ? NO_DOTS : NO_DOT;
+      const slashDot = opts.dot ? NO_DOTS_SLASH : NO_DOT;
+      const capture = opts.capture ? "" : "?:";
+      const state = { negated: false, prefix: "" };
+      let star = opts.bash === true ? ".*?" : STAR;
+      if (opts.capture) {
+        star = `(${star})`;
+      }
+      const globstar = (opts2) => {
+        if (opts2.noglobstar === true) return star;
+        return `(${capture}(?:(?!${START_ANCHOR}${opts2.dot ? DOTS_SLASH : DOT_LITERAL}).)*?)`;
+      };
+      const create = (str) => {
+        switch (str) {
+          case "*":
+            return `${nodot}${ONE_CHAR}${star}`;
+          case ".*":
+            return `${DOT_LITERAL}${ONE_CHAR}${star}`;
+          case "*.*":
+            return `${nodot}${star}${DOT_LITERAL}${ONE_CHAR}${star}`;
+          case "*/*":
+            return `${nodot}${star}${SLASH_LITERAL}${ONE_CHAR}${slashDot}${star}`;
+          case "**":
+            return nodot + globstar(opts);
+          case "**/*":
+            return `(?:${nodot}${globstar(opts)}${SLASH_LITERAL})?${slashDot}${ONE_CHAR}${star}`;
+          case "**/*.*":
+            return `(?:${nodot}${globstar(opts)}${SLASH_LITERAL})?${slashDot}${star}${DOT_LITERAL}${ONE_CHAR}${star}`;
+          case "**/.*":
+            return `(?:${nodot}${globstar(opts)}${SLASH_LITERAL})?${DOT_LITERAL}${ONE_CHAR}${star}`;
+          default: {
+            const match = /^(.*?)\.(\w+)$/.exec(str);
+            if (!match) return;
+            const source2 = create(match[1]);
+            if (!source2) return;
+            return source2 + DOT_LITERAL + match[2];
+          }
+        }
+      };
+      const output = utils.removePrefix(input, state);
+      let source = create(output);
+      if (source && opts.strictSlashes !== true) {
+        source += `${SLASH_LITERAL}?`;
+      }
+      return source;
+    };
+    module2.exports = parse;
+  }
+});
+
+// node_modules/picomatch/lib/picomatch.js
+var require_picomatch = __commonJS({
+  "node_modules/picomatch/lib/picomatch.js"(exports2, module2) {
+    "use strict";
+    var path6 = require("path");
+    var scan = require_scan();
+    var parse = require_parse();
+    var utils = require_utils();
+    var constants = require_constants();
+    var isObject = (val) => val && typeof val === "object" && !Array.isArray(val);
+    var picomatch = (glob, options, returnState = false) => {
+      if (Array.isArray(glob)) {
+        const fns = glob.map((input) => picomatch(input, options, returnState));
+        const arrayMatcher = (str) => {
+          for (const isMatch of fns) {
+            const state2 = isMatch(str);
+            if (state2) return state2;
+          }
+          return false;
+        };
+        return arrayMatcher;
+      }
+      const isState = isObject(glob) && glob.tokens && glob.input;
+      if (glob === "" || typeof glob !== "string" && !isState) {
+        throw new TypeError("Expected pattern to be a non-empty string");
+      }
+      const opts = options || {};
+      const posix = utils.isWindows(options);
+      const regex = isState ? picomatch.compileRe(glob, options) : picomatch.makeRe(glob, options, false, true);
+      const state = regex.state;
+      delete regex.state;
+      let isIgnored = () => false;
+      if (opts.ignore) {
+        const ignoreOpts = { ...options, ignore: null, onMatch: null, onResult: null };
+        isIgnored = picomatch(opts.ignore, ignoreOpts, returnState);
+      }
+      const matcher = (input, returnObject = false) => {
+        const { isMatch, match, output } = picomatch.test(input, regex, options, { glob, posix });
+        const result = { glob, state, regex, posix, input, output, match, isMatch };
+        if (typeof opts.onResult === "function") {
+          opts.onResult(result);
+        }
+        if (isMatch === false) {
+          result.isMatch = false;
+          return returnObject ? result : false;
+        }
+        if (isIgnored(input)) {
+          if (typeof opts.onIgnore === "function") {
+            opts.onIgnore(result);
+          }
+          result.isMatch = false;
+          return returnObject ? result : false;
+        }
+        if (typeof opts.onMatch === "function") {
+          opts.onMatch(result);
+        }
+        return returnObject ? result : true;
+      };
+      if (returnState) {
+        matcher.state = state;
+      }
+      return matcher;
+    };
+    picomatch.test = (input, regex, options, { glob, posix } = {}) => {
+      if (typeof input !== "string") {
+        throw new TypeError("Expected input to be a string");
+      }
+      if (input === "") {
+        return { isMatch: false, output: "" };
+      }
+      const opts = options || {};
+      const format = opts.format || (posix ? utils.toPosixSlashes : null);
+      let match = input === glob;
+      let output = match && format ? format(input) : input;
+      if (match === false) {
+        output = format ? format(input) : input;
+        match = output === glob;
+      }
+      if (match === false || opts.capture === true) {
+        if (opts.matchBase === true || opts.basename === true) {
+          match = picomatch.matchBase(input, regex, options, posix);
+        } else {
+          match = regex.exec(output);
+        }
+      }
+      return { isMatch: Boolean(match), match, output };
+    };
+    picomatch.matchBase = (input, glob, options, posix = utils.isWindows(options)) => {
+      const regex = glob instanceof RegExp ? glob : picomatch.makeRe(glob, options);
+      return regex.test(path6.basename(input));
+    };
+    picomatch.isMatch = (str, patterns, options) => picomatch(patterns, options)(str);
+    picomatch.parse = (pattern, options) => {
+      if (Array.isArray(pattern)) return pattern.map((p) => picomatch.parse(p, options));
+      return parse(pattern, { ...options, fastpaths: false });
+    };
+    picomatch.scan = (input, options) => scan(input, options);
+    picomatch.compileRe = (state, options, returnOutput = false, returnState = false) => {
+      if (returnOutput === true) {
+        return state.output;
+      }
+      const opts = options || {};
+      const prepend = opts.contains ? "" : "^";
+      const append = opts.contains ? "" : "$";
+      let source = `${prepend}(?:${state.output})${append}`;
+      if (state && state.negated === true) {
+        source = `^(?!${source}).*$`;
+      }
+      const regex = picomatch.toRegex(source, options);
+      if (returnState === true) {
+        regex.state = state;
+      }
+      return regex;
+    };
+    picomatch.makeRe = (input, options = {}, returnOutput = false, returnState = false) => {
+      if (!input || typeof input !== "string") {
+        throw new TypeError("Expected a non-empty string");
+      }
+      let parsed = { negated: false, fastpaths: true };
+      if (options.fastpaths !== false && (input[0] === "." || input[0] === "*")) {
+        parsed.output = parse.fastpaths(input, options);
+      }
+      if (!parsed.output) {
+        parsed = parse(input, options);
+      }
+      return picomatch.compileRe(parsed, options, returnOutput, returnState);
+    };
+    picomatch.toRegex = (source, options) => {
+      try {
+        const opts = options || {};
+        return new RegExp(source, opts.flags || (opts.nocase ? "i" : ""));
+      } catch (err) {
+        if (options && options.debug === true) throw err;
+        return /$^/;
+      }
+    };
+    picomatch.constants = constants;
+    module2.exports = picomatch;
+  }
+});
+
+// node_modules/picomatch/index.js
+var require_picomatch2 = __commonJS({
+  "node_modules/picomatch/index.js"(exports2, module2) {
+    "use strict";
+    module2.exports = require_picomatch();
+  }
+});
+
+// node_modules/readdirp/index.js
+var require_readdirp = __commonJS({
+  "node_modules/readdirp/index.js"(exports2, module2) {
+    "use strict";
+    var fs2 = require("fs");
+    var { Readable } = require("stream");
+    var sysPath = require("path");
+    var { promisify } = require("util");
+    var picomatch = require_picomatch2();
+    var readdir = promisify(fs2.readdir);
+    var stat = promisify(fs2.stat);
+    var lstat = promisify(fs2.lstat);
+    var realpath = promisify(fs2.realpath);
+    var BANG = "!";
+    var RECURSIVE_ERROR_CODE = "READDIRP_RECURSIVE_ERROR";
+    var NORMAL_FLOW_ERRORS = /* @__PURE__ */ new Set(["ENOENT", "EPERM", "EACCES", "ELOOP", RECURSIVE_ERROR_CODE]);
+    var FILE_TYPE = "files";
+    var DIR_TYPE = "directories";
+    var FILE_DIR_TYPE = "files_directories";
+    var EVERYTHING_TYPE = "all";
+    var ALL_TYPES = [FILE_TYPE, DIR_TYPE, FILE_DIR_TYPE, EVERYTHING_TYPE];
+    var isNormalFlowError = (error) => NORMAL_FLOW_ERRORS.has(error.code);
+    var [maj, min] = process.versions.node.split(".").slice(0, 2).map((n) => Number.parseInt(n, 10));
+    var wantBigintFsStats = process.platform === "win32" && (maj > 10 || maj === 10 && min >= 5);
+    var normalizeFilter = (filter) => {
+      if (filter === void 0) return;
+      if (typeof filter === "function") return filter;
+      if (typeof filter === "string") {
+        const glob = picomatch(filter.trim());
+        return (entry) => glob(entry.basename);
+      }
+      if (Array.isArray(filter)) {
+        const positive = [];
+        const negative = [];
+        for (const item of filter) {
+          const trimmed = item.trim();
+          if (trimmed.charAt(0) === BANG) {
+            negative.push(picomatch(trimmed.slice(1)));
+          } else {
+            positive.push(picomatch(trimmed));
+          }
+        }
+        if (negative.length > 0) {
+          if (positive.length > 0) {
+            return (entry) => positive.some((f) => f(entry.basename)) && !negative.some((f) => f(entry.basename));
+          }
+          return (entry) => !negative.some((f) => f(entry.basename));
+        }
+        return (entry) => positive.some((f) => f(entry.basename));
+      }
+    };
+    var ReaddirpStream = class _ReaddirpStream extends Readable {
+      static get defaultOptions() {
+        return {
+          root: ".",
+          /* eslint-disable no-unused-vars */
+          fileFilter: (path6) => true,
+          directoryFilter: (path6) => true,
+          /* eslint-enable no-unused-vars */
+          type: FILE_TYPE,
+          lstat: false,
+          depth: 2147483648,
+          alwaysStat: false
+        };
+      }
+      constructor(options = {}) {
+        super({
+          objectMode: true,
+          autoDestroy: true,
+          highWaterMark: options.highWaterMark || 4096
+        });
+        const opts = { ..._ReaddirpStream.defaultOptions, ...options };
+        const { root, type } = opts;
+        this._fileFilter = normalizeFilter(opts.fileFilter);
+        this._directoryFilter = normalizeFilter(opts.directoryFilter);
+        const statMethod = opts.lstat ? lstat : stat;
+        if (wantBigintFsStats) {
+          this._stat = (path6) => statMethod(path6, { bigint: true });
+        } else {
+          this._stat = statMethod;
+        }
+        this._maxDepth = opts.depth;
+        this._wantsDir = [DIR_TYPE, FILE_DIR_TYPE, EVERYTHING_TYPE].includes(type);
+        this._wantsFile = [FILE_TYPE, FILE_DIR_TYPE, EVERYTHING_TYPE].includes(type);
+        this._wantsEverything = type === EVERYTHING_TYPE;
+        this._root = sysPath.resolve(root);
+        this._isDirent = "Dirent" in fs2 && !opts.alwaysStat;
+        this._statsProp = this._isDirent ? "dirent" : "stats";
+        this._rdOptions = { encoding: "utf8", withFileTypes: this._isDirent };
+        this.parents = [this._exploreDir(root, 1)];
+        this.reading = false;
+        this.parent = void 0;
+      }
+      async _read(batch) {
+        if (this.reading) return;
+        this.reading = true;
+        try {
+          while (!this.destroyed && batch > 0) {
+            const { path: path6, depth, files = [] } = this.parent || {};
+            if (files.length > 0) {
+              const slice = files.splice(0, batch).map((dirent) => this._formatEntry(dirent, path6));
+              for (const entry of await Promise.all(slice)) {
+                if (this.destroyed) return;
+                const entryType = await this._getEntryType(entry);
+                if (entryType === "directory" && this._directoryFilter(entry)) {
+                  if (depth <= this._maxDepth) {
+                    this.parents.push(this._exploreDir(entry.fullPath, depth + 1));
+                  }
+                  if (this._wantsDir) {
+                    this.push(entry);
+                    batch--;
+                  }
+                } else if ((entryType === "file" || this._includeAsFile(entry)) && this._fileFilter(entry)) {
+                  if (this._wantsFile) {
+                    this.push(entry);
+                    batch--;
+                  }
+                }
+              }
+            } else {
+              const parent = this.parents.pop();
+              if (!parent) {
+                this.push(null);
+                break;
+              }
+              this.parent = await parent;
+              if (this.destroyed) return;
+            }
+          }
+        } catch (error) {
+          this.destroy(error);
+        } finally {
+          this.reading = false;
+        }
+      }
+      async _exploreDir(path6, depth) {
+        let files;
+        try {
+          files = await readdir(path6, this._rdOptions);
+        } catch (error) {
+          this._onError(error);
+        }
+        return { files, depth, path: path6 };
+      }
+      async _formatEntry(dirent, path6) {
+        let entry;
+        try {
+          const basename4 = this._isDirent ? dirent.name : dirent;
+          const fullPath = sysPath.resolve(sysPath.join(path6, basename4));
+          entry = { path: sysPath.relative(this._root, fullPath), fullPath, basename: basename4 };
+          entry[this._statsProp] = this._isDirent ? dirent : await this._stat(fullPath);
+        } catch (err) {
+          this._onError(err);
+        }
+        return entry;
+      }
+      _onError(err) {
+        if (isNormalFlowError(err) && !this.destroyed) {
+          this.emit("warn", err);
+        } else {
+          this.destroy(err);
+        }
+      }
+      async _getEntryType(entry) {
+        const stats = entry && entry[this._statsProp];
+        if (!stats) {
+          return;
+        }
+        if (stats.isFile()) {
+          return "file";
+        }
+        if (stats.isDirectory()) {
+          return "directory";
+        }
+        if (stats && stats.isSymbolicLink()) {
+          const full = entry.fullPath;
+          try {
+            const entryRealPath = await realpath(full);
+            const entryRealPathStats = await lstat(entryRealPath);
+            if (entryRealPathStats.isFile()) {
+              return "file";
+            }
+            if (entryRealPathStats.isDirectory()) {
+              const len = entryRealPath.length;
+              if (full.startsWith(entryRealPath) && full.substr(len, 1) === sysPath.sep) {
+                const recursiveError = new Error(
+                  `Circular symlink detected: "${full}" points to "${entryRealPath}"`
+                );
+                recursiveError.code = RECURSIVE_ERROR_CODE;
+                return this._onError(recursiveError);
+              }
+              return "directory";
+            }
+          } catch (error) {
+            this._onError(error);
+          }
+        }
+      }
+      _includeAsFile(entry) {
+        const stats = entry && entry[this._statsProp];
+        return stats && this._wantsEverything && !stats.isDirectory();
+      }
+    };
+    var readdirp = (root, options = {}) => {
+      let type = options.entryType || options.type;
+      if (type === "both") type = FILE_DIR_TYPE;
+      if (type) options.type = type;
+      if (!root) {
+        throw new Error("readdirp: root argument is required. Usage: readdirp(root, options)");
+      } else if (typeof root !== "string") {
+        throw new TypeError("readdirp: root argument must be a string. Usage: readdirp(root, options)");
+      } else if (type && !ALL_TYPES.includes(type)) {
+        throw new Error(`readdirp: Invalid type passed. Use one of ${ALL_TYPES.join(", ")}`);
+      }
+      options.root = root;
+      return new ReaddirpStream(options);
+    };
+    var readdirpPromise = (root, options = {}) => {
+      return new Promise((resolve, reject) => {
+        const files = [];
+        readdirp(root, options).on("data", (entry) => files.push(entry)).on("end", () => resolve(files)).on("error", (error) => reject(error));
+      });
+    };
+    readdirp.promise = readdirpPromise;
+    readdirp.ReaddirpStream = ReaddirpStream;
+    readdirp.default = readdirp;
+    module2.exports = readdirp;
+  }
+});
+
+// node_modules/normalize-path/index.js
+var require_normalize_path = __commonJS({
+  "node_modules/normalize-path/index.js"(exports2, module2) {
+    module2.exports = function(path6, stripTrailing) {
+      if (typeof path6 !== "string") {
+        throw new TypeError("expected path to be a string");
+      }
+      if (path6 === "\\" || path6 === "/") return "/";
+      var len = path6.length;
+      if (len <= 1) return path6;
+      var prefix = "";
+      if (len > 4 && path6[3] === "\\") {
+        var ch = path6[2];
+        if ((ch === "?" || ch === ".") && path6.slice(0, 2) === "\\\\") {
+          path6 = path6.slice(2);
+          prefix = "//";
+        }
+      }
+      var segs = path6.split(/[/\\]+/);
+      if (stripTrailing !== false && segs[segs.length - 1] === "") {
+        segs.pop();
+      }
+      return prefix + segs.join("/");
+    };
+  }
+});
+
+// node_modules/anymatch/index.js
+var require_anymatch = __commonJS({
+  "node_modules/anymatch/index.js"(exports2, module2) {
+    "use strict";
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    var picomatch = require_picomatch2();
+    var normalizePath = require_normalize_path();
+    var BANG = "!";
+    var DEFAULT_OPTIONS = { returnIndex: false };
+    var arrify = (item) => Array.isArray(item) ? item : [item];
+    var createPattern = (matcher, options) => {
+      if (typeof matcher === "function") {
+        return matcher;
+      }
+      if (typeof matcher === "string") {
+        const glob = picomatch(matcher, options);
+        return (string) => matcher === string || glob(string);
+      }
+      if (matcher instanceof RegExp) {
+        return (string) => matcher.test(string);
+      }
+      return (string) => false;
+    };
+    var matchPatterns = (patterns, negPatterns, args, returnIndex) => {
+      const isList = Array.isArray(args);
+      const _path = isList ? args[0] : args;
+      if (!isList && typeof _path !== "string") {
+        throw new TypeError("anymatch: second argument must be a string: got " + Object.prototype.toString.call(_path));
+      }
+      const path6 = normalizePath(_path, false);
+      for (let index = 0; index < negPatterns.length; index++) {
+        const nglob = negPatterns[index];
+        if (nglob(path6)) {
+          return returnIndex ? -1 : false;
+        }
+      }
+      const applied = isList && [path6].concat(args.slice(1));
+      for (let index = 0; index < patterns.length; index++) {
+        const pattern = patterns[index];
+        if (isList ? pattern(...applied) : pattern(path6)) {
+          return returnIndex ? index : true;
+        }
+      }
+      return returnIndex ? -1 : false;
+    };
+    var anymatch = (matchers, testString, options = DEFAULT_OPTIONS) => {
+      if (matchers == null) {
+        throw new TypeError("anymatch: specify first argument");
+      }
+      const opts = typeof options === "boolean" ? { returnIndex: options } : options;
+      const returnIndex = opts.returnIndex || false;
+      const mtchers = arrify(matchers);
+      const negatedGlobs = mtchers.filter((item) => typeof item === "string" && item.charAt(0) === BANG).map((item) => item.slice(1)).map((item) => picomatch(item, opts));
+      const patterns = mtchers.filter((item) => typeof item !== "string" || typeof item === "string" && item.charAt(0) !== BANG).map((matcher) => createPattern(matcher, opts));
+      if (testString == null) {
+        return (testString2, ri = false) => {
+          const returnIndex2 = typeof ri === "boolean" ? ri : false;
+          return matchPatterns(patterns, negatedGlobs, testString2, returnIndex2);
+        };
+      }
+      return matchPatterns(patterns, negatedGlobs, testString, returnIndex);
+    };
+    anymatch.default = anymatch;
+    module2.exports = anymatch;
+  }
+});
+
+// node_modules/is-extglob/index.js
+var require_is_extglob = __commonJS({
+  "node_modules/is-extglob/index.js"(exports2, module2) {
+    module2.exports = function isExtglob(str) {
+      if (typeof str !== "string" || str === "") {
+        return false;
+      }
+      var match;
+      while (match = /(\\).|([@?!+*]\(.*\))/g.exec(str)) {
+        if (match[2]) return true;
+        str = str.slice(match.index + match[0].length);
+      }
+      return false;
+    };
+  }
+});
+
+// node_modules/is-glob/index.js
+var require_is_glob = __commonJS({
+  "node_modules/is-glob/index.js"(exports2, module2) {
+    var isExtglob = require_is_extglob();
+    var chars = { "{": "}", "(": ")", "[": "]" };
+    var strictCheck = function(str) {
+      if (str[0] === "!") {
+        return true;
+      }
+      var index = 0;
+      var pipeIndex = -2;
+      var closeSquareIndex = -2;
+      var closeCurlyIndex = -2;
+      var closeParenIndex = -2;
+      var backSlashIndex = -2;
+      while (index < str.length) {
+        if (str[index] === "*") {
+          return true;
+        }
+        if (str[index + 1] === "?" && /[\].+)]/.test(str[index])) {
+          return true;
+        }
+        if (closeSquareIndex !== -1 && str[index] === "[" && str[index + 1] !== "]") {
+          if (closeSquareIndex < index) {
+            closeSquareIndex = str.indexOf("]", index);
+          }
+          if (closeSquareIndex > index) {
+            if (backSlashIndex === -1 || backSlashIndex > closeSquareIndex) {
+              return true;
+            }
+            backSlashIndex = str.indexOf("\\", index);
+            if (backSlashIndex === -1 || backSlashIndex > closeSquareIndex) {
+              return true;
+            }
+          }
+        }
+        if (closeCurlyIndex !== -1 && str[index] === "{" && str[index + 1] !== "}") {
+          closeCurlyIndex = str.indexOf("}", index);
+          if (closeCurlyIndex > index) {
+            backSlashIndex = str.indexOf("\\", index);
+            if (backSlashIndex === -1 || backSlashIndex > closeCurlyIndex) {
+              return true;
+            }
+          }
+        }
+        if (closeParenIndex !== -1 && str[index] === "(" && str[index + 1] === "?" && /[:!=]/.test(str[index + 2]) && str[index + 3] !== ")") {
+          closeParenIndex = str.indexOf(")", index);
+          if (closeParenIndex > index) {
+            backSlashIndex = str.indexOf("\\", index);
+            if (backSlashIndex === -1 || backSlashIndex > closeParenIndex) {
+              return true;
+            }
+          }
+        }
+        if (pipeIndex !== -1 && str[index] === "(" && str[index + 1] !== "|") {
+          if (pipeIndex < index) {
+            pipeIndex = str.indexOf("|", index);
+          }
+          if (pipeIndex !== -1 && str[pipeIndex + 1] !== ")") {
+            closeParenIndex = str.indexOf(")", pipeIndex);
+            if (closeParenIndex > pipeIndex) {
+              backSlashIndex = str.indexOf("\\", pipeIndex);
+              if (backSlashIndex === -1 || backSlashIndex > closeParenIndex) {
+                return true;
+              }
+            }
+          }
+        }
+        if (str[index] === "\\") {
+          var open = str[index + 1];
+          index += 2;
+          var close = chars[open];
+          if (close) {
+            var n = str.indexOf(close, index);
+            if (n !== -1) {
+              index = n + 1;
+            }
+          }
+          if (str[index] === "!") {
+            return true;
+          }
+        } else {
+          index++;
+        }
+      }
+      return false;
+    };
+    var relaxedCheck = function(str) {
+      if (str[0] === "!") {
+        return true;
+      }
+      var index = 0;
+      while (index < str.length) {
+        if (/[*?{}()[\]]/.test(str[index])) {
+          return true;
+        }
+        if (str[index] === "\\") {
+          var open = str[index + 1];
+          index += 2;
+          var close = chars[open];
+          if (close) {
+            var n = str.indexOf(close, index);
+            if (n !== -1) {
+              index = n + 1;
+            }
+          }
+          if (str[index] === "!") {
+            return true;
+          }
+        } else {
+          index++;
+        }
+      }
+      return false;
+    };
+    module2.exports = function isGlob(str, options) {
+      if (typeof str !== "string" || str === "") {
+        return false;
+      }
+      if (isExtglob(str)) {
+        return true;
+      }
+      var check = strictCheck;
+      if (options && options.strict === false) {
+        check = relaxedCheck;
+      }
+      return check(str);
+    };
+  }
+});
+
+// node_modules/glob-parent/index.js
+var require_glob_parent = __commonJS({
+  "node_modules/glob-parent/index.js"(exports2, module2) {
+    "use strict";
+    var isGlob = require_is_glob();
+    var pathPosixDirname = require("path").posix.dirname;
+    var isWin32 = require("os").platform() === "win32";
+    var slash = "/";
+    var backslash = /\\/g;
+    var enclosure = /[\{\[].*[\}\]]$/;
+    var globby = /(^|[^\\])([\{\[]|\([^\)]+$)/;
+    var escaped = /\\([\!\*\?\|\[\]\(\)\{\}])/g;
+    module2.exports = function globParent(str, opts) {
+      var options = Object.assign({ flipBackslashes: true }, opts);
+      if (options.flipBackslashes && isWin32 && str.indexOf(slash) < 0) {
+        str = str.replace(backslash, slash);
+      }
+      if (enclosure.test(str)) {
+        str += slash;
+      }
+      str += "a";
+      do {
+        str = pathPosixDirname(str);
+      } while (isGlob(str) || globby.test(str));
+      return str.replace(escaped, "$1");
+    };
+  }
+});
+
+// node_modules/braces/lib/utils.js
+var require_utils2 = __commonJS({
+  "node_modules/braces/lib/utils.js"(exports2) {
+    "use strict";
+    exports2.isInteger = (num) => {
+      if (typeof num === "number") {
+        return Number.isInteger(num);
+      }
+      if (typeof num === "string" && num.trim() !== "") {
+        return Number.isInteger(Number(num));
+      }
+      return false;
+    };
+    exports2.find = (node, type) => node.nodes.find((node2) => node2.type === type);
+    exports2.exceedsLimit = (min, max, step = 1, limit) => {
+      if (limit === false) return false;
+      if (!exports2.isInteger(min) || !exports2.isInteger(max)) return false;
+      return (Number(max) - Number(min)) / Number(step) >= limit;
+    };
+    exports2.escapeNode = (block, n = 0, type) => {
+      const node = block.nodes[n];
+      if (!node) return;
+      if (type && node.type === type || node.type === "open" || node.type === "close") {
+        if (node.escaped !== true) {
+          node.value = "\\" + node.value;
+          node.escaped = true;
+        }
+      }
+    };
+    exports2.encloseBrace = (node) => {
+      if (node.type !== "brace") return false;
+      if (node.commas >> 0 + node.ranges >> 0 === 0) {
+        node.invalid = true;
+        return true;
+      }
+      return false;
+    };
+    exports2.isInvalidBrace = (block) => {
+      if (block.type !== "brace") return false;
+      if (block.invalid === true || block.dollar) return true;
+      if (block.commas >> 0 + block.ranges >> 0 === 0) {
+        block.invalid = true;
+        return true;
+      }
+      if (block.open !== true || block.close !== true) {
+        block.invalid = true;
+        return true;
+      }
+      return false;
+    };
+    exports2.isOpenOrClose = (node) => {
+      if (node.type === "open" || node.type === "close") {
+        return true;
+      }
+      return node.open === true || node.close === true;
+    };
+    exports2.reduce = (nodes) => nodes.reduce((acc, node) => {
+      if (node.type === "text") acc.push(node.value);
+      if (node.type === "range") node.type = "text";
+      return acc;
+    }, []);
+    exports2.flatten = (...args) => {
+      const result = [];
+      const flat = (arr) => {
+        for (let i = 0; i < arr.length; i++) {
+          const ele = arr[i];
+          if (Array.isArray(ele)) {
+            flat(ele);
+            continue;
+          }
+          if (ele !== void 0) {
+            result.push(ele);
+          }
+        }
+        return result;
+      };
+      flat(args);
+      return result;
+    };
+  }
+});
+
+// node_modules/braces/lib/stringify.js
+var require_stringify = __commonJS({
+  "node_modules/braces/lib/stringify.js"(exports2, module2) {
+    "use strict";
+    var utils = require_utils2();
+    module2.exports = (ast, options = {}) => {
+      const stringify = (node, parent = {}) => {
+        const invalidBlock = options.escapeInvalid && utils.isInvalidBrace(parent);
+        const invalidNode = node.invalid === true && options.escapeInvalid === true;
+        let output = "";
+        if (node.value) {
+          if ((invalidBlock || invalidNode) && utils.isOpenOrClose(node)) {
+            return "\\" + node.value;
+          }
+          return node.value;
+        }
+        if (node.value) {
+          return node.value;
+        }
+        if (node.nodes) {
+          for (const child of node.nodes) {
+            output += stringify(child);
+          }
+        }
+        return output;
+      };
+      return stringify(ast);
+    };
+  }
+});
+
+// node_modules/is-number/index.js
+var require_is_number = __commonJS({
+  "node_modules/is-number/index.js"(exports2, module2) {
+    "use strict";
+    module2.exports = function(num) {
+      if (typeof num === "number") {
+        return num - num === 0;
+      }
+      if (typeof num === "string" && num.trim() !== "") {
+        return Number.isFinite ? Number.isFinite(+num) : isFinite(+num);
+      }
+      return false;
+    };
+  }
+});
+
+// node_modules/to-regex-range/index.js
+var require_to_regex_range = __commonJS({
+  "node_modules/to-regex-range/index.js"(exports2, module2) {
+    "use strict";
+    var isNumber = require_is_number();
+    var toRegexRange = (min, max, options) => {
+      if (isNumber(min) === false) {
+        throw new TypeError("toRegexRange: expected the first argument to be a number");
+      }
+      if (max === void 0 || min === max) {
+        return String(min);
+      }
+      if (isNumber(max) === false) {
+        throw new TypeError("toRegexRange: expected the second argument to be a number.");
+      }
+      let opts = { relaxZeros: true, ...options };
+      if (typeof opts.strictZeros === "boolean") {
+        opts.relaxZeros = opts.strictZeros === false;
+      }
+      let relax = String(opts.relaxZeros);
+      let shorthand = String(opts.shorthand);
+      let capture = String(opts.capture);
+      let wrap = String(opts.wrap);
+      let cacheKey = min + ":" + max + "=" + relax + shorthand + capture + wrap;
+      if (toRegexRange.cache.hasOwnProperty(cacheKey)) {
+        return toRegexRange.cache[cacheKey].result;
+      }
+      let a = Math.min(min, max);
+      let b = Math.max(min, max);
+      if (Math.abs(a - b) === 1) {
+        let result = min + "|" + max;
+        if (opts.capture) {
+          return `(${result})`;
+        }
+        if (opts.wrap === false) {
+          return result;
+        }
+        return `(?:${result})`;
+      }
+      let isPadded = hasPadding(min) || hasPadding(max);
+      let state = { min, max, a, b };
+      let positives = [];
+      let negatives = [];
+      if (isPadded) {
+        state.isPadded = isPadded;
+        state.maxLen = String(state.max).length;
+      }
+      if (a < 0) {
+        let newMin = b < 0 ? Math.abs(b) : 1;
+        negatives = splitToPatterns(newMin, Math.abs(a), state, opts);
+        a = state.a = 0;
+      }
+      if (b >= 0) {
+        positives = splitToPatterns(a, b, state, opts);
+      }
+      state.negatives = negatives;
+      state.positives = positives;
+      state.result = collatePatterns(negatives, positives, opts);
+      if (opts.capture === true) {
+        state.result = `(${state.result})`;
+      } else if (opts.wrap !== false && positives.length + negatives.length > 1) {
+        state.result = `(?:${state.result})`;
+      }
+      toRegexRange.cache[cacheKey] = state;
+      return state.result;
+    };
+    function collatePatterns(neg, pos, options) {
+      let onlyNegative = filterPatterns(neg, pos, "-", false, options) || [];
+      let onlyPositive = filterPatterns(pos, neg, "", false, options) || [];
+      let intersected = filterPatterns(neg, pos, "-?", true, options) || [];
+      let subpatterns = onlyNegative.concat(intersected).concat(onlyPositive);
+      return subpatterns.join("|");
+    }
+    function splitToRanges(min, max) {
+      let nines = 1;
+      let zeros = 1;
+      let stop = countNines(min, nines);
+      let stops = /* @__PURE__ */ new Set([max]);
+      while (min <= stop && stop <= max) {
+        stops.add(stop);
+        nines += 1;
+        stop = countNines(min, nines);
+      }
+      stop = countZeros(max + 1, zeros) - 1;
+      while (min < stop && stop <= max) {
+        stops.add(stop);
+        zeros += 1;
+        stop = countZeros(max + 1, zeros) - 1;
+      }
+      stops = [...stops];
+      stops.sort(compare);
+      return stops;
+    }
+    function rangeToPattern(start, stop, options) {
+      if (start === stop) {
+        return { pattern: start, count: [], digits: 0 };
+      }
+      let zipped = zip(start, stop);
+      let digits = zipped.length;
+      let pattern = "";
+      let count = 0;
+      for (let i = 0; i < digits; i++) {
+        let [startDigit, stopDigit] = zipped[i];
+        if (startDigit === stopDigit) {
+          pattern += startDigit;
+        } else if (startDigit !== "0" || stopDigit !== "9") {
+          pattern += toCharacterClass(startDigit, stopDigit, options);
+        } else {
+          count++;
+        }
+      }
+      if (count) {
+        pattern += options.shorthand === true ? "\\d" : "[0-9]";
+      }
+      return { pattern, count: [count], digits };
+    }
+    function splitToPatterns(min, max, tok, options) {
+      let ranges = splitToRanges(min, max);
+      let tokens = [];
+      let start = min;
+      let prev;
+      for (let i = 0; i < ranges.length; i++) {
+        let max2 = ranges[i];
+        let obj = rangeToPattern(String(start), String(max2), options);
+        let zeros = "";
+        if (!tok.isPadded && prev && prev.pattern === obj.pattern) {
+          if (prev.count.length > 1) {
+            prev.count.pop();
+          }
+          prev.count.push(obj.count[0]);
+          prev.string = prev.pattern + toQuantifier(prev.count);
+          start = max2 + 1;
+          continue;
+        }
+        if (tok.isPadded) {
+          zeros = padZeros(max2, tok, options);
+        }
+        obj.string = zeros + obj.pattern + toQuantifier(obj.count);
+        tokens.push(obj);
+        start = max2 + 1;
+        prev = obj;
+      }
+      return tokens;
+    }
+    function filterPatterns(arr, comparison, prefix, intersection, options) {
+      let result = [];
+      for (let ele of arr) {
+        let { string } = ele;
+        if (!intersection && !contains(comparison, "string", string)) {
+          result.push(prefix + string);
+        }
+        if (intersection && contains(comparison, "string", string)) {
+          result.push(prefix + string);
+        }
+      }
+      return result;
+    }
+    function zip(a, b) {
+      let arr = [];
+      for (let i = 0; i < a.length; i++) arr.push([a[i], b[i]]);
+      return arr;
+    }
+    function compare(a, b) {
+      return a > b ? 1 : b > a ? -1 : 0;
+    }
+    function contains(arr, key, val) {
+      return arr.some((ele) => ele[key] === val);
+    }
+    function countNines(min, len) {
+      return Number(String(min).slice(0, -len) + "9".repeat(len));
+    }
+    function countZeros(integer, zeros) {
+      return integer - integer % Math.pow(10, zeros);
+    }
+    function toQuantifier(digits) {
+      let [start = 0, stop = ""] = digits;
+      if (stop || start > 1) {
+        return `{${start + (stop ? "," + stop : "")}}`;
+      }
+      return "";
+    }
+    function toCharacterClass(a, b, options) {
+      return `[${a}${b - a === 1 ? "" : "-"}${b}]`;
+    }
+    function hasPadding(str) {
+      return /^-?(0+)\d/.test(str);
+    }
+    function padZeros(value, tok, options) {
+      if (!tok.isPadded) {
+        return value;
+      }
+      let diff = Math.abs(tok.maxLen - String(value).length);
+      let relax = options.relaxZeros !== false;
+      switch (diff) {
+        case 0:
+          return "";
+        case 1:
+          return relax ? "0?" : "0";
+        case 2:
+          return relax ? "0{0,2}" : "00";
+        default: {
+          return relax ? `0{0,${diff}}` : `0{${diff}}`;
+        }
+      }
+    }
+    toRegexRange.cache = {};
+    toRegexRange.clearCache = () => toRegexRange.cache = {};
+    module2.exports = toRegexRange;
+  }
+});
+
+// node_modules/fill-range/index.js
+var require_fill_range = __commonJS({
+  "node_modules/fill-range/index.js"(exports2, module2) {
+    "use strict";
+    var util = require("util");
+    var toRegexRange = require_to_regex_range();
+    var isObject = (val) => val !== null && typeof val === "object" && !Array.isArray(val);
+    var transform = (toNumber) => {
+      return (value) => toNumber === true ? Number(value) : String(value);
+    };
+    var isValidValue = (value) => {
+      return typeof value === "number" || typeof value === "string" && value !== "";
+    };
+    var isNumber = (num) => Number.isInteger(+num);
+    var zeros = (input) => {
+      let value = `${input}`;
+      let index = -1;
+      if (value[0] === "-") value = value.slice(1);
+      if (value === "0") return false;
+      while (value[++index] === "0") ;
+      return index > 0;
+    };
+    var stringify = (start, end, options) => {
+      if (typeof start === "string" || typeof end === "string") {
+        return true;
+      }
+      return options.stringify === true;
+    };
+    var pad = (input, maxLength, toNumber) => {
+      if (maxLength > 0) {
+        let dash = input[0] === "-" ? "-" : "";
+        if (dash) input = input.slice(1);
+        input = dash + input.padStart(dash ? maxLength - 1 : maxLength, "0");
+      }
+      if (toNumber === false) {
+        return String(input);
+      }
+      return input;
+    };
+    var toMaxLen = (input, maxLength) => {
+      let negative = input[0] === "-" ? "-" : "";
+      if (negative) {
+        input = input.slice(1);
+        maxLength--;
+      }
+      while (input.length < maxLength) input = "0" + input;
+      return negative ? "-" + input : input;
+    };
+    var toSequence = (parts, options, maxLen) => {
+      parts.negatives.sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
+      parts.positives.sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
+      let prefix = options.capture ? "" : "?:";
+      let positives = "";
+      let negatives = "";
+      let result;
+      if (parts.positives.length) {
+        positives = parts.positives.map((v) => toMaxLen(String(v), maxLen)).join("|");
+      }
+      if (parts.negatives.length) {
+        negatives = `-(${prefix}${parts.negatives.map((v) => toMaxLen(String(v), maxLen)).join("|")})`;
+      }
+      if (positives && negatives) {
+        result = `${positives}|${negatives}`;
+      } else {
+        result = positives || negatives;
+      }
+      if (options.wrap) {
+        return `(${prefix}${result})`;
+      }
+      return result;
+    };
+    var toRange = (a, b, isNumbers, options) => {
+      if (isNumbers) {
+        return toRegexRange(a, b, { wrap: false, ...options });
+      }
+      let start = String.fromCharCode(a);
+      if (a === b) return start;
+      let stop = String.fromCharCode(b);
+      return `[${start}-${stop}]`;
+    };
+    var toRegex = (start, end, options) => {
+      if (Array.isArray(start)) {
+        let wrap = options.wrap === true;
+        let prefix = options.capture ? "" : "?:";
+        return wrap ? `(${prefix}${start.join("|")})` : start.join("|");
+      }
+      return toRegexRange(start, end, options);
+    };
+    var rangeError = (...args) => {
+      return new RangeError("Invalid range arguments: " + util.inspect(...args));
+    };
+    var invalidRange = (start, end, options) => {
+      if (options.strictRanges === true) throw rangeError([start, end]);
+      return [];
+    };
+    var invalidStep = (step, options) => {
+      if (options.strictRanges === true) {
+        throw new TypeError(`Expected step "${step}" to be a number`);
+      }
+      return [];
+    };
+    var fillNumbers = (start, end, step = 1, options = {}) => {
+      let a = Number(start);
+      let b = Number(end);
+      if (!Number.isInteger(a) || !Number.isInteger(b)) {
+        if (options.strictRanges === true) throw rangeError([start, end]);
+        return [];
+      }
+      if (a === 0) a = 0;
+      if (b === 0) b = 0;
+      let descending = a > b;
+      let startString = String(start);
+      let endString = String(end);
+      let stepString = String(step);
+      step = Math.max(Math.abs(step), 1);
+      let padded = zeros(startString) || zeros(endString) || zeros(stepString);
+      let maxLen = padded ? Math.max(startString.length, endString.length, stepString.length) : 0;
+      let toNumber = padded === false && stringify(start, end, options) === false;
+      let format = options.transform || transform(toNumber);
+      if (options.toRegex && step === 1) {
+        return toRange(toMaxLen(start, maxLen), toMaxLen(end, maxLen), true, options);
+      }
+      let parts = { negatives: [], positives: [] };
+      let push = (num) => parts[num < 0 ? "negatives" : "positives"].push(Math.abs(num));
+      let range = [];
+      let index = 0;
+      while (descending ? a >= b : a <= b) {
+        if (options.toRegex === true && step > 1) {
+          push(a);
+        } else {
+          range.push(pad(format(a, index), maxLen, toNumber));
+        }
+        a = descending ? a - step : a + step;
+        index++;
+      }
+      if (options.toRegex === true) {
+        return step > 1 ? toSequence(parts, options, maxLen) : toRegex(range, null, { wrap: false, ...options });
+      }
+      return range;
+    };
+    var fillLetters = (start, end, step = 1, options = {}) => {
+      if (!isNumber(start) && start.length > 1 || !isNumber(end) && end.length > 1) {
+        return invalidRange(start, end, options);
+      }
+      let format = options.transform || ((val) => String.fromCharCode(val));
+      let a = `${start}`.charCodeAt(0);
+      let b = `${end}`.charCodeAt(0);
+      let descending = a > b;
+      let min = Math.min(a, b);
+      let max = Math.max(a, b);
+      if (options.toRegex && step === 1) {
+        return toRange(min, max, false, options);
+      }
+      let range = [];
+      let index = 0;
+      while (descending ? a >= b : a <= b) {
+        range.push(format(a, index));
+        a = descending ? a - step : a + step;
+        index++;
+      }
+      if (options.toRegex === true) {
+        return toRegex(range, null, { wrap: false, options });
+      }
+      return range;
+    };
+    var fill = (start, end, step, options = {}) => {
+      if (end == null && isValidValue(start)) {
+        return [start];
+      }
+      if (!isValidValue(start) || !isValidValue(end)) {
+        return invalidRange(start, end, options);
+      }
+      if (typeof step === "function") {
+        return fill(start, end, 1, { transform: step });
+      }
+      if (isObject(step)) {
+        return fill(start, end, 0, step);
+      }
+      let opts = { ...options };
+      if (opts.capture === true) opts.wrap = true;
+      step = step || opts.step || 1;
+      if (!isNumber(step)) {
+        if (step != null && !isObject(step)) return invalidStep(step, opts);
+        return fill(start, end, 1, step);
+      }
+      if (isNumber(start) && isNumber(end)) {
+        return fillNumbers(start, end, step, opts);
+      }
+      return fillLetters(start, end, Math.max(Math.abs(step), 1), opts);
+    };
+    module2.exports = fill;
+  }
+});
+
+// node_modules/braces/lib/compile.js
+var require_compile = __commonJS({
+  "node_modules/braces/lib/compile.js"(exports2, module2) {
+    "use strict";
+    var fill = require_fill_range();
+    var utils = require_utils2();
+    var compile = (ast, options = {}) => {
+      const walk = (node, parent = {}) => {
+        const invalidBlock = utils.isInvalidBrace(parent);
+        const invalidNode = node.invalid === true && options.escapeInvalid === true;
+        const invalid = invalidBlock === true || invalidNode === true;
+        const prefix = options.escapeInvalid === true ? "\\" : "";
+        let output = "";
+        if (node.isOpen === true) {
+          return prefix + node.value;
+        }
+        if (node.isClose === true) {
+          console.log("node.isClose", prefix, node.value);
+          return prefix + node.value;
+        }
+        if (node.type === "open") {
+          return invalid ? prefix + node.value : "(";
+        }
+        if (node.type === "close") {
+          return invalid ? prefix + node.value : ")";
+        }
+        if (node.type === "comma") {
+          return node.prev.type === "comma" ? "" : invalid ? node.value : "|";
+        }
+        if (node.value) {
+          return node.value;
+        }
+        if (node.nodes && node.ranges > 0) {
+          const args = utils.reduce(node.nodes);
+          const range = fill(...args, { ...options, wrap: false, toRegex: true, strictZeros: true });
+          if (range.length !== 0) {
+            return args.length > 1 && range.length > 1 ? `(${range})` : range;
+          }
+        }
+        if (node.nodes) {
+          for (const child of node.nodes) {
+            output += walk(child, node);
+          }
+        }
+        return output;
+      };
+      return walk(ast);
+    };
+    module2.exports = compile;
+  }
+});
+
+// node_modules/braces/lib/expand.js
+var require_expand = __commonJS({
+  "node_modules/braces/lib/expand.js"(exports2, module2) {
+    "use strict";
+    var fill = require_fill_range();
+    var stringify = require_stringify();
+    var utils = require_utils2();
+    var append = (queue = "", stash = "", enclose = false) => {
+      const result = [];
+      queue = [].concat(queue);
+      stash = [].concat(stash);
+      if (!stash.length) return queue;
+      if (!queue.length) {
+        return enclose ? utils.flatten(stash).map((ele) => `{${ele}}`) : stash;
+      }
+      for (const item of queue) {
+        if (Array.isArray(item)) {
+          for (const value of item) {
+            result.push(append(value, stash, enclose));
+          }
+        } else {
+          for (let ele of stash) {
+            if (enclose === true && typeof ele === "string") ele = `{${ele}}`;
+            result.push(Array.isArray(ele) ? append(item, ele, enclose) : item + ele);
+          }
+        }
+      }
+      return utils.flatten(result);
+    };
+    var expand = (ast, options = {}) => {
+      const rangeLimit = options.rangeLimit === void 0 ? 1e3 : options.rangeLimit;
+      const walk = (node, parent = {}) => {
+        node.queue = [];
+        let p = parent;
+        let q = parent.queue;
+        while (p.type !== "brace" && p.type !== "root" && p.parent) {
+          p = p.parent;
+          q = p.queue;
+        }
+        if (node.invalid || node.dollar) {
+          q.push(append(q.pop(), stringify(node, options)));
+          return;
+        }
+        if (node.type === "brace" && node.invalid !== true && node.nodes.length === 2) {
+          q.push(append(q.pop(), ["{}"]));
+          return;
+        }
+        if (node.nodes && node.ranges > 0) {
+          const args = utils.reduce(node.nodes);
+          if (utils.exceedsLimit(...args, options.step, rangeLimit)) {
+            throw new RangeError("expanded array length exceeds range limit. Use options.rangeLimit to increase or disable the limit.");
+          }
+          let range = fill(...args, options);
+          if (range.length === 0) {
+            range = stringify(node, options);
+          }
+          q.push(append(q.pop(), range));
+          node.nodes = [];
+          return;
+        }
+        const enclose = utils.encloseBrace(node);
+        let queue = node.queue;
+        let block = node;
+        while (block.type !== "brace" && block.type !== "root" && block.parent) {
+          block = block.parent;
+          queue = block.queue;
+        }
+        for (let i = 0; i < node.nodes.length; i++) {
+          const child = node.nodes[i];
+          if (child.type === "comma" && node.type === "brace") {
+            if (i === 1) queue.push("");
+            queue.push("");
+            continue;
+          }
+          if (child.type === "close") {
+            q.push(append(q.pop(), queue, enclose));
+            continue;
+          }
+          if (child.value && child.type !== "open") {
+            queue.push(append(queue.pop(), child.value));
+            continue;
+          }
+          if (child.nodes) {
+            walk(child, node);
+          }
+        }
+        return queue;
+      };
+      return utils.flatten(walk(ast));
+    };
+    module2.exports = expand;
+  }
+});
+
+// node_modules/braces/lib/constants.js
+var require_constants2 = __commonJS({
+  "node_modules/braces/lib/constants.js"(exports2, module2) {
+    "use strict";
+    module2.exports = {
+      MAX_LENGTH: 1e4,
+      // Digits
+      CHAR_0: "0",
+      /* 0 */
+      CHAR_9: "9",
+      /* 9 */
+      // Alphabet chars.
+      CHAR_UPPERCASE_A: "A",
+      /* A */
+      CHAR_LOWERCASE_A: "a",
+      /* a */
+      CHAR_UPPERCASE_Z: "Z",
+      /* Z */
+      CHAR_LOWERCASE_Z: "z",
+      /* z */
+      CHAR_LEFT_PARENTHESES: "(",
+      /* ( */
+      CHAR_RIGHT_PARENTHESES: ")",
+      /* ) */
+      CHAR_ASTERISK: "*",
+      /* * */
+      // Non-alphabetic chars.
+      CHAR_AMPERSAND: "&",
+      /* & */
+      CHAR_AT: "@",
+      /* @ */
+      CHAR_BACKSLASH: "\\",
+      /* \ */
+      CHAR_BACKTICK: "`",
+      /* ` */
+      CHAR_CARRIAGE_RETURN: "\r",
+      /* \r */
+      CHAR_CIRCUMFLEX_ACCENT: "^",
+      /* ^ */
+      CHAR_COLON: ":",
+      /* : */
+      CHAR_COMMA: ",",
+      /* , */
+      CHAR_DOLLAR: "$",
+      /* . */
+      CHAR_DOT: ".",
+      /* . */
+      CHAR_DOUBLE_QUOTE: '"',
+      /* " */
+      CHAR_EQUAL: "=",
+      /* = */
+      CHAR_EXCLAMATION_MARK: "!",
+      /* ! */
+      CHAR_FORM_FEED: "\f",
+      /* \f */
+      CHAR_FORWARD_SLASH: "/",
+      /* / */
+      CHAR_HASH: "#",
+      /* # */
+      CHAR_HYPHEN_MINUS: "-",
+      /* - */
+      CHAR_LEFT_ANGLE_BRACKET: "<",
+      /* < */
+      CHAR_LEFT_CURLY_BRACE: "{",
+      /* { */
+      CHAR_LEFT_SQUARE_BRACKET: "[",
+      /* [ */
+      CHAR_LINE_FEED: "\n",
+      /* \n */
+      CHAR_NO_BREAK_SPACE: "\xA0",
+      /* \u00A0 */
+      CHAR_PERCENT: "%",
+      /* % */
+      CHAR_PLUS: "+",
+      /* + */
+      CHAR_QUESTION_MARK: "?",
+      /* ? */
+      CHAR_RIGHT_ANGLE_BRACKET: ">",
+      /* > */
+      CHAR_RIGHT_CURLY_BRACE: "}",
+      /* } */
+      CHAR_RIGHT_SQUARE_BRACKET: "]",
+      /* ] */
+      CHAR_SEMICOLON: ";",
+      /* ; */
+      CHAR_SINGLE_QUOTE: "'",
+      /* ' */
+      CHAR_SPACE: " ",
+      /*   */
+      CHAR_TAB: "	",
+      /* \t */
+      CHAR_UNDERSCORE: "_",
+      /* _ */
+      CHAR_VERTICAL_LINE: "|",
+      /* | */
+      CHAR_ZERO_WIDTH_NOBREAK_SPACE: "\uFEFF"
+      /* \uFEFF */
+    };
+  }
+});
+
+// node_modules/braces/lib/parse.js
+var require_parse2 = __commonJS({
+  "node_modules/braces/lib/parse.js"(exports2, module2) {
+    "use strict";
+    var stringify = require_stringify();
+    var {
+      MAX_LENGTH,
+      CHAR_BACKSLASH,
+      /* \ */
+      CHAR_BACKTICK,
+      /* ` */
+      CHAR_COMMA,
+      /* , */
+      CHAR_DOT,
+      /* . */
+      CHAR_LEFT_PARENTHESES,
+      /* ( */
+      CHAR_RIGHT_PARENTHESES,
+      /* ) */
+      CHAR_LEFT_CURLY_BRACE,
+      /* { */
+      CHAR_RIGHT_CURLY_BRACE,
+      /* } */
+      CHAR_LEFT_SQUARE_BRACKET,
+      /* [ */
+      CHAR_RIGHT_SQUARE_BRACKET,
+      /* ] */
+      CHAR_DOUBLE_QUOTE,
+      /* " */
+      CHAR_SINGLE_QUOTE,
+      /* ' */
+      CHAR_NO_BREAK_SPACE,
+      CHAR_ZERO_WIDTH_NOBREAK_SPACE
+    } = require_constants2();
+    var parse = (input, options = {}) => {
+      if (typeof input !== "string") {
+        throw new TypeError("Expected a string");
+      }
+      const opts = options || {};
+      const max = typeof opts.maxLength === "number" ? Math.min(MAX_LENGTH, opts.maxLength) : MAX_LENGTH;
+      if (input.length > max) {
+        throw new SyntaxError(`Input length (${input.length}), exceeds max characters (${max})`);
+      }
+      const ast = { type: "root", input, nodes: [] };
+      const stack = [ast];
+      let block = ast;
+      let prev = ast;
+      let brackets = 0;
+      const length = input.length;
+      let index = 0;
+      let depth = 0;
+      let value;
+      const advance = () => input[index++];
+      const push = (node) => {
+        if (node.type === "text" && prev.type === "dot") {
+          prev.type = "text";
+        }
+        if (prev && prev.type === "text" && node.type === "text") {
+          prev.value += node.value;
+          return;
+        }
+        block.nodes.push(node);
+        node.parent = block;
+        node.prev = prev;
+        prev = node;
+        return node;
+      };
+      push({ type: "bos" });
+      while (index < length) {
+        block = stack[stack.length - 1];
+        value = advance();
+        if (value === CHAR_ZERO_WIDTH_NOBREAK_SPACE || value === CHAR_NO_BREAK_SPACE) {
+          continue;
+        }
+        if (value === CHAR_BACKSLASH) {
+          push({ type: "text", value: (options.keepEscaping ? value : "") + advance() });
+          continue;
+        }
+        if (value === CHAR_RIGHT_SQUARE_BRACKET) {
+          push({ type: "text", value: "\\" + value });
+          continue;
+        }
+        if (value === CHAR_LEFT_SQUARE_BRACKET) {
+          brackets++;
+          let next;
+          while (index < length && (next = advance())) {
+            value += next;
+            if (next === CHAR_LEFT_SQUARE_BRACKET) {
+              brackets++;
+              continue;
+            }
+            if (next === CHAR_BACKSLASH) {
+              value += advance();
+              continue;
+            }
+            if (next === CHAR_RIGHT_SQUARE_BRACKET) {
+              brackets--;
+              if (brackets === 0) {
+                break;
+              }
+            }
+          }
+          push({ type: "text", value });
+          continue;
+        }
+        if (value === CHAR_LEFT_PARENTHESES) {
+          block = push({ type: "paren", nodes: [] });
+          stack.push(block);
+          push({ type: "text", value });
+          continue;
+        }
+        if (value === CHAR_RIGHT_PARENTHESES) {
+          if (block.type !== "paren") {
+            push({ type: "text", value });
+            continue;
+          }
+          block = stack.pop();
+          push({ type: "text", value });
+          block = stack[stack.length - 1];
+          continue;
+        }
+        if (value === CHAR_DOUBLE_QUOTE || value === CHAR_SINGLE_QUOTE || value === CHAR_BACKTICK) {
+          const open = value;
+          let next;
+          if (options.keepQuotes !== true) {
+            value = "";
+          }
+          while (index < length && (next = advance())) {
+            if (next === CHAR_BACKSLASH) {
+              value += next + advance();
+              continue;
+            }
+            if (next === open) {
+              if (options.keepQuotes === true) value += next;
+              break;
+            }
+            value += next;
+          }
+          push({ type: "text", value });
+          continue;
+        }
+        if (value === CHAR_LEFT_CURLY_BRACE) {
+          depth++;
+          const dollar = prev.value && prev.value.slice(-1) === "$" || block.dollar === true;
+          const brace = {
+            type: "brace",
+            open: true,
+            close: false,
+            dollar,
+            depth,
+            commas: 0,
+            ranges: 0,
+            nodes: []
+          };
+          block = push(brace);
+          stack.push(block);
+          push({ type: "open", value });
+          continue;
+        }
+        if (value === CHAR_RIGHT_CURLY_BRACE) {
+          if (block.type !== "brace") {
+            push({ type: "text", value });
+            continue;
+          }
+          const type = "close";
+          block = stack.pop();
+          block.close = true;
+          push({ type, value });
+          depth--;
+          block = stack[stack.length - 1];
+          continue;
+        }
+        if (value === CHAR_COMMA && depth > 0) {
+          if (block.ranges > 0) {
+            block.ranges = 0;
+            const open = block.nodes.shift();
+            block.nodes = [open, { type: "text", value: stringify(block) }];
+          }
+          push({ type: "comma", value });
+          block.commas++;
+          continue;
+        }
+        if (value === CHAR_DOT && depth > 0 && block.commas === 0) {
+          const siblings = block.nodes;
+          if (depth === 0 || siblings.length === 0) {
+            push({ type: "text", value });
+            continue;
+          }
+          if (prev.type === "dot") {
+            block.range = [];
+            prev.value += value;
+            prev.type = "range";
+            if (block.nodes.length !== 3 && block.nodes.length !== 5) {
+              block.invalid = true;
+              block.ranges = 0;
+              prev.type = "text";
+              continue;
+            }
+            block.ranges++;
+            block.args = [];
+            continue;
+          }
+          if (prev.type === "range") {
+            siblings.pop();
+            const before = siblings[siblings.length - 1];
+            before.value += prev.value + value;
+            prev = before;
+            block.ranges--;
+            continue;
+          }
+          push({ type: "dot", value });
+          continue;
+        }
+        push({ type: "text", value });
+      }
+      do {
+        block = stack.pop();
+        if (block.type !== "root") {
+          block.nodes.forEach((node) => {
+            if (!node.nodes) {
+              if (node.type === "open") node.isOpen = true;
+              if (node.type === "close") node.isClose = true;
+              if (!node.nodes) node.type = "text";
+              node.invalid = true;
+            }
+          });
+          const parent = stack[stack.length - 1];
+          const index2 = parent.nodes.indexOf(block);
+          parent.nodes.splice(index2, 1, ...block.nodes);
+        }
+      } while (stack.length > 0);
+      push({ type: "eos" });
+      return ast;
+    };
+    module2.exports = parse;
+  }
+});
+
+// node_modules/braces/index.js
+var require_braces = __commonJS({
+  "node_modules/braces/index.js"(exports2, module2) {
+    "use strict";
+    var stringify = require_stringify();
+    var compile = require_compile();
+    var expand = require_expand();
+    var parse = require_parse2();
+    var braces = (input, options = {}) => {
+      let output = [];
+      if (Array.isArray(input)) {
+        for (const pattern of input) {
+          const result = braces.create(pattern, options);
+          if (Array.isArray(result)) {
+            output.push(...result);
+          } else {
+            output.push(result);
+          }
+        }
+      } else {
+        output = [].concat(braces.create(input, options));
+      }
+      if (options && options.expand === true && options.nodupes === true) {
+        output = [...new Set(output)];
+      }
+      return output;
+    };
+    braces.parse = (input, options = {}) => parse(input, options);
+    braces.stringify = (input, options = {}) => {
+      if (typeof input === "string") {
+        return stringify(braces.parse(input, options), options);
+      }
+      return stringify(input, options);
+    };
+    braces.compile = (input, options = {}) => {
+      if (typeof input === "string") {
+        input = braces.parse(input, options);
+      }
+      return compile(input, options);
+    };
+    braces.expand = (input, options = {}) => {
+      if (typeof input === "string") {
+        input = braces.parse(input, options);
+      }
+      let result = expand(input, options);
+      if (options.noempty === true) {
+        result = result.filter(Boolean);
+      }
+      if (options.nodupes === true) {
+        result = [...new Set(result)];
+      }
+      return result;
+    };
+    braces.create = (input, options = {}) => {
+      if (input === "" || input.length < 3) {
+        return [input];
+      }
+      return options.expand !== true ? braces.compile(input, options) : braces.expand(input, options);
+    };
+    module2.exports = braces;
+  }
+});
+
+// node_modules/binary-extensions/binary-extensions.json
+var require_binary_extensions = __commonJS({
+  "node_modules/binary-extensions/binary-extensions.json"(exports2, module2) {
+    module2.exports = [
+      "3dm",
+      "3ds",
+      "3g2",
+      "3gp",
+      "7z",
+      "a",
+      "aac",
+      "adp",
+      "afdesign",
+      "afphoto",
+      "afpub",
+      "ai",
+      "aif",
+      "aiff",
+      "alz",
+      "ape",
+      "apk",
+      "appimage",
+      "ar",
+      "arj",
+      "asf",
+      "au",
+      "avi",
+      "bak",
+      "baml",
+      "bh",
+      "bin",
+      "bk",
+      "bmp",
+      "btif",
+      "bz2",
+      "bzip2",
+      "cab",
+      "caf",
+      "cgm",
+      "class",
+      "cmx",
+      "cpio",
+      "cr2",
+      "cur",
+      "dat",
+      "dcm",
+      "deb",
+      "dex",
+      "djvu",
+      "dll",
+      "dmg",
+      "dng",
+      "doc",
+      "docm",
+      "docx",
+      "dot",
+      "dotm",
+      "dra",
+      "DS_Store",
+      "dsk",
+      "dts",
+      "dtshd",
+      "dvb",
+      "dwg",
+      "dxf",
+      "ecelp4800",
+      "ecelp7470",
+      "ecelp9600",
+      "egg",
+      "eol",
+      "eot",
+      "epub",
+      "exe",
+      "f4v",
+      "fbs",
+      "fh",
+      "fla",
+      "flac",
+      "flatpak",
+      "fli",
+      "flv",
+      "fpx",
+      "fst",
+      "fvt",
+      "g3",
+      "gh",
+      "gif",
+      "graffle",
+      "gz",
+      "gzip",
+      "h261",
+      "h263",
+      "h264",
+      "icns",
+      "ico",
+      "ief",
+      "img",
+      "ipa",
+      "iso",
+      "jar",
+      "jpeg",
+      "jpg",
+      "jpgv",
+      "jpm",
+      "jxr",
+      "key",
+      "ktx",
+      "lha",
+      "lib",
+      "lvp",
+      "lz",
+      "lzh",
+      "lzma",
+      "lzo",
+      "m3u",
+      "m4a",
+      "m4v",
+      "mar",
+      "mdi",
+      "mht",
+      "mid",
+      "midi",
+      "mj2",
+      "mka",
+      "mkv",
+      "mmr",
+      "mng",
+      "mobi",
+      "mov",
+      "movie",
+      "mp3",
+      "mp4",
+      "mp4a",
+      "mpeg",
+      "mpg",
+      "mpga",
+      "mxu",
+      "nef",
+      "npx",
+      "numbers",
+      "nupkg",
+      "o",
+      "odp",
+      "ods",
+      "odt",
+      "oga",
+      "ogg",
+      "ogv",
+      "otf",
+      "ott",
+      "pages",
+      "pbm",
+      "pcx",
+      "pdb",
+      "pdf",
+      "pea",
+      "pgm",
+      "pic",
+      "png",
+      "pnm",
+      "pot",
+      "potm",
+      "potx",
+      "ppa",
+      "ppam",
+      "ppm",
+      "pps",
+      "ppsm",
+      "ppsx",
+      "ppt",
+      "pptm",
+      "pptx",
+      "psd",
+      "pya",
+      "pyc",
+      "pyo",
+      "pyv",
+      "qt",
+      "rar",
+      "ras",
+      "raw",
+      "resources",
+      "rgb",
+      "rip",
+      "rlc",
+      "rmf",
+      "rmvb",
+      "rpm",
+      "rtf",
+      "rz",
+      "s3m",
+      "s7z",
+      "scpt",
+      "sgi",
+      "shar",
+      "snap",
+      "sil",
+      "sketch",
+      "slk",
+      "smv",
+      "snk",
+      "so",
+      "stl",
+      "suo",
+      "sub",
+      "swf",
+      "tar",
+      "tbz",
+      "tbz2",
+      "tga",
+      "tgz",
+      "thmx",
+      "tif",
+      "tiff",
+      "tlz",
+      "ttc",
+      "ttf",
+      "txz",
+      "udf",
+      "uvh",
+      "uvi",
+      "uvm",
+      "uvp",
+      "uvs",
+      "uvu",
+      "viv",
+      "vob",
+      "war",
+      "wav",
+      "wax",
+      "wbmp",
+      "wdp",
+      "weba",
+      "webm",
+      "webp",
+      "whl",
+      "wim",
+      "wm",
+      "wma",
+      "wmv",
+      "wmx",
+      "woff",
+      "woff2",
+      "wrm",
+      "wvx",
+      "xbm",
+      "xif",
+      "xla",
+      "xlam",
+      "xls",
+      "xlsb",
+      "xlsm",
+      "xlsx",
+      "xlt",
+      "xltm",
+      "xltx",
+      "xm",
+      "xmind",
+      "xpi",
+      "xpm",
+      "xwd",
+      "xz",
+      "z",
+      "zip",
+      "zipx"
+    ];
+  }
+});
+
+// node_modules/binary-extensions/index.js
+var require_binary_extensions2 = __commonJS({
+  "node_modules/binary-extensions/index.js"(exports2, module2) {
+    module2.exports = require_binary_extensions();
+  }
+});
+
+// node_modules/is-binary-path/index.js
+var require_is_binary_path = __commonJS({
+  "node_modules/is-binary-path/index.js"(exports2, module2) {
+    "use strict";
+    var path6 = require("path");
+    var binaryExtensions = require_binary_extensions2();
+    var extensions2 = new Set(binaryExtensions);
+    module2.exports = (filePath) => extensions2.has(path6.extname(filePath).slice(1).toLowerCase());
+  }
+});
+
+// node_modules/chokidar/lib/constants.js
+var require_constants3 = __commonJS({
+  "node_modules/chokidar/lib/constants.js"(exports2) {
+    "use strict";
+    var { sep } = require("path");
+    var { platform } = process;
+    var os = require("os");
+    exports2.EV_ALL = "all";
+    exports2.EV_READY = "ready";
+    exports2.EV_ADD = "add";
+    exports2.EV_CHANGE = "change";
+    exports2.EV_ADD_DIR = "addDir";
+    exports2.EV_UNLINK = "unlink";
+    exports2.EV_UNLINK_DIR = "unlinkDir";
+    exports2.EV_RAW = "raw";
+    exports2.EV_ERROR = "error";
+    exports2.STR_DATA = "data";
+    exports2.STR_END = "end";
+    exports2.STR_CLOSE = "close";
+    exports2.FSEVENT_CREATED = "created";
+    exports2.FSEVENT_MODIFIED = "modified";
+    exports2.FSEVENT_DELETED = "deleted";
+    exports2.FSEVENT_MOVED = "moved";
+    exports2.FSEVENT_CLONED = "cloned";
+    exports2.FSEVENT_UNKNOWN = "unknown";
+    exports2.FSEVENT_FLAG_MUST_SCAN_SUBDIRS = 1;
+    exports2.FSEVENT_TYPE_FILE = "file";
+    exports2.FSEVENT_TYPE_DIRECTORY = "directory";
+    exports2.FSEVENT_TYPE_SYMLINK = "symlink";
+    exports2.KEY_LISTENERS = "listeners";
+    exports2.KEY_ERR = "errHandlers";
+    exports2.KEY_RAW = "rawEmitters";
+    exports2.HANDLER_KEYS = [exports2.KEY_LISTENERS, exports2.KEY_ERR, exports2.KEY_RAW];
+    exports2.DOT_SLASH = `.${sep}`;
+    exports2.BACK_SLASH_RE = /\\/g;
+    exports2.DOUBLE_SLASH_RE = /\/\//;
+    exports2.SLASH_OR_BACK_SLASH_RE = /[/\\]/;
+    exports2.DOT_RE = /\..*\.(sw[px])$|~$|\.subl.*\.tmp/;
+    exports2.REPLACER_RE = /^\.[/\\]/;
+    exports2.SLASH = "/";
+    exports2.SLASH_SLASH = "//";
+    exports2.BRACE_START = "{";
+    exports2.BANG = "!";
+    exports2.ONE_DOT = ".";
+    exports2.TWO_DOTS = "..";
+    exports2.STAR = "*";
+    exports2.GLOBSTAR = "**";
+    exports2.ROOT_GLOBSTAR = "/**/*";
+    exports2.SLASH_GLOBSTAR = "/**";
+    exports2.DIR_SUFFIX = "Dir";
+    exports2.ANYMATCH_OPTS = { dot: true };
+    exports2.STRING_TYPE = "string";
+    exports2.FUNCTION_TYPE = "function";
+    exports2.EMPTY_STR = "";
+    exports2.EMPTY_FN = () => {
+    };
+    exports2.IDENTITY_FN = (val) => val;
+    exports2.isWindows = platform === "win32";
+    exports2.isMacos = platform === "darwin";
+    exports2.isLinux = platform === "linux";
+    exports2.isIBMi = os.type() === "OS400";
+  }
+});
+
+// node_modules/chokidar/lib/nodefs-handler.js
+var require_nodefs_handler = __commonJS({
+  "node_modules/chokidar/lib/nodefs-handler.js"(exports2, module2) {
+    "use strict";
+    var fs2 = require("fs");
+    var sysPath = require("path");
+    var { promisify } = require("util");
+    var isBinaryPath = require_is_binary_path();
+    var {
+      isWindows,
+      isLinux,
+      EMPTY_FN,
+      EMPTY_STR,
+      KEY_LISTENERS,
+      KEY_ERR,
+      KEY_RAW,
+      HANDLER_KEYS,
+      EV_CHANGE,
+      EV_ADD,
+      EV_ADD_DIR,
+      EV_ERROR,
+      STR_DATA,
+      STR_END,
+      BRACE_START,
+      STAR
+    } = require_constants3();
+    var THROTTLE_MODE_WATCH = "watch";
+    var open = promisify(fs2.open);
+    var stat = promisify(fs2.stat);
+    var lstat = promisify(fs2.lstat);
+    var close = promisify(fs2.close);
+    var fsrealpath = promisify(fs2.realpath);
+    var statMethods = { lstat, stat };
+    var foreach = (val, fn) => {
+      if (val instanceof Set) {
+        val.forEach(fn);
+      } else {
+        fn(val);
+      }
+    };
+    var addAndConvert = (main, prop, item) => {
+      let container = main[prop];
+      if (!(container instanceof Set)) {
+        main[prop] = container = /* @__PURE__ */ new Set([container]);
+      }
+      container.add(item);
+    };
+    var clearItem = (cont) => (key) => {
+      const set = cont[key];
+      if (set instanceof Set) {
+        set.clear();
+      } else {
+        delete cont[key];
+      }
+    };
+    var delFromSet = (main, prop, item) => {
+      const container = main[prop];
+      if (container instanceof Set) {
+        container.delete(item);
+      } else if (container === item) {
+        delete main[prop];
+      }
+    };
+    var isEmptySet = (val) => val instanceof Set ? val.size === 0 : !val;
+    var FsWatchInstances = /* @__PURE__ */ new Map();
+    function createFsWatchInstance(path6, options, listener, errHandler, emitRaw) {
+      const handleEvent = (rawEvent, evPath) => {
+        listener(path6);
+        emitRaw(rawEvent, evPath, { watchedPath: path6 });
+        if (evPath && path6 !== evPath) {
+          fsWatchBroadcast(
+            sysPath.resolve(path6, evPath),
+            KEY_LISTENERS,
+            sysPath.join(path6, evPath)
+          );
+        }
+      };
+      try {
+        return fs2.watch(path6, options, handleEvent);
+      } catch (error) {
+        errHandler(error);
+      }
+    }
+    var fsWatchBroadcast = (fullPath, type, val1, val2, val3) => {
+      const cont = FsWatchInstances.get(fullPath);
+      if (!cont) return;
+      foreach(cont[type], (listener) => {
+        listener(val1, val2, val3);
+      });
+    };
+    var setFsWatchListener = (path6, fullPath, options, handlers) => {
+      const { listener, errHandler, rawEmitter } = handlers;
+      let cont = FsWatchInstances.get(fullPath);
+      let watcher;
+      if (!options.persistent) {
+        watcher = createFsWatchInstance(
+          path6,
+          options,
+          listener,
+          errHandler,
+          rawEmitter
+        );
+        return watcher.close.bind(watcher);
+      }
+      if (cont) {
+        addAndConvert(cont, KEY_LISTENERS, listener);
+        addAndConvert(cont, KEY_ERR, errHandler);
+        addAndConvert(cont, KEY_RAW, rawEmitter);
+      } else {
+        watcher = createFsWatchInstance(
+          path6,
+          options,
+          fsWatchBroadcast.bind(null, fullPath, KEY_LISTENERS),
+          errHandler,
+          // no need to use broadcast here
+          fsWatchBroadcast.bind(null, fullPath, KEY_RAW)
+        );
+        if (!watcher) return;
+        watcher.on(EV_ERROR, async (error) => {
+          const broadcastErr = fsWatchBroadcast.bind(null, fullPath, KEY_ERR);
+          cont.watcherUnusable = true;
+          if (isWindows && error.code === "EPERM") {
+            try {
+              const fd = await open(path6, "r");
+              await close(fd);
+              broadcastErr(error);
+            } catch (err) {
+            }
+          } else {
+            broadcastErr(error);
+          }
+        });
+        cont = {
+          listeners: listener,
+          errHandlers: errHandler,
+          rawEmitters: rawEmitter,
+          watcher
+        };
+        FsWatchInstances.set(fullPath, cont);
+      }
+      return () => {
+        delFromSet(cont, KEY_LISTENERS, listener);
+        delFromSet(cont, KEY_ERR, errHandler);
+        delFromSet(cont, KEY_RAW, rawEmitter);
+        if (isEmptySet(cont.listeners)) {
+          cont.watcher.close();
+          FsWatchInstances.delete(fullPath);
+          HANDLER_KEYS.forEach(clearItem(cont));
+          cont.watcher = void 0;
+          Object.freeze(cont);
+        }
+      };
+    };
+    var FsWatchFileInstances = /* @__PURE__ */ new Map();
+    var setFsWatchFileListener = (path6, fullPath, options, handlers) => {
+      const { listener, rawEmitter } = handlers;
+      let cont = FsWatchFileInstances.get(fullPath);
+      let listeners = /* @__PURE__ */ new Set();
+      let rawEmitters = /* @__PURE__ */ new Set();
+      const copts = cont && cont.options;
+      if (copts && (copts.persistent < options.persistent || copts.interval > options.interval)) {
+        listeners = cont.listeners;
+        rawEmitters = cont.rawEmitters;
+        fs2.unwatchFile(fullPath);
+        cont = void 0;
+      }
+      if (cont) {
+        addAndConvert(cont, KEY_LISTENERS, listener);
+        addAndConvert(cont, KEY_RAW, rawEmitter);
+      } else {
+        cont = {
+          listeners: listener,
+          rawEmitters: rawEmitter,
+          options,
+          watcher: fs2.watchFile(fullPath, options, (curr, prev) => {
+            foreach(cont.rawEmitters, (rawEmitter2) => {
+              rawEmitter2(EV_CHANGE, fullPath, { curr, prev });
+            });
+            const currmtime = curr.mtimeMs;
+            if (curr.size !== prev.size || currmtime > prev.mtimeMs || currmtime === 0) {
+              foreach(cont.listeners, (listener2) => listener2(path6, curr));
+            }
+          })
+        };
+        FsWatchFileInstances.set(fullPath, cont);
+      }
+      return () => {
+        delFromSet(cont, KEY_LISTENERS, listener);
+        delFromSet(cont, KEY_RAW, rawEmitter);
+        if (isEmptySet(cont.listeners)) {
+          FsWatchFileInstances.delete(fullPath);
+          fs2.unwatchFile(fullPath);
+          cont.options = cont.watcher = void 0;
+          Object.freeze(cont);
+        }
+      };
+    };
+    var NodeFsHandler = class {
+      /**
+       * @param {import("../index").FSWatcher} fsW
+       */
+      constructor(fsW) {
+        this.fsw = fsW;
+        this._boundHandleError = (error) => fsW._handleError(error);
+      }
+      /**
+       * Watch file for changes with fs_watchFile or fs_watch.
+       * @param {String} path to file or dir
+       * @param {Function} listener on fs change
+       * @returns {Function} closer for the watcher instance
+       */
+      _watchWithNodeFs(path6, listener) {
+        const opts = this.fsw.options;
+        const directory = sysPath.dirname(path6);
+        const basename4 = sysPath.basename(path6);
+        const parent = this.fsw._getWatchedDir(directory);
+        parent.add(basename4);
+        const absolutePath = sysPath.resolve(path6);
+        const options = { persistent: opts.persistent };
+        if (!listener) listener = EMPTY_FN;
+        let closer;
+        if (opts.usePolling) {
+          options.interval = opts.enableBinaryInterval && isBinaryPath(basename4) ? opts.binaryInterval : opts.interval;
+          closer = setFsWatchFileListener(path6, absolutePath, options, {
+            listener,
+            rawEmitter: this.fsw._emitRaw
+          });
+        } else {
+          closer = setFsWatchListener(path6, absolutePath, options, {
+            listener,
+            errHandler: this._boundHandleError,
+            rawEmitter: this.fsw._emitRaw
+          });
+        }
+        return closer;
+      }
+      /**
+       * Watch a file and emit add event if warranted.
+       * @param {Path} file Path
+       * @param {fs.Stats} stats result of fs_stat
+       * @param {Boolean} initialAdd was the file added at watch instantiation?
+       * @returns {Function} closer for the watcher instance
+       */
+      _handleFile(file, stats, initialAdd) {
+        if (this.fsw.closed) {
+          return;
+        }
+        const dirname2 = sysPath.dirname(file);
+        const basename4 = sysPath.basename(file);
+        const parent = this.fsw._getWatchedDir(dirname2);
+        let prevStats = stats;
+        if (parent.has(basename4)) return;
+        const listener = async (path6, newStats) => {
+          if (!this.fsw._throttle(THROTTLE_MODE_WATCH, file, 5)) return;
+          if (!newStats || newStats.mtimeMs === 0) {
+            try {
+              const newStats2 = await stat(file);
+              if (this.fsw.closed) return;
+              const at = newStats2.atimeMs;
+              const mt = newStats2.mtimeMs;
+              if (!at || at <= mt || mt !== prevStats.mtimeMs) {
+                this.fsw._emit(EV_CHANGE, file, newStats2);
+              }
+              if (isLinux && prevStats.ino !== newStats2.ino) {
+                this.fsw._closeFile(path6);
+                prevStats = newStats2;
+                this.fsw._addPathCloser(path6, this._watchWithNodeFs(file, listener));
+              } else {
+                prevStats = newStats2;
+              }
+            } catch (error) {
+              this.fsw._remove(dirname2, basename4);
+            }
+          } else if (parent.has(basename4)) {
+            const at = newStats.atimeMs;
+            const mt = newStats.mtimeMs;
+            if (!at || at <= mt || mt !== prevStats.mtimeMs) {
+              this.fsw._emit(EV_CHANGE, file, newStats);
+            }
+            prevStats = newStats;
+          }
+        };
+        const closer = this._watchWithNodeFs(file, listener);
+        if (!(initialAdd && this.fsw.options.ignoreInitial) && this.fsw._isntIgnored(file)) {
+          if (!this.fsw._throttle(EV_ADD, file, 0)) return;
+          this.fsw._emit(EV_ADD, file, stats);
+        }
+        return closer;
+      }
+      /**
+       * Handle symlinks encountered while reading a dir.
+       * @param {Object} entry returned by readdirp
+       * @param {String} directory path of dir being read
+       * @param {String} path of this item
+       * @param {String} item basename of this item
+       * @returns {Promise<Boolean>} true if no more processing is needed for this entry.
+       */
+      async _handleSymlink(entry, directory, path6, item) {
+        if (this.fsw.closed) {
+          return;
+        }
+        const full = entry.fullPath;
+        const dir = this.fsw._getWatchedDir(directory);
+        if (!this.fsw.options.followSymlinks) {
+          this.fsw._incrReadyCount();
+          let linkPath;
+          try {
+            linkPath = await fsrealpath(path6);
+          } catch (e) {
+            this.fsw._emitReady();
+            return true;
+          }
+          if (this.fsw.closed) return;
+          if (dir.has(item)) {
+            if (this.fsw._symlinkPaths.get(full) !== linkPath) {
+              this.fsw._symlinkPaths.set(full, linkPath);
+              this.fsw._emit(EV_CHANGE, path6, entry.stats);
+            }
+          } else {
+            dir.add(item);
+            this.fsw._symlinkPaths.set(full, linkPath);
+            this.fsw._emit(EV_ADD, path6, entry.stats);
+          }
+          this.fsw._emitReady();
+          return true;
+        }
+        if (this.fsw._symlinkPaths.has(full)) {
+          return true;
+        }
+        this.fsw._symlinkPaths.set(full, true);
+      }
+      _handleRead(directory, initialAdd, wh, target, dir, depth, throttler) {
+        directory = sysPath.join(directory, EMPTY_STR);
+        if (!wh.hasGlob) {
+          throttler = this.fsw._throttle("readdir", directory, 1e3);
+          if (!throttler) return;
+        }
+        const previous = this.fsw._getWatchedDir(wh.path);
+        const current = /* @__PURE__ */ new Set();
+        let stream = this.fsw._readdirp(directory, {
+          fileFilter: (entry) => wh.filterPath(entry),
+          directoryFilter: (entry) => wh.filterDir(entry),
+          depth: 0
+        }).on(STR_DATA, async (entry) => {
+          if (this.fsw.closed) {
+            stream = void 0;
+            return;
+          }
+          const item = entry.path;
+          let path6 = sysPath.join(directory, item);
+          current.add(item);
+          if (entry.stats.isSymbolicLink() && await this._handleSymlink(entry, directory, path6, item)) {
+            return;
+          }
+          if (this.fsw.closed) {
+            stream = void 0;
+            return;
+          }
+          if (item === target || !target && !previous.has(item)) {
+            this.fsw._incrReadyCount();
+            path6 = sysPath.join(dir, sysPath.relative(dir, path6));
+            this._addToNodeFs(path6, initialAdd, wh, depth + 1);
+          }
+        }).on(EV_ERROR, this._boundHandleError);
+        return new Promise(
+          (resolve) => stream.once(STR_END, () => {
+            if (this.fsw.closed) {
+              stream = void 0;
+              return;
+            }
+            const wasThrottled = throttler ? throttler.clear() : false;
+            resolve();
+            previous.getChildren().filter((item) => {
+              return item !== directory && !current.has(item) && // in case of intersecting globs;
+              // a path may have been filtered out of this readdir, but
+              // shouldn't be removed because it matches a different glob
+              (!wh.hasGlob || wh.filterPath({
+                fullPath: sysPath.resolve(directory, item)
+              }));
+            }).forEach((item) => {
+              this.fsw._remove(directory, item);
+            });
+            stream = void 0;
+            if (wasThrottled) this._handleRead(directory, false, wh, target, dir, depth, throttler);
+          })
+        );
+      }
+      /**
+       * Read directory to add / remove files from `@watched` list and re-read it on change.
+       * @param {String} dir fs path
+       * @param {fs.Stats} stats
+       * @param {Boolean} initialAdd
+       * @param {Number} depth relative to user-supplied path
+       * @param {String} target child path targeted for watch
+       * @param {Object} wh Common watch helpers for this path
+       * @param {String} realpath
+       * @returns {Promise<Function>} closer for the watcher instance.
+       */
+      async _handleDir(dir, stats, initialAdd, depth, target, wh, realpath) {
+        const parentDir = this.fsw._getWatchedDir(sysPath.dirname(dir));
+        const tracked = parentDir.has(sysPath.basename(dir));
+        if (!(initialAdd && this.fsw.options.ignoreInitial) && !target && !tracked) {
+          if (!wh.hasGlob || wh.globFilter(dir)) this.fsw._emit(EV_ADD_DIR, dir, stats);
+        }
+        parentDir.add(sysPath.basename(dir));
+        this.fsw._getWatchedDir(dir);
+        let throttler;
+        let closer;
+        const oDepth = this.fsw.options.depth;
+        if ((oDepth == null || depth <= oDepth) && !this.fsw._symlinkPaths.has(realpath)) {
+          if (!target) {
+            await this._handleRead(dir, initialAdd, wh, target, dir, depth, throttler);
+            if (this.fsw.closed) return;
+          }
+          closer = this._watchWithNodeFs(dir, (dirPath, stats2) => {
+            if (stats2 && stats2.mtimeMs === 0) return;
+            this._handleRead(dirPath, false, wh, target, dir, depth, throttler);
+          });
+        }
+        return closer;
+      }
+      /**
+       * Handle added file, directory, or glob pattern.
+       * Delegates call to _handleFile / _handleDir after checks.
+       * @param {String} path to file or ir
+       * @param {Boolean} initialAdd was the file added at watch instantiation?
+       * @param {Object} priorWh depth relative to user-supplied path
+       * @param {Number} depth Child path actually targeted for watch
+       * @param {String=} target Child path actually targeted for watch
+       * @returns {Promise}
+       */
+      async _addToNodeFs(path6, initialAdd, priorWh, depth, target) {
+        const ready = this.fsw._emitReady;
+        if (this.fsw._isIgnored(path6) || this.fsw.closed) {
+          ready();
+          return false;
+        }
+        const wh = this.fsw._getWatchHelpers(path6, depth);
+        if (!wh.hasGlob && priorWh) {
+          wh.hasGlob = priorWh.hasGlob;
+          wh.globFilter = priorWh.globFilter;
+          wh.filterPath = (entry) => priorWh.filterPath(entry);
+          wh.filterDir = (entry) => priorWh.filterDir(entry);
+        }
+        try {
+          const stats = await statMethods[wh.statMethod](wh.watchPath);
+          if (this.fsw.closed) return;
+          if (this.fsw._isIgnored(wh.watchPath, stats)) {
+            ready();
+            return false;
+          }
+          const follow = this.fsw.options.followSymlinks && !path6.includes(STAR) && !path6.includes(BRACE_START);
+          let closer;
+          if (stats.isDirectory()) {
+            const absPath = sysPath.resolve(path6);
+            const targetPath = follow ? await fsrealpath(path6) : path6;
+            if (this.fsw.closed) return;
+            closer = await this._handleDir(wh.watchPath, stats, initialAdd, depth, target, wh, targetPath);
+            if (this.fsw.closed) return;
+            if (absPath !== targetPath && targetPath !== void 0) {
+              this.fsw._symlinkPaths.set(absPath, targetPath);
+            }
+          } else if (stats.isSymbolicLink()) {
+            const targetPath = follow ? await fsrealpath(path6) : path6;
+            if (this.fsw.closed) return;
+            const parent = sysPath.dirname(wh.watchPath);
+            this.fsw._getWatchedDir(parent).add(wh.watchPath);
+            this.fsw._emit(EV_ADD, wh.watchPath, stats);
+            closer = await this._handleDir(parent, stats, initialAdd, depth, path6, wh, targetPath);
+            if (this.fsw.closed) return;
+            if (targetPath !== void 0) {
+              this.fsw._symlinkPaths.set(sysPath.resolve(path6), targetPath);
+            }
+          } else {
+            closer = this._handleFile(wh.watchPath, stats, initialAdd);
+          }
+          ready();
+          this.fsw._addPathCloser(path6, closer);
+          return false;
+        } catch (error) {
+          if (this.fsw._handleError(error)) {
+            ready();
+            return path6;
+          }
+        }
+      }
+    };
+    module2.exports = NodeFsHandler;
+  }
+});
+
+// node_modules/chokidar/lib/fsevents-handler.js
+var require_fsevents_handler = __commonJS({
+  "node_modules/chokidar/lib/fsevents-handler.js"(exports2, module2) {
+    "use strict";
+    var fs2 = require("fs");
+    var sysPath = require("path");
+    var { promisify } = require("util");
+    var fsevents;
+    try {
+      fsevents = require("fsevents");
+    } catch (error) {
+      if (process.env.CHOKIDAR_PRINT_FSEVENTS_REQUIRE_ERROR) console.error(error);
+    }
+    if (fsevents) {
+      const mtch = process.version.match(/v(\d+)\.(\d+)/);
+      if (mtch && mtch[1] && mtch[2]) {
+        const maj = Number.parseInt(mtch[1], 10);
+        const min = Number.parseInt(mtch[2], 10);
+        if (maj === 8 && min < 16) {
+          fsevents = void 0;
+        }
+      }
+    }
+    var {
+      EV_ADD,
+      EV_CHANGE,
+      EV_ADD_DIR,
+      EV_UNLINK,
+      EV_ERROR,
+      STR_DATA,
+      STR_END,
+      FSEVENT_CREATED,
+      FSEVENT_MODIFIED,
+      FSEVENT_DELETED,
+      FSEVENT_MOVED,
+      // FSEVENT_CLONED,
+      FSEVENT_UNKNOWN,
+      FSEVENT_FLAG_MUST_SCAN_SUBDIRS,
+      FSEVENT_TYPE_FILE,
+      FSEVENT_TYPE_DIRECTORY,
+      FSEVENT_TYPE_SYMLINK,
+      ROOT_GLOBSTAR,
+      DIR_SUFFIX,
+      DOT_SLASH,
+      FUNCTION_TYPE,
+      EMPTY_FN,
+      IDENTITY_FN
+    } = require_constants3();
+    var Depth = (value) => isNaN(value) ? {} : { depth: value };
+    var stat = promisify(fs2.stat);
+    var lstat = promisify(fs2.lstat);
+    var realpath = promisify(fs2.realpath);
+    var statMethods = { stat, lstat };
+    var FSEventsWatchers = /* @__PURE__ */ new Map();
+    var consolidateThreshhold = 10;
+    var wrongEventFlags = /* @__PURE__ */ new Set([
+      69888,
+      70400,
+      71424,
+      72704,
+      73472,
+      131328,
+      131840,
+      262912
+    ]);
+    var createFSEventsInstance = (path6, callback) => {
+      const stop = fsevents.watch(path6, callback);
+      return { stop };
+    };
+    function setFSEventsListener(path6, realPath, listener, rawEmitter) {
+      let watchPath = sysPath.extname(realPath) ? sysPath.dirname(realPath) : realPath;
+      const parentPath = sysPath.dirname(watchPath);
+      let cont = FSEventsWatchers.get(watchPath);
+      if (couldConsolidate(parentPath)) {
+        watchPath = parentPath;
+      }
+      const resolvedPath = sysPath.resolve(path6);
+      const hasSymlink = resolvedPath !== realPath;
+      const filteredListener = (fullPath, flags, info) => {
+        if (hasSymlink) fullPath = fullPath.replace(realPath, resolvedPath);
+        if (fullPath === resolvedPath || !fullPath.indexOf(resolvedPath + sysPath.sep)) listener(fullPath, flags, info);
+      };
+      let watchedParent = false;
+      for (const watchedPath of FSEventsWatchers.keys()) {
+        if (realPath.indexOf(sysPath.resolve(watchedPath) + sysPath.sep) === 0) {
+          watchPath = watchedPath;
+          cont = FSEventsWatchers.get(watchPath);
+          watchedParent = true;
+          break;
+        }
+      }
+      if (cont || watchedParent) {
+        cont.listeners.add(filteredListener);
+      } else {
+        cont = {
+          listeners: /* @__PURE__ */ new Set([filteredListener]),
+          rawEmitter,
+          watcher: createFSEventsInstance(watchPath, (fullPath, flags) => {
+            if (!cont.listeners.size) return;
+            if (flags & FSEVENT_FLAG_MUST_SCAN_SUBDIRS) return;
+            const info = fsevents.getInfo(fullPath, flags);
+            cont.listeners.forEach((list) => {
+              list(fullPath, flags, info);
+            });
+            cont.rawEmitter(info.event, fullPath, info);
+          })
+        };
+        FSEventsWatchers.set(watchPath, cont);
+      }
+      return () => {
+        const lst = cont.listeners;
+        lst.delete(filteredListener);
+        if (!lst.size) {
+          FSEventsWatchers.delete(watchPath);
+          if (cont.watcher) return cont.watcher.stop().then(() => {
+            cont.rawEmitter = cont.watcher = void 0;
+            Object.freeze(cont);
+          });
+        }
+      };
+    }
+    var couldConsolidate = (path6) => {
+      let count = 0;
+      for (const watchPath of FSEventsWatchers.keys()) {
+        if (watchPath.indexOf(path6) === 0) {
+          count++;
+          if (count >= consolidateThreshhold) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+    var canUse = () => fsevents && FSEventsWatchers.size < 128;
+    var calcDepth = (path6, root) => {
+      let i = 0;
+      while (!path6.indexOf(root) && (path6 = sysPath.dirname(path6)) !== root) i++;
+      return i;
+    };
+    var sameTypes = (info, stats) => info.type === FSEVENT_TYPE_DIRECTORY && stats.isDirectory() || info.type === FSEVENT_TYPE_SYMLINK && stats.isSymbolicLink() || info.type === FSEVENT_TYPE_FILE && stats.isFile();
+    var FsEventsHandler = class {
+      /**
+       * @param {import('../index').FSWatcher} fsw
+       */
+      constructor(fsw) {
+        this.fsw = fsw;
+      }
+      checkIgnored(path6, stats) {
+        const ipaths = this.fsw._ignoredPaths;
+        if (this.fsw._isIgnored(path6, stats)) {
+          ipaths.add(path6);
+          if (stats && stats.isDirectory()) {
+            ipaths.add(path6 + ROOT_GLOBSTAR);
+          }
+          return true;
+        }
+        ipaths.delete(path6);
+        ipaths.delete(path6 + ROOT_GLOBSTAR);
+      }
+      addOrChange(path6, fullPath, realPath, parent, watchedDir, item, info, opts) {
+        const event = watchedDir.has(item) ? EV_CHANGE : EV_ADD;
+        this.handleEvent(event, path6, fullPath, realPath, parent, watchedDir, item, info, opts);
+      }
+      async checkExists(path6, fullPath, realPath, parent, watchedDir, item, info, opts) {
+        try {
+          const stats = await stat(path6);
+          if (this.fsw.closed) return;
+          if (sameTypes(info, stats)) {
+            this.addOrChange(path6, fullPath, realPath, parent, watchedDir, item, info, opts);
+          } else {
+            this.handleEvent(EV_UNLINK, path6, fullPath, realPath, parent, watchedDir, item, info, opts);
+          }
+        } catch (error) {
+          if (error.code === "EACCES") {
+            this.addOrChange(path6, fullPath, realPath, parent, watchedDir, item, info, opts);
+          } else {
+            this.handleEvent(EV_UNLINK, path6, fullPath, realPath, parent, watchedDir, item, info, opts);
+          }
+        }
+      }
+      handleEvent(event, path6, fullPath, realPath, parent, watchedDir, item, info, opts) {
+        if (this.fsw.closed || this.checkIgnored(path6)) return;
+        if (event === EV_UNLINK) {
+          const isDirectory = info.type === FSEVENT_TYPE_DIRECTORY;
+          if (isDirectory || watchedDir.has(item)) {
+            this.fsw._remove(parent, item, isDirectory);
+          }
+        } else {
+          if (event === EV_ADD) {
+            if (info.type === FSEVENT_TYPE_DIRECTORY) this.fsw._getWatchedDir(path6);
+            if (info.type === FSEVENT_TYPE_SYMLINK && opts.followSymlinks) {
+              const curDepth = opts.depth === void 0 ? void 0 : calcDepth(fullPath, realPath) + 1;
+              return this._addToFsEvents(path6, false, true, curDepth);
+            }
+            this.fsw._getWatchedDir(parent).add(item);
+          }
+          const eventName = info.type === FSEVENT_TYPE_DIRECTORY ? event + DIR_SUFFIX : event;
+          this.fsw._emit(eventName, path6);
+          if (eventName === EV_ADD_DIR) this._addToFsEvents(path6, false, true);
+        }
+      }
+      /**
+       * Handle symlinks encountered during directory scan
+       * @param {String} watchPath  - file/dir path to be watched with fsevents
+       * @param {String} realPath   - real path (in case of symlinks)
+       * @param {Function} transform  - path transformer
+       * @param {Function} globFilter - path filter in case a glob pattern was provided
+       * @returns {Function} closer for the watcher instance
+      */
+      _watchWithFsEvents(watchPath, realPath, transform, globFilter) {
+        if (this.fsw.closed || this.fsw._isIgnored(watchPath)) return;
+        const opts = this.fsw.options;
+        const watchCallback = async (fullPath, flags, info) => {
+          if (this.fsw.closed) return;
+          if (opts.depth !== void 0 && calcDepth(fullPath, realPath) > opts.depth) return;
+          const path6 = transform(sysPath.join(
+            watchPath,
+            sysPath.relative(watchPath, fullPath)
+          ));
+          if (globFilter && !globFilter(path6)) return;
+          const parent = sysPath.dirname(path6);
+          const item = sysPath.basename(path6);
+          const watchedDir = this.fsw._getWatchedDir(
+            info.type === FSEVENT_TYPE_DIRECTORY ? path6 : parent
+          );
+          if (wrongEventFlags.has(flags) || info.event === FSEVENT_UNKNOWN) {
+            if (typeof opts.ignored === FUNCTION_TYPE) {
+              let stats;
+              try {
+                stats = await stat(path6);
+              } catch (error) {
+              }
+              if (this.fsw.closed) return;
+              if (this.checkIgnored(path6, stats)) return;
+              if (sameTypes(info, stats)) {
+                this.addOrChange(path6, fullPath, realPath, parent, watchedDir, item, info, opts);
+              } else {
+                this.handleEvent(EV_UNLINK, path6, fullPath, realPath, parent, watchedDir, item, info, opts);
+              }
+            } else {
+              this.checkExists(path6, fullPath, realPath, parent, watchedDir, item, info, opts);
+            }
+          } else {
+            switch (info.event) {
+              case FSEVENT_CREATED:
+              case FSEVENT_MODIFIED:
+                return this.addOrChange(path6, fullPath, realPath, parent, watchedDir, item, info, opts);
+              case FSEVENT_DELETED:
+              case FSEVENT_MOVED:
+                return this.checkExists(path6, fullPath, realPath, parent, watchedDir, item, info, opts);
+            }
+          }
+        };
+        const closer = setFSEventsListener(
+          watchPath,
+          realPath,
+          watchCallback,
+          this.fsw._emitRaw
+        );
+        this.fsw._emitReady();
+        return closer;
+      }
+      /**
+       * Handle symlinks encountered during directory scan
+       * @param {String} linkPath path to symlink
+       * @param {String} fullPath absolute path to the symlink
+       * @param {Function} transform pre-existing path transformer
+       * @param {Number} curDepth level of subdirectories traversed to where symlink is
+       * @returns {Promise<void>}
+       */
+      async _handleFsEventsSymlink(linkPath, fullPath, transform, curDepth) {
+        if (this.fsw.closed || this.fsw._symlinkPaths.has(fullPath)) return;
+        this.fsw._symlinkPaths.set(fullPath, true);
+        this.fsw._incrReadyCount();
+        try {
+          const linkTarget = await realpath(linkPath);
+          if (this.fsw.closed) return;
+          if (this.fsw._isIgnored(linkTarget)) {
+            return this.fsw._emitReady();
+          }
+          this.fsw._incrReadyCount();
+          this._addToFsEvents(linkTarget || linkPath, (path6) => {
+            let aliasedPath = linkPath;
+            if (linkTarget && linkTarget !== DOT_SLASH) {
+              aliasedPath = path6.replace(linkTarget, linkPath);
+            } else if (path6 !== DOT_SLASH) {
+              aliasedPath = sysPath.join(linkPath, path6);
+            }
+            return transform(aliasedPath);
+          }, false, curDepth);
+        } catch (error) {
+          if (this.fsw._handleError(error)) {
+            return this.fsw._emitReady();
+          }
+        }
+      }
+      /**
+       *
+       * @param {Path} newPath
+       * @param {fs.Stats} stats
+       */
+      emitAdd(newPath, stats, processPath, opts, forceAdd) {
+        const pp = processPath(newPath);
+        const isDir = stats.isDirectory();
+        const dirObj = this.fsw._getWatchedDir(sysPath.dirname(pp));
+        const base = sysPath.basename(pp);
+        if (isDir) this.fsw._getWatchedDir(pp);
+        if (dirObj.has(base)) return;
+        dirObj.add(base);
+        if (!opts.ignoreInitial || forceAdd === true) {
+          this.fsw._emit(isDir ? EV_ADD_DIR : EV_ADD, pp, stats);
+        }
+      }
+      initWatch(realPath, path6, wh, processPath) {
+        if (this.fsw.closed) return;
+        const closer = this._watchWithFsEvents(
+          wh.watchPath,
+          sysPath.resolve(realPath || wh.watchPath),
+          processPath,
+          wh.globFilter
+        );
+        this.fsw._addPathCloser(path6, closer);
+      }
+      /**
+       * Handle added path with fsevents
+       * @param {String} path file/dir path or glob pattern
+       * @param {Function|Boolean=} transform converts working path to what the user expects
+       * @param {Boolean=} forceAdd ensure add is emitted
+       * @param {Number=} priorDepth Level of subdirectories already traversed.
+       * @returns {Promise<void>}
+       */
+      async _addToFsEvents(path6, transform, forceAdd, priorDepth) {
+        if (this.fsw.closed) {
+          return;
+        }
+        const opts = this.fsw.options;
+        const processPath = typeof transform === FUNCTION_TYPE ? transform : IDENTITY_FN;
+        const wh = this.fsw._getWatchHelpers(path6);
+        try {
+          const stats = await statMethods[wh.statMethod](wh.watchPath);
+          if (this.fsw.closed) return;
+          if (this.fsw._isIgnored(wh.watchPath, stats)) {
+            throw null;
+          }
+          if (stats.isDirectory()) {
+            if (!wh.globFilter) this.emitAdd(processPath(path6), stats, processPath, opts, forceAdd);
+            if (priorDepth && priorDepth > opts.depth) return;
+            this.fsw._readdirp(wh.watchPath, {
+              fileFilter: (entry) => wh.filterPath(entry),
+              directoryFilter: (entry) => wh.filterDir(entry),
+              ...Depth(opts.depth - (priorDepth || 0))
+            }).on(STR_DATA, (entry) => {
+              if (this.fsw.closed) {
+                return;
+              }
+              if (entry.stats.isDirectory() && !wh.filterPath(entry)) return;
+              const joinedPath = sysPath.join(wh.watchPath, entry.path);
+              const { fullPath } = entry;
+              if (wh.followSymlinks && entry.stats.isSymbolicLink()) {
+                const curDepth = opts.depth === void 0 ? void 0 : calcDepth(joinedPath, sysPath.resolve(wh.watchPath)) + 1;
+                this._handleFsEventsSymlink(joinedPath, fullPath, processPath, curDepth);
+              } else {
+                this.emitAdd(joinedPath, entry.stats, processPath, opts, forceAdd);
+              }
+            }).on(EV_ERROR, EMPTY_FN).on(STR_END, () => {
+              this.fsw._emitReady();
+            });
+          } else {
+            this.emitAdd(wh.watchPath, stats, processPath, opts, forceAdd);
+            this.fsw._emitReady();
+          }
+        } catch (error) {
+          if (!error || this.fsw._handleError(error)) {
+            this.fsw._emitReady();
+            this.fsw._emitReady();
+          }
+        }
+        if (opts.persistent && forceAdd !== true) {
+          if (typeof transform === FUNCTION_TYPE) {
+            this.initWatch(void 0, path6, wh, processPath);
+          } else {
+            let realPath;
+            try {
+              realPath = await realpath(wh.watchPath);
+            } catch (e) {
+            }
+            this.initWatch(realPath, path6, wh, processPath);
+          }
+        }
+      }
+    };
+    module2.exports = FsEventsHandler;
+    module2.exports.canUse = canUse;
+  }
+});
+
+// node_modules/chokidar/index.js
+var require_chokidar = __commonJS({
+  "node_modules/chokidar/index.js"(exports2) {
+    "use strict";
+    var { EventEmitter: EventEmitter2 } = require("events");
+    var fs2 = require("fs");
+    var sysPath = require("path");
+    var { promisify } = require("util");
+    var readdirp = require_readdirp();
+    var anymatch = require_anymatch().default;
+    var globParent = require_glob_parent();
+    var isGlob = require_is_glob();
+    var braces = require_braces();
+    var normalizePath = require_normalize_path();
+    var NodeFsHandler = require_nodefs_handler();
+    var FsEventsHandler = require_fsevents_handler();
+    var {
+      EV_ALL,
+      EV_READY,
+      EV_ADD,
+      EV_CHANGE,
+      EV_UNLINK,
+      EV_ADD_DIR,
+      EV_UNLINK_DIR,
+      EV_RAW,
+      EV_ERROR,
+      STR_CLOSE,
+      STR_END,
+      BACK_SLASH_RE,
+      DOUBLE_SLASH_RE,
+      SLASH_OR_BACK_SLASH_RE,
+      DOT_RE,
+      REPLACER_RE,
+      SLASH,
+      SLASH_SLASH,
+      BRACE_START,
+      BANG,
+      ONE_DOT,
+      TWO_DOTS,
+      GLOBSTAR,
+      SLASH_GLOBSTAR,
+      ANYMATCH_OPTS,
+      STRING_TYPE,
+      FUNCTION_TYPE,
+      EMPTY_STR,
+      EMPTY_FN,
+      isWindows,
+      isMacos,
+      isIBMi
+    } = require_constants3();
+    var stat = promisify(fs2.stat);
+    var readdir = promisify(fs2.readdir);
+    var arrify = (value = []) => Array.isArray(value) ? value : [value];
+    var flatten = (list, result = []) => {
+      list.forEach((item) => {
+        if (Array.isArray(item)) {
+          flatten(item, result);
+        } else {
+          result.push(item);
+        }
+      });
+      return result;
+    };
+    var unifyPaths = (paths_) => {
+      const paths = flatten(arrify(paths_));
+      if (!paths.every((p) => typeof p === STRING_TYPE)) {
+        throw new TypeError(`Non-string provided as watch path: ${paths}`);
+      }
+      return paths.map(normalizePathToUnix);
+    };
+    var toUnix = (string) => {
+      let str = string.replace(BACK_SLASH_RE, SLASH);
+      let prepend = false;
+      if (str.startsWith(SLASH_SLASH)) {
+        prepend = true;
+      }
+      while (str.match(DOUBLE_SLASH_RE)) {
+        str = str.replace(DOUBLE_SLASH_RE, SLASH);
+      }
+      if (prepend) {
+        str = SLASH + str;
+      }
+      return str;
+    };
+    var normalizePathToUnix = (path6) => toUnix(sysPath.normalize(toUnix(path6)));
+    var normalizeIgnored = (cwd = EMPTY_STR) => (path6) => {
+      if (typeof path6 !== STRING_TYPE) return path6;
+      return normalizePathToUnix(sysPath.isAbsolute(path6) ? path6 : sysPath.join(cwd, path6));
+    };
+    var getAbsolutePath = (path6, cwd) => {
+      if (sysPath.isAbsolute(path6)) {
+        return path6;
+      }
+      if (path6.startsWith(BANG)) {
+        return BANG + sysPath.join(cwd, path6.slice(1));
+      }
+      return sysPath.join(cwd, path6);
+    };
+    var undef = (opts, key) => opts[key] === void 0;
+    var DirEntry = class {
+      /**
+       * @param {Path} dir
+       * @param {Function} removeWatcher
+       */
+      constructor(dir, removeWatcher) {
+        this.path = dir;
+        this._removeWatcher = removeWatcher;
+        this.items = /* @__PURE__ */ new Set();
+      }
+      add(item) {
+        const { items } = this;
+        if (!items) return;
+        if (item !== ONE_DOT && item !== TWO_DOTS) items.add(item);
+      }
+      async remove(item) {
+        const { items } = this;
+        if (!items) return;
+        items.delete(item);
+        if (items.size > 0) return;
+        const dir = this.path;
+        try {
+          await readdir(dir);
+        } catch (err) {
+          if (this._removeWatcher) {
+            this._removeWatcher(sysPath.dirname(dir), sysPath.basename(dir));
+          }
+        }
+      }
+      has(item) {
+        const { items } = this;
+        if (!items) return;
+        return items.has(item);
+      }
+      /**
+       * @returns {Array<String>}
+       */
+      getChildren() {
+        const { items } = this;
+        if (!items) return;
+        return [...items.values()];
+      }
+      dispose() {
+        this.items.clear();
+        delete this.path;
+        delete this._removeWatcher;
+        delete this.items;
+        Object.freeze(this);
+      }
+    };
+    var STAT_METHOD_F = "stat";
+    var STAT_METHOD_L = "lstat";
+    var WatchHelper = class {
+      constructor(path6, watchPath, follow, fsw) {
+        this.fsw = fsw;
+        this.path = path6 = path6.replace(REPLACER_RE, EMPTY_STR);
+        this.watchPath = watchPath;
+        this.fullWatchPath = sysPath.resolve(watchPath);
+        this.hasGlob = watchPath !== path6;
+        if (path6 === EMPTY_STR) this.hasGlob = false;
+        this.globSymlink = this.hasGlob && follow ? void 0 : false;
+        this.globFilter = this.hasGlob ? anymatch(path6, void 0, ANYMATCH_OPTS) : false;
+        this.dirParts = this.getDirParts(path6);
+        this.dirParts.forEach((parts) => {
+          if (parts.length > 1) parts.pop();
+        });
+        this.followSymlinks = follow;
+        this.statMethod = follow ? STAT_METHOD_F : STAT_METHOD_L;
+      }
+      checkGlobSymlink(entry) {
+        if (this.globSymlink === void 0) {
+          this.globSymlink = entry.fullParentDir === this.fullWatchPath ? false : { realPath: entry.fullParentDir, linkPath: this.fullWatchPath };
+        }
+        if (this.globSymlink) {
+          return entry.fullPath.replace(this.globSymlink.realPath, this.globSymlink.linkPath);
+        }
+        return entry.fullPath;
+      }
+      entryPath(entry) {
+        return sysPath.join(
+          this.watchPath,
+          sysPath.relative(this.watchPath, this.checkGlobSymlink(entry))
+        );
+      }
+      filterPath(entry) {
+        const { stats } = entry;
+        if (stats && stats.isSymbolicLink()) return this.filterDir(entry);
+        const resolvedPath = this.entryPath(entry);
+        const matchesGlob = this.hasGlob && typeof this.globFilter === FUNCTION_TYPE ? this.globFilter(resolvedPath) : true;
+        return matchesGlob && this.fsw._isntIgnored(resolvedPath, stats) && this.fsw._hasReadPermissions(stats);
+      }
+      getDirParts(path6) {
+        if (!this.hasGlob) return [];
+        const parts = [];
+        const expandedPath = path6.includes(BRACE_START) ? braces.expand(path6) : [path6];
+        expandedPath.forEach((path7) => {
+          parts.push(sysPath.relative(this.watchPath, path7).split(SLASH_OR_BACK_SLASH_RE));
+        });
+        return parts;
+      }
+      filterDir(entry) {
+        if (this.hasGlob) {
+          const entryParts = this.getDirParts(this.checkGlobSymlink(entry));
+          let globstar = false;
+          this.unmatchedGlob = !this.dirParts.some((parts) => {
+            return parts.every((part, i) => {
+              if (part === GLOBSTAR) globstar = true;
+              return globstar || !entryParts[0][i] || anymatch(part, entryParts[0][i], ANYMATCH_OPTS);
+            });
+          });
+        }
+        return !this.unmatchedGlob && this.fsw._isntIgnored(this.entryPath(entry), entry.stats);
+      }
+    };
+    var FSWatcher = class extends EventEmitter2 {
+      // Not indenting methods for history sake; for now.
+      constructor(_opts) {
+        super();
+        const opts = {};
+        if (_opts) Object.assign(opts, _opts);
+        this._watched = /* @__PURE__ */ new Map();
+        this._closers = /* @__PURE__ */ new Map();
+        this._ignoredPaths = /* @__PURE__ */ new Set();
+        this._throttled = /* @__PURE__ */ new Map();
+        this._symlinkPaths = /* @__PURE__ */ new Map();
+        this._streams = /* @__PURE__ */ new Set();
+        this.closed = false;
+        if (undef(opts, "persistent")) opts.persistent = true;
+        if (undef(opts, "ignoreInitial")) opts.ignoreInitial = false;
+        if (undef(opts, "ignorePermissionErrors")) opts.ignorePermissionErrors = false;
+        if (undef(opts, "interval")) opts.interval = 100;
+        if (undef(opts, "binaryInterval")) opts.binaryInterval = 300;
+        if (undef(opts, "disableGlobbing")) opts.disableGlobbing = false;
+        opts.enableBinaryInterval = opts.binaryInterval !== opts.interval;
+        if (undef(opts, "useFsEvents")) opts.useFsEvents = !opts.usePolling;
+        const canUseFsEvents = FsEventsHandler.canUse();
+        if (!canUseFsEvents) opts.useFsEvents = false;
+        if (undef(opts, "usePolling") && !opts.useFsEvents) {
+          opts.usePolling = isMacos;
+        }
+        if (isIBMi) {
+          opts.usePolling = true;
+        }
+        const envPoll = process.env.CHOKIDAR_USEPOLLING;
+        if (envPoll !== void 0) {
+          const envLower = envPoll.toLowerCase();
+          if (envLower === "false" || envLower === "0") {
+            opts.usePolling = false;
+          } else if (envLower === "true" || envLower === "1") {
+            opts.usePolling = true;
+          } else {
+            opts.usePolling = !!envLower;
+          }
+        }
+        const envInterval = process.env.CHOKIDAR_INTERVAL;
+        if (envInterval) {
+          opts.interval = Number.parseInt(envInterval, 10);
+        }
+        if (undef(opts, "atomic")) opts.atomic = !opts.usePolling && !opts.useFsEvents;
+        if (opts.atomic) this._pendingUnlinks = /* @__PURE__ */ new Map();
+        if (undef(opts, "followSymlinks")) opts.followSymlinks = true;
+        if (undef(opts, "awaitWriteFinish")) opts.awaitWriteFinish = false;
+        if (opts.awaitWriteFinish === true) opts.awaitWriteFinish = {};
+        const awf = opts.awaitWriteFinish;
+        if (awf) {
+          if (!awf.stabilityThreshold) awf.stabilityThreshold = 2e3;
+          if (!awf.pollInterval) awf.pollInterval = 100;
+          this._pendingWrites = /* @__PURE__ */ new Map();
+        }
+        if (opts.ignored) opts.ignored = arrify(opts.ignored);
+        let readyCalls = 0;
+        this._emitReady = () => {
+          readyCalls++;
+          if (readyCalls >= this._readyCount) {
+            this._emitReady = EMPTY_FN;
+            this._readyEmitted = true;
+            process.nextTick(() => this.emit(EV_READY));
+          }
+        };
+        this._emitRaw = (...args) => this.emit(EV_RAW, ...args);
+        this._readyEmitted = false;
+        this.options = opts;
+        if (opts.useFsEvents) {
+          this._fsEventsHandler = new FsEventsHandler(this);
+        } else {
+          this._nodeFsHandler = new NodeFsHandler(this);
+        }
+        Object.freeze(opts);
+      }
+      // Public methods
+      /**
+       * Adds paths to be watched on an existing FSWatcher instance
+       * @param {Path|Array<Path>} paths_
+       * @param {String=} _origAdd private; for handling non-existent paths to be watched
+       * @param {Boolean=} _internal private; indicates a non-user add
+       * @returns {FSWatcher} for chaining
+       */
+      add(paths_, _origAdd, _internal) {
+        const { cwd, disableGlobbing } = this.options;
+        this.closed = false;
+        let paths = unifyPaths(paths_);
+        if (cwd) {
+          paths = paths.map((path6) => {
+            const absPath = getAbsolutePath(path6, cwd);
+            if (disableGlobbing || !isGlob(path6)) {
+              return absPath;
+            }
+            return normalizePath(absPath);
+          });
+        }
+        paths = paths.filter((path6) => {
+          if (path6.startsWith(BANG)) {
+            this._ignoredPaths.add(path6.slice(1));
+            return false;
+          }
+          this._ignoredPaths.delete(path6);
+          this._ignoredPaths.delete(path6 + SLASH_GLOBSTAR);
+          this._userIgnored = void 0;
+          return true;
+        });
+        if (this.options.useFsEvents && this._fsEventsHandler) {
+          if (!this._readyCount) this._readyCount = paths.length;
+          if (this.options.persistent) this._readyCount += paths.length;
+          paths.forEach((path6) => this._fsEventsHandler._addToFsEvents(path6));
+        } else {
+          if (!this._readyCount) this._readyCount = 0;
+          this._readyCount += paths.length;
+          Promise.all(
+            paths.map(async (path6) => {
+              const res = await this._nodeFsHandler._addToNodeFs(path6, !_internal, 0, 0, _origAdd);
+              if (res) this._emitReady();
+              return res;
+            })
+          ).then((results) => {
+            if (this.closed) return;
+            results.filter((item) => item).forEach((item) => {
+              this.add(sysPath.dirname(item), sysPath.basename(_origAdd || item));
+            });
+          });
+        }
+        return this;
+      }
+      /**
+       * Close watchers or start ignoring events from specified paths.
+       * @param {Path|Array<Path>} paths_ - string or array of strings, file/directory paths and/or globs
+       * @returns {FSWatcher} for chaining
+      */
+      unwatch(paths_) {
+        if (this.closed) return this;
+        const paths = unifyPaths(paths_);
+        const { cwd } = this.options;
+        paths.forEach((path6) => {
+          if (!sysPath.isAbsolute(path6) && !this._closers.has(path6)) {
+            if (cwd) path6 = sysPath.join(cwd, path6);
+            path6 = sysPath.resolve(path6);
+          }
+          this._closePath(path6);
+          this._ignoredPaths.add(path6);
+          if (this._watched.has(path6)) {
+            this._ignoredPaths.add(path6 + SLASH_GLOBSTAR);
+          }
+          this._userIgnored = void 0;
+        });
+        return this;
+      }
+      /**
+       * Close watchers and remove all listeners from watched paths.
+       * @returns {Promise<void>}.
+      */
+      close() {
+        if (this.closed) return this._closePromise;
+        this.closed = true;
+        this.removeAllListeners();
+        const closers = [];
+        this._closers.forEach((closerList) => closerList.forEach((closer) => {
+          const promise = closer();
+          if (promise instanceof Promise) closers.push(promise);
+        }));
+        this._streams.forEach((stream) => stream.destroy());
+        this._userIgnored = void 0;
+        this._readyCount = 0;
+        this._readyEmitted = false;
+        this._watched.forEach((dirent) => dirent.dispose());
+        ["closers", "watched", "streams", "symlinkPaths", "throttled"].forEach((key) => {
+          this[`_${key}`].clear();
+        });
+        this._closePromise = closers.length ? Promise.all(closers).then(() => void 0) : Promise.resolve();
+        return this._closePromise;
+      }
+      /**
+       * Expose list of watched paths
+       * @returns {Object} for chaining
+      */
+      getWatched() {
+        const watchList = {};
+        this._watched.forEach((entry, dir) => {
+          const key = this.options.cwd ? sysPath.relative(this.options.cwd, dir) : dir;
+          watchList[key || ONE_DOT] = entry.getChildren().sort();
+        });
+        return watchList;
+      }
+      emitWithAll(event, args) {
+        this.emit(...args);
+        if (event !== EV_ERROR) this.emit(EV_ALL, ...args);
+      }
+      // Common helpers
+      // --------------
+      /**
+       * Normalize and emit events.
+       * Calling _emit DOES NOT MEAN emit() would be called!
+       * @param {EventName} event Type of event
+       * @param {Path} path File or directory path
+       * @param {*=} val1 arguments to be passed with event
+       * @param {*=} val2
+       * @param {*=} val3
+       * @returns the error if defined, otherwise the value of the FSWatcher instance's `closed` flag
+       */
+      async _emit(event, path6, val1, val2, val3) {
+        if (this.closed) return;
+        const opts = this.options;
+        if (isWindows) path6 = sysPath.normalize(path6);
+        if (opts.cwd) path6 = sysPath.relative(opts.cwd, path6);
+        const args = [event, path6];
+        if (val3 !== void 0) args.push(val1, val2, val3);
+        else if (val2 !== void 0) args.push(val1, val2);
+        else if (val1 !== void 0) args.push(val1);
+        const awf = opts.awaitWriteFinish;
+        let pw;
+        if (awf && (pw = this._pendingWrites.get(path6))) {
+          pw.lastChange = /* @__PURE__ */ new Date();
+          return this;
+        }
+        if (opts.atomic) {
+          if (event === EV_UNLINK) {
+            this._pendingUnlinks.set(path6, args);
+            setTimeout(() => {
+              this._pendingUnlinks.forEach((entry, path7) => {
+                this.emit(...entry);
+                this.emit(EV_ALL, ...entry);
+                this._pendingUnlinks.delete(path7);
+              });
+            }, typeof opts.atomic === "number" ? opts.atomic : 100);
+            return this;
+          }
+          if (event === EV_ADD && this._pendingUnlinks.has(path6)) {
+            event = args[0] = EV_CHANGE;
+            this._pendingUnlinks.delete(path6);
+          }
+        }
+        if (awf && (event === EV_ADD || event === EV_CHANGE) && this._readyEmitted) {
+          const awfEmit = (err, stats) => {
+            if (err) {
+              event = args[0] = EV_ERROR;
+              args[1] = err;
+              this.emitWithAll(event, args);
+            } else if (stats) {
+              if (args.length > 2) {
+                args[2] = stats;
+              } else {
+                args.push(stats);
+              }
+              this.emitWithAll(event, args);
+            }
+          };
+          this._awaitWriteFinish(path6, awf.stabilityThreshold, event, awfEmit);
+          return this;
+        }
+        if (event === EV_CHANGE) {
+          const isThrottled = !this._throttle(EV_CHANGE, path6, 50);
+          if (isThrottled) return this;
+        }
+        if (opts.alwaysStat && val1 === void 0 && (event === EV_ADD || event === EV_ADD_DIR || event === EV_CHANGE)) {
+          const fullPath = opts.cwd ? sysPath.join(opts.cwd, path6) : path6;
+          let stats;
+          try {
+            stats = await stat(fullPath);
+          } catch (err) {
+          }
+          if (!stats || this.closed) return;
+          args.push(stats);
+        }
+        this.emitWithAll(event, args);
+        return this;
+      }
+      /**
+       * Common handler for errors
+       * @param {Error} error
+       * @returns {Error|Boolean} The error if defined, otherwise the value of the FSWatcher instance's `closed` flag
+       */
+      _handleError(error) {
+        const code = error && error.code;
+        if (error && code !== "ENOENT" && code !== "ENOTDIR" && (!this.options.ignorePermissionErrors || code !== "EPERM" && code !== "EACCES")) {
+          this.emit(EV_ERROR, error);
+        }
+        return error || this.closed;
+      }
+      /**
+       * Helper utility for throttling
+       * @param {ThrottleType} actionType type being throttled
+       * @param {Path} path being acted upon
+       * @param {Number} timeout duration of time to suppress duplicate actions
+       * @returns {Object|false} tracking object or false if action should be suppressed
+       */
+      _throttle(actionType, path6, timeout) {
+        if (!this._throttled.has(actionType)) {
+          this._throttled.set(actionType, /* @__PURE__ */ new Map());
+        }
+        const action = this._throttled.get(actionType);
+        const actionPath = action.get(path6);
+        if (actionPath) {
+          actionPath.count++;
+          return false;
+        }
+        let timeoutObject;
+        const clear = () => {
+          const item = action.get(path6);
+          const count = item ? item.count : 0;
+          action.delete(path6);
+          clearTimeout(timeoutObject);
+          if (item) clearTimeout(item.timeoutObject);
+          return count;
+        };
+        timeoutObject = setTimeout(clear, timeout);
+        const thr = { timeoutObject, clear, count: 0 };
+        action.set(path6, thr);
+        return thr;
+      }
+      _incrReadyCount() {
+        return this._readyCount++;
+      }
+      /**
+       * Awaits write operation to finish.
+       * Polls a newly created file for size variations. When files size does not change for 'threshold' milliseconds calls callback.
+       * @param {Path} path being acted upon
+       * @param {Number} threshold Time in milliseconds a file size must be fixed before acknowledging write OP is finished
+       * @param {EventName} event
+       * @param {Function} awfEmit Callback to be called when ready for event to be emitted.
+       */
+      _awaitWriteFinish(path6, threshold, event, awfEmit) {
+        let timeoutHandler;
+        let fullPath = path6;
+        if (this.options.cwd && !sysPath.isAbsolute(path6)) {
+          fullPath = sysPath.join(this.options.cwd, path6);
+        }
+        const now = /* @__PURE__ */ new Date();
+        const awaitWriteFinish = (prevStat) => {
+          fs2.stat(fullPath, (err, curStat) => {
+            if (err || !this._pendingWrites.has(path6)) {
+              if (err && err.code !== "ENOENT") awfEmit(err);
+              return;
+            }
+            const now2 = Number(/* @__PURE__ */ new Date());
+            if (prevStat && curStat.size !== prevStat.size) {
+              this._pendingWrites.get(path6).lastChange = now2;
+            }
+            const pw = this._pendingWrites.get(path6);
+            const df = now2 - pw.lastChange;
+            if (df >= threshold) {
+              this._pendingWrites.delete(path6);
+              awfEmit(void 0, curStat);
+            } else {
+              timeoutHandler = setTimeout(
+                awaitWriteFinish,
+                this.options.awaitWriteFinish.pollInterval,
+                curStat
+              );
+            }
+          });
+        };
+        if (!this._pendingWrites.has(path6)) {
+          this._pendingWrites.set(path6, {
+            lastChange: now,
+            cancelWait: () => {
+              this._pendingWrites.delete(path6);
+              clearTimeout(timeoutHandler);
+              return event;
+            }
+          });
+          timeoutHandler = setTimeout(
+            awaitWriteFinish,
+            this.options.awaitWriteFinish.pollInterval
+          );
+        }
+      }
+      _getGlobIgnored() {
+        return [...this._ignoredPaths.values()];
+      }
+      /**
+       * Determines whether user has asked to ignore this path.
+       * @param {Path} path filepath or dir
+       * @param {fs.Stats=} stats result of fs.stat
+       * @returns {Boolean}
+       */
+      _isIgnored(path6, stats) {
+        if (this.options.atomic && DOT_RE.test(path6)) return true;
+        if (!this._userIgnored) {
+          const { cwd } = this.options;
+          const ign = this.options.ignored;
+          const ignored = ign && ign.map(normalizeIgnored(cwd));
+          const paths = arrify(ignored).filter((path7) => typeof path7 === STRING_TYPE && !isGlob(path7)).map((path7) => path7 + SLASH_GLOBSTAR);
+          const list = this._getGlobIgnored().map(normalizeIgnored(cwd)).concat(ignored, paths);
+          this._userIgnored = anymatch(list, void 0, ANYMATCH_OPTS);
+        }
+        return this._userIgnored([path6, stats]);
+      }
+      _isntIgnored(path6, stat2) {
+        return !this._isIgnored(path6, stat2);
+      }
+      /**
+       * Provides a set of common helpers and properties relating to symlink and glob handling.
+       * @param {Path} path file, directory, or glob pattern being watched
+       * @param {Number=} depth at any depth > 0, this isn't a glob
+       * @returns {WatchHelper} object containing helpers for this path
+       */
+      _getWatchHelpers(path6, depth) {
+        const watchPath = depth || this.options.disableGlobbing || !isGlob(path6) ? path6 : globParent(path6);
+        const follow = this.options.followSymlinks;
+        return new WatchHelper(path6, watchPath, follow, this);
+      }
+      // Directory helpers
+      // -----------------
+      /**
+       * Provides directory tracking objects
+       * @param {String} directory path of the directory
+       * @returns {DirEntry} the directory's tracking object
+       */
+      _getWatchedDir(directory) {
+        if (!this._boundRemove) this._boundRemove = this._remove.bind(this);
+        const dir = sysPath.resolve(directory);
+        if (!this._watched.has(dir)) this._watched.set(dir, new DirEntry(dir, this._boundRemove));
+        return this._watched.get(dir);
+      }
+      // File helpers
+      // ------------
+      /**
+       * Check for read permissions.
+       * Based on this answer on SO: https://stackoverflow.com/a/11781404/1358405
+       * @param {fs.Stats} stats - object, result of fs_stat
+       * @returns {Boolean} indicates whether the file can be read
+      */
+      _hasReadPermissions(stats) {
+        if (this.options.ignorePermissionErrors) return true;
+        const md = stats && Number.parseInt(stats.mode, 10);
+        const st = md & 511;
+        const it = Number.parseInt(st.toString(8)[0], 10);
+        return Boolean(4 & it);
+      }
+      /**
+       * Handles emitting unlink events for
+       * files and directories, and via recursion, for
+       * files and directories within directories that are unlinked
+       * @param {String} directory within which the following item is located
+       * @param {String} item      base path of item/directory
+       * @returns {void}
+      */
+      _remove(directory, item, isDirectory) {
+        const path6 = sysPath.join(directory, item);
+        const fullPath = sysPath.resolve(path6);
+        isDirectory = isDirectory != null ? isDirectory : this._watched.has(path6) || this._watched.has(fullPath);
+        if (!this._throttle("remove", path6, 100)) return;
+        if (!isDirectory && !this.options.useFsEvents && this._watched.size === 1) {
+          this.add(directory, item, true);
+        }
+        const wp = this._getWatchedDir(path6);
+        const nestedDirectoryChildren = wp.getChildren();
+        nestedDirectoryChildren.forEach((nested) => this._remove(path6, nested));
+        const parent = this._getWatchedDir(directory);
+        const wasTracked = parent.has(item);
+        parent.remove(item);
+        if (this._symlinkPaths.has(fullPath)) {
+          this._symlinkPaths.delete(fullPath);
+        }
+        let relPath = path6;
+        if (this.options.cwd) relPath = sysPath.relative(this.options.cwd, path6);
+        if (this.options.awaitWriteFinish && this._pendingWrites.has(relPath)) {
+          const event = this._pendingWrites.get(relPath).cancelWait();
+          if (event === EV_ADD) return;
+        }
+        this._watched.delete(path6);
+        this._watched.delete(fullPath);
+        const eventName = isDirectory ? EV_UNLINK_DIR : EV_UNLINK;
+        if (wasTracked && !this._isIgnored(path6)) this._emit(eventName, path6);
+        if (!this.options.useFsEvents) {
+          this._closePath(path6);
+        }
+      }
+      /**
+       * Closes all watchers for a path
+       * @param {Path} path
+       */
+      _closePath(path6) {
+        this._closeFile(path6);
+        const dir = sysPath.dirname(path6);
+        this._getWatchedDir(dir).remove(sysPath.basename(path6));
+      }
+      /**
+       * Closes only file-specific watchers
+       * @param {Path} path
+       */
+      _closeFile(path6) {
+        const closers = this._closers.get(path6);
+        if (!closers) return;
+        closers.forEach((closer) => closer());
+        this._closers.delete(path6);
+      }
+      /**
+       *
+       * @param {Path} path
+       * @param {Function} closer
+       */
+      _addPathCloser(path6, closer) {
+        if (!closer) return;
+        let list = this._closers.get(path6);
+        if (!list) {
+          list = [];
+          this._closers.set(path6, list);
+        }
+        list.push(closer);
+      }
+      _readdirp(root, opts) {
+        if (this.closed) return;
+        const options = { type: EV_ALL, alwaysStat: true, lstat: true, ...opts };
+        let stream = readdirp(root, options);
+        this._streams.add(stream);
+        stream.once(STR_CLOSE, () => {
+          stream = void 0;
+        });
+        stream.once(STR_END, () => {
+          if (stream) {
+            this._streams.delete(stream);
+            stream = void 0;
+          }
+        });
+        return stream;
+      }
+    };
+    exports2.FSWatcher = FSWatcher;
+    var watch3 = (paths, options) => {
+      const watcher = new FSWatcher(options);
+      watcher.add(paths);
+      return watcher;
+    };
+    exports2.watch = watch3;
+  }
+});
+
+// src/extension.ts
+var extension_exports = {};
+__export(extension_exports, {
+  activate: () => activate,
+  deactivate: () => deactivate
+});
+module.exports = __toCommonJS(extension_exports);
+var vscode11 = __toESM(require("vscode"));
+
+// src/providers/DashboardViewProvider.ts
+var vscode = __toESM(require("vscode"));
+var crypto = __toESM(require("crypto"));
+var path = __toESM(require("path"));
+function notify(message, ...items) {
+  const config = vscode.workspace.getConfiguration("projectMemory");
+  if (config.get("showNotifications", true)) {
+    return vscode.window.showInformationMessage(message, ...items);
+  }
+  return Promise.resolve(void 0);
+}
+var DashboardViewProvider = class {
+  constructor(_extensionUri, dataRoot, agentsRoot) {
+    this._extensionUri = _extensionUri;
+    this._dataRoot = dataRoot;
+    this._agentsRoot = agentsRoot;
+  }
+  static viewType = "projectMemory.dashboardView";
+  _view;
+  _dataRoot;
+  _agentsRoot;
+  _disposables = [];
+  dispose() {
+    while (this._disposables.length) {
+      const disposable = this._disposables.pop();
+      if (disposable) {
+        disposable.dispose();
+      }
+    }
+  }
+  // Compute workspace ID to match MCP server format exactly
+  getWorkspaceId() {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    if (!workspaceFolder) return null;
+    const workspacePath = workspaceFolder.uri.fsPath;
+    const normalizedPath = path.normalize(workspacePath).toLowerCase();
+    const hash = crypto.createHash("sha256").update(normalizedPath).digest("hex").substring(0, 12);
+    const folderName = path.basename(workspacePath).replace(/[^a-zA-Z0-9-_]/g, "-");
+    return `${folderName}-${hash}`;
+  }
+  resolveWebviewView(webviewView, context, _token) {
+    this.dispose();
+    this._view = webviewView;
+    webviewView.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [
+        vscode.Uri.joinPath(this._extensionUri, "webview", "dist"),
+        vscode.Uri.joinPath(this._extensionUri, "resources")
+      ]
+    };
+    webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+    this._disposables.push(
+      webviewView.onDidDispose(() => {
+        this._view = void 0;
+      })
+    );
+    this._disposables.push(
+      webviewView.webview.onDidReceiveMessage(async (message) => {
+        console.log("Received message from webview:", message);
+        switch (message.type) {
+          case "openFile":
+            const { filePath, line } = message.data;
+            vscode.commands.executeCommand("projectMemory.openFile", filePath, line);
+            break;
+          case "runCommand":
+            const { command } = message.data;
+            console.log("Executing command:", command);
+            try {
+              await vscode.commands.executeCommand(command);
+              console.log("Command executed successfully");
+            } catch (err) {
+              console.error("Command execution failed:", err);
+              vscode.window.showErrorMessage(`Command failed: ${err}`);
+            }
+            break;
+          case "openExternal":
+            const { url } = message.data;
+            console.log("Opening dashboard panel:", url);
+            vscode.commands.executeCommand("projectMemory.openDashboardPanel", url);
+            break;
+          case "openPlan":
+            const { planId, workspaceId } = message.data;
+            const planUrl = `http://localhost:5173/workspace/${workspaceId}/plan/${planId}`;
+            console.log("Opening plan:", planUrl);
+            vscode.commands.executeCommand("projectMemory.openDashboardPanel", planUrl);
+            break;
+          case "copyToClipboard":
+            const { text } = message.data;
+            await vscode.env.clipboard.writeText(text);
+            notify(`Copied to clipboard: ${text}`);
+            break;
+          case "showNotification":
+            const { level, text: notifText } = message.data;
+            if (level === "error") {
+              vscode.window.showErrorMessage(notifText);
+            } else if (level === "warning") {
+              vscode.window.showWarningMessage(notifText);
+            } else {
+              notify(notifText);
+            }
+            break;
+          case "revealInExplorer":
+            const { path: path6 } = message.data;
+            vscode.commands.executeCommand("revealInExplorer", vscode.Uri.file(path6));
+            break;
+          case "getConfig":
+            this.postMessage({
+              type: "config",
+              data: {
+                dataRoot: this._dataRoot,
+                agentsRoot: this._agentsRoot,
+                workspaceFolders: vscode.workspace.workspaceFolders?.map((f) => ({
+                  name: f.name,
+                  path: f.uri.fsPath
+                })) || []
+              }
+            });
+            break;
+          case "ready":
+            this.postMessage({
+              type: "init",
+              data: {
+                dataRoot: this._dataRoot,
+                agentsRoot: this._agentsRoot
+              }
+            });
+            break;
+        }
+      })
+    );
+  }
+  postMessage(message) {
+    if (this._view) {
+      this._view.webview.postMessage(message);
+    }
+  }
+  updateConfig(dataRoot, agentsRoot) {
+    this._dataRoot = dataRoot;
+    this._agentsRoot = agentsRoot;
+    this.postMessage({
+      type: "configUpdated",
+      data: { dataRoot, agentsRoot }
+    });
+  }
+  _getHtmlForWebview(webview) {
+    const nonce = getNonce();
+    const config = vscode.workspace.getConfiguration("projectMemory");
+    const apiPort = config.get("serverPort") || config.get("apiPort") || 3001;
+    const dashboardUrl = `http://localhost:5173`;
+    const workspaceId = this.getWorkspaceId() || "";
+    const workspaceName = vscode.workspace.workspaceFolders?.[0]?.name || "No workspace";
+    return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${t}'; connect-src http://localhost:* ws://localhost:*; frame-src http://localhost:*;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}'; connect-src http://localhost:* ws://localhost:*; frame-src http://localhost:*;">
     <title>Project Memory Dashboard</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -212,12 +5479,12 @@
         </div>
     </div>
     
-    <script nonce="${t}">
+    <script nonce="${nonce}">
         const vscode = acquireVsCodeApi();
-        const apiPort = ${o};
-        const dashboardUrl = '${i}';
-        const workspaceId = '${n}';
-        const workspaceName = '${a}';
+        const apiPort = ${apiPort};
+        const dashboardUrl = '${dashboardUrl}';
+        const workspaceId = '${workspaceId}';
+        const workspaceName = '${workspaceName}';
         
         let activePlans = [];
         let archivedPlans = [];
@@ -449,16 +5716,935 @@
         vscode.postMessage({ type: 'ready' });
     </script>
 </body>
-</html>`}};function tn(){let s="",e="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";for(let t=0;t<32;t++)s+=e.charAt(Math.floor(Math.random()*e.length));return s}var $e=q(require("vscode")),Bo=q(Ds()),ze=q(require("path"));function Fs(s,...e){return $e.workspace.getConfiguration("projectMemory").get("showNotifications",!0)?$e.window.showInformationMessage(s,...e):Promise.resolve(void 0)}var St=class{watcher=null;agentsRoot;autoDeploy;constructor(e,t){this.agentsRoot=e,this.autoDeploy=t}start(){if(this.watcher)return;let e=ze.join(this.agentsRoot,"*.agent.md");this.watcher=Bo.watch(e,{persistent:!0,ignoreInitial:!0}),this.watcher.on("change",async t=>{let r=ze.basename(t,".agent.md");this.autoDeploy?Fs(`Deploying updated agent: ${r}`):await Fs(`Agent template updated: ${r}`,"Deploy to All Workspaces","Ignore")==="Deploy to All Workspaces"&&$e.commands.executeCommand("projectMemory.deployAgents")}),this.watcher.on("add",t=>{let r=ze.basename(t,".agent.md");Fs(`New agent template detected: ${r}`)}),console.log(`Agent watcher started for: ${e}`)}stop(){this.watcher&&(this.watcher.close(),this.watcher=null,console.log("Agent watcher stopped"))}setAutoDeploy(e){this.autoDeploy=e}};var Ce=q(require("vscode")),jo=q(Ds()),At=q(require("path"));function Ls(s,...e){return Ce.workspace.getConfiguration("projectMemory").get("showNotifications",!0)?Ce.window.showInformationMessage(s,...e):Promise.resolve(void 0)}var Pt=class{watchers=new Map;config;onFileChange;constructor(e){this.config=e}start(){this.config.agentsRoot&&this.startWatcher("agent",this.config.agentsRoot,"*.agent.md"),this.config.promptsRoot&&this.startWatcher("prompt",this.config.promptsRoot,"*.prompt.md"),this.config.instructionsRoot&&this.startWatcher("instruction",this.config.instructionsRoot,"*.instructions.md")}startWatcher(e,t,r){if(this.watchers.has(e))return;let o=At.join(t,r),i=jo.watch(o,{persistent:!0,ignoreInitial:!0});i.on("change",async n=>{this.handleFileEvent(e,n,"change")}),i.on("add",n=>{this.handleFileEvent(e,n,"add")}),i.on("unlink",n=>{this.handleFileEvent(e,n,"unlink")}),this.watchers.set(e,i),console.log(`${e} watcher started for: ${o}`)}async handleFileEvent(e,t,r){let o=At.basename(t),n={agent:"Agent template",prompt:"Prompt file",instruction:"Instruction file"}[e];if(this.onFileChange&&this.onFileChange(e,t,r),r==="unlink"){Ce.window.showWarningMessage(`${n} deleted: ${o}`);return}if(r==="add"){Ls(`New ${n.toLowerCase()} detected: ${o}`);return}this.config.autoDeploy?(Ls(`Auto-deploying updated ${n.toLowerCase()}: ${o}`),this.triggerDeploy(e)):await Ls(`${n} updated: ${o}`,"Deploy to All Workspaces","Ignore")==="Deploy to All Workspaces"&&this.triggerDeploy(e)}triggerDeploy(e){let t={agent:"projectMemory.deployAgents",prompt:"projectMemory.deployPrompts",instruction:"projectMemory.deployInstructions"};Ce.commands.executeCommand(t[e])}stop(){for(let[e,t]of this.watchers)t.close(),console.log(`${e} watcher stopped`);this.watchers.clear()}updateConfig(e){this.stop(),this.config={...this.config,...e},this.start()}setAutoDeploy(e){this.config.autoDeploy=e}onFileChanged(e){this.onFileChange=e}getWatchedPaths(){let e=[];return this.config.agentsRoot&&e.push({type:"agent",path:this.config.agentsRoot}),this.config.promptsRoot&&e.push({type:"prompt",path:this.config.promptsRoot}),this.config.instructionsRoot&&e.push({type:"instruction",path:this.config.instructionsRoot}),e}};var $t=q(require("vscode")),Tt=class{statusBarItem;currentAgent=null;currentPlan=null;constructor(){this.statusBarItem=$t.window.createStatusBarItem($t.StatusBarAlignment.Left,100),this.statusBarItem.command="projectMemory.showDashboard",this.updateDisplay(),this.statusBarItem.show()}setCurrentAgent(e){this.currentAgent=e,this.updateDisplay()}setCurrentPlan(e){this.currentPlan=e,this.updateDisplay()}updateDisplay(){this.currentAgent&&this.currentPlan?(this.statusBarItem.text=`$(robot) ${this.currentAgent} \xB7 ${this.currentPlan}`,this.statusBarItem.tooltip=`Project Memory: ${this.currentAgent} working on "${this.currentPlan}"`):this.currentAgent?(this.statusBarItem.text=`$(robot) ${this.currentAgent}`,this.statusBarItem.tooltip=`Project Memory: ${this.currentAgent} active`):(this.statusBarItem.text="$(robot) Project Memory",this.statusBarItem.tooltip="Click to open Project Memory Dashboard")}showTemporaryMessage(e,t=3e3){let r=this.statusBarItem.text,o=this.statusBarItem.tooltip;this.statusBarItem.text=`$(sync~spin) ${e}`,this.statusBarItem.tooltip=e,setTimeout(()=>{this.statusBarItem.text=r,this.statusBarItem.tooltip=o},t)}setCopilotStatus(e){e.agents+e.prompts+e.instructions>0?(this.statusBarItem.text=`$(robot) PM (${e.agents}A/${e.prompts}P/${e.instructions}I)`,this.statusBarItem.tooltip=`Project Memory
-Agents: ${e.agents}
-Prompts: ${e.prompts}
-Instructions: ${e.instructions}`):this.updateDisplay()}dispose(){this.statusBarItem.dispose()}};var Z=q(require("vscode")),Ke=require("child_process"),pe=q(require("path")),Hs=q(require("http"));function pc(s,...e){return Z.workspace.getConfiguration("projectMemory").get("showNotifications",!0)?Z.window.showInformationMessage(s,...e):Promise.resolve(void 0)}var It=class{serverProcess=null;frontendProcess=null;outputChannel;statusBarItem;_isRunning=!1;_isFrontendRunning=!1;_isExternalServer=!1;_isExternalFrontend=!1;config;restartAttempts=0;maxRestartAttempts=3;_performanceStats={apiCalls:0,avgResponseTime:0,lastCheck:Date.now()};constructor(e){this.config=e,this.outputChannel=Z.window.createOutputChannel("Project Memory Server"),this.statusBarItem=Z.window.createStatusBarItem(Z.StatusBarAlignment.Right,100),this.statusBarItem.command="projectMemory.toggleServer"}get isRunning(){return this._isRunning}get isFrontendRunning(){return this._isFrontendRunning}get isExternalServer(){return this._isExternalServer}get performanceStats(){return{...this._performanceStats}}async start(){if(this._isRunning)return this.log("Server is already running"),!0;let e=this.config.serverPort||3001;if(this.log(`Checking if server already exists on port ${e}...`),await this.checkHealth(e))return this.log("Found existing server - connecting without spawning new process"),this._isRunning=!0,this._isExternalServer=!0,this.restartAttempts=0,this.updateStatusBar("connected"),pc("Connected to existing Project Memory server"),!0;let r=this.getServerDirectory();if(!r)return Z.window.showErrorMessage("Could not find dashboard server directory"),!1;this.log(`Starting server from: ${r}`),this._isExternalServer=!1,this.updateStatusBar("starting");try{let o={...process.env,PORT:String(this.config.serverPort||3001),WS_PORT:String(this.config.wsPort||3002),MBS_DATA_ROOT:this.config.dataRoot,MBS_AGENTS_ROOT:this.config.agentsRoot,MBS_PROMPTS_ROOT:this.config.promptsRoot||"",MBS_INSTRUCTIONS_ROOT:this.config.instructionsRoot||""},i=pe.join(r,"dist","index.js"),n,a;return require("fs").existsSync(i)?(n="node",a=[i]):(n=process.platform==="win32"?"npx.cmd":"npx",a=["tsx","src/index.ts"]),this.serverProcess=(0,Ke.spawn)(n,a,{cwd:r,env:o,shell:!0,windowsHide:!0}),this.serverProcess.stdout?.on("data",d=>{this.log(d.toString().trim())}),this.serverProcess.stderr?.on("data",d=>{this.log(`[stderr] ${d.toString().trim()}`)}),this.serverProcess.on("error",d=>{this.log(`Server error: ${d.message}`),this._isRunning=!1,this.updateStatusBar("error")}),this.serverProcess.on("exit",(d,p)=>{this.log(`Server exited with code ${d}, signal ${p}`),this._isRunning=!1,this.serverProcess=null,d!==0&&this.restartAttempts<this.maxRestartAttempts?(this.restartAttempts++,this.log(`Attempting restart (${this.restartAttempts}/${this.maxRestartAttempts})...`),setTimeout(()=>this.start(),2e3)):this.updateStatusBar("stopped")}),await this.waitForServer(1e4)?(this._isRunning=!0,this.restartAttempts=0,this.updateStatusBar("running"),this.log("Server started successfully"),!0):(this.log("Server failed to start within timeout"),this.stop(),!1)}catch(o){return this.log(`Failed to start server: ${o}`),this.updateStatusBar("error"),!1}}async stop(){if(this._isExternalServer){this.log("Disconnecting from external server (not stopping it)"),this._isRunning=!1,this._isExternalServer=!1,this.updateStatusBar("stopped");return}if(this.serverProcess)return this.log("Stopping server..."),this.updateStatusBar("stopping"),new Promise(e=>{if(!this.serverProcess){e();return}let t=setTimeout(()=>{this.serverProcess&&(this.log("Force killing server..."),this.serverProcess.kill("SIGKILL")),e()},5e3);this.serverProcess.on("exit",()=>{clearTimeout(t),this._isRunning=!1,this.serverProcess=null,this.updateStatusBar("stopped"),this.log("Server stopped"),e()}),process.platform==="win32"?(0,Ke.spawn)("taskkill",["/pid",String(this.serverProcess.pid),"/f","/t"],{windowsHide:!0}):this.serverProcess.kill("SIGTERM")})}async restart(){return await this.stop(),this.start()}async startFrontend(){if(this._isFrontendRunning)return this.log("Frontend is already running"),!0;if(await this.checkPort(5173))return this.log("Found existing frontend on port 5173 - using it"),this._isFrontendRunning=!0,this._isExternalFrontend=!0,!0;let t=this.getDashboardDirectory();if(!t)return this.log("Could not find dashboard directory for frontend"),!1;this.log(`Starting frontend from: ${t}`);try{let r=process.platform==="win32"?"npm.cmd":"npm",o=["run","dev"];return this.frontendProcess=(0,Ke.spawn)(r,o,{cwd:t,shell:!0,windowsHide:!0,env:{...process.env,VITE_API_URL:`http://localhost:${this.config.serverPort||3001}`}}),this.frontendProcess.stdout?.on("data",n=>{this.log(`[frontend] ${n.toString().trim()}`)}),this.frontendProcess.stderr?.on("data",n=>{this.log(`[frontend] ${n.toString().trim()}`)}),this.frontendProcess.on("error",n=>{this.log(`Frontend error: ${n.message}`),this._isFrontendRunning=!1}),this.frontendProcess.on("exit",(n,a)=>{this.log(`Frontend exited with code ${n}, signal ${a}`),this._isFrontendRunning=!1,this.frontendProcess=null}),await this.waitForPort(5173,15e3)?(this._isFrontendRunning=!0,this.log("Frontend started successfully on port 5173"),!0):(this.log("Frontend failed to start within timeout"),!1)}catch(r){return this.log(`Failed to start frontend: ${r}`),!1}}async stopFrontend(){if(this._isExternalFrontend){this.log("Disconnecting from external frontend (not stopping it)"),this._isFrontendRunning=!1,this._isExternalFrontend=!1;return}if(this.frontendProcess)return this.log("Stopping frontend..."),new Promise(e=>{if(!this.frontendProcess){e();return}let t=setTimeout(()=>{this.frontendProcess&&(this.log("Force killing frontend..."),this.frontendProcess.kill("SIGKILL")),e()},5e3);this.frontendProcess.on("exit",()=>{clearTimeout(t),this._isFrontendRunning=!1,this.frontendProcess=null,this.log("Frontend stopped"),e()}),process.platform==="win32"?(0,Ke.spawn)("taskkill",["/pid",String(this.frontendProcess.pid),"/f","/t"],{windowsHide:!0}):this.frontendProcess.kill("SIGTERM")})}getDashboardDirectory(){let e=Z.workspace.workspaceFolders?.[0]?.uri.fsPath,t=Z.extensions.getExtension("project-memory.project-memory-dashboard")?.extensionPath;this.log(`Looking for dashboard - workspacePath: ${e}, extensionPath: ${t}`);let r=[e?pe.join(e,"dashboard"):null,e?pe.join(e,"Project-Memory-MCP","dashboard"):null,t?pe.join(t,"dashboard"):null,t?pe.join(t,"..","dashboard"):null].filter(Boolean);this.log(`Checking dashboard paths: ${JSON.stringify(r)}`);let o=require("fs");for(let i of r){let n=pe.join(i,"package.json");if(this.log(`Checking: ${n} - exists: ${o.existsSync(n)}`),o.existsSync(n))return i}return null}async waitForPort(e,t){let r=Date.now();for(;Date.now()-r<t;){try{if(await this.checkPort(e))return!0}catch{}await new Promise(o=>setTimeout(o,500))}return!1}checkPort(e){return new Promise(t=>{let r=Hs.get(`http://localhost:${e}`,o=>{t(o.statusCode!==void 0)});r.on("error",()=>t(!1)),r.setTimeout(1e3,()=>{r.destroy(),t(!1)})})}updateConfig(e){this.config={...this.config,...e},this._isRunning&&this.restart()}getServerDirectory(){let e=Z.extensions.getExtension("project-memory.project-memory-dashboard")?.extensionPath;this.log(`Extension path: ${e||"not found"}`);let t=Z.workspace.workspaceFolders?.[0]?.uri.fsPath;this.log(`Workspace path: ${t||"not found"}`);let r=[t?pe.join(t,"dashboard","server"):null,e?pe.join(e,"server"):null,e?pe.join(e,"..","dashboard","server"):null,"c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\dashboard\\server"].filter(Boolean);this.log(`Checking paths: ${JSON.stringify(r)}`);let o=require("fs");for(let i of r){let n=pe.join(i,"package.json");if(this.log(`Checking: ${n}`),o.existsSync(n))return this.log(`Found server at: ${i}`),i}return this.log("Server directory not found in any location"),null}async waitForServer(e){let t=this.config.serverPort||3001,r=Date.now();for(;Date.now()-r<e;){try{if(await this.checkHealth(t))return!0}catch{}await new Promise(o=>setTimeout(o,500))}return!1}checkHealth(e){return new Promise(t=>{let r=Hs.get(`http://localhost:${e}/api/health`,o=>{t(o.statusCode===200)});r.on("error",()=>t(!1)),r.setTimeout(1e3,()=>{r.destroy(),t(!1)})})}updateStatusBar(e){let t={starting:"$(loading~spin)",running:"$(check)",connected:"$(plug)",stopping:"$(loading~spin)",stopped:"$(circle-slash)",error:"$(error)"},r={running:new Z.ThemeColor("statusBarItem.prominentBackground"),connected:new Z.ThemeColor("statusBarItem.prominentBackground"),error:new Z.ThemeColor("statusBarItem.errorBackground")},o={starting:"PM Server",running:"PM Server (local)",connected:"PM Server (shared)",stopping:"PM Server",stopped:"PM Server",error:"PM Server"};this.statusBarItem.text=`${t[e]} ${o[e]||"PM Server"}`,this.statusBarItem.tooltip=`Project Memory Server: ${e}${this._isExternalServer?" (connected to existing)":""}
-Click to toggle`,this.statusBarItem.backgroundColor=r[e],this.statusBarItem.show()}async measureApiCall(e){let t=Date.now();try{let r=await e(),o=Date.now()-t;return this._performanceStats.apiCalls++,this._performanceStats.avgResponseTime=(this._performanceStats.avgResponseTime*(this._performanceStats.apiCalls-1)+o)/this._performanceStats.apiCalls,this._performanceStats.lastCheck=Date.now(),r}catch(r){throw r}}log(e){let t=new Date().toISOString();this.outputChannel.appendLine(`[${t}] ${e}`)}showLogs(){this.outputChannel.show()}dispose(){this.stop(),this.stopFrontend(),this.outputChannel.dispose(),this.statusBarItem.dispose()}};var Wo=q(require("vscode")),Y=q(require("fs")),J=q(require("path")),Mt=class{outputChannel;config;constructor(e){this.config=e,this.outputChannel=Wo.window.createOutputChannel("Project Memory Deployment")}updateConfig(e){this.config={...this.config,...e}}async deployToWorkspace(e){let t=[],r=[];this.log(`Deploying defaults to workspace: ${e}`);let o=J.join(e,".github","agents");for(let n of this.config.defaultAgents)try{await this.deployAgent(n,o)&&t.push(n)}catch(a){this.log(`Failed to deploy agent ${n}: ${a}`)}let i=J.join(e,".github","instructions");for(let n of this.config.defaultInstructions)try{await this.deployInstruction(n,i)&&r.push(n)}catch(a){this.log(`Failed to deploy instruction ${n}: ${a}`)}return this.log(`Deployed ${t.length} agents, ${r.length} instructions`),{agents:t,instructions:r}}async deployAgent(e,t){let r=J.join(this.config.agentsRoot,`${e}.agent.md`),o=J.join(t,`${e}.agent.md`);return this.copyFile(r,o)}async deployInstruction(e,t){let r=J.join(this.config.instructionsRoot,`${e}.instructions.md`),o=J.join(t,`${e}.instructions.md`);return this.copyFile(r,o)}async updateWorkspace(e){let t=[],r=[],o=J.join(e,".github","agents"),i=J.join(e,".github","instructions");for(let n of this.config.defaultAgents){let a=J.join(this.config.agentsRoot,`${n}.agent.md`),c=J.join(o,`${n}.agent.md`);if(Y.existsSync(a))if(Y.existsSync(c)){let u=Y.statSync(a),d=Y.statSync(c);u.mtimeMs>d.mtimeMs&&(await this.copyFile(a,c,!0),t.push(n))}else await this.copyFile(a,c),r.push(n)}for(let n of this.config.defaultInstructions){let a=J.join(this.config.instructionsRoot,`${n}.instructions.md`),c=J.join(i,`${n}.instructions.md`);if(Y.existsSync(a))if(Y.existsSync(c)){let u=Y.statSync(a),d=Y.statSync(c);u.mtimeMs>d.mtimeMs&&(await this.copyFile(a,c,!0),t.push(n))}else await this.copyFile(a,c),r.push(n)}return{updated:t,added:r}}getDeploymentPlan(){let e=this.config.defaultAgents.filter(r=>{let o=J.join(this.config.agentsRoot,`${r}.agent.md`);return Y.existsSync(o)}),t=this.config.defaultInstructions.filter(r=>{let o=J.join(this.config.instructionsRoot,`${r}.instructions.md`);return Y.existsSync(o)});return{agents:e,instructions:t}}async copyFile(e,t,r=!1){if(!Y.existsSync(e))return this.log(`Source not found: ${e}`),!1;if(Y.existsSync(t)&&!r)return this.log(`Target exists, skipping: ${t}`),!1;let o=J.dirname(t);return Y.existsSync(o)||Y.mkdirSync(o,{recursive:!0}),Y.copyFileSync(e,t),this.log(`Copied: ${e} -> ${t}`),!0}log(e){let t=new Date().toISOString();this.outputChannel.appendLine(`[${t}] ${e}`)}showLogs(){this.outputChannel.show()}dispose(){this.outputChannel.dispose()}};var le=q(require("vscode")),Dt=class s{static currentPanel;_panel;_disposables=[];static viewType="projectMemory.dashboard";constructor(e,t,r){this._panel=e,this._update(r),this._panel.onDidDispose(()=>this.dispose(),null,this._disposables),this._panel.webview.onDidReceiveMessage(o=>{o.type==="alert"&&le.window.showInformationMessage(o.text)},null,this._disposables)}static createOrShow(e,t){let r=le.window.activeTextEditor?le.window.activeTextEditor.viewColumn:void 0;if(s.currentPanel){s.currentPanel._panel.reveal(r),s.currentPanel._update(t);return}let o=le.window.createWebviewPanel(s.viewType,"\u{1F9E0} PMD",r||le.ViewColumn.One,{enableScripts:!0,retainContextWhenHidden:!0,localResourceRoots:[e]});s.currentPanel=new s(o,e,t)}static revive(e,t,r){s.currentPanel=new s(e,t,r)}_update(e){let t=this._panel.webview;this._panel.title="\u{1F9E0} PMD",this._panel.iconPath={light:le.Uri.joinPath(le.Uri.file(__dirname),"..","resources","icon.svg"),dark:le.Uri.joinPath(le.Uri.file(__dirname),"..","resources","icon.svg")},t.html=this._getHtmlForWebview(t,e)}_getHtmlForWebview(e,t){let r=hc();return`<!DOCTYPE html>
+</html>`;
+  }
+};
+function getNonce() {
+  let text = "";
+  const possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  for (let i = 0; i < 32; i++) {
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+  return text;
+}
+
+// src/watchers/AgentWatcher.ts
+var vscode2 = __toESM(require("vscode"));
+var chokidar = __toESM(require_chokidar());
+var path2 = __toESM(require("path"));
+function notify2(message, ...items) {
+  const config = vscode2.workspace.getConfiguration("projectMemory");
+  if (config.get("showNotifications", true)) {
+    return vscode2.window.showInformationMessage(message, ...items);
+  }
+  return Promise.resolve(void 0);
+}
+var AgentWatcher = class {
+  watcher = null;
+  agentsRoot;
+  autoDeploy;
+  constructor(agentsRoot, autoDeploy) {
+    this.agentsRoot = agentsRoot;
+    this.autoDeploy = autoDeploy;
+  }
+  start() {
+    if (this.watcher) {
+      return;
+    }
+    const pattern = path2.join(this.agentsRoot, "*.agent.md");
+    this.watcher = chokidar.watch(pattern, {
+      persistent: true,
+      ignoreInitial: true
+    });
+    this.watcher.on("change", async (filePath) => {
+      const agentName = path2.basename(filePath, ".agent.md");
+      if (this.autoDeploy) {
+        notify2(`Deploying updated agent: ${agentName}`);
+      } else {
+        const action = await notify2(
+          `Agent template updated: ${agentName}`,
+          "Deploy to All Workspaces",
+          "Ignore"
+        );
+        if (action === "Deploy to All Workspaces") {
+          vscode2.commands.executeCommand("projectMemory.deployAgents");
+        }
+      }
+    });
+    this.watcher.on("add", (filePath) => {
+      const agentName = path2.basename(filePath, ".agent.md");
+      notify2(`New agent template detected: ${agentName}`);
+    });
+    console.log(`Agent watcher started for: ${pattern}`);
+  }
+  stop() {
+    if (this.watcher) {
+      this.watcher.close();
+      this.watcher = null;
+      console.log("Agent watcher stopped");
+    }
+  }
+  setAutoDeploy(enabled) {
+    this.autoDeploy = enabled;
+  }
+};
+
+// src/watchers/CopilotFileWatcher.ts
+var vscode3 = __toESM(require("vscode"));
+var chokidar2 = __toESM(require_chokidar());
+var path3 = __toESM(require("path"));
+function notify3(message, ...items) {
+  const config = vscode3.workspace.getConfiguration("projectMemory");
+  if (config.get("showNotifications", true)) {
+    return vscode3.window.showInformationMessage(message, ...items);
+  }
+  return Promise.resolve(void 0);
+}
+var CopilotFileWatcher = class {
+  watchers = /* @__PURE__ */ new Map();
+  config;
+  onFileChange;
+  constructor(config) {
+    this.config = config;
+  }
+  start() {
+    if (this.config.agentsRoot) {
+      this.startWatcher("agent", this.config.agentsRoot, "*.agent.md");
+    }
+    if (this.config.promptsRoot) {
+      this.startWatcher("prompt", this.config.promptsRoot, "*.prompt.md");
+    }
+    if (this.config.instructionsRoot) {
+      this.startWatcher("instruction", this.config.instructionsRoot, "*.instructions.md");
+    }
+  }
+  startWatcher(type, rootPath, pattern) {
+    if (this.watchers.has(type)) {
+      return;
+    }
+    const fullPattern = path3.join(rootPath, pattern);
+    const watcher = chokidar2.watch(fullPattern, {
+      persistent: true,
+      ignoreInitial: true
+    });
+    watcher.on("change", async (filePath) => {
+      this.handleFileEvent(type, filePath, "change");
+    });
+    watcher.on("add", (filePath) => {
+      this.handleFileEvent(type, filePath, "add");
+    });
+    watcher.on("unlink", (filePath) => {
+      this.handleFileEvent(type, filePath, "unlink");
+    });
+    this.watchers.set(type, watcher);
+    console.log(`${type} watcher started for: ${fullPattern}`);
+  }
+  async handleFileEvent(type, filePath, action) {
+    const fileName = path3.basename(filePath);
+    const typeLabels = {
+      agent: "Agent template",
+      prompt: "Prompt file",
+      instruction: "Instruction file"
+    };
+    const label = typeLabels[type];
+    if (this.onFileChange) {
+      this.onFileChange(type, filePath, action);
+    }
+    if (action === "unlink") {
+      vscode3.window.showWarningMessage(`${label} deleted: ${fileName}`);
+      return;
+    }
+    if (action === "add") {
+      notify3(`New ${label.toLowerCase()} detected: ${fileName}`);
+      return;
+    }
+    if (this.config.autoDeploy) {
+      notify3(`Auto-deploying updated ${label.toLowerCase()}: ${fileName}`);
+      this.triggerDeploy(type);
+    } else {
+      const deployAction = await notify3(
+        `${label} updated: ${fileName}`,
+        "Deploy to All Workspaces",
+        "Ignore"
+      );
+      if (deployAction === "Deploy to All Workspaces") {
+        this.triggerDeploy(type);
+      }
+    }
+  }
+  triggerDeploy(type) {
+    const commands5 = {
+      agent: "projectMemory.deployAgents",
+      prompt: "projectMemory.deployPrompts",
+      instruction: "projectMemory.deployInstructions"
+    };
+    vscode3.commands.executeCommand(commands5[type]);
+  }
+  stop() {
+    for (const [type, watcher] of this.watchers) {
+      watcher.close();
+      console.log(`${type} watcher stopped`);
+    }
+    this.watchers.clear();
+  }
+  updateConfig(config) {
+    this.stop();
+    this.config = { ...this.config, ...config };
+    this.start();
+  }
+  setAutoDeploy(enabled) {
+    this.config.autoDeploy = enabled;
+  }
+  onFileChanged(handler) {
+    this.onFileChange = handler;
+  }
+  getWatchedPaths() {
+    const paths = [];
+    if (this.config.agentsRoot) {
+      paths.push({ type: "agent", path: this.config.agentsRoot });
+    }
+    if (this.config.promptsRoot) {
+      paths.push({ type: "prompt", path: this.config.promptsRoot });
+    }
+    if (this.config.instructionsRoot) {
+      paths.push({ type: "instruction", path: this.config.instructionsRoot });
+    }
+    return paths;
+  }
+};
+
+// src/ui/StatusBarManager.ts
+var vscode4 = __toESM(require("vscode"));
+var StatusBarManager = class {
+  statusBarItem;
+  currentAgent = null;
+  currentPlan = null;
+  constructor() {
+    this.statusBarItem = vscode4.window.createStatusBarItem(
+      vscode4.StatusBarAlignment.Left,
+      100
+    );
+    this.statusBarItem.command = "projectMemory.showDashboard";
+    this.updateDisplay();
+    this.statusBarItem.show();
+  }
+  setCurrentAgent(agent) {
+    this.currentAgent = agent;
+    this.updateDisplay();
+  }
+  setCurrentPlan(plan) {
+    this.currentPlan = plan;
+    this.updateDisplay();
+  }
+  updateDisplay() {
+    if (this.currentAgent && this.currentPlan) {
+      this.statusBarItem.text = `$(robot) ${this.currentAgent} \xB7 ${this.currentPlan}`;
+      this.statusBarItem.tooltip = `Project Memory: ${this.currentAgent} working on "${this.currentPlan}"`;
+    } else if (this.currentAgent) {
+      this.statusBarItem.text = `$(robot) ${this.currentAgent}`;
+      this.statusBarItem.tooltip = `Project Memory: ${this.currentAgent} active`;
+    } else {
+      this.statusBarItem.text = "$(robot) Project Memory";
+      this.statusBarItem.tooltip = "Click to open Project Memory Dashboard";
+    }
+  }
+  /**
+   * Show a temporary message in the status bar
+   * @param message The message to display
+   * @param durationMs How long to show the message (default 3000ms)
+   */
+  showTemporaryMessage(message, durationMs = 3e3) {
+    const previousText = this.statusBarItem.text;
+    const previousTooltip = this.statusBarItem.tooltip;
+    this.statusBarItem.text = `$(sync~spin) ${message}`;
+    this.statusBarItem.tooltip = message;
+    setTimeout(() => {
+      this.statusBarItem.text = previousText;
+      this.statusBarItem.tooltip = previousTooltip;
+    }, durationMs);
+  }
+  /**
+   * Update status bar to show Copilot configuration status
+   * @param status Object with counts of agents, prompts, instructions
+   */
+  setCopilotStatus(status) {
+    const total = status.agents + status.prompts + status.instructions;
+    if (total > 0) {
+      this.statusBarItem.text = `$(robot) PM (${status.agents}A/${status.prompts}P/${status.instructions}I)`;
+      this.statusBarItem.tooltip = `Project Memory
+Agents: ${status.agents}
+Prompts: ${status.prompts}
+Instructions: ${status.instructions}`;
+    } else {
+      this.updateDisplay();
+    }
+  }
+  dispose() {
+    this.statusBarItem.dispose();
+  }
+};
+
+// src/server/ServerManager.ts
+var vscode5 = __toESM(require("vscode"));
+var import_child_process = require("child_process");
+var path4 = __toESM(require("path"));
+var http = __toESM(require("http"));
+function notify4(message, ...items) {
+  const config = vscode5.workspace.getConfiguration("projectMemory");
+  if (config.get("showNotifications", true)) {
+    return vscode5.window.showInformationMessage(message, ...items);
+  }
+  return Promise.resolve(void 0);
+}
+var ServerManager = class {
+  serverProcess = null;
+  frontendProcess = null;
+  outputChannel;
+  statusBarItem;
+  _isRunning = false;
+  _isFrontendRunning = false;
+  _isExternalServer = false;
+  // True if connected to server started by another VS Code instance
+  _isExternalFrontend = false;
+  config;
+  restartAttempts = 0;
+  maxRestartAttempts = 3;
+  _performanceStats = { apiCalls: 0, avgResponseTime: 0, lastCheck: Date.now() };
+  constructor(config) {
+    this.config = config;
+    this.outputChannel = vscode5.window.createOutputChannel("Project Memory Server");
+    this.statusBarItem = vscode5.window.createStatusBarItem(
+      vscode5.StatusBarAlignment.Right,
+      100
+    );
+    this.statusBarItem.command = "projectMemory.toggleServer";
+  }
+  get isRunning() {
+    return this._isRunning;
+  }
+  get isFrontendRunning() {
+    return this._isFrontendRunning;
+  }
+  get isExternalServer() {
+    return this._isExternalServer;
+  }
+  get performanceStats() {
+    return { ...this._performanceStats };
+  }
+  async start() {
+    if (this._isRunning) {
+      this.log("Server is already running");
+      return true;
+    }
+    const port = this.config.serverPort || 3001;
+    this.log(`Checking if server already exists on port ${port}...`);
+    const existingServer = await this.checkHealth(port);
+    if (existingServer) {
+      this.log("Found existing server - connecting without spawning new process");
+      this._isRunning = true;
+      this._isExternalServer = true;
+      this.restartAttempts = 0;
+      this.updateStatusBar("connected");
+      notify4("Connected to existing Project Memory server");
+      return true;
+    }
+    const serverDir = this.getServerDirectory();
+    if (!serverDir) {
+      this.log("Dashboard server directory not found");
+      return false;
+    }
+    this.log(`Starting server from: ${serverDir}`);
+    this._isExternalServer = false;
+    this.updateStatusBar("starting");
+    try {
+      const env3 = {
+        ...process.env,
+        PORT: String(this.config.serverPort || 3001),
+        WS_PORT: String(this.config.wsPort || 3002),
+        MBS_DATA_ROOT: this.config.dataRoot,
+        MBS_AGENTS_ROOT: this.config.agentsRoot,
+        MBS_PROMPTS_ROOT: this.config.promptsRoot || "",
+        MBS_INSTRUCTIONS_ROOT: this.config.instructionsRoot || ""
+      };
+      const distPath = path4.join(serverDir, "dist", "index.js");
+      let command;
+      let args;
+      const fs2 = require("fs");
+      if (fs2.existsSync(distPath)) {
+        command = "node";
+        args = [distPath];
+      } else {
+        command = process.platform === "win32" ? "npx.cmd" : "npx";
+        args = ["tsx", "src/index.ts"];
+      }
+      this.serverProcess = (0, import_child_process.spawn)(command, args, {
+        cwd: serverDir,
+        env: env3,
+        shell: true,
+        windowsHide: true
+      });
+      this.serverProcess.stdout?.on("data", (data) => {
+        this.log(data.toString().trim());
+      });
+      this.serverProcess.stderr?.on("data", (data) => {
+        this.log(`[stderr] ${data.toString().trim()}`);
+      });
+      this.serverProcess.on("error", (error) => {
+        this.log(`Server error: ${error.message}`);
+        this._isRunning = false;
+        this.updateStatusBar("error");
+      });
+      this.serverProcess.on("exit", (code, signal) => {
+        this.log(`Server exited with code ${code}, signal ${signal}`);
+        this._isRunning = false;
+        this.serverProcess = null;
+        if (code !== 0 && this.restartAttempts < this.maxRestartAttempts) {
+          this.restartAttempts++;
+          this.log(`Attempting restart (${this.restartAttempts}/${this.maxRestartAttempts})...`);
+          setTimeout(() => this.start(), 2e3);
+        } else {
+          this.updateStatusBar("stopped");
+        }
+      });
+      const isReady = await this.waitForServer(1e4);
+      if (isReady) {
+        this._isRunning = true;
+        this.restartAttempts = 0;
+        this.updateStatusBar("running");
+        this.log("Server started successfully");
+        return true;
+      } else {
+        this.log("Server failed to start within timeout");
+        this.stop();
+        return false;
+      }
+    } catch (error) {
+      this.log(`Failed to start server: ${error}`);
+      this.updateStatusBar("error");
+      return false;
+    }
+  }
+  async stop() {
+    if (this._isExternalServer) {
+      this.log("Disconnecting from external server (not stopping it)");
+      this._isRunning = false;
+      this._isExternalServer = false;
+      this.updateStatusBar("stopped");
+      return;
+    }
+    if (!this.serverProcess) {
+      return;
+    }
+    this.log("Stopping server...");
+    this.updateStatusBar("stopping");
+    return new Promise((resolve) => {
+      if (!this.serverProcess) {
+        resolve();
+        return;
+      }
+      const timeout = setTimeout(() => {
+        if (this.serverProcess) {
+          this.log("Force killing server...");
+          this.serverProcess.kill("SIGKILL");
+        }
+        resolve();
+      }, 5e3);
+      this.serverProcess.on("exit", () => {
+        clearTimeout(timeout);
+        this._isRunning = false;
+        this.serverProcess = null;
+        this.updateStatusBar("stopped");
+        this.log("Server stopped");
+        resolve();
+      });
+      if (process.platform === "win32") {
+        (0, import_child_process.spawn)("taskkill", ["/pid", String(this.serverProcess.pid), "/f", "/t"], {
+          windowsHide: true
+        });
+      } else {
+        this.serverProcess.kill("SIGTERM");
+      }
+    });
+  }
+  async restart() {
+    await this.stop();
+    return this.start();
+  }
+  async startFrontend() {
+    if (this._isFrontendRunning) {
+      this.log("Frontend is already running");
+      return true;
+    }
+    const existingFrontend = await this.checkPort(5173);
+    if (existingFrontend) {
+      this.log("Found existing frontend on port 5173 - using it");
+      this._isFrontendRunning = true;
+      this._isExternalFrontend = true;
+      return true;
+    }
+    const dashboardDir = this.getDashboardDirectory();
+    if (!dashboardDir) {
+      this.log("Could not find dashboard directory for frontend");
+      return false;
+    }
+    this.log(`Starting frontend from: ${dashboardDir}`);
+    try {
+      const command = process.platform === "win32" ? "npm.cmd" : "npm";
+      const args = ["run", "dev"];
+      this.frontendProcess = (0, import_child_process.spawn)(command, args, {
+        cwd: dashboardDir,
+        shell: true,
+        windowsHide: true,
+        env: {
+          ...process.env,
+          VITE_API_URL: `http://localhost:${this.config.serverPort || 3001}`
+        }
+      });
+      this.frontendProcess.stdout?.on("data", (data) => {
+        this.log(`[frontend] ${data.toString().trim()}`);
+      });
+      this.frontendProcess.stderr?.on("data", (data) => {
+        this.log(`[frontend] ${data.toString().trim()}`);
+      });
+      this.frontendProcess.on("error", (error) => {
+        this.log(`Frontend error: ${error.message}`);
+        this._isFrontendRunning = false;
+      });
+      this.frontendProcess.on("exit", (code, signal) => {
+        this.log(`Frontend exited with code ${code}, signal ${signal}`);
+        this._isFrontendRunning = false;
+        this.frontendProcess = null;
+      });
+      const isReady = await this.waitForPort(5173, 15e3);
+      if (isReady) {
+        this._isFrontendRunning = true;
+        this.log("Frontend started successfully on port 5173");
+        return true;
+      } else {
+        this.log("Frontend failed to start within timeout");
+        return false;
+      }
+    } catch (error) {
+      this.log(`Failed to start frontend: ${error}`);
+      return false;
+    }
+  }
+  async stopFrontend() {
+    if (this._isExternalFrontend) {
+      this.log("Disconnecting from external frontend (not stopping it)");
+      this._isFrontendRunning = false;
+      this._isExternalFrontend = false;
+      return;
+    }
+    if (!this.frontendProcess) {
+      return;
+    }
+    this.log("Stopping frontend...");
+    return new Promise((resolve) => {
+      if (!this.frontendProcess) {
+        resolve();
+        return;
+      }
+      const timeout = setTimeout(() => {
+        if (this.frontendProcess) {
+          this.log("Force killing frontend...");
+          this.frontendProcess.kill("SIGKILL");
+        }
+        resolve();
+      }, 5e3);
+      this.frontendProcess.on("exit", () => {
+        clearTimeout(timeout);
+        this._isFrontendRunning = false;
+        this.frontendProcess = null;
+        this.log("Frontend stopped");
+        resolve();
+      });
+      if (process.platform === "win32") {
+        (0, import_child_process.spawn)("taskkill", ["/pid", String(this.frontendProcess.pid), "/f", "/t"], {
+          windowsHide: true
+        });
+      } else {
+        this.frontendProcess.kill("SIGTERM");
+      }
+    });
+  }
+  getDashboardDirectory() {
+    const workspacePath = vscode5.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const extensionPath = vscode5.extensions.getExtension("project-memory.project-memory-dashboard")?.extensionPath;
+    const possiblePaths = [
+      // Bundled with extension - check this FIRST
+      extensionPath ? path4.join(extensionPath, "dashboard") : null,
+      // Development workspace (where the extension is being developed)
+      "c:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\dashboard",
+      "c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\dashboard",
+      // Current workspace (only if developing in this workspace)
+      workspacePath ? path4.join(workspacePath, "dashboard") : null,
+      // Sibling to extension
+      extensionPath ? path4.join(extensionPath, "..", "dashboard") : null
+    ].filter(Boolean);
+    const fs2 = require("fs");
+    for (const p of possiblePaths) {
+      const packageJson = path4.join(p, "package.json");
+      if (fs2.existsSync(packageJson)) {
+        this.log(`Found dashboard at: ${p}`);
+        return p;
+      }
+    }
+    this.log("Could not find dashboard directory for frontend");
+    return null;
+  }
+  async waitForPort(port, timeout) {
+    const startTime = Date.now();
+    while (Date.now() - startTime < timeout) {
+      try {
+        const isOpen = await this.checkPort(port);
+        if (isOpen) {
+          return true;
+        }
+      } catch {
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    return false;
+  }
+  checkPort(port) {
+    return new Promise((resolve) => {
+      const req = http.get(`http://localhost:${port}`, (res) => {
+        resolve(res.statusCode !== void 0);
+      });
+      req.on("error", () => resolve(false));
+      req.setTimeout(1e3, () => {
+        req.destroy();
+        resolve(false);
+      });
+    });
+  }
+  updateConfig(config) {
+    this.config = { ...this.config, ...config };
+    if (this._isRunning) {
+      this.restart();
+    }
+  }
+  getServerDirectory() {
+    const extensionPath = vscode5.extensions.getExtension("project-memory.project-memory-dashboard")?.extensionPath;
+    const workspacePath = vscode5.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const possiblePaths = [
+      // Bundled with extension - check FIRST
+      extensionPath ? path4.join(extensionPath, "server") : null,
+      // Development workspace (where extension is being developed)
+      "c:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\dashboard\\server",
+      "c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\dashboard\\server",
+      // Current workspace (only if developing in this workspace)
+      workspacePath ? path4.join(workspacePath, "dashboard", "server") : null,
+      // Development - relative to extension source
+      extensionPath ? path4.join(extensionPath, "..", "dashboard", "server") : null
+    ].filter(Boolean);
+    const fs2 = require("fs");
+    for (const p of possiblePaths) {
+      const packageJson = path4.join(p, "package.json");
+      if (fs2.existsSync(packageJson)) {
+        this.log(`Found server at: ${p}`);
+        return p;
+      }
+    }
+    return null;
+  }
+  hasServerDirectory() {
+    return this.getServerDirectory() !== null;
+  }
+  async waitForServer(timeout) {
+    const port = this.config.serverPort || 3001;
+    const startTime = Date.now();
+    while (Date.now() - startTime < timeout) {
+      try {
+        const isHealthy = await this.checkHealth(port);
+        if (isHealthy) {
+          return true;
+        }
+      } catch {
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    return false;
+  }
+  checkHealth(port) {
+    return new Promise((resolve) => {
+      const req = http.get(`http://localhost:${port}/api/health`, (res) => {
+        resolve(res.statusCode === 200);
+      });
+      req.on("error", () => resolve(false));
+      req.setTimeout(1e3, () => {
+        req.destroy();
+        resolve(false);
+      });
+    });
+  }
+  updateStatusBar(status) {
+    const icons = {
+      starting: "$(loading~spin)",
+      running: "$(check)",
+      connected: "$(plug)",
+      stopping: "$(loading~spin)",
+      stopped: "$(circle-slash)",
+      error: "$(error)"
+    };
+    const colors = {
+      running: new vscode5.ThemeColor("statusBarItem.prominentBackground"),
+      connected: new vscode5.ThemeColor("statusBarItem.prominentBackground"),
+      error: new vscode5.ThemeColor("statusBarItem.errorBackground")
+    };
+    const labels = {
+      starting: "PM Server",
+      running: "PM Server (local)",
+      connected: "PM Server (shared)",
+      stopping: "PM Server",
+      stopped: "PM Server",
+      error: "PM Server"
+    };
+    this.statusBarItem.text = `${icons[status]} ${labels[status] || "PM Server"}`;
+    this.statusBarItem.tooltip = `Project Memory Server: ${status}${this._isExternalServer ? " (connected to existing)" : ""}
+Click to toggle`;
+    this.statusBarItem.backgroundColor = colors[status];
+    this.statusBarItem.show();
+  }
+  // Performance monitoring
+  async measureApiCall(fn) {
+    const start = Date.now();
+    try {
+      const result = await fn();
+      const duration = Date.now() - start;
+      this._performanceStats.apiCalls++;
+      this._performanceStats.avgResponseTime = (this._performanceStats.avgResponseTime * (this._performanceStats.apiCalls - 1) + duration) / this._performanceStats.apiCalls;
+      this._performanceStats.lastCheck = Date.now();
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  }
+  log(message) {
+    const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+    this.outputChannel.appendLine(`[${timestamp}] ${message}`);
+  }
+  showLogs() {
+    this.outputChannel.show();
+  }
+  dispose() {
+    this.stop();
+    this.stopFrontend();
+    this.outputChannel.dispose();
+    this.statusBarItem.dispose();
+  }
+};
+
+// src/deployer/DefaultDeployer.ts
+var vscode6 = __toESM(require("vscode"));
+var fs = __toESM(require("fs"));
+var path5 = __toESM(require("path"));
+var DefaultDeployer = class {
+  outputChannel;
+  config;
+  constructor(config) {
+    this.config = config;
+    this.outputChannel = vscode6.window.createOutputChannel("Project Memory Deployment");
+  }
+  updateConfig(config) {
+    this.config = { ...this.config, ...config };
+  }
+  /**
+   * Deploy default agents and instructions to a workspace
+   */
+  async deployToWorkspace(workspacePath) {
+    const deployedAgents = [];
+    const deployedInstructions = [];
+    this.log(`Deploying defaults to workspace: ${workspacePath}`);
+    const agentsTargetDir = path5.join(workspacePath, ".github", "agents");
+    for (const agentName of this.config.defaultAgents) {
+      try {
+        const deployed = await this.deployAgent(agentName, agentsTargetDir);
+        if (deployed) {
+          deployedAgents.push(agentName);
+        }
+      } catch (error) {
+        this.log(`Failed to deploy agent ${agentName}: ${error}`);
+      }
+    }
+    const instructionsTargetDir = path5.join(workspacePath, ".github", "instructions");
+    for (const instructionName of this.config.defaultInstructions) {
+      try {
+        const deployed = await this.deployInstruction(instructionName, instructionsTargetDir);
+        if (deployed) {
+          deployedInstructions.push(instructionName);
+        }
+      } catch (error) {
+        this.log(`Failed to deploy instruction ${instructionName}: ${error}`);
+      }
+    }
+    this.log(`Deployed ${deployedAgents.length} agents, ${deployedInstructions.length} instructions`);
+    return { agents: deployedAgents, instructions: deployedInstructions };
+  }
+  /**
+   * Deploy a single agent file
+   */
+  async deployAgent(agentName, targetDir) {
+    const sourcePath = path5.join(this.config.agentsRoot, `${agentName}.agent.md`);
+    const targetPath = path5.join(targetDir, `${agentName}.agent.md`);
+    return this.copyFile(sourcePath, targetPath);
+  }
+  /**
+   * Deploy a single instruction file
+   */
+  async deployInstruction(instructionName, targetDir) {
+    const sourcePath = path5.join(this.config.instructionsRoot, `${instructionName}.instructions.md`);
+    const targetPath = path5.join(targetDir, `${instructionName}.instructions.md`);
+    return this.copyFile(sourcePath, targetPath);
+  }
+  /**
+   * Update deployed files in a workspace (sync with source)
+   */
+  async updateWorkspace(workspacePath) {
+    const updated = [];
+    const added = [];
+    const agentsDir = path5.join(workspacePath, ".github", "agents");
+    const instructionsDir = path5.join(workspacePath, ".github", "instructions");
+    for (const agentName of this.config.defaultAgents) {
+      const sourcePath = path5.join(this.config.agentsRoot, `${agentName}.agent.md`);
+      const targetPath = path5.join(agentsDir, `${agentName}.agent.md`);
+      if (!fs.existsSync(sourcePath)) continue;
+      if (fs.existsSync(targetPath)) {
+        const sourceStats = fs.statSync(sourcePath);
+        const targetStats = fs.statSync(targetPath);
+        if (sourceStats.mtimeMs > targetStats.mtimeMs) {
+          await this.copyFile(sourcePath, targetPath, true);
+          updated.push(agentName);
+        }
+      } else {
+        await this.copyFile(sourcePath, targetPath);
+        added.push(agentName);
+      }
+    }
+    for (const instructionName of this.config.defaultInstructions) {
+      const sourcePath = path5.join(this.config.instructionsRoot, `${instructionName}.instructions.md`);
+      const targetPath = path5.join(instructionsDir, `${instructionName}.instructions.md`);
+      if (!fs.existsSync(sourcePath)) continue;
+      if (fs.existsSync(targetPath)) {
+        const sourceStats = fs.statSync(sourcePath);
+        const targetStats = fs.statSync(targetPath);
+        if (sourceStats.mtimeMs > targetStats.mtimeMs) {
+          await this.copyFile(sourcePath, targetPath, true);
+          updated.push(instructionName);
+        }
+      } else {
+        await this.copyFile(sourcePath, targetPath);
+        added.push(instructionName);
+      }
+    }
+    return { updated, added };
+  }
+  /**
+   * List what would be deployed (dry run)
+   */
+  getDeploymentPlan() {
+    const agents = this.config.defaultAgents.filter((name) => {
+      const sourcePath = path5.join(this.config.agentsRoot, `${name}.agent.md`);
+      return fs.existsSync(sourcePath);
+    });
+    const instructions = this.config.defaultInstructions.filter((name) => {
+      const sourcePath = path5.join(this.config.instructionsRoot, `${name}.instructions.md`);
+      return fs.existsSync(sourcePath);
+    });
+    return { agents, instructions };
+  }
+  async copyFile(sourcePath, targetPath, overwrite = false) {
+    if (!fs.existsSync(sourcePath)) {
+      this.log(`Source not found: ${sourcePath}`);
+      return false;
+    }
+    if (fs.existsSync(targetPath) && !overwrite) {
+      this.log(`Target exists, skipping: ${targetPath}`);
+      return false;
+    }
+    const targetDir = path5.dirname(targetPath);
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+    fs.copyFileSync(sourcePath, targetPath);
+    this.log(`Copied: ${sourcePath} -> ${targetPath}`);
+    return true;
+  }
+  log(message) {
+    const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+    this.outputChannel.appendLine(`[${timestamp}] ${message}`);
+  }
+  showLogs() {
+    this.outputChannel.show();
+  }
+  dispose() {
+    this.outputChannel.dispose();
+  }
+};
+
+// src/ui/DashboardPanel.ts
+var vscode7 = __toESM(require("vscode"));
+var DashboardPanel = class _DashboardPanel {
+  static currentPanel;
+  _panel;
+  _disposables = [];
+  static viewType = "projectMemory.dashboard";
+  constructor(panel, extensionUri, dashboardUrl) {
+    this._panel = panel;
+    this._update(dashboardUrl);
+    this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
+    this._panel.webview.onDidReceiveMessage(
+      (message) => {
+        switch (message.type) {
+          case "alert":
+            vscode7.window.showInformationMessage(message.text);
+            break;
+        }
+      },
+      null,
+      this._disposables
+    );
+  }
+  static createOrShow(extensionUri, dashboardUrl) {
+    const column = vscode7.window.activeTextEditor ? vscode7.window.activeTextEditor.viewColumn : void 0;
+    if (_DashboardPanel.currentPanel) {
+      _DashboardPanel.currentPanel._panel.reveal(column);
+      _DashboardPanel.currentPanel._update(dashboardUrl);
+      return;
+    }
+    const panel = vscode7.window.createWebviewPanel(
+      _DashboardPanel.viewType,
+      "\u{1F9E0} PMD",
+      column || vscode7.ViewColumn.One,
+      {
+        enableScripts: true,
+        retainContextWhenHidden: true,
+        localResourceRoots: [extensionUri]
+      }
+    );
+    _DashboardPanel.currentPanel = new _DashboardPanel(panel, extensionUri, dashboardUrl);
+  }
+  static revive(panel, extensionUri, dashboardUrl) {
+    _DashboardPanel.currentPanel = new _DashboardPanel(panel, extensionUri, dashboardUrl);
+  }
+  _update(dashboardUrl) {
+    const webview = this._panel.webview;
+    this._panel.title = "\u{1F9E0} PMD";
+    this._panel.iconPath = {
+      light: vscode7.Uri.joinPath(vscode7.Uri.file(__dirname), "..", "resources", "icon.svg"),
+      dark: vscode7.Uri.joinPath(vscode7.Uri.file(__dirname), "..", "resources", "icon.svg")
+    };
+    webview.html = this._getHtmlForWebview(webview, dashboardUrl);
+  }
+  _getHtmlForWebview(webview, dashboardUrl) {
+    const nonce = getNonce2();
+    return `<!DOCTYPE html>
 <html lang="en" style="height: 100%; margin: 0; padding: 0;">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src ${t} http://localhost:*; style-src 'unsafe-inline';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src ${dashboardUrl} http://localhost:*; style-src 'unsafe-inline';">
     <title>Project Memory Dashboard</title>
     <style>
         html, body {
@@ -505,12 +6691,12 @@ Click to toggle`,this.statusBarItem.backgroundColor=r[e],this.statusBarItem.show
 <body>
     <iframe 
         id="dashboard-frame"
-        src="${t}"
+        src="${dashboardUrl}"
         title="Project Memory Dashboard"
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
     ></iframe>
     
-    <script nonce="${r}">
+    <script nonce="${nonce}">
         (function() {
             const iframe = document.getElementById('dashboard-frame');
             if (iframe) {
@@ -518,7 +6704,7 @@ Click to toggle`,this.statusBarItem.backgroundColor=r[e],this.statusBarItem.show
                     document.body.innerHTML = \`
                         <div class="error">
                             <h2>Unable to load dashboard</h2>
-                            <p>Make sure the dashboard server is running on ${t}</p>
+                            <p>Make sure the dashboard server is running on ${dashboardUrl}</p>
                             <button onclick="location.reload()">Retry</button>
                         </div>
                     \`;
@@ -527,95 +6713,2044 @@ Click to toggle`,this.statusBarItem.backgroundColor=r[e],this.statusBarItem.show
         })();
     </script>
 </body>
-</html>`}dispose(){for(s.currentPanel=void 0,this._panel.dispose();this._disposables.length;){let e=this._disposables.pop();e&&e.dispose()}}};function hc(){let s="",e="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";for(let t=0;t<32;t++)s+=e.charAt(Math.floor(Math.random()*e.length));return s}var Ie=q(require("vscode")),Ft=q(require("http")),Uo=q(require("crypto")),Ve=class{connected=!1;serverPort=3001;serverHost="localhost";outputChannel;reconnectAttempts=0;maxReconnectAttempts=3;reconnectDelay=1e3;config;_onConnectionChange=new Ie.EventEmitter;onConnectionChange=this._onConnectionChange.event;constructor(e){this.config=e,this.outputChannel=Ie.window.createOutputChannel("Project Memory MCP Bridge");let t=Ie.workspace.getConfiguration("projectMemory");this.serverPort=t.get("serverPort")||3001}async connect(){if(this.connected){this.log("Already connected");return}try{let e=await this.httpGet("/api/health");if(e.status==="ok")this.connected=!0,this.reconnectAttempts=0,this._onConnectionChange.fire(!0),this.log(`Connected to shared server at localhost:${this.serverPort}`),this.log(`Data root: ${e.dataRoot}`);else throw new Error("Server health check failed")}catch(e){throw this.log(`Connection failed: ${e}`),this.connected=!1,this._onConnectionChange.fire(!1),new Error(`Could not connect to Project Memory server.
-Please ensure the server is running (check PM Server status bar item).`)}}async disconnect(){this.connected&&(this.connected=!1,this._onConnectionChange.fire(!1),this.log("Disconnected from server"))}isConnected(){return this.connected}async reconnect(){this.connected=!1,this._onConnectionChange.fire(!1),await this.connect()}async callTool(e,t){if(!this.connected)throw new Error("Not connected to Project Memory server");this.log(`Calling tool: ${e} with args: ${JSON.stringify(t)}`);try{let r=await this.mapToolToHttp(e,t);return this.log(`Tool ${e} result: ${JSON.stringify(r).substring(0,200)}...`),r}catch(r){throw this.log(`Tool ${e} error: ${r}`),r}}async mapToolToHttp(e,t){switch(e){case"register_workspace":return this.registerWorkspace(t.workspace_path);case"get_workspace_info":return this.httpGet(`/api/workspaces/${t.workspace_id}`);case"list_workspaces":return this.httpGet("/api/workspaces");case"create_plan":return this.httpPost(`/api/plans/${t.workspace_id}`,{title:t.title,description:t.description,category:t.category||"feature",priority:t.priority||"medium"});case"get_plan_state":return this.httpGet(`/api/plans/${t.workspace_id}/${t.plan_id}`);case"list_plans":let r=await this.httpGet(`/api/plans/workspace/${t.workspace_id}`);return{active_plans:r.plans,total:r.total};case"update_step":return this.httpPut(`/api/plans/${t.workspace_id}/${t.plan_id}/steps/${t.step_id}`,{status:t.status,notes:t.notes});case"append_steps":return this.httpPost(`/api/plans/${t.workspace_id}/${t.plan_id}/steps`,{steps:t.steps});case"add_note":return this.httpPost(`/api/plans/${t.workspace_id}/${t.plan_id}/notes`,{note:t.note,type:t.type||"info"});case"handoff":return this.httpPost(`/api/plans/${t.workspace_id}/${t.plan_id}/handoff`,{from_agent:t.from_agent,to_agent:t.to_agent,summary:t.summary,artifacts:t.artifacts});case"get_lineage":return this.httpGet(`/api/plans/${t.workspace_id}/${t.plan_id}/lineage`);case"store_context":return this.httpPost(`/api/plans/${t.workspace_id}/${t.plan_id}/context`,{type:t.type,data:t.data});case"get_context":return this.httpGet(`/api/plans/${t.workspace_id}/${t.plan_id}/context/${t.type}`);case"initialise_agent":return this.httpPost("/api/agents/initialise",t);case"complete_agent":return this.httpPost("/api/agents/complete",t);case"search":return this.httpGet(`/api/search?q=${encodeURIComponent(t.query)}`);default:throw new Error(`Unknown tool: ${e}`)}}async registerWorkspace(e){let r=(await this.httpGet("/api/workspaces")).workspaces.find(i=>i.path?.toLowerCase()===e.toLowerCase());return r?{workspace:{workspace_id:r.id}}:{workspace:{workspace_id:this.pathToWorkspaceId(e)}}}pathToWorkspaceId(e){let t=e.split(/[/\\]/).filter(Boolean).pop()||"workspace",r=Uo.createHash("sha256").update(e).digest("hex").substring(0,12);return`${t}-${r}`}async listTools(){return[{name:"register_workspace",description:"Register a workspace"},{name:"list_workspaces",description:"List all workspaces"},{name:"get_workspace_info",description:"Get workspace details"},{name:"create_plan",description:"Create a new plan"},{name:"get_plan_state",description:"Get plan state"},{name:"list_plans",description:"List plans for a workspace"},{name:"update_step",description:"Update a plan step"},{name:"append_steps",description:"Add steps to a plan"},{name:"add_note",description:"Add a note to a plan"},{name:"handoff",description:"Hand off between agents"},{name:"get_lineage",description:"Get handoff lineage"},{name:"store_context",description:"Store context data"},{name:"get_context",description:"Get context data"},{name:"initialise_agent",description:"Initialize an agent session"},{name:"complete_agent",description:"Complete an agent session"},{name:"search",description:"Search across workspaces"}]}showLogs(){this.outputChannel.show()}dispose(){this.disconnect(),this._onConnectionChange.dispose(),this.outputChannel.dispose()}log(e){let t=new Date().toISOString();this.outputChannel.appendLine(`[${t}] ${e}`),console.log(`[MCP Bridge] ${e}`)}httpGet(e){return new Promise((t,r)=>{let o=`http://${this.serverHost}:${this.serverPort}${e}`;this.log(`GET ${o}`);let i=Ft.get(o,n=>{let a="";n.on("data",c=>a+=c),n.on("end",()=>{try{if(n.statusCode&&n.statusCode>=400){r(new Error(`HTTP ${n.statusCode}: ${a}`));return}let c=JSON.parse(a);t(c)}catch{r(new Error(`Failed to parse response: ${a}`))}})});i.on("error",r),i.setTimeout(1e4,()=>{i.destroy(),r(new Error("Request timeout"))})})}httpPost(e,t){return this.httpRequest("POST",e,t)}httpPut(e,t){return this.httpRequest("PUT",e,t)}httpRequest(e,t,r){return new Promise((o,i)=>{let n=JSON.stringify(r),a=`http://${this.serverHost}:${this.serverPort}${t}`;this.log(`${e} ${a}`);let c={hostname:this.serverHost,port:this.serverPort,path:t,method:e,headers:{"Content-Type":"application/json","Content-Length":Buffer.byteLength(n)}},u=Ft.request(c,d=>{let p="";d.on("data",l=>p+=l),d.on("end",()=>{try{if(d.statusCode&&d.statusCode>=400){i(new Error(`HTTP ${d.statusCode}: ${p}`));return}let l=JSON.parse(p);o(l)}catch{i(new Error(`Failed to parse response: ${p}`))}})});u.on("error",i),u.setTimeout(1e4,()=>{u.destroy(),i(new Error("Request timeout"))}),u.write(n),u.end()})}};var Me=q(require("vscode")),Ye=class{participant;mcpBridge;workspaceId=null;constructor(e){this.mcpBridge=e,this.participant=Me.chat.createChatParticipant("project-memory.memory",this.handleRequest.bind(this)),this.participant.iconPath=new Me.ThemeIcon("book"),this.participant.followupProvider={provideFollowups:this.provideFollowups.bind(this)}}async handleRequest(e,t,r,o){if(!this.mcpBridge.isConnected())return r.markdown(`\u26A0\uFE0F **Not connected to MCP server**
+</html>`;
+  }
+  dispose() {
+    _DashboardPanel.currentPanel = void 0;
+    this._panel.dispose();
+    while (this._disposables.length) {
+      const disposable = this._disposables.pop();
+      if (disposable) {
+        disposable.dispose();
+      }
+    }
+  }
+};
+function getNonce2() {
+  let text = "";
+  const possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  for (let i = 0; i < 32; i++) {
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+  return text;
+}
 
-Use the "Project Memory: Reconnect Chat to MCP Server" command to reconnect.`),{metadata:{command:"error"}};await this.ensureWorkspaceRegistered(r);try{switch(e.command){case"plan":return await this.handlePlanCommand(e,r,o);case"context":return await this.handleContextCommand(e,r,o);case"handoff":return await this.handleHandoffCommand(e,r,o);case"status":return await this.handleStatusCommand(e,r,o);default:return await this.handleDefaultCommand(e,r,o)}}catch(i){let n=i instanceof Error?i.message:String(i);return r.markdown(`\u274C **Error**: ${n}`),{metadata:{command:"error"}}}}async ensureWorkspaceRegistered(e){if(this.workspaceId)return;let t=Me.workspace.workspaceFolders?.[0];if(!t){e.markdown(`\u26A0\uFE0F No workspace folder open. Please open a folder first.
-`);return}if(!this.mcpBridge.isConnected()){e.markdown(`\u26A0\uFE0F MCP server not connected. Click the MCP status bar item to reconnect.
-`);return}try{console.log(`Registering workspace: ${t.uri.fsPath}`);let r=await this.mcpBridge.callTool("register_workspace",{workspace_path:t.uri.fsPath});console.log(`Register workspace result: ${JSON.stringify(r)}`),r.workspace?.workspace_id?(this.workspaceId=r.workspace.workspace_id,console.log(`Workspace registered: ${this.workspaceId}`)):(console.error("Unexpected response format:",r),e.markdown(`\u26A0\uFE0F Unexpected response from MCP server. Check console for details.
-`))}catch(r){let o=r instanceof Error?r.message:String(r);console.error("Failed to register workspace:",r),e.markdown(`\u26A0\uFE0F Failed to register workspace: ${o}
-`)}}async handlePlanCommand(e,t,r){let o=e.prompt.trim();if(!o||o==="list")return await this.listPlans(t);if(o.startsWith("create "))return await this.createPlan(o.substring(7),t);if(o.startsWith("show ")){let i=o.substring(5).trim();return await this.showPlan(i,t)}return t.markdown(`\u{1F4CB} **Plan Commands**
+// src/chat/McpBridge.ts
+var vscode8 = __toESM(require("vscode"));
+var http2 = __toESM(require("http"));
+var crypto2 = __toESM(require("crypto"));
+var McpBridge = class {
+  connected = false;
+  serverPort = 3001;
+  serverHost = "localhost";
+  outputChannel;
+  reconnectAttempts = 0;
+  maxReconnectAttempts = 3;
+  reconnectDelay = 1e3;
+  config;
+  _onConnectionChange = new vscode8.EventEmitter();
+  onConnectionChange = this._onConnectionChange.event;
+  constructor(config) {
+    this.config = config;
+    this.outputChannel = vscode8.window.createOutputChannel("Project Memory MCP Bridge");
+    const vsConfig = vscode8.workspace.getConfiguration("projectMemory");
+    this.serverPort = vsConfig.get("serverPort") || 3001;
+  }
+  /**
+   * Connect to the shared server (verify it's running)
+   */
+  async connect() {
+    if (this.connected) {
+      this.log("Already connected");
+      return;
+    }
+    try {
+      const health = await this.httpGet("/api/health");
+      if (health.status === "ok") {
+        this.connected = true;
+        this.reconnectAttempts = 0;
+        this._onConnectionChange.fire(true);
+        this.log(`Connected to shared server at localhost:${this.serverPort}`);
+        this.log(`Data root: ${health.dataRoot}`);
+      } else {
+        throw new Error("Server health check failed");
+      }
+    } catch (error) {
+      this.log(`Connection failed: ${error}`);
+      this.connected = false;
+      this._onConnectionChange.fire(false);
+      throw new Error(
+        "Could not connect to Project Memory server.\nPlease ensure the server is running (check PM Server status bar item)."
+      );
+    }
+  }
+  /**
+   * Disconnect from the server
+   */
+  async disconnect() {
+    if (!this.connected) {
+      return;
+    }
+    this.connected = false;
+    this._onConnectionChange.fire(false);
+    this.log("Disconnected from server");
+  }
+  /**
+   * Check if connected to the server
+   */
+  isConnected() {
+    return this.connected;
+  }
+  /**
+   * Attempt to reconnect to the server
+   */
+  async reconnect() {
+    this.connected = false;
+    this._onConnectionChange.fire(false);
+    await this.connect();
+  }
+  /**
+   * Call a tool by name - maps MCP tool names to HTTP API calls
+   */
+  async callTool(name, args) {
+    if (!this.connected) {
+      throw new Error("Not connected to Project Memory server");
+    }
+    this.log(`Calling tool: ${name} with args: ${JSON.stringify(args)}`);
+    try {
+      const result = await this.mapToolToHttp(name, args);
+      this.log(`Tool ${name} result: ${JSON.stringify(result).substring(0, 200)}...`);
+      return result;
+    } catch (error) {
+      this.log(`Tool ${name} error: ${error}`);
+      throw error;
+    }
+  }
+  /**
+   * Map MCP tool names to HTTP API calls
+   */
+  async mapToolToHttp(toolName, args) {
+    switch (toolName) {
+      // Workspace tools
+      case "register_workspace":
+        return this.registerWorkspace(args.workspace_path);
+      case "get_workspace_info":
+        return this.httpGet(`/api/workspaces/${args.workspace_id}`);
+      case "list_workspaces":
+        return this.httpGet("/api/workspaces");
+      // Plan tools  
+      case "create_plan":
+        return this.httpPost(`/api/plans/${args.workspace_id}`, {
+          title: args.title,
+          description: args.description,
+          category: args.category || "feature",
+          priority: args.priority || "medium"
+        });
+      case "get_plan_state":
+        return this.httpGet(`/api/plans/${args.workspace_id}/${args.plan_id}`);
+      case "list_plans":
+        const plansResult = await this.httpGet(
+          `/api/plans/workspace/${args.workspace_id}`
+        );
+        return { active_plans: plansResult.plans, total: plansResult.total };
+      case "update_step":
+        return this.httpPut(
+          `/api/plans/${args.workspace_id}/${args.plan_id}/steps/${args.step_id}`,
+          { status: args.status, notes: args.notes }
+        );
+      case "append_steps":
+        return this.httpPost(
+          `/api/plans/${args.workspace_id}/${args.plan_id}/steps`,
+          { steps: args.steps }
+        );
+      case "add_note":
+        return this.httpPost(
+          `/api/plans/${args.workspace_id}/${args.plan_id}/notes`,
+          { note: args.note, type: args.type || "info" }
+        );
+      // Handoff tools
+      case "handoff":
+        return this.httpPost(
+          `/api/plans/${args.workspace_id}/${args.plan_id}/handoff`,
+          {
+            from_agent: args.from_agent,
+            to_agent: args.to_agent,
+            summary: args.summary,
+            artifacts: args.artifacts
+          }
+        );
+      case "get_lineage":
+        return this.httpGet(`/api/plans/${args.workspace_id}/${args.plan_id}/lineage`);
+      // Context tools
+      case "store_context":
+        return this.httpPost(
+          `/api/plans/${args.workspace_id}/${args.plan_id}/context`,
+          { type: args.type, data: args.data }
+        );
+      case "get_context":
+        return this.httpGet(
+          `/api/plans/${args.workspace_id}/${args.plan_id}/context/${args.type}`
+        );
+      // Agent tools
+      case "initialise_agent":
+        return this.httpPost("/api/agents/initialise", args);
+      case "complete_agent":
+        return this.httpPost("/api/agents/complete", args);
+      // Search
+      case "search":
+        return this.httpGet(`/api/search?q=${encodeURIComponent(args.query)}`);
+      default:
+        throw new Error(`Unknown tool: ${toolName}`);
+    }
+  }
+  /**
+   * Register a workspace - creates workspace entry if needed
+   */
+  async registerWorkspace(workspacePath) {
+    const workspaces = await this.httpGet("/api/workspaces");
+    const existing = workspaces.workspaces.find(
+      (w) => w.path?.toLowerCase() === workspacePath.toLowerCase()
+    );
+    if (existing) {
+      return { workspace: { workspace_id: existing.id } };
+    }
+    const workspaceId = this.pathToWorkspaceId(workspacePath);
+    return { workspace: { workspace_id: workspaceId } };
+  }
+  /**
+   * Convert a workspace path to a workspace ID
+   */
+  pathToWorkspaceId(workspacePath) {
+    const folderName = workspacePath.split(/[/\\]/).filter(Boolean).pop() || "workspace";
+    const hash = crypto2.createHash("sha256").update(workspacePath).digest("hex").substring(0, 12);
+    return `${folderName}-${hash}`;
+  }
+  /**
+   * List available tools (for compatibility)
+   */
+  async listTools() {
+    return [
+      { name: "register_workspace", description: "Register a workspace" },
+      { name: "list_workspaces", description: "List all workspaces" },
+      { name: "get_workspace_info", description: "Get workspace details" },
+      { name: "create_plan", description: "Create a new plan" },
+      { name: "get_plan_state", description: "Get plan state" },
+      { name: "list_plans", description: "List plans for a workspace" },
+      { name: "update_step", description: "Update a plan step" },
+      { name: "append_steps", description: "Add steps to a plan" },
+      { name: "add_note", description: "Add a note to a plan" },
+      { name: "handoff", description: "Hand off between agents" },
+      { name: "get_lineage", description: "Get handoff lineage" },
+      { name: "store_context", description: "Store context data" },
+      { name: "get_context", description: "Get context data" },
+      { name: "initialise_agent", description: "Initialize an agent session" },
+      { name: "complete_agent", description: "Complete an agent session" },
+      { name: "search", description: "Search across workspaces" }
+    ];
+  }
+  /**
+   * Show logs output channel
+   */
+  showLogs() {
+    this.outputChannel.show();
+  }
+  /**
+   * Dispose resources
+   */
+  dispose() {
+    this.disconnect();
+    this._onConnectionChange.dispose();
+    this.outputChannel.dispose();
+  }
+  /**
+   * Log message to output channel
+   */
+  log(message) {
+    const timestamp = (/* @__PURE__ */ new Date()).toISOString();
+    this.outputChannel.appendLine(`[${timestamp}] ${message}`);
+    console.log(`[MCP Bridge] ${message}`);
+  }
+  // ==========================================================================
+  // HTTP Helpers
+  // ==========================================================================
+  /**
+   * Make an HTTP GET request
+   */
+  httpGet(path6) {
+    return new Promise((resolve, reject) => {
+      const url = `http://${this.serverHost}:${this.serverPort}${path6}`;
+      this.log(`GET ${url}`);
+      const req = http2.get(url, (res) => {
+        let data = "";
+        res.on("data", (chunk) => data += chunk);
+        res.on("end", () => {
+          try {
+            if (res.statusCode && res.statusCode >= 400) {
+              reject(new Error(`HTTP ${res.statusCode}: ${data}`));
+              return;
+            }
+            const parsed = JSON.parse(data);
+            resolve(parsed);
+          } catch (e) {
+            reject(new Error(`Failed to parse response: ${data}`));
+          }
+        });
+      });
+      req.on("error", reject);
+      req.setTimeout(1e4, () => {
+        req.destroy();
+        reject(new Error("Request timeout"));
+      });
+    });
+  }
+  /**
+   * Make an HTTP POST request
+   */
+  httpPost(path6, body) {
+    return this.httpRequest("POST", path6, body);
+  }
+  /**
+   * Make an HTTP PUT request
+   */
+  httpPut(path6, body) {
+    return this.httpRequest("PUT", path6, body);
+  }
+  /**
+   * Make an HTTP request with body
+   */
+  httpRequest(method, path6, body) {
+    return new Promise((resolve, reject) => {
+      const jsonBody = JSON.stringify(body);
+      const url = `http://${this.serverHost}:${this.serverPort}${path6}`;
+      this.log(`${method} ${url}`);
+      const options = {
+        hostname: this.serverHost,
+        port: this.serverPort,
+        path: path6,
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(jsonBody)
+        }
+      };
+      const req = http2.request(options, (res) => {
+        let data = "";
+        res.on("data", (chunk) => data += chunk);
+        res.on("end", () => {
+          try {
+            if (res.statusCode && res.statusCode >= 400) {
+              reject(new Error(`HTTP ${res.statusCode}: ${data}`));
+              return;
+            }
+            const parsed = JSON.parse(data);
+            resolve(parsed);
+          } catch (e) {
+            reject(new Error(`Failed to parse response: ${data}`));
+          }
+        });
+      });
+      req.on("error", reject);
+      req.setTimeout(1e4, () => {
+        req.destroy();
+        reject(new Error("Request timeout"));
+      });
+      req.write(jsonBody);
+      req.end();
+    });
+  }
+};
 
-`),t.markdown("- `/plan list` - List all plans in this workspace\n"),t.markdown("- `/plan create <title>` - Create a new plan\n"),t.markdown("- `/plan show <plan-id>` - Show plan details\n"),t.markdown(`
-Or just describe what you want to do and I'll help create a plan.`),{metadata:{command:"plan"}}}async listPlans(e){if(!this.workspaceId)return e.markdown("\u26A0\uFE0F Workspace not registered."),{metadata:{command:"plan"}};let r=(await this.mcpBridge.callTool("list_plans",{workspace_id:this.workspaceId})).active_plans||[];if(r.length===0)return e.markdown("\u{1F4CB} **No plans found**\n\nUse `/plan create <title>` to create a new plan."),{metadata:{command:"plan"}};e.markdown(`\u{1F4CB} **Plans in this workspace** (${r.length})
+// src/chat/ChatParticipant.ts
+var vscode9 = __toESM(require("vscode"));
+var ChatParticipant = class {
+  participant;
+  mcpBridge;
+  workspaceId = null;
+  constructor(mcpBridge2) {
+    this.mcpBridge = mcpBridge2;
+    this.participant = vscode9.chat.createChatParticipant(
+      "project-memory.memory",
+      this.handleRequest.bind(this)
+    );
+    this.participant.iconPath = new vscode9.ThemeIcon("book");
+    this.participant.followupProvider = {
+      provideFollowups: this.provideFollowups.bind(this)
+    };
+  }
+  /**
+   * Handle chat requests
+   */
+  async handleRequest(request2, context, response, token) {
+    if (!this.mcpBridge.isConnected()) {
+      response.markdown('\u26A0\uFE0F **Not connected to MCP server**\n\nUse the "Project Memory: Reconnect Chat to MCP Server" command to reconnect.');
+      return { metadata: { command: "error" } };
+    }
+    await this.ensureWorkspaceRegistered(response);
+    try {
+      switch (request2.command) {
+        case "plan":
+          return await this.handlePlanCommand(request2, response, token);
+        case "context":
+          return await this.handleContextCommand(request2, response, token);
+        case "handoff":
+          return await this.handleHandoffCommand(request2, response, token);
+        case "status":
+          return await this.handleStatusCommand(request2, response, token);
+        default:
+          return await this.handleDefaultCommand(request2, response, token);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      response.markdown(`\u274C **Error**: ${errorMessage}`);
+      return { metadata: { command: "error" } };
+    }
+  }
+  /**
+   * Ensure the current workspace is registered with the MCP server
+   */
+  async ensureWorkspaceRegistered(response) {
+    if (this.workspaceId) return;
+    const workspaceFolder = vscode9.workspace.workspaceFolders?.[0];
+    if (!workspaceFolder) {
+      response.markdown("\u26A0\uFE0F No workspace folder open. Please open a folder first.\n");
+      return;
+    }
+    if (!this.mcpBridge.isConnected()) {
+      response.markdown("\u26A0\uFE0F MCP server not connected. Click the MCP status bar item to reconnect.\n");
+      return;
+    }
+    try {
+      console.log(`Registering workspace: ${workspaceFolder.uri.fsPath}`);
+      const result = await this.mcpBridge.callTool(
+        "register_workspace",
+        { workspace_path: workspaceFolder.uri.fsPath }
+      );
+      console.log(`Register workspace result: ${JSON.stringify(result)}`);
+      if (result.workspace?.workspace_id) {
+        this.workspaceId = result.workspace.workspace_id;
+        console.log(`Workspace registered: ${this.workspaceId}`);
+      } else {
+        console.error("Unexpected response format:", result);
+        response.markdown(`\u26A0\uFE0F Unexpected response from MCP server. Check console for details.
+`);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Failed to register workspace:", error);
+      response.markdown(`\u26A0\uFE0F Failed to register workspace: ${errorMessage}
+`);
+    }
+  }
+  /**
+   * Handle /plan command - view, create, or manage plans
+   */
+  async handlePlanCommand(request2, response, token) {
+    const prompt = request2.prompt.trim();
+    if (!prompt || prompt === "list") {
+      return await this.listPlans(response);
+    }
+    if (prompt.startsWith("create ")) {
+      return await this.createPlan(prompt.substring(7), response);
+    }
+    if (prompt.startsWith("show ")) {
+      const planId = prompt.substring(5).trim();
+      return await this.showPlan(planId, response);
+    }
+    response.markdown("\u{1F4CB} **Plan Commands**\n\n");
+    response.markdown("- `/plan list` - List all plans in this workspace\n");
+    response.markdown("- `/plan create <title>` - Create a new plan\n");
+    response.markdown("- `/plan show <plan-id>` - Show plan details\n");
+    response.markdown("\nOr just describe what you want to do and I'll help create a plan.");
+    return { metadata: { command: "plan" } };
+  }
+  /**
+   * List all plans in the workspace
+   */
+  async listPlans(response) {
+    if (!this.workspaceId) {
+      response.markdown("\u26A0\uFE0F Workspace not registered.");
+      return { metadata: { command: "plan" } };
+    }
+    const result = await this.mcpBridge.callTool(
+      "list_plans",
+      { workspace_id: this.workspaceId }
+    );
+    const plans = result.active_plans || [];
+    if (plans.length === 0) {
+      response.markdown("\u{1F4CB} **No plans found**\n\nUse `/plan create <title>` to create a new plan.");
+      return { metadata: { command: "plan" } };
+    }
+    response.markdown(`\u{1F4CB} **Plans in this workspace** (${plans.length})
 
-`);for(let o of r){let i=this.getStatusEmoji(o.status);e.markdown(`${i} **${o.title}** \`${o.plan_id}\`
-`),o.category&&e.markdown(`   Category: ${o.category}
-`)}return{metadata:{command:"plan",plans:r.length}}}async createPlan(e,t){if(!this.workspaceId)return t.markdown("\u26A0\uFE0F Workspace not registered."),{metadata:{command:"plan"}};t.markdown(`\u{1F504} Creating plan: **${e}**...
+`);
+    for (const plan of plans) {
+      const statusEmoji = this.getStatusEmoji(plan.status);
+      response.markdown(`${statusEmoji} **${plan.title}** \`${plan.plan_id}\`
+`);
+      if (plan.category) {
+        response.markdown(`   Category: ${plan.category}
+`);
+      }
+    }
+    return { metadata: { command: "plan", plans: plans.length } };
+  }
+  /**
+   * Create a new plan
+   */
+  async createPlan(description, response) {
+    if (!this.workspaceId) {
+      response.markdown("\u26A0\uFE0F Workspace not registered.");
+      return { metadata: { command: "plan" } };
+    }
+    response.markdown(`\u{1F504} Creating plan: **${description}**...
 
-`);let r=await this.mcpBridge.callTool("create_plan",{workspace_id:this.workspaceId,title:e,description:e,category:"feature"});return t.markdown(`\u2705 **Plan created!**
+`);
+    const result = await this.mcpBridge.callTool(
+      "create_plan",
+      {
+        workspace_id: this.workspaceId,
+        title: description,
+        description,
+        category: "feature"
+        // Default category
+      }
+    );
+    response.markdown(`\u2705 **Plan created!**
 
-`),t.markdown(`- **ID**: \`${r.plan_id}\`
-`),t.markdown(`- **Title**: ${r.title}
-`),t.markdown(`
-Use \`/plan show ${r.plan_id}\` to see details.`),{metadata:{command:"plan",action:"created",planId:r.plan_id}}}async showPlan(e,t){if(!this.workspaceId)return t.markdown("\u26A0\uFE0F Workspace not registered."),{metadata:{command:"plan"}};let r=await this.mcpBridge.callTool("get_plan_state",{workspace_id:this.workspaceId,plan_id:e});if(t.markdown(`# \u{1F4CB} ${r.title}
+`);
+    response.markdown(`- **ID**: \`${result.plan_id}\`
+`);
+    response.markdown(`- **Title**: ${result.title}
+`);
+    response.markdown(`
+Use \`/plan show ${result.plan_id}\` to see details.`);
+    return { metadata: { command: "plan", action: "created", planId: result.plan_id } };
+  }
+  /**
+   * Show details of a specific plan
+   */
+  async showPlan(planId, response) {
+    if (!this.workspaceId) {
+      response.markdown("\u26A0\uFE0F Workspace not registered.");
+      return { metadata: { command: "plan" } };
+    }
+    const result = await this.mcpBridge.callTool(
+      "get_plan_state",
+      {
+        workspace_id: this.workspaceId,
+        plan_id: planId
+      }
+    );
+    response.markdown(`# \u{1F4CB} ${result.title}
 
-`),t.markdown(`**ID**: \`${r.plan_id}\`
-`),r.category&&t.markdown(`**Category**: ${r.category}
-`),r.priority&&t.markdown(`**Priority**: ${r.priority}
-`),r.description&&t.markdown(`
-${r.description}
-`),r.steps&&r.steps.length>0){t.markdown(`
-## Steps
+`);
+    response.markdown(`**ID**: \`${result.plan_id}\`
+`);
+    if (result.category) {
+      response.markdown(`**Category**: ${result.category}
+`);
+    }
+    if (result.priority) {
+      response.markdown(`**Priority**: ${result.priority}
+`);
+    }
+    if (result.description) {
+      response.markdown(`
+${result.description}
+`);
+    }
+    if (result.steps && result.steps.length > 0) {
+      response.markdown("\n## Steps\n\n");
+      for (let i = 0; i < result.steps.length; i++) {
+        const step = result.steps[i];
+        const statusEmoji = this.getStepStatusEmoji(step.status);
+        response.markdown(`${statusEmoji} **${step.phase}**: ${step.task}
+`);
+      }
+    }
+    if (result.lineage && result.lineage.length > 0) {
+      response.markdown("\n## Agent History\n\n");
+      for (const session of result.lineage) {
+        response.markdown(`- **${session.agent_type}** (${session.started_at})
+`);
+        if (session.summary) {
+          response.markdown(`  ${session.summary}
+`);
+        }
+      }
+    }
+    return { metadata: { command: "plan", action: "show", planId } };
+  }
+  /**
+   * Handle /context command - get workspace context
+   */
+  async handleContextCommand(request2, response, token) {
+    if (!this.workspaceId) {
+      response.markdown("\u26A0\uFE0F Workspace not registered.");
+      return { metadata: { command: "context" } };
+    }
+    response.markdown("\u{1F50D} **Gathering workspace context...**\n\n");
+    try {
+      const result = await this.mcpBridge.callTool(
+        "get_workspace_info",
+        { workspace_id: this.workspaceId }
+      );
+      response.markdown(`## Workspace Information
 
-`);for(let o=0;o<r.steps.length;o++){let i=r.steps[o],n=this.getStepStatusEmoji(i.status);t.markdown(`${n} **${i.phase}**: ${i.task}
-`)}}if(r.lineage&&r.lineage.length>0){t.markdown(`
-## Agent History
+`);
+      response.markdown(`**ID**: \`${result.workspace_id}\`
+`);
+      response.markdown(`**Path**: \`${result.workspace_path}\`
+`);
+      if (result.codebase_profile) {
+        const profile = result.codebase_profile;
+        response.markdown("\n## Codebase Profile\n\n");
+        if (profile.languages && profile.languages.length > 0) {
+          response.markdown(`**Languages**: ${profile.languages.join(", ")}
+`);
+        }
+        if (profile.frameworks && profile.frameworks.length > 0) {
+          response.markdown(`**Frameworks**: ${profile.frameworks.join(", ")}
+`);
+        }
+        if (profile.file_count) {
+          response.markdown(`**Files**: ${profile.file_count}
+`);
+        }
+      }
+    } catch (error) {
+      response.markdown(`\u26A0\uFE0F Could not retrieve full context. Basic workspace info:
 
-`);for(let o of r.lineage)t.markdown(`- **${o.agent_type}** (${o.started_at})
-`),o.summary&&t.markdown(`  ${o.summary}
-`)}return{metadata:{command:"plan",action:"show",planId:e}}}async handleContextCommand(e,t,r){if(!this.workspaceId)return t.markdown("\u26A0\uFE0F Workspace not registered."),{metadata:{command:"context"}};t.markdown(`\u{1F50D} **Gathering workspace context...**
+`);
+      response.markdown(`**Workspace ID**: \`${this.workspaceId}\`
+`);
+    }
+    return { metadata: { command: "context" } };
+  }
+  /**
+   * Handle /handoff command - execute agent handoffs
+   */
+  async handleHandoffCommand(request2, response, token) {
+    const prompt = request2.prompt.trim();
+    if (!prompt) {
+      response.markdown("\u{1F91D} **Handoff Command**\n\n");
+      response.markdown("Usage: `/handoff <agent-type> <plan-id> [summary]`\n\n");
+      response.markdown("**Available agents:**\n");
+      response.markdown("- `Coordinator` - Orchestrates the workflow\n");
+      response.markdown("- `Researcher` - Gathers external information\n");
+      response.markdown("- `Architect` - Creates implementation plans\n");
+      response.markdown("- `Executor` - Implements the plan\n");
+      response.markdown("- `Reviewer` - Validates completed work\n");
+      response.markdown("- `Tester` - Writes and runs tests\n");
+      response.markdown("- `Archivist` - Finalizes and archives\n");
+      return { metadata: { command: "handoff" } };
+    }
+    const parts = prompt.split(" ");
+    if (parts.length < 2) {
+      response.markdown("\u26A0\uFE0F Please provide both agent type and plan ID.\n");
+      response.markdown("Example: `/handoff Executor plan_abc123`");
+      return { metadata: { command: "handoff" } };
+    }
+    const targetAgent = parts[0];
+    const planId = parts[1];
+    const summary = parts.slice(2).join(" ") || "Handoff from chat";
+    if (!this.workspaceId) {
+      response.markdown("\u26A0\uFE0F Workspace not registered.");
+      return { metadata: { command: "handoff" } };
+    }
+    response.markdown(`\u{1F504} Initiating handoff to **${targetAgent}**...
 
-`);try{let o=await this.mcpBridge.callTool("get_workspace_info",{workspace_id:this.workspaceId});if(t.markdown(`## Workspace Information
+`);
+    try {
+      await this.mcpBridge.callTool("handoff", {
+        workspace_id: this.workspaceId,
+        plan_id: planId,
+        target_agent: targetAgent,
+        summary
+      });
+      response.markdown(`\u2705 **Handoff complete!**
 
-`),t.markdown(`**ID**: \`${o.workspace_id}\`
-`),t.markdown(`**Path**: \`${o.workspace_path}\`
-`),o.codebase_profile){let i=o.codebase_profile;t.markdown(`
-## Codebase Profile
+`);
+      response.markdown(`Plan \`${planId}\` has been handed off to **${targetAgent}**.
+`);
+      response.markdown(`The agent file should be invoked to continue work.`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      response.markdown(`\u274C Handoff failed: ${errorMessage}`);
+    }
+    return { metadata: { command: "handoff", targetAgent, planId } };
+  }
+  /**
+   * Handle /status command - show current plan progress
+   */
+  async handleStatusCommand(request2, response, token) {
+    if (!this.workspaceId) {
+      response.markdown("\u26A0\uFE0F Workspace not registered.");
+      return { metadata: { command: "status" } };
+    }
+    response.markdown("\u{1F4CA} **Project Memory Status**\n\n");
+    const connected = this.mcpBridge.isConnected();
+    response.markdown(`**MCP Server**: ${connected ? "\u{1F7E2} Connected" : "\u{1F534} Disconnected"}
+`);
+    response.markdown(`**Workspace ID**: \`${this.workspaceId}\`
 
-`),i.languages&&i.languages.length>0&&t.markdown(`**Languages**: ${i.languages.join(", ")}
-`),i.frameworks&&i.frameworks.length>0&&t.markdown(`**Frameworks**: ${i.frameworks.join(", ")}
-`),i.file_count&&t.markdown(`**Files**: ${i.file_count}
-`)}}catch{t.markdown(`\u26A0\uFE0F Could not retrieve full context. Basic workspace info:
+`);
+    try {
+      const result = await this.mcpBridge.callTool(
+        "list_plans",
+        { workspace_id: this.workspaceId }
+      );
+      const plans = result.active_plans || [];
+      const activePlans = plans.filter((p) => p.status !== "archived");
+      response.markdown(`## Active Plans (${activePlans.length})
 
-`),t.markdown(`**Workspace ID**: \`${this.workspaceId}\`
-`)}return{metadata:{command:"context"}}}async handleHandoffCommand(e,t,r){let o=e.prompt.trim();if(!o)return t.markdown(`\u{1F91D} **Handoff Command**
+`);
+      if (activePlans.length === 0) {
+        response.markdown("No active plans.\n");
+      } else {
+        for (const plan of activePlans) {
+          const statusEmoji = this.getStatusEmoji(plan.status);
+          const doneSteps = plan.done_steps || 0;
+          const totalSteps = plan.total_steps || 0;
+          response.markdown(`${statusEmoji} **${plan.title}**
+`);
+          if (totalSteps > 0) {
+            response.markdown(`   Progress: ${doneSteps}/${totalSteps} steps
+`);
+          }
+        }
+      }
+    } catch (error) {
+      response.markdown("Could not retrieve plan status.\n");
+    }
+    return { metadata: { command: "status" } };
+  }
+  /**
+   * Handle default (no command) requests
+   */
+  async handleDefaultCommand(request2, response, token) {
+    const prompt = request2.prompt.trim();
+    if (!prompt) {
+      response.markdown("\u{1F44B} **Welcome to Project Memory!**\n\n");
+      response.markdown("I can help you manage project plans and agent workflows.\n\n");
+      response.markdown("**Available commands:**\n");
+      response.markdown("- `/plan` - View, create, or manage plans\n");
+      response.markdown("- `/context` - Get workspace context and codebase profile\n");
+      response.markdown("- `/handoff` - Execute agent handoffs\n");
+      response.markdown("- `/status` - Show current plan progress\n");
+      response.markdown("\nOr just ask me about your project!");
+      return { metadata: { command: "help" } };
+    }
+    if (prompt.toLowerCase().includes("plan") || prompt.toLowerCase().includes("create")) {
+      response.markdown(`I can help you with plans!
 
-`),t.markdown("Usage: `/handoff <agent-type> <plan-id> [summary]`\n\n"),t.markdown(`**Available agents:**
-`),t.markdown("- `Coordinator` - Orchestrates the workflow\n"),t.markdown("- `Researcher` - Gathers external information\n"),t.markdown("- `Architect` - Creates implementation plans\n"),t.markdown("- `Executor` - Implements the plan\n"),t.markdown("- `Reviewer` - Validates completed work\n"),t.markdown("- `Tester` - Writes and runs tests\n"),t.markdown("- `Archivist` - Finalizes and archives\n"),{metadata:{command:"handoff"}};let i=o.split(" ");if(i.length<2)return t.markdown(`\u26A0\uFE0F Please provide both agent type and plan ID.
-`),t.markdown("Example: `/handoff Executor plan_abc123`"),{metadata:{command:"handoff"}};let n=i[0],a=i[1],c=i.slice(2).join(" ")||"Handoff from chat";if(!this.workspaceId)return t.markdown("\u26A0\uFE0F Workspace not registered."),{metadata:{command:"handoff"}};t.markdown(`\u{1F504} Initiating handoff to **${n}**...
+`);
+      response.markdown(`Try using the \`/plan\` command:
+`);
+      response.markdown(`- \`/plan list\` to see existing plans
+`);
+      response.markdown(`- \`/plan create ${prompt}\` to create a new plan
+`);
+    } else if (prompt.toLowerCase().includes("status") || prompt.toLowerCase().includes("progress")) {
+      return await this.handleStatusCommand(request2, response, token);
+    } else {
+      response.markdown(`I understand you want to: **${prompt}**
 
-`);try{await this.mcpBridge.callTool("handoff",{workspace_id:this.workspaceId,plan_id:a,target_agent:n,summary:c}),t.markdown(`\u2705 **Handoff complete!**
+`);
+      response.markdown(`Here's what I can help with:
+`);
+      response.markdown(`- Use \`/plan create ${prompt}\` to create a plan for this
+`);
+      response.markdown(`- Use \`/status\` to check current progress
+`);
+      response.markdown(`- Use \`/context\` to get workspace information
+`);
+    }
+    return { metadata: { command: "default" } };
+  }
+  /**
+   * Provide follow-up suggestions
+   */
+  provideFollowups(result, context, token) {
+    const metadata = result.metadata;
+    const command = metadata?.command;
+    const followups = [];
+    switch (command) {
+      case "plan":
+        if (metadata?.action === "created" && metadata?.planId) {
+          followups.push({
+            prompt: `/plan show ${metadata.planId}`,
+            label: "View plan details",
+            command: "plan"
+          });
+        }
+        followups.push({
+          prompt: "/status",
+          label: "Check status",
+          command: "status"
+        });
+        break;
+      case "status":
+        followups.push({
+          prompt: "/plan list",
+          label: "List all plans",
+          command: "plan"
+        });
+        break;
+      case "help":
+      case "default":
+        followups.push({
+          prompt: "/plan list",
+          label: "List plans",
+          command: "plan"
+        });
+        followups.push({
+          prompt: "/status",
+          label: "Check status",
+          command: "status"
+        });
+        break;
+    }
+    return followups;
+  }
+  /**
+   * Get emoji for plan status
+   */
+  getStatusEmoji(status) {
+    switch (status) {
+      case "active":
+        return "\u{1F535}";
+      case "completed":
+        return "\u2705";
+      case "archived":
+        return "\u{1F4E6}";
+      case "blocked":
+        return "\u{1F534}";
+      default:
+        return "\u26AA";
+    }
+  }
+  /**
+   * Get emoji for step status
+   */
+  getStepStatusEmoji(status) {
+    switch (status) {
+      case "done":
+        return "\u2705";
+      case "active":
+        return "\u{1F504}";
+      case "blocked":
+        return "\u{1F534}";
+      default:
+        return "\u2B1C";
+    }
+  }
+  /**
+   * Reset workspace ID (useful when workspace changes)
+   */
+  resetWorkspace() {
+    this.workspaceId = null;
+  }
+  /**
+   * Dispose of resources
+   */
+  dispose() {
+    this.participant.dispose();
+  }
+};
 
-`),t.markdown(`Plan \`${a}\` has been handed off to **${n}**.
-`),t.markdown("The agent file should be invoked to continue work.")}catch(u){let d=u instanceof Error?u.message:String(u);t.markdown(`\u274C Handoff failed: ${d}`)}return{metadata:{command:"handoff",targetAgent:n,planId:a}}}async handleStatusCommand(e,t,r){if(!this.workspaceId)return t.markdown("\u26A0\uFE0F Workspace not registered."),{metadata:{command:"status"}};t.markdown(`\u{1F4CA} **Project Memory Status**
+// src/chat/ToolProvider.ts
+var vscode10 = __toESM(require("vscode"));
+var ToolProvider = class {
+  mcpBridge;
+  workspaceId = null;
+  disposables = [];
+  constructor(mcpBridge2) {
+    this.mcpBridge = mcpBridge2;
+    this.registerTools();
+  }
+  /**
+   * Register all language model tools
+   */
+  registerTools() {
+    this.disposables.push(
+      vscode10.lm.registerTool("memory_plan", {
+        invoke: async (options, token) => {
+          return await this.handlePlan(
+            options,
+            token
+          );
+        }
+      })
+    );
+    this.disposables.push(
+      vscode10.lm.registerTool("memory_steps", {
+        invoke: async (options, token) => {
+          return await this.handleSteps(
+            options,
+            token
+          );
+        }
+      })
+    );
+    this.disposables.push(
+      vscode10.lm.registerTool("memory_context", {
+        invoke: async (options, token) => {
+          return await this.handleContext(
+            options,
+            token
+          );
+        }
+      })
+    );
+  }
+  /**
+   * Ensure workspace is registered
+   */
+  async ensureWorkspace() {
+    if (this.workspaceId) {
+      return this.workspaceId;
+    }
+    const workspaceFolder = vscode10.workspace.workspaceFolders?.[0];
+    if (!workspaceFolder) {
+      throw new Error("No workspace folder open");
+    }
+    const result = await this.mcpBridge.callTool(
+      "memory_workspace",
+      { action: "register", workspace_path: workspaceFolder.uri.fsPath }
+    );
+    this.workspaceId = result.workspace_id;
+    return this.workspaceId;
+  }
+  /**
+   * Handle memory_plan tool invocation
+   */
+  async handlePlan(options, token) {
+    try {
+      if (!this.mcpBridge.isConnected()) {
+        return this.errorResult("MCP server not connected");
+      }
+      const workspaceId = await this.ensureWorkspace();
+      const { action, planId, title, description, category, priority, includeArchived } = options.input;
+      let result;
+      switch (action) {
+        case "list":
+          const listResult = await this.mcpBridge.callTool("memory_plan", {
+            action: "list",
+            workspace_id: workspaceId,
+            include_archived: includeArchived
+          });
+          result = {
+            workspace_id: workspaceId,
+            plans: listResult.active_plans || [],
+            total: (listResult.active_plans || []).length,
+            message: (listResult.active_plans || []).length > 0 ? `Found ${(listResult.active_plans || []).length} plan(s)` : 'No plans found. Use action "create" to create one.'
+          };
+          break;
+        case "get":
+          if (!planId) {
+            return this.errorResult("planId is required for get action");
+          }
+          result = await this.mcpBridge.callTool("memory_plan", {
+            action: "get",
+            workspace_id: workspaceId,
+            plan_id: planId
+          });
+          break;
+        case "create":
+          if (!title || !description) {
+            return this.errorResult("title and description are required for create action");
+          }
+          result = await this.mcpBridge.callTool("memory_plan", {
+            action: "create",
+            workspace_id: workspaceId,
+            title,
+            description,
+            category: category || "feature",
+            priority: priority || "medium"
+          });
+          break;
+        case "archive":
+          if (!planId) {
+            return this.errorResult("planId is required for archive action");
+          }
+          result = await this.mcpBridge.callTool("memory_plan", {
+            action: "archive",
+            workspace_id: workspaceId,
+            plan_id: planId
+          });
+          break;
+        default:
+          return this.errorResult(`Unknown action: ${action}`);
+      }
+      return new vscode10.LanguageModelToolResult([
+        new vscode10.LanguageModelTextPart(JSON.stringify(result, null, 2))
+      ]);
+    } catch (error) {
+      return this.errorResult(error);
+    }
+  }
+  /**
+   * Handle memory_steps tool invocation
+   */
+  async handleSteps(options, token) {
+    try {
+      if (!this.mcpBridge.isConnected()) {
+        return this.errorResult("MCP server not connected");
+      }
+      const workspaceId = await this.ensureWorkspace();
+      const { action, planId, stepIndex, status, notes, updates, newSteps } = options.input;
+      if (!planId) {
+        return this.errorResult("planId is required");
+      }
+      let result;
+      switch (action) {
+        case "update":
+          if (stepIndex === void 0 || !status) {
+            return this.errorResult("stepIndex and status are required for update action");
+          }
+          result = await this.mcpBridge.callTool("memory_steps", {
+            action: "update",
+            workspace_id: workspaceId,
+            plan_id: planId,
+            step_index: stepIndex,
+            status,
+            notes
+          });
+          break;
+        case "batch_update":
+          if (!updates || updates.length === 0) {
+            return this.errorResult("updates array is required for batch_update action");
+          }
+          result = await this.mcpBridge.callTool("memory_steps", {
+            action: "batch_update",
+            workspace_id: workspaceId,
+            plan_id: planId,
+            updates
+          });
+          break;
+        case "add":
+          if (!newSteps || newSteps.length === 0) {
+            return this.errorResult("newSteps array is required for add action");
+          }
+          result = await this.mcpBridge.callTool("memory_steps", {
+            action: "add",
+            workspace_id: workspaceId,
+            plan_id: planId,
+            steps: newSteps.map((s) => ({
+              ...s,
+              status: s.status || "pending"
+            }))
+          });
+          break;
+        default:
+          return this.errorResult(`Unknown action: ${action}`);
+      }
+      return new vscode10.LanguageModelToolResult([
+        new vscode10.LanguageModelTextPart(JSON.stringify(result, null, 2))
+      ]);
+    } catch (error) {
+      return this.errorResult(error);
+    }
+  }
+  /**
+   * Handle memory_context tool invocation
+   */
+  async handleContext(options, token) {
+    try {
+      if (!this.mcpBridge.isConnected()) {
+        return this.errorResult("MCP server not connected");
+      }
+      const workspaceId = await this.ensureWorkspace();
+      const { action, planId, note, noteType, targetAgent, reason } = options.input;
+      let result;
+      switch (action) {
+        case "add_note":
+          if (!planId || !note) {
+            return this.errorResult("planId and note are required for add_note action");
+          }
+          result = await this.mcpBridge.callTool("memory_plan", {
+            action: "add_note",
+            workspace_id: workspaceId,
+            plan_id: planId,
+            note,
+            note_type: noteType || "info"
+          });
+          break;
+        case "briefing":
+          if (!planId) {
+            return this.errorResult("planId is required for briefing action");
+          }
+          result = await this.mcpBridge.callTool("memory_agent", {
+            action: "get_briefing",
+            workspace_id: workspaceId,
+            plan_id: planId
+          });
+          break;
+        case "handoff":
+          if (!planId || !targetAgent || !reason) {
+            return this.errorResult("planId, targetAgent, and reason are required for handoff action");
+          }
+          result = await this.mcpBridge.callTool("memory_agent", {
+            action: "handoff",
+            workspace_id: workspaceId,
+            plan_id: planId,
+            to_agent: targetAgent,
+            reason
+          });
+          break;
+        case "workspace":
+          result = await this.mcpBridge.callTool("memory_workspace", {
+            action: "info",
+            workspace_id: workspaceId
+          });
+          break;
+        default:
+          return this.errorResult(`Unknown action: ${action}`);
+      }
+      return new vscode10.LanguageModelToolResult([
+        new vscode10.LanguageModelTextPart(JSON.stringify(result, null, 2))
+      ]);
+    } catch (error) {
+      return this.errorResult(error);
+    }
+  }
+  /**
+   * Create error result
+   */
+  errorResult(error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return new vscode10.LanguageModelToolResult([
+      new vscode10.LanguageModelTextPart(JSON.stringify({
+        success: false,
+        error: message
+      }))
+    ]);
+  }
+  /**
+   * Dispose of resources
+   */
+  dispose() {
+    this.disposables.forEach((d) => d.dispose());
+    this.disposables = [];
+  }
+};
 
-`);let o=this.mcpBridge.isConnected();t.markdown(`**MCP Server**: ${o?"\u{1F7E2} Connected":"\u{1F534} Disconnected"}
-`),t.markdown(`**Workspace ID**: \`${this.workspaceId}\`
-
-`);try{let a=((await this.mcpBridge.callTool("list_plans",{workspace_id:this.workspaceId})).active_plans||[]).filter(c=>c.status!=="archived");if(t.markdown(`## Active Plans (${a.length})
-
-`),a.length===0)t.markdown(`No active plans.
-`);else for(let c of a){let u=this.getStatusEmoji(c.status),d=c.done_steps||0,p=c.total_steps||0;t.markdown(`${u} **${c.title}**
-`),p>0&&t.markdown(`   Progress: ${d}/${p} steps
-`)}}catch{t.markdown(`Could not retrieve plan status.
-`)}return{metadata:{command:"status"}}}async handleDefaultCommand(e,t,r){let o=e.prompt.trim();if(!o)return t.markdown(`\u{1F44B} **Welcome to Project Memory!**
-
-`),t.markdown(`I can help you manage project plans and agent workflows.
-
-`),t.markdown(`**Available commands:**
-`),t.markdown("- `/plan` - View, create, or manage plans\n"),t.markdown("- `/context` - Get workspace context and codebase profile\n"),t.markdown("- `/handoff` - Execute agent handoffs\n"),t.markdown("- `/status` - Show current plan progress\n"),t.markdown(`
-Or just ask me about your project!`),{metadata:{command:"help"}};if(o.toLowerCase().includes("plan")||o.toLowerCase().includes("create"))t.markdown(`I can help you with plans!
-
-`),t.markdown("Try using the `/plan` command:\n"),t.markdown("- `/plan list` to see existing plans\n"),t.markdown(`- \`/plan create ${o}\` to create a new plan
-`);else{if(o.toLowerCase().includes("status")||o.toLowerCase().includes("progress"))return await this.handleStatusCommand(e,t,r);t.markdown(`I understand you want to: **${o}**
-
-`),t.markdown(`Here's what I can help with:
-`),t.markdown(`- Use \`/plan create ${o}\` to create a plan for this
-`),t.markdown("- Use `/status` to check current progress\n"),t.markdown("- Use `/context` to get workspace information\n")}return{metadata:{command:"default"}}}provideFollowups(e,t,r){let o=e.metadata,i=o?.command,n=[];switch(i){case"plan":o?.action==="created"&&o?.planId&&n.push({prompt:`/plan show ${o.planId}`,label:"View plan details",command:"plan"}),n.push({prompt:"/status",label:"Check status",command:"status"});break;case"status":n.push({prompt:"/plan list",label:"List all plans",command:"plan"});break;case"help":case"default":n.push({prompt:"/plan list",label:"List plans",command:"plan"}),n.push({prompt:"/status",label:"Check status",command:"status"});break}return n}getStatusEmoji(e){switch(e){case"active":return"\u{1F535}";case"completed":return"\u2705";case"archived":return"\u{1F4E6}";case"blocked":return"\u{1F534}";default:return"\u26AA"}}getStepStatusEmoji(e){switch(e){case"done":return"\u2705";case"active":return"\u{1F504}";case"blocked":return"\u{1F534}";default:return"\u2B1C"}}resetWorkspace(){this.workspaceId=null}dispose(){this.participant.dispose()}};var ee=q(require("vscode")),Qe=class{mcpBridge;workspaceId=null;disposables=[];constructor(e){this.mcpBridge=e,this.registerTools()}registerTools(){this.disposables.push(ee.lm.registerTool("memory_plan",{invoke:async(e,t)=>await this.handlePlan(e,t)})),this.disposables.push(ee.lm.registerTool("memory_steps",{invoke:async(e,t)=>await this.handleSteps(e,t)})),this.disposables.push(ee.lm.registerTool("memory_context",{invoke:async(e,t)=>await this.handleContext(e,t)}))}async ensureWorkspace(){if(this.workspaceId)return this.workspaceId;let e=ee.workspace.workspaceFolders?.[0];if(!e)throw new Error("No workspace folder open");let t=await this.mcpBridge.callTool("memory_workspace",{action:"register",workspace_path:e.uri.fsPath});return this.workspaceId=t.workspace_id,this.workspaceId}async handlePlan(e,t){try{if(!this.mcpBridge.isConnected())return this.errorResult("MCP server not connected");let r=await this.ensureWorkspace(),{action:o,planId:i,title:n,description:a,category:c,priority:u,includeArchived:d}=e.input,p;switch(o){case"list":let l=await this.mcpBridge.callTool("memory_plan",{action:"list",workspace_id:r,include_archived:d});p={workspace_id:r,plans:l.active_plans||[],total:(l.active_plans||[]).length,message:(l.active_plans||[]).length>0?`Found ${(l.active_plans||[]).length} plan(s)`:'No plans found. Use action "create" to create one.'};break;case"get":if(!i)return this.errorResult("planId is required for get action");p=await this.mcpBridge.callTool("memory_plan",{action:"get",workspace_id:r,plan_id:i});break;case"create":if(!n||!a)return this.errorResult("title and description are required for create action");p=await this.mcpBridge.callTool("memory_plan",{action:"create",workspace_id:r,title:n,description:a,category:c||"feature",priority:u||"medium"});break;case"archive":if(!i)return this.errorResult("planId is required for archive action");p=await this.mcpBridge.callTool("memory_plan",{action:"archive",workspace_id:r,plan_id:i});break;default:return this.errorResult(`Unknown action: ${o}`)}return new ee.LanguageModelToolResult([new ee.LanguageModelTextPart(JSON.stringify(p,null,2))])}catch(r){return this.errorResult(r)}}async handleSteps(e,t){try{if(!this.mcpBridge.isConnected())return this.errorResult("MCP server not connected");let r=await this.ensureWorkspace(),{action:o,planId:i,stepIndex:n,status:a,notes:c,updates:u,newSteps:d}=e.input;if(!i)return this.errorResult("planId is required");let p;switch(o){case"update":if(n===void 0||!a)return this.errorResult("stepIndex and status are required for update action");p=await this.mcpBridge.callTool("memory_steps",{action:"update",workspace_id:r,plan_id:i,step_index:n,status:a,notes:c});break;case"batch_update":if(!u||u.length===0)return this.errorResult("updates array is required for batch_update action");p=await this.mcpBridge.callTool("memory_steps",{action:"batch_update",workspace_id:r,plan_id:i,updates:u});break;case"add":if(!d||d.length===0)return this.errorResult("newSteps array is required for add action");p=await this.mcpBridge.callTool("memory_steps",{action:"add",workspace_id:r,plan_id:i,steps:d.map(l=>({...l,status:l.status||"pending"}))});break;default:return this.errorResult(`Unknown action: ${o}`)}return new ee.LanguageModelToolResult([new ee.LanguageModelTextPart(JSON.stringify(p,null,2))])}catch(r){return this.errorResult(r)}}async handleContext(e,t){try{if(!this.mcpBridge.isConnected())return this.errorResult("MCP server not connected");let r=await this.ensureWorkspace(),{action:o,planId:i,note:n,noteType:a,targetAgent:c,reason:u}=e.input,d;switch(o){case"add_note":if(!i||!n)return this.errorResult("planId and note are required for add_note action");d=await this.mcpBridge.callTool("memory_plan",{action:"add_note",workspace_id:r,plan_id:i,note:n,note_type:a||"info"});break;case"briefing":if(!i)return this.errorResult("planId is required for briefing action");d=await this.mcpBridge.callTool("memory_agent",{action:"get_briefing",workspace_id:r,plan_id:i});break;case"handoff":if(!i||!c||!u)return this.errorResult("planId, targetAgent, and reason are required for handoff action");d=await this.mcpBridge.callTool("memory_agent",{action:"handoff",workspace_id:r,plan_id:i,to_agent:c,reason:u});break;case"workspace":d=await this.mcpBridge.callTool("memory_workspace",{action:"info",workspace_id:r});break;default:return this.errorResult(`Unknown action: ${o}`)}return new ee.LanguageModelToolResult([new ee.LanguageModelTextPart(JSON.stringify(d,null,2))])}catch(r){return this.errorResult(r)}}errorResult(e){let t=e instanceof Error?e.message:String(e);return new ee.LanguageModelToolResult([new ee.LanguageModelTextPart(JSON.stringify({success:!1,error:t}))])}dispose(){this.disposables.forEach(e=>e.dispose()),this.disposables=[]}};var de,Je,De,Os,O,Xe,ae=null,Re=null,Ee=null;function j(s,...e){return h.workspace.getConfiguration("projectMemory").get("showNotifications",!0)?h.window.showInformationMessage(s,...e):Promise.resolve(void 0)}function fc(s){console.log("Project Memory Dashboard extension activating...");let e=h.workspace.getConfiguration("projectMemory"),t=e.get("dataRoot")||Go(),r=e.get("agentsRoot")||Ze(),o=e.get("promptsRoot"),i=e.get("instructionsRoot"),n=e.get("serverPort")||3001,a=e.get("wsPort")||3002,c=e.get("autoStartServer")??!0,u=e.get("defaultAgents")||[],d=e.get("defaultInstructions")||[],p=e.get("autoDeployOnWorkspaceOpen")??!1;if(Xe=new Mt({agentsRoot:r,instructionsRoot:i||Ns(),defaultAgents:u,defaultInstructions:d}),p&&h.workspace.workspaceFolders?.[0]){let l=h.workspace.workspaceFolders[0].uri.fsPath;Xe.deployToWorkspace(l).then(f=>{(f.agents.length>0||f.instructions.length>0)&&j(`Deployed ${f.agents.length} agents and ${f.instructions.length} instructions`)})}O=new It({dataRoot:t,agentsRoot:r,promptsRoot:o,instructionsRoot:i,serverPort:n,wsPort:a}),s.subscriptions.push(O),c&&O.start().then(async l=>{l?O.isExternalServer?j("Connected to existing Project Memory server"):j("Project Memory API server started"):h.window.showWarningMessage("Failed to start Project Memory server. Click to view logs.","View Logs").then(f=>{f==="View Logs"&&O.showLogs()})}),mc(s,e,t),de=new nt(s.extensionUri,t,r),s.subscriptions.push(h.window.registerWebviewViewProvider("projectMemory.dashboardView",de,{webviewOptions:{retainContextWhenHidden:!0}})),s.subscriptions.push(h.commands.registerCommand("projectMemory.showDashboard",()=>{h.commands.executeCommand("workbench.view.extension.projectMemory")}),h.commands.registerCommand("projectMemory.openDashboardPanel",async l=>{if(!O.isRunning){if(await h.window.showWarningMessage("Project Memory server is not running. Start it first?","Start Server","Cancel")!=="Start Server")return;if(!await h.window.withProgress({location:h.ProgressLocation.Notification,title:"Starting Project Memory server...",cancellable:!1},async()=>await O.start())){h.window.showErrorMessage("Failed to start server. Check logs for details."),O.showLogs();return}}if(!O.isFrontendRunning&&!await h.window.withProgress({location:h.ProgressLocation.Notification,title:"Starting dashboard frontend...",cancellable:!1},async()=>await O.startFrontend())){h.window.showErrorMessage("Failed to start dashboard frontend. Check server logs."),O.showLogs();return}let f=l||"http://localhost:5173";Dt.createOrShow(s.extensionUri,f)}),h.commands.registerCommand("projectMemory.toggleServer",async()=>{O.isRunning?(await O.stopFrontend(),await O.stop(),j("Project Memory server stopped")):await O.start()?j("Project Memory server started"):h.window.showErrorMessage("Failed to start Project Memory server")}),h.commands.registerCommand("projectMemory.startServer",async()=>{if(O.isRunning){j("Server is already running");return}await O.start()?j("Project Memory server started"):(h.window.showErrorMessage("Failed to start server. Check logs for details."),O.showLogs())}),h.commands.registerCommand("projectMemory.stopServer",async()=>{await O.stopFrontend(),await O.stop(),j("Project Memory server stopped")}),h.commands.registerCommand("projectMemory.restartServer",async()=>{j("Restarting Project Memory server..."),await O.stopFrontend(),await O.restart()?j("Project Memory server restarted"):h.window.showErrorMessage("Failed to restart server")}),h.commands.registerCommand("projectMemory.showServerLogs",()=>{O.showLogs()}),h.commands.registerCommand("projectMemory.openSettings",async()=>{let l=h.workspace.getConfiguration("projectMemory"),f=l.get("agentsRoot")||Ze(),v=l.get("instructionsRoot")||Ns(),y=l.get("promptsRoot")||qo(),R=await h.window.showQuickPick([{label:"$(person) Configure Default Agents",description:"Select which agents to deploy by default",value:"agents"},{label:"$(book) Configure Default Instructions",description:"Select which instructions to deploy by default",value:"instructions"},{label:"$(file) Configure Default Prompts",description:"Select which prompts to deploy by default",value:"prompts"},{label:"$(gear) Open All Settings",description:"Open VS Code settings for Project Memory",value:"settings"}],{placeHolder:"What would you like to configure?"});if(!R)return;let P=require("fs");if(R.value==="settings"){h.commands.executeCommand("workbench.action.openSettings","@ext:project-memory.project-memory-dashboard");return}if(R.value==="agents"&&f)try{let S=P.readdirSync(f).filter(C=>C.endsWith(".agent.md")).map(C=>C.replace(".agent.md","")),E=l.get("defaultAgents")||[],H=S.map(C=>({label:C,picked:E.length===0||E.includes(C)})),T=await h.window.showQuickPick(H,{canPickMany:!0,placeHolder:"Select default agents (these will be pre-selected when deploying)",title:"Configure Default Agents"});T&&(await l.update("defaultAgents",T.map(C=>C.label),h.ConfigurationTarget.Global),j(`\u2705 Updated default agents (${T.length} selected)`))}catch(S){h.window.showErrorMessage(`Failed to read agents: ${S}`)}if(R.value==="instructions"&&v)try{let S=P.readdirSync(v).filter(C=>C.endsWith(".instructions.md")).map(C=>C.replace(".instructions.md","")),E=l.get("defaultInstructions")||[],H=S.map(C=>({label:C,picked:E.length===0||E.includes(C)})),T=await h.window.showQuickPick(H,{canPickMany:!0,placeHolder:"Select default instructions (these will be pre-selected when deploying)",title:"Configure Default Instructions"});T&&(await l.update("defaultInstructions",T.map(C=>C.label),h.ConfigurationTarget.Global),j(`\u2705 Updated default instructions (${T.length} selected)`))}catch(S){h.window.showErrorMessage(`Failed to read instructions: ${S}`)}if(R.value==="prompts"&&y)try{let S=P.readdirSync(y).filter(C=>C.endsWith(".prompt.md")).map(C=>C.replace(".prompt.md","")),E=l.get("defaultPrompts")||[],H=S.map(C=>({label:C,picked:E.length===0||E.includes(C)})),T=await h.window.showQuickPick(H,{canPickMany:!0,placeHolder:"Select default prompts (these will be pre-selected when deploying)",title:"Configure Default Prompts"});T&&(await l.update("defaultPrompts",T.map(C=>C.label),h.ConfigurationTarget.Global),j(`\u2705 Updated default prompts (${T.length} selected)`))}catch(S){h.window.showErrorMessage(`Failed to read prompts: ${S}`)}}),h.commands.registerCommand("projectMemory.createPlan",async()=>{let l=h.workspace.workspaceFolders;if(!l){h.window.showErrorMessage("No workspace folder open");return}let f=await h.window.showQuickPick([{label:"\u{1F9E0} Brainstorm First",description:"Explore ideas with an AI agent before creating a formal plan",value:"brainstorm"},{label:"\u{1F4DD} Create Plan Directly",description:"Create a formal plan with title, description, and category",value:"create"}],{placeHolder:"How would you like to start?"});if(!f)return;if(f.value==="brainstorm"){let C=await h.window.showInputBox({prompt:"What would you like to brainstorm?",placeHolder:"Describe the feature, problem, or idea you want to explore...",validateInput:M=>M.trim()?null:"Please enter a description"});if(!C)return;try{await h.commands.executeCommand("workbench.action.chat.open",{query:`@brainstorm ${C}`})}catch{await h.window.showInformationMessage("Open GitHub Copilot Chat and use @brainstorm agent with your prompt.","Copy Prompt")==="Copy Prompt"&&(await h.env.clipboard.writeText(`@brainstorm ${C}`),j("Prompt copied to clipboard"))}return}let v=await h.window.showInputBox({prompt:"Enter plan title",placeHolder:"My new feature...",validateInput:C=>C.trim()?null:"Title is required"});if(!v)return;let y=await h.window.showInputBox({prompt:"Enter plan description",placeHolder:"Describe what this plan will accomplish, the goals, and any context...",validateInput:C=>C.trim().length>=10?null:"Please provide at least a brief description (10+ characters)"});if(!y)return;let R=await h.window.showQuickPick([{label:"\u2728 Feature",description:"New functionality or capability",value:"feature"},{label:"\u{1F41B} Bug",description:"Fix for an existing issue",value:"bug"},{label:"\u{1F504} Change",description:"Modification to existing behavior",value:"change"},{label:"\u{1F50D} Analysis",description:"Investigation or research task",value:"analysis"},{label:"\u{1F41E} Debug",description:"Debugging session for an issue",value:"debug"},{label:"\u267B\uFE0F Refactor",description:"Code improvement without behavior change",value:"refactor"},{label:"\u{1F4DA} Documentation",description:"Documentation updates",value:"documentation"}],{placeHolder:"Select plan category"});if(!R)return;let P=await h.window.showQuickPick([{label:"\u{1F534} Critical",description:"Urgent - needs immediate attention",value:"critical"},{label:"\u{1F7E0} High",description:"Important - should be done soon",value:"high"},{label:"\u{1F7E1} Medium",description:"Normal priority",value:"medium"},{label:"\u{1F7E2} Low",description:"Nice to have - when time permits",value:"low"}],{placeHolder:"Select priority level"});if(!P)return;let S=l[0].uri.fsPath,E=require("path").basename(S).toLowerCase().replace(/[^a-z0-9]/g,"_").substring(0,20),H=require("crypto").createHash("md5").update(S).digest("hex").substring(0,12),T=`${E}-${H}`;try{let C=await fetch(`http://localhost:${n}/api/plans`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({workspaceId:T,title:v,description:y,category:R.value,priority:P.value})});if(C.ok){let M=await C.json();j(`Plan created: ${v}`,"Open Dashboard").then(b=>{b==="Open Dashboard"&&h.commands.executeCommand("projectMemory.openDashboardPanel",`http://localhost:5173/workspace/${T}/plan/${M.planId}`)})}else{let M=await C.text();h.window.showErrorMessage(`Failed to create plan: ${M}`)}}catch(C){h.window.showErrorMessage(`Failed to create plan: ${C}`)}}),h.commands.registerCommand("projectMemory.deployAgents",async()=>{let l=h.workspace.workspaceFolders;if(!l){h.window.showErrorMessage("No workspace folder open");return}let f=h.workspace.getConfiguration("projectMemory"),v=f.get("agentsRoot")||Ze(),y=f.get("defaultAgents")||[];if(!v){h.window.showErrorMessage("Agents root not configured. Set projectMemory.agentsRoot in settings.");return}let R=l[0].uri.fsPath,P=require("fs"),S=require("path");try{let E=P.readdirSync(v).filter(b=>b.endsWith(".agent.md"));if(E.length===0){h.window.showWarningMessage("No agent files found in agents root");return}let H=E.map(b=>{let A=b.replace(".agent.md","");return{label:A,description:b,picked:y.length===0||y.includes(A)}}),T=await h.window.showQuickPick(H,{canPickMany:!0,placeHolder:"Select agents to deploy",title:"Deploy Agents"});if(!T||T.length===0)return;let C=S.join(R,".github","agents");P.mkdirSync(C,{recursive:!0});let M=0;for(let b of T){let A=`${b.label}.agent.md`,U=S.join(v,A),w=S.join(C,A);P.copyFileSync(U,w),M++}de.postMessage({type:"deploymentComplete",data:{type:"agents",count:M,targetDir:C}}),j(`\u2705 Deployed ${M} agent(s) to ${S.relative(R,C)}`,"Open Folder").then(b=>{b==="Open Folder"&&h.commands.executeCommand("revealInExplorer",h.Uri.file(C))})}catch(E){h.window.showErrorMessage(`Failed to deploy agents: ${E}`)}}),h.commands.registerCommand("projectMemory.deployPrompts",async()=>{let l=h.workspace.workspaceFolders;if(!l){h.window.showErrorMessage("No workspace folder open");return}let f=h.workspace.getConfiguration("projectMemory"),v=f.get("promptsRoot")||qo(),y=f.get("defaultPrompts")||[];if(!v){h.window.showErrorMessage("Prompts root not configured. Set projectMemory.promptsRoot in settings.");return}let R=l[0].uri.fsPath,P=require("fs"),S=require("path");try{let E=P.readdirSync(v).filter(b=>b.endsWith(".prompt.md"));if(E.length===0){h.window.showWarningMessage("No prompt files found in prompts root");return}let H=E.map(b=>{let A=b.replace(".prompt.md","");return{label:A,description:b,picked:y.length===0||y.includes(A)}}),T=await h.window.showQuickPick(H,{canPickMany:!0,placeHolder:"Select prompts to deploy",title:"Deploy Prompts"});if(!T||T.length===0)return;let C=S.join(R,".github","prompts");P.mkdirSync(C,{recursive:!0});let M=0;for(let b of T){let A=`${b.label}.prompt.md`,U=S.join(v,A),w=S.join(C,A);P.copyFileSync(U,w),M++}de.postMessage({type:"deploymentComplete",data:{type:"prompts",count:M,targetDir:C}}),j(`\u2705 Deployed ${M} prompt(s) to ${S.relative(R,C)}`,"Open Folder").then(b=>{b==="Open Folder"&&h.commands.executeCommand("revealInExplorer",h.Uri.file(C))})}catch(E){h.window.showErrorMessage(`Failed to deploy prompts: ${E}`)}}),h.commands.registerCommand("projectMemory.deployInstructions",async()=>{let l=h.workspace.workspaceFolders;if(!l){h.window.showErrorMessage("No workspace folder open");return}let f=h.workspace.getConfiguration("projectMemory"),v=f.get("instructionsRoot")||Ns(),y=f.get("defaultInstructions")||[];if(!v){h.window.showErrorMessage("Instructions root not configured. Set projectMemory.instructionsRoot in settings.");return}let R=l[0].uri.fsPath,P=require("fs"),S=require("path");try{let E=P.readdirSync(v).filter(b=>b.endsWith(".instructions.md"));if(E.length===0){h.window.showWarningMessage("No instruction files found in instructions root");return}let H=E.map(b=>{let A=b.replace(".instructions.md","");return{label:A,description:b,picked:y.length===0||y.includes(A)}}),T=await h.window.showQuickPick(H,{canPickMany:!0,placeHolder:"Select instructions to deploy",title:"Deploy Instructions"});if(!T||T.length===0)return;let C=S.join(R,".github","instructions");P.mkdirSync(C,{recursive:!0});let M=0;for(let b of T){let A=`${b.label}.instructions.md`,U=S.join(v,A),w=S.join(C,A);P.copyFileSync(U,w),M++}de.postMessage({type:"deploymentComplete",data:{type:"instructions",count:M,targetDir:C}}),j(`\u2705 Deployed ${M} instruction(s) to ${S.relative(R,C)}`,"Open Folder").then(b=>{b==="Open Folder"&&h.commands.executeCommand("revealInExplorer",h.Uri.file(C))})}catch(E){h.window.showErrorMessage(`Failed to deploy instructions: ${E}`)}}),h.commands.registerCommand("projectMemory.deployCopilotConfig",async()=>{let l=h.workspace.workspaceFolders;if(!l){h.window.showErrorMessage("No workspace folder open");return}await h.window.showQuickPick(["Yes","No"],{placeHolder:"Deploy all Copilot config (agents, prompts, instructions)?"})==="Yes"&&(de.postMessage({type:"deployAllCopilotConfig",data:{workspacePath:l[0].uri.fsPath}}),j("Deploying all Copilot configuration..."))}),h.commands.registerCommand("projectMemory.deployDefaults",async()=>{let l=h.workspace.workspaceFolders;if(!l){h.window.showErrorMessage("No workspace folder open");return}let f=Xe.getDeploymentPlan();if(await h.window.showQuickPick(["Yes","No"],{placeHolder:`Deploy ${f.agents.length} agents and ${f.instructions.length} instructions?`})==="Yes"){let y=await Xe.deployToWorkspace(l[0].uri.fsPath);j(`Deployed ${y.agents.length} agents and ${y.instructions.length} instructions`)}}),h.commands.registerCommand("projectMemory.updateDefaults",async()=>{let l=h.workspace.workspaceFolders;if(!l){h.window.showErrorMessage("No workspace folder open");return}let f=await Xe.updateWorkspace(l[0].uri.fsPath);f.updated.length>0||f.added.length>0?j(`Updated ${f.updated.length} files, added ${f.added.length} new files`):j("All files are up to date")}),h.commands.registerCommand("projectMemory.openAgentFile",async()=>{let f=h.workspace.getConfiguration("projectMemory").get("agentsRoot")||Ze();if(!f){h.window.showErrorMessage("Agents root not configured");return}let v=require("fs"),y=require("path");try{let R=v.readdirSync(f).filter(S=>S.endsWith(".agent.md")),P=await h.window.showQuickPick(R,{placeHolder:"Select an agent file to open"});if(P){let S=y.join(f,P),E=await h.workspace.openTextDocument(S);await h.window.showTextDocument(E)}}catch(R){h.window.showErrorMessage(`Failed to list agent files: ${R}`)}}),h.commands.registerCommand("projectMemory.openPromptFile",async()=>{let f=h.workspace.getConfiguration("projectMemory").get("promptsRoot");if(!f){h.window.showErrorMessage("Prompts root not configured. Set projectMemory.promptsRoot in settings.");return}let v=require("fs"),y=require("path");try{let R=v.readdirSync(f).filter(S=>S.endsWith(".prompt.md")),P=await h.window.showQuickPick(R,{placeHolder:"Select a prompt file to open"});if(P){let S=y.join(f,P),E=await h.workspace.openTextDocument(S);await h.window.showTextDocument(E)}}catch(R){h.window.showErrorMessage(`Failed to list prompt files: ${R}`)}}),h.commands.registerCommand("projectMemory.showCopilotStatus",()=>{de.postMessage({type:"showCopilotStatus"}),h.commands.executeCommand("workbench.view.extension.projectMemory")}),h.commands.registerCommand("projectMemory.refreshData",()=>{de.postMessage({type:"refresh"})}),h.commands.registerCommand("projectMemory.openFile",async(l,f)=>{try{let v=await h.workspace.openTextDocument(l),y=await h.window.showTextDocument(v);if(f!==void 0){let R=new h.Position(f-1,0);y.selection=new h.Selection(R,R),y.revealRange(new h.Range(R,R),h.TextEditorRevealType.InCenter)}}catch{h.window.showErrorMessage(`Failed to open file: ${l}`)}}),h.commands.registerCommand("projectMemory.addToPlan",async l=>{let f,v,y;if(l)f=l.fsPath;else{let E=h.window.activeTextEditor;if(E){f=E.document.uri.fsPath;let H=E.selection;H.isEmpty||(v=E.document.getText(H),y=H.start.line+1)}}if(!f){h.window.showErrorMessage("No file selected");return}if(!h.workspace.workspaceFolders){h.window.showErrorMessage("No workspace folder open");return}let P=await h.window.showInputBox({prompt:"Describe the step/task for this file",placeHolder:"e.g., Review and update authentication logic",value:v?`Review: ${v.substring(0,50)}...`:`Work on ${require("path").basename(f)}`});if(!P)return;let S=await h.window.showQuickPick(["implementation","review","testing","documentation","refactor","bugfix"],{placeHolder:"Select the phase for this step"});S&&(de.postMessage({type:"addStepToPlan",data:{task:P,phase:S,file:f,line:y,notes:v?`Selected code:
+// src/extension.ts
+var dashboardProvider;
+var agentWatcher;
+var copilotFileWatcher;
+var statusBarManager;
+var serverManager;
+var defaultDeployer;
+var mcpBridge = null;
+var chatParticipant = null;
+var toolProvider = null;
+function notify5(message, ...items) {
+  const config = vscode11.workspace.getConfiguration("projectMemory");
+  if (config.get("showNotifications", true)) {
+    return vscode11.window.showInformationMessage(message, ...items);
+  }
+  return Promise.resolve(void 0);
+}
+function activate(context) {
+  console.log("Project Memory Dashboard extension activating...");
+  const config = vscode11.workspace.getConfiguration("projectMemory");
+  const dataRoot = config.get("dataRoot") || getDefaultDataRoot();
+  const agentsRoot = config.get("agentsRoot") || getDefaultAgentsRoot();
+  const promptsRoot = config.get("promptsRoot");
+  const instructionsRoot = config.get("instructionsRoot");
+  const serverPort = config.get("serverPort") || 3001;
+  const wsPort = config.get("wsPort") || 3002;
+  const autoStartServer = config.get("autoStartServer") ?? true;
+  const defaultAgents = config.get("defaultAgents") || [];
+  const defaultInstructions = config.get("defaultInstructions") || [];
+  const autoDeployOnWorkspaceOpen = config.get("autoDeployOnWorkspaceOpen") ?? false;
+  defaultDeployer = new DefaultDeployer({
+    agentsRoot,
+    instructionsRoot: instructionsRoot || getDefaultInstructionsRoot(),
+    defaultAgents,
+    defaultInstructions
+  });
+  if (autoDeployOnWorkspaceOpen && vscode11.workspace.workspaceFolders?.[0]) {
+    const workspacePath = vscode11.workspace.workspaceFolders[0].uri.fsPath;
+    defaultDeployer.deployToWorkspace(workspacePath).then((result) => {
+      if (result.agents.length > 0 || result.instructions.length > 0) {
+        notify5(
+          `Deployed ${result.agents.length} agents and ${result.instructions.length} instructions`
+        );
+      }
+    });
+  }
+  serverManager = new ServerManager({
+    dataRoot,
+    agentsRoot,
+    promptsRoot,
+    instructionsRoot,
+    serverPort,
+    wsPort
+  });
+  context.subscriptions.push(serverManager);
+  if (autoStartServer && serverManager.hasServerDirectory()) {
+    serverManager.start().then(async (success) => {
+      if (success) {
+        if (serverManager.isExternalServer) {
+          notify5("Connected to existing Project Memory server");
+        } else {
+          notify5("Project Memory API server started");
+        }
+      } else {
+        vscode11.window.showWarningMessage(
+          "Failed to start Project Memory server. Click to view logs.",
+          "View Logs"
+        ).then((selection) => {
+          if (selection === "View Logs") {
+            serverManager.showLogs();
+          }
+        });
+      }
+    });
+  }
+  initializeChatIntegration(context, config, dataRoot);
+  dashboardProvider = new DashboardViewProvider(context.extensionUri, dataRoot, agentsRoot);
+  context.subscriptions.push(
+    vscode11.window.registerWebviewViewProvider(
+      "projectMemory.dashboardView",
+      dashboardProvider,
+      {
+        webviewOptions: {
+          retainContextWhenHidden: true
+        }
+      }
+    )
+  );
+  context.subscriptions.push(
+    vscode11.commands.registerCommand("projectMemory.showDashboard", () => {
+      vscode11.commands.executeCommand("workbench.view.extension.projectMemory");
+    }),
+    vscode11.commands.registerCommand("projectMemory.openDashboardPanel", async (url) => {
+      if (!serverManager.isRunning) {
+        const startServer = await vscode11.window.showWarningMessage(
+          "Project Memory server is not running. Start it first?",
+          "Start Server",
+          "Cancel"
+        );
+        if (startServer !== "Start Server") return;
+        const success = await vscode11.window.withProgress({
+          location: vscode11.ProgressLocation.Notification,
+          title: "Starting Project Memory server...",
+          cancellable: false
+        }, async () => {
+          return await serverManager.start();
+        });
+        if (!success) {
+          vscode11.window.showErrorMessage("Failed to start server. Check logs for details.");
+          serverManager.showLogs();
+          return;
+        }
+      }
+      if (!serverManager.isFrontendRunning) {
+        const success = await vscode11.window.withProgress({
+          location: vscode11.ProgressLocation.Notification,
+          title: "Starting dashboard frontend...",
+          cancellable: false
+        }, async () => {
+          return await serverManager.startFrontend();
+        });
+        if (!success) {
+          vscode11.window.showErrorMessage("Failed to start dashboard frontend. Check server logs.");
+          serverManager.showLogs();
+          return;
+        }
+      }
+      const dashboardUrl = url || "http://localhost:5173";
+      DashboardPanel.createOrShow(context.extensionUri, dashboardUrl);
+    }),
+    // Server management commands
+    vscode11.commands.registerCommand("projectMemory.toggleServer", async () => {
+      if (serverManager.isRunning) {
+        await serverManager.stopFrontend();
+        await serverManager.stop();
+        notify5("Project Memory server stopped");
+      } else {
+        const success = await serverManager.start();
+        if (success) {
+          notify5("Project Memory server started");
+        } else {
+          vscode11.window.showErrorMessage("Failed to start Project Memory server");
+        }
+      }
+    }),
+    vscode11.commands.registerCommand("projectMemory.startServer", async () => {
+      if (serverManager.isRunning) {
+        notify5("Server is already running");
+        return;
+      }
+      const success = await serverManager.start();
+      if (success) {
+        notify5("Project Memory server started");
+      } else {
+        vscode11.window.showErrorMessage("Failed to start server. Check logs for details.");
+        serverManager.showLogs();
+      }
+    }),
+    vscode11.commands.registerCommand("projectMemory.stopServer", async () => {
+      await serverManager.stopFrontend();
+      await serverManager.stop();
+      notify5("Project Memory server stopped");
+    }),
+    vscode11.commands.registerCommand("projectMemory.restartServer", async () => {
+      notify5("Restarting Project Memory server...");
+      await serverManager.stopFrontend();
+      const success = await serverManager.restart();
+      if (success) {
+        notify5("Project Memory server restarted");
+      } else {
+        vscode11.window.showErrorMessage("Failed to restart server");
+      }
+    }),
+    vscode11.commands.registerCommand("projectMemory.showServerLogs", () => {
+      serverManager.showLogs();
+    }),
+    vscode11.commands.registerCommand("projectMemory.openSettings", async () => {
+      const config2 = vscode11.workspace.getConfiguration("projectMemory");
+      const agentsRoot2 = config2.get("agentsRoot") || getDefaultAgentsRoot();
+      const instructionsRoot2 = config2.get("instructionsRoot") || getDefaultInstructionsRoot();
+      const promptsRoot2 = config2.get("promptsRoot") || getDefaultPromptsRoot();
+      const choice = await vscode11.window.showQuickPick([
+        { label: "$(person) Configure Default Agents", description: "Select which agents to deploy by default", value: "agents" },
+        { label: "$(book) Configure Default Instructions", description: "Select which instructions to deploy by default", value: "instructions" },
+        { label: "$(file) Configure Default Prompts", description: "Select which prompts to deploy by default", value: "prompts" },
+        { label: "$(gear) Open All Settings", description: "Open VS Code settings for Project Memory", value: "settings" }
+      ], {
+        placeHolder: "What would you like to configure?"
+      });
+      if (!choice) return;
+      const fs2 = require("fs");
+      if (choice.value === "settings") {
+        vscode11.commands.executeCommand("workbench.action.openSettings", "@ext:project-memory.project-memory-dashboard");
+        return;
+      }
+      if (choice.value === "agents" && agentsRoot2) {
+        try {
+          const allAgentFiles = fs2.readdirSync(agentsRoot2).filter((f) => f.endsWith(".agent.md")).map((f) => f.replace(".agent.md", ""));
+          const currentDefaults = config2.get("defaultAgents") || [];
+          const items = allAgentFiles.map((name) => ({
+            label: name,
+            picked: currentDefaults.length === 0 || currentDefaults.includes(name)
+          }));
+          const selected = await vscode11.window.showQuickPick(items, {
+            canPickMany: true,
+            placeHolder: "Select default agents (these will be pre-selected when deploying)",
+            title: "Configure Default Agents"
+          });
+          if (selected) {
+            await config2.update("defaultAgents", selected.map((s) => s.label), vscode11.ConfigurationTarget.Global);
+            notify5(`\u2705 Updated default agents (${selected.length} selected)`);
+          }
+        } catch (error) {
+          vscode11.window.showErrorMessage(`Failed to read agents: ${error}`);
+        }
+      }
+      if (choice.value === "instructions" && instructionsRoot2) {
+        try {
+          const allInstructionFiles = fs2.readdirSync(instructionsRoot2).filter((f) => f.endsWith(".instructions.md")).map((f) => f.replace(".instructions.md", ""));
+          const currentDefaults = config2.get("defaultInstructions") || [];
+          const items = allInstructionFiles.map((name) => ({
+            label: name,
+            picked: currentDefaults.length === 0 || currentDefaults.includes(name)
+          }));
+          const selected = await vscode11.window.showQuickPick(items, {
+            canPickMany: true,
+            placeHolder: "Select default instructions (these will be pre-selected when deploying)",
+            title: "Configure Default Instructions"
+          });
+          if (selected) {
+            await config2.update("defaultInstructions", selected.map((s) => s.label), vscode11.ConfigurationTarget.Global);
+            notify5(`\u2705 Updated default instructions (${selected.length} selected)`);
+          }
+        } catch (error) {
+          vscode11.window.showErrorMessage(`Failed to read instructions: ${error}`);
+        }
+      }
+      if (choice.value === "prompts" && promptsRoot2) {
+        try {
+          const allPromptFiles = fs2.readdirSync(promptsRoot2).filter((f) => f.endsWith(".prompt.md")).map((f) => f.replace(".prompt.md", ""));
+          const currentDefaults = config2.get("defaultPrompts") || [];
+          const items = allPromptFiles.map((name) => ({
+            label: name,
+            picked: currentDefaults.length === 0 || currentDefaults.includes(name)
+          }));
+          const selected = await vscode11.window.showQuickPick(items, {
+            canPickMany: true,
+            placeHolder: "Select default prompts (these will be pre-selected when deploying)",
+            title: "Configure Default Prompts"
+          });
+          if (selected) {
+            await config2.update("defaultPrompts", selected.map((s) => s.label), vscode11.ConfigurationTarget.Global);
+            notify5(`\u2705 Updated default prompts (${selected.length} selected)`);
+          }
+        } catch (error) {
+          vscode11.window.showErrorMessage(`Failed to read prompts: ${error}`);
+        }
+      }
+    }),
+    vscode11.commands.registerCommand("projectMemory.createPlan", async () => {
+      const workspaceFolders = vscode11.workspace.workspaceFolders;
+      if (!workspaceFolders) {
+        vscode11.window.showErrorMessage("No workspace folder open");
+        return;
+      }
+      const approach = await vscode11.window.showQuickPick(
+        [
+          { label: "\u{1F9E0} Brainstorm First", description: "Explore ideas with an AI agent before creating a formal plan", value: "brainstorm" },
+          { label: "\u{1F4DD} Create Plan Directly", description: "Create a formal plan with title, description, and category", value: "create" }
+        ],
+        { placeHolder: "How would you like to start?" }
+      );
+      if (!approach) return;
+      if (approach.value === "brainstorm") {
+        const initialPrompt = await vscode11.window.showInputBox({
+          prompt: "What would you like to brainstorm?",
+          placeHolder: "Describe the feature, problem, or idea you want to explore...",
+          validateInput: (value) => value.trim() ? null : "Please enter a description"
+        });
+        if (!initialPrompt) return;
+        try {
+          await vscode11.commands.executeCommand("workbench.action.chat.open", {
+            query: `@brainstorm ${initialPrompt}`
+          });
+        } catch {
+          const result = await vscode11.window.showInformationMessage(
+            "Open GitHub Copilot Chat and use @brainstorm agent with your prompt.",
+            "Copy Prompt"
+          );
+          if (result === "Copy Prompt") {
+            await vscode11.env.clipboard.writeText(`@brainstorm ${initialPrompt}`);
+            notify5("Prompt copied to clipboard");
+          }
+        }
+        return;
+      }
+      const title = await vscode11.window.showInputBox({
+        prompt: "Enter plan title",
+        placeHolder: "My new feature...",
+        validateInput: (value) => value.trim() ? null : "Title is required"
+      });
+      if (!title) return;
+      const description = await vscode11.window.showInputBox({
+        prompt: "Enter plan description",
+        placeHolder: "Describe what this plan will accomplish, the goals, and any context...",
+        validateInput: (value) => value.trim().length >= 10 ? null : "Please provide at least a brief description (10+ characters)"
+      });
+      if (!description) return;
+      const category = await vscode11.window.showQuickPick(
+        [
+          { label: "\u2728 Feature", description: "New functionality or capability", value: "feature" },
+          { label: "\u{1F41B} Bug", description: "Fix for an existing issue", value: "bug" },
+          { label: "\u{1F504} Change", description: "Modification to existing behavior", value: "change" },
+          { label: "\u{1F50D} Analysis", description: "Investigation or research task", value: "analysis" },
+          { label: "\u{1F41E} Debug", description: "Debugging session for an issue", value: "debug" },
+          { label: "\u267B\uFE0F Refactor", description: "Code improvement without behavior change", value: "refactor" },
+          { label: "\u{1F4DA} Documentation", description: "Documentation updates", value: "documentation" }
+        ],
+        { placeHolder: "Select plan category" }
+      );
+      if (!category) return;
+      const priority = await vscode11.window.showQuickPick(
+        [
+          { label: "\u{1F534} Critical", description: "Urgent - needs immediate attention", value: "critical" },
+          { label: "\u{1F7E0} High", description: "Important - should be done soon", value: "high" },
+          { label: "\u{1F7E1} Medium", description: "Normal priority", value: "medium" },
+          { label: "\u{1F7E2} Low", description: "Nice to have - when time permits", value: "low" }
+        ],
+        { placeHolder: "Select priority level" }
+      );
+      if (!priority) return;
+      const workspacePath = workspaceFolders[0].uri.fsPath;
+      const name = require("path").basename(workspacePath).toLowerCase().replace(/[^a-z0-9]/g, "_").substring(0, 20);
+      const hash = require("crypto").createHash("md5").update(workspacePath).digest("hex").substring(0, 12);
+      const workspaceId = `${name}-${hash}`;
+      try {
+        const response = await fetch(`http://localhost:${serverPort}/api/plans`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            workspaceId,
+            title,
+            description,
+            category: category.value,
+            priority: priority.value
+          })
+        });
+        if (response.ok) {
+          const data = await response.json();
+          notify5(`Plan created: ${title}`, "Open Dashboard").then((selection) => {
+            if (selection === "Open Dashboard") {
+              vscode11.commands.executeCommand(
+                "projectMemory.openDashboardPanel",
+                `http://localhost:5173/workspace/${workspaceId}/plan/${data.planId}`
+              );
+            }
+          });
+        } else {
+          const error = await response.text();
+          vscode11.window.showErrorMessage(`Failed to create plan: ${error}`);
+        }
+      } catch (error) {
+        vscode11.window.showErrorMessage(`Failed to create plan: ${error}`);
+      }
+    }),
+    vscode11.commands.registerCommand("projectMemory.deployAgents", async () => {
+      const workspaceFolders = vscode11.workspace.workspaceFolders;
+      if (!workspaceFolders) {
+        vscode11.window.showErrorMessage("No workspace folder open");
+        return;
+      }
+      const config2 = vscode11.workspace.getConfiguration("projectMemory");
+      const agentsRoot2 = config2.get("agentsRoot") || getDefaultAgentsRoot();
+      const defaultAgents2 = config2.get("defaultAgents") || [];
+      if (!agentsRoot2) {
+        vscode11.window.showErrorMessage("Agents root not configured. Set projectMemory.agentsRoot in settings.");
+        return;
+      }
+      const workspacePath = workspaceFolders[0].uri.fsPath;
+      const fs2 = require("fs");
+      const path6 = require("path");
+      try {
+        const allAgentFiles = fs2.readdirSync(agentsRoot2).filter((f) => f.endsWith(".agent.md"));
+        if (allAgentFiles.length === 0) {
+          vscode11.window.showWarningMessage("No agent files found in agents root");
+          return;
+        }
+        const items = allAgentFiles.map((f) => {
+          const name = f.replace(".agent.md", "");
+          return {
+            label: name,
+            description: f,
+            picked: defaultAgents2.length === 0 || defaultAgents2.includes(name)
+          };
+        });
+        const selectedItems = await vscode11.window.showQuickPick(items, {
+          canPickMany: true,
+          placeHolder: "Select agents to deploy",
+          title: "Deploy Agents"
+        });
+        if (!selectedItems || selectedItems.length === 0) {
+          return;
+        }
+        const targetDir = path6.join(workspacePath, ".github", "agents");
+        fs2.mkdirSync(targetDir, { recursive: true });
+        let copiedCount = 0;
+        for (const item of selectedItems) {
+          const file = `${item.label}.agent.md`;
+          const sourcePath = path6.join(agentsRoot2, file);
+          const targetPath = path6.join(targetDir, file);
+          fs2.copyFileSync(sourcePath, targetPath);
+          copiedCount++;
+        }
+        dashboardProvider.postMessage({
+          type: "deploymentComplete",
+          data: {
+            type: "agents",
+            count: copiedCount,
+            targetDir
+          }
+        });
+        notify5(
+          `\u2705 Deployed ${copiedCount} agent(s) to ${path6.relative(workspacePath, targetDir)}`,
+          "Open Folder"
+        ).then((selection) => {
+          if (selection === "Open Folder") {
+            vscode11.commands.executeCommand("revealInExplorer", vscode11.Uri.file(targetDir));
+          }
+        });
+      } catch (error) {
+        vscode11.window.showErrorMessage(`Failed to deploy agents: ${error}`);
+      }
+    }),
+    vscode11.commands.registerCommand("projectMemory.deployPrompts", async () => {
+      const workspaceFolders = vscode11.workspace.workspaceFolders;
+      if (!workspaceFolders) {
+        vscode11.window.showErrorMessage("No workspace folder open");
+        return;
+      }
+      const config2 = vscode11.workspace.getConfiguration("projectMemory");
+      const promptsRoot2 = config2.get("promptsRoot") || getDefaultPromptsRoot();
+      const defaultPrompts = config2.get("defaultPrompts") || [];
+      if (!promptsRoot2) {
+        vscode11.window.showErrorMessage("Prompts root not configured. Set projectMemory.promptsRoot in settings.");
+        return;
+      }
+      const workspacePath = workspaceFolders[0].uri.fsPath;
+      const fs2 = require("fs");
+      const path6 = require("path");
+      try {
+        const allPromptFiles = fs2.readdirSync(promptsRoot2).filter((f) => f.endsWith(".prompt.md"));
+        if (allPromptFiles.length === 0) {
+          vscode11.window.showWarningMessage("No prompt files found in prompts root");
+          return;
+        }
+        const items = allPromptFiles.map((f) => {
+          const name = f.replace(".prompt.md", "");
+          return {
+            label: name,
+            description: f,
+            picked: defaultPrompts.length === 0 || defaultPrompts.includes(name)
+          };
+        });
+        const selectedItems = await vscode11.window.showQuickPick(items, {
+          canPickMany: true,
+          placeHolder: "Select prompts to deploy",
+          title: "Deploy Prompts"
+        });
+        if (!selectedItems || selectedItems.length === 0) {
+          return;
+        }
+        const targetDir = path6.join(workspacePath, ".github", "prompts");
+        fs2.mkdirSync(targetDir, { recursive: true });
+        let copiedCount = 0;
+        for (const item of selectedItems) {
+          const file = `${item.label}.prompt.md`;
+          const sourcePath = path6.join(promptsRoot2, file);
+          const targetPath = path6.join(targetDir, file);
+          fs2.copyFileSync(sourcePath, targetPath);
+          copiedCount++;
+        }
+        dashboardProvider.postMessage({
+          type: "deploymentComplete",
+          data: {
+            type: "prompts",
+            count: copiedCount,
+            targetDir
+          }
+        });
+        notify5(
+          `\u2705 Deployed ${copiedCount} prompt(s) to ${path6.relative(workspacePath, targetDir)}`,
+          "Open Folder"
+        ).then((selection) => {
+          if (selection === "Open Folder") {
+            vscode11.commands.executeCommand("revealInExplorer", vscode11.Uri.file(targetDir));
+          }
+        });
+      } catch (error) {
+        vscode11.window.showErrorMessage(`Failed to deploy prompts: ${error}`);
+      }
+    }),
+    vscode11.commands.registerCommand("projectMemory.deployInstructions", async () => {
+      const workspaceFolders = vscode11.workspace.workspaceFolders;
+      if (!workspaceFolders) {
+        vscode11.window.showErrorMessage("No workspace folder open");
+        return;
+      }
+      const config2 = vscode11.workspace.getConfiguration("projectMemory");
+      const instructionsRoot2 = config2.get("instructionsRoot") || getDefaultInstructionsRoot();
+      const defaultInstructions2 = config2.get("defaultInstructions") || [];
+      if (!instructionsRoot2) {
+        vscode11.window.showErrorMessage("Instructions root not configured. Set projectMemory.instructionsRoot in settings.");
+        return;
+      }
+      const workspacePath = workspaceFolders[0].uri.fsPath;
+      const fs2 = require("fs");
+      const path6 = require("path");
+      try {
+        const allInstructionFiles = fs2.readdirSync(instructionsRoot2).filter((f) => f.endsWith(".instructions.md"));
+        if (allInstructionFiles.length === 0) {
+          vscode11.window.showWarningMessage("No instruction files found in instructions root");
+          return;
+        }
+        const items = allInstructionFiles.map((f) => {
+          const name = f.replace(".instructions.md", "");
+          return {
+            label: name,
+            description: f,
+            picked: defaultInstructions2.length === 0 || defaultInstructions2.includes(name)
+          };
+        });
+        const selectedItems = await vscode11.window.showQuickPick(items, {
+          canPickMany: true,
+          placeHolder: "Select instructions to deploy",
+          title: "Deploy Instructions"
+        });
+        if (!selectedItems || selectedItems.length === 0) {
+          return;
+        }
+        const targetDir = path6.join(workspacePath, ".github", "instructions");
+        fs2.mkdirSync(targetDir, { recursive: true });
+        let copiedCount = 0;
+        for (const item of selectedItems) {
+          const file = `${item.label}.instructions.md`;
+          const sourcePath = path6.join(instructionsRoot2, file);
+          const targetPath = path6.join(targetDir, file);
+          fs2.copyFileSync(sourcePath, targetPath);
+          copiedCount++;
+        }
+        dashboardProvider.postMessage({
+          type: "deploymentComplete",
+          data: {
+            type: "instructions",
+            count: copiedCount,
+            targetDir
+          }
+        });
+        notify5(
+          `\u2705 Deployed ${copiedCount} instruction(s) to ${path6.relative(workspacePath, targetDir)}`,
+          "Open Folder"
+        ).then((selection) => {
+          if (selection === "Open Folder") {
+            vscode11.commands.executeCommand("revealInExplorer", vscode11.Uri.file(targetDir));
+          }
+        });
+      } catch (error) {
+        vscode11.window.showErrorMessage(`Failed to deploy instructions: ${error}`);
+      }
+    }),
+    vscode11.commands.registerCommand("projectMemory.deployCopilotConfig", async () => {
+      const workspaceFolders = vscode11.workspace.workspaceFolders;
+      if (!workspaceFolders) {
+        vscode11.window.showErrorMessage("No workspace folder open");
+        return;
+      }
+      const confirm = await vscode11.window.showQuickPick(["Yes", "No"], {
+        placeHolder: "Deploy all Copilot config (agents, prompts, instructions)?"
+      });
+      if (confirm === "Yes") {
+        dashboardProvider.postMessage({
+          type: "deployAllCopilotConfig",
+          data: { workspacePath: workspaceFolders[0].uri.fsPath }
+        });
+        notify5("Deploying all Copilot configuration...");
+      }
+    }),
+    vscode11.commands.registerCommand("projectMemory.deployDefaults", async () => {
+      const workspaceFolders = vscode11.workspace.workspaceFolders;
+      if (!workspaceFolders) {
+        vscode11.window.showErrorMessage("No workspace folder open");
+        return;
+      }
+      const plan = defaultDeployer.getDeploymentPlan();
+      const confirm = await vscode11.window.showQuickPick(["Yes", "No"], {
+        placeHolder: `Deploy ${plan.agents.length} agents and ${plan.instructions.length} instructions?`
+      });
+      if (confirm === "Yes") {
+        const result = await defaultDeployer.deployToWorkspace(workspaceFolders[0].uri.fsPath);
+        notify5(
+          `Deployed ${result.agents.length} agents and ${result.instructions.length} instructions`
+        );
+      }
+    }),
+    vscode11.commands.registerCommand("projectMemory.updateDefaults", async () => {
+      const workspaceFolders = vscode11.workspace.workspaceFolders;
+      if (!workspaceFolders) {
+        vscode11.window.showErrorMessage("No workspace folder open");
+        return;
+      }
+      const result = await defaultDeployer.updateWorkspace(workspaceFolders[0].uri.fsPath);
+      if (result.updated.length > 0 || result.added.length > 0) {
+        notify5(
+          `Updated ${result.updated.length} files, added ${result.added.length} new files`
+        );
+      } else {
+        notify5("All files are up to date");
+      }
+    }),
+    vscode11.commands.registerCommand("projectMemory.openAgentFile", async () => {
+      const config2 = vscode11.workspace.getConfiguration("projectMemory");
+      const agentsRoot2 = config2.get("agentsRoot") || getDefaultAgentsRoot();
+      if (!agentsRoot2) {
+        vscode11.window.showErrorMessage("Agents root not configured");
+        return;
+      }
+      const fs2 = require("fs");
+      const path6 = require("path");
+      try {
+        const files = fs2.readdirSync(agentsRoot2).filter((f) => f.endsWith(".agent.md"));
+        const selected = await vscode11.window.showQuickPick(files, {
+          placeHolder: "Select an agent file to open"
+        });
+        if (selected) {
+          const filePath = path6.join(agentsRoot2, selected);
+          const doc = await vscode11.workspace.openTextDocument(filePath);
+          await vscode11.window.showTextDocument(doc);
+        }
+      } catch (error) {
+        vscode11.window.showErrorMessage(`Failed to list agent files: ${error}`);
+      }
+    }),
+    vscode11.commands.registerCommand("projectMemory.openPromptFile", async () => {
+      const config2 = vscode11.workspace.getConfiguration("projectMemory");
+      const promptsRoot2 = config2.get("promptsRoot");
+      if (!promptsRoot2) {
+        vscode11.window.showErrorMessage("Prompts root not configured. Set projectMemory.promptsRoot in settings.");
+        return;
+      }
+      const fs2 = require("fs");
+      const path6 = require("path");
+      try {
+        const files = fs2.readdirSync(promptsRoot2).filter((f) => f.endsWith(".prompt.md"));
+        const selected = await vscode11.window.showQuickPick(files, {
+          placeHolder: "Select a prompt file to open"
+        });
+        if (selected) {
+          const filePath = path6.join(promptsRoot2, selected);
+          const doc = await vscode11.workspace.openTextDocument(filePath);
+          await vscode11.window.showTextDocument(doc);
+        }
+      } catch (error) {
+        vscode11.window.showErrorMessage(`Failed to list prompt files: ${error}`);
+      }
+    }),
+    vscode11.commands.registerCommand("projectMemory.showCopilotStatus", () => {
+      dashboardProvider.postMessage({ type: "showCopilotStatus" });
+      vscode11.commands.executeCommand("workbench.view.extension.projectMemory");
+    }),
+    vscode11.commands.registerCommand("projectMemory.refreshData", () => {
+      dashboardProvider.postMessage({ type: "refresh" });
+    }),
+    vscode11.commands.registerCommand("projectMemory.openFile", async (filePath, line) => {
+      try {
+        const document = await vscode11.workspace.openTextDocument(filePath);
+        const editor = await vscode11.window.showTextDocument(document);
+        if (line !== void 0) {
+          const position = new vscode11.Position(line - 1, 0);
+          editor.selection = new vscode11.Selection(position, position);
+          editor.revealRange(new vscode11.Range(position, position), vscode11.TextEditorRevealType.InCenter);
+        }
+      } catch (error) {
+        vscode11.window.showErrorMessage(`Failed to open file: ${filePath}`);
+      }
+    }),
+    // Add to Plan command - context menu for files
+    vscode11.commands.registerCommand("projectMemory.addToPlan", async (uri) => {
+      let filePath;
+      let selectedText;
+      let lineNumber;
+      if (uri) {
+        filePath = uri.fsPath;
+      } else {
+        const editor = vscode11.window.activeTextEditor;
+        if (editor) {
+          filePath = editor.document.uri.fsPath;
+          const selection = editor.selection;
+          if (!selection.isEmpty) {
+            selectedText = editor.document.getText(selection);
+            lineNumber = selection.start.line + 1;
+          }
+        }
+      }
+      if (!filePath) {
+        vscode11.window.showErrorMessage("No file selected");
+        return;
+      }
+      const workspaceFolders = vscode11.workspace.workspaceFolders;
+      if (!workspaceFolders) {
+        vscode11.window.showErrorMessage("No workspace folder open");
+        return;
+      }
+      const stepTask = await vscode11.window.showInputBox({
+        prompt: "Describe the step/task for this file",
+        placeHolder: "e.g., Review and update authentication logic",
+        value: selectedText ? `Review: ${selectedText.substring(0, 50)}...` : `Work on ${require("path").basename(filePath)}`
+      });
+      if (!stepTask) {
+        return;
+      }
+      const phase = await vscode11.window.showQuickPick(
+        ["implementation", "review", "testing", "documentation", "refactor", "bugfix"],
+        { placeHolder: "Select the phase for this step" }
+      );
+      if (!phase) {
+        return;
+      }
+      dashboardProvider.postMessage({
+        type: "addStepToPlan",
+        data: {
+          task: stepTask,
+          phase,
+          file: filePath,
+          line: lineNumber,
+          notes: selectedText ? `Selected code:
 \`\`\`
-${v.substring(0,500)}
-\`\`\``:void 0}}),j(`Added step to plan: "${P}"`))})),r&&(Je=new St(r,e.get("autoDeployAgents")||!1),Je.start(),s.subscriptions.push({dispose:()=>Je.stop()})),De=new Pt({agentsRoot:r,promptsRoot:o,instructionsRoot:i,autoDeploy:e.get("autoDeployAgents")||!1}),De.start(),De.onFileChanged((l,f,v)=>{v==="change"&&Os.showTemporaryMessage(`${l} updated`)}),s.subscriptions.push({dispose:()=>De.stop()}),Os=new Tt,s.subscriptions.push(Os),s.subscriptions.push(h.workspace.onDidChangeConfiguration(l=>{if(l.affectsConfiguration("projectMemory")){let f=h.workspace.getConfiguration("projectMemory");de.updateConfig(f.get("dataRoot")||Go(),f.get("agentsRoot")||Ze())}})),console.log("Project Memory Dashboard extension activated")}async function gc(){console.log("Project Memory Dashboard extension deactivating..."),ae&&(await ae.disconnect(),ae.dispose(),ae=null),Re&&(Re.dispose(),Re=null),Ee&&(Ee.dispose(),Ee=null),de&&de.dispose(),Je&&Je.stop(),De&&De.stop(),O&&(await O.stopFrontend(),await O.stop()),console.log("Project Memory Dashboard extension deactivated")}function Go(){let s=h.workspace.workspaceFolders;return s?h.Uri.joinPath(s[0].uri,"data").fsPath:""}function Ze(){let s=h.workspace.workspaceFolders;return s?h.Uri.joinPath(s[0].uri,"agents").fsPath:""}function Ns(){let s=h.workspace.workspaceFolders;return s?h.Uri.joinPath(s[0].uri,"instructions").fsPath:""}function qo(){let s=h.workspace.workspaceFolders;return s?h.Uri.joinPath(s[0].uri,"prompts").fsPath:""}function mc(s,e,t){let r=e.get("chat.serverMode")||"bundled",o=e.get("chat.podmanImage")||"project-memory-mcp:latest",i=e.get("chat.externalServerPath")||"",n=e.get("chat.autoConnect")??!0;ae=new Ve({serverMode:r,podmanImage:o,externalServerPath:i,dataRoot:t}),s.subscriptions.push(ae),ae.onConnectionChange(a=>{a&&(Re?.resetWorkspace(),Ee?.resetWorkspace())}),Re=new Ye(ae),s.subscriptions.push(Re),Ee=new Qe(ae),s.subscriptions.push(Ee),s.subscriptions.push(h.commands.registerCommand("projectMemory.chat.reconnect",async()=>{if(!ae){h.window.showErrorMessage("MCP Bridge not initialized");return}try{await h.window.withProgress({location:h.ProgressLocation.Notification,title:"Reconnecting to MCP server...",cancellable:!1},async()=>{await ae.reconnect()}),j("Connected to MCP server")}catch(a){let c=a instanceof Error?a.message:String(a);h.window.showErrorMessage(`Failed to connect: ${c}`),ae.showLogs()}})),n&&ae.connect().then(()=>{console.log("MCP Bridge connected")}).catch(a=>{console.warn("MCP Bridge auto-connect failed:",a)}),s.subscriptions.push(h.workspace.onDidChangeConfiguration(a=>{a.affectsConfiguration("projectMemory.chat")&&j("Chat configuration changed. Some changes may require reconnecting.","Reconnect").then(c=>{c==="Reconnect"&&h.commands.executeCommand("projectMemory.chat.reconnect")})})),s.subscriptions.push(h.workspace.onDidChangeWorkspaceFolders(()=>{Re?.resetWorkspace(),Ee?.resetWorkspace()})),console.log("Chat integration initialized")}0&&(module.exports={activate,deactivate});
+${selectedText.substring(0, 500)}
+\`\`\`` : void 0
+        }
+      });
+      notify5(`Added step to plan: "${stepTask}"`);
+    })
+  );
+  if (agentsRoot) {
+    agentWatcher = new AgentWatcher(agentsRoot, config.get("autoDeployAgents") || false);
+    agentWatcher.start();
+    context.subscriptions.push({
+      dispose: () => agentWatcher.stop()
+    });
+  }
+  copilotFileWatcher = new CopilotFileWatcher({
+    agentsRoot,
+    promptsRoot,
+    instructionsRoot,
+    autoDeploy: config.get("autoDeployAgents") || false
+  });
+  copilotFileWatcher.start();
+  copilotFileWatcher.onFileChanged((type, filePath, action) => {
+    if (action === "change") {
+      statusBarManager.showTemporaryMessage(`${type} updated`);
+    }
+  });
+  context.subscriptions.push({
+    dispose: () => copilotFileWatcher.stop()
+  });
+  statusBarManager = new StatusBarManager();
+  context.subscriptions.push(statusBarManager);
+  context.subscriptions.push(
+    vscode11.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("projectMemory")) {
+        const newConfig = vscode11.workspace.getConfiguration("projectMemory");
+        dashboardProvider.updateConfig(
+          newConfig.get("dataRoot") || getDefaultDataRoot(),
+          newConfig.get("agentsRoot") || getDefaultAgentsRoot()
+        );
+      }
+    })
+  );
+  console.log("Project Memory Dashboard extension activated");
+}
+async function deactivate() {
+  console.log("Project Memory Dashboard extension deactivating...");
+  if (mcpBridge) {
+    await mcpBridge.disconnect();
+    mcpBridge.dispose();
+    mcpBridge = null;
+  }
+  if (chatParticipant) {
+    chatParticipant.dispose();
+    chatParticipant = null;
+  }
+  if (toolProvider) {
+    toolProvider.dispose();
+    toolProvider = null;
+  }
+  if (dashboardProvider) {
+    dashboardProvider.dispose();
+  }
+  if (agentWatcher) {
+    agentWatcher.stop();
+  }
+  if (copilotFileWatcher) {
+    copilotFileWatcher.stop();
+  }
+  if (serverManager) {
+    await serverManager.stopFrontend();
+    await serverManager.stop();
+  }
+  console.log("Project Memory Dashboard extension deactivated");
+}
+function getDefaultDataRoot() {
+  const workspaceFolders = vscode11.workspace.workspaceFolders;
+  if (workspaceFolders) {
+    return vscode11.Uri.joinPath(workspaceFolders[0].uri, "data").fsPath;
+  }
+  return "";
+}
+function getDefaultAgentsRoot() {
+  const workspaceFolders = vscode11.workspace.workspaceFolders;
+  if (workspaceFolders) {
+    return vscode11.Uri.joinPath(workspaceFolders[0].uri, "agents").fsPath;
+  }
+  return "";
+}
+function getDefaultInstructionsRoot() {
+  const workspaceFolders = vscode11.workspace.workspaceFolders;
+  if (workspaceFolders) {
+    return vscode11.Uri.joinPath(workspaceFolders[0].uri, "instructions").fsPath;
+  }
+  return "";
+}
+function getDefaultPromptsRoot() {
+  const workspaceFolders = vscode11.workspace.workspaceFolders;
+  if (workspaceFolders) {
+    return vscode11.Uri.joinPath(workspaceFolders[0].uri, "prompts").fsPath;
+  }
+  return "";
+}
+function initializeChatIntegration(context, config, dataRoot) {
+  const serverMode = config.get("chat.serverMode") || "bundled";
+  const podmanImage = config.get("chat.podmanImage") || "project-memory-mcp:latest";
+  const externalServerPath = config.get("chat.externalServerPath") || "";
+  const autoConnect = config.get("chat.autoConnect") ?? true;
+  mcpBridge = new McpBridge({
+    serverMode,
+    podmanImage,
+    externalServerPath,
+    dataRoot
+  });
+  context.subscriptions.push(mcpBridge);
+  mcpBridge.onConnectionChange((connected) => {
+    if (connected) {
+      chatParticipant?.resetWorkspace();
+      toolProvider?.resetWorkspace();
+    }
+  });
+  chatParticipant = new ChatParticipant(mcpBridge);
+  context.subscriptions.push(chatParticipant);
+  toolProvider = new ToolProvider(mcpBridge);
+  context.subscriptions.push(toolProvider);
+  context.subscriptions.push(
+    vscode11.commands.registerCommand("projectMemory.chat.reconnect", async () => {
+      if (!mcpBridge) {
+        vscode11.window.showErrorMessage("MCP Bridge not initialized");
+        return;
+      }
+      try {
+        await vscode11.window.withProgress({
+          location: vscode11.ProgressLocation.Notification,
+          title: "Reconnecting to MCP server...",
+          cancellable: false
+        }, async () => {
+          await mcpBridge.reconnect();
+        });
+        notify5("Connected to MCP server");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        vscode11.window.showErrorMessage(`Failed to connect: ${message}`);
+        mcpBridge.showLogs();
+      }
+    })
+  );
+  if (autoConnect) {
+    mcpBridge.connect().then(() => {
+      console.log("MCP Bridge connected");
+    }).catch((error) => {
+      console.warn("MCP Bridge auto-connect failed:", error);
+    });
+  }
+  context.subscriptions.push(
+    vscode11.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("projectMemory.chat")) {
+        notify5(
+          "Chat configuration changed. Some changes may require reconnecting.",
+          "Reconnect"
+        ).then((selection) => {
+          if (selection === "Reconnect") {
+            vscode11.commands.executeCommand("projectMemory.chat.reconnect");
+          }
+        });
+      }
+    })
+  );
+  context.subscriptions.push(
+    vscode11.workspace.onDidChangeWorkspaceFolders(() => {
+      chatParticipant?.resetWorkspace();
+      toolProvider?.resetWorkspace();
+    })
+  );
+  console.log("Chat integration initialized");
+}
+// Annotate the CommonJS export names for ESM import in node:
+0 && (module.exports = {
+  activate,
+  deactivate
+});
 /*! Bundled license information:
 
 normalize-path/index.js:
@@ -666,3 +8801,4 @@ fill-range/index.js:
    * Licensed under the MIT License.
    *)
 */
+//# sourceMappingURL=extension.js.map

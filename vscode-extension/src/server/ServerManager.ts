@@ -83,7 +83,7 @@ export class ServerManager implements vscode.Disposable {
 
         const serverDir = this.getServerDirectory();
         if (!serverDir) {
-            vscode.window.showErrorMessage('Could not find dashboard server directory');
+            this.log('Dashboard server directory not found');
             return false;
         }
 
@@ -355,30 +355,28 @@ export class ServerManager implements vscode.Disposable {
         const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         const extensionPath = vscode.extensions.getExtension('project-memory.project-memory-dashboard')?.extensionPath;
         
-        this.log(`Looking for dashboard - workspacePath: ${workspacePath}, extensionPath: ${extensionPath}`);
-        
         const possiblePaths = [
-            // Direct dashboard folder in workspace
-            workspacePath ? path.join(workspacePath, 'dashboard') : null,
-            // Monorepo structure: Project_Memory_MCP/Project-Memory-MCP/dashboard
-            workspacePath ? path.join(workspacePath, 'Project-Memory-MCP', 'dashboard') : null,
-            // Bundled with extension
+            // Bundled with extension - check this FIRST
             extensionPath ? path.join(extensionPath, 'dashboard') : null,
+            // Development workspace (where the extension is being developed)
+            'c:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\dashboard',
+            'c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\dashboard',
+            // Current workspace (only if developing in this workspace)
+            workspacePath ? path.join(workspacePath, 'dashboard') : null,
             // Sibling to extension
             extensionPath ? path.join(extensionPath, '..', 'dashboard') : null,
         ].filter(Boolean) as string[];
 
-        this.log(`Checking dashboard paths: ${JSON.stringify(possiblePaths)}`);
-
         const fs = require('fs');
         for (const p of possiblePaths) {
             const packageJson = path.join(p, 'package.json');
-            this.log(`Checking: ${packageJson} - exists: ${fs.existsSync(packageJson)}`);
             if (fs.existsSync(packageJson)) {
+                this.log(`Found dashboard at: ${p}`);
                 return p;
             }
         }
 
+        this.log('Could not find dashboard directory for frontend');
         return null;
     }
 
@@ -423,36 +421,34 @@ export class ServerManager implements vscode.Disposable {
     private getServerDirectory(): string | null {
         // Look for the server in multiple possible locations
         const extensionPath = vscode.extensions.getExtension('project-memory.project-memory-dashboard')?.extensionPath;
-        this.log(`Extension path: ${extensionPath || 'not found'}`);
-        
         const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-        this.log(`Workspace path: ${workspacePath || 'not found'}`);
         
         const possiblePaths = [
-            // Workspace folder (for development) - check first
-            workspacePath ? path.join(workspacePath, 'dashboard', 'server') : null,
-            // Bundled with extension
+            // Bundled with extension - check FIRST
             extensionPath ? path.join(extensionPath, 'server') : null,
+            // Development workspace (where extension is being developed)
+            'c:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\dashboard\\server',
+            'c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\dashboard\\server',
+            // Current workspace (only if developing in this workspace)
+            workspacePath ? path.join(workspacePath, 'dashboard', 'server') : null,
             // Development - relative to extension source
             extensionPath ? path.join(extensionPath, '..', 'dashboard', 'server') : null,
-            // Common development locations
-            'c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\dashboard\\server',
         ].filter(Boolean) as string[];
-
-        this.log(`Checking paths: ${JSON.stringify(possiblePaths)}`);
 
         const fs = require('fs');
         for (const p of possiblePaths) {
             const packageJson = path.join(p, 'package.json');
-            this.log(`Checking: ${packageJson}`);
             if (fs.existsSync(packageJson)) {
                 this.log(`Found server at: ${p}`);
                 return p;
             }
         }
 
-        this.log('Server directory not found in any location');
         return null;
+    }
+
+    public hasServerDirectory(): boolean {
+        return this.getServerDirectory() !== null;
     }
 
     private async waitForServer(timeout: number): Promise<boolean> {
