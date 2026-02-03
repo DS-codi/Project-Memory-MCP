@@ -7,6 +7,8 @@ A local Model Context Protocol (MCP) server for managing multi-agent software de
 - **Workspace Isolation**: Each connected VS Code workspace gets its own folder
 - **Automatic Indexing**: First-time workspace setup indexes the codebase (languages, frameworks, build system)
 - **Request Categorization**: Classify requests as feature, bug, change, analysis, debug, refactor, or documentation
+- **Step Types System**: 10 step type classifications with auto-completion behavior and blocking properties
+- **Enhanced Plan Management**: Insert/delete steps with re-indexing, consolidate steps, order validation
 - **Multiple Plans per Workspace**: Run concurrent feature development plans
 - **Agent Session Tracking**: Complete audit trail with `initialise_agent` context recording
 - **Handoff Protocol**: Track agent-to-agent transfers with lineage history
