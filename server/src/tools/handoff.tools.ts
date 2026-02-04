@@ -28,12 +28,14 @@ import type {
   AgentSession,
   LineageEntry,
   MissionBriefing,
-  AgentRoleBoundaries
+  AgentRoleBoundaries,
+  AgentInstructionFile
 } from '../types/index.js';
 import { AGENT_BOUNDARIES } from '../types/index.js';
 import * as store from '../storage/file-store.js';
 import { verifyLineageIntegrity, sanitizeJsonData } from '../security/sanitize.js';
 import { events } from '../events/event-emitter.js';
+import * as contextTools from './context.tools.js';
 
 /**
  * Initialize an agent session - MUST be called first by every agent
@@ -174,6 +176,20 @@ export async function initialiseAgent(
     // Get role boundaries for this agent type
     const role_boundaries = AGENT_BOUNDARIES[agent_type];
     
+    // Discover instruction files for this agent in the workspace
+    let instruction_files: AgentInstructionFile[] | undefined;
+    try {
+      const discoveryResult = await contextTools.discoverInstructionFiles({
+        workspace_id,
+        target_agent: agent_type
+      });
+      if (discoveryResult.success && discoveryResult.data?.instructions.length) {
+        instruction_files = discoveryResult.data.instructions;
+      }
+    } catch {
+      // Instruction file discovery failure is non-fatal, just continue without them
+    }
+    
     return {
       success: true,
       data: {
@@ -186,7 +202,8 @@ export async function initialiseAgent(
           active_plans: workspace.active_plans,
           message: `Agent ${agent_type} initialized. Plan: "${state.title}" | Phase: ${state.current_phase} | Steps: ${state.steps.filter(s => s.status === 'done').length}/${state.steps.length} complete | Handoffs: ${state.lineage.length}`
         },
-        role_boundaries
+        role_boundaries,
+        instruction_files
       }
     };
   } catch (error) {

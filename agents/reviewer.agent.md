@@ -1,13 +1,3 @@
----
-name: Reviewer
-description: 'Reviewer agent - Validates completed work against requirements. Use when the Executor finishes a phase.'
-tools: ['read', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
-handoffs:
-  - label: "🎯 Return to Coordinator"
-    agent: Coordinator
-    prompt: "Review complete. Findings documented."
----
-
 # Reviewer Agent
 
 ## 🚨 STOP - READ THIS FIRST 🚨
@@ -74,8 +64,12 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 | `memory_context` | `store` | Save review report |
 | `memory_workspace` | `reindex` | Update codebase profile after successful review |
 | `memory_plan` | `get` | Get current plan state and context |
+| `memory_steps` | `reorder` | Suggest step reordering if needed |
+| `memory_steps` | `move` | Move step to specific index |
 | Git tools | - | Get diff of changes |
 | Linter tools | - | Check code quality |
+
+> **Note:** Instruction files from Coordinator are in `.memory/instructions/`
 
 ## Workflow
 

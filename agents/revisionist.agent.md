@@ -1,13 +1,3 @@
----
-name: Revisionist
-description: 'Revisionist agent - Pivots the plan when errors occur. Use when the Executor encounters blockers or failures.'
-tools: ['execute', 'read', 'edit', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
-handoffs:
-  - label: "🎯 Return to Coordinator"
-    agent: Coordinator
-    prompt: "Plan revision complete. Ready to retry."
----
-
 # Revisionist Agent
 
 ## 🚨 STOP - READ THIS FIRST 🚨
@@ -78,6 +68,10 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 | `memory_context` | `store` | Record pivot reasoning |
 | `memory_plan` | `update` | Alter steps to fix the issue |
 | `memory_steps` | `update` | Update individual step status |
+| `memory_steps` | `reorder` | Move step up/down (swap with adjacent) |
+| `memory_steps` | `move` | Move step to specific index |
+
+> **Note:** Instruction files from Coordinator are located in `.memory/instructions/`
 
 ## Workflow
 

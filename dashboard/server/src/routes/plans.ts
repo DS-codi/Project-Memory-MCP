@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { promisify } from 'util';
 import { getWorkspacePlans, getPlanState, getPlanLineage, getPlanAudit, getResearchNotes } from '../services/fileScanner.js';
 import { emitEvent } from '../events/emitter.js';
 

@@ -91,3 +91,65 @@ workspacesRouter.put('/:id/philosophy', async (req, res) => {
     res.status(500).json({ error: 'Failed to save philosophy file' });
   }
 });
+
+// ============================================================================
+// Build Scripts Endpoints (Workspace-level)
+// ============================================================================
+
+// GET /api/workspaces/:workspaceId/build-scripts - Get workspace-level build scripts
+workspacesRouter.get('/:workspaceId/build-scripts', async (req, res) => {
+  try {
+    const { workspaceId } = req.params;
+    
+    const metaPath = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'workspace.meta.json');
+    const content = await fs.readFile(metaPath, 'utf-8');
+    const meta = JSON.parse(content);
+    
+    const scripts = meta.build_scripts || [];
+    res.json({ scripts });
+  } catch (error) {
+    console.error('Error getting workspace build scripts:', error);
+    res.status(500).json({ error: 'Failed to get workspace build scripts' });
+  }
+});
+
+// POST /api/workspaces/:workspaceId/build-scripts - Add workspace-level build script
+workspacesRouter.post('/:workspaceId/build-scripts', async (req, res) => {
+  try {
+    const { name, description, command, directory, mcp_handle } = req.body;
+    const { workspaceId } = req.params;
+    
+    if (!name || !command) {
+      return res.status(400).json({ error: 'Missing required fields: name, command' });
+    }
+    
+    const metaPath = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'workspace.meta.json');
+    const content = await fs.readFile(metaPath, 'utf-8');
+    const meta = JSON.parse(content);
+    
+    const scriptId = `script_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
+    const newScript = {
+      id: scriptId,
+      name,
+      description: description || '',
+      command,
+      directory: directory || './',
+      workspace_id: workspaceId,
+      mcp_handle: mcp_handle || undefined,
+      created_at: new Date().toISOString(),
+    };
+    
+    if (!meta.build_scripts) {
+      meta.build_scripts = [];
+    }
+    meta.build_scripts.push(newScript);
+    meta.updated_at = new Date().toISOString();
+    
+    await fs.writeFile(metaPath, JSON.stringify(meta, null, 2));
+    
+    res.status(201).json({ script: newScript });
+  } catch (error) {
+    console.error('Error adding workspace build script:', error);
+    res.status(500).json({ error: 'Failed to add workspace build script' });
+  }
+});

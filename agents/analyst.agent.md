@@ -263,11 +263,17 @@ memory_context (action: add_research) with
 | `memory_plan` | `create` | Create investigation plan (category: "analysis") |
 | `memory_plan` | `get` | Get current progress |
 | `memory_plan` | `list` | Find existing investigations |
+| `memory_plan` | `set_goals` | Define investigation goals and success criteria |
 | `memory_steps` | `update` | Update step status |
+| `memory_steps` | `reorder` | Move step up/down (swap with adjacent) |
+| `memory_steps` | `move` | Move step to specific index |
 | `memory_context` | `store` | Store hypotheses, experiments, discoveries |
 | `memory_context` | `get` | Retrieve stored knowledge |
 | `memory_context` | `add_research` | Add to knowledge base files |
 | `memory_context` | `list_research` | List research notes |
+| `memory_context` | `generate_instructions` | Create instruction file for subagents |
+
+> **Note:** Instruction files for subagents are located in `.memory/instructions/`
 
 ### Other MCP Tools (When Available)
 Use any connected MCP servers for analysis tasks:

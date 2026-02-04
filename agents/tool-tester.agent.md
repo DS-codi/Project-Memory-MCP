@@ -1,9 +1,3 @@
----
-name: ToolTester
-description: 'Tool Tester agent - Temporary verification agent that systematically tests all consolidated MCP tool actions. Use to verify memory_workspace, memory_plan, memory_steps, memory_agent, and memory_context tools work correctly before removing old tools.'
-tools: ['vscode', 'read', 'filesystem/*', 'project-memory/*']
----
-
 # Tool Tester Agent
 
 ## 🚨 STOP - READ THIS FIRST 🚨

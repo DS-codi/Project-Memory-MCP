@@ -15,12 +15,16 @@ import type {
   ImportPlanResult,
   RequestCategorization,
   AgentType,
-  BuildScript
+  BuildScript,
+  AddBuildScriptResult,
+  ListBuildScriptsResult,
+  RunBuildScriptResult,
+  DeleteBuildScriptResult
 } from '../../types/index.js';
 import * as planTools from '../plan.tools.js';
 import * as fileStore from '../../storage/file-store.js';
 
-export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate' | 'add_build_script' | 'list_build_scripts' | 'run_build_script' | 'delete_build_script';
+export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate' | 'set_goals' | 'add_build_script' | 'list_build_scripts' | 'run_build_script' | 'delete_build_script';
 
 export interface MemoryPlanParams {
   action: PlanAction;
@@ -40,6 +44,9 @@ export interface MemoryPlanParams {
   confirm?: boolean;  // For delete action
   step_indices?: number[];  // For consolidate action
   consolidated_task?: string;  // For consolidate action
+  // Goals and success criteria params
+  goals?: string[];
+  success_criteria?: string[];
   // Build script params
   script_name?: string;
   script_description?: string;
@@ -60,10 +67,11 @@ type PlanResult =
   | { action: 'add_note'; data: { plan_id: string; notes_count: number } }
   | { action: 'delete'; data: { deleted: boolean; plan_id: string } }
   | { action: 'consolidate'; data: PlanOperationResult }
-  | { action: 'add_build_script'; data: { script: any } }
-  | { action: 'list_build_scripts'; data: { scripts: any[] } }
-  | { action: 'run_build_script'; data: { success: boolean; output: string; error?: string } }
-  | { action: 'delete_build_script'; data: { deleted: boolean; script_id: string } };
+  | { action: 'set_goals'; data: planTools.SetGoalsResult }
+  | { action: 'add_build_script'; data: AddBuildScriptResult }
+  | { action: 'list_build_scripts'; data: ListBuildScriptsResult }
+  | { action: 'run_build_script'; data: RunBuildScriptResult }
+  | { action: 'delete_build_script'; data: DeleteBuildScriptResult };
 
 export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse<PlanResult>> {
   const { action } = params;
@@ -129,7 +137,9 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
         description: params.description,
         category: params.category,
         priority: params.priority,
-        categorization: params.categorization
+        categorization: params.categorization,
+        goals: params.goals,
+        success_criteria: params.success_criteria
       });
       if (!result.success) {
         return { success: false, error: result.error };
@@ -361,6 +371,34 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
       return {
         success: true,
         data: { action: 'delete_build_script', data: { deleted, script_id: params.script_id } }
+      };
+    }
+
+    case 'set_goals': {
+      if (!params.workspace_id || !params.plan_id) {
+        return {
+          success: false,
+          error: 'workspace_id and plan_id are required for action: set_goals'
+        };
+      }
+      if (!params.goals && !params.success_criteria) {
+        return {
+          success: false,
+          error: 'At least one of goals or success_criteria is required for action: set_goals'
+        };
+      }
+      const result = await planTools.setGoals({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id,
+        goals: params.goals,
+        success_criteria: params.success_criteria
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'set_goals', data: result.data! }
       };
     }
 

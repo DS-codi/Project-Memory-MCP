@@ -8,7 +8,9 @@
 
 import type { 
   ToolResponse, 
-  RequestCategory
+  RequestCategory,
+  AgentType,
+  AgentInstructionFile
 } from '../../types/index.js';
 import * as contextTools from '../context.tools.js';
 
@@ -44,7 +46,12 @@ export interface MemoryContextParams {
   filename?: string;
   content?: string;
   
-  // For generate_instructions
+  // For generate_instructions (agent mission instructions)
+  target_agent?: AgentType;
+  mission?: string;
+  context?: string[];
+  deliverables?: string[];
+  files_to_read?: string[];
   output_path?: string;
 }
 
@@ -55,7 +62,7 @@ type ContextResult =
   | { action: 'list'; data: string[] }
   | { action: 'list_research'; data: string[] }
   | { action: 'append_research'; data: { path: string; sanitized: boolean; injection_attempts: string[]; warnings: string[] } }
-  | { action: 'generate_instructions'; data: { content: string; written_to?: string } };
+  | { action: 'generate_instructions'; data: { instruction_file: AgentInstructionFile; content: string; written_to: string } };
 
 export async function memoryContext(params: MemoryContextParams): Promise<ToolResponse<ContextResult>> {
   const { action, workspace_id, plan_id } = params;
@@ -197,9 +204,21 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
     }
 
     case 'generate_instructions': {
-      const result = await contextTools.generatePlanInstructions({
+      if (!params.target_agent || !params.mission) {
+        return {
+          success: false,
+          error: 'target_agent and mission are required for action: generate_instructions'
+        };
+      }
+      const result = await contextTools.generateAgentInstructions({
         workspace_id,
         plan_id,
+        target_agent: params.target_agent,
+        mission: params.mission,
+        context: params.context,
+        constraints: params.constraints,
+        deliverables: params.deliverables,
+        files_to_read: params.files_to_read,
         output_path: params.output_path
       });
       if (!result.success) {

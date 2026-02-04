@@ -476,7 +476,9 @@ export function activate(context: vscode.ExtensionContext) {
 
             const config = vscode.workspace.getConfiguration('projectMemory');
             const agentsRoot = config.get<string>('agentsRoot') || getDefaultAgentsRoot();
+            const instructionsRoot = config.get<string>('instructionsRoot') || getDefaultInstructionsRoot();
             const defaultAgents = config.get<string[]>('defaultAgents') || [];
+            const defaultInstructions = config.get<string[]>('defaultInstructions') || [];
             
             if (!agentsRoot) {
                 vscode.window.showErrorMessage('Agents root not configured. Set projectMemory.agentsRoot in settings.');
@@ -518,18 +520,36 @@ export function activate(context: vscode.ExtensionContext) {
                     return; // User cancelled or selected nothing
                 }
 
-                // Create target directory
-                const targetDir = path.join(workspacePath, '.github', 'agents');
-                fs.mkdirSync(targetDir, { recursive: true });
+                // Create target directory for agents
+                const agentsTargetDir = path.join(workspacePath, '.github', 'agents');
+                fs.mkdirSync(agentsTargetDir, { recursive: true });
 
                 // Copy selected agent files
-                let copiedCount = 0;
+                let agentsCopied = 0;
                 for (const item of selectedItems) {
                     const file = `${item.label}.agent.md`;
                     const sourcePath = path.join(agentsRoot, file);
-                    const targetPath = path.join(targetDir, file);
+                    const targetPath = path.join(agentsTargetDir, file);
                     fs.copyFileSync(sourcePath, targetPath);
-                    copiedCount++;
+                    agentsCopied++;
+                }
+
+                // Also deploy default instructions (including project-memory-system)
+                let instructionsCopied = 0;
+                if (instructionsRoot && defaultInstructions.length > 0) {
+                    const instructionsTargetDir = path.join(workspacePath, '.github', 'instructions');
+                    fs.mkdirSync(instructionsTargetDir, { recursive: true });
+                    
+                    for (const instructionName of defaultInstructions) {
+                        const sourceFile = `${instructionName}.instructions.md`;
+                        const sourcePath = path.join(instructionsRoot, sourceFile);
+                        const targetPath = path.join(instructionsTargetDir, sourceFile);
+                        
+                        if (fs.existsSync(sourcePath)) {
+                            fs.copyFileSync(sourcePath, targetPath);
+                            instructionsCopied++;
+                        }
+                    }
                 }
 
                 // Update the sidebar to show success
@@ -537,17 +557,19 @@ export function activate(context: vscode.ExtensionContext) {
                     type: 'deploymentComplete',
                     data: { 
                         type: 'agents',
-                        count: copiedCount,
-                        targetDir 
+                        count: agentsCopied,
+                        instructionsCount: instructionsCopied,
+                        targetDir: agentsTargetDir 
                     }
                 });
 
-                notify(
-                    `✅ Deployed ${copiedCount} agent(s) to ${path.relative(workspacePath, targetDir)}`,
-                    'Open Folder'
-                ).then(selection => {
+                const message = instructionsCopied > 0 
+                    ? `✅ Deployed ${agentsCopied} agent(s) and ${instructionsCopied} instruction(s)`
+                    : `✅ Deployed ${agentsCopied} agent(s)`;
+
+                notify(message, 'Open Folder').then(selection => {
                     if (selection === 'Open Folder') {
-                        vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(targetDir));
+                        vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(agentsTargetDir));
                     }
                 });
             } catch (error) {

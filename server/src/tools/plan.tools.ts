@@ -215,7 +215,7 @@ export async function createPlan(
   params: CreatePlanParams
 ): Promise<ToolResponse<PlanState>> {
   try {
-    const { workspace_id, title, description, category, priority, categorization } = params;
+    const { workspace_id, title, description, category, priority, categorization, goals, success_criteria } = params;
     
     if (!workspace_id || !title || !description || !category) {
       return {
@@ -233,7 +233,7 @@ export async function createPlan(
       };
     }
     
-    const plan = await store.createPlan(workspace_id, title, description, category, priority, categorization);
+    const plan = await store.createPlan(workspace_id, title, description, category, priority, categorization, goals, success_criteria);
     
     // Emit event for dashboard
     await events.planCreated(workspace_id, plan.id, title, category);
@@ -809,6 +809,209 @@ export async function deleteStep(
 }
 
 // =============================================================================
+// Step Reordering
+// =============================================================================
+
+/**
+ * Reorder a step by swapping it with an adjacent step (up or down)
+ * 'up' swaps with the step at index-1, 'down' swaps with step at index+1
+ */
+export async function reorderStep(
+  params: { workspace_id: string; plan_id: string; step_index: number; direction: 'up' | 'down' }
+): Promise<ToolResponse<PlanOperationResult>> {
+  try {
+    const { workspace_id, plan_id, step_index, direction } = params;
+    
+    if (!workspace_id || !plan_id || step_index === undefined || !direction) {
+      return {
+        success: false,
+        error: 'workspace_id, plan_id, step_index, and direction are required'
+      };
+    }
+    
+    const state = await store.getPlanState(workspace_id, plan_id);
+    if (!state) {
+      return {
+        success: false,
+        error: `Plan not found: ${plan_id}`
+      };
+    }
+    
+    const currentAgent = state.current_agent || 'Coordinator';
+    const boundaries = AGENT_BOUNDARIES[currentAgent];
+    
+    // Find the step to move
+    const stepToMove = state.steps.find(s => s.index === step_index);
+    if (!stepToMove) {
+      return {
+        success: false,
+        error: `Step with index ${step_index} not found`
+      };
+    }
+    
+    // Calculate target index
+    const targetIndex = direction === 'up' ? step_index - 1 : step_index + 1;
+    
+    // Validate boundaries
+    if (targetIndex < 0) {
+      return {
+        success: false,
+        error: `Cannot move step up: step ${step_index} is already at the top`
+      };
+    }
+    if (targetIndex >= state.steps.length) {
+      return {
+        success: false,
+        error: `Cannot move step down: step ${step_index} is already at the bottom`
+      };
+    }
+    
+    // Find the adjacent step to swap with
+    const adjacentStep = state.steps.find(s => s.index === targetIndex);
+    if (!adjacentStep) {
+      return {
+        success: false,
+        error: `Adjacent step at index ${targetIndex} not found`
+      };
+    }
+    
+    // Swap indices
+    stepToMove.index = targetIndex;
+    adjacentStep.index = step_index;
+    
+    // Sort by index
+    state.steps.sort((a, b) => a.index - b.index);
+    state.updated_at = store.nowISO();
+    
+    await store.savePlanState(state);
+    await store.generatePlanMd(state);
+    
+    return {
+      success: true,
+      data: {
+        plan_state: state,
+        role_boundaries: boundaries,
+        next_action: {
+          should_handoff: false,
+          message: `Moved step ${direction} from index ${step_index} to index ${targetIndex}`
+        }
+      }
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to reorder step: ${(error as Error).message}`
+    };
+  }
+}
+
+/**
+ * Move a step from one index to another, re-indexing all affected steps
+ */
+export async function moveStep(
+  params: { workspace_id: string; plan_id: string; from_index: number; to_index: number }
+): Promise<ToolResponse<PlanOperationResult>> {
+  try {
+    const { workspace_id, plan_id, from_index, to_index } = params;
+    
+    if (!workspace_id || !plan_id || from_index === undefined || to_index === undefined) {
+      return {
+        success: false,
+        error: 'workspace_id, plan_id, from_index, and to_index are required'
+      };
+    }
+    
+    if (from_index === to_index) {
+      return {
+        success: false,
+        error: 'from_index and to_index cannot be the same'
+      };
+    }
+    
+    const state = await store.getPlanState(workspace_id, plan_id);
+    if (!state) {
+      return {
+        success: false,
+        error: `Plan not found: ${plan_id}`
+      };
+    }
+    
+    const currentAgent = state.current_agent || 'Coordinator';
+    const boundaries = AGENT_BOUNDARIES[currentAgent];
+    
+    // Validate indices
+    if (from_index < 0 || from_index >= state.steps.length) {
+      return {
+        success: false,
+        error: `Invalid from_index: ${from_index}. Must be between 0 and ${state.steps.length - 1}`
+      };
+    }
+    if (to_index < 0 || to_index >= state.steps.length) {
+      return {
+        success: false,
+        error: `Invalid to_index: ${to_index}. Must be between 0 and ${state.steps.length - 1}`
+      };
+    }
+    
+    // Find and remove the step to move
+    const stepToMove = state.steps.find(s => s.index === from_index);
+    if (!stepToMove) {
+      return {
+        success: false,
+        error: `Step with index ${from_index} not found`
+      };
+    }
+    
+    // Remove the step from its current position
+    const stepsWithoutMoved = state.steps.filter(s => s.index !== from_index);
+    
+    // Adjust indices based on movement direction
+    if (from_index < to_index) {
+      // Moving down: shift steps between from and to up by 1
+      stepsWithoutMoved.forEach(s => {
+        if (s.index > from_index && s.index <= to_index) {
+          s.index--;
+        }
+      });
+    } else {
+      // Moving up: shift steps between to and from down by 1
+      stepsWithoutMoved.forEach(s => {
+        if (s.index >= to_index && s.index < from_index) {
+          s.index++;
+        }
+      });
+    }
+    
+    // Set the moved step's new index
+    stepToMove.index = to_index;
+    
+    // Rebuild the steps array
+    state.steps = [...stepsWithoutMoved, stepToMove].sort((a, b) => a.index - b.index);
+    state.updated_at = store.nowISO();
+    
+    await store.savePlanState(state);
+    await store.generatePlanMd(state);
+    
+    return {
+      success: true,
+      data: {
+        plan_state: state,
+        role_boundaries: boundaries,
+        next_action: {
+          should_handoff: false,
+          message: `Moved step from index ${from_index} to index ${to_index}`
+        }
+      }
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to move step: ${(error as Error).message}`
+    };
+  }
+}
+
+// =============================================================================
 // Plan Deletion
 // =============================================================================
 
@@ -1157,6 +1360,90 @@ export async function addPlanNote(
     return {
       success: false,
       error: `Failed to add note: ${(error as Error).message}`
+    };
+  }
+}
+
+// =============================================================================
+// Goals and Success Criteria
+// =============================================================================
+
+export interface SetGoalsParams {
+  workspace_id: string;
+  plan_id: string;
+  goals?: string[];
+  success_criteria?: string[];
+}
+
+export interface SetGoalsResult {
+  plan_id: string;
+  goals: string[];
+  success_criteria: string[];
+  message: string;
+}
+
+/**
+ * Set or update goals and success criteria for a plan
+ * At least one of goals or success_criteria must be provided
+ */
+export async function setGoals(
+  params: SetGoalsParams
+): Promise<ToolResponse<SetGoalsResult>> {
+  try {
+    const { workspace_id, plan_id, goals, success_criteria } = params;
+    
+    if (!workspace_id || !plan_id) {
+      return {
+        success: false,
+        error: 'workspace_id and plan_id are required'
+      };
+    }
+    
+    if (!goals && !success_criteria) {
+      return {
+        success: false,
+        error: 'At least one of goals or success_criteria is required'
+      };
+    }
+    
+    const state = await store.getPlanState(workspace_id, plan_id);
+    if (!state) {
+      return {
+        success: false,
+        error: `Plan not found: ${plan_id}`
+      };
+    }
+    
+    // Update goals if provided
+    if (goals !== undefined) {
+      state.goals = goals;
+    }
+    
+    // Update success criteria if provided
+    if (success_criteria !== undefined) {
+      state.success_criteria = success_criteria;
+    }
+    
+    state.updated_at = store.nowISO();
+    await store.savePlanState(state);
+    await store.generatePlanMd(state);
+    
+    // Emit event for dashboard
+    await events.planUpdated(workspace_id, plan_id, { goals_updated: !!goals, success_criteria_updated: !!success_criteria });
+    
+    return {
+      success: true,
+      data: {
+        plan_id,
+        goals: state.goals || [],
+        success_criteria: state.success_criteria || [],
+        message: `Updated: ${goals ? 'goals' : ''}${goals && success_criteria ? ' and ' : ''}${success_criteria ? 'success_criteria' : ''}`
+      }
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to set goals: ${(error as Error).message}`
     };
   }
 }

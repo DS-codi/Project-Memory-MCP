@@ -1,13 +1,3 @@
----
-name: Archivist
-description: 'Archivist agent - Finalizes work with git commits and archives the plan. Use after all tests pass.'
-tools: ['execute', 'read', 'edit', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
-handoffs:
-  - label: "🎯 Return to Coordinator"
-    agent: Coordinator
-    prompt: "Plan archived and finalized."
----
-
 # Archivist Agent
 
 ## 🚨 STOP - READ THIS FIRST 🚨
@@ -71,8 +61,12 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 | `memory_plan` | `archive` | Mark plan as complete |
 | `memory_context` | `store` | Save completion summary |
 | `memory_workspace` | `reindex` | Final workspace state update |
+| `memory_steps` | `reorder` | Move step up/down if needed |
+| `memory_steps` | `move` | Move step to specific index |
 | Git tools | - | Commit, push, create PR |
 | `edit_file` / `create_file` | - | Update documentation (README, docs, etc.) |
+
+> **Note:** Instruction files from Coordinator are located in `.memory/instructions/`
 
 ## ✅ Documentation Permissions
 

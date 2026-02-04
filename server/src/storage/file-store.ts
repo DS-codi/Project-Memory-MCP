@@ -405,7 +405,9 @@ export async function createPlan(
   description: string,
   category: RequestCategory,
   priority: 'low' | 'medium' | 'high' | 'critical' = 'medium',
-  categorization?: RequestCategorization
+  categorization?: RequestCategorization,
+  goals?: string[],
+  success_criteria?: string[]
 ): Promise<PlanState> {
   const planId = generatePlanId();
   const planDir = getPlanPath(workspaceId, planId);
@@ -423,6 +425,8 @@ export async function createPlan(
     priority,
     category,
     categorization,
+    goals,
+    success_criteria,
     status: 'active',
     current_phase: 'initialization',
     current_agent: null,

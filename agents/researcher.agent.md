@@ -1,13 +1,3 @@
----
-name: Researcher
-description: 'Researcher agent - Gathers external documentation and knowledge. Use when the Coordinator identifies missing information or unknown libraries.'
-tools: ['execute', 'read', 'edit', 'search', 'web', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
-handoffs:
-  - label: "🎯 Return to Coordinator"
-    agent: Coordinator
-    prompt: "Research complete. Findings documented."
----
-
 # Researcher Agent
 
 ## 🚨 STOP - READ THIS FIRST 🚨
@@ -71,8 +61,12 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 | `memory_agent` | `complete` | Mark your session complete with summary |
 | `memory_context` | `append_research` | Save research notes to plan folder |
 | `memory_context` | `store` | Save structured research summary |
+| `memory_steps` | `reorder` | Move step up/down if prioritization needed |
+| `memory_steps` | `move` | Move step to specific index |
 | Web search tools | - | Search the web for documentation |
 | Fetch tools | - | Retrieve documentation pages |
+
+> **Note:** Instruction files from Coordinator are located in `.memory/instructions/`
 
 ## Workflow
 

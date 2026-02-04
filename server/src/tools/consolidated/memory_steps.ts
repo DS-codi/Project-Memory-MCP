@@ -13,7 +13,7 @@ import type {
 } from '../../types/index.js';
 import * as planTools from '../plan.tools.js';
 
-export type StepsAction = 'add' | 'update' | 'batch_update' | 'insert' | 'delete';
+export type StepsAction = 'add' | 'update' | 'batch_update' | 'insert' | 'delete' | 'reorder' | 'move';
 
 export interface MemoryStepsParams {
   action: StepsAction;
@@ -39,6 +39,13 @@ export interface MemoryStepsParams {
     status: StepStatus;
     notes?: string;
   }>;
+  
+  // For 'reorder' action - swap step with adjacent step
+  direction?: 'up' | 'down';
+  
+  // For 'move' action - move step to specific index
+  from_index?: number;
+  to_index?: number;
 }
 
 type StepsResult = 
@@ -46,7 +53,9 @@ type StepsResult =
   | { action: 'update'; data: PlanOperationResult }
   | { action: 'batch_update'; data: PlanOperationResult }
   | { action: 'insert'; data: PlanOperationResult }
-  | { action: 'delete'; data: PlanOperationResult };
+  | { action: 'delete'; data: PlanOperationResult }
+  | { action: 'reorder'; data: PlanOperationResult }
+  | { action: 'move'; data: PlanOperationResult };
 
 export async function memorySteps(params: MemoryStepsParams): Promise<ToolResponse<StepsResult>> {
   const { action, workspace_id, plan_id } = params;
@@ -180,10 +189,54 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
       };
     }
 
+    case 'reorder': {
+      if (params.step_index === undefined || !params.direction) {
+        return {
+          success: false,
+          error: 'step_index and direction (up/down) are required for action: reorder'
+        };
+      }
+      const result = await planTools.reorderStep({
+        workspace_id,
+        plan_id,
+        step_index: params.step_index,
+        direction: params.direction
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'reorder', data: result.data! }
+      };
+    }
+
+    case 'move': {
+      if (params.from_index === undefined || params.to_index === undefined) {
+        return {
+          success: false,
+          error: 'from_index and to_index are required for action: move'
+        };
+      }
+      const result = await planTools.moveStep({
+        workspace_id,
+        plan_id,
+        from_index: params.from_index,
+        to_index: params.to_index
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'move', data: result.data! }
+      };
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: add, update, batch_update, insert, delete`
+        error: `Unknown action: ${action}. Valid actions: add, update, batch_update, insert, delete, reorder, move`
       };
   }
 }

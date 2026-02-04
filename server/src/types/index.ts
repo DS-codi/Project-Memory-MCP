@@ -170,6 +170,26 @@ export interface BuildScript {
   mcp_handle?: string;    // Optional MCP tool handle for programmatic execution
 }
 
+// Build Script Result Types for MCP Tool Actions
+export interface AddBuildScriptResult {
+  script: BuildScript;
+}
+
+export interface ListBuildScriptsResult {
+  scripts: BuildScript[];
+}
+
+export interface RunBuildScriptResult {
+  success: boolean;
+  output: string;
+  error?: string;
+}
+
+export interface DeleteBuildScriptResult {
+  deleted: boolean;
+  script_id: string;
+}
+
 // =============================================================================
 // Agent Role Boundaries - Enforced constraints per agent type
 // =============================================================================
@@ -419,6 +439,8 @@ export interface CreatePlanParams {
   category: RequestCategory;  // Required: what type of request is this
   priority?: PlanPriority;
   categorization?: RequestCategorization;  // Optional: full categorization details
+  goals?: string[];  // Project goals
+  success_criteria?: string[];  // Success criteria for completion
 }
 
 export interface GetPlanStateParams {
@@ -506,6 +528,7 @@ export interface InitialiseAgentResult {
     message: string;
   };
   role_boundaries: AgentRoleBoundaries;  // CRITICAL: Constraints this agent MUST follow
+  instruction_files?: AgentInstructionFile[];  // Instruction files for this agent from Coordinator
 }
 
 export interface HandoffParams {
@@ -598,4 +621,33 @@ export interface MissionBriefing {
   previous_sessions: AgentSession[];
   current_steps: PlanStep[];
   pending_steps_count: number;
+}
+
+// =============================================================================
+// Agent Instruction Files
+// =============================================================================
+
+export interface GenerateAgentInstructionsParams {
+  workspace_id: string;
+  plan_id: string;
+  target_agent: AgentType;
+  mission: string;
+  context?: string[];
+  constraints?: string[];
+  deliverables?: string[];
+  files_to_read?: string[];
+  output_path?: string;  // Workspace-relative path, defaults to .memory/instructions/{target_agent}-{timestamp}.md
+}
+
+export interface AgentInstructionFile {
+  filename: string;
+  target_agent: AgentType;
+  mission: string;
+  context: string[];
+  constraints: string[];
+  deliverables: string[];
+  files_to_read: string[];
+  generated_at: string;
+  plan_id: string;
+  full_path: string;
 }

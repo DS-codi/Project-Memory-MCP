@@ -10,7 +10,9 @@ import type {
   StoreInitialContextParams,
   GetContextParams,
   AppendResearchParams,
-  ToolResponse
+  ToolResponse,
+  GenerateAgentInstructionsParams,
+  AgentInstructionFile
 } from '../types/index.js';
 import * as store from '../storage/file-store.js';
 import { sanitizeJsonData, sanitizeContent, addSecurityMetadata } from '../security/sanitize.js';
@@ -473,4 +475,354 @@ When working on this plan:
       error: `Failed to generate plan instructions: ${(error as Error).message}`
     };
   }
+}
+
+/**
+ * Generate agent-specific instruction file for subagent handoff
+ * 
+ * This creates a lightweight instruction file in the user's workspace 
+ * (not MCP data folder) that the Coordinator can generate before handing 
+ * off to a subagent. The subagent can then read this file to understand
+ * their mission.
+ * 
+ * Files are written to: {workspace}/.memory/instructions/{target_agent}-{timestamp}.md
+ */
+export async function generateAgentInstructions(
+  params: GenerateAgentInstructionsParams
+): Promise<ToolResponse<{ instruction_file: AgentInstructionFile; content: string; written_to: string }>> {
+  try {
+    const { 
+      workspace_id, 
+      plan_id, 
+      target_agent,
+      mission,
+      context = [],
+      constraints = [],
+      deliverables = [],
+      files_to_read = [],
+      output_path
+    } = params;
+    
+    if (!workspace_id || !plan_id || !target_agent || !mission) {
+      return {
+        success: false,
+        error: 'workspace_id, plan_id, target_agent, and mission are required'
+      };
+    }
+    
+    // Get workspace to find actual workspace path
+    const workspace = await store.getWorkspace(workspace_id);
+    if (!workspace) {
+      return {
+        success: false,
+        error: `Workspace not found: ${workspace_id}`
+      };
+    }
+    
+    // Verify plan exists
+    const state = await store.getPlanState(workspace_id, plan_id);
+    if (!state) {
+      return {
+        success: false,
+        error: `Plan not found: ${plan_id}`
+      };
+    }
+    
+    const { promises: fs } = await import('fs');
+    const path = await import('path');
+    
+    // Generate timestamp for filename
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const defaultFilename = `${target_agent.toLowerCase()}-${timestamp}.md`;
+    
+    // Determine output path - write to USER'S workspace, not MCP data folder
+    const workspaceRoot = workspace.path;
+    const instructionsDir = path.join(workspaceRoot, '.memory', 'instructions');
+    const finalOutputPath = output_path 
+      ? path.isAbsolute(output_path) 
+        ? output_path 
+        : path.join(workspaceRoot, output_path)
+      : path.join(instructionsDir, defaultFilename);
+    
+    // Ensure directory exists
+    await fs.mkdir(path.dirname(finalOutputPath), { recursive: true });
+    
+    // Generate markdown content using template
+    const content = generateInstructionTemplate({
+      target_agent,
+      mission,
+      context,
+      constraints,
+      deliverables,
+      files_to_read,
+      plan_id,
+      plan_title: state.title,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Write the instruction file
+    await fs.writeFile(finalOutputPath, content, 'utf-8');
+    
+    // Create the instruction file metadata
+    const instructionFile: AgentInstructionFile = {
+      filename: path.basename(finalOutputPath),
+      target_agent,
+      mission,
+      context,
+      constraints,
+      deliverables,
+      files_to_read,
+      generated_at: new Date().toISOString(),
+      plan_id,
+      full_path: finalOutputPath
+    };
+    
+    return {
+      success: true,
+      data: {
+        instruction_file: instructionFile,
+        content,
+        written_to: finalOutputPath
+      }
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to generate agent instructions: ${(error as Error).message}`
+    };
+  }
+}
+
+/**
+ * Generate the markdown template for agent instructions
+ */
+function generateInstructionTemplate(params: {
+  target_agent: string;
+  mission: string;
+  context: string[];
+  constraints: string[];
+  deliverables: string[];
+  files_to_read: string[];
+  plan_id: string;
+  plan_title: string;
+  timestamp: string;
+}): string {
+  const {
+    target_agent,
+    mission,
+    context,
+    constraints,
+    deliverables,
+    files_to_read,
+    plan_id,
+    plan_title,
+    timestamp
+  } = params;
+  
+  const contextSection = context.length > 0
+    ? context.map(c => `- ${c}`).join('\n')
+    : '_No additional context provided._';
+  
+  const constraintsSection = constraints.length > 0
+    ? constraints.map(c => `- ${c}`).join('\n')
+    : '_No specific constraints._';
+  
+  const deliverablesSection = deliverables.length > 0
+    ? deliverables.map(d => `- ${d}`).join('\n')
+    : '_No specific deliverables defined._';
+  
+  const filesSection = files_to_read.length > 0
+    ? files_to_read.map(f => `- \`${f}\``).join('\n')
+    : '_No specific files to review._';
+  
+  return `# Instructions for ${target_agent}
+
+## Mission
+
+${mission}
+
+## Context
+
+${contextSection}
+
+## Constraints
+
+${constraintsSection}
+
+## Deliverables
+
+${deliverablesSection}
+
+## Files to Review
+
+${filesSection}
+
+---
+Generated: ${timestamp}
+Plan: ${plan_id}
+Plan Title: ${plan_title}
+`;
+}
+
+/**
+ * Discover instruction files in a workspace for a specific agent
+ * 
+ * Searches in {workspace}/.memory/instructions/ for files that match
+ * the target agent name. Returns the content of matching instruction files.
+ */
+export async function discoverInstructionFiles(
+  params: { workspace_id: string; target_agent: string }
+): Promise<ToolResponse<{ instructions: AgentInstructionFile[]; contents: Record<string, string> }>> {
+  try {
+    const { workspace_id, target_agent } = params;
+    
+    if (!workspace_id || !target_agent) {
+      return {
+        success: false,
+        error: 'workspace_id and target_agent are required'
+      };
+    }
+    
+    // Get workspace to find actual workspace path
+    const workspace = await store.getWorkspace(workspace_id);
+    if (!workspace) {
+      return {
+        success: false,
+        error: `Workspace not found: ${workspace_id}`
+      };
+    }
+    
+    const { promises: fs } = await import('fs');
+    const path = await import('path');
+    
+    const instructionsDir = path.join(workspace.path, '.memory', 'instructions');
+    
+    // Check if instructions directory exists
+    try {
+      await fs.access(instructionsDir);
+    } catch {
+      // Directory doesn't exist, no instructions to discover
+      return {
+        success: true,
+        data: { instructions: [], contents: {} }
+      };
+    }
+    
+    // List all files in the instructions directory
+    const files = await fs.readdir(instructionsDir);
+    
+    // Filter files that match the target agent (case-insensitive)
+    const agentLower = target_agent.toLowerCase();
+    const matchingFiles = files.filter(f => 
+      f.toLowerCase().startsWith(agentLower) && f.endsWith('.md')
+    );
+    
+    // Sort by modification time (newest first) to get most recent instruction
+    const fileStats = await Promise.all(
+      matchingFiles.map(async f => {
+        const fullPath = path.join(instructionsDir, f);
+        const stats = await fs.stat(fullPath);
+        return { filename: f, path: fullPath, mtime: stats.mtime };
+      })
+    );
+    fileStats.sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
+    
+    // Read the content of each matching file and parse it
+    const instructions: AgentInstructionFile[] = [];
+    const contents: Record<string, string> = {};
+    
+    for (const file of fileStats) {
+      const content = await fs.readFile(file.path, 'utf-8');
+      contents[file.filename] = content;
+      
+      // Parse the instruction file content to extract metadata
+      const parsed = parseInstructionFile(content, file.filename, file.path, target_agent);
+      if (parsed) {
+        instructions.push(parsed);
+      }
+    }
+    
+    return {
+      success: true,
+      data: { instructions, contents }
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to discover instruction files: ${(error as Error).message}`
+    };
+  }
+}
+
+/**
+ * Parse an instruction markdown file to extract metadata
+ */
+function parseInstructionFile(
+  content: string, 
+  filename: string, 
+  fullPath: string,
+  target_agent: string
+): AgentInstructionFile | null {
+  try {
+    // Extract mission from ## Mission section
+    const missionMatch = content.match(/## Mission\n\n([\s\S]*?)(?=\n## |$)/);
+    const mission = missionMatch ? missionMatch[1].trim() : '';
+    
+    // Extract context from ## Context section
+    const contextMatch = content.match(/## Context\n\n([\s\S]*?)(?=\n## |$)/);
+    const contextRaw = contextMatch ? contextMatch[1].trim() : '';
+    const context = extractBulletList(contextRaw);
+    
+    // Extract constraints from ## Constraints section
+    const constraintsMatch = content.match(/## Constraints\n\n([\s\S]*?)(?=\n## |$)/);
+    const constraintsRaw = constraintsMatch ? constraintsMatch[1].trim() : '';
+    const constraints = extractBulletList(constraintsRaw);
+    
+    // Extract deliverables from ## Deliverables section
+    const deliverablesMatch = content.match(/## Deliverables\n\n([\s\S]*?)(?=\n## |$)/);
+    const deliverablesRaw = deliverablesMatch ? deliverablesMatch[1].trim() : '';
+    const deliverables = extractBulletList(deliverablesRaw);
+    
+    // Extract files to review from ## Files to Review section
+    const filesMatch = content.match(/## Files to Review\n\n([\s\S]*?)(?=\n---|$)/);
+    const filesRaw = filesMatch ? filesMatch[1].trim() : '';
+    const files_to_read = extractBulletList(filesRaw).map(f => f.replace(/`/g, ''));
+    
+    // Extract plan_id from footer
+    const planIdMatch = content.match(/Plan: ([a-zA-Z0-9_-]+)/);
+    const plan_id = planIdMatch ? planIdMatch[1] : '';
+    
+    // Extract generated timestamp from footer
+    const timestampMatch = content.match(/Generated: (.+)/);
+    const generated_at = timestampMatch ? timestampMatch[1].trim() : '';
+    
+    return {
+      filename,
+      target_agent: target_agent as import('../types/index.js').AgentType,
+      mission,
+      context,
+      constraints,
+      deliverables,
+      files_to_read,
+      generated_at,
+      plan_id,
+      full_path: fullPath
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extract bullet list items from markdown content
+ */
+function extractBulletList(content: string): string[] {
+  if (content.startsWith('_')) {
+    // Italicized placeholder text like "_No additional context provided._"
+    return [];
+  }
+  return content
+    .split('\n')
+    .filter(line => line.startsWith('- '))
+    .map(line => line.substring(2).trim());
 }

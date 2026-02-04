@@ -1,13 +1,3 @@
----
-name: Builder
-description: 'Builder agent - Executes builds, verifies build success, diagnoses build failures. Deploys after Executor to ensure code compiles before testing.'
-tools: ['execute', 'read', 'search', 'agent', 'project-memory/*', 'filesystem/read*', 'terminal']
-handoffs:
-  - label: "🎯 Return to Coordinator"
-    agent: Coordinator
-    prompt: "Build verification complete. Ready for testing."
----
-
 # Builder Agent
 
 ## 🚨 STOP - READ THIS FIRST 🚨
@@ -82,8 +72,100 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 | `memory_plan` | `run_build_script` | Execute a build script by ID |
 | `memory_plan` | `delete_build_script` | Remove a build script |
 | `memory_steps` | `update` | Mark build verification steps as done/blocked |
+| `memory_steps` | `reorder` | Move steps up/down if needed |
+| `memory_steps` | `move` | Move step to specific index |
 | `memory_context` | `store` | Save build output and error analysis |
 | Terminal tools | - | Run ad-hoc build commands if needed |
+
+## 📋 Build Script Actions - Full Reference
+
+### list_build_scripts
+Lists all build scripts available for the workspace or plan.
+
+```javascript
+plan (action: list_build_scripts) with
+  workspace_id: "ws_abc123"
+  // Optional: plan_id: "plan_xyz789" (to filter by plan)
+
+// Response:
+{
+  "scripts": [
+    {
+      "id": "bs_001",
+      "name": "Build Server",
+      "command": "npm run build",
+      "directory": "./server",
+      "description": "Compiles TypeScript server code"
+    },
+    {
+      "id": "bs_002", 
+      "name": "Build Dashboard",
+      "command": "npm run build",
+      "directory": "./dashboard",
+      "description": "Builds React dashboard"
+    }
+  ]
+}
+```
+
+### add_build_script
+Creates a new build script for the workspace or plan.
+
+```javascript
+plan (action: add_build_script) with
+  workspace_id: "ws_abc123",
+  plan_id: "plan_xyz789",  // Optional - omit for workspace-level scripts
+  script_name: "Build Server",
+  script_command: "npm run build",
+  script_directory: "./server",  // Relative to workspace root
+  script_description: "Compiles TypeScript server code"
+
+// Response includes the new script ID
+```
+
+### run_build_script
+Executes a build script and returns the output.
+
+```javascript
+plan (action: run_build_script) with
+  workspace_id: "ws_abc123",
+  script_id: "bs_001"
+
+// Response:
+{
+  "success": true,
+  "output": "Build completed successfully...",
+  "exit_code": 0,
+  "duration_ms": 4532
+}
+```
+
+### delete_build_script
+Removes a build script.
+
+```javascript
+plan (action: delete_build_script) with
+  workspace_id: "ws_abc123",
+  script_id: "bs_001"
+```
+
+## 📝 Checking for Instruction Files
+
+When you initialize, check the `instruction_files` array in the response. The Coordinator may have generated specific instructions for your build task:
+
+```javascript
+// In init response:
+{
+  "instruction_files": [
+    {
+      "target_agent": "Builder",
+      "mission": "Verify production build",
+      "constraints": ["Use --production flag", "Check bundle size"],
+      "files_to_read": ["package.json", "webpack.config.js"]
+    }
+  ]
+}
+```
 
 ## Workflow
 

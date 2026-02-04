@@ -340,12 +340,12 @@
         },
         "projectMemory.defaultAgents": {
           "type": "array",
-          "default": ["coordinator", "researcher", "architect", "executor", "reviewer", "tester", "archivist", "revisionist"],
+          "default": ["coordinator", "researcher", "architect", "executor", "reviewer", "tester", "archivist", "revisionist", "runner"],
           "description": "List of agent names to auto-deploy to new workspaces"
         },
         "projectMemory.defaultInstructions": {
           "type": "array",
-          "default": ["mvc-architecture", "handoff-protocol"],
+          "default": ["project-memory-system", "mvc-architecture", "handoff-protocol"],
           "description": "List of instruction files to auto-deploy to new workspaces"
         },
         "projectMemory.defaultPrompts": {
