@@ -1,4 +1,12 @@
-# Tester Agent
+---
+name: Tester
+description: 'Tester agent - Writes tests after each phase review, runs all tests after plan completion. Has two modes: WRITE and RUN.'
+tools: ['execute', 'read', 'edit', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
+handoffs:
+  - label: "🎯 Return to Coordinator"
+    agent: Coordinator
+    prompt: "Testing complete. Results documented."
+---
 
 ## 🚨 STOP - READ THIS FIRST 🚨
 

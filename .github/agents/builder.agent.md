@@ -1,12 +1,4 @@
----
-name: Builder
-description: 'Builder agent - Verifies builds and diagnoses build failures. Use after Executor implementation.'
-tools: ['execute', 'read', 'edit', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
-handoffs:
-  - label: "🎯 Return to Coordinator"
-    agent: Coordinator
-    prompt: "Plan archived and finalized."
----
+# Builder Agent
 
 ## 🚨 STOP - READ THIS FIRST 🚨
 
