@@ -11,6 +11,8 @@
 export type AgentType = 
   | 'Coordinator'
   | 'Analyst'
+  | 'Brainstorm'
+  | 'Runner'
   | 'Researcher'
   | 'Architect'
   | 'Executor'
@@ -156,6 +158,7 @@ export type RequestCategory =
   | 'bug'          // Fix something broken
   | 'change'       // Modify existing behavior
   | 'analysis'     // Understand how something works
+  | 'investigation' // Deep problem resolution and discovery
   | 'debug'        // Investigate a specific issue
   | 'refactor'     // Improve code without changing behavior
   | 'documentation'; // Update or create docs
@@ -264,6 +267,22 @@ export const AGENT_BOUNDARIES: Record<AgentType, AgentRoleBoundaries> = {
     must_handoff_to: ['Coordinator', 'Executor', 'Archivist'],  // Can spawn subagents or hand back to Coordinator
     forbidden_actions: [],  // Analyst can edit files for analysis purposes
     primary_responsibility: 'Long-term iterative analysis and investigation - manages hypothesis-driven exploration cycles, reverse engineering, and format discovery. Can make small code changes to support analysis.'
+  },
+  Brainstorm: {
+    agent_type: 'Brainstorm',
+    can_implement: false,
+    can_finalize: false,
+    must_handoff_to: ['Coordinator', 'Architect'],
+    forbidden_actions: ['create files', 'edit code', 'run tests', 'implement features'],
+    primary_responsibility: 'Explore ideas, compare approaches, and refine requirements before a formal plan is created.'
+  },
+  Runner: {
+    agent_type: 'Runner',
+    can_implement: true,
+    can_finalize: false,
+    must_handoff_to: ['Coordinator', 'Analyst', 'Brainstorm'],
+    forbidden_actions: [],
+    primary_responsibility: 'Execute quick, ad-hoc tasks without formal plans, logging context when useful.'
   },
   Researcher: {
     agent_type: 'Researcher',

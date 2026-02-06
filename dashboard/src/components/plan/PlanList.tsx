@@ -13,7 +13,7 @@ interface PlanListProps {
 }
 
 const statuses: PlanStatus[] = ['active', 'paused', 'completed', 'archived', 'failed'];
-const categories: RequestCategory[] = ['feature', 'bug', 'change', 'refactor', 'analysis', 'debug', 'documentation'];
+const categories: RequestCategory[] = ['feature', 'bug', 'change', 'refactor', 'analysis', 'investigation', 'debug', 'documentation'];
 const priorities: PlanPriority[] = ['critical', 'high', 'medium', 'low'];
 
 export function PlanList({ plans, workspaceId, isLoading }: PlanListProps) {

@@ -36,3 +36,4 @@ docs/plans/
 backup/
 *.vsix
 .vscode-test/
+from-work-pc/

@@ -404,20 +404,73 @@ export function activate(context: vscode.ExtensionContext) {
 
             if (!description) return;
 
-            const category = await vscode.window.showQuickPick(
+            const parseListInput = (value?: string): string[] => {
+                if (!value) return [];
+                return value
+                    .split(/[,\n]+/)
+                    .map(item => item.trim())
+                    .filter(item => item.length > 0);
+            };
+
+            let templates: Array<{ template: string; label?: string; category?: string }> = [];
+            try {
+                const response = await fetch(`http://localhost:${serverPort}/api/plans/templates`);
+                if (response.ok) {
+                    const data = await response.json();
+                    templates = Array.isArray(data.templates) ? data.templates : [];
+                }
+            } catch {
+                // Fall back to static template list
+            }
+
+            if (templates.length === 0) {
+                templates = [
+                    { template: 'feature', label: 'Feature', category: 'feature' },
+                    { template: 'bugfix', label: 'Bug Fix', category: 'bug' },
+                    { template: 'refactor', label: 'Refactor', category: 'refactor' },
+                    { template: 'documentation', label: 'Documentation', category: 'documentation' },
+                    { template: 'analysis', label: 'Analysis', category: 'analysis' },
+                    { template: 'investigation', label: 'Investigation', category: 'investigation' }
+                ];
+            }
+
+            const templatePick = await vscode.window.showQuickPick(
                 [
-                    { label: '✨ Feature', description: 'New functionality or capability', value: 'feature' },
-                    { label: '🐛 Bug', description: 'Fix for an existing issue', value: 'bug' },
-                    { label: '🔄 Change', description: 'Modification to existing behavior', value: 'change' },
-                    { label: '🔍 Analysis', description: 'Investigation or research task', value: 'analysis' },
-                    { label: '🐞 Debug', description: 'Debugging session for an issue', value: 'debug' },
-                    { label: '♻️ Refactor', description: 'Code improvement without behavior change', value: 'refactor' },
-                    { label: '📚 Documentation', description: 'Documentation updates', value: 'documentation' }
+                    { label: 'Custom', description: 'Choose category and define your own steps', value: 'custom' },
+                    ...templates.map(template => ({
+                        label: template.label || template.template,
+                        description: template.category || template.template,
+                        value: template.template
+                    }))
                 ],
-                { placeHolder: 'Select plan category' }
+                { placeHolder: 'Select a plan template (optional)' }
             );
 
-            if (!category) return;
+            if (!templatePick) return;
+
+            const selectedTemplate = templatePick.value !== 'custom' ? templatePick.value : null;
+            let selectedCategory: string | null = null;
+            let goals: string[] = [];
+            let successCriteria: string[] = [];
+
+            if (!selectedTemplate) {
+                const category = await vscode.window.showQuickPick(
+                    [
+                        { label: '✨ Feature', description: 'New functionality or capability', value: 'feature' },
+                        { label: '🐛 Bug', description: 'Fix for an existing issue', value: 'bug' },
+                        { label: '🔄 Change', description: 'Modification to existing behavior', value: 'change' },
+                        { label: '🔍 Analysis', description: 'Investigation or research task', value: 'analysis' },
+                        { label: '🧪 Investigation', description: 'Deep-dive analysis with findings', value: 'investigation' },
+                        { label: '🐞 Debug', description: 'Debugging session for an issue', value: 'debug' },
+                        { label: '♻️ Refactor', description: 'Code improvement without behavior change', value: 'refactor' },
+                        { label: '📚 Documentation', description: 'Documentation updates', value: 'documentation' }
+                    ],
+                    { placeHolder: 'Select plan category' }
+                );
+
+                if (!category) return;
+                selectedCategory = category.value;
+            }
 
             const priority = await vscode.window.showQuickPick(
                 [
@@ -431,6 +484,25 @@ export function activate(context: vscode.ExtensionContext) {
 
             if (!priority) return;
 
+            if (!selectedTemplate && selectedCategory === 'investigation') {
+                const goalsInput = await vscode.window.showInputBox({
+                    prompt: 'Enter investigation goals (comma-separated)',
+                    placeHolder: 'Identify root cause, confirm scope'
+                });
+                goals = parseListInput(goalsInput);
+
+                const criteriaInput = await vscode.window.showInputBox({
+                    prompt: 'Enter success criteria (comma-separated)',
+                    placeHolder: 'Root cause identified, resolution path defined'
+                });
+                successCriteria = parseListInput(criteriaInput);
+
+                if (goals.length === 0 || successCriteria.length === 0) {
+                    vscode.window.showErrorMessage('Investigation plans require at least 1 goal and 1 success criteria.');
+                    return;
+                }
+            }
+
             // Call API to create plan
             const workspacePath = workspaceFolders[0].uri.fsPath;
             const name = require('path').basename(workspacePath).toLowerCase().replace(/[^a-z0-9]/g, '_').substring(0, 20);
@@ -438,24 +510,39 @@ export function activate(context: vscode.ExtensionContext) {
             const workspaceId = `${name}-${hash}`;
 
             try {
-                const response = await fetch(`http://localhost:${serverPort}/api/plans`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        workspaceId,
-                        title,
-                        description,
-                        category: category.value,
-                        priority: priority.value
+                const payloadBase = {
+                    title,
+                    description,
+                    priority: priority.value,
+                    goals: goals.length > 0 ? goals : undefined,
+                    success_criteria: successCriteria.length > 0 ? successCriteria : undefined
+                };
+
+                const response = selectedTemplate
+                    ? await fetch(`http://localhost:${serverPort}/api/plans/${workspaceId}/template`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            ...payloadBase,
+                            template: selectedTemplate
+                        })
                     })
-                });
+                    : await fetch(`http://localhost:${serverPort}/api/plans/${workspaceId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            ...payloadBase,
+                            category: selectedCategory
+                        })
+                    });
 
                 if (response.ok) {
                     const data = await response.json();
+                    const planId = data.plan_id || data.plan?.id || data.plan?.plan_id || data.planId;
                     notify(`Plan created: ${title}`, 'Open Dashboard').then(selection => {
-                        if (selection === 'Open Dashboard') {
+                        if (selection === 'Open Dashboard' && planId) {
                             vscode.commands.executeCommand('projectMemory.openDashboardPanel', 
-                                `http://localhost:5173/workspace/${workspaceId}/plan/${data.planId}`);
+                                `http://localhost:5173/workspace/${workspaceId}/plan/${planId}`);
                         }
                     });
                 } else {
@@ -475,10 +562,16 @@ export function activate(context: vscode.ExtensionContext) {
             }
 
             const config = vscode.workspace.getConfiguration('projectMemory');
-            const agentsRoot = config.get<string>('agentsRoot') || getDefaultAgentsRoot();
+            const configuredAgentsRoot = config.get<string>('agentsRoot');
+            const agentsRoot = configuredAgentsRoot || getDefaultAgentsRoot();
             const instructionsRoot = config.get<string>('instructionsRoot') || getDefaultInstructionsRoot();
             const defaultAgents = config.get<string[]>('defaultAgents') || [];
             const defaultInstructions = config.get<string[]>('defaultInstructions') || [];
+            
+            // Debug logging for agent deployment
+            console.log('[ProjectMemory] Deploy Agents - Config agentsRoot:', configuredAgentsRoot);
+            console.log('[ProjectMemory] Deploy Agents - Resolved agentsRoot:', agentsRoot);
+            console.log('[ProjectMemory] Deploy Agents - Default fallback would be:', getDefaultAgentsRoot());
             
             if (!agentsRoot) {
                 vscode.window.showErrorMessage('Agents root not configured. Set projectMemory.agentsRoot in settings.');
@@ -941,7 +1034,7 @@ export function activate(context: vscode.ExtensionContext) {
 
             // Ask for phase
             const phase = await vscode.window.showQuickPick(
-                ['implementation', 'review', 'testing', 'documentation', 'refactor', 'bugfix'],
+                ['investigation', 'research', 'analysis', 'planning', 'implementation', 'testing', 'validation', 'review', 'documentation', 'refactor', 'bugfix', 'handoff'],
                 { placeHolder: 'Select the phase for this step' }
             );
 

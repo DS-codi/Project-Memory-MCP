@@ -1,7 +1,7 @@
 ---
 name: Architect
 description: 'Architect agent - Creates detailed implementation plans with atomic steps. Use after audit/research is complete.'
-tools: ['read', 'edit', 'search', 'web', 'oraios/serena/list_dir', 'agent', 'filesystem/directory_tree', 'filesystem/list_directory', 'filesystem/read_file', 'filesystem/write_file', 'project-memory/*']
+tools: ['vscode', 'read', 'agent', 'edit', 'search', 'web', 'filesystem/*', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Return to Coordinator"
     agent: Coordinator

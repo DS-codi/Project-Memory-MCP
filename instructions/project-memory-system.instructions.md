@@ -1893,6 +1893,7 @@ type RequestCategory =
   | 'bug' 
   | 'change' 
   | 'analysis' 
+  | 'investigation'
   | 'debug' 
   | 'refactor' 
   | 'documentation';
@@ -1912,7 +1913,8 @@ type AgentType =
   | 'Revisionist' 
   | 'Archivist'
   | 'Analyst'
-  | 'Brainstorm';
+  | 'Brainstorm'
+  | 'Runner';
 ```
 
 ### Priority

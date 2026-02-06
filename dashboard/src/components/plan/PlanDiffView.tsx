@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { cn } from '@/utils/cn';
+import { stepTypeColors } from '@/utils/colors';
 import type { PlanStep } from '@/types';
 
 interface PlanDiffViewProps {
@@ -28,6 +29,9 @@ function getStepChanges(prev: PlanStep, current: PlanStep): string[] {
   }
   if (prev.task !== current.task) {
     changes.push('Task description changed');
+  }
+  if (prev.type !== current.type) {
+    changes.push(`Type: ${prev.type || 'standard'} → ${current.type || 'standard'}`);
   }
   if (prev.notes !== current.notes) {
     changes.push('Notes updated');
@@ -162,6 +166,16 @@ export function PlanDiffView({
                   <span className="px-1.5 py-0.5 bg-slate-700 rounded text-xs text-slate-300">
                     {diff.step.phase}
                   </span>
+                  {diff.step.type && (
+                    <span
+                      className={cn(
+                        'px-1.5 py-0.5 rounded text-xs border',
+                        stepTypeColors[diff.step.type]
+                      )}
+                    >
+                      {diff.step.type}
+                    </span>
+                  )}
                   <span
                     className={cn(
                       'px-1.5 py-0.5 rounded text-xs',

@@ -1,4 +1,5 @@
 import { cn } from '@/utils/cn';
+import { stepTypeColors } from '@/utils/colors';
 import type { PlanStep } from '@/types';
 
 interface StepProgressProps {
@@ -114,6 +115,16 @@ function KanbanView({ steps, className }: { steps: PlanStep[]; className?: strin
                   <div className="text-xs text-slate-500 mb-1">
                     #{step.index + 1} · {step.phase}
                   </div>
+                  {step.type && (
+                    <span
+                      className={cn(
+                        'inline-flex mb-1 px-1.5 py-0.5 rounded text-[11px] border',
+                        stepTypeColors[step.type]
+                      )}
+                    >
+                      {step.type}
+                    </span>
+                  )}
                   <p className="text-slate-200 line-clamp-2">{step.task}</p>
                 </div>
               ))}

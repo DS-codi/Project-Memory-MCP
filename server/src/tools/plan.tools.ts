@@ -232,6 +232,17 @@ export async function createPlan(
         error: `Workspace not found: ${workspace_id}`
       };
     }
+
+    if (category === 'investigation') {
+      const hasGoals = Array.isArray(goals) && goals.length > 0;
+      const hasCriteria = Array.isArray(success_criteria) && success_criteria.length > 0;
+      if (!hasGoals || !hasCriteria) {
+        return {
+          success: false,
+          error: 'Investigation plans require at least 1 goal and 1 success criteria'
+        };
+      }
+    }
     
     const plan = await store.createPlan(workspace_id, title, description, category, priority, categorization, goals, success_criteria);
     
@@ -254,7 +265,7 @@ export async function createPlan(
 // Plan Templates
 // =============================================================================
 
-export type PlanTemplate = 'feature' | 'bugfix' | 'refactor' | 'documentation' | 'analysis';
+export type PlanTemplate = 'feature' | 'bugfix' | 'refactor' | 'documentation' | 'analysis' | 'investigation';
 
 export interface PlanTemplateSteps {
   template: PlanTemplate;
@@ -331,6 +342,22 @@ const PLAN_TEMPLATES: Record<PlanTemplate, PlanTemplateSteps> = {
       { phase: 'Reporting', task: 'Document findings', status: 'pending', type: 'documentation' },
       { phase: 'Reporting', task: 'Provide recommendations', status: 'pending', type: 'documentation' }
     ]
+  },
+  investigation: {
+    template: 'investigation',
+    goals: ['Resolve the identified problem', 'Produce a validated explanation or fix path'],
+    success_criteria: ['Root cause is identified', 'Evidence supports conclusions', 'Resolution path is clear'],
+    steps: [
+      { phase: 'Intake', task: 'Capture symptoms, scope, and constraints', status: 'pending', type: 'analysis' },
+      { phase: 'Recon', task: 'Survey relevant code, data, and logs', status: 'pending', type: 'analysis' },
+      { phase: 'Structure Discovery', task: 'Map structure and dependencies', status: 'pending', type: 'analysis' },
+      { phase: 'Content Decoding', task: 'Decode formats or runtime behavior', status: 'pending', type: 'analysis' },
+      { phase: 'Hypothesis', task: 'Form and prioritize hypotheses', status: 'pending', type: 'analysis' },
+      { phase: 'Experiment', task: 'Validate hypotheses with targeted experiments', status: 'pending', type: 'analysis' },
+      { phase: 'Validation', task: 'Confirm findings against evidence', status: 'pending', type: 'analysis' },
+      { phase: 'Resolution', task: 'Define the resolution plan and risks', status: 'pending', type: 'analysis' },
+      { phase: 'Handoff', task: 'Handoff findings and next steps', status: 'pending', type: 'analysis' }
+    ]
   }
 };
 
@@ -379,7 +406,8 @@ export async function createPlanFromTemplate(
       bugfix: 'bug',
       refactor: 'refactor',
       documentation: 'documentation',
-      analysis: 'analysis'
+      analysis: 'analysis',
+      investigation: 'investigation'
     };
     
     const plan = await store.createPlan(

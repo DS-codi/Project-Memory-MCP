@@ -304,6 +304,10 @@ function getValidationFunction(agentType: AgentType): ((params: validationTools.
       return validationTools.validateArchivist;
     case 'Analyst':
       return validationTools.validateAnalyst;
+    case 'Brainstorm':
+      return validationTools.validateBrainstorm;
+    case 'Runner':
+      return validationTools.validateRunner;
     default:
       return null;
   }

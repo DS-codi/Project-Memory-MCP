@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Edit2 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { Badge } from '../common/Badge';
-import { statusColors, statusIcons } from '@/utils/colors';
+import { statusColors, statusIcons, stepTypeColors } from '@/utils/colors';
 import { StepEditor } from './StepEditor';
 import { useStepMutations } from '@/hooks/useStepMutations';
 import type { PlanStep } from '@/types';
@@ -87,10 +87,27 @@ export function StepList({ steps, workspaceId, planId, editable = false }: StepL
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-sm font-mono text-slate-500">#{step.index + 1}</span>
                     <Badge variant={statusColors[step.status]}>{step.status}</Badge>
+                    {step.type && (
+                      <Badge variant={stepTypeColors[step.type]}>{step.type}</Badge>
+                    )}
                   </div>
                   <p className="text-slate-200">{step.task}</p>
                   {step.notes && (
                     <p className="mt-1 text-sm text-slate-400">{step.notes}</p>
+                  )}
+                  {(step.assignee || step.requires_validation) && (
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                      {step.assignee && (
+                        <span className="px-2 py-0.5 rounded border border-slate-600 text-slate-300">
+                          Assignee: {step.assignee}
+                        </span>
+                      )}
+                      {step.requires_validation && (
+                        <span className="px-2 py-0.5 rounded border border-amber-500/50 text-amber-300">
+                          Requires validation
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

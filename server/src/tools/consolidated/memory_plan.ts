@@ -55,7 +55,7 @@ export interface MemoryPlanParams {
   script_mcp_handle?: string;
   script_id?: string;
   // Template params
-  template?: 'feature' | 'bugfix' | 'refactor' | 'documentation' | 'analysis';
+  template?: 'feature' | 'bugfix' | 'refactor' | 'documentation' | 'analysis' | 'investigation';
 }
 
 type PlanResult = 

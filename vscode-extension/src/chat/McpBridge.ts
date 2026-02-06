@@ -141,86 +141,127 @@ export class McpBridge implements vscode.Disposable {
      */
     private async mapToolToHttp<T>(toolName: string, args: Record<string, unknown>): Promise<T> {
         switch (toolName) {
+            // Consolidated tools
+            case 'memory_workspace':
+                return this.handleMemoryWorkspace(args) as Promise<T>;
+
+            case 'memory_plan':
+                return this.handleMemoryPlan(args) as Promise<T>;
+
+            case 'memory_steps':
+                return this.handleMemorySteps(args) as Promise<T>;
+
+            case 'memory_context':
+                return this.handleMemoryContext(args) as Promise<T>;
+
+            case 'memory_agent':
+                return this.handleMemoryAgent(args) as Promise<T>;
+
             // Workspace tools
             case 'register_workspace':
-                return this.registerWorkspace(args.workspace_path as string) as Promise<T>;
+                const registration = await this.registerWorkspace(args.workspace_path as string);
+                return { workspace: { workspace_id: registration.workspace.workspace_id } } as T;
             
             case 'get_workspace_info':
-                return this.httpGet<T>(`/api/workspaces/${args.workspace_id}`);
+                return this.handleMemoryWorkspace({ action: 'info', workspace_id: args.workspace_id }) as Promise<T>;
             
             case 'list_workspaces':
-                return this.httpGet<T>('/api/workspaces');
+                return this.handleMemoryWorkspace({ action: 'list' }) as Promise<T>;
 
             // Plan tools  
             case 'create_plan':
-                return this.httpPost<T>(`/api/plans/${args.workspace_id}`, {
+                return this.handleMemoryPlan({
+                    action: 'create',
+                    workspace_id: args.workspace_id,
                     title: args.title,
                     description: args.description,
-                    category: args.category || 'feature',
-                    priority: args.priority || 'medium'
-                });
+                    category: args.category,
+                    priority: args.priority,
+                    goals: args.goals,
+                    success_criteria: args.success_criteria,
+                    template: args.template
+                }) as Promise<T>;
 
             case 'get_plan_state':
-                return this.httpGet<T>(`/api/plans/${args.workspace_id}/${args.plan_id}`);
+                return this.handleMemoryPlan({
+                    action: 'get',
+                    workspace_id: args.workspace_id,
+                    plan_id: args.plan_id
+                }) as Promise<T>;
 
             case 'list_plans':
-                const plansResult = await this.httpGet<{ plans: unknown[]; total: number }>(
-                    `/api/plans/workspace/${args.workspace_id}`
-                );
-                // Return in expected format
-                return { active_plans: plansResult.plans, total: plansResult.total } as T;
+                return this.handleMemoryPlan({
+                    action: 'list',
+                    workspace_id: args.workspace_id
+                }) as Promise<T>;
 
             case 'update_step':
-                return this.httpPut<T>(
-                    `/api/plans/${args.workspace_id}/${args.plan_id}/steps/${args.step_id}`,
-                    { status: args.status, notes: args.notes }
-                );
+                return this.handleMemorySteps({
+                    action: 'update',
+                    workspace_id: args.workspace_id,
+                    plan_id: args.plan_id,
+                    step_index: args.step_index ?? args.step_id,
+                    status: args.status,
+                    notes: args.notes
+                }) as Promise<T>;
 
             case 'append_steps':
-                return this.httpPost<T>(
-                    `/api/plans/${args.workspace_id}/${args.plan_id}/steps`,
-                    { steps: args.steps }
-                );
+                return this.handleMemorySteps({
+                    action: 'add',
+                    workspace_id: args.workspace_id,
+                    plan_id: args.plan_id,
+                    steps: args.steps
+                }) as Promise<T>;
 
             case 'add_note':
-                return this.httpPost<T>(
-                    `/api/plans/${args.workspace_id}/${args.plan_id}/notes`,
-                    { note: args.note, type: args.type || 'info' }
-                );
+                return this.handleMemoryPlan({
+                    action: 'add_note',
+                    workspace_id: args.workspace_id,
+                    plan_id: args.plan_id,
+                    note: args.note,
+                    note_type: args.type || 'info'
+                }) as Promise<T>;
 
             // Handoff tools
             case 'handoff':
-                return this.httpPost<T>(
-                    `/api/plans/${args.workspace_id}/${args.plan_id}/handoff`,
-                    { 
-                        from_agent: args.from_agent,
-                        to_agent: args.to_agent,
-                        summary: args.summary,
-                        artifacts: args.artifacts
-                    }
-                );
+                return this.handleMemoryAgent({
+                    action: 'handoff',
+                    workspace_id: args.workspace_id,
+                    plan_id: args.plan_id,
+                    from_agent: args.from_agent,
+                    to_agent: args.to_agent ?? args.target_agent,
+                    reason: args.reason,
+                    summary: args.summary,
+                    artifacts: args.artifacts
+                }) as Promise<T>;
 
             case 'get_lineage':
                 return this.httpGet<T>(`/api/plans/${args.workspace_id}/${args.plan_id}/lineage`);
 
             // Context tools
             case 'store_context':
-                return this.httpPost<T>(
-                    `/api/plans/${args.workspace_id}/${args.plan_id}/context`,
-                    { type: args.type, data: args.data }
-                );
+                return this.handleMemoryContext({
+                    action: 'store',
+                    workspace_id: args.workspace_id,
+                    plan_id: args.plan_id,
+                    type: args.type,
+                    data: args.data
+                }) as Promise<T>;
 
             case 'get_context':
-                return this.httpGet<T>(
-                    `/api/plans/${args.workspace_id}/${args.plan_id}/context/${args.type}`
-                );
+                return this.handleMemoryContext({
+                    action: 'get',
+                    workspace_id: args.workspace_id,
+                    plan_id: args.plan_id,
+                    type: args.type
+                }) as Promise<T>;
 
             // Agent tools
             case 'initialise_agent':
-                return this.httpPost<T>('/api/agents/initialise', args);
+                return this.handleMemoryAgent({ action: 'init', ...args }) as Promise<T>;
 
             case 'complete_agent':
-                return this.httpPost<T>('/api/agents/complete', args);
+                return this.handleMemoryAgent({ action: 'complete', ...args }) as Promise<T>;
 
             // Search
             case 'search':
@@ -268,6 +309,11 @@ export class McpBridge implements vscode.Disposable {
     async listTools(): Promise<ToolDefinition[]> {
         // Return a list of supported tools
         return [
+            { name: 'memory_workspace', description: 'Workspace management (register, list, info, reindex)' },
+            { name: 'memory_plan', description: 'Plan management (list, get, create, archive, add_note)' },
+            { name: 'memory_steps', description: 'Step management (update, batch_update, add)' },
+            { name: 'memory_context', description: 'Context management (store, get)' },
+            { name: 'memory_agent', description: 'Agent lifecycle and handoffs' },
             { name: 'register_workspace', description: 'Register a workspace' },
             { name: 'list_workspaces', description: 'List all workspaces' },
             { name: 'get_workspace_info', description: 'Get workspace details' },
@@ -285,6 +331,344 @@ export class McpBridge implements vscode.Disposable {
             { name: 'complete_agent', description: 'Complete an agent session' },
             { name: 'search', description: 'Search across workspaces' },
         ];
+    }
+
+    // ======================================================================
+    // Consolidated tool handlers
+    // ======================================================================
+
+    private async handleMemoryWorkspace(args: Record<string, unknown>): Promise<unknown> {
+        const action = args.action as string | undefined;
+
+        switch (action) {
+            case 'register': {
+                const registration = await this.registerWorkspace(args.workspace_path as string);
+                return { workspace_id: registration.workspace.workspace_id };
+            }
+
+            case 'list':
+                return this.httpGet('/api/workspaces');
+
+            case 'info':
+                return this.httpGet(`/api/workspaces/${args.workspace_id}`);
+
+            case 'reindex':
+                throw new Error('Workspace reindex is not available via the HTTP bridge.');
+
+            default:
+                throw new Error(`Unknown memory_workspace action: ${action}`);
+        }
+    }
+
+    private async handleMemoryPlan(args: Record<string, unknown>): Promise<unknown> {
+        const action = args.action as string | undefined;
+        const workspaceId = args.workspace_id as string | undefined;
+        const planId = args.plan_id as string | undefined;
+
+        if (!workspaceId) {
+            throw new Error('workspace_id is required');
+        }
+
+        switch (action) {
+            case 'list': {
+                const plansResult = await this.httpGet<{ plans: unknown[]; total: number }>(
+                    `/api/plans/workspace/${workspaceId}`
+                );
+                return {
+                    active_plans: this.normalizePlanSummaries(plansResult.plans || []),
+                    total: plansResult.total
+                };
+            }
+
+            case 'get': {
+                if (!planId) throw new Error('plan_id is required');
+                const plan = await this.httpGet(`/api/plans/${workspaceId}/${planId}`);
+                return this.normalizePlanState(plan);
+            }
+
+            case 'create': {
+                const title = args.title as string | undefined;
+                const description = args.description as string | undefined;
+                if (!title || !description) {
+                    throw new Error('title and description are required');
+                }
+
+                const template = args.template as string | undefined;
+                const payload = {
+                    title,
+                    description,
+                    category: (args.category as string) || 'feature',
+                    priority: (args.priority as string) || 'medium',
+                    goals: args.goals,
+                    success_criteria: args.success_criteria
+                };
+
+                const createResult = template
+                    ? await this.httpPost(`/api/plans/${workspaceId}/template`, { ...payload, template })
+                    : await this.httpPost(`/api/plans/${workspaceId}`, payload);
+
+                if (createResult && typeof createResult === 'object' && 'plan' in createResult) {
+                    const resultObj = createResult as { plan?: unknown; plan_id?: string };
+                    if (resultObj.plan) {
+                        return this.normalizePlanState(resultObj.plan);
+                    }
+                }
+
+                return this.normalizePlanState(createResult);
+            }
+
+            case 'archive': {
+                if (!planId) throw new Error('plan_id is required');
+                return this.httpPost(`/api/plans/${workspaceId}/${planId}/archive`, {});
+            }
+
+            case 'add_note': {
+                if (!planId) throw new Error('plan_id is required');
+                return this.httpPost(`/api/plans/${workspaceId}/${planId}/notes`, {
+                    note: args.note,
+                    type: args.note_type || 'info'
+                });
+            }
+
+            default:
+                throw new Error(`Unknown memory_plan action: ${action}`);
+        }
+    }
+
+    private async handleMemorySteps(args: Record<string, unknown>): Promise<unknown> {
+        const action = args.action as string | undefined;
+        const workspaceId = args.workspace_id as string | undefined;
+        const planId = args.plan_id as string | undefined;
+
+        if (!workspaceId || !planId) {
+            throw new Error('workspace_id and plan_id are required');
+        }
+
+        const plan = await this.getPlanState(workspaceId, planId);
+        const steps = Array.isArray(plan.steps) ? [...plan.steps] : [];
+
+        switch (action) {
+            case 'update': {
+                const stepIndex = this.toStepIndex(args.step_index);
+                if (stepIndex === null) {
+                    throw new Error('step_index is required');
+                }
+                if (!steps[stepIndex]) {
+                    throw new Error(`Step index out of range: ${stepIndex}`);
+                }
+                if (args.status) {
+                    steps[stepIndex].status = args.status as string;
+                }
+                if (args.notes) {
+                    steps[stepIndex].notes = args.notes as string;
+                }
+                return this.updatePlanSteps(workspaceId, planId, steps);
+            }
+
+            case 'batch_update': {
+                const updates = args.updates as Array<{ step_index: number; status?: string; notes?: string }> | undefined;
+                if (!updates || updates.length === 0) {
+                    throw new Error('updates array is required');
+                }
+                for (const update of updates) {
+                    const index = this.toStepIndex(update.step_index);
+                    if (index === null || !steps[index]) {
+                        throw new Error(`Step index out of range: ${update.step_index}`);
+                    }
+                    if (update.status) {
+                        steps[index].status = update.status;
+                    }
+                    if (update.notes) {
+                        steps[index].notes = update.notes;
+                    }
+                }
+                return this.updatePlanSteps(workspaceId, planId, steps);
+            }
+
+            case 'add': {
+                const newSteps = (args.steps as Array<Record<string, unknown>> | undefined) || [];
+                if (newSteps.length === 0) {
+                    throw new Error('steps array is required');
+                }
+                const nextIndex = steps.length;
+                const appended = newSteps.map((step, idx) => ({
+                    index: nextIndex + idx,
+                    phase: step.phase,
+                    task: step.task,
+                    status: step.status || 'pending',
+                    type: step.type,
+                    assignee: step.assignee,
+                    requires_validation: step.requires_validation,
+                    notes: step.notes
+                }));
+                const updatedSteps = steps.concat(appended);
+                return this.updatePlanSteps(workspaceId, planId, updatedSteps);
+            }
+
+            default:
+                throw new Error(`Unknown memory_steps action: ${action}`);
+        }
+    }
+
+    private async handleMemoryContext(args: Record<string, unknown>): Promise<unknown> {
+        const action = args.action as string | undefined;
+        const workspaceId = args.workspace_id as string | undefined;
+        const planId = args.plan_id as string | undefined;
+
+        if (!workspaceId || !planId) {
+            throw new Error('workspace_id and plan_id are required');
+        }
+
+        switch (action) {
+            case 'store': {
+                return this.httpPost(`/api/plans/${workspaceId}/${planId}/context`, {
+                    type: args.type,
+                    data: args.data
+                });
+            }
+
+            case 'get': {
+                if (!args.type) {
+                    throw new Error('type is required for context get');
+                }
+                return this.httpGet(`/api/plans/${workspaceId}/${planId}/context/${args.type}`);
+            }
+
+            case 'store_initial': {
+                return this.httpPost(`/api/plans/${workspaceId}/${planId}/context/initial`, {
+                    user_request: args.user_request,
+                    files_mentioned: args.files_mentioned,
+                    file_contents: args.file_contents,
+                    requirements: args.requirements,
+                    constraints: args.constraints,
+                    examples: args.examples,
+                    conversation_context: args.conversation_context,
+                    additional_notes: args.additional_notes
+                });
+            }
+
+            case 'list': {
+                const result = await this.httpGet<{ context?: string[] }>(
+                    `/api/plans/${workspaceId}/${planId}/context`
+                );
+                return result.context || [];
+            }
+
+            case 'list_research': {
+                const result = await this.httpGet<{ notes?: string[] }>(
+                    `/api/plans/${workspaceId}/${planId}/context/research`
+                );
+                return result.notes || [];
+            }
+
+            case 'append_research': {
+                return this.httpPost(`/api/plans/${workspaceId}/${planId}/research`, {
+                    filename: args.filename,
+                    content: args.content
+                });
+            }
+
+            case 'batch_store': {
+                const items = Array.isArray(args.items) ? args.items : [];
+                if (items.length === 0) {
+                    throw new Error('items array is required for batch_store');
+                }
+                const stored = [] as Array<{ type?: string; result: unknown }>;
+                for (const item of items) {
+                    const result = await this.httpPost(`/api/plans/${workspaceId}/${planId}/context`, {
+                        type: item.type,
+                        data: (item as { data?: unknown }).data
+                    });
+                    stored.push({ type: item.type, result });
+                }
+                return { stored };
+            }
+
+            case 'generate_instructions':
+                throw new Error('generate_instructions is not available via the HTTP bridge.');
+
+            default:
+                throw new Error(`Unknown memory_context action: ${action}`);
+        }
+    }
+
+    private async handleMemoryAgent(args: Record<string, unknown>): Promise<unknown> {
+        const action = args.action as string | undefined;
+        const workspaceId = args.workspace_id as string | undefined;
+        const planId = args.plan_id as string | undefined;
+
+        switch (action) {
+            case 'get_briefing': {
+                if (!workspaceId || !planId) {
+                    throw new Error('workspace_id and plan_id are required');
+                }
+                const plan = await this.getPlanState(workspaceId, planId);
+                const lineage = await this.httpGet(`/api/plans/${workspaceId}/${planId}/lineage`);
+                return { plan: this.normalizePlanState(plan), lineage };
+            }
+
+            case 'handoff': {
+                if (!workspaceId || !planId) {
+                    throw new Error('workspace_id and plan_id are required');
+                }
+                const toAgent = (args.to_agent as string | undefined) || (args.target_agent as string | undefined);
+                if (!toAgent) {
+                    throw new Error('to_agent is required');
+                }
+                const summary = (args.summary as string | undefined) || (args.reason as string | undefined) || 'Handoff requested';
+                return this.httpPost(`/api/plans/${workspaceId}/${planId}/handoff`, {
+                    from_agent: args.from_agent || args.agent_type || 'Unknown',
+                    to_agent: toAgent,
+                    reason: args.reason || summary,
+                    summary,
+                    artifacts: args.artifacts
+                });
+            }
+
+            case 'init':
+            case 'complete':
+                throw new Error('Agent sessions are not available via the HTTP bridge.');
+
+            default:
+                throw new Error(`Unknown memory_agent action: ${action}`);
+        }
+    }
+
+    private async getPlanState(workspaceId: string, planId: string): Promise<Record<string, unknown>> {
+        const plan = await this.httpGet<Record<string, unknown>>(`/api/plans/${workspaceId}/${planId}`);
+        return this.normalizePlanState(plan) as Record<string, unknown>;
+    }
+
+    private async updatePlanSteps(workspaceId: string, planId: string, steps: unknown[]): Promise<unknown> {
+        return this.httpPut(`/api/plans/${workspaceId}/${planId}/steps`, { steps });
+    }
+
+    private normalizePlanState(plan: unknown): unknown {
+        if (!plan || typeof plan !== 'object') return plan;
+        const normalized = plan as Record<string, unknown>;
+        if (!normalized.plan_id && typeof normalized.id === 'string') {
+            normalized.plan_id = normalized.id;
+        }
+        if (Array.isArray(normalized.steps)) {
+            normalized.steps = normalized.steps.map((step: Record<string, unknown>, index: number) => ({
+                index: typeof step.index === 'number' ? step.index : index,
+                ...step
+            }));
+        }
+        return normalized;
+    }
+
+    private normalizePlanSummaries(plans: unknown[]): unknown[] {
+        return plans.map(plan => this.normalizePlanState(plan));
+    }
+
+    private toStepIndex(value: unknown): number | null {
+        if (typeof value === 'number' && Number.isFinite(value)) return value;
+        if (typeof value === 'string' && value.trim().length > 0) {
+            const parsed = Number(value);
+            if (Number.isFinite(parsed)) return parsed;
+        }
+        return null;
     }
 
     /**

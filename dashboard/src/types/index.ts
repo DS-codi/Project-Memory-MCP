@@ -10,6 +10,9 @@
 
 export type AgentType = 
   | 'Coordinator'
+  | 'Analyst'
+  | 'Brainstorm'
+  | 'Runner'
   | 'Researcher'
   | 'Architect'
   | 'Executor'
@@ -21,6 +24,23 @@ export type AgentType =
 
 export type StepStatus = 'pending' | 'active' | 'done' | 'blocked';
 
+export type StepType =
+  | 'standard'
+  | 'analysis'
+  | 'validation'
+  | 'user_validation'
+  | 'complex'
+  | 'critical'
+  | 'build'
+  | 'fix'
+  | 'refactor'
+  | 'confirmation'
+  | 'research'
+  | 'planning'
+  | 'code'
+  | 'test'
+  | 'documentation';
+
 export type PlanStatus = 'active' | 'paused' | 'completed' | 'archived' | 'failed';
 
 export type PlanPriority = 'low' | 'medium' | 'high' | 'critical';
@@ -30,6 +50,7 @@ export type RequestCategory =
   | 'bug'
   | 'change'
   | 'analysis'
+  | 'investigation'
   | 'debug'
   | 'refactor'
   | 'documentation';
@@ -71,7 +92,10 @@ export interface PlanStep {
   phase: string;
   task: string;
   status: StepStatus;
+  type?: StepType;
   notes?: string;
+  assignee?: string;
+  requires_validation?: boolean;
   completed_at?: string;
 }
 

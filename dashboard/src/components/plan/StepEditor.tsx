@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { ArrowUp, ArrowDown, ChevronsUp, Trash2, Plus } from 'lucide-react';
 import { Badge } from '../common/Badge';
-import { statusColors } from '@/utils/colors';
-import type { PlanStep, StepStatus } from '@/types';
+import { statusColors, stepTypeColors } from '@/utils/colors';
+import type { PlanStep, StepStatus, StepType } from '@/types';
 
 interface StepEditorProps {
   steps: PlanStep[];
@@ -75,11 +75,30 @@ export function StepEditor({ steps, onSave, onCancel }: StepEditorProps) {
       index: afterIndex + 1,
       phase,
       task: 'New task',
-      status: 'pending'
+      status: 'pending',
+      type: 'standard'
     };
     newSteps.splice(afterIndex + 1, 0, newStep);
     setEditedSteps(reindexSteps(newSteps));
   };
+
+  const stepTypes: StepType[] = [
+    'standard',
+    'analysis',
+    'validation',
+    'user_validation',
+    'complex',
+    'critical',
+    'build',
+    'fix',
+    'refactor',
+    'confirmation',
+    'research',
+    'planning',
+    'code',
+    'test',
+    'documentation'
+  ];
 
   // Group steps by phase
   const groupedSteps = editedSteps.reduce((acc, step) => {
@@ -209,7 +228,21 @@ export function StepEditor({ steps, onSave, onCancel }: StepEditorProps) {
                             <option value="done">Done</option>
                             <option value="blocked">Blocked</option>
                           </select>
+                          <select
+                            value={step.type || 'standard'}
+                            onChange={(e) => updateStep(step.index, { type: e.target.value as StepType })}
+                            className="px-2 py-1 bg-slate-700 border border-slate-600 rounded text-sm"
+                          >
+                            {stepTypes.map((type) => (
+                              <option key={type} value={type}>
+                                {type}
+                              </option>
+                            ))}
+                          </select>
                           <Badge variant={statusColors[step.status]}>{step.status}</Badge>
+                          {step.type && (
+                            <Badge variant={stepTypeColors[step.type]}>{step.type}</Badge>
+                          )}
                         </div>
 
                         {/* Task input */}
@@ -242,6 +275,25 @@ export function StepEditor({ steps, onSave, onCancel }: StepEditorProps) {
                             rows={2}
                           />
                         </details>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            value={step.assignee || ''}
+                            onChange={(e) => updateStep(step.index, { assignee: e.target.value || undefined })}
+                            placeholder="Assignee (optional)"
+                            className="px-3 py-1.5 bg-slate-900 border border-slate-600 rounded text-sm text-slate-300 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                          />
+                          <label className="flex items-center gap-2 text-sm text-slate-300">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(step.requires_validation)}
+                              onChange={(e) => updateStep(step.index, { requires_validation: e.target.checked })}
+                              className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-violet-500 focus:ring-violet-500"
+                            />
+                            Requires validation
+                          </label>
+                        </div>
                       </div>
 
                       {/* Delete button */}

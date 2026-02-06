@@ -33,6 +33,9 @@ const PHASE_AGENT_MAP: Record<string, AgentType[]> = {
   'analysis': ['Analyst', 'Coordinator', 'Researcher'],
   'audit': ['Researcher', 'Coordinator'],
   'research': ['Analyst', 'Researcher'],  // Analyst can do research phases directly
+  'brainstorm': ['Brainstorm'],
+  'ideation': ['Brainstorm'],
+  'exploration': ['Brainstorm'],
   
   // Investigation phases (Analyst-specific)
   'investigation': ['Analyst'],
@@ -70,6 +73,13 @@ const PHASE_AGENT_MAP: Record<string, AgentType[]> = {
   'review': ['Reviewer'],
   'code-review': ['Reviewer'],
   'quality': ['Reviewer'],
+
+  // Quick execution phases (Runner)
+  'runner': ['Runner'],
+  'ad hoc': ['Runner'],
+  'ad-hoc': ['Runner'],
+  'quick': ['Runner'],
+  'hotfix': ['Runner'],
   
   // Pivot phases
   'revision': ['Revisionist'],
@@ -87,6 +97,8 @@ const PHASE_AGENT_MAP: Record<string, AgentType[]> = {
 const TASK_KEYWORDS: Record<AgentType, string[]> = {
   Coordinator: ['categorize', 'analyze request', 'create plan', 'delegate', 'coordinate'],
   Analyst: ['investigate', 'decode', 'reverse engineer', 'analyze binary', 'hypothesis', 'experiment', 'parse format', 'discover structure', 'interpret bytes', 'compare with ground truth', 'compare output', 'validate against', 'analyze differences', 'verify data'],
+  Brainstorm: ['brainstorm', 'ideate', 'explore options', 'compare approaches', 'trade-offs', 'alternatives', 'pros and cons'],
+  Runner: ['quick fix', 'ad hoc', 'one-off', 'small change', 'fast', 'urgent', 'hotfix'],
   Researcher: ['research', 'gather', 'document findings', 'explore', 'understand'],
   Architect: ['design', 'specify', 'architecture', 'structure', 'plan implementation', 'define'],
   Executor: ['implement', 'create', 'build', 'code', 'develop', 'write', 'add', 'modify code'],
@@ -200,6 +212,8 @@ function getAllowedTools(agentType: AgentType): string[] {
   const agentTools: Record<AgentType, string[]> = {
     Coordinator: [...commonTools, 'create_plan', 'modify_plan', 'get_lineage'],
     Analyst: [...commonTools, 'create_plan', 'append_research', 'store_context', 'get_context', 'list_research_notes', 'modify_plan'],
+    Brainstorm: [...commonTools, 'create_plan', 'modify_plan', 'store_context', 'get_context'],
+    Runner: [...commonTools, 'create_plan', 'update_step', 'store_context', 'append_research'],
     Researcher: [...commonTools, 'append_research', 'store_context', 'list_research_notes'],
     Architect: [...commonTools, 'modify_plan', 'update_step', 'store_context'],
     Executor: [...commonTools, 'update_step', 'store_context', 'create_file', 'edit_file'],
@@ -499,4 +513,16 @@ export async function validateAnalyst(
   params: ValidateAgentParams
 ): Promise<ToolResponse<AgentValidationResult>> {
   return validateAgent('Analyst', params);
+}
+
+export async function validateBrainstorm(
+  params: ValidateAgentParams
+): Promise<ToolResponse<AgentValidationResult>> {
+  return validateAgent('Brainstorm', params);
+}
+
+export async function validateRunner(
+  params: ValidateAgentParams
+): Promise<ToolResponse<AgentValidationResult>> {
+  return validateAgent('Runner', params);
 }

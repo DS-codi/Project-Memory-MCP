@@ -15,6 +15,7 @@ import { McpBridge } from './McpBridge';
  */
 interface PlanState {
     plan_id: string;
+    id?: string;
     title: string;
     description?: string;
     category?: string;
@@ -25,6 +26,9 @@ interface PlanState {
         phase: string;
         task: string;
         status: string;
+        type?: string;
+        assignee?: string;
+        requires_validation?: boolean;
     }>;
 }
 
@@ -33,11 +37,12 @@ interface PlanState {
  */
 interface PlanSummary {
     plan_id: string;
+    id?: string;
     title: string;
     status?: string;
     category?: string;
     priority?: string;
-    progress?: string;
+    progress?: { done?: number; total?: number };
     created_at?: string;
 }
 
@@ -71,6 +76,9 @@ export class ToolProvider implements vscode.Disposable {
                             description?: string;
                             category?: string;
                             priority?: string;
+                            template?: string;
+                            goals?: string[];
+                            success_criteria?: string[];
                             includeArchived?: boolean;
                         }>,
                         token
@@ -92,7 +100,7 @@ export class ToolProvider implements vscode.Disposable {
                             status?: string;
                             notes?: string;
                             updates?: Array<{ step_index: number; status: string; notes?: string }>;
-                            newSteps?: Array<{ phase: string; task: string; status?: string }>;
+                            newSteps?: Array<{ phase: string; task: string; status?: string; type?: string; assignee?: string; requires_validation?: boolean; notes?: string }>;
                         }>,
                         token
                     );
@@ -154,6 +162,9 @@ export class ToolProvider implements vscode.Disposable {
             description?: string;
             category?: string;
             priority?: string;
+            template?: string;
+            goals?: string[];
+            success_criteria?: string[];
             includeArchived?: boolean;
         }>,
         token: vscode.CancellationToken
@@ -164,7 +175,7 @@ export class ToolProvider implements vscode.Disposable {
             }
 
             const workspaceId = await this.ensureWorkspace();
-            const { action, planId, title, description, category, priority, includeArchived } = options.input;
+            const { action, planId, title, description, category, priority, template, goals, success_criteria, includeArchived } = options.input;
 
             let result: unknown;
 
@@ -210,7 +221,10 @@ export class ToolProvider implements vscode.Disposable {
                         title,
                         description,
                         category: category || 'feature',
-                        priority: priority || 'medium'
+                        priority: priority || 'medium',
+                        template,
+                        goals,
+                        success_criteria
                     });
                     break;
 
@@ -248,7 +262,7 @@ export class ToolProvider implements vscode.Disposable {
             status?: string;
             notes?: string;
             updates?: Array<{ step_index: number; status: string; notes?: string }>;
-            newSteps?: Array<{ phase: string; task: string; status?: string }>;
+            newSteps?: Array<{ phase: string; task: string; status?: string; type?: string; assignee?: string; requires_validation?: boolean; notes?: string }>;
         }>,
         token: vscode.CancellationToken
     ): Promise<vscode.LanguageModelToolResult> {
@@ -377,6 +391,7 @@ export class ToolProvider implements vscode.Disposable {
                         action: 'handoff',
                         workspace_id: workspaceId,
                         plan_id: planId,
+                        from_agent: 'User',
                         to_agent: targetAgent,
                         reason
                     });

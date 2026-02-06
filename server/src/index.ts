@@ -78,8 +78,9 @@ const server = new McpServer({
 // =============================================================================
 
 const AgentTypeSchema = z.enum([
-  'Coordinator', 'Researcher', 'Architect', 'Executor', 
-  'Revisionist', 'Reviewer', 'Tester', 'Archivist'
+  'Coordinator', 'Analyst', 'Researcher', 'Architect', 'Executor',
+  'Builder', 'Reviewer', 'Tester', 'Revisionist', 'Archivist',
+  'Brainstorm', 'Runner'
 ]);
 
 const StepStatusSchema = z.enum(['pending', 'active', 'done', 'blocked']);
@@ -97,6 +98,7 @@ const RequestCategorySchema = z.enum([
   'bug',           // Fix something broken
   'change',        // Modify existing behavior
   'analysis',      // Understand how something works
+  'investigation', // Deep problem resolution and discovery
   'debug',         // Investigate a specific issue
   'refactor',      // Improve code without changing behavior
   'documentation'  // Update or create docs
@@ -168,7 +170,7 @@ server.tool(
     script_directory: z.string().optional().describe('Directory to run the build script in'),
     script_mcp_handle: z.string().optional().describe('MCP handle identifier for the script'),
     script_id: z.string().optional().describe('Build script ID (for run/delete)'),
-    template: z.enum(['feature', 'bugfix', 'refactor', 'documentation', 'analysis']).optional().describe('Plan template (for create_from_template)')
+    template: z.enum(['feature', 'bugfix', 'refactor', 'documentation', 'analysis', 'investigation']).optional().describe('Plan template (for create_from_template)')
   },
   async (params) => {
     const result = await withLogging('memory_plan', params, () =>

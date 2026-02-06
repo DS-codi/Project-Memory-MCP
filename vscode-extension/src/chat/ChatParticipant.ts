@@ -12,7 +12,8 @@ import { McpBridge } from './McpBridge';
  * Plan state returned from MCP server
  */
 interface PlanState {
-    plan_id: string;
+    plan_id?: string;
+    id?: string;
     title: string;
     description?: string;
     category?: string;
@@ -127,22 +128,18 @@ export class ChatParticipant implements vscode.Disposable {
 
         try {
             console.log(`Registering workspace: ${workspaceFolder.uri.fsPath}`);
-            
-            // McpBridge unwraps the { success, data } pattern automatically
-            // So we get { workspace: {...}, first_time, indexed, profile }
+
             const result = await this.mcpBridge.callTool<{
-                workspace: { workspace_id: string };
-                first_time: boolean;
-                indexed: boolean;
+                workspace_id: string;
             }>(
-                'register_workspace',
-                { workspace_path: workspaceFolder.uri.fsPath }
+                'memory_workspace',
+                { action: 'register', workspace_path: workspaceFolder.uri.fsPath }
             );
-            
+
             console.log(`Register workspace result: ${JSON.stringify(result)}`);
-            
-            if (result.workspace?.workspace_id) {
-                this.workspaceId = result.workspace.workspace_id;
+
+            if (result.workspace_id) {
+                this.workspaceId = result.workspace_id;
                 console.log(`Workspace registered: ${this.workspaceId}`);
             } else {
                 console.error('Unexpected response format:', result);
@@ -202,17 +199,13 @@ export class ChatParticipant implements vscode.Disposable {
 
         const result = await this.mcpBridge.callTool<{
             active_plans: Array<{
-                plan_id: string;
+                plan_id?: string;
+                id?: string;
                 title: string;
                 status?: string;
                 category?: string;
             }>;
-            archived_plans: string[];
-            message: string;
-        }>(
-            'list_plans',
-            { workspace_id: this.workspaceId }
-        );
+        }>('memory_plan', { action: 'list', workspace_id: this.workspaceId });
 
         const plans = result.active_plans || [];
 
@@ -225,7 +218,8 @@ export class ChatParticipant implements vscode.Disposable {
         
         for (const plan of plans) {
             const statusEmoji = this.getStatusEmoji(plan.status);
-            response.markdown(`${statusEmoji} **${plan.title}** \`${plan.plan_id}\`\n`);
+            const planId = plan.plan_id || plan.id || 'unknown';
+            response.markdown(`${statusEmoji} **${plan.title}** \`${planId}\`\n`);
             if (plan.category) {
                 response.markdown(`   Category: ${plan.category}\n`);
             }
@@ -246,8 +240,9 @@ export class ChatParticipant implements vscode.Disposable {
         response.markdown(`🔄 Creating plan: **${description}**...\n\n`);
 
         const result = await this.mcpBridge.callTool<PlanState>(
-            'create_plan',
+            'memory_plan',
             {
+                action: 'create',
                 workspace_id: this.workspaceId,
                 title: description,
                 description: description,
@@ -255,12 +250,13 @@ export class ChatParticipant implements vscode.Disposable {
             }
         );
 
+        const planId = result.plan_id || result.id || 'unknown';
         response.markdown(`✅ **Plan created!**\n\n`);
-        response.markdown(`- **ID**: \`${result.plan_id}\`\n`);
+        response.markdown(`- **ID**: \`${planId}\`\n`);
         response.markdown(`- **Title**: ${result.title}\n`);
-        response.markdown(`\nUse \`/plan show ${result.plan_id}\` to see details.`);
+        response.markdown(`\nUse \`/plan show ${planId}\` to see details.`);
 
-        return { metadata: { command: 'plan', action: 'created', planId: result.plan_id } };
+        return { metadata: { command: 'plan', action: 'created', planId } };
     }
 
     /**
@@ -273,15 +269,17 @@ export class ChatParticipant implements vscode.Disposable {
         }
 
         const result = await this.mcpBridge.callTool<PlanState>(
-            'get_plan_state',
+            'memory_plan',
             {
+                action: 'get',
                 workspace_id: this.workspaceId,
                 plan_id: planId
             }
         );
 
+        const resolvedPlanId = result.plan_id || result.id || planId;
         response.markdown(`# 📋 ${result.title}\n\n`);
-        response.markdown(`**ID**: \`${result.plan_id}\`\n`);
+        response.markdown(`**ID**: \`${resolvedPlanId}\`\n`);
         
         if (result.category) {
             response.markdown(`**Category**: ${result.category}\n`);
@@ -334,8 +332,8 @@ export class ChatParticipant implements vscode.Disposable {
 
         try {
             const result = await this.mcpBridge.callTool<WorkspaceInfo>(
-                'get_workspace_info',
-                { workspace_id: this.workspaceId }
+                'memory_workspace',
+                { action: 'info', workspace_id: this.workspaceId }
             );
 
             response.markdown(`## Workspace Information\n\n`);
@@ -385,6 +383,10 @@ export class ChatParticipant implements vscode.Disposable {
             response.markdown('- `Reviewer` - Validates completed work\n');
             response.markdown('- `Tester` - Writes and runs tests\n');
             response.markdown('- `Archivist` - Finalizes and archives\n');
+            response.markdown('- `Analyst` - Deep investigation and analysis\n');
+            response.markdown('- `Brainstorm` - Explore and refine ideas\n');
+            response.markdown('- `Runner` - Quick tasks and exploration\n');
+            response.markdown('- `Builder` - Build verification and diagnostics\n');
             return { metadata: { command: 'handoff' } };
         }
 
@@ -407,16 +409,20 @@ export class ChatParticipant implements vscode.Disposable {
         response.markdown(`🔄 Initiating handoff to **${targetAgent}**...\n\n`);
 
         try {
-            await this.mcpBridge.callTool('handoff', {
+            const result = await this.mcpBridge.callTool<{ warning?: string }>('memory_agent', {
+                action: 'handoff',
                 workspace_id: this.workspaceId,
                 plan_id: planId,
-                target_agent: targetAgent,
+                from_agent: 'User',
+                to_agent: targetAgent,
                 summary
             });
 
-            response.markdown(`✅ **Handoff complete!**\n\n`);
-            response.markdown(`Plan \`${planId}\` has been handed off to **${targetAgent}**.\n`);
-            response.markdown(`The agent file should be invoked to continue work.`);
+            response.markdown(`✅ **Handoff recorded!**\n\n`);
+            response.markdown(`Plan \`${planId}\` handoff to **${targetAgent}** has been recorded.\n`);
+            if (result?.warning) {
+                response.markdown(`\n⚠️ ${result.warning}\n`);
+            }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             response.markdown(`❌ Handoff failed: ${errorMessage}`);
@@ -449,16 +455,15 @@ export class ChatParticipant implements vscode.Disposable {
         try {
             const result = await this.mcpBridge.callTool<{
                 active_plans: Array<{
-                    plan_id: string;
+                    plan_id?: string;
+                    id?: string;
                     title: string;
                     status?: string;
                     done_steps?: number;
                     total_steps?: number;
+                    progress?: { done?: number; total?: number };
                 }>;
-            }>(
-                'list_plans',
-                { workspace_id: this.workspaceId }
-            );
+            }>('memory_plan', { action: 'list', workspace_id: this.workspaceId });
 
             const plans = result.active_plans || [];
             const activePlans = plans.filter(p => p.status !== 'archived');
@@ -470,10 +475,11 @@ export class ChatParticipant implements vscode.Disposable {
             } else {
                 for (const plan of activePlans) {
                     const statusEmoji = this.getStatusEmoji(plan.status);
-                    const doneSteps = plan.done_steps || 0;
-                    const totalSteps = plan.total_steps || 0;
+                    const doneSteps = plan.done_steps ?? plan.progress?.done ?? 0;
+                    const totalSteps = plan.total_steps ?? plan.progress?.total ?? 0;
+                    const planId = plan.plan_id || plan.id;
                     
-                    response.markdown(`${statusEmoji} **${plan.title}**\n`);
+                    response.markdown(`${statusEmoji} **${plan.title}**${planId ? ` (\`${planId}\`)` : ''}\n`);
                     if (totalSteps > 0) {
                         response.markdown(`   Progress: ${doneSteps}/${totalSteps} steps\n`);
                     }

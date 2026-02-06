@@ -246,7 +246,7 @@ export const ImportPlanDialog = ({
 
   if (!isOpen) return null;
 
-  const categories = ['feature', 'bug', 'change', 'analysis', 'debug', 'refactor', 'documentation'];
+  const categories = ['feature', 'bug', 'change', 'analysis', 'investigation', 'debug', 'refactor', 'documentation'];
   const priorities = ['low', 'medium', 'high', 'critical'];
 
   return (
