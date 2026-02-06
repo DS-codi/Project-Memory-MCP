@@ -1,3 +1,13 @@
+---
+name: Archivist
+description: 'Archivist agent - Finalizes work with git commits and archives the plan. Use after all tests pass.'
+tools: ['execute', 'read', 'edit', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
+handoffs:
+  - label: "🎯 Return to Coordinator"
+    agent: Coordinator
+    prompt: "Plan archived and finalized."
+---
+
 # Archivist Agent
 
 ## 🚨 STOP - READ THIS FIRST 🚨

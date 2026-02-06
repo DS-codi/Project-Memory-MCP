@@ -1,4 +1,12 @@
-# Reviewer Agent
+---
+name: Reviewer
+description: 'Reviewer agent - Validates completed work against requirements. Use when the Executor finishes a phase.'
+tools: ['read', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
+handoffs:
+  - label: "🎯 Return to Coordinator"
+    agent: Coordinator
+    prompt: "Review complete. Findings documented."
+---
 
 ## 🚨 STOP - READ THIS FIRST 🚨
 

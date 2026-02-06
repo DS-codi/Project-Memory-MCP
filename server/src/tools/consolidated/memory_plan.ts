@@ -24,7 +24,7 @@ import type {
 import * as planTools from '../plan.tools.js';
 import * as fileStore from '../../storage/file-store.js';
 
-export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate' | 'set_goals' | 'add_build_script' | 'list_build_scripts' | 'run_build_script' | 'delete_build_script';
+export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate' | 'set_goals' | 'add_build_script' | 'list_build_scripts' | 'run_build_script' | 'delete_build_script' | 'create_from_template' | 'list_templates';
 
 export interface MemoryPlanParams {
   action: PlanAction;
@@ -54,6 +54,8 @@ export interface MemoryPlanParams {
   script_directory?: string;
   script_mcp_handle?: string;
   script_id?: string;
+  // Template params
+  template?: 'feature' | 'bugfix' | 'refactor' | 'documentation' | 'analysis';
 }
 
 type PlanResult = 
@@ -71,7 +73,9 @@ type PlanResult =
   | { action: 'add_build_script'; data: AddBuildScriptResult }
   | { action: 'list_build_scripts'; data: ListBuildScriptsResult }
   | { action: 'run_build_script'; data: RunBuildScriptResult }
-  | { action: 'delete_build_script'; data: DeleteBuildScriptResult };
+  | { action: 'delete_build_script'; data: DeleteBuildScriptResult }
+  | { action: 'create_from_template'; data: PlanState }
+  | { action: 'list_templates'; data: planTools.PlanTemplateSteps[] };
 
 export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse<PlanResult>> {
   const { action } = params;
@@ -79,7 +83,7 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
   if (!action) {
     return {
       success: false,
-      error: 'action is required. Valid actions: list, get, create, update, archive, import, find, add_note'
+      error: 'action is required. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates'
     };
   }
 
@@ -402,10 +406,41 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
       };
     }
 
+    case 'create_from_template': {
+      if (!params.workspace_id || !params.template || !params.title || !params.description) {
+        return {
+          success: false,
+          error: 'workspace_id, template, title, and description are required for action: create_from_template'
+        };
+      }
+      const result = await planTools.createPlanFromTemplate({
+        workspace_id: params.workspace_id,
+        template: params.template,
+        title: params.title,
+        description: params.description,
+        priority: params.priority
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'create_from_template', data: result.data! }
+      };
+    }
+
+    case 'list_templates': {
+      const templates = planTools.getTemplates();
+      return {
+        success: true,
+        data: { action: 'list_templates', data: templates }
+      };
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: list, get, create, update, archive, import, find, add_note`
+        error: `Unknown action: ${action}. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates`
       };
   }
 }

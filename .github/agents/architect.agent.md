@@ -1,4 +1,12 @@
-# Architect Agent
+---
+name: Architect
+description: 'Architect agent - Creates detailed implementation plans with atomic steps. Use after audit/research is complete.'
+tools: ['read', 'edit', 'search', 'web', 'oraios/serena/list_dir', 'agent', 'filesystem/directory_tree', 'filesystem/list_directory', 'filesystem/read_file', 'filesystem/write_file', 'project-memory/*']
+handoffs:
+  - label: "🎯 Return to Coordinator"
+    agent: Coordinator
+    prompt: "Architecture plan complete. Ready for implementation."
+---
 
 ## 🚨 STOP - READ THIS FIRST 🚨
 

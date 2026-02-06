@@ -579,4 +579,258 @@ describe('MCP Tool: memory_steps Reorder and Move Actions', () => {
       }
     });
   });
+
+  // =========================================================================
+  // sort action - Sort steps by phase
+  // =========================================================================
+
+  describe('sort action', () => {
+    
+    it('should sort steps alphabetically by phase when no custom order provided', async () => {
+      const mockPlanState = createMockPlanState(4);
+      // Set steps to have different phases in non-alphabetic order
+      mockPlanState.steps[0].phase = 'Testing';
+      mockPlanState.steps[1].phase = 'Implementation';
+      mockPlanState.steps[2].phase = 'Analysis';
+      mockPlanState.steps[3].phase = 'Design';
+      
+      vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(mockPlanState);
+      vi.spyOn(fileStore, 'savePlanState').mockResolvedValue();
+      vi.spyOn(fileStore, 'generatePlanMd').mockResolvedValue('/path/to/plan.md');
+
+      const params: MemoryStepsParams = {
+        action: 'sort',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+      };
+
+      const result = await memorySteps(params);
+      
+      expect(result.success).toBe(true);
+      if (result.data && result.data.action === 'sort') {
+        const steps = result.data.data.plan_state.steps;
+        // Should be alphabetically sorted: Analysis, Design, Implementation, Testing
+        expect(steps[0].phase).toBe('Analysis');
+        expect(steps[1].phase).toBe('Design');
+        expect(steps[2].phase).toBe('Implementation');
+        expect(steps[3].phase).toBe('Testing');
+      }
+    });
+
+    it('should sort steps by custom phase order when provided', async () => {
+      const mockPlanState = createMockPlanState(4);
+      // Set steps to have different phases
+      mockPlanState.steps[0].phase = 'Testing';
+      mockPlanState.steps[1].phase = 'Implementation';
+      mockPlanState.steps[2].phase = 'Analysis';
+      mockPlanState.steps[3].phase = 'Design';
+      
+      vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(mockPlanState);
+      vi.spyOn(fileStore, 'savePlanState').mockResolvedValue();
+      vi.spyOn(fileStore, 'generatePlanMd').mockResolvedValue('/path/to/plan.md');
+
+      const params: MemoryStepsParams = {
+        action: 'sort',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        phase_order: ['Analysis', 'Design', 'Implementation', 'Testing'],
+      };
+
+      const result = await memorySteps(params);
+      
+      expect(result.success).toBe(true);
+      if (result.data && result.data.action === 'sort') {
+        const steps = result.data.data.plan_state.steps;
+        expect(steps[0].phase).toBe('Analysis');
+        expect(steps[1].phase).toBe('Design');
+        expect(steps[2].phase).toBe('Implementation');
+        expect(steps[3].phase).toBe('Testing');
+      }
+    });
+
+    it('should handle unknown phases by putting them at the end', async () => {
+      const mockPlanState = createMockPlanState(3);
+      mockPlanState.steps[0].phase = 'UnknownPhase';
+      mockPlanState.steps[1].phase = 'Analysis';
+      mockPlanState.steps[2].phase = 'Design';
+      
+      vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(mockPlanState);
+      vi.spyOn(fileStore, 'savePlanState').mockResolvedValue();
+      vi.spyOn(fileStore, 'generatePlanMd').mockResolvedValue('/path/to/plan.md');
+
+      const params: MemoryStepsParams = {
+        action: 'sort',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        phase_order: ['Analysis', 'Design'],
+      };
+
+      const result = await memorySteps(params);
+      
+      expect(result.success).toBe(true);
+      if (result.data && result.data.action === 'sort') {
+        const steps = result.data.data.plan_state.steps;
+        expect(steps[0].phase).toBe('Analysis');
+        expect(steps[1].phase).toBe('Design');
+        expect(steps[2].phase).toBe('UnknownPhase');
+      }
+    });
+
+    it('should fail when plan has no steps', async () => {
+      const mockPlanState = createMockPlanState(0);
+      vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(mockPlanState);
+
+      const params: MemoryStepsParams = {
+        action: 'sort',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+      };
+
+      const result = await memorySteps(params);
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('no steps');
+    });
+  });
+
+  // =========================================================================
+  // set_order action - Completely reorder all steps
+  // =========================================================================
+
+  describe('set_order action', () => {
+    
+    it('should reorder all steps according to the provided new_order array', async () => {
+      const mockPlanState = createMockPlanState(4);
+      vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(mockPlanState);
+      vi.spyOn(fileStore, 'savePlanState').mockResolvedValue();
+      vi.spyOn(fileStore, 'generatePlanMd').mockResolvedValue('/path/to/plan.md');
+
+      // Reorder: [2, 0, 3, 1] means step 2 first, then 0, then 3, then 1
+      const params: MemoryStepsParams = {
+        action: 'set_order',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        new_order: [2, 0, 3, 1],
+      };
+
+      const result = await memorySteps(params);
+      
+      expect(result.success).toBe(true);
+      if (result.data && result.data.action === 'set_order') {
+        const steps = result.data.data.plan_state.steps;
+        // Original Task 3 (index 2) should now be at index 0
+        expect(steps[0].task).toBe('Task 3');
+        // Original Task 1 (index 0) should now be at index 1
+        expect(steps[1].task).toBe('Task 1');
+        // Original Task 4 (index 3) should now be at index 2
+        expect(steps[2].task).toBe('Task 4');
+        // Original Task 2 (index 1) should now be at index 3
+        expect(steps[3].task).toBe('Task 2');
+      }
+    });
+
+    it('should fail when new_order array size does not match step count', async () => {
+      const mockPlanState = createMockPlanState(4);
+      vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(mockPlanState);
+
+      const params: MemoryStepsParams = {
+        action: 'set_order',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        new_order: [0, 1, 2], // Only 3 elements when plan has 4 steps
+      };
+
+      const result = await memorySteps(params);
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('must contain exactly');
+    });
+
+    it('should fail when new_order array contains duplicates', async () => {
+      const mockPlanState = createMockPlanState(4);
+      vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(mockPlanState);
+
+      const params: MemoryStepsParams = {
+        action: 'set_order',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        new_order: [0, 1, 1, 2], // Duplicate index 1
+      };
+
+      const result = await memorySteps(params);
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('duplicate');
+    });
+
+    it('should fail when new_order array contains invalid indices', async () => {
+      const mockPlanState = createMockPlanState(4);
+      vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(mockPlanState);
+
+      const params: MemoryStepsParams = {
+        action: 'set_order',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        new_order: [0, 1, 2, 10], // Index 10 is out of bounds
+      };
+
+      const result = await memorySteps(params);
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Invalid index');
+    });
+
+    it('should fail when new_order is empty', async () => {
+      const mockPlanState = createMockPlanState(4);
+      vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(mockPlanState);
+
+      const params: MemoryStepsParams = {
+        action: 'set_order',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        new_order: [],
+      };
+
+      const result = await memorySteps(params);
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('new_order array is required');
+    });
+
+    it('should preserve step data when reordering', async () => {
+      const mockPlanState = createMockPlanState(3);
+      // Add custom data to steps
+      mockPlanState.steps[0].status = 'done';
+      mockPlanState.steps[0].notes = 'First completed';
+      mockPlanState.steps[1].status = 'active';
+      mockPlanState.steps[2].status = 'pending';
+      mockPlanState.steps[2].notes = 'Not yet started';
+      
+      vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(mockPlanState);
+      vi.spyOn(fileStore, 'savePlanState').mockResolvedValue();
+      vi.spyOn(fileStore, 'generatePlanMd').mockResolvedValue('/path/to/plan.md');
+
+      const params: MemoryStepsParams = {
+        action: 'set_order',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        new_order: [2, 1, 0], // Reverse order
+      };
+
+      const result = await memorySteps(params);
+      
+      expect(result.success).toBe(true);
+      if (result.data && result.data.action === 'set_order') {
+        const steps = result.data.data.plan_state.steps;
+        // Original step 2 (Task 3) now at index 0
+        expect(steps[0].task).toBe('Task 3');
+        expect(steps[0].status).toBe('pending');
+        expect(steps[0].notes).toBe('Not yet started');
+        // Original step 0 (Task 1) now at index 2
+        expect(steps[2].task).toBe('Task 1');
+        expect(steps[2].status).toBe('done');
+        expect(steps[2].notes).toBe('First completed');
+      }
+    });
+  });
 });

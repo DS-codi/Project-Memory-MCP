@@ -5,7 +5,7 @@ tools: ['execute', 'read', 'edit', 'search', 'agent', 'filesystem/*', 'git/*', '
 handoffs:
   - label: "🎯 Return to Coordinator"
     agent: Coordinator
-    prompt: "Plan archived and finalized."
+    prompt: "Build complete. Ready for testing or revision. Provide user with command to launch"
 ---
 
 ## 🚨 STOP - READ THIS FIRST 🚨

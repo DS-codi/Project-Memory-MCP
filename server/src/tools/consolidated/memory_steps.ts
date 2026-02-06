@@ -1,7 +1,7 @@
 /**
  * Consolidated Steps Tool - memory_steps
  * 
- * Actions: add, update, batch_update
+ * Actions: add, update, batch_update, insert, delete, reorder, move, sort, set_order
  * Replaces: append_steps, update_step, batch_update_steps
  */
 
@@ -13,7 +13,7 @@ import type {
 } from '../../types/index.js';
 import * as planTools from '../plan.tools.js';
 
-export type StepsAction = 'add' | 'update' | 'batch_update' | 'insert' | 'delete' | 'reorder' | 'move';
+export type StepsAction = 'add' | 'update' | 'batch_update' | 'insert' | 'delete' | 'reorder' | 'move' | 'sort' | 'set_order' | 'replace';
 
 export interface MemoryStepsParams {
   action: StepsAction;
@@ -46,6 +46,15 @@ export interface MemoryStepsParams {
   // For 'move' action - move step to specific index
   from_index?: number;
   to_index?: number;
+  
+  // For 'sort' action - sort steps by phase
+  phase_order?: string[];  // Custom phase order, e.g. ["Research", "Design", "Implement", "Test"]
+  
+  // For 'set_order' action - set completely new order
+  new_order?: number[];  // Array of current indices in desired new order
+  
+  // For 'replace' action - replace all steps with new array
+  replacement_steps?: Omit<PlanStep, 'index'>[];
 }
 
 type StepsResult = 
@@ -55,7 +64,10 @@ type StepsResult =
   | { action: 'insert'; data: PlanOperationResult }
   | { action: 'delete'; data: PlanOperationResult }
   | { action: 'reorder'; data: PlanOperationResult }
-  | { action: 'move'; data: PlanOperationResult };
+  | { action: 'move'; data: PlanOperationResult }
+  | { action: 'sort'; data: PlanOperationResult }
+  | { action: 'set_order'; data: PlanOperationResult }
+  | { action: 'replace'; data: PlanOperationResult };
 
 export async function memorySteps(params: MemoryStepsParams): Promise<ToolResponse<StepsResult>> {
   const { action, workspace_id, plan_id } = params;
@@ -63,7 +75,7 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
   if (!action) {
     return {
       success: false,
-      error: 'action is required. Valid actions: add, update, batch_update, insert, delete'
+      error: 'action is required. Valid actions: add, update, batch_update, insert, delete, reorder, move, sort, set_order, replace'
     };
   }
 
@@ -233,10 +245,68 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
       };
     }
 
+    case 'sort': {
+      // Sort steps by phase (optionally with custom phase order)
+      const result = await planTools.sortStepsByPhase({
+        workspace_id,
+        plan_id,
+        phase_order: params.phase_order
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'sort', data: result.data! }
+      };
+    }
+
+    case 'set_order': {
+      if (!params.new_order || params.new_order.length === 0) {
+        return {
+          success: false,
+          error: 'new_order array is required for action: set_order (array of current indices in desired order)'
+        };
+      }
+      const result = await planTools.setStepOrder({
+        workspace_id,
+        plan_id,
+        new_order: params.new_order
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'set_order', data: result.data! }
+      };
+    }
+
+    case 'replace': {
+      if (!params.replacement_steps || params.replacement_steps.length === 0) {
+        return {
+          success: false,
+          error: 'replacement_steps array is required for action: replace'
+        };
+      }
+      const result = await planTools.modifyPlan({
+        workspace_id,
+        plan_id,
+        new_steps: params.replacement_steps
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'replace', data: result.data! }
+      };
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: add, update, batch_update, insert, delete, reorder, move`
+        error: `Unknown action: ${action}. Valid actions: add, update, batch_update, insert, delete, reorder, move, sort, set_order, replace`
       };
   }
 }

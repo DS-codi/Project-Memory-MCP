@@ -21,7 +21,8 @@ export type ContextAction =
   | 'list' 
   | 'list_research' 
   | 'append_research'
-  | 'generate_instructions';
+  | 'generate_instructions'
+  | 'batch_store';
 
 export interface MemoryContextParams {
   action: ContextAction;
@@ -53,6 +54,9 @@ export interface MemoryContextParams {
   deliverables?: string[];
   files_to_read?: string[];
   output_path?: string;
+  
+  // For batch_store - store multiple context items at once
+  items?: Array<{ type: string; data: Record<string, unknown> }>;
 }
 
 type ContextResult = 
@@ -62,7 +66,8 @@ type ContextResult =
   | { action: 'list'; data: string[] }
   | { action: 'list_research'; data: string[] }
   | { action: 'append_research'; data: { path: string; sanitized: boolean; injection_attempts: string[]; warnings: string[] } }
-  | { action: 'generate_instructions'; data: { instruction_file: AgentInstructionFile; content: string; written_to: string } };
+  | { action: 'generate_instructions'; data: { instruction_file: AgentInstructionFile; content: string; written_to: string } }
+  | { action: 'batch_store'; data: { stored: Array<{ type: string; path: string }>; failed: Array<{ type: string; error: string }> } };
 
 export async function memoryContext(params: MemoryContextParams): Promise<ToolResponse<ContextResult>> {
   const { action, workspace_id, plan_id } = params;
@@ -70,7 +75,7 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
   if (!action) {
     return {
       success: false,
-      error: 'action is required. Valid actions: store, get, store_initial, list, list_research, append_research, generate_instructions'
+      error: 'action is required. Valid actions: store, get, store_initial, list, list_research, append_research, generate_instructions, batch_store'
     };
   }
 
@@ -230,10 +235,41 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
       };
     }
 
+    case 'batch_store': {
+      if (!params.items || params.items.length === 0) {
+        return {
+          success: false,
+          error: 'items array is required for action: batch_store'
+        };
+      }
+      
+      const stored: Array<{ type: string; path: string }> = [];
+      const failed: Array<{ type: string; error: string }> = [];
+      
+      for (const item of params.items) {
+        const result = await contextTools.storeContext({
+          workspace_id,
+          plan_id,
+          type: item.type,
+          data: item.data
+        });
+        if (result.success && result.data) {
+          stored.push({ type: item.type, path: result.data.path });
+        } else {
+          failed.push({ type: item.type, error: result.error || 'Unknown error' });
+        }
+      }
+      
+      return {
+        success: true,
+        data: { action: 'batch_store', data: { stored, failed } }
+      };
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: store, get, store_initial, list, list_research, append_research, generate_instructions`
+        error: `Unknown action: ${action}. Valid actions: store, get, store_initial, list, list_research, append_research, generate_instructions, batch_store`
       };
   }
 }

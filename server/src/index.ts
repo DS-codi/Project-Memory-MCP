@@ -86,7 +86,8 @@ const StepStatusSchema = z.enum(['pending', 'active', 'done', 'blocked']);
 
 const StepTypeSchema = z.enum([
   'standard', 'analysis', 'validation', 'user_validation', 'complex', 
-  'critical', 'build', 'fix', 'refactor', 'confirmation'
+  'critical', 'build', 'fix', 'refactor', 'confirmation',
+  'research', 'planning', 'code', 'test', 'documentation'
 ]).optional().default('standard');
 
 const PrioritySchema = z.enum(['low', 'medium', 'high', 'critical']);
@@ -133,9 +134,9 @@ server.tool(
 
 server.tool(
   'memory_plan',
-  'Consolidated plan lifecycle management. Actions: list (list plans), get (get plan state), create (create new plan), update (modify plan steps), archive (archive completed plan), import (import existing plan file), find (find plan by ID), add_note (add note to plan), delete (delete plan), consolidate (consolidate steps).',
+  'Consolidated plan lifecycle management. Actions: list (list plans), get (get plan state), create (create new plan), update (modify plan steps), archive (archive completed plan), import (import existing plan file), find (find plan by ID), add_note (add note to plan), delete (delete plan), consolidate (consolidate steps), set_goals (set goals and success criteria), add_build_script (add build script), list_build_scripts (list build scripts), run_build_script (run build script), delete_build_script (delete build script), create_from_template (create plan from template), list_templates (list available templates).',
   {
-    action: z.enum(['list', 'get', 'create', 'update', 'archive', 'import', 'find', 'add_note', 'delete', 'consolidate']).describe('The action to perform'),
+    action: z.enum(['list', 'get', 'create', 'update', 'archive', 'import', 'find', 'add_note', 'delete', 'consolidate', 'set_goals', 'add_build_script', 'list_build_scripts', 'run_build_script', 'delete_build_script', 'create_from_template', 'list_templates']).describe('The action to perform'),
     workspace_id: z.string().optional().describe('Workspace ID'),
     workspace_path: z.string().optional().describe('Workspace path (alternative to workspace_id for list)'),
     plan_id: z.string().optional().describe('Plan ID'),
@@ -158,7 +159,16 @@ server.tool(
     categorization: RequestCategorizationSchema.optional().describe('Full categorization details'),
     confirm: z.boolean().optional().describe('Confirmation required for destructive delete action'),
     step_indices: z.array(z.number()).optional().describe('Step indices to consolidate (for consolidate action)'),
-    consolidated_task: z.string().optional().describe('Consolidated task description (for consolidate action)')
+    consolidated_task: z.string().optional().describe('Consolidated task description (for consolidate action)'),
+    goals: z.array(z.string()).optional().describe('Plan goals (for create or set_goals action)'),
+    success_criteria: z.array(z.string()).optional().describe('Success criteria (for create or set_goals action)'),
+    script_name: z.string().optional().describe('Build script name (for build script actions)'),
+    script_description: z.string().optional().describe('Build script description'),
+    script_command: z.string().optional().describe('Build script command to run'),
+    script_directory: z.string().optional().describe('Directory to run the build script in'),
+    script_mcp_handle: z.string().optional().describe('MCP handle identifier for the script'),
+    script_id: z.string().optional().describe('Build script ID (for run/delete)'),
+    template: z.enum(['feature', 'bugfix', 'refactor', 'documentation', 'analysis']).optional().describe('Plan template (for create_from_template)')
   },
   async (params) => {
     const result = await withLogging('memory_plan', params, () =>
@@ -172,9 +182,9 @@ server.tool(
 
 server.tool(
   'memory_steps',
-  'Consolidated step management tool. Actions: add (append new steps), update (update single step status), batch_update (update multiple steps at once), insert (insert step at index), delete (delete step at index).',
+  'Consolidated step management tool. Actions: add (append new steps), update (update single step status), batch_update (update multiple steps at once), insert (insert step at index), delete (delete step at index), reorder (swap step with adjacent step up/down), move (move step from one index to another), sort (sort all steps by phase), set_order (completely reorder all steps), replace (replace all steps with new array).',
   {
-    action: z.enum(['add', 'update', 'batch_update', 'insert', 'delete']).describe('The action to perform'),
+    action: z.enum(['add', 'update', 'batch_update', 'insert', 'delete', 'reorder', 'move', 'sort', 'set_order', 'replace']).describe('The action to perform'),
     workspace_id: z.string().describe('Workspace ID'),
     plan_id: z.string().describe('Plan ID'),
     steps: z.array(z.object({
@@ -183,7 +193,8 @@ server.tool(
       type: StepTypeSchema,
       status: StepStatusSchema.optional().default('pending'),
       notes: z.string().optional(),
-      assignee: z.string().optional()
+      assignee: z.string().optional(),
+      depends_on: z.array(z.number()).optional().describe('Indices of steps that must complete before this one')
     })).optional().describe('Steps to add (for add action)'),
     step_index: z.number().optional().describe('Step index to update (for update action)'),
     status: StepStatusSchema.optional().describe('New status (for update action)'),
@@ -201,8 +212,23 @@ server.tool(
       type: StepTypeSchema,
       status: StepStatusSchema.optional().default('pending'),
       notes: z.string().optional(),
-      assignee: z.string().optional()
-    }).optional().describe('Single step to insert (for insert action)')
+      assignee: z.string().optional(),
+      depends_on: z.array(z.number()).optional().describe('Indices of steps that must complete before this one')
+    }).optional().describe('Single step to insert (for insert action)'),
+    direction: z.enum(['up', 'down']).optional().describe('Direction to move step (for reorder action)'),
+    from_index: z.number().optional().describe('Source step index (for move action)'),
+    to_index: z.number().optional().describe('Target step index (for move action)'),
+    phase_order: z.array(z.string()).optional().describe('Custom phase order for sort action, e.g. ["Research", "Design", "Implement", "Test"]'),
+    new_order: z.array(z.number()).optional().describe('Array of current step indices in desired new order (for set_order action)'),
+    replacement_steps: z.array(z.object({
+      phase: z.string(),
+      task: z.string(),
+      type: StepTypeSchema,
+      status: StepStatusSchema.optional().default('pending'),
+      notes: z.string().optional(),
+      assignee: z.string().optional(),
+      depends_on: z.array(z.number()).optional()
+    })).optional().describe('Complete new steps array (for replace action)')
   },
   async (params) => {
     const result = await withLogging('memory_steps', params, () =>
@@ -247,9 +273,9 @@ server.tool(
 
 server.tool(
   'memory_context',
-  'Consolidated context and research management tool. Actions: store (store context data), get (retrieve context), store_initial (store initial user request), list (list context files), list_research (list research notes), append_research (add research note), generate_instructions (generate plan instructions file).',
+  'Consolidated context and research management tool. Actions: store (store context data), get (retrieve context), store_initial (store initial user request), list (list context files), list_research (list research notes), append_research (add research note), generate_instructions (generate plan instructions file), batch_store (store multiple context items at once).',
   {
-    action: z.enum(['store', 'get', 'store_initial', 'list', 'list_research', 'append_research', 'generate_instructions']).describe('The action to perform'),
+    action: z.enum(['store', 'get', 'store_initial', 'list', 'list_research', 'append_research', 'generate_instructions', 'batch_store']).describe('The action to perform'),
     workspace_id: z.string().describe('Workspace ID'),
     plan_id: z.string().describe('Plan ID'),
     type: z.string().optional().describe('Context type (for store/get)'),
@@ -264,7 +290,11 @@ server.tool(
     additional_notes: z.string().optional().describe('Additional notes'),
     filename: z.string().optional().describe('Research filename (for append_research)'),
     content: z.string().optional().describe('Research content (for append_research)'),
-    output_path: z.string().optional().describe('Output path (for generate_instructions)')
+    output_path: z.string().optional().describe('Output path (for generate_instructions)'),
+    items: z.array(z.object({
+      type: z.string(),
+      data: z.record(z.unknown())
+    })).optional().describe('Array of context items to store (for batch_store)')
   },
   async (params) => {
     const result = await withLogging('memory_context', params, () =>

@@ -32,7 +32,12 @@ export type StepType =
   | 'build'
   | 'fix'
   | 'refactor'
-  | 'confirmation';
+  | 'confirmation'
+  | 'research'
+  | 'planning'
+  | 'code'
+  | 'test'
+  | 'documentation';
 
 export type PlanStatus = 'active' | 'paused' | 'completed' | 'archived' | 'failed';
 
@@ -109,6 +114,36 @@ export const STEP_TYPE_BEHAVIORS: Record<StepType, StepTypeMetadata> = {
     auto_completable: false,
     blocking: true,
     description: 'Checkpoint requiring user confirmation to proceed'
+  },
+  research: {
+    id: 'research',
+    auto_completable: true,
+    blocking: false,
+    description: 'Research or information gathering task'
+  },
+  planning: {
+    id: 'planning',
+    auto_completable: true,
+    blocking: false,
+    description: 'Planning or design task'
+  },
+  code: {
+    id: 'code',
+    auto_completable: true,
+    blocking: false,
+    description: 'Code implementation task'
+  },
+  test: {
+    id: 'test',
+    auto_completable: true,
+    blocking: false,
+    description: 'Testing task'
+  },
+  documentation: {
+    id: 'documentation',
+    auto_completable: true,
+    blocking: false,
+    description: 'Documentation writing task'
   }
 };
 
@@ -311,6 +346,7 @@ export interface PlanStep {
   assignee?: string;              // Agent or role assigned to this step
   notes?: string;
   completed_at?: string;
+  depends_on?: number[];          // Indices of steps that must complete before this one can start
 }
 
 // =============================================================================

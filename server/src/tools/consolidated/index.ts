@@ -6,11 +6,11 @@
  * 1. memory_workspace - Workspace management (4 actions)
  *    Actions: register, list, info, reindex
  * 
- * 2. memory_plan - Plan lifecycle management (8 actions)
- *    Actions: list, get, create, update, archive, import, find, add_note
+ * 2. memory_plan - Plan lifecycle management (15 actions)
+ *    Actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script
  * 
- * 3. memory_steps - Step management (3 actions)
- *    Actions: add, update, batch_update
+ * 3. memory_steps - Step management (9 actions)
+ *    Actions: add, update, batch_update, insert, delete, reorder, move, sort, set_order
  * 
  * 4. memory_agent - Agent lifecycle and deployment (9 actions)
  *    Actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage

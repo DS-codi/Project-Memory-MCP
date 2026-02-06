@@ -1,4 +1,12 @@
-# Executor Agent
+---
+name: Executor
+description: 'Executor agent - Implements plan steps sequentially, writing code and verifying each step. Use when a plan is ready for implementation.'
+tools: ['execute', 'read', 'edit', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
+handoffs:
+  - label: "🎯 Return to Coordinator"
+    agent: Coordinator
+    prompt: "Implementation complete. Ready for review."
+---
 
 ## 🚨 STOP - READ THIS FIRST 🚨
 

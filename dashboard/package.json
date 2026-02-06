@@ -18,7 +18,9 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
-    "test:e2e:report": "playwright show-report e2e-report"
+    "test:e2e:report": "playwright show-report e2e-report",
+    "test:e2e:setup": "playwright install",
+    "generate:api": "openapi-typescript-codegen --input docs/api-spec.yaml --output src/api/generated --client fetch --useOptions"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.17.0",

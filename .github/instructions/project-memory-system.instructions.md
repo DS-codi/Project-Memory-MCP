@@ -120,7 +120,7 @@ Every agent MUST follow these steps when starting:
 |------|---------|---------|
 | `memory_workspace` | register, list, info, reindex | Manage workspace registration and profiles |
 | `memory_plan` | list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script | Full plan lifecycle management |
-| `memory_steps` | add, update, batch_update, insert, delete, reorder, move | Step-level operations |
+| `memory_steps` | add, update, batch_update, insert, delete, reorder, move, sort, set_order | Step-level operations |
 | `memory_agent` | init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage | Agent lifecycle and coordination |
 | `memory_context` | store, get, store_initial, list, list_research, append_research, generate_instructions | Context and research management |
 
@@ -880,6 +880,81 @@ Move a step to a specific index.
 - Step indices are automatically recalculated
 
 **Used by:** Architect, Revisionist (for major plan restructuring).
+
+---
+
+#### `sort`
+Sort all steps by phase. Optionally provide a custom phase order.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✅ | `"sort"` |
+| `workspace_id` | string | ✅ | The workspace ID |
+| `plan_id` | string | ✅ | The plan ID |
+| `phase_order` | string[] | ❌ | Custom phase order (e.g., `["Research", "Design", "Implement", "Test"]`) |
+
+**Example (alphabetic sort):**
+```json
+{
+  "action": "sort",
+  "workspace_id": "my-project-652c624f8f59",
+  "plan_id": "plan_abc123_def456"
+}
+```
+
+**Example (custom phase order):**
+```json
+{
+  "action": "sort",
+  "workspace_id": "my-project-652c624f8f59",
+  "plan_id": "plan_abc123_def456",
+  "phase_order": ["Research", "Architecture", "Implementation", "Testing", "Documentation"]
+}
+```
+
+**Notes:**
+- Without `phase_order`, steps are sorted alphabetically by phase
+- With `phase_order`, steps are sorted according to the provided order
+- Steps within the same phase maintain their relative order
+
+**Used by:** Architect (for organizing plans by phase).
+
+---
+
+#### `set_order`
+Completely reorder all steps according to a new order.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✅ | `"set_order"` |
+| `workspace_id` | string | ✅ | The workspace ID |
+| `plan_id` | string | ✅ | The plan ID |
+| `new_order` | number[] | ✅ | Array of current indices in desired new order |
+
+**Example:**
+```json
+{
+  "action": "set_order",
+  "workspace_id": "my-project-652c624f8f59",
+  "plan_id": "plan_abc123_def456",
+  "new_order": [2, 0, 1, 3, 5, 4]
+}
+```
+
+This means:
+- Current step 2 becomes index 0
+- Current step 0 becomes index 1
+- Current step 1 becomes index 2
+- Current step 3 stays at index 3
+- Current step 5 becomes index 4
+- Current step 4 becomes index 5
+
+**Notes:**
+- `new_order` must contain exactly as many indices as there are steps
+- Each current step index must appear exactly once
+- This is the most flexible reordering option
+
+**Used by:** Architect, Revisionist (for complete plan reorganization).
 
 ---
 
