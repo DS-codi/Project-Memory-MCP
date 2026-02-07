@@ -252,6 +252,56 @@ export function activate(context: vscode.ExtensionContext) {
             serverManager.showLogs();
         }),
 
+        vscode.commands.registerCommand('projectMemory.isolateServer', async () => {
+            const config = vscode.workspace.getConfiguration('projectMemory');
+            const currentPort = config.get<number>('serverPort') || 3001;
+            const isCurrentlyIsolated = currentPort !== 3001;
+
+            if (isCurrentlyIsolated) {
+                // Switch back to shared server
+                await config.update('serverPort', 3001, vscode.ConfigurationTarget.Workspace);
+                await serverManager.stopFrontend();
+                await serverManager.stop();
+                vscode.window.showInformationMessage(
+                    'Switching to shared server on port 3001. Reloading window...',
+                    'Reload'
+                ).then(selection => {
+                    if (selection === 'Reload') {
+                        vscode.commands.executeCommand('workbench.action.reloadWindow');
+                    }
+                });
+            } else {
+                // Generate isolated port (3101-3199 range based on workspace hash)
+                const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+                if (!workspaceFolder) {
+                    vscode.window.showErrorMessage('No workspace folder open');
+                    return;
+                }
+                const hash = require('crypto').createHash('md5')
+                    .update(workspaceFolder.uri.fsPath.toLowerCase())
+                    .digest('hex');
+                const isolatedPort = 3101 + (parseInt(hash.substring(0, 4), 16) % 99);
+                
+                await config.update('serverPort', isolatedPort, vscode.ConfigurationTarget.Workspace);
+                await serverManager.stopFrontend();
+                await serverManager.stop();
+                vscode.window.showInformationMessage(
+                    `Switching to isolated server on port ${isolatedPort}. Reloading window...`,
+                    'Reload'
+                ).then(selection => {
+                    if (selection === 'Reload') {
+                        vscode.commands.executeCommand('workbench.action.reloadWindow');
+                    }
+                });
+            }
+            
+            // Notify the sidebar of the new state
+            dashboardProvider?.postMessage({
+                type: 'isolateServerStatus',
+                data: { isolated: !isCurrentlyIsolated, port: isCurrentlyIsolated ? 3001 : currentPort }
+            });
+        }),
+
         vscode.commands.registerCommand('projectMemory.openSettings', async () => {
             // Show a menu to configure defaults
             const config = vscode.workspace.getConfiguration('projectMemory');

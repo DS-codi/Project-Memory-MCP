@@ -124,6 +124,18 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                     vscode.commands.executeCommand('projectMemory.openDashboardPanel', planUrl);
                     break;
 
+                case 'openPlanRoute':
+                    await this.openPlanRoute(message.data as { route: string; query?: string });
+                    break;
+
+                case 'planAction':
+                    await this.runPlanAction(message.data as { action: 'archive' | 'resume' });
+                    break;
+
+                case 'isolateServer':
+                    await vscode.commands.executeCommand('projectMemory.isolateServer');
+                    break;
+
                 case 'copyToClipboard':
                     const { text } = message.data as { text: string };
                     await vscode.env.clipboard.writeText(text);
@@ -190,6 +202,120 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
         });
     }
 
+    private getApiPort(): number {
+        const config = vscode.workspace.getConfiguration('projectMemory');
+        return config.get<number>('serverPort') || config.get<number>('apiPort') || 3001;
+    }
+
+    private getDashboardUrl(): string {
+        return 'http://localhost:5173';
+    }
+
+    private async pickPlan(): Promise<{ workspaceId: string; planId: string } | null> {
+        const workspaceId = this.getWorkspaceId();
+        if (!workspaceId) {
+            vscode.window.showErrorMessage('No workspace is open.');
+            return null;
+        }
+
+        const port = this.getApiPort();
+        try {
+            const response = await fetch(`http://localhost:${port}/api/plans/workspace/${workspaceId}`);
+            if (!response.ok) {
+                vscode.window.showErrorMessage('Failed to load plans from the dashboard server.');
+                return null;
+            }
+            const data = await response.json();
+            const plans = Array.isArray(data.plans) ? data.plans : [];
+            if (plans.length === 0) {
+                vscode.window.showInformationMessage('No plans found for this workspace.');
+                return null;
+            }
+
+            const picked = await vscode.window.showQuickPick(
+                plans.map((plan: { title?: string; id?: string; plan_id?: string; status?: string }) => {
+                    const id = plan.id || plan.plan_id || 'unknown';
+                    return {
+                        label: plan.title || id,
+                        description: plan.status || 'unknown',
+                        detail: id
+                    };
+                }),
+                { placeHolder: 'Select a plan' }
+            );
+
+            if (!picked || !picked.detail) {
+                return null;
+            }
+
+            return { workspaceId, planId: picked.detail };
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to load plans: ${error}`);
+            return null;
+        }
+    }
+
+    private async openPlanRoute(options: { route: string; query?: string }): Promise<void> {
+        const selection = await this.pickPlan();
+        if (!selection) {
+            return;
+        }
+
+        const { workspaceId, planId } = selection;
+        let url = `${this.getDashboardUrl()}/workspace/${workspaceId}/plan/${planId}`;
+        if (options.route === 'context') {
+            url += '/context';
+        } else if (options.route === 'build-scripts') {
+            url += '/build-scripts';
+        }
+
+        if (options.query) {
+            url += `?${options.query}`;
+        }
+
+        vscode.commands.executeCommand('projectMemory.openDashboardPanel', url);
+    }
+
+    private async runPlanAction(options: { action: 'archive' | 'resume' }): Promise<void> {
+        const selection = await this.pickPlan();
+        if (!selection) {
+            return;
+        }
+
+        const { workspaceId, planId } = selection;
+        const actionLabel = options.action === 'archive' ? 'Archive' : 'Resume';
+
+        if (options.action === 'archive') {
+            const confirm = await vscode.window.showWarningMessage(
+                `Archive plan ${planId}?`,
+                { modal: true },
+                'Archive'
+            );
+            if (confirm !== 'Archive') {
+                return;
+            }
+        }
+
+        const port = this.getApiPort();
+        try {
+            const response = await fetch(
+                `http://localhost:${port}/api/plans/${workspaceId}/${planId}/${options.action}`,
+                { method: 'POST' }
+            );
+            if (!response.ok) {
+                const errorText = await response.text();
+                vscode.window.showErrorMessage(`Failed to ${options.action} plan: ${errorText}`);
+                return;
+            }
+
+            notify(`${actionLabel}d plan ${planId}`);
+            const url = `${this.getDashboardUrl()}/workspace/${workspaceId}/plan/${planId}`;
+            vscode.commands.executeCommand('projectMemory.openDashboardPanel', url);
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to ${options.action} plan: ${error}`);
+        }
+    }
+
     private _getHtmlForWebview(webview: vscode.Webview): string {
         // Use a nonce for inline scripts
         const nonce = getNonce();
@@ -229,7 +355,8 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
             stopStale: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="10" height="10" x="7" y="7" rx="2"/></svg>',
             healthBadge: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
             dataRoot: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="3" y2="15"/></svg>',
-            agentHandoff: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>'
+            agentHandoff: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>',
+            isolate: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>'
         };
         const iconsJson = JSON.stringify(iconSvgs);
 
@@ -279,6 +406,21 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
         .status-dot.error { background: var(--vscode-testing-iconFailed); }
         .status-dot.loading { background: var(--vscode-testing-iconQueued); animation: pulse 1s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .header-btn {
+            background: transparent;
+            border: 1px solid var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+            padding: 2px 6px;
+            border-radius: 3px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+        }
+        .header-btn:hover { background: var(--vscode-button-secondaryHoverBackground); }
+        .header-btn svg { width: 12px; height: 12px; }
+        .header-btn.isolated { border-color: var(--vscode-inputValidation-warningBorder); color: var(--vscode-inputValidation-warningBorder); }
         .content {
             flex: 1;
             display: flex;
@@ -456,7 +598,7 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
 
         .stacked-sections {
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             gap: 12px;
         }
 
@@ -465,35 +607,47 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
             border-radius: 6px;
             padding: 10px;
             background: rgba(255, 255, 255, 0.02);
+            flex: 1 1 0;
         }
 
-        .status-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 8px;
+        .stacked-section:first-child {
+            flex: 2 1 0;
         }
 
-        .status-card {
-            border: 1px solid var(--vscode-panel-border);
-            border-radius: 6px;
-            padding: 8px 10px;
-            display: flex;
+        .stacked-section:last-child {
+            flex: 3 1 0;
+        }
+
+        body.size-small .stacked-sections {
             flex-direction: column;
-            gap: 6px;
-            background: rgba(255, 255, 255, 0.02);
         }
 
-        .status-label {
-            font-size: 10px;
-            color: var(--vscode-descriptionForeground);
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
+        .status-divider {
+            border-top: 1px solid var(--vscode-panel-border);
+            margin: 10px 0;
+            opacity: 0.6;
+        }
+
+        .status-list .label {
+            min-width: 110px;
         }
 
         .status-value {
             font-size: 12px;
             font-weight: 600;
             word-break: break-word;
+        }
+
+        .status-value.status-ok {
+            color: var(--vscode-testing-iconPassed);
+        }
+
+        .status-value.status-warn {
+            color: var(--vscode-testing-iconQueued);
+        }
+
+        .status-value.status-bad {
+            color: var(--vscode-testing-iconFailed);
         }
 
         .search-widget {
@@ -619,6 +773,10 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
 <body>
     <div class="header">
         <h2>Project Memory</h2>
+        <button class="header-btn" id="isolateBtn" data-action="isolate-server" title="Spawn isolated server for this workspace">
+            ${iconSvgs.isolate}
+            <span id="isolateBtnText">Isolate</span>
+        </button>
         <div class="status">
             <span class="status-dot loading" id="statusDot"></span>
             <span id="statusText">Checking...</span>
@@ -651,9 +809,24 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
             const message = event.data;
             if (message.type === 'deploymentComplete') {
                 const { type, count, targetDir } = message.data;
-                showToast('Ô£à Deployed ' + count + ' ' + type + ' to workspace', 'success');
+                showToast('\u2714 Deployed ' + count + ' ' + type + ' to workspace', 'success');
             } else if (message.type === 'deploymentError') {
-                showToast('ÔØî ' + message.data.error, 'error');
+                showToast('\u274C ' + message.data.error, 'error');
+            } else if (message.type === 'isolateServerStatus') {
+                const { isolated, port } = message.data;
+                const isolateBtn = document.getElementById('isolateBtn');
+                const isolateBtnText = document.getElementById('isolateBtnText');
+                if (isolateBtn && isolateBtnText) {
+                    if (isolated) {
+                        isolateBtn.classList.add('isolated');
+                        isolateBtnText.textContent = 'Isolated:' + port;
+                        isolateBtn.title = 'Running isolated server on port ' + port + '. Click to reconnect to shared server.';
+                    } else {
+                        isolateBtn.classList.remove('isolated');
+                        isolateBtnText.textContent = 'Isolate';
+                        isolateBtn.title = 'Spawn isolated server for this workspace';
+                    }
+                }
             }
         });
         
@@ -706,10 +879,28 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
 
             if (action === 'open-browser') {
                 vscode.postMessage({ type: 'openExternal', data: { url: dashboardUrl } });
+            } else if (action === 'open-context-files') {
+                vscode.postMessage({ type: 'openPlanRoute', data: { route: 'context' } });
+            } else if (action === 'open-context-note') {
+                vscode.postMessage({ type: 'openPlanRoute', data: { route: 'context', query: 'focus=context' } });
+            } else if (action === 'open-research-note') {
+                vscode.postMessage({ type: 'openPlanRoute', data: { route: 'context', query: 'focus=research' } });
+            } else if (action === 'open-build-scripts') {
+                vscode.postMessage({ type: 'openPlanRoute', data: { route: 'build-scripts' } });
+            } else if (action === 'open-run-script') {
+                vscode.postMessage({ type: 'openPlanRoute', data: { route: 'build-scripts', query: 'run=1' } });
+            } else if (action === 'open-handoff') {
+                vscode.postMessage({ type: 'openPlanRoute', data: { route: 'plan', query: 'tab=timeline' } });
+            } else if (action === 'open-resume-plan') {
+                vscode.postMessage({ type: 'planAction', data: { action: 'resume' } });
+            } else if (action === 'open-archive-plan') {
+                vscode.postMessage({ type: 'planAction', data: { action: 'archive' } });
             } else if (action === 'refresh') {
                 const statusDot = document.getElementById('statusDot');
                 statusDot.className = 'status-dot loading';
                 checkServer();
+            } else if (action === 'isolate-server') {
+                vscode.postMessage({ type: 'isolateServer' });
             } else if (action === 'run-command' && command) {
                 vscode.postMessage({ type: 'runCommand', data: { command: command } });
             } else if (action === 'open-plan' && planId) {
@@ -749,14 +940,14 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                             <div class="plan-title" title="\${plan.title}">\${plan.title}</div>
                             <div class="plan-meta">
                                 <span>\${plan.category || 'general'}</span>
-                                <span>ÔÇó</span>
+                                <span>&#8226;</span>
                                 <span>\${plan.progress?.done || 0}/\${plan.progress?.total || 0} steps</span>
                             </div>
                         </div>
                         <span class="plan-status \${plan.status}">\${plan.status}</span>
                         <div class="plan-actions">
-                            <button class="btn btn-small btn-secondary" data-action="copy" data-copy="\${planId}" title="Copy plan ID">­ƒôï</button>
-                            <button class="btn btn-small" data-action="open-plan" data-plan-id="\${planId}" title="Open plan">ÔåÆ</button>
+                            <button class="btn btn-small btn-secondary" data-action="copy" data-copy="\${planId}" title="Copy plan ID">&#128203;</button>
+                            <button class="btn btn-small" data-action="open-plan" data-plan-id="\${planId}" title="Open plan">&#8594;</button>
                         </div>
                     </div>
                 \`;
@@ -892,27 +1083,43 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
             const staleValue = document.getElementById('staleStatusValue');
             const dataRootValue = document.getElementById('dataRootValue');
 
+            function setStatusClass(element, state) {
+                if (!element) return;
+                element.classList.remove('status-ok', 'status-warn', 'status-bad');
+                if (state) {
+                    element.classList.add(state);
+                }
+            }
+
             if (healthValue) {
                 if (data && typeof data.status === 'string') {
                     healthValue.textContent = data.status;
+                    setStatusClass(healthValue, data.status === 'ok' ? 'status-ok' : 'status-warn');
                 } else if (data && data.ok === true) {
                     healthValue.textContent = 'Healthy';
+                    setStatusClass(healthValue, 'status-ok');
                 } else if (data && data.ok === false) {
                     healthValue.textContent = 'Unhealthy';
+                    setStatusClass(healthValue, 'status-bad');
                 } else {
                     healthValue.textContent = 'Connected';
+                    setStatusClass(healthValue, null);
                 }
             }
 
             if (staleValue) {
                 if (data && typeof data.stale_count === 'number') {
                     staleValue.textContent = data.stale_count === 0 ? 'None' : data.stale_count + ' stale';
+                    setStatusClass(staleValue, data.stale_count === 0 ? 'status-ok' : 'status-warn');
                 } else if (data && Array.isArray(data.stale_processes)) {
                     staleValue.textContent = data.stale_processes.length === 0 ? 'None' : data.stale_processes.length + ' stale';
+                    setStatusClass(staleValue, data.stale_processes.length === 0 ? 'status-ok' : 'status-warn');
                 } else if (data && typeof data.stale === 'boolean') {
                     staleValue.textContent = data.stale ? 'Stale' : 'Fresh';
+                    setStatusClass(staleValue, data.stale ? 'status-warn' : 'status-ok');
                 } else {
                     staleValue.textContent = 'Not available';
+                    setStatusClass(staleValue, null);
                 }
             }
 
@@ -961,22 +1168,6 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                                 </div>
                             </div>
 
-                            <section class="collapsible" id="widget-server">
-                                <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-server">
-                                    <span class="chevron">></span>
-                                    <h3>Server Status</h3>
-                                </button>
-                                <div class="collapsible-content">
-                                    <div class="widget-body">
-                                        <ul>
-                                            <li><span class="label">Status:</span> <span>Running</span></li>
-                                            <li><span class="label">API Port:</span> <span>\${apiPort}</span></li>
-                                            <li><span class="label">Workspace:</span> <span>\${workspaceName}</span></li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </section>
-
                             <section class="collapsible" id="widget-status">
                                 <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-status">
                                     <span class="chevron">></span>
@@ -984,20 +1175,17 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                                 </button>
                                 <div class="collapsible-content">
                                     <div class="widget-body">
-                                        <div class="status-grid">
-                                            <div class="status-card">
-                                                <div class="status-label">Workspace Health</div>
-                                                <div class="status-value" id="healthStatusValue">Checking...</div>
-                                            </div>
-                                            <div class="status-card">
-                                                <div class="status-label">Stale/Stop</div>
-                                                <div class="status-value" id="staleStatusValue">Checking...</div>
-                                            </div>
-                                            <div class="status-card">
-                                                <div class="status-label">Data Root</div>
-                                                <div class="status-value" id="dataRootValue">Loading...</div>
-                                            </div>
-                                        </div>
+                                        <ul>
+                                            <li><span class="label">Status:</span> <span>Running</span></li>
+                                            <li><span class="label">API Port:</span> <span>${apiPort}</span></li>
+                                            <li><span class="label">Workspace:</span> <span>${workspaceName}</span></li>
+                                        </ul>
+                                        <div class="status-divider"></div>
+                                        <ul class="status-list">
+                                            <li><span class="label">Workspace Health</span> <span class="status-value" id="healthStatusValue">Checking...</span></li>
+                                            <li><span class="label">Stale/Stop</span> <span class="status-value" id="staleStatusValue">Checking...</span></li>
+                                            <li><span class="label">Data Root</span> <span class="status-value" id="dataRootValue">Loading...</span></li>
+                                        </ul>
                                     </div>
                                 </div>
                             </section>
@@ -1028,10 +1216,10 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                                             <button class="icon-btn" data-action="run-command" data-command="projectMemory.deployPrompts" title="Deploy Prompts">
                                                 ${iconSvgs.deployPrompts}
                                             </button>
-                                            <button class="icon-btn" data-action="open-browser" title="Resume Plan">
+                                            <button class="icon-btn" data-action="open-resume-plan" title="Resume Plan">
                                                 ${iconSvgs.resumePlan}
                                             </button>
-                                            <button class="icon-btn" data-action="open-browser" title="Archive Plan">
+                                            <button class="icon-btn" data-action="open-archive-plan" title="Archive Plan">
                                                 ${iconSvgs.archive}
                                             </button>
                                         </div>
@@ -1061,13 +1249,13 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                                             <div class="stacked-section">
                                                 <div class="icon-row-title">Context</div>
                                                 <div class="icon-grid">
-                                                    <button class="icon-btn" data-action="open-browser" title="Add Context Note">
+                                                    <button class="icon-btn" data-action="open-context-note" title="Add Context Note">
                                                         ${iconSvgs.addContextNote}
                                                     </button>
-                                                    <button class="icon-btn" data-action="open-browser" title="Add Research Note">
+                                                    <button class="icon-btn" data-action="open-research-note" title="Add Research Note">
                                                         ${iconSvgs.researchNote}
                                                     </button>
-                                                    <button class="icon-btn" data-action="open-browser" title="View Context Files">
+                                                    <button class="icon-btn" data-action="open-context-files" title="View Context Files">
                                                         ${iconSvgs.contextFilesGrid}
                                                     </button>
                                                 </div>
@@ -1133,13 +1321,13 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                                 <div class="collapsible-content">
                                     <div class="widget-body">
                                         <div class="icon-grid">
-                                            <button class="icon-btn" data-action="open-browser" title="Build Scripts">
+                                            <button class="icon-btn" data-action="open-build-scripts" title="Build Scripts">
                                                 ${iconSvgs.buildScript}
                                             </button>
-                                            <button class="icon-btn" data-action="open-browser" title="Run Script">
+                                            <button class="icon-btn" data-action="open-run-script" title="Run Script">
                                                 ${iconSvgs.runButton}
                                             </button>
-                                            <button class="icon-btn" data-action="open-browser" title="Agent Handoff">
+                                            <button class="icon-btn" data-action="open-handoff" title="Agent Handoff">
                                                 ${iconSvgs.agentHandoff}
                                             </button>
                                         </div>
@@ -1183,6 +1371,18 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
         
         // Initial check
         checkServer();
+        
+        // Initialize isolated button state based on current port
+        (function initIsolateButton() {
+            const isIsolated = apiPort !== 3001;
+            const isolateBtn = document.getElementById('isolateBtn');
+            const isolateBtnText = document.getElementById('isolateBtnText');
+            if (isolateBtn && isolateBtnText && isIsolated) {
+                isolateBtn.classList.add('isolated');
+                isolateBtnText.textContent = 'Isolated:' + apiPort;
+                isolateBtn.title = 'Running isolated server on port ' + apiPort + '. Click to reconnect to shared server.';
+            }
+        })();
         
         // Periodic check every 30 seconds (reduced from 10 for performance)
         setInterval(checkServer, 30000);

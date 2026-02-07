@@ -196,7 +196,7 @@ function getExpectedAgent(state: PlanState): { agent: AgentType; reason: string 
   }
   
   // Default based on plan status
-  if (state.steps.every(s => s.status === 'done')) {
+  if (state.steps.length > 0 && state.steps.every(s => s.status === 'done')) {
     return { agent: 'Archivist', reason: 'All steps complete - ready for archival' };
   }
   

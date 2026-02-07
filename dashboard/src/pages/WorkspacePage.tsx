@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, FolderOpen, Calendar, Code, FileText, Plus } from 'lucide-react';
+import { ArrowLeft, FolderOpen, Calendar, Code, FileText, Plus, Activity, Database } from 'lucide-react';
 import { PlanList } from '@/components/plan/PlanList';
 import { CreatePlanForm } from '@/components/plan/CreatePlanForm';
 import { HealthIndicator } from '@/components/workspace/HealthIndicator';
@@ -95,6 +95,23 @@ export function WorkspacePage() {
               <HealthIndicator health={health} showLabel />
             </div>
             <p className="text-slate-400 mb-4 font-mono text-sm">{workspace.path}</p>
+
+            <div className="flex flex-wrap gap-2 mb-4">
+              <Link
+                to={`/workspace/${workspaceId}/status`}
+                className="inline-flex items-center gap-2 px-3 py-2 bg-slate-700/60 text-slate-200 rounded-lg hover:bg-slate-700 transition-colors text-sm"
+              >
+                <Activity size={16} />
+                Workspace Status
+              </Link>
+              <Link
+                to={`/workspace/${workspaceId}/data-root`}
+                className="inline-flex items-center gap-2 px-3 py-2 bg-slate-700/60 text-slate-200 rounded-lg hover:bg-slate-700 transition-colors text-sm"
+              >
+                <Database size={16} />
+                Data Root
+              </Link>
+            </div>
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

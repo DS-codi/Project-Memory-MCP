@@ -258,6 +258,11 @@
         "category": "Project Memory"
       },
       {
+        "command": "projectMemory.isolateServer",
+        "title": "Toggle Isolated Server Mode",
+        "category": "Project Memory"
+      },
+      {
         "command": "projectMemory.openSettings",
         "title": "Open Settings",
         "category": "Project Memory"

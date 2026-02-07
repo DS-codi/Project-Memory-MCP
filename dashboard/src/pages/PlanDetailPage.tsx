@@ -183,6 +183,23 @@ export function PlanDetailPage() {
           </div>
         </div>
 
+        <div className="flex flex-wrap gap-2 mb-4">
+          <Link
+            to={`/workspace/${workspaceId}/plan/${planId}/context`}
+            className="inline-flex items-center gap-2 px-3 py-2 bg-slate-700/60 text-slate-200 rounded-lg hover:bg-slate-700 transition-colors text-sm"
+          >
+            <FileText size={16} />
+            Context Files
+          </Link>
+          <Link
+            to={`/workspace/${workspaceId}/plan/${planId}/build-scripts`}
+            className="inline-flex items-center gap-2 px-3 py-2 bg-slate-700/60 text-slate-200 rounded-lg hover:bg-slate-700 transition-colors text-sm"
+          >
+            <Terminal size={16} />
+            Build Scripts
+          </Link>
+        </div>
+
         {/* Progress */}
         <div className="flex items-center gap-4">
           <span className="text-sm text-slate-400">Progress</span>
