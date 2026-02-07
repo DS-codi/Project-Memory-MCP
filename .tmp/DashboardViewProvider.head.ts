@@ -200,7 +200,6 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
         const dashboardUrl = `http://localhost:5173`; // Vite dev server
         const workspaceId = this.getWorkspaceId() || '';
         const workspaceName = vscode.workspace.workspaceFolders?.[0]?.name || 'No workspace';
-        const dataRoot = JSON.stringify(this._dataRoot);
         const iconSvgs = {
             dashboard: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>',
             knowledgeBase: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6.5 15.5H20"/></svg>',
@@ -313,7 +312,7 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
         }
         .icon-grid {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(6, 1fr);
             gap: 8px;
         }
         .icon-btn {
@@ -336,14 +335,14 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
             display: block;
         }
         .icon-row-title {
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 600;
             margin-bottom: 8px;
         }
         .plans-widget {
             background: var(--vscode-editor-inactiveSelectionBackground);
             border-radius: 6px;
-            margin: 0;
+            margin: 8px 16px;
             overflow: hidden;
         }
         .plans-header {
@@ -354,7 +353,7 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
             border-bottom: 1px solid var(--vscode-panel-border);
         }
         .plans-header h3 {
-            font-size: 12px;
+            font-size: 13px;
             flex: 1;
         }
         .plans-tabs {
@@ -402,9 +401,9 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
             opacity: 0.9;
             display: block;
         }
-        body.size-small .icon-grid { grid-template-columns: repeat(3, 1fr); }
-        body.size-medium .icon-grid { grid-template-columns: repeat(4, 1fr); }
-        body.size-large .icon-grid { grid-template-columns: repeat(6, 1fr); }
+        @media (max-width: 360px) {
+            .icon-grid { grid-template-columns: repeat(4, 1fr); }
+        }
         
         /* Toast notifications */
         .toast {
@@ -441,92 +440,10 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
             padding: 16px;
             margin: 12px 16px;
         }
-        .info-card h3 { font-size: 12px; margin-bottom: 8px; }
+        .info-card h3 { font-size: 13px; margin-bottom: 8px; }
         .info-card ul { list-style: none; font-size: 12px; }
         .info-card li { padding: 4px 0; display: flex; gap: 8px; }
         .info-card .label { color: var(--vscode-descriptionForeground); min-width: 80px; }
-
-        .widget-body ul { list-style: none; font-size: 12px; }
-        .widget-body li { padding: 4px 0; display: flex; gap: 8px; }
-        .label { color: var(--vscode-descriptionForeground); min-width: 80px; }
-
-        .widget-body {
-            padding: 12px 16px;
-        }
-
-        .stacked-sections {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .stacked-section {
-            border: 1px solid var(--vscode-panel-border);
-            border-radius: 6px;
-            padding: 10px;
-            background: rgba(255, 255, 255, 0.02);
-        }
-
-        .status-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 8px;
-        }
-
-        .status-card {
-            border: 1px solid var(--vscode-panel-border);
-            border-radius: 6px;
-            padding: 8px 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            background: rgba(255, 255, 255, 0.02);
-        }
-
-        .status-label {
-            font-size: 10px;
-            color: var(--vscode-descriptionForeground);
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-
-        .status-value {
-            font-size: 12px;
-            font-weight: 600;
-            word-break: break-word;
-        }
-
-        .search-widget {
-            margin: 12px 16px 4px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .search-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            border: 1px solid var(--vscode-panel-border);
-            background: var(--vscode-editor-inactiveSelectionBackground);
-            border-radius: 6px;
-            padding: 6px 8px;
-        }
-
-        .search-row svg {
-            width: 16px;
-            height: 16px;
-            opacity: 0.85;
-        }
-
-        .search-input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            color: var(--vscode-editor-foreground);
-            font-size: 12px;
-            outline: none;
-        }
         
         /* Collapsible sections */
         .collapsible {
@@ -538,20 +455,15 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
         .collapsible-header {
             display: flex;
             align-items: center;
-            padding: 10px 14px;
+            padding: 12px 16px;
             cursor: pointer;
             user-select: none;
             gap: 8px;
-            background: transparent;
-            border: none;
-            width: 100%;
-            text-align: left;
-            color: inherit;
         }
         .collapsible-header:hover {
             background: var(--vscode-list-hoverBackground);
         }
-        .collapsible-header h3 { font-size: 12px; flex: 1; }
+        .collapsible-header h3 { font-size: 13px; flex: 1; }
         .collapsible-header .count {
             background: var(--vscode-badge-background);
             color: var(--vscode-badge-foreground);
@@ -560,10 +472,7 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
             font-size: 11px;
         }
         .collapsible-header .chevron {
-            display: inline-block;
-            transform: rotate(90deg);
             transition: transform 0.2s;
-            font-size: 12px;
         }
         .collapsible.collapsed .chevron { transform: rotate(-90deg); }
         .collapsible-content {
@@ -618,7 +527,7 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
 </head>
 <body>
     <div class="header">
-        <h2>Project Memory</h2>
+        <h2>­ƒºá Project Memory</h2>
         <div class="status">
             <span class="status-dot loading" id="statusDot"></span>
             <span id="statusText">Checking...</span>
@@ -636,15 +545,12 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
         const dashboardUrl = '${dashboardUrl}';
         const workspaceId = '${workspaceId}';
         const workspaceName = '${workspaceName}';
-        const dataRoot = ${dataRoot};
         const icons = ${iconsJson};
         
         let activePlans = [];
         let archivedPlans = [];
         let currentPlanTab = 'active';
         let recentEvents = [];
-        let hasRenderedDashboard = false;
-        let lastPlanSignature = '';
         
         // Listen for messages from the extension
         window.addEventListener('message', function(event) {
@@ -695,15 +601,6 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
             const planId = button.getAttribute('data-plan-id');
             const copyText = button.getAttribute('data-copy');
             
-            if (action === 'toggle-collapse') {
-                const targetId = button.getAttribute('data-target');
-                const targetEl = targetId ? document.getElementById(targetId) : null;
-                if (targetEl) {
-                    targetEl.classList.toggle('collapsed');
-                }
-                return;
-            }
-
             if (action === 'open-browser') {
                 vscode.postMessage({ type: 'openExternal', data: { url: dashboardUrl } });
             } else if (action === 'refresh') {
@@ -716,25 +613,8 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                 vscode.postMessage({ type: 'openPlan', data: { planId: planId, workspaceId: workspaceId } });
             } else if (action === 'copy' && copyText) {
                 vscode.postMessage({ type: 'copyToClipboard', data: { text: copyText } });
-            } else if (action === 'open-search') {
-                const input = document.getElementById('searchInput');
-                const query = input ? input.value.trim() : '';
-                openSearch(query);
             }
         });
-
-        document.addEventListener('keydown', function(e) {
-            const target = e.target;
-            if (target && target.classList && target.classList.contains('search-input') && e.key === 'Enter') {
-                const query = target.value.trim();
-                openSearch(query);
-            }
-        });
-
-        function openSearch(query) {
-            const suffix = query ? '/search?q=' + encodeURIComponent(query) : '/search';
-            vscode.postMessage({ type: 'openExternal', data: { url: dashboardUrl + suffix } });
-        }
         
         function renderPlanList(plans, type) {
             if (plans.length === 0) {
@@ -776,16 +656,6 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
             if (archivedPane) archivedPane.classList.toggle('active', currentPlanTab === 'archived');
         }
         
-        function getPlanSignature(plans) {
-            return plans.map(plan => {
-                const id = plan.id || plan.plan_id || 'unknown';
-                const status = plan.status || 'unknown';
-                const done = plan.progress?.done || 0;
-                const total = plan.progress?.total || 0;
-                return id + ':' + status + ':' + done + '/' + total;
-            }).join('|');
-        }
-
         async function fetchPlans() {
             if (!workspaceId) {
                 console.log('No workspaceId, skipping plan fetch');
@@ -798,15 +668,9 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                 if (response.ok) {
                     const data = await response.json();
                     console.log('Plans data:', data);
-                    const nextActive = (data.plans || []).filter(p => p.status === 'active');
-                    const nextArchived = (data.plans || []).filter(p => p.status === 'archived');
-                    const signature = getPlanSignature(nextActive) + '||' + getPlanSignature(nextArchived);
-                    if (signature !== lastPlanSignature) {
-                        lastPlanSignature = signature;
-                        activePlans = nextActive;
-                        archivedPlans = nextArchived;
-                        updatePlanLists();
-                    }
+                    activePlans = (data.plans || []).filter(p => p.status === 'active');
+                    archivedPlans = (data.plans || []).filter(p => p.status === 'archived');
+                    updatePlanLists();
                 }
             } catch (error) {
                 console.log('Failed to fetch plans:', error);
@@ -886,296 +750,182 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                 console.log('Failed to fetch events:', error);
             }
         }
-
-        function updateStatusCards(data) {
-            const healthValue = document.getElementById('healthStatusValue');
-            const staleValue = document.getElementById('staleStatusValue');
-            const dataRootValue = document.getElementById('dataRootValue');
-
-            if (healthValue) {
-                if (data && typeof data.status === 'string') {
-                    healthValue.textContent = data.status;
-                } else if (data && data.ok === true) {
-                    healthValue.textContent = 'Healthy';
-                } else if (data && data.ok === false) {
-                    healthValue.textContent = 'Unhealthy';
-                } else {
-                    healthValue.textContent = 'Connected';
-                }
-            }
-
-            if (staleValue) {
-                if (data && typeof data.stale_count === 'number') {
-                    staleValue.textContent = data.stale_count === 0 ? 'None' : data.stale_count + ' stale';
-                } else if (data && Array.isArray(data.stale_processes)) {
-                    staleValue.textContent = data.stale_processes.length === 0 ? 'None' : data.stale_processes.length + ' stale';
-                } else if (data && typeof data.stale === 'boolean') {
-                    staleValue.textContent = data.stale ? 'Stale' : 'Fresh';
-                } else {
-                    staleValue.textContent = 'Not available';
-                }
-            }
-
-            if (dataRootValue) {
-                dataRootValue.textContent = dataRoot || 'Unknown';
-            }
-        }
-
-        function setLayoutSize(width) {
-            document.body.classList.remove('size-small', 'size-medium', 'size-large');
-            if (width < 300) {
-                document.body.classList.add('size-small');
-            } else if (width < 420) {
-                document.body.classList.add('size-medium');
-            } else {
-                document.body.classList.add('size-large');
-            }
-        }
-
-        const sizeObserver = new ResizeObserver(entries => {
-            for (const entry of entries) {
-                setLayoutSize(entry.contentRect.width);
-            }
-        });
-        sizeObserver.observe(document.body);
-
+        
         async function checkServer() {
             const statusDot = document.getElementById('statusDot');
             const statusText = document.getElementById('statusText');
+            const content = document.getElementById('content');
             const fallback = document.getElementById('fallback');
-
+            
             try {
                 const response = await fetch('http://localhost:' + apiPort + '/api/health');
                 if (response.ok) {
                     const data = await response.json();
                     statusDot.className = 'status-dot';
                     statusText.textContent = 'Connected';
+                    
+                    // Show dashboard info with plan lists
+                    fallback.innerHTML = \`
+                        <div class="info-card">
+                            <h3>­ƒôè Server Status</h3>
+                            <ul>
+                                <li><span class="label">Status:</span> <span>Ô£ô Running</span></li>
+                                <li><span class="label">API Port:</span> <span>${apiPort}</span></li>
+                                <li><span class="label">Workspace:</span> <span>${workspaceName}</span></li>
+                            </ul>
+                        </div>
+                        <div class="info-card">
+                            <div class="icon-row-title">Quick Actions</div>
+                            <div class="icon-grid">
+                                <button class="icon-btn" data-action="open-browser" title="Open Full Dashboard">
+                                    ${iconSvgs.dashboard}
+                                </button>
+                                <button class="icon-btn" data-action="refresh" title="Refresh Status">
+                                    ${iconSvgs.syncHistory}
+                                </button>
+                                <button class="icon-btn" data-action="run-command" data-command="projectMemory.createPlan" title="Create New Plan">
+                                    ${iconSvgs.createNewPlan}
+                                </button>
+                                <button class="icon-btn" data-action="run-command" data-command="projectMemory.deployAgents" title="Deploy Agents">
+                                    ${iconSvgs.deployAgents}
+                                </button>
+                                <button class="icon-btn" data-action="run-command" data-command="projectMemory.deployInstructions" title="Deploy Instructions">
+                                    ${iconSvgs.deployInstructions}
+                                </button>
+                                <button class="icon-btn" data-action="run-command" data-command="projectMemory.deployPrompts" title="Deploy Prompts">
+                                    ${iconSvgs.deployPrompts}
+                                </button>
+                            </div>
+                        </div>
 
-                    if (!hasRenderedDashboard) {
-                        fallback.innerHTML = \`
-                            <div class="search-widget">
-                                <div class="search-row">
-                                    ${iconSvgs.searchBox}
-                                    <input class="search-input" id="searchInput" placeholder="Search across memory" />
-                                    <button class="btn btn-small" data-action="open-search">Go</button>
+                        <div class="info-card">
+                            <div class="icon-row-title">Configuration</div>
+                            <div class="icon-grid">
+                                <button class="icon-btn" data-action="run-command" data-command="projectMemory.openSettings" title="Configure Defaults">
+                                    ${iconSvgs.configureDefaults}
+                                </button>
+                                <button class="icon-btn" data-action="run-command" data-command="projectMemory.deployDefaults" title="Deploy All Defaults">
+                                    ${iconSvgs.deployAllDefaults}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="info-card">
+                            <div class="icon-row-title">Context</div>
+                            <div class="icon-grid">
+                                <button class="icon-btn" data-action="open-browser" title="Add Context Note">
+                                    ${iconSvgs.addContextNote}
+                                </button>
+                                <button class="icon-btn" data-action="open-browser" title="Add Research Note">
+                                    ${iconSvgs.researchNote}
+                                </button>
+                                <button class="icon-btn" data-action="open-browser" title="View Context Files">
+                                    ${iconSvgs.contextFilesGrid}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="info-card">
+                            <div class="icon-row-title">Plan Shortcuts</div>
+                            <div class="icon-grid">
+                                <button class="icon-btn" data-action="open-browser" title="Resume Plan">
+                                    ${iconSvgs.resumePlan}
+                                </button>
+                                <button class="icon-btn" data-action="open-browser" title="Archive Plan">
+                                    ${iconSvgs.archive}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="plans-widget">
+                            <div class="plans-header">
+                                <h3>­ƒôï Plans</h3>
+                                <span class="label">Tabs</span>
+                            </div>
+                            <div class="plans-tabs">
+                                <button class="plans-tab active" id="plansTabActive" data-tab="active">
+                                    Active <span class="count" id="activeCount">0</span>
+                                </button>
+                                <button class="plans-tab" id="plansTabArchived" data-tab="archived">
+                                    Archived <span class="count" id="archivedCount">0</span>
+                                </button>
+                            </div>
+                            <div class="plans-content">
+                                <div class="plans-pane active" id="plansPaneActive">
+                                    <div id="plansListActive">
+                                        <div class="empty-state">Loading...</div>
+                                    </div>
+                                </div>
+                                <div class="plans-pane" id="plansPaneArchived">
+                                    <div id="plansListArchived">
+                                        <div class="empty-state">Loading...</div>
+                                    </div>
                                 </div>
                             </div>
+                        </div>
 
-                            <section class="collapsible" id="widget-server">
-                                <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-server">
-                                    <span class="chevron">></span>
-                                    <h3>Server Status</h3>
+                        <div class="info-card">
+                            <div class="icon-row-title">Recent Activity</div>
+                            <div class="activity-list" id="activityList">
+                                <div class="empty-state">Loading activity...</div>
+                            </div>
+                        </div>
+
+                        <div class="info-card">
+                            <div class="icon-row-title">Build, Health & System</div>
+                            <div class="icon-grid">
+                                <button class="icon-btn" data-action="open-browser" title="Build Scripts">
+                                    ${iconSvgs.buildScript}
                                 </button>
-                                <div class="collapsible-content">
-                                    <div class="widget-body">
-                                        <ul>
-                                            <li><span class="label">Status:</span> <span>Running</span></li>
-                                            <li><span class="label">API Port:</span> <span>\${apiPort}</span></li>
-                                            <li><span class="label">Workspace:</span> <span>\${workspaceName}</span></li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </section>
-
-                            <section class="collapsible" id="widget-status">
-                                <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-status">
-                                    <span class="chevron">></span>
-                                    <h3>Status</h3>
+                                <button class="icon-btn" data-action="open-browser" title="Run Script">
+                                    ${iconSvgs.runButton}
                                 </button>
-                                <div class="collapsible-content">
-                                    <div class="widget-body">
-                                        <div class="status-grid">
-                                            <div class="status-card">
-                                                <div class="status-label">Workspace Health</div>
-                                                <div class="status-value" id="healthStatusValue">Checking...</div>
-                                            </div>
-                                            <div class="status-card">
-                                                <div class="status-label">Stale/Stop</div>
-                                                <div class="status-value" id="staleStatusValue">Checking...</div>
-                                            </div>
-                                            <div class="status-card">
-                                                <div class="status-label">Data Root</div>
-                                                <div class="status-value" id="dataRootValue">Loading...</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </section>
-
-                            <section class="collapsible" id="widget-actions">
-                                <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-actions">
-                                    <span class="chevron">></span>
-                                    <h3>Actions Panel</h3>
+                                <button class="icon-btn" data-action="open-browser" title="Stale/Stop Status">
+                                    ${iconSvgs.stopStale}
                                 </button>
-                                <div class="collapsible-content">
-                                    <div class="widget-body">
-                                        <div class="icon-grid">
-                                            <button class="icon-btn" data-action="open-browser" title="Open Full Dashboard">
-                                                ${iconSvgs.dashboard}
-                                            </button>
-                                            <button class="icon-btn" data-action="refresh" title="Refresh Status">
-                                                ${iconSvgs.syncHistory}
-                                            </button>
-                                            <button class="icon-btn" data-action="run-command" data-command="projectMemory.createPlan" title="Create New Plan">
-                                                ${iconSvgs.createNewPlan}
-                                            </button>
-                                            <button class="icon-btn" data-action="run-command" data-command="projectMemory.deployAgents" title="Deploy Agents">
-                                                ${iconSvgs.deployAgents}
-                                            </button>
-                                            <button class="icon-btn" data-action="run-command" data-command="projectMemory.deployInstructions" title="Deploy Instructions">
-                                                ${iconSvgs.deployInstructions}
-                                            </button>
-                                            <button class="icon-btn" data-action="run-command" data-command="projectMemory.deployPrompts" title="Deploy Prompts">
-                                                ${iconSvgs.deployPrompts}
-                                            </button>
-                                            <button class="icon-btn" data-action="open-browser" title="Resume Plan">
-                                                ${iconSvgs.resumePlan}
-                                            </button>
-                                            <button class="icon-btn" data-action="open-browser" title="Archive Plan">
-                                                ${iconSvgs.archive}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </section>
-
-                            <section class="collapsible" id="widget-config-context">
-                                <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-config-context">
-                                    <span class="chevron">></span>
-                                    <h3>Configuration & Context</h3>
+                                <button class="icon-btn" data-action="open-browser" title="Workspace Health">
+                                    ${iconSvgs.healthBadge}
                                 </button>
-                                <div class="collapsible-content">
-                                    <div class="widget-body">
-                                        <div class="stacked-sections">
-                                            <div class="stacked-section">
-                                                <div class="icon-row-title">Configuration</div>
-                                                <div class="icon-grid">
-                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemory.openSettings" title="Configure Defaults">
-                                                        ${iconSvgs.configureDefaults}
-                                                    </button>
-                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemory.deployDefaults" title="Deploy All Defaults">
-                                                        ${iconSvgs.deployAllDefaults}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div class="stacked-section">
-                                                <div class="icon-row-title">Context</div>
-                                                <div class="icon-grid">
-                                                    <button class="icon-btn" data-action="open-browser" title="Add Context Note">
-                                                        ${iconSvgs.addContextNote}
-                                                    </button>
-                                                    <button class="icon-btn" data-action="open-browser" title="Add Research Note">
-                                                        ${iconSvgs.researchNote}
-                                                    </button>
-                                                    <button class="icon-btn" data-action="open-browser" title="View Context Files">
-                                                        ${iconSvgs.contextFilesGrid}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </section>
-
-                            <section class="collapsible" id="widget-plans">
-                                <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-plans">
-                                    <span class="chevron">></span>
-                                    <h3>Plans</h3>
+                                <button class="icon-btn" data-action="open-browser" title="Data Root">
+                                    ${iconSvgs.dataRoot}
                                 </button>
-                                <div class="collapsible-content">
-                                    <div class="plans-widget">
-                                        <div class="plans-header">
-                                            <h3>Plans</h3>
-                                        </div>
-                                        <div class="plans-tabs">
-                                            <button class="plans-tab active" id="plansTabActive" data-tab="active">
-                                                Active <span class="count" id="activeCount">0</span>
-                                            </button>
-                                            <button class="plans-tab" id="plansTabArchived" data-tab="archived">
-                                                Archived <span class="count" id="archivedCount">0</span>
-                                            </button>
-                                        </div>
-                                        <div class="plans-content">
-                                            <div class="plans-pane active" id="plansPaneActive">
-                                                <div id="plansListActive">
-                                                    <div class="empty-state">Loading...</div>
-                                                </div>
-                                            </div>
-                                            <div class="plans-pane" id="plansPaneArchived">
-                                                <div id="plansListArchived">
-                                                    <div class="empty-state">Loading...</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </section>
-
-                            <section class="collapsible" id="widget-activity">
-                                <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-activity">
-                                    <span class="chevron">></span>
-                                    <h3>Recent Activity</h3>
+                                <button class="icon-btn" data-action="open-browser" title="Agent Handoff">
+                                    ${iconSvgs.agentHandoff}
                                 </button>
-                                <div class="collapsible-content">
-                                    <div class="widget-body">
-                                        <div class="activity-list" id="activityList">
-                                            <div class="empty-state">Loading activity...</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </section>
+                            </div>
+                        </div>
 
-                            <section class="collapsible" id="widget-build">
-                                <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-build">
-                                    <span class="chevron">></span>
-                                    <h3>Build & System</h3>
+                        <div class="info-card">
+                            <div class="icon-row-title">Search</div>
+                            <div class="icon-grid">
+                                <button class="icon-btn" data-action="open-browser" title="Open Search">
+                                    ${iconSvgs.searchBox}
                                 </button>
-                                <div class="collapsible-content">
-                                    <div class="widget-body">
-                                        <div class="icon-grid">
-                                            <button class="icon-btn" data-action="open-browser" title="Build Scripts">
-                                                ${iconSvgs.buildScript}
-                                            </button>
-                                            <button class="icon-btn" data-action="open-browser" title="Run Script">
-                                                ${iconSvgs.runButton}
-                                            </button>
-                                            <button class="icon-btn" data-action="open-browser" title="Agent Handoff">
-                                                ${iconSvgs.agentHandoff}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </section>
-                        \`;
-                        hasRenderedDashboard = true;
-                    }
-
-                    updateStatusCards(data);
+                            </div>
+                        </div>
+                    \`;
+                    
+                    // Fetch plans after rendering
                     fetchPlans();
                     fetchEvents();
                 } else {
                     throw new Error('Server returned ' + response.status);
                 }
             } catch (error) {
-                const errorText = error && error.message ? error.message : String(error);
-                console.error('Health check failed:', errorText);
                 statusDot.className = 'status-dot error';
                 statusText.textContent = 'Disconnected';
-                hasRenderedDashboard = false;
                 fallback.innerHTML = \`
                     <p>Dashboard server is not running</p>
-                    <p style="margin-top: 8px; color: var(--vscode-descriptionForeground); font-size: 11px;">Health check: ${'${'}errorText}</p>
                     <button class="btn" data-action="run-command" data-command="projectMemory.startServer">Start Server</button>
                     <button class="btn btn-secondary" data-action="refresh">Retry</button>
                     <div class="info-card" style="margin-top: 20px;">
-                        <h3>Troubleshooting</h3>
+                        <h3>­ƒÆí Troubleshooting</h3>
                         <ul>
                             <li>Check if port \${apiPort} is available</li>
                             <li>View server logs for errors</li>
                             <li>Try restarting the server</li>
                         </ul>
                         <button class="btn btn-secondary" style="margin-top: 12px" data-action="run-command" data-command="projectMemory.showServerLogs">Show Server Logs</button>
-                        <button class="btn btn-secondary" style="margin-top: 12px" data-action="run-command" data-command="projectMemory.forceStopExternalServer">Force Stop External Server</button>
                     </div>
                 \`;
             }

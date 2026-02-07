@@ -59,6 +59,10 @@ export class ToolProvider implements vscode.Disposable {
         this.registerTools();
     }
 
+    public resetWorkspace(): void {
+        this.workspaceId = null;
+    }
+
     /**
      * Register all language model tools
      */

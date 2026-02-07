@@ -1215,3 +1215,44 @@ plansRouter.post('/:planId/build-scripts/:scriptId/run', async (req, res) => {
     res.status(500).json({ error: 'Failed to run build script', message: error.message });
   }
 });
+
+// POST /api/plans/:workspaceId/:planId/resume - Resume an archived plan
+plansRouter.post('/:workspaceId/:planId/resume', async (req, res) => {
+  try {
+    const { workspaceId, planId } = req.params;
+
+    const statePath = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'plans', planId, 'state.json');
+    const content = await fs.readFile(statePath, 'utf-8');
+    const state = JSON.parse(content);
+
+    state.status = 'active';
+    state.archived_at = null;
+    state.updated_at = new Date().toISOString();
+
+    await fs.writeFile(statePath, JSON.stringify(state, null, 2));
+
+    // Update workspace meta: add to active_plans, remove from archived_plans
+    const metaPath = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'workspace.meta.json');
+    try {
+      const metaContent = await fs.readFile(metaPath, 'utf-8');
+      const meta = JSON.parse(metaContent);
+      if (!meta.active_plans.includes(planId)) {
+        meta.active_plans.push(planId);
+      }
+      meta.archived_plans = meta.archived_plans.filter((p: string) => p !== planId);
+      meta.last_accessed = new Date().toISOString();
+      await fs.writeFile(metaPath, JSON.stringify(meta, null, 2));
+    } catch (e) {
+      console.warn('Could not update workspace meta:', e);
+    }
+
+    await emitEvent('plan_resumed', {
+      plan_title: state.title,
+    }, { workspace_id: workspaceId, plan_id: planId });
+
+    res.json({ success: true, plan: state });
+  } catch (error) {
+    console.error('Error resuming plan:', error);
+    res.status(500).json({ error: 'Failed to resume plan' });
+  }
+});

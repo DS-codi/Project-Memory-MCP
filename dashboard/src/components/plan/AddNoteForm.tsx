@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { StickyNote, Info, AlertTriangle, MessageSquare } from 'lucide-react';
@@ -9,13 +9,20 @@ interface AddNoteFormProps {
   workspaceId: string;
   planId: string;
   onSuccess?: () => void;
+  autoExpand?: boolean;
 }
 
-export function AddNoteForm({ workspaceId, planId, onSuccess }: AddNoteFormProps) {
+export function AddNoteForm({ workspaceId, planId, onSuccess, autoExpand = false }: AddNoteFormProps) {
   const [note, setNote] = useState('');
   const [type, setType] = useState<PlanNoteType>('info');
   const [isExpanded, setIsExpanded] = useState(false);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (autoExpand) {
+      setIsExpanded(true);
+    }
+  }, [autoExpand]);
 
   const addNoteMutation = useMutation({
     mutationFn: async (params: { note: string; type: PlanNoteType }) => {

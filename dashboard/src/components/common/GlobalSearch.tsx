@@ -25,6 +25,7 @@ interface SearchResult {
 interface GlobalSearchProps {
   isOpen: boolean;
   onClose: () => void;
+  initialQuery?: string | null;
 }
 
 async function performSearch(query: string): Promise<SearchResult[]> {
@@ -36,7 +37,7 @@ async function performSearch(query: string): Promise<SearchResult[]> {
   return data.results;
 }
 
-export function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
+export function GlobalSearch({ isOpen, onClose, initialQuery }: GlobalSearchProps) {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
@@ -53,10 +54,10 @@ export function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
   useEffect(() => {
     if (isOpen) {
       inputRef.current?.focus();
-      setQuery('');
+      setQuery(initialQuery ?? '');
       setSelectedIndex(0);
     }
-  }, [isOpen]);
+  }, [isOpen, initialQuery]);
 
   // Keyboard navigation
   const handleKeyDown = useCallback((e: KeyboardEvent) => {

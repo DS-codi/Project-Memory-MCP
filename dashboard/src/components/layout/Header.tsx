@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Search, Settings, RefreshCw } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ThemeToggle } from '../common/ThemeToggle';
@@ -8,8 +9,11 @@ import { GlobalSearch } from '../common/GlobalSearch';
 export function Header() {
   const [showSearch, setShowSearch] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [initialSearchQuery, setInitialSearchQuery] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
   // Keyboard shortcut for search (Ctrl+K or Cmd+K)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -21,6 +25,17 @@ export function Header() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const query = params.get('search');
+    if (query !== null) {
+      setInitialSearchQuery(query);
+      setShowSearch(true);
+      params.delete('search');
+      navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+    }
+  }, [location.pathname, location.search, navigate]);
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await queryClient.invalidateQueries();
@@ -72,7 +87,14 @@ export function Header() {
       </header>
       
       <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
-      <GlobalSearch isOpen={showSearch} onClose={() => setShowSearch(false)} />
+      <GlobalSearch
+        isOpen={showSearch}
+        onClose={() => {
+          setShowSearch(false);
+          setInitialSearchQuery(null);
+        }}
+        initialQuery={initialSearchQuery}
+      />
     </>
   );
 }

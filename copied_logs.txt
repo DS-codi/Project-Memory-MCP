@@ -1,649 +1,93 @@
-workbench.desktop.main.js:38  INFO Started local extension host with pid 37128.
-workbench.desktop.main.js:548  GET vscode-file://vscode-app/c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/bdd88df003/resources/app/node_modules/@xterm/addon-ligatures/lib/addon-ligatures.js net::ERR_FILE_NOT_FOUND
-(anonymous) @ workbench.desktop.main.js:548
-h @ workbench.desktop.main.js:548
-load @ workbench.desktop.main.js:548
-Dp @ workbench.desktop.main.js:548
-importAddon @ workbench.desktop.main.js:2997
-X @ workbench.desktop.main.js:3300
-Q @ workbench.desktop.main.js:3298
-(anonymous) @ workbench.desktop.main.js:104
-setTimeout
-e.setTimeout @ workbench.desktop.main.js:824
-(anonymous) @ workbench.desktop.main.js:104
-P @ workbench.desktop.main.js:3298
-W @ workbench.desktop.main.js:3298
-U @ workbench.desktop.main.js:3298
-(anonymous) @ workbench.desktop.main.js:3298
-setTimeout
-e.setTimeout @ workbench.desktop.main.js:824
-write @ xterm.js:1
-write @ xterm.js:1
-write @ xterm.js:1
-Tc @ workbench.desktop.main.js:3136
-Sc @ workbench.desktop.main.js:3136
-(anonymous) @ workbench.desktop.main.js:3133
-C @ workbench.desktop.main.js:29
-D @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-(anonymous) @ workbench.desktop.main.js:3131
-C @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-(anonymous) @ workbench.desktop.main.js:3133
-C @ workbench.desktop.main.js:29
-D @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-handleData @ workbench.desktop.main.js:3113
-(anonymous) @ workbench.desktop.main.js:4432
-C @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-C @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-l @ workbench.desktop.main.js:571
-t @ workbench.desktop.main.js:571
-s @ workbench.desktop.main.js:571
-(anonymous) @ workbench.desktop.main.js:570
-C @ workbench.desktop.main.js:29
-D @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-fe @ workbench.desktop.main.js:27
-workbench.desktop.main.js:38   ERR An unknown error occurred. Please consult the log for more details.
-error @ workbench.desktop.main.js:38
-error @ workbench.desktop.main.js:38
-error @ workbench.desktop.main.js:4142
-oc @ workbench.desktop.main.js:4139
-(anonymous) @ workbench.desktop.main.js:4139
-onUnexpectedError @ workbench.desktop.main.js:7
-Dt @ workbench.desktop.main.js:7
-(anonymous) @ workbench.desktop.main.js:4139
-workbench.desktop.main.js:38   ERR [Extension Host] (node:37128) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
-(Use `Code --trace-deprecation ...` to show where the warning was created)
-error @ workbench.desktop.main.js:38
-error @ workbench.desktop.main.js:38
-error @ workbench.desktop.main.js:4142
-HTs @ workbench.desktop.main.js:537
-$logExtensionHostMessage @ workbench.desktop.main.js:537
-S @ workbench.desktop.main.js:4183
-Q @ workbench.desktop.main.js:4183
-M @ workbench.desktop.main.js:4183
-L @ workbench.desktop.main.js:4183
-(anonymous) @ workbench.desktop.main.js:4183
-C @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:571
-(anonymous) @ workbench.desktop.main.js:4198
-workbench.desktop.main.js:537 [Extension Host] (node:37128) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
-(Use `Code --trace-deprecation ...` to show where the warning was created)
-VTs @ workbench.desktop.main.js:537
-$logExtensionHostMessage @ workbench.desktop.main.js:537
-S @ workbench.desktop.main.js:4183
-Q @ workbench.desktop.main.js:4183
-M @ workbench.desktop.main.js:4183
-L @ workbench.desktop.main.js:4183
-(anonymous) @ workbench.desktop.main.js:4183
-C @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:571
-(anonymous) @ workbench.desktop.main.js:4198
-workbench.desktop.main.js:4148  GET https://marketplace.visualstudio.com/_apis/public/gallery/vscode/robocorp/robotframework-lsp/latest 404 (Not Found)
-pTn @ workbench.desktop.main.js:4148
-(anonymous) @ workbench.desktop.main.js:4148
-c @ workbench.desktop.main.js:517
-request @ workbench.desktop.main.js:4148
-O @ workbench.desktop.main.js:1369
-await in O
-N @ workbench.desktop.main.js:1369
-C @ workbench.desktop.main.js:1369
-(anonymous) @ workbench.desktop.main.js:1369
-B @ workbench.desktop.main.js:1369
-getExtensions @ workbench.desktop.main.js:1369
-await in getExtensions
-checkForUpdates @ workbench.desktop.main.js:2777
-await in checkForUpdates
-(anonymous) @ workbench.desktop.main.js:2777
-queue @ workbench.desktop.main.js:30
-(anonymous) @ workbench.desktop.main.js:30
-(anonymous) @ workbench.desktop.main.js:30
-Promise.then
-trigger @ workbench.desktop.main.js:30
-trigger @ workbench.desktop.main.js:30
-Rb @ workbench.desktop.main.js:2777
-tb @ workbench.desktop.main.js:2777
-sb @ workbench.desktop.main.js:2777
-workbench.desktop.main.js:4148  GET https://marketplace.visualstudio.com/_apis/public/gallery/vscode/project-memory/project-memory-dashboard/latest 404 (Not Found)
-pTn @ workbench.desktop.main.js:4148
-(anonymous) @ workbench.desktop.main.js:4148
-c @ workbench.desktop.main.js:517
-request @ workbench.desktop.main.js:4148
-O @ workbench.desktop.main.js:1369
-await in O
-N @ workbench.desktop.main.js:1369
-C @ workbench.desktop.main.js:1369
-(anonymous) @ workbench.desktop.main.js:1369
-B @ workbench.desktop.main.js:1369
-getExtensions @ workbench.desktop.main.js:1369
-await in getExtensions
-checkForUpdates @ workbench.desktop.main.js:2777
-await in checkForUpdates
-(anonymous) @ workbench.desktop.main.js:2777
-queue @ workbench.desktop.main.js:30
-(anonymous) @ workbench.desktop.main.js:30
-(anonymous) @ workbench.desktop.main.js:30
-Promise.then
-trigger @ workbench.desktop.main.js:30
-trigger @ workbench.desktop.main.js:30
-Rb @ workbench.desktop.main.js:2777
-tb @ workbench.desktop.main.js:2777
-sb @ workbench.desktop.main.js:2777
-workbench.desktop.main.js:38   ERR [Extension Host] (node:37128) ExperimentalWarning: SQLite is an experimental feature and might change at any time
-error @ workbench.desktop.main.js:38
-error @ workbench.desktop.main.js:38
-error @ workbench.desktop.main.js:4142
-HTs @ workbench.desktop.main.js:537
-$logExtensionHostMessage @ workbench.desktop.main.js:537
-S @ workbench.desktop.main.js:4183
-Q @ workbench.desktop.main.js:4183
-M @ workbench.desktop.main.js:4183
-L @ workbench.desktop.main.js:4183
-(anonymous) @ workbench.desktop.main.js:4183
-C @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:571
-(anonymous) @ workbench.desktop.main.js:4198
-workbench.desktop.main.js:537 [Extension Host] (node:37128) ExperimentalWarning: SQLite is an experimental feature and might change at any time
-VTs @ workbench.desktop.main.js:537
-$logExtensionHostMessage @ workbench.desktop.main.js:537
-S @ workbench.desktop.main.js:4183
-Q @ workbench.desktop.main.js:4183
-M @ workbench.desktop.main.js:4183
-L @ workbench.desktop.main.js:4183
-(anonymous) @ workbench.desktop.main.js:4183
-C @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:571
-(anonymous) @ workbench.desktop.main.js:4198
-workbench.desktop.main.js:4148  GET https://marketplace.visualstudio.com/_apis/public/gallery/vscode/oracle/oracledevtools/latest 404 (Not Found)
-pTn @ workbench.desktop.main.js:4148
-(anonymous) @ workbench.desktop.main.js:4148
-c @ workbench.desktop.main.js:517
-request @ workbench.desktop.main.js:4148
-O @ workbench.desktop.main.js:1369
-await in O
-N @ workbench.desktop.main.js:1369
-C @ workbench.desktop.main.js:1369
-(anonymous) @ workbench.desktop.main.js:1369
-B @ workbench.desktop.main.js:1369
-getExtensions @ workbench.desktop.main.js:1369
-await in getExtensions
-getExtensions @ workbench.desktop.main.js:2777
-await in getExtensions
-Rc @ workbench.desktop.main.js:2773
-$c @ workbench.desktop.main.js:2773
-await in $c
-Qc @ workbench.desktop.main.js:2773
-Mc @ workbench.desktop.main.js:2773
-wc @ workbench.desktop.main.js:2773
-(anonymous) @ workbench.desktop.main.js:2773
-so @ workbench.desktop.main.js:30
-show @ workbench.desktop.main.js:2773
-show @ workbench.desktop.main.js:2773
-(anonymous) @ workbench.desktop.main.js:2773
-uc @ workbench.desktop.main.js:2773
-ub @ workbench.desktop.main.js:2773
-(anonymous) @ workbench.desktop.main.js:606
-C @ workbench.desktop.main.js:29
-D @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-I @ workbench.desktop.main.js:1371
-add @ workbench.desktop.main.js:1371
-sb @ workbench.desktop.main.js:1371
-N @ workbench.desktop.main.js:1371
-(anonymous) @ workbench.desktop.main.js:1371
-(anonymous) @ workbench.desktop.main.js:1371
-bufferChangeEvents @ workbench.desktop.main.js:1374
-Q @ workbench.desktop.main.js:1371
-(anonymous) @ workbench.desktop.main.js:1371
-C @ workbench.desktop.main.js:29
-D @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-registerViews2 @ workbench.desktop.main.js:581
-registerViews @ workbench.desktop.main.js:581
-h @ workbench.desktop.main.js:2773
-bvt @ workbench.desktop.main.js:2773
-o @ workbench.desktop.main.js:1412
-createInstance @ workbench.desktop.main.js:1412
-F @ workbench.desktop.main.js:506
-l @ workbench.desktop.main.js:506
-requestIdleCallback
-vJ @ workbench.desktop.main.js:30
-j4 @ workbench.desktop.main.js:30
-l @ workbench.desktop.main.js:506
-requestIdleCallback
-vJ @ workbench.desktop.main.js:30
-j4 @ workbench.desktop.main.js:30
-l @ workbench.desktop.main.js:506
-requestIdleCallback
-vJ @ workbench.desktop.main.js:30
-j4 @ workbench.desktop.main.js:30
-l @ workbench.desktop.main.js:506
-requestIdleCallback
-vJ @ workbench.desktop.main.js:30
-j4 @ workbench.desktop.main.js:30
-l @ workbench.desktop.main.js:506
-requestIdleCallback
-vJ @ workbench.desktop.main.js:30
-j4 @ workbench.desktop.main.js:30
-l @ workbench.desktop.main.js:506
-requestIdleCallback
-vJ @ workbench.desktop.main.js:30
-j4 @ workbench.desktop.main.js:30
-l @ workbench.desktop.main.js:506
-requestIdleCallback
-vJ @ workbench.desktop.main.js:30
-j4 @ workbench.desktop.main.js:30
-l @ workbench.desktop.main.js:506
-workbench.desktop.main.js:38  INFO MCP Registry configured: https://api.mcp.github.com
-workbench.desktop.main.js:537 [Extension Host] Project Memory Dashboard extension activating...
-workbench.desktop.main.js:537 [Extension Host] [MCP Bridge] GET http://localhost:3001/api/health
-workbench.desktop.main.js:537 [Extension Host] Chat integration initialized
-workbench.desktop.main.js:537 [Extension Host] Agent watcher started for: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\agents\*.agent.md
-workbench.desktop.main.js:537 [Extension Host] agent watcher started for: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\agents\*.agent.md
-workbench.desktop.main.js:537 [Extension Host] prompt watcher started for: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\prompts\*.prompt.md
-workbench.desktop.main.js:537 [Extension Host] instruction watcher started for: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\instructions\*.instructions.md
-workbench.desktop.main.js:537 [Extension Host] Project Memory Dashboard extension activated
-workbench.desktop.main.js:568 [project-memory.project-memory-dashboard]Ee?.resetWorkspace is not a function
-$onExtensionRuntimeError @ workbench.desktop.main.js:568
-S @ workbench.desktop.main.js:4183
-Q @ workbench.desktop.main.js:4183
-M @ workbench.desktop.main.js:4183
-L @ workbench.desktop.main.js:4183
-(anonymous) @ workbench.desktop.main.js:4183
-C @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:571
-(anonymous) @ workbench.desktop.main.js:4198
-workbench.desktop.main.js:568 TypeError: Ee?.resetWorkspace is not a function
-	at Xd.value (c:\Users\User\.vscode\extensions\project-memory.project-memory-dashboard-0.2.0\out\extension.js:905:1817)
-	at I.C (file:///c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/bdd88df003/resources/app/out/vs/workbench/api/node/extensionHostProcess.js:27:2328)
-	at I.fire (file:///c:/Users/User/AppData/Local/Programs/Microsoft%20VS%20Code/bdd88df003/resources/app/out/vs/workbench/api/node/extensionHostProcess.js:27:2546)
-	at Ye.connect (c:\Users\User\.vscode\extensions\project-memory.project-memory-dashboard-0.2.0\out\extension.js:815:1024)
-	at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
-$onExtensionRuntimeError @ workbench.desktop.main.js:568
-S @ workbench.desktop.main.js:4183
-Q @ workbench.desktop.main.js:4183
-M @ workbench.desktop.main.js:4183
-L @ workbench.desktop.main.js:4183
-(anonymous) @ workbench.desktop.main.js:4183
-C @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:571
-(anonymous) @ workbench.desktop.main.js:4198
-workbench.desktop.main.js:38   ERR An unknown error occurred. Please consult the log for more details.
-error @ workbench.desktop.main.js:38
-error @ workbench.desktop.main.js:38
-error @ workbench.desktop.main.js:4142
-oc @ workbench.desktop.main.js:4139
-(anonymous) @ workbench.desktop.main.js:4139
-onUnexpectedError @ workbench.desktop.main.js:7
-Dt @ workbench.desktop.main.js:7
-$onUnexpectedError @ workbench.desktop.main.js:568
-S @ workbench.desktop.main.js:4183
-Q @ workbench.desktop.main.js:4183
-M @ workbench.desktop.main.js:4183
-L @ workbench.desktop.main.js:4183
-(anonymous) @ workbench.desktop.main.js:4183
-C @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:571
-(anonymous) @ workbench.desktop.main.js:4198
-workbench.desktop.main.js:537 [Extension Host] [MCP Bridge] Connected to shared server at localhost:3001
-workbench.desktop.main.js:537 [Extension Host] [MCP Bridge] Data root: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\data
-workbench.desktop.main.js:537 [Extension Host] MCP Bridge connected
-workbench.desktop.main.js:38  INFO Settings Sync: Account status changed from uninitialized to available
-workbench.desktop.main.js:4148  GET https://api.github.com/copilot/mcp_registry 404 (Not Found)
-pTn @ workbench.desktop.main.js:4148
-(anonymous) @ workbench.desktop.main.js:4148
-c @ workbench.desktop.main.js:517
-request @ workbench.desktop.main.js:4148
-bb @ workbench.desktop.main.js:1376
-ab @ workbench.desktop.main.js:1376
-U @ workbench.desktop.main.js:1376
-workbench.desktop.main.js:4148  GET https://api.github.com/copilot/mcp_registry 404 (Not Found)
-pTn @ workbench.desktop.main.js:4148
-(anonymous) @ workbench.desktop.main.js:4148
-c @ workbench.desktop.main.js:517
-request @ workbench.desktop.main.js:4148
-bb @ workbench.desktop.main.js:1376
-await in bb
-ab @ workbench.desktop.main.js:1376
-U @ workbench.desktop.main.js:1376
-workbench.desktop.main.js:38  INFO [perf] Render performance baseline is 28ms
-workbench.desktop.main.js:4148  GET https://api.github.com/copilot/mcp_registry 404 (Not Found)
-pTn @ workbench.desktop.main.js:4148
-(anonymous) @ workbench.desktop.main.js:4148
-c @ workbench.desktop.main.js:517
-request @ workbench.desktop.main.js:4148
-bb @ workbench.desktop.main.js:1376
-await in bb
-ab @ workbench.desktop.main.js:1376
-U @ workbench.desktop.main.js:1376
-workbench.desktop.main.js:4148  GET https://api.github.com/copilot/mcp_registry 404 (Not Found)
-pTn @ workbench.desktop.main.js:4148
-(anonymous) @ workbench.desktop.main.js:4148
-c @ workbench.desktop.main.js:517
-request @ workbench.desktop.main.js:4148
-bb @ workbench.desktop.main.js:1376
-await in bb
-ab @ workbench.desktop.main.js:1376
-U @ workbench.desktop.main.js:1376
-workbench.desktop.main.js:4148  GET https://api.github.com/copilot/mcp_registry 404 (Not Found)
-pTn @ workbench.desktop.main.js:4148
-(anonymous) @ workbench.desktop.main.js:4148
-c @ workbench.desktop.main.js:517
-request @ workbench.desktop.main.js:4148
-bb @ workbench.desktop.main.js:1376
-ab @ workbench.desktop.main.js:1376
-U @ workbench.desktop.main.js:1376
-workbench.desktop.main.js:4148  GET https://api.github.com/copilot/mcp_registry 404 (Not Found)
-pTn @ workbench.desktop.main.js:4148
-(anonymous) @ workbench.desktop.main.js:4148
-c @ workbench.desktop.main.js:517
-request @ workbench.desktop.main.js:4148
-bb @ workbench.desktop.main.js:1376
-await in bb
-ab @ workbench.desktop.main.js:1376
-U @ workbench.desktop.main.js:1376
-workbench.desktop.main.js:4148  GET https://api.github.com/copilot/mcp_registry 404 (Not Found)
-pTn @ workbench.desktop.main.js:4148
-(anonymous) @ workbench.desktop.main.js:4148
-c @ workbench.desktop.main.js:517
-request @ workbench.desktop.main.js:4148
-bb @ workbench.desktop.main.js:1376
-await in bb
-ab @ workbench.desktop.main.js:1376
-U @ workbench.desktop.main.js:1376
-workbench.desktop.main.js:4442 Unrecognized feature: 'local-network-access'.
-gb @ workbench.desktop.main.js:4442
-RFe @ workbench.desktop.main.js:4442
-yPt @ workbench.desktop.main.js:4442
-o @ workbench.desktop.main.js:1412
-createInstance @ workbench.desktop.main.js:1412
-createWebviewElement @ workbench.desktop.main.js:4442
-P @ workbench.desktop.main.js:4442
-claim @ workbench.desktop.main.js:4442
-oc @ workbench.desktop.main.js:707
-(anonymous) @ workbench.desktop.main.js:707
-C @ workbench.desktop.main.js:29
-D @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-setVisible @ workbench.desktop.main.js:584
-(anonymous) @ workbench.desktop.main.js:606
-setVisible @ workbench.desktop.main.js:606
-setVisible @ workbench.desktop.main.js:700
-Eb @ workbench.desktop.main.js:824
-Eb @ workbench.desktop.main.js:831
-Cb @ workbench.desktop.main.js:824
-Bb @ workbench.desktop.main.js:824
-Bc @ workbench.desktop.main.js:831
-openPaneComposite @ workbench.desktop.main.js:831
-run @ workbench.desktop.main.js:831
-u @ workbench.desktop.main.js:35
-run @ workbench.desktop.main.js:35
-onClick @ workbench.desktop.main.js:431
-(anonymous) @ workbench.desktop.main.js:431
-workbench.desktop.main.js:4442 An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing.
-mountTo @ workbench.desktop.main.js:4442
-P @ workbench.desktop.main.js:4442
-claim @ workbench.desktop.main.js:4442
-oc @ workbench.desktop.main.js:707
-(anonymous) @ workbench.desktop.main.js:707
-C @ workbench.desktop.main.js:29
-D @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-setVisible @ workbench.desktop.main.js:584
-(anonymous) @ workbench.desktop.main.js:606
-setVisible @ workbench.desktop.main.js:606
-setVisible @ workbench.desktop.main.js:700
-Eb @ workbench.desktop.main.js:824
-Eb @ workbench.desktop.main.js:831
-Cb @ workbench.desktop.main.js:824
-Bb @ workbench.desktop.main.js:824
-Bc @ workbench.desktop.main.js:831
-openPaneComposite @ workbench.desktop.main.js:831
-run @ workbench.desktop.main.js:831
-u @ workbench.desktop.main.js:35
-run @ workbench.desktop.main.js:35
-onClick @ workbench.desktop.main.js:431
-(anonymous) @ workbench.desktop.main.js:431
-workbench.desktop.main.js:4148  GET https://api.github.com/copilot/mcp_registry 404 (Not Found)
-pTn @ workbench.desktop.main.js:4148
-(anonymous) @ workbench.desktop.main.js:4148
-c @ workbench.desktop.main.js:517
-request @ workbench.desktop.main.js:4148
-bb @ workbench.desktop.main.js:1376
-await in bb
-ab @ workbench.desktop.main.js:1376
-U @ workbench.desktop.main.js:1376
-index.html?id=a128a11f-defd-4833-a1c6-32b57bcb488c&parentId=1&origin=86a05687-a5fb-4c9b-955d-dff36647525c&swVersion=4&extensionId=project-memory.project-memory-dashboard&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app&purpose=webviewView:1060 Unrecognized feature: 'local-network-access'.
-(anonymous) @ index.html?id=a128a11f-defd-4833-a1c6-32b57bcb488c&parentId=1&origin=86a05687-a5fb-4c9b-955d-dff36647525c&swVersion=4&extensionId=project-memory.project-memory-dashboard&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app&purpose=webviewView:1060
-await in (anonymous)
-HostMessaging.channel.port1.onmessage @ index.html?id=a128a11f-defd-4833-a1c6-32b57bcb488c&parentId=1&origin=86a05687-a5fb-4c9b-955d-dff36647525c&swVersion=4&extensionId=project-memory.project-memory-dashboard&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app&purpose=webviewView:342
-workbench.desktop.main.js:537 [Extension Host] Received message from webview: {type: 'ready'}
-VM11:152 Fetching plans for workspace: Project_Memory_MCP-b65525cccb5f
-VM11:155 Plans response status: 200
-VM11:158 Plans data: {plans: Array(0), total: 0}
-workbench.desktop.main.js:4148  GET https://api.github.com/copilot/mcp_registry 404 (Not Found)
-pTn @ workbench.desktop.main.js:4148
-(anonymous) @ workbench.desktop.main.js:4148
-c @ workbench.desktop.main.js:517
-request @ workbench.desktop.main.js:4148
-bb @ workbench.desktop.main.js:1376
-ab @ workbench.desktop.main.js:1376
-U @ workbench.desktop.main.js:1376
-await in U
-S @ workbench.desktop.main.js:1376
-await in S
-M @ workbench.desktop.main.js:1376
-L @ workbench.desktop.main.js:1376
-(anonymous) @ workbench.desktop.main.js:1376
-queue @ workbench.desktop.main.js:30
-(anonymous) @ workbench.desktop.main.js:30
-(anonymous) @ workbench.desktop.main.js:30
-Promise.then
-trigger @ workbench.desktop.main.js:30
-trigger @ workbench.desktop.main.js:30
-J @ workbench.desktop.main.js:1376
-(anonymous) @ workbench.desktop.main.js:1376
-C @ workbench.desktop.main.js:29
-D @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-(anonymous) @ workbench.desktop.main.js:27
-(anonymous) @ workbench.desktop.main.js:27
-C @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-(anonymous) @ workbench.desktop.main.js:27
-C @ workbench.desktop.main.js:29
-D @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-(anonymous) @ workbench.desktop.main.js:27
-C @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-(anonymous) @ workbench.desktop.main.js:4148
-C @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-(anonymous) @ workbench.desktop.main.js:27
-C @ workbench.desktop.main.js:29
-D @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-l @ workbench.desktop.main.js:571
-t @ workbench.desktop.main.js:571
-s @ workbench.desktop.main.js:571
-(anonymous) @ workbench.desktop.main.js:570
-C @ workbench.desktop.main.js:29
-D @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-fe @ workbench.desktop.main.js:27
-emit @ VM442 sandbox_bundle:2
-onMessage @ VM442 sandbox_bundle:2
-workbench.desktop.main.js:4148  GET https://api.github.com/copilot/mcp_registry 404 (Not Found)
-pTn @ workbench.desktop.main.js:4148
-(anonymous) @ workbench.desktop.main.js:4148
-c @ workbench.desktop.main.js:517
-request @ workbench.desktop.main.js:4148
-bb @ workbench.desktop.main.js:1376
-await in bb
-ab @ workbench.desktop.main.js:1376
-U @ workbench.desktop.main.js:1376
-await in U
-S @ workbench.desktop.main.js:1376
-await in S
-M @ workbench.desktop.main.js:1376
-L @ workbench.desktop.main.js:1376
-(anonymous) @ workbench.desktop.main.js:1376
-queue @ workbench.desktop.main.js:30
-(anonymous) @ workbench.desktop.main.js:30
-(anonymous) @ workbench.desktop.main.js:30
-Promise.then
-trigger @ workbench.desktop.main.js:30
-trigger @ workbench.desktop.main.js:30
-J @ workbench.desktop.main.js:1376
-(anonymous) @ workbench.desktop.main.js:1376
-C @ workbench.desktop.main.js:29
-D @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-(anonymous) @ workbench.desktop.main.js:27
-(anonymous) @ workbench.desktop.main.js:27
-C @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-(anonymous) @ workbench.desktop.main.js:27
-C @ workbench.desktop.main.js:29
-D @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-(anonymous) @ workbench.desktop.main.js:27
-C @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-(anonymous) @ workbench.desktop.main.js:4148
-C @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-(anonymous) @ workbench.desktop.main.js:27
-C @ workbench.desktop.main.js:29
-D @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-l @ workbench.desktop.main.js:571
-t @ workbench.desktop.main.js:571
-s @ workbench.desktop.main.js:571
-(anonymous) @ workbench.desktop.main.js:570
-C @ workbench.desktop.main.js:29
-D @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-fe @ workbench.desktop.main.js:27
-emit @ VM442 sandbox_bundle:2
-onMessage @ VM442 sandbox_bundle:2
-workbench.desktop.main.js:4148  GET https://api.github.com/copilot/mcp_registry 404 (Not Found)
-pTn @ workbench.desktop.main.js:4148
-(anonymous) @ workbench.desktop.main.js:4148
-c @ workbench.desktop.main.js:517
-request @ workbench.desktop.main.js:4148
-bb @ workbench.desktop.main.js:1376
-await in bb
-ab @ workbench.desktop.main.js:1376
-U @ workbench.desktop.main.js:1376
-await in U
-S @ workbench.desktop.main.js:1376
-await in S
-M @ workbench.desktop.main.js:1376
-L @ workbench.desktop.main.js:1376
-(anonymous) @ workbench.desktop.main.js:1376
-queue @ workbench.desktop.main.js:30
-(anonymous) @ workbench.desktop.main.js:30
-(anonymous) @ workbench.desktop.main.js:30
-Promise.then
-trigger @ workbench.desktop.main.js:30
-trigger @ workbench.desktop.main.js:30
-J @ workbench.desktop.main.js:1376
-(anonymous) @ workbench.desktop.main.js:1376
-C @ workbench.desktop.main.js:29
-D @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-(anonymous) @ workbench.desktop.main.js:27
-(anonymous) @ workbench.desktop.main.js:27
-C @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-(anonymous) @ workbench.desktop.main.js:27
-C @ workbench.desktop.main.js:29
-D @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-(anonymous) @ workbench.desktop.main.js:27
-C @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-(anonymous) @ workbench.desktop.main.js:4148
-C @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-(anonymous) @ workbench.desktop.main.js:27
-C @ workbench.desktop.main.js:29
-D @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-l @ workbench.desktop.main.js:571
-t @ workbench.desktop.main.js:571
-s @ workbench.desktop.main.js:571
-(anonymous) @ workbench.desktop.main.js:570
-C @ workbench.desktop.main.js:29
-D @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-fe @ workbench.desktop.main.js:27
-emit @ VM442 sandbox_bundle:2
-onMessage @ VM442 sandbox_bundle:2
-workbench.desktop.main.js:4148  GET https://api.github.com/copilot/mcp_registry 404 (Not Found)
-pTn @ workbench.desktop.main.js:4148
-(anonymous) @ workbench.desktop.main.js:4148
-c @ workbench.desktop.main.js:517
-request @ workbench.desktop.main.js:4148
-bb @ workbench.desktop.main.js:1376
-await in bb
-ab @ workbench.desktop.main.js:1376
-U @ workbench.desktop.main.js:1376
-await in U
-S @ workbench.desktop.main.js:1376
-await in S
-M @ workbench.desktop.main.js:1376
-L @ workbench.desktop.main.js:1376
-(anonymous) @ workbench.desktop.main.js:1376
-queue @ workbench.desktop.main.js:30
-(anonymous) @ workbench.desktop.main.js:30
-(anonymous) @ workbench.desktop.main.js:30
-Promise.then
-trigger @ workbench.desktop.main.js:30
-trigger @ workbench.desktop.main.js:30
-J @ workbench.desktop.main.js:1376
-(anonymous) @ workbench.desktop.main.js:1376
-C @ workbench.desktop.main.js:29
-D @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-(anonymous) @ workbench.desktop.main.js:27
-(anonymous) @ workbench.desktop.main.js:27
-C @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-(anonymous) @ workbench.desktop.main.js:27
-C @ workbench.desktop.main.js:29
-D @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-(anonymous) @ workbench.desktop.main.js:27
-C @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-(anonymous) @ workbench.desktop.main.js:4148
-C @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-(anonymous) @ workbench.desktop.main.js:27
-C @ workbench.desktop.main.js:29
-D @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-l @ workbench.desktop.main.js:571
-t @ workbench.desktop.main.js:571
-s @ workbench.desktop.main.js:571
-(anonymous) @ workbench.desktop.main.js:570
-C @ workbench.desktop.main.js:29
-D @ workbench.desktop.main.js:29
-fire @ workbench.desktop.main.js:29
-fe @ workbench.desktop.main.js:27
-emit @ VM442 sandbox_bundle:2
-onMessage @ VM442 sandbox_bundle:2
+[2026-02-07T01:16:43.682Z] Found server at: c:\Users\User\Project_Memory_MCP\Project-Memory-MCP\dashboard\server
+[2026-02-07T01:16:43.682Z] Checking if server already exists on port 3001...
+[2026-02-07T01:16:43.738Z] Found existing server - connecting without spawning new process
+[2026-02-07T01:18:57.933Z] Found dashboard at: c:\Users\User\Project_Memory_MCP\Project-Memory-MCP\dashboard
+[2026-02-07T01:18:57.933Z] Starting frontend from: c:\Users\User\Project_Memory_MCP\Project-Memory-MCP\dashboard
+[2026-02-07T01:18:58.234Z] [frontend] > memory-observer@0.1.0 dev
+> vite
+[2026-02-07T01:18:59.056Z] [frontend] [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m741[22m[2m[0m ms[22m
+[2026-02-07T01:18:59.057Z] [frontend] [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+[2026-02-07T01:18:59.057Z] [frontend] [2m  [32m➜[39m  [1mNetwork[22m[2m: use [22m[1m--host[22m[2m to expose[22m
+[2026-02-07T01:18:59.789Z] Frontend started successfully on port 5173
+[2026-02-07T01:19:01.870Z] [frontend] [2m12:19:01 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/events/stream[39m
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[2026-02-07T01:19:01.871Z] [frontend] [2m12:19:01 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[2026-02-07T01:19:01.871Z] [frontend] [2m12:19:01 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/events/stream[39m
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[2026-02-07T01:19:02.876Z] [frontend] [2m12:19:02 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1139:18)
+    at afterConnectMultiple (node:net:1712:7)
+[2026-02-07T01:19:04.884Z] [frontend] [2m12:19:04 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1139:18)
+    at afterConnectMultiple (node:net:1712:7)
+[2026-02-07T01:19:08.892Z] [frontend] [2m12:19:08 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1139:18)
+    at afterConnectMultiple (node:net:1712:7)
+[2026-02-07T01:19:38.900Z] [frontend] [2m12:19:38 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1139:18)
+    at afterConnectMultiple (node:net:1712:7)
+[2026-02-07T01:19:38.903Z] [frontend] [2m12:19:38 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/events/stream[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1139:18)
+    at afterConnectMultiple (node:net:1712:7)
+[2026-02-07T01:19:39.905Z] [frontend] [2m12:19:39 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1139:18)
+    at afterConnectMultiple (node:net:1712:7)
+[2026-02-07T01:19:41.912Z] [frontend] [2m12:19:41 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1139:18)
+    at afterConnectMultiple (node:net:1712:7)
+[2026-02-07T01:19:45.920Z] [frontend] [2m12:19:45 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1139:18)
+    at afterConnectMultiple (node:net:1712:7)
+[2026-02-07T01:20:15.926Z] [frontend] [2m12:20:15 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1139:18)
+    at afterConnectMultiple (node:net:1712:7)
+[2026-02-07T01:20:15.929Z] [frontend] [2m12:20:15 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/events/stream[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1139:18)
+    at afterConnectMultiple (node:net:1712:7)
+[2026-02-07T01:20:16.933Z] [frontend] [2m12:20:16 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1139:18)
+    at afterConnectMultiple (node:net:1712:7)
+[2026-02-07T01:20:18.940Z] [frontend] [2m12:20:18 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1139:18)
+    at afterConnectMultiple (node:net:1712:7)
+[2026-02-07T01:20:22.944Z] [frontend] [2m12:20:22 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1139:18)
+    at afterConnectMultiple (node:net:1712:7)
+[2026-02-07T01:20:52.954Z] [frontend] [2m12:20:52 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1139:18)
+    at afterConnectMultiple (node:net:1712:7)
+[2026-02-07T01:20:52.958Z] [frontend] [2m12:20:52 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/events/stream[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1139:18)
+    at afterConnectMultiple (node:net:1712:7)
+[2026-02-07T01:20:53.969Z] [frontend] [2m12:20:53 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1139:18)
+    at afterConnectMultiple (node:net:1712:7)
+[2026-02-07T01:20:55.976Z] [frontend] [2m12:20:55 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1139:18)
+    at afterConnectMultiple (node:net:1712:7)
+[2026-02-07T01:20:59.993Z] [frontend] [2m12:20:59 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1139:18)
+    at afterConnectMultiple (node:net:1712:7)
+[2026-02-07T01:21:16.298Z] No process found listening on port 3001

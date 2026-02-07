@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Clock, GitBranch, ListChecks, FileText, Activity, BarChart, Info, AlertTriangle, MessageSquare, Target, Terminal } from 'lucide-react';
 import { Badge } from '@/components/common/Badge';
@@ -31,8 +31,21 @@ type Tab = 'timeline' | 'steps' | 'research' | 'activity' | 'goals' | 'build-scr
 
 export function PlanDetailPage() {
   const { workspaceId, planId } = useParams<{ workspaceId: string; planId: string }>();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<Tab>('timeline');
   const [stepView, setStepView] = useState<'bar' | 'kanban'>('bar');
+
+  const validTabs: Tab[] = ['timeline', 'steps', 'research', 'activity', 'goals', 'build-scripts'];
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get('tab') as Tab | null;
+    if (tab && validTabs.includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [location.search]);
+
+  const shouldAutoExpandNote = new URLSearchParams(location.search).get('addNote') === '1';
 
   const { data: plan, isLoading, error } = useQuery({
     queryKey: ['plan', workspaceId, planId],
@@ -238,7 +251,7 @@ export function PlanDetailPage() {
         {activeTab === 'steps' && (
           <div className="space-y-6">
             {/* Add Note Form */}
-            <AddNoteForm workspaceId={workspaceId!} planId={planId!} />
+            <AddNoteForm workspaceId={workspaceId!} planId={planId!} autoExpand={shouldAutoExpandNote} />
 
             {/* View Toggle */}
             <div className="flex items-center justify-between">

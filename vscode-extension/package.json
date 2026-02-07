@@ -243,6 +243,11 @@
         "category": "Project Memory"
       },
       {
+        "command": "projectMemory.forceStopExternalServer",
+        "title": "Force Stop External Server",
+        "category": "Project Memory"
+      },
+      {
         "command": "projectMemory.restartServer",
         "title": "Restart Server",
         "category": "Project Memory"

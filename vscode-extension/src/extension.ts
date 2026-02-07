@@ -215,6 +215,28 @@ export function activate(context: vscode.ExtensionContext) {
             notify('Project Memory server stopped');
         }),
 
+        vscode.commands.registerCommand('projectMemory.forceStopExternalServer', async () => {
+            const config = vscode.workspace.getConfiguration('projectMemory');
+            const port = config.get<number>('serverPort') || 3001;
+            const confirm = await vscode.window.showWarningMessage(
+                `Force stop the external server on port ${port}?`,
+                { modal: true },
+                'Force Stop'
+            );
+
+            if (confirm !== 'Force Stop') {
+                return;
+            }
+
+            const success = await serverManager.forceStopExternalServer();
+            if (success) {
+                notify('External server stopped');
+            } else {
+                vscode.window.showErrorMessage('Failed to stop external server. Check logs for details.');
+                serverManager.showLogs();
+            }
+        }),
+
         vscode.commands.registerCommand('projectMemory.restartServer', async () => {
             notify('Restarting Project Memory server...');
             await serverManager.stopFrontend();
@@ -1142,6 +1164,7 @@ export async function deactivate() {
     if (serverManager) {
         await serverManager.stopFrontend();
         await serverManager.stop();
+        await serverManager.forceStopOwnedServer();
     }
     
     console.log('Project Memory Dashboard extension deactivated');

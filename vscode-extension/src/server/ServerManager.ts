@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess, exec } from 'child_process';
 import * as path from 'path';
 import * as http from 'http';
 
@@ -23,6 +23,7 @@ export interface ServerConfig {
 export class ServerManager implements vscode.Disposable {
     private serverProcess: ChildProcess | null = null;
     private frontendProcess: ChildProcess | null = null;
+    private ownedServerPid: number | null = null;
     private outputChannel: vscode.OutputChannel;
     private statusBarItem: vscode.StatusBarItem;
     private _isRunning = false;
@@ -144,6 +145,7 @@ export class ServerManager implements vscode.Disposable {
                 this.log(`Server exited with code ${code}, signal ${signal}`);
                 this._isRunning = false;
                 this.serverProcess = null;
+                this.ownedServerPid = null;
 
                 if (code !== 0 && this.restartAttempts < this.maxRestartAttempts) {
                     this.restartAttempts++;
@@ -159,6 +161,10 @@ export class ServerManager implements vscode.Disposable {
             if (isReady) {
                 this._isRunning = true;
                 this.restartAttempts = 0;
+                this.ownedServerPid = await this.getPidForPort(port);
+                if (this.ownedServerPid) {
+                    this.log(`Server process id: ${this.ownedServerPid}`);
+                }
                 this.updateStatusBar('running');
                 this.log('Server started successfully');
                 return true;
@@ -180,6 +186,23 @@ export class ServerManager implements vscode.Disposable {
             this.log('Disconnecting from external server (not stopping it)');
             this._isRunning = false;
             this._isExternalServer = false;
+            this.updateStatusBar('stopped');
+            return;
+        }
+
+        if (!this.serverProcess && this.ownedServerPid) {
+            this.log(`Stopping tracked server pid ${this.ownedServerPid}`);
+            if (process.platform === 'win32') {
+                spawn('taskkill', ['/pid', String(this.ownedServerPid), '/f', '/t'], { windowsHide: true });
+            } else {
+                try {
+                    process.kill(this.ownedServerPid, 'SIGKILL');
+                } catch (error) {
+                    this.log(`Failed to kill server pid ${this.ownedServerPid}: ${error}`);
+                }
+            }
+            this.ownedServerPid = null;
+            this._isRunning = false;
             this.updateStatusBar('stopped');
             return;
         }
@@ -210,6 +233,7 @@ export class ServerManager implements vscode.Disposable {
                 clearTimeout(timeout);
                 this._isRunning = false;
                 this.serverProcess = null;
+                this.ownedServerPid = null;
                 this.updateStatusBar('stopped');
                 this.log('Server stopped');
                 resolve();
@@ -225,6 +249,76 @@ export class ServerManager implements vscode.Disposable {
                 this.serverProcess.kill('SIGTERM');
             }
         });
+    }
+
+    async forceStopOwnedServer(): Promise<boolean> {
+        if (this._isExternalServer) {
+            return false;
+        }
+
+        const port = this.config.serverPort || 3001;
+        const pid = this.ownedServerPid || await this.getPidForPort(port);
+        if (!pid) {
+            this.log(`No owned server process found on port ${port}`);
+            return false;
+        }
+
+        this.log(`Force stopping owned server on port ${port} (pid ${pid})`);
+        if (process.platform === 'win32') {
+            spawn('taskkill', ['/pid', String(pid), '/f', '/t'], { windowsHide: true });
+        } else {
+            try {
+                process.kill(pid, 'SIGKILL');
+            } catch (error) {
+                this.log(`Force stop failed: ${error}`);
+                return false;
+            }
+        }
+
+        this.ownedServerPid = null;
+        this._isRunning = false;
+        this.updateStatusBar('stopped');
+        return true;
+    }
+
+    async forceStopExternalServer(): Promise<boolean> {
+        if (this.serverProcess && !this._isExternalServer) {
+            this.log('Server was started by this extension; use Stop Server instead');
+            return false;
+        }
+
+        const port = this.config.serverPort || 3001;
+        const pid = await this.getPidForPort(port);
+        if (!pid) {
+            this.log(`No process found listening on port ${port}`);
+            return false;
+        }
+
+        this.log(`Force stopping server on port ${port} (pid ${pid})`);
+
+        if (process.platform === 'win32') {
+            spawn('taskkill', ['/pid', String(pid), '/f', '/t'], { windowsHide: true });
+        } else {
+            try {
+                process.kill(pid, 'SIGKILL');
+            } catch (error) {
+                this.log(`Force stop failed: ${error}`);
+                return false;
+            }
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const stillHealthy = await this.checkHealth(port);
+        if (!stillHealthy) {
+            this._isRunning = false;
+            this._isExternalServer = false;
+            this.updateStatusBar('stopped');
+            this.log('External server stopped');
+            return true;
+        }
+
+        this.log('Server still responding after force stop');
+        return false;
     }
 
     async restart(): Promise<boolean> {
@@ -473,12 +567,73 @@ export class ServerManager implements vscode.Disposable {
     private checkHealth(port: number): Promise<boolean> {
         return new Promise((resolve) => {
             const req = http.get(`http://localhost:${port}/api/health`, (res) => {
-                resolve(res.statusCode === 200);
+                if (res.statusCode !== 200) {
+                    resolve(false);
+                    res.resume();
+                    return;
+                }
+
+                let body = '';
+                res.on('data', (chunk) => {
+                    body += chunk.toString();
+                });
+
+                res.on('end', () => {
+                    try {
+                        const payload = JSON.parse(body);
+                        resolve(payload?.status === 'ok');
+                    } catch {
+                        resolve(false);
+                    }
+                });
             });
             req.on('error', () => resolve(false));
             req.setTimeout(1000, () => {
                 req.destroy();
                 resolve(false);
+            });
+        });
+    }
+
+    private getPidForPort(port: number): Promise<number | null> {
+        return new Promise((resolve) => {
+            if (process.platform === 'win32') {
+                exec(`netstat -ano -p tcp | findstr :${port}`, { windowsHide: true }, (error, stdout) => {
+                    if (error || !stdout) {
+                        resolve(null);
+                        return;
+                    }
+
+                    const lines = stdout.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+                    for (const line of lines) {
+                        if (!line.includes(`:${port}`)) continue;
+                        if (!/LISTENING/i.test(line)) continue;
+                        const match = line.match(/LISTENING\s+(\d+)/i);
+                        if (match) {
+                            resolve(Number(match[1]));
+                            return;
+                        }
+                    }
+
+                    resolve(null);
+                });
+                return;
+            }
+
+            exec(`lsof -iTCP:${port} -sTCP:LISTEN -t`, (error, stdout) => {
+                if (error || !stdout) {
+                    resolve(null);
+                    return;
+                }
+
+                const firstLine = stdout.split(/\r?\n/).find(line => line.trim().length > 0);
+                if (!firstLine) {
+                    resolve(null);
+                    return;
+                }
+
+                const pid = Number(firstLine.trim());
+                resolve(Number.isNaN(pid) ? null : pid);
             });
         });
     }
