@@ -17,7 +17,7 @@ import * as contextTools from './tools/context.tools.js';
 import * as agentTools from './tools/agent.tools.js';
 import * as validationTools from './tools/agent-validation.tools.js';
 import * as store from './storage/file-store.js';
-import { logToolCall, setCurrentAgent } from './logging/tool-logger.js';
+import { logToolCall, runWithToolContext, setCurrentAgent } from './logging/tool-logger.js';
 
 // Import consolidated tools
 import * as consolidatedTools from './tools/consolidated/index.js';
@@ -34,34 +34,36 @@ async function withLogging<T>(
   params: Record<string, unknown>,
   fn: () => Promise<T>
 ): Promise<T> {
-  const startTime = Date.now();
-  
-  try {
-    const result = await fn();
-    const durationMs = Date.now() - startTime;
+  return runWithToolContext(toolName, params, async () => {
+    const startTime = Date.now();
     
-    // Extract success/error from result if it has that shape
-    const resultObj = result as { success?: boolean; error?: string };
-    await logToolCall(
-      toolName,
-      params,
-      resultObj.success !== false ? 'success' : 'error',
-      resultObj.error,
-      durationMs
-    );
-    
-    return result;
-  } catch (error) {
-    const durationMs = Date.now() - startTime;
-    await logToolCall(
-      toolName,
-      params,
-      'error',
-      (error as Error).message,
-      durationMs
-    );
-    throw error;
-  }
+    try {
+      const result = await fn();
+      const durationMs = Date.now() - startTime;
+      
+      // Extract success/error from result if it has that shape
+      const resultObj = result as { success?: boolean; error?: string };
+      await logToolCall(
+        toolName,
+        params,
+        resultObj.success !== false ? 'success' : 'error',
+        resultObj.error,
+        durationMs
+      );
+      
+      return result;
+    } catch (error) {
+      const durationMs = Date.now() - startTime;
+      await logToolCall(
+        toolName,
+        params,
+        'error',
+        (error as Error).message,
+        durationMs
+      );
+      throw error;
+    }
+  });
 }
 
 // =============================================================================
@@ -138,7 +140,7 @@ server.tool(
   'memory_plan',
   'Consolidated plan lifecycle management. Actions: list (list plans), get (get plan state), create (create new plan), update (modify plan steps), archive (archive completed plan), import (import existing plan file), find (find plan by ID), add_note (add note to plan), delete (delete plan), consolidate (consolidate steps), set_goals (set goals and success criteria), add_build_script (add build script), list_build_scripts (list build scripts), run_build_script (run build script), delete_build_script (delete build script), create_from_template (create plan from template), list_templates (list available templates).',
   {
-    action: z.enum(['list', 'get', 'create', 'update', 'archive', 'import', 'find', 'add_note', 'delete', 'consolidate', 'set_goals', 'add_build_script', 'list_build_scripts', 'run_build_script', 'delete_build_script', 'create_from_template', 'list_templates']).describe('The action to perform'),
+    action: z.enum(['list', 'get', 'create', 'update', 'archive', 'import', 'find', 'add_note', 'delete', 'consolidate', 'set_goals', 'add_build_script', 'list_build_scripts', 'run_build_script', 'delete_build_script', 'create_from_template', 'list_templates', 'confirm']).describe('The action to perform'),
     workspace_id: z.string().optional().describe('Workspace ID'),
     workspace_path: z.string().optional().describe('Workspace path (alternative to workspace_id for list)'),
     plan_id: z.string().optional().describe('Plan ID'),
@@ -152,7 +154,10 @@ server.tool(
       type: StepTypeSchema,
       status: StepStatusSchema.optional().default('pending'),
       notes: z.string().optional(),
-      assignee: z.string().optional()
+      assignee: z.string().optional(),
+      requires_validation: z.boolean().optional(),
+      requires_confirmation: z.boolean().optional(),
+      requires_user_confirmation: z.boolean().optional()
     })).optional().describe('Plan steps (for update)'),
     include_archived: z.boolean().optional().describe('Include archived plans (for list)'),
     plan_file_path: z.string().optional().describe('Path to plan file (for import)'),
@@ -170,7 +175,11 @@ server.tool(
     script_directory: z.string().optional().describe('Directory to run the build script in'),
     script_mcp_handle: z.string().optional().describe('MCP handle identifier for the script'),
     script_id: z.string().optional().describe('Build script ID (for run/delete)'),
-    template: z.enum(['feature', 'bugfix', 'refactor', 'documentation', 'analysis', 'investigation']).optional().describe('Plan template (for create_from_template)')
+    template: z.enum(['feature', 'bugfix', 'refactor', 'documentation', 'analysis', 'investigation']).optional().describe('Plan template (for create_from_template)'),
+    confirmation_scope: z.enum(['phase', 'step']).optional().describe('Confirmation scope (for confirm action)'),
+    confirm_phase: z.string().optional().describe('Phase to confirm (for confirm action)'),
+    confirm_step_index: z.number().optional().describe('Step index to confirm (for confirm action)'),
+    confirmed_by: z.string().optional().describe('Who confirmed the phase/step')
   },
   async (params) => {
     const result = await withLogging('memory_plan', params, () =>
@@ -196,7 +205,10 @@ server.tool(
       status: StepStatusSchema.optional().default('pending'),
       notes: z.string().optional(),
       assignee: z.string().optional(),
-      depends_on: z.array(z.number()).optional().describe('Indices of steps that must complete before this one')
+      depends_on: z.array(z.number()).optional().describe('Indices of steps that must complete before this one'),
+      requires_validation: z.boolean().optional(),
+      requires_confirmation: z.boolean().optional(),
+      requires_user_confirmation: z.boolean().optional()
     })).optional().describe('Steps to add (for add action)'),
     step_index: z.number().optional().describe('Step index to update (for update action)'),
     status: StepStatusSchema.optional().describe('New status (for update action)'),
@@ -215,7 +227,10 @@ server.tool(
       status: StepStatusSchema.optional().default('pending'),
       notes: z.string().optional(),
       assignee: z.string().optional(),
-      depends_on: z.array(z.number()).optional().describe('Indices of steps that must complete before this one')
+      depends_on: z.array(z.number()).optional().describe('Indices of steps that must complete before this one'),
+      requires_validation: z.boolean().optional(),
+      requires_confirmation: z.boolean().optional(),
+      requires_user_confirmation: z.boolean().optional()
     }).optional().describe('Single step to insert (for insert action)'),
     direction: z.enum(['up', 'down']).optional().describe('Direction to move step (for reorder action)'),
     from_index: z.number().optional().describe('Source step index (for move action)'),
@@ -229,7 +244,10 @@ server.tool(
       status: StepStatusSchema.optional().default('pending'),
       notes: z.string().optional(),
       assignee: z.string().optional(),
-      depends_on: z.array(z.number()).optional()
+      depends_on: z.array(z.number()).optional(),
+      requires_validation: z.boolean().optional(),
+      requires_confirmation: z.boolean().optional(),
+      requires_user_confirmation: z.boolean().optional()
     })).optional().describe('Complete new steps array (for replace action)')
   },
   async (params) => {
@@ -251,6 +269,13 @@ server.tool(
     plan_id: z.string().optional().describe('Plan ID'),
     agent_type: AgentTypeSchema.optional().describe('Agent type'),
     context: z.record(z.unknown()).optional().describe('Context data (for init)'),
+    validate: z.boolean().optional().describe('If true, run validation during init'),
+    validation_mode: z.enum(['init+validate']).optional().describe('Run validation as part of init and return result'),
+    deployment_context: z.object({
+      deployed_by: z.string().describe('Who is deploying this agent (Coordinator, Analyst, Runner, User)'),
+      reason: z.string().describe('Why this agent was chosen for the current task'),
+      override_validation: z.boolean().optional().describe('If true (default), validation will respect this deployment and not redirect the agent')
+    }).optional().describe('Set by orchestrators (Coordinator/Analyst/Runner) during init to control validation behavior'),
     summary: z.string().optional().describe('Session summary (for complete)'),
     artifacts: z.array(z.string()).optional().describe('Created artifacts (for complete)'),
     from_agent: AgentTypeSchema.optional().describe('Source agent (for handoff)'),
@@ -275,11 +300,11 @@ server.tool(
 
 server.tool(
   'memory_context',
-  'Consolidated context and research management tool. Actions: store (store context data), get (retrieve context), store_initial (store initial user request), list (list context files), list_research (list research notes), append_research (add research note), generate_instructions (generate plan instructions file), batch_store (store multiple context items at once).',
+  'Consolidated context and research management tool. Actions: store (store plan context), get (retrieve plan context), store_initial (store initial user request), list (list plan context files), list_research (list research notes), append_research (add research note), generate_instructions (generate plan instructions file), batch_store (store multiple context items at once), workspace_get/workspace_set/workspace_update/workspace_delete (workspace-scoped context CRUD).',
   {
-    action: z.enum(['store', 'get', 'store_initial', 'list', 'list_research', 'append_research', 'generate_instructions', 'batch_store']).describe('The action to perform'),
+    action: z.enum(['store', 'get', 'store_initial', 'list', 'list_research', 'append_research', 'generate_instructions', 'batch_store', 'workspace_get', 'workspace_set', 'workspace_update', 'workspace_delete']).describe('The action to perform'),
     workspace_id: z.string().describe('Workspace ID'),
-    plan_id: z.string().describe('Plan ID'),
+    plan_id: z.string().optional().describe('Plan ID (required for plan-scoped actions)'),
     type: z.string().optional().describe('Context type (for store/get)'),
     data: z.record(z.unknown()).optional().describe('Context data (for store)'),
     user_request: z.string().optional().describe('User request text (for store_initial)'),

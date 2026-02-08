@@ -3,10 +3,18 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { promisify } from 'util';
-import { getWorkspacePlans, getPlanState, getPlanLineage, getPlanAudit, getResearchNotes } from '../services/fileScanner.js';
+import { getWorkspaceDetails, getWorkspacePlans, getPlanState, getPlanLineage, getPlanAudit, getResearchNotes } from '../services/fileScanner.js';
 import { emitEvent } from '../events/emitter.js';
 
 export const plansRouter = Router();
+
+const WORKSPACE_REGISTRATION_ERROR =
+  'Workspace not registered. Register the workspace first via POST /api/workspaces/register.';
+
+async function requireWorkspaceMeta(workspaceId: string): Promise<boolean> {
+  const workspace = await getWorkspaceDetails(globalThis.MBS_DATA_ROOT, workspaceId);
+  return Boolean(workspace);
+}
 
 type PlanTemplateId = 'feature' | 'bugfix' | 'refactor' | 'documentation' | 'analysis' | 'investigation';
 
@@ -431,6 +439,10 @@ plansRouter.post('/:workspaceId/template', async (req, res) => {
       });
     }
 
+    if (!(await requireWorkspaceMeta(workspaceId))) {
+      return res.status(409).json({ error: WORKSPACE_REGISTRATION_ERROR });
+    }
+
     const resolvedGoals = Array.isArray(goals) && goals.length > 0 ? goals : (templateData.goals || []);
     const resolvedCriteria = Array.isArray(success_criteria) && success_criteria.length > 0
       ? success_criteria
@@ -528,6 +540,10 @@ plansRouter.post('/:workspaceId', async (req, res) => {
           error: 'Investigation plans require at least 1 goal and 1 success criteria'
         });
       }
+    }
+
+    if (!(await requireWorkspaceMeta(workspaceId))) {
+      return res.status(409).json({ error: WORKSPACE_REGISTRATION_ERROR });
     }
     
     // Generate plan ID
@@ -775,6 +791,10 @@ plansRouter.post('/:workspaceId/:planId/duplicate', async (req, res) => {
   try {
     const { workspaceId, planId } = req.params;
     const { newTitle } = req.body;
+
+    if (!(await requireWorkspaceMeta(workspaceId))) {
+      return res.status(409).json({ error: WORKSPACE_REGISTRATION_ERROR });
+    }
     
     // Read source plan
     const sourcePath = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'plans', planId, 'state.json');
@@ -861,6 +881,10 @@ plansRouter.post('/:workspaceId/import', async (req, res) => {
     
     if (!filePath) {
       return res.status(400).json({ error: 'filePath is required' });
+    }
+
+    if (!(await requireWorkspaceMeta(workspaceId))) {
+      return res.status(409).json({ error: WORKSPACE_REGISTRATION_ERROR });
     }
     
     // Read the file

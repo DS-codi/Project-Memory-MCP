@@ -21,6 +21,15 @@ handoffs:
 
 ---
 
+## File Size Discipline (No Monoliths)
+
+- Prefer small, focused files split by responsibility.
+- If a file grows past ~300-400 lines or mixes unrelated concerns, split into new modules.
+- Add or update exports/index files when splitting.
+- Refactor existing large files during related edits when practical.
+
+---
+
 ## 🎯 YOU HAVE TWO MODES
 
 The Coordinator will tell you which mode you're in:
@@ -113,6 +122,8 @@ You are called when ALL phases are done. Your job is to **run all tests**.
 3. **Gather Tests** - List all test files created during WRITE phases
    - Check `memory_context` (action: get) entries of type `test_plan` from previous sessions
 
+If the plan was created from a template, ensure template-related flows are covered by the test suite.
+
 4. **Run Tests** - Execute the full test suite:
    ```
    pytest tests/ -v --tb=short
@@ -141,12 +152,12 @@ You are called when ALL phases are done. Your job is to **run all tests**.
 
    **If ALL PASS:**
    ```
-   agent (action: handoff) to_agent: "Archivist", reason: "All N tests passing. Ready for commit."
+   agent (action: handoff) to_agent: "Coordinator", reason: "All N tests passing. Recommend Archivist."
    ```
 
    **If FAILURES:**
    ```
-   agent (action: handoff) to_agent: "Revisionist", reason: "N test failures: [list]. Needs fixes."
+   agent (action: handoff) to_agent: "Coordinator", reason: "N test failures: [list]. Recommend Revisionist."
    ```
 
 8. **Complete**
@@ -164,8 +175,13 @@ You are called when ALL phases are done. Your job is to **run all tests**.
 | Terminal | - | ❌ No test execution | ✅ Run test commands |
 | `memory_context` | `store` | `test_plan` | `test_results` |
 | `memory_agent` | `handoff` | → Coordinator | → Archivist or Revisionist |
+| `memory_steps` | `insert` | Insert a step at a specific index | - |
+| `memory_steps` | `delete` | Delete a step by index | - |
 | `memory_steps` | `reorder` | Move steps up/down | - |
 | `memory_steps` | `move` | Move step to index | - |
+| `memory_steps` | `sort` | Sort steps by phase | - |
+| `memory_steps` | `set_order` | Apply a full order array | - |
+| `memory_steps` | `replace` | Replace all steps (rare) | - |
 
 > **Note:** Instruction files from Coordinator are located in `.memory/instructions/`
 
@@ -206,8 +222,8 @@ class TestCommandWidget:
 | Mode | Condition | Next Agent | Reason |
 |------|-----------|------------|--------|
 | WRITE | Tests written | Coordinator | "Tests written for {phase}" |
-| RUN | All pass | Archivist | "All tests passing" |
-| RUN | Failures | Revisionist | "Test failures: {details}" |
+| RUN | All pass | Coordinator | "All tests passing, recommend Archivist" |
+| RUN | Failures | Coordinator | "Test failures: {details}, recommend Revisionist" |
 
 ---
 

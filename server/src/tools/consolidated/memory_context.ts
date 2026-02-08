@@ -10,9 +10,11 @@ import type {
   ToolResponse, 
   RequestCategory,
   AgentType,
-  AgentInstructionFile
+  AgentInstructionFile,
+  WorkspaceContext
 } from '../../types/index.js';
 import * as contextTools from '../context.tools.js';
+import * as workspaceContextTools from '../workspace-context.tools.js';
 
 export type ContextAction = 
   | 'store' 
@@ -22,12 +24,16 @@ export type ContextAction =
   | 'list_research' 
   | 'append_research'
   | 'generate_instructions'
-  | 'batch_store';
+  | 'batch_store'
+  | 'workspace_get'
+  | 'workspace_set'
+  | 'workspace_update'
+  | 'workspace_delete';
 
 export interface MemoryContextParams {
   action: ContextAction;
   workspace_id: string;
-  plan_id: string;
+  plan_id?: string;
   
   // For store, get
   type?: string;
@@ -67,7 +73,11 @@ type ContextResult =
   | { action: 'list_research'; data: string[] }
   | { action: 'append_research'; data: { path: string; sanitized: boolean; injection_attempts: string[]; warnings: string[] } }
   | { action: 'generate_instructions'; data: { instruction_file: AgentInstructionFile; content: string; written_to: string } }
-  | { action: 'batch_store'; data: { stored: Array<{ type: string; path: string }>; failed: Array<{ type: string; error: string }> } };
+  | { action: 'batch_store'; data: { stored: Array<{ type: string; path: string }>; failed: Array<{ type: string; error: string }> } }
+  | { action: 'workspace_get'; data: { context: WorkspaceContext; path: string } }
+  | { action: 'workspace_set'; data: { context: WorkspaceContext; path: string } }
+  | { action: 'workspace_update'; data: { context: WorkspaceContext; path: string } }
+  | { action: 'workspace_delete'; data: { deleted: boolean; path: string } };
 
 export async function memoryContext(params: MemoryContextParams): Promise<ToolResponse<ContextResult>> {
   const { action, workspace_id, plan_id } = params;
@@ -79,15 +89,21 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
     };
   }
 
-  if (!workspace_id || !plan_id) {
+  if (!workspace_id) {
     return {
       success: false,
-      error: 'workspace_id and plan_id are required'
+      error: 'workspace_id is required'
     };
   }
 
   switch (action) {
     case 'store': {
+      if (!plan_id) {
+        return {
+          success: false,
+          error: 'plan_id is required for action: store'
+        };
+      }
       if (!params.type || !params.data) {
         return {
           success: false,
@@ -110,6 +126,12 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
     }
 
     case 'get': {
+      if (!plan_id) {
+        return {
+          success: false,
+          error: 'plan_id is required for action: get'
+        };
+      }
       if (!params.type) {
         return {
           success: false,
@@ -131,6 +153,12 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
     }
 
     case 'store_initial': {
+      if (!plan_id) {
+        return {
+          success: false,
+          error: 'plan_id is required for action: store_initial'
+        };
+      }
       if (!params.user_request) {
         return {
           success: false,
@@ -159,6 +187,12 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
     }
 
     case 'list': {
+      if (!plan_id) {
+        return {
+          success: false,
+          error: 'plan_id is required for action: list'
+        };
+      }
       const result = await contextTools.listContext({
         workspace_id,
         plan_id
@@ -173,6 +207,12 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
     }
 
     case 'list_research': {
+      if (!plan_id) {
+        return {
+          success: false,
+          error: 'plan_id is required for action: list_research'
+        };
+      }
       const result = await contextTools.listResearchNotes({
         workspace_id,
         plan_id
@@ -187,6 +227,12 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
     }
 
     case 'append_research': {
+      if (!plan_id) {
+        return {
+          success: false,
+          error: 'plan_id is required for action: append_research'
+        };
+      }
       if (!params.filename || !params.content) {
         return {
           success: false,
@@ -209,6 +255,12 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
     }
 
     case 'generate_instructions': {
+      if (!plan_id) {
+        return {
+          success: false,
+          error: 'plan_id is required for action: generate_instructions'
+        };
+      }
       if (!params.target_agent || !params.mission) {
         return {
           success: false,
@@ -236,6 +288,12 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
     }
 
     case 'batch_store': {
+      if (!plan_id) {
+        return {
+          success: false,
+          error: 'plan_id is required for action: batch_store'
+        };
+      }
       if (!params.items || params.items.length === 0) {
         return {
           success: false,
@@ -266,10 +324,76 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
       };
     }
 
+    case 'workspace_get': {
+      const result = await workspaceContextTools.getWorkspaceContext({
+        workspace_id
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'workspace_get', data: result.data! }
+      };
+    }
+
+    case 'workspace_set': {
+      if (!params.data) {
+        return {
+          success: false,
+          error: 'data is required for action: workspace_set'
+        };
+      }
+      const result = await workspaceContextTools.setWorkspaceContext({
+        workspace_id,
+        data: params.data
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'workspace_set', data: result.data! }
+      };
+    }
+
+    case 'workspace_update': {
+      if (!params.data) {
+        return {
+          success: false,
+          error: 'data is required for action: workspace_update'
+        };
+      }
+      const result = await workspaceContextTools.updateWorkspaceContext({
+        workspace_id,
+        data: params.data
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'workspace_update', data: result.data! }
+      };
+    }
+
+    case 'workspace_delete': {
+      const result = await workspaceContextTools.deleteWorkspaceContext({
+        workspace_id
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'workspace_delete', data: result.data! }
+      };
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: store, get, store_initial, list, list_research, append_research, generate_instructions, batch_store`
+        error: `Unknown action: ${action}. Valid actions: store, get, store_initial, list, list_research, append_research, generate_instructions, batch_store, workspace_get, workspace_set, workspace_update, workspace_delete`
       };
   }
 }

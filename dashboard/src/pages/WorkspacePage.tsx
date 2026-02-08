@@ -4,11 +4,15 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, FolderOpen, Calendar, Code, FileText, Plus, Activity, Database } from 'lucide-react';
 import { PlanList } from '@/components/plan/PlanList';
 import { CreatePlanForm } from '@/components/plan/CreatePlanForm';
+import { PlanTemplatesPanel } from '@/components/plan/PlanTemplatesPanel';
 import { HealthIndicator } from '@/components/workspace/HealthIndicator';
 import { CopilotStatusPanel } from '@/components/workspace/CopilotStatusPanel';
 import { DeployModal } from '@/components/workspace/DeployModal';
+import { DeployDefaultsCard } from '@/components/workspace/DeployDefaultsCard';
+import { WorkspaceContextPanel } from '@/components/workspace/WorkspaceContextPanel';
 import { useCopilotStatus } from '@/hooks/useCopilotStatus';
 import { formatDate, formatRelative } from '@/utils/formatters';
+import { getDeployDefaults, type DeployDefaults } from '@/utils/deployDefaults';
 import type { WorkspaceMeta, PlanSummary, WorkspaceHealth } from '@/types';
 
 async function fetchWorkspace(id: string): Promise<WorkspaceMeta> {
@@ -29,6 +33,9 @@ export function WorkspacePage() {
   const queryClient = useQueryClient();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showDeployModal, setShowDeployModal] = useState(false);
+  const [showDefaultsModal, setShowDefaultsModal] = useState(false);
+  const [templateToCreate, setTemplateToCreate] = useState<string | null>(null);
+  const [deployDefaults, setDeployDefaults] = useState<DeployDefaults | null>(() => getDeployDefaults());
 
   const { data: workspace, isLoading: wsLoading } = useQuery({
     queryKey: ['workspace', workspaceId],
@@ -167,12 +174,39 @@ export function WorkspacePage() {
         onDeploy={() => setShowDeployModal(true)}
       />
 
+      {/* Configuration & Context */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">Configuration & Context</h2>
+          <p className="text-sm text-slate-400">Manage shared workspace defaults and documentation.</p>
+        </div>
+        <DeployDefaultsCard
+          defaults={deployDefaults}
+          onConfigure={() => setShowDefaultsModal(true)}
+        />
+        <WorkspaceContextPanel
+          workspaceId={workspaceId!}
+          workspaceName={workspace.name}
+        />
+      </div>
+
+      {/* Plan Templates */}
+      <PlanTemplatesPanel
+        onSelectTemplate={(templateId) => {
+          setTemplateToCreate(templateId);
+          setShowCreateForm(true);
+        }}
+      />
+
       {/* Plans */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Plans</h2>
           <button
-            onClick={() => setShowCreateForm(true)}
+            onClick={() => {
+              setTemplateToCreate(null);
+              setShowCreateForm(true);
+            }}
             className="px-4 py-2 bg-violet-500 text-white rounded-lg hover:bg-violet-600 transition-colors flex items-center gap-2"
           >
             <Plus size={16} />
@@ -186,12 +220,17 @@ export function WorkspacePage() {
       {showCreateForm && (
         <CreatePlanForm
           workspaceId={workspaceId!}
+          initialTemplate={templateToCreate}
           onSuccess={(planId) => {
             setShowCreateForm(false);
+            setTemplateToCreate(null);
             queryClient.invalidateQueries({ queryKey: ['plans', workspaceId] });
             navigate(`/workspace/${workspaceId}/plan/${planId}`);
           }}
-          onCancel={() => setShowCreateForm(false)}
+          onCancel={() => {
+            setShowCreateForm(false);
+            setTemplateToCreate(null);
+          }}
         />
       )}
 
@@ -204,6 +243,16 @@ export function WorkspacePage() {
         }}
         workspaceId={workspaceId!}
         workspacePath={workspace?.path || ''}
+      />
+
+      {/* Deploy Defaults Modal */}
+      <DeployModal
+        isOpen={showDefaultsModal}
+        onClose={() => setShowDefaultsModal(false)}
+        workspaceId={workspaceId!}
+        workspacePath={workspace?.path || ''}
+        mode="defaults"
+        onDefaultsSaved={(defaults) => setDeployDefaults(defaults)}
       />
     </div>
   );

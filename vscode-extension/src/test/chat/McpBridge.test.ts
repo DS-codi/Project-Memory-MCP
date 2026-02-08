@@ -102,4 +102,34 @@ suite('McpBridge Test Suite', () => {
         
         bridge.dispose();
     });
+
+    test('McpBridge uses template endpoint when creating plan with template', async () => {
+        const config: McpBridgeConfig = {
+            serverMode: 'bundled'
+        };
+
+        const bridge = new McpBridge(config);
+        (bridge as any).connected = true;
+
+        let calledPath = '';
+        let calledPayload: Record<string, unknown> | null = null;
+
+        (bridge as any).httpPost = async (path: string, payload: Record<string, unknown>) => {
+            calledPath = path;
+            calledPayload = payload;
+            return { plan: { id: 'plan_1', steps: [] } };
+        };
+
+        await bridge.callTool('create_plan', {
+            workspace_id: 'ws_test_123',
+            title: 'Template Plan',
+            description: 'From template',
+            template: 'feature'
+        });
+
+        assert.strictEqual(calledPath, '/api/plans/ws_test_123/template');
+        assert.ok(calledPayload?.template === 'feature');
+
+        bridge.dispose();
+    });
 });

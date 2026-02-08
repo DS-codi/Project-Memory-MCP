@@ -1,18 +1,40 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/utils/cn';
-import type { PlanCategory, PlanPriority, PlanStep } from '@/types';
+import type { PlanCategory, PlanPriority, PlanStep, PlanTemplate } from '@/types';
 
 interface CreatePlanFormProps {
   workspaceId: string;
   onSuccess: (planId: string) => void;
   onCancel: () => void;
+  initialTemplate?: string | null;
 }
 
-export function CreatePlanForm({ workspaceId, onSuccess, onCancel }: CreatePlanFormProps) {
+async function fetchPlanTemplates(): Promise<PlanTemplate[]> {
+  const res = await fetch('/api/plans/templates');
+  if (!res.ok) throw new Error('Failed to fetch plan templates');
+  const data = await res.json();
+  return data.templates || [];
+}
+
+const fallbackTemplates: PlanTemplate[] = [
+  { template: 'feature', category: 'feature', label: 'Feature' },
+  { template: 'bugfix', category: 'bug', label: 'Bug Fix' },
+  { template: 'refactor', category: 'refactor', label: 'Refactor' },
+  { template: 'documentation', category: 'documentation', label: 'Documentation' },
+  { template: 'analysis', category: 'analysis', label: 'Analysis' },
+  { template: 'investigation', category: 'investigation', label: 'Investigation' },
+];
+
+export function CreatePlanForm({ workspaceId, onSuccess, onCancel, initialTemplate }: CreatePlanFormProps) {
+  const { data: templatesData = [], isLoading: templatesLoading } = useQuery({
+    queryKey: ['plan-templates'],
+    queryFn: fetchPlanTemplates,
+  });
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [template, setTemplate] = useState<'none' | 'feature' | 'bugfix' | 'refactor' | 'documentation' | 'analysis' | 'investigation'>('none');
+  const [template, setTemplate] = useState<string>(initialTemplate ?? 'none');
   const [category, setCategory] = useState<PlanCategory>('feature');
   const [priority, setPriority] = useState<PlanPriority>('medium');
   const [steps, setSteps] = useState<{ phase: string; task: string }[]>([]);
@@ -22,6 +44,12 @@ export function CreatePlanForm({ workspaceId, onSuccess, onCancel }: CreatePlanF
   const [newCriterion, setNewCriterion] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialTemplate) {
+      setTemplate(initialTemplate);
+    }
+  }, [initialTemplate]);
 
   const isInvestigation = category === 'investigation' || template === 'investigation';
   const usingTemplate = template !== 'none';
@@ -148,14 +176,14 @@ export function CreatePlanForm({ workspaceId, onSuccess, onCancel }: CreatePlanF
     { value: 'documentation', label: 'Documentation' },
   ];
 
-  const templates: { value: typeof template; label: string; hint: string }[] = [
+  const availableTemplates = templatesData.length > 0 ? templatesData : fallbackTemplates;
+  const templateOptions: { value: string; label: string; hint: string }[] = [
     { value: 'none', label: 'Custom', hint: 'Start from scratch' },
-    { value: 'feature', label: 'Feature', hint: 'Feature workflow with tests/review' },
-    { value: 'bugfix', label: 'Bug Fix', hint: 'Bug investigation and regression test' },
-    { value: 'refactor', label: 'Refactor', hint: 'Behavior-preserving refactor' },
-    { value: 'documentation', label: 'Documentation', hint: 'Docs-focused flow' },
-    { value: 'analysis', label: 'Analysis', hint: 'Analysis and recommendations' },
-    { value: 'investigation', label: 'Investigation', hint: 'Deep problem resolution' },
+    ...availableTemplates.map((item) => ({
+      value: item.template,
+      label: item.label,
+      hint: `${item.category} plan${item.steps?.length ? ` • ${item.steps.length} steps` : ''}`,
+    })),
   ];
 
   const priorities: { value: PlanPriority; label: string; color: string }[] = [
@@ -243,15 +271,18 @@ export function CreatePlanForm({ workspaceId, onSuccess, onCancel }: CreatePlanF
             </label>
             <select
               value={template}
-              onChange={(e) => setTemplate(e.target.value as typeof template)}
+              onChange={(e) => setTemplate(e.target.value)}
               className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
             >
-              {templates.map((t) => (
+              {templateOptions.map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label} - {t.hint}
                 </option>
               ))}
             </select>
+            {templatesLoading && (
+              <p className="text-xs text-slate-500">Loading templates...</p>
+            )}
           </div>
 
           {/* Category & Priority */}

@@ -126,16 +126,21 @@ export function verifyLineageIntegrity(
   
   // Valid deployment paths
   // Note: Coordinator is the master orchestrator and can delegate to ANY agent
+  // Note: Analyst is the investigative orchestrator and can delegate to ANY agent for problem-solving
   const validTransitions: Record<string, string[]> = {
-    'User': ['Coordinator'],
-    'Coordinator': ['Researcher', 'Architect', 'Executor', 'Reviewer', 'Tester', 'Revisionist', 'Archivist'],
-    'Researcher': ['Architect', 'Coordinator'],
-    'Architect': ['Executor', 'Researcher', 'Coordinator'],
-    'Executor': ['Reviewer', 'Revisionist'],
-    'Revisionist': ['Executor', 'Researcher', 'Coordinator'],
-    'Reviewer': ['Tester', 'Executor', 'Revisionist', 'Archivist'],
-    'Tester': ['Archivist', 'Executor', 'Revisionist'],
-    'Archivist': []  // Terminal state
+    'User': ['Coordinator', 'Analyst'],
+    'Coordinator': ['Researcher', 'Architect', 'Executor', 'Reviewer', 'Tester', 'Revisionist', 'Archivist', 'Analyst', 'Builder', 'Runner', 'Brainstorm'],
+    'Analyst': ['Coordinator', 'Researcher', 'Architect', 'Executor', 'Reviewer', 'Tester', 'Revisionist', 'Archivist', 'Builder', 'Runner', 'Brainstorm'],
+    'Researcher': ['Architect', 'Coordinator', 'Analyst'],
+    'Architect': ['Executor', 'Researcher', 'Coordinator', 'Analyst'],
+    'Executor': ['Reviewer', 'Revisionist', 'Coordinator', 'Analyst'],
+    'Builder': ['Reviewer', 'Tester', 'Coordinator', 'Analyst'],
+    'Runner': ['Coordinator', 'Analyst', 'Tester'],
+    'Revisionist': ['Executor', 'Researcher', 'Coordinator', 'Analyst'],
+    'Reviewer': ['Tester', 'Executor', 'Revisionist', 'Archivist', 'Coordinator', 'Analyst'],
+    'Tester': ['Archivist', 'Executor', 'Revisionist', 'Coordinator', 'Analyst'],
+    'Brainstorm': ['Coordinator', 'Analyst', 'Architect', 'Researcher'],
+    'Archivist': ['Coordinator']  // Can return to Coordinator (not strictly terminal)
   };
 
   for (const entry of lineage) {

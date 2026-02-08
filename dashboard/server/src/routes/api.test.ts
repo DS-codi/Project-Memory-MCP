@@ -227,6 +227,7 @@ describe('Event Utilities', () => {
       'step_updated',
       'plan_created',
       'plan_archived',
+      'plan_resumed',
       'plan_deleted',
       'handoff',
       'agent_session_started',

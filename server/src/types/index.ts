@@ -206,6 +206,8 @@ export interface BuildScript {
   plan_id?: string;       // If associated with a specific plan
   workspace_id: string;   // Workspace this script belongs to
   mcp_handle?: string;    // Optional MCP tool handle for programmatic execution
+  directory_path?: string; // Absolute directory path resolved by the MCP tool
+  command_path?: string;   // Absolute command path when command is a file path
 }
 
 // Build Script Result Types for MCP Tool Actions
@@ -313,8 +315,14 @@ export const AGENT_BOUNDARIES: Record<AgentType, AgentRoleBoundaries> = {
     can_implement: false,
     can_finalize: false,
     must_handoff_to: ['Tester', 'Revisionist'],
-    forbidden_actions: ['create files', 'edit code', 'implement features'],
-    primary_responsibility: 'Execute build scripts, verify builds succeed, diagnose build failures'
+    forbidden_actions: [
+      'create files',
+      'edit code',
+      'implement features',
+      'run terminal commands',
+      'run ad-hoc build commands'
+    ],
+    primary_responsibility: 'Execute build scripts via memory_plan actions, verify builds succeed, diagnose build failures'
   },
   Reviewer: {
     agent_type: 'Reviewer',
@@ -362,6 +370,8 @@ export interface PlanStep {
   status: StepStatus;
   type?: StepType;                // Step type for behavioral hints (defaults to 'standard')
   requires_validation?: boolean;  // Explicit flag for steps needing validation
+  requires_confirmation?: boolean;  // Explicit flag for steps needing confirmation
+  requires_user_confirmation?: boolean;  // Explicit flag for user confirmation
   assignee?: string;              // Agent or role assigned to this step
   notes?: string;
   completed_at?: string;
@@ -397,7 +407,15 @@ export interface PlanState {
   current_phase: string;
   current_agent: AgentType | null;  // Agent currently deployed by Coordinator
   recommended_next_agent?: AgentType;  // Subagent recommendation for Coordinator
+  deployment_context?: {  // Set by orchestrators (Coordinator/Analyst/Runner) at deployment time
+    deployed_agent: AgentType;       // The agent that was explicitly deployed
+    deployed_by: AgentType;          // Who deployed them (Coordinator, Analyst, Runner, or User)
+    reason: string;                  // Why this agent was chosen
+    override_validation: boolean;    // If true, validation MUST respect this and not redirect
+    deployed_at: string;             // ISO timestamp
+  };
   pending_notes?: PlanNote[];  // Notes for next agent/tool call (auto-cleared after delivery)
+  confirmation_state?: ConfirmationState;  // Confirmation tracking for phases/steps
   goals?: string[];  // Project goals
   success_criteria?: string[];  // Success criteria for completion
   build_scripts?: BuildScript[];  // Plan-specific build scripts
@@ -409,20 +427,105 @@ export interface PlanState {
 }
 
 // =============================================================================
+// Confirmation State
+// =============================================================================
+
+export interface ConfirmationRecord {
+  confirmed: boolean;
+  confirmed_by?: string;
+  confirmed_at?: string;
+}
+
+export interface ConfirmationState {
+  phases: Record<string, ConfirmationRecord>;
+  steps: Record<number, ConfirmationRecord>;
+}
+
+// =============================================================================
 // Workspace Metadata (workspace.meta.json)
 // =============================================================================
 
 export interface WorkspaceMeta {
+  schema_version?: string;
   workspace_id: string;
+  workspace_path?: string;
   path: string;
   name: string;
+  created_at?: string;
+  updated_at?: string;
   registered_at: string;
   last_accessed: string;
+  last_seen_at?: string;
+  data_root?: string;
+  legacy_workspace_ids?: string[];
+  source?: string;
+  status?: string;
   active_plans: string[];
   archived_plans: string[];
   indexed: boolean;  // Whether codebase has been indexed
   profile?: WorkspaceProfile;  // Codebase profile from indexing
   workspace_build_scripts?: BuildScript[];  // Workspace-level build scripts
+}
+
+// =============================================================================
+// Workspace Context (workspace.context.json)
+// =============================================================================
+
+export interface WorkspaceContextSectionItem {
+  title: string;
+  description?: string;
+  links?: string[];
+}
+
+export interface WorkspaceContextSection {
+  summary?: string;
+  items?: WorkspaceContextSectionItem[];
+}
+
+export interface WorkspaceContext {
+  schema_version: string;
+  workspace_id: string;
+  workspace_path: string;
+  identity_file_path?: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+  sections: Record<string, WorkspaceContextSection>;
+  update_log?: WorkspaceUpdateLog;
+  audit_log?: WorkspaceAuditLog;
+}
+
+export interface WorkspaceUpdateLogEntry {
+  timestamp: string;
+  tool: string;
+  action?: string;
+  file_path: string;
+  summary: string;
+  plan_id?: string;
+  agent?: string;
+  untracked?: boolean;
+  warning?: string;
+}
+
+export interface WorkspaceUpdateLog {
+  entries: WorkspaceUpdateLogEntry[];
+  last_updated: string;
+}
+
+export interface WorkspaceAuditEntry {
+  timestamp: string;
+  tool: string;
+  action?: string;
+  file_path: string;
+  summary: string;
+  plan_id?: string;
+  agent?: string;
+  warning: string;
+}
+
+export interface WorkspaceAuditLog {
+  entries: WorkspaceAuditEntry[];
+  last_updated: string;
 }
 
 // =============================================================================
@@ -570,6 +673,13 @@ export interface InitialiseAgentParams {
   plan_id?: string;       // Optional - if not provided, returns available plans
   agent_type: AgentType;
   context: Record<string, unknown>;
+  validate?: boolean;  // Optional - run validation as part of init
+  validation_mode?: 'init+validate';
+  deployment_context?: {  // Set by orchestrators to influence validation
+    deployed_by: AgentType | 'User';  // Who is deploying this agent
+    reason: string;                    // Why this agent was chosen
+    override_validation?: boolean;     // Default true - validation respects this deployment
+  };
 }
 
 export interface InitialiseAgentResult {
@@ -584,6 +694,7 @@ export interface InitialiseAgentResult {
   };
   role_boundaries: AgentRoleBoundaries;  // CRITICAL: Constraints this agent MUST follow
   instruction_files?: AgentInstructionFile[];  // Instruction files for this agent from Coordinator
+  validation?: { success: boolean; result?: unknown; error?: string };
 }
 
 export interface HandoffParams {

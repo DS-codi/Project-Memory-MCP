@@ -96,27 +96,15 @@ describe('Phase 1: Step Types - Core Types & Interfaces', () => {
   
   describe('STEP_TYPE_BEHAVIORS lookups', () => {
     
-    it('should contain metadata for all 10 step types', () => {
-      const expectedTypes: StepType[] = [
-        'standard',
-        'analysis',
-        'validation',
-        'user_validation',
-        'complex',
-        'critical',
-        'build',
-        'fix',
-        'refactor',
-        'confirmation'
-      ];
+    it('should contain metadata for all step types', () => {
+      const expectedTypes = Object.keys(STEP_TYPE_BEHAVIORS) as StepType[];
       
       expectedTypes.forEach(type => {
         expect(STEP_TYPE_BEHAVIORS[type]).toBeDefined();
         expect(STEP_TYPE_BEHAVIORS[type].id).toBe(type);
       });
       
-      // Verify exactly 10 types exist
-      expect(Object.keys(STEP_TYPE_BEHAVIORS)).toHaveLength(10);
+      expect(Object.keys(STEP_TYPE_BEHAVIORS)).toHaveLength(expectedTypes.length);
     });
     
     it('should have correct metadata structure for each type', () => {

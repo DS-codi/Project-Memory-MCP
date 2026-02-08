@@ -14,6 +14,7 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
+import { AsyncLocalStorage } from 'async_hooks';
 import type { AgentType } from '../types/index.js';
 
 // =============================================================================
@@ -40,6 +41,7 @@ export interface LogEntry {
 
 // Track current agent per plan (set during initialise_agent)
 const currentAgentByPlan: Map<string, AgentType> = new Map();
+const toolContextStorage = new AsyncLocalStorage<{ tool: string; params: Record<string, unknown> }>();
 
 // =============================================================================
 // Path Helpers
@@ -86,6 +88,24 @@ export function getCurrentAgent(planId: string): AgentType | undefined {
  */
 export function clearCurrentAgent(planId: string): void {
   currentAgentByPlan.delete(planId);
+}
+
+/**
+ * Run a function with tool context so downstream calls can access tool metadata.
+ */
+export async function runWithToolContext<T>(
+  tool: string,
+  params: Record<string, unknown>,
+  fn: () => Promise<T>
+): Promise<T> {
+  return toolContextStorage.run({ tool, params }, fn);
+}
+
+/**
+ * Get the current tool execution context (if any).
+ */
+export function getToolContext(): { tool: string; params: Record<string, unknown> } | undefined {
+  return toolContextStorage.getStore();
 }
 
 // =============================================================================

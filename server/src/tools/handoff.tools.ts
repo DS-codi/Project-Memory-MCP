@@ -170,6 +170,28 @@ export async function initialiseAgent(
       state.recommended_next_agent = undefined;
     }
     
+    // Store deployment context if provided by orchestrator
+    // This tells validation to respect the orchestrator's explicit choice
+    if (params.deployment_context) {
+      state.deployment_context = {
+        deployed_agent: agent_type,
+        deployed_by: params.deployment_context.deployed_by as any,
+        reason: params.deployment_context.reason,
+        override_validation: params.deployment_context.override_validation !== false, // default true
+        deployed_at: store.nowISO()
+      };
+    } else {
+      // Even without explicit context, record that this agent was deployed
+      // This prevents validation from overriding the deployment
+      state.deployment_context = {
+        deployed_agent: agent_type,
+        deployed_by: state.current_agent || 'User' as any,
+        reason: 'Agent initialized via init action',
+        override_validation: true,
+        deployed_at: store.nowISO()
+      };
+    }
+    
     await store.savePlanState(state);
     await store.generatePlanMd(state);
     
@@ -298,6 +320,10 @@ export async function completeAgent(
     } else {
       state.current_agent = null;  // Plan finalized
     }
+    
+    // Clear deployment_context since this agent is done
+    // Next agent will get fresh context from whoever deploys them
+    state.deployment_context = undefined;
     
     await store.savePlanState(state);
     await store.generatePlanMd(state);

@@ -19,15 +19,71 @@ import type {
   RequestCategory,
   PlanOperationResult,
   AgentType,
-  OrderValidationWarning
+  OrderValidationWarning,
+  ConfirmationState,
+  StepType
 } from '../types/index.js';
 import { AGENT_BOUNDARIES, STEP_TYPE_BEHAVIORS } from '../types/index.js';
 import * as store from '../storage/file-store.js';
 import { events } from '../events/event-emitter.js';
+import { appendWorkspaceFileUpdate } from '../logging/workspace-update-log.js';
 
 // =============================================================================
 // Plan Lookup
 // =============================================================================
+
+const HIGH_RISK_STEP_TYPES: StepType[] = ['critical', 'build', 'validation'];
+const HIGH_RISK_KEYWORDS = ['delete', 'wipe', 'reset', 'drop', 'migrate'];
+
+function ensureConfirmationState(state: PlanState): ConfirmationState {
+  if (!state.confirmation_state) {
+    state.confirmation_state = { phases: {}, steps: {} };
+  }
+  if (!state.confirmation_state.phases) {
+    state.confirmation_state.phases = {};
+  }
+  if (!state.confirmation_state.steps) {
+    state.confirmation_state.steps = {};
+  }
+  return state.confirmation_state;
+}
+
+function isHighRiskStep(step: PlanStep): boolean {
+  const stepType = step.type ?? 'standard';
+  if (HIGH_RISK_STEP_TYPES.includes(stepType)) {
+    return true;
+  }
+
+  const taskText = step.task.toLowerCase();
+  if (HIGH_RISK_KEYWORDS.some(keyword => taskText.includes(keyword))) {
+    return true;
+  }
+
+  return false;
+}
+
+function requiresStepConfirmation(step: PlanStep): boolean {
+  const stepType = step.type ?? 'standard';
+  if (stepType === 'confirmation' || stepType === 'user_validation') {
+    return true;
+  }
+
+  if (step.requires_confirmation || step.requires_user_confirmation) {
+    return true;
+  }
+
+  return isHighRiskStep(step);
+}
+
+function hasStepConfirmation(state: PlanState, stepIndex: number): boolean {
+  const confirmationState = ensureConfirmationState(state);
+  return confirmationState.steps[stepIndex]?.confirmed === true;
+}
+
+function hasPhaseConfirmation(state: PlanState, phase: string): boolean {
+  const confirmationState = ensureConfirmationState(state);
+  return confirmationState.phases[phase]?.confirmed === true;
+}
 
 export interface PlanSummary {
   plan_id: string;
@@ -479,7 +535,7 @@ export async function getPlanState(
         error: `Plan not found: ${plan_id}`
       };
     }
-    
+
     return {
       success: true,
       data: state
@@ -554,6 +610,30 @@ export async function updateStep(
         success: false,
         error: `Step not found: ${step_index}`
       };
+    }
+
+    // Confirmation gating for step execution
+    if (status === 'active' || status === 'done') {
+      if (requiresStepConfirmation(step) && !hasStepConfirmation(state, step_index)) {
+        return {
+          success: false,
+          error: `Step ${step_index} requires explicit user confirmation before execution. Use memory_plan action "confirm" with scope "step".`
+        };
+      }
+
+      if (status === 'done') {
+        const phaseSteps = state.steps.filter(s => s.phase === step.phase);
+        const phaseCompleteAfterUpdate = phaseSteps.every(s =>
+          s.index === step_index ? true : s.status === 'done'
+        );
+
+        if (phaseCompleteAfterUpdate && !hasPhaseConfirmation(state, step.phase)) {
+          return {
+            success: false,
+            error: `Phase "${step.phase}" requires confirmation before transition. Use memory_plan action "confirm" with scope "phase".`
+          };
+        }
+      }
     }
     
     // Update step
@@ -679,6 +759,48 @@ export async function batchUpdateSteps(
     const currentAgent = state.current_agent || 'Coordinator';
     const boundaries = AGENT_BOUNDARIES[currentAgent];
     
+    const updatesByIndex = new Map(updates.map(update => [update.step_index, update]));
+    const confirmationErrors: string[] = [];
+
+    for (const update of updates) {
+      const step = state.steps.find(s => s.index === update.step_index);
+      if (!step) {
+        continue;
+      }
+
+      if (update.status === 'active' || update.status === 'done') {
+        if (requiresStepConfirmation(step) && !hasStepConfirmation(state, update.step_index)) {
+          confirmationErrors.push(`Step ${update.step_index} requires explicit user confirmation.`);
+        }
+      }
+    }
+
+    if (confirmationErrors.length > 0) {
+      return {
+        success: false,
+        error: `${confirmationErrors.join(' ')} Use memory_plan action "confirm" before updating these steps.`
+      };
+    }
+
+    const phases = [...new Set(state.steps.map(s => s.phase))];
+    for (const phase of phases) {
+      const phaseSteps = state.steps.filter(s => s.phase === phase);
+      const phaseCompleteAfterUpdate = phaseSteps.every(step => {
+        const update = updatesByIndex.get(step.index);
+        if (update?.status) {
+          return update.status === 'done';
+        }
+        return step.status === 'done';
+      });
+
+      if (phaseCompleteAfterUpdate && !hasPhaseConfirmation(state, phase)) {
+        return {
+          success: false,
+          error: `Phase "${phase}" requires confirmation before transition. Use memory_plan action "confirm" with scope "phase".`
+        };
+      }
+    }
+
     let updatedCount = 0;
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -715,7 +837,6 @@ export async function batchUpdateSteps(
     }
     
     // Update phase if needed
-    const phases = [...new Set(state.steps.map(s => s.phase))];
     for (const phase of phases) {
       const phaseSteps = state.steps.filter(s => s.phase === phase);
       const allDone = phaseSteps.every(s => s.status === 'done');
@@ -906,32 +1027,65 @@ export async function insertStep(
     
     const currentAgent = state.current_agent || 'Coordinator';
     const boundaries = AGENT_BOUNDARIES[currentAgent];
+
+    const mapDependsOn = (
+      dependsOn: number[] | undefined,
+      indexMap: Map<number, number>
+    ): number[] | undefined => {
+      if (!dependsOn || dependsOn.length === 0) {
+        return dependsOn;
+      }
+
+      return dependsOn.map(depIndex => (indexMap.has(depIndex) ? indexMap.get(depIndex)! : depIndex));
+    };
+
+    // Normalize steps by index order and reindex sequentially
+    const sortedSteps = [...state.steps].sort((a, b) => a.index - b.index);
+    const indexMap = new Map<number, number>();
+    sortedSteps.forEach((s, i) => {
+      if (!indexMap.has(s.index)) {
+        indexMap.set(s.index, i);
+      }
+    });
+    const normalizedSteps = sortedSteps.map((s, i) => ({
+      ...s,
+      index: i,
+      depends_on: mapDependsOn(s.depends_on, indexMap)
+    }));
     
     // Validate at_index
-    if (at_index < 0 || at_index > state.steps.length) {
+    if (at_index < 0 || at_index > normalizedSteps.length) {
       return {
         success: false,
-        error: `Invalid at_index: ${at_index}. Must be between 0 and ${state.steps.length}`
+        error: `Invalid at_index: ${at_index}. Must be between 0 and ${normalizedSteps.length}`
       };
     }
     
     // Shift indices >= at_index up by 1
-    const updatedSteps = state.steps.map(s => {
-      if (s.index >= at_index) {
-        return { ...s, index: s.index + 1 };
-      }
-      return s;
+    const updatedSteps = normalizedSteps.map(s => {
+      const shiftedIndex = s.index >= at_index ? s.index + 1 : s.index;
+      const shiftedDepends = s.depends_on
+        ? s.depends_on.map(depIndex => (depIndex >= at_index ? depIndex + 1 : depIndex))
+        : s.depends_on;
+      return { ...s, index: shiftedIndex, depends_on: shiftedDepends };
     });
+
+    const normalizedNewDepends = mapDependsOn(step.depends_on, indexMap);
+    const shiftedNewDepends = normalizedNewDepends
+      ? normalizedNewDepends.map(depIndex => (depIndex >= at_index ? depIndex + 1 : depIndex))
+      : normalizedNewDepends;
     
     // Insert new step with the target index
     const newStep: PlanStep = {
       ...step,
       index: at_index,
-      status: step.status || 'pending'
+      status: step.status || 'pending',
+      depends_on: shiftedNewDepends
     };
     
     // Combine and sort by index
     state.steps = [...updatedSteps, newStep].sort((a, b) => a.index - b.index);
+    state.updated_at = store.nowISO();
     
     await store.savePlanState(state);
     await store.generatePlanMd(state);
@@ -1490,6 +1644,13 @@ export async function deletePlan(
     // Delete plan directory
     const planPath = store.getPlanPath(workspace_id, plan_id);
     await fs.rm(planPath, { recursive: true, force: true });
+    await appendWorkspaceFileUpdate({
+      workspace_id,
+      plan_id,
+      file_path: planPath,
+      summary: 'Deleted plan directory',
+      action: 'delete_plan'
+    });
     
     // Emit event - using planUpdated since there's no planDeleted event type
     await events.planUpdated(workspace_id, plan_id, { deleted: true });
@@ -1587,6 +1748,8 @@ export async function consolidateSteps(
       notes: mergedNotes || undefined,
       type: firstStep.type,
       requires_validation: firstStep.requires_validation,
+      requires_confirmation: firstStep.requires_confirmation,
+      requires_user_confirmation: firstStep.requires_user_confirmation,
       assignee: firstStep.assignee
     };
     
@@ -1794,6 +1957,112 @@ export async function addPlanNote(
     return {
       success: false,
       error: `Failed to add note: ${(error as Error).message}`
+    };
+  }
+}
+
+// =============================================================================
+// Confirmation Tracking
+// =============================================================================
+
+export async function confirmPhase(
+  params: { workspace_id: string; plan_id: string; phase: string; confirmed_by?: string }
+): Promise<ToolResponse<{ plan_state: PlanState; confirmation: ConfirmationState['phases'][string] }>> {
+  try {
+    const { workspace_id, plan_id, phase, confirmed_by } = params;
+
+    if (!workspace_id || !plan_id || !phase) {
+      return {
+        success: false,
+        error: 'workspace_id, plan_id, and phase are required'
+      };
+    }
+
+    const state = await store.getPlanState(workspace_id, plan_id);
+    if (!state) {
+      return {
+        success: false,
+        error: `Plan not found: ${plan_id}`
+      };
+    }
+
+    ensureConfirmationState(state);
+    const confirmation = {
+      confirmed: true,
+      confirmed_by: confirmed_by || 'user',
+      confirmed_at: store.nowISO()
+    };
+
+    state.confirmation_state!.phases[phase] = confirmation;
+    await store.savePlanState(state);
+    await store.generatePlanMd(state);
+
+    return {
+      success: true,
+      data: {
+        plan_state: state,
+        confirmation
+      }
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to confirm phase: ${(error as Error).message}`
+    };
+  }
+}
+
+export async function confirmStep(
+  params: { workspace_id: string; plan_id: string; step_index: number; confirmed_by?: string }
+): Promise<ToolResponse<{ plan_state: PlanState; confirmation: ConfirmationState['steps'][number] }>> {
+  try {
+    const { workspace_id, plan_id, step_index, confirmed_by } = params;
+
+    if (!workspace_id || !plan_id || step_index === undefined) {
+      return {
+        success: false,
+        error: 'workspace_id, plan_id, and step_index are required'
+      };
+    }
+
+    const state = await store.getPlanState(workspace_id, plan_id);
+    if (!state) {
+      return {
+        success: false,
+        error: `Plan not found: ${plan_id}`
+      };
+    }
+
+    const step = state.steps.find(s => s.index === step_index);
+    if (!step) {
+      return {
+        success: false,
+        error: `Step not found: ${step_index}`
+      };
+    }
+
+    ensureConfirmationState(state);
+    const confirmation = {
+      confirmed: true,
+      confirmed_by: confirmed_by || 'user',
+      confirmed_at: store.nowISO()
+    };
+
+    state.confirmation_state!.steps[step_index] = confirmation;
+    await store.savePlanState(state);
+    await store.generatePlanMd(state);
+
+    return {
+      success: true,
+      data: {
+        plan_state: state,
+        confirmation
+      }
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to confirm step: ${(error as Error).message}`
     };
   }
 }

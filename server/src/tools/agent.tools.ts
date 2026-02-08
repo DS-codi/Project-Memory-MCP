@@ -5,6 +5,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import type { ToolResponse } from '../types/index.js';
+import { appendWorkspaceFileUpdate } from '../logging/workspace-update-log.js';
 
 // Path to the agents directory (relative to the server)
 const AGENTS_ROOT = process.env.MBS_AGENTS_ROOT || path.join(process.cwd(), '..', 'agents');
@@ -80,6 +81,12 @@ export async function deployAgentsToWorkspace(
       
       const content = await fs.readFile(sourcePath, 'utf-8');
       await fs.writeFile(targetPath, content, 'utf-8');
+      await appendWorkspaceFileUpdate({
+        workspace_path: workspace_path,
+        file_path: targetPath,
+        summary: `Deployed agent file ${file}`,
+        action: 'deploy_agent_file'
+      });
       deployed.push(file);
     }
     
@@ -99,6 +106,12 @@ export async function deployAgentsToWorkspace(
             
             const content = await fs.readFile(sourcePath, 'utf-8');
             await fs.writeFile(targetPath, content, 'utf-8');
+            await appendWorkspaceFileUpdate({
+              workspace_path: workspace_path,
+              file_path: targetPath,
+              summary: `Deployed prompt file ${file}`,
+              action: 'deploy_prompt_file'
+            });
             prompts_deployed.push(file);
           }
         }
@@ -123,6 +136,12 @@ export async function deployAgentsToWorkspace(
             
             const content = await fs.readFile(sourcePath, 'utf-8');
             await fs.writeFile(targetPath, content, 'utf-8');
+            await appendWorkspaceFileUpdate({
+              workspace_path: workspace_path,
+              file_path: targetPath,
+              summary: `Deployed instruction file ${file}`,
+              action: 'deploy_instruction_file'
+            });
             instructions_deployed.push(file);
           }
         }

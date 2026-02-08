@@ -16,10 +16,10 @@ I have summarized all improvements and additions below.
 - Template Engine: Added API endpoints and UI support to list and create plans from predefined templates.
 - Context Management: Built a complete set of routes for storing and retrieving plan context, including initial requests and research notes.
 - New Pages: Created dedicated dashboard views for:
-- Context Files: A viewer for research and plan-specific context.
-- Build Scripts: A standalone page to manage and run project scripts.
-- Data Root: A system page displaying the current storage path.
-- Workspace Status: A detailed view of health metrics and stale processes.
+  - Context Files: A viewer for research and plan-specific context.
+  - Build Scripts: A standalone page to manage and run project scripts.
+  - Data Root: A system page displaying the current storage path.
+  - Workspace Status: A detailed view of health metrics and stale processes.
 
 3. **VS Code Extension (Sidebar & Bridge)**
 

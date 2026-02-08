@@ -1,3 +1,7 @@
+---
+applyTo: "**/cxxqt/**,**/qml/**,**/*cxxqt*.*,**/*.qml"
+---
+
 # CxxQt Rust GUI Development Instructions
 
 Guidelines for building Qt-based GUI applications in Rust using CxxQt.

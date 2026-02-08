@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Upload, Users, FileText, BookOpen, Check } from 'lucide-react';
 import { cn } from '@/utils/cn';
+import { getDeployDefaults, setDeployDefaults, type DeployDefaults } from '@/utils/deployDefaults';
 
 interface DeployableItem {
   id: string;
@@ -13,9 +14,18 @@ interface DeployModalProps {
   onClose: () => void;
   workspaceId: string;
   workspacePath: string;
+  mode?: 'deploy' | 'defaults';
+  onDefaultsSaved?: (defaults: DeployDefaults) => void;
 }
 
-export function DeployModal({ isOpen, onClose, workspaceId, workspacePath }: DeployModalProps) {
+export function DeployModal({
+  isOpen,
+  onClose,
+  workspaceId,
+  workspacePath,
+  mode = 'deploy',
+  onDefaultsSaved,
+}: DeployModalProps) {
   const [agents, setAgents] = useState<DeployableItem[]>([]);
   const [prompts, setPrompts] = useState<DeployableItem[]>([]);
   const [instructions, setInstructions] = useState<DeployableItem[]>([]);
@@ -27,6 +37,16 @@ export function DeployModal({ isOpen, onClose, workspaceId, workspacePath }: Dep
   const [isLoading, setIsLoading] = useState(true);
   const [isDeploying, setIsDeploying] = useState(false);
   const [deployResult, setDeployResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const isDefaultsMode = mode === 'defaults';
+
+  const getSelectedFromDefaults = (available: DeployableItem[], defaults?: string[]) => {
+    const availableIds = new Set(available.map((item) => item.id));
+    if (!defaults) {
+      return new Set(available.map((item) => item.id));
+    }
+    return new Set(defaults.filter((id) => availableIds.has(id)));
+  };
 
   // Fetch available items
   useEffect(() => {
@@ -41,11 +61,11 @@ export function DeployModal({ isOpen, onClose, workspaceId, workspacePath }: Dep
       setAgents(agentsData.agents || []);
       setPrompts(promptsData.prompts || []);
       setInstructions(instructionsData.instructions || []);
-      
-      // Pre-select all by default
-      setSelectedAgents(new Set((agentsData.agents || []).map((a: DeployableItem) => a.id)));
-      setSelectedPrompts(new Set((promptsData.prompts || []).map((p: DeployableItem) => p.id)));
-      setSelectedInstructions(new Set((instructionsData.instructions || []).map((i: DeployableItem) => i.id)));
+
+      const defaults = getDeployDefaults();
+      setSelectedAgents(getSelectedFromDefaults(agentsData.agents || [], defaults?.agents));
+      setSelectedPrompts(getSelectedFromDefaults(promptsData.prompts || [], defaults?.prompts));
+      setSelectedInstructions(getSelectedFromDefaults(instructionsData.instructions || [], defaults?.instructions));
       
       setIsLoading(false);
     }).catch(() => {
@@ -111,6 +131,20 @@ export function DeployModal({ isOpen, onClose, workspaceId, workspacePath }: Dep
     }
   };
 
+  const handleSaveDefaults = () => {
+    const saved = setDeployDefaults({
+      agents: Array.from(selectedAgents),
+      prompts: Array.from(selectedPrompts),
+      instructions: Array.from(selectedInstructions),
+    });
+
+    setDeployResult({
+      success: true,
+      message: 'Deploy defaults saved',
+    });
+    onDefaultsSaved?.(saved);
+  };
+
   if (!isOpen) return null;
 
   const totalSelected = selectedAgents.size + selectedPrompts.size + selectedInstructions.size;
@@ -124,8 +158,14 @@ export function DeployModal({ isOpen, onClose, workspaceId, workspacePath }: Dep
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-700">
           <div>
-            <h2 className="text-lg font-semibold text-white">Deploy to Workspace</h2>
-            <p className="text-sm text-slate-400">Select items to deploy to {workspacePath.split(/[/\\]/).pop()}</p>
+            <h2 className="text-lg font-semibold text-white">
+              {isDefaultsMode ? 'Configure Deploy Defaults' : 'Deploy to Workspace'}
+            </h2>
+            <p className="text-sm text-slate-400">
+              {isDefaultsMode
+                ? 'Choose the default agents, prompts, and instructions for new deployments.'
+                : `Select items to deploy to ${workspacePath.split(/[/\\]/).pop()}`}
+            </p>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-slate-700 rounded">
             <X className="w-5 h-5 text-slate-400" />
@@ -202,12 +242,14 @@ export function DeployModal({ isOpen, onClose, workspaceId, workspacePath }: Dep
               Cancel
             </button>
             <button
-              onClick={handleDeploy}
-              disabled={isDeploying || totalSelected === 0}
+              onClick={isDefaultsMode ? handleSaveDefaults : handleDeploy}
+              disabled={isDeploying || (!isDefaultsMode && totalSelected === 0)}
               className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
             >
               <Upload className="w-4 h-4" />
-              {isDeploying ? 'Deploying...' : 'Deploy Selected'}
+              {isDeploying
+                ? (isDefaultsMode ? 'Saving...' : 'Deploying...')
+                : (isDefaultsMode ? 'Save Defaults' : 'Deploy Selected')}
             </button>
           </div>
         </div>

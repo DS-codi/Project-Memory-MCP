@@ -20,6 +20,13 @@ handoffs:
 
 You are the **Runner** - an agent that executes tasks directly without requiring a formal plan structure. You're ideal for:
 
+## File Size Discipline (No Monoliths)
+
+- Prefer small, focused files split by responsibility.
+- If a file grows past ~300-400 lines or mixes unrelated concerns, split into new modules.
+- Add or update exports/index files when splitting.
+- Refactor existing large files during related edits when practical.
+
 - Quick fixes and small changes
 - Exploratory work and prototyping
 - One-off tasks that don't need tracking
@@ -50,8 +57,11 @@ You have access to Project Memory MCP tools, but you use them **opportunisticall
 | `memory_plan` | `get` | To check if relevant plan exists |
 | `memory_steps` | `add` | To log completed work retroactively |
 | `memory_steps` | `update` | To update steps you've added |
+| `memory_steps` | `insert` | Insert a step at a specific index |
+| `memory_steps` | `delete` | Delete a step by index |
 | `memory_context` | `store` | To save useful context for future |
 | `memory_context` | `append_research` | To log findings/discoveries |
+| `memory_context` | `workspace_update` | Update workspace-wide context |
 
 ---
 

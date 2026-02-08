@@ -6,6 +6,7 @@
  *           modify_plan, archive_plan, import_plan, find_plan, add_plan_note
  */
 
+import path from 'path';
 import type { 
   ToolResponse, 
   PlanState, 
@@ -24,7 +25,7 @@ import type {
 import * as planTools from '../plan.tools.js';
 import * as fileStore from '../../storage/file-store.js';
 
-export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate' | 'set_goals' | 'add_build_script' | 'list_build_scripts' | 'run_build_script' | 'delete_build_script' | 'create_from_template' | 'list_templates';
+export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate' | 'set_goals' | 'add_build_script' | 'list_build_scripts' | 'run_build_script' | 'delete_build_script' | 'create_from_template' | 'list_templates' | 'confirm';
 
 export interface MemoryPlanParams {
   action: PlanAction;
@@ -56,6 +57,11 @@ export interface MemoryPlanParams {
   script_id?: string;
   // Template params
   template?: 'feature' | 'bugfix' | 'refactor' | 'documentation' | 'analysis' | 'investigation';
+  // Confirmation params
+  confirmation_scope?: 'phase' | 'step';
+  confirm_phase?: string;
+  confirm_step_index?: number;
+  confirmed_by?: string;
 }
 
 type PlanResult = 
@@ -75,7 +81,62 @@ type PlanResult =
   | { action: 'run_build_script'; data: RunBuildScriptResult }
   | { action: 'delete_build_script'; data: DeleteBuildScriptResult }
   | { action: 'create_from_template'; data: PlanState }
-  | { action: 'list_templates'; data: planTools.PlanTemplateSteps[] };
+  | { action: 'list_templates'; data: planTools.PlanTemplateSteps[] }
+  | { action: 'confirm'; data: { plan_state: PlanState; confirmation: unknown } };
+
+const PATH_LIKE_EXTENSIONS = new Set([
+  '.ps1',
+  '.sh',
+  '.cmd',
+  '.bat',
+  '.exe',
+  '.js',
+  '.ts',
+  '.mjs',
+  '.cjs'
+]);
+
+function isPathLikeToken(token: string): boolean {
+  if (!token) {
+    return false;
+  }
+
+  if (path.isAbsolute(token)) {
+    return true;
+  }
+
+  if (token.startsWith('./') || token.startsWith('.\\')) {
+    return true;
+  }
+
+  if (token.includes('/') || token.includes('\\')) {
+    return true;
+  }
+
+  const extension = path.extname(token).toLowerCase();
+  return PATH_LIKE_EXTENSIONS.has(extension);
+}
+
+function resolveScriptPaths(script: BuildScript, workspaceRoot: string): BuildScript {
+  const directoryPath = path.isAbsolute(script.directory)
+    ? script.directory
+    : path.resolve(workspaceRoot, script.directory);
+  const tokens = fileStore.parseCommandTokens(script.command);
+  const commandToken = tokens[0] ?? '';
+  let commandPath: string | undefined;
+
+  if (commandToken && isPathLikeToken(commandToken)) {
+    commandPath = path.isAbsolute(commandToken)
+      ? commandToken
+      : path.resolve(directoryPath, commandToken);
+  }
+
+  return {
+    ...script,
+    directory_path: directoryPath,
+    command_path: commandPath
+  };
+}
 
 export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse<PlanResult>> {
   const { action } = params;
@@ -83,7 +144,7 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
   if (!action) {
     return {
       success: false,
-      error: 'action is required. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates'
+      error: 'action is required. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm'
     };
   }
 
@@ -339,10 +400,15 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
           error: 'workspace_id is required for action: list_build_scripts'
         };
       }
+      const workspace = await fileStore.getWorkspace(params.workspace_id);
+      const workspaceRoot = workspace?.workspace_path ?? workspace?.path;
       const scripts = await fileStore.getBuildScripts(params.workspace_id, params.plan_id);
+      const scriptsWithPaths = workspaceRoot
+        ? scripts.map(script => resolveScriptPaths(script, workspaceRoot))
+        : scripts;
       return {
         success: true,
-        data: { action: 'list_build_scripts', data: { scripts } }
+        data: { action: 'list_build_scripts', data: { scripts: scriptsWithPaths } }
       };
     }
 
@@ -353,7 +419,11 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
           error: 'workspace_id and script_id are required for action: run_build_script'
         };
       }
-      const result = await fileStore.runBuildScript(params.workspace_id, params.script_id);
+      const result = await fileStore.runBuildScript(
+        params.workspace_id,
+        params.script_id,
+        params.plan_id
+      );
       return {
         success: true,
         data: { action: 'run_build_script', data: result }
@@ -437,10 +507,68 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
       };
     }
 
+    case 'confirm': {
+      if (!params.workspace_id || !params.plan_id || !params.confirmation_scope) {
+        return {
+          success: false,
+          error: 'workspace_id, plan_id, and confirmation_scope are required for action: confirm'
+        };
+      }
+
+      if (params.confirmation_scope === 'phase') {
+        if (!params.confirm_phase) {
+          return {
+            success: false,
+            error: 'confirm_phase is required when confirmation_scope is phase'
+          };
+        }
+        const result = await planTools.confirmPhase({
+          workspace_id: params.workspace_id,
+          plan_id: params.plan_id,
+          phase: params.confirm_phase,
+          confirmed_by: params.confirmed_by
+        });
+        if (!result.success) {
+          return { success: false, error: result.error };
+        }
+        return {
+          success: true,
+          data: { action: 'confirm', data: result.data! }
+        };
+      }
+
+      if (params.confirmation_scope === 'step') {
+        if (params.confirm_step_index === undefined) {
+          return {
+            success: false,
+            error: 'confirm_step_index is required when confirmation_scope is step'
+          };
+        }
+        const result = await planTools.confirmStep({
+          workspace_id: params.workspace_id,
+          plan_id: params.plan_id,
+          step_index: params.confirm_step_index,
+          confirmed_by: params.confirmed_by
+        });
+        if (!result.success) {
+          return { success: false, error: result.error };
+        }
+        return {
+          success: true,
+          data: { action: 'confirm', data: result.data! }
+        };
+      }
+
+      return {
+        success: false,
+        error: `Unknown confirmation_scope: ${params.confirmation_scope}`
+      };
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates`
+        error: `Unknown action: ${action}. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm`
       };
   }
 }

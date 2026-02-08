@@ -39,6 +39,13 @@ export interface MemoryAgentParams {
   
   // For init
   context?: Record<string, unknown>;
+  validate?: boolean;
+  validation_mode?: 'init+validate';
+  deployment_context?: {
+    deployed_by: string;           // Who is deploying (Coordinator, Analyst, Runner, User)
+    reason: string;                // Why this agent was chosen
+    override_validation?: boolean; // Default true - validation respects this
+  };
   
   // For complete
   summary?: string;
@@ -93,16 +100,59 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
         workspace_id: params.workspace_id,
         plan_id: params.plan_id,
         agent_type: params.agent_type,
-        context: params.context || {}
+        context: params.context || {},
+        deployment_context: params.deployment_context ? {
+          deployed_by: params.deployment_context.deployed_by as any,
+          reason: params.deployment_context.reason,
+          override_validation: params.deployment_context.override_validation
+        } : undefined
       });
       // Note: initialiseAgent can return success=false but still have useful data
       if (!result.success && !result.data) {
         return { success: false, error: result.error };
       }
+
+      const initData = result.data!;
+      const wantsValidation = params.validate === true || params.validation_mode === 'init+validate';
+
+      if (wantsValidation && params.workspace_id && params.plan_id) {
+        const validateFn = getValidationFunction(params.agent_type);
+        if (!validateFn) {
+          initData.validation = {
+            success: false,
+            error: `No validation function for agent type: ${params.agent_type}`
+          };
+          return {
+            success: false,
+            error: initData.validation.error,
+            data: { action: 'init', data: initData }
+          };
+        }
+
+        const validationResult = await validateFn({
+          workspace_id: params.workspace_id,
+          plan_id: params.plan_id
+        });
+
+        initData.validation = {
+          success: validationResult.success,
+          result: validationResult.data,
+          error: validationResult.error
+        };
+
+        if (!validationResult.success) {
+          return {
+            success: false,
+            error: validationResult.error,
+            data: { action: 'init', data: initData }
+          };
+        }
+      }
+
       return {
         success: result.success,
         error: result.error,
-        data: { action: 'init', data: result.data! }
+        data: { action: 'init', data: initData }
       };
     }
 
@@ -294,6 +344,8 @@ function getValidationFunction(agentType: AgentType): ((params: validationTools.
       return validationTools.validateArchitect;
     case 'Executor':
       return validationTools.validateExecutor;
+    case 'Builder':
+      return validationTools.validateBuilder;
     case 'Reviewer':
       return validationTools.validateReviewer;
     case 'Tester':

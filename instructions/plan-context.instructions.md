@@ -2,9 +2,9 @@
 applyTo: "**/*"
 ---
 
-# Plan Context Files
+# Plan and Workspace Context Files
 
-This workspace uses file-based context storage for persistent plan state.
+This workspace uses file-based context storage for persistent plan and workspace state.
 
 ## Context File Locations
 
@@ -17,6 +17,14 @@ data/{workspace_id}/plans/{plan_id}/
 ├── architecture.json       # Design decisions
 ├── review_findings.json    # Review results
 └── research_notes/         # Detailed research documents
+```
+
+Workspace context lives at the workspace root:
+```
+data/{workspace_id}/
+├── workspace.context.json  # Workspace-wide context and notes
+├── workspace.meta.json     # Metadata, timestamps, and lineage
+└── (update_log, audit_log are stored inside workspace.context.json)
 ```
 
 ## Reading Context
@@ -35,6 +43,12 @@ memory_context (action: get) with
   type: "original_request|research|architecture|review"
 ```
 
+Use workspace-scoped context when the information applies to the whole workspace:
+```
+memory_context (action: workspace_get) with
+  workspace_id: "..."
+```
+
 ## Writing Context
 
 Use `memory_context` (action: store) to save findings:
@@ -43,6 +57,13 @@ memory_context (action: store) with
   workspace_id: "...",
   plan_id: "...",
   type: "research|architecture|review|audit",
+  data: { ... }
+```
+
+Use workspace-scoped context updates for shared notes, audit entries, or workspace preferences:
+```
+memory_context (action: workspace_update) with
+  workspace_id: "...",
   data: { ... }
 ```
 

@@ -16,6 +16,7 @@ import type {
 } from '../types/index.js';
 import * as store from '../storage/file-store.js';
 import { sanitizeJsonData, sanitizeContent, addSecurityMetadata } from '../security/sanitize.js';
+import { appendWorkspaceFileUpdate } from '../logging/workspace-update-log.js';
 
 /**
  * Store context data (audit, research, decisions, etc.)
@@ -58,6 +59,13 @@ export async function storeContext(
     };
     
     await store.writeJson(contextPath, contextData);
+    await appendWorkspaceFileUpdate({
+      workspace_id,
+      plan_id,
+      file_path: contextPath,
+      summary: `Stored context ${type}`,
+      action: 'store_context'
+    });
     
     return {
       success: true,
@@ -172,6 +180,13 @@ export async function storeInitialContext(
     };
     
     await store.writeJson(contextPath, initialContext);
+    await appendWorkspaceFileUpdate({
+      workspace_id,
+      plan_id,
+      file_path: contextPath,
+      summary: 'Stored initial user context',
+      action: 'store_initial_context'
+    });
     
     // Generate a summary for the response
     const contextSummary = [
@@ -248,6 +263,13 @@ warnings: ${sanitizationResult.warnings.length}
 `;
     
     await store.writeText(filePath, header + sanitizationResult.sanitized);
+    await appendWorkspaceFileUpdate({
+      workspace_id,
+      plan_id,
+      file_path: filePath,
+      summary: `Appended research note ${safeFilename}`,
+      action: 'append_research'
+    });
     
     return {
       success: true,
@@ -455,6 +477,13 @@ When working on this plan:
       // Ensure directory exists
       await fs.mkdir(path.dirname(output_path), { recursive: true });
       await fs.writeFile(output_path, content, 'utf-8');
+      await appendWorkspaceFileUpdate({
+        workspace_id,
+        plan_id,
+        file_path: output_path,
+        summary: 'Generated plan instructions',
+        action: 'generate_plan_instructions'
+      });
       
       return {
         success: true,
@@ -562,6 +591,13 @@ export async function generateAgentInstructions(
     
     // Write the instruction file
     await fs.writeFile(finalOutputPath, content, 'utf-8');
+    await appendWorkspaceFileUpdate({
+      workspace_id,
+      plan_id,
+      file_path: finalOutputPath,
+      summary: `Generated agent instructions for ${target_agent}`,
+      action: 'generate_agent_instructions'
+    });
     
     // Create the instruction file metadata
     const instructionFile: AgentInstructionFile = {

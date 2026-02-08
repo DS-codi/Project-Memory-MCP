@@ -1,3 +1,7 @@
+---
+applyTo: "**/notion/**,**/*notion*.*"
+---
+
 # NotionCustomMCP - Agent Instructions
 
 This document provides comprehensive guidance for AI agents on how to use the NotionCustomMCP (Model Context Protocol) server effectively.

@@ -1,3 +1,7 @@
+---
+applyTo: "**/notion/**,**/*notion*.*"
+---
+
 # Notion Dev Containers MCP - Agent Instructions
 
 This document provides comprehensive guidance for AI agents on how to use the Notion Dev Containers MCP (Model Context Protocol) server effectively.

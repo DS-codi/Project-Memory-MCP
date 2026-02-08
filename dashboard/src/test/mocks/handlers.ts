@@ -66,6 +66,37 @@ export const mockPlans = [
   },
 ];
 
+const mockPlanTemplates = [
+  { template: 'feature', category: 'feature', label: 'Feature', steps: [] },
+  { template: 'bugfix', category: 'bug', label: 'Bug Fix', steps: [] },
+  { template: 'refactor', category: 'refactor', label: 'Refactor', steps: [] },
+];
+
+const mockInstructions = [
+  {
+    id: 'inst_general_001',
+    name: 'General Guide',
+    filename: 'general.instructions.md',
+    isPathSpecific: false,
+  },
+  {
+    id: 'inst_path_002',
+    name: 'Path Specific Guide',
+    filename: 'path.instructions.md',
+    isPathSpecific: true,
+  },
+];
+
+const mockWorkspaceContext = {
+  schema_version: '1.0.0',
+  workspace_id: 'ws_test_123',
+  workspace_path: '/test/workspace',
+  name: 'Test Workspace',
+  created_at: '2024-01-15T10:00:00Z',
+  updated_at: '2024-01-20T14:30:00Z',
+  sections: {},
+};
+
 export const mockAgents = [
   {
     id: 'coordinator',
@@ -175,6 +206,30 @@ export const handlers = [
 
   http.delete('/api/plans/:workspaceId/:planId', ({ params }) => {
     return HttpResponse.json({ success: true, planId: params.planId });
+  }),
+
+  http.get('/api/plans/templates', () => {
+    return HttpResponse.json({ templates: mockPlanTemplates });
+  }),
+
+  http.get('/api/instructions', () => {
+    return HttpResponse.json({ instructions: mockInstructions, total: mockInstructions.length });
+  }),
+
+  http.get('/api/workspaces/:id/context', () => {
+    return HttpResponse.json({ exists: true, context: mockWorkspaceContext });
+  }),
+
+  http.put('/api/workspaces/:id/context', async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json({
+      success: true,
+      context: {
+        ...mockWorkspaceContext,
+        updated_at: new Date().toISOString(),
+        sections: body.sections || {},
+      },
+    });
   }),
 
   // Agents

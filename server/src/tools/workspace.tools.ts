@@ -12,12 +12,14 @@ import type {
 } from '../types/index.js';
 import * as store from '../storage/file-store.js';
 import { indexWorkspace, needsIndexing } from '../indexing/workspace-indexer.js';
+import type { WorkspaceMigrationReport } from '../storage/file-store.js';
 
 interface RegisterWorkspaceResult {
   workspace: WorkspaceMeta;
   first_time: boolean;
   indexed: boolean;
   profile?: WorkspaceProfile;
+  migration?: WorkspaceMigrationReport;
 }
 
 /**
@@ -38,15 +40,15 @@ export async function registerWorkspace(
     }
     
     // Check if this is a new workspace
-    const existingId = store.generateWorkspaceId(workspace_path);
+    const existingId = await store.resolveWorkspaceIdForPath(workspace_path);
     const existing = await store.getWorkspace(existingId);
-    const isFirstTime = !existing;
+    const isNewWorkspace = !existing;
     
     let profile: WorkspaceProfile | undefined;
     let shouldIndex = false;
     
     // Index if first time or needs re-indexing
-    if (isFirstTime) {
+    if (isNewWorkspace) {
       shouldIndex = true;
     } else if (existing && await needsIndexing(workspace_path, existing.profile)) {
       shouldIndex = true;
@@ -61,7 +63,15 @@ export async function registerWorkspace(
       }
     }
     
-    const meta = await store.createWorkspace(workspace_path, profile);
+    const result = await store.createWorkspace(workspace_path, profile);
+    const meta = result.meta;
+    const isFirstTime = result.created;
+
+    try {
+      await store.writeWorkspaceIdentityFile(workspace_path, meta);
+    } catch (identityError) {
+      console.error('Failed to write workspace identity file:', identityError);
+    }
     
     return {
       success: true,
@@ -69,7 +79,8 @@ export async function registerWorkspace(
         workspace: meta,
         first_time: isFirstTime,
         indexed: !!profile || (existing?.indexed ?? false),
-        profile: profile || existing?.profile
+        profile: profile || existing?.profile,
+        migration: result.migration
       }
     };
   } catch (error) {

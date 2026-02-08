@@ -13,10 +13,12 @@ The MCP server provides 5 unified tools with action parameters:
 | Tool | Actions |
 |------|--------|
 | `memory_workspace` | `register`, `info`, `list`, `reindex` |
-| `memory_plan` | `list`, `get`, `create`, `update`, `archive`, `import`, `find`, `add_note` |
-| `memory_steps` | `add`, `update`, `batch_update` |
+| `memory_plan` | `list`, `get`, `create`, `update`, `archive`, `import`, `find`, `add_note`, `delete`, `consolidate`, `set_goals`, `add_build_script`, `list_build_scripts`, `run_build_script`, `delete_build_script`, `create_from_template`, `list_templates`, `confirm` |
+| `memory_steps` | `add`, `update`, `batch_update`, `insert`, `delete`, `reorder`, `move`, `sort`, `set_order`, `replace` |
 | `memory_agent` | `init`, `complete`, `handoff`, `validate`, `list`, `get_instructions`, `deploy`, `get_briefing`, `get_lineage` |
-| `memory_context` | `get`, `store`, `store_initial`, `list`, `append_research`, `list_research`, `generate_instructions` |
+| `memory_context` | `get`, `store`, `store_initial`, `list`, `append_research`, `list_research`, `generate_instructions`, `workspace_get`, `workspace_set`, `workspace_update`, `workspace_delete` |
+
+**Build script paths:** `list_build_scripts` includes `directory_path` and `command_path` when available so builders can run scripts directly in the terminal.
 
 ## Required Initialization
 
@@ -25,6 +27,8 @@ Before doing any work, agents MUST:
 1. **Call `memory_agent` (action: init)** with your agent type and plan context
 2. **Call `memory_agent` (action: validate)** for your agent type
 3. **Set up your todo list** from the validation response
+
+If your workflow supports it, you may use `memory_agent` with `validation_mode: "init+validate"` to combine steps 1-2.
 
 ## Tool Usage Patterns
 
@@ -38,6 +42,23 @@ memory_plan (action: create) with
   priority: "low|medium|high|critical"
 ```
 
+### Plan Templates
+Use templates when the user wants a standard plan structure.
+
+```
+memory_plan (action: list_templates)
+```
+
+```
+memory_plan (action: create_from_template) with
+  workspace_id: "...",
+  title: "...",
+  description: "...",
+  template: "feature|bugfix|refactor|documentation|analysis|investigation",
+  category: "feature|bug|change|analysis|debug|refactor|documentation",
+  priority: "low|medium|high|critical"
+```
+
 ### Updating Step Progress
 ```
 memory_steps (action: update) with
@@ -47,14 +68,48 @@ memory_steps (action: update) with
   status: "pending|active|done|blocked"
 ```
 
+### Confirmation Gate (Phase/Step)
+Some plans require user confirmation before completing a phase or step. When the plan state indicates confirmation is needed, ask the user for approval and then call:
+
+```
+memory_plan (action: confirm) with
+  workspace_id: "...",
+  plan_id: "...",
+  confirmation_scope: "phase|step",
+  confirm_phase: "Phase Name",         # when scope = phase
+  confirm_step_index: 12,               # when scope = step
+  confirmed_by: "user"
+```
+
+### Step Ordering Rules
+- Insert new steps with `memory_steps` (action: insert) using `at_index` to keep a sequential order.
+- Use `move` or `reorder` when changing order; do not manually edit indices or skip numbers.
+- If a new step belongs earlier in the plan, insert it instead of appending it.
+- Reindexing is required if indices are non-sequential or duplicated, or after multiple inserts/deletes.
+  - Use `set_order` with the full desired index order, or `sort` if phase ordering is acceptable.
+- Avoid marking steps done out of order unless you explicitly document why.
+
 ### Recording Handoffs
 ```
 memory_agent (action: handoff) with
   workspace_id: "...",
   plan_id: "...",
   from_agent: "Executor",
-  to_agent: "Reviewer",
-  reason: "Implementation complete"
+  to_agent: "Coordinator",
+  reason: "Implementation complete; recommend Reviewer"
+```
+
+### Workspace vs Plan Context
+- Use plan context (`memory_context` `get`/`store`) for plan-scoped work: research, architecture, reviews, and step execution logs.
+- Use workspace context (`memory_context` `workspace_get`/`workspace_update`) for shared notes that span plans, workspace-wide preferences, or audit/update logs.
+
+Example (workspace-scoped update):
+```
+memory_context (action: workspace_update) with
+  workspace_id: "...",
+  data: {
+    "notes": ["Workspace-wide context updated"]
+  }
 ```
 
 ### Completing Agent Sessions

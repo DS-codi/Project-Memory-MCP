@@ -162,6 +162,15 @@ export interface PlanState {
   steps: PlanStep[];
 }
 
+export interface PlanTemplate {
+  template: string;
+  category: PlanCategory;
+  label: string;
+  goals?: string[];
+  success_criteria?: string[];
+  steps?: Array<{ phase: string; task: string; status?: string; type?: string; requires_validation?: boolean }>;
+}
+
 // =============================================================================
 // Workspace Types
 // =============================================================================
@@ -197,6 +206,27 @@ export interface WorkspaceMeta {
   indexed: boolean;
   profile?: WorkspaceProfile;
   workspace_build_scripts?: BuildScript[];
+}
+
+export interface WorkspaceContextSectionItem {
+  title: string;
+  description?: string;
+  links?: string[];
+}
+
+export interface WorkspaceContextSection {
+  summary?: string;
+  items?: WorkspaceContextSectionItem[];
+}
+
+export interface WorkspaceContext {
+  schema_version: string;
+  workspace_id: string;
+  workspace_path: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+  sections: Record<string, WorkspaceContextSection>;
 }
 
 // =============================================================================

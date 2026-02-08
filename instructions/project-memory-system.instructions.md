@@ -119,10 +119,10 @@ Every agent MUST follow these steps when starting:
 | Tool | Actions | Purpose |
 |------|---------|---------|
 | `memory_workspace` | register, list, info, reindex | Manage workspace registration and profiles |
-| `memory_plan` | list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script | Full plan lifecycle management |
-| `memory_steps` | add, update, batch_update, insert, delete, reorder, move, sort, set_order | Step-level operations |
+| `memory_plan` | list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm | Full plan lifecycle management |
+| `memory_steps` | add, update, batch_update, insert, delete, reorder, move, sort, set_order, replace | Step-level operations |
 | `memory_agent` | init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage | Agent lifecycle and coordination |
-| `memory_context` | store, get, store_initial, list, list_research, append_research, generate_instructions | Context and research management |
+| `memory_context` | store, get, store_initial, list, list_research, append_research, generate_instructions, workspace_get, workspace_set, workspace_update, workspace_delete | Context and research management |
 
 ---
 
@@ -638,6 +638,35 @@ List all build scripts for a workspace.
 | `workspace_id` | string | ✅ | The workspace ID |
 | `plan_id` | string | ❌ | Filter to a specific plan |
 
+**Response fields:**
+- `directory_path`: Absolute directory path resolved by the MCP tool.
+- `command_path`: Absolute command path when the command is a file path.
+
+**Example response:**
+```json
+{
+  "success": true,
+  "data": {
+    "action": "list_build_scripts",
+    "data": {
+      "scripts": [
+        {
+          "id": "script_abc123",
+          "name": "Build Server",
+          "description": "Build the TypeScript server",
+          "command": "./build-and-install.ps1",
+          "directory": "./server",
+          "directory_path": "C:/repo/server",
+          "command_path": "C:/repo/server/build-and-install.ps1",
+          "created_at": "2026-02-08T10:00:00.000Z",
+          "workspace_id": "my-project-652c624f8f59"
+        }
+      ]
+    }
+  }
+}
+```
+
 **Used by:** Builder, Executor, Tester.
 
 ---
@@ -666,6 +695,51 @@ Delete a build script.
 | `plan_id` | string | ❌ | The plan ID (if plan-scoped) |
 
 **Used by:** Builder, Archivist.
+
+---
+
+#### `create_from_template`
+Create a plan from a predefined template.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✅ | `"create_from_template"` |
+| `workspace_id` | string | ✅ | The workspace ID |
+| `title` | string | ✅ | Plan title |
+| `description` | string | ❌ | Plan description |
+| `template` | string | ✅ | One of: `feature`, `bugfix`, `refactor`, `documentation`, `analysis`, `investigation` |
+| `category` | string | ✅ | Request category |
+| `priority` | string | ❌ | Priority level |
+
+**Used by:** Coordinator, Architect.
+
+---
+
+#### `list_templates`
+List available plan templates.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✅ | `"list_templates"` |
+
+**Used by:** Coordinator, Architect.
+
+---
+
+#### `confirm`
+Confirm a phase or step when user approval is required.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✅ | `"confirm"` |
+| `workspace_id` | string | ✅ | The workspace ID |
+| `plan_id` | string | ✅ | The plan ID |
+| `confirmation_scope` | string | ✅ | `"phase"` or `"step"` |
+| `confirm_phase` | string | ❌ | Required when scope is `phase` |
+| `confirm_step_index` | number | ❌ | Required when scope is `step` |
+| `confirmed_by` | string | ❌ | Who confirmed (e.g. `"user"`) |
+
+**Used by:** Coordinator.
 
 ---
 
@@ -955,6 +1029,24 @@ This means:
 - This is the most flexible reordering option
 
 **Used by:** Architect, Revisionist (for complete plan reorganization).
+
+---
+
+#### `replace`
+Replace all steps with a new array.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✅ | `"replace"` |
+| `workspace_id` | string | ✅ | The workspace ID |
+| `plan_id` | string | ✅ | The plan ID |
+| `replacement_steps` | PlanStep[] | ✅ | Full replacement step array |
+
+**Notes:**
+- Existing steps are replaced entirely
+- Preserve completed steps only if you include them in `replacement_steps`
+
+**Used by:** Architect, Revisionist (for full plan rewrites).
 
 ---
 
@@ -1394,6 +1486,68 @@ List all research note files for a plan.
 ```
 
 **Used by:** Researcher, Analyst, any agent needing research notes.
+
+---
+
+#### `workspace_get`
+Retrieve workspace-scoped context.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✅ | `"workspace_get"` |
+| `workspace_id` | string | ✅ | The workspace ID |
+
+**Used by:** Coordinator, Architect, Reviewer.
+
+---
+
+#### `workspace_set`
+Replace workspace-scoped context with a new payload.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✅ | `"workspace_set"` |
+| `workspace_id` | string | ✅ | The workspace ID |
+| `data` | object | ✅ | Replacement workspace context |
+
+**Used by:** Coordinator (for resets/migrations).
+
+---
+
+#### `workspace_update`
+Merge updates into workspace-scoped context.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✅ | `"workspace_update"` |
+| `workspace_id` | string | ✅ | The workspace ID |
+| `data` | object | ✅ | Partial updates to merge |
+
+**Example:**
+```json
+{
+  "action": "workspace_update",
+  "workspace_id": "my-project-652c624f8f59",
+  "data": {
+    "notes": ["Shared decision log updated"],
+    "tags": ["frontend", "react"]
+  }
+}
+```
+
+**Used by:** Coordinator, Architect, Reviewer.
+
+---
+
+#### `workspace_delete`
+Delete workspace-scoped context (use sparingly).
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✅ | `"workspace_delete"` |
+| `workspace_id` | string | ✅ | The workspace ID |
+
+**Used by:** Coordinator (for cleanup or migrations).
 
 ---
 

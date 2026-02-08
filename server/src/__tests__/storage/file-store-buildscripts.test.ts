@@ -115,6 +115,99 @@ describe('FileStore: BuildScript Storage Methods', () => {
   });
 
   // =========================================================================
+  // findBuildScript() - Lookup behavior tests
+  // =========================================================================
+
+  describe('findBuildScript()', () => {
+    it('should return direct match when script exists in workspace scope', async () => {
+      const scriptId = 'script_ws_match';
+      const script: BuildScript = {
+        id: scriptId,
+        name: 'Workspace Script',
+        description: '',
+        command: 'echo test',
+        directory: '/test',
+        workspace_id: mockWorkspaceId,
+        created_at: '2024-01-01'
+      };
+
+      vi.spyOn(fileStore, 'getBuildScripts').mockResolvedValue([script]);
+
+      const result = await fileStore.findBuildScript(mockWorkspaceId, scriptId);
+
+      expect(result).toEqual(script);
+      expect(fileStore.getBuildScripts).toHaveBeenCalledWith(mockWorkspaceId, undefined);
+    });
+
+    it('should search plan scripts when plan_id is omitted', async () => {
+      const scriptId = 'script_plan_match';
+      const planScript: BuildScript = {
+        id: scriptId,
+        name: 'Plan Script',
+        description: '',
+        command: 'echo plan',
+        directory: '/test',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        created_at: '2024-01-01'
+      };
+
+      vi.spyOn(fileStore, 'getBuildScripts').mockResolvedValue([]);
+      vi.spyOn(fileStore, 'getWorkspace').mockResolvedValue({
+        workspace_id: mockWorkspaceId,
+        path: '/test/workspace',
+        name: 'Test Workspace',
+        registered_at: '2024-01-01',
+        last_accessed: '2024-01-01',
+        active_plans: [mockPlanId],
+        archived_plans: [],
+        indexed: false
+      } as WorkspaceMeta);
+      vi.spyOn(fileStore, 'getPlanState').mockResolvedValue({
+        id: mockPlanId,
+        workspace_id: mockWorkspaceId,
+        title: 'Plan',
+        description: 'Plan description',
+        priority: 'low',
+        category: 'analysis',
+        status: 'active',
+        current_phase: 'phase',
+        current_agent: 'Executor',
+        created_at: '2024-01-01',
+        updated_at: '2024-01-01',
+        steps: [],
+        build_scripts: [planScript]
+      } as PlanState);
+
+      const result = await fileStore.findBuildScript(mockWorkspaceId, scriptId);
+
+      expect(result).toEqual(planScript);
+      expect(fileStore.getPlanState).toHaveBeenCalledWith(mockWorkspaceId, mockPlanId);
+    });
+
+    it('should honor plan_id scope when provided', async () => {
+      const scriptId = 'script_scoped';
+      const script: BuildScript = {
+        id: scriptId,
+        name: 'Scoped Script',
+        description: '',
+        command: 'echo scoped',
+        directory: '/test',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        created_at: '2024-01-01'
+      };
+
+      vi.spyOn(fileStore, 'getBuildScripts').mockResolvedValue([script]);
+
+      const result = await fileStore.findBuildScript(mockWorkspaceId, scriptId, mockPlanId);
+
+      expect(result).toEqual(script);
+      expect(fileStore.getBuildScripts).toHaveBeenCalledWith(mockWorkspaceId, mockPlanId);
+    });
+  });
+
+  // =========================================================================
   // runBuildScript() - Tests that can work with spies
   // =========================================================================
 
@@ -122,46 +215,29 @@ describe('FileStore: BuildScript Storage Methods', () => {
     
     it('should return error when script not found', async () => {
       const scriptId = 'script_nonexistent';
+      const planId = 'plan_missing';
       
-      vi.spyOn(fileStore, 'getBuildScripts').mockResolvedValue([]);
+      vi.spyOn(fileStore, 'findBuildScript').mockResolvedValue(null);
 
-      const result = await fileStore.runBuildScript(mockWorkspaceId, scriptId);
+      const result = await fileStore.runBuildScript(mockWorkspaceId, scriptId, planId);
       
       expect(result.success).toBe(false);
       expect(result.output).toBe('');
       expect(result.error).toContain('not found');
+      expect(fileStore.findBuildScript).toHaveBeenCalledWith(mockWorkspaceId, scriptId, planId);
     });
 
     it('should find matching script by id', async () => {
       const scriptId = 'script_target';
-      const scripts: BuildScript[] = [
-        {
-          id: 'script_other',
-          name: 'Other',
-          description: '',
-          command: 'echo other',
-          directory: '/test',
-          workspace_id: mockWorkspaceId,
-          created_at: '2024-01-01',
-        },
-        {
-          id: scriptId,
-          name: 'Target',
-          description: '',
-          command: 'echo target',
-          directory: '/test',
-          workspace_id: mockWorkspaceId,
-          created_at: '2024-01-01',
-        },
-      ];
+      const planId = 'plan_target';
       
-      // Return only the non-matching script to test "not found" path
-      vi.spyOn(fileStore, 'getBuildScripts').mockResolvedValue([scripts[0]]);
+      vi.spyOn(fileStore, 'findBuildScript').mockResolvedValue(null);
       
-      const result = await fileStore.runBuildScript(mockWorkspaceId, scriptId);
+      const result = await fileStore.runBuildScript(mockWorkspaceId, scriptId, planId);
       
       expect(result.success).toBe(false);
       expect(result.error).toContain('not found');
+      expect(fileStore.findBuildScript).toHaveBeenCalledWith(mockWorkspaceId, scriptId, planId);
     });
   });
 

@@ -244,6 +244,20 @@ describe('MCP Tool: memory_plan Build Script Actions', () => {
   // =========================================================================
 
   describe('list_build_scripts action', () => {
+    const mockWorkspaceMeta = {
+      workspace_id: mockWorkspaceId,
+      path: '/workspace',
+      name: 'Mock Workspace',
+      registered_at: '2024-01-01T00:00:00Z',
+      last_accessed: '2024-01-01T00:00:00Z',
+      active_plans: [],
+      archived_plans: [],
+      indexed: false
+    };
+
+    beforeEach(() => {
+      vi.spyOn(fileStore, 'getWorkspace').mockResolvedValue(mockWorkspaceMeta as any);
+    });
     
     it('should list workspace-level scripts only', async () => {
       const mockScripts = [
@@ -271,7 +285,12 @@ describe('MCP Tool: memory_plan Build Script Actions', () => {
       expect(result.data).toBeDefined();
       if (result.data && result.data.action === 'list_build_scripts') {
         expect(result.data.action).toBe('list_build_scripts');
-        expect(result.data.data.scripts).toEqual(mockScripts);
+        const [script] = result.data.data.scripts;
+        expect(script).toMatchObject({
+          ...mockScripts[0],
+          directory_path: '/workspace'
+        });
+        expect(script.command_path).toBeUndefined();
       }
       
       expect(fileStore.getBuildScripts).toHaveBeenCalledWith(mockWorkspaceId, undefined);
@@ -313,6 +332,14 @@ describe('MCP Tool: memory_plan Build Script Actions', () => {
       expect(result.success).toBe(true);
       if (result.data && result.data.action === 'list_build_scripts') {
         expect(result.data.data.scripts).toHaveLength(2);
+        expect(result.data.data.scripts[0]).toMatchObject({
+          ...mockScripts[0],
+          directory_path: '/workspace'
+        });
+        expect(result.data.data.scripts[1]).toMatchObject({
+          ...mockScripts[1],
+          directory_path: '/workspace'
+        });
       }
       
       expect(fileStore.getBuildScripts).toHaveBeenCalledWith(mockWorkspaceId, mockPlanId);
@@ -378,7 +405,42 @@ describe('MCP Tool: memory_plan Build Script Actions', () => {
         expect(result.data.data.output).toContain('Build successful');
       }
       
-      expect(fileStore.runBuildScript).toHaveBeenCalledWith(mockWorkspaceId, scriptId);
+      expect(fileStore.runBuildScript).toHaveBeenCalledWith(
+        mockWorkspaceId,
+        scriptId,
+        undefined
+      );
+    });
+
+    it('should pass plan_id to fileStore when provided', async () => {
+      const scriptId = 'script_plan_001';
+      const planId = 'plan_test_001';
+      const mockResult = {
+        success: true,
+        output: 'Build successful\n',
+      };
+
+      vi.spyOn(fileStore, 'runBuildScript').mockResolvedValue(mockResult);
+
+      const params: MemoryPlanParams = {
+        action: 'run_build_script',
+        workspace_id: mockWorkspaceId,
+        script_id: scriptId,
+        plan_id: planId,
+      };
+
+      const result = await memoryPlan(params);
+
+      expect(result.success).toBe(true);
+      if (result.data && result.data.action === 'run_build_script') {
+        expect(result.data.data.success).toBe(true);
+      }
+
+      expect(fileStore.runBuildScript).toHaveBeenCalledWith(
+        mockWorkspaceId,
+        scriptId,
+        planId
+      );
     });
 
     it('should return error when script execution fails', async () => {
@@ -636,6 +698,16 @@ describe('MCP Tool: memory_plan Build Script Actions', () => {
       expect(addResult.success).toBe(true);
       
       // 2. List scripts
+      vi.spyOn(fileStore, 'getWorkspace').mockResolvedValue({
+        workspace_id: mockWorkspaceId,
+        path: '/workspace',
+        name: 'Mock Workspace',
+        registered_at: '2024-01-01T00:00:00Z',
+        last_accessed: '2024-01-01T00:00:00Z',
+        active_plans: [],
+        archived_plans: [],
+        indexed: false
+      } as any);
       vi.spyOn(fileStore, 'getBuildScripts').mockResolvedValue([addedScript]);
       
       const listResult = await memoryPlan({
@@ -715,6 +787,16 @@ describe('MCP Tool: memory_plan Build Script Actions', () => {
       );
       
       // List includes plan scripts
+      vi.spyOn(fileStore, 'getWorkspace').mockResolvedValue({
+        workspace_id: mockWorkspaceId,
+        path: '/workspace',
+        name: 'Mock Workspace',
+        registered_at: '2024-01-01T00:00:00Z',
+        last_accessed: '2024-01-01T00:00:00Z',
+        active_plans: [],
+        archived_plans: [],
+        indexed: false
+      } as any);
       vi.spyOn(fileStore, 'getBuildScripts').mockResolvedValue([planScript]);
       
       const listResult = await memoryPlan({

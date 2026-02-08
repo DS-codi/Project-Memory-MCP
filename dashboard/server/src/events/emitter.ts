@@ -17,6 +17,7 @@ export type EventType =
   | 'step_updated'
   | 'plan_created'
   | 'plan_archived'
+  | 'plan_resumed'
   | 'plan_deleted'
   | 'plan_duplicated'
   | 'plan_imported'

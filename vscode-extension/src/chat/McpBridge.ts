@@ -10,7 +10,7 @@
 
 import * as vscode from 'vscode';
 import * as http from 'http';
-import * as crypto from 'crypto';
+import { resolveWorkspaceIdentity, computeFallbackWorkspaceId } from '../utils/workspace-identity';
 
 /**
  * Tool definition (for compatibility with existing interfaces)
@@ -276,12 +276,16 @@ export class McpBridge implements vscode.Disposable {
      * Register a workspace - creates workspace entry if needed
      */
     private async registerWorkspace(workspacePath: string): Promise<{ workspace: { workspace_id: string } }> {
+        // Check identity file first to get the correct project path
+        const identity = resolveWorkspaceIdentity(workspacePath);
+        const effectivePath = identity ? identity.projectPath : workspacePath;
+
         // First check if workspace exists
         const workspaces = await this.httpGet<{ workspaces: Array<{ id: string; path: string }> }>('/api/workspaces');
         
         // Find by path
         const existing = workspaces.workspaces.find(w => 
-            w.path?.toLowerCase() === workspacePath.toLowerCase()
+            w.path?.toLowerCase() === effectivePath.toLowerCase()
         );
         
         if (existing) {
@@ -290,7 +294,7 @@ export class McpBridge implements vscode.Disposable {
 
         // Try to create/register the workspace
         // The dashboard server auto-discovers workspaces, so we just return based on path
-        const workspaceId = this.pathToWorkspaceId(workspacePath);
+        const workspaceId = identity ? identity.workspaceId : computeFallbackWorkspaceId(effectivePath);
         return { workspace: { workspace_id: workspaceId } };
     }
 
@@ -298,9 +302,11 @@ export class McpBridge implements vscode.Disposable {
      * Convert a workspace path to a workspace ID
      */
     private pathToWorkspaceId(workspacePath: string): string {
-        const folderName = workspacePath.split(/[/\\]/).filter(Boolean).pop() || 'workspace';
-        const hash = crypto.createHash('sha256').update(workspacePath).digest('hex').substring(0, 12);
-        return `${folderName}-${hash}`;
+        const identity = resolveWorkspaceIdentity(workspacePath);
+        if (identity) {
+            return identity.workspaceId;
+        }
+        return computeFallbackWorkspaceId(workspacePath);
     }
 
     /**

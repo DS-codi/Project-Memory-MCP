@@ -20,6 +20,14 @@ interface Settings {
   autoDeployOnWorkspaceOpen: boolean;
 }
 
+interface InstructionFile {
+  id: string;
+  name: string;
+  filename: string;
+  applyTo?: string;
+  isPathSpecific: boolean;
+}
+
 const ALL_AGENTS = [
   'coordinator',
   'analyst',
@@ -33,16 +41,6 @@ const ALL_AGENTS = [
   'brainstorm',
 ];
 
-const ALL_INSTRUCTIONS = [
-  'mvc-architecture',
-  'handoff-protocol',
-  'api',
-  'components',
-  'mcp-usage',
-  'plan-context',
-  'tests',
-];
-
 const defaultSettings: Settings = {
   apiUrl: 'http://localhost:3001',
   wsUrl: 'ws://localhost:3002',
@@ -52,7 +50,7 @@ const defaultSettings: Settings = {
   autoRefresh: true,
   refreshInterval: 5000,
   defaultAgents: ['coordinator', 'analyst', 'researcher', 'architect', 'executor', 'reviewer', 'tester', 'archivist', 'revisionist', 'brainstorm'],
-  defaultInstructions: ['mvc-architecture', 'handoff-protocol'],
+  defaultInstructions: [],
   autoDeployOnWorkspaceOpen: false,
 };
 
@@ -60,6 +58,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [activeTab, setActiveTab] = useState<'connection' | 'defaults' | 'appearance' | 'advanced'>('connection');
   const [isSaving, setIsSaving] = useState(false);
+  const [availableInstructions, setAvailableInstructions] = useState<InstructionFile[]>([]);
+  const [instructionsLoading, setInstructionsLoading] = useState(false);
+  const [instructionsError, setInstructionsError] = useState<string | null>(null);
 
   useEffect(() => {
     // Load settings from localStorage
@@ -71,6 +72,30 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         // Use defaults
       }
     }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setInstructionsLoading(true);
+    setInstructionsError(null);
+
+    fetch('/api/instructions')
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error('Failed to fetch instructions');
+        }
+        return res.json();
+      })
+      .then((data) => {
+        setAvailableInstructions(data.instructions || []);
+      })
+      .catch((error) => {
+        setInstructionsError((error as Error).message);
+      })
+      .finally(() => {
+        setInstructionsLoading(false);
+      });
   }, [isOpen]);
 
   const handleSave = async () => {
@@ -99,6 +124,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       : [...settings.defaultInstructions, instruction];
     setSettings({ ...settings, defaultInstructions: newInstructions });
   };
+
+  const generalInstructions = availableInstructions.filter((instruction) => !instruction.isPathSpecific);
 
   if (!isOpen) return null;
 
@@ -277,33 +304,44 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   Default Instructions
                 </label>
                 <p className="text-xs text-slate-500 mb-3">Select which instruction files to deploy to new workspaces</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {ALL_INSTRUCTIONS.map((instruction) => (
-                    <button
-                      key={instruction}
-                      onClick={() => toggleInstruction(instruction)}
-                      className={cn(
-                        'flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors text-left',
-                        settings.defaultInstructions.includes(instruction)
-                          ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
-                          : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
-                      )}
-                    >
-                      <span className={cn(
-                        'w-4 h-4 rounded border flex items-center justify-center text-xs',
-                        settings.defaultInstructions.includes(instruction)
-                          ? 'bg-emerald-500 border-emerald-500 text-white'
-                          : 'border-slate-600'
-                      )}>
-                        {settings.defaultInstructions.includes(instruction) && '✓'}
-                      </span>
-                      <span>{instruction}</span>
-                    </button>
-                  ))}
-                </div>
+                {instructionsLoading && (
+                  <p className="text-xs text-slate-500">Loading instructions...</p>
+                )}
+                {instructionsError && (
+                  <p className="text-xs text-red-400">{instructionsError}</p>
+                )}
+                {!instructionsLoading && generalInstructions.length === 0 && !instructionsError && (
+                  <p className="text-xs text-slate-500">No general instruction files available.</p>
+                )}
+                {generalInstructions.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {generalInstructions.map((instruction) => (
+                      <button
+                        key={instruction.id}
+                        onClick={() => toggleInstruction(instruction.id)}
+                        className={cn(
+                          'flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors text-left',
+                          settings.defaultInstructions.includes(instruction.id)
+                            ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
+                            : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-600'
+                        )}
+                      >
+                        <span className={cn(
+                          'w-4 h-4 rounded border flex items-center justify-center text-xs',
+                          settings.defaultInstructions.includes(instruction.id)
+                            ? 'bg-emerald-500 border-emerald-500 text-white'
+                            : 'border-slate-600'
+                        )}>
+                          {settings.defaultInstructions.includes(instruction.id) && '✓'}
+                        </span>
+                        <span>{instruction.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <div className="flex gap-2 mt-2">
                   <button
-                    onClick={() => setSettings({ ...settings, defaultInstructions: [...ALL_INSTRUCTIONS] })}
+                    onClick={() => setSettings({ ...settings, defaultInstructions: generalInstructions.map((i) => i.id) })}
                     className="text-xs text-emerald-400 hover:text-emerald-300"
                   >
                     Select All

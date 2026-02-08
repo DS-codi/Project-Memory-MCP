@@ -1,3 +1,7 @@
+---
+applyTo: "**/message-broker/**,**/broker/**,**/*broker*.*"
+---
+
 # Message Broker Instructions
 
 Guidelines for building TCP-based pub/sub message brokers for inter-process communication between Python applications and AutoHotkey scripts.

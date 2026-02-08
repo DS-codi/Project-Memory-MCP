@@ -6,8 +6,8 @@
  */
 
 import * as vscode from 'vscode';
-import * as crypto from 'crypto';
 import * as path from 'path';
+import { resolveWorkspaceIdentity, computeFallbackWorkspaceId } from '../utils/workspace-identity';
 
 function notify(message: string, ...items: string[]): Thenable<string | undefined> {
     const config = vscode.workspace.getConfiguration('projectMemory');
@@ -48,17 +48,33 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    // Compute workspace ID to match MCP server format exactly
+    // Compute workspace ID - checks identity.json first, falls back to hash
     private getWorkspaceId(): string | null {
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
         if (!workspaceFolder) return null;
-        
-        const workspacePath = workspaceFolder.uri.fsPath;
-        // Must match server's generateWorkspaceId: sha256, normalized lowercase path
-        const normalizedPath = path.normalize(workspacePath).toLowerCase();
-        const hash = crypto.createHash('sha256').update(normalizedPath).digest('hex').substring(0, 12);
-        const folderName = path.basename(workspacePath).replace(/[^a-zA-Z0-9-_]/g, '-');
-        return `${folderName}-${hash}`;
+
+        const fsPath = workspaceFolder.uri.fsPath;
+        console.log('[PM Debug] getWorkspaceId for fsPath:', fsPath);
+        const identity = resolveWorkspaceIdentity(fsPath);
+        if (identity) {
+            console.log('[PM Debug] Found identity:', identity.workspaceId, 'from', identity.projectPath);
+            return identity.workspaceId;
+        }
+        const fallbackId = computeFallbackWorkspaceId(fsPath);
+        console.log('[PM Debug] Using fallback ID:', fallbackId);
+        return fallbackId;
+    }
+
+    // Get workspace display name - checks identity.json first
+    private getWorkspaceName(): string {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        if (!workspaceFolder) return 'No workspace';
+
+        const identity = resolveWorkspaceIdentity(workspaceFolder.uri.fsPath);
+        if (identity) {
+            return identity.workspaceName;
+        }
+        return workspaceFolder.name;
     }
 
     public resolveWebviewView(
@@ -325,7 +341,7 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
         const apiPort = config.get<number>('serverPort') || config.get<number>('apiPort') || 3001;
         const dashboardUrl = `http://localhost:5173`; // Vite dev server
         const workspaceId = this.getWorkspaceId() || '';
-        const workspaceName = vscode.workspace.workspaceFolders?.[0]?.name || 'No workspace';
+        const workspaceName = this.getWorkspaceName();
         const dataRoot = JSON.stringify(this._dataRoot);
         const iconSvgs = {
             dashboard: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>',

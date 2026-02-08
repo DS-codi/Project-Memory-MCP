@@ -1,0 +1,73 @@
+input
+{
+  "action": "handoff",
+  "workspace_id": "ds_cad-bff002bf6cb0",
+  "plan_id": "plan_mlc3f65f_0fa2752e",
+  "from_agent": "Researcher",
+  "to_agent": "Architect",
+  "reason": "Research complete previously; no new findings in this session. Please refer to research_notes/08_cpp_acceleration_opportunities.md."
+}
+output:
+{
+  "success": true,
+  "data": {
+    "action": "handoff",
+    "data": {
+      "timestamp": "2026-02-07T10:30:35.315Z",
+      "from_agent": "Researcher",
+      "to_agent": "Architect",
+      "reason": "Research complete previously; no new findings in this session. Please refer to research_notes/08_cpp_acceleration_opportunities.md.",
+      "verification": {
+        "valid": false,
+        "issues": [
+          "Invalid transition: Researcher → Runner"
+        ]
+      },
+      "coordinator_instruction": "Handoff recommendation recorded. Coordinator should deploy Architect agent next. Reason: Research complete previously; no new findings in this session. Please refer to research_notes/08_cpp_acceleration_opportunities.md."
+    }
+  }
+}
+input:
+{
+  "action": "complete",
+  "workspace_id": "ds_cad-bff002bf6cb0",
+  "plan_id": "plan_mlc3f65f_0fa2752e",
+  "summary": "Session ended due to validation requesting switch to Runner. No new research performed. Added note pointing to existing research_notes/08_cpp_acceleration_opportunities.md.",
+  "artifacts": [
+    "research_notes/08_cpp_acceleration_opportunities_note.md"
+  ]
+}
+input:
+{
+  "success": false,
+  "error": "workspace_id, plan_id, agent_type, and summary are required for action: complete"
+}
+{
+  "action": "complete",
+  "workspace_id": "ds_cad-bff002bf6cb0",
+  "plan_id": "plan_mlc3f65f_0fa2752e",
+  "agent_type": "Researcher",
+  "summary": "Session ended due to validation requesting switch to Runner. No new research performed. Added note pointing to existing research_notes/08_cpp_acceleration_opportunities.md.",
+  "artifacts": [
+    "research_notes/08_cpp_acceleration_opportunities_note.md"
+  ]
+}
+output:
+{
+  "success": true,
+  "data": {
+    "action": "complete",
+    "data": {
+      "session_id": "sess_mlc6alq1_60b33737",
+      "agent_type": "Researcher",
+      "started_at": "2026-02-07T10:30:05.689Z",
+      "context": {},
+      "completed_at": "2026-02-07T10:30:41.206Z",
+      "summary": "Session ended due to validation requesting switch to Runner. No new research performed. Added note pointing to existing research_notes/08_cpp_acceleration_opportunities.md.",
+      "artifacts": [
+        "research_notes/08_cpp_acceleration_opportunities_note.md"
+      ],
+      "coordinator_next_action": "Deploy Architect agent as recommended."
+    }
+  }
+}

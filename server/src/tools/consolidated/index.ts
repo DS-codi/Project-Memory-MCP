@@ -6,8 +6,8 @@
  * 1. memory_workspace - Workspace management (4 actions)
  *    Actions: register, list, info, reindex
  * 
- * 2. memory_plan - Plan lifecycle management (15 actions)
- *    Actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script
+ * 2. memory_plan - Plan lifecycle management (17 actions)
+ *    Actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates
  * 
  * 3. memory_steps - Step management (9 actions)
  *    Actions: add, update, batch_update, insert, delete, reorder, move, sort, set_order
@@ -15,8 +15,9 @@
  * 4. memory_agent - Agent lifecycle and deployment (9 actions)
  *    Actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage
  * 
- * 5. memory_context - Context and research management (7 actions)
- *    Actions: store, get, store_initial, list, list_research, append_research, generate_instructions
+ * 5. memory_context - Context and research management (12 actions)
+ *    Actions: store, get, store_initial, list, list_research, append_research, generate_instructions, batch_store,
+ *             workspace_get, workspace_set, workspace_update, workspace_delete
  */
 
 export { memoryWorkspace, type MemoryWorkspaceParams, type WorkspaceAction } from './memory_workspace.js';

@@ -7,6 +7,7 @@
 
 import * as vscode from 'vscode';
 import { McpBridge } from './McpBridge';
+import { resolveWorkspaceIdentity } from '../utils/workspace-identity';
 
 /**
  * Plan state returned from MCP server
@@ -127,13 +128,16 @@ export class ChatParticipant implements vscode.Disposable {
         }
 
         try {
-            console.log(`Registering workspace: ${workspaceFolder.uri.fsPath}`);
+            // Check identity file to resolve the actual project path
+            const identity = resolveWorkspaceIdentity(workspaceFolder.uri.fsPath);
+            const effectivePath = identity ? identity.projectPath : workspaceFolder.uri.fsPath;
+            console.log(`Registering workspace: ${effectivePath}` + (identity ? ` (resolved from identity)` : ''));
 
             const result = await this.mcpBridge.callTool<{
                 workspace_id: string;
             }>(
                 'memory_workspace',
-                { action: 'register', workspace_path: workspaceFolder.uri.fsPath }
+                { action: 'register', workspace_path: effectivePath }
             );
 
             console.log(`Register workspace result: ${JSON.stringify(result)}`);

@@ -60,6 +60,11 @@ const PHASE_AGENT_MAP: Record<string, AgentType[]> = {
   'development': ['Executor'],
   'building': ['Executor'],
   'creation': ['Executor'],
+
+  // Build phases
+  'build': ['Builder'],
+  'compilation': ['Builder'],
+  'compile': ['Builder'],
   
   // Testing phases
   'testing': ['Tester', 'Analyst'],  // Analyst can handle comparison/validation testing
@@ -217,7 +222,7 @@ function getAllowedTools(agentType: AgentType): string[] {
     Researcher: [...commonTools, 'append_research', 'store_context', 'list_research_notes'],
     Architect: [...commonTools, 'modify_plan', 'update_step', 'store_context'],
     Executor: [...commonTools, 'update_step', 'store_context', 'create_file', 'edit_file'],
-    Builder: [...commonTools, 'update_step', 'store_context', 'list_build_scripts', 'run_build_script'],
+    Builder: [...commonTools, 'update_step', 'store_context', 'add_build_script', 'list_build_scripts', 'run_build_script'],
     Reviewer: [...commonTools, 'update_step', 'store_context'],
     Tester: [...commonTools, 'update_step', 'store_context', 'run_tests'],
     Revisionist: [...commonTools, 'modify_plan', 'update_step', 'store_context'],
@@ -225,6 +230,19 @@ function getAllowedTools(agentType: AgentType): string[] {
   };
   
   return agentTools[agentType];
+}
+
+const BUILD_TASK_PATTERN = /build|compile|bundle|package|assemble|dist|artifact/i;
+
+function getBuildRelatedSteps(state: PlanState): PlanStep[] {
+  return state.steps.filter(step => {
+    if (step.status !== 'pending' && step.status !== 'active') {
+      return false;
+    }
+
+    const taskText = `${step.phase} ${step.task}`.toLowerCase();
+    return step.type === 'build' || BUILD_TASK_PATTERN.test(taskText);
+  });
 }
 
 /**
@@ -352,6 +370,12 @@ function generateTodoList(
 
 /**
  * Core validation logic - used by all agent-specific validators
+ * 
+ * PRIORITY ORDER:
+ * 1. deployment_context.override_validation — if the orchestrator explicitly deployed this agent,
+ *    validation ALWAYS says "continue" (with advisory warnings at most)
+ * 2. current_agent match — if plan state says this agent is current, continue
+ * 3. Heuristic matching (phase/keyword) — only used when no deployment context exists
  */
 async function validateAgent(
   agentType: AgentType,
@@ -376,13 +400,100 @@ async function validateAgent(
     }
     
     const boundaries = AGENT_BOUNDARIES[agentType];
-    const { agent: expectedAgent, reason } = getExpectedAgent(state);
+    const { agent: expectedAgent, reason: heuristicReason } = getExpectedAgent(state);
     const currentStep = state.steps.find(s => s.status === 'active') || 
                         state.steps.find(s => s.status === 'pending');
     
+    if (agentType === 'Builder') {
+      const buildSteps = getBuildRelatedSteps(state);
+      if (buildSteps.length > 0) {
+        const scripts = await store.getBuildScripts(workspace_id, plan_id);
+        if (scripts.length === 0) {
+          const stepList = buildSteps.map(step => `Step ${step.index}: ${step.task}`).join('; ');
+          return {
+            success: false,
+            error: `BLOCKED: Builder requires build scripts via memory_plan add_build_script before running builds. ` +
+              `Build-related steps detected: ${stepList}`
+          };
+        }
+      }
+    }
+
     const warnings: string[] = [];
     
-    // Check if this is the right agent
+    // =========================================================================
+    // PRIORITY 1: Check deployment_context — orchestrator's explicit choice wins
+    // =========================================================================
+    const deployCtx = state.deployment_context;
+    const wasExplicitlyDeployed = deployCtx && 
+      deployCtx.deployed_agent === agentType && 
+      deployCtx.override_validation !== false;
+    
+    // PRIORITY 2: Check if plan state says this is the current agent
+    const isCurrentAgent = state.current_agent === agentType;
+    
+    if (wasExplicitlyDeployed || isCurrentAgent) {
+      // Agent was explicitly deployed — validation says CONTINUE
+      // Add advisory warning if heuristics disagree, but do NOT redirect
+      if (expectedAgent !== agentType) {
+        warnings.push(
+          `ℹ️ Advisory: Heuristics suggest ${expectedAgent} for phase "${state.current_phase}", ` +
+          `but you were explicitly deployed${deployCtx ? ` by ${deployCtx.deployed_by}: "${deployCtx.reason}"` : ''}. Continuing as ${agentType}.`
+        );
+      }
+      
+      // Check for incomplete handoff warning
+      const lastLineage = state.lineage[state.lineage.length - 1];
+      if (lastLineage && lastLineage.to_agent !== agentType && !isCurrentAgent && !wasExplicitlyDeployed) {
+        warnings.push(`⚠️ Lineage shows handoff to ${lastLineage.to_agent}, not ${agentType}`);
+      }
+      
+      // Generate todo list for correct agent
+      const todoList = generateTodoList(agentType, state, boundaries, 'continue');
+      
+      // Build instructions
+      let instructions = `✅ ${agentType} is confirmed for this task. `;
+      if (deployCtx) {
+        instructions += `Deployed by ${deployCtx.deployed_by}: "${deployCtx.reason}". `;
+      }
+      if (currentStep) {
+        instructions += `Current task: "${currentStep.task}". `;
+      }
+      if (!boundaries.can_implement && !boundaries.can_edit_docs) {
+        instructions += `⚠️ You CANNOT create or edit files. `;
+      } else if (!boundaries.can_implement && boundaries.can_edit_docs) {
+        instructions += `📝 You CAN edit documentation files (README, docs, etc.) but NOT source code. `;
+      }
+      if (!boundaries.can_finalize) {
+        instructions += `You MUST call handoff to ${boundaries.must_handoff_to.join(' or ')} before completing. `;
+      }
+
+      if (agentType === 'Builder') {
+        instructions += 'Use memory_plan add_build_script to register build steps and run_build_script to execute them. ';
+      }
+      
+      return {
+        success: true,
+        data: {
+          action: 'continue',
+          current_agent: agentType,
+          role_boundaries: boundaries,
+          current_phase: state.current_phase,
+          current_step: currentStep,
+          todo_list: todoList,
+          todo_instruction: '📋 REQUIRED: Call manage_todo_list with operation "write" and the todo_list above to track your progress.',
+          instructions,
+          allowed_tools: getAllowedTools(agentType),
+          warnings: warnings.length > 0 ? warnings : undefined
+        }
+      };
+    }
+    
+    // =========================================================================
+    // PRIORITY 3: No deployment context — fall back to heuristic matching
+    // This only runs if the agent was NOT explicitly deployed by an orchestrator
+    // =========================================================================
+    
     if (agentType !== expectedAgent) {
       const todoList = generateTodoList(agentType, state, boundaries, 'switch', expectedAgent);
       
@@ -397,7 +508,7 @@ async function validateAgent(
           todo_list: todoList,
           todo_instruction: '🚨 IMMEDIATE ACTION: Call manage_todo_list with operation "write" and the todo_list above, then execute the handoff.',
           switch_to: expectedAgent,
-          switch_reason: `${agentType} is not the right agent for this work. ${reason}. ` +
+          switch_reason: `${agentType} is not the right agent for this work. ${heuristicReason}. ` +
             `You MUST call handoff to ${expectedAgent} immediately.`,
           warnings: [
             `⚠️ WRONG AGENT: You are ${agentType} but ${expectedAgent} should handle this.`,
@@ -432,6 +543,10 @@ async function validateAgent(
     
     if (!boundaries.can_finalize) {
       instructions += `You MUST call handoff to ${boundaries.must_handoff_to.join(' or ')} before completing. `;
+    }
+
+    if (agentType === 'Builder') {
+      instructions += 'Use memory_plan add_build_script to register build steps and run_build_script to execute them. ';
     }
     
     return {
@@ -483,6 +598,12 @@ export async function validateExecutor(
   params: ValidateAgentParams
 ): Promise<ToolResponse<AgentValidationResult>> {
   return validateAgent('Executor', params);
+}
+
+export async function validateBuilder(
+  params: ValidateAgentParams
+): Promise<ToolResponse<AgentValidationResult>> {
+  return validateAgent('Builder', params);
 }
 
 export async function validateReviewer(

@@ -6,6 +6,7 @@
  */
 
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { DashboardViewProvider } from './providers/DashboardViewProvider';
 import { AgentWatcher } from './watchers/AgentWatcher';
 import { CopilotFileWatcher } from './watchers/CopilotFileWatcher';
@@ -14,6 +15,7 @@ import { ServerManager } from './server/ServerManager';
 import { DefaultDeployer } from './deployer/DefaultDeployer';
 import { DashboardPanel } from './ui/DashboardPanel';
 import { McpBridge, ChatParticipant, ToolProvider } from './chat';
+import { resolveWorkspaceIdentity } from './utils/workspace-identity';
 
 let dashboardProvider: DashboardViewProvider;
 let agentWatcher: AgentWatcher;
@@ -36,6 +38,30 @@ function notify(message: string, ...items: string[]): Thenable<string | undefine
         return vscode.window.showInformationMessage(message, ...items);
     }
     return Promise.resolve(undefined);
+}
+
+async function registerWorkspace(serverPort: number, workspacePath: string): Promise<string | null> {
+    try {
+        // Resolve identity to find the actual project path
+        const identity = resolveWorkspaceIdentity(workspacePath);
+        const effectivePath = identity ? identity.projectPath : workspacePath;
+
+        const response = await fetch(`http://localhost:${serverPort}/api/workspaces/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ workspace_path: effectivePath })
+        });
+
+        if (!response.ok) {
+            return null;
+        }
+
+        const data = await response.json();
+        const workspace = data.workspace as { workspace_id?: string; id?: string } | undefined;
+        return workspace?.workspace_id || workspace?.id || null;
+    } catch {
+        return null;
+    }
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -577,9 +603,11 @@ export function activate(context: vscode.ExtensionContext) {
 
             // Call API to create plan
             const workspacePath = workspaceFolders[0].uri.fsPath;
-            const name = require('path').basename(workspacePath).toLowerCase().replace(/[^a-z0-9]/g, '_').substring(0, 20);
-            const hash = require('crypto').createHash('md5').update(workspacePath).digest('hex').substring(0, 12);
-            const workspaceId = `${name}-${hash}`;
+            const workspaceId = await registerWorkspace(serverPort, workspacePath);
+            if (!workspaceId) {
+                vscode.window.showErrorMessage('Failed to register workspace with the dashboard server.');
+                return;
+            }
 
             try {
                 const payloadBase = {
@@ -1223,6 +1251,10 @@ export async function deactivate() {
 function getDefaultDataRoot(): string {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (workspaceFolders) {
+        const identity = resolveWorkspaceIdentity(workspaceFolders[0].uri.fsPath);
+        if (identity) {
+            return path.join(identity.projectPath, 'data');
+        }
         return vscode.Uri.joinPath(workspaceFolders[0].uri, 'data').fsPath;
     }
     return '';
@@ -1231,6 +1263,10 @@ function getDefaultDataRoot(): string {
 function getDefaultAgentsRoot(): string {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (workspaceFolders) {
+        const identity = resolveWorkspaceIdentity(workspaceFolders[0].uri.fsPath);
+        if (identity) {
+            return path.join(identity.projectPath, 'agents');
+        }
         return vscode.Uri.joinPath(workspaceFolders[0].uri, 'agents').fsPath;
     }
     return '';
@@ -1239,6 +1275,10 @@ function getDefaultAgentsRoot(): string {
 function getDefaultInstructionsRoot(): string {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (workspaceFolders) {
+        const identity = resolveWorkspaceIdentity(workspaceFolders[0].uri.fsPath);
+        if (identity) {
+            return path.join(identity.projectPath, 'instructions');
+        }
         return vscode.Uri.joinPath(workspaceFolders[0].uri, 'instructions').fsPath;
     }
     return '';
@@ -1247,6 +1287,10 @@ function getDefaultInstructionsRoot(): string {
 function getDefaultPromptsRoot(): string {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (workspaceFolders) {
+        const identity = resolveWorkspaceIdentity(workspaceFolders[0].uri.fsPath);
+        if (identity) {
+            return path.join(identity.projectPath, 'prompts');
+        }
         return vscode.Uri.joinPath(workspaceFolders[0].uri, 'prompts').fsPath;
     }
     return '';

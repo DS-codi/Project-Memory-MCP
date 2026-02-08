@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
+import path from 'path';
 import { workspacesRouter } from './routes/workspaces.js';
 import { plansRouter } from './routes/plans.js';
 import { agentsRouter } from './routes/agents.js';
@@ -13,19 +14,17 @@ import { promptsRouter } from './routes/prompts.js';
 import { instructionsRouter } from './routes/instructions.js';
 import { deployRouter } from './routes/deploy.js';
 import { setupFileWatcher } from './services/fileWatcher.js';
+import { getDataRoot } from './storage/workspace-utils.js';
 
 const PORT = process.env.PORT || 3001;
 const WS_PORT = process.env.WS_PORT || 3002;
 
-// Get data root from environment or use default
-const MBS_DATA_ROOT = process.env.MBS_DATA_ROOT || 
-  'c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\data';
-const MBS_AGENTS_ROOT = process.env.MBS_AGENTS_ROOT || 
-  'c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\agents';
-const MBS_PROMPTS_ROOT = process.env.MBS_PROMPTS_ROOT || 
-  'c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\prompts';
-const MBS_INSTRUCTIONS_ROOT = process.env.MBS_INSTRUCTIONS_ROOT || 
-  'c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\instructions';
+// Get data root from environment or use canonical default
+const MBS_DATA_ROOT = getDataRoot();
+const workspaceRoot = path.resolve(MBS_DATA_ROOT, '..');
+const MBS_AGENTS_ROOT = process.env.MBS_AGENTS_ROOT || path.resolve(workspaceRoot, 'agents');
+const MBS_PROMPTS_ROOT = process.env.MBS_PROMPTS_ROOT || path.resolve(workspaceRoot, 'prompts');
+const MBS_INSTRUCTIONS_ROOT = process.env.MBS_INSTRUCTIONS_ROOT || path.resolve(workspaceRoot, 'instructions');
 
 // Make paths available globally
 declare global {
