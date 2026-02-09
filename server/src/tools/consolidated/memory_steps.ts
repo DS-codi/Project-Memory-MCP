@@ -12,6 +12,24 @@ import type {
   StepStatus
 } from '../../types/index.js';
 import * as planTools from '../plan.tools.js';
+import { validateAndResolveWorkspaceId } from './workspace-validation.js';
+
+/**
+ * Enrich step objects with display_number (1-based) for agent/UI consumption.
+ * This does NOT mutate the original data — it returns a new object.
+ */
+function enrichStepsWithDisplayNumber(result: PlanOperationResult): PlanOperationResult {
+  return {
+    ...result,
+    plan_state: {
+      ...result.plan_state,
+      steps: result.plan_state.steps.map(step => ({
+        ...step,
+        display_number: step.index + 1
+      }))
+    }
+  };
+}
 
 export type StepsAction = 'add' | 'update' | 'batch_update' | 'insert' | 'delete' | 'reorder' | 'move' | 'sort' | 'set_order' | 'replace';
 
@@ -86,6 +104,11 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
     };
   }
 
+  // Validate and resolve workspace_id (handles legacy ID redirect)
+  const validated = await validateAndResolveWorkspaceId(workspace_id);
+  if (!validated.success) return validated.error_response as ToolResponse<StepsResult>;
+  const resolvedWorkspaceId = validated.workspace_id;
+
   switch (action) {
     case 'add': {
       if (!params.steps || params.steps.length === 0) {
@@ -104,7 +127,7 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
       }
       return {
         success: true,
-        data: { action: 'add', data: result.data! }
+        data: { action: 'add', data: enrichStepsWithDisplayNumber(result.data!) }
       };
     }
 
@@ -127,7 +150,7 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
       }
       return {
         success: true,
-        data: { action: 'update', data: result.data! }
+        data: { action: 'update', data: enrichStepsWithDisplayNumber(result.data!) }
       };
     }
 
@@ -154,7 +177,7 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
       }
       return {
         success: true,
-        data: { action: 'batch_update', data: result.data! }
+        data: { action: 'batch_update', data: enrichStepsWithDisplayNumber(result.data!) }
       };
     }
 
@@ -176,7 +199,7 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
       }
       return {
         success: true,
-        data: { action: 'insert', data: result.data! }
+        data: { action: 'insert', data: enrichStepsWithDisplayNumber(result.data!) }
       };
     }
 
@@ -197,7 +220,7 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
       }
       return {
         success: true,
-        data: { action: 'delete', data: result.data! }
+        data: { action: 'delete', data: enrichStepsWithDisplayNumber(result.data!) }
       };
     }
 
@@ -219,7 +242,7 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
       }
       return {
         success: true,
-        data: { action: 'reorder', data: result.data! }
+        data: { action: 'reorder', data: enrichStepsWithDisplayNumber(result.data!) }
       };
     }
 
@@ -241,7 +264,7 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
       }
       return {
         success: true,
-        data: { action: 'move', data: result.data! }
+        data: { action: 'move', data: enrichStepsWithDisplayNumber(result.data!) }
       };
     }
 
@@ -257,7 +280,7 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
       }
       return {
         success: true,
-        data: { action: 'sort', data: result.data! }
+        data: { action: 'sort', data: enrichStepsWithDisplayNumber(result.data!) }
       };
     }
 
@@ -278,7 +301,7 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
       }
       return {
         success: true,
-        data: { action: 'set_order', data: result.data! }
+        data: { action: 'set_order', data: enrichStepsWithDisplayNumber(result.data!) }
       };
     }
 
@@ -299,7 +322,7 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
       }
       return {
         success: true,
-        data: { action: 'replace', data: result.data! }
+        data: { action: 'replace', data: enrichStepsWithDisplayNumber(result.data!) }
       };
     }
 

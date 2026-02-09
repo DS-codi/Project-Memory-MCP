@@ -10,7 +10,7 @@ This workspace uses a **hub-and-spoke** model for agent orchestration.
 
 ```
                     ┌───────────────┐
-                    │  COORDINATOR  │  ← Central Hub
+                    │  COORDINATOR  │  ← Primary Hub
                     │   (Hub)       │
                     └───────┬───────┘
            ┌────────────────┼────────────────┐
@@ -23,19 +23,44 @@ This workspace uses a **hub-and-spoke** model for agent orchestration.
                    Return to Hub
 ```
 
+### Hub Agents
+Three agents are recognised as **hubs** that may spawn subagents via `runSubagent`:
+- **Coordinator** — Primary orchestrator. Spawns any agent for plan execution.
+- **Analyst** — Investigation hub. May spawn Researcher, Brainstorm, or other agents for analysis cycles.
+- **Runner** — Ad-hoc hub. May spawn agents when quick tasks escalate.
+
+### Spoke Agents
+All other agents are **spokes**: Executor, Builder, Reviewer, Tester, Archivist, Brainstorm, Researcher, Architect.
+- **Exception**: Revisionist may spawn subagents when pivoting a plan requires immediate sub-task execution.
+
+## Subagent Spawning Rules
+
+1. **Only hub agents may call `runSubagent`.**
+2. **When spawning a subagent, hubs MUST include anti-spawning instructions** in the prompt:
+   > "You are a spoke agent. Do NOT call `runSubagent` to spawn other agents. Use `memory_agent(action: handoff)` to recommend the next agent back to the hub."
+3. **Spoke agents MUST NOT call `runSubagent`** — use `memory_agent(action: handoff)` to recommend the next agent.
+4. **Revisionist exception**: The Revisionist may spawn subagents when a plan pivot requires immediate sub-task execution, but should prefer handoff when possible.
+
+### Anti-Patterns
+- **NEVER**: Executor calling `runSubagent('Tester', ...)`
+  - **INSTEAD**: Executor calls `memory_agent(action: handoff)` to recommend Tester
+- **NEVER**: Spoke agent ignoring anti-spawning instructions from the hub
+  - **INSTEAD**: Use `memory_agent(action: handoff)` and let the hub decide
+
 ## Key Rules
 
-### For Coordinator (Hub)
-- **You spawn all agents** using `runSubagent`
-- **Control always returns to you** after each agent completes
+### For Hub Agents (Coordinator, Analyst, Runner)
+- **You spawn subagents** using `runSubagent`
+- **Always include anti-spawning instructions** in the subagent prompt
+- **Control returns to you** after each subagent completes
 - Read `recommended_next_agent` from plan state to decide next action
-- Track overall plan progress across agent sessions
 
-### For Other Agents (Spokes)
-- **You are a subagent** - you don't transfer control directly
+### For Spoke Agents (all others except Revisionist)
+- **You are a subagent** — you don't transfer control directly
+- **NEVER call `runSubagent`** — this is reserved for hub agents
 - Call `memory_agent` (action: handoff) to **recommend** the next agent (not transfer)
 - Call `memory_agent` (action: complete) when your work is done
-- Control automatically returns to Coordinator
+- Control automatically returns to the hub that spawned you
 
 ## Handoff Flow
 
@@ -72,8 +97,9 @@ The Coordinator reads `recommended_next_agent` and decides what to do next.
 
 Use these rules when coordinating non-core agents or alternate flows.
 
-### Coordinator (Hub)
+### Coordinator (Primary Hub)
 - Always handoff by spawning subagents with `runSubagent`.
+- **Include anti-spawning instructions** in every subagent prompt.
 - Always wait for subagents to call `memory_agent` (action: handoff) and `memory_agent` (action: complete).
 - Use `memory_plan` (action: get) to read `recommended_next_agent` before spawning the next agent.
 
@@ -109,7 +135,9 @@ Use these rules when coordinating non-core agents or alternate flows.
 ### Archivist
 - Final agent. No handoff; only `memory_agent` (action: complete) after `memory_plan` (action: archive).
 
-### Analyst
+### Analyst (Investigation Hub)
+- May spawn subagents (Researcher, Brainstorm, etc.) for analysis cycles.
+- **Include anti-spawning instructions** in every subagent prompt.
 - Handoff to Coordinator with recommendation for Executor when investigation yields implementation steps.
 - Handoff to Coordinator with recommendation for Researcher when external docs are needed.
 - Handoff to Coordinator with recommendation for Brainstorm when exploring options is needed.
@@ -118,6 +146,8 @@ Use these rules when coordinating non-core agents or alternate flows.
 - Handoff to Coordinator with recommendation for Architect when ideas are ready to formalize.
 - Handoff to Coordinator with recommendation for Researcher when missing context blocks planning.
 
-### Runner
+### Runner (Ad-hoc Hub)
+- May spawn subagents when quick tasks escalate beyond simple execution.
+- **Include anti-spawning instructions** in every subagent prompt.
 - If task grows complex, handoff to Coordinator with recommendation to create a plan.
 - If investigation is required, handoff to Coordinator with recommendation for Analyst.

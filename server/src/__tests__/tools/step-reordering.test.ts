@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { memorySteps } from '../../tools/consolidated/memory_steps.js';
 import type { MemoryStepsParams } from '../../tools/consolidated/memory_steps.js';
 import * as fileStore from '../../storage/file-store.js';
+import * as validation from '../../tools/consolidated/workspace-validation.js';
 
 /**
  * Unit Tests for Step Reordering MCP Tool Actions (Phase 1)
@@ -16,6 +17,8 @@ import * as fileStore from '../../storage/file-store.js';
 
 // Mock file store
 vi.mock('../../storage/file-store.js');
+vi.mock('../../tools/consolidated/workspace-validation.js');
+vi.mock('../../storage/workspace-identity.js');
 
 const mockWorkspaceId = 'ws_reorder_test_123';
 const mockPlanId = 'plan_reorder_test_456';
@@ -51,6 +54,10 @@ describe('MCP Tool: memory_steps Reorder and Move Actions', () => {
   
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(validation, 'validateAndResolveWorkspaceId').mockResolvedValue({
+      success: true,
+      workspace_id: mockWorkspaceId,
+    } as any);
   });
 
   // =========================================================================

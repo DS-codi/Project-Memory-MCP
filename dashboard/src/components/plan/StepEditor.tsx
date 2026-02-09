@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowUp, ArrowDown, ChevronsUp, Trash2, Plus } from 'lucide-react';
 import { Badge } from '../common/Badge';
 import { statusColors, stepTypeColors } from '@/utils/colors';
+import { displayStepNumber } from '@/utils/formatters';
 import type { PlanStep, StepStatus, StepType } from '@/types';
 
 interface StepEditorProps {
@@ -13,6 +14,16 @@ interface StepEditorProps {
 export function StepEditor({ steps, onSave, onCancel }: StepEditorProps) {
   const [editedSteps, setEditedSteps] = useState<PlanStep[]>([...steps]);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+
+  // Move step to a new 0-based position within editedSteps
+  const moveStepToIndex = (fromIndex: number, toDisplayNumber: number) => {
+    const toIndex = toDisplayNumber - 1; // convert 1-based input to 0-based
+    if (toIndex < 0 || toIndex >= editedSteps.length || toIndex === fromIndex) return;
+    const newSteps = [...editedSteps];
+    const [movedStep] = newSteps.splice(fromIndex, 1);
+    newSteps.splice(toIndex, 0, movedStep);
+    setEditedSteps(reindexSteps(newSteps));
+  };
 
   // Reindex all steps after reordering
   const reindexSteps = (stepsList: PlanStep[]): PlanStep[] => {
@@ -217,7 +228,18 @@ export function StepEditor({ steps, onSave, onCancel }: StepEditorProps) {
                       <div className="flex-1 space-y-2">
                         {/* Step info */}
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-mono text-slate-500">#{step.index + 1}</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={editedSteps.length}
+                            value={step.index + 1}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10);
+                              if (!isNaN(val)) moveStepToIndex(step.index, val);
+                            }}
+                            title="Step position (drag or type to reorder)"
+                            className="w-12 text-center text-sm font-mono text-slate-400 bg-slate-800 border border-slate-600 rounded px-1 py-0.5 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+                          />
                           <select
                             value={step.status}
                             onChange={(e) => updateStep(step.index, { status: e.target.value as StepStatus })}

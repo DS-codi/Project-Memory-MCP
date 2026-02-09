@@ -2,8 +2,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { memoryPlan } from '../../tools/consolidated/memory_plan.js';
 import type { MemoryPlanParams } from '../../tools/consolidated/memory_plan.js';
 import * as planTools from '../../tools/plan.tools.js';
+import * as validation from '../../tools/consolidated/workspace-validation.js';
 
 vi.mock('../../tools/plan.tools.js');
+vi.mock('../../tools/consolidated/workspace-validation.js');
+vi.mock('../../storage/workspace-identity.js');
 
 const mockWorkspaceId = 'ws_plan_actions_123';
 const mockPlanId = 'plan_actions_456';
@@ -11,6 +14,10 @@ const mockPlanId = 'plan_actions_456';
 describe('MCP Tool: memory_plan Core Actions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(validation, 'validateAndResolveWorkspaceId').mockResolvedValue({
+      success: true,
+      workspace_id: mockWorkspaceId,
+    } as any);
   });
 
   describe('list action', () => {

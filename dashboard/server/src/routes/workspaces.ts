@@ -4,7 +4,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { scanWorkspaces, getWorkspaceDetails } from '../services/fileScanner.js';
 import { emitEvent } from '../events/emitter.js';
-import { getDataRoot, getWorkspaceDisplayName, getWorkspaceIdFromPath } from '../storage/workspace-utils.js';
+import { getDataRoot, getWorkspaceDisplayName, getWorkspaceIdFromPath, resolveCanonicalWorkspaceId, writeWorkspaceIdentityFile } from '../storage/workspace-utils.js';
 
 export const workspacesRouter = Router();
 
@@ -41,7 +41,8 @@ function getRandomIdSuffix(): string {
 
 async function upsertWorkspaceMeta(workspacePath: string): Promise<{ meta: Record<string, any>; created: boolean }> {
   const resolvedPath = path.resolve(workspacePath);
-  const workspaceId = getWorkspaceIdFromPath(resolvedPath);
+  // Use identity.json-aware resolution instead of raw hash
+  const workspaceId = await resolveCanonicalWorkspaceId(resolvedPath);
   const workspaceDir = path.join(globalThis.MBS_DATA_ROOT, workspaceId);
   const metaPath = path.join(workspaceDir, 'workspace.meta.json');
 
@@ -151,6 +152,15 @@ workspacesRouter.post('/register', async (req, res) => {
 
     const { meta, created } = await upsertWorkspaceMeta(workspacePath);
     const workspaceId = meta.workspace_id as string | undefined;
+
+    // Write identity.json to the workspace directory if missing
+    if (workspaceId && meta.data_root) {
+      try {
+        await writeWorkspaceIdentityFile(workspacePath, workspaceId, meta.data_root as string);
+      } catch (identityError) {
+        console.error('Failed to write workspace identity file:', identityError);
+      }
+    }
 
     if (workspaceId) {
       await emitEvent('workspace_registered', {

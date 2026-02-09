@@ -3,15 +3,23 @@ import { memoryWorkspace } from '../../tools/consolidated/memory_workspace.js';
 import type { MemoryWorkspaceParams } from '../../tools/consolidated/memory_workspace.js';
 import * as workspaceTools from '../../tools/workspace.tools.js';
 import * as store from '../../storage/file-store.js';
+import * as validation from '../../tools/consolidated/workspace-validation.js';
 
 vi.mock('../../tools/workspace.tools.js');
 vi.mock('../../storage/file-store.js');
+vi.mock('../../tools/consolidated/workspace-validation.js');
+vi.mock('../../storage/workspace-identity.js');
 
 const mockWorkspaceId = 'ws_workspace_test_123';
 
 describe('MCP Tool: memory_workspace Actions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // By default, validation passes through with the same workspace_id
+    vi.spyOn(validation, 'validateAndResolveWorkspaceId').mockResolvedValue({
+      success: true,
+      workspace_id: mockWorkspaceId,
+    });
   });
 
   describe('register action', () => {

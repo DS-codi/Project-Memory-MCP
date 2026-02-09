@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fileStore from '../../storage/file-store.js';
-import type { BuildScript, PlanState, WorkspaceMeta } from '../../types/index.js';
+import type { BuildScript, WorkspaceMeta } from '../../types/index.js';
 
 /**
  * Unit Tests for BuildScript Storage Methods
@@ -8,9 +8,11 @@ import type { BuildScript, PlanState, WorkspaceMeta } from '../../types/index.js
  * These tests verify the BuildScript interface and error handling.
  * Full integration tests for file operations are in the MCP tool tests.
  * 
- * Note: Due to ES module internal function calls, spying on exported functions
- * doesn't intercept internal calls. The comprehensive tests are in:
- * - memory-plan-buildscripts.test.ts (26 tests - MCP tool level)
+ * Note: The server-side execution engine (runBuildScript) was removed in Phase 10.
+ * Build scripts are now resolved and returned for terminal execution by agents.
+ * findBuildScript tests are in find-build-script.test.ts (extracted for proper mocking).
+ * Comprehensive tests are in:
+ * - memory-plan-buildscripts.test.ts (MCP tool level)
  */
 
 const mockWorkspaceId = 'ws_test_buildscripts_123';
@@ -111,133 +113,6 @@ describe('FileStore: BuildScript Storage Methods', () => {
       await expect(
         fileStore.addBuildScript(mockWorkspaceId, scriptData, 'plan_nonexistent')
       ).rejects.toThrow('not found');
-    });
-  });
-
-  // =========================================================================
-  // findBuildScript() - Lookup behavior tests
-  // =========================================================================
-
-  describe('findBuildScript()', () => {
-    it('should return direct match when script exists in workspace scope', async () => {
-      const scriptId = 'script_ws_match';
-      const script: BuildScript = {
-        id: scriptId,
-        name: 'Workspace Script',
-        description: '',
-        command: 'echo test',
-        directory: '/test',
-        workspace_id: mockWorkspaceId,
-        created_at: '2024-01-01'
-      };
-
-      vi.spyOn(fileStore, 'getBuildScripts').mockResolvedValue([script]);
-
-      const result = await fileStore.findBuildScript(mockWorkspaceId, scriptId);
-
-      expect(result).toEqual(script);
-      expect(fileStore.getBuildScripts).toHaveBeenCalledWith(mockWorkspaceId, undefined);
-    });
-
-    it('should search plan scripts when plan_id is omitted', async () => {
-      const scriptId = 'script_plan_match';
-      const planScript: BuildScript = {
-        id: scriptId,
-        name: 'Plan Script',
-        description: '',
-        command: 'echo plan',
-        directory: '/test',
-        workspace_id: mockWorkspaceId,
-        plan_id: mockPlanId,
-        created_at: '2024-01-01'
-      };
-
-      vi.spyOn(fileStore, 'getBuildScripts').mockResolvedValue([]);
-      vi.spyOn(fileStore, 'getWorkspace').mockResolvedValue({
-        workspace_id: mockWorkspaceId,
-        path: '/test/workspace',
-        name: 'Test Workspace',
-        registered_at: '2024-01-01',
-        last_accessed: '2024-01-01',
-        active_plans: [mockPlanId],
-        archived_plans: [],
-        indexed: false
-      } as WorkspaceMeta);
-      vi.spyOn(fileStore, 'getPlanState').mockResolvedValue({
-        id: mockPlanId,
-        workspace_id: mockWorkspaceId,
-        title: 'Plan',
-        description: 'Plan description',
-        priority: 'low',
-        category: 'analysis',
-        status: 'active',
-        current_phase: 'phase',
-        current_agent: 'Executor',
-        created_at: '2024-01-01',
-        updated_at: '2024-01-01',
-        steps: [],
-        build_scripts: [planScript]
-      } as PlanState);
-
-      const result = await fileStore.findBuildScript(mockWorkspaceId, scriptId);
-
-      expect(result).toEqual(planScript);
-      expect(fileStore.getPlanState).toHaveBeenCalledWith(mockWorkspaceId, mockPlanId);
-    });
-
-    it('should honor plan_id scope when provided', async () => {
-      const scriptId = 'script_scoped';
-      const script: BuildScript = {
-        id: scriptId,
-        name: 'Scoped Script',
-        description: '',
-        command: 'echo scoped',
-        directory: '/test',
-        workspace_id: mockWorkspaceId,
-        plan_id: mockPlanId,
-        created_at: '2024-01-01'
-      };
-
-      vi.spyOn(fileStore, 'getBuildScripts').mockResolvedValue([script]);
-
-      const result = await fileStore.findBuildScript(mockWorkspaceId, scriptId, mockPlanId);
-
-      expect(result).toEqual(script);
-      expect(fileStore.getBuildScripts).toHaveBeenCalledWith(mockWorkspaceId, mockPlanId);
-    });
-  });
-
-  // =========================================================================
-  // runBuildScript() - Tests that can work with spies
-  // =========================================================================
-
-  describe('runBuildScript()', () => {
-    
-    it('should return error when script not found', async () => {
-      const scriptId = 'script_nonexistent';
-      const planId = 'plan_missing';
-      
-      vi.spyOn(fileStore, 'findBuildScript').mockResolvedValue(null);
-
-      const result = await fileStore.runBuildScript(mockWorkspaceId, scriptId, planId);
-      
-      expect(result.success).toBe(false);
-      expect(result.output).toBe('');
-      expect(result.error).toContain('not found');
-      expect(fileStore.findBuildScript).toHaveBeenCalledWith(mockWorkspaceId, scriptId, planId);
-    });
-
-    it('should find matching script by id', async () => {
-      const scriptId = 'script_target';
-      const planId = 'plan_target';
-      
-      vi.spyOn(fileStore, 'findBuildScript').mockResolvedValue(null);
-      
-      const result = await fileStore.runBuildScript(mockWorkspaceId, scriptId, planId);
-      
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('not found');
-      expect(fileStore.findBuildScript).toHaveBeenCalledWith(mockWorkspaceId, scriptId, planId);
     });
   });
 

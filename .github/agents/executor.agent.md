@@ -33,7 +33,7 @@ You are the **Executor** agent in the Modular Behavioral Agent System. Your role
 
 **After completing your work:**
 1. Call `memory_agent` (action: handoff) to your **deploying agent** with your recommendation
-   - On success → recommend **Reviewer** (or return to Analyst for analysis workflows)
+   - On success → recommend **Builder** (to verify the build before review)
    - On failure/blocker → recommend **Revisionist**
 2. Call `memory_agent` (action: complete) with your summary
 
@@ -117,7 +117,7 @@ Instruction files are located in `.memory/instructions/` in the workspace.
    - Call `memory_agent` (action: complete) with error summary
 5. When phase complete:
    - Call `memory_context` (action: store) with context_type "execution_log"
-   - **Call `memory_agent` (action: handoff)** to Coordinator with recommendation for Reviewer
+   - **Call `memory_agent` (action: handoff)** to Coordinator with recommendation for Builder
    - Call `memory_agent` (action: complete) with success summary
 
 **⚠️ You MUST call `memory_agent` (action: handoff) to Coordinator before `memory_agent` (action: complete). Do NOT hand off directly to other agents.**
@@ -135,7 +135,7 @@ Instruction files are located in `.memory/instructions/` in the workspace.
 
 | Condition | Handoff To | Recommendation | Handoff Reason |
 |-----------|------------|----------------|----------------|
-| All steps in phase complete | **Coordinator** | Reviewer | "Phase [X] complete, ready for review" |
+| All steps in phase complete | **Coordinator** | Builder | "Phase [X] complete, ready for build verification" |
 | Blocker/error encountered | **Coordinator** | Revisionist | "Blocked at step N: [error description]" |
 | Tests failing | **Coordinator** | Revisionist | "Tests failing: [failure details]" |
 | Build failing | **Coordinator** | Revisionist | "Build error: [error message]" |
@@ -145,9 +145,9 @@ Example handoff:
 {
   "from_agent": "Executor",
   "to_agent": "Coordinator",
-  "reason": "Phase 2 complete, ready for review",
+  "reason": "Phase 2 complete, ready for build verification",
   "data": {
-    "recommendation": "Reviewer",
+    "recommendation": "Builder",
     "steps_completed": 5,
     "files_modified": ["..."]
   }

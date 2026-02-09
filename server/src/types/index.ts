@@ -220,9 +220,13 @@ export interface ListBuildScriptsResult {
 }
 
 export interface RunBuildScriptResult {
-  success: boolean;
-  output: string;
-  error?: string;
+  script_id: string;
+  script_name: string;
+  command: string;
+  directory: string;
+  directory_path: string;
+  command_path?: string;
+  message: string;
 }
 
 export interface DeleteBuildScriptResult {

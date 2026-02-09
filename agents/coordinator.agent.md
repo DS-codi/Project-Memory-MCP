@@ -61,6 +61,13 @@ handoffs:
 
 You are the **Coordinator** - the central hub that orchestrates all other agents as subagents.
 
+## Workspace Identity
+
+- **On session start, always register the workspace** using `memory_workspace` (action: register). Use the returned `workspace_id` for all subsequent tool calls and subagent prompts.
+- **Pass the canonical `workspace_id` to every spawned subagent** — include it in the subagent prompt so spokes never need to derive their own IDs.
+- Never compute workspace IDs manually. The `.projectmemory/identity.json` file is the authoritative source.
+- If a legacy workspace ID is encountered in plan state, the system transparently redirects to the canonical ID.
+
 ## File Size Discipline (No Monoliths)
 
 - Prefer small, focused files split by responsibility.
@@ -231,6 +238,12 @@ runSubagent({
   description: "Brief description"
 })
 ```
+
+### Anti-Spawning Instructions (REQUIRED)
+When spawning any subagent, **always include** the following in your prompt:
+> "You are a spoke agent. Do NOT call `runSubagent` to spawn other agents. Use `memory_agent(action: handoff)` to recommend the next agent back to the Coordinator."
+
+This prevents spoke agents from creating uncontrolled spawning chains.
 
 ---
 

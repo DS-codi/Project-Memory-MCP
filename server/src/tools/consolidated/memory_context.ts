@@ -15,6 +15,7 @@ import type {
 } from '../../types/index.js';
 import * as contextTools from '../context.tools.js';
 import * as workspaceContextTools from '../workspace-context.tools.js';
+import { validateAndResolveWorkspaceId } from './workspace-validation.js';
 
 export type ContextAction = 
   | 'store' 
@@ -95,6 +96,11 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
       error: 'workspace_id is required'
     };
   }
+
+  // Validate and resolve workspace_id (handles legacy ID redirect)
+  const validated = await validateAndResolveWorkspaceId(workspace_id);
+  if (!validated.success) return validated.error_response as ToolResponse<ContextResult>;
+  const resolvedWorkspaceId = validated.workspace_id;
 
   switch (action) {
     case 'store': {

@@ -2,19 +2,22 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { memoryPlan } from '../../tools/consolidated/memory_plan.js';
 import type { MemoryPlanParams } from '../../tools/consolidated/memory_plan.js';
 import * as fileStore from '../../storage/file-store.js';
+import * as validation from '../../tools/consolidated/workspace-validation.js';
 
 /**
- * Integration Tests for Build Script MCP Tool Actions (Step 40)
+ * Integration Tests for Build Script MCP Tool Actions
  * 
- * Tests the 4 new MCP tool actions in memory_plan:
+ * Tests the 4 MCP tool actions in memory_plan:
  * - add_build_script: validation and script creation
  * - list_build_scripts: returns merged results from workspace + plan
- * - run_build_script: executes and returns output
+ * - run_build_script: resolves script and returns info for terminal execution
  * - delete_build_script: authorization and deletion
  */
 
 // Mock file store
 vi.mock('../../storage/file-store.js');
+vi.mock('../../tools/consolidated/workspace-validation.js');
+vi.mock('../../storage/workspace-identity.js');
 
 const mockWorkspaceId = 'ws_mcp_test_123';
 const mockPlanId = 'plan_mcp_test_456';
@@ -23,6 +26,12 @@ describe('MCP Tool: memory_plan Build Script Actions', () => {
   
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(validation, 'validateAndResolveWorkspaceId').mockResolvedValue({
+      success: true,
+      workspace_id: mockWorkspaceId,
+    } as any);
+    // parseCommandTokens is called by resolveScriptPaths in list_build_scripts
+    vi.spyOn(fileStore, 'parseCommandTokens').mockReturnValue(['cmd']);
   });
 
   // =========================================================================
@@ -257,6 +266,7 @@ describe('MCP Tool: memory_plan Build Script Actions', () => {
 
     beforeEach(() => {
       vi.spyOn(fileStore, 'getWorkspace').mockResolvedValue(mockWorkspaceMeta as any);
+      vi.spyOn(fileStore, 'parseCommandTokens').mockReturnValue(['npm', 'run', 'build:all']);
     });
     
     it('should list workspace-level scripts only', async () => {
@@ -375,24 +385,38 @@ describe('MCP Tool: memory_plan Build Script Actions', () => {
   });
 
   // =========================================================================
-  // run_build_script action - Executes and returns output
+  // run_build_script action - Resolves and returns script info for terminal execution
   // =========================================================================
 
   describe('run_build_script action', () => {
     
-    it('should execute script and return success with output', async () => {
-      const scriptId = 'script_run_001';
-      const mockResult = {
-        success: true,
-        output: 'Build successful\nAll tests passed\n',
-      };
+    const mockScript = {
+      id: 'script_run_001',
+      name: 'Build Dashboard',
+      description: 'Build frontend dashboard',
+      command: 'npm run build',
+      directory: '/workspace/dashboard',
+      workspace_id: mockWorkspaceId,
+      created_at: '2024-01-20T10:00:00Z',
+    };
 
-      vi.spyOn(fileStore, 'runBuildScript').mockResolvedValue(mockResult);
+    it('should resolve script and return info for terminal execution', async () => {
+      vi.spyOn(fileStore, 'findBuildScript').mockResolvedValue(mockScript);
+      vi.spyOn(fileStore, 'getWorkspace').mockResolvedValue({
+        workspace_id: mockWorkspaceId,
+        path: '/workspace',
+        name: 'Test',
+        registered_at: '2024-01-01',
+        last_accessed: '2024-01-01',
+        active_plans: [],
+        archived_plans: [],
+        indexed: false
+      } as any);
 
       const params: MemoryPlanParams = {
         action: 'run_build_script',
         workspace_id: mockWorkspaceId,
-        script_id: scriptId,
+        script_id: 'script_run_001',
       };
 
       const result = await memoryPlan(params);
@@ -400,73 +424,50 @@ describe('MCP Tool: memory_plan Build Script Actions', () => {
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
       if (result.data && result.data.action === 'run_build_script') {
-        expect(result.data.action).toBe('run_build_script');
-        expect(result.data.data.success).toBe(true);
-        expect(result.data.data.output).toContain('Build successful');
+        expect(result.data.data.script_id).toBe('script_run_001');
+        expect(result.data.data.script_name).toBe('Build Dashboard');
+        expect(result.data.data.command).toBe('npm run build');
+        expect(result.data.data.directory).toBe('/workspace/dashboard');
+        expect(result.data.data.message).toContain('npm run build');
       }
       
-      expect(fileStore.runBuildScript).toHaveBeenCalledWith(
+      expect(fileStore.findBuildScript).toHaveBeenCalledWith(
         mockWorkspaceId,
-        scriptId,
+        'script_run_001',
         undefined
       );
     });
 
-    it('should pass plan_id to fileStore when provided', async () => {
-      const scriptId = 'script_plan_001';
+    it('should pass plan_id to findBuildScript when provided', async () => {
       const planId = 'plan_test_001';
-      const mockResult = {
-        success: true,
-        output: 'Build successful\n',
-      };
-
-      vi.spyOn(fileStore, 'runBuildScript').mockResolvedValue(mockResult);
+      vi.spyOn(fileStore, 'findBuildScript').mockResolvedValue(mockScript);
+      vi.spyOn(fileStore, 'getWorkspace').mockResolvedValue({
+        workspace_id: mockWorkspaceId,
+        path: '/workspace',
+        name: 'Test',
+        registered_at: '2024-01-01',
+        last_accessed: '2024-01-01',
+        active_plans: [],
+        archived_plans: [],
+        indexed: false
+      } as any);
 
       const params: MemoryPlanParams = {
         action: 'run_build_script',
         workspace_id: mockWorkspaceId,
-        script_id: scriptId,
+        script_id: 'script_run_001',
         plan_id: planId,
       };
 
       const result = await memoryPlan(params);
 
       expect(result.success).toBe(true);
-      if (result.data && result.data.action === 'run_build_script') {
-        expect(result.data.data.success).toBe(true);
-      }
 
-      expect(fileStore.runBuildScript).toHaveBeenCalledWith(
+      expect(fileStore.findBuildScript).toHaveBeenCalledWith(
         mockWorkspaceId,
-        scriptId,
+        'script_run_001',
         planId
       );
-    });
-
-    it('should return error when script execution fails', async () => {
-      const scriptId = 'script_fail_001';
-      const mockResult = {
-        success: false,
-        output: 'Build started\n',
-        error: 'Error: Command failed with exit code 1\nTests failed',
-      };
-
-      vi.spyOn(fileStore, 'runBuildScript').mockResolvedValue(mockResult);
-
-      const params: MemoryPlanParams = {
-        action: 'run_build_script',
-        workspace_id: mockWorkspaceId,
-        script_id: scriptId,
-      };
-
-      const result = await memoryPlan(params);
-      
-      expect(result.success).toBe(true); // Tool call succeeds
-      if (result.data && result.data.action === 'run_build_script') {
-        expect(result.data.data.success).toBe(false); // But script failed
-        expect(result.data.data.error).toBeDefined();
-        expect(result.data.data.error).toContain('failed');
-      }
     });
 
     it('should validate required parameter: workspace_id', async () => {
@@ -495,54 +496,19 @@ describe('MCP Tool: memory_plan Build Script Actions', () => {
       expect(result.error).toContain('required');
     });
 
-    it('should handle script not found error', async () => {
-      const scriptId = 'script_nonexistent';
-      const mockResult = {
-        success: false,
-        output: '',
-        error: `Script ${scriptId} not found`,
-      };
-
-      vi.spyOn(fileStore, 'runBuildScript').mockResolvedValue(mockResult);
+    it('should return error when script not found', async () => {
+      vi.spyOn(fileStore, 'findBuildScript').mockResolvedValue(null);
 
       const params: MemoryPlanParams = {
         action: 'run_build_script',
         workspace_id: mockWorkspaceId,
-        script_id: scriptId,
+        script_id: 'script_nonexistent',
       };
 
       const result = await memoryPlan(params);
       
-      expect(result.success).toBe(true);
-      if (result.data && result.data.action === 'run_build_script') {
-        expect(result.data.data.success).toBe(false);
-        expect(result.data.data.error).toContain('not found');
-      }
-    });
-
-    it('should include both stdout and stderr in output', async () => {
-      const scriptId = 'script_warn_001';
-      const mockResult = {
-        success: true,
-        output: 'Build complete\n\nSTDERR:\nWarning: deprecated API usage\n',
-      };
-
-      vi.spyOn(fileStore, 'runBuildScript').mockResolvedValue(mockResult);
-
-      const params: MemoryPlanParams = {
-        action: 'run_build_script',
-        workspace_id: mockWorkspaceId,
-        script_id: scriptId,
-      };
-
-      const result = await memoryPlan(params);
-      
-      expect(result.success).toBe(true);
-      if (result.data && result.data.action === 'run_build_script') {
-        expect(result.data.data.output).toContain('Build complete');
-        expect(result.data.data.output).toContain('STDERR:');
-        expect(result.data.data.output).toContain('deprecated');
-      }
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('not found');
     });
   });
 
@@ -720,11 +686,8 @@ describe('MCP Tool: memory_plan Build Script Actions', () => {
         expect(listResult.data.data.scripts).toHaveLength(1);
       }
       
-      // 3. Run script
-      vi.spyOn(fileStore, 'runBuildScript').mockResolvedValue({
-        success: true,
-        output: 'test\n',
-      });
+      // 3. Resolve script for terminal execution
+      vi.spyOn(fileStore, 'findBuildScript').mockResolvedValue(addedScript);
       
       const runResult = await memoryPlan({
         action: 'run_build_script',
@@ -734,7 +697,8 @@ describe('MCP Tool: memory_plan Build Script Actions', () => {
       
       expect(runResult.success).toBe(true);
       if (runResult.data && runResult.data.action === 'run_build_script') {
-        expect(runResult.data.data.success).toBe(true);
+        expect(runResult.data.data.script_id).toBe(scriptId);
+        expect(runResult.data.data.command).toBe('echo "test"');
       }
       
       // 4. Delete script

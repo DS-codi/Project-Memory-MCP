@@ -2,8 +2,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { memorySteps } from '../../tools/consolidated/memory_steps.js';
 import type { MemoryStepsParams } from '../../tools/consolidated/memory_steps.js';
 import * as fileStore from '../../storage/file-store.js';
+import * as validation from '../../tools/consolidated/workspace-validation.js';
 
 vi.mock('../../storage/file-store.js');
+vi.mock('../../tools/consolidated/workspace-validation.js');
+vi.mock('../../storage/workspace-identity.js');
 
 const mockWorkspaceId = 'ws_steps_actions_123';
 const mockPlanId = 'plan_steps_actions_456';
@@ -37,6 +40,10 @@ function createMockPlanState(stepCount: number = 3) {
 describe('MCP Tool: memory_steps Add/Update/Batch/Insert/Delete/Replace Actions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(validation, 'validateAndResolveWorkspaceId').mockResolvedValue({
+      success: true,
+      workspace_id: mockWorkspaceId,
+    } as any);
   });
 
   describe('add action', () => {

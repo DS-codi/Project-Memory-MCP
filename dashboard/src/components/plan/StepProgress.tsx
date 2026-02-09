@@ -1,5 +1,6 @@
 import { cn } from '@/utils/cn';
 import { stepTypeColors } from '@/utils/colors';
+import { displayStepNumber } from '@/utils/formatters';
 import type { PlanStep } from '@/types';
 
 interface StepProgressProps {
@@ -113,7 +114,7 @@ function KanbanView({ steps, className }: { steps: PlanStep[]; className?: strin
                   className="p-3 bg-slate-800 border border-slate-700 rounded-lg text-sm"
                 >
                   <div className="text-xs text-slate-500 mb-1">
-                    #{step.index + 1} · {step.phase}
+                    {displayStepNumber(step.index)} · {step.phase}
                   </div>
                   {step.type && (
                     <span

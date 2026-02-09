@@ -12,7 +12,7 @@ The MCP server provides 5 unified tools with action parameters:
 
 | Tool | Actions |
 |------|--------|
-| `memory_workspace` | `register`, `info`, `list`, `reindex` |
+| `memory_workspace` | `register`, `info`, `list`, `reindex`, `merge`, `scan_ghosts`, `migrate` |
 | `memory_plan` | `list`, `get`, `create`, `update`, `archive`, `import`, `find`, `add_note`, `delete`, `consolidate`, `set_goals`, `add_build_script`, `list_build_scripts`, `run_build_script`, `delete_build_script`, `create_from_template`, `list_templates`, `confirm` |
 | `memory_steps` | `add`, `update`, `batch_update`, `insert`, `delete`, `reorder`, `move`, `sort`, `set_order`, `replace` |
 | `memory_agent` | `init`, `complete`, `handoff`, `validate`, `list`, `get_instructions`, `deploy`, `get_briefing`, `get_lineage` |
@@ -82,6 +82,7 @@ memory_plan (action: confirm) with
 ```
 
 ### Step Ordering Rules
+- **Step indices in the MCP API are 0-based.** The dashboard displays them as 1-based (Step #1 = index 0). When referencing steps to users, use the 1-based display number. MCP tool responses include a `display_number` field on each step for this purpose.
 - Insert new steps with `memory_steps` (action: insert) using `at_index` to keep a sequential order.
 - Use `move` or `reorder` when changing order; do not manually edit indices or skip numbers.
 - If a new step belongs earlier in the plan, insert it instead of appending it.
@@ -120,6 +121,17 @@ memory_agent (action: complete) with
   agent_type: "Executor",
   summary: "Completed all steps..."
 ```
+
+## Workspace Identity Rules
+
+- **Always obtain `workspace_id` from the `memory_workspace` (action: register) response** — never compute or derive it yourself.
+- If you receive a `workspace_id` from a handoff, validate it by calling `memory_workspace` (action: info) before using it.
+- The `.projectmemory/identity.json` file in the workspace root is the canonical source of workspace identity. Do not modify it manually.
+- Workspace IDs follow the format `{foldername}-{12-hex-sha256}`. Do not construct IDs by hand.
+- If a tool returns a "workspace not registered" error, call `memory_workspace` (action: register) with the workspace path first.
+- Legacy workspace IDs are transparently redirected to canonical IDs — if you see a redirect note in a response, update your stored `workspace_id`.
+- Use `memory_workspace` (action: scan_ghosts) to detect unregistered data-root directories.
+- Use `memory_workspace` (action: merge) with `dry_run: true` to preview merges before executing them.
 
 ## Hub-and-Spoke Model
 

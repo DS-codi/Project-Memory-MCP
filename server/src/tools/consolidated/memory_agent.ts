@@ -17,6 +17,7 @@ import type {
 import * as handoffTools from '../handoff.tools.js';
 import * as agentTools from '../agent.tools.js';
 import * as validationTools from '../agent-validation.tools.js';
+import { validateAndResolveWorkspaceId } from './workspace-validation.js';
 
 export type AgentAction = 
   | 'init' 
@@ -86,6 +87,13 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
       success: false,
       error: 'action is required. Valid actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage'
     };
+  }
+
+  // Validate and resolve workspace_id if provided (handles legacy ID redirect)
+  if (params.workspace_id) {
+    const validated = await validateAndResolveWorkspaceId(params.workspace_id);
+    if (!validated.success) return validated.error_response as ToolResponse<AgentResult>;
+    params.workspace_id = validated.workspace_id;
   }
 
   switch (action) {

@@ -4,10 +4,13 @@ import type { MemoryAgentParams } from '../../tools/consolidated/memory_agent.js
 import * as handoffTools from '../../tools/handoff.tools.js';
 import * as agentTools from '../../tools/agent.tools.js';
 import * as validationTools from '../../tools/agent-validation.tools.js';
+import * as validation from '../../tools/consolidated/workspace-validation.js';
 
 vi.mock('../../tools/handoff.tools.js');
 vi.mock('../../tools/agent.tools.js');
 vi.mock('../../tools/agent-validation.tools.js');
+vi.mock('../../tools/consolidated/workspace-validation.js');
+vi.mock('../../storage/workspace-identity.js');
 
 const mockWorkspaceId = 'ws_agent_test_123';
 const mockPlanId = 'plan_agent_test_456';
@@ -15,6 +18,10 @@ const mockPlanId = 'plan_agent_test_456';
 describe('MCP Tool: memory_agent Actions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(validation, 'validateAndResolveWorkspaceId').mockResolvedValue({
+      success: true,
+      workspace_id: mockWorkspaceId,
+    } as any);
   });
 
   describe('init action', () => {

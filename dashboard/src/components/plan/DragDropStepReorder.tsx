@@ -3,6 +3,7 @@ import { GripVertical, Check, X } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { Badge } from '../common/Badge';
 import { statusColors, statusIcons } from '@/utils/colors';
+import { displayStepNumber } from '@/utils/formatters';
 import type { PlanStep } from '@/types';
 
 interface DragDropStepReorderProps {
@@ -159,7 +160,7 @@ export function DragDropStepReorder({
 
             {/* Index */}
             <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-slate-700 rounded text-xs text-slate-400">
-              {idx}
+              {displayStepNumber(idx)}
             </span>
 
             {/* Phase badge */}
@@ -183,7 +184,7 @@ export function DragDropStepReorder({
             {/* Original index indicator */}
             {step.index !== idx && (
               <span className="text-xs text-yellow-400" title="Original position">
-                was #{step.index}
+                was {displayStepNumber(step.index)}
               </span>
             )}
           </div>

@@ -1,20 +1,26 @@
 /**
  * Consolidated Workspace Tool - memory_workspace
  * 
- * Actions: register, list, info, reindex
+ * Actions: register, list, info, reindex, merge, scan_ghosts
  * Replaces: register_workspace, list_workspaces, get_workspace_plans, reindex_workspace
  */
 
 import type { ToolResponse, WorkspaceMeta, WorkspaceProfile, PlanState } from '../../types/index.js';
 import * as workspaceTools from '../workspace.tools.js';
 import * as store from '../../storage/file-store.js';
+import { validateAndResolveWorkspaceId } from './workspace-validation.js';
+import { scanGhostFolders, mergeWorkspace, validateWorkspaceId, migrateWorkspace } from '../../storage/workspace-identity.js';
+import type { GhostFolderInfo, MergeResult, MigrateWorkspaceResult } from '../../storage/workspace-identity.js';
 
-export type WorkspaceAction = 'register' | 'list' | 'info' | 'reindex';
+export type WorkspaceAction = 'register' | 'list' | 'info' | 'reindex' | 'merge' | 'scan_ghosts' | 'migrate';
 
 export interface MemoryWorkspaceParams {
   action: WorkspaceAction;
-  workspace_path?: string;  // for register
-  workspace_id?: string;    // for info, reindex
+  workspace_path?: string;           // for register
+  workspace_id?: string;             // for info, reindex
+  source_workspace_id?: string;      // for merge
+  target_workspace_id?: string;      // for merge
+  dry_run?: boolean;                 // for merge (defaults to true)
 }
 
 interface WorkspaceInfoResult {
@@ -28,7 +34,10 @@ type WorkspaceResult =
   | { action: 'register'; data: { workspace: WorkspaceMeta; first_time: boolean; indexed: boolean; profile?: WorkspaceProfile } }
   | { action: 'list'; data: WorkspaceMeta[] }
   | { action: 'info'; data: WorkspaceInfoResult }
-  | { action: 'reindex'; data: { workspace_id: string; previous_profile?: WorkspaceProfile; new_profile: WorkspaceProfile; changes: object } };
+  | { action: 'reindex'; data: { workspace_id: string; previous_profile?: WorkspaceProfile; new_profile: WorkspaceProfile; changes: object } }
+  | { action: 'merge'; data: MergeResult }
+  | { action: 'scan_ghosts'; data: GhostFolderInfo[] }
+  | { action: 'migrate'; data: MigrateWorkspaceResult };
 
 export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<ToolResponse<WorkspaceResult>> {
   const { action } = params;
@@ -36,7 +45,7 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
   if (!action) {
     return {
       success: false,
-      error: 'action is required. Valid actions: register, list, info, reindex'
+      error: 'action is required. Valid actions: register, list, info, reindex, merge, scan_ghosts, migrate'
     };
   }
 
@@ -76,18 +85,23 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
           error: 'workspace_id is required for action: info'
         };
       }
+
+      // Validate and resolve workspace_id (handles legacy ID redirect)
+      const infoValidated = await validateAndResolveWorkspaceId(params.workspace_id);
+      if (!infoValidated.success) return infoValidated.error_response as ToolResponse<WorkspaceResult>;
+      const infoWorkspaceId = infoValidated.workspace_id;
       
       // Get workspace details
-      const workspace = await store.getWorkspace(params.workspace_id);
+      const workspace = await store.getWorkspace(infoWorkspaceId);
       if (!workspace) {
         return {
           success: false,
-          error: `Workspace not found: ${params.workspace_id}`
+          error: `Workspace not found: ${infoWorkspaceId}`
         };
       }
       
       // Get plans for this workspace
-      const plansResult = await workspaceTools.getWorkspacePlans({ workspace_id: params.workspace_id });
+      const plansResult = await workspaceTools.getWorkspacePlans({ workspace_id: infoWorkspaceId });
       const plans = plansResult.success ? plansResult.data! : [];
       
       const activePlans = plans.filter(p => p.status !== 'archived');
@@ -114,7 +128,10 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
           error: 'workspace_id is required for action: reindex'
         };
       }
-      const result = await workspaceTools.reindexWorkspace({ workspace_id: params.workspace_id });
+      // Validate and resolve workspace_id
+      const reindexValidated = await validateAndResolveWorkspaceId(params.workspace_id);
+      if (!reindexValidated.success) return reindexValidated.error_response as ToolResponse<WorkspaceResult>;
+      const result = await workspaceTools.reindexWorkspace({ workspace_id: reindexValidated.workspace_id });
       if (!result.success) {
         return { success: false, error: result.error };
       }
@@ -124,10 +141,102 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
       };
     }
 
+    case 'scan_ghosts': {
+      try {
+        const ghosts = await scanGhostFolders();
+        return {
+          success: true,
+          data: { action: 'scan_ghosts', data: ghosts }
+        };
+      } catch (err) {
+        return {
+          success: false,
+          error: `Failed to scan for ghost folders: ${(err as Error).message}`
+        };
+      }
+    }
+
+    case 'merge': {
+      if (!params.source_workspace_id) {
+        return {
+          success: false,
+          error: 'source_workspace_id is required for action: merge'
+        };
+      }
+      if (!params.target_workspace_id) {
+        return {
+          success: false,
+          error: 'target_workspace_id is required for action: merge'
+        };
+      }
+
+      // Validate that target is a registered workspace
+      const targetValid = await validateWorkspaceId(params.target_workspace_id);
+      if (!targetValid) {
+        return {
+          success: false,
+          error: `Target workspace '${params.target_workspace_id}' is not registered (no workspace.meta.json). Refusing to merge into an unregistered workspace.`
+        };
+      }
+
+      // Default to dry_run=true for safety
+      const isDryRun = params.dry_run !== false;
+
+      try {
+        const mergeResult = await mergeWorkspace(
+          params.source_workspace_id,
+          params.target_workspace_id,
+          isDryRun
+        );
+
+        // Check for errors in the result notes
+        const hasError = mergeResult.notes.some(n => n.startsWith('ERROR:'));
+        if (hasError) {
+          return {
+            success: false,
+            error: mergeResult.notes.filter(n => n.startsWith('ERROR:')).join('; '),
+            data: { action: 'merge', data: mergeResult }
+          } as ToolResponse<WorkspaceResult>;
+        }
+
+        return {
+          success: true,
+          data: { action: 'merge', data: mergeResult }
+        };
+      } catch (err) {
+        return {
+          success: false,
+          error: `Merge failed: ${(err as Error).message}`
+        };
+      }
+    }
+
+    case 'migrate': {
+      if (!params.workspace_path) {
+        return {
+          success: false,
+          error: 'workspace_path is required for action: migrate. Provide the absolute filesystem path to the workspace directory.'
+        };
+      }
+
+      try {
+        const migrationResult = await migrateWorkspace(params.workspace_path);
+        return {
+          success: true,
+          data: { action: 'migrate', data: migrationResult }
+        };
+      } catch (err) {
+        return {
+          success: false,
+          error: `Migration failed: ${(err as Error).message}`
+        };
+      }
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: register, list, info, reindex`
+        error: `Unknown action: ${action}. Valid actions: register, list, info, reindex, merge, scan_ghosts, migrate`
       };
   }
 }

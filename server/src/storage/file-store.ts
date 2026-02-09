@@ -11,8 +11,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { exec, spawn } from 'child_process';
-import { promisify } from 'util';
 import type { PlanState, WorkspaceMeta, WorkspaceProfile, RequestCategory, RequestCategorization, BuildScript, WorkspaceContext } from '../types/index.js';
 import { STEP_TYPE_BEHAVIORS } from '../types/index.js';
 import { appendWorkspaceFileUpdate } from '../logging/workspace-update-log.js';
@@ -22,10 +20,18 @@ import {
   getWorkspaceIdFromPath,
   normalizeWorkspacePath
 } from './workspace-utils.js';
+import {
+  resolveCanonicalWorkspaceId,
+  readWorkspaceIdentityFile as readIdentityFileFromModule,
+  validateWorkspaceId as validateWsId,
+  WorkspaceNotRegisteredError,
+  getWorkspaceIdentityPath as getIdentityPath,
+  type WorkspaceIdentityFile as IdentityFile,
+} from './workspace-identity.js';
 
-const execAsync = promisify(exec);
-
-const BUILD_SCRIPT_TIMEOUT_MS = 300000;
+// Re-export from workspace-identity module for backwards compatibility
+export type { WorkspaceIdentityFile } from './workspace-identity.js';
+export { getWorkspaceIdentityPath } from './workspace-identity.js';
 
 export interface WorkspaceMigrationReport {
   action: 'none' | 'aliased' | 'migrated';
@@ -34,20 +40,7 @@ export interface WorkspaceMigrationReport {
   notes: string[];
 }
 
-export interface WorkspaceIdentityFile {
-  schema_version: string;
-  workspace_id: string;
-  workspace_path: string;
-  data_root: string;
-  created_at: string;
-  updated_at: string;
-  project_mcps?: Array<{
-    name: string;
-    description?: string;
-    config_path?: string;
-    url?: string;
-  }>;
-}
+// WorkspaceIdentityFile is now defined in and re-exported from workspace-identity.ts
 
 // =============================================================================
 // Configuration
@@ -112,12 +105,7 @@ export function generateWorkspaceId(workspacePath: string): string {
 }
 
 export async function resolveWorkspaceIdForPath(workspacePath: string): Promise<string> {
-  const resolvedPath = path.resolve(workspacePath);
-  const identity = await readWorkspaceIdentityFile(resolvedPath);
-  if (identity?.workspace_id) {
-    return identity.workspace_id;
-  }
-  return getWorkspaceIdFromPath(resolvedPath);
+  return resolveCanonicalWorkspaceId(workspacePath);
 }
 
 /**
@@ -189,24 +177,25 @@ export function getContextPath(workspaceId: string, planId: string, contextType:
   return path.join(getPlanPath(workspaceId, planId), `${contextType}.json`);
 }
 
-export function getWorkspaceIdentityPath(workspacePath: string): string {
-  return path.join(workspacePath, '.projectmemory', 'identity.json');
-}
+// readWorkspaceIdentityFile is now provided by workspace-identity.ts
+const readWorkspaceIdentityFile = readIdentityFileFromModule;
 
-async function readWorkspaceIdentityFile(workspacePath: string): Promise<WorkspaceIdentityFile | null> {
-  const identityPath = getWorkspaceIdentityPath(workspacePath);
-  const identity = await readJson<WorkspaceIdentityFile>(identityPath);
-  if (!identity?.workspace_id || !identity.workspace_path) {
-    return null;
+// =============================================================================
+// Workspace Validation Guard
+// =============================================================================
+
+/**
+ * Assert that a workspace is registered before writing data to it.
+ * Prevents silent creation of ghost directories from unvalidated workspace IDs.
+ *
+ * This guard is called by write operations like `savePlanState` and `createPlan`.
+ * Read operations do NOT call this guard (they'll just return null for missing data).
+ */
+async function assertWorkspaceRegistered(workspaceId: string): Promise<void> {
+  const isValid = await validateWsId(workspaceId);
+  if (!isValid) {
+    throw new WorkspaceNotRegisteredError(workspaceId);
   }
-
-  const normalizedInput = normalizeWorkspacePath(workspacePath);
-  const normalizedIdentity = normalizeWorkspacePath(identity.workspace_path);
-  if (normalizedInput !== normalizedIdentity) {
-    return null;
-  }
-
-  return identity;
 }
 
 // =============================================================================
@@ -607,13 +596,13 @@ export async function createWorkspace(
 export async function writeWorkspaceIdentityFile(
   workspacePath: string,
   meta: WorkspaceMeta
-): Promise<WorkspaceIdentityFile> {
+): Promise<IdentityFile> {
   const resolvedPath = path.resolve(workspacePath);
-  const identityPath = getWorkspaceIdentityPath(resolvedPath);
-  const existing = await readJson<WorkspaceIdentityFile>(identityPath);
+  const identityPath = getIdentityPath(resolvedPath);
+  const existing = await readJson<IdentityFile>(identityPath);
   const now = nowISO();
 
-  const identity: WorkspaceIdentityFile = {
+  const identity: IdentityFile = {
     schema_version: '1.0.0',
     workspace_id: meta.workspace_id,
     workspace_path: resolvedPath,
@@ -661,9 +650,11 @@ export async function getPlanState(workspaceId: string, planId: string): Promise
 }
 
 /**
- * Save plan state with locking to prevent race conditions
+ * Save plan state with locking to prevent race conditions.
+ * Validates that the workspace is registered before writing.
  */
 export async function savePlanState(state: PlanState): Promise<void> {
+  await assertWorkspaceRegistered(state.workspace_id);
   const filePath = getPlanStatePath(state.workspace_id, state.id);
   await fileLockManager.withLock(filePath, async () => {
     state.updated_at = nowISO();
@@ -697,7 +688,8 @@ export async function getWorkspacePlans(workspaceId: string): Promise<PlanState[
 }
 
 /**
- * Create a new plan
+ * Create a new plan.
+ * Validates that the workspace is registered before creating directories.
  */
 export async function createPlan(
   workspaceId: string,
@@ -709,6 +701,7 @@ export async function createPlan(
   goals?: string[],
   success_criteria?: string[]
 ): Promise<PlanState> {
+  await assertWorkspaceRegistered(workspaceId);
   const planId = generatePlanId();
   const planDir = getPlanPath(workspaceId, planId);
   
@@ -961,174 +954,8 @@ export async function deleteBuildScript(
   return true;
 }
 
-/**
- * Find a build script by ID, optionally scoped to a plan.
- * Falls back to searching all plans when planId is omitted.
- */
-export async function findBuildScript(
-  workspaceId: string,
-  scriptId: string,
-  planId?: string
-): Promise<BuildScript | null> {
-  const scripts = await getBuildScripts(workspaceId, planId);
-  const directMatch = scripts.find(script => script.id === scriptId);
-
-  if (directMatch || planId) {
-    return directMatch ?? null;
-  }
-
-  const workspace = await getWorkspace(workspaceId);
-  if (!workspace) {
-    return null;
-  }
-
-  const planIds = new Set<string>();
-  for (const id of workspace.active_plans ?? []) {
-    planIds.add(id);
-  }
-  for (const id of workspace.archived_plans ?? []) {
-    planIds.add(id);
-  }
-
-  for (const id of planIds) {
-    const plan = await getPlanState(workspaceId, id);
-    const match = plan?.build_scripts?.find(script => script.id === scriptId);
-    if (match) {
-      return match;
-    }
-  }
-
-  return null;
-}
-
-/**
- * Run a build script
- */
-export async function runBuildScript(
-  workspaceId: string,
-  scriptId: string,
-  planId?: string
-): Promise<{ success: boolean; output: string; error?: string }> {
-  // Find the script
-  const script = await findBuildScript(workspaceId, scriptId, planId);
-  
-  if (!script) {
-    return {
-      success: false,
-      output: '',
-      error: `Script ${scriptId} not found`
-    };
-  }
-  
-  const execOptions = {
-    cwd: script.directory,
-    timeout: BUILD_SCRIPT_TIMEOUT_MS
-  };
-  const { primary } = resolveBuildScriptShellCandidates(process.platform, process.env);
-  const directCommand = await resolveDirectCommand(script.command, script.directory);
-  const requiresShell = commandRequiresShell(script.command);
-
-  const runWithShell = async (shell?: string) => {
-    const options = shell ? { ...execOptions, shell } : execOptions;
-    return execAsync(script.command, options);
-  };
-
-  const runDirect = async () => {
-    if (!directCommand) {
-      throw new Error('No direct command resolved for build script');
-    }
-    return runCommandDirect(
-      directCommand.command,
-      directCommand.args,
-      execOptions.cwd,
-      execOptions.timeout
-    );
-  };
-
-  if (!requiresShell && directCommand) {
-    try {
-      const { stdout, stderr } = await runDirect();
-      return {
-        success: true,
-        output: stdout + (stderr ? `\n\nSTDERR:\n${stderr}` : '')
-      };
-    } catch (error) {
-      const err = error as { stdout?: string; stderr?: string; message: string };
-      if (primary) {
-        try {
-          const { stdout, stderr } = await runWithShell(primary);
-          return {
-            success: true,
-            output: stdout + (stderr ? `\n\nSTDERR:\n${stderr}` : '')
-          };
-        } catch (shellError) {
-          const shellErr = shellError as { stdout?: string; stderr?: string; message: string };
-          return {
-            success: false,
-            output: shellErr.stdout || err.stdout || '',
-            error: shellErr.stderr || shellErr.message
-          };
-        }
-      }
-
-      return {
-        success: false,
-        output: err.stdout || '',
-        error: err.stderr || err.message
-      };
-    }
-  }
-
-  try {
-    const { stdout, stderr } = await runWithShell(primary);
-    return {
-      success: true,
-      output: stdout + (stderr ? `\n\nSTDERR:\n${stderr}` : '')
-    };
-  } catch (error) {
-    const err = error as { stdout?: string; stderr?: string; message: string };
-    if (!requiresShell && directCommand) {
-      try {
-        const { stdout, stderr } = await runDirect();
-        return {
-          success: true,
-          output: stdout + (stderr ? `\n\nSTDERR:\n${stderr}` : '')
-        };
-      } catch (directError) {
-        const directErr = directError as { stdout?: string; stderr?: string; message: string };
-        return {
-          success: false,
-          output: directErr.stdout || err.stdout || '',
-          error: directErr.stderr || directErr.message
-        };
-      }
-    }
-
-    return {
-      success: false,
-      output: err.stdout || '',
-      error: err.stderr || err.message
-    };
-  }
-}
-
-function isCmdShell(shell: string): boolean {
-  const normalized = shell.trim().toLowerCase();
-  return normalized === 'cmd.exe' || normalized.endsWith('\\cmd.exe') || normalized.endsWith('/cmd.exe');
-}
-
-export function resolveBuildScriptShellCandidates(
-  platform: NodeJS.Platform,
-  env: NodeJS.ProcessEnv
-): { primary?: string; fallback?: string } {
-  if (platform !== 'win32') {
-    return {};
-  }
-
-  const comspec = env.COMSPEC?.trim();
-  const primary = comspec && comspec.length > 0 ? comspec : 'cmd.exe';
-  return { primary };
-}
+// Re-export findBuildScript from its own module for backwards compatibility
+export { findBuildScript } from './build-script-utils.js';
 
 export function parseCommandTokens(command: string): string[] {
   const tokens: string[] = [];
@@ -1168,136 +995,3 @@ export function parseCommandTokens(command: string): string[] {
 
   return tokens;
 }
-
-export function commandRequiresShell(command: string): boolean {
-  let inQuotes = false;
-  let quoteChar = '';
-
-  for (let i = 0; i < command.length; i += 1) {
-    const char = command[i];
-    if (char === '"' || char === "'") {
-      if (inQuotes && char === quoteChar) {
-        inQuotes = false;
-        quoteChar = '';
-      } else if (!inQuotes) {
-        inQuotes = true;
-        quoteChar = char;
-      }
-      continue;
-    }
-
-    if (!inQuotes && (char === '|' || char === '&' || char === ';' || char === '>' || char === '<')) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-export async function resolveDirectCommand(
-  command: string,
-  cwd: string
-): Promise<{ command: string; args: string[] } | null> {
-  const tokens = parseCommandTokens(command);
-  if (tokens.length === 0) {
-    return null;
-  }
-
-  let executable = tokens[0];
-  const args = tokens.slice(1);
-  const hasSeparator = executable.includes('/') || executable.includes('\\');
-
-  if (path.isAbsolute(executable)) {
-    await ensureExecutable(executable);
-    return { command: executable, args };
-  }
-
-  if (hasSeparator || executable.startsWith('.')) {
-    const candidate = path.resolve(cwd, executable);
-    if (await exists(candidate)) {
-      await ensureExecutable(candidate);
-      return { command: candidate, args };
-    }
-    return { command: candidate, args };
-  }
-
-  return { command: executable, args };
-}
-
-async function ensureExecutable(filePath: string): Promise<void> {
-  if (process.platform === 'win32') {
-    return;
-  }
-
-  try {
-    const stats = await fs.stat(filePath);
-    const mode = stats.mode;
-    if ((mode & 0o111) === 0) {
-      await fs.chmod(filePath, mode | 0o111);
-    }
-  } catch {
-    // Ignore missing files or permission errors; execution will surface failures.
-  }
-}
-
-async function runCommandDirect(
-  command: string,
-  args: string[],
-  cwd: string,
-  timeout?: number
-): Promise<{ stdout: string; stderr: string }> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      cwd,
-      windowsHide: true
-    });
-
-    let stdout = '';
-    let stderr = '';
-
-    const timer = timeout
-      ? setTimeout(() => {
-          child.kill('SIGTERM');
-        }, timeout)
-      : null;
-
-    child.stdout?.on('data', chunk => {
-      stdout += chunk.toString();
-    });
-
-    child.stderr?.on('data', chunk => {
-      stderr += chunk.toString();
-    });
-
-    child.on('error', error => {
-      if (timer) {
-        clearTimeout(timer);
-      }
-      const err = error as Error & { stdout?: string; stderr?: string };
-      err.stdout = stdout;
-      err.stderr = stderr;
-      reject(err);
-    });
-
-    child.on('close', code => {
-      if (timer) {
-        clearTimeout(timer);
-      }
-      if (code === 0) {
-        resolve({ stdout, stderr });
-        return;
-      }
-
-      const err = new Error(`Command exited with code ${code ?? 'unknown'}`) as Error & {
-        stdout?: string;
-        stderr?: string;
-        code?: number | null;
-      };
-      err.code = code ?? null;
-      err.stdout = stdout;
-      err.stderr = stderr;
-      reject(err);
-    });
-  });
-}
-

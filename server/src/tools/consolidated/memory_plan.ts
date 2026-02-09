@@ -24,6 +24,7 @@ import type {
 } from '../../types/index.js';
 import * as planTools from '../plan.tools.js';
 import * as fileStore from '../../storage/file-store.js';
+import { validateAndResolveWorkspaceId } from './workspace-validation.js';
 
 export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate' | 'set_goals' | 'add_build_script' | 'list_build_scripts' | 'run_build_script' | 'delete_build_script' | 'create_from_template' | 'list_templates' | 'confirm';
 
@@ -121,7 +122,7 @@ function resolveScriptPaths(script: BuildScript, workspaceRoot: string): BuildSc
   const directoryPath = path.isAbsolute(script.directory)
     ? script.directory
     : path.resolve(workspaceRoot, script.directory);
-  const tokens = fileStore.parseCommandTokens(script.command);
+  const tokens = script.command ? fileStore.parseCommandTokens(script.command) : [];
   const commandToken = tokens[0] ?? '';
   let commandPath: string | undefined;
 
@@ -146,6 +147,13 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
       success: false,
       error: 'action is required. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm'
     };
+  }
+
+  // Validate and resolve workspace_id (handles legacy ID redirect)
+  if (params.workspace_id) {
+    const validated = await validateAndResolveWorkspaceId(params.workspace_id);
+    if (!validated.success) return validated.error_response as ToolResponse<PlanResult>;
+    params.workspace_id = validated.workspace_id;
   }
 
   switch (action) {
@@ -419,14 +427,34 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
           error: 'workspace_id and script_id are required for action: run_build_script'
         };
       }
-      const result = await fileStore.runBuildScript(
+      const script = await fileStore.findBuildScript(
         params.workspace_id,
         params.script_id,
         params.plan_id
       );
+      if (!script) {
+        return {
+          success: false,
+          error: `Script ${params.script_id} not found`
+        };
+      }
+      const workspaceForScript = await fileStore.getWorkspace(params.workspace_id);
+      const scriptRoot = workspaceForScript?.path ?? '';
+      const resolved = resolveScriptPaths(script, scriptRoot);
       return {
         success: true,
-        data: { action: 'run_build_script', data: result }
+        data: {
+          action: 'run_build_script',
+          data: {
+            script_id: resolved.id,
+            script_name: resolved.name,
+            command: resolved.command,
+            directory: resolved.directory,
+            directory_path: resolved.directory_path ?? resolved.directory,
+            command_path: resolved.command_path,
+            message: `Run this command in your terminal: ${resolved.command} (working directory: ${resolved.directory_path ?? resolved.directory})`
+          }
+        }
       };
     }
 

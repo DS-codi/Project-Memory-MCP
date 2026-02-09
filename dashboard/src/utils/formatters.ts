@@ -37,3 +37,11 @@ export function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return text.slice(0, maxLength - 3) + '...';
 }
+
+/**
+ * Convert a 0-based step index to a 1-based display string.
+ * Use this everywhere steps are shown to users for consistent numbering.
+ */
+export function displayStepNumber(index: number): string {
+  return `#${index + 1}`;
+}

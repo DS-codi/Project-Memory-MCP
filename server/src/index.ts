@@ -120,11 +120,14 @@ const RequestCategorizationSchema = z.object({
 
 server.tool(
   'memory_workspace',
-  'Consolidated workspace management tool. Actions: register (register a workspace directory), list (list all workspaces), info (get plans for a workspace), reindex (update codebase profile after changes).',
+  'Consolidated workspace management tool. Actions: register (register a workspace directory), list (list all workspaces), info (get plans for a workspace), reindex (update codebase profile after changes), merge (merge a ghost/source workspace into a canonical target), scan_ghosts (scan for unregistered data-root directories), migrate (re-register workspace, find and merge all ghost/duplicate folders, recover plans, and clean up — use this when opening old workspaces).',
   {
-    action: z.enum(['register', 'list', 'info', 'reindex']).describe('The action to perform'),
+    action: z.enum(['register', 'list', 'info', 'reindex', 'merge', 'scan_ghosts', 'migrate']).describe('The action to perform'),
     workspace_id: z.string().optional().describe('Workspace ID (for info, reindex)'),
-    workspace_path: z.string().optional().describe('Workspace path (for register)')
+    workspace_path: z.string().optional().describe('Workspace path (for register, migrate)'),
+    source_workspace_id: z.string().optional().describe('Source workspace/ghost folder ID to merge from (for merge)'),
+    target_workspace_id: z.string().optional().describe('Target canonical workspace ID to merge into (for merge)'),
+    dry_run: z.boolean().optional().describe('If true (default), report what would be merged without making changes (for merge)')
   },
   async (params) => {
     const result = await withLogging('memory_workspace', params, () =>
@@ -138,7 +141,7 @@ server.tool(
 
 server.tool(
   'memory_plan',
-  'Consolidated plan lifecycle management. Actions: list (list plans), get (get plan state), create (create new plan), update (modify plan steps), archive (archive completed plan), import (import existing plan file), find (find plan by ID), add_note (add note to plan), delete (delete plan), consolidate (consolidate steps), set_goals (set goals and success criteria), add_build_script (add build script), list_build_scripts (list build scripts), run_build_script (run build script), delete_build_script (delete build script), create_from_template (create plan from template), list_templates (list available templates).',
+  'Consolidated plan lifecycle management. Actions: list (list plans), get (get plan state), create (create new plan), update (modify plan steps), archive (archive completed plan), import (import existing plan file), find (find plan by ID), add_note (add note to plan), delete (delete plan), consolidate (consolidate steps), set_goals (set goals and success criteria), add_build_script (add build script), list_build_scripts (list build scripts), run_build_script (resolve build script for terminal execution), delete_build_script (delete build script), create_from_template (create plan from template), list_templates (list available templates).',
   {
     action: z.enum(['list', 'get', 'create', 'update', 'archive', 'import', 'find', 'add_note', 'delete', 'consolidate', 'set_goals', 'add_build_script', 'list_build_scripts', 'run_build_script', 'delete_build_script', 'create_from_template', 'list_templates', 'confirm']).describe('The action to perform'),
     workspace_id: z.string().optional().describe('Workspace ID'),
@@ -165,7 +168,7 @@ server.tool(
     note_type: z.enum(['info', 'warning', 'instruction']).optional().describe('Note type'),
     categorization: RequestCategorizationSchema.optional().describe('Full categorization details'),
     confirm: z.boolean().optional().describe('Confirmation required for destructive delete action'),
-    step_indices: z.array(z.number()).optional().describe('Step indices to consolidate (for consolidate action)'),
+    step_indices: z.array(z.number()).optional().describe('Array of 0-based step indices to consolidate (for consolidate action)'),
     consolidated_task: z.string().optional().describe('Consolidated task description (for consolidate action)'),
     goals: z.array(z.string()).optional().describe('Plan goals (for create or set_goals action)'),
     success_criteria: z.array(z.string()).optional().describe('Success criteria (for create or set_goals action)'),
@@ -178,7 +181,7 @@ server.tool(
     template: z.enum(['feature', 'bugfix', 'refactor', 'documentation', 'analysis', 'investigation']).optional().describe('Plan template (for create_from_template)'),
     confirmation_scope: z.enum(['phase', 'step']).optional().describe('Confirmation scope (for confirm action)'),
     confirm_phase: z.string().optional().describe('Phase to confirm (for confirm action)'),
-    confirm_step_index: z.number().optional().describe('Step index to confirm (for confirm action)'),
+    confirm_step_index: z.number().optional().describe('0-based step index to confirm (for confirm action)'),
     confirmed_by: z.string().optional().describe('Who confirmed the phase/step')
   },
   async (params) => {
@@ -210,7 +213,7 @@ server.tool(
       requires_confirmation: z.boolean().optional(),
       requires_user_confirmation: z.boolean().optional()
     })).optional().describe('Steps to add (for add action)'),
-    step_index: z.number().optional().describe('Step index to update (for update action)'),
+    step_index: z.number().optional().describe('Step index (0-based) to update (for update action)'),
     status: StepStatusSchema.optional().describe('New status (for update action)'),
     notes: z.string().optional().describe('Notes to add (for update action)'),
     agent_type: z.string().optional().describe('Agent type making the update'),
@@ -219,7 +222,7 @@ server.tool(
       status: StepStatusSchema.optional(),
       notes: z.string().optional()
     })).optional().describe('Batch updates (for batch_update action)'),
-    at_index: z.number().optional().describe('Index at which to insert step (for insert action)'),
+    at_index: z.number().optional().describe('0-based index at which to insert step (for insert action)'),
     step: z.object({
       phase: z.string(),
       task: z.string(),
@@ -233,8 +236,8 @@ server.tool(
       requires_user_confirmation: z.boolean().optional()
     }).optional().describe('Single step to insert (for insert action)'),
     direction: z.enum(['up', 'down']).optional().describe('Direction to move step (for reorder action)'),
-    from_index: z.number().optional().describe('Source step index (for move action)'),
-    to_index: z.number().optional().describe('Target step index (for move action)'),
+    from_index: z.number().optional().describe('0-based source step index (for move action)'),
+    to_index: z.number().optional().describe('0-based target step index (for move action)'),
     phase_order: z.array(z.string()).optional().describe('Custom phase order for sort action, e.g. ["Research", "Design", "Implement", "Test"]'),
     new_order: z.array(z.number()).optional().describe('Array of current step indices in desired new order (for set_order action)'),
     replacement_steps: z.array(z.object({

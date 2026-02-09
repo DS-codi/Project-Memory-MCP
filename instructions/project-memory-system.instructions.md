@@ -672,13 +672,15 @@ List all build scripts for a workspace.
 ---
 
 #### `run_build_script`
-Execute a registered build script.
+Resolve a registered build script and return its command and directory for terminal execution. The agent should then run the resolved command in the terminal using `run_in_terminal`.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `action` | string | ✅ | `"run_build_script"` |
 | `workspace_id` | string | ✅ | The workspace ID |
-| `script_id` | string | ✅ | The script ID to run |
+| `script_id` | string | ✅ | The script ID to resolve |
+
+**Returns:** `{ command, directory_path, script_name }` — use these to run the script in a terminal.
 
 **Used by:** Builder, Executor, Tester.
 
@@ -2036,7 +2038,12 @@ type StepType =
   | 'build' 
   | 'fix' 
   | 'refactor' 
-  | 'confirmation';
+  | 'confirmation'
+  | 'research'
+  | 'planning'
+  | 'code'
+  | 'test'
+  | 'documentation';
 ```
 
 ### RequestCategory

@@ -3,6 +3,7 @@ import { memoryPlan } from '../../tools/consolidated/memory_plan.js';
 import type { MemoryPlanParams } from '../../tools/consolidated/memory_plan.js';
 import * as fileStore from '../../storage/file-store.js';
 import * as planTools from '../../tools/plan.tools.js';
+import * as validation from '../../tools/consolidated/workspace-validation.js';
 
 /**
  * Unit Tests for Goals and Success Criteria MCP Tool Actions (Phase 1)
@@ -16,6 +17,8 @@ import * as planTools from '../../tools/plan.tools.js';
 
 // Mock file store
 vi.mock('../../storage/file-store.js');
+vi.mock('../../tools/consolidated/workspace-validation.js');
+vi.mock('../../storage/workspace-identity.js');
 
 const mockWorkspaceId = 'ws_goals_test_123';
 const mockPlanId = 'plan_goals_test_456';
@@ -24,6 +27,10 @@ describe('MCP Tool: memory_plan Goals and Success Criteria Actions', () => {
   
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(validation, 'validateAndResolveWorkspaceId').mockResolvedValue({
+      success: true,
+      workspace_id: mockWorkspaceId,
+    } as any);
   });
 
   // =========================================================================

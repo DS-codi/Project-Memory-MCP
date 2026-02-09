@@ -3,9 +3,12 @@ import { memoryContext } from '../../tools/consolidated/memory_context.js';
 import type { MemoryContextParams } from '../../tools/consolidated/memory_context.js';
 import * as contextTools from '../../tools/context.tools.js';
 import * as workspaceContextTools from '../../tools/workspace-context.tools.js';
+import * as validation from '../../tools/consolidated/workspace-validation.js';
 
 vi.mock('../../tools/context.tools.js');
 vi.mock('../../tools/workspace-context.tools.js');
+vi.mock('../../tools/consolidated/workspace-validation.js');
+vi.mock('../../storage/workspace-identity.js');
 
 const mockWorkspaceId = 'ws_context_test_123';
 const mockPlanId = 'plan_context_test_456';
@@ -22,6 +25,10 @@ const mockWorkspaceContext = {
 describe('MCP Tool: memory_context Actions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(validation, 'validateAndResolveWorkspaceId').mockResolvedValue({
+      success: true,
+      workspace_id: mockWorkspaceId,
+    } as any);
   });
 
   it('should require workspace_id and plan_id', async () => {
@@ -30,7 +37,7 @@ describe('MCP Tool: memory_context Actions', () => {
     const result = await memoryContext(params);
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain('workspace_id and plan_id');
+    expect(result.error).toContain('workspace_id');
   });
 
   describe('store action', () => {

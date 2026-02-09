@@ -51,7 +51,7 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 
 ```json
 {
-  "deployed_by": "Tester",
+  "deployed_by": "Coordinator",
   "reason": "All tests passed, ready for commit",
   "files_to_commit": ["list of changed files"],
   "commit_message_draft": "Suggested commit message",

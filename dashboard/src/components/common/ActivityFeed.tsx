@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Activity, Clock, ArrowRight, FileText, CheckCircle, Zap } from 'lucide-react';
 import { cn } from '@/utils/cn';
-import { formatRelative } from '@/utils/formatters';
+import { formatRelative, displayStepNumber } from '@/utils/formatters';
 import type { LiveUpdate } from '@/types';
 
 interface ActivityFeedProps {
@@ -188,7 +188,7 @@ function formatMCPEventMessage(data: { type: string; tool_name?: string; agent_t
       return `New plan: ${(data.data as { title?: string })?.title || 'Untitled'}`;
     case 'step_updated':
       const stepData = data.data as { stepIndex?: number; newStatus?: string };
-      return `Step ${(stepData?.stepIndex ?? 0) + 1} → ${stepData?.newStatus || 'updated'}`;
+      return `Step ${displayStepNumber(stepData?.stepIndex ?? 0)} → ${stepData?.newStatus || 'updated'}`;
     case 'agent_session_started':
       return `${data.agent_type || 'Agent'} session started`;
     case 'agent_session_completed':

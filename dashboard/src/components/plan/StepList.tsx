@@ -3,6 +3,7 @@ import { Edit2, Check, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { Badge } from '../common/Badge';
 import { statusColors, statusIcons, stepTypeColors } from '@/utils/colors';
+import { displayStepNumber } from '@/utils/formatters';
 import { StepEditor } from './StepEditor';
 import { useStepMutations } from '@/hooks/useStepMutations';
 import type { PlanStep, StepStatus, StepType } from '@/types';
@@ -26,7 +27,7 @@ function InlineStepEditor({ step, onSave, onCancel, isSaving }: InlineStepEditor
     <div className="space-y-3 p-3 bg-slate-900/60 border border-violet-500/40 rounded-lg">
       {/* Status + Type row */}
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-sm font-mono text-slate-500">#{step.index + 1}</span>
+        <span className="text-sm font-mono text-slate-500">{displayStepNumber(step.index)}</span>
         <select
           value={draft.status}
           onChange={(e) => setDraft({ ...draft, status: e.target.value as StepStatus })}
@@ -245,7 +246,7 @@ export function StepList({ steps, workspaceId, planId, editable = false }: StepL
                         </span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm font-mono text-slate-500">#{step.index + 1}</span>
+                            <span className="text-sm font-mono text-slate-500">{displayStepNumber(step.index)}</span>
                             <Badge variant={statusColors[step.status]}>{step.status}</Badge>
                             {step.type && (
                               <Badge variant={stepTypeColors[step.type]}>{step.type}</Badge>
