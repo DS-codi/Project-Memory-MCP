@@ -322,11 +322,9 @@ export const AGENT_BOUNDARIES: Record<AgentType, AgentRoleBoundaries> = {
     forbidden_actions: [
       'create files',
       'edit code',
-      'implement features',
-      'run terminal commands',
-      'run ad-hoc build commands'
+      'implement features'
     ],
-    primary_responsibility: 'Execute build scripts via memory_plan actions, verify builds succeed, diagnose build failures'
+    primary_responsibility: 'Run build scripts and terminal commands, verify builds succeed, diagnose build failures'
   },
   Reviewer: {
     agent_type: 'Reviewer',
