@@ -11,6 +11,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import lockfile from 'proper-lockfile';
 import type { PlanState, WorkspaceMeta, WorkspaceProfile, RequestCategory, RequestCategorization, BuildScript, WorkspaceContext } from '../types/index.js';
 import { STEP_TYPE_BEHAVIORS } from '../types/index.js';
 import { appendWorkspaceFileUpdate } from '../logging/workspace-update-log.js';
@@ -53,39 +54,73 @@ const WORKSPACE_SCHEMA_VERSION = '1.0.0';
 // =============================================================================
 
 /**
- * Simple in-memory lock manager to prevent concurrent file access race conditions.
- * Uses a Map of promises to serialize access to the same file path.
+ * Cross-process file lock manager using proper-lockfile.
+ * Provides both in-memory locks (for same-process serialization) and
+ * filesystem locks (for cross-process serialization).
+ * 
+ * This ensures that multiple VS Code windows with separate MCP server
+ * processes can safely read/write to the same data files.
  */
 class FileLockManager {
-  private locks: Map<string, Promise<void>> = new Map();
+  // In-memory locks for same-process serialization
+  private inMemoryLocks: Map<string, Promise<void>> = new Map();
 
   /**
    * Execute an operation with exclusive access to a file path.
-   * Multiple calls to the same path will be serialized.
+   * Uses both in-memory locks (same process) and filesystem locks (cross-process).
    */
   async withLock<T>(filePath: string, operation: () => Promise<T>): Promise<T> {
     const normalizedPath = path.normalize(filePath).toLowerCase();
     
-    // Wait for any existing lock on this path
-    const existingLock = this.locks.get(normalizedPath);
+    // First, serialize within this process
+    const existingLock = this.inMemoryLocks.get(normalizedPath);
     if (existingLock) {
-      await existingLock.catch(() => {}); // Ignore errors from previous operations
+      await existingLock.catch(() => {});
     }
 
-    // Create a new lock for this operation
     let resolveLock: () => void;
     const lockPromise = new Promise<void>((resolve) => {
       resolveLock = resolve;
     });
-    this.locks.set(normalizedPath, lockPromise);
+    this.inMemoryLocks.set(normalizedPath, lockPromise);
 
     try {
-      return await operation();
+      // Ensure the directory exists for the lock file
+      const dir = path.dirname(filePath);
+      await fs.mkdir(dir, { recursive: true });
+
+      // Use the directory for locking since the file may not exist yet
+      // proper-lockfile creates a .lock file next to the target
+      const lockTarget = dir;
+      const lockOptions = {
+        stale: 10000,     // Consider lock stale after 10s
+        retries: {
+          retries: 10,
+          minTimeout: 100,
+          maxTimeout: 1000,
+          factor: 2,
+        },
+      };
+
+      let release: (() => Promise<void>) | null = null;
+      try {
+        // Acquire cross-process lock
+        release = await lockfile.lock(lockTarget, lockOptions);
+        return await operation();
+      } finally {
+        // Release cross-process lock
+        if (release) {
+          try {
+            await release();
+          } catch {
+            // Ignore unlock errors (lock may have been stale)
+          }
+        }
+      }
     } finally {
       resolveLock!();
-      // Clean up lock if it's still ours
-      if (this.locks.get(normalizedPath) === lockPromise) {
-        this.locks.delete(normalizedPath);
+      if (this.inMemoryLocks.get(normalizedPath) === lockPromise) {
+        this.inMemoryLocks.delete(normalizedPath);
       }
     }
   }
