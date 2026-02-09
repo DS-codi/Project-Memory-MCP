@@ -30,6 +30,7 @@ export class ServerManager implements vscode.Disposable {
     private _isFrontendRunning = false;
     private _isExternalServer = false;  // True if connected to server started by another VS Code instance
     private _isExternalFrontend = false;
+    private _intentionalStop = false;  // Set to true when user explicitly stops the server
     private config: ServerConfig;
     private restartAttempts = 0;
     private maxRestartAttempts = 3;
@@ -147,7 +148,12 @@ export class ServerManager implements vscode.Disposable {
                 this.serverProcess = null;
                 this.ownedServerPid = null;
 
-                if (code !== 0 && this.restartAttempts < this.maxRestartAttempts) {
+                // Don't auto-restart if the stop was intentional (user clicked Stop)
+                if (this._intentionalStop) {
+                    this.log('Intentional stop - not auto-restarting');
+                    this._intentionalStop = false;
+                    this.updateStatusBar('stopped');
+                } else if (code !== 0 && this.restartAttempts < this.maxRestartAttempts) {
                     this.restartAttempts++;
                     this.log(`Attempting restart (${this.restartAttempts}/${this.maxRestartAttempts})...`);
                     setTimeout(() => this.start(), 2000);
@@ -181,9 +187,13 @@ export class ServerManager implements vscode.Disposable {
     }
 
     async stop(): Promise<void> {
+        // Mark that this stop is intentional (user action, not crash)
+        this._intentionalStop = true;
+
         // Don't stop external servers - we didn't start them
         if (this._isExternalServer) {
-            this.log('Disconnecting from external server (not stopping it)');
+            this.log('Disconnecting from external server (not stopping it)');  
+            this._intentionalStop = false;
             this._isRunning = false;
             this._isExternalServer = false;
             this.updateStatusBar('stopped');
@@ -256,6 +266,9 @@ export class ServerManager implements vscode.Disposable {
             return false;
         }
 
+        // Mark as intentional stop to prevent auto-restart
+        this._intentionalStop = true;
+
         const port = this.config.serverPort || 3001;
         const pid = this.ownedServerPid || await this.getPidForPort(port);
         if (!pid) {
@@ -286,6 +299,9 @@ export class ServerManager implements vscode.Disposable {
             this.log('Server was started by this extension; use Stop Server instead');
             return false;
         }
+
+        // Mark as intentional stop to prevent auto-restart
+        this._intentionalStop = true;
 
         const port = this.config.serverPort || 3001;
         const pid = await this.getPidForPort(port);

@@ -241,6 +241,106 @@ export function activate(context: vscode.ExtensionContext) {
             notify('Project Memory server stopped');
         }),
 
+        vscode.commands.registerCommand('projectMemory.migrateWorkspace', async () => {
+            // Show folder picker to select workspace to migrate
+            const folderUri = await vscode.window.showOpenDialog({
+                canSelectFiles: false,
+                canSelectFolders: true,
+                canSelectMany: false,
+                openLabel: 'Select Workspace to Migrate',
+                title: 'Select a workspace directory to migrate to the new identity system'
+            });
+
+            if (!folderUri || folderUri.length === 0) {
+                return;
+            }
+
+            const workspacePath = folderUri[0].fsPath;
+
+            // Check if mcpBridge is available
+            if (!mcpBridge) {
+                vscode.window.showErrorMessage('MCP Bridge not initialized. Please wait for the extension to fully load.');
+                return;
+            }
+
+            // Ensure mcpBridge is connected
+            if (!mcpBridge.isConnected()) {
+                try {
+                    await mcpBridge.connect();
+                } catch {
+                    vscode.window.showErrorMessage('Failed to connect to MCP server. Please check the server is configured correctly.');
+                    return;
+                }
+            }
+
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: 'Migrating workspace...',
+                cancellable: false
+            }, async (progress) => {
+                try {
+                    // Step 1: Stop dashboard server to release file handles
+                    progress.report({ message: 'Stopping dashboard server...' });
+                    const wasRunning = serverManager.isRunning;
+                    if (wasRunning) {
+                        await serverManager.stopFrontend();
+                        await serverManager.stop();
+                    }
+
+                    // Small delay to ensure file handles are released
+                    await new Promise(resolve => setTimeout(resolve, 500));
+
+                    // Step 2: Run migration
+                    progress.report({ message: 'Running migration...' });
+                    const result = await mcpBridge!.callTool<{
+                        workspace_id: string;
+                        workspace_path: string;
+                        identity_written: boolean;
+                        ghost_folders_found: Array<{ folder_name: string; plan_ids: string[] }>;
+                        ghost_folders_merged: string[];
+                        plans_recovered: string[];
+                        folders_deleted: string[];
+                        notes: string[];
+                    }>('memory_workspace', {
+                        action: 'migrate',
+                        workspace_path: workspacePath
+                    });
+
+                    // Step 3: Restart dashboard server if it was running
+                    if (wasRunning) {
+                        progress.report({ message: 'Restarting dashboard server...' });
+                        await serverManager.start();
+                    }
+
+                    // Show results
+                    const ghostCount = result.ghost_folders_found?.length || 0;
+                    const mergedCount = result.ghost_folders_merged?.length || 0;
+                    const recoveredCount = result.plans_recovered?.length || 0;
+
+                    let message = `Migration complete for ${path.basename(workspacePath)}.\n`;
+                    message += `Workspace ID: ${result.workspace_id}\n`;
+                    if (ghostCount > 0) {
+                        message += `Found ${ghostCount} ghost folders, merged ${mergedCount}.\n`;
+                    }
+                    if (recoveredCount > 0) {
+                        message += `Recovered ${recoveredCount} plans.\n`;
+                    }
+                    if (result.notes && result.notes.length > 0) {
+                        message += `Notes: ${result.notes.slice(0, 3).join('; ')}`;
+                    }
+
+                    vscode.window.showInformationMessage(message, { modal: true });
+
+                } catch (error) {
+                    // Try to restart server even on error
+                    if (serverManager.isRunning === false) {
+                        await serverManager.start();
+                    }
+                    vscode.window.showErrorMessage(`Migration failed: ${(error as Error).message}`);
+                }
+            });
+        }),
+
         vscode.commands.registerCommand('projectMemory.forceStopExternalServer', async () => {
             const config = vscode.workspace.getConfiguration('projectMemory');
             const port = config.get<number>('serverPort') || 3001;

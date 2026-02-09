@@ -102,6 +102,47 @@ async function listDirs(dirPath: string): Promise<string[]> {
   }
 }
 
+/**
+ * Recursively copy a directory. More reliable than fs.rename when
+ * files may be locked by another process (e.g., VS Code file watchers).
+ */
+async function copyDirRecursive(src: string, dest: string): Promise<void> {
+  await fs.mkdir(dest, { recursive: true });
+  const entries = await fs.readdir(src, { withFileTypes: true });
+  
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    
+    if (entry.isDirectory()) {
+      await copyDirRecursive(srcPath, destPath);
+    } else {
+      await fs.copyFile(srcPath, destPath);
+    }
+  }
+}
+
+/**
+ * Move a directory using copy + delete. Falls back to recursive copy
+ * if fs.rename fails (e.g., EPERM from locked files).
+ */
+async function moveDirSafe(src: string, dest: string): Promise<void> {
+  try {
+    // Try fast rename first
+    await fs.rename(src, dest);
+  } catch (renameErr) {
+    // Fallback to copy + delete
+    try {
+      await copyDirRecursive(src, dest);
+      await fs.rm(src, { recursive: true, force: true });
+    } catch (copyErr) {
+      throw new Error(
+        `Failed to move '${src}' to '${dest}': rename failed (${(renameErr as Error).message}), copy also failed (${(copyErr as Error).message})`
+      );
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Identity file I/O
 // ---------------------------------------------------------------------------
@@ -175,6 +216,7 @@ export async function findCanonicalForLegacyId(
 ): Promise<string | null> {
   const dataRoot = getDataRoot();
   const dirs = await listDirs(dataRoot);
+  const legacyLower = legacyId.toLowerCase();
 
   for (const dir of dirs) {
     const meta = await readJsonSafe<WorkspaceMeta>(
@@ -182,13 +224,15 @@ export async function findCanonicalForLegacyId(
     );
     if (!meta) continue;
 
-    if (meta.workspace_id === legacyId) {
-      return legacyId; // It IS canonical
+    // Case-insensitive comparison for canonical ID
+    if (meta.workspace_id?.toLowerCase() === legacyLower) {
+      return meta.workspace_id; // It IS canonical (return actual casing)
     }
 
+    // Case-insensitive comparison for legacy IDs
     if (
       Array.isArray(meta.legacy_workspace_ids) &&
-      meta.legacy_workspace_ids.includes(legacyId)
+      meta.legacy_workspace_ids.some(id => id.toLowerCase() === legacyLower)
     ) {
       return meta.workspace_id;
     }
@@ -411,11 +455,12 @@ function findCanonicalMatch(
   ghostPlanIds: string[],
   canonicals: Array<{ id: string; meta: WorkspaceMeta; activePlans: string[] }>
 ): { matchId: string | null; reason: string | null } {
-  // 1. Check legacy_workspace_ids
+  // 1. Check legacy_workspace_ids (case-insensitive)
+  const ghostLower = ghostName.toLowerCase();
   for (const c of canonicals) {
     if (
       Array.isArray(c.meta.legacy_workspace_ids) &&
-      c.meta.legacy_workspace_ids.includes(ghostName)
+      c.meta.legacy_workspace_ids.some(id => id.toLowerCase() === ghostLower)
     ) {
       return { matchId: c.id, reason: `Ghost name found in legacy_workspace_ids` };
     }
@@ -435,7 +480,6 @@ function findCanonicalMatch(
   }
 
   // 3. Name similarity (ghost name is a prefix/suffix of canonical)
-  const ghostLower = ghostName.toLowerCase();
   for (const c of canonicals) {
     const cLower = c.id.toLowerCase();
     const cName = (c.meta.name || '').toLowerCase();
@@ -521,15 +565,29 @@ export async function mergeWorkspace(
 
     if (!dryRun) {
       await fs.mkdir(path.join(targetPath, 'plans'), { recursive: true });
-      await fs.rename(sourcePlanDir, targetPlanDir);
+      await moveDirSafe(sourcePlanDir, targetPlanDir);
 
-      // Update workspace_id in state.json
+      // Update workspace_id in state.json (or create minimal state if missing)
       const statePath = path.join(targetPlanDir, 'state.json');
-      const state = await readJsonSafe<Record<string, unknown>>(statePath);
+      let state = await readJsonSafe<Record<string, unknown>>(statePath);
       if (state) {
         state.workspace_id = targetId;
         state.updated_at = new Date().toISOString();
         await fs.writeFile(statePath, JSON.stringify(state, null, 2), 'utf-8');
+      } else {
+        // Create minimal state for plans that only have logs
+        const minimalState = {
+          id: planId,
+          workspace_id: targetId,
+          title: `Recovered plan: ${planId}`,
+          status: 'archived',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          steps: [],
+          notes: ['This plan was recovered during workspace migration. No original state.json was found.'],
+        };
+        await fs.writeFile(statePath, JSON.stringify(minimalState, null, 2), 'utf-8');
+        result.notes.push(`Created minimal state.json for plan '${planId}' (was missing).`);
       }
     }
 
@@ -744,9 +802,11 @@ export async function migrateWorkspace(
   const systemDirs = new Set(['events', 'logs']);
   const normalizedTarget = normalizeWorkspacePath(resolvedPath);
   const matchingGhosts: GhostFolderInfo[] = [];
+  const canonicalIdLower = canonicalId.toLowerCase();
 
   for (const dir of allDirs) {
-    if (systemDirs.has(dir) || dir === canonicalId) continue;
+    // Skip system dirs and the canonical folder itself (case-insensitive)
+    if (systemDirs.has(dir) || dir.toLowerCase() === canonicalIdLower) continue;
 
     const dirPath = path.join(dataRoot, dir);
     const dirMeta = await readJsonSafe<WorkspaceMeta>(
@@ -764,13 +824,14 @@ export async function migrateWorkspace(
         matchReason = `workspace_path matches: ${metaPath}`;
       }
     } else {
-      // Ghost folder (no meta) — check legacy IDs and name similarity
-      if (canonicalMeta.legacy_workspace_ids?.includes(dir)) {
+      // Ghost folder (no meta) — check legacy IDs and name similarity (case-insensitive)
+      const dirLower = dir.toLowerCase();
+      const legacyIdsLower = (canonicalMeta.legacy_workspace_ids || []).map(id => id.toLowerCase());
+      if (legacyIdsLower.includes(dirLower)) {
         isMatch = true;
         matchReason = `Listed in canonical legacy_workspace_ids`;
       } else {
         // Check name similarity (folder name is prefix of canonical or vice versa)
-        const dirLower = dir.toLowerCase();
         const baseName = path.basename(resolvedPath).toLowerCase();
         if (dirLower === baseName || dirLower.startsWith(baseName + '-') || baseName.startsWith(dirLower)) {
           isMatch = true;
@@ -812,15 +873,29 @@ export async function migrateWorkspace(
       const sourcePlanDir = path.join(ghostPath, 'plans', planId);
       const targetPlanDir = path.join(canonicalPlansDir, planId);
 
-      await fs.rename(sourcePlanDir, targetPlanDir);
+      await moveDirSafe(sourcePlanDir, targetPlanDir);
 
-      // Update workspace_id in state.json
+      // Update workspace_id in state.json (or create minimal state if missing)
       const statePath = path.join(targetPlanDir, 'state.json');
-      const state = await readJsonSafe<Record<string, unknown>>(statePath);
+      let state = await readJsonSafe<Record<string, unknown>>(statePath);
       if (state) {
         state.workspace_id = canonicalId;
         state.updated_at = now;
         await fs.writeFile(statePath, JSON.stringify(state, null, 2), 'utf-8');
+      } else {
+        // Create minimal state for plans that only have logs
+        const minimalState = {
+          id: planId,
+          workspace_id: canonicalId,
+          title: `Recovered plan: ${planId}`,
+          status: 'archived',
+          created_at: now,
+          updated_at: now,
+          steps: [],
+          notes: ['This plan was recovered during workspace migration. No original state.json was found.'],
+        };
+        await fs.writeFile(statePath, JSON.stringify(minimalState, null, 2), 'utf-8');
+        result.notes.push(`Created minimal state.json for plan '${planId}' (was missing).`);
       }
 
       existingPlanIds.add(planId);

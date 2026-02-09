@@ -243,6 +243,11 @@
         "category": "Project Memory"
       },
       {
+        "command": "projectMemory.migrateWorkspace",
+        "title": "Migrate Workspace to New Identity System",
+        "category": "Project Memory"
+      },
+      {
         "command": "projectMemory.forceStopExternalServer",
         "title": "Force Stop External Server",
         "category": "Project Memory"
