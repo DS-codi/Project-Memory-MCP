@@ -36,6 +36,7 @@ import {
   modifyJsonLocked,
   writeJsonLocked,
 } from './file-lock.js';
+import { upsertRegistryEntry } from './workspace-registry.js';
 
 // Re-export from workspace-identity module for backwards compatibility
 export type { WorkspaceIdentityFile } from './workspace-identity.js';
@@ -242,6 +243,31 @@ function mergeLegacyWorkspaceIds(existing: string[] | undefined, legacyIds: stri
   return Array.from(merged);
 }
 
+/**
+ * Fix B: Scan all workspace.meta.json files in the data root for one whose
+ * normalized workspace_path matches the given path. Returns the workspace ID
+ * if found, or null. This is a safety net to prevent duplicate workspace creation
+ * when identity.json and the registry both fail (e.g., first container run).
+ */
+async function findExistingWorkspaceByPath(workspacePath: string): Promise<string | null> {
+  const normalizedTarget = normalizeWorkspacePath(workspacePath);
+  const dirs = await listDirs(getDataRoot());
+
+  for (const dir of dirs) {
+    const meta = await readJson<WorkspaceMeta>(getWorkspaceMetaPath(dir));
+    if (!meta) continue;
+
+    const metaPath = meta.workspace_path || meta.path;
+    if (!metaPath) continue;
+
+    if (normalizeWorkspacePath(metaPath) === normalizedTarget) {
+      return meta.workspace_id || dir;
+    }
+  }
+
+  return null;
+}
+
 async function findLegacyWorkspaceMetas(
   workspacePath: string,
   canonicalId: string
@@ -426,7 +452,9 @@ export async function initDataRoot(): Promise<void> {
  * Get all registered workspaces
  */
 export async function getAllWorkspaces(): Promise<WorkspaceMeta[]> {
-  const workspaceIds = await listDirs(getDataRoot());
+  const allDirs = await listDirs(getDataRoot());
+  // Skip backup directories, system directories, and non-workspace folders
+  const workspaceIds = allDirs.filter(d => !d.endsWith('.bak') && !d.startsWith('.'));
   const workspaces: WorkspaceMeta[] = [];
   
   for (const id of workspaceIds) {
@@ -498,7 +526,32 @@ export async function createWorkspace(
       existing.indexed = true;
     }
     await saveWorkspace(existing);
+    // Fix C: update workspace registry
+    await upsertRegistryEntry(resolvedPath, workspaceId);
     return { meta: existing, migration, created: false };
+  }
+
+  // Fix B: Path-based dedup scan — before creating a new workspace, check if ANY
+  // existing workspace.meta.json has a matching normalized workspace_path.
+  const dedupId = await findExistingWorkspaceByPath(resolvedPath);
+  if (dedupId) {
+    const dedupMeta = await getWorkspace(dedupId);
+    if (dedupMeta) {
+      const now = nowISO();
+      dedupMeta.last_accessed = now;
+      dedupMeta.last_seen_at = now;
+      dedupMeta.updated_at = now;
+      dedupMeta.workspace_path = resolvedPath;
+      dedupMeta.path = resolvedPath;
+      if (profile) {
+        dedupMeta.profile = profile;
+        dedupMeta.indexed = true;
+      }
+      await saveWorkspace(dedupMeta);
+      await upsertRegistryEntry(resolvedPath, dedupId);
+      migration.notes.push(`Dedup: found existing workspace '${dedupId}' matching path. Reused instead of creating new.`);
+      return { meta: dedupMeta, migration, created: false };
+    }
   }
   
   // Create new workspace
@@ -525,6 +578,8 @@ export async function createWorkspace(
   };
   
   await saveWorkspace(meta);
+  // Fix C: update workspace registry
+  await upsertRegistryEntry(resolvedPath, workspaceId);
   return { meta, migration, created: true };
 }
 

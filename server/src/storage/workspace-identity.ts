@@ -23,6 +23,7 @@ import {
   writeJsonLocked,
   modifyJsonLocked,
 } from './file-lock.js';
+import { lookupByPath, upsertRegistryEntry } from './workspace-registry.js';
 
 // Re-export the identity file interface used by file-store.ts
 export interface WorkspaceIdentityFile {
@@ -201,16 +202,27 @@ export async function readWorkspaceIdentityFile(
  * Resolve the *canonical* workspace ID for a given filesystem path.
  *
  * 1. If `.projectmemory/identity.json` exists and is valid → use its `workspace_id`.
- * 2. Otherwise fall back to the hash-based `getWorkspaceIdFromPath()`.
+ * 2. If workspace-registry.json has a mapping for this path → use that ID.
+ * 3. Otherwise fall back to the hash-based `getWorkspaceIdFromPath()`.
  */
 export async function resolveCanonicalWorkspaceId(
   workspacePath: string
 ): Promise<string> {
   const resolvedPath = safeResolvePath(workspacePath);
+
+  // 1. identity.json
   const identity = await readWorkspaceIdentityFile(resolvedPath);
   if (identity?.workspace_id) {
     return identity.workspace_id;
   }
+
+  // 2. workspace-registry.json (safety net when identity.json is unreachable)
+  const registryId = await lookupByPath(resolvedPath);
+  if (registryId) {
+    return registryId;
+  }
+
+  // 3. Hash-based fallback
   return getWorkspaceIdFromPath(resolvedPath);
 }
 
@@ -1005,6 +1017,13 @@ export async function migrateWorkspace(
     result.identity_written = true;
   } catch (err) {
     result.notes.push(`Failed to write identity.json: ${(err as Error).message}`);
+  }
+
+  // 6. Update workspace-registry.json
+  try {
+    await upsertRegistryEntry(resolvedPath, canonicalId);
+  } catch (err) {
+    result.notes.push(`Failed to update workspace registry: ${(err as Error).message}`);
   }
 
   return result;

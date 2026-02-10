@@ -3,31 +3,23 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Activity } from 'lucide-react';
 import { HealthIndicator } from '@/components/workspace/HealthIndicator';
 
-interface WorkspaceSummary {
-  workspace_id: string;
-  name: string;
-  path: string;
-  health: 'active' | 'stale' | 'blocked' | 'idle';
-  active_plan_count: number;
-  archived_plan_count: number;
-  last_activity: string;
-}
+import type { WorkspaceSummary } from '@/types';
 
-async function fetchWorkspaces(): Promise<WorkspaceSummary[]> {
+async function fetchWorkspaces(): Promise<{ workspaces: WorkspaceSummary[]; total: number }> {
   const res = await fetch('/api/workspaces');
   if (!res.ok) throw new Error('Failed to fetch workspaces');
-  const data = await res.json();
-  return data.workspaces || [];
+  return res.json();
 }
 
 export function WorkspaceStatusPage() {
   const { workspaceId } = useParams<{ workspaceId: string }>();
 
-  const { data: workspaces = [], isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['workspaces'],
     queryFn: fetchWorkspaces,
   });
 
+  const workspaces = data?.workspaces || [];
   const current = workspaces.find(ws => ws.workspace_id === workspaceId);
 
   return (

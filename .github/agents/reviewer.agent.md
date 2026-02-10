@@ -1,7 +1,6 @@
 ---
 name: Reviewer
 description: 'Reviewer agent - Validates completed work against requirements. Use when the Executor finishes a phase.'
-last_verified: '2026-02-10'
 tools: ['read', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Return to Coordinator"

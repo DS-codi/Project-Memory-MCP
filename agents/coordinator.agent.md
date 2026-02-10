@@ -1,7 +1,6 @@
 ---
 name: Coordinator
 description: 'Coordinator agent - Master orchestrator that manages the entire plan lifecycle. Spawns sub-agents, tracks progress, and ensures proper workflow sequence. Use for any new request.'
-last_verified: '2026-02-10'
 tools: ['vscode', 'execute', 'read', 'edit', 'search', 'filesystem/*', 'git/*', 'project-memory/*', 'agent', 'todo']
 handoffs:
   - label: "🏃 Quick task with Runner"

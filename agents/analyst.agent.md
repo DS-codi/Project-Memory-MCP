@@ -1,7 +1,6 @@
 ---
 name: Analyst
 description: 'Analyst agent - Investigation hub that orchestrates complex analysis, reverse engineering, and iterative problem-solving. As a hub agent, may spawn subagents (with anti-spawning instructions) for specific tasks. Manages hypothesis-driven exploration cycles and builds cumulative knowledge bases. Use for binary decoding, protocol analysis, data format discovery, and multi-session investigations.'
-last_verified: '2026-02-10'
 tools: ['vscode', 'execute', 'read', 'edit', 'search', 'filesystem/*', 'git/*', 'project-memory/*', 'agent', 'todo', 'web']
 handoffs:
   - label: "🎯 Hand off to Coordinator"

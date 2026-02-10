@@ -1,7 +1,6 @@
 ---
 name: Architect
 description: 'Architect agent - Creates detailed implementation plans with atomic steps. Use after audit/research is complete.'
-last_verified: '2026-02-10'
 tools: ['vscode', 'read', 'agent', 'edit', 'search', 'web', 'filesystem/*', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Return to Coordinator"

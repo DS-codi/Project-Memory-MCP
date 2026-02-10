@@ -1,7 +1,6 @@
 ---
 name: Runner
 description: 'Runner agent - Executes ad-hoc tasks without requiring a formal plan. Aware of Project Memory and logs work as plan steps intermittently. Use for quick tasks, explorations, or when formal planning would be overkill.'
-last_verified: '2026-02-10'
 tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'git/*', 'project-memory/*', 'filesystem/*', 'agent', 'todo']
 handoffs:
   - label: "🎯 Hand off to Coordinator"

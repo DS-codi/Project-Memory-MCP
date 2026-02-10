@@ -57,7 +57,10 @@ export function getDataRoot(): string {
 
 export function normalizeWorkspacePath(workspacePath: string): string {
   const resolved = safeResolvePath(workspacePath);
-  const normalized = resolved.replace(/\\/g, '/').toLowerCase();
+  const normalized = resolved
+    .replace(/\\/g, '/')
+    .replace(/\/+/g, '/')   // collapse runs of // to / (fixes container double-backslash paths)
+    .toLowerCase();
   return normalized.replace(/\/+$/, '');
 }
 

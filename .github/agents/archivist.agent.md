@@ -1,7 +1,6 @@
 ---
 name: Archivist
 description: 'Archivist agent - Finalizes work with git commits and archives the plan. Use after all tests pass.'
-last_verified: '2026-02-10'
 tools: ['execute', 'read', 'edit', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Return to Coordinator"

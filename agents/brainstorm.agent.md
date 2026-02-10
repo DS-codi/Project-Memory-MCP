@@ -1,7 +1,6 @@
 ---
 name: Brainstorm
 description: 'Brainstorm agent - Explores ideas and refines plans before implementation.'
-last_verified: '2026-02-10'
 tools: ['execute', 'read', 'edit', 'search', 'web', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Pass to Coordinator"
