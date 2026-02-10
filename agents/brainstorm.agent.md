@@ -1,6 +1,7 @@
 ---
 name: Brainstorm
 description: 'Brainstorm agent - Explores ideas and refines plans before implementation.'
+last_verified: '2026-02-10'
 tools: ['execute', 'read', 'edit', 'search', 'web', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Pass to Coordinator"
@@ -146,10 +147,14 @@ While Brainstorm is primarily a conversational agent, you have access to:
 
 | Tool | Action | Purpose |
 |------|--------|---------|
+| `memory_agent` | `init` | Record your activation (CALL FIRST) |
+| `memory_agent` | `handoff` | Recommend next agent to Coordinator |
+| `memory_agent` | `complete` | Mark session complete |
 | `memory_plan` | `get` | See existing plan context if available |
 | `memory_plan` | `create` | Create a new plan if brainstorming leads to a clear direction |
 | `memory_context` | `store` | Save brainstorm ideas for later |
 | `memory_context` | `get` | Retrieve prior research/context |
+| `memory_steps` | `add` | Add steps to an existing plan |
 | `memory_steps` | `insert` | Insert a step at a specific index |
 | `memory_steps` | `delete` | Delete a step by index |
 | `memory_steps` | `reorder` | Suggest step order changes |

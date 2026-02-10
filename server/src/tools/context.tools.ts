@@ -58,7 +58,7 @@ export async function storeContext(
       data: sanitizedData
     };
     
-    await store.writeJson(contextPath, contextData);
+    await store.writeJsonLocked(contextPath, contextData);
     await appendWorkspaceFileUpdate({
       workspace_id,
       plan_id,
@@ -179,7 +179,7 @@ export async function storeInitialContext(
       }
     };
     
-    await store.writeJson(contextPath, initialContext);
+    await store.writeJsonLocked(contextPath, initialContext);
     await appendWorkspaceFileUpdate({
       workspace_id,
       plan_id,

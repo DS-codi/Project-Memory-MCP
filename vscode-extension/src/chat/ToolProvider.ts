@@ -1,61 +1,46 @@
 /**
- * Tool Provider - Consolidated Language Model Tools for Copilot Chat
- * 
- * Registers 3 unified tools that Copilot can autonomously invoke:
- * 1. memory_plan - Plan operations (list, get, create, update)
- * 2. memory_steps - Step management (update, batch_update)
- * 3. memory_context - Context and notes (add_note, get_briefing)
+ * Tool Provider - Registers all 5 language model tools for Copilot Chat
+ *
+ * Delegates to individual tool handlers in ./tools/:
+ *   1. memory_workspace - Workspace management
+ *   2. memory_agent     - Agent lifecycle & handoffs
+ *   3. memory_plan      - Plan operations
+ *   4. memory_steps     - Step management
+ *   5. memory_context   - Context, notes, research, briefings
+ *
+ * @see ./tools/ for individual handler implementations
  */
 
 import * as vscode from 'vscode';
 import { McpBridge } from './McpBridge';
+import {
+    handleWorkspaceTool,
+    handleAgentTool,
+    handlePlanTool,
+    handleStepsTool,
+    handleContextTool,
+    type ToolContext
+} from './tools';
 
 /**
- * Plan state structure
- */
-interface PlanState {
-    plan_id: string;
-    id?: string;
-    title: string;
-    description?: string;
-    category?: string;
-    priority?: string;
-    status?: string;
-    steps?: Array<{
-        index: number;
-        phase: string;
-        task: string;
-        status: string;
-        type?: string;
-        assignee?: string;
-        requires_validation?: boolean;
-    }>;
-}
-
-/**
- * Plan summary for list operations
- */
-interface PlanSummary {
-    plan_id: string;
-    id?: string;
-    title: string;
-    status?: string;
-    category?: string;
-    priority?: string;
-    progress?: { done?: number; total?: number };
-    created_at?: string;
-}
-
-/**
- * Tool Provider class that registers consolidated Language Model Tools
+ * Tool Provider class that registers all 5 consolidated Language Model Tools
  */
 export class ToolProvider implements vscode.Disposable {
     private mcpBridge: McpBridge;
     private workspaceId: string | null = null;
     private disposables: vscode.Disposable[] = [];
+    private ctx: ToolContext;
 
     constructor(mcpBridge: McpBridge) {
         this.mcpBridge = mcpBridge;
+
+        // Build shared context for tool handlers
+        this.ctx = {
+            mcpBridge: this.mcpBridge,
+            ensureWorkspace: () => this.ensureWorkspace(),
+            setWorkspaceId: (id: string) => { this.workspaceId = id; }
+        };
+
         this.registerTools();
     }
 
@@ -63,78 +48,45 @@ export class ToolProvider implements vscode.Disposable {
         this.workspaceId = null;
     }
 
-    /**
-     * Register all language model tools
-     */
     private registerTools(): void {
-        // TOOL 1: memory_plan
-        // Actions: list, get, create, archive
+        // 1. memory_workspace
+        this.disposables.push(
+            vscode.lm.registerTool('memory_workspace', {
+                invoke: (options, token) => handleWorkspaceTool(options as never, token, this.ctx)
+            })
+        );
+
+        // 2. memory_agent
+        this.disposables.push(
+            vscode.lm.registerTool('memory_agent', {
+                invoke: (options, token) => handleAgentTool(options as never, token, this.ctx)
+            })
+        );
+
+        // 3. memory_plan
         this.disposables.push(
             vscode.lm.registerTool('memory_plan', {
-                invoke: async (options, token) => {
-                    return await this.handlePlan(
-                        options as vscode.LanguageModelToolInvocationOptions<{
-                            action: 'list' | 'get' | 'create' | 'archive';
-                            planId?: string;
-                            title?: string;
-                            description?: string;
-                            category?: string;
-                            priority?: string;
-                            template?: string;
-                            goals?: string[];
-                            success_criteria?: string[];
-                            includeArchived?: boolean;
-                        }>,
-                        token
-                    );
-                }
+                invoke: (options, token) => handlePlanTool(options as never, token, this.ctx)
             })
         );
 
-        // TOOL 2: memory_steps
-        // Actions: update, batch_update, add
+        // 4. memory_steps
         this.disposables.push(
             vscode.lm.registerTool('memory_steps', {
-                invoke: async (options, token) => {
-                    return await this.handleSteps(
-                        options as vscode.LanguageModelToolInvocationOptions<{
-                            action: 'update' | 'batch_update' | 'add';
-                            planId: string;
-                            stepIndex?: number;
-                            status?: string;
-                            notes?: string;
-                            updates?: Array<{ step_index: number; status: string; notes?: string }>;
-                            newSteps?: Array<{ phase: string; task: string; status?: string; type?: string; assignee?: string; requires_validation?: boolean; notes?: string }>;
-                        }>,
-                        token
-                    );
-                }
+                invoke: (options, token) => handleStepsTool(options as never, token, this.ctx)
             })
         );
 
-        // TOOL 3: memory_context
-        // Actions: add_note, briefing, handoff
+        // 5. memory_context
         this.disposables.push(
             vscode.lm.registerTool('memory_context', {
-                invoke: async (options, token) => {
-                    return await this.handleContext(
-                        options as vscode.LanguageModelToolInvocationOptions<{
-                            action: 'add_note' | 'briefing' | 'handoff' | 'workspace';
-                            planId?: string;
-                            note?: string;
-                            noteType?: 'info' | 'warning' | 'instruction';
-                            targetAgent?: string;
-                            reason?: string;
-                        }>,
-                        token
-                    );
-                }
+                invoke: (options, token) => handleContextTool(options as never, token, this.ctx)
             })
         );
     }
 
     /**
-     * Ensure workspace is registered
+     * Ensure workspace is registered; returns workspace ID.
      */
     private async ensureWorkspace(): Promise<string> {
         if (this.workspaceId) {
@@ -155,288 +107,6 @@ export class ToolProvider implements vscode.Disposable {
         return this.workspaceId;
     }
 
-    /**
-     * Handle memory_plan tool invocation
-     */
-    private async handlePlan(
-        options: vscode.LanguageModelToolInvocationOptions<{
-            action: 'list' | 'get' | 'create' | 'archive';
-            planId?: string;
-            title?: string;
-            description?: string;
-            category?: string;
-            priority?: string;
-            template?: string;
-            goals?: string[];
-            success_criteria?: string[];
-            includeArchived?: boolean;
-        }>,
-        token: vscode.CancellationToken
-    ): Promise<vscode.LanguageModelToolResult> {
-        try {
-            if (!this.mcpBridge.isConnected()) {
-                return this.errorResult('MCP server not connected');
-            }
-
-            const workspaceId = await this.ensureWorkspace();
-            const { action, planId, title, description, category, priority, template, goals, success_criteria, includeArchived } = options.input;
-
-            let result: unknown;
-
-            switch (action) {
-                case 'list':
-                    const listResult = await this.mcpBridge.callTool<{
-                        active_plans: PlanSummary[];
-                        archived_plans?: string[];
-                        total: number;
-                    }>('memory_plan', {
-                        action: 'list',
-                        workspace_id: workspaceId,
-                        include_archived: includeArchived
-                    });
-                    result = {
-                        workspace_id: workspaceId,
-                        plans: listResult.active_plans || [],
-                        total: (listResult.active_plans || []).length,
-                        message: (listResult.active_plans || []).length > 0
-                            ? `Found ${(listResult.active_plans || []).length} plan(s)`
-                            : 'No plans found. Use action "create" to create one.'
-                    };
-                    break;
-
-                case 'get':
-                    if (!planId) {
-                        return this.errorResult('planId is required for get action');
-                    }
-                    result = await this.mcpBridge.callTool<PlanState>('memory_plan', {
-                        action: 'get',
-                        workspace_id: workspaceId,
-                        plan_id: planId
-                    });
-                    break;
-
-                case 'create':
-                    if (!title || !description) {
-                        return this.errorResult('title and description are required for create action');
-                    }
-                    result = await this.mcpBridge.callTool<PlanState>('memory_plan', {
-                        action: 'create',
-                        workspace_id: workspaceId,
-                        title,
-                        description,
-                        category: category || 'feature',
-                        priority: priority || 'medium',
-                        template,
-                        goals,
-                        success_criteria
-                    });
-                    break;
-
-                case 'archive':
-                    if (!planId) {
-                        return this.errorResult('planId is required for archive action');
-                    }
-                    result = await this.mcpBridge.callTool('memory_plan', {
-                        action: 'archive',
-                        workspace_id: workspaceId,
-                        plan_id: planId
-                    });
-                    break;
-
-                default:
-                    return this.errorResult(`Unknown action: ${action}`);
-            }
-
-            return new vscode.LanguageModelToolResult([
-                new vscode.LanguageModelTextPart(JSON.stringify(result, null, 2))
-            ]);
-        } catch (error) {
-            return this.errorResult(error);
-        }
-    }
-
-    /**
-     * Handle memory_steps tool invocation
-     */
-    private async handleSteps(
-        options: vscode.LanguageModelToolInvocationOptions<{
-            action: 'update' | 'batch_update' | 'add';
-            planId: string;
-            stepIndex?: number;
-            status?: string;
-            notes?: string;
-            updates?: Array<{ step_index: number; status: string; notes?: string }>;
-            newSteps?: Array<{ phase: string; task: string; status?: string; type?: string; assignee?: string; requires_validation?: boolean; notes?: string }>;
-        }>,
-        token: vscode.CancellationToken
-    ): Promise<vscode.LanguageModelToolResult> {
-        try {
-            if (!this.mcpBridge.isConnected()) {
-                return this.errorResult('MCP server not connected');
-            }
-
-            const workspaceId = await this.ensureWorkspace();
-            const { action, planId, stepIndex, status, notes, updates, newSteps } = options.input;
-
-            if (!planId) {
-                return this.errorResult('planId is required');
-            }
-
-            let result: unknown;
-
-            switch (action) {
-                case 'update':
-                    if (stepIndex === undefined || !status) {
-                        return this.errorResult('stepIndex and status are required for update action');
-                    }
-                    result = await this.mcpBridge.callTool('memory_steps', {
-                        action: 'update',
-                        workspace_id: workspaceId,
-                        plan_id: planId,
-                        step_index: stepIndex,
-                        status,
-                        notes
-                    });
-                    break;
-
-                case 'batch_update':
-                    if (!updates || updates.length === 0) {
-                        return this.errorResult('updates array is required for batch_update action');
-                    }
-                    result = await this.mcpBridge.callTool('memory_steps', {
-                        action: 'batch_update',
-                        workspace_id: workspaceId,
-                        plan_id: planId,
-                        updates
-                    });
-                    break;
-
-                case 'add':
-                    if (!newSteps || newSteps.length === 0) {
-                        return this.errorResult('newSteps array is required for add action');
-                    }
-                    result = await this.mcpBridge.callTool('memory_steps', {
-                        action: 'add',
-                        workspace_id: workspaceId,
-                        plan_id: planId,
-                        steps: newSteps.map(s => ({
-                            ...s,
-                            status: s.status || 'pending'
-                        }))
-                    });
-                    break;
-
-                default:
-                    return this.errorResult(`Unknown action: ${action}`);
-            }
-
-            return new vscode.LanguageModelToolResult([
-                new vscode.LanguageModelTextPart(JSON.stringify(result, null, 2))
-            ]);
-        } catch (error) {
-            return this.errorResult(error);
-        }
-    }
-
-    /**
-     * Handle memory_context tool invocation
-     */
-    private async handleContext(
-        options: vscode.LanguageModelToolInvocationOptions<{
-            action: 'add_note' | 'briefing' | 'handoff' | 'workspace';
-            planId?: string;
-            note?: string;
-            noteType?: 'info' | 'warning' | 'instruction';
-            targetAgent?: string;
-            reason?: string;
-        }>,
-        token: vscode.CancellationToken
-    ): Promise<vscode.LanguageModelToolResult> {
-        try {
-            if (!this.mcpBridge.isConnected()) {
-                return this.errorResult('MCP server not connected');
-            }
-
-            const workspaceId = await this.ensureWorkspace();
-            const { action, planId, note, noteType, targetAgent, reason } = options.input;
-
-            let result: unknown;
-
-            switch (action) {
-                case 'add_note':
-                    if (!planId || !note) {
-                        return this.errorResult('planId and note are required for add_note action');
-                    }
-                    result = await this.mcpBridge.callTool('memory_plan', {
-                        action: 'add_note',
-                        workspace_id: workspaceId,
-                        plan_id: planId,
-                        note,
-                        note_type: noteType || 'info'
-                    });
-                    break;
-
-                case 'briefing':
-                    if (!planId) {
-                        return this.errorResult('planId is required for briefing action');
-                    }
-                    result = await this.mcpBridge.callTool('memory_agent', {
-                        action: 'get_briefing',
-                        workspace_id: workspaceId,
-                        plan_id: planId
-                    });
-                    break;
-
-                case 'handoff':
-                    if (!planId || !targetAgent || !reason) {
-                        return this.errorResult('planId, targetAgent, and reason are required for handoff action');
-                    }
-                    result = await this.mcpBridge.callTool('memory_agent', {
-                        action: 'handoff',
-                        workspace_id: workspaceId,
-                        plan_id: planId,
-                        from_agent: 'User',
-                        to_agent: targetAgent,
-                        reason
-                    });
-                    break;
-
-                case 'workspace':
-                    // Get workspace info including codebase profile
-                    result = await this.mcpBridge.callTool('memory_workspace', {
-                        action: 'info',
-                        workspace_id: workspaceId
-                    });
-                    break;
-
-                default:
-                    return this.errorResult(`Unknown action: ${action}`);
-            }
-
-            return new vscode.LanguageModelToolResult([
-                new vscode.LanguageModelTextPart(JSON.stringify(result, null, 2))
-            ]);
-        } catch (error) {
-            return this.errorResult(error);
-        }
-    }
-
-    /**
-     * Create error result
-     */
-    private errorResult(error: unknown): vscode.LanguageModelToolResult {
-        const message = error instanceof Error ? error.message : String(error);
-        return new vscode.LanguageModelToolResult([
-            new vscode.LanguageModelTextPart(JSON.stringify({
-                success: false,
-                error: message
-            }))
-        ]);
-    }
-
-    /**
-     * Dispose of resources
-     */
     dispose(): void {
         this.disposables.forEach(d => d.dispose());
         this.disposables = [];

@@ -1,6 +1,7 @@
 ---
 name: Researcher
 description: 'Researcher agent - Gathers external documentation and knowledge. Use when the Coordinator identifies missing information or unknown libraries.'
+last_verified: '2026-02-10'
 tools: ['execute', 'read', 'edit', 'search', 'web', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Return to Coordinator"

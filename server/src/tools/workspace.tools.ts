@@ -70,7 +70,11 @@ export async function registerWorkspace(
     try {
       await store.writeWorkspaceIdentityFile(workspace_path, meta);
     } catch (identityError) {
-      console.error('Failed to write workspace identity file:', identityError);
+      // Expected to fail in container mode — the container can't write to
+      // the host workspace directory (e.g. s:\NotionArchive). The workspace
+      // meta in the data directory is still the authoritative source.
+      console.warn('Could not write workspace identity file (expected in container mode):', 
+        identityError instanceof Error ? identityError.message : identityError);
     }
     
     return {

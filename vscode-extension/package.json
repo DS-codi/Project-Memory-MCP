@@ -10,7 +10,7 @@
     "url": "https://github.com/project-memory/project-memory-mcp"
   },
   "engines": {
-    "vscode": "^1.99.0"
+    "vscode": "^1.109.0"
   },
   "categories": [
     "Other",
@@ -35,123 +35,511 @@
         "description": "Access project plans, context, and agent workflows from Project Memory",
         "isSticky": true,
         "commands": [
-          { "name": "plan", "description": "View, create, or manage plans" },
-          { "name": "context", "description": "Get workspace context and codebase profile" },
-          { "name": "handoff", "description": "Execute an agent handoff" },
-          { "name": "status", "description": "Show current plan progress" }
+          {
+            "name": "plan",
+            "description": "View, create, or manage plans"
+          },
+          {
+            "name": "context",
+            "description": "Get workspace context and codebase profile"
+          },
+          {
+            "name": "handoff",
+            "description": "Execute an agent handoff"
+          },
+          {
+            "name": "status",
+            "description": "Show current plan progress"
+          },
+          {
+            "name": "deploy",
+            "description": "Deploy agents, prompts, or instructions to a workspace"
+          },
+          {
+            "name": "diagnostics",
+            "description": "Run system diagnostics and show health report"
+          }
         ]
       }
     ],
     "languageModelTools": [
       {
-        "name": "memory_plan",
-        "displayName": "Project Memory Plan",
-        "description": "Manage project plans - list, get, create, or archive",
-        "modelDescription": "Manage Project Memory plans. Actions: 'list' to see all plans, 'get' to retrieve a specific plan by planId, 'create' to start a new plan (requires title, description, category), 'archive' to archive a completed plan.",
+        "name": "memory_workspace",
+        "displayName": "Project Memory Workspace",
+        "description": "Manage workspaces - register, list, get info, or reindex",
+        "modelDescription": "Manage Project Memory workspaces. Actions: 'register' to register a workspace (optional workspacePath), 'list' to list all workspaces, 'info' to get workspace details (optional workspaceId), 'reindex' to refresh the codebase profile (optional workspaceId).",
         "parametersSchema": {
           "type": "object",
           "properties": {
-            "action": { 
-              "type": "string", 
-              "enum": ["list", "get", "create", "archive"], 
-              "description": "The action to perform" 
+            "action": {
+              "type": "string",
+              "enum": [
+                "register",
+                "list",
+                "info",
+                "reindex"
+              ],
+              "description": "The action to perform"
             },
-            "planId": { "type": "string", "description": "The plan ID (required for get/archive)" },
-            "title": { "type": "string", "description": "Plan title (for create)" },
-            "description": { "type": "string", "description": "Plan description (for create)" },
-            "category": { 
-              "type": "string", 
-              "enum": ["feature", "bug", "change", "analysis", "debug", "refactor", "documentation"], 
-              "description": "Plan category (for create)" 
+            "workspacePath": {
+              "type": "string",
+              "description": "Workspace path (for register)"
             },
-            "priority": { 
-              "type": "string", 
-              "enum": ["low", "medium", "high", "critical"], 
-              "description": "Plan priority (for create)" 
-            },
-            "includeArchived": { "type": "boolean", "description": "Include archived plans (for list)" }
+            "workspaceId": {
+              "type": "string",
+              "description": "Workspace ID (for info/reindex)"
+            }
           },
-          "required": ["action"]
+          "required": [
+            "action"
+          ]
+        },
+        "canBeInvokedManually": true
+      },
+      {
+        "name": "memory_agent",
+        "displayName": "Project Memory Agent",
+        "description": "Agent lifecycle - init sessions, complete, handoff, validate, list agents, get instructions",
+        "modelDescription": "Manage Project Memory agent lifecycle. Actions: 'init' to start an agent session (requires planId, agentType), 'complete' to finish a session (requires planId, agentType), 'handoff' to transfer to another agent (requires planId, toAgent), 'validate' to check agent validity (requires agentType), 'list' to list agent sessions, 'get_instructions' to get agent instruction file (requires agentType).",
+        "parametersSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "init",
+                "complete",
+                "handoff",
+                "validate",
+                "list",
+                "get_instructions"
+              ],
+              "description": "The action to perform"
+            },
+            "planId": {
+              "type": "string",
+              "description": "Plan ID"
+            },
+            "agentType": {
+              "type": "string",
+              "description": "Agent type (e.g. Coordinator, Executor)"
+            },
+            "toAgent": {
+              "type": "string",
+              "description": "Target agent (for handoff)"
+            },
+            "fromAgent": {
+              "type": "string",
+              "description": "Source agent (for handoff)"
+            },
+            "reason": {
+              "type": "string",
+              "description": "Handoff reason"
+            },
+            "summary": {
+              "type": "string",
+              "description": "Session summary or handoff summary"
+            },
+            "taskDescription": {
+              "type": "string",
+              "description": "Task description (for init/validate)"
+            }
+          },
+          "required": [
+            "action"
+          ]
+        },
+        "canBeInvokedManually": true
+      },
+      {
+        "name": "memory_plan",
+        "displayName": "Project Memory Plan",
+        "description": "Manage plans - list, get, create, archive, update, find, set goals, manage build scripts, add notes",
+        "modelDescription": "Manage Project Memory plans. Actions: 'list' to see all plans, 'get' to retrieve a plan by planId, 'create' to start a new plan (requires title, description), 'archive' to archive a plan, 'update' to update plan steps, 'find' to find a plan by ID, 'set_goals' to set goals and success criteria, 'add_build_script' to add a build script (requires scriptName, scriptCommand), 'delete_build_script' to remove a build script (requires scriptId), 'add_note' to add a note (requires note).",
+        "parametersSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "list",
+                "get",
+                "create",
+                "archive",
+                "update",
+                "find",
+                "set_goals",
+                "add_build_script",
+                "delete_build_script",
+                "add_note"
+              ],
+              "description": "The action to perform"
+            },
+            "planId": {
+              "type": "string",
+              "description": "Plan ID"
+            },
+            "title": {
+              "type": "string",
+              "description": "Plan title (for create)"
+            },
+            "description": {
+              "type": "string",
+              "description": "Plan description (for create)"
+            },
+            "category": {
+              "type": "string",
+              "enum": [
+                "feature",
+                "bug",
+                "change",
+                "analysis",
+                "investigation",
+                "debug",
+                "refactor",
+                "documentation"
+              ],
+              "description": "Plan category"
+            },
+            "priority": {
+              "type": "string",
+              "enum": [
+                "low",
+                "medium",
+                "high",
+                "critical"
+              ],
+              "description": "Plan priority"
+            },
+            "template": {
+              "type": "string",
+              "description": "Plan template (for create)"
+            },
+            "goals": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Plan goals"
+            },
+            "success_criteria": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Success criteria"
+            },
+            "includeArchived": {
+              "type": "boolean",
+              "description": "Include archived plans (for list)"
+            },
+            "note": {
+              "type": "string",
+              "description": "Note content (for add_note)"
+            },
+            "noteType": {
+              "type": "string",
+              "enum": [
+                "info",
+                "warning",
+                "instruction"
+              ],
+              "description": "Note type"
+            },
+            "scriptName": {
+              "type": "string",
+              "description": "Build script name"
+            },
+            "scriptCommand": {
+              "type": "string",
+              "description": "Build script command"
+            },
+            "scriptDescription": {
+              "type": "string",
+              "description": "Build script description"
+            },
+            "scriptDirectory": {
+              "type": "string",
+              "description": "Build script working directory"
+            },
+            "scriptId": {
+              "type": "string",
+              "description": "Build script ID (for delete)"
+            }
+          },
+          "required": [
+            "action"
+          ]
         },
         "canBeInvokedManually": true
       },
       {
         "name": "memory_steps",
         "displayName": "Project Memory Steps",
-        "description": "Manage plan steps - update status, batch update, or add new steps",
-        "modelDescription": "Manage Project Memory plan steps. Actions: 'update' to change a single step status (requires planId, stepIndex, status), 'batch_update' to update multiple steps (requires planId, updates array), 'add' to append new steps (requires planId, newSteps array).",
+        "description": "Manage plan steps - update, batch update, add, insert, delete, reorder, move, replace",
+        "modelDescription": "Manage Project Memory plan steps. Actions: 'update' to change a step status (requires planId, stepIndex, status), 'batch_update' to update multiple steps (requires planId, updates array), 'add' to append new steps (requires planId, newSteps array), 'insert' to insert a step at a position (requires planId, atIndex, step), 'delete' to remove a step (requires planId, stepIndex), 'reorder' to swap a step up or down (requires planId, stepIndex, direction), 'move' to move a step from one index to another (requires planId, fromIndex, toIndex), 'replace' to replace all steps (requires planId, replacementSteps).",
         "parametersSchema": {
           "type": "object",
           "properties": {
-            "action": { 
-              "type": "string", 
-              "enum": ["update", "batch_update", "add"], 
-              "description": "The action to perform" 
+            "action": {
+              "type": "string",
+              "enum": [
+                "update",
+                "batch_update",
+                "add",
+                "insert",
+                "delete",
+                "reorder",
+                "move",
+                "replace"
+              ],
+              "description": "The action to perform"
             },
-            "planId": { "type": "string", "description": "The plan ID" },
-            "stepIndex": { "type": "number", "description": "Step index (for update action)" },
-            "status": { 
-              "type": "string", 
-              "enum": ["pending", "active", "done", "blocked"], 
-              "description": "New status (for update action)" 
+            "planId": {
+              "type": "string",
+              "description": "Plan ID"
             },
-            "notes": { "type": "string", "description": "Notes to add (for update action)" },
-            "updates": { 
-              "type": "array", 
-              "items": {
-                "type": "object",
-                "properties": {
-                  "step_index": { "type": "number" },
-                  "status": { "type": "string" },
-                  "notes": { "type": "string" }
-                }
-              },
-              "description": "Array of step updates (for batch_update action)" 
+            "stepIndex": {
+              "type": "number",
+              "description": "Step index (0-based)"
             },
-            "newSteps": { 
+            "status": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "active",
+                "done",
+                "blocked"
+              ],
+              "description": "Step status"
+            },
+            "notes": {
+              "type": "string",
+              "description": "Notes"
+            },
+            "updates": {
               "type": "array",
               "items": {
                 "type": "object",
                 "properties": {
-                  "phase": { "type": "string" },
-                  "task": { "type": "string" },
-                  "status": { "type": "string" }
+                  "step_index": {
+                    "type": "number"
+                  },
+                  "status": {
+                    "type": "string"
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
                 }
               },
-              "description": "New steps to add (for add action)" 
+              "description": "Batch updates array"
+            },
+            "newSteps": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "phase": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  }
+                }
+              },
+              "description": "New steps to add"
+            },
+            "atIndex": {
+              "type": "number",
+              "description": "Insert position (for insert)"
+            },
+            "step": {
+              "type": "object",
+              "properties": {
+                "phase": {
+                  "type": "string"
+                },
+                "task": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                }
+              },
+              "description": "Step to insert"
+            },
+            "direction": {
+              "type": "string",
+              "enum": [
+                "up",
+                "down"
+              ],
+              "description": "Reorder direction"
+            },
+            "fromIndex": {
+              "type": "number",
+              "description": "Source index (for move)"
+            },
+            "toIndex": {
+              "type": "number",
+              "description": "Target index (for move)"
+            },
+            "replacementSteps": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "phase": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  }
+                }
+              },
+              "description": "Replacement steps array (for replace)"
             }
           },
-          "required": ["action", "planId"]
+          "required": [
+            "action",
+            "planId"
+          ]
         }
       },
       {
         "name": "memory_context",
         "displayName": "Project Memory Context",
-        "description": "Manage context - add notes, get briefing, handoff, or workspace info",
-        "modelDescription": "Manage Project Memory context. Actions: 'add_note' to add a note to a plan (requires planId, note), 'briefing' to get mission briefing for an agent (requires planId), 'handoff' to transfer to another agent (requires planId, targetAgent, reason), 'workspace' to get workspace info and codebase profile.",
+        "description": "Manage context - notes, briefings, handoffs, store/get context, research, batch operations, workspace-scoped CRUD",
+        "modelDescription": "Manage Project Memory context. Actions: 'add_note' to add a note (requires planId, note), 'briefing' to get mission briefing (requires planId), 'handoff' to transfer to another agent (requires planId, targetAgent, reason), 'workspace' to get workspace info. 'store' to save context data (requires planId, type, data), 'get' to retrieve context (requires planId, type). 'store_initial' to store initial user request (requires planId, userRequest). 'list' to list context files (requires planId). 'list_research' to list research notes (requires planId). 'append_research' to add a research note (requires planId, filename, content). 'batch_store' to store multiple items (requires planId, items array). 'workspace_get/workspace_set/workspace_update/workspace_delete' for workspace-scoped context (requires type).",
         "parametersSchema": {
           "type": "object",
           "properties": {
-            "action": { 
-              "type": "string", 
-              "enum": ["add_note", "briefing", "handoff", "workspace"], 
-              "description": "The action to perform" 
+            "action": {
+              "type": "string",
+              "enum": [
+                "add_note",
+                "briefing",
+                "handoff",
+                "workspace",
+                "store",
+                "get",
+                "store_initial",
+                "list",
+                "list_research",
+                "append_research",
+                "batch_store",
+                "workspace_get",
+                "workspace_set",
+                "workspace_update",
+                "workspace_delete"
+              ],
+              "description": "The action to perform"
             },
-            "planId": { "type": "string", "description": "The plan ID (required for add_note, briefing, handoff)" },
-            "note": { "type": "string", "description": "Note content (for add_note action)" },
-            "noteType": { 
-              "type": "string", 
-              "enum": ["info", "warning", "instruction"], 
-              "description": "Note type (for add_note action)" 
+            "planId": {
+              "type": "string",
+              "description": "Plan ID"
             },
-            "targetAgent": { 
-              "type": "string", 
-              "enum": ["Coordinator", "Researcher", "Architect", "Executor", "Reviewer", "Tester", "Archivist"],
-              "description": "Target agent (for handoff action)" 
+            "note": {
+              "type": "string",
+              "description": "Note content (for add_note)"
             },
-            "reason": { "type": "string", "description": "Reason for handoff (for handoff action)" }
+            "noteType": {
+              "type": "string",
+              "enum": [
+                "info",
+                "warning",
+                "instruction"
+              ],
+              "description": "Note type"
+            },
+            "targetAgent": {
+              "type": "string",
+              "enum": [
+                "Coordinator",
+                "Researcher",
+                "Architect",
+                "Executor",
+                "Reviewer",
+                "Tester",
+                "Archivist",
+                "Analyst",
+                "Brainstorm",
+                "Runner",
+                "Builder"
+              ],
+              "description": "Target agent (for handoff)"
+            },
+            "reason": {
+              "type": "string",
+              "description": "Handoff reason"
+            },
+            "type": {
+              "type": "string",
+              "description": "Context type key (for store/get/workspace_*)"
+            },
+            "data": {
+              "type": "object",
+              "description": "Context data (for store/workspace_set/workspace_update)"
+            },
+            "userRequest": {
+              "type": "string",
+              "description": "User request text (for store_initial)"
+            },
+            "filesMentioned": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Files referenced (for store_initial)"
+            },
+            "requirements": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Requirements (for store_initial)"
+            },
+            "constraints": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Constraints (for store_initial)"
+            },
+            "filename": {
+              "type": "string",
+              "description": "Research note filename (for append_research)"
+            },
+            "content": {
+              "type": "string",
+              "description": "Research note content (for append_research)"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string"
+                  },
+                  "data": {
+                    "type": "object"
+                  }
+                }
+              },
+              "description": "Batch items (for batch_store)"
+            }
           },
-          "required": ["action"]
+          "required": [
+            "action"
+          ]
         },
         "canBeInvokedManually": true
       }
@@ -263,6 +651,11 @@
         "category": "Project Memory"
       },
       {
+        "command": "projectMemory.showDiagnostics",
+        "title": "Show Diagnostics",
+        "category": "Project Memory"
+      },
+      {
         "command": "projectMemory.isolateServer",
         "title": "Toggle Isolated Server Mode",
         "category": "Project Memory"
@@ -338,8 +731,14 @@
         },
         "projectMemory.autoStartServer": {
           "type": "boolean",
-          "default": true,
-          "description": "Automatically start the dashboard server when extension activates"
+          "default": false,
+          "description": "Automatically start the dashboard server when extension activates. When false (default), the server starts on first dashboard open or explicit command."
+        },
+        "projectMemory.idleServerTimeoutMinutes": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "Shut down the dashboard server after this many minutes of idle time (no WebSocket clients connected). Set to 0 to disable idle shutdown."
         },
         "projectMemory.promptsRoot": {
           "type": "string",
@@ -355,17 +754,36 @@
         },
         "projectMemory.defaultAgents": {
           "type": "array",
-          "default": ["coordinator", "researcher", "architect", "executor", "reviewer", "tester", "archivist", "revisionist", "runner"],
+          "default": [
+            "coordinator",
+            "researcher",
+            "architect",
+            "executor",
+            "reviewer",
+            "tester",
+            "archivist",
+            "revisionist",
+            "runner"
+          ],
           "description": "List of agent names to auto-deploy to new workspaces"
         },
         "projectMemory.defaultInstructions": {
           "type": "array",
-          "default": ["project-memory-system", "mvc-architecture", "handoff-protocol"],
+          "default": [
+            "project-memory-system",
+            "mvc-architecture",
+            "handoff-protocol"
+          ],
           "description": "List of instruction files to auto-deploy to new workspaces"
         },
         "projectMemory.defaultPrompts": {
           "type": "array",
-          "default": ["new-feature", "fix-bug", "refactor", "document"],
+          "default": [
+            "new-feature",
+            "fix-bug",
+            "refactor",
+            "document"
+          ],
           "description": "List of prompt files to pre-select when deploying prompts"
         },
         "projectMemory.autoDeployOnWorkspaceOpen": {
@@ -380,7 +798,11 @@
         },
         "projectMemory.chat.serverMode": {
           "type": "string",
-          "enum": ["bundled", "podman", "external"],
+          "enum": [
+            "bundled",
+            "podman",
+            "external"
+          ],
           "default": "bundled",
           "description": "How to run the MCP server for chat integration",
           "enumDescriptions": [
@@ -403,6 +825,26 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically connect to MCP server when extension activates"
+        },
+        "projectMemory.containerMode": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "local",
+            "container"
+          ],
+          "default": "auto",
+          "description": "How to connect to backend services. 'auto' probes for a running container on expected ports before falling back to local server spawn. 'local' always spawns locally. 'container' always connects to container (fails if unavailable).",
+          "enumDescriptions": [
+            "Probe for container first, fall back to local",
+            "Always spawn local server processes",
+            "Always connect to container (requires running container)"
+          ]
+        },
+        "projectMemory.containerMcpPort": {
+          "type": "number",
+          "default": 3000,
+          "description": "Port where the containerized MCP server is expected (Streamable HTTP + SSE)"
         }
       }
     },
@@ -444,18 +886,19 @@
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.10.0",
-    "@types/vscode": "^1.99.0",
-    "@typescript-eslint/eslint-plugin": "^8.54.0",
-    "@typescript-eslint/parser": "^8.54.0",
+    "@types/vscode": "^1.109.0",
+    "@typescript-eslint/eslint-plugin": "^8.55.0",
+    "@typescript-eslint/parser": "^8.55.0",
     "@vscode/test-electron": "^2.5.2",
-    "esbuild": "^0.27.2",
+    "esbuild": "^0.27.3",
     "eslint": "^9.39.2",
-    "mocha": "^11.3.0",
+    "mocha": "^11.7.5",
     "typescript": "^5.3.0"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "chokidar": "^3.5.3",
-    "glob": "^13.0.0"
-  }
+    "glob": "^13.0.1"  },
+  "overrides": {
+    "diff": "^8.0.3"  }
 }

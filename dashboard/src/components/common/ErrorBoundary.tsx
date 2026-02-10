@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
+import { API_BASE_URL } from '@/config';
 
 interface Props {
   children: ReactNode;
@@ -31,6 +32,24 @@ export class ErrorBoundary extends Component<Props, State> {
     this.setState({ errorInfo });
     // Log to console in development
     console.error('ErrorBoundary caught an error:', error, errorInfo);
+
+    // Report to dashboard server for persistent logging
+    this.reportErrorToServer(error, errorInfo);
+  }
+
+  private reportErrorToServer(error: Error, errorInfo: ErrorInfo): void {
+    try {
+      fetch(`${API_BASE_URL}/api/errors`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          error: `${error.name}: ${error.message}`,
+          componentStack: errorInfo.componentStack || null,
+          url: window.location.href,
+          timestamp: new Date().toISOString(),
+        }),
+      }).catch(() => { /* fire-and-forget */ });
+    } catch { /* non-critical */ }
   }
 
   handleReset = (): void => {

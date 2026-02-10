@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, Loader2, Plus, Save, Trash2 } from 'lucide-react';
+import { AlertCircle, Loader2, Pencil, Plus, Save, Trash2 } from 'lucide-react';
 import { cn } from '@/utils/cn';
+import { CollapsibleSection } from '@/components/common/CollapsibleSection';
 import type { WorkspaceContext, WorkspaceContextSection } from '@/types';
 
 interface WorkspaceContextPanelProps {
@@ -143,6 +144,7 @@ export function WorkspaceContextPanel({ workspaceId, workspaceName }: WorkspaceC
   const [sections, setSections] = useState<SectionStateMap>(() => createEmptySections());
   const [initialized, setInitialized] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [editMode, setEditMode] = useState(false);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['workspace-context', workspaceId],
@@ -257,19 +259,35 @@ export function WorkspaceContextPanel({ workspaceId, workspaceName }: WorkspaceC
           <p className="text-sm text-slate-400">Maintain shared context for the workspace across agents.</p>
           <p className="text-xs text-slate-500 mt-2">{headerMeta}</p>
         </div>
-        <button
-          onClick={() => saveMutation.mutate()}
-          disabled={!hasChanges || saveMutation.isPending}
-          className={cn(
-            'inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-            hasChanges
-              ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-              : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setEditMode((prev) => !prev)}
+            className={cn(
+              'inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+              editMode
+                ? 'bg-amber-600/20 text-amber-300 hover:bg-amber-600/30'
+                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+            )}
+          >
+            <Pencil className="w-4 h-4" />
+            {editMode ? 'Editing' : 'Edit'}
+          </button>
+          {editMode && (
+            <button
+              onClick={() => saveMutation.mutate()}
+              disabled={!hasChanges || saveMutation.isPending}
+              className={cn(
+                'inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                hasChanges
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                  : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+              )}
+            >
+              {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {saveMutation.isPending ? 'Saving...' : 'Save'}
+            </button>
           )}
-        >
-          {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          {saveMutation.isPending ? 'Saving...' : 'Save Context'}
-        </button>
+        </div>
       </div>
 
       {isLoading && (
@@ -287,77 +305,122 @@ export function WorkspaceContextPanel({ workspaceId, workspaceName }: WorkspaceC
       )}
 
       {!isLoading && (
-        <div className="mt-6 space-y-6">
+        <div className="mt-6 space-y-2">
           {SECTION_DEFINITIONS.map((section) => {
             const current = sections[section.key];
+            const itemCount = current.items.filter(i => i.title.trim()).length;
+            const hasSummary = !!current.summary.trim();
+
             return (
-              <div key={section.key} className="bg-slate-900/60 border border-slate-700 rounded-lg p-4">
-                <div className="flex items-start justify-between gap-4">
+              <CollapsibleSection
+                key={section.key}
+                title={section.label}
+                subtitle={section.description}
+                defaultOpen={false}
+                badge={
+                  (hasSummary || itemCount > 0) ? (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-900/50 text-emerald-300">
+                      {itemCount > 0 ? `${itemCount} item${itemCount > 1 ? 's' : ''}` : 'has summary'}
+                    </span>
+                  ) : undefined
+                }
+                actions={
+                  editMode ? (
+                    <button
+                      onClick={() => handleAddItem(section.key)}
+                      className="inline-flex items-center gap-1 text-xs text-emerald-300 hover:text-emerald-200"
+                    >
+                      <Plus className="w-3 h-3" />
+                      Add
+                    </button>
+                  ) : undefined
+                }
+              >
+                {/* Read-only view */}
+                {!editMode && (
                   <div>
-                    <h4 className="text-sm font-semibold text-white">{section.label}</h4>
-                    <p className="text-xs text-slate-500">{section.description}</p>
-                  </div>
-                  <button
-                    onClick={() => handleAddItem(section.key)}
-                    className="inline-flex items-center gap-1 text-xs text-emerald-300 hover:text-emerald-200"
-                  >
-                    <Plus className="w-3 h-3" />
-                    Add Item
-                  </button>
-                </div>
-
-                <div className="mt-4">
-                  <label className="block text-xs text-slate-400 mb-2">Summary</label>
-                  <textarea
-                    value={current.summary}
-                    onChange={(e) => handleSummaryChange(section.key, e.target.value)}
-                    rows={2}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500"
-                    placeholder={`Add a short summary for ${section.label.toLowerCase()}...`}
-                  />
-                </div>
-
-                {current.items.length > 0 && (
-                  <div className="mt-4 space-y-3">
-                    {current.items.map((item, index) => (
-                      <div key={`${section.key}-item-${index}`} className="border border-slate-700/60 rounded-lg p-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 space-y-2">
-                            <input
-                              type="text"
-                              value={item.title}
-                              onChange={(e) => handleItemChange(section.key, index, 'title', e.target.value)}
-                              placeholder="Title"
-                              className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500"
-                            />
-                            <textarea
-                              value={item.description}
-                              onChange={(e) => handleItemChange(section.key, index, 'description', e.target.value)}
-                              placeholder="Description"
-                              rows={2}
-                              className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500"
-                            />
-                            <textarea
-                              value={item.links}
-                              onChange={(e) => handleItemChange(section.key, index, 'links', e.target.value)}
-                              placeholder="Links (one per line)"
-                              rows={2}
-                              className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-emerald-500"
-                            />
+                    {hasSummary && (
+                      <p className="text-sm text-slate-300 mb-3">{current.summary}</p>
+                    )}
+                    {itemCount > 0 ? (
+                      <div className="space-y-2">
+                        {current.items.filter(i => i.title.trim()).map((item, idx) => (
+                          <div key={idx} className="border border-slate-700/50 rounded p-3">
+                            <div className="text-sm font-medium text-slate-200">{item.title}</div>
+                            {item.description && (
+                              <p className="text-xs text-slate-400 mt-1">{item.description}</p>
+                            )}
+                            {item.links && item.links.trim() && (
+                              <div className="mt-1.5 space-y-0.5">
+                                {item.links.split('\n').filter(Boolean).map((link, li) => (
+                                  <div key={li} className="text-xs text-violet-400 font-mono truncate">{link}</div>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                          <button
-                            onClick={() => handleRemoveItem(section.key, index)}
-                            className="p-2 text-slate-500 hover:text-red-400"
-                            title="Remove item"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                        ))}
                       </div>
-                    ))}
+                    ) : !hasSummary ? (
+                      <p className="text-xs text-slate-500 italic">No content yet</p>
+                    ) : null}
                   </div>
                 )}
-              </div>
+
+                {/* Edit view */}
+                {editMode && (
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-2">Summary</label>
+                    <textarea
+                      value={current.summary}
+                      onChange={(e) => handleSummaryChange(section.key, e.target.value)}
+                      rows={2}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500"
+                      placeholder={`Add a short summary for ${section.label.toLowerCase()}...`}
+                    />
+
+                    {current.items.length > 0 && (
+                      <div className="mt-4 space-y-3">
+                        {current.items.map((item, index) => (
+                          <div key={`${section.key}-item-${index}`} className="border border-slate-700/60 rounded-lg p-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 space-y-2">
+                                <input
+                                  type="text"
+                                  value={item.title}
+                                  onChange={(e) => handleItemChange(section.key, index, 'title', e.target.value)}
+                                  placeholder="Title"
+                                  className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500"
+                                />
+                                <textarea
+                                  value={item.description}
+                                  onChange={(e) => handleItemChange(section.key, index, 'description', e.target.value)}
+                                  placeholder="Description"
+                                  rows={2}
+                                  className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500"
+                                />
+                                <textarea
+                                  value={item.links}
+                                  onChange={(e) => handleItemChange(section.key, index, 'links', e.target.value)}
+                                  placeholder="Links (one per line)"
+                                  rows={2}
+                                  className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-emerald-500"
+                                />
+                              </div>
+                              <button
+                                onClick={() => handleRemoveItem(section.key, index)}
+                                className="p-2 text-slate-500 hover:text-red-400"
+                                title="Remove item"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CollapsibleSection>
             );
           })}
         </div>

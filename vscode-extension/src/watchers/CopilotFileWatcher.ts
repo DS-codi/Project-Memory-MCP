@@ -30,6 +30,9 @@ export class CopilotFileWatcher {
     private watchers: Map<CopilotFileType, chokidar.FSWatcher> = new Map();
     private config: WatcherConfig;
     private onFileChange?: (type: CopilotFileType, filePath: string, action: 'add' | 'change' | 'unlink') => void;
+    private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    private pendingEvents: Map<string, { type: CopilotFileType; filePath: string; action: 'add' | 'change' | 'unlink' }> = new Map();
+    private static readonly DEBOUNCE_MS = 300;
 
     constructor(config: WatcherConfig) {
         this.config = config;
@@ -81,6 +84,26 @@ export class CopilotFileWatcher {
     }
 
     private async handleFileEvent(type: CopilotFileType, filePath: string, action: 'add' | 'change' | 'unlink'): Promise<void> {
+        // Batch events with debouncing — deduplicate by filePath
+        this.pendingEvents.set(filePath, { type, filePath, action });
+        
+        if (this.debounceTimer) {
+            clearTimeout(this.debounceTimer);
+        }
+        this.debounceTimer = setTimeout(() => this.flushEvents(), CopilotFileWatcher.DEBOUNCE_MS);
+    }
+
+    private async flushEvents(): Promise<void> {
+        const events = [...this.pendingEvents.values()];
+        this.pendingEvents.clear();
+        this.debounceTimer = null;
+
+        for (const { type, filePath, action } of events) {
+            await this.processFileEvent(type, filePath, action);
+        }
+    }
+
+    private async processFileEvent(type: CopilotFileType, filePath: string, action: 'add' | 'change' | 'unlink'): Promise<void> {
         const fileName = path.basename(filePath);
         const typeLabels = {
             agent: 'Agent template',
@@ -131,6 +154,11 @@ export class CopilotFileWatcher {
     }
 
     public stop(): void {
+        if (this.debounceTimer) {
+            clearTimeout(this.debounceTimer);
+            this.debounceTimer = null;
+        }
+        this.pendingEvents.clear();
         for (const [type, watcher] of this.watchers) {
             watcher.close();
             console.log(`${type} watcher stopped`);

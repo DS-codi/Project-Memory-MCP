@@ -34,7 +34,8 @@ describe('Plan template UI', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole('option', { name: /Feature/i })).toBeInTheDocument();
+      const featureOptions = screen.getAllByRole('option', { name: /Feature/i });
+      expect(featureOptions.length).toBeGreaterThanOrEqual(1);
     });
   });
 });

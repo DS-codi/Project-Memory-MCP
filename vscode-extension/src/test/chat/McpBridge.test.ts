@@ -128,7 +128,7 @@ suite('McpBridge Test Suite', () => {
         });
 
         assert.strictEqual(calledPath, '/api/plans/ws_test_123/template');
-        assert.ok(calledPayload?.template === 'feature');
+        assert.ok((calledPayload as any)?.template === 'feature');
 
         bridge.dispose();
     });

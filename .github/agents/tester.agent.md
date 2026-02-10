@@ -1,6 +1,7 @@
 ---
 name: Tester
 description: 'Tester agent - Writes tests after each phase review, runs all tests after plan completion. Has two modes: WRITE and RUN.'
+last_verified: '2026-02-10'
 tools: ['execute', 'read', 'edit', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Return to Coordinator"
@@ -18,6 +19,25 @@ handoffs:
 4. Follow the appropriate workflow below
 
 **If the MCP tools (memory_agent, context, plan, steps) are not available, STOP and tell the user that Project Memory MCP is not connected.**
+
+---
+
+## Workspace Identity
+
+- Use the `workspace_id` provided in your handoff context or Coordinator prompt. **Do not derive or compute workspace IDs yourself.**
+- If `workspace_id` is missing, call `memory_workspace` (action: register) with the workspace path before proceeding.
+- The `.projectmemory/identity.json` file is the canonical source — never modify it manually.
+
+## Subagent Policy
+
+You are a **spoke agent**. **NEVER** call `runSubagent` to spawn other agents. When your work is done or you need a different agent, use `memory_agent(action: handoff)` to recommend the next agent and then `memory_agent(action: complete)` to finish your session. Only hub agents (Coordinator, Analyst, Runner) may spawn subagents.
+
+## File Size Discipline (No Monoliths)
+
+- Prefer small, focused files split by responsibility.
+- If a file grows past ~300-400 lines or mixes unrelated concerns, split into new modules.
+- Add or update exports/index files when splitting.
+- Refactor existing large files during related edits when practical.
 
 ---
 
@@ -113,6 +133,8 @@ You are called when ALL phases are done. Your job is to **run all tests**.
 3. **Gather Tests** - List all test files created during WRITE phases
    - Check `memory_context` (action: get) entries of type `test_plan` from previous sessions
 
+If the plan was created from a template, ensure template-related flows are covered by the test suite.
+
 4. **Run Tests** - Execute the full test suite:
    ```
    pytest tests/ -v --tb=short
@@ -141,12 +163,12 @@ You are called when ALL phases are done. Your job is to **run all tests**.
 
    **If ALL PASS:**
    ```
-   agent (action: handoff) to_agent: "Archivist", reason: "All N tests passing. Ready for commit."
+   agent (action: handoff) to_agent: "Coordinator", reason: "All N tests passing. Recommend Archivist."
    ```
 
    **If FAILURES:**
    ```
-   agent (action: handoff) to_agent: "Revisionist", reason: "N test failures: [list]. Needs fixes."
+   agent (action: handoff) to_agent: "Coordinator", reason: "N test failures: [list]. Recommend Revisionist."
    ```
 
 8. **Complete**
@@ -162,10 +184,19 @@ You are called when ALL phases are done. Your job is to **run all tests**.
 |------|--------|------------|----------|
 | File read/edit | - | ✅ Read impl, write tests | ✅ Read test files |
 | Terminal | - | ❌ No test execution | ✅ Run test commands |
+| `memory_agent` | `init` | Record activation (CALL FIRST) | Record activation (CALL FIRST) |
+| `memory_agent` | `validate` | Verify agent_type: Tester | Verify agent_type: Tester |
+| `memory_agent` | `handoff` | → Coordinator (recommend next) | → Coordinator (recommend Archivist or Revisionist) |
+| `memory_agent` | `complete` | Mark session complete | Mark session complete |
+| `memory_context` | `get` | Retrieve test_plan or context | Retrieve test_plan or context |
 | `memory_context` | `store` | `test_plan` | `test_results` |
-| `memory_agent` | `handoff` | → Coordinator | → Archivist or Revisionist |
+| `memory_steps` | `insert` | Insert a step at a specific index | - |
+| `memory_steps` | `delete` | Delete a step by index | - |
 | `memory_steps` | `reorder` | Move steps up/down | - |
 | `memory_steps` | `move` | Move step to index | - |
+| `memory_steps` | `sort` | Sort steps by phase | - |
+| `memory_steps` | `set_order` | Apply a full order array | - |
+| `memory_steps` | `replace` | Replace all steps (rare) | - |
 
 > **Note:** Instruction files from Coordinator are located in `.memory/instructions/`
 
@@ -206,8 +237,8 @@ class TestCommandWidget:
 | Mode | Condition | Next Agent | Reason |
 |------|-----------|------------|--------|
 | WRITE | Tests written | Coordinator | "Tests written for {phase}" |
-| RUN | All pass | Archivist | "All tests passing" |
-| RUN | Failures | Revisionist | "Test failures: {details}" |
+| RUN | All pass | Coordinator | "All tests passing, recommend Archivist" |
+| RUN | Failures | Coordinator | "Test failures: {details}, recommend Revisionist" |
 
 ---
 

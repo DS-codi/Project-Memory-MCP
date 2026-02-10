@@ -81,6 +81,7 @@ const agentIcons: Record<AgentType, string> = {
   Tester: '🧪',
   Revisionist: '🔄',
   Archivist: '📦',
+  Builder: '🏗️',
 };
 
 const agentColors: Record<AgentType, string> = {
@@ -95,6 +96,7 @@ const agentColors: Record<AgentType, string> = {
   Tester: 'bg-pink-500/20 text-pink-300 border-pink-500/30',
   Revisionist: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
   Archivist: 'bg-slate-500/20 text-slate-300 border-slate-500/30',
+  Builder: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
 };
 
 const categoryColors: Record<string, string> = {

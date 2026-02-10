@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { ArrowUp, ArrowDown, ChevronsUp, Trash2, Plus } from 'lucide-react';
 import { Badge } from '../common/Badge';
 import { statusColors, stepTypeColors } from '@/utils/colors';
-import { displayStepNumber } from '@/utils/formatters';
 import type { PlanStep, StepStatus, StepType } from '@/types';
 
 interface StepEditorProps {

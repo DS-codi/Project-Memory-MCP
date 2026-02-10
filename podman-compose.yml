@@ -1,0 +1,41 @@
+# =============================================================================
+# Project Memory — Podman Compose
+#
+# Usage:
+#   podman-compose up --build       (build & start)
+#   podman-compose up -d            (start detached)
+#   podman-compose down             (stop & remove)
+#   podman-compose logs -f          (follow logs)
+#
+# @see Phase 6B.5 of docs/infrastructure-improvement-plan.md
+# =============================================================================
+
+version: "3.8"
+
+services:
+  project-memory:
+    build:
+      context: .
+      dockerfile: Containerfile
+    container_name: project-memory
+    ports:
+      - "3000:3000"   # MCP server (Streamable HTTP + SSE)
+      - "3001:3001"   # Dashboard Express API
+      - "3002:3002"   # Dashboard WebSocket
+    volumes:
+      - ./data:/data                # Persistent workspace data
+      - ./agents:/agents:ro         # Agent files (read-only)
+    environment:
+      - MBS_DATA_ROOT=/data
+      - MBS_AGENTS_ROOT=/agents
+      - MCP_PORT=3000
+      - DASHBOARD_PORT=3001
+      - WS_PORT=3002
+      - NODE_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "const http=require('http');const r=http.get('http://localhost:3000/health',res=>{process.exit(res.statusCode===200?0:1)});r.on('error',()=>process.exit(1));r.setTimeout(3000,()=>{r.destroy();process.exit(1)})"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3

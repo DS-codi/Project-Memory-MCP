@@ -268,7 +268,7 @@ export async function setWorkspaceContext(
       return sizeCheck as ToolResponse<WorkspaceContextResult>;
     }
 
-    await store.writeJson(contextPath, context);
+    await store.writeJsonLocked(contextPath, context);
     await appendWorkspaceFileUpdate({
       workspace_id,
       file_path: contextPath,
@@ -366,7 +366,7 @@ export async function updateWorkspaceContext(
       return sizeCheck as ToolResponse<WorkspaceContextResult>;
     }
 
-    await store.writeJson(contextPath, updated);
+    await store.writeJsonLocked(contextPath, updated);
     await appendWorkspaceFileUpdate({
       workspace_id,
       file_path: contextPath,

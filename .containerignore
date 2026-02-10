@@ -1,0 +1,48 @@
+# Container build ignore file
+# Keeps the build context small by excluding non-essential files
+
+node_modules/
+.git/
+*.md
+!dashboard/README.md
+
+# Data and logs (mounted as volumes)
+data/
+archive/
+backup/
+
+# Development files
+.vscode/
+.github/
+*.code-workspace
+*.ps1
+!run-container.ps1
+*.txt
+*.html
+docs/
+prompts/
+reference/
+instructions/
+copied_*.md
+chat_*.md
+mcp_*.json
+
+# Test artifacts
+test-results/
+e2e-report/
+coverage/
+*.spec.ts
+*.test.ts
+**/__tests__/
+
+# Build artifacts (we rebuild in container)
+server/dist/
+dashboard/dist/
+dashboard/dist-webview/
+vscode-extension/
+
+# Editor/OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

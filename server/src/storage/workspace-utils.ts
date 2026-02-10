@@ -8,6 +8,20 @@ import { fileURLToPath } from 'url';
 
 const DEFAULT_HASH_LENGTH = 12;
 
+/**
+ * Safely resolve a workspace path across platforms.
+ * On Linux/macOS containers, path.resolve() corrupts Windows absolute paths
+ * (e.g. "C:\foo" becomes "/app/C:\foo"). This detects Windows paths and
+ * returns them as-is when running on non-Windows platforms.
+ */
+export function safeResolvePath(inputPath: string): string {
+  const isWindowsAbsolute = /^[a-zA-Z]:[\\\/]/.test(inputPath);
+  if (isWindowsAbsolute && process.platform !== 'win32') {
+    return inputPath;
+  }
+  return path.resolve(inputPath);
+}
+
 let cachedWorkspaceRoot: string | null = null;
 let cachedDataRoot: string | null = null;
 
@@ -42,7 +56,7 @@ export function getDataRoot(): string {
 }
 
 export function normalizeWorkspacePath(workspacePath: string): string {
-  const resolved = path.resolve(workspacePath);
+  const resolved = safeResolvePath(workspacePath);
   const normalized = resolved.replace(/\\/g, '/').toLowerCase();
   return normalized.replace(/\/+$/, '');
 }
@@ -56,6 +70,6 @@ export function getWorkspaceIdFromPath(workspacePath: string): string {
 }
 
 export function getWorkspaceDisplayName(workspacePath: string): string {
-  const resolved = path.resolve(workspacePath);
+  const resolved = safeResolvePath(workspacePath);
   return path.basename(resolved);
 }

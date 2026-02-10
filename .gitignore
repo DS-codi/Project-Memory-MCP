@@ -38,3 +38,5 @@ backup/
 .vscode-test/
 from-work-pc/
 .projectmemory/
+.tmp/
+data.zip

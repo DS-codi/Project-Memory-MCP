@@ -99,6 +99,10 @@ export class ChatParticipant implements vscode.Disposable {
                     return await this.handleHandoffCommand(request, response, token);
                 case 'status':
                     return await this.handleStatusCommand(request, response, token);
+                case 'deploy':
+                    return await this.handleDeployCommand(request, response, token);
+                case 'diagnostics':
+                    return await this.handleDiagnosticsCommand(request, response, token);
                 default:
                     return await this.handleDefaultCommand(request, response, token);
             }
@@ -200,6 +204,8 @@ export class ChatParticipant implements vscode.Disposable {
             response.markdown('⚠️ Workspace not registered.');
             return { metadata: { command: 'plan' } };
         }
+
+        response.progress('Fetching plans...');
 
         const result = await this.mcpBridge.callTool<{
             active_plans: Array<{
@@ -333,6 +339,7 @@ export class ChatParticipant implements vscode.Disposable {
         }
 
         response.markdown('🔍 **Gathering workspace context...**\n\n');
+        response.progress('Querying workspace info...');
 
         try {
             const result = await this.mcpBridge.callTool<WorkspaceInfo>(
@@ -449,6 +456,7 @@ export class ChatParticipant implements vscode.Disposable {
         }
 
         response.markdown('📊 **Project Memory Status**\n\n');
+        response.progress('Checking MCP connection...');
 
         // Check MCP connection
         const connected = this.mcpBridge.isConnected();
@@ -456,6 +464,7 @@ export class ChatParticipant implements vscode.Disposable {
         response.markdown(`**Workspace ID**: \`${this.workspaceId}\`\n\n`);
 
         // Get active plans
+        response.progress('Fetching plans...');
         try {
             const result = await this.mcpBridge.callTool<{
                 active_plans: Array<{
@@ -497,6 +506,97 @@ export class ChatParticipant implements vscode.Disposable {
     }
 
     /**
+     * Handle /deploy command — trigger deployment of agents, prompts, or instructions
+     */
+    private async handleDeployCommand(
+        request: vscode.ChatRequest,
+        response: vscode.ChatResponseStream,
+        _token: vscode.CancellationToken
+    ): Promise<vscode.ChatResult> {
+        const prompt = request.prompt.trim().toLowerCase();
+
+        if (!prompt) {
+            response.markdown('🚀 **Deploy Command**\n\n');
+            response.markdown('Usage: `/deploy <target>`\n\n');
+            response.markdown('**Targets:**\n');
+            response.markdown('- `agents` — Copy agent files to the open workspace\n');
+            response.markdown('- `prompts` — Copy prompt files to the open workspace\n');
+            response.markdown('- `instructions` — Copy instruction files to the open workspace\n');
+            response.markdown('- `all` — Deploy agents, prompts, and instructions\n');
+            return { metadata: { command: 'deploy' } };
+        }
+
+        const cmdMap: Record<string, string> = {
+            agents: 'projectMemory.deployAgents',
+            prompts: 'projectMemory.deployPrompts',
+            instructions: 'projectMemory.deployInstructions',
+            all: 'projectMemory.deployCopilotConfig'
+        };
+
+        const cmd = cmdMap[prompt];
+        if (!cmd) {
+            response.markdown(`⚠️ Unknown deploy target: **${prompt}**\n\nUse: agents, prompts, instructions, or all`);
+            return { metadata: { command: 'deploy' } };
+        }
+
+        response.markdown(`🚀 Running **deploy ${prompt}**...\n`);
+        try {
+            await vscode.commands.executeCommand(cmd);
+            response.markdown(`\n✅ Deploy ${prompt} command executed.`);
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            response.markdown(`\n❌ Deploy failed: ${msg}`);
+        }
+
+        return { metadata: { command: 'deploy', target: prompt } };
+    }
+
+    /**
+     * Handle /diagnostics command — run system diagnostics and show health report
+     */
+    private async handleDiagnosticsCommand(
+        _request: vscode.ChatRequest,
+        response: vscode.ChatResponseStream,
+        _token: vscode.CancellationToken
+    ): Promise<vscode.ChatResult> {
+        response.markdown('🔍 **Running diagnostics...**\n\n');
+
+        try {
+            // Execute the existing diagnostics command which writes to an output channel
+            await vscode.commands.executeCommand('projectMemory.showDiagnostics');
+            response.markdown('✅ Diagnostics report written to the **Project Memory Diagnostics** output channel.\n\n');
+
+            // Also provide inline summary by probing the MCP server
+            if (this.mcpBridge.isConnected()) {
+                try {
+                    const start = Date.now();
+                    const wsResult = await this.mcpBridge.callTool<{
+                        workspaces?: unknown[];
+                    }>('memory_workspace', { action: 'list' });
+                    const probeMs = Date.now() - start;
+                    const wsCount = Array.isArray(wsResult.workspaces) ? wsResult.workspaces.length : 0;
+
+                    response.markdown('## Quick Summary\n\n');
+                    response.markdown(`| Metric | Value |\n|--------|-------|\n`);
+                    response.markdown(`| MCP Connection | 🟢 Connected |\n`);
+                    response.markdown(`| MCP Response Time | ${probeMs}ms |\n`);
+                    response.markdown(`| Workspaces | ${wsCount} |\n`);
+                    response.markdown(`| Memory | ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1)} MB |\n`);
+                } catch {
+                    response.markdown('⚠️ Could not probe MCP server for summary.\n');
+                }
+            } else {
+                response.markdown('⚠️ MCP server is **not connected**. Some diagnostics may be incomplete.\n');
+            }
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            response.markdown(`❌ Diagnostics failed: ${msg}`);
+        }
+
+        return { metadata: { command: 'diagnostics' } };
+    }
+
+    /**
      * Handle default (no command) requests
      */
     private async handleDefaultCommand(
@@ -514,6 +614,8 @@ export class ChatParticipant implements vscode.Disposable {
             response.markdown('- `/context` - Get workspace context and codebase profile\n');
             response.markdown('- `/handoff` - Execute agent handoffs\n');
             response.markdown('- `/status` - Show current plan progress\n');
+            response.markdown('- `/deploy` - Deploy agents, prompts, or instructions\n');
+            response.markdown('- `/diagnostics` - Run system health diagnostics\n');
             response.markdown('\nOr just ask me about your project!');
             return { metadata: { command: 'help' } };
         }
@@ -585,6 +687,11 @@ export class ChatParticipant implements vscode.Disposable {
                     prompt: '/status',
                     label: 'Check status',
                     command: 'status'
+                });
+                followups.push({
+                    prompt: '/diagnostics',
+                    label: 'Run diagnostics',
+                    command: 'diagnostics'
                 });
                 break;
         }

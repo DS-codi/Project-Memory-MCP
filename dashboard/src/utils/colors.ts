@@ -12,6 +12,7 @@ export const agentColors: Record<AgentType, string> = {
   Tester: '#ec4899',
   Revisionist: '#f97316',
   Archivist: '#64748b',
+  Builder: '#3b82f6',
 };
 
 export const agentBgColors: Record<AgentType, string> = {
@@ -26,6 +27,7 @@ export const agentBgColors: Record<AgentType, string> = {
   Tester: 'bg-pink-500/20 text-pink-300 border-pink-500/50',
   Revisionist: 'bg-orange-500/20 text-orange-300 border-orange-500/50',
   Archivist: 'bg-slate-500/20 text-slate-300 border-slate-500/50',
+  Builder: 'bg-blue-500/20 text-blue-300 border-blue-500/50',
 };
 
 export const agentIcons: Record<AgentType, string> = {
@@ -40,6 +42,7 @@ export const agentIcons: Record<AgentType, string> = {
   Tester: '🧪',
   Revisionist: '🔄',
   Archivist: '📦',
+  Builder: '🏗️',
 };
 
 export const statusColors: Record<StepStatus, string> = {

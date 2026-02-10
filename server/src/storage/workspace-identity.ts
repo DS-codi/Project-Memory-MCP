@@ -17,7 +17,12 @@ import {
   getWorkspaceIdFromPath,
   normalizeWorkspacePath,
   getDataRoot,
+  safeResolvePath,
 } from './workspace-utils.js';
+import {
+  writeJsonLocked,
+  modifyJsonLocked,
+} from './file-lock.js';
 
 // Re-export the identity file interface used by file-store.ts
 export interface WorkspaceIdentityFile {
@@ -155,7 +160,7 @@ async function moveDirSafe(src: string, dest: string): Promise<void> {
 export async function readWorkspaceIdentityFile(
   workspacePath: string
 ): Promise<WorkspaceIdentityFile | null> {
-  const resolvedPath = path.resolve(workspacePath);
+  const resolvedPath = safeResolvePath(workspacePath);
   const identityPath = getWorkspaceIdentityPath(resolvedPath);
   const identity = await readJsonSafe<WorkspaceIdentityFile>(identityPath);
 
@@ -185,7 +190,7 @@ export async function readWorkspaceIdentityFile(
 export async function resolveCanonicalWorkspaceId(
   workspacePath: string
 ): Promise<string> {
-  const resolvedPath = path.resolve(workspacePath);
+  const resolvedPath = safeResolvePath(workspacePath);
   const identity = await readWorkspaceIdentityFile(resolvedPath);
   if (identity?.workspace_id) {
     return identity.workspace_id;
@@ -569,11 +574,11 @@ export async function mergeWorkspace(
 
       // Update workspace_id in state.json (or create minimal state if missing)
       const statePath = path.join(targetPlanDir, 'state.json');
-      let state = await readJsonSafe<Record<string, unknown>>(statePath);
+      const state = await readJsonSafe<Record<string, unknown>>(statePath);
       if (state) {
         state.workspace_id = targetId;
         state.updated_at = new Date().toISOString();
-        await fs.writeFile(statePath, JSON.stringify(state, null, 2), 'utf-8');
+        await writeJsonLocked(statePath, state);
       } else {
         // Create minimal state for plans that only have logs
         const minimalState = {
@@ -586,7 +591,7 @@ export async function mergeWorkspace(
           steps: [],
           notes: ['This plan was recovered during workspace migration. No original state.json was found.'],
         };
-        await fs.writeFile(statePath, JSON.stringify(minimalState, null, 2), 'utf-8');
+        await writeJsonLocked(statePath, minimalState);
         result.notes.push(`Created minimal state.json for plan '${planId}' (was missing).`);
       }
     }
@@ -633,33 +638,35 @@ export async function mergeWorkspace(
     legacyIds.add(sourceId);
     targetMeta.legacy_workspace_ids = Array.from(legacyIds);
     targetMeta.updated_at = new Date().toISOString();
-    await fs.writeFile(targetMetaPath, JSON.stringify(targetMeta, null, 2), 'utf-8');
+    await writeJsonLocked(targetMetaPath, targetMeta);
 
     // Write audit entry to workspace.context.json
     const contextPath = path.join(targetPath, 'workspace.context.json');
-    const context = (await readJsonSafe<WorkspaceContext>(contextPath)) || {
-      schema_version: '1.0.0',
-      workspace_id: targetId,
-      workspace_path: targetMeta.workspace_path || targetMeta.path || '',
-      name: targetMeta.name || targetId,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      sections: {},
-    } as WorkspaceContext;
+    await modifyJsonLocked<WorkspaceContext>(contextPath, (existing) => {
+      const context = existing || {
+        schema_version: '1.0.0',
+        workspace_id: targetId,
+        workspace_path: targetMeta.workspace_path || targetMeta.path || '',
+        name: targetMeta.name || targetId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        sections: {},
+      } as WorkspaceContext;
 
-    const auditLog = context.audit_log || { entries: [], last_updated: '' };
-    auditLog.entries.push({
-      timestamp: new Date().toISOString(),
-      tool: 'merge-workspace',
-      action: 'merge',
-      file_path: targetMetaPath,
-      summary: `Merged ghost folder '${sourceId}' → '${targetId}'. Plans: ${result.merged_plans.join(', ') || 'none'}. Logs: ${result.merged_logs.join(', ') || 'none'}.`,
-      warning: '',
+      const auditLog = context.audit_log || { entries: [], last_updated: '' };
+      auditLog.entries.push({
+        timestamp: new Date().toISOString(),
+        tool: 'merge-workspace',
+        action: 'merge',
+        file_path: targetMetaPath,
+        summary: `Merged ghost folder '${sourceId}' → '${targetId}'. Plans: ${result.merged_plans.join(', ') || 'none'}. Logs: ${result.merged_logs.join(', ') || 'none'}.`,
+        warning: '',
+      });
+      auditLog.last_updated = new Date().toISOString();
+      context.audit_log = auditLog;
+      context.updated_at = new Date().toISOString();
+      return context;
     });
-    auditLog.last_updated = new Date().toISOString();
-    context.audit_log = auditLog;
-    context.updated_at = new Date().toISOString();
-    await fs.writeFile(contextPath, JSON.stringify(context, null, 2), 'utf-8');
   }
 
   // Verify no plan state.json still references sourceId
@@ -744,7 +751,7 @@ export interface MigrateWorkspaceResult {
 export async function migrateWorkspace(
   workspacePath: string
 ): Promise<MigrateWorkspaceResult> {
-  const resolvedPath = path.resolve(workspacePath);
+  const resolvedPath = safeResolvePath(workspacePath);
   const dataRoot = getDataRoot();
   const canonicalId = await resolveCanonicalWorkspaceId(resolvedPath);
 
@@ -787,7 +794,7 @@ export async function migrateWorkspace(
       archived_plans: [],
       indexed: false,
     };
-    await fs.writeFile(canonicalMetaPath, JSON.stringify(canonicalMeta, null, 2), 'utf-8');
+    await writeJsonLocked(canonicalMetaPath, canonicalMeta);
     result.notes.push(`Created canonical workspace folder: ${canonicalId}`);
   } else {
     canonicalMeta.last_accessed = now;
@@ -877,11 +884,11 @@ export async function migrateWorkspace(
 
       // Update workspace_id in state.json (or create minimal state if missing)
       const statePath = path.join(targetPlanDir, 'state.json');
-      let state = await readJsonSafe<Record<string, unknown>>(statePath);
+      const state = await readJsonSafe<Record<string, unknown>>(statePath);
       if (state) {
         state.workspace_id = canonicalId;
         state.updated_at = now;
-        await fs.writeFile(statePath, JSON.stringify(state, null, 2), 'utf-8');
+        await writeJsonLocked(statePath, state);
       } else {
         // Create minimal state for plans that only have logs
         const minimalState = {
@@ -894,7 +901,7 @@ export async function migrateWorkspace(
           steps: [],
           notes: ['This plan was recovered during workspace migration. No original state.json was found.'],
         };
-        await fs.writeFile(statePath, JSON.stringify(minimalState, null, 2), 'utf-8');
+        await writeJsonLocked(statePath, minimalState);
         result.notes.push(`Created minimal state.json for plan '${planId}' (was missing).`);
       }
 
@@ -963,23 +970,22 @@ export async function migrateWorkspace(
   canonicalMeta.active_plans = activePlans;
   canonicalMeta.archived_plans = archivedPlans;
   canonicalMeta.updated_at = now;
-  await fs.writeFile(canonicalMetaPath, JSON.stringify(canonicalMeta, null, 2), 'utf-8');
+  await writeJsonLocked(canonicalMetaPath, canonicalMeta);
 
   // 5. Write/refresh identity.json in the workspace directory
   try {
     const identityPath = getWorkspaceIdentityPath(resolvedPath);
-    const existingIdentity = await readJsonSafe<WorkspaceIdentityFile>(identityPath);
-    const identity: WorkspaceIdentityFile = {
-      schema_version: '1.0.0',
-      workspace_id: canonicalId,
-      workspace_path: resolvedPath,
-      data_root: dataRoot,
-      created_at: existingIdentity?.created_at || now,
-      updated_at: now,
-      project_mcps: existingIdentity?.project_mcps,
-    };
-    await fs.mkdir(path.dirname(identityPath), { recursive: true });
-    await fs.writeFile(identityPath, JSON.stringify(identity, null, 2), 'utf-8');
+    await modifyJsonLocked<WorkspaceIdentityFile>(identityPath, (existingIdentity) => {
+      return {
+        schema_version: '1.0.0',
+        workspace_id: canonicalId,
+        workspace_path: resolvedPath,
+        data_root: dataRoot,
+        created_at: existingIdentity?.created_at || now,
+        updated_at: now,
+        project_mcps: existingIdentity?.project_mcps,
+      };
+    });
     result.identity_written = true;
   } catch (err) {
     result.notes.push(`Failed to write identity.json: ${(err as Error).message}`);

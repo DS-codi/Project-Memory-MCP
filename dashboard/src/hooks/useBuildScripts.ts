@@ -45,7 +45,7 @@ export function useAddBuildScript() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ workspaceId, planId, script }: AddBuildScriptParams) => {
+    mutationFn: async ({ planId, script }: AddBuildScriptParams) => {
       const res = await fetch(`${API_BASE}/plans/${planId}/build-scripts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -78,7 +78,7 @@ export function useAddBuildScript() {
 
       return { previousScripts };
     },
-    onError: (err, { workspaceId, planId }, context) => {
+    onError: (_err, { workspaceId, planId }, context) => {
       // Rollback on error
       if (context?.previousScripts) {
         queryClient.setQueryData(['buildScripts', workspaceId, planId], context.previousScripts);
@@ -105,7 +105,7 @@ export function useDeleteBuildScript() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ workspaceId, planId, scriptId }: DeleteBuildScriptParams) => {
+    mutationFn: async ({ planId, scriptId }: DeleteBuildScriptParams) => {
       const res = await fetch(`${API_BASE}/plans/${planId}/build-scripts/${scriptId}`, {
         method: 'DELETE',
       });
@@ -129,7 +129,7 @@ export function useDeleteBuildScript() {
 
       return { previousScripts };
     },
-    onError: (err, { workspaceId, planId }, context) => {
+    onError: (_err, { workspaceId, planId }, context) => {
       // Rollback on error
       if (context?.previousScripts) {
         queryClient.setQueryData(['buildScripts', workspaceId, planId], context.previousScripts);
@@ -154,7 +154,7 @@ interface RunBuildScriptParams {
 
 export function useRunBuildScript() {
   return useMutation({
-    mutationFn: async ({ workspaceId, planId, scriptId }: RunBuildScriptParams) => {
+    mutationFn: async ({ planId, scriptId }: RunBuildScriptParams) => {
       const res = await fetch(`${API_BASE}/plans/${planId}/build-scripts/${scriptId}/run`, {
         method: 'POST',
       });

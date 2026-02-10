@@ -5,13 +5,12 @@
  * - Workspace directory management
  * - Plan state persistence
  * - Context and research note storage
- * - File locking for concurrent access
+ * - File locking for concurrent access (via file-lock.ts)
  */
 
 import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import lockfile from 'proper-lockfile';
 import type { PlanState, WorkspaceMeta, WorkspaceProfile, RequestCategory, RequestCategorization, BuildScript, WorkspaceContext } from '../types/index.js';
 import { STEP_TYPE_BEHAVIORS } from '../types/index.js';
 import { appendWorkspaceFileUpdate } from '../logging/workspace-update-log.js';
@@ -19,7 +18,8 @@ import {
   getDataRoot as resolveDataRoot,
   getWorkspaceDisplayName,
   getWorkspaceIdFromPath,
-  normalizeWorkspacePath
+  normalizeWorkspacePath,
+  safeResolvePath
 } from './workspace-utils.js';
 import {
   resolveCanonicalWorkspaceId,
@@ -29,10 +29,20 @@ import {
   getWorkspaceIdentityPath as getIdentityPath,
   type WorkspaceIdentityFile as IdentityFile,
 } from './workspace-identity.js';
+import {
+  fileLockManager,
+  readJson,
+  writeJson,
+  modifyJsonLocked,
+  writeJsonLocked,
+} from './file-lock.js';
 
 // Re-export from workspace-identity module for backwards compatibility
 export type { WorkspaceIdentityFile } from './workspace-identity.js';
 export { getWorkspaceIdentityPath } from './workspace-identity.js';
+
+// Re-export locking utilities from file-lock module for backwards compatibility
+export { readJson, writeJson, modifyJsonLocked, writeJsonLocked } from './file-lock.js';
 
 export interface WorkspaceMigrationReport {
   action: 'none' | 'aliased' | 'migrated';
@@ -48,85 +58,6 @@ export interface WorkspaceMigrationReport {
 // =============================================================================
 
 const WORKSPACE_SCHEMA_VERSION = '1.0.0';
-
-// =============================================================================
-// File Locking for Concurrent Access
-// =============================================================================
-
-/**
- * Cross-process file lock manager using proper-lockfile.
- * Provides both in-memory locks (for same-process serialization) and
- * filesystem locks (for cross-process serialization).
- * 
- * This ensures that multiple VS Code windows with separate MCP server
- * processes can safely read/write to the same data files.
- */
-class FileLockManager {
-  // In-memory locks for same-process serialization
-  private inMemoryLocks: Map<string, Promise<void>> = new Map();
-
-  /**
-   * Execute an operation with exclusive access to a file path.
-   * Uses both in-memory locks (same process) and filesystem locks (cross-process).
-   */
-  async withLock<T>(filePath: string, operation: () => Promise<T>): Promise<T> {
-    const normalizedPath = path.normalize(filePath).toLowerCase();
-    
-    // First, serialize within this process
-    const existingLock = this.inMemoryLocks.get(normalizedPath);
-    if (existingLock) {
-      await existingLock.catch(() => {});
-    }
-
-    let resolveLock: () => void;
-    const lockPromise = new Promise<void>((resolve) => {
-      resolveLock = resolve;
-    });
-    this.inMemoryLocks.set(normalizedPath, lockPromise);
-
-    try {
-      // Ensure the directory exists for the lock file
-      const dir = path.dirname(filePath);
-      await fs.mkdir(dir, { recursive: true });
-
-      // Use the directory for locking since the file may not exist yet
-      // proper-lockfile creates a .lock file next to the target
-      const lockTarget = dir;
-      const lockOptions = {
-        stale: 10000,     // Consider lock stale after 10s
-        retries: {
-          retries: 10,
-          minTimeout: 100,
-          maxTimeout: 1000,
-          factor: 2,
-        },
-      };
-
-      let release: (() => Promise<void>) | null = null;
-      try {
-        // Acquire cross-process lock
-        release = await lockfile.lock(lockTarget, lockOptions);
-        return await operation();
-      } finally {
-        // Release cross-process lock
-        if (release) {
-          try {
-            await release();
-          } catch {
-            // Ignore unlock errors (lock may have been stale)
-          }
-        }
-      }
-    } finally {
-      resolveLock!();
-      if (this.inMemoryLocks.get(normalizedPath) === lockPromise) {
-        this.inMemoryLocks.delete(normalizedPath);
-      }
-    }
-  }
-}
-
-const fileLockManager = new FileLockManager();
 
 // =============================================================================
 // Utility Functions
@@ -275,44 +206,8 @@ export async function listDirs(dirPath: string): Promise<string[]> {
 }
 
 // =============================================================================
-// JSON File Operations (with file locking to prevent race conditions)
+// JSON File Operations (locking provided by file-lock.ts)
 // =============================================================================
-
-/**
- * Read a JSON file (not locked - use readJsonLocked for concurrent access)
- */
-export async function readJson<T>(filePath: string): Promise<T | null> {
-  try {
-    const content = await fs.readFile(filePath, 'utf-8');
-    return JSON.parse(content) as T;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Write a JSON file with pretty formatting (not locked - use writeJsonLocked for concurrent access)
- */
-export async function writeJson<T>(filePath: string, data: T): Promise<void> {
-  await ensureDir(path.dirname(filePath));
-  await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
-}
-
-/**
- * Read-modify-write a JSON file with locking to prevent race conditions.
- * Use this for operations that read, modify, and save state.
- */
-export async function modifyJsonLocked<T>(
-  filePath: string,
-  modifier: (data: T | null) => Promise<T> | T
-): Promise<T> {
-  return fileLockManager.withLock(filePath, async () => {
-    const data = await readJson<T>(filePath);
-    const modified = await modifier(data);
-    await writeJson(filePath, modified);
-    return modified;
-  });
-}
 
 /**
  * Write a text file
@@ -385,25 +280,28 @@ async function updateWorkspaceContextIds(
   workspacePath: string
 ): Promise<boolean> {
   const contextPath = getWorkspaceContextPath(workspaceId);
-  const context = await readJson<WorkspaceContext>(contextPath);
-  if (!context) {
-    return false;
-  }
-
   let changed = false;
-  if (context.workspace_id !== newWorkspaceId) {
-    context.workspace_id = newWorkspaceId;
-    changed = true;
-  }
-  if (context.workspace_path !== workspacePath) {
-    context.workspace_path = workspacePath;
-    changed = true;
-  }
 
-  if (changed) {
-    context.updated_at = nowISO();
-    await writeJson(contextPath, context);
-  }
+  await modifyJsonLocked<WorkspaceContext>(contextPath, (context) => {
+    if (!context) {
+      // No context file — nothing to update
+      return null as unknown as WorkspaceContext;
+    }
+
+    if (context.workspace_id !== newWorkspaceId) {
+      context.workspace_id = newWorkspaceId;
+      changed = true;
+    }
+    if (context.workspace_path !== workspacePath) {
+      context.workspace_path = workspacePath;
+      changed = true;
+    }
+
+    if (changed) {
+      context.updated_at = nowISO();
+    }
+    return context;
+  });
 
   return changed;
 }
@@ -418,17 +316,17 @@ async function updatePlanWorkspaceIds(
 
   for (const planId of planIds) {
     const planPath = getPlanStatePath(workspaceId, planId);
-    const plan = await readJson<PlanState>(planPath);
-    if (!plan) {
-      continue;
-    }
-
-    if (plan.workspace_id !== newWorkspaceId) {
-      plan.workspace_id = newWorkspaceId;
-      plan.updated_at = nowISO();
-      await writeJson(planPath, plan);
-      updated += 1;
-    }
+    await modifyJsonLocked<PlanState>(planPath, (plan) => {
+      if (!plan) {
+        return null as unknown as PlanState;
+      }
+      if (plan.workspace_id !== newWorkspaceId) {
+        plan.workspace_id = newWorkspaceId;
+        plan.updated_at = nowISO();
+        updated += 1;
+      }
+      return plan;
+    });
   }
 
   return updated;
@@ -484,7 +382,7 @@ async function migrateLegacyWorkspace(
     report.notes.push('Canonical workspace directory already exists; skipped folder rename.');
   }
 
-  const resolvedPath = path.resolve(workspacePath);
+  const resolvedPath = safeResolvePath(workspacePath);
   const meta: WorkspaceMeta = {
     ...primaryLegacy,
     workspace_id: canonicalId,
@@ -494,7 +392,7 @@ async function migrateLegacyWorkspace(
     updated_at: nowISO()
   };
 
-  await writeJson(getWorkspaceMetaPath(canonicalId), meta);
+  await writeJsonLocked(getWorkspaceMetaPath(canonicalId), meta);
   await updateWorkspaceContextIds(canonicalId, canonicalId, resolvedPath);
   await updatePlanWorkspaceIds(canonicalId, canonicalId);
 
@@ -553,7 +451,7 @@ export async function getWorkspace(workspaceId: string): Promise<WorkspaceMeta |
  */
 export async function saveWorkspace(meta: WorkspaceMeta): Promise<void> {
   const filePath = getWorkspaceMetaPath(meta.workspace_id);
-  await writeJson(filePath, meta);
+  await writeJsonLocked(filePath, meta);
   await appendWorkspaceFileUpdate({
     workspace_id: meta.workspace_id,
     file_path: filePath,
@@ -569,7 +467,7 @@ export async function createWorkspace(
   workspacePath: string, 
   profile?: WorkspaceProfile
 ): Promise<{ meta: WorkspaceMeta; migration: WorkspaceMigrationReport; created: boolean }> {
-  const resolvedPath = path.resolve(workspacePath);
+  const resolvedPath = safeResolvePath(workspacePath);
   const workspaceId = await resolveWorkspaceIdForPath(resolvedPath);
   const workspaceDir = getWorkspacePath(workspaceId);
 
@@ -584,7 +482,9 @@ export async function createWorkspace(
     existing.last_seen_at = now;
     existing.updated_at = now;
     existing.schema_version = existing.schema_version || WORKSPACE_SCHEMA_VERSION;
-    existing.workspace_path = existing.workspace_path || existing.path || resolvedPath;
+    // Always update path to the caller's declared path — fixes stale/corrupted paths
+    existing.workspace_path = resolvedPath;
+    existing.path = resolvedPath;
     existing.data_root = existing.data_root || getDataRoot();
     existing.created_at = existing.created_at || existing.registered_at || now;
     if (migration.legacy_workspace_ids.length > 0) {
@@ -632,22 +532,22 @@ export async function writeWorkspaceIdentityFile(
   workspacePath: string,
   meta: WorkspaceMeta
 ): Promise<IdentityFile> {
-  const resolvedPath = path.resolve(workspacePath);
+  const resolvedPath = safeResolvePath(workspacePath);
   const identityPath = getIdentityPath(resolvedPath);
-  const existing = await readJson<IdentityFile>(identityPath);
-  const now = nowISO();
 
-  const identity: IdentityFile = {
-    schema_version: '1.0.0',
-    workspace_id: meta.workspace_id,
-    workspace_path: resolvedPath,
-    data_root: meta.data_root || getDataRoot(),
-    created_at: existing?.created_at || now,
-    updated_at: now,
-    project_mcps: existing?.project_mcps
-  };
+  const identity = await modifyJsonLocked<IdentityFile>(identityPath, (existing) => {
+    const now = nowISO();
+    return {
+      schema_version: '1.0.0',
+      workspace_id: meta.workspace_id,
+      workspace_path: resolvedPath,
+      data_root: meta.data_root || getDataRoot(),
+      created_at: existing?.created_at || now,
+      updated_at: now,
+      project_mcps: existing?.project_mcps
+    };
+  });
 
-  await writeJson(identityPath, identity);
   return identity;
 }
 

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Edit2, Save, X, Plus, Trash2, Target, CheckSquare } from 'lucide-react';
-import { cn } from '@/utils/cn';
 import { Badge } from '@/components/common/Badge';
 import type { PlanState } from '@/types';
 

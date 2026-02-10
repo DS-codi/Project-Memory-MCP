@@ -8,6 +8,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { resolveWorkspaceIdentity, computeFallbackWorkspaceId } from '../utils/workspace-identity';
+import { getDashboardFrontendUrl } from '../server/ContainerDetection';
 
 function notify(message: string, ...items: string[]): Thenable<string | undefined> {
     const config = vscode.workspace.getConfiguration('projectMemory');
@@ -29,6 +30,7 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
     private _dataRoot: string;
     private _agentsRoot: string;
     private _disposables: vscode.Disposable[] = [];
+    private _onResolveCallback?: () => void;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
@@ -37,6 +39,14 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
     ) {
         this._dataRoot = dataRoot;
         this._agentsRoot = agentsRoot;
+    }
+
+    /**
+     * Register a callback to be invoked once when the webview is first resolved.
+     * Used for lazy server start — the server starts when the dashboard panel opens.
+     */
+    public onFirstResolve(callback: () => void): void {
+        this._onResolveCallback = callback;
     }
 
     public dispose(): void {
@@ -82,6 +92,12 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
         context: vscode.WebviewViewResolveContext,
         _token: vscode.CancellationToken
     ) {
+        // Trigger lazy server start on first panel open
+        if (this._onResolveCallback) {
+            this._onResolveCallback();
+            this._onResolveCallback = undefined; // fire once
+        }
+
         // Dispose old listeners if view is being recreated
         this.dispose();
         
@@ -135,7 +151,7 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
 
                 case 'openPlan':
                     const { planId, workspaceId } = message.data as { planId: string; workspaceId: string };
-                    const planUrl = `http://localhost:5173/workspace/${workspaceId}/plan/${planId}`;
+                    const planUrl = `${this.getDashboardUrl()}/workspace/${workspaceId}/plan/${planId}`;
                     console.log('Opening plan:', planUrl);
                     vscode.commands.executeCommand('projectMemory.openDashboardPanel', planUrl);
                     break;
@@ -224,7 +240,7 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
     }
 
     private getDashboardUrl(): string {
-        return 'http://localhost:5173';
+        return getDashboardFrontendUrl();
     }
 
     private async pickPlan(): Promise<{ workspaceId: string; planId: string } | null> {
@@ -241,7 +257,7 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                 vscode.window.showErrorMessage('Failed to load plans from the dashboard server.');
                 return null;
             }
-            const data = await response.json();
+            const data: any = await response.json();
             const plans = Array.isArray(data.plans) ? data.plans : [];
             if (plans.length === 0) {
                 vscode.window.showInformationMessage('No plans found for this workspace.');
@@ -260,11 +276,11 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                 { placeHolder: 'Select a plan' }
             );
 
-            if (!picked || !picked.detail) {
+            if (!picked || !(picked as any).detail) {
                 return null;
             }
 
-            return { workspaceId, planId: picked.detail };
+            return { workspaceId, planId: (picked as any).detail };
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to load plans: ${error}`);
             return null;
@@ -339,7 +355,7 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
         // Get the configured API port
         const config = vscode.workspace.getConfiguration('projectMemory');
         const apiPort = config.get<number>('serverPort') || config.get<number>('apiPort') || 3001;
-        const dashboardUrl = `http://localhost:5173`; // Vite dev server
+        const dashboardUrl = getDashboardFrontendUrl();
         const workspaceId = this.getWorkspaceId() || '';
         const workspaceName = this.getWorkspaceName();
         const dataRoot = JSON.stringify(this._dataRoot);

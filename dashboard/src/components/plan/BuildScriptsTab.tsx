@@ -25,8 +25,8 @@ interface BuildScriptsTabProps {
 }
 
 export function BuildScriptsTab({
-  workspaceId,
-  planId,
+  workspaceId: _workspaceId,
+  planId: _planId,
   scripts,
   onAdd,
   onRun,

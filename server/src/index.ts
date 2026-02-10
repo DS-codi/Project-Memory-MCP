@@ -3,6 +3,12 @@
  * 
  * A local Model Context Protocol server for managing multi-agent
  * software development workflows with isolated workspace and plan state.
+ * 
+ * Supports multiple transports:
+ *   --transport stdio           (default) Standard stdio for local VS Code use
+ *   --transport sse             HTTP + SSE for container mode (legacy clients)
+ *   --transport streamable-http Streamable HTTP for container mode (modern clients)
+ *   --port <number>             Port for HTTP transports (default: 3000)
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -21,6 +27,12 @@ import { logToolCall, runWithToolContext, setCurrentAgent } from './logging/tool
 
 // Import consolidated tools
 import * as consolidatedTools from './tools/consolidated/index.js';
+
+// Import container proxy (auto-detection of container instances)
+import { detectContainer, getContainerUrl, createProxyServer } from './transport/container-proxy.js';
+
+// Import HTTP transport (Phase 6A)
+import { createHttpApp, closeAllTransports, type TransportType } from './transport/http-transport.js';
 
 // =============================================================================
 // Logging Helper
@@ -67,8 +79,46 @@ async function withLogging<T>(
 }
 
 // =============================================================================
-// Server Setup
+// CLI Argument Parsing (Phase 6A.2)
 // =============================================================================
+
+function parseCliArgs(): { transport: TransportType; port: number } {
+  const args = process.argv.slice(2);
+  let transport: TransportType = 'stdio';
+  let port = 3000;
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--transport' && args[i + 1]) {
+      const value = args[i + 1];
+      if (value === 'stdio' || value === 'sse' || value === 'streamable-http') {
+        transport = value;
+      } else {
+        console.error(`Invalid transport: ${value}. Valid: stdio, sse, streamable-http`);
+        process.exit(1);
+      }
+      i++;
+    } else if (args[i] === '--port' && args[i + 1]) {
+      port = parseInt(args[i + 1], 10);
+      if (isNaN(port) || port < 1 || port > 65535) {
+        console.error(`Invalid port: ${args[i + 1]}`);
+        process.exit(1);
+      }
+      i++;
+    }
+  }
+
+  return { transport, port };
+}
+
+// =============================================================================
+// Server Factory
+// =============================================================================
+
+/**
+ * Create and configure a new McpServer instance with all tools registered.
+ * Used as a factory so HTTP transport can create per-session servers.
+ */
+export function createMcpServer(): McpServer {
 
 const server = new McpServer({
   name: 'project-memory',
@@ -336,21 +386,102 @@ server.tool(
   }
 );
 
+  return server;
+}
+
 // =============================================================================
 // Server Startup
 // =============================================================================
 
 async function main() {
+  // Validate environment variables (6A.4)
+  const dataRoot = process.env.MBS_DATA_ROOT;
+  const agentsRoot = process.env.MBS_AGENTS_ROOT;
+  if (dataRoot) {
+    const fs = await import('fs');
+    if (!fs.existsSync(dataRoot)) {
+      console.error(`Warning: MBS_DATA_ROOT directory does not exist: ${dataRoot}`);
+      console.error('Creating directory...');
+      fs.mkdirSync(dataRoot, { recursive: true });
+    }
+  }
+  if (agentsRoot) {
+    const fs = await import('fs');
+    if (!fs.existsSync(agentsRoot)) {
+      console.error(`Warning: MBS_AGENTS_ROOT directory does not exist: ${agentsRoot}`);
+    }
+  }
+
   // Initialize data root
   await store.initDataRoot();
+
+  const { transport, port } = parseCliArgs();
   
   console.error('Project Memory MCP Server starting...');
   console.error(`Data root: ${store.getDataRoot()}`);
-  
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  
-  console.error('Project Memory MCP Server running');
+  console.error(`Transport: ${transport}`);
+
+  if (transport === 'stdio') {
+    // Check if a container instance is running — proxy to it if so
+    const containerUrl = getContainerUrl();
+    const skipProxy = process.env.MBS_NO_PROXY === '1' || process.env.MBS_NO_PROXY === 'true';
+
+    if (!skipProxy) {
+      const container = await detectContainer(containerUrl);
+      if (container) {
+        console.error(`[proxy] Container detected at ${container.url} (v${container.version})`);
+        console.error('[proxy] Entering proxy mode — all tool calls will be forwarded to container');
+
+        try {
+          const { server, connection, toolNames } = await createProxyServer(container.url);
+          console.error(`[proxy] ${toolNames.length} tools registered from container`);
+
+          const stdioTransport = new StdioServerTransport();
+          await server.connect(stdioTransport);
+          console.error('Project Memory MCP Server running (stdio → container proxy)');
+
+          // Graceful cleanup on exit
+          process.on('SIGINT', async () => {
+            await connection.close();
+            process.exit(0);
+          });
+          return;
+        } catch (err) {
+          console.error(`[proxy] Failed to connect to container: ${(err as Error).message}`);
+          console.error('[proxy] Falling back to local mode');
+        }
+      }
+    }
+
+    // Standard local stdio transport (default)
+    const server = createMcpServer();
+    const stdioTransport = new StdioServerTransport();
+    await server.connect(stdioTransport);
+    console.error('Project Memory MCP Server running (stdio, local)');
+  } else {
+    // HTTP-based transport (container mode)
+    const app = createHttpApp(createMcpServer);
+    
+    const httpServer = app.listen(port, () => {
+      console.error(`Project Memory MCP Server running (${transport}) on port ${port}`);
+      console.error(`  Health: http://localhost:${port}/health`);
+      if (transport === 'streamable-http' || transport === 'sse') {
+        console.error(`  MCP:    http://localhost:${port}/mcp`);
+        console.error(`  SSE:    http://localhost:${port}/sse`);
+      }
+    });
+
+    // Graceful shutdown
+    const shutdown = async () => {
+      console.error('Shutting down...');
+      await closeAllTransports();
+      httpServer.close();
+      process.exit(0);
+    };
+
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
+  }
 }
 
 main().catch((error) => {

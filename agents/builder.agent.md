@@ -1,6 +1,7 @@
 ---
 name: Builder
 description: 'Builder agent - Verifies builds and diagnoses build failures. Use after Executor implementation.'
+last_verified: '2026-02-10'
 tools: ['execute', 'read', 'edit', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Return to Coordinator"

@@ -26,7 +26,7 @@ export function AgentActivityTimeline({
   planCreatedAt,
   className,
 }: AgentActivityTimelineProps) {
-  const { rows, totalDuration, endTime } = useMemo(() => {
+  const { rows, endTime } = useMemo(() => {
     if (sessions.length === 0) {
       return { rows: [], totalDuration: 0, endTime: new Date() };
     }

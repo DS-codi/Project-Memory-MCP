@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Clock, GitBranch, ListChecks, FileText, Activity, BarChart, Info, AlertTriangle, MessageSquare, Target, Terminal } from 'lucide-react';
+import { ArrowLeft, Clock, GitBranch, ListChecks, FileText, Activity, BarChart, Info, AlertTriangle, MessageSquare, Target, Terminal, Database } from 'lucide-react';
 import { Badge } from '@/components/common/Badge';
 import { ProgressBar } from '@/components/common/ProgressBar';
 import { StepList } from '@/components/plan/StepList';
 import { StepProgress } from '@/components/plan/StepProgress';
 import { ResearchNotesViewer } from '@/components/plan/ResearchNotesViewer';
+import { PlanContextViewer } from '@/components/plan/PlanContextViewer';
 import { AuditLogViewer } from '@/components/plan/AuditLogViewer';
 import { ExportReport } from '@/components/plan/ExportReport';
 import { PlanActions } from '@/components/plan/PlanActions';
@@ -27,7 +28,7 @@ async function fetchPlan(workspaceId: string, planId: string): Promise<PlanState
   return res.json();
 }
 
-type Tab = 'timeline' | 'steps' | 'research' | 'activity' | 'goals' | 'build-scripts';
+type Tab = 'timeline' | 'steps' | 'research' | 'context' | 'activity' | 'goals' | 'build-scripts';
 
 export function PlanDetailPage() {
   const { workspaceId, planId } = useParams<{ workspaceId: string; planId: string }>();
@@ -99,6 +100,7 @@ export function PlanDetailPage() {
     { id: 'goals', label: 'Goals', icon: <Target size={16} /> },
     { id: 'build-scripts', label: 'Build Scripts', icon: <Terminal size={16} /> },
     { id: 'research', label: 'Research', icon: <FileText size={16} /> },
+    { id: 'context', label: 'Context', icon: <Database size={16} /> },
     { id: 'activity', label: 'Activity', icon: <Activity size={16} /> },
   ];
 
@@ -355,6 +357,9 @@ export function PlanDetailPage() {
         )}
         {activeTab === 'research' && (
           <ResearchNotesViewer workspaceId={workspaceId!} planId={planId!} />
+        )}
+        {activeTab === 'context' && (
+          <PlanContextViewer workspaceId={workspaceId!} planId={planId!} />
         )}
         {activeTab === 'activity' && (
           <AuditLogViewer workspaceId={workspaceId!} planId={planId!} />

@@ -1,6 +1,7 @@
 ---
 name: Executor
 description: 'Executor agent - Implements plan steps sequentially, writing code and verifying each step. Use when a plan is ready for implementation.'
+last_verified: '2026-02-10'
 tools: ['execute', 'read', 'edit', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Return to Coordinator"
@@ -87,7 +88,7 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 |------|--------|--------|
 | `memory_agent` | `init` | Record your activation AND get full plan state (CALL FIRST) |
 | `memory_agent` | `validate` | Verify you're the correct agent (agent_type: Executor) |
-| `memory_agent` | `handoff` | Transfer to Reviewer or Revisionist |
+| `memory_agent` | `handoff` | Recommend next agent to Coordinator |
 | `memory_agent` | `complete` | Mark your session complete |
 | `memory_steps` | `update` | Mark steps as active/done/blocked |
 | `memory_steps` | `insert` | Insert a step at a specific index |
@@ -97,7 +98,7 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 | `memory_steps` | `sort` | Sort steps by phase |
 | `memory_steps` | `set_order` | Apply a full order array |
 | `memory_steps` | `replace` | Replace all steps (rare) |
-| `memory_context` | `store` | Save execution log |
+| `memory_context` | `get` | Retrieve stored context from upstream agents (audit, architecture, affected_files, constraints, code_references, research_summary) |\n| `memory_context` | `store` | Save execution log |
 | `memory_context` | `append_research` | Add research/experiment notes |
 | File system tools | - | Create/modify source files |
 | Terminal tools | - | Run build/lint/test commands |
@@ -127,7 +128,16 @@ Instruction files are located in `.memory/instructions/` in the workspace.
    - If response says `action: switch` → call `memory_agent` (action: handoff) to the specified agent
    - If response says `action: continue` → proceed with implementation
    - Check `role_boundaries` - you CAN create/edit files
-3. For each pending step:
+3. **Retrieve stored context** (before reading any source files):
+   - Call `memory_context(action: get, type: "audit")` — codebase audit from Coordinator
+   - Call `memory_context(action: get, type: "architecture")` — design decisions from Architect
+   - Call `memory_context(action: get, type: "affected_files")` — files you'll be modifying
+   - Call `memory_context(action: get, type: "constraints")` — technical constraints
+   - Call `memory_context(action: get, type: "code_references")` — relevant code snippets
+   - Call `memory_context(action: get, type: "research_summary")` — research findings (if from Analyst flow)
+   - Check `instruction_files` from init response for `.memory/instructions/` files
+   - **Do NOT perform broad codebase research if context is already provided.** Only read files that are listed in the stored context or directly relevant to the current step.
+4. For each pending step:
    - Call `memory_steps` (action: update) to mark it `active`
    - Implement the change
    - Verify it works (run build, check syntax)

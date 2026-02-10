@@ -1,6 +1,7 @@
 ---
 name: Coordinator
 description: 'Coordinator agent - Master orchestrator that manages the entire plan lifecycle. Spawns sub-agents, tracks progress, and ensures proper workflow sequence. Use for any new request.'
+last_verified: '2026-02-10'
 tools: ['vscode', 'execute', 'read', 'edit', 'search', 'filesystem/*', 'git/*', 'project-memory/*', 'agent', 'todo']
 handoffs:
   - label: "🔬 Research with Researcher"
@@ -39,11 +40,11 @@ handoffs:
 ### ⛔ MCP TOOLS REQUIRED - NO EXCEPTIONS
 
 **Before doing ANYTHING, verify you have access to these MCP tools (consolidated v2.0):**
-- `memory_workspace` (actions: register, info, list, reindex)
+- `memory_workspace` (actions: register, info, list, reindex, merge, scan_ghosts, migrate)
 - `memory_plan` (actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm)
 - `memory_steps` (actions: add, update, batch_update, insert, delete, reorder, move, sort, set_order, replace)
 - `memory_agent` (actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage)
-- `memory_context` (actions: get, store, store_initial, list, append_research, list_research, generate_instructions, workspace_get, workspace_set, workspace_update, workspace_delete)
+- `memory_context` (actions: get, store, store_initial, list, append_research, list_research, generate_instructions, batch_store, workspace_get, workspace_set, workspace_update, workspace_delete)
 
 **If these tools are NOT available:**
 
@@ -861,6 +862,19 @@ while plan.status != "archived":
 
 When spawning a sub-agent, include:
 
+### Context Handoff Checklist (Before Spawning Executor)
+
+**MANDATORY:** Before calling `runSubagent` for Executor, store the following via `memory_context`:
+
+1. **User request** — `memory_context(action: store_initial)` with the original user request (if not already stored)
+2. **Affected files** — `memory_context(action: store, type: "affected_files")` with paths, purpose, and expected changes
+3. **Design decisions** — `memory_context(action: store, type: "architecture")` with architectural choices (from Architect, if applicable)
+4. **Constraints** — `memory_context(action: store, type: "constraints")` with technical constraints, conventions, file size limits
+5. **Code references** — `memory_context(action: store, type: "code_references")` with relevant snippets, patterns, interfaces
+6. **Test expectations** — `memory_context(action: store, type: "test_expectations")` with what should pass after implementation
+
+You can combine items 2–6 into a single `batch_store` call if preferred.
+
 ### For Executor:
 ```
 Plan: {plan_id}
@@ -869,6 +883,14 @@ Workspace: {workspace_id} | Path: {workspace_path}
 PHASE: {current_phase}
 TASK: Implement the following steps:
 {list of pending steps for this phase}
+
+CONTEXT RETRIEVAL (do this first):
+- Call `memory_context(action: get, type: "audit")` for the codebase audit
+- Call `memory_context(action: get, type: "architecture")` for design decisions
+- Call `memory_context(action: get, type: "affected_files")` for file list
+- Call `memory_context(action: get, type: "constraints")` for constraints
+- Call `memory_context(action: get, type: "code_references")` for code snippets
+- Check `instruction_files` in your init response for detailed instructions
 
 After completing all steps:
 1. Call `memory_agent` (action: handoff) to Coordinator with recommendation for Builder

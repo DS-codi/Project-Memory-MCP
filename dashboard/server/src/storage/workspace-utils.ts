@@ -9,6 +9,20 @@ import { promises as fs } from 'fs';
 
 const DEFAULT_HASH_LENGTH = 12;
 
+/**
+ * Safely resolve a workspace path across platforms.
+ * On Linux/macOS containers, path.resolve() corrupts Windows absolute paths
+ * (e.g. "C:\foo" becomes "/app/C:\foo"). This detects Windows paths and
+ * returns them as-is when running on non-Windows platforms.
+ */
+export function safeResolvePath(inputPath: string): string {
+  const isWindowsAbsolute = /^[a-zA-Z]:[\\\/]/.test(inputPath);
+  if (isWindowsAbsolute && process.platform !== 'win32') {
+    return inputPath;
+  }
+  return path.resolve(inputPath);
+}
+
 let cachedWorkspaceRoot: string | null = null;
 let cachedDataRoot: string | null = null;
 
@@ -44,7 +58,7 @@ export function getDataRoot(): string {
 }
 
 export function normalizeWorkspacePath(workspacePath: string): string {
-  const resolved = path.resolve(workspacePath);
+  const resolved = safeResolvePath(workspacePath);
   const normalized = resolved.replace(/\\/g, '/').toLowerCase();
   return normalized.replace(/\/+$/, '');
 }
@@ -58,7 +72,7 @@ export function getWorkspaceIdFromPath(workspacePath: string): string {
 }
 
 export function getWorkspaceDisplayName(workspacePath: string): string {
-  const resolved = path.resolve(workspacePath);
+  const resolved = safeResolvePath(workspacePath);
   return path.basename(resolved);
 }
 
@@ -86,7 +100,7 @@ export function getWorkspaceIdentityPath(workspacePath: string): string {
 export async function readWorkspaceIdentityFile(
   workspacePath: string
 ): Promise<WorkspaceIdentityFile | null> {
-  const resolvedPath = path.resolve(workspacePath);
+  const resolvedPath = safeResolvePath(workspacePath);
   const identityPath = getWorkspaceIdentityPath(resolvedPath);
 
   try {
@@ -116,7 +130,7 @@ export async function readWorkspaceIdentityFile(
 export async function resolveCanonicalWorkspaceId(
   workspacePath: string
 ): Promise<string> {
-  const resolvedPath = path.resolve(workspacePath);
+  const resolvedPath = safeResolvePath(workspacePath);
   const identity = await readWorkspaceIdentityFile(resolvedPath);
   if (identity?.workspace_id) {
     return identity.workspace_id;
@@ -132,7 +146,7 @@ export async function writeWorkspaceIdentityFile(
   workspaceId: string,
   dataRoot: string
 ): Promise<WorkspaceIdentityFile> {
-  const resolvedPath = path.resolve(workspacePath);
+  const resolvedPath = safeResolvePath(workspacePath);
   const identityPath = getWorkspaceIdentityPath(resolvedPath);
   const now = new Date().toISOString();
 

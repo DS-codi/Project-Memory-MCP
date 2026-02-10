@@ -7,6 +7,10 @@
       "env": {
         "MBS_DATA_ROOT": "${workspaceFolder}\\data",
         "MBS_AGENTS_ROOT": "${workspaceFolder}\\agents"
+        // Optional: Set MBS_CONTAINER_URL to override the default container probe URL (http://localhost:3000)
+        // "MBS_CONTAINER_URL": "http://localhost:3000"
+        // Optional: Set MBS_NO_PROXY=1 to skip container detection and always run locally
+        // "MBS_NO_PROXY": "1"
       }
     },
     "filesystem": {
@@ -22,13 +26,6 @@
       "args": [
         "--native-tls",
         "mcp-server-git"
-      ]
-    },
-    "memory": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-memory"
       ]
     }
   }

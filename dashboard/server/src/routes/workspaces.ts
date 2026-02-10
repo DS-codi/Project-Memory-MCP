@@ -4,7 +4,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { scanWorkspaces, getWorkspaceDetails } from '../services/fileScanner.js';
 import { emitEvent } from '../events/emitter.js';
-import { getDataRoot, getWorkspaceDisplayName, getWorkspaceIdFromPath, resolveCanonicalWorkspaceId, writeWorkspaceIdentityFile } from '../storage/workspace-utils.js';
+import { getDataRoot, getWorkspaceDisplayName, getWorkspaceIdFromPath, resolveCanonicalWorkspaceId, writeWorkspaceIdentityFile, safeResolvePath } from '../storage/workspace-utils.js';
 
 export const workspacesRouter = Router();
 
@@ -40,7 +40,7 @@ function getRandomIdSuffix(): string {
 }
 
 async function upsertWorkspaceMeta(workspacePath: string): Promise<{ meta: Record<string, any>; created: boolean }> {
-  const resolvedPath = path.resolve(workspacePath);
+  const resolvedPath = safeResolvePath(workspacePath);
   // Use identity.json-aware resolution instead of raw hash
   const workspaceId = await resolveCanonicalWorkspaceId(resolvedPath);
   const workspaceDir = path.join(globalThis.MBS_DATA_ROOT, workspaceId);

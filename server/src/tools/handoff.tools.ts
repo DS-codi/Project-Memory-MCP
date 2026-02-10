@@ -406,7 +406,7 @@ export async function handoff(
     if (data) {
       const sanitizedData = sanitizeJsonData(data);
       const contextPath = store.getContextPath(workspace_id, plan_id, `handoff_${from_agent.toLowerCase()}_to_${to_agent.toLowerCase()}`);
-      await store.writeJson(contextPath, {
+      await store.writeJsonLocked(contextPath, {
         ...entry,
         data: sanitizedData
       });

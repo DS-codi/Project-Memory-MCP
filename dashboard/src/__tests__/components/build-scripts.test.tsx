@@ -88,8 +88,6 @@ const mockPlanState = {
 // =========================================================================
 
 describe('GoalsTab Component', () => {
-  const mockUpdate = vi.fn();
-  
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -585,7 +583,6 @@ describe('AddBuildScriptForm Component', () => {
 
   it('should be collapsible/expandable', async () => {
     const { AddBuildScriptForm } = await import('../../components/plan/AddBuildScriptForm');
-    const user = userEvent.setup();
     
     renderWithQueryClient(
       <AddBuildScriptForm onAdd={vi.fn()} isPending={false} />

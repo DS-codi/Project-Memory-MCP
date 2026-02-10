@@ -20,6 +20,9 @@ export class AgentWatcher {
     private watcher: chokidar.FSWatcher | null = null;
     private agentsRoot: string;
     private autoDeploy: boolean;
+    private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    private pendingChanges: Set<string> = new Set();
+    private static readonly DEBOUNCE_MS = 500;
 
     constructor(agentsRoot: string, autoDeploy: boolean) {
         this.agentsRoot = agentsRoot;
@@ -38,25 +41,9 @@ export class AgentWatcher {
             ignoreInitial: true
         });
 
-        this.watcher.on('change', async (filePath) => {
-            const agentName = path.basename(filePath, '.agent.md');
-            
-            if (this.autoDeploy) {
-                // Auto-deploy the agent
-                notify(`Deploying updated agent: ${agentName}`);
-                // TODO: Call deploy API
-            } else {
-                // Show notification with action
-                const action = await notify(
-                    `Agent template updated: ${agentName}`,
-                    'Deploy to All Workspaces',
-                    'Ignore'
-                );
-
-                if (action === 'Deploy to All Workspaces') {
-                    vscode.commands.executeCommand('projectMemory.deployAgents');
-                }
-            }
+        this.watcher.on('change', (filePath) => {
+            this.pendingChanges.add(filePath);
+            this.scheduleFlush();
         });
 
         this.watcher.on('add', (filePath) => {
@@ -67,7 +54,43 @@ export class AgentWatcher {
         console.log(`Agent watcher started for: ${pattern}`);
     }
 
+    private scheduleFlush(): void {
+        if (this.debounceTimer) {
+            clearTimeout(this.debounceTimer);
+        }
+        this.debounceTimer = setTimeout(() => this.flushChanges(), AgentWatcher.DEBOUNCE_MS);
+    }
+
+    private async flushChanges(): Promise<void> {
+        const changes = [...this.pendingChanges];
+        this.pendingChanges.clear();
+        this.debounceTimer = null;
+
+        if (changes.length === 0) return;
+
+        const names = changes.map(f => path.basename(f, '.agent.md'));
+        const label = names.length === 1 ? names[0] : `${names.length} agents`;
+
+        if (this.autoDeploy) {
+            notify(`Deploying updated ${label}`);
+        } else {
+            const action = await notify(
+                `Agent template${names.length > 1 ? 's' : ''} updated: ${label}`,
+                'Deploy to All Workspaces',
+                'Ignore'
+            );
+            if (action === 'Deploy to All Workspaces') {
+                vscode.commands.executeCommand('projectMemory.deployAgents');
+            }
+        }
+    }
+
     public stop(): void {
+        if (this.debounceTimer) {
+            clearTimeout(this.debounceTimer);
+            this.debounceTimer = null;
+        }
+        this.pendingChanges.clear();
         if (this.watcher) {
             this.watcher.close();
             this.watcher = null;

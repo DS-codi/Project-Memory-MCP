@@ -95,7 +95,7 @@ export function DragDropStepReorder({
 
   // Calculate if order changed
   const hasChanges = orderedSteps.some(
-    (step, idx) => step.index !== steps.find((s) => s.task === step.task)?.index
+    (step, _idx) => step.index !== steps.find((s) => s.task === step.task)?.index
   );
 
   return (

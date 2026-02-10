@@ -1,6 +1,7 @@
 ---
 name: Runner
 description: 'Runner agent - Executes ad-hoc tasks without requiring a formal plan. Aware of Project Memory and logs work as plan steps intermittently. Use for quick tasks, explorations, or when formal planning would be overkill.'
+last_verified: '2026-02-10'
 tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'git/*', 'project-memory/*', 'filesystem/*', 'agent', 'todo']
 handoffs:
   - label: "🎯 Hand off to Coordinator"
@@ -32,6 +33,49 @@ You are a **hub agent** — you may spawn subagents via `runSubagent` when a qui
 
 When spawning subagents, **always include anti-spawning instructions** in the prompt:
 > "You are a spoke agent. Do NOT call `runSubagent` to spawn other agents. Use `memory_agent(action: handoff)` to recommend the next agent back to the Runner."
+
+### Context Handoff Checklist (Before Spawning Executor)
+
+**MANDATORY:** Before calling `runSubagent` for Executor, store structured context:
+
+```javascript
+// 1. Store context about the task
+context (action: store) with
+  workspace_id: "...",
+  plan_id: "...",
+  type: "affected_files",
+  data: {
+    files: ["path/to/file1.ts", "path/to/file2.ts"],
+    purpose: "What each file does and what needs to change"
+  }
+
+// 2. Store constraints
+context (action: store) with
+  workspace_id: "...",
+  plan_id: "...",
+  type: "constraints",
+  data: {
+    conventions: ["file size <400 lines", "use existing patterns"],
+    requirements: ["must pass existing tests"]
+  }
+
+// 3. Spawn Executor with context retrieval instructions
+runSubagent({
+  agentName: "Executor",
+  prompt: `Plan: {plan_id}
+Workspace: {workspace_id} | Path: {workspace_path}
+
+TASK: {task description}
+
+CONTEXT RETRIEVAL (do this first):
+- Call memory_context(action: get, type: "affected_files") for file list
+- Call memory_context(action: get, type: "constraints") for constraints
+- Do NOT perform broad codebase research — context is provided.
+
+You are a spoke agent. Do NOT call runSubagent. Use memory_agent(action: handoff) to recommend the next agent back to the Runner.`,
+  description: "Implement {brief description}"
+})
+```
 
 For tasks that grow complex beyond your scope, escalate to the Coordinator instead (see Escalation section below).
 

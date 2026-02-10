@@ -64,7 +64,7 @@ function calculateHealth(meta: WorkspaceMeta, plans: PlanState[]): 'active' | 's
   
   // Check for blocked steps
   for (const plan of plans) {
-    if (plan.steps?.some(s => s.status === 'blocked')) {
+    if (plan?.steps?.some(s => s.status === 'blocked')) {
       return 'blocked';
     }
   }
@@ -93,8 +93,11 @@ export async function scanWorkspaces(dataRoot: string): Promise<WorkspaceSummary
         const metaContent = await fs.readFile(metaPath, 'utf-8');
         const meta: WorkspaceMeta = JSON.parse(metaContent);
         
+        // Guard against null/invalid meta files
+        if (!meta || typeof meta !== 'object' || !meta.workspace_id) continue;
+        
         // Load active plans to determine health
-        const plans = await loadPlanStates(dataRoot, meta.workspace_id, meta.active_plans);
+        const plans = await loadPlanStates(dataRoot, meta.workspace_id, meta.active_plans || []);
         
         workspaces.push({
           workspace_id: meta.workspace_id,
@@ -128,7 +131,11 @@ async function loadPlanStates(dataRoot: string, workspaceId: string, planIds: st
     const statePath = path.join(dataRoot, workspaceId, 'plans', planId, 'state.json');
     try {
       const content = await fs.readFile(statePath, 'utf-8');
-      plans.push(JSON.parse(content));
+      const parsed = JSON.parse(content);
+      // Guard against null/invalid state files
+      if (parsed && typeof parsed === 'object' && parsed.id) {
+        plans.push(parsed);
+      }
     } catch {
       // Skip missing plans
     }
@@ -165,6 +172,9 @@ export async function getWorkspacePlans(dataRoot: string, workspaceId: string): 
       try {
         const content = await fs.readFile(statePath, 'utf-8');
         const state: PlanState = JSON.parse(content);
+        
+        // Guard against null/invalid state files
+        if (!state || typeof state !== 'object' || !state.id) continue;
         
         const doneSteps = state.steps?.filter(s => s.status === 'done').length || 0;
         const totalSteps = state.steps?.length || 0;

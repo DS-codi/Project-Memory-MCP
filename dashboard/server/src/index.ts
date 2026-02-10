@@ -3,6 +3,10 @@ import cors from 'cors';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { workspacesRouter } from './routes/workspaces.js';
 import { plansRouter } from './routes/plans.js';
 import { agentsRouter } from './routes/agents.js';
@@ -15,6 +19,7 @@ import { instructionsRouter } from './routes/instructions.js';
 import { deployRouter } from './routes/deploy.js';
 import { setupFileWatcher } from './services/fileWatcher.js';
 import { getDataRoot } from './storage/workspace-utils.js';
+import * as fs from 'fs';
 
 const PORT = process.env.PORT || 3001;
 const WS_PORT = process.env.WS_PORT || 3002;
@@ -38,6 +43,20 @@ globalThis.MBS_AGENTS_ROOT = MBS_AGENTS_ROOT;
 globalThis.MBS_PROMPTS_ROOT = MBS_PROMPTS_ROOT;
 globalThis.MBS_INSTRUCTIONS_ROOT = MBS_INSTRUCTIONS_ROOT;
 
+// Track server start time and last error for health reporting
+const serverStartTime = Date.now();
+let lastErrorTimestamp: string | null = null;
+
+// Global error tracking
+process.on('uncaughtException', (err) => {
+  lastErrorTimestamp = new Date().toISOString();
+  console.error('Uncaught exception:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  lastErrorTimestamp = new Date().toISOString();
+  console.error('Unhandled rejection:', reason);
+});
+
 const app = express();
 
 app.use(cors());
@@ -55,10 +74,19 @@ app.use('/api/prompts', promptsRouter);
 app.use('/api/instructions', instructionsRouter);
 app.use('/api/deploy', deployRouter);
 
-// Health check
+// Health check — enhanced with uptime, WebSocket clients, memory, last error
 app.get('/api/health', (req, res) => {
+  const memUsage = process.memoryUsage();
   res.json({ 
-    status: 'ok', 
+    status: 'ok',
+    uptime: Math.floor((Date.now() - serverStartTime) / 1000),
+    connectedClients: wss ? wss.clients.size : 0,
+    memory: {
+      heapUsedMB: Math.round(memUsage.heapUsed / 1024 / 1024 * 100) / 100,
+      heapTotalMB: Math.round(memUsage.heapTotal / 1024 / 1024 * 100) / 100,
+      rssMB: Math.round(memUsage.rss / 1024 / 1024 * 100) / 100,
+    },
+    lastError: lastErrorTimestamp,
     dataRoot: MBS_DATA_ROOT,
     agentsRoot: MBS_AGENTS_ROOT,
     promptsRoot: MBS_PROMPTS_ROOT,
@@ -66,6 +94,50 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString() 
   });
 });
+
+// Serve Vite frontend build in production (container mode)
+if (process.env.NODE_ENV === 'production') {
+  const distDir = path.resolve(__dirname, '../../dist');
+  if (fs.existsSync(distDir)) {
+    app.use(express.static(distDir));
+    console.log(`📦 Serving static frontend from ${distDir}`);
+  }
+}
+
+// Dashboard error logging endpoint
+app.post('/api/errors', (req, res) => {
+  try {
+    const { error, componentStack, url, timestamp: clientTimestamp } = req.body;
+    const logsDir = path.join(MBS_DATA_ROOT, 'logs');
+    fs.mkdirSync(logsDir, { recursive: true });
+    const logPath = path.join(logsDir, 'dashboard-errors.log');
+
+    const entry = JSON.stringify({
+      timestamp: clientTimestamp || new Date().toISOString(),
+      error: error || 'Unknown error',
+      componentStack: componentStack || null,
+      url: url || null,
+    });
+
+    fs.appendFileSync(logPath, entry + '\n');
+    lastErrorTimestamp = new Date().toISOString();
+    res.json({ logged: true });
+  } catch (e) {
+    console.error('Failed to log dashboard error:', e);
+    res.status(500).json({ logged: false });
+  }
+});
+
+// SPA fallback — serve index.html for non-API routes (client-side routing)
+if (process.env.NODE_ENV === 'production') {
+  const distDir = path.resolve(__dirname, '../../dist');
+  const indexHtml = path.join(distDir, 'index.html');
+  if (fs.existsSync(indexHtml)) {
+    app.get('*', (_req, res) => {
+      res.sendFile(indexHtml);
+    });
+  }
+}
 
 // Start HTTP server
 const httpServer = createServer(app);

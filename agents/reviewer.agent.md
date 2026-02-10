@@ -1,6 +1,7 @@
 ---
 name: Reviewer
 description: 'Reviewer agent - Validates completed work against requirements. Use when the Executor finishes a phase.'
+last_verified: '2026-02-10'
 tools: ['read', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Return to Coordinator"
@@ -83,7 +84,7 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 |------|--------|--------|
 | `memory_agent` | `init` | Record your activation AND get full plan state (CALL FIRST) |
 | `memory_agent` | `validate` | Verify you're the correct agent (agent_type: Reviewer) |
-| `memory_agent` | `handoff` | Transfer to Tester or Executor |
+| `memory_agent` | `handoff` | Recommend next agent to Coordinator |
 | `memory_agent` | `complete` | Mark your session complete |
 | `memory_context` | `get` | Compare against audit findings |
 | `memory_context` | `store` | Save review report |
@@ -126,7 +127,7 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 
 ## Re-indexing After Review
 
-When the review passes, you MUST call `reindex_workspace` to update the workspace profile. This ensures:
+When the review passes, you MUST call `memory_workspace` (action: `reindex`) to update the workspace profile. This ensures:
 - New files are tracked in the codebase profile
 - New dependencies/frameworks are detected
 - File counts and line counts are accurate

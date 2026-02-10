@@ -1,6 +1,7 @@
 ---
 name: Tester
 description: 'Tester agent - Writes tests after each phase review, runs all tests after plan completion. Has two modes: WRITE and RUN.'
+last_verified: '2026-02-10'
 tools: ['execute', 'read', 'edit', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Return to Coordinator"
@@ -183,8 +184,12 @@ If the plan was created from a template, ensure template-related flows are cover
 |------|--------|------------|----------|
 | File read/edit | - | ✅ Read impl, write tests | ✅ Read test files |
 | Terminal | - | ❌ No test execution | ✅ Run test commands |
+| `memory_agent` | `init` | Record activation (CALL FIRST) | Record activation (CALL FIRST) |
+| `memory_agent` | `validate` | Verify agent_type: Tester | Verify agent_type: Tester |
+| `memory_agent` | `handoff` | → Coordinator (recommend next) | → Coordinator (recommend Archivist or Revisionist) |
+| `memory_agent` | `complete` | Mark session complete | Mark session complete |
+| `memory_context` | `get` | Retrieve test_plan or context | Retrieve test_plan or context |
 | `memory_context` | `store` | `test_plan` | `test_results` |
-| `memory_agent` | `handoff` | → Coordinator | → Archivist or Revisionist |
 | `memory_steps` | `insert` | Insert a step at a specific index | - |
 | `memory_steps` | `delete` | Delete a step by index | - |
 | `memory_steps` | `reorder` | Move steps up/down | - |

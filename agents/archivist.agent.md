@@ -1,6 +1,7 @@
 ---
 name: Archivist
 description: 'Archivist agent - Finalizes work with git commits and archives the plan. Use after all tests pass.'
+last_verified: '2026-02-10'
 tools: ['execute', 'read', 'edit', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Return to Coordinator"
@@ -21,7 +22,7 @@ handoffs:
 
 **If you skip these steps, your work will not be tracked and the system will fail.**
 
-**If the MCP tools (memory_agent, plan, context) are not available, STOP and tell the user that Project Memory MCP is not connected.**
+**If the MCP tools (memory_workspace, memory_plan, memory_steps, memory_agent, memory_context) are not available, STOP and tell the user that Project Memory MCP is not connected.**
 
 ---
 
