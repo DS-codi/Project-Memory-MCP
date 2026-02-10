@@ -538,7 +538,46 @@ const state = plan (action: get) with workspace_id: workspaceId, plan_id: active
 
 ---
 
-## 🚀 STARTUP SEQUENCE
+## � SUBAGENT INTERRUPTION RECOVERY
+
+When a user cancels/stops a subagent mid-execution (e.g., "it's going off-script", "stop"), you **must** run this recovery protocol before spawning the next agent.
+
+> **Full protocol details:** See `instructions/subagent-recovery.instructions.md`
+
+### Quick Recovery Steps
+
+1. **Assess damage:** `git diff --stat` to see what files were touched
+2. **Check plan state:** `memory_plan(action: get)` — look for steps stuck in "active" status
+3. **Check codebase health:** `get_errors()` — are there compile/lint errors from partial work?
+4. **Ask the user** what went wrong and how to proceed:
+   - Revert all changes and re-attempt with tighter scope?
+   - Keep changes but course-correct?
+   - Revert specific files only?
+5. **Course-correct:** Reset "active" steps to "pending", revert files as needed, re-spawn with **scope guardrails** (see below)
+
+### After Recovery
+
+When re-spawning the subagent, **always add explicit scope boundaries** to the prompt:
+
+```
+SCOPE BOUNDARIES (strictly enforced):
+- ONLY modify these files: {explicit file list}
+- ONLY create files in these directories: {directory list}
+- Do NOT refactor, rename, or restructure code outside your scope
+- Do NOT install new dependencies without explicit instruction
+- If your task requires changes beyond this scope, STOP and use
+  memory_agent(action: handoff) to report back. Do NOT expand scope yourself.
+
+SCOPE ESCALATION:
+If completing this task requires out-of-scope changes, you MUST:
+1. Document what additional changes are needed and why
+2. Call memory_agent(action: handoff) with the expanded scope details
+3. Call memory_agent(action: complete) — do NOT proceed with out-of-scope changes
+```
+
+---
+
+## �🚀 STARTUP SEQUENCE
 
 ### 1. Initialize
 ```
@@ -944,6 +983,21 @@ PHASE: {current_phase}
 TASK: Implement the following steps:
 {list of pending steps for this phase}
 
+SCOPE BOUNDARIES (strictly enforced):
+- ONLY modify these files: {list files from affected_files context}
+- ONLY create files in these directories: {target directories}
+- Do NOT refactor, rename, or restructure code outside your scope
+- Do NOT install new dependencies without explicit instruction
+- Do NOT modify configuration files unless specifically tasked
+- If your task requires changes beyond this scope, STOP and use
+  memory_agent(action: handoff) to report back. Do NOT expand scope yourself.
+
+SCOPE ESCALATION:
+If completing this task requires out-of-scope changes, you MUST:
+1. Document what additional changes are needed and why
+2. Call memory_agent(action: handoff) with the expanded scope details
+3. Call memory_agent(action: complete) — do NOT proceed with out-of-scope changes
+
 CONTEXT RETRIEVAL (do this first):
 - Call `memory_context(action: get, type: "audit")` for the codebase audit
 - Call `memory_context(action: get, type: "architecture")` for design decisions
@@ -955,6 +1009,9 @@ CONTEXT RETRIEVAL (do this first):
 After completing all steps:
 1. Call `memory_agent` (action: handoff) to Coordinator with recommendation for Builder
 2. Call `memory_agent` (action: complete) with summary
+
+You are a spoke agent. Do NOT call runSubagent to spawn other agents.
+Use memory_agent(action: handoff) to recommend the next agent back to the Coordinator.
 ```
 
 ### For Builder:

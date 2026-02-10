@@ -228,10 +228,19 @@ TASK: Implement experiment E001:
 - Print results for each file
 - Files are in: ./samples/
 
+SCOPE BOUNDARIES (strictly enforced):
+- ONLY modify/create files in: ./tools/, ./experiments/
+- Do NOT modify existing source code or config files
+- If your task requires changes beyond this scope, STOP and use
+  memory_agent(action: handoff) to report back. Do NOT expand scope yourself.
+
 CONTEXT RETRIEVAL (do this first):
 - Call memory_context(action: get, type: "research_summary") for my findings
 - Call memory_context(action: get, type: "hypothesis") for current theory
-- Do NOT perform broad codebase research — context is provided.`,
+- Do NOT perform broad codebase research — context is provided.
+
+You are a spoke agent. Do NOT call runSubagent to spawn other agents.
+Use memory_agent(action: handoff) to recommend the next agent back to the Analyst.`,
   description: "Implement header parsing experiment"
 })
 
@@ -575,14 +584,39 @@ agent (action: complete) // ❌ TOO EARLY!
 
 ---
 
+## 🛑 SUBAGENT INTERRUPTION RECOVERY
+
+When a user cancels/stops a subagent you spawned (e.g., "it's going off-script", "stop"), run this recovery protocol before continuing your investigation.
+
+> **Full protocol details:** See `instructions/subagent-recovery.instructions.md`
+
+### Quick Recovery Steps
+
+1. **Assess damage:** `git diff --stat` to see what files were touched
+2. **Check plan state:** `memory_plan(action: get)` — look for steps stuck in "active" status
+3. **Check codebase health:** `get_errors()` — are there compile/lint errors from partial work?
+4. **Ask the user** what went wrong and how to proceed:
+   - Revert all changes and re-attempt with tighter scope?
+   - Keep changes but course-correct?
+   - Revert specific files only?
+5. **Course-correct:** Reset "active" steps to "pending", revert files as needed, re-spawn with **scope guardrails** (see below)
+
+### After Recovery
+
+When re-spawning, always add explicit scope boundaries to the prompt (see Scope Guardrails in the spawning section below).
+
+---
+
 ## 🎯 ANALYST DECISION PATTERNS
 
 ### When to Spawn Subagents
 
-**IMPORTANT: As a hub agent, you use `runSubagent()` to spawn helpers while staying active. Always include anti-spawning instructions in the prompt!**
+**IMPORTANT: As a hub agent, you use `runSubagent()` to spawn helpers while staying active. Always include anti-spawning AND scope boundary instructions in the prompt!**
 
-**Anti-spawning template** — include this in EVERY subagent prompt:
+**Anti-spawning + scope template** — include this in EVERY subagent prompt:
 > "You are a spoke agent. Do NOT call `runSubagent` to spawn other agents. Use `memory_agent(action: handoff)` to recommend the next agent back to the Analyst."
+>
+> "SCOPE BOUNDARIES (strictly enforced): ONLY modify the files listed in this prompt. Do NOT refactor, rename, or restructure code outside your scope. If your task requires out-of-scope changes, STOP and use memory_agent(action: handoff) to report back. Do NOT expand scope yourself."
 
 | Situation | Subagent | Prompt Pattern | Your Action |
 |-----------|----------|----------------|-------------|

@@ -151,3 +151,22 @@ Use these rules when coordinating non-core agents or alternate flows.
 - **Include anti-spawning instructions** in every subagent prompt.
 - If task grows complex, handoff to Coordinator with recommendation to create a plan.
 - If investigation is required, handoff to Coordinator with recommendation for Analyst.
+## Subagent Interruption Recovery
+
+When a user cancels or interrupts a subagent mid-execution, the hub that spawned it **must** follow the recovery protocol before continuing. See `instructions/subagent-recovery.instructions.md` for the full protocol.
+
+**Quick summary:**
+1. `git diff --stat` — assess what files were changed
+2. `memory_plan(action: get)` — check for steps stuck in "active" status
+3. `get_errors()` — check codebase health
+4. Ask user what went wrong and how to proceed
+5. Course-correct: revert, reset steps, re-spawn with scope guardrails
+
+## Scope Guardrails
+
+**All hub agents MUST include scope boundaries** when spawning subagents. Every `runSubagent` prompt should contain:
+- Explicit list of files the subagent may modify
+- Directories where new files may be created
+- A "SCOPE ESCALATION" block instructing the subagent to stop and handoff if out-of-scope changes are needed
+
+See `instructions/subagent-recovery.instructions.md` for the full scope boundary template.

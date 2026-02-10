@@ -63,6 +63,20 @@ Workspace: {workspace_id} | Path: {workspace_path}
 
 TASK: {task description}
 
+SCOPE BOUNDARIES (strictly enforced):
+- ONLY modify these files: {explicit file list}
+- ONLY create files in these directories: {directory list}
+- Do NOT refactor, rename, or restructure code outside your scope
+- Do NOT install new dependencies without explicit instruction
+- If your task requires changes beyond this scope, STOP and use
+  memory_agent(action: handoff) to report back. Do NOT expand scope yourself.
+
+SCOPE ESCALATION:
+If completing this task requires out-of-scope changes, you MUST:
+1. Document what additional changes are needed and why
+2. Call memory_agent(action: handoff) with the expanded scope details
+3. Call memory_agent(action: complete) — do NOT proceed with out-of-scope changes
+
 CONTEXT RETRIEVAL (do this first):
 - Call memory_context(action: get, type: "affected_files") for file list
 - Call memory_context(action: get, type: "constraints") for constraints
@@ -74,6 +88,23 @@ You are a spoke agent. Do NOT call runSubagent. Use memory_agent(action: handoff
 ```
 
 For tasks that grow complex beyond your scope, escalate to the Coordinator instead (see Escalation section below).
+
+## 🛑 Subagent Interruption Recovery
+
+When a user cancels/stops a subagent you spawned (e.g., "it's going off-script", "stop"), run this recovery protocol before continuing.
+
+> **Full protocol details:** See `instructions/subagent-recovery.instructions.md`
+
+### Quick Recovery Steps
+
+1. **Assess damage:** `git diff --stat` to see what files were touched
+2. **Check plan state:** `memory_plan(action: get)` — look for steps stuck in "active" status
+3. **Check codebase health:** `get_errors()` — are there compile/lint errors from partial work?
+4. **Ask the user** what went wrong and how to proceed:
+   - Revert all changes and re-attempt with tighter scope?
+   - Keep changes but course-correct?
+   - Revert specific files only?
+5. **Course-correct:** Reset "active" steps to "pending", revert files as needed, re-spawn with scope guardrails (use the scoped prompt template above)
 
 ## File Size Discipline (No Monoliths)
 
