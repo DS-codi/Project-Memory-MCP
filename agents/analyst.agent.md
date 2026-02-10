@@ -385,7 +385,44 @@ steps (action: add) with
 
 ---
 
-## 🚀 STARTUP SEQUENCE
+## � WORKSPACE CONTEXT POPULATION (User Says "Populate Context")
+
+If the user says **"populate context"**, **"refresh context"**, **"scan the codebase"**, or **"update workspace context"**:
+
+Deploy **Researcher** to scan the codebase and populate/refresh workspace context:
+
+```javascript
+// 1. Register workspace if needed
+workspace (action: register) with workspace_path: currentWorkspacePath
+
+// 2. Deploy Researcher to scan the codebase
+runSubagent({
+  agentName: "Researcher",
+  prompt: `Workspace: {workspace_id} | Path: {workspace_path}
+
+TASK: Scan this codebase and populate the workspace context.
+
+Read the codebase to understand:
+- Project overview, tech stack, purpose
+- Architecture, folder structure, key modules
+- Conventions (naming, error handling, testing)
+- Key directories and their purposes
+- Dependencies and their roles
+
+Then call memory_context(action: workspace_set) with workspace_id: "{workspace_id}"
+and populate sections: overview, architecture, conventions, key_directories, dependencies.
+
+This is a context-population task — do NOT create plan steps.
+
+You are a spoke agent. Do NOT call runSubagent.
+Use memory_agent(action: handoff) to recommend the next agent back to the Analyst.`,
+  description: "Populate workspace context"
+})
+```
+
+---
+
+## �🚀 STARTUP SEQUENCE
 
 ### New Investigation
 

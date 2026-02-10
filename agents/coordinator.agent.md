@@ -463,7 +463,63 @@ If `stale_knowledge_files` appears in the init response, consider directing the 
 
 ---
 
-## 🔄 SESSION RECOVERY (User Says "Continue")
+## � WORKSPACE CONTEXT POPULATION (User Says "Populate Context")
+
+If the user says **"populate context"**, **"refresh context"**, **"scan the codebase"**, or **"update workspace context"**:
+
+This is a request to deploy **Researcher** to scan the codebase and populate/refresh the workspace context.
+
+### Flow
+
+```javascript
+// 1. Register workspace if needed
+workspace (action: register) with workspace_path: currentWorkspacePath
+
+// 2. Deploy Researcher to scan the codebase
+runSubagent({
+  agentName: "Researcher",
+  prompt: `Workspace: {workspace_id} | Path: {workspace_path}
+
+TASK: Scan this codebase and populate the workspace context.
+
+Read the codebase thoroughly to understand:
+- Project overview (what it does, tech stack, purpose)
+- Architecture (folder structure, key modules, patterns)
+- Conventions (naming, error handling, testing practices)
+- Key directories and their purposes
+- Dependencies and their roles
+
+Then call memory_context(action: workspace_set) with workspace_id: "{workspace_id}"
+and populate these sections:
+- overview: project description, tech stack, purpose
+- architecture: folder structure, key modules, data flow
+- conventions: naming rules, patterns, testing approach
+- key_directories: map of important directories and their purpose
+- dependencies: key deps and why they're used
+
+This is a context-population task, not a plan task — do NOT create plan steps.
+
+You are a spoke agent. Do NOT call runSubagent to spawn other agents.
+Use memory_agent(action: handoff) to recommend the next agent back to the Coordinator.`,
+  description: "Populate workspace context"
+})
+
+// 3. Confirm to user
+"✅ Workspace context has been populated/refreshed."
+```
+
+### When This Differs from Startup Auto-Detection
+
+| Trigger | Agent Used | When |
+|---------|------------|------|
+| Startup auto-detect (stale/missing context) | Architect | Automatic during init |
+| User says "populate context" | Researcher | On-demand, thorough scan |
+
+The Researcher does a more thorough codebase scan than the Architect’s startup check.
+
+---
+
+## �🔄 SESSION RECOVERY (User Says "Continue")
 
 If the user simply says **"continue"**, **"resume"**, or **"pick up where we left off"**:
 
