@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Clock } from 'lucide-react';
 import { Badge } from '../common/Badge';
+import { CopyButton } from '../common/CopyButton';
 import { ProgressBar } from '../common/ProgressBar';
 import { formatRelative } from '@/utils/formatters';
 import { 
@@ -70,7 +71,10 @@ export function PlanCard({ plan, workspaceId }: PlanCardProps) {
           <Clock size={12} />
           <span>Updated {formatRelative(plan.updated_at)}</span>
         </div>
-        <span className="font-mono">{plan.id.slice(-8)}</span>
+        <span className="flex items-center gap-1">
+          <span className="font-mono">{plan.id.slice(-8)}</span>
+          <CopyButton text={plan.id} label="plan ID" size={12} />
+        </span>
       </div>
     </Link>
   );

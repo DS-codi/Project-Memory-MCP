@@ -7,6 +7,7 @@ import type {
   ToolResponse,
   WorkspaceContext,
   WorkspaceContextSection,
+  WorkspaceContextSectionItem,
   WorkspaceMeta
 } from '../types/index.js';
 import * as store from '../storage/file-store.js';
@@ -30,8 +31,66 @@ function getWorkspacePathForValidation(workspace: WorkspaceMeta): string {
   return workspace.workspace_path || workspace.path;
 }
 
+/**
+ * Reserved top-level keys in data that are NOT treated as sections.
+ * Any other keys in data (when data.sections is absent) get auto-wrapped.
+ */
+const RESERVED_DATA_KEYS = new Set([
+  'schema_version', 'workspace_id', 'workspace_path',
+  'identity_file_path', 'name', 'sections',
+  'created_at', 'updated_at', 'update_log', 'audit_log'
+]);
+
+/**
+ * When callers pass flat key-value data without a `sections` wrapper,
+ * auto-convert each non-reserved key into a WorkspaceContextSection.
+ *
+ * - string value → section with `summary`
+ * - array value  → section with `items` (each element becomes { title: JSON.stringify(el) })
+ * - object value → section with `summary` = JSON.stringify(value)
+ */
+function autoWrapAsSections(
+  data: Record<string, unknown>
+): Record<string, unknown> | null {
+  const nonReserved: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (!RESERVED_DATA_KEYS.has(key)) {
+      nonReserved[key] = value;
+    }
+  }
+
+  if (Object.keys(nonReserved).length === 0) {
+    return null;
+  }
+
+  const sections: Record<string, WorkspaceContextSection> = {};
+  for (const [key, value] of Object.entries(nonReserved)) {
+    if (typeof value === 'string') {
+      sections[key] = { summary: value };
+    } else if (Array.isArray(value)) {
+      sections[key] = {
+        items: value.map(item => {
+          if (typeof item === 'string') {
+            return { title: item };
+          }
+          if (item && typeof item === 'object' && typeof (item as Record<string, unknown>).title === 'string') {
+            return item as WorkspaceContextSectionItem;
+          }
+          return { title: JSON.stringify(item) };
+        })
+      };
+    } else if (value && typeof value === 'object') {
+      sections[key] = { summary: JSON.stringify(value) };
+    } else {
+      sections[key] = { summary: String(value) };
+    }
+  }
+
+  return sections;
+}
+
 function parseSections(sections: unknown): ToolResponse<Record<string, WorkspaceContextSection>> {
-  if (sections === undefined) {
+  if (sections === undefined || sections === null) {
     return { success: true, data: {} } as ToolResponse<Record<string, WorkspaceContextSection>>;
   }
 
@@ -235,7 +294,9 @@ export async function setWorkspaceContext(
       };
     }
 
-    const sectionsResult = parseSections(data.sections);
+    // If data.sections is missing, auto-wrap non-reserved keys as sections
+    const sectionsInput = data.sections ?? autoWrapAsSections(data);
+    const sectionsResult = parseSections(sectionsInput);
     if (!sectionsResult.success || !sectionsResult.data) {
       return {
         success: false,
@@ -335,7 +396,9 @@ export async function updateWorkspaceContext(
       };
     }
 
-    const sectionsResult = parseSections(data.sections);
+    // If data.sections is missing, auto-wrap non-reserved keys as sections
+    const sectionsInput = data.sections ?? autoWrapAsSections(data);
+    const sectionsResult = parseSections(sectionsInput);
     if (!sectionsResult.success || !sectionsResult.data) {
       return {
         success: false,

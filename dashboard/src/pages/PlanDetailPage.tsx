@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Clock, GitBranch, ListChecks, FileText, Activity, BarChart, Info, AlertTriangle, MessageSquare, Target, Terminal, Database } from 'lucide-react';
+import { CopyButton } from '@/components/common/CopyButton';
 import { Badge } from '@/components/common/Badge';
 import { ProgressBar } from '@/components/common/ProgressBar';
 import { StepList } from '@/components/plan/StepList';
@@ -176,7 +177,10 @@ export function PlanDetailPage() {
                 planTitle={plan.title}
               />
             </div>
-            <div className="font-mono mb-1">{plan.id}</div>
+            <div className="font-mono mb-1 flex items-center gap-1 justify-end">
+              <span>{plan.id}</span>
+              <CopyButton text={plan.id} label="plan ID" />
+            </div>
             <div className="flex items-center gap-1 justify-end">
               <Clock size={14} />
               Created {formatDate(plan.created_at)}

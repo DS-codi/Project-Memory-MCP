@@ -5,6 +5,8 @@ import { Badge } from '../common/Badge';
 import { statusColors, statusIcons, stepTypeColors } from '@/utils/colors';
 import { displayStepNumber } from '@/utils/formatters';
 import { StepEditor } from './StepEditor';
+import { StepFilterBar, applyFiltersAndSort } from './StepFilterBar';
+import type { StepFilters, StepSort } from './StepFilterBar';
 import { useStepMutations } from '@/hooks/useStepMutations';
 import type { PlanStep, StepStatus, StepType } from '@/types';
 
@@ -119,11 +121,17 @@ export function StepList({ steps, workspaceId, planId, editable = false }: StepL
   const [bulkEditing, setBulkEditing] = useState(false);
   const [editingStepIndex, setEditingStepIndex] = useState<number | null>(null);
   const [collapsedPhases, setCollapsedPhases] = useState<Set<string>>(new Set());
+  const [filters, setFilters] = useState<StepFilters>({ status: [], type: [], assignee: [], search: '' });
+  const [sort, setSort] = useState<StepSort>({ field: 'index', direction: 'asc' });
   const { updateSteps } = useStepMutations();
   const [isSavingStep, setIsSavingStep] = useState(false);
 
+  // Apply filters and sort
+  const filteredSteps = applyFiltersAndSort(steps, filters, sort);
+  const isFiltered = filters.status.length > 0 || filters.type.length > 0 || filters.assignee.length > 0 || filters.search.length > 0;
+
   // Group steps by phase
-  const groupedSteps = steps.reduce((acc, step) => {
+  const groupedSteps = filteredSteps.reduce((acc, step) => {
     if (!acc[step.phase]) {
       acc[step.phase] = [];
     }
@@ -188,6 +196,24 @@ export function StepList({ steps, workspaceId, planId, editable = false }: StepL
 
   return (
     <div className="space-y-6">
+      {/* Filter Bar */}
+      {steps.length > 3 && (
+        <StepFilterBar
+          steps={steps}
+          filters={filters}
+          sort={sort}
+          onFiltersChange={setFilters}
+          onSortChange={setSort}
+        />
+      )}
+
+      {/* Filter summary */}
+      {isFiltered && (
+        <div className="text-sm text-slate-400">
+          Showing {filteredSteps.length} of {steps.length} steps
+        </div>
+      )}
+
       {editable && workspaceId && planId && (
         <div className="flex justify-end">
           <button

@@ -362,7 +362,7 @@ server.tool(
     workspace_id: z.string().describe('Workspace ID'),
     plan_id: z.string().optional().describe('Plan ID (required for plan-scoped actions)'),
     type: z.string().optional().describe('Context type (for store/get)'),
-    data: z.record(z.unknown()).optional().describe('Context data (for store)'),
+    data: z.record(z.unknown()).optional().describe('Context data. For workspace_set/workspace_update: pass either { sections: { sectionName: { summary?, items? } } } or flat key-value pairs that get auto-wrapped as sections (string→summary, array→items, object→JSON summary).'),
     user_request: z.string().optional().describe('User request text (for store_initial)'),
     files_mentioned: z.array(z.string()).optional().describe('Files mentioned by user'),
     file_contents: z.record(z.string()).optional().describe('File contents'),
