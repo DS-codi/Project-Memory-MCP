@@ -58,6 +58,10 @@
           {
             "name": "diagnostics",
             "description": "Run system diagnostics and show health report"
+          },
+          {
+            "name": "knowledge",
+            "description": "Manage workspace knowledge files (list, show, add, delete)"
           }
         ]
       }

@@ -154,11 +154,18 @@ async function moveDirSafe(src: string, dest: string): Promise<void> {
 
 /**
  * Read the `.projectmemory/identity.json` file from a workspace directory.
- * Returns null if the file is missing, malformed, or if the stored workspace_path
- * does not match the provided path (guards against copied identity files).
+ * Returns null if the file is missing or malformed.
+ *
+ * Path validation behaviour:
+ * - If `expectedWorkspaceId` is provided and matches the identity file's
+ *   `workspace_id`, the identity is accepted **even when paths differ**
+ *   (cross-machine scenario). A warning is logged for diagnostics.
+ * - Otherwise, a path mismatch still causes rejection (guards against
+ *   copied identity files when no expected ID is available).
  */
 export async function readWorkspaceIdentityFile(
-  workspacePath: string
+  workspacePath: string,
+  expectedWorkspaceId?: string
 ): Promise<WorkspaceIdentityFile | null> {
   const resolvedPath = safeResolvePath(workspacePath);
   const identityPath = getWorkspaceIdentityPath(resolvedPath);
@@ -171,6 +178,15 @@ export async function readWorkspaceIdentityFile(
   const normalizedInput = normalizeWorkspacePath(resolvedPath);
   const normalizedIdentity = normalizeWorkspacePath(identity.workspace_path);
   if (normalizedInput !== normalizedIdentity) {
+    // If we have an expected workspace_id and it matches, accept despite path mismatch
+    if (expectedWorkspaceId && identity.workspace_id === expectedWorkspaceId) {
+      console.warn(
+        `[workspace-identity] Path mismatch but workspace_id matches (cross-machine): ` +
+        `expected_id=${expectedWorkspaceId}, path_in_file=${identity.workspace_path}, ` +
+        `current_path=${resolvedPath}. Accepting identity.`
+      );
+      return identity;
+    }
     return null;
   }
 

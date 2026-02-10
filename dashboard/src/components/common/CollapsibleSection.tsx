@@ -9,6 +9,8 @@ interface CollapsibleSectionProps {
   badge?: ReactNode;
   actions?: ReactNode;
   className?: string;
+  /** Called when section is toggled open/closed. Useful for lazy-loading content. */
+  onToggle?: (isOpen: boolean) => void;
   children: ReactNode;
 }
 
@@ -24,6 +26,7 @@ export function CollapsibleSection({
   badge,
   actions,
   className,
+  onToggle,
   children,
 }: CollapsibleSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -32,7 +35,13 @@ export function CollapsibleSection({
     <div className={cn('border border-slate-700 rounded-lg overflow-hidden', className)}>
       <button
         type="button"
-        onClick={() => setIsOpen(prev => !prev)}
+        onClick={() => {
+          setIsOpen(prev => {
+            const next = !prev;
+            onToggle?.(next);
+            return next;
+          });
+        }}
         className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-slate-900/60 hover:bg-slate-900/80 transition-colors text-left"
       >
         <div className="flex items-center gap-2 min-w-0">

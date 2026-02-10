@@ -675,6 +675,9 @@ export interface InitialiseAgentParams {
   plan_id?: string;       // Optional - if not provided, returns available plans
   agent_type: AgentType;
   context: Record<string, unknown>;
+  compact?: boolean;  // Default true - return compact plan state (summarized sessions/lineage/steps)
+  context_budget?: number;  // Optional byte budget - progressively trim response to fit
+  include_workspace_context?: boolean;  // If true, include workspace context summary in response
   validate?: boolean;  // Optional - run validation as part of init
   validation_mode?: 'init+validate';
   deployment_context?: {  // Set by orchestrators to influence validation
@@ -684,9 +687,81 @@ export interface InitialiseAgentParams {
   };
 }
 
+// =============================================================================
+// Compact Plan State (for agent init - reduced payload)
+// =============================================================================
+
+export interface CompactPlanSummary {
+  total_steps: number;
+  pending_steps: number;
+  active_steps: number;
+  done_steps: number;
+  blocked_steps: number;
+  total_sessions: number;
+  total_handoffs: number;
+}
+
+export interface CompactAgentSession {
+  session_id: string;
+  agent_type: AgentType;
+  started_at: string;
+  completed_at?: string;
+  context_keys: string[];  // Object.keys() of context — not full values
+  summary?: string;
+  artifacts?: string[];
+}
+
+export interface CompactPlanState {
+  id: string;
+  workspace_id: string;
+  title: string;
+  description: string;
+  priority: PlanPriority;
+  status: PlanStatus;
+  category: RequestCategory;
+  current_phase: string;
+  current_agent: AgentType | null;
+  recommended_next_agent?: AgentType;
+  deployment_context?: PlanState['deployment_context'];
+  confirmation_state?: ConfirmationState;
+  goals?: string[];
+  success_criteria?: string[];
+  build_scripts?: BuildScript[];
+  created_at: string;
+  updated_at: string;
+  plan_summary: CompactPlanSummary;
+  agent_sessions: { recent: CompactAgentSession[]; total_count: number };
+  lineage: { recent: LineageEntry[]; total_count: number };
+  steps: PlanStep[];  // Filtered to pending/active only by default
+}
+
+// =============================================================================
+// Workspace Context Summary (for agent init - lightweight section overview)
+// =============================================================================
+
+export interface WorkspaceContextSectionSummary {
+  summary?: string;
+  item_count: number;
+}
+
+export interface KnowledgeFileSummary {
+  slug: string;
+  title: string;
+  category: string;
+  updated_at: string;
+}
+
+export interface WorkspaceContextSummary {
+  sections: Record<string, WorkspaceContextSectionSummary>;
+  updated_at?: string;
+  stale_context_warning?: string;  // Warning if context is >30 days old
+  knowledge_files?: KnowledgeFileSummary[];             // All knowledge files (slug, title, category, updated_at)
+  stale_knowledge_files?: { slug: string; title: string; days_old: number }[];  // Knowledge files >60 days old
+}
+
 export interface InitialiseAgentResult {
   session: AgentSession;
-  plan_state: PlanState;
+  plan_state: PlanState | CompactPlanState;
   workspace_status: {
     registered: boolean;
     workspace_id?: string;
@@ -697,6 +772,7 @@ export interface InitialiseAgentResult {
   role_boundaries: AgentRoleBoundaries;  // CRITICAL: Constraints this agent MUST follow
   instruction_files?: AgentInstructionFile[];  // Instruction files for this agent from Coordinator
   validation?: { success: boolean; result?: unknown; error?: string };
+  workspace_context_summary?: WorkspaceContextSummary;  // Opt-in via include_workspace_context=true
 }
 
 export interface HandoffParams {

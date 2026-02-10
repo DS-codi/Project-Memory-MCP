@@ -40,6 +40,9 @@ export interface MemoryAgentParams {
   
   // For init
   context?: Record<string, unknown>;
+  compact?: boolean;  // Default true - return compact plan state
+  context_budget?: number;  // Optional byte budget for plan_state payload
+  include_workspace_context?: boolean;  // If true, include workspace context summary in init response
   validate?: boolean;
   validation_mode?: 'init+validate';
   deployment_context?: {
@@ -109,6 +112,9 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
         plan_id: params.plan_id,
         agent_type: params.agent_type,
         context: params.context || {},
+        compact: params.compact,
+        context_budget: params.context_budget,
+        include_workspace_context: params.include_workspace_context,
         deployment_context: params.deployment_context ? {
           deployed_by: params.deployment_context.deployed_by as any,
           reason: params.deployment_context.reason,

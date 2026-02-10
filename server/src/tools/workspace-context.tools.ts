@@ -30,20 +30,6 @@ function getWorkspacePathForValidation(workspace: WorkspaceMeta): string {
   return workspace.workspace_path || workspace.path;
 }
 
-async function validateWorkspaceIdentity(workspaceId: string, workspace: WorkspaceMeta): Promise<ToolResponse<void>> {
-  const workspacePath = getWorkspacePathForValidation(workspace);
-  const resolvedId = await store.resolveWorkspaceIdForPath(workspacePath);
-
-  if (resolvedId !== workspaceId) {
-    return {
-      success: false,
-      error: `Workspace ID mismatch: resolved ${resolvedId} for path ${workspacePath}, but got ${workspaceId}`
-    };
-  }
-
-  return { success: true };
-}
-
 function parseSections(sections: unknown): ToolResponse<Record<string, WorkspaceContextSection>> {
   if (sections === undefined) {
     return { success: true, data: {} } as ToolResponse<Record<string, WorkspaceContextSection>>;
@@ -144,9 +130,20 @@ async function loadWorkspace(workspaceId: string): Promise<ToolResponse<Workspac
     };
   }
 
-  const identityCheck = await validateWorkspaceIdentity(workspaceId, workspace);
-  if (!identityCheck.success) {
-    return identityCheck as ToolResponse<WorkspaceMeta>;
+  // Informational path check — workspace_id is the primary key, so a path
+  // mismatch (e.g. different mount point across machines) is NOT blocking.
+  try {
+    const workspacePath = getWorkspacePathForValidation(workspace);
+    const resolvedId = await store.resolveWorkspaceIdForPath(workspacePath);
+    if (resolvedId !== workspaceId) {
+      console.warn(
+        `[workspace-context] Path mismatch (informational): workspace_id=${workspaceId}, ` +
+        `path=${workspacePath} resolves to ${resolvedId}. ` +
+        `This is expected when accessing a workspace from a different machine.`
+      );
+    }
+  } catch {
+    // Path resolution may fail on a different machine — ignore
   }
 
   return { success: true, data: workspace };

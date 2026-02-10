@@ -170,6 +170,114 @@ Plan: [plan_id]
 - `completion.json` - Final documentation via `memory_context` (action: store)
 - Plan moved to archived status
 
+## 📚 Knowledge File Generation
+
+After archiving a plan, generate persistent **knowledge files** that capture institutional memory from the completed work. Use the `memory_context` tool with knowledge actions.
+
+### Plan Summary Knowledge File (Required)
+
+After every successful `memory_plan` (action: archive), create a plan-summary knowledge file:
+
+```javascript
+memory_context (action: knowledge_store) with
+  workspace_id: "...",
+  slug: "plan-summary-{plan_id}",       // e.g. "plan-summary-plan_abc123"
+  title: "Plan Summary: {plan title}",
+  category: "plan-summary",
+  content: "## {plan title}\n\n### What Was Accomplished\n- ...\n\n### Key Decisions\n- ...\n\n### Files Created/Modified\n- ...\n\n### Lessons Learned\n- ...",
+  tags: ["plan-summary", "archived"],
+  created_by_agent: "Archivist",
+  created_by_plan: "{plan_id}"
+```
+
+**Content template** — populate from the plan state and session summaries:
+
+```markdown
+## {Plan Title}
+
+**Plan ID:** {plan_id}
+**Completed:** {date}
+**Priority:** {priority}
+
+### What Was Accomplished
+- {Summarize each completed step/phase — use session summaries}
+- {Focus on the outcomes, not the process}
+
+### Key Decisions Made
+- {Design decisions from Architect sessions}
+- {Trade-offs chosen during implementation}
+- {Configuration choices or defaults established}
+
+### Files Created or Modified
+- `path/to/new-file.ts` — {purpose}
+- `path/to/modified-file.ts` — {what changed}
+
+### Lessons Learned
+- {Blockers encountered and how they were resolved}
+- {Patterns discovered during implementation}
+- {Things that should be done differently next time}
+
+### Test Coverage
+- {Number of tests added}
+- {Key test scenarios covered}
+```
+
+### Project Knowledge Files (When Applicable)
+
+After generating the plan-summary, review the completed plan to determine if it revealed any **new project knowledge** that future agents should know. If so, create additional knowledge files:
+
+**When to create knowledge files:**
+- A plan introduced a **new API schema**, database table, or data model → category: `schema`
+- A plan discovered a **limitation** (vendor API rate limit, browser constraint, library bug) → category: `limitation`
+- A plan established a **coding convention** or pattern that should be followed → category: `convention`
+- A plan set up **configuration** (env vars, deployment settings, feature flags) → category: `config`
+- A plan produced **reference material** (architecture diagrams, decision records) → category: `reference`
+
+**Slug format:** `{category}-{descriptive-name}` (e.g., `schema-users-table`, `limitation-vendor-api-rate-limit`)
+
+```javascript
+// Example: New database schema discovered during plan
+memory_context (action: knowledge_store) with
+  workspace_id: "...",
+  slug: "schema-users-table",
+  title: "Users Table Schema",
+  category: "schema",
+  content: "## Users Table\n\n| Column | Type | Notes |\n|--------|------|-------|\n| id | UUID | Primary key |\n| email | VARCHAR(255) | Unique, indexed |\n...",
+  tags: ["database", "postgresql"],
+  created_by_agent: "Archivist",
+  created_by_plan: "{plan_id}"
+
+// Example: Limitation discovered during implementation
+memory_context (action: knowledge_store) with
+  workspace_id: "...",
+  slug: "limitation-vendor-api-rate-limit",
+  title: "Vendor API Rate Limit: 100 req/min",
+  category: "limitation",
+  content: "## Vendor API Rate Limiting\n\nThe external vendor API enforces a rate limit of 100 requests per minute per API key. Exceeding this returns HTTP 429.\n\n### Workarounds\n- Implemented request queue with 600ms minimum interval\n- Added exponential backoff on 429 responses\n\n### Discovered In\nPlan: {plan_id} — during integration testing",
+  tags: ["api", "rate-limit", "vendor"],
+  created_by_agent: "Archivist",
+  created_by_plan: "{plan_id}"
+
+// Example: Convention established during refactoring
+memory_context (action: knowledge_store) with
+  workspace_id: "...",
+  slug: "convention-error-handling-pattern",
+  title: "Error Handling Convention: Result Types",
+  category: "convention",
+  content: "## Error Handling Convention\n\nAll service functions return `{ success: boolean; data?: T; error?: string }` instead of throwing exceptions.\n\n### Pattern\n```typescript\nasync function doSomething(): Promise<Result<Data>> {\n  try { ... return { success: true, data }; }\n  catch (e) { return { success: false, error: e.message }; }\n}\n```\n\n### Established In\nPlan: {plan_id} — adopted during error handling refactor",
+  tags: ["typescript", "error-handling", "convention"],
+  created_by_agent: "Archivist",
+  created_by_plan: "{plan_id}"
+```
+
+**Evaluation checklist** — ask yourself after reading the plan state:
+1. Did the plan add new data structures, APIs, or schemas? → Create `schema` knowledge files
+2. Did any step encounter a blocker or discover a technical constraint? → Create `limitation` knowledge files
+3. Did the plan establish patterns or best practices? → Create `convention` knowledge files
+4. Did the plan set up configuration that other plans need to know? → Create `config` knowledge files
+
+**Note:** Not every plan produces project knowledge files. Only create them when the plan genuinely revealed something reusable. Plan summaries are always required; project knowledge files are situational.
+
 ## Completion Checklist
 
 - [ ] All files committed
@@ -178,6 +286,7 @@ Plan: [plan_id]
 - [ ] PR created (if required)
 - [ ] Documentation updated
 - [ ] Plan archived
+- [ ] Plan-summary knowledge file created
 
 ## Security Boundaries
 

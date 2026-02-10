@@ -91,7 +91,7 @@ WORKDIR /app
 
 # ---- Entrypoint script ----
 COPY container/entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
+RUN sed -i 's/\r$//' /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 # ---- Volume mount points ----
 RUN mkdir -p /data /agents

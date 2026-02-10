@@ -15,6 +15,7 @@ import type {
 } from '../../types/index.js';
 import * as contextTools from '../context.tools.js';
 import * as workspaceContextTools from '../workspace-context.tools.js';
+import * as knowledgeTools from '../knowledge.tools.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
 
 export type ContextAction = 
@@ -29,7 +30,11 @@ export type ContextAction =
   | 'workspace_get'
   | 'workspace_set'
   | 'workspace_update'
-  | 'workspace_delete';
+  | 'workspace_delete'
+  | 'knowledge_store'
+  | 'knowledge_get'
+  | 'knowledge_list'
+  | 'knowledge_delete';
 
 export interface MemoryContextParams {
   action: ContextAction;
@@ -64,6 +69,14 @@ export interface MemoryContextParams {
   
   // For batch_store - store multiple context items at once
   items?: Array<{ type: string; data: Record<string, unknown> }>;
+  
+  // For knowledge_store, knowledge_get, knowledge_delete
+  slug?: string;
+  title?: string;
+  category?: string;
+  tags?: string[];
+  created_by_agent?: string;
+  created_by_plan?: string;
 }
 
 type ContextResult = 
@@ -78,7 +91,11 @@ type ContextResult =
   | { action: 'workspace_get'; data: { context: WorkspaceContext; path: string } }
   | { action: 'workspace_set'; data: { context: WorkspaceContext; path: string } }
   | { action: 'workspace_update'; data: { context: WorkspaceContext; path: string } }
-  | { action: 'workspace_delete'; data: { deleted: boolean; path: string } };
+  | { action: 'workspace_delete'; data: { deleted: boolean; path: string } }
+  | { action: 'knowledge_store'; data: { knowledge_file: knowledgeTools.KnowledgeFile; created: boolean } }
+  | { action: 'knowledge_get'; data: { knowledge_file: knowledgeTools.KnowledgeFile } }
+  | { action: 'knowledge_list'; data: { files: knowledgeTools.KnowledgeFileMeta[]; total: number } }
+  | { action: 'knowledge_delete'; data: { deleted: boolean; slug: string } };
 
 export async function memoryContext(params: MemoryContextParams): Promise<ToolResponse<ContextResult>> {
   const { action, workspace_id, plan_id } = params;
@@ -396,10 +413,78 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
       };
     }
 
+    case 'knowledge_store': {
+      if (!params.slug) {
+        return { success: false, error: 'slug is required for action: knowledge_store' };
+      }
+      if (!params.title) {
+        return { success: false, error: 'title is required for action: knowledge_store' };
+      }
+      const result = await knowledgeTools.storeKnowledgeFile({
+        workspace_id: resolvedWorkspaceId,
+        slug: params.slug,
+        title: params.title,
+        content: params.content || '',
+        category: params.category as knowledgeTools.KnowledgeFileCategory,
+        tags: params.tags,
+        created_by_agent: params.created_by_agent,
+        created_by_plan: params.created_by_plan,
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'knowledge_store' as const, data: result.data! }
+      };
+    }
+
+    case 'knowledge_get': {
+      if (!params.slug) {
+        return { success: false, error: 'slug is required for action: knowledge_get' };
+      }
+      const result = await knowledgeTools.getKnowledgeFile(resolvedWorkspaceId, params.slug);
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'knowledge_get' as const, data: result.data! }
+      };
+    }
+
+    case 'knowledge_list': {
+      const result = await knowledgeTools.listKnowledgeFiles(
+        resolvedWorkspaceId,
+        params.category
+      );
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'knowledge_list' as const, data: result.data! }
+      };
+    }
+
+    case 'knowledge_delete': {
+      if (!params.slug) {
+        return { success: false, error: 'slug is required for action: knowledge_delete' };
+      }
+      const result = await knowledgeTools.deleteKnowledgeFile(resolvedWorkspaceId, params.slug);
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'knowledge_delete' as const, data: result.data! }
+      };
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: store, get, store_initial, list, list_research, append_research, generate_instructions, batch_store, workspace_get, workspace_set, workspace_update, workspace_delete`
+        error: `Unknown action: ${action}. Valid actions: store, get, store_initial, list, list_research, append_research, generate_instructions, batch_store, workspace_get, workspace_set, workspace_update, workspace_delete, knowledge_store, knowledge_get, knowledge_list, knowledge_delete`
       };
   }
 }

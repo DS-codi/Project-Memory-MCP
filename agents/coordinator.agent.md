@@ -192,7 +192,7 @@ Example flow with Analyst:
 ### MCP Tools (Project Memory v2.0 - Consolidated)
 | Tool | Action | Purpose |
 |------|--------|---------|
-| `memory_agent` | `init` | Record your activation (CALL FIRST) |
+| `memory_agent` | `init` | Record your activation (CALL FIRST). Returns **compact** plan state by default (trimmed sessions/lineage, pending steps only). Pass `compact: false` for full state. Pass `context_budget: <bytes>` for progressive trimming. Pass `include_workspace_context: true` to get workspace context summary (section names, item counts, staleness warnings). |
 | `memory_agent` | `validate` | Verify you're the correct agent (agent_type: Coordinator) |
 | `memory_agent` | `complete` | Mark session complete |
 | `memory_workspace` | `register` | Register a new workspace |
@@ -382,7 +382,89 @@ When a subagent calls `memory_agent` (action: init), it automatically receives a
 
 ---
 
-## � SESSION RECOVERY (User Says "Continue")
+## 📚 USING WORKSPACE KNOWLEDGE FILES
+
+Workspace knowledge files are persistent, named documents that store institutional memory across plans. They are stored at `/data/{workspace_id}/knowledge/{slug}.json` and managed via `memory_context` actions: `knowledge_store`, `knowledge_get`, `knowledge_list`, `knowledge_delete`.
+
+### What Are Knowledge Files?
+
+Knowledge files capture reusable project information that outlives any single plan:
+
+| Category | Examples | Created By |
+|----------|----------|------------|
+| `plan-summary` | What a completed plan achieved, decisions made | Archivist (after archiving) |
+| `schema` | Database tables, API contracts, data models | Archivist or Executor |
+| `convention` | Error handling patterns, naming rules, testing practices | Archivist |
+| `limitation` | Rate limits, vendor constraints, known issues | Archivist or Researcher |
+| `config` | Environment setup, deployment details, build config | Archivist or Executor |
+| `reference` | External docs, architecture decisions, design rationale | Archivist or Researcher |
+
+### Checking Available Knowledge at Init
+
+When you call `memory_agent` (action: init) with `include_workspace_context: true`, the response includes a `knowledge_files` array:
+
+```javascript
+// In init response → workspace_context_summary:
+{
+  "knowledge_files": [
+    { "slug": "schema-users-table", "title": "Users Table Schema", "category": "schema", "updated_at": "..." },
+    { "slug": "convention-error-handling", "title": "Error Handling Patterns", "category": "convention", "updated_at": "..." },
+    { "slug": "plan-summary-plan_abc123", "title": "Plan: Add Auth Module", "category": "plan-summary", "updated_at": "..." }
+  ],
+  "stale_knowledge_files": ["limitation-old-vendor-api"]  // 60+ days old
+}
+```
+
+### Directing Subagents to Knowledge Files
+
+**Before spawning a subagent**, review the available knowledge files and include relevant slugs in the subagent prompt or instruction file. This is how institutional memory flows to the right agent at the right time.
+
+**When generating instruction files** (via `memory_context` action: `generate_instructions`), include relevant knowledge file slugs in the `files_to_read` or `constraints` fields:
+
+```javascript
+context (action: generate_instructions) with
+  workspace_id: "...",
+  plan_id: "...",
+  target_agent: "Executor",
+  mission: "Add user profile endpoints",
+  constraints: [
+    "Read knowledge file 'schema-users-table' for the current database schema",
+    "Follow patterns in knowledge file 'convention-error-handling'",
+    "Be aware of limitations in 'limitation-vendor-api-rate-limit'"
+  ],
+  files_to_read: [
+    "knowledge:schema-users-table",
+    "knowledge:convention-error-handling"
+  ]
+```
+
+**When spawning subagents directly**, mention relevant knowledge files in the prompt:
+
+```
+Before implementing, read these knowledge files for context:
+- `memory_context` (action: knowledge_get, slug: "schema-users-table") — current DB schema
+- `memory_context` (action: knowledge_get, slug: "convention-error-handling") — error handling patterns
+
+These contain project-specific context from previous plans.
+```
+
+### When to Direct Agents to Knowledge Files
+
+| Scenario | Knowledge to Reference |
+|----------|----------------------|
+| Implementing database changes | `schema-*` files for current table structures |
+| Adding new API endpoints | `convention-*` files for patterns, `schema-*` for data models |
+| Investigating bugs | `limitation-*` files for known constraints, `plan-summary-*` for recent changes |
+| Researching before design | `plan-summary-*` files for what's been tried before |
+| Setting up environments | `config-*` files for deployment/build details |
+
+### Refreshing Stale Knowledge
+
+If `stale_knowledge_files` appears in the init response, consider directing the Archivist or Researcher to review and update those files during the next relevant plan.
+
+---
+
+## 🔄 SESSION RECOVERY (User Says "Continue")
 
 If the user simply says **"continue"**, **"resume"**, or **"pick up where we left off"**:
 

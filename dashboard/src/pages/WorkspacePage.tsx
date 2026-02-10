@@ -10,6 +10,7 @@ import { CopilotStatusPanel } from '@/components/workspace/CopilotStatusPanel';
 import { DeployModal } from '@/components/workspace/DeployModal';
 import { DeployDefaultsCard } from '@/components/workspace/DeployDefaultsCard';
 import { WorkspaceContextPanel } from '@/components/workspace/WorkspaceContextPanel';
+import { KnowledgeFilesPanel } from '@/components/workspace/KnowledgeFilesPanel';
 import { useCopilotStatus } from '@/hooks/useCopilotStatus';
 import { formatDate, formatRelative } from '@/utils/formatters';
 import { getDeployDefaults, type DeployDefaults } from '@/utils/deployDefaults';
@@ -188,6 +189,7 @@ export function WorkspacePage() {
           workspaceId={workspaceId!}
           workspaceName={workspace.name}
         />
+        <KnowledgeFilesPanel workspaceId={workspaceId!} />
       </div>
 
       {/* Plan Templates */}

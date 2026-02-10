@@ -92,7 +92,7 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 
 | Tool | Action | Purpose |
 |------|--------|--------|
-| `memory_agent` | `init` | Record your activation AND get full plan state (CALL FIRST) |
+| `memory_agent` | `init` | Record your activation AND get plan state (CALL FIRST). Returns **compact** state by default (≤3 sessions, ≤3 lineage, pending/active steps only). Pass `compact: false` for full state, `context_budget: <bytes>` for budget-based trimming, `include_workspace_context: true` for workspace context summary. |
 | `memory_agent` | `validate` | Verify you're the correct agent (agent_type: Executor) |
 | `memory_agent` | `handoff` | Recommend next agent to Coordinator |
 | `memory_agent` | `complete` | Mark your session complete |

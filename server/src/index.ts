@@ -322,6 +322,9 @@ server.tool(
     plan_id: z.string().optional().describe('Plan ID'),
     agent_type: AgentTypeSchema.optional().describe('Agent type'),
     context: z.record(z.unknown()).optional().describe('Context data (for init)'),
+    compact: z.boolean().optional().describe('Default true - return compact plan state with summarized sessions/lineage/steps'),
+    context_budget: z.number().optional().describe('Optional byte budget - progressively trim plan_state payload to fit'),
+    include_workspace_context: z.boolean().optional().describe('If true, include workspace context summary (sections, item counts, staleness) in init response'),
     validate: z.boolean().optional().describe('If true, run validation during init'),
     validation_mode: z.enum(['init+validate']).optional().describe('Run validation as part of init and return result'),
     deployment_context: z.object({
@@ -353,9 +356,9 @@ server.tool(
 
 server.tool(
   'memory_context',
-  'Consolidated context and research management tool. Actions: store (store plan context), get (retrieve plan context), store_initial (store initial user request), list (list plan context files), list_research (list research notes), append_research (add research note), generate_instructions (generate plan instructions file), batch_store (store multiple context items at once), workspace_get/workspace_set/workspace_update/workspace_delete (workspace-scoped context CRUD).',
+  'Consolidated context and research management tool. Actions: store (store plan context), get (retrieve plan context), store_initial (store initial user request), list (list plan context files), list_research (list research notes), append_research (add research note), generate_instructions (generate plan instructions file), batch_store (store multiple context items at once), workspace_get/workspace_set/workspace_update/workspace_delete (workspace-scoped context CRUD), knowledge_store/knowledge_get/knowledge_list/knowledge_delete (workspace knowledge file CRUD).',
   {
-    action: z.enum(['store', 'get', 'store_initial', 'list', 'list_research', 'append_research', 'generate_instructions', 'batch_store', 'workspace_get', 'workspace_set', 'workspace_update', 'workspace_delete']).describe('The action to perform'),
+    action: z.enum(['store', 'get', 'store_initial', 'list', 'list_research', 'append_research', 'generate_instructions', 'batch_store', 'workspace_get', 'workspace_set', 'workspace_update', 'workspace_delete', 'knowledge_store', 'knowledge_get', 'knowledge_list', 'knowledge_delete']).describe('The action to perform'),
     workspace_id: z.string().describe('Workspace ID'),
     plan_id: z.string().optional().describe('Plan ID (required for plan-scoped actions)'),
     type: z.string().optional().describe('Context type (for store/get)'),
@@ -374,7 +377,13 @@ server.tool(
     items: z.array(z.object({
       type: z.string(),
       data: z.record(z.unknown())
-    })).optional().describe('Array of context items to store (for batch_store)')
+    })).optional().describe('Array of context items to store (for batch_store)'),
+    slug: z.string().optional().describe('Knowledge file slug (for knowledge_store/knowledge_get/knowledge_delete)'),
+    title: z.string().optional().describe('Knowledge file title (for knowledge_store)'),
+    category: z.string().optional().describe('Knowledge file category (for knowledge_store/knowledge_list)'),
+    tags: z.array(z.string()).optional().describe('Knowledge file tags (for knowledge_store)'),
+    created_by_agent: z.string().optional().describe('Agent that created the knowledge file'),
+    created_by_plan: z.string().optional().describe('Plan that created the knowledge file'),
   },
   async (params) => {
     const result = await withLogging('memory_context', params, () =>

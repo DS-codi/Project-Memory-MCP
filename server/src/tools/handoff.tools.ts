@@ -36,6 +36,8 @@ import * as store from '../storage/file-store.js';
 import { verifyLineageIntegrity, sanitizeJsonData } from '../security/sanitize.js';
 import { events } from '../events/event-emitter.js';
 import * as contextTools from './context.tools.js';
+import { compactifyPlanState, compactifyWithBudget } from '../utils/compact-plan-state.js';
+import { buildWorkspaceContextSummary } from '../utils/workspace-context-summary.js';
 
 /**
  * Initialize an agent session - MUST be called first by every agent
@@ -212,11 +214,30 @@ export async function initialiseAgent(
       // Instruction file discovery failure is non-fatal, just continue without them
     }
     
+    // Determine plan_state payload: compact (default) or full
+    const useCompact = params.compact !== false;
+    let plan_state_payload: typeof state | ReturnType<typeof compactifyPlanState> = state;
+    if (useCompact) {
+      plan_state_payload = params.context_budget
+        ? compactifyWithBudget(state, params.context_budget)
+        : compactifyPlanState(state);
+    }
+
+    // Optionally load workspace context summary
+    let workspace_context_summary: import('../types/index.js').WorkspaceContextSummary | undefined;
+    if (params.include_workspace_context) {
+      try {
+        workspace_context_summary = await buildWorkspaceContextSummary(workspace_id);
+      } catch {
+        // Non-fatal: if context loading fails, just omit the field
+      }
+    }
+
     return {
       success: true,
       data: {
         session,
-        plan_state: state,
+        plan_state: plan_state_payload,
         workspace_status: {
           registered: true,
           workspace_id,
@@ -225,7 +246,8 @@ export async function initialiseAgent(
           message: `Agent ${agent_type} initialized. Plan: "${state.title}" | Phase: ${state.current_phase} | Steps: ${state.steps.filter(s => s.status === 'done').length}/${state.steps.length} complete | Handoffs: ${state.lineage.length}`
         },
         role_boundaries,
-        instruction_files
+        instruction_files,
+        workspace_context_summary
       }
     };
   } catch (error) {

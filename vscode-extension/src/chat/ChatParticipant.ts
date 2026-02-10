@@ -8,6 +8,7 @@
 import * as vscode from 'vscode';
 import { McpBridge } from './McpBridge';
 import { resolveWorkspaceIdentity } from '../utils/workspace-identity';
+import { handleKnowledgeCommand } from './KnowledgeCommandHandler';
 
 /**
  * Plan state returned from MCP server
@@ -103,6 +104,8 @@ export class ChatParticipant implements vscode.Disposable {
                     return await this.handleDeployCommand(request, response, token);
                 case 'diagnostics':
                     return await this.handleDiagnosticsCommand(request, response, token);
+                case 'knowledge':
+                    return await handleKnowledgeCommand(request, response, token, this.mcpBridge, this.workspaceId);
                 default:
                     return await this.handleDefaultCommand(request, response, token);
             }
@@ -327,6 +330,10 @@ export class ChatParticipant implements vscode.Disposable {
 
     /**
      * Handle /context command - get workspace context
+     *
+     * Subcommands:
+     *   /context           — Show workspace info, codebase profile, context sections, knowledge summary
+     *   /context set {key} {value} — Set a workspace context section summary
      */
     private async handleContextCommand(
         request: vscode.ChatRequest,
@@ -336,6 +343,12 @@ export class ChatParticipant implements vscode.Disposable {
         if (!this.workspaceId) {
             response.markdown('⚠️ Workspace not registered.');
             return { metadata: { command: 'context' } };
+        }
+
+        // Check for /context set subcommand
+        const prompt = request.prompt.trim();
+        if (prompt.toLowerCase().startsWith('set ')) {
+            return await this.handleContextSetSubcommand(prompt.slice(4).trim(), response);
         }
 
         response.markdown('🔍 **Gathering workspace context...**\n\n');
@@ -370,7 +383,166 @@ export class ChatParticipant implements vscode.Disposable {
             response.markdown(`**Workspace ID**: \`${this.workspaceId}\`\n`);
         }
 
+        // Fetch workspace context sections
+        try {
+            response.progress('Fetching workspace context...');
+
+            interface WorkspaceContextResponse {
+                sections?: Record<string, {
+                    summary?: string;
+                    items?: Array<{ title: string; description?: string; links?: string[] }>;
+                }>;
+                updated_at?: string;
+            }
+
+            const contextResult = await this.mcpBridge.callTool<WorkspaceContextResponse>(
+                'memory_context',
+                { action: 'workspace_get', workspace_id: this.workspaceId }
+            );
+
+            const sections = contextResult?.sections;
+            if (sections && Object.keys(sections).length > 0) {
+                const SECTION_LABELS: Record<string, string> = {
+                    project_details: 'Project Details',
+                    purpose: 'Purpose',
+                    dependencies: 'Dependencies',
+                    modules: 'Modules',
+                    test_confirmations: 'Test Confirmations',
+                    dev_patterns: 'Dev Patterns',
+                    resources: 'Resources',
+                };
+
+                const formatLabel = (key: string): string => {
+                    if (SECTION_LABELS[key]) { return SECTION_LABELS[key]; }
+                    return key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                };
+
+                response.markdown('\n## Workspace Context\n\n');
+
+                if (contextResult.updated_at) {
+                    response.markdown(`*Last updated: ${new Date(contextResult.updated_at).toLocaleString()}*\n\n`);
+                }
+
+                for (const [key, section] of Object.entries(sections)) {
+                    const itemCount = section.items?.length ?? 0;
+                    const hasSummary = !!section.summary?.trim();
+
+                    if (!hasSummary && itemCount === 0) { continue; }
+
+                    response.markdown(`### ${formatLabel(key)}\n\n`);
+
+                    if (hasSummary) {
+                        response.markdown(`${section.summary}\n\n`);
+                    }
+
+                    if (itemCount > 0) {
+                        response.markdown(`*${itemCount} item${itemCount > 1 ? 's' : ''}*\n\n`);
+                    }
+                }
+            } else {
+                response.markdown('\n*No workspace context sections configured yet.*\n');
+            }
+        } catch {
+            // Non-fatal: workspace context may not exist yet
+        }
+
+        // Fetch knowledge files summary
+        try {
+            response.progress('Fetching knowledge files...');
+
+            interface KnowledgeFileMeta {
+                slug: string;
+                title: string;
+                category: string;
+                updated_at?: string;
+            }
+
+            const knowledgeResult = await this.mcpBridge.callTool<{ files: KnowledgeFileMeta[] }>(
+                'memory_context',
+                { action: 'knowledge_list', workspace_id: this.workspaceId }
+            );
+
+            const files = knowledgeResult?.files ?? [];
+            if (files.length > 0) {
+                response.markdown('\n## Knowledge Files\n\n');
+                response.markdown(`**${files.length}** file${files.length > 1 ? 's' : ''} available:\n\n`);
+
+                for (const f of files) {
+                    response.markdown(`- **${f.title}** (${f.category}) — \`${f.slug}\`\n`);
+                }
+
+                response.markdown('\nUse `/knowledge show {slug}` to view details.\n');
+            }
+        } catch {
+            // Non-fatal: knowledge files may not exist yet
+        }
+
         return { metadata: { command: 'context' } };
+    }
+
+    /**
+     * Handle /context set {section_key} {content}
+     */
+    private async handleContextSetSubcommand(
+        args: string,
+        response: vscode.ChatResponseStream,
+    ): Promise<vscode.ChatResult> {
+        if (!this.workspaceId) {
+            response.markdown('⚠️ Workspace not registered.');
+            return { metadata: { command: 'context', action: 'set' } };
+        }
+
+        // Parse: first word is section key, rest is content
+        const spaceIdx = args.indexOf(' ');
+        if (spaceIdx === -1 || !args.trim()) {
+            response.markdown('⚠️ Usage: `/context set {section_key} {content}`\n\n');
+            response.markdown('Example: `/context set project_details This is a TypeScript MCP server…`\n\n');
+            response.markdown('**Available section keys**: `project_details`, `purpose`, `dependencies`, `modules`, `test_confirmations`, `dev_patterns`, `resources`, or any custom key.\n');
+            return { metadata: { command: 'context', action: 'set' } };
+        }
+
+        const sectionKey = args.slice(0, spaceIdx).trim();
+        const content = args.slice(spaceIdx + 1).trim();
+
+        if (!content) {
+            response.markdown('⚠️ Please provide content after the section key.\n');
+            return { metadata: { command: 'context', action: 'set' } };
+        }
+
+        response.progress(`Setting ${sectionKey}…`);
+
+        try {
+            await this.mcpBridge.callTool(
+                'memory_context',
+                {
+                    action: 'workspace_update',
+                    workspace_id: this.workspaceId,
+                    type: sectionKey,
+                    data: { summary: content },
+                }
+            );
+
+            const formatLabel = (key: string): string => {
+                const LABELS: Record<string, string> = {
+                    project_details: 'Project Details',
+                    purpose: 'Purpose',
+                    dependencies: 'Dependencies',
+                    modules: 'Modules',
+                    test_confirmations: 'Test Confirmations',
+                    dev_patterns: 'Dev Patterns',
+                    resources: 'Resources',
+                };
+                return LABELS[key] ?? key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+            };
+
+            response.markdown(`✅ **${formatLabel(sectionKey)}** updated.\n\n`);
+            response.markdown(`> ${content.length > 200 ? content.slice(0, 200) + '…' : content}\n`);
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            response.markdown(`⚠️ Failed to update context section: ${msg}\n`);
+        }
+
+        return { metadata: { command: 'context', action: 'set', sectionKey } };
     }
 
     /**
@@ -612,6 +784,8 @@ export class ChatParticipant implements vscode.Disposable {
             response.markdown('**Available commands:**\n');
             response.markdown('- `/plan` - View, create, or manage plans\n');
             response.markdown('- `/context` - Get workspace context and codebase profile\n');
+            response.markdown('- `/context set {key} {value}` - Set a context section\n');
+            response.markdown('- `/knowledge` - Manage workspace knowledge files\n');
             response.markdown('- `/handoff` - Execute agent handoffs\n');
             response.markdown('- `/status` - Show current plan progress\n');
             response.markdown('- `/deploy` - Deploy agents, prompts, or instructions\n');

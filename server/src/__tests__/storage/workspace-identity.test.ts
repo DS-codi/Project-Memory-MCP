@@ -573,3 +573,94 @@ describe('Regression: no ghost folders after lifecycle', () => {
     expect(ghosts[0].folder_name).toBe('rogue-ws-ffeeddccbbaa');
   });
 });
+
+// ===========================================================================
+// readWorkspaceIdentityFile cross-machine tests (Phase 1)
+// ===========================================================================
+describe('readWorkspaceIdentityFile cross-machine acceptance', () => {
+  it('returns identity when path matches', async () => {
+    const canonicalId = 'my-project-abc123def456';
+    await createIdentityFile(TEST_WORKSPACE_PATH, canonicalId);
+
+    const result = await mod.readWorkspaceIdentityFile(TEST_WORKSPACE_PATH);
+    expect(result).not.toBeNull();
+    expect(result!.workspace_id).toBe(canonicalId);
+  });
+
+  it('returns null when path differs and no expectedWorkspaceId is given', async () => {
+    // Identity file says a different path
+    await createIdentityFile(TEST_WORKSPACE_PATH, 'cross-machine-id-12345', {
+      workspace_path: '/mnt/remote/different-machine/project',
+    });
+
+    const result = await mod.readWorkspaceIdentityFile(TEST_WORKSPACE_PATH);
+    expect(result).toBeNull();
+  });
+
+  it('accepts identity when path differs but expectedWorkspaceId matches', async () => {
+    const canonicalId = 'cross-machine-id-12345';
+    // Identity file has a path from a different machine
+    await createIdentityFile(TEST_WORKSPACE_PATH, canonicalId, {
+      workspace_path: '/mnt/remote/different-machine/project',
+    });
+
+    const result = await mod.readWorkspaceIdentityFile(TEST_WORKSPACE_PATH, canonicalId);
+    expect(result).not.toBeNull();
+    expect(result!.workspace_id).toBe(canonicalId);
+    // The workspace_path in the file is different, but we still accept it
+    expect(result!.workspace_path).toBe('/mnt/remote/different-machine/project');
+  });
+
+  it('returns null when path differs and expectedWorkspaceId does not match', async () => {
+    await createIdentityFile(TEST_WORKSPACE_PATH, 'actual-id-99999', {
+      workspace_path: '/other/machine/path',
+    });
+
+    const result = await mod.readWorkspaceIdentityFile(TEST_WORKSPACE_PATH, 'wrong-id-00000');
+    expect(result).toBeNull();
+  });
+
+  it('returns null when identity.json is missing workspace_id', async () => {
+    const identityDir = path.join(TEST_WORKSPACE_PATH, '.projectmemory');
+    await fs.mkdir(identityDir, { recursive: true });
+    await fs.writeFile(
+      path.join(identityDir, 'identity.json'),
+      JSON.stringify({ workspace_path: TEST_WORKSPACE_PATH }),
+      'utf-8'
+    );
+
+    const result = await mod.readWorkspaceIdentityFile(TEST_WORKSPACE_PATH);
+    expect(result).toBeNull();
+  });
+
+  it('returns null when identity.json is missing workspace_path', async () => {
+    const identityDir = path.join(TEST_WORKSPACE_PATH, '.projectmemory');
+    await fs.mkdir(identityDir, { recursive: true });
+    await fs.writeFile(
+      path.join(identityDir, 'identity.json'),
+      JSON.stringify({ workspace_id: 'some-id-12345' }),
+      'utf-8'
+    );
+
+    const result = await mod.readWorkspaceIdentityFile(TEST_WORKSPACE_PATH);
+    expect(result).toBeNull();
+  });
+
+  it('returns null when identity.json does not exist', async () => {
+    const result = await mod.readWorkspaceIdentityFile(TEST_WORKSPACE_PATH);
+    expect(result).toBeNull();
+  });
+
+  it('returns null when identity.json is malformed JSON', async () => {
+    const identityDir = path.join(TEST_WORKSPACE_PATH, '.projectmemory');
+    await fs.mkdir(identityDir, { recursive: true });
+    await fs.writeFile(
+      path.join(identityDir, 'identity.json'),
+      '{ bad json !!',
+      'utf-8'
+    );
+
+    const result = await mod.readWorkspaceIdentityFile(TEST_WORKSPACE_PATH);
+    expect(result).toBeNull();
+  });
+});
