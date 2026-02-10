@@ -7,6 +7,12 @@ handoffs:
   - label: "🎯 Return to Coordinator"
     agent: Coordinator
     prompt: "Plan archived and finalized."
+  - label: "🏃 Quick task with Runner"
+    agent: Runner
+    prompt: "Execute this task directly:"
+  - label: "🔬 Investigate with Analyst"
+    agent: Analyst
+    prompt: "Need deeper analysis of:"
 ---
 
 # Archivist Agent

@@ -7,6 +7,12 @@ handoffs:
   - label: "🎯 Return to Coordinator"
     agent: Coordinator
     prompt: "Research complete. Findings documented."
+  - label: "🏃 Quick task with Runner"
+    agent: Runner
+    prompt: "Execute this task directly:"
+  - label: "🔬 Investigate with Analyst"
+    agent: Analyst
+    prompt: "Deeper investigation needed:"
 ---
 
 ## 🚨 STOP - READ THIS FIRST 🚨

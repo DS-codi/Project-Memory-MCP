@@ -4,27 +4,12 @@ description: 'Analyst agent - Investigation hub that orchestrates complex analys
 last_verified: '2026-02-10'
 tools: ['vscode', 'execute', 'read', 'edit', 'search', 'filesystem/*', 'git/*', 'project-memory/*', 'agent', 'todo', 'web']
 handoffs:
-  - label: "🎯 Hand off to Coordinator for Implementation"
+  - label: "🎯 Hand off to Coordinator"
     agent: Coordinator
     prompt: "Investigation complete. Create implementation plan for:"
-  - label: "🔬 Research with Researcher"
-    agent: Researcher
-    prompt: "Research the following for the current analysis:"
-  - label: "⚙️ Implement with Executor"
-    agent: Executor
-    prompt: "Implement the following experiment/tool:"
-  - label: "🧪 Test with Tester"
-    agent: Tester
-    prompt: "Write or run tests for:"
-  - label: "🔄 Revise with Revisionist"
-    agent: Revisionist
-    prompt: "Fix the issue found during analysis:"
-  - label: "📦 Archive with Archivist"
-    agent: Archivist
-    prompt: "Archive investigation findings:"
-  - label: "🧠 Brainstorm ideas"
-    agent: Brainstorm
-    prompt: "Explore approaches for:"
+  - label: "🏃 Quick task with Runner"
+    agent: Runner
+    prompt: "Execute this task directly:"
 ---
 
 # Analyst Agent

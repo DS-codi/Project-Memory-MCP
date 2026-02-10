@@ -10,9 +10,6 @@ handoffs:
   - label: "🔬 Investigate with Analyst"
     agent: Analyst
     prompt: "Need deeper investigation of:"
-  - label: "🧠 Brainstorm ideas"
-    agent: Brainstorm
-    prompt: "Explore approaches for:"
 ---
 
 # Runner Agent

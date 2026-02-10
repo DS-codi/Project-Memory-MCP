@@ -7,6 +7,12 @@ handoffs:
   - label: "🎯 Return to Coordinator"
     agent: Coordinator
     prompt: "Architecture plan complete. Ready for implementation."
+  - label: "🏃 Quick task with Runner"
+    agent: Runner
+    prompt: "Execute this task directly:"
+  - label: "🔬 Investigate with Analyst"
+    agent: Analyst
+    prompt: "Need deeper analysis of:"
 ---
 
 ## 🚨 STOP - READ THIS FIRST 🚨

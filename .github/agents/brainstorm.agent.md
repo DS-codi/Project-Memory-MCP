@@ -7,6 +7,12 @@ handoffs:
   - label: "🎯 Pass to Coordinator"
     agent: Coordinator
     prompt: "Create initial plan."
+  - label: "🏃 Quick task with Runner"
+    agent: Runner
+    prompt: "Execute this task directly:"
+  - label: "🔬 Investigate with Analyst"
+    agent: Analyst
+    prompt: "Need deeper analysis of:"
 ---
 
 ## 🧠 YOUR ROLE: COLLABORATIVE IDEA EXPLORER

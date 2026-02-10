@@ -4,33 +4,12 @@ description: 'Coordinator agent - Master orchestrator that manages the entire pl
 last_verified: '2026-02-10'
 tools: ['vscode', 'execute', 'read', 'edit', 'search', 'filesystem/*', 'git/*', 'project-memory/*', 'agent', 'todo']
 handoffs:
-  - label: "🔬 Research with Researcher"
-    agent: Researcher
-    prompt: "Research the following for the current plan:"
-  - label: "📐 Design with Architect"
-    agent: Architect
-    prompt: "Create the implementation plan for:"
-  - label: "⚙️ Implement with Executor"
-    agent: Executor
-    prompt: "Implement the current phase:"
-  - label: "🔍 Review with Reviewer"
-    agent: Reviewer
-    prompt: "Review the implementation for:"
-  - label: "🧪 Test with Tester"
-    agent: Tester
-    prompt: "Write or run tests for:"
-  - label: "� Build with Builder"
-    agent: Builder
-    prompt: "Verify build for:"
-  - label: "�🔄 Revise with Revisionist"
-    agent: Revisionist
-    prompt: "Analyze and fix the issue:"
-  - label: "📦 Archive with Archivist"
-    agent: Archivist
-    prompt: "Finalize and archive the plan:"
+  - label: "🏃 Quick task with Runner"
+    agent: Runner
+    prompt: "Execute this task directly:"
   - label: "🔬 Investigate with Analyst"
     agent: Analyst
-    prompt: "Analyze and compare:"
+    prompt: "Investigate and analyze:"
 ---
 
 # Coordinator Agent
