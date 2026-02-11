@@ -4,6 +4,7 @@ node_modules/
 # Build outputs
 dist/
 build/
+vscode-extension/out/
 
 # Environment files
 .env
