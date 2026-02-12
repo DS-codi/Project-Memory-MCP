@@ -1,93 +1,213 @@
-[2026-02-07T01:16:43.682Z] Found server at: c:\Users\User\Project_Memory_MCP\Project-Memory-MCP\dashboard\server
-[2026-02-07T01:16:43.682Z] Checking if server already exists on port 3001...
-[2026-02-07T01:16:43.738Z] Found existing server - connecting without spawning new process
-[2026-02-07T01:18:57.933Z] Found dashboard at: c:\Users\User\Project_Memory_MCP\Project-Memory-MCP\dashboard
-[2026-02-07T01:18:57.933Z] Starting frontend from: c:\Users\User\Project_Memory_MCP\Project-Memory-MCP\dashboard
-[2026-02-07T01:18:58.234Z] [frontend] > memory-observer@0.1.0 dev
-> vite
-[2026-02-07T01:18:59.056Z] [frontend] [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m741[22m[2m[0m ms[22m
-[2026-02-07T01:18:59.057Z] [frontend] [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
-[2026-02-07T01:18:59.057Z] [frontend] [2m  [32m➜[39m  [1mNetwork[22m[2m: use [22m[1m--host[22m[2m to expose[22m
-[2026-02-07T01:18:59.789Z] Frontend started successfully on port 5173
-[2026-02-07T01:19:01.870Z] [frontend] [2m12:19:01 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/events/stream[39m
-Error: read ECONNRESET
-    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
-[2026-02-07T01:19:01.871Z] [frontend] [2m12:19:01 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
-Error: read ECONNRESET
-    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
-[2026-02-07T01:19:01.871Z] [frontend] [2m12:19:01 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/events/stream[39m
-Error: read ECONNRESET
-    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
-[2026-02-07T01:19:02.876Z] [frontend] [2m12:19:02 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
-AggregateError [ECONNREFUSED]: 
-    at internalConnectMultiple (node:net:1139:18)
-    at afterConnectMultiple (node:net:1712:7)
-[2026-02-07T01:19:04.884Z] [frontend] [2m12:19:04 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
-AggregateError [ECONNREFUSED]: 
-    at internalConnectMultiple (node:net:1139:18)
-    at afterConnectMultiple (node:net:1712:7)
-[2026-02-07T01:19:08.892Z] [frontend] [2m12:19:08 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
-AggregateError [ECONNREFUSED]: 
-    at internalConnectMultiple (node:net:1139:18)
-    at afterConnectMultiple (node:net:1712:7)
-[2026-02-07T01:19:38.900Z] [frontend] [2m12:19:38 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
-AggregateError [ECONNREFUSED]: 
-    at internalConnectMultiple (node:net:1139:18)
-    at afterConnectMultiple (node:net:1712:7)
-[2026-02-07T01:19:38.903Z] [frontend] [2m12:19:38 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/events/stream[39m
-AggregateError [ECONNREFUSED]: 
-    at internalConnectMultiple (node:net:1139:18)
-    at afterConnectMultiple (node:net:1712:7)
-[2026-02-07T01:19:39.905Z] [frontend] [2m12:19:39 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
-AggregateError [ECONNREFUSED]: 
-    at internalConnectMultiple (node:net:1139:18)
-    at afterConnectMultiple (node:net:1712:7)
-[2026-02-07T01:19:41.912Z] [frontend] [2m12:19:41 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
-AggregateError [ECONNREFUSED]: 
-    at internalConnectMultiple (node:net:1139:18)
-    at afterConnectMultiple (node:net:1712:7)
-[2026-02-07T01:19:45.920Z] [frontend] [2m12:19:45 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
-AggregateError [ECONNREFUSED]: 
-    at internalConnectMultiple (node:net:1139:18)
-    at afterConnectMultiple (node:net:1712:7)
-[2026-02-07T01:20:15.926Z] [frontend] [2m12:20:15 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
-AggregateError [ECONNREFUSED]: 
-    at internalConnectMultiple (node:net:1139:18)
-    at afterConnectMultiple (node:net:1712:7)
-[2026-02-07T01:20:15.929Z] [frontend] [2m12:20:15 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/events/stream[39m
-AggregateError [ECONNREFUSED]: 
-    at internalConnectMultiple (node:net:1139:18)
-    at afterConnectMultiple (node:net:1712:7)
-[2026-02-07T01:20:16.933Z] [frontend] [2m12:20:16 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
-AggregateError [ECONNREFUSED]: 
-    at internalConnectMultiple (node:net:1139:18)
-    at afterConnectMultiple (node:net:1712:7)
-[2026-02-07T01:20:18.940Z] [frontend] [2m12:20:18 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
-AggregateError [ECONNREFUSED]: 
-    at internalConnectMultiple (node:net:1139:18)
-    at afterConnectMultiple (node:net:1712:7)
-[2026-02-07T01:20:22.944Z] [frontend] [2m12:20:22 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
-AggregateError [ECONNREFUSED]: 
-    at internalConnectMultiple (node:net:1139:18)
-    at afterConnectMultiple (node:net:1712:7)
-[2026-02-07T01:20:52.954Z] [frontend] [2m12:20:52 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
-AggregateError [ECONNREFUSED]: 
-    at internalConnectMultiple (node:net:1139:18)
-    at afterConnectMultiple (node:net:1712:7)
-[2026-02-07T01:20:52.958Z] [frontend] [2m12:20:52 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/events/stream[39m
-AggregateError [ECONNREFUSED]: 
-    at internalConnectMultiple (node:net:1139:18)
-    at afterConnectMultiple (node:net:1712:7)
-[2026-02-07T01:20:53.969Z] [frontend] [2m12:20:53 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
-AggregateError [ECONNREFUSED]: 
-    at internalConnectMultiple (node:net:1139:18)
-    at afterConnectMultiple (node:net:1712:7)
-[2026-02-07T01:20:55.976Z] [frontend] [2m12:20:55 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
-AggregateError [ECONNREFUSED]: 
-    at internalConnectMultiple (node:net:1139:18)
-    at afterConnectMultiple (node:net:1712:7)
-[2026-02-07T01:20:59.993Z] [frontend] [2m12:20:59 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/workspaces[39m
-AggregateError [ECONNREFUSED]: 
-    at internalConnectMultiple (node:net:1139:18)
-    at afterConnectMultiple (node:net:1712:7)
-[2026-02-07T01:21:16.298Z] No process found listening on port 3001
+The FetchEvent for "http://localhost:3001/api/health" resulted in a network error response: the promise was rejected.
+service-worker.js:463  Uncaught (in promise) TypeError: Failed to fetch
+    at p (service-worker.js:463:11)
+service-worker.js:169 Could not resolve unknown localhost http://localhost:3001
+log.ts:440  INFO Started local extension host with pid 17592.
+webviewElement.ts:409 Unrecognized feature: 'local-network-access'.
+gb @ webviewElement.ts:409
+webviewElement.ts:489 An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing.
+mountTo @ webviewElement.ts:489
+TMScopeRegistry.ts:46 Overwriting grammar scope name to file mapping for scope source.python.
+Old grammar file: file:///c%3A/Users/codi.f/AppData/Local/Programs/Microsoft%20VS%20Code/6534f6ba76/resources/app/extensions/python/syntaxes/MagicPython.tmLanguage.json.
+New grammar file: file:///c%3A/Users/codi.f/.vscode/extensions/ms-python.vscode-pylance-2025.10.4/grammars/PylancePython.tmLanguage
+register @ TMScopeRegistry.ts:46
+TMScopeRegistry.ts:46 Overwriting grammar scope name to file mapping for scope source.python.
+Old grammar file: file:///c%3A/Users/codi.f/AppData/Local/Programs/Microsoft%20VS%20Code/6534f6ba76/resources/app/extensions/python/syntaxes/MagicPython.tmLanguage.json.
+New grammar file: file:///c%3A/Users/codi.f/.vscode/extensions/ms-python.vscode-pylance-2025.10.4/grammars/PylancePython.tmLanguage
+register @ TMScopeRegistry.ts:46
+vscode-file://vscode-app/c:/Users/codi.f/AppData/Local/Programs/Microsoft%20VS%20Code/6534f6ba76/resources/app/node_modules/@xterm/addon-ligatures/lib/addon-ligatures.js:1  Failed to load resource: net::ERR_FILE_NOT_FOUND
+log.ts:460   ERR An unknown error occurred. Please consult the log for more details.
+error @ log.ts:460
+log.ts:440  INFO MCP Registry configured: https://api.mcp.github.com
+log.ts:450  WARN Overwriting mcp server 'git' from /c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/.vscode/mcp.json with /C:/Users/codi.f/AppData/Roaming/Code/User/mcp.json.
+warn @ log.ts:450
+log.ts:450  WARN Overwriting mcp server 'project-memory' from /c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/.vscode/mcp.json with /C:/Users/codi.f/AppData/Roaming/Code/User/mcp.json.
+warn @ log.ts:450
+log.ts:460   ERR [Extension Host] (node:17592) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `Code --trace-deprecation ...` to show where the warning was created)
+error @ log.ts:460
+console.ts:139 [Extension Host] (node:17592) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `Code --trace-deprecation ...` to show where the warning was created)
+WTs @ console.ts:139
+log.ts:460   ERR [Extension Host] (node:17592) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+error @ log.ts:460
+console.ts:139 [Extension Host] (node:17592) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+WTs @ console.ts:139
+console.ts:139 [Extension Host] Project Memory Dashboard extension activating...
+console.ts:139 [Extension Host] [MCP Bridge] GET http://localhost:3001/api/health
+console.ts:139 [Extension Host] Chat integration initialized
+console.ts:139 [Extension Host] Project Memory Dashboard extension activated
+log.ts:440  INFO Settings Sync: Account status changed from uninitialized to available
+index.html?id=e4555d79-010f-460b-b9ad-3a0d8893d7b7&parentId=6&origin=457d0034-38cd-41d7-82d4-c0dac91bf47e&swVersion=4&extensionId=project-memory.project-memory-dashboard&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app&purpose=webviewView:1060 Unrecognized feature: 'local-network-access'.
+(anonymous) @ index.html?id=e4555d79-010f-460b-b9ad-3a0d8893d7b7&parentId=6&origin=457d0034-38cd-41d7-82d4-c0dac91bf47e&swVersion=4&extensionId=project-memory.project-memory-dashboard&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app&purpose=webviewView:1060
+console.ts:139 [Extension Host] [PM Debug] getWorkspaceId for fsPath: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem
+console.ts:139 [Extension Host] [PM Identity] Resolving identity for: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem
+console.ts:139 [Extension Host] [PM Identity] Found at root: project-memory-mcp-40f6678f5a9b
+console.ts:139 [Extension Host] [PM Debug] Found identity: project-memory-mcp-40f6678f5a9b from c:\Users\User\Project_Memory_MCP\Project-Memory-MCP
+console.ts:139 [Extension Host] [PM Identity] Resolving identity for: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem
+console.ts:139 [Extension Host] [PM Identity] Cache hit: project-memory-mcp-40f6678f5a9b
+log.ts:450  WARN Overwriting mcp server 'git' from /c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/.vscode/mcp.json with /C:/Users/codi.f/AppData/Roaming/Code/User/mcp.json.
+warn @ log.ts:450
+log.ts:450  WARN Overwriting mcp server 'project-memory' from /c:/Users/codi.f/vscode_ModularAgenticProcedureSystem/.vscode/mcp.json with /C:/Users/codi.f/AppData/Roaming/Code/User/mcp.json.
+warn @ log.ts:450
+console.ts:139 [Extension Host] [MCP Bridge] Connected to shared server at localhost:3001
+console.ts:139 [Extension Host] [MCP Bridge] Data root: /data
+console.ts:139 [Extension Host] MCP Bridge connected
+console.ts:139 [Extension Host] Received message from webview: Object
+marketplace.visualstudio.com/_apis/public/gallery/vscode/project-memory/project-memory-dashboard/latest:1  Failed to load resource: the server responded with a status of 404 (Not Found)
+marketplace.visualstudio.com/_apis/public/gallery/vscode/robocorp/robotframework-lsp/latest:1  Failed to load resource: the server responded with a status of 404 (Not Found)
+log.ts:440  INFO [perf] Render performance baseline is 38ms
+api.github.com/copilot/mcp_registry:1  Failed to load resource: the server responded with a status of 429 (Too Many Requests)
+api.github.com/copilot/mcp_registry:1  Failed to load resource: the server responded with a status of 429 (Too Many Requests)
+console.ts:139 [Extension Host] Agent watcher started for: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\agents\*.agent.md
+console.ts:139 [Extension Host] agent watcher started for: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\agents\*.agent.md
+console.ts:139 [Extension Host] prompt watcher started for: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\prompts\*.prompt.md
+console.ts:139 [Extension Host] instruction watcher started for: c:\Users\codi.f\vscode_ModularAgenticProcedureSystem\instructions\*.instructions.md
+api.github.com/copilot/mcp_registry:1  Failed to load resource: the server responded with a status of 429 (Too Many Requests)
+api.github.com/copilot/mcp_registry:1  Failed to load resource: the server responded with a status of 429 (Too Many Requests)
+api.github.com/copilot/mcp_registry:1  Failed to load resource: the server responded with a status of 429 (Too Many Requests)
+api.github.com/copilot/mcp_registry:1  Failed to load resource: the server responded with a status of 429 (Too Many Requests)
+api.github.com/copilot/mcp_registry:1  Failed to load resource: the server responded with a status of 429 (Too Many Requests)
+api.github.com/copilot/mcp_registry:1  Failed to load resource: the server responded with a status of 429 (Too Many Requests)
+api.github.com/copilot/mcp_registry:1  Failed to load resource: the server responded with a status of 429 (Too Many Requests)
+api.github.com/copilot/mcp_registry:1  Failed to load resource: the server responded with a status of 429 (Too Many Requests)
+requestImpl.ts:33  GET https://api.github.com/copilot/mcp_registry 429 (Too Many Requests)
+mTn @ requestImpl.ts:33
+(anonymous) @ requestService.ts:38
+c @ request.ts:81
+request @ requestService.ts:38
+bb @ defaultAccount.ts:655
+ab @ defaultAccount.ts:621
+U @ defaultAccount.ts:472
+await in U
+S @ defaultAccount.ts:450
+await in S
+M @ defaultAccount.ts:377
+L @ defaultAccount.ts:359
+(anonymous) @ defaultAccount.ts:354
+queue @ async.ts:271
+(anonymous) @ async.ts:471
+(anonymous) @ async.ts:412
+Promise.then
+trigger @ async.ts:406
+trigger @ async.ts:471
+J @ defaultAccount.ts:354
+(anonymous) @ defaultAccount.ts:337
+C @ event.ts:1295
+D @ event.ts:1306
+fire @ event.ts:1330
+(anonymous) @ event.ts:168
+(anonymous) @ event.ts:185
+C @ event.ts:1295
+fire @ event.ts:1326
+(anonymous) @ event.ts:134
+C @ event.ts:1295
+D @ event.ts:1306
+fire @ event.ts:1330
+(anonymous) @ event.ts:168
+C @ event.ts:1295
+fire @ event.ts:1326
+(anonymous) @ nativeHostService.ts:81
+C @ event.ts:1295
+fire @ event.ts:1326
+(anonymous) @ event.ts:168
+C @ event.ts:1295
+D @ event.ts:1306
+fire @ event.ts:1330
+l @ ipc.ts:689
+t @ ipc.ts:757
+s @ ipc.ts:746
+(anonymous) @ ipc.ts:547
+C @ event.ts:1295
+D @ event.ts:1306
+fire @ event.ts:1330
+fe @ event.ts:667
+emit @ VM297 sandbox_bundle:2
+onMessage @ VM297 sandbox_bundle:2
+requestImpl.ts:33  GET https://api.github.com/copilot/mcp_registry 429 (Too Many Requests)
+mTn @ requestImpl.ts:33
+(anonymous) @ requestService.ts:38
+c @ request.ts:81
+request @ requestService.ts:38
+bb @ defaultAccount.ts:655
+await in bb
+ab @ defaultAccount.ts:621
+U @ defaultAccount.ts:472
+await in U
+S @ defaultAccount.ts:450
+await in S
+M @ defaultAccount.ts:377
+L @ defaultAccount.ts:359
+(anonymous) @ defaultAccount.ts:354
+queue @ async.ts:271
+(anonymous) @ async.ts:471
+(anonymous) @ async.ts:412
+Promise.then
+trigger @ async.ts:406
+trigger @ async.ts:471
+J @ defaultAccount.ts:354
+(anonymous) @ defaultAccount.ts:337
+C @ event.ts:1295
+D @ event.ts:1306
+fire @ event.ts:1330
+(anonymous) @ event.ts:168
+(anonymous) @ event.ts:185
+C @ event.ts:1295
+fire @ event.ts:1326
+(anonymous) @ event.ts:134
+C @ event.ts:1295
+D @ event.ts:1306
+fire @ event.ts:1330
+(anonymous) @ event.ts:168
+C @ event.ts:1295
+fire @ event.ts:1326
+(anonymous) @ nativeHostService.ts:81
+C @ event.ts:1295
+fire @ event.ts:1326
+(anonymous) @ event.ts:168
+C @ event.ts:1295
+D @ event.ts:1306
+fire @ event.ts:1330
+l @ ipc.ts:689
+t @ ipc.ts:757
+s @ ipc.ts:746
+(anonymous) @ ipc.ts:547
+C @ event.ts:1295
+D @ event.ts:1306
+fire @ event.ts:1330
+fe @ event.ts:667
+emit @ VM297 sandbox_bundle:2
+onMessage @ VM297 sandbox_bundle:2
+requestImpl.ts:33  GET https://api.github.com/copilot/mcp_registry 429 (Too Many Requests)
+mTn @ requestImpl.ts:33
+(anonymous) @ requestService.ts:38
+c @ request.ts:81
+request @ requestService.ts:38
+bb @ defaultAccount.ts:655
+await in bb
+ab @ defaultAccount.ts:621
+U @ defaultAccount.ts:472
+await in U
+S @ defaultAccount.ts:450
+requestImpl.ts:33  GET https://api.github.com/copilot/mcp_registry 429 (Too Many Requests)
+mTn @ requestImpl.ts:33
+(anonymous) @ requestService.ts:38
+c @ request.ts:81
+request @ requestService.ts:38
+bb @ defaultAccount.ts:655
+await in bb
+ab @ defaultAccount.ts:621
+U @ defaultAccount.ts:472
+await in U
+S @ defaultAccount.ts:450
+requestImpl.ts:33  GET https://api.github.com/copilot/mcp_registry 429 (Too Many Requests)
+mTn @ requestImpl.ts:33
+(anonymous) @ requestService.ts:38
+c @ request.ts:81
+request @ requestService.ts:38
+bb @ defaultAccount.ts:655
+await in bb
+ab @ defaultAccount.ts:621
+U @ defaultAccount.ts:472
+await in U
+S @ defaultAccount.ts:450
