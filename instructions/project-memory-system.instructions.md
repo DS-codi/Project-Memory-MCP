@@ -54,6 +54,8 @@ The Project Memory MCP system provides persistent memory and coordination for AI
 | **Archivist** | Archives and documents completed work | `memory_plan`, `memory_context`, `memory_agent` |
 | **Analyst** | Analyzes requirements and existing code | `memory_context`, `memory_agent` |
 | **Brainstorm** | Generates ideas and solutions | `memory_context`, `memory_agent` |
+| **SkillWriter** | Analyzes codebases and generates SKILL.md files | `memory_context`, `memory_agent`, `memory_steps` |
+| **Worker** | Executes scoped sub-tasks delegated by hub agents | `memory_agent`, `memory_context` |
 
 ---
 
@@ -119,10 +121,10 @@ Every agent MUST follow these steps when starting:
 | Tool | Actions | Purpose |
 |------|---------|---------|
 | `memory_workspace` | register, list, info, reindex | Manage workspace registration and profiles |
-| `memory_plan` | list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm | Full plan lifecycle management |
+| `memory_plan` | list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, create_program, add_plan_to_program, upgrade_to_program, list_program_plans | Full plan lifecycle and program management |
 | `memory_steps` | add, update, batch_update, insert, delete, reorder, move, sort, set_order, replace | Step-level operations |
 | `memory_agent` | init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage | Agent lifecycle and coordination |
-| `memory_context` | store, get, store_initial, list, list_research, append_research, generate_instructions, workspace_get, workspace_set, workspace_update, workspace_delete | Context and research management |
+| `memory_context` | store, get, store_initial, list, list_research, append_research, generate_instructions, batch_store, workspace_get, workspace_set, workspace_update, workspace_delete, knowledge_store, knowledge_get, knowledge_list, knowledge_delete | Context, research, and knowledge management |
 
 ---
 
@@ -745,6 +747,72 @@ Confirm a phase or step when user approval is required.
 
 ---
 
+#### `create_program`
+Create an Integrated Program — a multi-plan container that groups related plans together.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✅ | `"create_program"` |
+| `workspace_id` | string | ✅ | The workspace ID |
+| `title` | string | ✅ | Program title |
+| `description` | string | ✅ | Program description |
+| `category` | string | ❌ | Category for the program |
+| `priority` | string | ❌ | Priority level |
+
+**Returns:** The created program as a PlanState with `is_program: true`.
+
+**Used by:** Coordinator, Architect.
+
+---
+
+#### `add_plan_to_program`
+Link an existing plan to a program as a child plan.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✅ | `"add_plan_to_program"` |
+| `workspace_id` | string | ✅ | The workspace ID |
+| `program_id` | string | ✅ | The program's plan ID |
+| `plan_id` | string | ✅ | The plan ID to add |
+
+**Returns:** Updated program and plan state.
+
+**Used by:** Coordinator.
+
+---
+
+#### `upgrade_to_program`
+Upgrade an existing plan to a program. The original plan becomes the first child plan.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✅ | `"upgrade_to_program"` |
+| `workspace_id` | string | ✅ | The workspace ID |
+| `plan_id` | string | ✅ | The plan ID to upgrade |
+
+**Notes:**
+- Plans with 100+ steps automatically receive an auto-upgrade suggestion note.
+- The original plan becomes a child plan within the new program.
+
+**Used by:** Coordinator.
+
+---
+
+#### `list_program_plans`
+List all child plans within a program.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✅ | `"list_program_plans"` |
+| `workspace_id` | string | ✅ | The workspace ID |
+| `program_id` | string | ✅ | The program's plan ID |
+
+**Returns:** Array of child plan summaries with progress information.
+
+**Used by:** Coordinator, Architect.
+
+---
+
 ## memory_steps
 
 Step-level operations for managing individual tasks within a plan.
@@ -1087,10 +1155,21 @@ Initialize an agent session. **MUST be called first by every agent.**
 
 **Returns:**
 - Session information (session_id, started_at)
-- Full plan state (if workspace_id and plan_id provided)
+- Full plan state (if workspace_id and plan_id provided) — compact by default
 - Workspace status
 - Role boundaries (what this agent can/cannot do)
 - Instruction files (if any exist in `.memory/instructions/`)
+- `context_size_bytes` — total byte size of the response payload for monitoring context usage
+- Matched skills (if `include_skills: true`)
+
+**Context Optimization Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `compact` | boolean | `true` | Return compact plan state (≤3 sessions, ≤3 lineage, pending/active steps only) |
+| `context_budget` | number | — | Byte budget for progressive payload trimming |
+| `include_workspace_context` | boolean | `false` | Include workspace context summary |
+| `include_skills` | boolean | — | Include matched skills for the current task |
 
 **Example:**
 ```json
@@ -1291,6 +1370,9 @@ Deploy agent files to a workspace.
 ```
 
 **Used by:** Coordinator (when setting up a new project).
+
+**Skills Deployment:**
+When `include_skills` is `true`, the deploy action also copies skills from the source skills directory into the workspace's `.github/skills/` folder. Skills are structured knowledge files (`SKILL.md`) containing domain-specific patterns, conventions, and best practices that agents can load on demand.
 
 ---
 
@@ -1550,6 +1632,66 @@ Delete workspace-scoped context (use sparingly).
 | `workspace_id` | string | ✅ | The workspace ID |
 
 **Used by:** Coordinator (for cleanup or migrations).
+
+---
+
+#### `knowledge_store`
+Store a workspace-scoped knowledge file.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✅ | `"knowledge_store"` |
+| `workspace_id` | string | ✅ | The workspace ID |
+| `slug` | string | ✅ | URL-safe identifier for the knowledge file |
+| `title` | string | ✅ | Human-readable title |
+| `data` | object | ✅ | The knowledge content |
+| `category` | string | ❌ | Category for organization |
+| `tags` | string[] | ❌ | Tags for discovery |
+| `created_by_agent` | string | ❌ | Agent that created this knowledge |
+| `created_by_plan` | string | ❌ | Plan that created this knowledge |
+
+**Used by:** Any agent storing long-lived workspace knowledge.
+
+---
+
+#### `knowledge_get`
+Retrieve a knowledge file by slug.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✅ | `"knowledge_get"` |
+| `workspace_id` | string | ✅ | The workspace ID |
+| `slug` | string | ✅ | The knowledge file slug |
+
+**Used by:** Any agent needing workspace knowledge.
+
+---
+
+#### `knowledge_list`
+List all knowledge files for a workspace.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✅ | `"knowledge_list"` |
+| `workspace_id` | string | ✅ | The workspace ID |
+| `category` | string | ❌ | Filter by category |
+
+**Returns:** Array of knowledge file metadata (slug, title, category, tags, timestamps).
+
+**Used by:** Any agent discovering available knowledge.
+
+---
+
+#### `knowledge_delete`
+Delete a knowledge file.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✅ | `"knowledge_delete"` |
+| `workspace_id` | string | ✅ | The workspace ID |
+| `slug` | string | ✅ | The knowledge file slug |
+
+**Used by:** Coordinator, Archivist.
 
 ---
 
@@ -2015,6 +2157,20 @@ Store execution logs and research:
 - **Consider tradeoffs:** Document pros and cons of each option
 - **Be creative:** Don't limit yourself to obvious solutions
 
+### SkillWriter
+
+- **Analyze thoroughly:** Read all relevant source files, configs, and patterns before generating skills
+- **Follow SKILL.md format:** Use structured frontmatter with category, tags, language_targets, framework_targets
+- **Focus on patterns:** Capture reusable conventions not obvious implementation details
+- **Don't modify source code:** Only create or update `.github/skills/*/SKILL.md` files
+
+### Worker
+
+- **Stay in scope:** Only modify files explicitly listed in your deployment prompt
+- **No plan changes:** Never create, modify, or delete plan steps or plans
+- **Report and return:** Complete your task, handoff to hub, and complete your session
+- **Lightweight:** Workers are for focused sub-tasks, not broad implementation work
+
 ---
 
 ## Appendix: Type Reference
@@ -2075,7 +2231,9 @@ type AgentType =
   | 'Archivist'
   | 'Analyst'
   | 'Brainstorm'
-  | 'Runner';
+  | 'Runner'
+  | 'SkillWriter'
+  | 'Worker';
 ```
 
 ### Priority

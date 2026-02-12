@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { memoryPlan } from '../../tools/consolidated/memory_plan.js';
 import type { MemoryPlanParams } from '../../tools/consolidated/memory_plan.js';
 import * as fileStore from '../../storage/file-store.js';
-import * as planTools from '../../tools/plan.tools.js';
+import * as planTools from '../../tools/plan/index.js';
 import * as validation from '../../tools/consolidated/workspace-validation.js';
 
 /**

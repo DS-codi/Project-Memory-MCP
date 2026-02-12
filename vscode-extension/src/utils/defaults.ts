@@ -34,3 +34,7 @@ export function getDefaultInstructionsRoot(): string {
 export function getDefaultPromptsRoot(): string {
     return resolveDefaultPath('prompts');
 }
+
+export function getDefaultSkillsRoot(): string {
+    return resolveDefaultPath('skills');
+}

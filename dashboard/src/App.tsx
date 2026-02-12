@@ -12,6 +12,7 @@ import { ContextFilesPage } from './pages/ContextFilesPage';
 import { DataRootPage } from './pages/DataRootPage';
 import { WorkspaceStatusPage } from './pages/WorkspaceStatusPage';
 import { PlanBuildScriptsPage } from './pages/PlanBuildScriptsPage';
+import { ProgramDetailPage } from './pages/ProgramDetailPage';
 import { useLiveUpdates } from './hooks/useLiveUpdates';
 import { useMCPEvents } from './hooks/useMCPEvents';
 import { ToastContainer } from './components/common/Toast';
@@ -35,6 +36,7 @@ function App() {
           <Route path="/workspace/:workspaceId/plan/:planId" element={<PlanDetailPage />} />
           <Route path="/workspace/:workspaceId/plan/:planId/context" element={<ContextFilesPage />} />
           <Route path="/workspace/:workspaceId/plan/:planId/build-scripts" element={<PlanBuildScriptsPage />} />
+          <Route path="/workspace/:workspaceId/program/:programId" element={<ProgramDetailPage />} />
           <Route path="/agents" element={<AgentsPage />} />
           <Route path="/agents/:agentId" element={<AgentEditorPage />} />
           <Route path="/prompts" element={<PromptsPage />} />

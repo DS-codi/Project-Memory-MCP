@@ -1,9 +1,9 @@
 /**
  * Consolidated Plan Tool - memory_plan
  * 
- * Actions: list, get, create, update, archive, import, find, add_note
- * Replaces: list_plans, get_workspace_plans, get_plan_state, create_plan, 
- *           modify_plan, archive_plan, import_plan, find_plan, add_plan_note
+ * Actions: list, get, create, update, archive, import, find, add_note,
+ *          delete, consolidate, set_goals, build scripts, templates, confirm,
+ *          create_program, add_plan_to_program, upgrade_to_program, list_program_plans
  */
 
 import path from 'path';
@@ -20,13 +20,14 @@ import type {
   AddBuildScriptResult,
   ListBuildScriptsResult,
   RunBuildScriptResult,
-  DeleteBuildScriptResult
+  DeleteBuildScriptResult,
+  ProgramPlansResult,
 } from '../../types/index.js';
-import * as planTools from '../plan.tools.js';
+import * as planTools from '../plan/index.js';
 import * as fileStore from '../../storage/file-store.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
 
-export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate' | 'set_goals' | 'add_build_script' | 'list_build_scripts' | 'run_build_script' | 'delete_build_script' | 'create_from_template' | 'list_templates' | 'confirm';
+export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate' | 'set_goals' | 'add_build_script' | 'list_build_scripts' | 'run_build_script' | 'delete_build_script' | 'create_from_template' | 'list_templates' | 'confirm' | 'create_program' | 'add_plan_to_program' | 'upgrade_to_program' | 'list_program_plans';
 
 export interface MemoryPlanParams {
   action: PlanAction;
@@ -63,6 +64,10 @@ export interface MemoryPlanParams {
   confirm_phase?: string;
   confirm_step_index?: number;
   confirmed_by?: string;
+  // Program params
+  program_id?: string;
+  move_steps_to_child?: boolean;
+  child_plan_title?: string;
 }
 
 type PlanResult = 
@@ -83,7 +88,11 @@ type PlanResult =
   | { action: 'delete_build_script'; data: DeleteBuildScriptResult }
   | { action: 'create_from_template'; data: PlanState }
   | { action: 'list_templates'; data: planTools.PlanTemplateSteps[] }
-  | { action: 'confirm'; data: { plan_state: PlanState; confirmation: unknown } };
+  | { action: 'confirm'; data: { plan_state: PlanState; confirmation: unknown } }
+  | { action: 'create_program'; data: PlanState }
+  | { action: 'add_plan_to_program'; data: { program: PlanState; plan: PlanState } }
+  | { action: 'upgrade_to_program'; data: { program: PlanState; child_plan?: PlanState } }
+  | { action: 'list_program_plans'; data: ProgramPlansResult };
 
 const PATH_LIKE_EXTENSIONS = new Set([
   '.ps1',
@@ -145,7 +154,7 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
   if (!action) {
     return {
       success: false,
-      error: 'action is required. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm'
+      error: 'action is required. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, create_program, add_plan_to_program, upgrade_to_program, list_program_plans'
     };
   }
 
@@ -593,10 +602,99 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
       };
     }
 
+    // =========================================================================
+    // Program Actions
+    // =========================================================================
+
+    case 'create_program': {
+      if (!params.workspace_id || !params.title || !params.description) {
+        return {
+          success: false,
+          error: 'workspace_id, title, and description are required for action: create_program'
+        };
+      }
+      const result = await planTools.createProgram({
+        workspace_id: params.workspace_id,
+        title: params.title,
+        description: params.description,
+        priority: params.priority
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'create_program', data: result.data! }
+      };
+    }
+
+    case 'add_plan_to_program': {
+      if (!params.workspace_id || !params.program_id || !params.plan_id) {
+        return {
+          success: false,
+          error: 'workspace_id, program_id, and plan_id are required for action: add_plan_to_program'
+        };
+      }
+      const result = await planTools.addPlanToProgram({
+        workspace_id: params.workspace_id,
+        program_id: params.program_id,
+        plan_id: params.plan_id
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'add_plan_to_program', data: result.data! }
+      };
+    }
+
+    case 'upgrade_to_program': {
+      if (!params.workspace_id || !params.plan_id) {
+        return {
+          success: false,
+          error: 'workspace_id and plan_id are required for action: upgrade_to_program'
+        };
+      }
+      const result = await planTools.upgradeToProgram({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id,
+        move_steps_to_child: params.move_steps_to_child,
+        child_plan_title: params.child_plan_title
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'upgrade_to_program', data: result.data! }
+      };
+    }
+
+    case 'list_program_plans': {
+      if (!params.workspace_id || !params.program_id) {
+        return {
+          success: false,
+          error: 'workspace_id and program_id are required for action: list_program_plans'
+        };
+      }
+      const result = await planTools.listProgramPlans({
+        workspace_id: params.workspace_id,
+        program_id: params.program_id
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'list_program_plans', data: result.data! }
+      };
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm`
+        error: `Unknown action: ${action}. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, create_program, add_plan_to_program, upgrade_to_program, list_program_plans`
       };
   }
 }

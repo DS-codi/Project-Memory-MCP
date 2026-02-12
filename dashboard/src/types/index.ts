@@ -20,7 +20,9 @@ export type AgentType =
   | 'Revisionist'
   | 'Reviewer'
   | 'Tester'
-  | 'Archivist';
+  | 'Archivist'
+  | 'SkillWriter'
+  | 'Worker';
 
 export type StepStatus = 'pending' | 'active' | 'done' | 'blocked';
 
@@ -346,4 +348,55 @@ export interface CopilotStatus {
   instructionCount: number;
   outdatedAgents: number;
   missingFiles: string[];
+}
+
+// =============================================================================
+// Program Types (Multi-Plan Hierarchy)
+// =============================================================================
+
+export interface ProgramPlanRef {
+  plan_id: string;
+  title: string;
+  status: PlanStatus;
+  progress: { done: number; total: number };
+}
+
+export interface ProgramSummary {
+  program_id: string;
+  name: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+  workspace_id: string;
+  plans: ProgramPlanRef[];
+  aggregate_progress: { done: number; total: number };
+}
+
+export interface ProgramDetail extends ProgramSummary {
+  goals?: string[];
+  notes?: PlanNote[];
+}
+
+// =============================================================================
+// Skill Types
+// =============================================================================
+
+export interface SkillInfo {
+  name: string;
+  description: string;
+  file_path: string;
+  deployed: boolean;
+  deployed_at?: string;
+  workspace_id: string;
+  content?: string;
+}
+
+// =============================================================================
+// Worker Session Types
+// =============================================================================
+
+export interface WorkerSession extends AgentSession {
+  agent_type: 'Worker';
+  parent_hub_agent: AgentType;
+  task_scope?: string;
 }

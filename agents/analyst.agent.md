@@ -19,9 +19,9 @@ handoffs:
 
 **Before doing ANYTHING, verify you have access to these MCP tools (consolidated v2.0):**
 - `memory_workspace` (actions: register, info, list, reindex, merge, scan_ghosts, migrate)
-- `memory_plan` (actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm)
+- `memory_plan` (actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, create_program, add_plan_to_program, upgrade_to_program, list_program_plans)
 - `memory_steps` (actions: add, update, batch_update, insert, delete, reorder, move, sort, set_order, replace)
-- `memory_context` (actions: get, store, store_initial, list, append_research, list_research, generate_instructions, batch_store, workspace_get, workspace_set, workspace_update, workspace_delete)
+- `memory_context` (actions: get, store, store_initial, list, append_research, list_research, generate_instructions, batch_store, workspace_get, workspace_set, workspace_update, workspace_delete, knowledge_store, knowledge_get, knowledge_list, knowledge_delete)
 - `memory_agent` (actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage)
 
 **If these tools are NOT available:**
@@ -658,11 +658,46 @@ When re-spawning, always add explicit scope boundaries to the prompt (see Scope 
 | Situation | Subagent | Prompt Pattern | Your Action |
 |-----------|----------|----------------|-------------|
 | Large feature implementation | Executor | "Implement [full module/feature]" | `runSubagent({ agentName: "Executor", prompt: "...", description: "..." })` |
+| Small scoped sub-task (≤5 steps) | Worker | "Implement [specific small task]" | `runSubagent({ agentName: "Worker", prompt: "...", description: "..." })` |
 | Need **external** web documentation | Researcher | "Research [format/protocol/spec] documentation" | `runSubagent({ agentName: "Researcher", ... })` |
 | Need comprehensive test suite | Tester | "Write tests for [parser/tool]" | `runSubagent({ agentName: "Tester", ... })` |
 | Complex bug requiring plan changes | Revisionist | "Fix issue in [tool]: [error]" | `runSubagent({ agentName: "Revisionist", ... })` |
 | Stuck on approach | Brainstorm | "Explore approaches for [problem]" | `runSubagent({ agentName: "Brainstorm", ... })` |
 | Investigation complete | Archivist | "Archive investigation findings" | `runSubagent({ agentName: "Archivist", ... })` |
+
+### When to Use Worker vs Executor
+
+| Use Worker | Use Executor |
+|-----------|---------------|
+| Single-file or 1-2 file changes | Multi-file implementation across modules |
+| ≤ 5 discrete steps | Full phase with many steps |
+| No plan modification needed | May need to update/add plan steps |
+| Quick utility function, small parser | Full feature implementation |
+| Focused investigation sub-task | Complex experiment requiring deep context |
+
+#### Spawning a Worker for Investigation
+
+```javascript
+runSubagent({
+  agentName: "Worker",
+  prompt: `Plan: {plan_id}
+Workspace: {workspace_id} | Path: {workspace_path}
+
+TASK: {specific investigation sub-task}
+
+FILE SCOPE: {explicit file list}
+DIRECTORY SCOPE: {directory list}
+
+CONTEXT RETRIEVAL:
+- Call memory_context(action: get, type: "research_summary") for findings
+- Call memory_context(action: get, type: "hypothesis") for current theory
+
+You are a spoke agent. Do NOT call runSubagent.
+Do NOT modify plan steps. Do NOT create or archive plans.
+Use memory_agent(action: handoff) to recommend the next agent back to the Analyst.`,
+  description: "Worker: {brief sub-task description}"
+})
+```
 
 ### When to Work Directly (YOU Do This)
 
@@ -830,6 +865,39 @@ When analyzing binary files, use these approaches:
 | Session model | Single session ideal | Multi-session expected |
 
 ---
+
+## Dynamic Prompt Creation
+
+As a hub agent, you can create **plan-specific `.prompt.md` files** via the `write_prompt` action on `memory_context`. Use dynamic prompts when spawning subagents (Researcher, Brainstorm) with complex multi-step investigation tasks.
+
+### When to Create Dynamic Prompts
+
+- Investigation requires structured hypotheses with specific data sources
+- Spawning multiple Researcher subagents that share investigation context
+- Complex analysis cycle that may need revision/retry
+
+### How to Create a Prompt
+
+```javascript
+memory_context(action: "write_prompt", {
+  workspace_id: "...",
+  plan_id: "...",
+  prompt_title: "Binary Format Investigation",
+  prompt_agent: "researcher",
+  prompt_description: "Investigate unknown binary format structure",
+  prompt_sections: [
+    { title: "Known Structure", content: "Header is 16 bytes..." },
+    { title: "Hypotheses to Test", content: "{{hypotheses}}" },
+    { title: "Data Sources", content: "{{dataSources}}" }
+  ],
+  prompt_variables: ["hypotheses", "dataSources"],
+  created_by_agent: "Analyst"
+})
+```
+
+## Skills Awareness
+
+Check `matched_skills` from your `memory_agent` (action: init) response. If relevant skills are returned, apply those skill patterns when working in matching domains. This helps maintain consistency with established codebase conventions.
 
 ## 🛡️ SECURITY BOUNDARIES
 

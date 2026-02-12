@@ -2,9 +2,9 @@
  * Compact Plan State Utility
  * 
  * Reduces agent init payload by summarizing historical data:
- * - Agent sessions: last N with context trimmed to keys-only
+ * - Agent sessions: last 3 with full context, sessions 4-10 as one-liners, omit beyond 10
  * - Lineage: last N entries
- * - Steps: only pending/active (completed steps excluded by default)
+ * - Steps: only current phase + one adjacent phase (plus high-priority steps)
  * - Plan summary: counts of steps, sessions, handoffs
  */
 
@@ -13,20 +13,23 @@ import type {
   CompactPlanState,
   CompactPlanSummary,
   CompactAgentSession,
+  SummarizedAgentSession,
   AgentSession,
   PlanStep
 } from '../types/index.js';
 
 export interface CompactifyOptions {
-  maxSessions?: number;        // Default: 3
+  maxSessions?: number;        // Default: 3  (full-context sessions)
   maxLineage?: number;         // Default: 3
   includeCompletedSteps?: boolean;  // Default: false
+  phaseFilterSteps?: boolean;  // Default: true — filter steps to current + adjacent phase
 }
 
 const DEFAULT_OPTIONS: Required<CompactifyOptions> = {
   maxSessions: 3,
   maxLineage: 3,
-  includeCompletedSteps: false
+  includeCompletedSteps: false,
+  phaseFilterSteps: true
 };
 
 /**
@@ -45,7 +48,9 @@ export function compactifyPlanState(
     recent: state.lineage.slice(-opts.maxLineage),
     total_count: state.lineage.length
   };
-  const filteredSteps = filterSteps(state.steps, opts.includeCompletedSteps);
+  const filteredSteps = opts.phaseFilterSteps
+    ? filterStepsByPhase(state.steps, state.current_phase, opts.includeCompletedSteps)
+    : filterSteps(state.steps, opts.includeCompletedSteps);
 
   return {
     id: state.id,
@@ -131,9 +136,26 @@ function buildPlanSummary(state: PlanState): CompactPlanSummary {
 function compactifySessions(
   sessions: AgentSession[],
   maxSessions: number
-): { recent: CompactAgentSession[]; total_count: number } {
+): { recent: CompactAgentSession[]; summarized?: SummarizedAgentSession[]; total_count: number } {
+  const total_count = sessions.length;
+
+  // Last `maxSessions` get full compact treatment
   const recent = sessions.slice(-maxSessions).map(trimSession);
-  return { recent, total_count: sessions.length };
+
+  // Sessions 4–10 (from the end) become one-liner summaries
+  const summarizedSliceStart = Math.max(0, sessions.length - 10);
+  const summarizedSliceEnd = Math.max(0, sessions.length - maxSessions);
+  let summarized: SummarizedAgentSession[] | undefined;
+
+  if (summarizedSliceEnd > summarizedSliceStart) {
+    summarized = sessions
+      .slice(summarizedSliceStart, summarizedSliceEnd)
+      .map(summarizeSession);
+  }
+
+  // Sessions beyond index 10 from the end are omitted entirely
+
+  return { recent, summarized, total_count };
 }
 
 function trimSession(session: AgentSession): CompactAgentSession {
@@ -151,4 +173,58 @@ function trimSession(session: AgentSession): CompactAgentSession {
 function filterSteps(steps: PlanStep[], includeCompleted: boolean): PlanStep[] {
   if (includeCompleted) return steps;
   return steps.filter(s => s.status === 'pending' || s.status === 'active');
+}
+
+/**
+ * Filter steps to current phase + one adjacent phase, plus high-priority steps.
+ * Reduces payload for plans with many phases.
+ */
+function filterStepsByPhase(
+  steps: PlanStep[],
+  currentPhase: string,
+  includeCompleted: boolean
+): PlanStep[] {
+  // First apply status filter
+  const statusFiltered = includeCompleted
+    ? steps
+    : steps.filter(s => s.status === 'pending' || s.status === 'active');
+
+  // Gather unique ordered phases from all steps (preserving plan order)
+  const phaseOrder: string[] = [];
+  for (const s of steps) {
+    if (s.phase && !phaseOrder.includes(s.phase)) {
+      phaseOrder.push(s.phase);
+    }
+  }
+
+  const currentIdx = phaseOrder.indexOf(currentPhase);
+  if (currentIdx === -1) {
+    // Current phase not found in steps — return all status-filtered steps
+    return statusFiltered;
+  }
+
+  // Build set of allowed phases: current + one before + one after
+  const allowedPhases = new Set<string>();
+  allowedPhases.add(currentPhase);
+  if (currentIdx > 0) allowedPhases.add(phaseOrder[currentIdx - 1]);
+  if (currentIdx < phaseOrder.length - 1) allowedPhases.add(phaseOrder[currentIdx + 1]);
+
+  return statusFiltered.filter(
+    s => allowedPhases.has(s.phase) || s.context_priority === 'high'
+  );
+}
+
+/**
+ * Create a one-liner summary for an older session (sessions 4–10 from the end).
+ */
+function summarizeSession(session: AgentSession): SummarizedAgentSession {
+  const summaryLine = session.summary
+    ? session.summary.substring(0, 120)
+    : `${session.completed_at ? 'completed' : 'started'}`;
+
+  return {
+    agent_type: session.agent_type,
+    summary_line: summaryLine,
+    timestamp: session.completed_at || session.started_at
+  };
 }

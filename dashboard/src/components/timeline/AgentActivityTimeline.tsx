@@ -2,7 +2,12 @@ import { useMemo } from 'react';
 import { cn } from '@/utils/cn';
 import { formatTime, formatDuration } from '@/utils/formatters';
 import { agentColors, agentBgColors } from '@/utils/colors';
-import type { AgentSession, AgentType, LineageEntry } from '@/types';
+import type { AgentSession, AgentType, LineageEntry, WorkerSession } from '@/types';
+
+/** Type guard for WorkerSession */
+function isWorkerSession(s: AgentSession): s is WorkerSession {
+  return s.agent_type === ('Worker' as AgentType);
+}
 
 interface AgentActivityTimelineProps {
   sessions: AgentSession[];
@@ -54,6 +59,7 @@ export function AgentActivityTimeline({
       'Reviewer',
       'Tester',
       'Archivist',
+      'Worker',
     ];
 
     const sessionsByAgent = new Map<AgentType, AgentSession[]>();
@@ -116,50 +122,78 @@ export function AgentActivityTimeline({
 
       {/* Timeline grid */}
       <div className="space-y-2">
-        {rows.map((row) => (
-          <div key={row.agentType} className="flex items-center gap-3">
-            {/* Agent label */}
-            <div
-              className={cn(
-                'w-24 flex-shrink-0 px-2 py-1 rounded text-xs font-medium text-center',
-                agentBgColors[row.agentType]
-              )}
-            >
-              {row.agentType}
-            </div>
+        {rows.map((row) => {
+          const isWorkerRow = row.agentType === ('Worker' as AgentType);
+          return (
+            <div key={row.agentType} className="flex items-center gap-3">
+              {/* Agent label */}
+              <div
+                className={cn(
+                  'w-24 flex-shrink-0 px-2 py-1 rounded text-xs font-medium text-center',
+                  agentBgColors[row.agentType],
+                  isWorkerRow && 'italic'
+                )}
+              >
+                {row.agentType}
+              </div>
 
-            {/* Timeline bar */}
-            <div className="flex-1 h-8 bg-slate-800 rounded relative overflow-hidden">
-              {row.sessions.map((s, idx) => (
-                <div
-                  key={`${s.session.session_id}-${idx}`}
-                  className={cn(
-                    'absolute top-0 h-full rounded flex items-center justify-center text-xs text-white/80 overflow-hidden',
-                    s.session.completed_at ? 'opacity-80' : 'opacity-100 animate-pulse'
-                  )}
-                  style={{
-                    left: `${s.startPercent}%`,
-                    width: `${s.widthPercent}%`,
-                    backgroundColor: agentColors[row.agentType],
-                  }}
-                  title={`${formatTime(s.session.started_at)}${
-                    s.session.completed_at
-                      ? ` - ${formatTime(s.session.completed_at)}`
-                      : ' (in progress)'
-                  }`}
-                >
-                  {s.widthPercent > 10 && (
-                    <span className="truncate px-1">
-                      {s.session.completed_at
-                        ? formatDuration(s.session.started_at, s.session.completed_at)
-                        : 'Active'}
-                    </span>
-                  )}
-                </div>
-              ))}
+              {/* Timeline bar */}
+              <div
+                className={cn(
+                  'flex-1 bg-slate-800 rounded relative overflow-hidden',
+                  isWorkerRow ? 'h-5' : 'h-8'
+                )}
+              >
+                {row.sessions.map((s, idx) => {
+                  const worker = isWorkerSession(s.session);
+                  const parentLabel = worker
+                    ? (s.session as WorkerSession).parent_hub_agent
+                    : undefined;
+                  const scopeLabel = worker
+                    ? (s.session as WorkerSession).task_scope
+                    : undefined;
+
+                  return (
+                    <div
+                      key={`${s.session.session_id}-${idx}`}
+                      className={cn(
+                        'absolute top-0 h-full rounded flex items-center justify-center text-xs text-white/80 overflow-hidden',
+                        s.session.completed_at ? 'opacity-80' : 'opacity-100 animate-pulse',
+                        worker && 'border border-dashed border-white/30'
+                      )}
+                      style={{
+                        left: `${s.startPercent}%`,
+                        width: `${s.widthPercent}%`,
+                        backgroundColor: agentColors[row.agentType],
+                      }}
+                      title={[
+                        `${formatTime(s.session.started_at)}${
+                          s.session.completed_at
+                            ? ` - ${formatTime(s.session.completed_at)}`
+                            : ' (in progress)'
+                        }`,
+                        parentLabel ? `Hub: ${parentLabel}` : '',
+                        scopeLabel ? `Scope: ${scopeLabel}` : '',
+                      ]
+                        .filter(Boolean)
+                        .join('\n')}
+                    >
+                      {s.widthPercent > 10 && (
+                        <span className="truncate px-1">
+                          {worker && parentLabel
+                            ? `↳ ${parentLabel}`
+                            : s.session.completed_at
+                              ? formatDuration(s.session.started_at, s.session.completed_at)
+                              : 'Active'}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Handoff markers (optional enhancement) */}

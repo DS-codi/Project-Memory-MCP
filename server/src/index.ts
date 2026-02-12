@@ -17,7 +17,7 @@ import { z } from 'zod';
 
 // Import tools
 import * as workspaceTools from './tools/workspace.tools.js';
-import * as planTools from './tools/plan.tools.js';
+import * as planTools from './tools/plan/index.js';
 import * as handoffTools from './tools/handoff.tools.js';
 import * as contextTools from './tools/context.tools.js';
 import * as agentTools from './tools/agent.tools.js';
@@ -132,7 +132,7 @@ const server = new McpServer({
 const AgentTypeSchema = z.enum([
   'Coordinator', 'Analyst', 'Researcher', 'Architect', 'Executor',
   'Builder', 'Reviewer', 'Tester', 'Revisionist', 'Archivist',
-  'Brainstorm', 'Runner'
+  'Brainstorm', 'Runner', 'SkillWriter', 'Worker', 'TDDDriver'
 ]);
 
 const StepStatusSchema = z.enum(['pending', 'active', 'done', 'blocked']);
@@ -193,10 +193,13 @@ server.tool(
   'memory_plan',
   'Consolidated plan lifecycle management. Actions: list (list plans), get (get plan state), create (create new plan), update (modify plan steps), archive (archive completed plan), import (import existing plan file), find (find plan by ID), add_note (add note to plan), delete (delete plan), consolidate (consolidate steps), set_goals (set goals and success criteria), add_build_script (add build script), list_build_scripts (list build scripts), run_build_script (resolve build script for terminal execution), delete_build_script (delete build script), create_from_template (create plan from template), list_templates (list available templates).',
   {
-    action: z.enum(['list', 'get', 'create', 'update', 'archive', 'import', 'find', 'add_note', 'delete', 'consolidate', 'set_goals', 'add_build_script', 'list_build_scripts', 'run_build_script', 'delete_build_script', 'create_from_template', 'list_templates', 'confirm']).describe('The action to perform'),
+    action: z.enum(['list', 'get', 'create', 'update', 'archive', 'import', 'find', 'add_note', 'delete', 'consolidate', 'set_goals', 'add_build_script', 'list_build_scripts', 'run_build_script', 'delete_build_script', 'create_from_template', 'list_templates', 'confirm', 'create_program', 'add_plan_to_program', 'upgrade_to_program', 'list_program_plans']).describe('The action to perform'),
     workspace_id: z.string().optional().describe('Workspace ID'),
     workspace_path: z.string().optional().describe('Workspace path (alternative to workspace_id for list)'),
     plan_id: z.string().optional().describe('Plan ID'),
+    program_id: z.string().optional().describe('Program ID (for program actions)'),
+    move_steps_to_child: z.boolean().optional().describe('Move existing steps to a child plan when upgrading to program'),
+    child_plan_title: z.string().optional().describe('Title for child plan when upgrading with move_steps_to_child'),
     title: z.string().optional().describe('Plan title (for create/import)'),
     description: z.string().optional().describe('Plan description (for create)'),
     category: RequestCategorySchema.optional().describe('Request category'),
@@ -342,7 +345,8 @@ server.tool(
     workspace_path: z.string().optional().describe('Workspace path (for deploy)'),
     agents: z.array(z.string()).optional().describe('Specific agents to deploy'),
     include_prompts: z.boolean().optional().describe('Include prompts in deployment'),
-    include_instructions: z.boolean().optional().describe('Include instructions in deployment')
+    include_instructions: z.boolean().optional().describe('Include instructions in deployment'),
+    include_skills: z.boolean().optional().describe('Include skills in deployment')
   },
   async (params) => {
     const result = await withLogging('memory_agent', params, () =>
@@ -356,9 +360,9 @@ server.tool(
 
 server.tool(
   'memory_context',
-  'Consolidated context and research management tool. Actions: store (store plan context), get (retrieve plan context), store_initial (store initial user request), list (list plan context files), list_research (list research notes), append_research (add research note), generate_instructions (generate plan instructions file), batch_store (store multiple context items at once), workspace_get/workspace_set/workspace_update/workspace_delete (workspace-scoped context CRUD), knowledge_store/knowledge_get/knowledge_list/knowledge_delete (workspace knowledge file CRUD).',
+  'Consolidated context and research management tool. Actions: store (store plan context), get (retrieve plan context), store_initial (store initial user request), list (list plan context files), list_research (list research notes), append_research (add research note), generate_instructions (generate plan instructions file), batch_store (store multiple context items at once), workspace_get/workspace_set/workspace_update/workspace_delete (workspace-scoped context CRUD), knowledge_store/knowledge_get/knowledge_list/knowledge_delete (workspace knowledge file CRUD), write_prompt (create plan-specific .prompt.md files).',
   {
-    action: z.enum(['store', 'get', 'store_initial', 'list', 'list_research', 'append_research', 'generate_instructions', 'batch_store', 'workspace_get', 'workspace_set', 'workspace_update', 'workspace_delete', 'knowledge_store', 'knowledge_get', 'knowledge_list', 'knowledge_delete']).describe('The action to perform'),
+    action: z.enum(['store', 'get', 'store_initial', 'list', 'list_research', 'append_research', 'generate_instructions', 'batch_store', 'workspace_get', 'workspace_set', 'workspace_update', 'workspace_delete', 'knowledge_store', 'knowledge_get', 'knowledge_list', 'knowledge_delete', 'write_prompt']).describe('The action to perform'),
     workspace_id: z.string().describe('Workspace ID'),
     plan_id: z.string().optional().describe('Plan ID (required for plan-scoped actions)'),
     type: z.string().optional().describe('Context type (for store/get)'),
@@ -384,6 +388,18 @@ server.tool(
     tags: z.array(z.string()).optional().describe('Knowledge file tags (for knowledge_store)'),
     created_by_agent: z.string().optional().describe('Agent that created the knowledge file'),
     created_by_plan: z.string().optional().describe('Plan that created the knowledge file'),
+    prompt_title: z.string().optional().describe('Prompt title (for write_prompt)'),
+    prompt_agent: z.string().optional().describe('Target agent for prompt (for write_prompt)'),
+    prompt_description: z.string().optional().describe('Prompt description (for write_prompt)'),
+    prompt_sections: z.array(z.object({ title: z.string(), content: z.string() })).optional().describe('Prompt body sections (for write_prompt)'),
+    prompt_variables: z.array(z.string()).optional().describe('Template variables (for write_prompt)'),
+    prompt_raw_body: z.string().optional().describe('Raw prompt body, used instead of sections (for write_prompt)'),
+    prompt_mode: z.string().optional().describe('Prompt mode: agent, ask, edit (for write_prompt)'),
+    prompt_phase: z.string().optional().describe('Plan phase (for write_prompt)'),
+    prompt_step_indices: z.array(z.number()).optional().describe('Step indices covered (for write_prompt)'),
+    prompt_expires_after: z.string().optional().describe('Expiry: plan_completion, phase_completion, or ISO date (for write_prompt)'),
+    prompt_version: z.string().optional().describe('Semver version (for write_prompt)'),
+    prompt_slug: z.string().optional().describe('Filename slug override (for write_prompt)'),
   },
   async (params) => {
     const result = await withLogging('memory_context', params, () =>
@@ -418,6 +434,13 @@ async function main() {
     const fs = await import('fs');
     if (!fs.existsSync(agentsRoot)) {
       console.error(`Warning: MBS_AGENTS_ROOT directory does not exist: ${agentsRoot}`);
+    }
+  }
+  const skillsRoot = process.env.MBS_SKILLS_ROOT;
+  if (skillsRoot) {
+    const fs = await import('fs');
+    if (!fs.existsSync(skillsRoot)) {
+      console.error(`Warning: MBS_SKILLS_ROOT directory does not exist: ${skillsRoot}`);
     }
   }
 

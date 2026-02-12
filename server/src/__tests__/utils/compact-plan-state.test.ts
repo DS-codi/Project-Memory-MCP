@@ -307,7 +307,7 @@ describe('compactifyPlanState', () => {
 describe('compactifyWithBudget', () => {
   it('should return result within the byte budget', () => {
     const state = makeMockPlanState();
-    const budget = 2000; // Small budget to force trimming
+    const budget = 3000; // Small budget to force trimming
     const compact = compactifyWithBudget(state, budget);
 
     const size = Buffer.byteLength(JSON.stringify(compact), 'utf8');
@@ -368,5 +368,269 @@ describe('compactifyWithBudget', () => {
     expect(compact.lineage.recent.length).toBe(1);
     // Summary should still be accurate
     expect(compact.plan_summary.total_steps).toBe(20);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 6: Progressive session trimming (>10 sessions)
+// ---------------------------------------------------------------------------
+
+describe('compactifyPlanState — progressive session trimming', () => {
+  it('should give last 3 sessions full context, summarize 4-10, omit >10', () => {
+    // 15 sessions → 12,13,14 full; 5-11 summarized; 0-4 omitted
+    const sessions = Array.from({ length: 15 }, (_, i) => makeSession(i));
+    const state = makeMockPlanState({ agent_sessions: sessions });
+    const compact = compactifyPlanState(state);
+
+    // Recent: last 3 with full context (sess_12, sess_13, sess_14)
+    expect(compact.agent_sessions.recent).toHaveLength(3);
+    expect(compact.agent_sessions.recent[0].session_id).toBe('sess_12');
+    expect(compact.agent_sessions.recent[2].session_id).toBe('sess_14');
+
+    // Summarized: sessions 5-11 (7 one-liner summaries)
+    expect(compact.agent_sessions.summarized).toBeDefined();
+    expect(compact.agent_sessions.summarized!).toHaveLength(7);
+    for (const s of compact.agent_sessions.summarized!) {
+      expect(s).toHaveProperty('agent_type');
+      expect(s).toHaveProperty('summary_line');
+      expect(s).toHaveProperty('timestamp');
+      // Should NOT have full session fields
+      expect((s as any).session_id).toBeUndefined();
+      expect((s as any).context_keys).toBeUndefined();
+    }
+
+    // Total count reflects all sessions
+    expect(compact.agent_sessions.total_count).toBe(15);
+  });
+
+  it('should omit sessions beyond index 10 from the end entirely', () => {
+    const sessions = Array.from({ length: 20 }, (_, i) => makeSession(i));
+    const state = makeMockPlanState({ agent_sessions: sessions });
+    const compact = compactifyPlanState(state);
+
+    // Recent: 3, Summarized: 7 (sessions 10-16), Omitted: 10 (sessions 0-9)
+    expect(compact.agent_sessions.recent).toHaveLength(3);
+    expect(compact.agent_sessions.summarized!).toHaveLength(7);
+
+    // Verify summarized sessions are in the 4-10 range from end
+    const summarizedAgentTypes = compact.agent_sessions.summarized!.map(s => s.agent_type);
+    // All should be 'Executor' (from makeSession default)
+    expect(summarizedAgentTypes.every(t => t === 'Executor')).toBe(true);
+
+    // Total count is accurate even though many are omitted
+    expect(compact.agent_sessions.total_count).toBe(20);
+  });
+
+  it('should produce no summarized sessions when total <= maxSessions', () => {
+    const sessions = [makeSession(0), makeSession(1)];
+    const state = makeMockPlanState({ agent_sessions: sessions });
+    const compact = compactifyPlanState(state);
+
+    expect(compact.agent_sessions.recent).toHaveLength(2);
+    expect(compact.agent_sessions.summarized).toBeUndefined();
+    expect(compact.agent_sessions.total_count).toBe(2);
+  });
+
+  it('should truncate long summaries in summarized sessions to 120 chars', () => {
+    const longSummary = 'A'.repeat(200);
+    const sessions = Array.from({ length: 12 }, (_, i) =>
+      makeSession(i, { summary: i < 5 ? longSummary : `Short ${i}` })
+    );
+    const state = makeMockPlanState({ agent_sessions: sessions });
+    const compact = compactifyPlanState(state);
+
+    // Summarized sessions (indices 2-8) should have truncated summaries
+    for (const s of compact.agent_sessions.summarized || []) {
+      expect(s.summary_line.length).toBeLessThanOrEqual(120);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 6: Phase-based step filtering
+// ---------------------------------------------------------------------------
+
+describe('compactifyPlanState — phase-based step filtering', () => {
+  function makeMultiPhaseSteps(): PlanStep[] {
+    return [
+      makeStep(0, 'done', 'Phase 1'),
+      makeStep(1, 'pending', 'Phase 1'),
+      makeStep(2, 'done', 'Phase 2'),
+      makeStep(3, 'pending', 'Phase 2'),
+      makeStep(4, 'active', 'Phase 3'),
+      makeStep(5, 'pending', 'Phase 3'),
+      makeStep(6, 'pending', 'Phase 4'),
+      makeStep(7, 'pending', 'Phase 5'),
+    ];
+  }
+
+  it('should include current phase + one adjacent phase only', () => {
+    const state = makeMockPlanState({
+      current_phase: 'Phase 3',
+      steps: makeMultiPhaseSteps()
+    });
+    const compact = compactifyPlanState(state);
+
+    // Phase 3 (active + pending) + Phase 2 (pending) + Phase 4 (pending) — adjacent phases
+    // Phase 1 and Phase 5 should be excluded
+    const phases = new Set(compact.steps.map(s => s.phase));
+    expect(phases.has('Phase 3')).toBe(true);
+    // Phase 2 adjacent (before), Phase 4 adjacent (after)
+    expect(phases.has('Phase 2')).toBe(true);
+    expect(phases.has('Phase 4')).toBe(true);
+    // Phase 1 too far, Phase 5 too far
+    expect(phases.has('Phase 1')).toBe(false);
+    expect(phases.has('Phase 5')).toBe(false);
+  });
+
+  it('should still filter out done steps even in adjacent phases', () => {
+    const state = makeMockPlanState({
+      current_phase: 'Phase 3',
+      steps: makeMultiPhaseSteps()
+    });
+    const compact = compactifyPlanState(state);
+
+    // Phase 2 has one done (step 2) and one pending (step 3)
+    // Only step 3 should appear (done filtered out by status)
+    const phase2Steps = compact.steps.filter(s => s.phase === 'Phase 2');
+    expect(phase2Steps.every(s => s.status !== 'done')).toBe(true);
+  });
+
+  it('should return all status-filtered steps when current phase not in any step', () => {
+    const state = makeMockPlanState({
+      current_phase: 'Phase 99',
+      steps: makeMultiPhaseSteps()
+    });
+    const compact = compactifyPlanState(state);
+
+    // Since Phase 99 doesn't exist in steps, all pending/active steps returned
+    const allNonDone = makeMultiPhaseSteps().filter(
+      s => s.status === 'pending' || s.status === 'active'
+    );
+    expect(compact.steps).toHaveLength(allNonDone.length);
+  });
+
+  it('should handle single phase correctly', () => {
+    const singlePhaseSteps: PlanStep[] = [
+      makeStep(0, 'done', 'Only Phase'),
+      makeStep(1, 'active', 'Only Phase'),
+      makeStep(2, 'pending', 'Only Phase'),
+    ];
+    const state = makeMockPlanState({
+      current_phase: 'Only Phase',
+      steps: singlePhaseSteps
+    });
+    const compact = compactifyPlanState(state);
+
+    // Only active + pending from the single phase
+    expect(compact.steps).toHaveLength(2);
+    expect(compact.steps.every(s => s.phase === 'Only Phase')).toBe(true);
+  });
+
+  it('should include first phase when current is at the beginning', () => {
+    const state = makeMockPlanState({
+      current_phase: 'Phase 1',
+      steps: makeMultiPhaseSteps()
+    });
+    const compact = compactifyPlanState(state);
+
+    const phases = new Set(compact.steps.map(s => s.phase));
+    expect(phases.has('Phase 1')).toBe(true);
+    expect(phases.has('Phase 2')).toBe(true);
+    // Phase 3+ should be excluded
+    expect(phases.has('Phase 3')).toBe(false);
+  });
+
+  it('should include last phase when current is at the end', () => {
+    const state = makeMockPlanState({
+      current_phase: 'Phase 5',
+      steps: makeMultiPhaseSteps()
+    });
+    const compact = compactifyPlanState(state);
+
+    const phases = new Set(compact.steps.map(s => s.phase));
+    expect(phases.has('Phase 5')).toBe(true);
+    expect(phases.has('Phase 4')).toBe(true);
+    // Phase 1-3 should be excluded
+    expect(phases.has('Phase 1')).toBe(false);
+    expect(phases.has('Phase 2')).toBe(false);
+    expect(phases.has('Phase 3')).toBe(false);
+  });
+
+  it('should disable phase filtering with phaseFilterSteps=false', () => {
+    const state = makeMockPlanState({
+      current_phase: 'Phase 3',
+      steps: makeMultiPhaseSteps()
+    });
+    const compact = compactifyPlanState(state, { phaseFilterSteps: false });
+
+    // All pending/active from ALL phases, not just adjacent
+    const allNonDone = makeMultiPhaseSteps().filter(
+      s => s.status === 'pending' || s.status === 'active'
+    );
+    expect(compact.steps).toHaveLength(allNonDone.length);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 6: context_priority 'high' bypasses phase filtering
+// ---------------------------------------------------------------------------
+
+describe('compactifyPlanState — context_priority high', () => {
+  it('should include high-priority steps even outside adjacent phases', () => {
+    const steps: PlanStep[] = [
+      makeStep(0, 'pending', 'Phase 1'),
+      makeStep(1, 'active', 'Phase 2'),
+      makeStep(2, 'pending', 'Phase 3'),
+      { ...makeStep(3, 'pending', 'Phase 5'), context_priority: 'high' as const },
+    ];
+    const state = makeMockPlanState({
+      current_phase: 'Phase 2',
+      steps
+    });
+    const compact = compactifyPlanState(state);
+
+    // Phase 5 is NOT adjacent to Phase 2, but step 3 has context_priority='high'
+    const phase5Steps = compact.steps.filter(s => s.phase === 'Phase 5');
+    expect(phase5Steps).toHaveLength(1);
+    expect(phase5Steps[0].context_priority).toBe('high');
+  });
+
+  it('should include normal-priority steps only from current + adjacent phases', () => {
+    const steps: PlanStep[] = [
+      makeStep(0, 'pending', 'Phase 1'),
+      makeStep(1, 'active', 'Phase 2'),
+      makeStep(2, 'pending', 'Phase 3'),
+      { ...makeStep(3, 'pending', 'Phase 5'), context_priority: 'normal' as const },
+    ];
+    const state = makeMockPlanState({
+      current_phase: 'Phase 2',
+      steps
+    });
+    const compact = compactifyPlanState(state);
+
+    // Phase 5 step has context_priority='normal' — should be excluded
+    const phase5Steps = compact.steps.filter(s => s.phase === 'Phase 5');
+    expect(phase5Steps).toHaveLength(0);
+  });
+
+  it('should include multiple high-priority steps from distant phases', () => {
+    const steps: PlanStep[] = [
+      makeStep(0, 'active', 'Phase 1'),
+      { ...makeStep(1, 'pending', 'Phase 4'), context_priority: 'high' as const },
+      { ...makeStep(2, 'pending', 'Phase 6'), context_priority: 'high' as const },
+      makeStep(3, 'pending', 'Phase 8'),
+    ];
+    const state = makeMockPlanState({
+      current_phase: 'Phase 1',
+      steps
+    });
+    const compact = compactifyPlanState(state);
+
+    // Phase 4 and Phase 6 are distant but high-priority
+    expect(compact.steps.filter(s => s.phase === 'Phase 4')).toHaveLength(1);
+    expect(compact.steps.filter(s => s.phase === 'Phase 6')).toHaveLength(1);
+    // Phase 8 normal priority, distant — excluded
+    expect(compact.steps.filter(s => s.phase === 'Phase 8')).toHaveLength(0);
   });
 });

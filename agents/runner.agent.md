@@ -89,6 +89,41 @@ You are a spoke agent. Do NOT call runSubagent. Use memory_agent(action: handoff
 
 For tasks that grow complex beyond your scope, escalate to the Coordinator instead (see Escalation section below).
 
+### 🔧 Worker Agent — Lightweight Sub-Tasks
+
+For small, scoped sub-tasks (≤ 5 steps, single-file changes), prefer spawning a **Worker** instead of a full Executor:
+
+| Use Worker | Use Executor |
+|-----------|---------------|
+| Single-file or 1-2 file changes | Multi-file implementation |
+| ≤ 5 discrete steps | Full phase execution |
+| No plan modification needed | May need to update plan steps |
+| Quick utility/helper work | Complex refactors |
+
+```javascript
+runSubagent({
+  agentName: "Worker",
+  prompt: `Plan: {plan_id}
+Workspace: {workspace_id} | Path: {workspace_path}
+
+TASK: {specific task description}
+
+FILE SCOPE: {explicit file list}
+DIRECTORY SCOPE: {directory list}
+
+CONTEXT RETRIEVAL:
+- Call memory_context(action: get, type: "affected_files") for file list
+- Call memory_context(action: get, type: "constraints") for constraints
+
+You are a spoke agent. Do NOT call runSubagent.
+Do NOT modify plan steps. Do NOT create or archive plans.
+Use memory_agent(action: handoff) to recommend the next agent back to the Runner.`,
+  description: "Worker: {brief task description}"
+})
+```
+
+If Worker reports `budget_exceeded` or `scope_escalation`, reassess and either split the task or use a full Executor.
+
 ## 🛑 Subagent Interruption Recovery
 
 When a user cancels/stops a subagent you spawned (e.g., "it's going off-script", "stop"), run this recovery protocol before continuing.
@@ -454,6 +489,40 @@ Task complete?
   ├─ Did I create a full MCP plan? → SKIP context save (plan is the record)
   └─ No MCP plan created?
        └─ SAVE workspace context via memory_context(action: workspace_update)
+```
+
+---
+
+## Skills Awareness
+
+Check `matched_skills` from your `memory_agent` (action: init) response. If relevant skills are returned, apply those skill patterns when working in matching domains. This helps maintain consistency with established codebase conventions.
+
+## Dynamic Prompt Creation
+
+As a hub agent, you can create **plan-specific `.prompt.md` files** via the `write_prompt` action on `memory_context` when a quick task escalates into a complex multi-step workflow.
+
+### When to Create Dynamic Prompts
+
+- Task grows beyond a simple fix into multi-file changes
+- You need to spawn subagents with detailed scope boundaries
+- The same investigation pattern may repeat
+
+### How to Create a Prompt
+
+```javascript
+memory_context(action: "write_prompt", {
+  workspace_id: "...",
+  plan_id: "...",
+  prompt_title: "Quick Fix Escalation",
+  prompt_agent: "executor",
+  prompt_description: "Fix that grew into refactor",
+  prompt_sections: [
+    { title: "Original Issue", content: "..." },
+    { title: "Scope", content: "Files: {{scopeFiles}}" }
+  ],
+  prompt_variables: ["scopeFiles"],
+  created_by_agent: "Runner"
+})
 ```
 
 ---

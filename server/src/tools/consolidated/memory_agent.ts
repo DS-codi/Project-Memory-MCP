@@ -69,6 +69,7 @@ export interface MemoryAgentParams {
   agents?: string[];
   include_prompts?: boolean;
   include_instructions?: boolean;
+  include_skills?: boolean;
 }
 
 type AgentResult = 
@@ -78,7 +79,7 @@ type AgentResult =
   | { action: 'validate'; data: validationTools.AgentValidationResult }
   | { action: 'list'; data: string[] }
   | { action: 'get_instructions'; data: { filename: string; content: string } }
-  | { action: 'deploy'; data: { deployed: string[]; prompts_deployed: string[]; instructions_deployed: string[]; target_path: string } }
+  | { action: 'deploy'; data: { deployed: string[]; prompts_deployed: string[]; instructions_deployed: string[]; skills_deployed: string[]; target_path: string } }
   | { action: 'get_briefing'; data: MissionBriefing }
   | { action: 'get_lineage'; data: LineageEntry[] };
 
@@ -286,7 +287,8 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
         workspace_path: params.workspace_path,
         agents: params.agents,
         include_prompts: params.include_prompts,
-        include_instructions: params.include_instructions
+        include_instructions: params.include_instructions,
+        include_skills: params.include_skills
       });
       if (!result.success) {
         return { success: false, error: result.error };
@@ -374,6 +376,12 @@ function getValidationFunction(agentType: AgentType): ((params: validationTools.
       return validationTools.validateBrainstorm;
     case 'Runner':
       return validationTools.validateRunner;
+    case 'SkillWriter':
+      return validationTools.validateSkillWriter;
+    case 'Worker':
+      return validationTools.validateWorker;
+    case 'TDDDriver':
+      return validationTools.validateTDDDriver;
     default:
       return null;
   }

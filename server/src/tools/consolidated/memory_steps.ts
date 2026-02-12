@@ -11,7 +11,7 @@ import type {
   PlanOperationResult,
   StepStatus
 } from '../../types/index.js';
-import * as planTools from '../plan.tools.js';
+import * as planTools from '../plan/index.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
 
 /**

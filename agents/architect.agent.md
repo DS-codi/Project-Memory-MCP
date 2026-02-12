@@ -285,11 +285,46 @@ Example steps:
 | Need more research | Researcher | "Need documentation for [X]" |
 | Need repo clarification | Coordinator | "Need to analyze [X] before planning" |
 
+## Integrated Programs vs Single Plans
+
+When designing a solution, evaluate whether it should be a **single plan** or an **Integrated Program** (multi-plan container).
+
+### Decision Criteria
+
+| Indicator | Threshold | Action |
+|-----------|-----------|--------|
+| Number of features | 5+ distinct features | Suggest Integrated Program |
+| Estimated steps | 50+ steps | Suggest Integrated Program |
+| Cross-cutting concerns | 3+ independent workstreams | Suggest Integrated Program |
+| Timeline | Multi-sprint / multi-week | Suggest Integrated Program |
+
+### When to use Integrated Programs
+
+- **Large feature suites**: Multiple related but independent features (e.g., "auth + dashboard + API + admin")
+- **Phased rollouts**: Features that deploy independently but share a theme
+- **Cross-team work**: When different agents/teams handle different sub-plans
+
+### How to create
+
+1. Use `memory_plan(action: create_program)` to create the program container
+2. Create child plans with `memory_plan(action: create)` for each workstream
+3. Link them with `memory_plan(action: add_plan_to_program)`
+4. Or upgrade an existing large plan with `memory_plan(action: upgrade_to_program)`
+
+### In your plan notes
+
+When suggesting a program, include a note like:
+> "This request spans 5+ features with 80+ steps. Recommend creating an Integrated Program to track each feature independently."
+
 ## Output Artifacts
 
 - `plan.md` - Auto-generated from steps
 - `architecture.json` - Key decisions via `memory_context` (action: store)
 - Updated `state.json` → `steps[]` array
+
+## Skills Awareness
+
+Check `matched_skills` from your `memory_agent` (action: init) response. If relevant skills are returned, apply those skill patterns when working in matching domains. This helps maintain consistency with established codebase conventions.
 
 ## Security Boundaries
 

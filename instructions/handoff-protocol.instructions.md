@@ -21,21 +21,28 @@ This workspace uses a **hub-and-spoke** model for agent orchestration.
          │                │                │
          └────────────────┴────────────────┘
                    Return to Hub
+
+    Also spawnable as lightweight spokes:
+    ┌──────────┐
+    │  Worker  │  ← Scoped sub-task spoke (max 5 steps)
+    └──────────┘
 ```
 
 ### Hub Agents
-Three agents are recognised as **hubs** that may spawn subagents via `runSubagent`:
+Four agents are recognised as **hubs** that may spawn subagents via `runSubagent`:
 - **Coordinator** — Primary orchestrator. Spawns any agent for plan execution.
 - **Analyst** — Investigation hub. May spawn Researcher, Brainstorm, or other agents for analysis cycles.
 - **Runner** — Ad-hoc hub. May spawn agents when quick tasks escalate.
+- **TDDDriver** — TDD hub. Spawns Tester (RED), Executor (GREEN), Reviewer (REFACTOR) for test-driven development cycles.
 
 ### Spoke Agents
-All other agents are **spokes**: Executor, Builder, Reviewer, Tester, Archivist, Brainstorm, Researcher, Architect.
+All other agents are **spokes**: Executor, Builder, Reviewer, Tester, Archivist, Brainstorm, Researcher, Architect, Worker.
+- **Worker** is a lightweight spoke for scoped sub-tasks (≤ 5 steps). Cannot modify plans or spawn subagents.
 - **Exception**: Revisionist may spawn subagents when pivoting a plan requires immediate sub-task execution.
 
 ## Subagent Spawning Rules
 
-1. **Only hub agents may call `runSubagent`.**
+1. **Only hub agents may call `runSubagent`.** (Coordinator, Analyst, Runner, TDDDriver)
 2. **When spawning a subagent, hubs MUST include anti-spawning instructions** in the prompt:
    > "You are a spoke agent. Do NOT call `runSubagent` to spawn other agents. Use `memory_agent(action: handoff)` to recommend the next agent back to the hub."
 3. **Spoke agents MUST NOT call `runSubagent`** — use `memory_agent(action: handoff)` to recommend the next agent.
@@ -49,7 +56,7 @@ All other agents are **spokes**: Executor, Builder, Reviewer, Tester, Archivist,
 
 ## Key Rules
 
-### For Hub Agents (Coordinator, Analyst, Runner)
+### For Hub Agents (Coordinator, Analyst, Runner, TDDDriver)
 - **You spawn subagents** using `runSubagent`
 - **Always include anti-spawning instructions** in the subagent prompt
 - **Control returns to you** after each subagent completes
@@ -91,6 +98,8 @@ The Coordinator reads `recommended_next_agent` and decides what to do next.
 | Reviewer | Coordinator | Approved (recommends Tester) or issues (recommends Revisionist) |
 | Tester | Coordinator | Tests pass (recommends Archivist) or fail (recommends Revisionist) |
 | Revisionist | Coordinator | Plan updated (recommends Executor) |
+| Worker | Coordinator | Sub-task complete, or limit/scope exceeded |
+| TDDDriver | Coordinator | TDD cycles complete (recommends Builder) or blocked (recommends Revisionist) |
 | Archivist | (none) | Final agent - plan archived |
 
 ## Expanded Agent Handoff Details
@@ -151,6 +160,23 @@ Use these rules when coordinating non-core agents or alternate flows.
 - **Include anti-spawning instructions** in every subagent prompt.
 - If task grows complex, handoff to Coordinator with recommendation to create a plan.
 - If investigation is required, handoff to Coordinator with recommendation for Analyst.
+
+### Worker (Lightweight Spoke)
+- Worker is a **spoke agent** — it MUST NOT call `runSubagent`.
+- Receives workspace_id, plan_id, specific task, and file scope from the hub that spawned it.
+- Cannot modify plan steps, create plans, or archive.
+- Handoff to the deploying hub agent (Coordinator, Analyst, or Runner) when sub-task is complete.
+- If scope or budget limits are exceeded, sets `budget_exceeded: true` or `scope_escalation: true` in handoff data.
+- Hub agent reads limit flags and reassesses task decomposition.
+
+### TDDDriver (TDD Hub)
+- TDDDriver is a **hub agent** — it CAN call `runSubagent`.
+- Spawns Tester (RED phase), Executor (GREEN phase), Reviewer (REFACTOR phase).
+- **Include anti-spawning instructions** in every subagent prompt.
+- Tracks TDD cycle state (cycle number, current phase, iterations).
+- Handoff to Coordinator with recommendation for Builder when all TDD cycles are complete.
+- Handoff to Coordinator with recommendation for Revisionist if blocked.
+
 ## Subagent Interruption Recovery
 
 When a user cancels or interrupts a subagent mid-execution, the hub that spawned it **must** follow the recovery protocol before continuing. See `instructions/subagent-recovery.instructions.md` for the full protocol.

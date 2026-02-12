@@ -13,6 +13,8 @@ export const agentColors: Record<AgentType, string> = {
   Revisionist: '#f97316',
   Archivist: '#64748b',
   Builder: '#3b82f6',
+  SkillWriter: '#a855f7',
+  Worker: '#a78bfa',
 };
 
 export const agentBgColors: Record<AgentType, string> = {
@@ -28,6 +30,8 @@ export const agentBgColors: Record<AgentType, string> = {
   Revisionist: 'bg-orange-500/20 text-orange-300 border-orange-500/50',
   Archivist: 'bg-slate-500/20 text-slate-300 border-slate-500/50',
   Builder: 'bg-blue-500/20 text-blue-300 border-blue-500/50',
+  SkillWriter: 'bg-purple-500/20 text-purple-300 border-purple-500/50',
+  Worker: 'bg-purple-400/20 text-purple-300 border-purple-400/50',
 };
 
 export const agentIcons: Record<AgentType, string> = {
@@ -43,6 +47,8 @@ export const agentIcons: Record<AgentType, string> = {
   Revisionist: '🔄',
   Archivist: '📦',
   Builder: '🏗️',
+  SkillWriter: '✍️',
+  Worker: '👷',
 };
 
 export const statusColors: Record<StepStatus, string> = {

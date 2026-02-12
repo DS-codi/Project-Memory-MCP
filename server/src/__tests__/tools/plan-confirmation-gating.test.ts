@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { updateStep } from '../../tools/plan.tools.js';
+import { updateStep } from '../../tools/plan/index.js';
 import * as fileStore from '../../storage/file-store.js';
 
 vi.mock('../../storage/file-store.js');

@@ -73,6 +73,8 @@ const PHASE_AGENT_MAP: Record<string, AgentType[]> = {
   'test': ['Tester'],
   'comparison': ['Analyst'],
   'ground_truth': ['Analyst'],
+  'tdd': ['TDDDriver'],
+  'test-driven': ['TDDDriver'],
   
   // Review phases
   'review': ['Reviewer'],
@@ -85,6 +87,11 @@ const PHASE_AGENT_MAP: Record<string, AgentType[]> = {
   'ad-hoc': ['Runner'],
   'quick': ['Runner'],
   'hotfix': ['Runner'],
+
+  // Worker phases (delegated sub-tasks)
+  'worker': ['Worker'],
+  'sub-task': ['Worker'],
+  'subtask': ['Worker'],
   
   // Pivot phases
   'revision': ['Revisionist'],
@@ -111,7 +118,10 @@ const TASK_KEYWORDS: Record<AgentType, string[]> = {
   Reviewer: ['review', 'check', 'verify code', 'quality', 'assess', 'evaluate'],
   Tester: ['test', 'verify', 'validate', 'run tests', 'check functionality'],
   Revisionist: ['revise', 'adjust', 'pivot', 'change approach', 'modify plan'],
-  Archivist: ['archive', 'document', 'finalize', 'complete', 'summarize', 'close']
+  Archivist: ['archive', 'document', 'finalize', 'complete', 'summarize', 'close'],
+  SkillWriter: ['generate skill', 'create skill', 'skill file', 'analyze patterns', 'codebase conventions', 'SKILL.md'],
+  Worker: ['sub-task', 'delegated task', 'scoped work', 'worker task'],
+  TDDDriver: ['tdd', 'test-driven', 'red green refactor', 'test first', 'failing test', 'tdd cycle']
 };
 
 // =============================================================================
@@ -226,7 +236,10 @@ function getAllowedTools(agentType: AgentType): string[] {
     Reviewer: [...commonTools, 'update_step', 'store_context'],
     Tester: [...commonTools, 'update_step', 'store_context', 'run_tests'],
     Revisionist: [...commonTools, 'modify_plan', 'update_step', 'store_context'],
-    Archivist: [...commonTools, 'archive_plan', 'reindex_workspace', 'edit_file', 'create_file']
+    Archivist: [...commonTools, 'archive_plan', 'reindex_workspace', 'edit_file', 'create_file'],
+    SkillWriter: [...commonTools, 'update_step', 'store_context', 'list_skills', 'match_skills', 'deploy_skills'],
+    Worker: [...commonTools, 'store_context', 'create_file', 'edit_file'],
+    TDDDriver: [...commonTools, 'update_step', 'store_context', 'get_context', 'create_plan', 'modify_plan']
   };
   
   return agentTools[agentType];
@@ -243,6 +256,67 @@ function getBuildRelatedSteps(state: PlanState): PlanStep[] {
     const taskText = `${step.phase} ${step.task}`.toLowerCase();
     return step.type === 'build' || BUILD_TASK_PATTERN.test(taskText);
   });
+}
+
+/**
+ * Determine if Builder is deployed at end-of-plan (Final Verification mode)
+ * vs mid-plan (Regression Check mode).
+ */
+function isEndOfPlanDeployment(state: PlanState): boolean {
+  const nonBuildSteps = state.steps.filter(s => s.type !== 'build');
+  return nonBuildSteps.every(s => s.status === 'done');
+}
+
+/**
+ * Validate Builder deployment mode based on plan state.
+ * Returns warnings/instructions for mid-plan vs end-of-plan deployment.
+ */
+function validateBuilderMode(state: PlanState): {
+  mode: 'regression_check' | 'final_verification';
+  warnings: string[];
+  blocked: boolean;
+  blockReason?: string;
+} {
+  const atEndOfPlan = isEndOfPlanDeployment(state);
+  const prePlanStatus = (state as PlanState & { pre_plan_build_status?: string }).pre_plan_build_status;
+  const deployCtx = state.deployment_context;
+  const requestedMode = deployCtx?.reason?.toLowerCase().includes('regression') ? 'regression_check' : undefined;
+
+  if (atEndOfPlan) {
+    return { mode: 'final_verification', warnings: [], blocked: false };
+  }
+
+  // Mid-plan deployment
+  if (requestedMode === 'regression_check' || deployCtx?.reason?.toLowerCase().includes('regression')) {
+    // Regression check requested
+    if (prePlanStatus === 'passing') {
+      return { mode: 'regression_check', warnings: [], blocked: false };
+    }
+    if (prePlanStatus === 'failing') {
+      return {
+        mode: 'regression_check',
+        warnings: ['⚠️ pre_plan_build_status is "failing" — regression check may produce false positives. Cannot distinguish new failures from pre-existing ones.'],
+        blocked: false
+      };
+    }
+    // unknown or not set
+    return {
+      mode: 'regression_check',
+      warnings: ['⚠️ pre_plan_build_status is "unknown" — regression check results may be unreliable. Consider setting pre_plan_build_status at plan creation.'],
+      blocked: false
+    };
+  }
+
+  // Mid-plan deployment without regression justification
+  return {
+    mode: 'regression_check',
+    warnings: [
+      '⚠️ Builder deployed mid-plan without regression justification. Builder is primarily an end-of-plan agent.',
+      'If this is intentional regression checking, set mode to "regression_check" in deployment context.',
+      'Consider waiting until all phases complete for Final Verification mode.'
+    ],
+    blocked: false
+  };
 }
 
 /**
@@ -404,7 +478,41 @@ async function validateAgent(
     const currentStep = state.steps.find(s => s.status === 'active') || 
                         state.steps.find(s => s.status === 'pending');
     
+    const warnings: string[] = [];
+
+    // Worker-specific validation: must be deployed by a hub agent with task scope
+    if (agentType === 'Worker') {
+      const deployCtx = state.deployment_context;
+      const hubAgents = ['Coordinator', 'Analyst', 'Runner'];
+      if (!deployCtx || !hubAgents.includes(deployCtx.deployed_by)) {
+        warnings.push(
+          `⚠️ Worker was not deployed by a hub agent (Coordinator, Analyst, Runner). ` +
+          `Deployed by: ${deployCtx?.deployed_by ?? 'unknown'}. Workers must be delegated by hub agents.`
+        );
+      }
+      // Check if the deployment reason includes task scope information
+      if (!deployCtx?.reason || deployCtx.reason.length < 10) {
+        warnings.push(
+          '⚠️ Worker deployment is missing a meaningful task scope. ' +
+          'Hub agents must provide a specific task description when spawning Workers.'
+        );
+      }
+    }
+
     if (agentType === 'Builder') {
+      // Validate Builder deployment mode (regression_check vs final_verification)
+      const builderMode = validateBuilderMode(state);
+      if (builderMode.blocked) {
+        return {
+          success: false,
+          error: `BLOCKED: ${builderMode.blockReason}`
+        };
+      }
+      // Add mode-specific warnings
+      if (builderMode.warnings.length > 0) {
+        warnings.push(...builderMode.warnings);
+      }
+
       const buildSteps = getBuildRelatedSteps(state);
       if (buildSteps.length > 0) {
         const scripts = await store.getBuildScripts(workspace_id, plan_id);
@@ -418,8 +526,6 @@ async function validateAgent(
         }
       }
     }
-
-    const warnings: string[] = [];
     
     // =========================================================================
     // PRIORITY 1: Check deployment_context — orchestrator's explicit choice wins
@@ -469,7 +575,14 @@ async function validateAgent(
       }
 
       if (agentType === 'Builder') {
+        const builderMode = validateBuilderMode(state);
+        instructions += `Operating in ${builderMode.mode.replace('_', ' ')} mode. `;
         instructions += 'Use memory_plan add_build_script to register build steps and run_build_script to execute them. ';
+        if (builderMode.mode === 'regression_check') {
+          instructions += 'Produce a regression report identifying which step broke the build if compilation fails. ';
+        } else {
+          instructions += 'Produce user-facing build instructions, optimization suggestions, and dependency notes. ';
+        }
       }
       
       return {
@@ -546,7 +659,14 @@ async function validateAgent(
     }
 
     if (agentType === 'Builder') {
+      const builderMode = validateBuilderMode(state);
+      instructions += `Operating in ${builderMode.mode.replace('_', ' ')} mode. `;
       instructions += 'Use memory_plan add_build_script to register build steps and run_build_script to execute them. ';
+      if (builderMode.mode === 'regression_check') {
+        instructions += 'Produce a regression report identifying which step broke the build if compilation fails. ';
+      } else {
+        instructions += 'Produce user-facing build instructions, optimization suggestions, and dependency notes. ';
+      }
     }
     
     return {
@@ -646,4 +766,22 @@ export async function validateRunner(
   params: ValidateAgentParams
 ): Promise<ToolResponse<AgentValidationResult>> {
   return validateAgent('Runner', params);
+}
+
+export async function validateSkillWriter(
+  params: ValidateAgentParams
+): Promise<ToolResponse<AgentValidationResult>> {
+  return validateAgent('SkillWriter', params);
+}
+
+export async function validateWorker(
+  params: ValidateAgentParams
+): Promise<ToolResponse<AgentValidationResult>> {
+  return validateAgent('Worker', params);
+}
+
+export async function validateTDDDriver(
+  params: ValidateAgentParams
+): Promise<ToolResponse<AgentValidationResult>> {
+  return validateAgent('TDDDriver', params);
 }

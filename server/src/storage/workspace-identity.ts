@@ -820,6 +820,7 @@ export async function migrateWorkspace(
       legacy_workspace_ids: [],
       active_plans: [],
       archived_plans: [],
+      active_programs: [],
       indexed: false,
     };
     await writeJsonLocked(canonicalMetaPath, canonicalMeta);

@@ -1,9 +1,8 @@
 /**
  * Consolidated Context Tool - memory_context
  * 
- * Actions: store, get, store_initial, list, list_research, append_research, generate_instructions
- * Replaces: store_context, get_context, store_initial_context, list_context, 
- *           list_research_notes, append_research, generate_plan_instructions
+ * Actions: store, get, store_initial, list, list_research, append_research, generate_instructions,
+ *          batch_store, workspace_*, knowledge_*, write_prompt
  */
 
 import type { 
@@ -16,6 +15,8 @@ import type {
 import * as contextTools from '../context.tools.js';
 import * as workspaceContextTools from '../workspace-context.tools.js';
 import * as knowledgeTools from '../knowledge.tools.js';
+import * as promptWriter from '../prompt-writer.js';
+import * as promptStorage from '../prompt-storage.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
 
 export type ContextAction = 
@@ -34,7 +35,8 @@ export type ContextAction =
   | 'knowledge_store'
   | 'knowledge_get'
   | 'knowledge_list'
-  | 'knowledge_delete';
+  | 'knowledge_delete'
+  | 'write_prompt';
 
 export interface MemoryContextParams {
   action: ContextAction;
@@ -77,6 +79,20 @@ export interface MemoryContextParams {
   tags?: string[];
   created_by_agent?: string;
   created_by_plan?: string;
+
+  // For write_prompt
+  prompt_title?: string;
+  prompt_agent?: string;
+  prompt_description?: string;
+  prompt_sections?: Array<{ title: string; content: string }>;
+  prompt_variables?: string[];
+  prompt_raw_body?: string;
+  prompt_mode?: string;
+  prompt_phase?: string;
+  prompt_step_indices?: number[];
+  prompt_expires_after?: string;
+  prompt_version?: string;
+  prompt_slug?: string;
 }
 
 type ContextResult = 
@@ -95,7 +111,8 @@ type ContextResult =
   | { action: 'knowledge_store'; data: { knowledge_file: knowledgeTools.KnowledgeFile; created: boolean } }
   | { action: 'knowledge_get'; data: { knowledge_file: knowledgeTools.KnowledgeFile } }
   | { action: 'knowledge_list'; data: { files: knowledgeTools.KnowledgeFileMeta[]; total: number } }
-  | { action: 'knowledge_delete'; data: { deleted: boolean; slug: string } };
+  | { action: 'knowledge_delete'; data: { deleted: boolean; slug: string } }
+  | { action: 'write_prompt'; data: { filePath: string; slug: string; version: string } };
 
 export async function memoryContext(params: MemoryContextParams): Promise<ToolResponse<ContextResult>> {
   const { action, workspace_id, plan_id } = params;
@@ -481,10 +498,70 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
       };
     }
 
+    case 'write_prompt': {
+      if (!plan_id) {
+        return { success: false, error: 'plan_id is required for action: write_prompt' };
+      }
+      if (!params.prompt_title || !params.prompt_agent || !params.prompt_description) {
+        return {
+          success: false,
+          error: 'prompt_title, prompt_agent, and prompt_description are required for action: write_prompt'
+        };
+      }
+
+      // Resolve slug and auto-increment version if prompt already exists
+      const promptSlug = params.prompt_slug || promptWriter.slugify(params.prompt_title);
+      const resolvedVersion = await promptStorage.resolveNextVersion(
+        resolvedWorkspaceId,
+        plan_id,
+        promptSlug,
+        params.prompt_version,
+      );
+
+      const promptData: promptWriter.PromptData = {
+        title: params.prompt_title,
+        frontmatter: {
+          agent: params.prompt_agent,
+          description: params.prompt_description,
+          mode: params.prompt_mode || 'agent',
+          version: resolvedVersion,
+          created_by: params.created_by_agent,
+          plan_id: plan_id,
+          phase: params.prompt_phase,
+          step_indices: params.prompt_step_indices,
+          expires_after: params.prompt_expires_after || 'plan_completion',
+          tags: params.tags,
+          plan_updated_at: new Date().toISOString(),
+        },
+        sections: params.prompt_sections,
+        variables: params.prompt_variables,
+        rawBody: params.prompt_raw_body,
+      };
+
+      const outputDir = promptStorage.getPlanPromptsPath(resolvedWorkspaceId, plan_id);
+      const writeResult = await promptWriter.generatePromptFile(
+        promptData,
+        outputDir,
+        promptSlug,
+      );
+
+      return {
+        success: true,
+        data: {
+          action: 'write_prompt' as const,
+          data: {
+            filePath: writeResult.filePath,
+            slug: writeResult.slug,
+            version: writeResult.version,
+          }
+        }
+      };
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: store, get, store_initial, list, list_research, append_research, generate_instructions, batch_store, workspace_get, workspace_set, workspace_update, workspace_delete, knowledge_store, knowledge_get, knowledge_list, knowledge_delete`
+        error: `Unknown action: ${action}. Valid actions: store, get, store_initial, list, list_research, append_research, generate_instructions, batch_store, workspace_*, knowledge_*, write_prompt`
       };
   }
 }

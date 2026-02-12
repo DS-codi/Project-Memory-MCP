@@ -573,6 +573,7 @@ export async function createWorkspace(
     data_root: getDataRoot(),
     active_plans: [],
     archived_plans: [],
+    active_programs: [],
     indexed: !!profile,
     profile
   };

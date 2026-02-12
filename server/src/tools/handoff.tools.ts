@@ -38,6 +38,7 @@ import { events } from '../events/event-emitter.js';
 import * as contextTools from './context.tools.js';
 import { compactifyPlanState, compactifyWithBudget } from '../utils/compact-plan-state.js';
 import { buildWorkspaceContextSummary } from '../utils/workspace-context-summary.js';
+import { matchWorkspaceSkillsToContext } from './skills.tools.js';
 
 /**
  * Initialize an agent session - MUST be called first by every agent
@@ -201,6 +202,7 @@ export async function initialiseAgent(
     const role_boundaries = AGENT_BOUNDARIES[agent_type];
     
     // Discover instruction files for this agent in the workspace
+    // Score them against current task context and return top 5 most relevant
     let instruction_files: AgentInstructionFile[] | undefined;
     try {
       const discoveryResult = await contextTools.discoverInstructionFiles({
@@ -208,7 +210,12 @@ export async function initialiseAgent(
         target_agent: agent_type
       });
       if (discoveryResult.success && discoveryResult.data?.instructions.length) {
-        instruction_files = discoveryResult.data.instructions;
+        const planContext = buildInstructionScoringContext(state);
+        instruction_files = scoreAndFilterInstructions(
+          discoveryResult.data.instructions,
+          planContext,
+          5
+        );
       }
     } catch {
       // Instruction file discovery failure is non-fatal, just continue without them
@@ -233,6 +240,46 @@ export async function initialiseAgent(
       }
     }
 
+    // Discover and match workspace skills against plan/step context
+    let matched_skills: import('../types/index.js').MatchedSkillEntry[] | undefined;
+    try {
+      // Build context string from plan title, current phase, and active/pending step tasks
+      const contextParts = [
+        state.title,
+        state.current_phase,
+        ...state.steps
+          .filter(s => s.status === 'active' || s.status === 'pending')
+          .slice(0, 5)
+          .map(s => s.task)
+      ];
+
+      // TDDDriver gets boosted testing-related context for better skill matching
+      if (agent_type === 'TDDDriver') {
+        contextParts.push('testing', 'tdd', 'test-driven development', 'unit test', 'test framework', 'red green refactor');
+      }
+
+      const contextString = contextParts.filter(Boolean).join(' ');
+
+      const skillResult = await matchWorkspaceSkillsToContext({
+        workspace_path: workspace.path,
+        task_description: contextString,
+        min_score: 0.3,
+        max_results: 5
+      });
+
+      if (skillResult.success && skillResult.data && skillResult.data.length > 0) {
+        matched_skills = skillResult.data.map((m, idx) => ({
+          skill_name: m.skill_name,
+          relevance_score: m.relevance_score,
+          matched_keywords: m.matched_keywords,
+          // Include full content for top 3 matches only
+          content: idx < 3 ? m.content : undefined
+        }));
+      }
+    } catch {
+      // Non-fatal: skill matching failure doesn't block init
+    }
+
     return {
       success: true,
       data: {
@@ -247,7 +294,9 @@ export async function initialiseAgent(
         },
         role_boundaries,
         instruction_files,
-        workspace_context_summary
+        matched_skills,
+        workspace_context_summary,
+        context_size_bytes: measurePayloadSize(plan_state_payload, workspace_context_summary, matched_skills)
       }
     };
   } catch (error) {
@@ -381,6 +430,14 @@ export async function completeAgent(
  * 
  * The from_agent is recorded for lineage tracking, but no validation is performed
  * since subagents don't directly control each other.
+ * 
+ * BUILDER HANDOFF DATA TEMPLATE:
+ * When from_agent is 'Builder', the data field should conform to BuilderHandoffData:
+ *   { recommendation, mode, build_success, scripts_run, build_instructions?,
+ *     optimization_suggestions?, dependency_notes?, regression_report? }
+ * See types/common.types.ts BuilderHandoffData for the full interface.
+ * Coordinator surfaces build_instructions, optimization_suggestions, and
+ * dependency_notes to the user.
  */
 export async function handoff(
   params: HandoffParams
@@ -432,6 +489,22 @@ export async function handoff(
         ...entry,
         data: sanitizedData
       });
+
+      // Store failed Builder regression results as high-priority context
+      // This data survives compact-mode trimming for downstream agents
+      if (from_agent === 'Builder' && isFailedRegressionCheck(data)) {
+        await storeBuilderRegressionFailure(workspace_id, plan_id, data);
+      }
+
+      // Flag Worker budget/scope exceeded for Coordinator intervention
+      if (from_agent === 'Worker' && isWorkerLimitExceeded(data)) {
+        await storeWorkerLimitExceeded(workspace_id, plan_id, data);
+      }
+
+      // Store TDD cycle state from TDDDriver handoffs
+      if (from_agent === 'TDDDriver' && isTDDCycleData(data)) {
+        await storeTDDCycleState(workspace_id, plan_id, data);
+      }
     }
     
     await store.savePlanState(state);
@@ -544,5 +617,275 @@ export async function getLineage(
       success: false,
       error: `Failed to get lineage: ${(error as Error).message}`
     };
+  }
+}
+
+// =============================================================================
+// Instruction File Relevance Scoring
+// =============================================================================
+
+/**
+ * Build a context string from plan state for instruction file scoring.
+ */
+function buildInstructionScoringContext(state: PlanState): string {
+  const parts: string[] = [
+    state.title,
+    state.current_phase,
+    state.description
+  ];
+
+  // Add active & pending step tasks
+  for (const s of state.steps) {
+    if (s.status === 'active' || s.status === 'pending') {
+      parts.push(s.task);
+      if (s.phase) parts.push(s.phase);
+    }
+  }
+
+  return parts.filter(Boolean).join(' ').toLowerCase();
+}
+
+/**
+ * Score instruction files against plan context and return top N.
+ * 
+ * Scoring heuristic:
+ * - Mission keyword overlap with plan context
+ * - Recency (newer files score higher)
+ * - File-to-read overlap with active step tasks
+ */
+function scoreAndFilterInstructions(
+  instructions: AgentInstructionFile[],
+  planContext: string,
+  maxResults: number
+): AgentInstructionFile[] {
+  if (instructions.length <= maxResults) return instructions;
+
+  const scored = instructions.map(instr => {
+    let score = 0;
+
+    // Mission keyword overlap
+    const missionWords = (instr.mission || '').toLowerCase().split(/\s+/).filter(w => w.length > 3);
+    for (const word of missionWords) {
+      if (planContext.includes(word)) score += 2;
+    }
+
+    // Context keyword overlap
+    for (const ctx of instr.context || []) {
+      const ctxWords = ctx.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+      for (const word of ctxWords) {
+        if (planContext.includes(word)) score += 1;
+      }
+    }
+
+    // Files-to-read overlap (if any file mentioned in context)
+    for (const file of instr.files_to_read || []) {
+      const basename = file.split('/').pop()?.toLowerCase() || '';
+      if (planContext.includes(basename)) score += 3;
+    }
+
+    // Recency bonus: newer instructions score higher
+    if (instr.generated_at) {
+      const ageMs = Date.now() - new Date(instr.generated_at).getTime();
+      const ageHours = ageMs / (1000 * 60 * 60);
+      if (ageHours < 1) score += 5;
+      else if (ageHours < 24) score += 3;
+      else if (ageHours < 168) score += 1;  // Within a week
+    }
+
+    return { instruction: instr, score };
+  });
+
+  // Sort by score descending, take top N
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, maxResults).map(s => s.instruction);
+}
+
+// =============================================================================
+// Payload Size Measurement
+// =============================================================================
+
+/**
+ * Measure total payload size of the major init response components.
+ * Used for monitoring and debugging context budget issues.
+ */
+function measurePayloadSize(
+  planState: unknown,
+  workspaceContext: unknown,
+  matchedSkills: unknown
+): number {
+  let totalBytes = 0;
+  try {
+    if (planState) totalBytes += Buffer.byteLength(JSON.stringify(planState), 'utf-8');
+    if (workspaceContext) totalBytes += Buffer.byteLength(JSON.stringify(workspaceContext), 'utf-8');
+    if (matchedSkills) totalBytes += Buffer.byteLength(JSON.stringify(matchedSkills), 'utf-8');
+  } catch {
+    // If measurement fails, return 0 rather than blocking init
+  }
+  return totalBytes;
+}
+
+// =============================================================================
+// Builder Regression Failure Storage
+// =============================================================================
+
+/**
+ * Check if handoff data represents a failed Builder regression check.
+ */
+function isFailedRegressionCheck(data: Record<string, unknown>): boolean {
+  return (
+    data.mode === 'regression_check' &&
+    data.build_success === false
+  );
+}
+
+/**
+ * Store failed Builder regression results as high-priority context.
+ * 
+ * This context is stored under the 'builder_regression_failure' type and includes:
+ * - The failing step index (from regression_report.suspected_step)
+ * - Error output (from regression_report.errors)
+ * - Suspected breaking change details
+ * - A 'priority: high' marker so it survives compact-mode trimming
+ */
+async function storeBuilderRegressionFailure(
+  workspace_id: string,
+  plan_id: string,
+  data: Record<string, unknown>
+): Promise<void> {
+  try {
+    const regressionReport = data.regression_report as Record<string, unknown> | undefined;
+    const suspectedStep = regressionReport?.suspected_step as Record<string, unknown> | undefined;
+    const errors = regressionReport?.errors as Array<Record<string, unknown>> | undefined;
+
+    const failureContext = {
+      priority: 'high' as const,
+      stored_at: store.nowISO(),
+      failing_step_index: suspectedStep?.index ?? null,
+      suspected_breaking_change: suspectedStep
+        ? {
+            step_index: suspectedStep.index,
+            phase: suspectedStep.phase,
+            task: suspectedStep.task,
+            confidence: suspectedStep.confidence,
+            reasoning: suspectedStep.reasoning
+          }
+        : null,
+      error_output: errors?.map(e => ({
+        file: e.file,
+        line: e.line,
+        message: e.message
+      })) ?? [],
+      regression_summary: regressionReport?.regression_summary ?? data.reason ?? 'Build regression detected',
+      scripts_run: data.scripts_run ?? []
+    };
+
+    const contextPath = store.getContextPath(workspace_id, plan_id, 'builder_regression_failure');
+    await store.writeJsonLocked(contextPath, {
+      type: 'builder_regression_failure',
+      plan_id,
+      workspace_id,
+      ...failureContext
+    });
+  } catch {
+    // Non-fatal: don't let regression storage failure block the handoff
+  }
+}
+
+// =============================================================================
+// Worker Limit Exceeded Storage
+// =============================================================================
+
+/**
+ * Check if Worker handoff data indicates budget or scope exceeded.
+ */
+function isWorkerLimitExceeded(data: Record<string, unknown>): boolean {
+  return (
+    data.budget_exceeded === true ||
+    data.scope_escalation === true
+  );
+}
+
+/**
+ * Store Worker limit-exceeded context for Coordinator intervention.
+ * Flags that the Worker ran into scope or budget limits and the hub
+ * should reassess the task decomposition.
+ */
+async function storeWorkerLimitExceeded(
+  workspace_id: string,
+  plan_id: string,
+  data: Record<string, unknown>
+): Promise<void> {
+  try {
+    const limitContext = {
+      priority: 'high' as const,
+      stored_at: store.nowISO(),
+      budget_exceeded: data.budget_exceeded === true,
+      scope_escalation: data.scope_escalation === true,
+      files_modified: data.files_modified ?? [],
+      files_created: data.files_created ?? [],
+      remaining_work: data.remaining_work ?? null,
+      reason: data.reason ?? 'Worker limit exceeded'
+    };
+
+    const contextPath = store.getContextPath(workspace_id, plan_id, 'worker_limit_exceeded');
+    await store.writeJsonLocked(contextPath, {
+      type: 'worker_limit_exceeded',
+      plan_id,
+      workspace_id,
+      ...limitContext
+    });
+  } catch {
+    // Non-fatal: don't let limit storage failure block the handoff
+  }
+}
+
+// =============================================================================
+// TDD Cycle State Storage
+// =============================================================================
+
+/**
+ * Check if handoff data contains TDD cycle state information.
+ */
+function isTDDCycleData(data: Record<string, unknown>): boolean {
+  return (
+    data.tdd_cycle_state != null ||
+    data.cycles_completed != null ||
+    data.current_phase === 'red' || data.current_phase === 'green' || data.current_phase === 'refactor'
+  );
+}
+
+/**
+ * Store TDD cycle state from TDDDriver handoffs.
+ * Persists cycle progress so TDDDriver can resume on re-deployment.
+ */
+async function storeTDDCycleState(
+  workspace_id: string,
+  plan_id: string,
+  data: Record<string, unknown>
+): Promise<void> {
+  try {
+    const cycleState = data.tdd_cycle_state as Record<string, unknown> | undefined;
+
+    const tddContext = {
+      stored_at: store.nowISO(),
+      cycle_number: cycleState?.cycle_number ?? data.cycles_completed ?? 0,
+      current_phase: cycleState?.current_phase ?? data.current_phase ?? 'red',
+      test_file: cycleState?.test_file ?? data.test_file ?? null,
+      implementation_file: cycleState?.implementation_file ?? data.implementation_file ?? null,
+      iterations: cycleState?.iterations ?? [],
+      tests_written: data.tests_written ?? 0,
+      test_files: data.test_files ?? [],
+      implementation_files: data.implementation_files ?? []
+    };
+
+    const contextPath = store.getContextPath(workspace_id, plan_id, 'tdd_cycle_state');
+    await store.writeJsonLocked(contextPath, {
+      type: 'tdd_cycle_state',
+      plan_id,
+      workspace_id,
+      ...tddContext
+    });
+  } catch {
+    // Non-fatal: don't let TDD state storage failure block the handoff
   }
 }

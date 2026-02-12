@@ -267,6 +267,55 @@ export function registerPlanCommands(
             });
 
             notify(`Added step to plan: "${stepTask}"`);
+        }),
+
+        vscode.commands.registerCommand('projectMemory.viewPrograms', async () => {
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (!workspaceFolders) {
+                vscode.window.showErrorMessage('No workspace folder open');
+                return;
+            }
+
+            const serverPort = getServerPort();
+            const workspacePath = workspaceFolders[0].uri.fsPath;
+            const workspaceId = await registerWorkspace(serverPort, workspacePath);
+            if (!workspaceId) {
+                vscode.window.showErrorMessage('Failed to register workspace');
+                return;
+            }
+
+            try {
+                const res = await fetch(`http://localhost:${serverPort}/api/programs/${workspaceId}`);
+                if (!res.ok) {
+                    vscode.window.showInformationMessage('No programs found or programs API not available yet.');
+                    return;
+                }
+                const data: any = await res.json();
+                const programs: Array<{ program_id: string; name: string; plans: unknown[] }> = data.programs || [];
+
+                if (programs.length === 0) {
+                    vscode.window.showInformationMessage('No programs found for this workspace.');
+                    return;
+                }
+
+                const pick = await vscode.window.showQuickPick(
+                    programs.map((p) => ({
+                        label: p.name,
+                        description: `${p.plans.length} plan${p.plans.length !== 1 ? 's' : ''}`,
+                        value: p.program_id,
+                    })),
+                    { placeHolder: 'Select a program to view in the dashboard' },
+                );
+
+                if (pick) {
+                    vscode.commands.executeCommand(
+                        'projectMemory.openDashboardPanel',
+                        `${getDashboardFrontendUrl()}/workspace/${workspaceId}/program/${pick.value}`,
+                    );
+                }
+            } catch {
+                vscode.window.showInformationMessage('Programs feature requires the dashboard server to be running.');
+            }
         })
     );
 }

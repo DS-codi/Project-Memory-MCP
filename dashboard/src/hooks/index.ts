@@ -5,3 +5,5 @@ export { useLiveUpdates } from './useLiveUpdates';
 export { usePrompts, usePrompt, useCreatePrompt, useUpdatePrompt, useDeletePrompt, useDeployPrompt } from './usePrompts';
 export { useInstructions, useInstruction, useWorkspaceInstructions, useCreateInstruction, useUpdateInstruction, useDeleteInstruction, useDeployInstruction } from './useInstructions';
 export { useCopilotStatus, useGlobalCopilotStatus } from './useCopilotStatus';
+export { usePrograms, useProgram } from './usePrograms';
+export { useSkills, useSkillContent } from './useSkills';

@@ -4,3 +4,4 @@ export { CopilotStatusPanel } from './CopilotStatusPanel';
 export { DeployDefaultsCard } from './DeployDefaultsCard';
 export { WorkspaceContextPanel } from './WorkspaceContextPanel';
 export { KnowledgeFilesPanel } from './KnowledgeFilesPanel';
+export { SkillsPanel } from './SkillsPanel';

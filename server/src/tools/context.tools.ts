@@ -222,7 +222,8 @@ export async function appendResearch(
   path: string; 
   sanitized: boolean; 
   injection_attempts: string[]; 
-  warnings: string[] 
+  warnings: string[];
+  trimmed: boolean;
 }>> {
   try {
     const { workspace_id, plan_id, filename, content } = params;
@@ -263,6 +264,15 @@ warnings: ${sanitizationResult.warnings.length}
 `;
     
     await store.writeText(filePath, header + sanitizationResult.sanitized);
+
+    // Auto-summarize older sections when file exceeds 50KB
+    let wasTrimmed = false;
+    try {
+      wasTrimmed = await trimResearchNoteIfOversized(filePath, 50 * 1024);
+    } catch {
+      // Non-fatal: trimming failure doesn't block the append
+    }
+
     await appendWorkspaceFileUpdate({
       workspace_id,
       plan_id,
@@ -277,7 +287,8 @@ warnings: ${sanitizationResult.warnings.length}
         path: filePath, 
         sanitized: sanitizationResult.wasModified,
         injection_attempts: sanitizationResult.injectionAttempts,
-        warnings: sanitizationResult.warnings
+        warnings: sanitizationResult.warnings,
+        trimmed: wasTrimmed
       }
     };
   } catch (error) {
@@ -861,4 +872,107 @@ function extractBulletList(content: string): string[] {
     .split('\n')
     .filter(line => line.startsWith('- '))
     .map(line => line.substring(2).trim());
+}
+
+// =============================================================================
+// Research Note Size Management
+// =============================================================================
+
+const SUMMARIZED_MARKER = '[Summarized]';
+
+/**
+ * Trim a research note file if it exceeds the size limit.
+ * 
+ * Strategy: split content into sections by markdown headers (## or #).
+ * Summarize (replace body with one-line summary) the oldest sections first
+ * until the file is under the limit. Preserve headers.
+ * 
+ * @returns true if the file was trimmed
+ */
+async function trimResearchNoteIfOversized(
+  filePath: string,
+  maxBytes: number
+): Promise<boolean> {
+  const existing = await store.readText(filePath);
+  if (!existing) return false;
+
+  const sizeBytes = Buffer.byteLength(existing, 'utf-8');
+  if (sizeBytes <= maxBytes) return false;
+
+  // Split into sections by markdown headers
+  const sections = splitIntoSections(existing);
+  if (sections.length <= 1) return false; // Nothing to summarize
+
+  // Summarize oldest sections first (skip the last section — newest)
+  let trimmed = false;
+  for (let i = 0; i < sections.length - 1; i++) {
+    if (sections[i].alreadySummarized) continue;
+
+    // Summarize this section: keep header, replace body with marker
+    const headerLine = sections[i].header || '---';
+    const bodyLineCount = sections[i].body.split('\n').filter(l => l.trim()).length;
+    sections[i].body = `${SUMMARIZED_MARKER} ${bodyLineCount} lines condensed`;
+    sections[i].header = headerLine;
+    sections[i].alreadySummarized = true;
+    trimmed = true;
+
+    // Check if we're under the limit now
+    const reconstituted = reconstituteSections(sections);
+    if (Buffer.byteLength(reconstituted, 'utf-8') <= maxBytes) break;
+  }
+
+  if (trimmed) {
+    await store.writeText(filePath, reconstituteSections(sections));
+  }
+
+  return trimmed;
+}
+
+interface NoteSection {
+  header: string;
+  body: string;
+  alreadySummarized: boolean;
+}
+
+function splitIntoSections(content: string): NoteSection[] {
+  const lines = content.split('\n');
+  const sections: NoteSection[] = [];
+  let currentHeader = '';
+  let currentBody: string[] = [];
+
+  for (const line of lines) {
+    if (/^#{1,3}\s/.test(line)) {
+      // New header — push previous section
+      if (currentHeader || currentBody.length > 0) {
+        const bodyText = currentBody.join('\n');
+        sections.push({
+          header: currentHeader,
+          body: bodyText,
+          alreadySummarized: bodyText.includes(SUMMARIZED_MARKER)
+        });
+      }
+      currentHeader = line;
+      currentBody = [];
+    } else {
+      currentBody.push(line);
+    }
+  }
+
+  // Push final section
+  if (currentHeader || currentBody.length > 0) {
+    const bodyText = currentBody.join('\n');
+    sections.push({
+      header: currentHeader,
+      body: bodyText,
+      alreadySummarized: bodyText.includes(SUMMARIZED_MARKER)
+    });
+  }
+
+  return sections;
+}
+
+function reconstituteSections(sections: NoteSection[]): string {
+  return sections
+    .map(s => s.header ? `${s.header}\n${s.body}` : s.body)
+    .join('\n');
 }

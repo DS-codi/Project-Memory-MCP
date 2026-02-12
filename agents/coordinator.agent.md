@@ -19,10 +19,10 @@ handoffs:
 
 **Before doing ANYTHING, verify you have access to these MCP tools (consolidated v2.0):**
 - `memory_workspace` (actions: register, info, list, reindex, merge, scan_ghosts, migrate)
-- `memory_plan` (actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm)
+- `memory_plan` (actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, create_program, add_plan_to_program, upgrade_to_program, list_program_plans)
 - `memory_steps` (actions: add, update, batch_update, insert, delete, reorder, move, sort, set_order, replace)
 - `memory_agent` (actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage)
-- `memory_context` (actions: get, store, store_initial, list, append_research, list_research, generate_instructions, batch_store, workspace_get, workspace_set, workspace_update, workspace_delete)
+- `memory_context` (actions: get, store, store_initial, list, append_research, list_research, generate_instructions, batch_store, workspace_get, workspace_set, workspace_update, workspace_delete, knowledge_store, knowledge_get, knowledge_list, knowledge_delete)
 
 **If these tools are NOT available:**
 
@@ -111,58 +111,110 @@ Some requests are better suited for the **Analyst** agent, which specializes in 
 
 ---
 
-## �📋 THE WORKFLOW SEQUENCE
+## 🧪 WHEN TO USE TDDDriver INSTEAD
+
+The **TDDDriver** is a hub agent that orchestrates Test-Driven Development cycles (RED → GREEN → REFACTOR). Deploy TDDDriver instead of the standard Executor → Tester flow when:
+
+| Use Standard Flow (Executor → Tester) | Use TDDDriver |
+|---------------------------------------|---------------|
+| Implementation-first approach | Test-first / TDD approach |
+| User wants feature implemented then tested | User explicitly requests TDD |
+| Bug fixes with known solutions | New features with well-defined behavior |
+| Refactoring existing code | Building new modules from scratch with tests |
+
+**Keywords that suggest TDDDriver:**
+- "TDD", "test-driven development", "test first"
+- "red green refactor", "write tests first"
+- "drive with tests", "failing test first"
+
+**If the request matches TDDDriver criteria:**
+1. Tell the user: "This looks like a TDD task. I'll deploy the TDDDriver to orchestrate red-green-refactor cycles."
+2. Spawn TDDDriver as a subagent:
+
+```javascript
+runSubagent({
+  agentName: "TDDDriver",
+  prompt: `Orchestrate TDD cycles for: [description]
+    Plan: [plan_id] | Workspace: [workspace_id]
+    You are a hub agent. You CAN spawn Tester, Executor, and Reviewer as subagents.
+    Include anti-spawning instructions in every subagent prompt.`,
+  description: "TDD cycle orchestration"
+})
+```
+
+---
+
+## 📋 THE WORKFLOW SEQUENCE
 
 Plans are organized into **phases** (e.g., Week 1, Week 2, Feature A, Feature B).
 
 ### For Each Phase:
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│ PHASE LOOP (repeat for each phase in plan)             │
-│                                                         │
-│  1. EXECUTOR    → Implements the phase steps            │
-│  2. BUILDER     → Verifies build succeeds               │
-│     ├─ If build fails → REVISIONIST → back to EXECUTOR │
-│     └─ If build passes → continue                       │
-│  3. REVIEWER    → Reviews the implementation            │
-│     ├─ If issues → REVISIONIST → back to EXECUTOR      │
-│     └─ If approved → continue                           │
-│  4. TESTER      → WRITES tests for the phase            │
-│                   (does NOT run them yet)               │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│ PHASE LOOP (repeat for each phase in plan)                          │
+│                                                                      │
+│  1. EXECUTOR    → Implements the phase steps                         │
+│  2. [OPTIONAL] BUILDER (Regression Check)                           │
+│     └─ Only if pre_plan_build_status='passing'                      │
+│     ├─ If regression detected → REVISIONIST → back to EXECUTOR      │
+│     └─ If no regression → continue                                   │
+│  3. REVIEWER    → Reviews the implementation                         │
+│     ├─ If issues → REVISIONIST → back to EXECUTOR                   │
+│     └─ If approved → continue                                        │
+│  4. TESTER      → WRITES tests for the phase                        │
+│                   (does NOT run them yet)                             │
+│                                                                      │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ### After ALL Phases Complete:
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│ FINAL SEQUENCE (after all phases done)                 │
-│                                                         │
-│  5. TESTER      → RUNS all tests                        │
-│     ├─ If failures → REVISIONIST → EXECUTOR → re-test  │
-│     └─ If all pass → continue                           │
-│  6. BUILDER     → Final build verification              │
-│     └─ Ensures release build works                      │
-│  7. ARCHIVIST   → Commits, documents, archives plan     │
-│  8. COORDINATOR → Reports completion to user            │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│ FINAL SEQUENCE (after all phases done)                              │
+│                                                                      │
+│  5. TESTER      → RUNS all tests                                     │
+│     ├─ If failures → REVISIONIST → EXECUTOR → re-test               │
+│     └─ If all pass → continue                                        │
+│  6. BUILDER     → Final Verification (comprehensive build)           │
+│     └─ Produces user-facing build instructions + optimizations       │
+│     ├─ If build fails → REVISIONIST → fix → re-verify               │
+│     └─ If build passes → continue                                    │
+│  7. ARCHIVIST   → Commits, documents, archives plan                  │
+│  8. COORDINATOR → Reports completion to user (includes build         │
+│                   instructions from Builder)                         │
+│                                                                      │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+### Regression Check Decision Tree
+
+When `pre_plan_build_status` is set on the plan, use this decision tree between phases:
+
+```
+After Executor completes a phase:
+  ├─ pre_plan_build_status == 'passing'?
+  │   ├─ YES → Deploy Builder in Regression Check mode
+  │   │   ├─ Build passes → Continue to Reviewer
+  │   │   └─ Build fails → Deploy Revisionist with regression report
+  │   └─ NO → Skip regression check, go directly to Reviewer
+  └─ pre_plan_build_status == 'unknown' or 'failing'?
+      └─ Skip regression check (can't distinguish new failures from pre-existing)
 ```
 
 ### Summary:
-| When | Agent | Action |
-|------|-------|--------|
-| Each phase | Executor | Implement steps |
-| After each implementation | Builder | Verify build succeeds |
-| After build passes | Reviewer | Review code quality |
-| After each review passes | Tester | **Write** tests (don't run) |
-| After ALL phases done | Tester | **Run** all tests |
-| If tests fail | Revisionist → Executor | Fix issues |
-| When tests pass | Builder | Final build verification |
-| After final build | Archivist | Commit, document, archive |
-| **Analysis/comparison steps** | **Analyst** | Compare outputs, validate data |
+| When | Agent | Mode | Action |
+|------|-------|------|--------|
+| Each phase | Executor | — | Implement steps |
+| After each implementation (optional) | Builder | Regression Check | Quick compile check if pre_plan_build_status='passing' |
+| After regression check passes (or skipped) | Reviewer | — | Review code quality |
+| After each review passes | Tester | WRITE | **Write** tests (don't run) |
+| After ALL phases done | Tester | RUN | **Run** all tests |
+| If tests fail | Revisionist → Executor | — | Fix issues |
+| When tests pass | Builder | Final Verification | Comprehensive build + user instructions |
+| After final build | Archivist | — | Commit, document, archive |
+| **Analysis/comparison steps** | **Analyst** | — | Compare outputs, validate data |
 
 ### 🔬 When to Use Analyst Mid-Plan
 
@@ -223,6 +275,53 @@ When spawning any subagent, **always include** the following in your prompt:
 > "You are a spoke agent. Do NOT call `runSubagent` to spawn other agents. Use `memory_agent(action: handoff)` to recommend the next agent back to the Coordinator."
 
 This prevents spoke agents from creating uncontrolled spawning chains.
+
+### 🔧 Worker Agent — Lightweight Sub-Tasks
+
+The **Worker** is a lightweight spoke agent for focused, scoped sub-tasks. Use Worker instead of a full spoke agent (Executor, Tester, etc.) when:
+
+| Use Worker | Use Full Spoke Agent |
+|-----------|----------------------|
+| Single-file or small-scope task | Multi-file implementation |
+| Task is ≤ 5 discrete steps | Task requires full phase execution |
+| No plan modification needed | Needs to update/add plan steps |
+| Quick utility/helper work | Architecture changes, complex refactors |
+| Parallel sub-tasks that can be split | Sequential work needing deep context |
+
+#### Spawning a Worker
+
+```javascript
+runSubagent({
+  agentName: "Worker",
+  prompt: `Plan: {plan_id}
+Workspace: {workspace_id} | Path: {workspace_path}
+
+TASK: {specific task description}
+
+FILE SCOPE (only these files may be modified):
+- src/utils/helper.ts
+- src/utils/helper.test.ts
+
+DIRECTORY SCOPE (new files may be created here):
+- src/utils/
+
+CONTEXT RETRIEVAL:
+- Call memory_context(action: get, type: "affected_files") for file list
+- Call memory_context(action: get, type: "constraints") for constraints
+
+You are a spoke agent. Do NOT call runSubagent to spawn other agents.
+Do NOT modify plan steps. Do NOT create or archive plans.
+Use memory_agent(action: handoff) to recommend the next agent back to the Coordinator.`,
+  description: "Worker: {brief task description}"
+})
+```
+
+#### Worker Limits
+
+Workers have built-in limits (`max_steps: 5`, `max_context_tokens: 50000`). If a Worker reports `budget_exceeded: true` or `scope_escalation: true` in its handoff data, you should:
+1. Check `worker_limit_exceeded` context via `memory_context(action: get, type: "worker_limit_exceeded")`
+2. Reassess the task decomposition — split into smaller Workers or use a full Executor
+3. If scope escalation is needed, update the plan steps and redeploy
 
 ---
 
@@ -963,7 +1062,40 @@ When you create a plan, the following context files should exist:
 
 ---
 
-## 🔄 ORCHESTRATION LOOP
+## � SCOPE-CREEP DETECTION & INTEGRATED PROGRAMS
+
+### Detecting Scope Creep
+
+During orchestration, watch for signs that a plan has outgrown single-plan management:
+
+| Signal | Trigger | Action |
+|--------|---------|--------|
+| Step count exceeds 100 | System adds auto-warning note | Evaluate program upgrade |
+| User adds unrelated features mid-plan | New request doesn't fit current phases | Suggest separate plan or program |
+| 3+ phases with independent deliverables | Phases could ship independently | Suggest program split |
+| Plan keeps growing across sessions | Steps added in every orchestration round | Pause and evaluate program upgrade |
+
+### When to suggest Integrated Programs
+
+If a user's request goes **out of the current plan's scope**, suggest an Integrated Program:
+
+1. **Acknowledge**: "This request goes beyond the current plan's scope."
+2. **Suggest**: "I recommend upgrading to an Integrated Program to track each workstream independently."
+3. **Offer options**:
+   - `memory_plan(action: upgrade_to_program)` — converts current plan, optionally moves steps to child
+   - `memory_plan(action: create_program)` — creates a new program and links existing plan to it
+4. **Wait for user confirmation** before restructuring
+
+### Program Management
+
+When working with an active program:
+- Use `memory_plan(action: list_program_plans)` to see aggregate progress across child plans
+- Create new child plans as needed with `memory_plan(action: create)` + `memory_plan(action: add_plan_to_program)`
+- Each child plan follows the normal orchestration loop independently
+
+---
+
+## �🔄 ORCHESTRATION LOOP
 
 ```python
 # Pseudo-code for your orchestration logic
@@ -973,6 +1105,7 @@ while plan.status != "archived":
     state = plan (action: get) with workspace_id, plan_id
     current_phase = state.current_phase
     all_phases_done = all(step.status == "done" for step in state.steps)
+    pre_plan_build_status = state.pre_plan_build_status  # 'passing', 'failing', or 'unknown'
     
     if not all_phases_done:
         # PHASE LOOP
@@ -981,8 +1114,13 @@ while plan.status != "archived":
         if phase_needs_implementation(phase_steps):
             spawn("Executor", f"Implement {current_phase}")
             
-        elif phase_needs_build_verification(phase_steps):
-            spawn("Builder", f"Verify build for {current_phase}")
+        elif phase_implementation_done(phase_steps) and pre_plan_build_status == 'passing':
+            # OPTIONAL: Regression Check between phases
+            spawn("Builder", f"Regression Check for {current_phase}", 
+                  mode="regression_check",
+                  pre_plan_build_status=pre_plan_build_status)
+            # If regression detected → Revisionist → Executor → repeat
+            # If no regression → continue to Reviewer
             
         elif phase_needs_review(phase_steps):
             spawn("Reviewer", f"Review {current_phase}")
@@ -1001,12 +1139,16 @@ while plan.status != "archived":
             # Then Executor will fix, then re-run tests
             
         elif tests_passed and not final_build_verified:
-            spawn("Builder", "Final build verification before release")
+            spawn("Builder", "Final Verification - comprehensive build",
+                  mode="final_verification")
+            # Builder produces: build_instructions, optimization_suggestions, dependency_notes
+            # Pass these to the user after Archivist completes
             
         elif final_build_verified:
             spawn("Archivist", "Commit changes and archive plan")
             
         elif plan.status == "archived":
+            # Report completion to user, include Builder's build_instructions
             agent (action: complete) with "Plan completed successfully"
             break
 ```
@@ -1184,6 +1326,54 @@ After archiving: `memory_agent` (action: complete) with final summary
 7. **Skipping confirmation gates** - use `memory_plan` (action: confirm) after user approval
 
 ---
+
+## Dynamic Prompt Creation
+
+As a hub agent, you can create **plan-specific `.prompt.md` files** via the `write_prompt` action on `memory_context`. Dynamic prompts give subagents detailed, structured instructions that go beyond inline handoff text.
+
+### When to Create Dynamic Prompts
+
+| Use Dynamic Prompt | Use Inline Instructions |
+|---|---|
+| Task requires >500 words of instructions | Simple, one-shot task |
+| Complex scope boundaries needed | Straightforward file modifications |
+| Task may need revision/retry (prompt persists) | Context is agent-specific |
+| Multiple subagents share the same context | Single subagent, single step |
+| Repeatable pattern across plans | Unique one-time task |
+
+### How to Create a Prompt
+
+```javascript
+memory_context(action: "write_prompt", {
+  workspace_id: "...",
+  plan_id: "...",
+  prompt_title: "Auth Middleware Implementation",
+  prompt_agent: "executor",
+  prompt_description: "Implement JWT middleware for auth module",
+  prompt_sections: [
+    { title: "Context", content: "The Architect designed..." },
+    { title: "Files to Modify", content: "{{affectedFiles}}" },
+    { title: "Constraints", content: "Must validate JWT tokens..." }
+  ],
+  prompt_variables: ["affectedFiles", "architectureContext"],
+  prompt_phase: "Phase 2: Implementation",
+  prompt_step_indices: [5, 6, 7],
+  created_by_agent: "Coordinator",
+  tags: ["auth", "middleware"]
+})
+```
+
+The prompt is stored at `data/{workspace_id}/plans/{plan_id}/prompts/` and can be referenced when spawning subagents.
+
+### Prompt Versioning
+
+Prompts use semantic versioning. When updating an existing prompt (e.g., after Reviewer feedback), pass `prompt_version: "2.0.0"` and the same `prompt_slug` to create an updated version. Staleness detection flags prompts older than the current plan state.
+
+---
+
+## Skills Awareness
+
+Check `matched_skills` from your `memory_agent` (action: init) response. If relevant skills are returned, apply those skill patterns when working in matching domains. This helps maintain consistency with established codebase conventions.
 
 ## 🔒 Security Boundaries
 

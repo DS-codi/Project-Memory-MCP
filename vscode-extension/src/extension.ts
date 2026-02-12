@@ -17,7 +17,7 @@ import { DefaultDeployer } from './deployer/DefaultDeployer';
 import { McpBridge, ChatParticipant, ToolProvider } from './chat';
 import { DiagnosticsService } from './services/DiagnosticsService';
 import { notify } from './utils/helpers';
-import { getDefaultDataRoot, getDefaultAgentsRoot, getDefaultInstructionsRoot, getDefaultPromptsRoot } from './utils/defaults';
+import { getDefaultDataRoot, getDefaultAgentsRoot, getDefaultInstructionsRoot, getDefaultPromptsRoot, getDefaultSkillsRoot } from './utils/defaults';
 import { registerServerCommands, registerDeployCommands, registerPlanCommands, registerWorkspaceCommands } from './commands';
 
 // --- Module-level state ---
@@ -54,12 +54,14 @@ export function activate(context: vscode.ExtensionContext) {
     const defaultAgents = config.get<string[]>('defaultAgents') || [];
     const defaultInstructions = config.get<string[]>('defaultInstructions') || [];
     const autoDeployOnWorkspaceOpen = config.get<boolean>('autoDeployOnWorkspaceOpen') ?? false;
+    const autoDeploySkills = config.get<boolean>('autoDeploySkills') ?? false;
 
     // --- Initialize core services (lightweight, no I/O) ---
 
     defaultDeployer = new DefaultDeployer({
         agentsRoot,
         instructionsRoot: instructionsRoot || getDefaultInstructionsRoot(),
+        skillsRoot: getDefaultSkillsRoot(),
         defaultAgents,
         defaultInstructions,
     });
@@ -139,8 +141,17 @@ export function activate(context: vscode.ExtensionContext) {
     if (autoDeployOnWorkspaceOpen && vscode.workspace.workspaceFolders?.[0]) {
         const workspacePath = vscode.workspace.workspaceFolders[0].uri.fsPath;
         defaultDeployer.deployToWorkspace(workspacePath).then(result => {
-            if (result.agents.length > 0 || result.instructions.length > 0) {
-                notify(`Deployed ${result.agents.length} agents and ${result.instructions.length} instructions`);
+            if (result.agents.length > 0 || result.instructions.length > 0 || result.skills.length > 0) {
+                notify(`Deployed ${result.agents.length} agents, ${result.instructions.length} instructions, and ${result.skills.length} skills`);
+            }
+        });
+    } else if (autoDeploySkills && !autoDeployOnWorkspaceOpen && vscode.workspace.workspaceFolders?.[0]) {
+        // Skills-only auto-deploy when full auto-deploy is disabled
+        const workspacePath = vscode.workspace.workspaceFolders[0].uri.fsPath;
+        const skillsTargetDir = require('path').join(workspacePath, '.github', 'skills');
+        defaultDeployer.deployAllSkills(skillsTargetDir).then((skills: string[]) => {
+            if (skills.length > 0) {
+                notify(`Auto-deployed ${skills.length} skill${skills.length !== 1 ? 's' : ''}`);
             }
         });
     }

@@ -5,6 +5,7 @@ import * as path from 'path';
 export interface DeploymentConfig {
     agentsRoot: string;
     instructionsRoot: string;
+    skillsRoot: string;
     defaultAgents: string[];
     defaultInstructions: string[];
 }
@@ -25,9 +26,10 @@ export class DefaultDeployer {
     /**
      * Deploy default agents and instructions to a workspace
      */
-    async deployToWorkspace(workspacePath: string): Promise<{ agents: string[]; instructions: string[] }> {
+    async deployToWorkspace(workspacePath: string): Promise<{ agents: string[]; instructions: string[]; skills: string[] }> {
         const deployedAgents: string[] = [];
         const deployedInstructions: string[] = [];
+        const deployedSkills: string[] = [];
 
         this.log(`Deploying defaults to workspace: ${workspacePath}`);
 
@@ -57,9 +59,18 @@ export class DefaultDeployer {
             }
         }
 
-        this.log(`Deployed ${deployedAgents.length} agents, ${deployedInstructions.length} instructions`);
+        // Deploy skills
+        const skillsTargetDir = path.join(workspacePath, '.github', 'skills');
+        try {
+            const skills = await this.deployAllSkills(skillsTargetDir);
+            deployedSkills.push(...skills);
+        } catch (error) {
+            this.log(`Failed to deploy skills: ${error}`);
+        }
 
-        return { agents: deployedAgents, instructions: deployedInstructions };
+        this.log(`Deployed ${deployedAgents.length} agents, ${deployedInstructions.length} instructions, ${deployedSkills.length} skills`);
+
+        return { agents: deployedAgents, instructions: deployedInstructions, skills: deployedSkills };
     }
 
     /**
@@ -80,6 +91,49 @@ export class DefaultDeployer {
         const targetPath = path.join(targetDir, `${instructionName}.instructions.md`);
 
         return this.copyFile(sourcePath, targetPath);
+    }
+
+    /**
+     * Deploy all skill directories from skillsRoot to target dir.
+     * Each skill is a subdirectory containing a SKILL.md file.
+     */
+    async deployAllSkills(targetDir: string): Promise<string[]> {
+        const deployed: string[] = [];
+
+        if (!this.config.skillsRoot || !fs.existsSync(this.config.skillsRoot)) {
+            return deployed;
+        }
+
+        const entries = fs.readdirSync(this.config.skillsRoot);
+        for (const entry of entries) {
+            const sourceDir = path.join(this.config.skillsRoot, entry);
+            const stat = fs.statSync(sourceDir);
+            if (!stat.isDirectory()) { continue; }
+
+            const sourceFile = path.join(sourceDir, 'SKILL.md');
+            if (!fs.existsSync(sourceFile)) { continue; }
+
+            const skillTargetDir = path.join(targetDir, entry);
+            const targetFile = path.join(skillTargetDir, 'SKILL.md');
+
+            if (fs.existsSync(targetFile)) {
+                // Check if source is newer
+                const sourceStats = fs.statSync(sourceFile);
+                const targetStats = fs.statSync(targetFile);
+                if (sourceStats.mtimeMs <= targetStats.mtimeMs) {
+                    continue;
+                }
+                // Source is newer, overwrite
+                const copied = await this.copyFile(sourceFile, targetFile, true);
+                if (copied) { deployed.push(entry); }
+            } else {
+                // New skill, copy it
+                const copied = await this.copyFile(sourceFile, targetFile);
+                if (copied) { deployed.push(entry); }
+            }
+        }
+
+        return deployed;
     }
 
     /**

@@ -116,7 +116,10 @@
                 "handoff",
                 "validate",
                 "list",
-                "get_instructions"
+                "get_instructions",
+                "deploy",
+                "get_briefing",
+                "get_lineage"
               ],
               "description": "The action to perform"
             },
@@ -147,6 +150,22 @@
             "taskDescription": {
               "type": "string",
               "description": "Task description (for init/validate)"
+            },
+            "workspace_path": {
+              "type": "string",
+              "description": "Workspace path (for deploy)"
+            },
+            "include_prompts": {
+              "type": "boolean",
+              "description": "Include prompts in deployment"
+            },
+            "include_instructions": {
+              "type": "boolean",
+              "description": "Include instructions in deployment"
+            },
+            "include_skills": {
+              "type": "boolean",
+              "description": "Include skills in deployment"
             }
           },
           "required": [
@@ -175,7 +194,11 @@
                 "set_goals",
                 "add_build_script",
                 "delete_build_script",
-                "add_note"
+                "add_note",
+                "create_program",
+                "add_plan_to_program",
+                "upgrade_to_program",
+                "list_program_plans"
               ],
               "description": "The action to perform"
             },
@@ -269,6 +292,18 @@
             "scriptId": {
               "type": "string",
               "description": "Build script ID (for delete)"
+            },
+            "program_id": {
+              "type": "string",
+              "description": "Program ID (for program actions)"
+            },
+            "move_steps_to_child": {
+              "type": "boolean",
+              "description": "Move existing steps to a child plan when upgrading to program"
+            },
+            "child_plan_title": {
+              "type": "string",
+              "description": "Title for child plan when upgrading with move_steps_to_child"
             }
           },
           "required": [
@@ -442,7 +477,8 @@
                 "workspace_get",
                 "workspace_set",
                 "workspace_update",
-                "workspace_delete"
+                "workspace_delete",
+                "write_prompt"
               ],
               "description": "The action to perform"
             },
@@ -562,6 +598,11 @@
       {
         "command": "projectMemory.createPlan",
         "title": "Create New Plan",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.viewPrograms",
+        "title": "View Programs",
         "category": "Project Memory"
       },
       {
@@ -794,6 +835,11 @@
           "type": "boolean",
           "default": false,
           "description": "Automatically deploy default agents and instructions when opening a workspace"
+        },
+        "projectMemory.autoDeploySkills": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically deploy skills to workspace on open (even if full auto-deploy is off)"
         },
         "projectMemory.showNotifications": {
           "type": "boolean",

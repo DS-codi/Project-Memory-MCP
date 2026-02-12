@@ -299,7 +299,7 @@ export function registerDeployCommands(
             if (confirm === 'Yes') {
                 const result = await defaultDeployer.deployToWorkspace(workspaceFolders[0].uri.fsPath);
                 notify(
-                    `Deployed ${result.agents.length} agents and ${result.instructions.length} instructions`
+                    `Deployed ${result.agents.length} agents, ${result.instructions.length} instructions, and ${result.skills.length} skills`
                 );
             }
         }),

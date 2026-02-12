@@ -82,6 +82,8 @@ const agentIcons: Record<AgentType, string> = {
   Revisionist: '🔄',
   Archivist: '📦',
   Builder: '🏗️',
+  SkillWriter: '✍️',
+  Worker: '👷',
 };
 
 const agentColors: Record<AgentType, string> = {
@@ -97,6 +99,8 @@ const agentColors: Record<AgentType, string> = {
   Revisionist: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
   Archivist: 'bg-slate-500/20 text-slate-300 border-slate-500/30',
   Builder: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+  SkillWriter: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+  Worker: 'bg-gray-500/20 text-gray-300 border-gray-500/30',
 };
 
 const categoryColors: Record<string, string> = {

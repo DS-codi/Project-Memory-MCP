@@ -6,6 +6,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import type { ToolResponse } from '../types/index.js';
 import { appendWorkspaceFileUpdate } from '../logging/workspace-update-log.js';
+import { deploySkillsToWorkspace } from './skills.tools.js';
 
 // Path to the agents directory (relative to the server)
 const AGENTS_ROOT = process.env.MBS_AGENTS_ROOT || path.join(process.cwd(), '..', 'agents');
@@ -37,10 +38,10 @@ export async function listAgents(): Promise<ToolResponse<string[]>> {
  * Also deploys prompts and instructions if available
  */
 export async function deployAgentsToWorkspace(
-  params: { workspace_path: string; agents?: string[]; include_prompts?: boolean; include_instructions?: boolean }
-): Promise<ToolResponse<{ deployed: string[]; prompts_deployed: string[]; instructions_deployed: string[]; target_path: string }>> {
+  params: { workspace_path: string; agents?: string[]; include_prompts?: boolean; include_instructions?: boolean; include_skills?: boolean }
+): Promise<ToolResponse<{ deployed: string[]; prompts_deployed: string[]; instructions_deployed: string[]; skills_deployed: string[]; target_path: string }>> {
   try {
-    const { workspace_path, agents, include_prompts = true, include_instructions = true } = params;
+    const { workspace_path, agents, include_prompts = true, include_instructions = true, include_skills = true } = params;
     
     if (!workspace_path) {
       return {
@@ -150,12 +151,26 @@ export async function deployAgentsToWorkspace(
       }
     }
     
+    // Deploy skills if requested
+    const skills_deployed: string[] = [];
+    if (include_skills) {
+      try {
+        const skillsResult = await deploySkillsToWorkspace({ workspace_path });
+        if (skillsResult.success && skillsResult.data) {
+          skills_deployed.push(...skillsResult.data.deployed);
+        }
+      } catch {
+        // Skills directory doesn't exist, skip
+      }
+    }
+    
     return {
       success: true,
       data: {
         deployed,
         prompts_deployed,
         instructions_deployed,
+        skills_deployed,
         target_path: agentsDir
       }
     };

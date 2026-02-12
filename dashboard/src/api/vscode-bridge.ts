@@ -147,6 +147,42 @@ class VSCodeBridge {
   executeCommand(commandId: string, ...args: unknown[]): void {
     this.postMessage('executeCommand', { commandId, args });
   }
+
+  // =========================================================================
+  // Program API
+  // =========================================================================
+
+  /**
+   * Request the list of programs for a workspace
+   */
+  requestPrograms(workspaceId: string): void {
+    this.postMessage('getPrograms', { workspaceId });
+  }
+
+  /**
+   * Request details for a specific program
+   */
+  requestProgramDetail(workspaceId: string, programId: string): void {
+    this.postMessage('getProgramDetail', { workspaceId, programId });
+  }
+
+  // =========================================================================
+  // Skills API
+  // =========================================================================
+
+  /**
+   * Request the list of skills deployed in a workspace
+   */
+  requestSkills(workspaceId: string): void {
+    this.postMessage('getSkills', { workspaceId });
+  }
+
+  /**
+   * Request content for a specific skill file
+   */
+  requestSkillContent(workspaceId: string, skillName: string): void {
+    this.postMessage('getSkillContent', { workspaceId, skillName });
+  }
 }
 
 // Singleton instance
