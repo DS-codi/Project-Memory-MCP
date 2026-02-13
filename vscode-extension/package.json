@@ -103,8 +103,8 @@
       {
         "name": "memory_agent",
         "displayName": "Project Memory Agent",
-        "description": "Agent lifecycle - init sessions, complete, handoff, validate, list agents, get instructions",
-        "modelDescription": "Manage Project Memory agent lifecycle. Actions: 'init' to start an agent session (requires planId, agentType), 'complete' to finish a session (requires planId, agentType), 'handoff' to transfer to another agent (requires planId, toAgent), 'validate' to check agent validity (requires agentType), 'list' to list agent sessions, 'get_instructions' to get agent instruction file (requires agentType).",
+        "description": "Agent lifecycle - init sessions, complete, handoff, validate, list agents, get instructions, spawn agents",
+        "modelDescription": "Manage Project Memory agent lifecycle. Actions: 'init' to start an agent session (requires planId, agentType), 'complete' to finish a session (requires planId, agentType), 'handoff' to transfer to another agent (requires planId, toAgent), 'validate' to check agent validity (requires agentType), 'list' to list agent sessions, 'get_instructions' to get agent instruction file (requires agentType), 'spawn' to spawn an agent (requires agent_name, task_context).",
         "parametersSchema": {
           "type": "object",
           "properties": {
@@ -119,7 +119,8 @@
                 "get_instructions",
                 "deploy",
                 "get_briefing",
-                "get_lineage"
+                "get_lineage",
+                "spawn"
               ],
               "description": "The action to perform"
             },
@@ -166,6 +167,14 @@
             "include_skills": {
               "type": "boolean",
               "description": "Include skills in deployment"
+            },
+            "agent_name": {
+              "type": "string",
+              "description": "Name of the agent to spawn (for spawn action)"
+            },
+            "task_context": {
+              "type": "string",
+              "description": "Task context to pass to the spawned agent (for spawn action)"
             }
           },
           "required": [
@@ -198,7 +207,8 @@
                 "create_program",
                 "add_plan_to_program",
                 "upgrade_to_program",
-                "list_program_plans"
+                "list_program_plans",
+                "export_plan"
               ],
               "description": "The action to perform"
             },
@@ -478,7 +488,8 @@
                 "workspace_set",
                 "workspace_update",
                 "workspace_delete",
-                "write_prompt"
+                "write_prompt",
+                "dump_context"
               ],
               "description": "The action to perform"
             },
@@ -511,8 +522,7 @@
                 "Archivist",
                 "Analyst",
                 "Brainstorm",
-                "Runner",
-                "Builder"
+                "Runner"
               ],
               "description": "Target agent (for handoff)"
             },
@@ -580,6 +590,125 @@
           "required": [
             "action"
           ]
+        },
+        "canBeInvokedManually": true
+      },
+      {
+        "name": "memory_terminal",
+        "displayName": "Project Memory Terminal",
+        "description": "Execute terminal commands with session management and authorization",
+        "modelDescription": "Execute terminal commands with safety guardrails. Actions: 'run' to execute a command (requires command), 'read_output' to get buffered output (requires session_id), 'kill' to terminate a process (requires session_id), 'get_allowlist' to view auto-approved commands, 'update_allowlist' to manage allowlist patterns (requires patterns, operation).",
+        "parametersSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "run",
+                "read_output",
+                "kill",
+                "get_allowlist",
+                "update_allowlist"
+              ],
+              "description": "The action to perform"
+            },
+            "command": {
+              "type": "string",
+              "description": "Command to execute (for run)"
+            },
+            "args": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Command arguments (for run)"
+            },
+            "cwd": {
+              "type": "string",
+              "description": "Working directory (for run)"
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Timeout in ms (for run). Default 30000"
+            },
+            "workspace_id": {
+              "type": "string",
+              "description": "Workspace ID (for run, allowlist actions)"
+            },
+            "session_id": {
+              "type": "string",
+              "description": "Session ID (for read_output, kill)"
+            },
+            "patterns": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Allowlist patterns (for update_allowlist)"
+            },
+            "operation": {
+              "type": "string",
+              "enum": ["add", "remove", "set"],
+              "description": "How to modify the allowlist (for update_allowlist)"
+            }
+          },
+          "required": ["action"]
+        },
+        "canBeInvokedManually": true
+      },
+      {
+        "name": "memory_filesystem",
+        "displayName": "Project Memory Filesystem",
+        "description": "Workspace-scoped filesystem operations with safety boundaries",
+        "modelDescription": "Workspace-scoped filesystem operations. Actions: 'read' to read a file (requires workspace_id, path), 'write' to write/create a file (requires workspace_id, path, content), 'search' to find files by glob or regex (requires workspace_id, pattern or regex), 'list' to list directory contents (requires workspace_id), 'tree' to get a recursive directory tree (requires workspace_id).",
+        "parametersSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "read",
+                "write",
+                "search",
+                "list",
+                "tree"
+              ],
+              "description": "The action to perform"
+            },
+            "workspace_id": {
+              "type": "string",
+              "description": "Workspace ID — paths are relative to workspace root"
+            },
+            "path": {
+              "type": "string",
+              "description": "File or directory path relative to workspace root"
+            },
+            "content": {
+              "type": "string",
+              "description": "File content (for write)"
+            },
+            "create_dirs": {
+              "type": "boolean",
+              "description": "Auto-create parent directories (for write). Default true"
+            },
+            "pattern": {
+              "type": "string",
+              "description": "Glob pattern (for search)"
+            },
+            "regex": {
+              "type": "string",
+              "description": "Regex pattern (for search)"
+            },
+            "include": {
+              "type": "string",
+              "description": "File include filter, e.g. '*.ts' (for search)"
+            },
+            "recursive": {
+              "type": "boolean",
+              "description": "Recurse into subdirectories (for list)"
+            },
+            "max_depth": {
+              "type": "number",
+              "description": "Maximum tree depth (for tree). Default 3, max 10"
+            }
+          },
+          "required": ["action", "workspace_id"]
         },
         "canBeInvokedManually": true
       }

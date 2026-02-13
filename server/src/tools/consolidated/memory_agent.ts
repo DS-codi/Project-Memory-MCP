@@ -1,7 +1,7 @@
 /**
  * Consolidated Agent Tool - memory_agent
  * 
- * Actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage
+ * Actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage, spawn
  * Replaces: initialise_agent, complete_agent, handoff, validate_*, list_agents, 
  *           get_agent_instructions, deploy_agents_to_workspace, get_mission_briefing, get_lineage
  */
@@ -28,7 +28,8 @@ export type AgentAction =
   | 'get_instructions' 
   | 'deploy'
   | 'get_briefing'
-  | 'get_lineage';
+  | 'get_lineage'
+  | 'spawn';
 
 export interface MemoryAgentParams {
   action: AgentAction;
@@ -61,8 +62,11 @@ export interface MemoryAgentParams {
   reason?: string;
   data?: Record<string, unknown>;
   
-  // For get_instructions
+  // For get_instructions / spawn
   agent_name?: string;
+  
+  // For spawn
+  task_context?: string;
   
   // For deploy
   workspace_path?: string;
@@ -81,7 +85,8 @@ type AgentResult =
   | { action: 'get_instructions'; data: { filename: string; content: string } }
   | { action: 'deploy'; data: { deployed: string[]; prompts_deployed: string[]; instructions_deployed: string[]; skills_deployed: string[]; target_path: string } }
   | { action: 'get_briefing'; data: MissionBriefing }
-  | { action: 'get_lineage'; data: LineageEntry[] };
+  | { action: 'get_lineage'; data: LineageEntry[] }
+  | { action: 'spawn'; data: { agent_name: string; agent_file: string; agent_instructions: string; workspace_context: Record<string, unknown>; plan_context: Record<string, unknown> } };
 
 export async function memoryAgent(params: MemoryAgentParams): Promise<ToolResponse<AgentResult>> {
   const { action } = params;
@@ -89,7 +94,7 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
   if (!action) {
     return {
       success: false,
-      error: 'action is required. Valid actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage'
+      error: 'action is required. Valid actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage, spawn'
     };
   }
 
@@ -339,10 +344,32 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
       };
     }
 
+    case 'spawn': {
+      if (!params.agent_name) {
+        return {
+          success: false,
+          error: 'agent_name is required for action: spawn'
+        };
+      }
+      const result = await agentTools.handleSpawn({
+        agent_name: params.agent_name,
+        task_context: params.task_context,
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'spawn', data: result.data! }
+      };
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage`
+        error: `Unknown action: ${action}. Valid actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage, spawn`
       };
   }
 }
@@ -360,8 +387,6 @@ function getValidationFunction(agentType: AgentType): ((params: validationTools.
       return validationTools.validateArchitect;
     case 'Executor':
       return validationTools.validateExecutor;
-    case 'Builder':
-      return validationTools.validateBuilder;
     case 'Reviewer':
       return validationTools.validateReviewer;
     case 'Tester':
@@ -382,6 +407,8 @@ function getValidationFunction(agentType: AgentType): ((params: validationTools.
       return validationTools.validateWorker;
     case 'TDDDriver':
       return validationTools.validateTDDDriver;
+    case 'Cognition':
+      return validationTools.validateCognition;
     default:
       return null;
   }

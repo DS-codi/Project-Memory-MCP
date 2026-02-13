@@ -62,9 +62,9 @@ const PHASE_AGENT_MAP: Record<string, AgentType[]> = {
   'creation': ['Executor'],
 
   // Build phases
-  'build': ['Builder'],
-  'compilation': ['Builder'],
-  'compile': ['Builder'],
+  'build': ['Reviewer'],
+  'compilation': ['Reviewer'],
+  'compile': ['Reviewer'],
   
   // Testing phases
   'testing': ['Tester', 'Analyst'],  // Analyst can handle comparison/validation testing
@@ -102,7 +102,12 @@ const PHASE_AGENT_MAP: Record<string, AgentType[]> = {
   'documentation': ['Archivist'],
   'archival': ['Archivist'],
   'complete': ['Archivist'],
-  'finalization': ['Archivist']
+  'finalization': ['Archivist'],
+
+  // Cognition phases (read-only reasoning)
+  'cognition': ['Cognition'],
+  'reasoning': ['Cognition'],
+  'critique': ['Cognition']
 };
 
 // Task keywords that indicate which agent should handle
@@ -114,14 +119,14 @@ const TASK_KEYWORDS: Record<AgentType, string[]> = {
   Researcher: ['research', 'gather', 'document findings', 'explore', 'understand'],
   Architect: ['design', 'specify', 'architecture', 'structure', 'plan implementation', 'define'],
   Executor: ['implement', 'create', 'build', 'code', 'develop', 'write', 'add', 'modify code'],
-  Builder: ['compile', 'build', 'run build', 'execute script', 'verify build', 'build error', 'compilation'],
-  Reviewer: ['review', 'check', 'verify code', 'quality', 'assess', 'evaluate'],
+  Reviewer: ['review', 'check', 'verify code', 'quality', 'assess', 'evaluate', 'compile', 'run build', 'execute script', 'verify build', 'build error', 'compilation'],
   Tester: ['test', 'verify', 'validate', 'run tests', 'check functionality'],
   Revisionist: ['revise', 'adjust', 'pivot', 'change approach', 'modify plan'],
   Archivist: ['archive', 'document', 'finalize', 'complete', 'summarize', 'close'],
   SkillWriter: ['generate skill', 'create skill', 'skill file', 'analyze patterns', 'codebase conventions', 'SKILL.md'],
   Worker: ['sub-task', 'delegated task', 'scoped work', 'worker task'],
-  TDDDriver: ['tdd', 'test-driven', 'red green refactor', 'test first', 'failing test', 'tdd cycle']
+  TDDDriver: ['tdd', 'test-driven', 'red green refactor', 'test first', 'failing test', 'tdd cycle'],
+  Cognition: ['reason', 'analyze plan', 'critique', 'ideate', 'evaluate approach', 'assess risk', 'read-only analysis']
 };
 
 // =============================================================================
@@ -232,14 +237,14 @@ function getAllowedTools(agentType: AgentType): string[] {
     Researcher: [...commonTools, 'append_research', 'store_context', 'list_research_notes'],
     Architect: [...commonTools, 'modify_plan', 'update_step', 'store_context'],
     Executor: [...commonTools, 'update_step', 'store_context', 'create_file', 'edit_file'],
-    Builder: [...commonTools, 'update_step', 'store_context', 'add_build_script', 'list_build_scripts', 'run_build_script'],
-    Reviewer: [...commonTools, 'update_step', 'store_context'],
+    Reviewer: [...commonTools, 'update_step', 'store_context', 'add_build_script', 'list_build_scripts', 'run_build_script'],
     Tester: [...commonTools, 'update_step', 'store_context', 'run_tests'],
     Revisionist: [...commonTools, 'modify_plan', 'update_step', 'store_context'],
     Archivist: [...commonTools, 'archive_plan', 'reindex_workspace', 'edit_file', 'create_file'],
     SkillWriter: [...commonTools, 'update_step', 'store_context', 'list_skills', 'match_skills', 'deploy_skills'],
     Worker: [...commonTools, 'store_context', 'create_file', 'edit_file'],
-    TDDDriver: [...commonTools, 'update_step', 'store_context', 'get_context', 'create_plan', 'modify_plan']
+    TDDDriver: [...commonTools, 'update_step', 'store_context', 'get_context', 'create_plan', 'modify_plan'],
+    Cognition: [...commonTools, 'get_plan_state', 'get_context', 'list_research_notes']
   };
   
   return agentTools[agentType];
@@ -259,8 +264,8 @@ function getBuildRelatedSteps(state: PlanState): PlanStep[] {
 }
 
 /**
- * Determine if Builder is deployed at end-of-plan (Final Verification mode)
- * vs mid-plan (Regression Check mode).
+ * Determine if Reviewer is deployed at end-of-plan (Final Verification mode)
+ * vs mid-plan (Regression Check mode) for build validation.
  */
 function isEndOfPlanDeployment(state: PlanState): boolean {
   const nonBuildSteps = state.steps.filter(s => s.type !== 'build');
@@ -268,10 +273,10 @@ function isEndOfPlanDeployment(state: PlanState): boolean {
 }
 
 /**
- * Validate Builder deployment mode based on plan state.
+ * Validate Reviewer build mode based on plan state.
  * Returns warnings/instructions for mid-plan vs end-of-plan deployment.
  */
-function validateBuilderMode(state: PlanState): {
+function validateReviewerBuildMode(state: PlanState): {
   mode: 'regression_check' | 'final_verification';
   warnings: string[];
   blocked: boolean;
@@ -311,7 +316,7 @@ function validateBuilderMode(state: PlanState): {
   return {
     mode: 'regression_check',
     warnings: [
-      '⚠️ Builder deployed mid-plan without regression justification. Builder is primarily an end-of-plan agent.',
+      '⚠️ Reviewer deployed mid-plan in build-check mode without regression justification.',
       'If this is intentional regression checking, set mode to "regression_check" in deployment context.',
       'Consider waiting until all phases complete for Final Verification mode.'
     ],
@@ -499,30 +504,28 @@ async function validateAgent(
       }
     }
 
-    if (agentType === 'Builder') {
-      // Validate Builder deployment mode (regression_check vs final_verification)
-      const builderMode = validateBuilderMode(state);
-      if (builderMode.blocked) {
-        return {
-          success: false,
-          error: `BLOCKED: ${builderMode.blockReason}`
-        };
-      }
-      // Add mode-specific warnings
-      if (builderMode.warnings.length > 0) {
-        warnings.push(...builderMode.warnings);
-      }
-
+    // Reviewer build-check mode: validate when Reviewer is handling build steps
+    if (agentType === 'Reviewer') {
       const buildSteps = getBuildRelatedSteps(state);
       if (buildSteps.length > 0) {
+        const reviewerBuildMode = validateReviewerBuildMode(state);
+        if (reviewerBuildMode.blocked) {
+          return {
+            success: false,
+            error: `BLOCKED: ${reviewerBuildMode.blockReason}`
+          };
+        }
+        if (reviewerBuildMode.warnings.length > 0) {
+          warnings.push(...reviewerBuildMode.warnings);
+        }
+
         const scripts = await store.getBuildScripts(workspace_id, plan_id);
         if (scripts.length === 0) {
           const stepList = buildSteps.map(step => `Step ${step.index}: ${step.task}`).join('; ');
-          return {
-            success: false,
-            error: `BLOCKED: Builder requires build scripts via memory_plan add_build_script before running builds. ` +
-              `Build-related steps detected: ${stepList}`
-          };
+          warnings.push(
+            `⚠️ Build-related steps detected but no build scripts registered: ${stepList}. ` +
+            `Use memory_plan add_build_script to register build steps.`
+          );
         }
       }
     }
@@ -574,14 +577,17 @@ async function validateAgent(
         instructions += `You MUST call handoff to ${boundaries.must_handoff_to.join(' or ')} before completing. `;
       }
 
-      if (agentType === 'Builder') {
-        const builderMode = validateBuilderMode(state);
-        instructions += `Operating in ${builderMode.mode.replace('_', ' ')} mode. `;
-        instructions += 'Use memory_plan add_build_script to register build steps and run_build_script to execute them. ';
-        if (builderMode.mode === 'regression_check') {
-          instructions += 'Produce a regression report identifying which step broke the build if compilation fails. ';
-        } else {
-          instructions += 'Produce user-facing build instructions, optimization suggestions, and dependency notes. ';
+      if (agentType === 'Reviewer') {
+        const buildSteps = getBuildRelatedSteps(state);
+        if (buildSteps.length > 0) {
+          const reviewerBuildMode = validateReviewerBuildMode(state);
+          instructions += `Build-check mode: operating in ${reviewerBuildMode.mode.replace('_', ' ')} mode. `;
+          instructions += 'Use memory_plan add_build_script to register build steps and run_build_script to execute them. ';
+          if (reviewerBuildMode.mode === 'regression_check') {
+            instructions += 'Produce a regression report identifying which step broke the build if compilation fails. ';
+          } else {
+            instructions += 'Produce user-facing build instructions, optimization suggestions, and dependency notes. ';
+          }
         }
       }
       
@@ -658,14 +664,17 @@ async function validateAgent(
       instructions += `You MUST call handoff to ${boundaries.must_handoff_to.join(' or ')} before completing. `;
     }
 
-    if (agentType === 'Builder') {
-      const builderMode = validateBuilderMode(state);
-      instructions += `Operating in ${builderMode.mode.replace('_', ' ')} mode. `;
-      instructions += 'Use memory_plan add_build_script to register build steps and run_build_script to execute them. ';
-      if (builderMode.mode === 'regression_check') {
-        instructions += 'Produce a regression report identifying which step broke the build if compilation fails. ';
-      } else {
-        instructions += 'Produce user-facing build instructions, optimization suggestions, and dependency notes. ';
+    if (agentType === 'Reviewer') {
+      const buildSteps = getBuildRelatedSteps(state);
+      if (buildSteps.length > 0) {
+        const reviewerBuildMode = validateReviewerBuildMode(state);
+        instructions += `Build-check mode: operating in ${reviewerBuildMode.mode.replace('_', ' ')} mode. `;
+        instructions += 'Use memory_plan add_build_script to register build steps and run_build_script to execute them. ';
+        if (reviewerBuildMode.mode === 'regression_check') {
+          instructions += 'Produce a regression report identifying which step broke the build if compilation fails. ';
+        } else {
+          instructions += 'Produce user-facing build instructions, optimization suggestions, and dependency notes. ';
+        }
       }
     }
     
@@ -720,10 +729,11 @@ export async function validateExecutor(
   return validateAgent('Executor', params);
 }
 
+/** @deprecated Builder merged into Reviewer — redirects to validateReviewer */
 export async function validateBuilder(
   params: ValidateAgentParams
 ): Promise<ToolResponse<AgentValidationResult>> {
-  return validateAgent('Builder', params);
+  return validateAgent('Reviewer', params);
 }
 
 export async function validateReviewer(
@@ -784,4 +794,10 @@ export async function validateTDDDriver(
   params: ValidateAgentParams
 ): Promise<ToolResponse<AgentValidationResult>> {
   return validateAgent('TDDDriver', params);
+}
+
+export async function validateCognition(
+  params: ValidateAgentParams
+): Promise<ToolResponse<AgentValidationResult>> {
+  return validateAgent('Cognition', params);
 }

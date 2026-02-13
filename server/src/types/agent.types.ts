@@ -16,14 +16,14 @@ export type AgentType =
   | 'Researcher'
   | 'Architect'
   | 'Executor'
-  | 'Builder'
   | 'Revisionist'
   | 'Reviewer'
   | 'Tester'
   | 'Archivist'
   | 'SkillWriter'
   | 'Worker'
-  | 'TDDDriver';
+  | 'TDDDriver'
+  | 'Cognition';
 
 // =============================================================================
 // Lineage & Handoff
@@ -127,31 +127,19 @@ export const AGENT_BOUNDARIES: Record<AgentType, AgentRoleBoundaries> = {
     agent_type: 'Executor',
     can_implement: true,
     can_finalize: false,
-    must_handoff_to: ['Builder', 'Reviewer', 'Tester'],
+    must_handoff_to: ['Reviewer', 'Tester'],
     forbidden_actions: [],
     primary_responsibility: 'Implement code changes according to Architect design'
   },
-  Builder: {
-    agent_type: 'Builder',
-    can_implement: false,
-    can_finalize: false,
-    must_handoff_to: ['Reviewer', 'Coordinator'],
-    forbidden_actions: [
-      'create files',
-      'edit code',
-      'implement features'
-    ],
-    primary_responsibility: 'Create and register build scripts, verify end-of-plan compilation readiness, provide user-facing build instructions, regression detection when pre_plan_build_status is passing',
-    deployment_modes: ['regression_check', 'final_verification']
-  } as AgentRoleBoundaries & { deployment_modes: string[] },
   Reviewer: {
     agent_type: 'Reviewer',
     can_implement: false,
     can_finalize: false,
-    must_handoff_to: ['Tester', 'Archivist', 'Revisionist'],
+    must_handoff_to: ['Tester', 'Archivist', 'Revisionist', 'Coordinator'],
     forbidden_actions: ['create files', 'edit code', 'implement features'],
-    primary_responsibility: 'Review code quality, suggest improvements'
-  },
+    primary_responsibility: 'Review code quality, suggest improvements, verify build compilation, provide build instructions and regression detection',
+    deployment_modes: ['regression_check', 'final_verification']
+  } as AgentRoleBoundaries & { deployment_modes: string[] },
   Tester: {
     agent_type: 'Tester',
     can_implement: true,
@@ -204,5 +192,13 @@ export const AGENT_BOUNDARIES: Record<AgentType, AgentRoleBoundaries> = {
     must_handoff_to: ['Coordinator'],
     forbidden_actions: ['create files', 'edit code', 'implement features'],
     primary_responsibility: 'Orchestrate TDD red-green-refactor cycles'
+  },
+  Cognition: {
+    agent_type: 'Cognition',
+    can_implement: false,
+    can_finalize: false,
+    must_handoff_to: ['Coordinator'],
+    forbidden_actions: ['create files', 'edit code', 'implement features', 'run tests', 'modify plans', 'modify steps', 'store context'],
+    primary_responsibility: 'Read-only reasoning and analysis — analyze, ideate, and critique using plan state and context data'
   }
 };

@@ -36,8 +36,9 @@ Four agents are recognised as **hubs** that may spawn subagents via `runSubagent
 - **TDDDriver** — TDD hub. Spawns Tester (RED), Executor (GREEN), Reviewer (REFACTOR) for test-driven development cycles.
 
 ### Spoke Agents
-All other agents are **spokes**: Executor, Builder, Reviewer, Tester, Archivist, Brainstorm, Researcher, Architect, Worker.
+All other agents are **spokes**: Executor, Reviewer, Tester, Archivist, Brainstorm, Researcher, Architect, Worker, Cognition.
 - **Worker** is a lightweight spoke for scoped sub-tasks (≤ 5 steps). Cannot modify plans or spawn subagents.
+- **Cognition** is a read-only reasoning/analysis spoke. Cannot edit files, modify plans, or create context. Returns analysis results to Coordinator.
 - **Exception**: Revisionist may spawn subagents when pivoting a plan requires immediate sub-task execution.
 
 ## Subagent Spawning Rules
@@ -99,7 +100,8 @@ The Coordinator reads `recommended_next_agent` and decides what to do next.
 | Tester | Coordinator | Tests pass (recommends Archivist) or fail (recommends Revisionist) |
 | Revisionist | Coordinator | Plan updated (recommends Executor) |
 | Worker | Coordinator | Sub-task complete, or limit/scope exceeded |
-| TDDDriver | Coordinator | TDD cycles complete (recommends Builder) or blocked (recommends Revisionist) |
+| Cognition | Coordinator | Analysis/reasoning complete (recommends next agent based on findings) |
+| TDDDriver | Coordinator | TDD cycles complete (recommends Reviewer) or blocked (recommends Revisionist) |
 | Archivist | (none) | Final agent - plan archived |
 
 ## Expanded Agent Handoff Details
@@ -121,16 +123,13 @@ Use these rules when coordinating non-core agents or alternate flows.
 - Handoff to Coordinator with recommendation for Researcher when more research is required.
 
 ### Executor
-- Handoff to Coordinator with recommendation for Builder after implementation.
+- Handoff to Coordinator with recommendation for Reviewer after implementation.
 - Handoff to Coordinator with recommendation for Revisionist if blocked or build/test failures are found.
 
-### Builder
-- Handoff to Coordinator with recommendation for Reviewer if build passes.
-- Handoff to Coordinator with recommendation for Revisionist if build fails.
-
 ### Reviewer
-- Handoff to Coordinator with recommendation for Tester if review passes.
-- Handoff to Coordinator with recommendation for Revisionist if issues are found.
+- Runs build verification when entering from Executor (build-check mode).
+- Handoff to Coordinator with recommendation for Tester if build and review pass.
+- Handoff to Coordinator with recommendation for Revisionist if build fails or issues are found.
 
 ### Tester
 - WRITE mode: handoff to Coordinator with recommendation to continue the phase loop.
@@ -169,12 +168,20 @@ Use these rules when coordinating non-core agents or alternate flows.
 - If scope or budget limits are exceeded, sets `budget_exceeded: true` or `scope_escalation: true` in handoff data.
 - Hub agent reads limit flags and reassesses task decomposition.
 
+### Cognition (Read-Only Analysis Spoke)
+- Cognition is a **spoke agent** — it MUST NOT call `runSubagent`.
+- **Read-only**: Cannot edit files, modify plans, create context, or update steps.
+- Allowed tools: `memory_plan` (read-only), `memory_context` (read-only), `memory_steps` (read-only).
+- Capabilities: Analyze codebase, ideate solutions, critique approaches, provide structured reasoning.
+- Handoff to Coordinator with recommendation based on analysis findings (e.g., Architect, Executor, Researcher).
+- Spawned by hub agents via `memory_agent(action: spawn)` — see Spawn Tool section below.
+
 ### TDDDriver (TDD Hub)
 - TDDDriver is a **hub agent** — it CAN call `runSubagent`.
 - Spawns Tester (RED phase), Executor (GREEN phase), Reviewer (REFACTOR phase).
 - **Include anti-spawning instructions** in every subagent prompt.
 - Tracks TDD cycle state (cycle number, current phase, iterations).
-- Handoff to Coordinator with recommendation for Builder when all TDD cycles are complete.
+- Handoff to Coordinator with recommendation for Reviewer when all TDD cycles are complete.
 - Handoff to Coordinator with recommendation for Revisionist if blocked.
 
 ## Subagent Interruption Recovery
@@ -196,3 +203,31 @@ When a user cancels or interrupts a subagent mid-execution, the hub that spawned
 - A "SCOPE ESCALATION" block instructing the subagent to stop and handoff if out-of-scope changes are needed
 
 See `instructions/subagent-recovery.instructions.md` for the full scope boundary template.
+
+## Spawn Tool (`memory_agent` action: spawn)
+
+Hub agents can use `memory_agent(action: spawn)` to programmatically spawn spoke agents with validated context injection.
+
+### Usage
+
+```json
+{
+  "action": "spawn",
+  "agent_name": "Cognition",
+  "task_context": "Analyze the authentication module for security vulnerabilities"
+}
+```
+
+### How It Works
+
+1. **Gatekeeper validation**: Validates `agent_name` against known agents (checks `agents/*.agent.md`).
+2. **Context injection**: Automatically fetches workspace profile and current plan state.
+3. **Instruction loading**: Loads the agent's instruction file and returns it with injected context.
+4. **Boundary enforcement**: Enforces agent boundaries (e.g., Cognition cannot be given write tools).
+
+### Rules
+
+- **Only hub agents** (Coordinator, Analyst, Runner, TDDDriver) should use spawn.
+- Spoke agents MUST NOT use spawn — use `memory_agent(action: handoff)` instead.
+- The spawn tool validates the target agent exists before proceeding.
+- Spawned agents receive workspace and plan context automatically.

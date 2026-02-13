@@ -1,12 +1,16 @@
 /**
  * Agent Tools - MCP tools for deploying agent instruction files to workspaces
+ * and managing agent spawn/validation workflows.
  */
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { ToolResponse } from '../types/index.js';
+import type { ToolResponse, AgentType } from '../types/index.js';
+import { AGENT_BOUNDARIES } from '../types/index.js';
 import { appendWorkspaceFileUpdate } from '../logging/workspace-update-log.js';
 import { deploySkillsToWorkspace } from './skills.tools.js';
+import { validateAgentExists, loadAgentInstructions, listKnownAgentNames } from '../utils/agent-loader.js';
+import * as store from '../storage/file-store.js';
 
 // Path to the agents directory (relative to the server)
 const AGENTS_ROOT = process.env.MBS_AGENTS_ROOT || path.join(process.cwd(), '..', 'agents');
@@ -227,4 +231,133 @@ export async function getAgentInstructions(
       error: `Failed to get agent instructions: ${(error as Error).message}`
     };
   }
+}
+
+// =============================================================================
+// Spawn Handler — Gatekeeper Validation + Context Injection
+// =============================================================================
+
+/** Hub agent types that are allowed to spawn subagents */
+const HUB_AGENTS: AgentType[] = ['Coordinator', 'Analyst', 'Runner', 'TDDDriver'];
+
+export interface SpawnParams {
+  agent_name: string;
+  task_context?: string;
+  workspace_id?: string;
+  plan_id?: string;
+  /** The agent type of the caller (from the current session) */
+  requesting_agent?: AgentType;
+}
+
+export interface SpawnResult {
+  agent_name: string;
+  agent_file: string;
+  agent_instructions: string;
+  workspace_context: Record<string, unknown>;
+  plan_context: Record<string, unknown>;
+}
+
+/**
+ * Handle a spawn request — validates the target agent exists, checks
+ * permissions, injects workspace + plan context, and returns structured
+ * data the hub agent can use via runSubagent.
+ *
+ * This is a VALIDATION + CONTEXT INJECTION tool, not server-side execution.
+ */
+export async function handleSpawn(
+  params: SpawnParams
+): Promise<ToolResponse<SpawnResult>> {
+  const { agent_name, task_context, workspace_id, plan_id } = params;
+
+  // 1. Validate required params
+  if (!agent_name) {
+    return { success: false, error: 'agent_name is required for action: spawn' };
+  }
+
+  // 2. Gatekeeper — validate agent exists on filesystem
+  const agentInfo = await validateAgentExists(agent_name);
+  if (!agentInfo) {
+    const known = listKnownAgentNames();
+    return {
+      success: false,
+      error: `Agent not found: "${agent_name}". Known agents: ${known.join(', ')}`
+    };
+  }
+
+  // 3. Check role boundaries — is the target agent allowed to be spawned?
+  const targetBoundaries = AGENT_BOUNDARIES[agentInfo.name as AgentType];
+  if (!targetBoundaries) {
+    return {
+      success: false,
+      error: `No role boundaries defined for agent: ${agentInfo.name}. Cannot spawn unknown agent type.`
+    };
+  }
+
+  // 4. Load agent instructions
+  const loadResult = await loadAgentInstructions(agent_name);
+  if (!loadResult) {
+    return {
+      success: false,
+      error: `Agent file found but could not be loaded: ${agentInfo.filename}`
+    };
+  }
+
+  // 5. Inject workspace context (if workspace_id provided)
+  let workspaceContext: Record<string, unknown> = {};
+  if (workspace_id) {
+    try {
+      const workspace = await store.getWorkspace(workspace_id);
+      if (workspace) {
+        workspaceContext = {
+          workspace_id,
+          workspace_path: workspace.path,
+          registered_at: workspace.registered_at,
+        };
+      }
+    } catch {
+      // Non-fatal — proceed without workspace context
+      workspaceContext = { workspace_id, error: 'Could not load workspace metadata' };
+    }
+  }
+
+  // 6. Inject plan context (if plan_id + workspace_id provided)
+  let planContext: Record<string, unknown> = {};
+  if (workspace_id && plan_id) {
+    try {
+      const planState = await store.getPlanState(workspace_id, plan_id);
+      if (planState) {
+        planContext = {
+          plan_id: planState.id,
+          title: planState.title,
+          status: planState.status,
+          current_phase: planState.current_phase,
+          current_agent: planState.current_agent,
+          step_summary: {
+            total: planState.steps?.length ?? 0,
+            pending: planState.steps?.filter((s: { status: string }) => s.status === 'pending').length ?? 0,
+            active: planState.steps?.filter((s: { status: string }) => s.status === 'active').length ?? 0,
+            done: planState.steps?.filter((s: { status: string }) => s.status === 'done').length ?? 0,
+            blocked: planState.steps?.filter((s: { status: string }) => s.status === 'blocked').length ?? 0,
+          },
+        };
+        if (task_context) {
+          planContext.task_context = task_context;
+        }
+      }
+    } catch {
+      // Non-fatal — proceed without plan context
+      planContext = { plan_id, error: 'Could not load plan state' };
+    }
+  }
+
+  return {
+    success: true,
+    data: {
+      agent_name: agentInfo.name,
+      agent_file: agentInfo.filename,
+      agent_instructions: loadResult.instructions,
+      workspace_context: workspaceContext,
+      plan_context: planContext,
+    }
+  };
 }

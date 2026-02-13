@@ -131,8 +131,8 @@ const server = new McpServer({
 
 const AgentTypeSchema = z.enum([
   'Coordinator', 'Analyst', 'Researcher', 'Architect', 'Executor',
-  'Builder', 'Reviewer', 'Tester', 'Revisionist', 'Archivist',
-  'Brainstorm', 'Runner', 'SkillWriter', 'Worker', 'TDDDriver'
+  'Reviewer', 'Tester', 'Revisionist', 'Archivist',
+  'Brainstorm', 'Runner', 'SkillWriter', 'Worker', 'TDDDriver', 'Cognition'
 ]);
 
 const StepStatusSchema = z.enum(['pending', 'active', 'done', 'blocked']);
@@ -193,7 +193,7 @@ server.tool(
   'memory_plan',
   'Consolidated plan lifecycle management. Actions: list (list plans), get (get plan state), create (create new plan), update (modify plan steps), archive (archive completed plan), import (import existing plan file), find (find plan by ID), add_note (add note to plan), delete (delete plan), consolidate (consolidate steps), set_goals (set goals and success criteria), add_build_script (add build script), list_build_scripts (list build scripts), run_build_script (resolve build script for terminal execution), delete_build_script (delete build script), create_from_template (create plan from template), list_templates (list available templates).',
   {
-    action: z.enum(['list', 'get', 'create', 'update', 'archive', 'import', 'find', 'add_note', 'delete', 'consolidate', 'set_goals', 'add_build_script', 'list_build_scripts', 'run_build_script', 'delete_build_script', 'create_from_template', 'list_templates', 'confirm', 'create_program', 'add_plan_to_program', 'upgrade_to_program', 'list_program_plans']).describe('The action to perform'),
+    action: z.enum(['list', 'get', 'create', 'update', 'archive', 'import', 'find', 'add_note', 'delete', 'consolidate', 'set_goals', 'add_build_script', 'list_build_scripts', 'run_build_script', 'delete_build_script', 'create_from_template', 'list_templates', 'confirm', 'create_program', 'add_plan_to_program', 'upgrade_to_program', 'list_program_plans', 'export_plan']).describe('The action to perform'),
     workspace_id: z.string().optional().describe('Workspace ID'),
     workspace_path: z.string().optional().describe('Workspace path (alternative to workspace_id for list)'),
     plan_id: z.string().optional().describe('Plan ID'),
@@ -318,9 +318,9 @@ server.tool(
 
 server.tool(
   'memory_agent',
-  'Consolidated agent lifecycle and deployment tool. Actions: init (initialize agent session), complete (complete session), handoff (recommend next agent), validate (validate agent for current task), list (list available agents), get_instructions (get agent instructions), deploy (deploy agents to workspace), get_briefing (get mission briefing), get_lineage (get handoff history).',
+  'Consolidated agent lifecycle and deployment tool. Actions: init (initialize agent session), complete (complete session), handoff (recommend next agent), validate (validate agent for current task), list (list available agents), get_instructions (get agent instructions), deploy (deploy agents to workspace), get_briefing (get mission briefing), get_lineage (get handoff history), spawn (validate agent and inject context for subagent spawning).',
   {
-    action: z.enum(['init', 'complete', 'handoff', 'validate', 'list', 'get_instructions', 'deploy', 'get_briefing', 'get_lineage']).describe('The action to perform'),
+    action: z.enum(['init', 'complete', 'handoff', 'validate', 'list', 'get_instructions', 'deploy', 'get_briefing', 'get_lineage', 'spawn']).describe('The action to perform'),
     workspace_id: z.string().optional().describe('Workspace ID'),
     plan_id: z.string().optional().describe('Plan ID'),
     agent_type: AgentTypeSchema.optional().describe('Agent type'),
@@ -346,7 +346,8 @@ server.tool(
     agents: z.array(z.string()).optional().describe('Specific agents to deploy'),
     include_prompts: z.boolean().optional().describe('Include prompts in deployment'),
     include_instructions: z.boolean().optional().describe('Include instructions in deployment'),
-    include_skills: z.boolean().optional().describe('Include skills in deployment')
+    include_skills: z.boolean().optional().describe('Include skills in deployment'),
+    task_context: z.string().optional().describe('Task context for the spawned agent (for spawn action)')
   },
   async (params) => {
     const result = await withLogging('memory_agent', params, () =>
@@ -362,7 +363,7 @@ server.tool(
   'memory_context',
   'Consolidated context and research management tool. Actions: store (store plan context), get (retrieve plan context), store_initial (store initial user request), list (list plan context files), list_research (list research notes), append_research (add research note), generate_instructions (generate plan instructions file), batch_store (store multiple context items at once), workspace_get/workspace_set/workspace_update/workspace_delete (workspace-scoped context CRUD), knowledge_store/knowledge_get/knowledge_list/knowledge_delete (workspace knowledge file CRUD), write_prompt (create plan-specific .prompt.md files).',
   {
-    action: z.enum(['store', 'get', 'store_initial', 'list', 'list_research', 'append_research', 'generate_instructions', 'batch_store', 'workspace_get', 'workspace_set', 'workspace_update', 'workspace_delete', 'knowledge_store', 'knowledge_get', 'knowledge_list', 'knowledge_delete', 'write_prompt']).describe('The action to perform'),
+    action: z.enum(['store', 'get', 'store_initial', 'list', 'list_research', 'append_research', 'generate_instructions', 'batch_store', 'workspace_get', 'workspace_set', 'workspace_update', 'workspace_delete', 'knowledge_store', 'knowledge_get', 'knowledge_list', 'knowledge_delete', 'write_prompt', 'dump_context']).describe('The action to perform'),
     workspace_id: z.string().describe('Workspace ID'),
     plan_id: z.string().optional().describe('Plan ID (required for plan-scoped actions)'),
     type: z.string().optional().describe('Context type (for store/get)'),
@@ -404,6 +405,63 @@ server.tool(
   async (params) => {
     const result = await withLogging('memory_context', params, () =>
       consolidatedTools.memoryContext(params as consolidatedTools.MemoryContextParams)
+    );
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+    };
+  }
+);
+
+// =============================================================================
+// Terminal Tool — safe command execution with session management
+// =============================================================================
+
+server.tool(
+  'memory_terminal',
+  'Terminal command execution with session management and authorization. Actions: run (execute a command), read_output (get buffered output for a session), kill (terminate a process), get_allowlist (view auto-approved commands), update_allowlist (manage allowlist patterns).',
+  {
+    action: z.enum(['run', 'read_output', 'kill', 'get_allowlist', 'update_allowlist']).describe('The action to perform'),
+    command: z.string().optional().describe('Command to execute (for run)'),
+    args: z.array(z.string()).optional().describe('Arguments to pass to the command (for run)'),
+    cwd: z.string().optional().describe('Working directory (for run). Defaults to process cwd'),
+    timeout: z.number().optional().describe('Timeout in ms (for run). Default 30000'),
+    workspace_id: z.string().optional().describe('Workspace ID (for run, get_allowlist, update_allowlist)'),
+    session_id: z.string().optional().describe('Session ID (for read_output, kill)'),
+    patterns: z.array(z.string()).optional().describe('Allowlist patterns (for update_allowlist)'),
+    operation: z.enum(['add', 'remove', 'set']).optional().describe('How to modify the allowlist (for update_allowlist)')
+  },
+  async (params) => {
+    const result = await withLogging('memory_terminal', params, () =>
+      consolidatedTools.memoryTerminal(params as consolidatedTools.MemoryTerminalParams)
+    );
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+    };
+  }
+);
+
+// =============================================================================
+// Filesystem Tool — workspace-scoped file operations
+// =============================================================================
+
+server.tool(
+  'memory_filesystem',
+  'Workspace-scoped filesystem operations with safety boundaries. Actions: read (read file content), write (write/create a file), search (find files by glob/regex), list (directory listing), tree (recursive directory tree).',
+  {
+    action: z.enum(['read', 'write', 'search', 'list', 'tree']).describe('The action to perform'),
+    workspace_id: z.string().describe('Workspace ID — all paths are resolved relative to the workspace root'),
+    path: z.string().optional().describe('File or directory path relative to workspace root'),
+    content: z.string().optional().describe('File content (for write)'),
+    create_dirs: z.boolean().optional().describe('Auto-create parent directories (for write). Default true'),
+    pattern: z.string().optional().describe('Glob pattern (for search)'),
+    regex: z.string().optional().describe('Regex pattern (for search, alternative to glob)'),
+    include: z.string().optional().describe('File include filter, e.g. "*.ts" (for search)'),
+    recursive: z.boolean().optional().describe('Recurse into subdirectories (for list)'),
+    max_depth: z.number().optional().describe('Maximum tree depth (for tree). Default 3, max 10')
+  },
+  async (params) => {
+    const result = await withLogging('memory_filesystem', params, () =>
+      consolidatedTools.memoryFilesystem(params as consolidatedTools.MemoryFilesystemParams)
     );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]

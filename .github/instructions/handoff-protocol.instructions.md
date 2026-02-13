@@ -36,7 +36,7 @@ Four agents are recognised as **hubs** that may spawn subagents via `runSubagent
 - **TDDDriver** — TDD hub. Spawns Tester (RED), Executor (GREEN), Reviewer (REFACTOR) for test-driven development cycles.
 
 ### Spoke Agents
-All other agents are **spokes**: Executor, Builder, Reviewer, Tester, Archivist, Brainstorm, Researcher, Architect, Worker.
+All other agents are **spokes**: Executor, Reviewer, Tester, Archivist, Brainstorm, Researcher, Architect, Worker.
 - **Worker** is a lightweight spoke for scoped sub-tasks (≤ 5 steps). Cannot modify plans or spawn subagents.
 - **Exception**: Revisionist may spawn subagents when pivoting a plan requires immediate sub-task execution.
 
@@ -99,7 +99,7 @@ The Coordinator reads `recommended_next_agent` and decides what to do next.
 | Tester | Coordinator | Tests pass (recommends Archivist) or fail (recommends Revisionist) |
 | Revisionist | Coordinator | Plan updated (recommends Executor) |
 | Worker | Coordinator | Sub-task complete, or limit/scope exceeded |
-| TDDDriver | Coordinator | TDD cycles complete (recommends Builder) or blocked (recommends Revisionist) |
+| TDDDriver | Coordinator | TDD cycles complete (recommends Reviewer) or blocked (recommends Revisionist) |
 | Archivist | (none) | Final agent - plan archived |
 
 ## Expanded Agent Handoff Details
@@ -121,16 +121,13 @@ Use these rules when coordinating non-core agents or alternate flows.
 - Handoff to Coordinator with recommendation for Researcher when more research is required.
 
 ### Executor
-- Handoff to Coordinator with recommendation for Builder after implementation.
+- Handoff to Coordinator with recommendation for Reviewer after implementation.
 - Handoff to Coordinator with recommendation for Revisionist if blocked or build/test failures are found.
 
-### Builder
-- Handoff to Coordinator with recommendation for Reviewer if build passes.
-- Handoff to Coordinator with recommendation for Revisionist if build fails.
-
 ### Reviewer
-- Handoff to Coordinator with recommendation for Tester if review passes.
-- Handoff to Coordinator with recommendation for Revisionist if issues are found.
+- Runs build verification when entering from Executor (build-check mode).
+- Handoff to Coordinator with recommendation for Tester if build and review pass.
+- Handoff to Coordinator with recommendation for Revisionist if build fails or issues are found.
 
 ### Tester
 - WRITE mode: handoff to Coordinator with recommendation to continue the phase loop.
@@ -174,7 +171,7 @@ Use these rules when coordinating non-core agents or alternate flows.
 - Spawns Tester (RED phase), Executor (GREEN phase), Reviewer (REFACTOR phase).
 - **Include anti-spawning instructions** in every subagent prompt.
 - Tracks TDD cycle state (cycle number, current phase, iterations).
-- Handoff to Coordinator with recommendation for Builder when all TDD cycles are complete.
+- Handoff to Coordinator with recommendation for Reviewer when all TDD cycles are complete.
 - Handoff to Coordinator with recommendation for Revisionist if blocked.
 
 ## Subagent Interruption Recovery
