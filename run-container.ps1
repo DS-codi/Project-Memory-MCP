@@ -66,6 +66,7 @@ function Start-Container {
     }
 
     Write-Host "Starting container '$ContainerName'..." -ForegroundColor Cyan
+    $hostMcpUrl = if ($env:MBS_HOST_MCP_URL) { $env:MBS_HOST_MCP_URL } else { "" }
     podman run -d `
         --name $ContainerName `
         -p 3000:3000 `
@@ -75,6 +76,7 @@ function Start-Container {
         -v "${WorkspaceRoot}\agents:/agents:ro" `
         -e MBS_DATA_ROOT=/data `
         -e MBS_AGENTS_ROOT=/agents `
+        -e MBS_HOST_MCP_URL=$hostMcpUrl `
         -e NODE_ENV=production `
         $ImageName
 

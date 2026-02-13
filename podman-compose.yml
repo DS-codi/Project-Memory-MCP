@@ -28,6 +28,7 @@ services:
     environment:
       - MBS_DATA_ROOT=/data
       - MBS_AGENTS_ROOT=/agents
+      - MBS_HOST_MCP_URL=${MBS_HOST_MCP_URL}
       - MCP_PORT=3000
       - DASHBOARD_PORT=3001
       - WS_PORT=3002

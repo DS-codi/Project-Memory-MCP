@@ -299,4 +299,8 @@ Here are common approaches:
 - Fastest, least control
 
 What's your initial leaning? And answers to those questions above will help narrow this down.
+
+## Skills Awareness
+
+Check `matched_skills` from your `memory_agent` (action: init) response. If relevant skills are returned, apply those skill patterns when working in matching domains. This helps maintain consistency with established codebase conventions.
 ```

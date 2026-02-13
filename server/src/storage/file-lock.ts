@@ -11,6 +11,11 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import lockfile from 'proper-lockfile';
+import {
+  shouldProxyFilePath,
+  writeJsonViaHostProxy,
+  readJsonViaHostProxy,
+} from './remote-file-proxy.js';
 
 // =============================================================================
 // File Lock Manager
@@ -32,6 +37,12 @@ class FileLockManager {
    * Uses both in-memory locks (same process) and filesystem locks (cross-process).
    */
   async withLock<T>(filePath: string, operation: () => Promise<T>): Promise<T> {
+    if (shouldProxyFilePath(filePath)) {
+      // Cross-host paths are written via remote MCP proxy; local lockfiles
+      // would create phantom directories/files inside the container.
+      return operation();
+    }
+
     const normalizedPath = path.normalize(filePath).toLowerCase();
 
     // First, serialize within this process
@@ -107,6 +118,14 @@ export const fileLockManager = new FileLockManager();
  * Read a JSON file (unlocked — use modifyJsonLocked for concurrent access).
  */
 export async function readJson<T>(filePath: string): Promise<T | null> {
+  if (shouldProxyFilePath(filePath)) {
+    try {
+      return await readJsonViaHostProxy<T>(filePath);
+    } catch {
+      return null;
+    }
+  }
+
   try {
     const content = await fs.readFile(filePath, 'utf-8');
     return JSON.parse(content) as T;
@@ -120,6 +139,12 @@ export async function readJson<T>(filePath: string): Promise<T | null> {
  * Prefer writeJsonLocked() or modifyJsonLocked() for concurrent access.
  */
 export async function writeJson<T>(filePath: string, data: T): Promise<void> {
+  if (shouldProxyFilePath(filePath)) {
+    const serialized = JSON.stringify(data, null, 2);
+    await writeJsonViaHostProxy(filePath, serialized);
+    return;
+  }
+
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
 }

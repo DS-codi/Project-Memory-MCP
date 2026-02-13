@@ -65,6 +65,26 @@ const WORKSPACE_SCHEMA_VERSION = '1.0.0';
 // =============================================================================
 
 /**
+ * Check whether a workspace path is genuinely accessible from this process.
+ *
+ * In container mode (Linux), Windows-style paths like `s:\\foo` or `C:\\Users\\...`
+ * are not reachable, but `path.join` treats them as relative paths and
+ * `fs.mkdir(recursive)` silently creates phantom directories inside the
+ * container. This guard prevents those spurious writes.
+ */
+async function isWorkspaceAccessible(workspacePath: string): Promise<boolean> {
+  if (process.platform !== 'win32' && /^[a-zA-Z]:[\\\/]/.test(workspacePath)) {
+    return false;
+  }
+  try {
+    const stat = await fs.stat(workspacePath);
+    return stat.isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Generate a workspace ID from a path using a hash
  */
 export function generateWorkspaceId(workspacePath: string): string {
@@ -589,6 +609,18 @@ export async function writeWorkspaceIdentityFile(
   meta: WorkspaceMeta
 ): Promise<IdentityFile> {
   const resolvedPath = safeResolvePath(workspacePath);
+
+  // Guard: ensure workspace directory is genuinely reachable.
+  // In container mode, Windows host paths (e.g. s:\foo) are not accessible
+  // but path.join treats them as relative, and fs.mkdir silently creates
+  // phantom directories inside the container.
+  const accessible = await isWorkspaceAccessible(resolvedPath);
+  if (!accessible) {
+    throw new Error(
+      `Workspace path not accessible from this process (container mode?): ${resolvedPath}`
+    );
+  }
+
   const identityPath = getIdentityPath(resolvedPath);
 
   const identity = await modifyJsonLocked<IdentityFile>(identityPath, (existing) => {

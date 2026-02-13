@@ -9,7 +9,7 @@ import type { ToolResponse, WorkspaceMeta, WorkspaceProfile, PlanState } from '.
 import * as workspaceTools from '../workspace.tools.js';
 import * as store from '../../storage/file-store.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
-import { scanGhostFolders, mergeWorkspace, validateWorkspaceId, migrateWorkspace } from '../../storage/workspace-identity.js';
+import { scanGhostFolders, mergeWorkspace, validateWorkspaceId, migrateWorkspace, ensureIdentityFile } from '../../storage/workspace-identity.js';
 import type { GhostFolderInfo, MergeResult, MigrateWorkspaceResult } from '../../storage/workspace-identity.js';
 
 export type WorkspaceAction = 'register' | 'list' | 'info' | 'reindex' | 'merge' | 'scan_ghosts' | 'migrate';
@@ -72,6 +72,13 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
       if (!result.success) {
         return { success: false, error: result.error };
       }
+      // Ensure identity.json exists for each workspace that has a path
+      for (const ws of result.data!) {
+        const wsPath = ws.workspace_path || ws.path;
+        if (wsPath) {
+          await ensureIdentityFile(wsPath, ws.workspace_id, ws.data_root);
+        }
+      }
       return {
         success: true,
         data: { action: 'list', data: result.data! }
@@ -107,6 +114,12 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
       const activePlans = plans.filter(p => p.status !== 'archived');
       const archivedPlans = plans.filter(p => p.status === 'archived');
       
+      // Ensure identity.json exists in the workspace directory
+      const infoWsPath = workspace.workspace_path || workspace.path;
+      if (infoWsPath) {
+        await ensureIdentityFile(infoWsPath, workspace.workspace_id, workspace.data_root);
+      }
+
       return {
         success: true,
         data: {
@@ -134,6 +147,14 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
       const result = await workspaceTools.reindexWorkspace({ workspace_id: reindexValidated.workspace_id });
       if (!result.success) {
         return { success: false, error: result.error };
+      }
+      // Ensure identity.json exists after reindex
+      const reindexWs = await store.getWorkspace(reindexValidated.workspace_id);
+      if (reindexWs) {
+        const reindexPath = reindexWs.workspace_path || reindexWs.path;
+        if (reindexPath) {
+          await ensureIdentityFile(reindexPath, reindexWs.workspace_id, reindexWs.data_root);
+        }
       }
       return {
         success: true,
@@ -197,6 +218,15 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
             error: mergeResult.notes.filter(n => n.startsWith('ERROR:')).join('; '),
             data: { action: 'merge', data: mergeResult }
           } as ToolResponse<WorkspaceResult>;
+        }
+
+        // Ensure identity.json exists for the target workspace
+        const targetWs = await store.getWorkspace(params.target_workspace_id);
+        if (targetWs) {
+          const targetPath = targetWs.workspace_path || targetWs.path;
+          if (targetPath) {
+            await ensureIdentityFile(targetPath, targetWs.workspace_id, targetWs.data_root);
+          }
         }
 
         return {

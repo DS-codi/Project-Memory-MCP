@@ -99,6 +99,30 @@ async function pathExists(filePath: string): Promise<boolean> {
   }
 }
 
+/**
+ * Check whether a workspace path is genuinely accessible on this machine.
+ *
+ * In container mode (Linux), Windows-style paths like `s:\foo` or `C:\Users\...`
+ * are not reachable, but `path.join` treats them as relative paths and
+ * `fs.mkdir(recursive)` silently creates phantom directories inside the
+ * container. This guard prevents those spurious writes.
+ *
+ * Returns `true` only when the directory exists and is a real directory.
+ */
+async function isWorkspacePathAccessible(workspacePath: string): Promise<boolean> {
+  // On non-Windows, detect Windows-style absolute paths (e.g. C:\ or S:\)
+  // These can never exist on the Linux filesystem.
+  if (process.platform !== 'win32' && /^[a-zA-Z]:[\\/]/.test(workspacePath)) {
+    return false;
+  }
+  try {
+    const stat = await fs.stat(workspacePath);
+    return stat.isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 async function listDirs(dirPath: string): Promise<string[]> {
   try {
     const entries = await fs.readdir(dirPath, { withFileTypes: true });
@@ -345,6 +369,58 @@ export async function validateWorkspaceIdFormat(
     valid: false,
     reason: `ID '${workspaceId}' does not match expected format: {name}-{12-hex-chars}`,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Identity file enforcement
+// ---------------------------------------------------------------------------
+
+/**
+ * Ensure `.projectmemory/identity.json` exists in a workspace directory.
+ *
+ * Checks whether the file already exists and is valid. If missing or stale,
+ * writes (or refreshes) it. Fails silently when the directory is not
+ * writable (e.g. container mode pointing at a host path).
+ *
+ * @returns `true` if the file was written/refreshed, `false` if it already
+ *          existed and was valid, or if writing failed gracefully.
+ */
+export async function ensureIdentityFile(
+  workspacePath: string,
+  workspaceId: string,
+  dataRoot?: string
+): Promise<boolean> {
+  try {
+    const resolvedPath = safeResolvePath(workspacePath);
+
+    // Guard: workspace directory must be reachable from this process
+    if (!(await isWorkspacePathAccessible(resolvedPath))) {
+      return false;
+    }
+
+    // Fast check — if identity file exists and matches, skip write
+    const existing = await readWorkspaceIdentityFile(resolvedPath, workspaceId);
+    if (existing && existing.workspace_id === workspaceId) {
+      return false; // Already present and valid
+    }
+
+    // Write / refresh the identity file
+    const identityPath = getWorkspaceIdentityPath(resolvedPath);
+    const now = new Date().toISOString();
+    await modifyJsonLocked<WorkspaceIdentityFile>(identityPath, (prev) => ({
+      schema_version: '1.0.0',
+      workspace_id: workspaceId,
+      workspace_path: resolvedPath,
+      data_root: dataRoot || getDataRoot(),
+      created_at: prev?.created_at || now,
+      updated_at: now,
+      project_mcps: prev?.project_mcps,
+    }));
+    return true;
+  } catch {
+    // Graceful failure — container mode, read-only FS, etc.
+    return false;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1002,22 +1078,26 @@ export async function migrateWorkspace(
   await writeJsonLocked(canonicalMetaPath, canonicalMeta);
 
   // 5. Write/refresh identity.json in the workspace directory
-  try {
-    const identityPath = getWorkspaceIdentityPath(resolvedPath);
-    await modifyJsonLocked<WorkspaceIdentityFile>(identityPath, (existingIdentity) => {
-      return {
-        schema_version: '1.0.0',
-        workspace_id: canonicalId,
-        workspace_path: resolvedPath,
-        data_root: dataRoot,
-        created_at: existingIdentity?.created_at || now,
-        updated_at: now,
-        project_mcps: existingIdentity?.project_mcps,
-      };
-    });
-    result.identity_written = true;
-  } catch (err) {
-    result.notes.push(`Failed to write identity.json: ${(err as Error).message}`);
+  if (await isWorkspacePathAccessible(resolvedPath)) {
+    try {
+      const identityPath = getWorkspaceIdentityPath(resolvedPath);
+      await modifyJsonLocked<WorkspaceIdentityFile>(identityPath, (existingIdentity) => {
+        return {
+          schema_version: '1.0.0',
+          workspace_id: canonicalId,
+          workspace_path: resolvedPath,
+          data_root: dataRoot,
+          created_at: existingIdentity?.created_at || now,
+          updated_at: now,
+          project_mcps: existingIdentity?.project_mcps,
+        };
+      });
+      result.identity_written = true;
+    } catch (err) {
+      result.notes.push(`Failed to write identity.json: ${(err as Error).message}`);
+    }
+  } else {
+    result.notes.push(`Workspace path not accessible from this process (container mode?): ${resolvedPath}`);
   }
 
   // 6. Update workspace-registry.json

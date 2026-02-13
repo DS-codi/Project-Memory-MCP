@@ -1,3 +1,7 @@
+---
+applyTo: "**/mvc/**,**/controllers/**,**/models/**,**/views/**"
+---
+
 # MVC Architecture Guidelines
 
 This document provides guidelines for implementing and maintaining a Model-View-Controller (MVC) architecture in your codebase.
