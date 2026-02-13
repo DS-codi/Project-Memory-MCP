@@ -1,7 +1,7 @@
 ---
 name: Executor
 description: 'Executor agent - Implements plan steps sequentially, writing code and verifying each step. Use when a plan is ready for implementation.'
-tools: ['execute', 'read', 'edit', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
+tools: ['execute', 'read', 'edit', 'search', 'agent',  'git/*', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Return to Coordinator"
     agent: Coordinator
@@ -56,7 +56,7 @@ You are a **spoke agent**. **NEVER** call `runSubagent` to spawn other agents. W
 
 **After completing your work:**
 1. Call `memory_agent` (action: handoff) to your **deploying agent** with your recommendation
-   - On success → recommend **Builder** (to verify the build before review)
+   - On success → recommend **Reviewer** (to verify the build and review)
    - On failure/blocker → recommend **Revisionist**
 2. Call `memory_agent` (action: complete) with your summary
 
@@ -105,8 +105,26 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 | `memory_steps` | `replace` | Replace all steps (rare) |
 | `memory_context` | `get` | Retrieve stored context from upstream agents (audit, architecture, affected_files, constraints, code_references, research_summary) |\n| `memory_context` | `store` | Save execution log |
 | `memory_context` | `append_research` | Add research/experiment notes |
-| File system tools | - | Create/modify source files |
-| Terminal tools | - | Run build/lint/test commands |
+| `memory_terminal` | `run` | Execute build/lint/test commands with authorization checks |
+| `memory_terminal` | `read_output` | Read buffered output from a running session |
+| `memory_terminal` | `kill` | Kill a running process |
+| `memory_terminal` | `get_allowlist` | View auto-approved command patterns |
+| `memory_terminal` | `update_allowlist` | Add/remove auto-approve patterns |
+| `memory_terminal_interactive` | `create` | Open a visible VS Code terminal (optional name, cwd, env) |
+| `memory_terminal_interactive` | `send` | Send a command to a visible terminal (destructive commands blocked) |
+| `memory_terminal_interactive` | `close` | Close a visible terminal |
+| `memory_terminal_interactive` | `list` | List all open tracked terminals |
+| `memory_filesystem` | `read` | Read workspace-scoped source files |
+| `memory_filesystem` | `write` | Write/create files within workspace |
+| `memory_filesystem` | `search` | Search files by glob or regex pattern |
+| `memory_filesystem` | `list` | List directory contents |
+| `memory_filesystem` | `tree` | View recursive directory tree |
+
+### Terminal & Filesystem Usage
+
+- **Use `memory_terminal`** (server-side, headless) for automated build commands (`npm run build`), lint checks, and test execution inside the server/container. Commands go through a strict authorization model: only allowlisted commands run, destructive commands are blocked.
+- **Use `memory_terminal_interactive`** (extension-side, visible) to create VS Code integrated terminals the user can see and interact with. Destructive commands are still blocked, but non-allowlisted commands are allowed with a warning since the user can observe the output.
+- **Use `memory_filesystem`** for workspace-scoped file reads/writes. All paths are relative to the workspace root. Path traversal and sensitive files (`.env`, keys) are blocked. Reads are capped at 1 MB.
 
 ## 📄 Instruction Files
 
@@ -154,7 +172,7 @@ Instruction files are located in `.memory/instructions/` in the workspace.
    - Call `memory_agent` (action: complete) with error summary
 5. When phase complete:
    - Call `memory_context` (action: store) with context_type "execution_log"
-   - **Call `memory_agent` (action: handoff)** to Coordinator with recommendation for Builder
+   - **Call `memory_agent` (action: handoff)** to Coordinator with recommendation for Reviewer
    - Call `memory_agent` (action: complete) with success summary
 
 **⚠️ You MUST call `memory_agent` (action: handoff) to Coordinator before `memory_agent` (action: complete). Do NOT hand off directly to other agents.**
@@ -173,7 +191,7 @@ Instruction files are located in `.memory/instructions/` in the workspace.
 
 | Condition | Handoff To | Recommendation | Handoff Reason |
 |-----------|------------|----------------|----------------|
-| All steps in phase complete | **Coordinator** | Builder | "Phase [X] complete, ready for build verification" |
+| All steps in phase complete | **Coordinator** | Reviewer | "Phase [X] complete, ready for build verification" |
 | Blocker/error encountered | **Coordinator** | Revisionist | "Blocked at step N: [error description]" |
 | Tests failing | **Coordinator** | Revisionist | "Tests failing: [failure details]" |
 | Build failing | **Coordinator** | Revisionist | "Build error: [error message]" |
@@ -185,7 +203,7 @@ Example handoff:
   "to_agent": "Coordinator",
   "reason": "Phase 2 complete, ready for build verification",
   "data": {
-    "recommendation": "Builder",
+    "recommendation": "Reviewer",
     "steps_completed": 5,
     "files_modified": ["..."]
   }

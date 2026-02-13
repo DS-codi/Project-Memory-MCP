@@ -147,7 +147,7 @@ export class CopilotFileWatcher {
     private triggerDeploy(type: CopilotFileType): void {
         const commands = {
             agent: 'projectMemory.deployAgents',
-            prompt: 'projectMemory.deployPrompts',
+            prompt: 'projectMemory.deploySkills',
             instruction: 'projectMemory.deployInstructions'
         };
         vscode.commands.executeCommand(commands[type]);

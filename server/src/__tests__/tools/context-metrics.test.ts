@@ -1,6 +1,6 @@
 /**
  * Tests for context metrics: payload size measurement, instruction
- * relevance scoring, and builder regression high-priority storage.
+ * relevance scoring, and reviewer regression high-priority storage.
  *
  * Phase 6: Context Optimization — context metrics
  *
@@ -301,20 +301,20 @@ describe('Instruction relevance scoring', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Tests: Builder regression stored as high-priority
+// Tests: Reviewer regression stored as high-priority
 // ---------------------------------------------------------------------------
 
-describe('Builder regression high-priority storage', () => {
+describe('Reviewer regression high-priority storage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     setupStoreMocks();
   });
 
-  it('should store regression failure context on Builder handoff', async () => {
+  it('should store regression failure context on Reviewer handoff', async () => {
     const result = await handoff({
       workspace_id: mockWorkspaceId,
       plan_id: mockPlanId,
-      from_agent: 'Builder',
+      from_agent: 'Reviewer',
       to_agent: 'Coordinator',
       reason: 'Build regression detected',
       data: {
@@ -365,7 +365,7 @@ describe('Builder regression high-priority storage', () => {
     const result = await handoff({
       workspace_id: mockWorkspaceId,
       plan_id: mockPlanId,
-      from_agent: 'Builder',
+      from_agent: 'Reviewer',
       to_agent: 'Coordinator',
       reason: 'Build passed',
       data: {
@@ -386,7 +386,7 @@ describe('Builder regression high-priority storage', () => {
     expect(regressionCall).toBeUndefined();
   });
 
-  it('should NOT store regression context for non-Builder agents', async () => {
+  it('should NOT store regression context for non-Reviewer agents', async () => {
     const result = await handoff({
       workspace_id: mockWorkspaceId,
       plan_id: mockPlanId,
@@ -417,7 +417,7 @@ describe('Builder regression high-priority storage', () => {
     const result = await handoff({
       workspace_id: mockWorkspaceId,
       plan_id: mockPlanId,
-      from_agent: 'Builder',
+      from_agent: 'Reviewer',
       to_agent: 'Coordinator',
       reason: 'Build regression detected',
       data: {
@@ -452,7 +452,7 @@ describe('Builder regression high-priority storage', () => {
     await handoff({
       workspace_id: mockWorkspaceId,
       plan_id: mockPlanId,
-      from_agent: 'Builder',
+      from_agent: 'Reviewer',
       to_agent: 'Coordinator',
       reason: 'Build regression detected',
       data: {

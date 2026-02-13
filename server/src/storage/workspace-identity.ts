@@ -39,6 +39,8 @@ export interface WorkspaceIdentityFile {
     config_path?: string;
     url?: string;
   }>;
+  parent_workspace_id?: string;  // Stored in the child's identity.json to reference its parent
+  parent_workspace_path?: string;  // The parent's path for quick lookup
 }
 
 // ---------------------------------------------------------------------------

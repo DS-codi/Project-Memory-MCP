@@ -1,5 +1,6 @@
 ---
-applyTo: "**/notion/**,**/*notion*.*"
+name: notion-archive-container-mcp
+description: "Use this skill when working with the Notion Dev Containers MCP server. Covers container-based Notion data archiving, database operations, page management, and offline Notion data access."
 ---
 
 # Notion Dev Containers MCP - Agent Instructions

@@ -47,17 +47,37 @@ const serverStartTime = Date.now();
 
 function buildHealthResponse(): Record<string, unknown> {
   const mem = process.memoryUsage();
+  const uptimeSeconds = Math.floor((Date.now() - serverStartTime) / 1000);
+  const sessionEntries = Object.entries(transports);
+
+  // Classify sessions by transport type
+  const sessionsByType: Record<string, number> = {};
+  for (const [, entry] of sessionEntries) {
+    sessionsByType[entry.type] = (sessionsByType[entry.type] || 0) + 1;
+  }
+
+  // Determine connection state
+  const connectionState: 'healthy' | 'degraded' | 'starting' =
+    uptimeSeconds < 10 ? 'starting'
+    : 'healthy';
 
   return {
     status: 'ok',
     server: 'project-memory-mcp',
     version: '1.0.0',
     transport: 'http',
-    uptime: Math.floor((Date.now() - serverStartTime) / 1000),
-    activeSessions: Object.keys(transports).length,
+    uptime: uptimeSeconds,
+    connectionState,
+    activeSessions: sessionEntries.length,
+    sessionsByType,
     memory: {
       heapUsedMB: Math.round(mem.heapUsed / 1024 / 1024 * 100) / 100,
       rssMB: Math.round(mem.rss / 1024 / 1024 * 100) / 100,
+    },
+    process: {
+      pid: process.pid,
+      nodeVersion: process.version,
+      platform: process.platform,
     },
     dataRoot: process.env.MBS_DATA_ROOT || 'default',
     agentsRoot: process.env.MBS_AGENTS_ROOT || 'default',

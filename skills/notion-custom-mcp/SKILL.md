@@ -1,5 +1,6 @@
 ---
-applyTo: "**/notion/**,**/*notion*.*"
+name: notion-custom-mcp
+description: "Use this skill when interacting with the NotionCustomMCP server. Covers all available tools, database operations, page management, block manipulation, and best practices for Notion API integration via MCP."
 ---
 
 # NotionCustomMCP - Agent Instructions

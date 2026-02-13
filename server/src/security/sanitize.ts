@@ -129,12 +129,11 @@ export function verifyLineageIntegrity(
   // Note: Analyst is the investigative orchestrator and can delegate to ANY agent for problem-solving
   const validTransitions: Record<string, string[]> = {
     'User': ['Coordinator', 'Analyst'],
-    'Coordinator': ['Researcher', 'Architect', 'Executor', 'Reviewer', 'Tester', 'Revisionist', 'Archivist', 'Analyst', 'Builder', 'Runner', 'Brainstorm'],
-    'Analyst': ['Coordinator', 'Researcher', 'Architect', 'Executor', 'Reviewer', 'Tester', 'Revisionist', 'Archivist', 'Builder', 'Runner', 'Brainstorm'],
+    'Coordinator': ['Researcher', 'Architect', 'Executor', 'Reviewer', 'Tester', 'Revisionist', 'Archivist', 'Analyst', 'Runner', 'Brainstorm'],
+    'Analyst': ['Coordinator', 'Researcher', 'Architect', 'Executor', 'Reviewer', 'Tester', 'Revisionist', 'Archivist', 'Runner', 'Brainstorm'],
     'Researcher': ['Architect', 'Coordinator', 'Analyst'],
     'Architect': ['Executor', 'Researcher', 'Coordinator', 'Analyst'],
     'Executor': ['Reviewer', 'Revisionist', 'Coordinator', 'Analyst'],
-    'Builder': ['Reviewer', 'Tester', 'Coordinator', 'Analyst'],
     'Runner': ['Coordinator', 'Analyst', 'Tester'],
     'Revisionist': ['Executor', 'Researcher', 'Coordinator', 'Analyst'],
     'Reviewer': ['Tester', 'Executor', 'Revisionist', 'Archivist', 'Coordinator', 'Analyst'],

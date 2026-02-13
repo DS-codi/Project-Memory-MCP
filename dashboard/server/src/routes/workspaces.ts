@@ -2,7 +2,7 @@ import { Router } from 'express';
 import * as crypto from 'crypto';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { scanWorkspaces, getWorkspaceDetails } from '../services/fileScanner.js';
+import { scanWorkspaces, getWorkspaceDetails, buildWorkspaceHierarchy } from '../services/fileScanner.js';
 import { emitEvent } from '../events/emitter.js';
 import { getDataRoot, getWorkspaceDisplayName, getWorkspaceIdFromPath, resolveCanonicalWorkspaceId, writeWorkspaceIdentityFile, safeResolvePath } from '../storage/workspace-utils.js';
 
@@ -130,7 +130,13 @@ function normalizeWorkspaceSections(input: unknown): Record<string, WorkspaceCon
 // GET /api/workspaces - List all workspaces
 workspacesRouter.get('/', async (req, res) => {
   try {
-    const workspaces = await scanWorkspaces(globalThis.MBS_DATA_ROOT);
+    let workspaces = await scanWorkspaces(globalThis.MBS_DATA_ROOT);
+
+    // When ?hierarchical=true, nest children under parents
+    if (req.query.hierarchical === 'true') {
+      workspaces = buildWorkspaceHierarchy(workspaces);
+    }
+
     res.json({
       workspaces,
       total: workspaces.length,

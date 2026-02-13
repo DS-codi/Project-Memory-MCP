@@ -11,7 +11,7 @@ The TDDDriver is a **hub agent** that orchestrates Test-Driven Development (TDD)
 The standard agent workflow follows:
 
 ```
-Executor → Builder → Reviewer → Tester(WRITE) → ... → Tester(RUN) → Archivist
+Executor → Reviewer → Tester(WRITE) → ... → Tester(RUN) → Archivist
 ```
 
 This works well for most tasks, but TDD requires a fundamentally different cycle:
@@ -38,7 +38,7 @@ TDDDriver is a **hub agent** (like Coordinator, Analyst, Runner), meaning it can
 └───────┬───────┘
    ┌────┼────┐
    ▼    ▼    ▼
-Tester  Builder  Executor   ← Spoke subagents
+Tester  Reviewer  Executor   ← Spoke subagents
 ```
 
 ## The Red-Green-Refactor Cycle
@@ -73,11 +73,11 @@ runSubagent({
 
 ### 2. Verify RED — Confirm Tests Fail
 
-TDDDriver spawns **Builder** to run the tests and verify they fail:
+TDDDriver spawns **Reviewer** (in build-check mode) to run the tests and verify they fail:
 
 ```javascript
 runSubagent({
-  agentName: "Builder",
+  agentName: "Reviewer",
   prompt: `
     Plan: plan_abc123
     Workspace: my-project-abc123
@@ -122,11 +122,11 @@ runSubagent({
 
 ### 4. Verify GREEN — Confirm Tests Pass
 
-TDDDriver spawns **Builder** again to verify all tests pass:
+TDDDriver spawns **Reviewer** again to verify all tests pass:
 
 ```javascript
 runSubagent({
-  agentName: "Builder",
+  agentName: "Reviewer",
   prompt: `
     Plan: plan_abc123
     Workspace: my-project-abc123
@@ -169,18 +169,18 @@ runSubagent({
 
 ### 6. Verify REFACTOR — Confirm Nothing Broke
 
-Final **Builder** run to confirm all tests still pass after refactoring.
+Final **Reviewer** run (build-check mode) to confirm all tests still pass after refactoring.
 
 ## Full Cycle Flow
 
 ```
 TDDDriver
   ├── 1. Tester(WRITE)     → Write failing test
-  ├── 2. Builder(verify)   → Confirm test fails ──── loops to 1 if passes
+  ├── 2. Reviewer(verify)  → Confirm test fails ──── loops to 1 if passes
   ├── 3. Executor(implement)→ Write minimum code
-  ├── 4. Builder(verify)   → Confirm test passes ─── loops to 3 if fails
+  ├── 4. Reviewer(verify)  → Confirm test passes ─── loops to 3 if fails
   ├── 5. Reviewer + Executor → Refactor
-  ├── 6. Builder(verify)   → Confirm still passes ── loops to 5 if fails
+  ├── 6. Reviewer(verify)  → Confirm still passes ── loops to 5 if fails
   └── Repeat for next test specification
 ```
 

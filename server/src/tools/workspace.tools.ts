@@ -9,7 +9,8 @@ import type {
   WorkspaceMeta,
   WorkspaceProfile,
   WorkspaceContext,
-  PlanState
+  PlanState,
+  WorkspaceOverlapInfo
 } from '../types/index.js';
 import * as store from '../storage/file-store.js';
 import { indexWorkspace, needsIndexing } from '../indexing/workspace-indexer.js';
@@ -21,6 +22,9 @@ interface RegisterWorkspaceResult {
   indexed: boolean;
   profile?: WorkspaceProfile;
   migration?: WorkspaceMigrationReport;
+  overlap_detected?: boolean;
+  overlaps?: WorkspaceOverlapInfo[];
+  message?: string;
 }
 
 /**
@@ -31,7 +35,7 @@ export async function registerWorkspace(
   params: RegisterWorkspaceParams
 ): Promise<ToolResponse<RegisterWorkspaceResult>> {
   try {
-    const { workspace_path } = params;
+    const { workspace_path, force } = params;
     
     if (!workspace_path) {
       return {
@@ -64,7 +68,23 @@ export async function registerWorkspace(
       }
     }
     
-    const result = await store.createWorkspace(workspace_path, profile);
+    const result = await store.createWorkspace(workspace_path, profile, force);
+
+    // Handle overlap detection — workspace was NOT created
+    if (result.overlap && result.overlap.length > 0) {
+      return {
+        success: true,
+        data: {
+          workspace: null as unknown as WorkspaceMeta,
+          first_time: false,
+          indexed: false,
+          overlap_detected: true,
+          overlaps: result.overlap,
+          message: 'Workspace registration blocked: directory overlaps with existing workspace(s). Use force=true to override.',
+        }
+      };
+    }
+
     const meta = result.meta;
     const isFirstTime = result.created;
 

@@ -1,7 +1,7 @@
 /**
  * Consolidated MCP Tools Index
  * 
- * This module exports 5 consolidated tools that replace the 39 individual tools:
+ * This module exports 8 consolidated tools that replace the 39 individual tools:
  * 
  * 1. memory_workspace - Workspace management (4 actions)
  *    Actions: register, list, info, reindex
@@ -18,6 +18,15 @@
  * 5. memory_context - Context and research management (12 actions)
  *    Actions: store, get, store_initial, list, list_research, append_research, generate_instructions, batch_store,
  *             workspace_get, workspace_set, workspace_update, workspace_delete
+ * 
+ * 6. memory_terminal - Terminal command execution (5 actions)
+ *    Actions: run, read_output, kill, get_allowlist, update_allowlist
+ * 
+ * 7. memory_filesystem - Workspace-scoped filesystem operations (5 actions)
+ *    Actions: read, write, search, list, tree
+ * 
+ * 8. memory_terminal_interactive - Interactive terminal with relaxed auth (4 actions)
+ *    Actions: run, read_output, kill, list
  */
 
 export { memoryWorkspace, type MemoryWorkspaceParams, type WorkspaceAction } from './memory_workspace.js';
@@ -25,3 +34,6 @@ export { memoryPlan, type MemoryPlanParams, type PlanAction } from './memory_pla
 export { memorySteps, type MemoryStepsParams, type StepsAction } from './memory_steps.js';
 export { memoryAgent, type MemoryAgentParams, type AgentAction } from './memory_agent.js';
 export { memoryContext, type MemoryContextParams, type ContextAction } from './memory_context.js';
+export { memoryTerminal, type MemoryTerminalParams, type TerminalAction } from './memory_terminal.js';
+export { memoryFilesystem, type MemoryFilesystemParams, type FilesystemAction } from './memory_filesystem.js';
+export { memoryTerminalInteractive, type MemoryTerminalInteractiveParams, type InteractiveTerminalAction } from './memory_terminal_interactive.js';

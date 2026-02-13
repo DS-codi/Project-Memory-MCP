@@ -170,14 +170,18 @@ const RequestCategorizationSchema = z.object({
 
 server.tool(
   'memory_workspace',
-  'Consolidated workspace management tool. Actions: register (register a workspace directory), list (list all workspaces), info (get plans for a workspace), reindex (update codebase profile after changes), merge (merge a ghost/source workspace into a canonical target), scan_ghosts (scan for unregistered data-root directories), migrate (re-register workspace, find and merge all ghost/duplicate folders, recover plans, and clean up — use this when opening old workspaces).',
+  'Consolidated workspace management tool. Actions: register (register a workspace directory), list (list all workspaces), info (get plans for a workspace), reindex (update codebase profile after changes), merge (merge a ghost/source workspace into a canonical target), scan_ghosts (scan for unregistered data-root directories), migrate (re-register workspace, find and merge all ghost/duplicate folders, recover plans, and clean up — use this when opening old workspaces), link (link/unlink parent-child workspace hierarchy).',
   {
-    action: z.enum(['register', 'list', 'info', 'reindex', 'merge', 'scan_ghosts', 'migrate']).describe('The action to perform'),
-    workspace_id: z.string().optional().describe('Workspace ID (for info, reindex)'),
+    action: z.enum(['register', 'list', 'info', 'reindex', 'merge', 'scan_ghosts', 'migrate', 'link']).describe('The action to perform'),
+    workspace_id: z.string().optional().describe('Workspace ID (for info, reindex, link)'),
     workspace_path: z.string().optional().describe('Workspace path (for register, migrate)'),
+    force: z.boolean().optional().describe('Force registration even if directory overlaps with existing workspace (for register)'),
     source_workspace_id: z.string().optional().describe('Source workspace/ghost folder ID to merge from (for merge)'),
     target_workspace_id: z.string().optional().describe('Target canonical workspace ID to merge into (for merge)'),
-    dry_run: z.boolean().optional().describe('If true (default), report what would be merged without making changes (for merge)')
+    dry_run: z.boolean().optional().describe('If true (default), report what would be merged without making changes (for merge)'),
+    child_workspace_id: z.string().optional().describe('Child workspace ID (for link action)'),
+    mode: z.enum(['link', 'unlink']).optional().describe('Link or unlink mode (for link action, defaults to link)'),
+    hierarchical: z.boolean().optional().describe('When true, group child workspaces under parents in list results (for list action)')
   },
   async (params) => {
     const result = await withLogging('memory_workspace', params, () =>
@@ -318,9 +322,9 @@ server.tool(
 
 server.tool(
   'memory_agent',
-  'Consolidated agent lifecycle and deployment tool. Actions: init (initialize agent session), complete (complete session), handoff (recommend next agent), validate (validate agent for current task), list (list available agents), get_instructions (get agent instructions), deploy (deploy agents to workspace), get_briefing (get mission briefing), get_lineage (get handoff history), spawn (validate agent and inject context for subagent spawning).',
+  'Consolidated agent lifecycle and deployment tool. Actions: init (initialize agent session), complete (complete session), handoff (recommend next agent), validate (validate agent for current task), list (list available agents), get_instructions (get agent instructions), deploy (deploy agents to workspace), get_briefing (get mission briefing), get_lineage (get handoff history).',
   {
-    action: z.enum(['init', 'complete', 'handoff', 'validate', 'list', 'get_instructions', 'deploy', 'get_briefing', 'get_lineage', 'spawn']).describe('The action to perform'),
+    action: z.enum(['init', 'complete', 'handoff', 'validate', 'list', 'get_instructions', 'deploy', 'get_briefing', 'get_lineage']).describe('The action to perform'),
     workspace_id: z.string().optional().describe('Workspace ID'),
     plan_id: z.string().optional().describe('Plan ID'),
     agent_type: AgentTypeSchema.optional().describe('Agent type'),
@@ -346,8 +350,7 @@ server.tool(
     agents: z.array(z.string()).optional().describe('Specific agents to deploy'),
     include_prompts: z.boolean().optional().describe('Include prompts in deployment'),
     include_instructions: z.boolean().optional().describe('Include instructions in deployment'),
-    include_skills: z.boolean().optional().describe('Include skills in deployment'),
-    task_context: z.string().optional().describe('Task context for the spawned agent (for spawn action)')
+    include_skills: z.boolean().optional().describe('Include skills in deployment')
   },
   async (params) => {
     const result = await withLogging('memory_agent', params, () =>
@@ -433,6 +436,32 @@ server.tool(
   async (params) => {
     const result = await withLogging('memory_terminal', params, () =>
       consolidatedTools.memoryTerminal(params as consolidatedTools.MemoryTerminalParams)
+    );
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+    };
+  }
+);
+
+// =============================================================================
+// Interactive Terminal Tool — relaxed safety model
+// =============================================================================
+
+server.tool(
+  'memory_terminal_interactive',
+  'Interactive terminal with relaxed safety. Destructive commands blocked, all others allowed (warnings for non-allowlisted). Actions: run, read_output, kill, list.',
+  {
+    action: z.enum(['run', 'read_output', 'kill', 'list']).describe('The action to perform'),
+    command: z.string().optional().describe('Command to execute (for run)'),
+    args: z.array(z.string()).optional().describe('Command arguments (for run)'),
+    cwd: z.string().optional().describe('Working directory (for run)'),
+    timeout: z.number().optional().describe('Timeout in ms (for run). Default 30000'),
+    workspace_id: z.string().optional().describe('Workspace ID for allowlist lookups (for run)'),
+    session_id: z.string().optional().describe('Session ID (for read_output, kill)'),
+  },
+  async (params) => {
+    const result = await withLogging('memory_terminal_interactive', params, () =>
+      consolidatedTools.memoryTerminalInteractive(params as consolidatedTools.MemoryTerminalInteractiveParams)
     );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]

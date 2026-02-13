@@ -36,7 +36,8 @@ export type ContextAction =
   | 'knowledge_get'
   | 'knowledge_list'
   | 'knowledge_delete'
-  | 'write_prompt';
+  | 'write_prompt'
+  | 'dump_context';
 
 export interface MemoryContextParams {
   action: ContextAction;
@@ -112,7 +113,8 @@ type ContextResult =
   | { action: 'knowledge_get'; data: { knowledge_file: knowledgeTools.KnowledgeFile } }
   | { action: 'knowledge_list'; data: { files: knowledgeTools.KnowledgeFileMeta[]; total: number } }
   | { action: 'knowledge_delete'; data: { deleted: boolean; slug: string } }
-  | { action: 'write_prompt'; data: { filePath: string; slug: string; version: string } };
+  | { action: 'write_prompt'; data: { filePath: string; slug: string; version: string } }
+  | { action: 'dump_context'; data: contextTools.DumpContextResult };
 
 export async function memoryContext(params: MemoryContextParams): Promise<ToolResponse<ContextResult>> {
   const { action, workspace_id, plan_id } = params;
@@ -120,7 +122,7 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
   if (!action) {
     return {
       success: false,
-      error: 'action is required. Valid actions: store, get, store_initial, list, list_research, append_research, generate_instructions, batch_store'
+      error: 'action is required. Valid actions: store, get, store_initial, list, list_research, append_research, generate_instructions, batch_store, dump_context'
     };
   }
 
@@ -558,10 +560,27 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
       };
     }
 
+    case 'dump_context': {
+      if (!plan_id) {
+        return { success: false, error: 'plan_id is required for action: dump_context' };
+      }
+      const result = await contextTools.handleDumpContext({
+        workspace_id: resolvedWorkspaceId,
+        plan_id,
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'dump_context' as const, data: result.data! },
+      };
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: store, get, store_initial, list, list_research, append_research, generate_instructions, batch_store, workspace_*, knowledge_*, write_prompt`
+        error: `Unknown action: ${action}. Valid actions: store, get, store_initial, list, list_research, append_research, generate_instructions, batch_store, workspace_*, knowledge_*, write_prompt, dump_context`
       };
   }
 }

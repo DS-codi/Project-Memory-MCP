@@ -27,7 +27,7 @@ import * as planTools from '../plan/index.js';
 import * as fileStore from '../../storage/file-store.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
 
-export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate' | 'set_goals' | 'add_build_script' | 'list_build_scripts' | 'run_build_script' | 'delete_build_script' | 'create_from_template' | 'list_templates' | 'confirm' | 'create_program' | 'add_plan_to_program' | 'upgrade_to_program' | 'list_program_plans';
+export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate' | 'set_goals' | 'add_build_script' | 'list_build_scripts' | 'run_build_script' | 'delete_build_script' | 'create_from_template' | 'list_templates' | 'confirm' | 'create_program' | 'add_plan_to_program' | 'upgrade_to_program' | 'list_program_plans' | 'export_plan';
 
 export interface MemoryPlanParams {
   action: PlanAction;
@@ -92,7 +92,8 @@ type PlanResult =
   | { action: 'create_program'; data: PlanState }
   | { action: 'add_plan_to_program'; data: { program: PlanState; plan: PlanState } }
   | { action: 'upgrade_to_program'; data: { program: PlanState; child_plan?: PlanState } }
-  | { action: 'list_program_plans'; data: ProgramPlansResult };
+  | { action: 'list_program_plans'; data: ProgramPlansResult }
+  | { action: 'export_plan'; data: planTools.ExportPlanResult };
 
 const PATH_LIKE_EXTENSIONS = new Set([
   '.ps1',
@@ -691,10 +692,31 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
       };
     }
 
+    case 'export_plan': {
+      if (!params.workspace_id || !params.plan_id) {
+        return {
+          success: false,
+          error: 'workspace_id and plan_id are required for action: export_plan'
+        };
+      }
+      const result = await planTools.exportPlan({
+        workspace_id: params.workspace_id,
+        plan_id: params.plan_id,
+        workspace_path: params.workspace_path,
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return {
+        success: true,
+        data: { action: 'export_plan', data: result.data! }
+      };
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, create_program, add_plan_to_program, upgrade_to_program, list_program_plans`
+        error: `Unknown action: ${action}. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, create_program, add_plan_to_program, upgrade_to_program, list_program_plans, export_plan`
       };
   }
 }

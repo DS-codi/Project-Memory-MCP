@@ -395,7 +395,7 @@ Project Memory uses a **hub-and-spoke** architecture for agent orchestration:
                                   │
                           ┌───────┼───────┐
                           ▼       ▼       ▼
-                      Builder  Revisionist  Archivist
+                      Revisionist  Archivist  Brainstorm
 ```
 
 **Hub agents** (Coordinator, Analyst, Runner) can spawn subagents via `runSubagent`. **Spoke agents** complete their work, record a handoff recommendation via `memory_agent(action: handoff)`, and return control to the hub.
@@ -410,8 +410,7 @@ Project Memory uses a **hub-and-spoke** architecture for agent orchestration:
 | **Researcher** | Gathers external documentation, library research, web content | Spoke |
 | **Architect** | Creates detailed implementation plans with atomic steps | Spoke |
 | **Executor** | Implements plan steps — writes code, runs commands | Spoke |
-| **Builder** | Dual-mode: regression checks mid-plan, comprehensive build verification at end | Spoke |
-| **Reviewer** | Validates completed work against requirements | Spoke |
+| **Reviewer** | Build verification + code review; dual-mode: build-check mid-plan, final verification at end | Spoke |
 | **Tester** | Writes tests (WRITE mode) and runs test suites (RUN mode) | Spoke |
 | **Revisionist** | Pivots plans when errors occur, adjusts steps | Spoke |
 | **Archivist** | Archives completed plans, creates git commits | Spoke |
@@ -423,7 +422,7 @@ Project Memory uses a **hub-and-spoke** architecture for agent orchestration:
 
 | Category | Description | Typical Agent Flow |
 |----------|-------------|-------------------|
-| `feature` | Add new functionality | Coordinator → Researcher → Architect → Executor → Builder → Reviewer → Tester → Archivist |
+| `feature` | Add new functionality | Coordinator → Researcher → Architect → Executor → Reviewer → Tester → Archivist |
 | `bug` | Fix something broken | Coordinator → Executor → Tester → Archivist |
 | `change` | Modify existing behavior | Coordinator → Architect → Executor → Reviewer → Tester → Archivist |
 | `refactor` | Improve code structure | Coordinator → Architect → Executor → Reviewer → Tester → Archivist |
@@ -486,7 +485,7 @@ Agent files (`.github/agents/*.agent.md`) are custom Copilot agents invoked with
 - MCP tool usage patterns
 - Security boundaries
 
-**Available agents:** `@Coordinator`, `@Researcher`, `@Architect`, `@Executor`, `@Builder`, `@Reviewer`, `@Tester`, `@Revisionist`, `@Archivist`, `@Analyst`, `@Brainstorm`, `@Runner`, `@SkillWriter`, `@Worker`
+**Available agents:** `@Coordinator`, `@Researcher`, `@Architect`, `@Executor`, `@Reviewer`, `@Tester`, `@Revisionist`, `@Archivist`, `@Analyst`, `@Brainstorm`, `@Runner`, `@SkillWriter`, `@Worker`
 
 ### Prompt Templates
 
@@ -572,16 +571,16 @@ Workers are lightweight spoke agents for focused, scoped sub-tasks spawned by hu
 
 See [docs/worker-agent.md](docs/worker-agent.md) for the Worker lifecycle and scope limits.
 
-### Builder Dual-Mode Operation
+### Reviewer Build Verification
 
-The Builder agent operates in two distinct modes:
+The Reviewer agent includes build verification capabilities (formerly the Builder agent):
 
 | Mode | When | Purpose |
 |------|------|---------|
-| **Regression Check** | Mid-plan (between phases) | Quick compile verification — detects which step broke the build |
+| **Build-check** | Mid-plan (between phases) | Quick compile verification — detects which step broke the build |
 | **Final Verification** | End-of-plan | Comprehensive build with user-facing instructions and optimization suggestions |
 
-The Coordinator determines which mode based on `pre_plan_build_status` and plan lifecycle stage. See [docs/builder-agent.md](docs/builder-agent.md) for details.
+The Coordinator determines which mode based on `pre_plan_build_status` and plan lifecycle stage.
 
 ### Context Optimization
 

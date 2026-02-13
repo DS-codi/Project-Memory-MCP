@@ -1,5 +1,6 @@
 ---
-applyTo: "**/cxxqt/**,**/qml/**,**/*cxxqt*.*,**/*.qml"
+name: cxxqt-rust-gui
+description: "Use this skill when building Qt-based GUI applications in Rust using CxxQt. Covers project structure, QObject integration, QML bindings, signal/slot patterns, and build configuration with cxx-qt-build."
 ---
 
 # CxxQt Rust GUI Development Instructions

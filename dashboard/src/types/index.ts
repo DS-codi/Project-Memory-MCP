@@ -246,6 +246,9 @@ export interface WorkspaceSummary {
   archived_plan_count: number;
   last_activity: string;
   languages: { name: string; percentage: number }[];
+  parent_workspace_id?: string;
+  child_workspace_ids?: string[];
+  child_workspaces?: WorkspaceSummary[];
 }
 
 export interface PlanSummary {

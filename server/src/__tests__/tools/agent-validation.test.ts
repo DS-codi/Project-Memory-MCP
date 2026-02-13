@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { validateBuilder } from '../../tools/agent-validation.tools.js';
+import { validateReviewer } from '../../tools/agent-validation.tools.js';
 import * as store from '../../storage/file-store.js';
 import type { PlanState } from '../../types/index.js';
 
 vi.mock('../../storage/file-store.js');
 
-const mockWorkspaceId = 'ws_builder_123';
-const mockPlanId = 'plan_builder_456';
+const mockWorkspaceId = 'ws_reviewer_123';
+const mockPlanId = 'plan_reviewer_456';
 
 const basePlanState: PlanState = {
   id: mockPlanId,
@@ -17,7 +17,7 @@ const basePlanState: PlanState = {
   status: 'active',
   category: 'feature',
   current_phase: 'build',
-  current_agent: 'Builder',
+  current_agent: 'Reviewer',
   created_at: '2026-02-01T00:00:00Z',
   updated_at: '2026-02-01T00:00:00Z',
   agent_sessions: [],
@@ -33,25 +33,28 @@ const basePlanState: PlanState = {
   ]
 };
 
-describe('Agent validation: Builder build-script enforcement', () => {
+describe('Agent validation: Reviewer build-script enforcement', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('blocks Builder when build steps exist and no scripts are registered', async () => {
+  it('warns Reviewer when build steps exist and no scripts are registered', async () => {
     vi.spyOn(store, 'getPlanState').mockResolvedValue(basePlanState);
     vi.spyOn(store, 'getBuildScripts').mockResolvedValue([]);
 
-    const result = await validateBuilder({
+    const result = await validateReviewer({
       workspace_id: mockWorkspaceId,
       plan_id: mockPlanId
     });
 
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('requires build scripts');
+    expect(result.success).toBe(true);
+    expect(result.data?.warnings).toBeDefined();
+    const warnings = result.data?.warnings ?? [];
+    const buildWarning = warnings.find((w: string) => w.includes('build scripts'));
+    expect(buildWarning).toBeDefined();
   });
 
-  it('allows Builder when build scripts are registered', async () => {
+  it('allows Reviewer when build scripts are registered', async () => {
     vi.spyOn(store, 'getPlanState').mockResolvedValue(basePlanState);
     vi.spyOn(store, 'getBuildScripts').mockResolvedValue([
       {
@@ -65,7 +68,7 @@ describe('Agent validation: Builder build-script enforcement', () => {
       }
     ]);
 
-    const result = await validateBuilder({
+    const result = await validateReviewer({
       workspace_id: mockWorkspaceId,
       plan_id: mockPlanId
     });

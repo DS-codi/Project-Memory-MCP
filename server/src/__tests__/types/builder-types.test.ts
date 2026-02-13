@@ -4,14 +4,14 @@ import type { PlanState } from '../../types/index.js';
 import type { BuilderHandoffData } from '../../types/common.types.js';
 
 /**
- * Builder Types — runtime shape and interface checks for Phase 2 additions.
+ * Reviewer Build-Mode Types — runtime shape and interface checks for Phase 2 additions.
  *
  * Coverage:
- * 1. BuilderHandoffData interface required/optional fields
- * 2. AGENT_BOUNDARIES.Builder deployment_modes
+ * 1. BuilderHandoffData interface required/optional fields (deprecated, now used by Reviewer build-mode)
+ * 2. AGENT_BOUNDARIES.Reviewer deployment_modes
  * 3. pre_plan_build_status field on PlanState
  */
-describe('Phase 2: Builder Types & Interfaces', () => {
+describe('Phase 2: Reviewer Build-Mode Types & Interfaces', () => {
 
   // ===========================================================================
   // BuilderHandoffData interface
@@ -141,54 +141,53 @@ describe('Phase 2: Builder Types & Interfaces', () => {
   });
 
   // ===========================================================================
-  // AGENT_BOUNDARIES.Builder — deployment_modes
+  // AGENT_BOUNDARIES.Reviewer — deployment_modes (formerly Builder)
   // ===========================================================================
 
-  describe('AGENT_BOUNDARIES.Builder', () => {
+  describe('AGENT_BOUNDARIES.Reviewer', () => {
     it('should exist in AGENT_BOUNDARIES', () => {
-      expect(AGENT_BOUNDARIES).toHaveProperty('Builder');
+      expect(AGENT_BOUNDARIES).toHaveProperty('Reviewer');
     });
 
     it('should have correct agent_type', () => {
-      expect(AGENT_BOUNDARIES.Builder.agent_type).toBe('Builder');
+      expect(AGENT_BOUNDARIES.Reviewer.agent_type).toBe('Reviewer');
     });
 
     it('should not be allowed to implement', () => {
-      expect(AGENT_BOUNDARIES.Builder.can_implement).toBe(false);
+      expect(AGENT_BOUNDARIES.Reviewer.can_implement).toBe(false);
     });
 
     it('should forbid file creation, code editing, and feature implementation', () => {
-      const forbidden = AGENT_BOUNDARIES.Builder.forbidden_actions;
+      const forbidden = AGENT_BOUNDARIES.Reviewer.forbidden_actions;
       expect(forbidden).toContain('create files');
       expect(forbidden).toContain('edit code');
       expect(forbidden).toContain('implement features');
     });
 
     it('should have deployment_modes property', () => {
-      // deployment_modes is cast via `as AgentRoleBoundaries & { deployment_modes: string[] }`
-      const builder = AGENT_BOUNDARIES.Builder as typeof AGENT_BOUNDARIES.Builder & {
+      const reviewer = AGENT_BOUNDARIES.Reviewer as typeof AGENT_BOUNDARIES.Reviewer & {
         deployment_modes: string[];
       };
-      expect(builder.deployment_modes).toBeDefined();
-      expect(Array.isArray(builder.deployment_modes)).toBe(true);
+      expect(reviewer.deployment_modes).toBeDefined();
+      expect(Array.isArray(reviewer.deployment_modes)).toBe(true);
     });
 
     it('should include regression_check and final_verification in deployment_modes', () => {
-      const builder = AGENT_BOUNDARIES.Builder as typeof AGENT_BOUNDARIES.Builder & {
+      const reviewer = AGENT_BOUNDARIES.Reviewer as typeof AGENT_BOUNDARIES.Reviewer & {
         deployment_modes: string[];
       };
-      expect(builder.deployment_modes).toContain('regression_check');
-      expect(builder.deployment_modes).toContain('final_verification');
+      expect(reviewer.deployment_modes).toContain('regression_check');
+      expect(reviewer.deployment_modes).toContain('final_verification');
     });
 
-    it('should list Reviewer and Coordinator as handoff targets', () => {
-      expect(AGENT_BOUNDARIES.Builder.must_handoff_to).toContain('Reviewer');
-      expect(AGENT_BOUNDARIES.Builder.must_handoff_to).toContain('Coordinator');
+    it('should list Tester and Coordinator as handoff targets', () => {
+      expect(AGENT_BOUNDARIES.Reviewer.must_handoff_to).toContain('Tester');
+      expect(AGENT_BOUNDARIES.Reviewer.must_handoff_to).toContain('Coordinator');
     });
 
-    it('should mention build scripts and regression detection in primary_responsibility', () => {
-      const resp = AGENT_BOUNDARIES.Builder.primary_responsibility;
-      expect(resp).toContain('build scripts');
+    it('should mention build and regression in primary_responsibility', () => {
+      const resp = AGENT_BOUNDARIES.Reviewer.primary_responsibility;
+      expect(resp).toContain('build');
       expect(resp).toContain('regression');
     });
   });

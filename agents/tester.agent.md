@@ -1,7 +1,7 @@
 ---
 name: Tester
 description: 'Tester agent - Writes tests after each phase review, runs all tests after plan completion. Has two modes: WRITE and RUN.'
-tools: ['execute', 'read', 'edit', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
+tools: ['execute', 'read', 'edit', 'search', 'agent',  'git/*', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Return to Coordinator"
     agent: Coordinator
@@ -188,7 +188,17 @@ If the plan was created from a template, ensure template-related flows are cover
 | Tool | Action | WRITE Mode | RUN Mode |
 |------|--------|------------|----------|
 | File read/edit | - | ✅ Read impl, write tests | ✅ Read test files |
-| Terminal | - | ❌ No test execution | ✅ Run test commands |
+| `memory_terminal` | `run` | ❌ No test execution | ✅ Run test suites and build commands |
+| `memory_terminal` | `read_output` | ❌ | ✅ Read buffered test output |
+| `memory_terminal` | `kill` | ❌ | ✅ Kill hung test processes |
+| `memory_terminal` | `get_allowlist` | ❌ | ✅ View auto-approved commands |
+| `memory_terminal_interactive` | `create` | ❌ | ✅ Open a visible terminal for interactive test runs |
+| `memory_terminal_interactive` | `send` | ❌ | ✅ Send test commands to a visible terminal |
+| `memory_terminal_interactive` | `close` | ❌ | ✅ Close a visible terminal |
+| `memory_terminal_interactive` | `list` | ❌ | ✅ List open tracked terminals |
+| `memory_filesystem` | `read` | ✅ Read implementation files | ✅ Read test result files |
+| `memory_filesystem` | `search` | ✅ Find source files to test | ✅ Find test output files |
+| `memory_filesystem` | `list` | ✅ Browse directories | ✅ Browse directories |
 | `memory_agent` | `init` | Record activation (CALL FIRST) | Record activation (CALL FIRST) |
 | `memory_agent` | `validate` | Verify agent_type: Tester | Verify agent_type: Tester |
 | `memory_agent` | `handoff` | → Coordinator (recommend next) | → Coordinator (recommend Archivist or Revisionist) |

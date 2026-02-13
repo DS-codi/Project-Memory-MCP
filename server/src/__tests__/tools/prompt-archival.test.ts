@@ -171,7 +171,7 @@ describe('archivePlanPrompts', () => {
     // loadPlanPrompt for 'deploy' — not archived
     vi.mocked(exists).mockResolvedValueOnce(true);
     vi.mocked(fs.readFile).mockResolvedValueOnce(
-      '---\nagent: "Builder"\ndescription: "deploy"\nversion: "1.0.0"\nstep_indices: [2]\n---\n# Deploy\nDeploy steps.' as any,
+      '---\nagent: "Reviewer"\ndescription: "deploy"\nversion: "1.0.0"\nstep_indices: [2]\n---\n# Deploy\nDeploy steps.' as any,
     );
 
     const count = await archivePlanPrompts('ws_test', 'plan_abc', 'Test Plan');

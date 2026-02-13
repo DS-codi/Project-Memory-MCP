@@ -4,7 +4,7 @@ import type { WorkspaceSummary, WorkspaceMeta } from '@/types';
 const API_BASE = '/api';
 
 export async function fetchWorkspaces(): Promise<{ workspaces: WorkspaceSummary[]; total: number }> {
-  const res = await fetch(`${API_BASE}/workspaces`);
+  const res = await fetch(`${API_BASE}/workspaces?hierarchical=true`);
   if (!res.ok) throw new Error('Failed to fetch workspaces');
   return res.json();
 }

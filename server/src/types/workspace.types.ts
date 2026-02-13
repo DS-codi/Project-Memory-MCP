@@ -31,6 +31,9 @@ export interface WorkspaceMeta {
   indexed: boolean;  // Whether codebase has been indexed
   profile?: WorkspaceProfile;  // Codebase profile from indexing
   workspace_build_scripts?: BuildScript[];  // Workspace-level build scripts
+  parent_workspace_id?: string;  // ID of the parent workspace (if this is a child)
+  child_workspace_ids?: string[];  // IDs of child workspaces (if this is a parent)
+  hierarchy_linked_at?: string;  // ISO timestamp of when the hierarchy link was established
 }
 
 // =============================================================================
@@ -170,4 +173,18 @@ export interface WorkspaceContextSummary {
   stale_context_warning?: string;  // Warning if context is >30 days old
   knowledge_files?: KnowledgeFileSummary[];             // All knowledge files (slug, title, category, updated_at)
   stale_knowledge_files?: { slug: string; title: string; days_old: number }[];  // Knowledge files >60 days old
+}
+
+// =============================================================================
+// Workspace Overlap Detection (Parent-Child Hierarchy)
+// =============================================================================
+
+export interface WorkspaceOverlapInfo {
+  overlap_detected: boolean;
+  relationship: 'parent' | 'child' | 'none';
+  existing_workspace_id: string;
+  existing_workspace_path: string;
+  existing_workspace_name: string;
+  suggested_action: 'link' | 'abort' | 'force';
+  message: string;
 }

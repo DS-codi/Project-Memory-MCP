@@ -1,7 +1,7 @@
 ---
 name: Worker
 description: 'Worker agent - Executes specific sub-tasks delegated by hub agents. Lightweight spoke with strict scope limits. Cannot modify plans, spawn subagents, or archive. Use for focused, scoped implementation tasks within an existing plan.'
-tools: ['vscode', 'execute', 'read', 'edit', 'search', 'filesystem/*', 'git/*', 'project-memory/*', 'agent', 'todo']
+tools: ['vscode', 'execute', 'read', 'edit', 'search',  'git/*', 'project-memory/*', 'agent', 'todo']
 ---
 
 # Worker Agent
@@ -82,8 +82,17 @@ If any of these are missing, call `memory_agent(action: handoff)` back to your d
 | `memory_agent` | `complete` | Mark your session complete |
 | `memory_context` | `get` | Retrieve stored context from upstream agents |
 | `memory_context` | `store` | Save execution results |
-| File system tools | — | Create/modify source files (within scope only) |
-| Terminal tools | — | Run build/lint commands to verify changes |
+| `memory_terminal` | `run` | Execute build/lint commands to verify changes (authorization-gated) |
+| `memory_terminal` | `read_output` | Read buffered output from a running session |
+| `memory_terminal` | `kill` | Kill a hung process |
+| `memory_terminal_interactive` | `create` | Open a visible VS Code terminal for interactive verification |
+| `memory_terminal_interactive` | `send` | Send commands to a visible terminal (destructive commands blocked) |
+| `memory_terminal_interactive` | `close` | Close a visible terminal |
+| `memory_terminal_interactive` | `list` | List open tracked terminals |
+| `memory_filesystem` | `read` | Read workspace-scoped source files (within scope only) |
+| `memory_filesystem` | `write` | Write/create files within workspace (within scope only) |
+| `memory_filesystem` | `search` | Search files by glob or regex pattern |
+| `memory_filesystem` | `list` | List directory contents |
 
 **Tools you must NOT use:**
 - `memory_plan` (any action) — you cannot create, modify, or archive plans

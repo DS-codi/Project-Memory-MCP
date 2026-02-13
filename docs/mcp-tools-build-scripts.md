@@ -59,7 +59,7 @@ Add a reusable build script to the workspace or plan.
 }
 ```
 
-**Used by:** Builder, Executor
+**Used by:** Reviewer, Executor
 
 ---
 
@@ -111,7 +111,7 @@ List all build scripts available for a workspace. Merges workspace-level and pla
 
 Note: `directory_path` is resolved at response time using the workspace root path.
 
-**Used by:** Builder, Executor, Tester
+**Used by:** Reviewer, Executor, Tester
 
 ---
 
@@ -161,7 +161,7 @@ Resolve a registered build script by ID and return its command and directory for
 
 After receiving the response, use `run_in_terminal` with the returned `command` and set the working directory to `directory_path`.
 
-**Used by:** Builder, Executor, Tester
+**Used by:** Reviewer, Executor, Tester
 
 ---
 
@@ -203,4 +203,4 @@ Delete a build script by ID.
 }
 ```
 
-**Used by:** Builder, Archivist
+**Used by:** Reviewer, Archivist

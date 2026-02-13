@@ -73,7 +73,7 @@ memory_plan(action: "run_build_script")     → Resolve for terminal execution
 memory_plan(action: "delete_build_script")  → Remove a script
 ```
 
-The **Builder** agent is the primary consumer of build scripts. It:
+The **Reviewer** agent is the primary consumer of build scripts (in build-check mode). It:
 1. Checks for existing scripts when activated
 2. Creates scripts if none exist for the current build task
 3. Resolves and runs scripts in the terminal

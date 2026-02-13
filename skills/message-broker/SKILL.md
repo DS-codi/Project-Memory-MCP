@@ -1,5 +1,6 @@
 ---
-applyTo: "**/message-broker/**,**/broker/**,**/*broker*.*"
+name: message-broker
+description: "Use this skill when building TCP-based pub/sub message brokers for inter-process communication between Python applications and AutoHotkey scripts. Covers architecture, protocol design, client/server patterns, and message routing."
 ---
 
 # Message Broker Instructions

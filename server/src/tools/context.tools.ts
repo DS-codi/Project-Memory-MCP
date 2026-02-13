@@ -976,3 +976,121 @@ function reconstituteSections(sections: NoteSection[]): string {
     .map(s => s.header ? `${s.header}\n${s.body}` : s.body)
     .join('\n');
 }
+
+// =============================================================================
+// Dump Context — aggregate all plan context into a single JSON file
+// =============================================================================
+
+export interface DumpContextResult {
+  path: string;
+  sections_included: string[];
+  timestamp: string;
+}
+
+/**
+ * Aggregate plan state, context files, research notes, and workspace context
+ * into a single JSON dump file written to
+ * data/{workspace_id}/plans/{plan_id}/dumps/{timestamp}-context-dump.json
+ */
+export async function handleDumpContext(
+  params: { workspace_id: string; plan_id: string }
+): Promise<ToolResponse<DumpContextResult>> {
+  try {
+    const { workspace_id, plan_id } = params;
+
+    if (!workspace_id || !plan_id) {
+      return { success: false, error: 'workspace_id and plan_id are required' };
+    }
+
+    // 1. Load plan state
+    const planState = await store.getPlanState(workspace_id, plan_id);
+    if (!planState) {
+      return { success: false, error: `Plan not found: ${plan_id}` };
+    }
+
+    const sectionsIncluded: string[] = ['plan_state'];
+    const { promises: fsP } = await import('fs');
+
+    // 2. Collect context files (*.json except state.json)
+    const planDir = store.getPlanPath(workspace_id, plan_id);
+    const contextFiles: Record<string, unknown> = {};
+    try {
+      const entries = await fsP.readdir(planDir);
+      for (const f of entries) {
+        if (f.endsWith('.json') && f !== 'state.json') {
+          const raw = await store.readText(store.getContextPath(workspace_id, plan_id, f.replace('.json', '')));
+          if (raw) {
+            try { contextFiles[f] = JSON.parse(raw); } catch { contextFiles[f] = raw; }
+          }
+        }
+      }
+      if (Object.keys(contextFiles).length > 0) sectionsIncluded.push('context_files');
+    } catch { /* plan dir may have no extra files */ }
+
+    // 3. Collect research notes
+    const researchNotes: Record<string, string> = {};
+    const researchDir = store.getResearchNotesPath(workspace_id, plan_id);
+    try {
+      const rFiles = await fsP.readdir(researchDir);
+      for (const rf of rFiles) {
+        const content = await store.readText(`${researchDir}/${rf}`);
+        if (content) researchNotes[rf] = content;
+      }
+      if (Object.keys(researchNotes).length > 0) sectionsIncluded.push('research_notes');
+    } catch { /* no research notes dir */ }
+
+    // 4. Load workspace context
+    let workspaceContext: unknown = null;
+    try {
+      const wcPath = store.getWorkspaceContextPath(workspace_id);
+      const wcRaw = await store.readText(wcPath);
+      if (wcRaw) {
+        workspaceContext = JSON.parse(wcRaw);
+        sectionsIncluded.push('workspace_context');
+      }
+    } catch { /* no workspace context */ }
+
+    // 5. Assemble the dump
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const dump = {
+      meta: {
+        workspace_id,
+        plan_id,
+        dumped_at: store.nowISO(),
+        sections_included: sectionsIncluded,
+      },
+      plan_state: planState,
+      context_files: contextFiles,
+      research_notes: researchNotes,
+      workspace_context: workspaceContext,
+    };
+
+    // 6. Write to dumps directory
+    const dumpsDir = `${planDir}/dumps`;
+    await store.ensureDir(dumpsDir);
+    const dumpPath = `${dumpsDir}/${timestamp}-context-dump.json`;
+    await store.writeText(dumpPath, JSON.stringify(dump, null, 2));
+
+    await appendWorkspaceFileUpdate({
+      workspace_id,
+      plan_id,
+      file_path: dumpPath,
+      summary: `Context dump created with sections: ${sectionsIncluded.join(', ')}`,
+      action: 'dump_context',
+    });
+
+    return {
+      success: true,
+      data: {
+        path: dumpPath,
+        sections_included: sectionsIncluded,
+        timestamp: dump.meta.dumped_at,
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to dump context: ${(error as Error).message}`,
+    };
+  }
+}

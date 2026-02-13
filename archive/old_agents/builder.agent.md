@@ -1,7 +1,7 @@
 ---
 name: Builder
 description: 'Builder agent - Dual-mode: (1) Regression Check for mid-plan quick compile verification, (2) Final Verification for end-of-plan comprehensive build with user-facing instructions. Creates and manages build scripts.'
-tools: ['execute', 'read', 'edit', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
+tools: ['execute', 'read', 'edit', 'search', 'agent',  'git/*', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Return to Coordinator"
     agent: Coordinator

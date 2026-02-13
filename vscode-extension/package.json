@@ -121,8 +121,8 @@
       {
         "name": "memory_agent",
         "displayName": "Project Memory Agent",
-        "description": "Agent lifecycle - init sessions, complete, handoff, validate, list agents, get instructions, spawn agents",
-        "modelDescription": "Manage Project Memory agent lifecycle. Actions: 'init' to start an agent session (requires planId, agentType), 'complete' to finish a session (requires planId, agentType), 'handoff' to transfer to another agent (requires planId, toAgent), 'validate' to check agent validity (requires agentType), 'list' to list agent sessions, 'get_instructions' to get agent instruction file (requires agentType), 'spawn' to spawn an agent (requires agent_name, task_context).",
+        "description": "Agent lifecycle - init sessions, complete, handoff, validate, list agents, get instructions",
+        "modelDescription": "Manage Project Memory agent lifecycle. Actions: 'init' to start an agent session (requires planId, agentType), 'complete' to finish a session (requires planId, agentType), 'handoff' to transfer to another agent (requires planId, toAgent), 'validate' to check agent validity (requires agentType), 'list' to list agent sessions, 'get_instructions' to get agent instruction file (requires agentType).",
         "parametersSchema": {
           "type": "object",
           "properties": {
@@ -137,8 +137,7 @@
                 "get_instructions",
                 "deploy",
                 "get_briefing",
-                "get_lineage",
-                "spawn"
+                "get_lineage"
               ],
               "description": "The action to perform"
             },
@@ -181,14 +180,6 @@
             "include_skills": {
               "type": "boolean",
               "description": "Include skills in deployment"
-            },
-            "agent_name": {
-              "type": "string",
-              "description": "Name of the agent to spawn (for spawn action)"
-            },
-            "task_context": {
-              "type": "string",
-              "description": "Task context to pass to the spawned agent (for spawn action)"
             }
           },
           "required": [
@@ -765,6 +756,55 @@
             }
           },
           "required": ["action"]
+        },
+        "canBeInvokedManually": true
+      },
+      {
+        "name": "memory_spawn_agent",
+        "displayName": "Project Memory Spawn Agent",
+        "description": "Spawn a subagent with plan-aware orchestration, anti-spawning rules, and scope boundaries",
+        "modelDescription": "Spawn a Project Memory subagent with MCP plan-aware orchestration. Only hub agents (Coordinator, Analyst, Runner, TDDDriver) can spawn subagents. Validates the target agent exists, injects workspace/plan context into the prompt, enforces anti-spawning rules for spoke agents, and supports scope boundary injection. The spawned agent receives the enriched prompt with context and handoff protocol instructions.",
+        "parametersSchema": {
+          "type": "object",
+          "properties": {
+            "agent_name": {
+              "type": "string",
+              "description": "Name of the agent to spawn (e.g., Executor, Reviewer, Tester)"
+            },
+            "prompt": {
+              "type": "string",
+              "description": "The prompt/task description to send to the spawned agent"
+            },
+            "workspace_id": {
+              "type": "string",
+              "description": "Workspace ID to inject into the agent context (optional)"
+            },
+            "plan_id": {
+              "type": "string",
+              "description": "Plan ID to inject into the agent context (optional)"
+            },
+            "scope_boundaries": {
+              "type": "object",
+              "properties": {
+                "files_allowed": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "List of files the agent is allowed to modify"
+                },
+                "directories_allowed": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "List of directories where the agent can create files"
+                },
+                "scope_escalation_instruction": {
+                  "type": "string",
+                  "description": "Custom instruction for what to do if agent needs out-of-scope changes"
+                }
+              },
+              "description": "Scope boundaries to inject into the spawned agent's prompt"
+            }
+          },
+          "required": ["agent_name", "prompt"]
         },
         "canBeInvokedManually": true
       }

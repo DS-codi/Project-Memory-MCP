@@ -1,0 +1,18 @@
+use cxx_qt_build::{CxxQtBuilder, QmlModule};
+
+fn main() {
+    #[cfg(windows)]
+    {
+        let mut res = winresource::WindowsResource::new();
+        // res.set_icon("resources/app.ico");  // Uncomment when icon is available
+        res.set_manifest_file("resources/app.manifest");
+        res.compile().expect("Failed to compile Windows resources");
+    }
+
+    CxxQtBuilder::new_qml_module(
+        QmlModule::new("com.projectmemory.terminal")
+            .qml_files(["qml/main.qml"]),
+    )
+    .file("src/cxxqt_bridge.rs")
+    .build();
+}

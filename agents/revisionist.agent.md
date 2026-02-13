@@ -1,7 +1,7 @@
 ---
 name: Revisionist
 description: 'Revisionist agent - Pivots the plan when errors occur. Use when the Executor encounters blockers or failures.'
-tools: ['execute', 'read', 'edit', 'search', 'agent', 'filesystem/*', 'git/*', 'project-memory/*', 'todo']
+tools: ['execute', 'read', 'edit', 'search', 'agent',  'git/*', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Return to Coordinator"
     agent: Coordinator

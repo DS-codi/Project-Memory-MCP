@@ -29,6 +29,7 @@ import {
     getContainerMcpPort,
     type ContainerStatus,
 } from './ContainerDetection';
+import { ContainerHealthService } from '../services/ContainerHealthService';
 
 function notify(message: string, ...items: string[]): Thenable<string | undefined> {
     const config = vscode.workspace.getConfiguration('projectMemory');
@@ -55,7 +56,7 @@ export class ServerManager implements vscode.Disposable {
     private _isRunning = false;
     private _isExternalServer = false;
     private _isContainerMode = false;
-    private _containerHealthTimer: ReturnType<typeof setInterval> | null = null;
+    private _containerHealthService: ContainerHealthService | null = null;
     private _intentionalStop = false;
     private config: ServerConfig;
     private restartAttempts = 0;
@@ -467,66 +468,94 @@ export class ServerManager implements vscode.Disposable {
         this.statusBarItem.show();
     }
 
-    // --- Container Health Monitor (Phase 6C.5) ---
+    // --- Container Health Monitor (delegated to ContainerHealthService) ---
 
     /**
-     * Periodically probe the container to detect disconnects.
-     * If the container becomes unreachable and the stop was NOT intentional,
-     * automatically fall back to local server to maintain continuity.
+     * Start the ContainerHealthService and wire lifecycle events.
+     * On disconnect → auto-fallback to local. On reconnect → offer
+     * to switch back to the container.
      */
     private startContainerHealthMonitor(): void {
         this.stopContainerHealthMonitor();
 
-        this._containerHealthTimer = setInterval(async () => {
+        this._containerHealthService = new ContainerHealthService({
+            dashboardPort: this.config.serverPort || 3001,
+            log: (msg) => this.log(msg),
+        });
+
+        // Disconnected → auto-fallback
+        this._containerHealthService.on('disconnected', async () => {
             if (!this._isContainerMode || !this._isRunning) { return; }
 
             const mcpPort = getContainerMcpPort();
             const dashPort = this.config.serverPort || 3001;
-            const status = await probeContainer(mcpPort, dashPort);
+            this.log('Container health check failed — container unreachable');
+            this.logEvent('container_disconnected', { mcpPort, dashPort });
 
-            if (!status.detected) {
-                this.log('Container health check failed — container unreachable');
-                this.logEvent('container_disconnected', { mcpPort, dashPort });
+            this._isRunning = false;
+            this._isExternalServer = false;
+            this._isContainerMode = false;
 
-                this._isRunning = false;
-                this._isExternalServer = false;
-                this._isContainerMode = false;
-                this.stopContainerHealthMonitor();
+            if (this._intentionalStop) {
+                this.updateStatusBar('stopped');
+                this.log('Container stopped intentionally — not falling back to local');
+                return;
+            }
 
-                // If the user intentionally stopped, don't auto-fallback
-                if (this._intentionalStop) {
-                    this.updateStatusBar('stopped');
-                    this.log('Container stopped intentionally — not falling back to local');
-                    return;
-                }
+            this.log('Auto-falling back to local server...');
+            this.updateStatusBar('starting');
+            notify('Project Memory: Container lost — switching to local server');
 
-                // Auto-fallback to local server without prompting
-                this.log('Auto-falling back to local server...');
-                this.updateStatusBar('starting');
-                notify('Project Memory: Container lost — switching to local server');
-
-                const started = await this.start();
-                if (!started) {
-                    this.updateStatusBar('error');
-                    // Only prompt if auto-fallback also failed
-                    const choice = await vscode.window.showWarningMessage(
-                        'Project Memory: Container lost and local server failed to start.',
-                        'Retry',
-                        'Dismiss'
-                    );
-                    if (choice === 'Retry') {
-                        this.start();
-                    }
+            const started = await this.start();
+            if (!started) {
+                this.updateStatusBar('error');
+                const choice = await vscode.window.showWarningMessage(
+                    'Project Memory: Container lost and local server failed to start.',
+                    'Retry',
+                    'Dismiss'
+                );
+                if (choice === 'Retry') {
+                    this.start();
                 }
             }
-        }, 30_000); // Check every 30 seconds
+        });
+
+        // Reconnected → offer to switch back
+        this._containerHealthService.on('reconnected', async () => {
+            if (this._isContainerMode) { return; } // already on container
+            this.log('Container came back online — offering reconnect');
+            const choice = await vscode.window.showInformationMessage(
+                'Project Memory: Container is back online. Switch to container mode?',
+                'Switch',
+                'Stay Local'
+            );
+            if (choice === 'Switch') {
+                await this.stop();
+                await this.start(); // will re-detect container in start()
+            }
+        });
+
+        // Degraded → update status bar
+        this._containerHealthService.on('degraded', () => {
+            if (this._isContainerMode) {
+                this.updateStatusBar('container');
+                this.log('Container degraded — MCP healthy but dashboard down');
+            }
+        });
+
+        this._containerHealthService.startPolling();
     }
 
     private stopContainerHealthMonitor(): void {
-        if (this._containerHealthTimer) {
-            clearInterval(this._containerHealthTimer);
-            this._containerHealthTimer = null;
+        if (this._containerHealthService) {
+            this._containerHealthService.dispose();
+            this._containerHealthService = null;
         }
+    }
+
+    /** Expose the container health service for status bar integration. */
+    get containerHealthService(): ContainerHealthService | null {
+        return this._containerHealthService;
     }
 
     // --- Utilities ---

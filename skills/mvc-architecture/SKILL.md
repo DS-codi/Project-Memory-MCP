@@ -1,5 +1,6 @@
 ---
-applyTo: "**/mvc/**,**/controllers/**,**/models/**,**/views/**"
+name: mvc-architecture
+description: "Use this skill when implementing Model-View-Controller architecture. Covers core MVC principles, layer separation, dependency injection, event-driven communication, and patterns for controllers, models, and views."
 ---
 
 # MVC Architecture Guidelines

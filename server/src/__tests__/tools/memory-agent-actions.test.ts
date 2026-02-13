@@ -189,8 +189,8 @@ describe('MCP Tool: memory_agent Actions', () => {
       }
     });
 
-    it('should validate when Builder agent type is supported', async () => {
-      vi.spyOn(validationTools, 'validateBuilder').mockResolvedValue({
+    it('should validate when Reviewer agent type is supported', async () => {
+      vi.spyOn(validationTools, 'validateReviewer').mockResolvedValue({
         success: true,
         data: {
           valid: true,
@@ -202,7 +202,7 @@ describe('MCP Tool: memory_agent Actions', () => {
         action: 'validate',
         workspace_id: mockWorkspaceId,
         plan_id: mockPlanId,
-        agent_type: 'Builder'
+        agent_type: 'Reviewer'
       });
 
       expect(result.success).toBe(true);

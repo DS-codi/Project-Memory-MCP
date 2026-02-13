@@ -23,6 +23,7 @@ import type { WorkspaceContextSummary } from './workspace.types.js';
 
 export interface RegisterWorkspaceParams {
   workspace_path: string;
+  force?: boolean;
 }
 
 export interface CreatePlanParams {
@@ -130,10 +131,11 @@ export interface HandoffParams {
 }
 
 /**
- * Structured handoff data template for Builder agent.
- * When Builder hands off to Coordinator, data should follow this shape.
+ * Structured handoff data template for Reviewer build-check mode.
+ * When Reviewer hands off to Coordinator after build verification, data should follow this shape.
  * Coordinator passes build_instructions, optimization_suggestions, and
  * dependency_notes to the user.
+ * @deprecated Renamed from BuilderHandoffData - Builder merged into Reviewer
  */
 export interface BuilderHandoffData {
   recommendation: 'Reviewer' | 'Revisionist' | 'Archivist';

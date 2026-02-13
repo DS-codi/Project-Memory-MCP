@@ -8,7 +8,7 @@ This workspace uses the **Project Memory MCP** for tracking work across agent se
 
 ## Consolidated Tools (v2.0)
 
-The MCP server provides 5 unified tools with action parameters:
+The MCP server provides 5 unified tools with action parameters, plus 2 extension-side tools:
 
 | Tool | Actions |
 |------|--------|
@@ -17,6 +17,9 @@ The MCP server provides 5 unified tools with action parameters:
 | `memory_steps` | `add`, `update`, `batch_update`, `insert`, `delete`, `reorder`, `move`, `sort`, `set_order`, `replace` |
 | `memory_agent` | `init`, `complete`, `handoff`, `validate`, `list`, `get_instructions`, `deploy`, `get_briefing`, `get_lineage` |
 | `memory_context` | `get`, `store`, `store_initial`, `list`, `append_research`, `list_research`, `generate_instructions`, `workspace_get`, `workspace_set`, `workspace_update`, `workspace_delete` |
+| `memory_terminal` | `run`, `read_output`, `kill`, `get_allowlist`, `update_allowlist` |
+| `memory_filesystem` | `read`, `write`, `search`, `list`, `tree` |
+| `memory_terminal_interactive` | `create`, `send`, `close`, `list` *(extension-side, visible VS Code terminals)* |
 
 **Build script paths:** `list_build_scripts` includes `directory_path` and `command_path` when available so builders can run scripts directly in the terminal.
 
@@ -132,6 +135,113 @@ memory_agent (action: complete) with
 - Legacy workspace IDs are transparently redirected to canonical IDs — if you see a redirect note in a response, update your stored `workspace_id`.
 - Use `memory_workspace` (action: scan_ghosts) to detect unregistered data-root directories.
 - Use `memory_workspace` (action: merge) with `dry_run: true` to preview merges before executing them.
+
+## Terminal Authorization Model (`memory_terminal`)
+
+`memory_terminal` is a **server-side, headless** terminal that runs commands inside the MCP server process (or container). It enforces a strict authorization model:
+
+| Authorization | Meaning | Agent Action |
+|---------------|---------|--------------|
+| `allowed` | Command matches the auto-approve allowlist | Executes immediately |
+| `blocked` | Destructive command (rm, del, format, etc.) | Rejected entirely |
+
+> **Note:** Since server terminal hardening, only allowlisted commands execute. Non-allowlisted commands are blocked (not queued for approval).
+
+### Common Patterns
+```
+memory_terminal (action: run) with
+  command: "npm",
+  args: ["run", "build"],
+  cwd: "./server",
+  workspace_id: "..."
+```
+
+```
+memory_terminal (action: get_allowlist) with
+  workspace_id: "..."
+```
+
+```
+memory_terminal (action: update_allowlist) with
+  patterns: ["npm *", "npx vitest *"],
+  operation: "add",
+  workspace_id: "..."
+```
+
+## Interactive Terminal (`memory_terminal_interactive`)
+
+`memory_terminal_interactive` is an **extension-side** tool that creates real, visible VS Code integrated terminals on the user's host machine. Unlike `memory_terminal`, the user can see and interact with these terminals directly.
+
+### Key Differences
+
+| Feature | `memory_terminal` | `memory_terminal_interactive` |
+|---------|-------------------|-------------------------------|
+| Runs where | Server/container (headless) | VS Code host (visible) |
+| Authorization | Allowlist-only (strict) | Destructive blocked, others allowed with warning |
+| Output capture | Buffered via `read_output` | User sees output directly in terminal |
+| Use case | Automated build/test in CI-like environment | Interactive work, debugging, manual commands |
+
+### Actions
+
+- **`create`** — Open a new VS Code terminal. Optional: `name`, `cwd`, `env`. Returns `terminal_id`.
+- **`send`** — Send a command to an open terminal. Requires `terminal_id`, `command`. Optional `workspace_id` for allowlist lookups. Destructive commands are always blocked.
+- **`close`** — Close/dispose a terminal by `terminal_id`.
+- **`list`** — List all tracked open terminals.
+
+### Common Patterns
+```
+memory_terminal_interactive (action: create) with
+  name: "Build Server",
+  cwd: "./server"
+```
+
+```
+memory_terminal_interactive (action: send) with
+  terminal_id: "term_1_Build_Server",
+  command: "npm run build",
+  workspace_id: "..."
+```
+
+```
+memory_terminal_interactive (action: list)
+```
+
+## Filesystem Safety Boundaries (`memory_filesystem`)
+
+`memory_filesystem` provides workspace-scoped file operations with built-in safety:
+
+- **All paths are workspace-scoped** — relative to the registered workspace root
+- **Path traversal blocked** — `../` and absolute paths outside the workspace are rejected
+- **Sensitive files blocked** — `.env`, private keys, credentials files are inaccessible
+- **1 MB read cap** — large files are truncated to prevent context overflow
+
+### Common Patterns
+```
+memory_filesystem (action: read) with
+  workspace_id: "...",
+  path: "src/index.ts"
+```
+
+```
+memory_filesystem (action: write) with
+  workspace_id: "...",
+  path: "src/new-module.ts",
+  content: "...",
+  create_dirs: true
+```
+
+```
+memory_filesystem (action: search) with
+  workspace_id: "...",
+  pattern: "**/*.test.ts"
+```
+
+```
+memory_filesystem (action: tree) with
+  workspace_id: "...",
+  path: "src",
+  max_depth: 3
+```
 
 ## Hub-and-Spoke Model
 

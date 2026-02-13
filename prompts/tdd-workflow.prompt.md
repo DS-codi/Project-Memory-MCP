@@ -37,7 +37,7 @@ version: "1.0.0"
 
 1. Spawn **Tester** (WRITE mode) with the acceptance criteria above
 2. Tester writes test cases in `{{test_file}}` that define expected behavior
-3. Spawn **Builder** to verify tests compile but **fail** (red state)
+3. Spawn **Reviewer** (build-check mode) to verify tests compile but **fail** (red state)
 4. If tests don't compile, re-spawn Tester with compile errors
 
 ### Phase 2: GREEN — Make Tests Pass
@@ -62,7 +62,7 @@ version: "1.0.0"
 
 After all phases complete:
 1. Record cycle results via `memory_context(action: store)`
-2. Handoff to Coordinator with recommendation for Builder (final verification)
+2. Handoff to Coordinator with recommendation for Reviewer (final verification)
 
 ---
 

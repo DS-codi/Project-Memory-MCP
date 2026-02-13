@@ -134,6 +134,12 @@ function Start-Container {
     $podmanArgs = @(
         "run", "-d",
         "--name", $ContainerName,
+        "--restart=on-failure:5",
+        "--health-cmd", "node -e `"const h=require('http');const r=h.get('http://localhost:3000/health',s=>{process.exit(s.statusCode===200?0:1)});r.on('error',()=>process.exit(1));r.setTimeout(3000,()=>{r.destroy();process.exit(1)})`"",
+        "--health-interval", "30s",
+        "--health-timeout", "10s",
+        "--health-start-period", "15s",
+        "--health-retries", "3",
         "-p", "3000:3000",
         "-p", "3001:3001",
         "-p", "3002:3002",
@@ -162,8 +168,30 @@ function Start-Container {
         exit 1
     }
 
-    Write-Host "" -ForegroundColor Green
-    Write-Host "Container started. Services:" -ForegroundColor Green
+    # Wait for container health before declaring success
+    Write-Host "Waiting for container readiness..." -ForegroundColor Cyan
+    $ready = $false
+    for ($i = 0; $i -lt 30; $i++) {
+        try {
+            $health = Invoke-RestMethod -Uri "http://localhost:3000/health" -TimeoutSec 3 -ErrorAction Stop
+            if ($health.status -eq 'ok') {
+                $ready = $true
+                break
+            }
+        } catch {
+            # Not ready yet
+        }
+        Start-Sleep -Seconds 1
+    }
+
+    if ($ready) {
+        Write-Host "" -ForegroundColor Green
+        Write-Host "Container started and healthy." -ForegroundColor Green
+    } else {
+        Write-Host "" -ForegroundColor Yellow
+        Write-Host "Container started but health check not yet passing." -ForegroundColor Yellow
+    }
+
     Write-Host "  MCP Server:    http://localhost:3000/health" -ForegroundColor White
     Write-Host "  Dashboard API: http://localhost:3001/api/health" -ForegroundColor White
     Write-Host "  WebSocket:     ws://localhost:3002" -ForegroundColor White

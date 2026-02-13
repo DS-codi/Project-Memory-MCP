@@ -199,7 +199,7 @@ export interface PlanState {
   confirmation_state?: ConfirmationState;  // Confirmation tracking for phases/steps
   goals?: string[];  // Project goals
   success_criteria?: string[];  // Success criteria for completion
-  pre_plan_build_status?: 'passing' | 'failing' | 'unknown';  // Build status before plan started — determines Builder regression check availability
+  pre_plan_build_status?: 'passing' | 'failing' | 'unknown';  // Build status before plan started — determines Reviewer regression check availability
   build_scripts?: BuildScript[];  // Plan-specific build scripts
   // Integrated Programs fields
   program_id?: string;           // Links this plan to a parent program

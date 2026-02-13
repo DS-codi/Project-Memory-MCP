@@ -11,7 +11,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import type { PlanState, WorkspaceMeta, WorkspaceProfile, RequestCategory, RequestCategorization, BuildScript, WorkspaceContext } from '../types/index.js';
+import type { PlanState, WorkspaceMeta, WorkspaceProfile, RequestCategory, RequestCategorization, BuildScript, WorkspaceContext, WorkspaceOverlapInfo } from '../types/index.js';
 import { STEP_TYPE_BEHAVIORS } from '../types/index.js';
 import { appendWorkspaceFileUpdate } from '../logging/workspace-update-log.js';
 import {
@@ -36,7 +36,8 @@ import {
   modifyJsonLocked,
   writeJsonLocked,
 } from './file-lock.js';
-import { upsertRegistryEntry } from './workspace-registry.js';
+import { upsertRegistryEntry, readRegistry } from './workspace-registry.js';
+import { detectOverlaps, checkRegistryForOverlaps } from './workspace-hierarchy.js';
 
 // Re-export from workspace-identity module for backwards compatibility
 export type { WorkspaceIdentityFile } from './workspace-identity.js';
@@ -504,11 +505,17 @@ export async function saveWorkspace(meta: WorkspaceMeta): Promise<void> {
 
 /**
  * Create a new workspace
+ *
+ * When `force` is falsy the function first scans for overlapping workspaces
+ * (parent directories / child directories that already have identity.json,
+ * plus registry-based path containment). If overlaps are found the workspace
+ * is NOT created and the result contains `overlap: WorkspaceOverlapInfo[]`.
  */
 export async function createWorkspace(
   workspacePath: string, 
-  profile?: WorkspaceProfile
-): Promise<{ meta: WorkspaceMeta; migration: WorkspaceMigrationReport; created: boolean }> {
+  profile?: WorkspaceProfile,
+  force?: boolean
+): Promise<{ meta: WorkspaceMeta; migration: WorkspaceMigrationReport; created: boolean; overlap?: WorkspaceOverlapInfo[] }> {
   const resolvedPath = safeResolvePath(workspacePath);
   const workspaceId = await resolveWorkspaceIdForPath(resolvedPath);
   const workspaceDir = getWorkspacePath(workspaceId);
@@ -568,6 +575,36 @@ export async function createWorkspace(
     }
   }
   
+  // ---------------------------------------------------------------------------
+  // Overlap detection — only for genuinely new workspaces
+  // ---------------------------------------------------------------------------
+  if (!force) {
+    const fsOverlaps = await detectOverlaps(resolvedPath);
+    const registry = await readRegistry();
+    const registryOverlaps = registry?.entries
+      ? checkRegistryForOverlaps(resolvedPath, registry.entries)
+      : [];
+
+    // Deduplicate by workspace ID
+    const seen = new Set(fsOverlaps.map(o => o.existing_workspace_id));
+    const combined = [...fsOverlaps];
+    for (const ro of registryOverlaps) {
+      if (!seen.has(ro.existing_workspace_id)) {
+        combined.push(ro);
+        seen.add(ro.existing_workspace_id);
+      }
+    }
+
+    if (combined.length > 0) {
+      return {
+        meta: null as unknown as WorkspaceMeta,
+        migration,
+        created: false,
+        overlap: combined,
+      };
+    }
+  }
+
   // Create new workspace
   await ensureDir(workspaceDir);
   await ensureDir(getPlansPath(workspaceId));

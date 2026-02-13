@@ -100,12 +100,12 @@ These are the standard build/test commands. Register them as build scripts when 
 
 | Agent | Build Script Usage |
 |-------|--------------------|
-| **Builder** | Primary consumer — lists, creates, resolves, and runs scripts; reports pass/fail |
+| **Reviewer** | Primary consumer — lists, creates, resolves, and runs scripts during build-check; reports pass/fail |
 | **Executor** | May create scripts when implementing build-related steps |
 | **Tester** | Lists and runs test scripts |
 | **Archivist** | May clean up plan-level scripts during archival |
 
-## Workflow: Builder Agent
+## Workflow: Reviewer Agent (Build-Check Mode)
 
 1. `memory_plan(action: "list_build_scripts")` — check existing scripts
 2. If none exist for the task, `memory_plan(action: "add_build_script")` — register one

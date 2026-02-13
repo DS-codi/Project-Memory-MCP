@@ -1,85 +1,49 @@
-# Builder Agent - Capabilities & Deployment Guide
+# Reviewer Agent — Build Verification Capabilities
+
+> **Note:** The Builder agent has been merged into the Reviewer agent. The Reviewer now handles both build verification and code review. This document describes the Reviewer's build verification capabilities (formerly the Builder agent).
 
 ## Overview
 
-The Builder agent verifies builds and diagnoses build failures. It sits in the workflow between Executor (implementation) and Reviewer (validation), ensuring that code compiles and builds successfully before review.
+The Reviewer agent includes build verification capabilities that run before code review. When deployed after an Executor phase, the Reviewer first checks that the code compiles (build-check mode), then proceeds with code review. At the end of a plan, the Reviewer performs a comprehensive final verification.
 
-## When to Deploy
+## Build-Check Modes
 
-| Trigger | Description |
-|---------|-------------|
-| After Executor completes | Verify that new code compiles and passes build checks |
-| After Revisionist fixes | Re-verify builds after code corrections |
-| Build regression suspected | Diagnose why a previously passing build now fails |
-| New build pipeline needed | Create build scripts for a workspace or plan |
+| Mode | When | Purpose |
+|------|------|---------|
+| **Build-check** | Mid-plan (after Executor) | Quick compile verification — detects regressions if `pre_plan_build_status='passing'` |
+| **Final Verification** | End-of-plan (after all tests pass) | Comprehensive build with user-facing instructions and optimization suggestions |
 
-## Capabilities
+## When Build-Check Runs
 
-### 1. Build Script Management
-- **List scripts**: Discovers existing build scripts for the workspace/plan
-- **Create scripts**: Defines new reusable build scripts via `memory_plan(action: add_build_script)`
-- **Resolve scripts**: Gets terminal-ready commands via `memory_plan(action: run_build_script)`
-- **Delete scripts**: Removes obsolete scripts via `memory_plan(action: delete_build_script)`
+| Condition | Build-Check Behavior |
+|-----------|---------------------|
+| `pre_plan_build_status='passing'` | Reviewer runs build verification before code review |
+| `pre_plan_build_status='unknown'` | Reviewer skips build check, goes directly to code review |
+| `pre_plan_build_status='failing'` | Reviewer skips build check (can't distinguish new from pre-existing failures) |
 
-### 2. Build Verification
-- Runs build commands in the terminal
-- Analyzes stdout/stderr for errors, warnings, and success indicators
-- Reports build status back to the Coordinator
+## Build Script Lifecycle
 
-### 3. Failure Diagnosis
-- Parses compiler errors and identifies root causes
-- Maps errors to specific files and line numbers
-- Provides actionable fix recommendations to the Revisionist
+1. **Discovery**: Reviewer calls `list_build_scripts` to find existing scripts
+2. **Creation** (if needed): Reviewer calls `add_build_script` with name, command, and directory
+3. **Resolution**: Reviewer calls `run_build_script` to get the absolute command and directory
+4. **Execution**: Reviewer runs the resolved command in the terminal via `run_in_terminal`
+5. **Analysis**: Reviewer examines output and determines pass/fail
+6. **Cleanup** (optional): Reviewer calls `delete_build_script` for one-off scripts
 
 ## Workflow Position
 
 ```
-Executor → Builder → Reviewer (on success)
-                  → Revisionist (on failure)
+Executor → Reviewer (build-check + code review) → Tester
+                  → Revisionist (on build failure or review issues)
 ```
-
-The Builder is a **spoke agent** — it never spawns subagents. It always hands off back to the Coordinator via `memory_agent(action: handoff)`.
 
 ## Handoff Patterns
 
 | Outcome | Handoff To | Recommendation |
 |---------|-----------|----------------|
-| Build succeeds | Coordinator | Recommend Reviewer |
+| Build succeeds + review approved | Coordinator | Recommend Tester |
 | Build fails | Coordinator | Recommend Revisionist with error analysis |
-| Missing dependencies | Coordinator | Recommend Executor to install dependencies |
-
-## Build Script Lifecycle
-
-1. **Discovery**: Builder calls `list_build_scripts` to find existing scripts
-2. **Creation** (if needed): Builder calls `add_build_script` with name, command, and directory
-3. **Resolution**: Builder calls `run_build_script` to get the absolute command and directory
-4. **Execution**: Builder runs the resolved command in the terminal via `run_in_terminal`
-5. **Analysis**: Builder examines output and determines pass/fail
-6. **Cleanup** (optional): Builder calls `delete_build_script` for one-off scripts
-
-## Example Usage
-
-```javascript
-// 1. Check for existing scripts
-memory_plan(action: "list_build_scripts", workspace_id: "ws_abc")
-
-// 2. Create a build script if none exist
-memory_plan(action: "add_build_script", workspace_id: "ws_abc",
-  script_name: "Build Server",
-  script_command: "npm run build",
-  script_directory: "./server",
-  script_description: "Compiles TypeScript server code")
-
-// 3. Resolve and run
-memory_plan(action: "run_build_script", workspace_id: "ws_abc", script_id: "bs_001")
-// Returns: { command: "npm run build", directory_path: "/workspace/server" }
-// Then run in terminal
-
-// 4. Report result
-memory_agent(action: "handoff", from_agent: "Builder", to_agent: "Coordinator",
-  reason: "Build succeeded - recommend Reviewer")
-memory_agent(action: "complete", summary: "Server build passed with 0 errors")
-```
+| Review issues found | Coordinator | Recommend Revisionist with review notes |
 
 ## Dashboard Integration
 

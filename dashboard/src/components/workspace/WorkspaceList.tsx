@@ -6,6 +6,25 @@ interface WorkspaceListProps {
   isLoading?: boolean;
 }
 
+/**
+ * Filter workspaces to only top-level entries.
+ * Child workspaces that are nested under a parent via `child_workspaces`
+ * should not appear as top-level cards.
+ */
+function getTopLevelWorkspaces(workspaces: WorkspaceSummary[]): WorkspaceSummary[] {
+  // Collect all IDs that appear as children of another workspace
+  const childIds = new Set<string>();
+  for (const ws of workspaces) {
+    if (ws.child_workspaces) {
+      for (const child of ws.child_workspaces) {
+        childIds.add(child.workspace_id);
+      }
+    }
+  }
+  // Return only workspaces that are not nested children
+  return workspaces.filter((ws) => !childIds.has(ws.workspace_id));
+}
+
 export function WorkspaceList({ workspaces, isLoading }: WorkspaceListProps) {
   if (isLoading) {
     return (
@@ -39,9 +58,11 @@ export function WorkspaceList({ workspaces, isLoading }: WorkspaceListProps) {
     );
   }
 
+  const topLevel = getTopLevelWorkspaces(workspaces);
+
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-      {workspaces.map((workspace) => (
+      {topLevel.map((workspace) => (
         <WorkspaceCard key={workspace.workspace_id} workspace={workspace} />
       ))}
     </div>

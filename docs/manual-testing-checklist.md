@@ -83,15 +83,15 @@ Post-build verification for the System-Wide Architecture Evolution plan.
 
 ---
 
-## 3. Builder Dual-Mode
+## 3. Reviewer Build Verification
 
-### Regression Check (Mid-Plan)
-- [ ] During plan execution, deploy Builder with `mode: "regression_check"`
+### Build-Check Mode (Mid-Plan)
+- [ ] During plan execution, deploy Reviewer with build-check mode
 - [ ] Verify it runs build commands and reports pass/fail
-- [ ] Check `pre_plan_build_status` is stored when Builder runs first time
+- [ ] Check `pre_plan_build_status` is stored when Reviewer runs build-check first time
 
 ### Final Verification (End-of-Plan)
-- [ ] Deploy Builder with `mode: "final_verification"` after all phases complete
+- [ ] Deploy Reviewer with `mode: "final_verification"` after all phases complete
 - [ ] Verify it checks server, dashboard, and extension builds
 - [ ] Confirm it reports comprehensive results
 
@@ -215,7 +215,7 @@ Post-build verification for the System-Wide Architecture Evolution plan.
 - [ ] All 6 type modules re-exported: agent, build, context, plan, workspace, common
 
 ### AgentType Enum
-- [ ] Verify 15 types: Coordinator, Analyst, Researcher, Architect, Executor, Builder, Reviewer, Tester, Revisionist, Archivist, Brainstorm, Runner, SkillWriter, Worker, TDDDriver
+- [ ] Verify 14 types: Coordinator, Analyst, Researcher, Architect, Executor, Reviewer, Tester, Revisionist, Archivist, Brainstorm, Runner, SkillWriter, Worker, TDDDriver
 - [ ] Zod `AgentTypeSchema` matches TypeScript `AgentType`
 
 ---

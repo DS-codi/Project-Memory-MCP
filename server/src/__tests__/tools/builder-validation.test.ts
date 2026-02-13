@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { validateBuilder } from '../../tools/agent-validation.tools.js';
+import { validateReviewer } from '../../tools/agent-validation.tools.js';
 import type { PlanState, PlanStep } from '../../types/index.js';
 
 // Mock the file store
@@ -21,7 +21,7 @@ function makeStep(overrides: Partial<PlanStep> & { index: number }): PlanStep {
 }
 
 /**
- * Build a minimal PlanState with sensible defaults for Builder validation tests.
+ * Build a minimal PlanState with sensible defaults for Reviewer build-mode validation tests.
  * Callers override only the fields they care about.
  */
 function makePlanState(overrides: Partial<PlanState> = {}): PlanState {
@@ -29,12 +29,12 @@ function makePlanState(overrides: Partial<PlanState> = {}): PlanState {
     id: 'plan_test_001',
     workspace_id: 'ws_test',
     title: 'Test Plan',
-    description: 'A test plan for builder validation',
+    description: 'A test plan for reviewer build-mode validation',
     priority: 'medium',
     status: 'active',
     category: 'feature',
     current_phase: 'Build',
-    current_agent: 'Builder',
+    current_agent: 'Reviewer',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     agent_sessions: [],
@@ -44,7 +44,7 @@ function makePlanState(overrides: Partial<PlanState> = {}): PlanState {
       makeStep({ index: 1, phase: 'Build', task: 'Verify build', status: 'pending', type: 'build' }),
     ],
     deployment_context: {
-      deployed_agent: 'Builder',
+      deployed_agent: 'Reviewer',
       deployed_by: 'Coordinator',
       reason: 'End-of-plan build verification',
       override_validation: true,
@@ -60,7 +60,7 @@ const PARAMS = { workspace_id: 'ws_test', plan_id: 'plan_test_001' };
 // Tests
 // =============================================================================
 
-describe('Builder Validation — validateBuilderMode & isEndOfPlanDeployment', () => {
+describe('Reviewer Build-Mode Validation — validateReviewerBuildMode & isEndOfPlanDeployment', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     // Default: no build scripts registered
@@ -86,7 +86,7 @@ describe('Builder Validation — validateBuilderMode & isEndOfPlanDeployment', (
         { id: 'bs1', name: 'build', command: 'npm run build', directory: '.', created_at: new Date().toISOString() },
       ] as any);
 
-      const result = await validateBuilder(PARAMS);
+      const result = await validateReviewer(PARAMS);
 
       expect(result.success).toBe(true);
       expect(result.data?.action).toBe('continue');
@@ -106,7 +106,7 @@ describe('Builder Validation — validateBuilderMode & isEndOfPlanDeployment', (
         { id: 'bs1', name: 'build', command: 'npm run build', directory: '.', created_at: new Date().toISOString() },
       ] as any);
 
-      const result = await validateBuilder(PARAMS);
+      const result = await validateReviewer(PARAMS);
 
       expect(result.success).toBe(true);
       expect(result.data?.instructions).toContain('build instructions');
@@ -134,7 +134,7 @@ describe('Builder Validation — validateBuilderMode & isEndOfPlanDeployment', (
         { id: 'bs1', name: 'build', command: 'npm run build', directory: '.', created_at: new Date().toISOString() },
       ] as any);
 
-      const result = await validateBuilder(PARAMS);
+      const result = await validateReviewer(PARAMS);
 
       expect(result.success).toBe(true);
       // Should get final_verification mode (no regression warnings)
@@ -149,7 +149,7 @@ describe('Builder Validation — validateBuilderMode & isEndOfPlanDeployment', (
           makeStep({ index: 2, phase: 'Build', task: 'Regression check', status: 'pending', type: 'build' }),
         ],
         deployment_context: {
-          deployed_agent: 'Builder',
+          deployed_agent: 'Reviewer',
           deployed_by: 'Coordinator',
           reason: 'Mid-plan regression check',
           override_validation: true,
@@ -162,7 +162,7 @@ describe('Builder Validation — validateBuilderMode & isEndOfPlanDeployment', (
         { id: 'bs1', name: 'build', command: 'npm run build', directory: '.', created_at: new Date().toISOString() },
       ] as any);
 
-      const result = await validateBuilder(PARAMS);
+      const result = await validateReviewer(PARAMS);
 
       expect(result.success).toBe(true);
       // Should get regression_check mode
@@ -183,7 +183,7 @@ describe('Builder Validation — validateBuilderMode & isEndOfPlanDeployment', (
           makeStep({ index: 2, phase: 'Build', task: 'Regression check', status: 'pending', type: 'build' }),
         ],
         deployment_context: {
-          deployed_agent: 'Builder',
+          deployed_agent: 'Reviewer',
           deployed_by: 'Coordinator',
           reason: 'regression check between phases',
           override_validation: true,
@@ -196,7 +196,7 @@ describe('Builder Validation — validateBuilderMode & isEndOfPlanDeployment', (
         { id: 'bs1', name: 'build', command: 'npm run build', directory: '.', created_at: new Date().toISOString() },
       ] as any);
 
-      const result = await validateBuilder(PARAMS);
+      const result = await validateReviewer(PARAMS);
 
       expect(result.success).toBe(true);
       expect(result.data?.action).toBe('continue');
@@ -222,7 +222,7 @@ describe('Builder Validation — validateBuilderMode & isEndOfPlanDeployment', (
           makeStep({ index: 2, phase: 'Build', task: 'Regression check', status: 'pending', type: 'build' }),
         ],
         deployment_context: {
-          deployed_agent: 'Builder',
+          deployed_agent: 'Reviewer',
           deployed_by: 'Coordinator',
           reason: 'regression check between phases',
           override_validation: true,
@@ -235,7 +235,7 @@ describe('Builder Validation — validateBuilderMode & isEndOfPlanDeployment', (
         { id: 'bs1', name: 'build', command: 'npm run build', directory: '.', created_at: new Date().toISOString() },
       ] as any);
 
-      const result = await validateBuilder(PARAMS);
+      const result = await validateReviewer(PARAMS);
 
       expect(result.success).toBe(true);
       expect(result.data?.action).toBe('continue');
@@ -262,7 +262,7 @@ describe('Builder Validation — validateBuilderMode & isEndOfPlanDeployment', (
           makeStep({ index: 2, phase: 'Build', task: 'Regression check', status: 'pending', type: 'build' }),
         ],
         deployment_context: {
-          deployed_agent: 'Builder',
+          deployed_agent: 'Reviewer',
           deployed_by: 'Coordinator',
           reason: 'regression check between phases',
           override_validation: true,
@@ -275,7 +275,7 @@ describe('Builder Validation — validateBuilderMode & isEndOfPlanDeployment', (
         { id: 'bs1', name: 'build', command: 'npm run build', directory: '.', created_at: new Date().toISOString() },
       ] as any);
 
-      const result = await validateBuilder(PARAMS);
+      const result = await validateReviewer(PARAMS);
 
       expect(result.success).toBe(true);
       expect(result.data?.action).toBe('continue');
@@ -294,7 +294,7 @@ describe('Builder Validation — validateBuilderMode & isEndOfPlanDeployment', (
   // ---------------------------------------------------------------------------
 
   describe('Mid-plan deployment without regression justification', () => {
-    it('should warn that Builder is primarily end-of-plan', async () => {
+    it('should warn that Reviewer build-mode is primarily end-of-plan', async () => {
       const state = makePlanState({
         steps: [
           makeStep({ index: 0, phase: 'Implementation', task: 'Part A', status: 'done' }),
@@ -302,7 +302,7 @@ describe('Builder Validation — validateBuilderMode & isEndOfPlanDeployment', (
           makeStep({ index: 2, phase: 'Build', task: 'Build project', status: 'pending', type: 'build' }),
         ],
         deployment_context: {
-          deployed_agent: 'Builder',
+          deployed_agent: 'Reviewer',
           deployed_by: 'Coordinator',
           reason: 'check build between phases',  // does NOT contain 'regression'
           override_validation: true,
@@ -315,7 +315,7 @@ describe('Builder Validation — validateBuilderMode & isEndOfPlanDeployment', (
         { id: 'bs1', name: 'build', command: 'npm run build', directory: '.', created_at: new Date().toISOString() },
       ] as any);
 
-      const result = await validateBuilder(PARAMS);
+      const result = await validateReviewer(PARAMS);
 
       expect(result.success).toBe(true);
       const warnings = result.data?.warnings ?? [];
@@ -327,11 +327,11 @@ describe('Builder Validation — validateBuilderMode & isEndOfPlanDeployment', (
   });
 
   // ---------------------------------------------------------------------------
-  // Builder blocked when no build scripts registered
+  // Reviewer warns (not blocks) when no build scripts registered
   // ---------------------------------------------------------------------------
 
-  describe('Builder blocked without build scripts', () => {
-    it('should block when build-related steps exist but no scripts registered', async () => {
+  describe('Reviewer warns without build scripts', () => {
+    it('should warn when build-related steps exist but no scripts registered', async () => {
       const state = makePlanState({
         steps: [
           makeStep({ index: 0, phase: 'Implementation', task: 'Implement', status: 'done' }),
@@ -341,11 +341,13 @@ describe('Builder Validation — validateBuilderMode & isEndOfPlanDeployment', (
       vi.mocked(store.getPlanState).mockResolvedValue(state);
       vi.mocked(store.getBuildScripts).mockResolvedValue([]);
 
-      const result = await validateBuilder(PARAMS);
+      const result = await validateReviewer(PARAMS);
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('BLOCKED');
-      expect(result.error).toContain('build scripts');
+      expect(result.success).toBe(true);
+      expect(result.data?.warnings).toBeDefined();
+      const warnings = result.data?.warnings ?? [];
+      const buildWarning = warnings.find((w: string) => w.includes('build scripts'));
+      expect(buildWarning).toBeDefined();
     });
   });
 
@@ -357,14 +359,14 @@ describe('Builder Validation — validateBuilderMode & isEndOfPlanDeployment', (
     it('should fail gracefully when plan is not found', async () => {
       vi.mocked(store.getPlanState).mockResolvedValue(null);
 
-      const result = await validateBuilder(PARAMS);
+      const result = await validateReviewer(PARAMS);
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('Plan not found');
     });
 
     it('should require workspace_id and plan_id', async () => {
-      const result = await validateBuilder({ workspace_id: '', plan_id: '' });
+      const result = await validateReviewer({ workspace_id: '', plan_id: '' });
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('required');

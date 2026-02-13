@@ -10,6 +10,8 @@ interface WorkspaceMeta {
   active_plans: string[];
   archived_plans: string[];
   indexed: boolean;
+  parent_workspace_id?: string;
+  child_workspace_ids?: string[];
   profile?: {
     indexed_at: string;
     languages: { name: string; percentage: number; file_count: number }[];
@@ -33,6 +35,8 @@ interface PlanState {
   agent_sessions: unknown[];
   lineage: unknown[];
   steps: { status: string }[];
+  is_program?: boolean;
+  program_id?: string;
 }
 
 interface WorkspaceSummary {
@@ -44,6 +48,9 @@ interface WorkspaceSummary {
   archived_plan_count: number;
   last_activity: string;
   languages: { name: string; percentage: number }[];
+  parent_workspace_id?: string;
+  child_workspace_ids?: string[];
+  child_workspaces?: WorkspaceSummary[];
 }
 
 interface PlanSummary {
@@ -56,6 +63,8 @@ interface PlanSummary {
   progress: { done: number; total: number };
   created_at: string;
   updated_at: string;
+  is_program?: boolean;
+  program_id?: string;
 }
 
 // Calculate workspace health based on plan activity
@@ -111,6 +120,8 @@ export async function scanWorkspaces(dataRoot: string): Promise<WorkspaceSummary
             name: l.name,
             percentage: l.percentage,
           })) || [],
+          ...(meta.parent_workspace_id ? { parent_workspace_id: meta.parent_workspace_id } : {}),
+          ...(meta.child_workspace_ids?.length ? { child_workspace_ids: meta.child_workspace_ids } : {}),
         });
       } catch {
         // Skip directories without valid workspace.meta.json
@@ -121,6 +132,34 @@ export async function scanWorkspaces(dataRoot: string): Promise<WorkspaceSummary
   }
   
   return workspaces;
+}
+
+/**
+ * Build a hierarchical workspace tree from a flat list.
+ * Groups child workspaces under their parents and returns only
+ * top-level workspaces (parents + unlinked standalones).
+ */
+export function buildWorkspaceHierarchy(workspaces: WorkspaceSummary[]): WorkspaceSummary[] {
+  // Index workspaces by ID
+  const wsMap = new Map<string, WorkspaceSummary>();
+  for (const ws of workspaces) {
+    wsMap.set(ws.workspace_id, { ...ws });
+  }
+
+  // Collect child IDs from parent references
+  const childIds = new Set<string>();
+  for (const ws of wsMap.values()) {
+    if (ws.parent_workspace_id && wsMap.has(ws.parent_workspace_id)) {
+      childIds.add(ws.workspace_id);
+      // Attach to parent's transient child_workspaces array
+      const parent = wsMap.get(ws.parent_workspace_id)!;
+      if (!parent.child_workspaces) parent.child_workspaces = [];
+      parent.child_workspaces.push(ws);
+    }
+  }
+
+  // Return only top-level workspaces (no parent_workspace_id or parent not in set)
+  return Array.from(wsMap.values()).filter(ws => !childIds.has(ws.workspace_id));
 }
 
 // Load plan states for given plan IDs
@@ -189,6 +228,8 @@ export async function getWorkspacePlans(dataRoot: string, workspaceId: string): 
           progress: { done: doneSteps, total: totalSteps },
           created_at: state.created_at,
           updated_at: state.updated_at,
+          is_program: state.is_program || false,
+          program_id: state.program_id || undefined,
         });
       } catch {
         // Skip invalid plan directories

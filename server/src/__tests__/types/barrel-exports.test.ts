@@ -38,11 +38,12 @@ describe('Types Barrel Re-exports (types/index.ts)', () => {
       expect(typeof barrel.AGENT_BOUNDARIES).toBe('object');
     });
 
-    it('should export AGENT_BOUNDARIES with all 12 agent types', () => {
+    it('should export AGENT_BOUNDARIES with all 14 agent types', () => {
       const expectedAgents = [
         'Coordinator', 'Analyst', 'Brainstorm', 'Runner',
-        'Researcher', 'Architect', 'Executor', 'Builder',
+        'Researcher', 'Architect', 'Executor',
         'Revisionist', 'Reviewer', 'Tester', 'Archivist',
+        'SkillWriter', 'Worker', 'TDDDriver',
       ];
       for (const agent of expectedAgents) {
         expect(barrel.AGENT_BOUNDARIES).toHaveProperty(agent);

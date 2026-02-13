@@ -431,8 +431,8 @@ export async function completeAgent(
  * The from_agent is recorded for lineage tracking, but no validation is performed
  * since subagents don't directly control each other.
  * 
- * BUILDER HANDOFF DATA TEMPLATE:
- * When from_agent is 'Builder', the data field should conform to BuilderHandoffData:
+ * REVIEWER BUILD-MODE HANDOFF DATA TEMPLATE:
+ * When from_agent is 'Reviewer' in build-check mode, the data field should conform to BuilderHandoffData:
  *   { recommendation, mode, build_success, scripts_run, build_instructions?,
  *     optimization_suggestions?, dependency_notes?, regression_report? }
  * See types/common.types.ts BuilderHandoffData for the full interface.
@@ -490,9 +490,9 @@ export async function handoff(
         data: sanitizedData
       });
 
-      // Store failed Builder regression results as high-priority context
+      // Store failed Reviewer regression results as high-priority context
       // This data survives compact-mode trimming for downstream agents
-      if (from_agent === 'Builder' && isFailedRegressionCheck(data)) {
+      if (from_agent === 'Reviewer' && isFailedRegressionCheck(data)) {
         await storeBuilderRegressionFailure(workspace_id, plan_id, data);
       }
 
@@ -725,11 +725,11 @@ function measurePayloadSize(
 }
 
 // =============================================================================
-// Builder Regression Failure Storage
+// Reviewer Regression Failure Storage
 // =============================================================================
 
 /**
- * Check if handoff data represents a failed Builder regression check.
+ * Check if handoff data represents a failed Reviewer regression check.
  */
 function isFailedRegressionCheck(data: Record<string, unknown>): boolean {
   return (
@@ -739,7 +739,7 @@ function isFailedRegressionCheck(data: Record<string, unknown>): boolean {
 }
 
 /**
- * Store failed Builder regression results as high-priority context.
+ * Store failed Reviewer regression results as high-priority context.
  * 
  * This context is stored under the 'builder_regression_failure' type and includes:
  * - The failing step index (from regression_report.suspected_step)

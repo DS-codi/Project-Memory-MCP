@@ -18,6 +18,7 @@ import { promptsRouter } from './routes/prompts.js';
 import { instructionsRouter } from './routes/instructions.js';
 import { deployRouter } from './routes/deploy.js';
 import { knowledgeRouter } from './routes/knowledge.js';
+import { programsRouter } from './routes/programs.js';
 import { setupFileWatcher } from './services/fileWatcher.js';
 import { getDataRoot } from './storage/workspace-utils.js';
 import * as fs from 'fs';
@@ -74,6 +75,7 @@ app.use('/api/metrics', metricsRouter);
 app.use('/api/prompts', promptsRouter);
 app.use('/api/instructions', instructionsRouter);
 app.use('/api/deploy', deployRouter);
+app.use('/api/programs', programsRouter);
 app.use('/api/workspaces/:id/knowledge', knowledgeRouter);
 
 // Health check — enhanced with uptime, WebSocket clients, memory, last error

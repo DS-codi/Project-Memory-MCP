@@ -1,5 +1,6 @@
 ---
-applyTo: "**/pyside6/**,**/qt/**,**/*.ui,**/*pyside6*.*"
+name: pyside6-mvc
+description: "Use this skill when building Python desktop applications using PySide6 with strict MVC architecture where all UI is defined by .ui files. Covers architecture patterns, controller/model/view separation, signal handling, and .ui file workflows."
 ---
 
 # PySide6 MVC Architecture Instructions

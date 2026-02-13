@@ -1,5 +1,5 @@
 /**
- * Tool Provider - Registers all 6 language model tools for Copilot Chat
+ * Tool Provider - Registers all 7 language model tools for Copilot Chat
  *
  * Delegates to individual tool handlers in ./tools/:
  *   1. memory_workspace             - Workspace management
@@ -8,6 +8,7 @@
  *   4. memory_steps                 - Step management
  *   5. memory_context               - Context, notes, research, briefings
  *   6. memory_terminal_interactive  - Interactive VS Code terminals
+ *   7. memory_spawn_agent           - Spawn subagents with plan-aware orchestration
  *
  * @see ./tools/ for individual handler implementations
  */
@@ -21,11 +22,12 @@ import {
     handleStepsTool,
     handleContextTool,
     handleInteractiveTerminalTool,
+    handleSpawnAgentTool,
     type ToolContext
 } from './tools';
 
 /**
- * Tool Provider class that registers all 5 consolidated Language Model Tools
+ * Tool Provider class that registers all 7 consolidated Language Model Tools
  */
 export class ToolProvider implements vscode.Disposable {
     private mcpBridge: McpBridge;
@@ -90,6 +92,13 @@ export class ToolProvider implements vscode.Disposable {
         this.disposables.push(
             vscode.lm.registerTool('memory_terminal_interactive', {
                 invoke: (options, token) => handleInteractiveTerminalTool(options as never, token, this.ctx)
+            })
+        );
+
+        // 7. memory_spawn_agent
+        this.disposables.push(
+            vscode.lm.registerTool('memory_spawn_agent', {
+                invoke: (options, token) => handleSpawnAgentTool(options as never, token, this.ctx)
             })
         );
     }

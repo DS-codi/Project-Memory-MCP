@@ -2,7 +2,7 @@
 
 ## Overview
 
-Build scripts are reusable command definitions that agents (primarily the Builder) can store, resolve, and execute. They enable repeatable build verification across plan phases and workspace sessions.
+Build scripts are reusable command definitions that agents (primarily the Reviewer in build-check mode) can store, resolve, and execute. They enable repeatable build verification across plan phases and workspace sessions.
 
 ## BuildScript Interface
 

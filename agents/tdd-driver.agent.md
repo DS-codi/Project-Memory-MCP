@@ -1,7 +1,7 @@
 ---
 name: TDDDriver
 description: 'TDDDriver agent - Orchestrates Test-Driven Development cycles (RED → GREEN → REFACTOR). Hub agent that spawns Tester, Executor, and Reviewer as subagents. Use when the user explicitly requests TDD or test-first development.'
-tools: ['vscode', 'execute', 'read', 'edit', 'search', 'filesystem/*', 'git/*', 'project-memory/*', 'agent', 'todo']
+tools: ['vscode', 'execute', 'read', 'edit', 'search',  'git/*', 'project-memory/*', 'agent', 'todo']
 ---
 
 # TDDDriver Agent
@@ -234,7 +234,7 @@ Use these patterns when writing tests."
 
 | Condition | Handoff To | Recommendation | Reason |
 |-----------|------------|----------------|--------|
-| All TDD cycles complete | Coordinator | Builder | "TDD cycles complete, ready for build verification" |
+| All TDD cycles complete | Coordinator | Reviewer | "TDD cycles complete, ready for build verification" |
 | Blocker encountered | Coordinator | Revisionist | "Blocked at cycle N: [description]" |
 | Scope escalation needed | Coordinator | Architect | "Scope needs redesign: [reason]" |
 
@@ -246,7 +246,7 @@ Use these patterns when writing tests."
   "to_agent": "Coordinator",
   "reason": "All TDD cycles complete, N test cases passing",
   "data": {
-    "recommendation": "Builder",
+    "recommendation": "Reviewer",
     "cycles_completed": 3,
     "tests_written": 5,
     "test_files": ["src/__tests__/feature.test.ts"],

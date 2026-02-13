@@ -1,5 +1,6 @@
 ---
-applyTo: "**/components/**,**/src/components/**"
+name: react-components
+description: "Use this skill when developing React components. Covers functional component patterns, hooks, naming conventions, state management with Zustand and TanStack Query, and TypeScript best practices."
 ---
 
 # Component Development Guidelines
