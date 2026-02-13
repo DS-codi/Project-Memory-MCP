@@ -53,7 +53,7 @@
           },
           {
             "name": "deploy",
-            "description": "Deploy agents, prompts, or instructions to a workspace"
+            "description": "Deploy agents, skills, or instructions to a workspace"
           },
           {
             "name": "diagnostics",
@@ -70,8 +70,8 @@
       {
         "name": "memory_workspace",
         "displayName": "Project Memory Workspace",
-        "description": "Manage workspaces - register, list, get info, or reindex",
-        "modelDescription": "Manage Project Memory workspaces. Actions: 'register' to register a workspace (optional workspacePath), 'list' to list all workspaces, 'info' to get workspace details (optional workspaceId), 'reindex' to refresh the codebase profile (optional workspaceId).",
+        "description": "Manage workspaces - register, list, get info, reindex, or link/unlink hierarchy",
+        "modelDescription": "Manage Project Memory workspaces. Actions: 'register' to register a workspace (optional workspacePath), 'list' to list all workspaces (optional hierarchical=true for nested view), 'info' to get workspace details (optional workspaceId), 'reindex' to refresh the codebase profile (optional workspaceId), 'link' to link/unlink parent-child workspace hierarchy (requires workspaceId as parent, childWorkspaceId, optional mode='link'|'unlink').",
         "parametersSchema": {
           "type": "object",
           "properties": {
@@ -81,7 +81,8 @@
                 "register",
                 "list",
                 "info",
-                "reindex"
+                "reindex",
+                "link"
               ],
               "description": "The action to perform"
             },
@@ -89,9 +90,26 @@
               "type": "string",
               "description": "Workspace path (for register)"
             },
+            "force": {
+              "type": "boolean",
+              "description": "Force registration even if directory overlaps with existing workspace (for register)"
+            },
             "workspaceId": {
               "type": "string",
-              "description": "Workspace ID (for info/reindex)"
+              "description": "Workspace ID (for info/reindex/link)"
+            },
+            "childWorkspaceId": {
+              "type": "string",
+              "description": "Child workspace ID (for link action)"
+            },
+            "mode": {
+              "type": "string",
+              "enum": ["link", "unlink"],
+              "description": "Link or unlink mode (for link action, defaults to link)"
+            },
+            "hierarchical": {
+              "type": "boolean",
+              "description": "When true, group child workspaces under parents in list results (for list action)"
             }
           },
           "required": [
@@ -155,10 +173,6 @@
             "workspace_path": {
               "type": "string",
               "description": "Workspace path (for deploy)"
-            },
-            "include_prompts": {
-              "type": "boolean",
-              "description": "Include prompts in deployment"
             },
             "include_instructions": {
               "type": "boolean",
@@ -711,6 +725,48 @@
           "required": ["action", "workspace_id"]
         },
         "canBeInvokedManually": true
+      },
+      {
+        "name": "memory_terminal_interactive",
+        "displayName": "Project Memory Interactive Terminal",
+        "description": "Create and manage real VS Code integrated terminals with safety guardrails",
+        "modelDescription": "Create and manage real VS Code integrated terminals that the user can see and interact with. Unlike memory_terminal (headless server-side), this creates visible terminals. Actions: 'create' to open a new terminal (optional name, cwd, env), 'send' to send a command to a terminal (requires terminal_id, command; checks against destructive command blocklist), 'close' to dispose a terminal (requires terminal_id), 'list' to show all tracked terminals.",
+        "parametersSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": ["create", "send", "close", "list"],
+              "description": "The action to perform"
+            },
+            "terminal_id": {
+              "type": "string",
+              "description": "Terminal identifier (for send, close)"
+            },
+            "name": {
+              "type": "string",
+              "description": "Terminal display name (for create)"
+            },
+            "cwd": {
+              "type": "string",
+              "description": "Working directory for the terminal (for create)"
+            },
+            "env": {
+              "type": "object",
+              "description": "Environment variables to set (for create)"
+            },
+            "command": {
+              "type": "string",
+              "description": "Command text to send (for send)"
+            },
+            "workspace_id": {
+              "type": "string",
+              "description": "Workspace ID for allowlist lookups (for send)"
+            }
+          },
+          "required": ["action"]
+        },
+        "canBeInvokedManually": true
       }
     ],
     "commands": [
@@ -740,8 +796,18 @@
         "category": "Project Memory"
       },
       {
-        "command": "projectMemory.deployPrompts",
-        "title": "Deploy Prompts to Workspace",
+        "command": "projectMemory.deploySkills",
+        "title": "Deploy Skills to Workspace",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.listSkills",
+        "title": "List Skills",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.deploySkill",
+        "title": "Deploy Skill to Workspace",
         "category": "Project Memory"
       },
       {
@@ -750,8 +816,13 @@
         "category": "Project Memory"
       },
       {
+        "command": "projectMemory.listInstructions",
+        "title": "List Instructions",
+        "category": "Project Memory"
+      },
+      {
         "command": "projectMemory.deployCopilotConfig",
-        "title": "Deploy All Copilot Config (Agents, Prompts, Instructions)",
+        "title": "Deploy All Copilot Config (Agents, Skills, Instructions)",
         "category": "Project Memory"
       },
       {
@@ -914,10 +985,10 @@
           "minimum": 0,
           "description": "Shut down the dashboard server after this many minutes of idle time (no WebSocket clients connected). Set to 0 to disable idle shutdown."
         },
-        "projectMemory.promptsRoot": {
+        "projectMemory.skillsRoot": {
           "type": "string",
           "default": "",
-          "description": "Path to the prompt templates directory (MBS_PROMPTS_ROOT)",
+          "description": "Path to the skills directory containing skill subdirectories with SKILL.md files",
           "scope": "application"
         },
         "projectMemory.instructionsRoot": {
@@ -950,15 +1021,10 @@
           ],
           "description": "List of instruction files to auto-deploy to new workspaces"
         },
-        "projectMemory.defaultPrompts": {
+        "projectMemory.defaultSkills": {
           "type": "array",
-          "default": [
-            "new-feature",
-            "fix-bug",
-            "refactor",
-            "document"
-          ],
-          "description": "List of prompt files to pre-select when deploying prompts"
+          "default": [],
+          "description": "List of skill directory names to pre-select when deploying skills"
         },
         "projectMemory.autoDeployOnWorkspaceOpen": {
           "type": "boolean",

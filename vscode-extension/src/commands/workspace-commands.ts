@@ -9,7 +9,7 @@ import { ServerManager } from '../server/ServerManager';
 import { DashboardViewProvider } from '../providers/DashboardViewProvider';
 import { McpBridge } from '../chat';
 import { notify } from '../utils/helpers';
-import { getDefaultAgentsRoot, getDefaultInstructionsRoot, getDefaultPromptsRoot } from '../utils/defaults';
+import { getDefaultAgentsRoot, getDefaultInstructionsRoot, getDefaultSkillsRoot } from '../utils/defaults';
 
 export function registerWorkspaceCommands(
     context: vscode.ExtensionContext,
@@ -111,12 +111,12 @@ export function registerWorkspaceCommands(
             const config = vscode.workspace.getConfiguration('projectMemory');
             const agentsRoot = config.get<string>('agentsRoot') || getDefaultAgentsRoot();
             const instructionsRoot = config.get<string>('instructionsRoot') || getDefaultInstructionsRoot();
-            const promptsRoot = config.get<string>('promptsRoot') || getDefaultPromptsRoot();
+            const skillsRoot = config.get<string>('skillsRoot') || getDefaultSkillsRoot();
 
             const choice = await vscode.window.showQuickPick([
                 { label: '$(person) Configure Default Agents', description: 'Select which agents to deploy by default', value: 'agents' },
                 { label: '$(book) Configure Default Instructions', description: 'Select which instructions to deploy by default', value: 'instructions' },
-                { label: '$(file) Configure Default Prompts', description: 'Select which prompts to deploy by default', value: 'prompts' },
+                { label: '$(star) Configure Default Skills', description: 'Select which skills to deploy by default', value: 'skills' },
                 { label: '$(gear) Open All Settings', description: 'Open VS Code settings for Project Memory', value: 'settings' }
             ], {
                 placeHolder: 'What would you like to configure?'
@@ -185,31 +185,33 @@ export function registerWorkspaceCommands(
                 }
             }
 
-            if (choice.value === 'prompts' && promptsRoot) {
+            if (choice.value === 'skills' && skillsRoot) {
                 try {
-                    const allPromptFiles = fs.readdirSync(promptsRoot)
-                        .filter((f: string) => f.endsWith('.prompt.md'))
-                        .map((f: string) => f.replace('.prompt.md', ''));
+                    const allSkillDirs = fs.readdirSync(skillsRoot)
+                        .filter((f: string) => {
+                            const skillPath = path.join(skillsRoot, f, 'SKILL.md');
+                            return fs.existsSync(skillPath);
+                        });
 
-                    const currentDefaults = config.get<string[]>('defaultPrompts') || [];
+                    const currentDefaults = config.get<string[]>('defaultSkills') || [];
 
-                    const items: vscode.QuickPickItem[] = allPromptFiles.map((name: string) => ({
+                    const items: vscode.QuickPickItem[] = allSkillDirs.map((name: string) => ({
                         label: name,
                         picked: currentDefaults.length === 0 || currentDefaults.includes(name)
                     }));
 
                     const selected = await vscode.window.showQuickPick(items, {
                         canPickMany: true,
-                        placeHolder: 'Select default prompts (these will be pre-selected when deploying)',
-                        title: 'Configure Default Prompts'
+                        placeHolder: 'Select default skills (these will be pre-selected when deploying)',
+                        title: 'Configure Default Skills'
                     });
 
                     if (selected) {
-                        await config.update('defaultPrompts', selected.map(s => s.label), vscode.ConfigurationTarget.Global);
-                        notify(`Updated default prompts (${selected.length} selected)`);
+                        await config.update('defaultSkills', selected.map(s => s.label), vscode.ConfigurationTarget.Global);
+                        notify(`Updated default skills (${selected.length} selected)`);
                     }
                 } catch (error) {
-                    vscode.window.showErrorMessage(`Failed to read prompts: ${error}`);
+                    vscode.window.showErrorMessage(`Failed to read skills: ${error}`);
                 }
             }
         }),

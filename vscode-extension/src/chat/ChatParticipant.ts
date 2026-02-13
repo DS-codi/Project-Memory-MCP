@@ -1,50 +1,30 @@
 /**
  * Chat Participant - Provides @memory chat participant for Copilot Chat
- * 
+ *
  * Enables conversational access to Project Memory features through
- * slash commands like /plan, /context, /handoff, and /status
+ * slash commands like /plan, /context, /handoff, /status, /deploy,
+ * /diagnostics, and /knowledge.
+ *
+ * Command implementations are split into focused modules:
+ * - {@link ChatPlanCommands}     — /plan
+ * - {@link ChatContextCommands}  — /context
+ * - {@link ChatMiscCommands}     — /handoff, /status, /deploy, /diagnostics, default
+ * - {@link KnowledgeCommandHandler} — /knowledge
  */
 
 import * as vscode from 'vscode';
 import { McpBridge } from './McpBridge';
 import { resolveWorkspaceIdentity } from '../utils/workspace-identity';
 import { handleKnowledgeCommand } from './KnowledgeCommandHandler';
-
-/**
- * Plan state returned from MCP server
- */
-interface PlanState {
-    plan_id?: string;
-    id?: string;
-    title: string;
-    description?: string;
-    category?: string;
-    priority?: string;
-    status?: string;
-    steps?: Array<{
-        phase: string;
-        task: string;
-        status: string;
-    }>;
-    lineage?: Array<{
-        agent_type: string;
-        started_at: string;
-        summary?: string;
-    }>;
-}
-
-/**
- * Workspace info returned from MCP server
- */
-interface WorkspaceInfo {
-    workspace_id: string;
-    workspace_path: string;
-    codebase_profile?: {
-        languages?: string[];
-        frameworks?: string[];
-        file_count?: number;
-    };
-}
+import { handlePlanCommand } from './ChatPlanCommands';
+import { handleContextCommand } from './ChatContextCommands';
+import {
+    handleHandoffCommand,
+    handleStatusCommand,
+    handleDeployCommand,
+    handleDiagnosticsCommand,
+    handleDefaultCommand,
+} from './ChatMiscCommands';
 
 /**
  * Chat Participant class for @memory
@@ -72,11 +52,11 @@ export class ChatParticipant implements vscode.Disposable {
     }
 
     /**
-     * Handle chat requests
+     * Handle chat requests — routes to the appropriate command module.
      */
     private async handleRequest(
         request: vscode.ChatRequest,
-        context: vscode.ChatContext,
+        _context: vscode.ChatContext,
         response: vscode.ChatResponseStream,
         token: vscode.CancellationToken
     ): Promise<vscode.ChatResult> {
@@ -93,21 +73,21 @@ export class ChatParticipant implements vscode.Disposable {
             // Route to appropriate command handler
             switch (request.command) {
                 case 'plan':
-                    return await this.handlePlanCommand(request, response, token);
+                    return await handlePlanCommand(request, response, token, this.mcpBridge, this.workspaceId);
                 case 'context':
-                    return await this.handleContextCommand(request, response, token);
+                    return await handleContextCommand(request, response, token, this.mcpBridge, this.workspaceId);
                 case 'handoff':
-                    return await this.handleHandoffCommand(request, response, token);
+                    return await handleHandoffCommand(request, response, token, this.mcpBridge, this.workspaceId);
                 case 'status':
-                    return await this.handleStatusCommand(request, response, token);
+                    return await handleStatusCommand(request, response, token, this.mcpBridge, this.workspaceId);
                 case 'deploy':
-                    return await this.handleDeployCommand(request, response, token);
+                    return await handleDeployCommand(request, response, token);
                 case 'diagnostics':
-                    return await this.handleDiagnosticsCommand(request, response, token);
+                    return await handleDiagnosticsCommand(request, response, token, this.mcpBridge);
                 case 'knowledge':
                     return await handleKnowledgeCommand(request, response, token, this.mcpBridge, this.workspaceId);
                 default:
-                    return await this.handleDefaultCommand(request, response, token);
+                    return await handleDefaultCommand(request, response, token, this.mcpBridge, this.workspaceId);
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -164,662 +144,12 @@ export class ChatParticipant implements vscode.Disposable {
     }
 
     /**
-     * Handle /plan command - view, create, or manage plans
-     */
-    private async handlePlanCommand(
-        request: vscode.ChatRequest,
-        response: vscode.ChatResponseStream,
-        token: vscode.CancellationToken
-    ): Promise<vscode.ChatResult> {
-        const prompt = request.prompt.trim();
-
-        if (!prompt || prompt === 'list') {
-            // List all plans
-            return await this.listPlans(response);
-        }
-
-        if (prompt.startsWith('create ')) {
-            // Create a new plan
-            return await this.createPlan(prompt.substring(7), response);
-        }
-
-        if (prompt.startsWith('show ')) {
-            // Show specific plan
-            const planId = prompt.substring(5).trim();
-            return await this.showPlan(planId, response);
-        }
-
-        // Default: try to interpret as plan ID or create based on description
-        response.markdown('📋 **Plan Commands**\n\n');
-        response.markdown('- `/plan list` - List all plans in this workspace\n');
-        response.markdown('- `/plan create <title>` - Create a new plan\n');
-        response.markdown('- `/plan show <plan-id>` - Show plan details\n');
-        response.markdown('\nOr just describe what you want to do and I\'ll help create a plan.');
-
-        return { metadata: { command: 'plan' } };
-    }
-
-    /**
-     * List all plans in the workspace
-     */
-    private async listPlans(response: vscode.ChatResponseStream): Promise<vscode.ChatResult> {
-        if (!this.workspaceId) {
-            response.markdown('⚠️ Workspace not registered.');
-            return { metadata: { command: 'plan' } };
-        }
-
-        response.progress('Fetching plans...');
-
-        const result = await this.mcpBridge.callTool<{
-            active_plans: Array<{
-                plan_id?: string;
-                id?: string;
-                title: string;
-                status?: string;
-                category?: string;
-            }>;
-        }>('memory_plan', { action: 'list', workspace_id: this.workspaceId });
-
-        const plans = result.active_plans || [];
-
-        if (plans.length === 0) {
-            response.markdown('📋 **No plans found**\n\nUse `/plan create <title>` to create a new plan.');
-            return { metadata: { command: 'plan' } };
-        }
-
-        response.markdown(`📋 **Plans in this workspace** (${plans.length})\n\n`);
-        
-        for (const plan of plans) {
-            const statusEmoji = this.getStatusEmoji(plan.status);
-            const planId = plan.plan_id || plan.id || 'unknown';
-            response.markdown(`${statusEmoji} **${plan.title}** \`${planId}\`\n`);
-            if (plan.category) {
-                response.markdown(`   Category: ${plan.category}\n`);
-            }
-        }
-
-        return { metadata: { command: 'plan', plans: plans.length } };
-    }
-
-    /**
-     * Create a new plan
-     */
-    private async createPlan(description: string, response: vscode.ChatResponseStream): Promise<vscode.ChatResult> {
-        if (!this.workspaceId) {
-            response.markdown('⚠️ Workspace not registered.');
-            return { metadata: { command: 'plan' } };
-        }
-
-        response.markdown(`🔄 Creating plan: **${description}**...\n\n`);
-
-        const result = await this.mcpBridge.callTool<PlanState>(
-            'memory_plan',
-            {
-                action: 'create',
-                workspace_id: this.workspaceId,
-                title: description,
-                description: description,
-                category: 'feature' // Default category
-            }
-        );
-
-        const planId = result.plan_id || result.id || 'unknown';
-        response.markdown(`✅ **Plan created!**\n\n`);
-        response.markdown(`- **ID**: \`${planId}\`\n`);
-        response.markdown(`- **Title**: ${result.title}\n`);
-        response.markdown(`\nUse \`/plan show ${planId}\` to see details.`);
-
-        return { metadata: { command: 'plan', action: 'created', planId } };
-    }
-
-    /**
-     * Show details of a specific plan
-     */
-    private async showPlan(planId: string, response: vscode.ChatResponseStream): Promise<vscode.ChatResult> {
-        if (!this.workspaceId) {
-            response.markdown('⚠️ Workspace not registered.');
-            return { metadata: { command: 'plan' } };
-        }
-
-        const result = await this.mcpBridge.callTool<PlanState>(
-            'memory_plan',
-            {
-                action: 'get',
-                workspace_id: this.workspaceId,
-                plan_id: planId
-            }
-        );
-
-        const resolvedPlanId = result.plan_id || result.id || planId;
-        response.markdown(`# 📋 ${result.title}\n\n`);
-        response.markdown(`**ID**: \`${resolvedPlanId}\`\n`);
-        
-        if (result.category) {
-            response.markdown(`**Category**: ${result.category}\n`);
-        }
-        if (result.priority) {
-            response.markdown(`**Priority**: ${result.priority}\n`);
-        }
-        if (result.description) {
-            response.markdown(`\n${result.description}\n`);
-        }
-
-        // Show steps
-        if (result.steps && result.steps.length > 0) {
-            response.markdown('\n## Steps\n\n');
-            for (let i = 0; i < result.steps.length; i++) {
-                const step = result.steps[i];
-                const statusEmoji = this.getStepStatusEmoji(step.status);
-                response.markdown(`${statusEmoji} **${step.phase}**: ${step.task}\n`);
-            }
-        }
-
-        // Show lineage/history
-        if (result.lineage && result.lineage.length > 0) {
-            response.markdown('\n## Agent History\n\n');
-            for (const session of result.lineage) {
-                response.markdown(`- **${session.agent_type}** (${session.started_at})\n`);
-                if (session.summary) {
-                    response.markdown(`  ${session.summary}\n`);
-                }
-            }
-        }
-
-        return { metadata: { command: 'plan', action: 'show', planId } };
-    }
-
-    /**
-     * Handle /context command - get workspace context
-     *
-     * Subcommands:
-     *   /context           — Show workspace info, codebase profile, context sections, knowledge summary
-     *   /context set {key} {value} — Set a workspace context section summary
-     */
-    private async handleContextCommand(
-        request: vscode.ChatRequest,
-        response: vscode.ChatResponseStream,
-        token: vscode.CancellationToken
-    ): Promise<vscode.ChatResult> {
-        if (!this.workspaceId) {
-            response.markdown('⚠️ Workspace not registered.');
-            return { metadata: { command: 'context' } };
-        }
-
-        // Check for /context set subcommand
-        const prompt = request.prompt.trim();
-        if (prompt.toLowerCase().startsWith('set ')) {
-            return await this.handleContextSetSubcommand(prompt.slice(4).trim(), response);
-        }
-
-        response.markdown('🔍 **Gathering workspace context...**\n\n');
-        response.progress('Querying workspace info...');
-
-        try {
-            const result = await this.mcpBridge.callTool<WorkspaceInfo>(
-                'memory_workspace',
-                { action: 'info', workspace_id: this.workspaceId }
-            );
-
-            response.markdown(`## Workspace Information\n\n`);
-            response.markdown(`**ID**: \`${result.workspace_id}\`\n`);
-            response.markdown(`**Path**: \`${result.workspace_path}\`\n`);
-
-            if (result.codebase_profile) {
-                const profile = result.codebase_profile;
-                response.markdown('\n## Codebase Profile\n\n');
-                
-                if (profile.languages && profile.languages.length > 0) {
-                    response.markdown(`**Languages**: ${profile.languages.join(', ')}\n`);
-                }
-                if (profile.frameworks && profile.frameworks.length > 0) {
-                    response.markdown(`**Frameworks**: ${profile.frameworks.join(', ')}\n`);
-                }
-                if (profile.file_count) {
-                    response.markdown(`**Files**: ${profile.file_count}\n`);
-                }
-            }
-        } catch (error) {
-            response.markdown(`⚠️ Could not retrieve full context. Basic workspace info:\n\n`);
-            response.markdown(`**Workspace ID**: \`${this.workspaceId}\`\n`);
-        }
-
-        // Fetch workspace context sections
-        try {
-            response.progress('Fetching workspace context...');
-
-            interface WorkspaceContextResponse {
-                sections?: Record<string, {
-                    summary?: string;
-                    items?: Array<{ title: string; description?: string; links?: string[] }>;
-                }>;
-                updated_at?: string;
-            }
-
-            const contextResult = await this.mcpBridge.callTool<WorkspaceContextResponse>(
-                'memory_context',
-                { action: 'workspace_get', workspace_id: this.workspaceId }
-            );
-
-            const sections = contextResult?.sections;
-            if (sections && Object.keys(sections).length > 0) {
-                const SECTION_LABELS: Record<string, string> = {
-                    project_details: 'Project Details',
-                    purpose: 'Purpose',
-                    dependencies: 'Dependencies',
-                    modules: 'Modules',
-                    test_confirmations: 'Test Confirmations',
-                    dev_patterns: 'Dev Patterns',
-                    resources: 'Resources',
-                };
-
-                const formatLabel = (key: string): string => {
-                    if (SECTION_LABELS[key]) { return SECTION_LABELS[key]; }
-                    return key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-                };
-
-                response.markdown('\n## Workspace Context\n\n');
-
-                if (contextResult.updated_at) {
-                    response.markdown(`*Last updated: ${new Date(contextResult.updated_at).toLocaleString()}*\n\n`);
-                }
-
-                for (const [key, section] of Object.entries(sections)) {
-                    const itemCount = section.items?.length ?? 0;
-                    const hasSummary = !!section.summary?.trim();
-
-                    if (!hasSummary && itemCount === 0) { continue; }
-
-                    response.markdown(`### ${formatLabel(key)}\n\n`);
-
-                    if (hasSummary) {
-                        response.markdown(`${section.summary}\n\n`);
-                    }
-
-                    if (itemCount > 0) {
-                        response.markdown(`*${itemCount} item${itemCount > 1 ? 's' : ''}*\n\n`);
-                    }
-                }
-            } else {
-                response.markdown('\n*No workspace context sections configured yet.*\n');
-            }
-        } catch {
-            // Non-fatal: workspace context may not exist yet
-        }
-
-        // Fetch knowledge files summary
-        try {
-            response.progress('Fetching knowledge files...');
-
-            interface KnowledgeFileMeta {
-                slug: string;
-                title: string;
-                category: string;
-                updated_at?: string;
-            }
-
-            const knowledgeResult = await this.mcpBridge.callTool<{ files: KnowledgeFileMeta[] }>(
-                'memory_context',
-                { action: 'knowledge_list', workspace_id: this.workspaceId }
-            );
-
-            const files = knowledgeResult?.files ?? [];
-            if (files.length > 0) {
-                response.markdown('\n## Knowledge Files\n\n');
-                response.markdown(`**${files.length}** file${files.length > 1 ? 's' : ''} available:\n\n`);
-
-                for (const f of files) {
-                    response.markdown(`- **${f.title}** (${f.category}) — \`${f.slug}\`\n`);
-                }
-
-                response.markdown('\nUse `/knowledge show {slug}` to view details.\n');
-            }
-        } catch {
-            // Non-fatal: knowledge files may not exist yet
-        }
-
-        return { metadata: { command: 'context' } };
-    }
-
-    /**
-     * Handle /context set {section_key} {content}
-     */
-    private async handleContextSetSubcommand(
-        args: string,
-        response: vscode.ChatResponseStream,
-    ): Promise<vscode.ChatResult> {
-        if (!this.workspaceId) {
-            response.markdown('⚠️ Workspace not registered.');
-            return { metadata: { command: 'context', action: 'set' } };
-        }
-
-        // Parse: first word is section key, rest is content
-        const spaceIdx = args.indexOf(' ');
-        if (spaceIdx === -1 || !args.trim()) {
-            response.markdown('⚠️ Usage: `/context set {section_key} {content}`\n\n');
-            response.markdown('Example: `/context set project_details This is a TypeScript MCP server…`\n\n');
-            response.markdown('**Available section keys**: `project_details`, `purpose`, `dependencies`, `modules`, `test_confirmations`, `dev_patterns`, `resources`, or any custom key.\n');
-            return { metadata: { command: 'context', action: 'set' } };
-        }
-
-        const sectionKey = args.slice(0, spaceIdx).trim();
-        const content = args.slice(spaceIdx + 1).trim();
-
-        if (!content) {
-            response.markdown('⚠️ Please provide content after the section key.\n');
-            return { metadata: { command: 'context', action: 'set' } };
-        }
-
-        response.progress(`Setting ${sectionKey}…`);
-
-        try {
-            await this.mcpBridge.callTool(
-                'memory_context',
-                {
-                    action: 'workspace_update',
-                    workspace_id: this.workspaceId,
-                    type: sectionKey,
-                    data: { summary: content },
-                }
-            );
-
-            const formatLabel = (key: string): string => {
-                const LABELS: Record<string, string> = {
-                    project_details: 'Project Details',
-                    purpose: 'Purpose',
-                    dependencies: 'Dependencies',
-                    modules: 'Modules',
-                    test_confirmations: 'Test Confirmations',
-                    dev_patterns: 'Dev Patterns',
-                    resources: 'Resources',
-                };
-                return LABELS[key] ?? key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-            };
-
-            response.markdown(`✅ **${formatLabel(sectionKey)}** updated.\n\n`);
-            response.markdown(`> ${content.length > 200 ? content.slice(0, 200) + '…' : content}\n`);
-        } catch (error) {
-            const msg = error instanceof Error ? error.message : String(error);
-            response.markdown(`⚠️ Failed to update context section: ${msg}\n`);
-        }
-
-        return { metadata: { command: 'context', action: 'set', sectionKey } };
-    }
-
-    /**
-     * Handle /handoff command - execute agent handoffs
-     */
-    private async handleHandoffCommand(
-        request: vscode.ChatRequest,
-        response: vscode.ChatResponseStream,
-        token: vscode.CancellationToken
-    ): Promise<vscode.ChatResult> {
-        const prompt = request.prompt.trim();
-        
-        if (!prompt) {
-            response.markdown('🤝 **Handoff Command**\n\n');
-            response.markdown('Usage: `/handoff <agent-type> <plan-id> [summary]`\n\n');
-            response.markdown('**Available agents:**\n');
-            response.markdown('- `Coordinator` - Orchestrates the workflow\n');
-            response.markdown('- `Researcher` - Gathers external information\n');
-            response.markdown('- `Architect` - Creates implementation plans\n');
-            response.markdown('- `Executor` - Implements the plan\n');
-            response.markdown('- `Reviewer` - Validates completed work\n');
-            response.markdown('- `Tester` - Writes and runs tests\n');
-            response.markdown('- `Archivist` - Finalizes and archives\n');
-            response.markdown('- `Analyst` - Deep investigation and analysis\n');
-            response.markdown('- `Brainstorm` - Explore and refine ideas\n');
-            response.markdown('- `Runner` - Quick tasks and exploration\n');
-            response.markdown('- `Builder` - Build verification and diagnostics\n');
-            return { metadata: { command: 'handoff' } };
-        }
-
-        const parts = prompt.split(' ');
-        if (parts.length < 2) {
-            response.markdown('⚠️ Please provide both agent type and plan ID.\n');
-            response.markdown('Example: `/handoff Executor plan_abc123`');
-            return { metadata: { command: 'handoff' } };
-        }
-
-        const targetAgent = parts[0];
-        const planId = parts[1];
-        const summary = parts.slice(2).join(' ') || 'Handoff from chat';
-
-        if (!this.workspaceId) {
-            response.markdown('⚠️ Workspace not registered.');
-            return { metadata: { command: 'handoff' } };
-        }
-
-        response.markdown(`🔄 Initiating handoff to **${targetAgent}**...\n\n`);
-
-        try {
-            const result = await this.mcpBridge.callTool<{ warning?: string }>('memory_agent', {
-                action: 'handoff',
-                workspace_id: this.workspaceId,
-                plan_id: planId,
-                from_agent: 'User',
-                to_agent: targetAgent,
-                summary
-            });
-
-            response.markdown(`✅ **Handoff recorded!**\n\n`);
-            response.markdown(`Plan \`${planId}\` handoff to **${targetAgent}** has been recorded.\n`);
-            if (result?.warning) {
-                response.markdown(`\n⚠️ ${result.warning}\n`);
-            }
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            response.markdown(`❌ Handoff failed: ${errorMessage}`);
-        }
-
-        return { metadata: { command: 'handoff', targetAgent, planId } };
-    }
-
-    /**
-     * Handle /status command - show current plan progress
-     */
-    private async handleStatusCommand(
-        request: vscode.ChatRequest,
-        response: vscode.ChatResponseStream,
-        token: vscode.CancellationToken
-    ): Promise<vscode.ChatResult> {
-        if (!this.workspaceId) {
-            response.markdown('⚠️ Workspace not registered.');
-            return { metadata: { command: 'status' } };
-        }
-
-        response.markdown('📊 **Project Memory Status**\n\n');
-        response.progress('Checking MCP connection...');
-
-        // Check MCP connection
-        const connected = this.mcpBridge.isConnected();
-        response.markdown(`**MCP Server**: ${connected ? '🟢 Connected' : '🔴 Disconnected'}\n`);
-        response.markdown(`**Workspace ID**: \`${this.workspaceId}\`\n\n`);
-
-        // Get active plans
-        response.progress('Fetching plans...');
-        try {
-            const result = await this.mcpBridge.callTool<{
-                active_plans: Array<{
-                    plan_id?: string;
-                    id?: string;
-                    title: string;
-                    status?: string;
-                    done_steps?: number;
-                    total_steps?: number;
-                    progress?: { done?: number; total?: number };
-                }>;
-            }>('memory_plan', { action: 'list', workspace_id: this.workspaceId });
-
-            const plans = result.active_plans || [];
-            const activePlans = plans.filter(p => p.status !== 'archived');
-
-            response.markdown(`## Active Plans (${activePlans.length})\n\n`);
-
-            if (activePlans.length === 0) {
-                response.markdown('No active plans.\n');
-            } else {
-                for (const plan of activePlans) {
-                    const statusEmoji = this.getStatusEmoji(plan.status);
-                    const doneSteps = plan.done_steps ?? plan.progress?.done ?? 0;
-                    const totalSteps = plan.total_steps ?? plan.progress?.total ?? 0;
-                    const planId = plan.plan_id || plan.id;
-                    
-                    response.markdown(`${statusEmoji} **${plan.title}**${planId ? ` (\`${planId}\`)` : ''}\n`);
-                    if (totalSteps > 0) {
-                        response.markdown(`   Progress: ${doneSteps}/${totalSteps} steps\n`);
-                    }
-                }
-            }
-        } catch (error) {
-            response.markdown('Could not retrieve plan status.\n');
-        }
-
-        return { metadata: { command: 'status' } };
-    }
-
-    /**
-     * Handle /deploy command — trigger deployment of agents, prompts, or instructions
-     */
-    private async handleDeployCommand(
-        request: vscode.ChatRequest,
-        response: vscode.ChatResponseStream,
-        _token: vscode.CancellationToken
-    ): Promise<vscode.ChatResult> {
-        const prompt = request.prompt.trim().toLowerCase();
-
-        if (!prompt) {
-            response.markdown('🚀 **Deploy Command**\n\n');
-            response.markdown('Usage: `/deploy <target>`\n\n');
-            response.markdown('**Targets:**\n');
-            response.markdown('- `agents` — Copy agent files to the open workspace\n');
-            response.markdown('- `prompts` — Copy prompt files to the open workspace\n');
-            response.markdown('- `instructions` — Copy instruction files to the open workspace\n');
-            response.markdown('- `all` — Deploy agents, prompts, and instructions\n');
-            return { metadata: { command: 'deploy' } };
-        }
-
-        const cmdMap: Record<string, string> = {
-            agents: 'projectMemory.deployAgents',
-            prompts: 'projectMemory.deployPrompts',
-            instructions: 'projectMemory.deployInstructions',
-            all: 'projectMemory.deployCopilotConfig'
-        };
-
-        const cmd = cmdMap[prompt];
-        if (!cmd) {
-            response.markdown(`⚠️ Unknown deploy target: **${prompt}**\n\nUse: agents, prompts, instructions, or all`);
-            return { metadata: { command: 'deploy' } };
-        }
-
-        response.markdown(`🚀 Running **deploy ${prompt}**...\n`);
-        try {
-            await vscode.commands.executeCommand(cmd);
-            response.markdown(`\n✅ Deploy ${prompt} command executed.`);
-        } catch (error) {
-            const msg = error instanceof Error ? error.message : String(error);
-            response.markdown(`\n❌ Deploy failed: ${msg}`);
-        }
-
-        return { metadata: { command: 'deploy', target: prompt } };
-    }
-
-    /**
-     * Handle /diagnostics command — run system diagnostics and show health report
-     */
-    private async handleDiagnosticsCommand(
-        _request: vscode.ChatRequest,
-        response: vscode.ChatResponseStream,
-        _token: vscode.CancellationToken
-    ): Promise<vscode.ChatResult> {
-        response.markdown('🔍 **Running diagnostics...**\n\n');
-
-        try {
-            // Execute the existing diagnostics command which writes to an output channel
-            await vscode.commands.executeCommand('projectMemory.showDiagnostics');
-            response.markdown('✅ Diagnostics report written to the **Project Memory Diagnostics** output channel.\n\n');
-
-            // Also provide inline summary by probing the MCP server
-            if (this.mcpBridge.isConnected()) {
-                try {
-                    const start = Date.now();
-                    const wsResult = await this.mcpBridge.callTool<{
-                        workspaces?: unknown[];
-                    }>('memory_workspace', { action: 'list' });
-                    const probeMs = Date.now() - start;
-                    const wsCount = Array.isArray(wsResult.workspaces) ? wsResult.workspaces.length : 0;
-
-                    response.markdown('## Quick Summary\n\n');
-                    response.markdown(`| Metric | Value |\n|--------|-------|\n`);
-                    response.markdown(`| MCP Connection | 🟢 Connected |\n`);
-                    response.markdown(`| MCP Response Time | ${probeMs}ms |\n`);
-                    response.markdown(`| Workspaces | ${wsCount} |\n`);
-                    response.markdown(`| Memory | ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1)} MB |\n`);
-                } catch {
-                    response.markdown('⚠️ Could not probe MCP server for summary.\n');
-                }
-            } else {
-                response.markdown('⚠️ MCP server is **not connected**. Some diagnostics may be incomplete.\n');
-            }
-        } catch (error) {
-            const msg = error instanceof Error ? error.message : String(error);
-            response.markdown(`❌ Diagnostics failed: ${msg}`);
-        }
-
-        return { metadata: { command: 'diagnostics' } };
-    }
-
-    /**
-     * Handle default (no command) requests
-     */
-    private async handleDefaultCommand(
-        request: vscode.ChatRequest,
-        response: vscode.ChatResponseStream,
-        token: vscode.CancellationToken
-    ): Promise<vscode.ChatResult> {
-        const prompt = request.prompt.trim();
-
-        if (!prompt) {
-            response.markdown('👋 **Welcome to Project Memory!**\n\n');
-            response.markdown('I can help you manage project plans and agent workflows.\n\n');
-            response.markdown('**Available commands:**\n');
-            response.markdown('- `/plan` - View, create, or manage plans\n');
-            response.markdown('- `/context` - Get workspace context and codebase profile\n');
-            response.markdown('- `/context set {key} {value}` - Set a context section\n');
-            response.markdown('- `/knowledge` - Manage workspace knowledge files\n');
-            response.markdown('- `/handoff` - Execute agent handoffs\n');
-            response.markdown('- `/status` - Show current plan progress\n');
-            response.markdown('- `/deploy` - Deploy agents, prompts, or instructions\n');
-            response.markdown('- `/diagnostics` - Run system health diagnostics\n');
-            response.markdown('\nOr just ask me about your project!');
-            return { metadata: { command: 'help' } };
-        }
-
-        // Try to intelligently route the request
-        if (prompt.toLowerCase().includes('plan') || prompt.toLowerCase().includes('create')) {
-            response.markdown(`I can help you with plans!\n\n`);
-            response.markdown(`Try using the \`/plan\` command:\n`);
-            response.markdown(`- \`/plan list\` to see existing plans\n`);
-            response.markdown(`- \`/plan create ${prompt}\` to create a new plan\n`);
-        } else if (prompt.toLowerCase().includes('status') || prompt.toLowerCase().includes('progress')) {
-            return await this.handleStatusCommand(request, response, token);
-        } else {
-            response.markdown(`I understand you want to: **${prompt}**\n\n`);
-            response.markdown(`Here's what I can help with:\n`);
-            response.markdown(`- Use \`/plan create ${prompt}\` to create a plan for this\n`);
-            response.markdown(`- Use \`/status\` to check current progress\n`);
-            response.markdown(`- Use \`/context\` to get workspace information\n`);
-        }
-
-        return { metadata: { command: 'default' } };
-    }
-
-    /**
-     * Provide follow-up suggestions
+     * Provide follow-up suggestions based on the last command result.
      */
     private provideFollowups(
         result: vscode.ChatResult,
-        context: vscode.ChatContext,
-        token: vscode.CancellationToken
+        _context: vscode.ChatContext,
+        _token: vscode.CancellationToken
     ): vscode.ProviderResult<vscode.ChatFollowup[]> {
         const metadata = result.metadata as Record<string, unknown> | undefined;
         const command = metadata?.command;
@@ -871,31 +201,6 @@ export class ChatParticipant implements vscode.Disposable {
         }
 
         return followups;
-    }
-
-    /**
-     * Get emoji for plan status
-     */
-    private getStatusEmoji(status?: string): string {
-        switch (status) {
-            case 'active': return '🔵';
-            case 'completed': return '✅';
-            case 'archived': return '📦';
-            case 'blocked': return '🔴';
-            default: return '⚪';
-        }
-    }
-
-    /**
-     * Get emoji for step status
-     */
-    private getStepStatusEmoji(status?: string): string {
-        switch (status) {
-            case 'done': return '✅';
-            case 'active': return '🔄';
-            case 'blocked': return '🔴';
-            default: return '⬜';
-        }
     }
 
     /**

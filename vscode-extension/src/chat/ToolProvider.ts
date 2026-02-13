@@ -1,12 +1,13 @@
 /**
- * Tool Provider - Registers all 5 language model tools for Copilot Chat
+ * Tool Provider - Registers all 6 language model tools for Copilot Chat
  *
  * Delegates to individual tool handlers in ./tools/:
- *   1. memory_workspace - Workspace management
- *   2. memory_agent     - Agent lifecycle & handoffs
- *   3. memory_plan      - Plan operations
- *   4. memory_steps     - Step management
- *   5. memory_context   - Context, notes, research, briefings
+ *   1. memory_workspace             - Workspace management
+ *   2. memory_agent                 - Agent lifecycle & handoffs
+ *   3. memory_plan                  - Plan operations
+ *   4. memory_steps                 - Step management
+ *   5. memory_context               - Context, notes, research, briefings
+ *   6. memory_terminal_interactive  - Interactive VS Code terminals
  *
  * @see ./tools/ for individual handler implementations
  */
@@ -19,6 +20,7 @@ import {
     handlePlanTool,
     handleStepsTool,
     handleContextTool,
+    handleInteractiveTerminalTool,
     type ToolContext
 } from './tools';
 
@@ -81,6 +83,13 @@ export class ToolProvider implements vscode.Disposable {
         this.disposables.push(
             vscode.lm.registerTool('memory_context', {
                 invoke: (options, token) => handleContextTool(options as never, token, this.ctx)
+            })
+        );
+
+        // 6. memory_terminal_interactive
+        this.disposables.push(
+            vscode.lm.registerTool('memory_terminal_interactive', {
+                invoke: (options, token) => handleInteractiveTerminalTool(options as never, token, this.ctx)
             })
         );
     }

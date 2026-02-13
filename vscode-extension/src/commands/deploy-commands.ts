@@ -1,5 +1,5 @@
 /**
- * Deployment commands: deploy agents, prompts, instructions, copilot config, defaults.
+ * Deployment commands: deploy agents, skills, instructions, copilot config, defaults.
  */
 
 import * as vscode from 'vscode';
@@ -8,7 +8,7 @@ import * as fs from 'fs';
 import { DashboardViewProvider } from '../providers/DashboardViewProvider';
 import { DefaultDeployer } from '../deployer/DefaultDeployer';
 import { notify } from '../utils/helpers';
-import { getDefaultAgentsRoot, getDefaultInstructionsRoot, getDefaultPromptsRoot } from '../utils/defaults';
+import { getDefaultAgentsRoot, getDefaultInstructionsRoot, getDefaultSkillsRoot } from '../utils/defaults';
 
 export function registerDeployCommands(
     context: vscode.ExtensionContext,
@@ -116,7 +116,7 @@ export function registerDeployCommands(
             }
         }),
 
-        vscode.commands.registerCommand('projectMemory.deployPrompts', async () => {
+        vscode.commands.registerCommand('projectMemory.deploySkills', async () => {
             const workspaceFolders = vscode.workspace.workspaceFolders;
             if (!workspaceFolders) {
                 vscode.window.showErrorMessage('No workspace folder open');
@@ -124,61 +124,79 @@ export function registerDeployCommands(
             }
 
             const config = vscode.workspace.getConfiguration('projectMemory');
-            const promptsRoot = config.get<string>('promptsRoot') || getDefaultPromptsRoot();
-            const defaultPrompts = config.get<string[]>('defaultPrompts') || [];
+            const skillsRoot = config.get<string>('skillsRoot') || getDefaultSkillsRoot();
 
-            if (!promptsRoot) {
-                vscode.window.showErrorMessage('Prompts root not configured. Set projectMemory.promptsRoot in settings.');
+            if (!skillsRoot) {
+                vscode.window.showErrorMessage('Skills root not configured. Set projectMemory.skillsRoot in settings.');
                 return;
             }
 
             const workspacePath = workspaceFolders[0].uri.fsPath;
 
             try {
-                const allPromptFiles = fs.readdirSync(promptsRoot)
-                    .filter((f: string) => f.endsWith('.prompt.md'));
+                // Skills are subdirectories containing a SKILL.md file
+                const allSkillDirs = fs.readdirSync(skillsRoot)
+                    .filter((f: string) => {
+                        const skillPath = path.join(skillsRoot, f, 'SKILL.md');
+                        return fs.existsSync(skillPath);
+                    });
 
-                if (allPromptFiles.length === 0) {
-                    vscode.window.showWarningMessage('No prompt files found in prompts root');
+                if (allSkillDirs.length === 0) {
+                    vscode.window.showWarningMessage('No skill directories found in skills root');
                     return;
                 }
 
-                const items: vscode.QuickPickItem[] = allPromptFiles.map((f: string) => {
-                    const name = f.replace('.prompt.md', '');
+                const items: vscode.QuickPickItem[] = allSkillDirs.map((dirName: string) => {
+                    // Try to extract description from SKILL.md front matter
+                    let description = dirName;
+                    try {
+                        const skillContent = fs.readFileSync(path.join(skillsRoot, dirName, 'SKILL.md'), 'utf-8');
+                        const descMatch = skillContent.match(/^description:\s*(.+)$/m);
+                        if (descMatch) {
+                            description = descMatch[1].substring(0, 80);
+                        }
+                    } catch { /* ignore read errors */ }
                     return {
-                        label: name,
-                        description: f,
-                        picked: defaultPrompts.length === 0 || defaultPrompts.includes(name)
+                        label: dirName,
+                        description,
+                        picked: true
                     };
                 });
 
                 const selectedItems = await vscode.window.showQuickPick(items, {
                     canPickMany: true,
-                    placeHolder: 'Select prompts to deploy',
-                    title: 'Deploy Prompts'
+                    placeHolder: 'Select skills to deploy',
+                    title: 'Deploy Skills'
                 });
 
                 if (!selectedItems || selectedItems.length === 0) return;
 
-                const targetDir = path.join(workspacePath, '.github', 'prompts');
+                const targetDir = path.join(workspacePath, '.github', 'skills');
                 fs.mkdirSync(targetDir, { recursive: true });
 
                 let copiedCount = 0;
                 for (const item of selectedItems) {
-                    const file = `${item.label}.prompt.md`;
-                    const sourcePath = path.join(promptsRoot, file);
-                    const targetPath = path.join(targetDir, file);
-                    fs.copyFileSync(sourcePath, targetPath);
+                    const sourceDir = path.join(skillsRoot, item.label);
+                    const destDir = path.join(targetDir, item.label);
+                    fs.mkdirSync(destDir, { recursive: true });
+                    // Copy all files in the skill directory
+                    const files = fs.readdirSync(sourceDir);
+                    for (const file of files) {
+                        const srcFile = path.join(sourceDir, file);
+                        if (fs.statSync(srcFile).isFile()) {
+                            fs.copyFileSync(srcFile, path.join(destDir, file));
+                        }
+                    }
                     copiedCount++;
                 }
 
                 dashboardProvider.postMessage({
                     type: 'deploymentComplete',
-                    data: { type: 'prompts', count: copiedCount, targetDir }
+                    data: { type: 'skills', count: copiedCount, targetDir }
                 });
 
                 notify(
-                    `Deployed ${copiedCount} prompt(s) to ${path.relative(workspacePath, targetDir)}`,
+                    `Deployed ${copiedCount} skill(s) to ${path.relative(workspacePath, targetDir)}`,
                     'Open Folder'
                 ).then(selection => {
                     if (selection === 'Open Folder') {
@@ -186,7 +204,7 @@ export function registerDeployCommands(
                     }
                 });
             } catch (error) {
-                vscode.window.showErrorMessage(`Failed to deploy prompts: ${error}`);
+                vscode.window.showErrorMessage(`Failed to deploy skills: ${error}`);
             }
         }),
 
@@ -264,6 +282,169 @@ export function registerDeployCommands(
             }
         }),
 
+        vscode.commands.registerCommand('projectMemory.listSkills', async () => {
+            const config = vscode.workspace.getConfiguration('projectMemory');
+            const skillsRoot = config.get<string>('skillsRoot') || getDefaultSkillsRoot();
+
+            if (!skillsRoot || !fs.existsSync(skillsRoot)) {
+                vscode.window.showWarningMessage('Skills root not configured or does not exist. Set projectMemory.skillsRoot in settings.');
+                return;
+            }
+
+            try {
+                const skillDirs = fs.readdirSync(skillsRoot)
+                    .filter((f: string) => {
+                        const skillPath = path.join(skillsRoot, f, 'SKILL.md');
+                        return fs.existsSync(skillPath);
+                    });
+
+                if (skillDirs.length === 0) {
+                    vscode.window.showInformationMessage('No skills found in skills root.');
+                    return;
+                }
+
+                const items: vscode.QuickPickItem[] = skillDirs.map((dirName: string) => {
+                    let description = '';
+                    try {
+                        const content = fs.readFileSync(path.join(skillsRoot, dirName, 'SKILL.md'), 'utf-8');
+                        const descMatch = content.match(/^description:\s*(.+)$/m);
+                        if (descMatch) { description = descMatch[1].substring(0, 100); }
+                    } catch { /* ignore */ }
+                    return { label: dirName, description };
+                });
+
+                const selected = await vscode.window.showQuickPick(items, {
+                    placeHolder: 'Available skills (select to open)',
+                    title: 'Skills'
+                });
+
+                if (selected) {
+                    const skillFile = path.join(skillsRoot, selected.label, 'SKILL.md');
+                    if (fs.existsSync(skillFile)) {
+                        const doc = await vscode.workspace.openTextDocument(skillFile);
+                        await vscode.window.showTextDocument(doc);
+                    }
+                }
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to list skills: ${error}`);
+            }
+        }),
+
+        vscode.commands.registerCommand('projectMemory.deploySkill', async () => {
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (!workspaceFolders) {
+                vscode.window.showErrorMessage('No workspace folder open');
+                return;
+            }
+
+            const config = vscode.workspace.getConfiguration('projectMemory');
+            const skillsRoot = config.get<string>('skillsRoot') || getDefaultSkillsRoot();
+
+            if (!skillsRoot || !fs.existsSync(skillsRoot)) {
+                vscode.window.showErrorMessage('Skills root not configured. Set projectMemory.skillsRoot in settings.');
+                return;
+            }
+
+            try {
+                const skillDirs = fs.readdirSync(skillsRoot)
+                    .filter((f: string) => {
+                        const skillPath = path.join(skillsRoot, f, 'SKILL.md');
+                        return fs.existsSync(skillPath);
+                    });
+
+                if (skillDirs.length === 0) {
+                    vscode.window.showWarningMessage('No skill directories found in skills root');
+                    return;
+                }
+
+                const items: vscode.QuickPickItem[] = skillDirs.map((dirName: string) => {
+                    let description = '';
+                    try {
+                        const content = fs.readFileSync(path.join(skillsRoot, dirName, 'SKILL.md'), 'utf-8');
+                        const descMatch = content.match(/^description:\s*(.+)$/m);
+                        if (descMatch) { description = descMatch[1].substring(0, 80); }
+                    } catch { /* ignore */ }
+                    return { label: dirName, description };
+                });
+
+                const selected = await vscode.window.showQuickPick(items, {
+                    placeHolder: 'Select a skill to deploy',
+                    title: 'Deploy Skill'
+                });
+
+                if (!selected) return;
+
+                const workspacePath = workspaceFolders[0].uri.fsPath;
+                const sourceDir = path.join(skillsRoot, selected.label);
+                const targetDir = path.join(workspacePath, '.github', 'skills', selected.label);
+                fs.mkdirSync(targetDir, { recursive: true });
+
+                const files = fs.readdirSync(sourceDir);
+                for (const file of files) {
+                    const srcFile = path.join(sourceDir, file);
+                    if (fs.statSync(srcFile).isFile()) {
+                        fs.copyFileSync(srcFile, path.join(targetDir, file));
+                    }
+                }
+
+                dashboardProvider.postMessage({
+                    type: 'deploymentComplete',
+                    data: { type: 'skill', count: 1, targetDir }
+                });
+
+                notify(
+                    `Deployed skill "${selected.label}" to ${path.relative(workspacePath, targetDir)}`,
+                    'Open Folder'
+                ).then(selection => {
+                    if (selection === 'Open Folder') {
+                        vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(targetDir));
+                    }
+                });
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to deploy skill: ${error}`);
+            }
+        }),
+
+        vscode.commands.registerCommand('projectMemory.listInstructions', async () => {
+            const config = vscode.workspace.getConfiguration('projectMemory');
+            const instructionsRoot = config.get<string>('instructionsRoot') || getDefaultInstructionsRoot();
+
+            if (!instructionsRoot || !fs.existsSync(instructionsRoot)) {
+                vscode.window.showWarningMessage('Instructions root not configured or does not exist. Set projectMemory.instructionsRoot in settings.');
+                return;
+            }
+
+            try {
+                const instructionFiles = fs.readdirSync(instructionsRoot)
+                    .filter((f: string) => f.endsWith('.instructions.md'));
+
+                if (instructionFiles.length === 0) {
+                    vscode.window.showInformationMessage('No instruction files found.');
+                    return;
+                }
+
+                const items: vscode.QuickPickItem[] = instructionFiles.map((f: string) => {
+                    const name = f.replace('.instructions.md', '');
+                    return { label: name, description: f };
+                });
+
+                const selected = await vscode.window.showQuickPick(items, {
+                    placeHolder: 'Available instructions (select to open)',
+                    title: 'Instructions'
+                });
+
+                if (selected) {
+                    const filePath = path.join(instructionsRoot, `${selected.label}.instructions.md`);
+                    if (fs.existsSync(filePath)) {
+                        const doc = await vscode.workspace.openTextDocument(filePath);
+                        await vscode.window.showTextDocument(doc);
+                    }
+                }
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to list instructions: ${error}`);
+            }
+        }),
+
         vscode.commands.registerCommand('projectMemory.deployCopilotConfig', async () => {
             const workspaceFolders = vscode.workspace.workspaceFolders;
             if (!workspaceFolders) {
@@ -272,7 +453,7 @@ export function registerDeployCommands(
             }
 
             const confirm = await vscode.window.showQuickPick(['Yes', 'No'], {
-                placeHolder: 'Deploy all Copilot config (agents, prompts, instructions)?'
+                placeHolder: 'Deploy all Copilot config (agents, skills, instructions)?'
             });
 
             if (confirm === 'Yes') {
