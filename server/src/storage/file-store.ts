@@ -68,20 +68,14 @@ const WORKSPACE_SCHEMA_VERSION = '1.0.0';
  * Check whether a workspace path is genuinely accessible from this process.
  *
  * In container mode (Linux), Windows-style paths like `s:\\foo` or `C:\\Users\\...`
- * are not reachable, but `path.join` treats them as relative paths and
- * `fs.mkdir(recursive)` silently creates phantom directories inside the
- * container. This guard prevents those spurious writes.
+ * are not reachable directly, but may be available via workspace mounts.
+ * This guard prevents spurious writes to phantom directories while still
+ * allowing access to properly mounted workspace directories.
  */
 async function isWorkspaceAccessible(workspacePath: string): Promise<boolean> {
-  if (process.platform !== 'win32' && /^[a-zA-Z]:[\\\/]/.test(workspacePath)) {
-    return false;
-  }
-  try {
-    const stat = await fs.stat(workspacePath);
-    return stat.isDirectory();
-  } catch {
-    return false;
-  }
+  const { resolveAccessiblePath } = await import('./workspace-mounts.js');
+  const accessible = await resolveAccessiblePath(workspacePath);
+  return accessible !== null;
 }
 
 /**
@@ -611,17 +605,16 @@ export async function writeWorkspaceIdentityFile(
   const resolvedPath = safeResolvePath(workspacePath);
 
   // Guard: ensure workspace directory is genuinely reachable.
-  // In container mode, Windows host paths (e.g. s:\foo) are not accessible
-  // but path.join treats them as relative, and fs.mkdir silently creates
-  // phantom directories inside the container.
-  const accessible = await isWorkspaceAccessible(resolvedPath);
-  if (!accessible) {
+  // In container mode, try to resolve via workspace mounts first.
+  const { resolveAccessiblePath } = await import('./workspace-mounts.js');
+  const accessiblePath = await resolveAccessiblePath(resolvedPath);
+  if (!accessiblePath) {
     throw new Error(
       `Workspace path not accessible from this process (container mode?): ${resolvedPath}`
     );
   }
 
-  const identityPath = getIdentityPath(resolvedPath);
+  const identityPath = getIdentityPath(accessiblePath);
 
   const identity = await modifyJsonLocked<IdentityFile>(identityPath, (existing) => {
     const now = nowISO();

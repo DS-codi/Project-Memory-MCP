@@ -36,6 +36,63 @@ $ScriptRoot = $PSScriptRoot
 # Resolve workspace root (script is at repo root)
 $WorkspaceRoot = if ($ScriptRoot) { $ScriptRoot } else { Get-Location }
 
+# ---------------------------------------------------------------------------
+# Workspace Mount Discovery
+# ---------------------------------------------------------------------------
+
+function Get-WorkspaceMounts {
+    <#
+    .SYNOPSIS
+        Reads workspace-registry.json and generates volume mount args + env mapping
+        so the container can access registered workspace directories.
+    #>
+    $registryPath = Join-Path $WorkspaceRoot "data" "workspace-registry.json"
+    $volumeArgs = @()
+    $mountMap = @{}
+
+    if (-not (Test-Path $registryPath)) {
+        Write-Host "  No workspace registry found — skipping workspace mounts" -ForegroundColor DarkGray
+        return @{ VolumeArgs = $volumeArgs; MountMap = '{}' }
+    }
+
+    try {
+        $registry = Get-Content $registryPath -Raw | ConvertFrom-Json
+        $entries = $registry.entries.PSObject.Properties
+
+        foreach ($entry in $entries) {
+            $hostPath = $entry.Name    # normalised path, e.g. c:/users/user/project
+            $wsId     = $entry.Value   # workspace id
+
+            # Convert normalised registry path back to a native Windows path
+            $nativePath = $hostPath -replace '/', '\'
+            # Capitalise drive letter for display
+            if ($nativePath -match '^([a-z]):') {
+                $nativePath = $nativePath.Substring(0,1).ToUpper() + $nativePath.Substring(1)
+            }
+
+            if (-not (Test-Path $nativePath -PathType Container)) {
+                Write-Host "  Skip (not found): $nativePath" -ForegroundColor DarkGray
+                continue
+            }
+
+            $containerMount = "/workspaces/$wsId"
+            $volumeArgs += "-v"
+            $volumeArgs += "${nativePath}:${containerMount}:ro"
+            $mountMap[$hostPath] = $containerMount
+
+            Write-Host "  Mount: $nativePath -> $containerMount" -ForegroundColor DarkGray
+        }
+    } catch {
+        Write-Host "  Warning: Could not parse workspace registry: $_" -ForegroundColor Yellow
+    }
+
+    $mountJson = ($mountMap | ConvertTo-Json -Compress)
+    # Escape for podman env passing
+    if (-not $mountJson) { $mountJson = '{}' }
+
+    return @{ VolumeArgs = $volumeArgs; MountMap = $mountJson }
+}
+
 function Build-Container {
     Write-Host "Building container image '$ImageName'..." -ForegroundColor Cyan
     podman build -t $ImageName -f "$WorkspaceRoot\Containerfile" $WorkspaceRoot
@@ -66,19 +123,39 @@ function Start-Container {
     }
 
     Write-Host "Starting container '$ContainerName'..." -ForegroundColor Cyan
+
+    # Discover workspace mounts from registry
+    Write-Host "Discovering workspace mounts..." -ForegroundColor Cyan
+    $mounts = Get-WorkspaceMounts
+
     $hostMcpUrl = if ($env:MBS_HOST_MCP_URL) { $env:MBS_HOST_MCP_URL } else { "" }
-    podman run -d `
-        --name $ContainerName `
-        -p 3000:3000 `
-        -p 3001:3001 `
-        -p 3002:3002 `
-        -v "${WorkspaceRoot}\data:/data" `
-        -v "${WorkspaceRoot}\agents:/agents:ro" `
-        -e MBS_DATA_ROOT=/data `
-        -e MBS_AGENTS_ROOT=/agents `
-        -e MBS_HOST_MCP_URL=$hostMcpUrl `
-        -e NODE_ENV=production `
-        $ImageName
+
+    # Build the podman run command with dynamic workspace mounts
+    $podmanArgs = @(
+        "run", "-d",
+        "--name", $ContainerName,
+        "-p", "3000:3000",
+        "-p", "3001:3001",
+        "-p", "3002:3002",
+        "-v", "${WorkspaceRoot}\data:/data",
+        "-v", "${WorkspaceRoot}\agents:/agents:ro"
+    )
+
+    # Add workspace volume mounts
+    $podmanArgs += $mounts.VolumeArgs
+
+    # Environment variables
+    $podmanArgs += @(
+        "-e", "MBS_DATA_ROOT=/data",
+        "-e", "MBS_AGENTS_ROOT=/agents",
+        "-e", "MBS_HOST_MCP_URL=$hostMcpUrl",
+        "-e", "MBS_WORKSPACE_MOUNTS=$($mounts.MountMap)",
+        "-e", "NODE_ENV=production"
+    )
+
+    $podmanArgs += $ImageName
+
+    podman @podmanArgs
 
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Failed to start container"

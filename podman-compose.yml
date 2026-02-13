@@ -25,10 +25,13 @@ services:
     volumes:
       - ./data:/data                # Persistent workspace data
       - ./agents:/agents:ro         # Agent files (read-only)
+      # Additional workspace mounts are added dynamically by run-container.ps1
+      # which reads workspace-registry.json and mounts each registered directory
     environment:
       - MBS_DATA_ROOT=/data
       - MBS_AGENTS_ROOT=/agents
       - MBS_HOST_MCP_URL=${MBS_HOST_MCP_URL}
+      - MBS_WORKSPACE_MOUNTS=${MBS_WORKSPACE_MOUNTS:-{}}
       - MCP_PORT=3000
       - DASHBOARD_PORT=3001
       - WS_PORT=3002

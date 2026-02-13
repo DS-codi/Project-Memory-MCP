@@ -471,7 +471,8 @@ export class ServerManager implements vscode.Disposable {
 
     /**
      * Periodically probe the container to detect disconnects.
-     * If the container becomes unreachable, warn the user and optionally fall back to local.
+     * If the container becomes unreachable and the stop was NOT intentional,
+     * automatically fall back to local server to maintain continuity.
      */
     private startContainerHealthMonitor(): void {
         this.stopContainerHealthMonitor();
@@ -491,25 +492,31 @@ export class ServerManager implements vscode.Disposable {
                 this._isExternalServer = false;
                 this._isContainerMode = false;
                 this.stopContainerHealthMonitor();
-                this.updateStatusBar('error');
 
-                const choice = await vscode.window.showWarningMessage(
-                    'Project Memory: Container connection lost. The container may have stopped.',
-                    'Retry Container',
-                    'Start Local',
-                    'Dismiss'
-                );
+                // If the user intentionally stopped, don't auto-fallback
+                if (this._intentionalStop) {
+                    this.updateStatusBar('stopped');
+                    this.log('Container stopped intentionally — not falling back to local');
+                    return;
+                }
 
-                if (choice === 'Retry Container') {
-                    this.start();
-                } else if (choice === 'Start Local') {
-                    // Force local mode for this session
-                    this._isContainerMode = false;
-                    // Temporarily override to skip container probe
-                    const origStart = this.start.bind(this);
-                    this.log('Falling back to local server...');
-                    // Reset and start local
-                    await origStart();
+                // Auto-fallback to local server without prompting
+                this.log('Auto-falling back to local server...');
+                this.updateStatusBar('starting');
+                notify('Project Memory: Container lost — switching to local server');
+
+                const started = await this.start();
+                if (!started) {
+                    this.updateStatusBar('error');
+                    // Only prompt if auto-fallback also failed
+                    const choice = await vscode.window.showWarningMessage(
+                        'Project Memory: Container lost and local server failed to start.',
+                        'Retry',
+                        'Dismiss'
+                    );
+                    if (choice === 'Retry') {
+                        this.start();
+                    }
                 }
             }
         }, 30_000); // Check every 30 seconds
