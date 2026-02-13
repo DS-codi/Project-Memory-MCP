@@ -27,7 +27,10 @@ function makePlanRef(overrides: Partial<ProgramPlanRef> = {}): ProgramPlanRef {
     plan_id: 'plan_default',
     title: 'Default Plan',
     status: 'active',
+    priority: 'medium',
+    current_phase: '',
     progress: { done: 2, total: 5 },
+    depends_on_plans: [],
     ...overrides,
   };
 }
@@ -44,7 +47,11 @@ function makeProgram(overrides: Partial<ProgramSummary> = {}): ProgramSummary {
       makePlanRef({ plan_id: 'plan_1', title: 'Plan Alpha', status: 'active', progress: { done: 3, total: 5 } }),
       makePlanRef({ plan_id: 'plan_2', title: 'Plan Beta', status: 'completed', progress: { done: 4, total: 4 } }),
     ],
-    aggregate_progress: { done: 7, total: 9 },
+    aggregate_progress: {
+      total_plans: 2, active_plans: 1, completed_plans: 1, archived_plans: 0, failed_plans: 0,
+      total_steps: 9, done_steps: 7, active_steps: 1, pending_steps: 1, blocked_steps: 0,
+      completion_percentage: 78,
+    },
     ...overrides,
   };
 }
@@ -96,7 +103,14 @@ describe('ProgramTreeView', () => {
     });
 
     it('displays singular "plan" for single-plan programs', () => {
-      const programs = [makeProgram({ plans: [makePlanRef()] })];
+      const programs = [makeProgram({
+        plans: [makePlanRef()],
+        aggregate_progress: {
+          total_plans: 1, active_plans: 1, completed_plans: 0, archived_plans: 0, failed_plans: 0,
+          total_steps: 5, done_steps: 2, active_steps: 1, pending_steps: 2, blocked_steps: 0,
+          completion_percentage: 40,
+        },
+      })];
       renderWithRouter(
         <ProgramTreeView programs={programs} workspaceId={WORKSPACE_ID} />,
       );
@@ -106,31 +120,39 @@ describe('ProgramTreeView', () => {
   });
 
   describe('aggregate progress', () => {
-    it('displays aggregate done/total counts', () => {
-      const programs = [makeProgram({ aggregate_progress: { done: 7, total: 9 } })];
+    it('displays aggregate completion percentage', () => {
+      const programs = [makeProgram()];
       renderWithRouter(
         <ProgramTreeView programs={programs} workspaceId={WORKSPACE_ID} />,
       );
 
-      expect(screen.getByText('7/9')).toBeInTheDocument();
+      expect(screen.getByText('78%')).toBeInTheDocument();
     });
 
-    it('shows zero progress when no steps exist', () => {
-      const programs = [makeProgram({ aggregate_progress: { done: 0, total: 0 } })];
+    it('shows 0% when no steps exist', () => {
+      const programs = [makeProgram({ aggregate_progress: {
+        total_plans: 0, active_plans: 0, completed_plans: 0, archived_plans: 0, failed_plans: 0,
+        total_steps: 0, done_steps: 0, active_steps: 0, pending_steps: 0, blocked_steps: 0,
+        completion_percentage: 0,
+      } })];
       renderWithRouter(
         <ProgramTreeView programs={programs} workspaceId={WORKSPACE_ID} />,
       );
 
-      expect(screen.getByText('0/0')).toBeInTheDocument();
+      expect(screen.getByText('0%')).toBeInTheDocument();
     });
 
     it('shows 100% when all steps are done', () => {
-      const programs = [makeProgram({ aggregate_progress: { done: 12, total: 12 } })];
+      const programs = [makeProgram({ aggregate_progress: {
+        total_plans: 1, active_plans: 0, completed_plans: 1, archived_plans: 0, failed_plans: 0,
+        total_steps: 12, done_steps: 12, active_steps: 0, pending_steps: 0, blocked_steps: 0,
+        completion_percentage: 100,
+      } })];
       renderWithRouter(
         <ProgramTreeView programs={programs} workspaceId={WORKSPACE_ID} />,
       );
 
-      expect(screen.getByText('12/12')).toBeInTheDocument();
+      expect(screen.getByText('100%')).toBeInTheDocument();
     });
   });
 
@@ -241,7 +263,7 @@ describe('ProgramTreeView', () => {
 
       await user.click(screen.getByRole('button'));
 
-      expect(screen.getByText('3/8')).toBeInTheDocument();
+      expect(screen.getByText('3/8 (38%)')).toBeInTheDocument();
     });
   });
 

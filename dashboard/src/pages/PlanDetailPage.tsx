@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Clock, GitBranch, ListChecks, FileText, Activity, BarChart, Info, AlertTriangle, MessageSquare, Target, Terminal, Database } from 'lucide-react';
+import { ArrowLeft, Clock, GitBranch, ListChecks, FileText, Activity, BarChart, Info, AlertTriangle, MessageSquare, Target, Terminal, Database, FolderTree } from 'lucide-react';
 import { CopyButton } from '@/components/common/CopyButton';
 import { Badge } from '@/components/common/Badge';
 import { ProgressBar } from '@/components/common/ProgressBar';
@@ -108,13 +108,27 @@ export function PlanDetailPage() {
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}
-      <Link
-        to={`/workspace/${workspaceId}`}
-        className="inline-flex items-center gap-2 text-slate-400 hover:text-slate-200 transition-colors"
-      >
-        <ArrowLeft size={16} />
-        Back to Workspace
-      </Link>
+      <div className="flex items-center gap-2 text-sm">
+        <Link
+          to={`/workspace/${workspaceId}`}
+          className="inline-flex items-center gap-2 text-slate-400 hover:text-slate-200 transition-colors"
+        >
+          <ArrowLeft size={16} />
+          Back to Workspace
+        </Link>
+        {plan.program_id && (
+          <>
+            <span className="text-slate-600">•</span>
+            <Link
+              to={`/workspace/${workspaceId}/program/${plan.program_id}`}
+              className="inline-flex items-center gap-1.5 text-violet-400 hover:text-violet-300 transition-colors"
+            >
+              <FolderTree size={14} />
+              Part of Program
+            </Link>
+          </>
+        )}
+      </div>
 
       {/* Header */}
       <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">

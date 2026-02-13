@@ -34,7 +34,7 @@ describe('usePrograms hooks', () => {
           updated_at: '2026-02-01T00:00:00Z',
           workspace_id: 'ws_123',
           plans: [],
-          aggregate_progress: { done: 0, total: 0 },
+          aggregate_progress: { total_plans: 0, active_plans: 0, completed_plans: 0, archived_plans: 0, failed_plans: 0, total_steps: 0, done_steps: 0, active_steps: 0, pending_steps: 0, blocked_steps: 0, completion_percentage: 0 },
         },
       ];
 
@@ -73,7 +73,7 @@ describe('usePrograms hooks', () => {
         updated_at: '2026-02-01T00:00:00Z',
         workspace_id: 'ws_123',
         plans: [],
-        aggregate_progress: { done: 5, total: 10 },
+        aggregate_progress: { total_plans: 1, active_plans: 1, completed_plans: 0, archived_plans: 0, failed_plans: 0, total_steps: 10, done_steps: 5, active_steps: 2, pending_steps: 3, blocked_steps: 0, completion_percentage: 50 },
         goals: ['Ship it'],
       };
 

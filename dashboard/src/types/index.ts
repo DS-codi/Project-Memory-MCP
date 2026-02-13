@@ -157,6 +157,8 @@ export interface PlanState {
   goals?: string[];
   success_criteria?: string[];
   build_scripts?: BuildScript[];
+  is_program?: boolean;
+  program_id?: string;
   created_at: string;
   updated_at: string;
   agent_sessions: AgentSession[];
@@ -256,6 +258,8 @@ export interface PlanSummary {
   progress: { done: number; total: number };
   created_at: string;
   updated_at: string;
+  is_program?: boolean;
+  program_id?: string;
 }
 
 // =============================================================================
@@ -358,7 +362,24 @@ export interface ProgramPlanRef {
   plan_id: string;
   title: string;
   status: PlanStatus;
+  priority: PlanPriority;
+  current_phase: string;
   progress: { done: number; total: number };
+  depends_on_plans: string[];
+}
+
+export interface AggregateProgress {
+  total_plans: number;
+  active_plans: number;
+  completed_plans: number;
+  archived_plans: number;
+  failed_plans: number;
+  total_steps: number;
+  done_steps: number;
+  active_steps: number;
+  pending_steps: number;
+  blocked_steps: number;
+  completion_percentage: number;
 }
 
 export interface ProgramSummary {
@@ -369,11 +390,12 @@ export interface ProgramSummary {
   updated_at: string;
   workspace_id: string;
   plans: ProgramPlanRef[];
-  aggregate_progress: { done: number; total: number };
+  aggregate_progress: AggregateProgress;
 }
 
 export interface ProgramDetail extends ProgramSummary {
   goals?: string[];
+  success_criteria?: string[];
   notes?: PlanNote[];
 }
 

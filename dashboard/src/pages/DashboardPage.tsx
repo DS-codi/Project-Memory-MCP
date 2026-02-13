@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Activity, FolderOpen, FileText, TrendingUp } from 'lucide-react';
 import { WorkspaceList } from '@/components/workspace/WorkspaceList';
 import { LiveActivityFeed } from '@/components/common/ActivityFeed';
+import { ProgramStatsWidget } from '@/components/program/ProgramStatsWidget';
 import type { WorkspaceSummary } from '@/types';
 
 async function fetchWorkspaces(): Promise<{ workspaces: WorkspaceSummary[]; total: number }> {
@@ -103,11 +104,22 @@ export function DashboardPage() {
           <WorkspaceList workspaces={workspaces} isLoading={isLoading} />
         </div>
         
-        {/* Live Activity Feed */}
-        <div>
-          <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
-          <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 max-h-[500px] overflow-y-auto">
-            <LiveActivityFeed />
+        {/* Sidebar: Programs + Activity */}
+        <div className="space-y-6">
+          {/* Program Stats */}
+          {workspaces.length > 0 && (
+            <div>
+              <h2 className="text-lg font-semibold mb-4">Programs</h2>
+              <ProgramStatsWidget workspaces={workspaces} />
+            </div>
+          )}
+
+          {/* Live Activity Feed */}
+          <div>
+            <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
+            <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 max-h-[500px] overflow-y-auto">
+              <LiveActivityFeed />
+            </div>
           </div>
         </div>
       </div>

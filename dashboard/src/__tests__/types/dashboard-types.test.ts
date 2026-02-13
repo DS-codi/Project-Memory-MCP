@@ -7,6 +7,7 @@ import type {
   ProgramSummary,
   ProgramDetail,
   ProgramPlanRef,
+  AggregateProgress,
   SkillInfo,
   WorkerSession,
   AgentType,
@@ -21,23 +22,42 @@ function assertHasKeys(obj: Record<string, unknown>, keys: string[]) {
   }
 }
 
+function makeAgg(overrides: Partial<AggregateProgress> = {}): AggregateProgress {
+  return {
+    total_plans: 0, active_plans: 0, completed_plans: 0, archived_plans: 0, failed_plans: 0,
+    total_steps: 0, done_steps: 0, active_steps: 0, pending_steps: 0, blocked_steps: 0,
+    completion_percentage: 0,
+    ...overrides,
+  };
+}
+
+function makeRef(overrides: Partial<ProgramPlanRef> = {}): ProgramPlanRef {
+  return {
+    plan_id: 'p', title: 't', status: 'active', priority: 'medium',
+    current_phase: '', progress: { done: 0, total: 0 }, depends_on_plans: [],
+    ...overrides,
+  };
+}
+
 // ─── Program Types ───────────────────────────────────────────────────────────
 
 describe('Program types', () => {
   describe('ProgramPlanRef', () => {
-    it('has required fields: plan_id, title, status, progress', () => {
-      const ref: ProgramPlanRef = {
+    it('has required fields: plan_id, title, status, priority, progress, depends_on_plans', () => {
+      const ref: ProgramPlanRef = makeRef({
         plan_id: 'plan_001',
         title: 'Auth Flow',
         status: 'active',
         progress: { done: 3, total: 10 },
-      };
+      });
 
       assertHasKeys(ref as unknown as Record<string, unknown>, [
         'plan_id',
         'title',
         'status',
+        'priority',
         'progress',
+        'depends_on_plans',
       ]);
       expect(ref.progress).toHaveProperty('done');
       expect(ref.progress).toHaveProperty('total');
@@ -46,12 +66,7 @@ describe('Program types', () => {
     it('status accepts all PlanStatus values', () => {
       const statuses: PlanStatus[] = ['active', 'paused', 'completed', 'archived', 'failed'];
       statuses.forEach((s) => {
-        const ref: ProgramPlanRef = {
-          plan_id: 'p',
-          title: 't',
-          status: s,
-          progress: { done: 0, total: 0 },
-        };
+        const ref: ProgramPlanRef = makeRef({ status: s });
         expect(ref.status).toBe(s);
       });
     });
@@ -67,7 +82,7 @@ describe('Program types', () => {
         updated_at: '2026-02-01T00:00:00Z',
         workspace_id: 'ws_123',
         plans: [],
-        aggregate_progress: { done: 0, total: 0 },
+        aggregate_progress: makeAgg(),
       };
 
       assertHasKeys(summary as unknown as Record<string, unknown>, [
@@ -91,10 +106,10 @@ describe('Program types', () => {
         updated_at: '2026-02-01T00:00:00Z',
         workspace_id: 'ws_123',
         plans: [
-          { plan_id: 'p1', title: 'Plan 1', status: 'active', progress: { done: 1, total: 5 } },
-          { plan_id: 'p2', title: 'Plan 2', status: 'completed', progress: { done: 8, total: 8 } },
+          makeRef({ plan_id: 'p1', title: 'Plan 1', status: 'active', progress: { done: 1, total: 5 } }),
+          makeRef({ plan_id: 'p2', title: 'Plan 2', status: 'completed', progress: { done: 8, total: 8 } }),
         ],
-        aggregate_progress: { done: 9, total: 13 },
+        aggregate_progress: makeAgg({ total_plans: 2, done_steps: 9, total_steps: 13, completion_percentage: 69 }),
       };
 
       expect(summary.plans).toHaveLength(2);
@@ -102,7 +117,7 @@ describe('Program types', () => {
       expect(summary.plans[1].status).toBe('completed');
     });
 
-    it('aggregate_progress sums child plans', () => {
+    it('aggregate_progress has full breakdown', () => {
       const summary: ProgramSummary = {
         program_id: 'prog_003',
         name: 'Sum Test',
@@ -111,14 +126,15 @@ describe('Program types', () => {
         updated_at: '2026-02-01T00:00:00Z',
         workspace_id: 'ws_123',
         plans: [
-          { plan_id: 'p1', title: 'P1', status: 'active', progress: { done: 3, total: 5 } },
-          { plan_id: 'p2', title: 'P2', status: 'active', progress: { done: 4, total: 7 } },
+          makeRef({ plan_id: 'p1', title: 'P1', progress: { done: 3, total: 5 } }),
+          makeRef({ plan_id: 'p2', title: 'P2', progress: { done: 4, total: 7 } }),
         ],
-        aggregate_progress: { done: 7, total: 12 },
+        aggregate_progress: makeAgg({ total_plans: 2, done_steps: 7, total_steps: 12, completion_percentage: 58 }),
       };
 
-      expect(summary.aggregate_progress.done).toBe(7);
-      expect(summary.aggregate_progress.total).toBe(12);
+      expect(summary.aggregate_progress.done_steps).toBe(7);
+      expect(summary.aggregate_progress.total_steps).toBe(12);
+      expect(summary.aggregate_progress.completion_percentage).toBe(58);
     });
   });
 
@@ -132,7 +148,7 @@ describe('Program types', () => {
         updated_at: '2026-02-01T00:00:00Z',
         workspace_id: 'ws_123',
         plans: [],
-        aggregate_progress: { done: 0, total: 0 },
+        aggregate_progress: makeAgg(),
         goals: ['Ship v1', 'Pass all tests'],
         notes: [
           {
@@ -158,7 +174,7 @@ describe('Program types', () => {
         updated_at: '2026-02-01T00:00:00Z',
         workspace_id: 'ws_123',
         plans: [],
-        aggregate_progress: { done: 0, total: 0 },
+        aggregate_progress: makeAgg(),
       };
 
       expect(detail.goals).toBeUndefined();

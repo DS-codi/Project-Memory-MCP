@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, FolderOpen, Calendar, Code, FileText, Plus, Activity, Database } from 'lucide-react';
+import { ArrowLeft, FolderOpen, Calendar, Code, FileText, Plus, Activity, Database, FolderTree } from 'lucide-react';
 import { PlanList } from '@/components/plan/PlanList';
 import { CreatePlanForm } from '@/components/plan/CreatePlanForm';
 import { PlanTemplatesPanel } from '@/components/plan/PlanTemplatesPanel';
+import { ProgramTreeView } from '@/components/program/ProgramTreeView';
+import { ProgramCreateForm } from '@/components/program/ProgramCreateForm';
 import { HealthIndicator } from '@/components/workspace/HealthIndicator';
 import { CopilotStatusPanel } from '@/components/workspace/CopilotStatusPanel';
 import { DeployModal } from '@/components/workspace/DeployModal';
@@ -12,6 +14,7 @@ import { DeployDefaultsCard } from '@/components/workspace/DeployDefaultsCard';
 import { WorkspaceContextPanel } from '@/components/workspace/WorkspaceContextPanel';
 import { KnowledgeFilesPanel } from '@/components/workspace/KnowledgeFilesPanel';
 import { useCopilotStatus } from '@/hooks/useCopilotStatus';
+import { usePrograms } from '@/hooks/usePrograms';
 import { formatDate, formatRelative } from '@/utils/formatters';
 import { getDeployDefaults, type DeployDefaults } from '@/utils/deployDefaults';
 import type { WorkspaceMeta, PlanSummary, WorkspaceHealth } from '@/types';
@@ -33,6 +36,7 @@ export function WorkspacePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showCreateProgram, setShowCreateProgram] = useState(false);
   const [showDeployModal, setShowDeployModal] = useState(false);
   const [showDefaultsModal, setShowDefaultsModal] = useState(false);
   const [templateToCreate, setTemplateToCreate] = useState<string | null>(null);
@@ -52,12 +56,17 @@ export function WorkspacePage() {
 
   const { data: copilotData, isLoading: copilotLoading, refetch: refetchCopilot } = useCopilotStatus(workspaceId);
 
-  const plans = plansData?.plans || [];
+  const { data: programsData } = usePrograms(workspaceId);
+
+  const allPlans = plansData?.plans || [];
+  // Filter out program containers from the regular plan list
+  const plans = allPlans.filter(p => !p.is_program);
+  const programs = programsData?.programs || [];
 
   // Derive health from plans
   const health: WorkspaceHealth = 
-    plans.some((p) => p.status === 'active') ? 'active' : 
-    plans.length > 0 ? 'idle' : 'idle';
+    allPlans.some((p) => p.status === 'active') ? 'active' : 
+    allPlans.length > 0 ? 'idle' : 'idle';
 
   if (wsLoading) {
     return (
@@ -199,6 +208,40 @@ export function WorkspacePage() {
           setShowCreateForm(true);
         }}
       />
+
+      {/* Integrated Programs */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <FolderTree size={20} className="text-violet-400" />
+          <h2 className="text-lg font-semibold">Integrated Programs</h2>
+          {programs.length > 0 && (
+            <span className="text-xs text-slate-500 bg-slate-700/50 px-2 py-0.5 rounded-full">
+              {programs.length}
+            </span>
+          )}
+          <button
+            onClick={() => setShowCreateProgram(true)}
+            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-sm bg-violet-600/20 text-violet-300 hover:bg-violet-600/30 rounded-lg transition-colors"
+          >
+            <Plus size={14} />
+            Create Program
+          </button>
+        </div>
+        {programs.length > 0 ? (
+          <ProgramTreeView programs={programs} workspaceId={workspaceId!} />
+        ) : (
+          <p className="text-sm text-slate-500">No programs yet. Create one to group related plans.</p>
+        )}
+      </div>
+
+      {showCreateProgram && (
+        <ProgramCreateForm
+          workspaceId={workspaceId!}
+          plans={plans}
+          onClose={() => setShowCreateProgram(false)}
+          onCreated={(programId) => navigate(`/workspace/${workspaceId}/program/${programId}`)}
+        />
+      )}
 
       {/* Plans */}
       <div>

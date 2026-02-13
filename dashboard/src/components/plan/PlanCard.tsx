@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Clock } from 'lucide-react';
+import { Clock, FolderTree } from 'lucide-react';
 import { Badge } from '../common/Badge';
 import { CopyButton } from '../common/CopyButton';
 import { ProgressBar } from '../common/ProgressBar';
@@ -52,6 +52,19 @@ export function PlanCard({ plan, workspaceId }: PlanCardProps) {
           </Badge>
           <span className="text-sm text-slate-500">currently active</span>
         </div>
+      )}
+
+      {/* Program Membership */}
+      {plan.program_id && (
+        <Link
+          to={`/workspace/${workspaceId}/program/${plan.program_id}`}
+          onClick={(e) => e.stopPropagation()}
+          className="flex items-center gap-1.5 mb-3 text-xs text-violet-400 hover:text-violet-300 transition-colors"
+        >
+          <FolderTree size={12} />
+          <span>Part of program</span>
+          <span className="font-mono text-slate-500">{plan.program_id.slice(-8)}</span>
+        </Link>
       )}
 
       {/* Progress */}

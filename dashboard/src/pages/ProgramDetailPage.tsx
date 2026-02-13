@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, FolderTree, Target, ListChecks } from 'lucide-react';
+import { ArrowLeft, FolderTree, Target, ListChecks, CheckCircle, AlertTriangle, Activity } from 'lucide-react';
 import { useProgram } from '@/hooks/usePrograms';
 import { Badge } from '@/components/common/Badge';
 import { ProgressBar } from '@/components/common/ProgressBar';
@@ -7,7 +7,8 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { Skeleton } from '@/components/common/Skeleton';
 import { planStatusColors } from '@/utils/colors';
 import { formatDate } from '@/utils/formatters';
-import type { ProgramPlanRef } from '@/types';
+import type { ProgramPlanRef, AggregateProgress } from '@/types';
+import { DependencyGraph } from '@/components/program/DependencyGraph';
 
 function PlanRow({ plan, workspaceId }: { plan: ProgramPlanRef; workspaceId: string }) {
   const percentage = plan.progress.total > 0
@@ -23,7 +24,12 @@ function PlanRow({ plan, workspaceId }: { plan: ProgramPlanRef; workspaceId: str
         <h4 className="font-medium text-slate-200 group-hover:text-violet-300 transition-colors truncate">
           {plan.title}
         </h4>
-        <Badge variant={planStatusColors[plan.status]}>{plan.status}</Badge>
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge variant={planStatusColors[plan.status]}>{plan.status}</Badge>
+          {plan.current_phase && (
+            <span className="text-xs text-slate-500">{plan.current_phase}</span>
+          )}
+        </div>
       </div>
       <div className="flex items-center gap-3">
         <ProgressBar value={plan.progress.done} max={plan.progress.total} className="flex-1" />
@@ -31,7 +37,78 @@ function PlanRow({ plan, workspaceId }: { plan: ProgramPlanRef; workspaceId: str
           {plan.progress.done}/{plan.progress.total} ({percentage}%)
         </span>
       </div>
+      {plan.depends_on_plans && plan.depends_on_plans.length > 0 && (
+        <div className="mt-2 text-xs text-slate-500">
+          Depends on: {plan.depends_on_plans.map(id => id.slice(-8)).join(', ')}
+        </div>
+      )}
     </Link>
+  );
+}
+
+function AggregateStatsGrid({ agg }: { agg: AggregateProgress }) {
+  const statCards = [
+    { label: 'Total Plans', value: agg.total_plans, icon: FolderTree, color: 'text-violet-400', bg: 'bg-violet-500/20' },
+    { label: 'Active Plans', value: agg.active_plans, icon: Activity, color: 'text-blue-400', bg: 'bg-blue-500/20' },
+    { label: 'Completed', value: agg.completed_plans, icon: CheckCircle, color: 'text-green-400', bg: 'bg-green-500/20' },
+    { label: 'Failed', value: agg.failed_plans, icon: AlertTriangle, color: 'text-red-400', bg: 'bg-red-500/20' },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {statCards.map((s) => (
+        <div key={s.label} className="bg-slate-800 border border-slate-700 rounded-lg p-3">
+          <div className="flex items-center gap-2 mb-1">
+            <div className={`p-1.5 rounded ${s.bg}`}>
+              <s.icon className={s.color} size={16} />
+            </div>
+            <span className="text-xs text-slate-400">{s.label}</span>
+          </div>
+          <p className="text-xl font-bold">{s.value}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function StepBreakdownBar({ agg }: { agg: AggregateProgress }) {
+  if (agg.total_steps === 0) return null;
+  const pct = (n: number) => (n / agg.total_steps) * 100;
+
+  return (
+    <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+      <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+        <ListChecks size={16} className="text-blue-400" />
+        Step Breakdown
+      </h3>
+      <div className="flex h-3 rounded-full overflow-hidden bg-slate-700 mb-3">
+        {agg.done_steps > 0 && <div className="bg-green-500" style={{ width: `${pct(agg.done_steps)}%` }} />}
+        {agg.active_steps > 0 && <div className="bg-blue-500" style={{ width: `${pct(agg.active_steps)}%` }} />}
+        {agg.blocked_steps > 0 && <div className="bg-red-500" style={{ width: `${pct(agg.blocked_steps)}%` }} />}
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
+          <span className="text-slate-400">Done</span>
+          <span className="font-medium">{agg.done_steps}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+          <span className="text-slate-400">Active</span>
+          <span className="font-medium">{agg.active_steps}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-slate-500" />
+          <span className="text-slate-400">Pending</span>
+          <span className="font-medium">{agg.pending_steps}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+          <span className="text-slate-400">Blocked</span>
+          <span className="font-medium">{agg.blocked_steps}</span>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -63,8 +140,7 @@ export function ProgramDetailPage() {
     );
   }
 
-  const { done, total } = program.aggregate_progress;
-  const percentage = total > 0 ? Math.round((done / total) * 100) : 0;
+  const agg = program.aggregate_progress;
 
   return (
     <div className="space-y-6 p-6">
@@ -82,7 +158,7 @@ export function ProgramDetailPage() {
           <FolderTree className="h-6 w-6 text-violet-400" />
           <h1 className="text-2xl font-bold">{program.name}</h1>
           <Badge variant="bg-slate-600/40 text-slate-300 border-slate-500/50">
-            {program.plans.length} plan{program.plans.length !== 1 ? 's' : ''}
+            {agg.total_plans} plan{agg.total_plans !== 1 ? 's' : ''}
           </Badge>
         </div>
         {program.description && (
@@ -94,19 +170,26 @@ export function ProgramDetailPage() {
         </div>
       </div>
 
-      {/* Aggregate progress */}
+      {/* Aggregate Stats Grid */}
+      <AggregateStatsGrid agg={agg} />
+
+      {/* Overall progress */}
       <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
         <div className="flex items-center gap-2 mb-3">
           <Target size={16} className="text-blue-400" />
           <h2 className="font-semibold">Overall Progress</h2>
+          <span className="ml-auto text-lg font-bold text-violet-300">{agg.completion_percentage}%</span>
         </div>
         <div className="flex items-center gap-4">
-          <ProgressBar value={done} max={total} className="flex-1" />
+          <ProgressBar value={agg.done_steps} max={agg.total_steps} className="flex-1" />
           <span className="text-sm text-slate-300 shrink-0">
-            {done}/{total} steps ({percentage}%)
+            {agg.done_steps}/{agg.total_steps} steps
           </span>
         </div>
       </div>
+
+      {/* Step Breakdown */}
+      <StepBreakdownBar agg={agg} />
 
       {/* Goals */}
       {program.goals && program.goals.length > 0 && (
@@ -124,6 +207,29 @@ export function ProgramDetailPage() {
             ))}
           </ul>
         </div>
+      )}
+
+      {/* Success Criteria */}
+      {program.success_criteria && program.success_criteria.length > 0 && (
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <CheckCircle size={16} className="text-emerald-400" />
+            <h2 className="font-semibold">Success Criteria</h2>
+          </div>
+          <ul className="space-y-1.5">
+            {program.success_criteria.map((criterion, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
+                <span className="text-emerald-400 mt-0.5">✓</span>
+                {criterion}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Dependency Graph */}
+      {program.plans.length > 1 && (
+        <DependencyGraph plans={program.plans} workspaceId={workspaceId!} />
       )}
 
       {/* Child plans */}
