@@ -39,6 +39,13 @@ import * as contextTools from './context.tools.js';
 import { compactifyPlanState, compactifyWithBudget } from '../utils/compact-plan-state.js';
 import { buildWorkspaceContextSummary } from '../utils/workspace-context-summary.js';
 import { matchWorkspaceSkillsToContext } from './skills.tools.js';
+import {
+  recoverStaleRuns,
+  acquireActiveRun,
+  releaseActiveRun,
+  writeActiveRun,
+  type ActiveRunLifecycleRecord
+} from './orchestration/stale-run-recovery.js';
 
 /**
  * Initialize an agent session - MUST be called first by every agent
@@ -51,6 +58,7 @@ import { matchWorkspaceSkillsToContext } from './skills.tools.js';
 export async function initialiseAgent(
   params: InitialiseAgentParams
 ): Promise<ToolResponse<InitialiseAgentResult>> {
+  let acquiredRunId: string | undefined;
   try {
     const { workspace_id, plan_id, agent_type, context } = params;
     
@@ -151,13 +159,59 @@ export async function initialiseAgent(
         }
       };
     }
+
+    // Recover stale active sessions/steps/run lanes before creating a new session.
+    await recoverStaleRuns(workspace_id, plan_id, state);
     
-    // Sanitize context data
-    const sanitizedContext = context ? sanitizeJsonData(context) : {};
+    // Sanitize context data and ensure run_id exists for lifecycle tracking
+    const rawContext = context ? sanitizeJsonData(context) : {};
+    const sessionId = store.generateSessionId();
+    const existingRunId = extractRunId(rawContext);
+    const runId = existingRunId ?? `run_${sessionId}`;
+    const sanitizedContext: Record<string, unknown> = {
+      ...(rawContext as Record<string, unknown>),
+      run_id: runId
+    };
+
+    // Enforce single active subagent lane per plan_id.
+    // Coordinator orchestration can remain interactive; worker agents are serialized per plan.
+    if (agent_type !== 'Coordinator') {
+      const runState: ActiveRunLifecycleRecord = {
+        run_id: runId,
+        workspace_id,
+        plan_id,
+        status: 'active',
+        started_at: store.nowISO(),
+        last_updated_at: store.nowISO(),
+        owner_agent: agent_type
+      };
+
+      const acquireResult = await acquireActiveRun(workspace_id, plan_id, runState);
+      if (!acquireResult.acquired) {
+        const activeRun = acquireResult.active_run;
+        return {
+          success: false,
+          error: `Plan ${plan_id} already has an active subagent lane (${activeRun?.owner_agent ?? 'unknown'}) started at ${activeRun?.started_at ?? 'unknown'}. Wait for handoff/complete or stale recovery before starting another subagent for this plan.`,
+          data: {
+            session: null as unknown as AgentSession,
+            plan_state: state,
+            workspace_status: {
+              registered: true,
+              workspace_id,
+              workspace_path: workspace.path,
+              active_plans: workspace.active_plans,
+              message: 'Blocked overlapping subagent run for same plan_id.'
+            },
+            role_boundaries: AGENT_BOUNDARIES[agent_type]
+          }
+        };
+      }
+      acquiredRunId = runId;
+    }
     
     // Create new session
     const session: AgentSession = {
-      session_id: store.generateSessionId(),
+      session_id: sessionId,
       agent_type,
       started_at: store.nowISO(),
       context: sanitizedContext
@@ -193,6 +247,20 @@ export async function initialiseAgent(
         override_validation: true,
         deployed_at: store.nowISO()
       };
+    }
+
+    const runIdFromContext = extractRunId(sanitizedContext);
+    if (agent_type !== 'Coordinator' && runIdFromContext) {
+      const runState: ActiveRunLifecycleRecord = {
+        run_id: runIdFromContext,
+        workspace_id,
+        plan_id,
+        status: 'active',
+        started_at: session.started_at,
+        last_updated_at: store.nowISO(),
+        owner_agent: agent_type
+      };
+      await writeActiveRun(workspace_id, plan_id, runState);
     }
     
     await store.savePlanState(state);
@@ -300,6 +368,9 @@ export async function initialiseAgent(
       }
     };
   } catch (error) {
+    if (params.workspace_id && params.plan_id && acquiredRunId) {
+      await releaseActiveRun(params.workspace_id, params.plan_id, 'SPAWN_RELEASE_ERROR_PATH', acquiredRunId);
+    }
     return {
       success: false,
       error: `Failed to initialise agent: ${(error as Error).message}`
@@ -376,6 +447,8 @@ export async function completeAgent(
         error: `No active session found for agent: ${agent_type}`
       };
     }
+
+    const runIdFromSession = extractRunId(session.context);
     
     // Complete the session
     session.completed_at = store.nowISO();
@@ -398,6 +471,7 @@ export async function completeAgent(
     
     await store.savePlanState(state);
     await store.generatePlanMd(state);
+    await releaseActiveRun(workspace_id, plan_id, 'SPAWN_RELEASE_COMPLETE', runIdFromSession);
     
     // Generate coordinator instruction
     const coordinatorNextAction = state.recommended_next_agent
@@ -414,6 +488,9 @@ export async function completeAgent(
       }
     };
   } catch (error) {
+    if (params.workspace_id && params.plan_id) {
+      await releaseActiveRun(params.workspace_id, params.plan_id, 'SPAWN_RELEASE_ERROR_PATH');
+    }
     return {
       success: false,
       error: `Failed to complete agent: ${(error as Error).message}`
@@ -454,6 +531,9 @@ export async function handoff(
         error: 'workspace_id, plan_id, from_agent, to_agent, and reason are required'
       };
     }
+
+    const runIdFromHandoff = extractRunId(data);
+    const releaseReasonCode = extractReleaseReasonCode(data) ?? 'SPAWN_RELEASE_HANDOFF';
     
     const state = await store.getPlanState(workspace_id, plan_id);
     if (!state) {
@@ -509,6 +589,8 @@ export async function handoff(
     
     await store.savePlanState(state);
     await store.generatePlanMd(state);
+    const fallbackRunId = findActiveSessionRunId(state, from_agent);
+    await releaseActiveRun(workspace_id, plan_id, releaseReasonCode, runIdFromHandoff ?? fallbackRunId);
     
     // Emit event for dashboard
     await events.handoff(workspace_id, plan_id, from_agent, to_agent, reason);
@@ -527,6 +609,9 @@ export async function handoff(
       }
     };
   } catch (error) {
+    if (params.workspace_id && params.plan_id) {
+      await releaseActiveRun(params.workspace_id, params.plan_id, 'SPAWN_RELEASE_ERROR_PATH');
+    }
     return {
       success: false,
       error: `Failed to handoff: ${(error as Error).message}`
@@ -888,4 +973,73 @@ async function storeTDDCycleState(
   } catch {
     // Non-fatal: don't let TDD state storage failure block the handoff
   }
+}
+
+function extractRunId(value: unknown): string | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  if (typeof record.run_id === 'string' && record.run_id.trim()) {
+    return record.run_id;
+  }
+
+  const spawnConfig = record.spawn_config;
+  if (spawnConfig && typeof spawnConfig === 'object') {
+    const spawnRecord = spawnConfig as Record<string, unknown>;
+    if (typeof spawnRecord.run_id === 'string' && spawnRecord.run_id.trim()) {
+      return spawnRecord.run_id;
+    }
+
+    const orchestration = spawnRecord.orchestration;
+    if (orchestration && typeof orchestration === 'object') {
+      const orchestrationRecord = orchestration as Record<string, unknown>;
+      if (typeof orchestrationRecord.run_id === 'string' && orchestrationRecord.run_id.trim()) {
+        return orchestrationRecord.run_id;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function extractReleaseReasonCode(value: unknown): string | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  const candidates = [record.spawn_reason_code, record.reason_code, record.release_reason_code];
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.startsWith('SPAWN_')) {
+      return candidate;
+    }
+  }
+
+  const spawnConfig = record.spawn_config;
+  if (spawnConfig && typeof spawnConfig === 'object') {
+    const spawnRecord = spawnConfig as Record<string, unknown>;
+    const orchestration = spawnRecord.orchestration;
+    if (orchestration && typeof orchestration === 'object') {
+      const orchestrationRecord = orchestration as Record<string, unknown>;
+      if (typeof orchestrationRecord.reason_code === 'string' && orchestrationRecord.reason_code.startsWith('SPAWN_')) {
+        return orchestrationRecord.reason_code;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function findActiveSessionRunId(state: PlanState, agentType: string): string | undefined {
+  const activeSession = [...state.agent_sessions]
+    .reverse()
+    .find(session => session.agent_type === agentType && !session.completed_at);
+
+  if (!activeSession) {
+    return undefined;
+  }
+
+  return extractRunId(activeSession.context);
 }
