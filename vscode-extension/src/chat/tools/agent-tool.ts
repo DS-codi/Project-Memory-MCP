@@ -32,6 +32,12 @@ export async function handleAgentTool(
         const workspaceId = await ctx.ensureWorkspace();
         const { action, planId, agentType, fromAgent, toAgent, reason, summary, artifacts, taskDescription } = options.input;
 
+        if ((action as string) === 'spawn') {
+            return errorResult(
+                'memory_agent(action="spawn") is no longer supported. Use memory_spawn_agent for context preparation, then invoke native runSubagent for execution.'
+            );
+        }
+
         let result: unknown;
 
         switch (action) {

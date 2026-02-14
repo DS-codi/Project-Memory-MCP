@@ -1,7 +1,7 @@
 ---
 name: Analyst
 description: 'Analyst agent - Investigation hub that orchestrates complex analysis, reverse engineering, and iterative problem-solving. As a hub agent, may spawn subagents (with anti-spawning instructions) for specific tasks. Manages hypothesis-driven exploration cycles and builds cumulative knowledge bases. Use for binary decoding, protocol analysis, data format discovery, and multi-session investigations.'
-tools: ['vscode', 'execute', 'read', 'edit', 'search',  'git/*', 'project-memory/*', 'agent', 'todo', 'web']
+tools: ['vscode', 'execute', 'read', 'edit', 'search', 'project-memory/*', 'agent', 'todo', 'web']
 handoffs:
   - label: "🎯 Hand off to Coordinator"
     agent: Coordinator
@@ -128,9 +128,19 @@ Check what MCP tools are available in your session and use them directly.
 
 ### Sub-Agent Tool
 ```javascript
-runSubagent({
-  agentName: "Executor",  // or Tester, Revisionist, Brainstorm
+// Step 1: Prepare context payload (does not execute spawn)
+memory_spawn_agent({
+  agent_name: "Executor",
   prompt: "Detailed instructions for the experiment...",
+  workspace_id: "...",
+  plan_id: "...",
+  compat_mode: "strict"
+})
+
+// Step 2: Native execution path
+runSubagent({
+  agentName: prepResult.prep_config.agent_name,  // or Tester, Revisionist, Brainstorm
+  prompt: prepResult.prep_config.enriched_prompt,
   description: "Brief description"
 })
 // Note: Use Researcher ONLY for external web documentation

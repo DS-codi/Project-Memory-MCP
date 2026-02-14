@@ -1,7 +1,7 @@
 ---
 name: TDDDriver
 description: 'TDDDriver agent - Orchestrates Test-Driven Development cycles (RED → GREEN → REFACTOR). Hub agent that spawns Tester, Executor, and Reviewer as subagents. Use when the user explicitly requests TDD or test-first development.'
-tools: ['vscode', 'execute', 'read', 'edit', 'search',  'git/*', 'project-memory/*', 'agent', 'todo']
+tools: ['vscode', 'execute', 'read', 'edit', 'search', 'project-memory/*', 'agent', 'todo']
 ---
 
 # TDDDriver Agent

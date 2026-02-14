@@ -1,6 +1,6 @@
 ---
 description: 'Coordinator agent - Main orchestrator for all work. Receives requests, creates plans, and AUTOMATICALLY delegates to specialist agents using sub-agents. Use for any new request.'
-tools: ['vscode', 'execute', 'read', 'edit', 'search', 'agent',  'git/*', 'ms-python.python/getPythonEnvironmentInfo', 'ms-python.python/getPythonExecutableCommand', 'ms-python.python/installPythonPackage', 'ms-python.python/configurePythonEnvironment', 'todo']
+tools: ['vscode', 'execute', 'read', 'edit', 'search', 'agent',  'ms-python.python/getPythonEnvironmentInfo', 'ms-python.python/getPythonExecutableCommand', 'ms-python.python/installPythonPackage', 'ms-python.python/configurePythonEnvironment', 'todo']
 ---
 
 # Coordinator Agent

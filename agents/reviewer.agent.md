@@ -2,7 +2,7 @@
 ---
 name: Reviewer
 description: 'Reviewer agent - Dual-role: (1) Code review and quality validation, (2) Build verification with regression detection and user-facing build reports. Manages build scripts, verifies compilation, and validates completed work against requirements.'
-tools: ['read', 'execute', 'search', 'agent',  'git/*', 'project-memory/*', 'todo']
+tools: ['read', 'execute', 'search', 'agent', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Return to Coordinator"
     agent: Coordinator

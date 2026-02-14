@@ -174,7 +174,7 @@ Use these rules when coordinating non-core agents or alternate flows.
 - Allowed tools: `memory_plan` (read-only), `memory_context` (read-only), `memory_steps` (read-only).
 - Capabilities: Analyze codebase, ideate solutions, critique approaches, provide structured reasoning.
 - Handoff to Coordinator with recommendation based on analysis findings (e.g., Architect, Executor, Researcher).
-- Spawned by hub agents via `memory_agent(action: spawn)` — see Spawn Tool section below.
+- Spawned by hub agents using `memory_spawn_agent` (prep) followed by native `runSubagent` (execute).
 
 ### TDDDriver (TDD Hub)
 - TDDDriver is a **hub agent** — it CAN call `runSubagent`.
@@ -204,30 +204,42 @@ When a user cancels or interrupts a subagent mid-execution, the hub that spawned
 
 See `instructions/subagent-recovery.instructions.md` for the full scope boundary template.
 
-## Spawn Tool (`memory_agent` action: spawn)
+## Spawn Preparation Tool (`memory_spawn_agent`)
 
-Hub agents can use `memory_agent(action: spawn)` to programmatically spawn spoke agents with validated context injection.
+Hub agents should use `memory_spawn_agent` to prepare context-rich spawn payloads, then execute with native `runSubagent`.
 
 ### Usage
 
 ```json
 {
-  "action": "spawn",
+  "compat_mode": "strict",
   "agent_name": "Cognition",
-  "task_context": "Analyze the authentication module for security vulnerabilities"
+  "workspace_id": "workspace-id",
+  "plan_id": "plan-id",
+  "prompt": "Analyze the authentication module for security vulnerabilities"
+}
+```
+
+Then launch natively:
+
+```json
+{
+  "agentName": "Cognition",
+  "prompt": "<memory_spawn_agent.prep_config.enriched_prompt>",
+  "description": "Analyze authentication module"
 }
 ```
 
 ### How It Works
 
-1. **Gatekeeper validation**: Validates `agent_name` against known agents (checks `agents/*.agent.md`).
-2. **Context injection**: Automatically fetches workspace profile and current plan state.
-3. **Instruction loading**: Loads the agent's instruction file and returns it with injected context.
-4. **Boundary enforcement**: Enforces agent boundaries (e.g., Cognition cannot be given write tools).
+1. **Context preparation**: Builds `prep_config.enriched_prompt` with workspace/plan context.
+2. **Boundary injection**: Adds scope boundaries and anti-spawning instructions when applicable.
+3. **Compatibility support**: Returns canonical `prep_config` (plus deprecated `spawn_config` alias in legacy mode).
+4. **Native execution**: Caller passes prepared prompt into `runSubagent`.
 
 ### Rules
 
-- **Only hub agents** (Coordinator, Analyst, Runner, TDDDriver) should use spawn.
-- Spoke agents MUST NOT use spawn — use `memory_agent(action: handoff)` instead.
-- The spawn tool validates the target agent exists before proceeding.
-- Spawned agents receive workspace and plan context automatically.
+- **Only hub agents** (Coordinator, Analyst, Runner, TDDDriver) should prepare+spawn subagents.
+- Spoke agents MUST NOT spawn — use `memory_agent(action: handoff)` instead.
+- `memory_spawn_agent` is prep-only and MUST NOT be treated as execution.
+- Always call native `runSubagent` after prep using `prep_config.enriched_prompt`.

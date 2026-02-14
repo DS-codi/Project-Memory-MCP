@@ -20,6 +20,7 @@ The MCP server provides 5 unified tools with action parameters, plus 2 extension
 | `memory_terminal` | `run`, `read_output`, `kill`, `get_allowlist`, `update_allowlist` |
 | `memory_filesystem` | `read`, `write`, `search`, `list`, `tree` |
 | `memory_terminal_interactive` | `create`, `send`, `close`, `list` *(extension-side, visible VS Code terminals)* |
+| `memory_spawn_agent` | Context-prep only *(extension-side, returns `prep_config` for native `runSubagent`)* |
 
 **Build script paths:** `list_build_scripts` includes `directory_path` and `command_path` when available so builders can run scripts directly in the terminal.
 
@@ -242,6 +243,45 @@ memory_filesystem (action: tree) with
   path: "src",
   max_depth: 3
 ```
+
+## Spawn Context Preparation (`memory_spawn_agent`)
+
+`memory_spawn_agent` is an **extension-side, context-prep-only** tool. It does NOT execute subagent launches.
+
+Hub agents (Coordinator, Analyst, Runner, TDDDriver) call it before `runSubagent` to:
+1. Enrich the prompt with workspace/plan context
+2. Inject scope boundaries and anti-spawning instructions for spoke targets
+3. Add git stability guardrails
+
+```
+memory_spawn_agent with
+  agent_name: "Executor",
+  prompt: "Implement feature X...",
+  workspace_id: "...",
+  plan_id: "...",
+  compat_mode: "strict",
+  prep_config: {
+    scope_boundaries: {
+      files_allowed: ["src/feature.ts"],
+      directories_allowed: ["src/"]
+    }
+  }
+```
+
+Then launch the agent natively:
+```
+runSubagent({
+  agentName: prepResult.prep_config.agent_name,
+  prompt: prepResult.prep_config.enriched_prompt
+})
+```
+
+**Key rules:**
+- `execution.spawn_executed` is always `false` — the tool never launches agents
+- `compat_mode: "strict"` returns only `prep_config`; `"legacy"` also includes deprecated `spawn_config` alias
+- Spoke agents MUST NOT call `memory_spawn_agent` — use `memory_agent(action: handoff)` instead
+
+> **Migration note:** If you have code or documentation referencing `memory_spawn_agent` as an execution tool, update it to the prep-only flow: call `memory_spawn_agent` for context, then `runSubagent` natively.
 
 ## Hub-and-Spoke Model
 

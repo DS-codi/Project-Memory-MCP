@@ -1,7 +1,7 @@
 ---
 name: Runner
 description: 'Runner agent - Executes ad-hoc tasks without requiring a formal plan. Aware of Project Memory and logs work as plan steps intermittently. Use for quick tasks, explorations, or when formal planning would be overkill.'
-tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'git/*', 'project-memory/*',  'agent', 'todo']
+tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'project-memory/*', 'agent', 'todo']
 handoffs:
   - label: "🎯 Hand off to Coordinator"
     agent: Coordinator
@@ -55,9 +55,12 @@ context (action: store) with
     requirements: ["must pass existing tests"]
   }
 
-// 3. Spawn Executor with context retrieval instructions
-runSubagent({
-  agentName: "Executor",
+// 3. Prepare spawn payload (context-prep only)
+memory_spawn_agent({
+  agent_name: "Executor",
+  workspace_id: "{workspace_id}",
+  plan_id: "{plan_id}",
+  compat_mode: "strict",
   prompt: `Plan: {plan_id}
 Workspace: {workspace_id} | Path: {workspace_path}
 
@@ -83,6 +86,18 @@ CONTEXT RETRIEVAL (do this first):
 - Do NOT perform broad codebase research — context is provided.
 
 You are a spoke agent. Do NOT call runSubagent. Use memory_agent(action: handoff) to recommend the next agent back to the Runner.`,
+  prep_config: {
+    scope_boundaries: {
+      files_allowed: ["{explicit file list}"],
+      directories_allowed: ["{directory list}"]
+    }
+  }
+})
+
+// 4. Execute native spawn path
+runSubagent({
+  agentName: prepResult.prep_config.agent_name,
+  prompt: prepResult.prep_config.enriched_prompt,
   description: "Implement {brief description}"
 })
 ```

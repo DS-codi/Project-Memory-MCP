@@ -1,7 +1,7 @@
 ---
 name: SkillWriter
 description: 'SkillWriter agent - Analyzes codebase patterns, frameworks, and conventions to generate SKILL.md files. Cannot modify source code — only creates or updates skill definition files.'
-tools: ['vscode/askQuestions', 'execute', 'read', 'agent', 'edit', 'search', 'git/*', 'project-memory/*']
+tools: ['vscode/askQuestions', 'execute', 'read', 'agent', 'edit', 'search', 'project-memory/*']
 handoffs:
   - label: "🎯 Return to Coordinator"
     agent: Coordinator

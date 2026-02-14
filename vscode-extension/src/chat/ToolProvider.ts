@@ -8,7 +8,7 @@
  *   4. memory_steps                 - Step management
  *   5. memory_context               - Context, notes, research, briefings
  *   6. memory_terminal_interactive  - Interactive VS Code terminals
- *   7. memory_spawn_agent           - Spawn subagents with plan-aware orchestration
+ *   7. memory_spawn_agent           - Prepare spawn context for native runSubagent flow
  *
  * @see ./tools/ for individual handler implementations
  */
@@ -95,7 +95,7 @@ export class ToolProvider implements vscode.Disposable {
             })
         );
 
-        // 7. memory_spawn_agent
+        // 7. memory_spawn_agent (context preparation only)
         this.disposables.push(
             vscode.lm.registerTool('memory_spawn_agent', {
                 invoke: (options, token) => handleSpawnAgentTool(options as never, token, this.ctx)

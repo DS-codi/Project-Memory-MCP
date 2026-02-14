@@ -1,6 +1,6 @@
 ---
 description: 'Coordinator agent - Main entry point for all work. Receives requests, categorizes them, scans the codebase, and creates plans. Use for any new request.'
-tools: ['vscode', 'execute', 'read', 'edit', 'search', 'agent',  'git/*', 'ms-python.python/getPythonEnvironmentInfo', 'ms-python.python/getPythonExecutableCommand', 'ms-python.python/installPythonPackage', 'ms-python.python/configurePythonEnvironment', 'todo']
+tools: ['vscode', 'execute', 'read', 'edit', 'search', 'agent',  'ms-python.python/getPythonEnvironmentInfo', 'ms-python.python/getPythonExecutableCommand', 'ms-python.python/installPythonPackage', 'ms-python.python/configurePythonEnvironment', 'todo']
 ---
 
 # Coordinator Agent

@@ -1,7 +1,7 @@
 ---
 name: Executor
 description: 'Executor agent - Implements plan steps sequentially, writing code and verifying each step. Use when a plan is ready for implementation.'
-tools: ['execute', 'read', 'edit', 'search', 'agent',  'git/*', 'project-memory/*', 'todo']
+tools: ['execute', 'read', 'edit', 'search', 'agent', 'project-memory/*', 'todo']
 handoffs:
   - label: "🎯 Return to Coordinator"
     agent: Coordinator

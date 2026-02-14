@@ -1,7 +1,7 @@
 ---
 name: Worker
 description: 'Worker agent - Executes specific sub-tasks delegated by hub agents. Lightweight spoke with strict scope limits. Cannot modify plans, spawn subagents, or archive. Use for focused, scoped implementation tasks within an existing plan.'
-tools: ['vscode', 'execute', 'read', 'edit', 'search',  'git/*', 'project-memory/*', 'agent', 'todo']
+tools: ['vscode', 'execute', 'read', 'edit', 'search', 'project-memory/*', 'agent', 'todo']
 ---
 
 # Worker Agent

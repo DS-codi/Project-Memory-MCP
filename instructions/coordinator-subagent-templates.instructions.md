@@ -8,7 +8,45 @@ Templates for the Coordinator to use when spawning sub-agents via `runSubagent`.
 
 ---
 
-## 📝 SUB-AGENT PROMPTS
+## � Spawn Preparation (Required)
+
+**Before using any template below**, call `memory_spawn_agent` to prepare context:
+
+```javascript
+// Step 1: Prepare context payload (does NOT execute spawn)
+const prepResult = memory_spawn_agent({
+  agent_name: "Executor",
+  prompt: "<template prompt from below>",
+  workspace_id: "...",
+  plan_id: "...",
+  compat_mode: "strict",
+  prep_config: {
+    scope_boundaries: {
+      files_allowed: ["src/feature.ts"],
+      directories_allowed: ["src/"]
+    }
+  }
+});
+
+// Step 2: Launch natively with enriched prompt
+runSubagent({
+  agentName: prepResult.prep_config.agent_name,
+  prompt: prepResult.prep_config.enriched_prompt,
+  description: "Brief description"
+});
+```
+
+`memory_spawn_agent` automatically injects:
+- Workspace/plan context
+- Scope boundary blocks
+- Anti-spawning instructions (for spoke targets)
+- Git stability guardrails
+
+> **Note:** `memory_spawn_agent` is **context-prep only** — it never executes the spawn. Always call `runSubagent` after it.
+
+---
+
+## �📝 SUB-AGENT PROMPTS
 
 When spawning a sub-agent, include:
 
