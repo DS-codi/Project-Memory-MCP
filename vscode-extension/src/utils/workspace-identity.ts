@@ -67,10 +67,14 @@ function tryReadIdentity(dir: string): WorkspaceIdentity | null {
             return null;
         }
 
+        const normalizedDir = normalizePathForMatch(dir);
+        const normalizedParsed = normalizePathForMatch(parsed.workspace_path);
+        const isStale = normalizedDir !== normalizedParsed;
+
         return {
             workspaceId: canonicalizeWorkspaceId(parsed),
-            workspaceName: path.basename(parsed.workspace_path),
-            projectPath: parsed.workspace_path,
+            workspaceName: path.basename(isStale ? dir : parsed.workspace_path),
+            projectPath: isStale ? dir : parsed.workspace_path,
         };
     } catch {
         // Corrupt or unreadable file

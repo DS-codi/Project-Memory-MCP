@@ -19,6 +19,7 @@ import { DiagnosticsService } from './services/DiagnosticsService';
 import { notify } from './utils/helpers';
 import { getDefaultDataRoot, getDefaultAgentsRoot, getDefaultInstructionsRoot, getDefaultPromptsRoot, getDefaultSkillsRoot } from './utils/defaults';
 import { resolveTerminalCwdForBuildScript } from './utils/buildScriptCwd';
+import { clearIdentityCache } from './utils/workspace-identity';
 import { getDashboardFrontendUrl } from './server/ContainerDetection';
 import { registerServerCommands, registerDeployCommands, registerPlanCommands, registerWorkspaceCommands } from './commands';
 import { extractWorkspaceIdFromRegisterResponse, resolveWorkspaceIdFromWorkspaceList } from './chat/workspaceRegistration';
@@ -67,6 +68,7 @@ export function activate(context: vscode.ExtensionContext) {
         skillsRoot: getDefaultSkillsRoot(),
         defaultAgents,
         defaultInstructions,
+        defaultSkills: config.get<string[]>('defaultSkills') || [],
     });
 
     serverManager = new ServerManager({
@@ -192,6 +194,17 @@ export function activate(context: vscode.ExtensionContext) {
                     newConfig.get<string>('dataRoot') || getDefaultDataRoot(),
                     newConfig.get<string>('agentsRoot') || getDefaultAgentsRoot()
                 );
+                // Clear cached identity so stale paths are re-resolved
+                clearIdentityCache();
+                // Sync DefaultDeployer with fresh settings
+                defaultDeployer.updateConfig({
+                    agentsRoot: newConfig.get<string>('agentsRoot') || getDefaultAgentsRoot(),
+                    instructionsRoot: newConfig.get<string>('instructionsRoot') || getDefaultInstructionsRoot(),
+                    skillsRoot: getDefaultSkillsRoot(),
+                    defaultAgents: newConfig.get<string[]>('defaultAgents') || [],
+                    defaultInstructions: newConfig.get<string[]>('defaultInstructions') || [],
+                    defaultSkills: newConfig.get<string[]>('defaultSkills') || [],
+                });
             }
         })
     );

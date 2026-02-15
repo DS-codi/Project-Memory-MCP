@@ -137,7 +137,9 @@ export function registerDeployCommands(
             );
 
             if (!skillsSource.root) {
-                vscode.window.showWarningMessage(buildMissingSkillsSourceWarning(workspacePath, skillsSource.checkedPaths));
+                const warningMsg = buildMissingSkillsSourceWarning(workspacePath, skillsSource.checkedPaths);
+                console.warn('[PM Deploy Skills]', warningMsg);
+                vscode.window.showWarningMessage(warningMsg);
                 return;
             }
 

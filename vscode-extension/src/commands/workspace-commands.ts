@@ -10,6 +10,7 @@ import { DashboardViewProvider } from '../providers/DashboardViewProvider';
 import { McpBridge } from '../chat';
 import { notify } from '../utils/helpers';
 import { getDefaultAgentsRoot, getDefaultInstructionsRoot, getDefaultSkillsRoot } from '../utils/defaults';
+import { resolveSkillsSourceRoot, buildMissingSkillsSourceWarning } from '../utils/skillsSourceRoot';
 
 export function registerWorkspaceCommands(
     context: vscode.ExtensionContext,
@@ -131,6 +132,10 @@ export function registerWorkspaceCommands(
 
             if (choice.value === 'agents' && agentsRoot) {
                 try {
+                    if (!fs.existsSync(agentsRoot)) {
+                        vscode.window.showWarningMessage(`Agents root not found: ${agentsRoot}`);
+                        return;
+                    }
                     const allAgentFiles = fs.readdirSync(agentsRoot)
                         .filter((f: string) => f.endsWith('.agent.md'))
                         .map((f: string) => f.replace('.agent.md', ''));
@@ -159,6 +164,10 @@ export function registerWorkspaceCommands(
 
             if (choice.value === 'instructions' && instructionsRoot) {
                 try {
+                    if (!fs.existsSync(instructionsRoot)) {
+                        vscode.window.showWarningMessage(`Instructions root not found: ${instructionsRoot}`);
+                        return;
+                    }
                     const allInstructionFiles = fs.readdirSync(instructionsRoot)
                         .filter((f: string) => f.endsWith('.instructions.md'))
                         .map((f: string) => f.replace('.instructions.md', ''));
@@ -187,9 +196,18 @@ export function registerWorkspaceCommands(
 
             if (choice.value === 'skills' && skillsRoot) {
                 try {
-                    const allSkillDirs = fs.readdirSync(skillsRoot)
+                    const globalSkillsRoot = config.get<string>('globalSkillsRoot');
+                    const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
+                    const skillsResolution = resolveSkillsSourceRoot(skillsRoot, workspacePath, fs.existsSync, [globalSkillsRoot]);
+                    if (!skillsResolution.root) {
+                        vscode.window.showWarningMessage(buildMissingSkillsSourceWarning(workspacePath, skillsResolution.checkedPaths));
+                        return;
+                    }
+                    const resolvedSkillsRoot = skillsResolution.root;
+
+                    const allSkillDirs = fs.readdirSync(resolvedSkillsRoot)
                         .filter((f: string) => {
-                            const skillPath = path.join(skillsRoot, f, 'SKILL.md');
+                            const skillPath = path.join(resolvedSkillsRoot, f, 'SKILL.md');
                             return fs.existsSync(skillPath);
                         });
 

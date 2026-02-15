@@ -8,6 +8,7 @@ export interface DeploymentConfig {
     skillsRoot: string;
     defaultAgents: string[];
     defaultInstructions: string[];
+    defaultSkills: string[];
 }
 
 export class DefaultDeployer {
@@ -105,7 +106,11 @@ export class DefaultDeployer {
         }
 
         const entries = fs.readdirSync(this.config.skillsRoot);
-        for (const entry of entries) {
+        let filteredEntries = entries;
+        if (this.config.defaultSkills && this.config.defaultSkills.length > 0) {
+            filteredEntries = entries.filter(entry => this.config.defaultSkills.includes(entry));
+        }
+        for (const entry of filteredEntries) {
             const sourceDir = path.join(this.config.skillsRoot, entry);
             const stat = fs.statSync(sourceDir);
             if (!stat.isDirectory()) { continue; }
@@ -195,7 +200,7 @@ export class DefaultDeployer {
     /**
      * List what would be deployed (dry run)
      */
-    getDeploymentPlan(): { agents: string[]; instructions: string[] } {
+    getDeploymentPlan(): { agents: string[]; instructions: string[]; skills: string[] } {
         const agents = this.config.defaultAgents.filter(name => {
             const sourcePath = path.join(this.config.agentsRoot, `${name}.agent.md`);
             return fs.existsSync(sourcePath);
@@ -206,7 +211,12 @@ export class DefaultDeployer {
             return fs.existsSync(sourcePath);
         });
 
-        return { agents, instructions };
+        const skills = (this.config.defaultSkills || []).filter(name => {
+            const sourceDir = path.join(this.config.skillsRoot, name);
+            return fs.existsSync(path.join(sourceDir, 'SKILL.md'));
+        });
+
+        return { agents, instructions, skills };
     }
 
     private async copyFile(sourcePath: string, targetPath: string, overwrite = false): Promise<boolean> {
