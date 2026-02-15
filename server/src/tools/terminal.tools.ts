@@ -7,6 +7,7 @@
 
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import type { ToolResponse } from '../types/index.js';
 import {
   authorizeCommand,
@@ -27,6 +28,23 @@ const MAX_OUTPUT_BYTES = 100 * 1024; // 100KB ring buffer cap
 const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const DEFAULT_TIMEOUT_MS = 30_000; // 30 seconds
 const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // check every 5 min
+
+function resolveShellOption(): boolean | string {
+  if (process.platform === 'win32') {
+    return true;
+  }
+
+  const preferredShell = process.env.SHELL?.trim();
+  if (preferredShell && existsSync(preferredShell)) {
+    return preferredShell;
+  }
+
+  if (existsSync('/bin/sh')) {
+    return '/bin/sh';
+  }
+
+  return false;
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -176,9 +194,10 @@ export async function spawnAndTrackSession(params: {
 
   try {
     const isWindows = process.platform === 'win32';
+    const shell = resolveShellOption();
     const child = spawn(command, args, {
       cwd: workingDir,
-      shell: true,
+      shell,
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
       env: { ...process.env },

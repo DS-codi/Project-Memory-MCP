@@ -4,6 +4,8 @@ import type {
   InteractiveTerminalMode,
 } from './interactive-terminal-contract.js';
 
+export type InteractiveTerminalAdapter = 'headless_process' | 'host_bridge_local' | 'container_bridge_to_host';
+
 export type InteractiveTerminalNdjsonMessage =
   | {
       type: 'command_request';
@@ -17,6 +19,14 @@ export type InteractiveTerminalNdjsonMessage =
         cwd?: string;
         timeout_ms?: number;
         env?: Record<string, string>;
+        target_session_id?: string;
+        target_terminal_id?: string;
+        visibility?: 'visible' | 'headless';
+        adapter?: InteractiveTerminalAdapter;
+        approval?: {
+          required: boolean;
+          allowlisted: boolean;
+        };
       };
     }
   | {
@@ -35,6 +45,11 @@ export type InteractiveTerminalNdjsonMessage =
           running?: boolean;
           authorization?: 'allowed' | 'allowed_with_warning' | 'blocked';
           warning?: string;
+          adapter?: InteractiveTerminalAdapter;
+          approval_required?: boolean;
+          approved_by?: 'allowlist' | 'user';
+          visibility_applied?: 'visible' | 'headless';
+          attached_to_existing?: boolean;
         };
       };
     }
@@ -58,11 +73,24 @@ export interface CanonicalMappedResponse {
     running?: boolean;
     authorization?: 'allowed' | 'allowed_with_warning' | 'blocked';
     warning?: string;
+    adapter?: InteractiveTerminalAdapter;
+    approval_required?: boolean;
+    approved_by?: 'allowlist' | 'user';
+    visibility_applied?: 'visible' | 'headless';
+    attached_to_existing?: boolean;
   };
   reason?: string;
 }
 
-export function serializeCommandRequestToNdjson(request: InteractiveTerminalCanonicalRequest): string {
+export function serializeCommandRequestToNdjson(
+  request: InteractiveTerminalCanonicalRequest,
+  metadata?: {
+    adapter?: InteractiveTerminalAdapter;
+    visibility?: 'visible' | 'headless';
+    approval_required?: boolean;
+    allowlisted?: boolean;
+  },
+): string {
   const frame: InteractiveTerminalNdjsonMessage = {
     type: 'command_request',
     trace_id: request.correlation.trace_id,
@@ -75,6 +103,14 @@ export function serializeCommandRequestToNdjson(request: InteractiveTerminalCano
       cwd: request.runtime.cwd,
       timeout_ms: request.runtime.timeout_ms,
       env: request.execution?.env,
+      target_session_id: request.target?.session_id,
+      target_terminal_id: request.target?.terminal_id,
+      visibility: metadata?.visibility ?? (request.invocation.mode === 'interactive' ? 'visible' : 'headless'),
+      adapter: metadata?.adapter,
+      approval: {
+        required: metadata?.approval_required ?? false,
+        allowlisted: metadata?.allowlisted ?? false,
+      },
     },
   };
   return `${JSON.stringify(frame)}\n`;
@@ -122,6 +158,11 @@ export function mapCommandResponseFromNdjson(message: InteractiveTerminalNdjsonM
       running: message.payload.result?.running,
       authorization: message.payload.result?.authorization,
       warning: message.payload.result?.warning,
+      adapter: message.payload.result?.adapter,
+      approval_required: message.payload.result?.approval_required,
+      approved_by: message.payload.result?.approved_by,
+      visibility_applied: message.payload.result?.visibility_applied,
+      attached_to_existing: message.payload.result?.attached_to_existing,
     },
   };
 }

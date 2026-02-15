@@ -196,6 +196,39 @@ workspacesRouter.get('/:id', async (req, res) => {
   }
 });
 
+// POST /api/workspaces/:id/display-name - Set workspace display name
+workspacesRouter.post('/:id/display-name', async (req, res) => {
+  try {
+    const workspaceId = req.params.id;
+    const displayNameRaw = req.body?.display_name;
+
+    if (typeof displayNameRaw !== 'string') {
+      return res.status(400).json({ error: 'display_name is required' });
+    }
+
+    const displayName = displayNameRaw.trim();
+    if (!displayName) {
+      return res.status(400).json({ error: 'display_name must be a non-empty string' });
+    }
+
+    const metaPath = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'workspace.meta.json');
+    const content = await fs.readFile(metaPath, 'utf-8');
+    const meta = JSON.parse(content);
+
+    meta.display_name = displayName;
+    meta.name = displayName;
+    meta.updated_at = new Date().toISOString();
+    meta.last_accessed = meta.updated_at;
+
+    await fs.writeFile(metaPath, JSON.stringify(meta, null, 2));
+
+    res.json({ workspace: meta });
+  } catch (error) {
+    console.error('Error updating workspace display name:', error);
+    res.status(500).json({ error: 'Failed to update workspace display name' });
+  }
+});
+
 // GET /api/workspaces/:id/philosophy - Get project philosophy file
 workspacesRouter.get('/:id/philosophy', async (req, res) => {
   try {

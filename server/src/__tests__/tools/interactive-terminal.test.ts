@@ -2,7 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   handleInteractiveTerminalRun,
   handleListSessions,
+  executeCanonicalInteractiveRequest,
 } from '../../tools/interactive-terminal.tools.js';
+import { spawn } from 'node:child_process';
 import { parseInteractiveTerminalRequest } from '../../tools/interactive-terminal-contract.js';
 import {
   serializeCommandRequestToNdjson,
@@ -236,6 +238,49 @@ describe('memoryTerminalInteractive (consolidated router)', () => {
     expect(result.data).toHaveProperty('action', 'execute');
   });
 
+  it('uses interactive execute path with lifecycle semantics (viewer/session flow) via MCP tool entrypoint', async () => {
+    const result = await memoryTerminalInteractive({
+      action: 'execute',
+      invocation: { mode: 'interactive', intent: 'execute_command' },
+      execution: { command: 'echo', args: ['interactive-viewer-flow'] },
+    });
+
+    expect(result.success).toBe(true);
+    expect((result.data as any)?.action).toBe('execute');
+    expect((result.data as any)?.resolved?.mode).toBe('interactive');
+    expect((result.data as any)?.identity?.session_id).toBeTruthy();
+    expect((result.data as any)?.result?.lifecycle).toEqual([
+      'spawn',
+      'ready',
+      'request_sent',
+      'user_decision',
+      'response_returned',
+    ]);
+  });
+
+  it('blocks non-allowlisted commands in headless mode', async () => {
+    const result = await memoryTerminalInteractive({
+      action: 'execute',
+      invocation: { mode: 'headless', intent: 'execute_command' },
+      execution: { command: 'non-allowlisted-headless', args: ['test'] },
+    });
+
+    expect(result.success).toBe(false);
+    expect((result.data as any)?.error?.message).toContain('allowlist');
+  });
+
+  it('marks interactive execute as attached when explicit target identity is provided', async () => {
+    const result = await memoryTerminalInteractive({
+      action: 'execute',
+      invocation: { mode: 'interactive', intent: 'execute_command' },
+      target: { terminal_id: 'term_existing_01' },
+      execution: { command: 'echo', args: ['attach-explicit-target'] },
+    });
+
+    expect(result.success).toBe(true);
+    expect((result.data as any)?.identity?.session_id).toBe('term_existing_01');
+  });
+
   it('legacy run alias maps to execute', async () => {
     const result = await memoryTerminalInteractive({
       action: 'run',
@@ -432,6 +477,36 @@ describe('interactive terminal canonical parser', () => {
 });
 
 describe('interactive terminal protocol serialization', () => {
+  it('normalizes /bin/sh to Windows shell for interactive execute path on win32', async () => {
+    const platformSpy = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32');
+    const spawnMock = vi.mocked(spawn);
+    spawnMock.mockClear();
+
+    try {
+      const parsed = parseInteractiveTerminalRequest({
+        action: 'execute',
+        invocation: { mode: 'interactive', intent: 'execute_command' },
+        execution: { command: '/bin/sh', args: ['-lc', 'echo windows-shell'] },
+      });
+      expect(parsed.ok).toBe(true);
+      if (!parsed.ok) return;
+
+      const result = await executeCanonicalInteractiveRequest(parsed.request, {
+        alias_applied: false,
+        legacy_action: null,
+      });
+
+      expect(result.success).toBe(true);
+      expect(spawnMock).toHaveBeenCalled();
+
+      const lastCall = spawnMock.mock.calls.at(-1);
+      expect(lastCall?.[0]).toBe(process.env.ComSpec?.trim() || 'cmd.exe');
+      expect(lastCall?.[1]).toEqual(['/d', '/s', '/c', 'echo windows-shell']);
+    } finally {
+      platformSpy.mockRestore();
+    }
+  });
+
   it('serializes command_request and parses it back', () => {
     const parsed = parseInteractiveTerminalRequest({
       action: 'execute',
@@ -483,7 +558,75 @@ describe('interactive terminal protocol serialization', () => {
 });
 
 describe('interactive lifecycle recovery', () => {
-  it('uses container_bridge via PM_RUNNING_IN_CONTAINER by default and can be overridden to local', async () => {
+  it('does not fall back to headless execution when interactive container bridge is unavailable', async () => {
+    process.env.PM_RUNNING_IN_CONTAINER = 'true';
+    process.env.PM_TERM_ADAPTER_MODE = 'container_bridge';
+    process.env.PM_INTERACTIVE_TERMINAL_HOST_ALIAS = '127.0.0.1';
+    process.env.PM_INTERACTIVE_TERMINAL_HOST_FALLBACK_ALIAS = '127.0.0.1';
+    process.env.PM_INTERACTIVE_TERMINAL_HOST_PORT = '1';
+    process.env.PM_INTERACTIVE_TERMINAL_CONNECT_TIMEOUT_MS = '50';
+
+    try {
+      const mod = await import('../../tools/consolidated/memory_terminal_interactive.js');
+
+      const before = await mod.memoryTerminalInteractive({ action: 'list' });
+      const beforeCount = ((before.data as any)?.result?.items?.length ?? 0) as number;
+
+      const result = await mod.memoryTerminalInteractive({
+        action: 'execute',
+        invocation: { mode: 'interactive', intent: 'execute_command' },
+        execution: { command: 'echo', args: ['must-not-headless-fallback'] },
+      });
+
+      expect(result.success).toBe(false);
+      expect((result.data as any)?.error?.code).toBe('PM_TERM_GUI_UNAVAILABLE');
+      expect((result.data as any)?.fallback?.strategy).toBe('reject_no_retry');
+
+      const after = await mod.memoryTerminalInteractive({ action: 'list' });
+      const afterCount = ((after.data as any)?.result?.items?.length ?? 0) as number;
+      expect(afterCount).toBe(beforeCount);
+    } finally {
+      delete process.env.PM_RUNNING_IN_CONTAINER;
+      delete process.env.PM_TERM_ADAPTER_MODE;
+      delete process.env.PM_INTERACTIVE_TERMINAL_HOST_ALIAS;
+      delete process.env.PM_INTERACTIVE_TERMINAL_HOST_FALLBACK_ALIAS;
+      delete process.env.PM_INTERACTIVE_TERMINAL_HOST_PORT;
+      delete process.env.PM_INTERACTIVE_TERMINAL_CONNECT_TIMEOUT_MS;
+    }
+  });
+
+  it('fails closed when adapter_override=auto resolves to container bridge and preflight fails', async () => {
+    process.env.PM_RUNNING_IN_CONTAINER = 'true';
+    process.env.PM_TERM_ADAPTER_MODE = 'container_bridge';
+    process.env.PM_INTERACTIVE_TERMINAL_HOST_ALIAS = '127.0.0.1';
+    process.env.PM_INTERACTIVE_TERMINAL_HOST_FALLBACK_ALIAS = '127.0.0.1';
+    process.env.PM_INTERACTIVE_TERMINAL_HOST_PORT = '1';
+    process.env.PM_INTERACTIVE_TERMINAL_CONNECT_TIMEOUT_MS = '50';
+
+    try {
+      const mod = await import('../../tools/consolidated/memory_terminal_interactive.js');
+
+      const result = await mod.memoryTerminalInteractive({
+        action: 'execute',
+        invocation: { mode: 'interactive', intent: 'execute_command' },
+        runtime: { adapter_override: 'auto' },
+        execution: { command: 'echo', args: ['auto-override-fallback'] },
+      });
+
+      expect(result.success).toBe(false);
+      expect((result.data as any)?.error?.code).toBe('PM_TERM_GUI_UNAVAILABLE');
+      expect((result.data as any)?.fallback?.strategy).toBe('reject_no_retry');
+    } finally {
+      delete process.env.PM_RUNNING_IN_CONTAINER;
+      delete process.env.PM_TERM_ADAPTER_MODE;
+      delete process.env.PM_INTERACTIVE_TERMINAL_HOST_ALIAS;
+      delete process.env.PM_INTERACTIVE_TERMINAL_HOST_FALLBACK_ALIAS;
+      delete process.env.PM_INTERACTIVE_TERMINAL_HOST_PORT;
+      delete process.env.PM_INTERACTIVE_TERMINAL_CONNECT_TIMEOUT_MS;
+    }
+  });
+
+  it('rejects default container bridge when preflight is unavailable but still supports explicit local override', async () => {
     process.env.PM_RUNNING_IN_CONTAINER = 'true';
     process.env.PM_INTERACTIVE_TERMINAL_HOST_ALIAS = '127.0.0.1';
     process.env.PM_INTERACTIVE_TERMINAL_HOST_FALLBACK_ALIAS = '127.0.0.1';
@@ -501,7 +644,7 @@ describe('interactive lifecycle recovery', () => {
 
       expect(defaultContainerResult.success).toBe(false);
       expect((defaultContainerResult.data as any)?.error?.code).toBe('PM_TERM_GUI_UNAVAILABLE');
-      expect((defaultContainerResult.data as any)?.error?.details?.adapter_mode).toBe('container_bridge');
+      expect((defaultContainerResult.data as any)?.fallback?.strategy).toBe('reject_no_retry');
 
       const forcedLocalResult = await mod.memoryTerminalInteractive({
         action: 'execute',
@@ -795,12 +938,44 @@ describe('interactive lifecycle recovery', () => {
       expect((result.data as any)?.error?.code).toBe('PM_TERM_GUI_UNAVAILABLE');
       expect((result.data as any)?.error?.details?.bridge_port).toBe(1);
       expect(Array.isArray((result.data as any)?.error?.details?.attempts)).toBe(true);
-      expect((result.data as any)?.fallback?.strategy).toBe('fallback_to_headless_if_allowed');
+      expect((result.data as any)?.fallback?.strategy).toBe('reject_no_retry');
     } finally {
       delete process.env.PM_RUNNING_IN_CONTAINER;
       delete process.env.PM_TERM_ADAPTER_MODE;
       delete process.env.PM_INTERACTIVE_TERMINAL_HOST_ALIAS;
       delete process.env.PM_INTERACTIVE_TERMINAL_HOST_FALLBACK_ALIAS;
+      delete process.env.PM_INTERACTIVE_TERMINAL_HOST_PORT;
+      delete process.env.PM_INTERACTIVE_TERMINAL_CONNECT_TIMEOUT_MS;
+    }
+  });
+
+  it('includes explicit gateway host in bridge candidate diagnostics', async () => {
+    process.env.PM_RUNNING_IN_CONTAINER = 'true';
+    process.env.PM_TERM_ADAPTER_MODE = 'container_bridge';
+    process.env.PM_INTERACTIVE_TERMINAL_HOST_ALIAS = 'unreachable-primary.invalid';
+    process.env.PM_INTERACTIVE_TERMINAL_HOST_FALLBACK_ALIAS = 'unreachable-fallback.invalid';
+    process.env.PM_INTERACTIVE_TERMINAL_HOST_GATEWAY = '10.88.0.1';
+    process.env.PM_INTERACTIVE_TERMINAL_HOST_PORT = '1';
+    process.env.PM_INTERACTIVE_TERMINAL_CONNECT_TIMEOUT_MS = '50';
+
+    try {
+      const mod = await import('../../tools/consolidated/memory_terminal_interactive.js');
+      const result = await mod.memoryTerminalInteractive({
+        action: 'execute',
+        invocation: { mode: 'interactive', intent: 'execute_command' },
+        execution: { command: 'echo', args: ['bridge-gateway-diagnostics'] },
+      });
+
+      expect(result.success).toBe(false);
+      expect((result.data as any)?.error?.code).toBe('PM_TERM_GUI_UNAVAILABLE');
+      expect((result.data as any)?.error?.details?.bridge_gateway_host).toBe('10.88.0.1');
+      expect((result.data as any)?.error?.details?.bridge_candidate_hosts).toContain('10.88.0.1');
+    } finally {
+      delete process.env.PM_RUNNING_IN_CONTAINER;
+      delete process.env.PM_TERM_ADAPTER_MODE;
+      delete process.env.PM_INTERACTIVE_TERMINAL_HOST_ALIAS;
+      delete process.env.PM_INTERACTIVE_TERMINAL_HOST_FALLBACK_ALIAS;
+      delete process.env.PM_INTERACTIVE_TERMINAL_HOST_GATEWAY;
       delete process.env.PM_INTERACTIVE_TERMINAL_HOST_PORT;
       delete process.env.PM_INTERACTIVE_TERMINAL_CONNECT_TIMEOUT_MS;
     }

@@ -41,6 +41,11 @@ export interface AdapterAwaitResult {
     authorization?: 'allowed' | 'allowed_with_warning' | 'blocked';
     warning?: string;
     reason?: string;
+    adapter?: 'headless_process' | 'host_bridge_local' | 'container_bridge_to_host';
+    approval_required?: boolean;
+    approved_by?: 'allowlist' | 'user';
+    visibility_applied?: 'visible' | 'headless';
+    attached_to_existing?: boolean;
   };
 }
 
@@ -86,6 +91,11 @@ export interface OrchestrationResult {
     authorization?: 'allowed' | 'allowed_with_warning' | 'blocked';
     warning?: string;
     reason?: string;
+    adapter?: 'headless_process' | 'host_bridge_local' | 'container_bridge_to_host';
+    approval_required?: boolean;
+    approved_by?: 'allowlist' | 'user';
+    visibility_applied?: 'visible' | 'headless';
+    attached_to_existing?: boolean;
   };
 }
 

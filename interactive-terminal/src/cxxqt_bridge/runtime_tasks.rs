@@ -8,9 +8,10 @@ use crate::protocol::{
 use super::AppState;
 use crate::tcp_server::{ConnectionEvent, TcpServer};
 use cxx_qt_lib::QString;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast;
-use tokio::time::{sleep, Duration};
+use tokio::time::{sleep, Duration, Instant};
 
 pub(crate) fn spawn_runtime_tasks(
     mut server: TcpServer,
@@ -26,6 +27,9 @@ pub(crate) fn spawn_runtime_tasks(
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
         rt.block_on(async move {
+            // Clone state for the idle-timeout task before msg_task moves the original.
+            let state_for_idle = state_for_msg.clone();
+
             let server_task = async move {
                 loop {
                     if let Err(e) = server.start().await {
@@ -256,8 +260,12 @@ pub(crate) fn spawn_runtime_tasks(
                 }
             };
 
+            // Shared flag so the idle-timeout task can observe connection state.
+            let idle_connected = Arc::new(AtomicBool::new(false));
+
             let evt_task = {
                 let qt = qt_thread_evt;
+                let idle_connected = idle_connected.clone();
                 async move {
                     loop {
                         match event_rx.recv().await {
@@ -273,6 +281,8 @@ pub(crate) fn spawn_runtime_tasks(
                                         (false, "Heartbeat lost".into())
                                     }
                                 };
+
+                                idle_connected.store(connected, Ordering::Relaxed);
 
                                 let _ = qt.queue(move |mut obj| {
                                     obj.as_mut().set_is_connected(connected);
@@ -378,11 +388,61 @@ pub(crate) fn spawn_runtime_tasks(
                 }
             };
 
+            // Idle timeout task — periodically checks whether the app is
+            // idle (no connected client AND no pending commands) for longer
+            // than the configured idle timeout, then exits the process.
+            let idle_timeout_task = {
+                let state = state_for_idle;
+                let connected = idle_connected;
+                async move {
+                    let idle_secs = *crate::IDLE_TIMEOUT.get().unwrap_or(&300);
+                    if idle_secs == 0 {
+                        // Idle timeout disabled — park forever.
+                        std::future::pending::<()>().await;
+                        return;
+                    }
+                    let timeout = Duration::from_secs(idle_secs);
+                    // Check interval: every 10 seconds or half the timeout, whichever is smaller.
+                    let check_interval = Duration::from_secs(
+                        (idle_secs / 2).max(1).min(10),
+                    );
+                    let mut idle_since: Option<Instant> = None;
+
+                    loop {
+                        sleep(check_interval).await;
+
+                        let is_connected = connected.load(Ordering::Relaxed);
+                        let has_pending = {
+                            let s = state.lock().unwrap();
+                            s.pending_commands_by_session
+                                .values()
+                                .any(|cmds| !cmds.is_empty())
+                        };
+
+                        if is_connected || has_pending {
+                            // Activity present — reset idle timer.
+                            idle_since = None;
+                        } else {
+                            // No client, no pending commands.
+                            let start = *idle_since.get_or_insert_with(Instant::now);
+                            if start.elapsed() >= timeout {
+                                eprintln!(
+                                    "Idle timeout ({idle_secs}s) reached with no connected \
+                                     client and no pending commands. Exiting."
+                                );
+                                std::process::exit(0);
+                            }
+                        }
+                    }
+                }
+            };
+
             tokio::select! {
                 _ = server_task => {}
                 _ = msg_task => {}
                 _ = evt_task => {}
                 _ = exec_task => {}
+                _ = idle_timeout_task => {}
             }
         });
     });

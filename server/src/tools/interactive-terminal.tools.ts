@@ -15,11 +15,13 @@
 
 import type { ToolResponse } from '../types/index.js';
 import net from 'node:net';
+import { readFile } from 'node:fs/promises';
 import {
   isDestructiveCommand,
   hasShellOperators,
   ensureAllowlistLoaded,
   getEffectiveAllowlist,
+  authorizeCommand,
 } from './terminal-auth.js';
 import {
   spawnAndTrackSession,
@@ -38,6 +40,7 @@ import {
   parseNdjsonMessage,
   serializeCommandRequestToNdjson,
   serializeHeartbeatToNdjson,
+  type InteractiveTerminalAdapter,
 } from './interactive-terminal-protocol.js';
 import {
   orchestrateInteractiveLifecycle,
@@ -97,7 +100,7 @@ export interface CanonicalInteractiveResponse {
   error: null;
 }
 
-type RuntimeAdapterMode = 'local' | 'bundled' | 'container_bridge';
+type RuntimeAdapterMode = 'local' | 'container_bridge';
 
 interface BridgeProbeAttempt {
   host: string;
@@ -118,6 +121,78 @@ interface BridgePreflightFailure {
 
 type BridgePreflightResult = BridgePreflightOk | BridgePreflightFailure;
 
+function decodeLinuxRouteHexIp(hex: string): string | undefined {
+  const normalized = hex.trim();
+  if (!/^[0-9A-Fa-f]{8}$/.test(normalized)) return undefined;
+  const octets: number[] = [];
+  for (let index = 0; index < 8; index += 2) {
+    const value = Number.parseInt(normalized.slice(index, index + 2), 16);
+    if (!Number.isFinite(value) || value < 0 || value > 255) return undefined;
+    octets.unshift(value);
+  }
+  return octets.join('.');
+}
+
+async function detectContainerGatewayHost(): Promise<string | undefined> {
+  if (process.env.PM_RUNNING_IN_CONTAINER !== 'true') {
+    return undefined;
+  }
+
+  const explicitGateway = process.env.PM_INTERACTIVE_TERMINAL_HOST_GATEWAY?.trim();
+  if (explicitGateway && explicitGateway.length > 0) {
+    return explicitGateway;
+  }
+
+  try {
+    const routeTable = await readFile('/proc/net/route', 'utf-8');
+    const lines = routeTable.split(/\r?\n/).slice(1);
+    for (const line of lines) {
+      const columns = line.trim().split(/\s+/);
+      if (columns.length < 3) continue;
+      const destination = columns[1];
+      const gatewayHex = columns[2];
+      if (destination !== '00000000') continue;
+      const decoded = decodeLinuxRouteHexIp(gatewayHex);
+      if (decoded) {
+        return decoded;
+      }
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
+}
+
+function normalizeExecutionForPlatform(command: string, args: string[] | undefined): {
+  command: string;
+  args: string[];
+} {
+  const resolvedArgs = Array.isArray(args) ? args : [];
+
+  if (process.platform !== 'win32') {
+    return { command, args: resolvedArgs };
+  }
+
+  const normalizedCommand = command.trim().toLowerCase();
+  const isPosixShell = normalizedCommand === '/bin/sh' || normalizedCommand === 'sh';
+  if (!isPosixShell) {
+    return { command, args: resolvedArgs };
+  }
+
+  const comspec = process.env.ComSpec?.trim() || 'cmd.exe';
+  const shellIndex = resolvedArgs.findIndex((value) => value === '-c' || value === '-lc');
+  const shellPayload =
+    shellIndex >= 0 && shellIndex < resolvedArgs.length - 1
+      ? resolvedArgs.slice(shellIndex + 1).join(' ')
+      : resolvedArgs.join(' ');
+
+  return {
+    command: comspec,
+    args: ['/d', '/s', '/c', shellPayload],
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Relaxed authorization
 // ---------------------------------------------------------------------------
@@ -126,6 +201,8 @@ interface InteractiveAuthResult {
   status: 'allowed' | 'allowed_with_warning' | 'blocked';
   warning?: string;
   reason?: string;
+  allowlisted: boolean;
+  approval_required: boolean;
 }
 
 /**
@@ -148,6 +225,8 @@ function authorizeInteractiveCommand(
     return {
       status: 'blocked',
       reason: `Command contains destructive keyword: "${destructive.keyword}". This command is blocked for safety.`,
+      allowlisted: false,
+      approval_required: false,
     };
   }
 
@@ -173,10 +252,12 @@ function authorizeInteractiveCommand(
     return {
       status: 'allowed_with_warning',
       warning: warnings.join(' '),
+      allowlisted: onAllowlist,
+      approval_required: !onAllowlist,
     };
   }
 
-  return { status: 'allowed' };
+  return { status: 'allowed', allowlisted: true, approval_required: false };
 }
 
 // ---------------------------------------------------------------------------
@@ -240,6 +321,54 @@ export async function handleInteractiveTerminalRun(params: {
   };
 }
 
+async function handleHeadlessTerminalRun(params: {
+  command: string;
+  args?: string[];
+  cwd?: string;
+  timeout?: number;
+  workspace_id?: string;
+}): Promise<ToolResponse<InteractiveTerminalRunResult>> {
+  const { command, args = [], cwd, timeout, workspace_id } = params;
+
+  if (workspace_id) {
+    await ensureAllowlistLoaded(workspace_id);
+  }
+
+  const auth = authorizeCommand(command, args, workspace_id);
+  if (auth.status === 'blocked') {
+    const fullCmd = args.length > 0 ? `${command} ${args.join(' ')}` : command;
+    return {
+      success: false,
+      error: auth.reason ?? 'Command blocked by strict headless policy.',
+      data: {
+        session_id: '',
+        pid: undefined,
+        running: false,
+        exit_code: null,
+        stdout: '',
+        stderr: '',
+        truncated: false,
+        authorization: 'blocked',
+        command: fullCmd,
+        reason: auth.reason,
+      },
+    };
+  }
+
+  const spawnResult = await spawnAndTrackSession({ command, args, cwd, timeout });
+  if (!spawnResult.success) {
+    return { success: false, error: spawnResult.error };
+  }
+
+  return {
+    success: true,
+    data: {
+      ...spawnResult.data!,
+      authorization: 'allowed',
+    },
+  };
+}
+
 /**
  * List all active terminal sessions (shared across memory_terminal
  * and memory_terminal_interactive).
@@ -257,16 +386,27 @@ export async function handleListSessions(): Promise<ToolResponse<SessionListResu
 
 async function handleInProcessInteractiveExecute(
   request: InteractiveTerminalCanonicalRequest,
+  adapter: InteractiveTerminalAdapter,
 ): Promise<{
   success: boolean;
   response?: CanonicalInteractiveResponse;
   error?: InteractiveTerminalCanonicalErrorResponse;
 }> {
-  const adapter: InteractiveRuntimeAdapter = createInProcessInteractiveAdapter(request);
+  const allowlist = await getEffectiveAllowlist(request.runtime.workspace_id);
+  const auth = authorizeInteractiveCommand(
+    request.execution?.command ?? '',
+    request.execution?.args ?? [],
+    allowlist,
+  );
+  const runtimeAdapter: InteractiveRuntimeAdapter = createInProcessInteractiveAdapter(request, {
+    adapter,
+    approval_required: auth.approval_required,
+    allowlisted: auth.allowlisted,
+  });
 
   const orchestration = await orchestrateInteractiveLifecycle({
     request,
-    adapter,
+    adapter: runtimeAdapter,
   });
 
   if (!orchestration.ok) {
@@ -457,6 +597,11 @@ async function handleInProcessInteractiveExecute(
 
 function createInProcessInteractiveAdapter(
   request: InteractiveTerminalCanonicalRequest,
+  metadata: {
+    adapter: InteractiveTerminalAdapter;
+    approval_required: boolean;
+    allowlisted: boolean;
+  },
 ): InteractiveRuntimeAdapter {
   let storedResponse: {
     session_id?: string;
@@ -468,10 +613,20 @@ function createInProcessInteractiveAdapter(
     authorization?: 'allowed' | 'allowed_with_warning' | 'blocked';
     warning?: string;
     reason?: string;
+    adapter?: InteractiveTerminalAdapter;
+    approval_required?: boolean;
+    approved_by?: 'allowlist' | 'user';
+    visibility_applied?: 'visible' | 'headless';
+    attached_to_existing?: boolean;
   } | undefined;
 
+  const targetIdentity = request.target?.session_id ?? request.target?.terminal_id;
+  const existingDefaultSession = getActiveSessions()[0]?.session_id;
+  const attachedSessionId = targetIdentity ?? existingDefaultSession;
+  const attachedToExisting = Boolean(attachedSessionId);
+
   return {
-    adapter_type: 'inprocess',
+    adapter_type: metadata.adapter === 'container_bridge_to_host' ? 'container_bridge' : 'local',
     async connect() {
       return {
         ok: true,
@@ -482,24 +637,35 @@ function createInProcessInteractiveAdapter(
     async sendRequest() {
       if (request.invocation.intent === 'open_only') {
         storedResponse = {
+          session_id: attachedSessionId,
+          terminal_id: attachedSessionId,
           running: false,
           exit_code: 0,
           stdout: '',
           stderr: '',
           authorization: 'allowed',
+          adapter: metadata.adapter,
+          approval_required: false,
+          approved_by: 'allowlist',
+          visibility_applied: 'visible',
+          attached_to_existing: attachedToExisting,
         };
         return { ok: true };
       }
 
-      const requestFrame = serializeCommandRequestToNdjson(request);
+      const requestFrame = serializeCommandRequestToNdjson(request, {
+        adapter: metadata.adapter,
+        visibility: 'visible',
+        approval_required: metadata.approval_required,
+        allowlisted: metadata.allowlisted,
+      });
       const parsed = parseNdjsonMessage(requestFrame);
       if (!parsed || parsed.type !== 'command_request') {
         return { ok: false, error: 'internal' };
       }
 
       const runResult = await handleInteractiveTerminalRun({
-        command: parsed.payload.command ?? '',
-        args: parsed.payload.args,
+        ...normalizeExecutionForPlatform(parsed.payload.command ?? '', parsed.payload.args),
         cwd: parsed.payload.cwd,
         timeout: parsed.payload.timeout_ms,
         workspace_id: request.runtime.workspace_id,
@@ -534,6 +700,11 @@ function createInProcessInteractiveAdapter(
             running: runResult.data?.running,
             authorization: runResult.data?.authorization,
             warning: runResult.data?.warning,
+            adapter: metadata.adapter,
+            approval_required: metadata.approval_required,
+            approved_by: metadata.approval_required ? ('user' as const) : ('allowlist' as const),
+            visibility_applied: 'visible' as const,
+            attached_to_existing: attachedToExisting,
           },
         },
       };
@@ -543,13 +714,19 @@ function createInProcessInteractiveAdapter(
       }
 
       storedResponse = {
-        session_id: mapped.result.session_id,
+        session_id: attachedSessionId ?? mapped.result.session_id,
+        terminal_id: attachedSessionId ?? mapped.result.terminal_id,
         stdout: mapped.result.stdout,
         stderr: mapped.result.stderr,
         exit_code: mapped.result.exit_code,
         running: mapped.result.running,
         authorization: mapped.result.authorization,
         warning: mapped.result.warning,
+        adapter: mapped.result.adapter,
+        approval_required: mapped.result.approval_required,
+        approved_by: mapped.result.approved_by,
+        visibility_applied: mapped.result.visibility_applied,
+        attached_to_existing: mapped.result.attached_to_existing,
       };
 
       return { ok: true };
@@ -845,9 +1022,14 @@ export async function executeCanonicalInteractiveRequest(
   }
 
   if (request.invocation.mode === 'headless') {
-    const run = await handleInteractiveTerminalRun({
-      command: request.execution?.command ?? '',
-      args: request.execution?.args,
+    const normalizedExecution = normalizeExecutionForPlatform(
+      request.execution?.command ?? '',
+      request.execution?.args,
+    );
+
+    const run = await handleHeadlessTerminalRun({
+      command: normalizedExecution.command,
+      args: normalizedExecution.args,
       cwd: request.runtime.cwd,
       timeout: request.runtime.timeout_ms,
       workspace_id: request.runtime.workspace_id,
@@ -993,10 +1175,10 @@ export async function executeCanonicalInteractiveRequest(
             },
           },
           fallback: {
-            strategy: 'fallback_to_headless_if_allowed',
+            strategy: 'reject_no_retry',
             next_action: 'execute',
-            recommended_mode: 'headless',
-            user_message: 'Interactive bridge is unreachable. Retry after starting bridge service or run headless mode.',
+            recommended_mode: 'interactive',
+            user_message: 'Interactive bridge is unreachable. Start host bridge service before retrying.',
             can_auto_retry: false,
           },
         },
@@ -1004,7 +1186,10 @@ export async function executeCanonicalInteractiveRequest(
     }
   }
 
-  const interactive = await handleInProcessInteractiveExecute(request);
+  const interactive = await handleInProcessInteractiveExecute(
+    request,
+    adapterMode === 'container_bridge' ? 'container_bridge_to_host' : 'host_bridge_local',
+  );
   if (!interactive.success) {
     return {
       success: false,
@@ -1020,13 +1205,25 @@ export async function executeCanonicalInteractiveRequest(
 
 function resolveRuntimeAdapterMode(request: InteractiveTerminalCanonicalRequest): RuntimeAdapterMode {
   const override = request.runtime.adapter_override;
-  if (override === 'local' || override === 'bundled' || override === 'container_bridge') {
-    return override;
+  if (override === 'container_bridge') {
+    return 'container_bridge';
+  }
+
+  if (override === 'local' || override === 'bundled') {
+    return 'local';
+  }
+
+  if (override === 'auto') {
+    return process.env.PM_RUNNING_IN_CONTAINER === 'true' ? 'container_bridge' : 'local';
   }
 
   const envMode = process.env.PM_TERM_ADAPTER_MODE;
-  if (envMode === 'local' || envMode === 'bundled' || envMode === 'container_bridge') {
-    return envMode;
+  if (envMode === 'container_bridge') {
+    return 'container_bridge';
+  }
+
+  if (envMode === 'local' || envMode === 'bundled') {
+    return 'local';
   }
 
   const runningInContainer = process.env.PM_RUNNING_IN_CONTAINER === 'true';
@@ -1048,6 +1245,11 @@ function parsePositiveIntEnv(name: string, fallback: number): { value: number; i
 async function runContainerBridgePreflight(): Promise<BridgePreflightResult> {
   const hostAlias = process.env.PM_INTERACTIVE_TERMINAL_HOST_ALIAS?.trim() || 'host.containers.internal';
   const fallbackAlias = process.env.PM_INTERACTIVE_TERMINAL_HOST_FALLBACK_ALIAS?.trim() || 'host.docker.internal';
+  const gatewayHost = await detectContainerGatewayHost();
+  const additionalAliases = (process.env.PM_INTERACTIVE_TERMINAL_HOST_ALIASES ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
   const port = parsePositiveIntEnv('PM_INTERACTIVE_TERMINAL_HOST_PORT', 45_459);
   const connectTimeout = parsePositiveIntEnv('PM_INTERACTIVE_TERMINAL_CONNECT_TIMEOUT_MS', 3_000);
 
@@ -1069,7 +1271,13 @@ async function runContainerBridgePreflight(): Promise<BridgePreflightResult> {
     };
   }
 
-  const uniqueHosts = Array.from(new Set([hostAlias, fallbackAlias].filter((value) => value.length > 0)));
+  const uniqueHosts = Array.from(
+    new Set(
+      [hostAlias, fallbackAlias, gatewayHost, ...additionalAliases].filter(
+        (value): value is string => Boolean(value && value.length > 0),
+      ),
+    ),
+  );
   const attempts: BridgeProbeAttempt[] = [];
 
   for (const host of uniqueHosts) {
@@ -1086,6 +1294,8 @@ async function runContainerBridgePreflight(): Promise<BridgePreflightResult> {
     details: {
       bridge_host_alias: hostAlias,
       bridge_fallback_alias: fallbackAlias,
+      bridge_gateway_host: gatewayHost,
+      bridge_candidate_hosts: uniqueHosts,
       bridge_port: port.value,
       connect_timeout_ms: connectTimeout.value,
       attempts,

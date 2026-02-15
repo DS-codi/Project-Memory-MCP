@@ -26,6 +26,24 @@ async function fetchWorkspace(id: string): Promise<WorkspaceMeta> {
   return res.json();
 }
 
+async function updateWorkspaceDisplayName(id: string, displayName: string): Promise<WorkspaceMeta> {
+  const res = await fetch(`/api/workspaces/${id}/display-name`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ display_name: displayName }),
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(typeof error.error === 'string' ? error.error : 'Failed to update workspace display name');
+  }
+
+  const data = await res.json() as { workspace: WorkspaceMeta };
+  return data.workspace;
+}
+
 export function WorkspacePage() {
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const navigate = useNavigate();
@@ -36,6 +54,10 @@ export function WorkspacePage() {
   const [showDefaultsModal, setShowDefaultsModal] = useState(false);
   const [templateToCreate, setTemplateToCreate] = useState<string | null>(null);
   const [deployDefaults, setDeployDefaults] = useState<DeployDefaults | null>(() => getDeployDefaults());
+  const [isEditingDisplayName, setIsEditingDisplayName] = useState(false);
+  const [draftDisplayName, setDraftDisplayName] = useState('');
+  const [isSavingDisplayName, setIsSavingDisplayName] = useState(false);
+  const [displayNameError, setDisplayNameError] = useState<string | null>(null);
 
   const { data: workspace, isLoading: wsLoading } = useQuery({
     queryKey: ['workspace', workspaceId],
@@ -80,6 +102,53 @@ export function WorkspacePage() {
     );
   }
 
+  const currentDisplayName = workspace.name;
+  const trimmedDraftDisplayName = draftDisplayName.trim();
+  const hasDisplayNameChanged = trimmedDraftDisplayName.length > 0 && trimmedDraftDisplayName !== currentDisplayName;
+
+  const startEditDisplayName = () => {
+    setDraftDisplayName(currentDisplayName);
+    setDisplayNameError(null);
+    setIsEditingDisplayName(true);
+  };
+
+  const cancelEditDisplayName = () => {
+    setDraftDisplayName(currentDisplayName);
+    setDisplayNameError(null);
+    setIsEditingDisplayName(false);
+  };
+
+  const saveDisplayName = async () => {
+    const nextDisplayName = draftDisplayName.trim();
+    if (!nextDisplayName) {
+      setDisplayNameError('Display name is required');
+      return;
+    }
+
+    if (nextDisplayName === currentDisplayName) {
+      setIsEditingDisplayName(false);
+      setDisplayNameError(null);
+      return;
+    }
+
+    setIsSavingDisplayName(true);
+    setDisplayNameError(null);
+
+    try {
+      await updateWorkspaceDisplayName(workspaceId!, nextDisplayName);
+      setIsEditingDisplayName(false);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['workspace', workspaceId] }),
+        queryClient.invalidateQueries({ queryKey: ['workspaces'] }),
+      ]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update workspace display name';
+      setDisplayNameError(message);
+    } finally {
+      setIsSavingDisplayName(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}
@@ -99,9 +168,51 @@ export function WorkspacePage() {
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-2xl font-bold">{workspace.name}</h1>
+              {isEditingDisplayName ? (
+                <div className="flex flex-wrap items-center gap-2 w-full">
+                  <input
+                    value={draftDisplayName}
+                    onChange={(event) => {
+                      setDraftDisplayName(event.target.value);
+                      if (displayNameError) {
+                        setDisplayNameError(null);
+                      }
+                    }}
+                    className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 text-lg font-semibold w-full max-w-xl"
+                    disabled={isSavingDisplayName}
+                    aria-label="Workspace display name"
+                  />
+                  <button
+                    onClick={() => void saveDisplayName()}
+                    disabled={isSavingDisplayName || !hasDisplayNameChanged}
+                    className="px-3 py-2 bg-violet-500 text-white rounded-lg hover:bg-violet-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    {isSavingDisplayName ? 'Saving…' : 'Save'}
+                  </button>
+                  <button
+                    onClick={cancelEditDisplayName}
+                    disabled={isSavingDisplayName}
+                    className="px-3 py-2 bg-slate-700 text-slate-200 rounded-lg hover:bg-slate-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <h1 className="text-2xl font-bold">{currentDisplayName}</h1>
+                  <button
+                    onClick={startEditDisplayName}
+                    className="px-2 py-1 bg-slate-700/70 text-slate-200 rounded-md hover:bg-slate-600 transition-colors text-xs"
+                  >
+                    Edit name
+                  </button>
+                </>
+              )}
               <HealthIndicator health={health} showLabel />
             </div>
+            {displayNameError && (
+              <p className="text-sm text-red-400 mb-2">{displayNameError}</p>
+            )}
             <p className="text-slate-400 mb-4 font-mono text-sm">{workspace.path}</p>
 
             <div className="flex flex-wrap gap-2 mb-4">

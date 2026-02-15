@@ -13,6 +13,8 @@ pub use tcp_server::TcpServer;
 
 use clap::Parser;
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QUrl};
+use std::net::TcpListener;
+use std::sync::Mutex;
 use std::sync::OnceLock;
 
 /// Default TCP port for the interactive terminal server.
@@ -25,11 +27,35 @@ const DEFAULT_HOST_BRIDGE_PORT: u16 = 45459;
 /// is constructed by the QML engine.
 pub static SERVER_PORT: OnceLock<u16> = OnceLock::new();
 
+/// Pre-bound runtime listener to guarantee early port reservation at process startup.
+///
+/// `TcpServer::start` consumes this listener when the bridge runtime initializes.
+pub static PREBOUND_RUNTIME_LISTENER: OnceLock<Mutex<Option<TcpListener>>> = OnceLock::new();
+
 /// Heartbeat interval in seconds, set from CLI args at startup.
 pub static HEARTBEAT_INTERVAL: OnceLock<u64> = OnceLock::new();
 
 /// Idle timeout in seconds, set from CLI args at startup.
 pub static IDLE_TIMEOUT: OnceLock<u64> = OnceLock::new();
+
+pub fn prebind_runtime_listener(port: u16) -> std::io::Result<()> {
+    let listener = TcpListener::bind(("127.0.0.1", port))?;
+    let storage = PREBOUND_RUNTIME_LISTENER.get_or_init(|| Mutex::new(None));
+    let mut guard = storage.lock().unwrap();
+    *guard = Some(listener);
+    Ok(())
+}
+
+pub fn take_prebound_runtime_listener(port: u16) -> Option<TcpListener> {
+    let storage = PREBOUND_RUNTIME_LISTENER.get()?;
+    let mut guard = storage.lock().unwrap();
+    let listener = guard.take()?;
+
+    match listener.local_addr() {
+        Ok(addr) if addr.port() == port => Some(listener),
+        _ => None,
+    }
+}
 
 // ---------------------------------------------------------------------------
 // CLI Arguments
@@ -74,6 +100,9 @@ fn main() {
         .set(args.idle_timeout)
         .expect("IDLE_TIMEOUT already set");
 
+    prebind_runtime_listener(port)
+        .unwrap_or_else(|error| panic!("Failed to prebind 127.0.0.1:{port}: {error}"));
+
     eprintln!("Interactive Terminal listening on 127.0.0.1:{port}");
     host_bridge_listener::spawn(host_bridge_port, port);
 
@@ -84,7 +113,7 @@ fn main() {
     let mut engine = QQmlApplicationEngine::new();
 
     if let Some(engine) = engine.as_mut() {
-        engine.load(&QUrl::from("qrc:/qt/qml/com/projectmemory/terminal/qml/main.qml"));
+        engine.load(&QUrl::from("qrc:/qt/qml/com/projectmemory/terminal/main.qml"));
     }
 
     if let Some(app) = app.as_mut() {

@@ -1,254 +1,115 @@
-# Interactive Terminal
+# Interactive Terminal (Current State)
 
-A Qt-based GUI application for interactive command approval and execution. Built with Rust, CxxQt, and QML.
+Native Rust + CxxQt + QML desktop app used as the host-side approval/runtime endpoint for interactive terminal workflows.
 
-The Interactive Terminal acts as a human-in-the-loop gateway: an MCP server (or any TCP client) sends command requests over a TCP connection, and the user approves or declines each one through a desktop GUI. Approved commands are executed locally with real-time output streaming.
+## Overview
 
-## MCP Integration Topology
+- Runtime listener: binds to `127.0.0.1:9100` by default (configurable).
+- Host bridge listener: binds to `0.0.0.0:45459` by default and proxies to runtime `127.0.0.1:<runtimePort>`.
+- Runtime listener is pre-bound during startup to avoid QML initialization timing issues.
+- Build/deploy entrypoint: `build-interactive-terminal.ps1`.
 
-The Interactive Terminal participates in a routed MCP flow where approval and execution are separated:
-
-- MCP caller chooses a terminal workflow intent.
-- Interactive Terminal (Rust+QML) handles approval queue and decision UI.
-- After approval, routing resolves to one execution contract:
-  - `memory_terminal` for headless server/container execution
-  - `memory_terminal_interactive` for visible host-terminal execution
-- Result/error payloads are returned using the selected terminal surface contract.
-
-The gateway is an approval/orchestration layer and should not be treated as a third terminal execution API.
-
-For canonical contract details and action-alias unification design, see:
-
-- [Interactive Terminal Contract Unification Design](../docs/interactive-terminal-contract-unification-design.md)
-
-## Architecture
+## Architecture (high level)
 
 ```
-┌─────────────────┐          TCP (NDJSON)          ┌──────────────────────────────┐
-│                 │  ──── CommandRequest ────────►  │                              │
-│   MCP Server    │                                 │    Interactive Terminal       │
-│   (client)      │  ◄─── CommandResponse ───────  │                              │
-│                 │  ◄──► Heartbeat ──────────────► │                              │
-└─────────────────┘                                 └──────┬───────────────────────┘
-                                                           │
-                                                    ┌──────┴───────────────────────┐
-                                                    │   Rust Backend               │
-                                                    │  ┌───────────────────────┐   │
-                                                    │  │ TcpServer             │   │
-                                                    │  │  • accept loop        │   │
-                                                    │  │  • NDJSON framing     │   │
-                                                    │  │  • heartbeat monitor  │   │
-                                                    │  └───────┬───────────────┘   │
-                                                    │          │ channels           │
-                                                    │  ┌───────┴───────────────┐   │
-                                                    │  │ TerminalApp (QObject) │   │
-                                                    │  │  • command queue      │   │
-                                                    │  │  • approve / decline  │   │
-                                                    │  └───────┬───────────────┘   │
-                                                    │          │ Qt signals         │
-                                                    │  ┌───────┴───────────────┐   │
-                                                    │  │ QML UI               │   │
-                                                    │  │  • main.qml          │   │
-                                                    │  │  • CommandCard.qml   │   │
-                                                    │  │  • DeclineDialog.qml │   │
-                                                    │  │  • OutputView.qml   │   │
-                                                    │  └───────────────────────┘   │
-                                                    └──────────────────────────────┘
+MCP tool call
+  -> interactive terminal routing (server)
+  -> host bridge (optional container_bridge path, default port 45459)
+  -> interactive-terminal runtime listener (default 127.0.0.1:9100)
+  -> Qt UI approval + command execution lifecycle
 ```
 
-## Prerequisites
+More operations detail: `docs/runtime-ports-and-mcp-modes.md`.
 
-- **Rust toolchain** — stable 1.70+ (install via [rustup](https://rustup.rs))
-- **Qt 6.x** — 6.5 or later (tested with 6.10.2 MSVC 2022)
-- **QMAKE environment variable** — must point to your Qt installation's `qmake6` executable
+## Prerequisites (Windows)
 
-### Setting QMAKE
+- Rust toolchain (`cargo`, `rustc`)
+- Qt 6 MSVC kit (project default: `C:\Qt\6.10.2\msvc2022_64`)
+- PowerShell 7+
+
+## Build and Run
+
+From `interactive-terminal/`:
 
 ```powershell
-# Windows (PowerShell) — adjust path for your Qt version
-$env:QMAKE = "C:\Qt\6.10.2\msvc2022_64\bin\qmake6.exe"
+# Release build + Qt runtime deployment verification (default profile is release)
+.\build-interactive-terminal.ps1 -Clean -Profile release
+
+# Optional: run tests before build
+.\build-interactive-terminal.ps1 -Test -Profile release
+
+# Build and launch on custom runtime port
+.\build-interactive-terminal.ps1 -Profile release -Run -Port 9100
 ```
 
-```bash
-# Linux / macOS
-export QMAKE=/usr/lib/qt6/bin/qmake6
+Direct launch after build:
+
+```powershell
+.\target\release\interactive-terminal.exe --port 9100 --heartbeat-interval 5 --idle-timeout 300
 ```
 
-## Build Instructions
+### Build script behavior
 
-```bash
-# Debug build
-cargo build
+- Sets `QMAKE` and prepends Qt `bin` to `PATH`.
+- Builds via `cargo build` (adds `--release` for release profile).
+- On Windows, runs `windeployqt.exe` for deploy-enabled builds.
+- Verifies key Qt DLLs (`Qt6Core.dll`, `Qt6Gui.dll`, `Qt6Qml.dll`, `Qt6Quick.dll`) next to the exe.
 
-# Release build (with LTO, optimized)
-cargo build --release
+## Runtime Configuration
 
-# Run tests
-cargo test
-```
+- CLI:
+  - `--port` (default `9100`)
+  - `--heartbeat-interval` (default `5`)
+  - `--idle-timeout` (default `300`)
+- Environment overrides:
+  - `TERMINAL_PORT` overrides `--port`
+  - `PM_INTERACTIVE_TERMINAL_HOST_PORT` sets bridge listener port (default `45459`)
 
-The release binary is written to `target/release/interactive-terminal` (or `.exe` on Windows).
+## MCP Integration Notes
 
-## Usage
-
-```bash
-# Start with default settings (port 9100, 5s heartbeat, 300s idle timeout)
-./interactive-terminal
-
-# Custom port
-./interactive-terminal --port 8080
-
-# All options
-./interactive-terminal --port 9100 --heartbeat-interval 10 --idle-timeout 600
-```
-
-### CLI Arguments
-
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `--port` | `u16` | `9100` | TCP port to listen on (127.0.0.1 only) |
-| `--heartbeat-interval` | `u64` | `5` | Heartbeat interval in seconds |
-| `--idle-timeout` | `u64` | `300` | Exit after this many seconds of inactivity |
-
-The `TERMINAL_PORT` environment variable overrides `--port` if set.
-
-## JSON Protocol
-
-Communication uses **newline-delimited JSON (NDJSON)** over TCP. Each message is a single JSON object followed by a newline character (`\n`).
-
-All messages have a `"type"` field that determines the message kind.
-
-### Message Types
-
-#### CommandRequest (Client → Terminal)
-
-Request approval to execute a command.
-
-```json
-{
-  "type": "command_request",
-  "id": "req-001",
-  "command": "npm run build",
-  "working_directory": "/home/user/project",
-  "context": "Building the project for deployment",
-  "timeout_seconds": 120
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `id` | string | yes | Unique request identifier |
-| `command` | string | yes | Shell command to execute |
-| `working_directory` | string | yes | Directory to run the command in |
-| `context` | string | no | Human-readable context for the user |
-| `timeout_seconds` | integer | no | Execution timeout (default: 300) |
-
-#### CommandResponse (Terminal → Client)
-
-Result of a command approval decision and/or execution.
-
-**Approved and executed:**
-```json
-{
-  "type": "command_response",
-  "id": "req-001",
-  "status": "approved",
-  "output": "Build successful\nDone in 12.3s",
-  "exit_code": 0
-}
-```
-
-**Declined by user:**
-```json
-{
-  "type": "command_response",
-  "id": "req-001",
-  "status": "declined",
-  "reason": "Command looks dangerous"
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `id` | string | yes | Matching request ID |
-| `status` | string | yes | `"approved"` or `"declined"` |
-| `output` | string | no | Combined stdout/stderr output (when approved) |
-| `exit_code` | integer | no | Process exit code (when approved) |
-| `reason` | string | no | Decline reason (when declined) |
-
-#### Heartbeat (Bidirectional)
-
-Liveness check sent in both directions.
-
-```json
-{
-  "type": "heartbeat",
-  "timestamp": "2026-02-14T12:00:00Z"
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `timestamp` | string | yes | ISO 8601 timestamp |
-
-### Connection Lifecycle
-
-1. Client connects to `127.0.0.1:{port}` via TCP
-2. Both sides begin sending heartbeats at the configured interval
-3. Client sends `command_request` messages; terminal responds with `command_response`
-4. If no heartbeat is received within 3× the heartbeat interval, the connection is considered lost
-5. On disconnect, all pending requests are cleaned up
-
-## Project Structure
-
-```
-interactive-terminal/
-├── Cargo.toml              # Rust package manifest
-├── build.rs                # CxxQt build configuration + Windows resources
-├── README.md               # This file
-├── resources/
-│   └── app.manifest        # Windows DPI manifest
-├── qml/
-│   ├── main.qml            # Root application window
-│   ├── CommandCard.qml     # Command display card component
-│   ├── DeclineDialog.qml   # Decline reason dialog
-│   └── OutputView.qml      # Real-time output display
-└── src/
-    ├── main.rs             # Entry point, CLI parsing, Qt bootstrap
-    ├── cxxqt_bridge.rs     # TerminalApp QObject (CxxQt bridge)
-    ├── protocol.rs         # Message types, NDJSON encode/decode
-    ├── tcp_server.rs       # TCP server, heartbeat monitoring
-    ├── command_executor.rs # Child process execution with timeout
-    └── session.rs          # Session/request tracking
-```
+- `memory_terminal`: headless server/container terminal surface.
+- `memory_terminal_interactive`: canonical routed interactive contract.
+  - Canonical actions: `execute`, `read_output`, `terminate`, `list`
+  - Legacy aliases accepted: `run`, `kill`, `send`, `close`, `create`
+- Adapter mode resolution for interactive routing:
+  1. `runtime.adapter_override`
+  2. `PM_TERM_ADAPTER_MODE`
+  3. Fallback by `PM_RUNNING_IN_CONTAINER` (`container_bridge` in container, otherwise `local`)
 
 ## Troubleshooting
 
-### `qmake6` not found
-
-Ensure the `QMAKE` environment variable points to your Qt 6 `qmake6` executable:
-
 ```powershell
-$env:QMAKE = "C:\Qt\6.10.2\msvc2022_64\bin\qmake6.exe"
+# Verify runtime listener
+Test-NetConnection 127.0.0.1 -Port 9100
+
+# Verify host bridge listener
+Test-NetConnection 127.0.0.1 -Port 45459
+
+# Check listeners for process
+Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -in 9100,45459 } | Format-Table -AutoSize
 ```
 
-### Linker errors on Windows
+If `container_bridge` preflight fails, validate:
 
-Make sure you have the MSVC C++ build tools installed (via Visual Studio Installer). The Qt MSVC kit requires the matching MSVC compiler.
+- `PM_INTERACTIVE_TERMINAL_HOST_ALIAS`
+- `PM_INTERACTIVE_TERMINAL_HOST_FALLBACK_ALIAS`
+- `PM_INTERACTIVE_TERMINAL_HOST_PORT`
+- host app is running and bridge listener is up
 
-### `cxx-qt-build` fails
+## Validation Commands (lightweight)
 
-- Verify Qt 6.5+ is installed
-- Verify `QMAKE` is set correctly and the binary is executable
-- Run `qmake6 --version` to confirm Qt is accessible
+```powershell
+# Confirm key files exist
+Test-Path .\build-interactive-terminal.ps1
+Test-Path .\src\main.rs
+Test-Path .\src\host_bridge_listener.rs
 
-### Application doesn't start (no window)
+# Confirm release binary after build
+Test-Path .\target\release\interactive-terminal.exe
+```
 
-- Check stderr output for error messages: `interactive-terminal --port 9100 2>&1`
-- Verify QML files are being compiled (check that `build.rs` lists all `.qml` files)
-- On Windows, try without the dark mode override: unset `QT_QPA_PLATFORM`
+## Known limitations / environment notes
 
-### Connection refused
-
-- Verify the port isn't already in use: `netstat -an | findstr 9100`
-- The server only binds to `127.0.0.1` (localhost) — remote connections are not accepted
+- Windows-first operational path is validated; Linux/macOS workflow exists but is not the primary tested target in this workspace.
+- In containerized flows, interactive execution depends on host bridge reachability and correct alias/port env values.
+- If bridge preflight fails, requests fail closed (no implicit fallback execution).

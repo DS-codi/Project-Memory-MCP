@@ -86,7 +86,12 @@ impl TcpServer {
     /// listener errors).
     pub async fn start(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let addr = format!("127.0.0.1:{}", self.port);
-        let listener = TcpListener::bind(&addr).await?;
+        let listener = if let Some(std_listener) = crate::take_prebound_runtime_listener(self.port) {
+            std_listener.set_nonblocking(true)?;
+            TcpListener::from_std(std_listener)?
+        } else {
+            TcpListener::bind(&addr).await?
+        };
         eprintln!("Interactive Terminal listening on {}", addr);
 
         let incoming_tx = self.incoming_tx.clone();

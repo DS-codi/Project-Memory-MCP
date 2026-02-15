@@ -5,6 +5,8 @@ node_modules/
 dist/
 build/
 vscode-extension/out/
+vscode-extension/.replay-bin/
+vscode-extension/.replay-runs/
 
 # Environment files
 .env
