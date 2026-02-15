@@ -1,7 +1,8 @@
 /**
  * Plan Lifecycle - CRUD operations for plans
  *
- * Functions: listPlans, findPlan, createPlan, getPlanState, deletePlan, archivePlan, importPlan
+ * Functions: listPlans, findPlan, createPlan, getPlanState, deletePlan,
+ *           archivePlan, importPlan, exportPlan, clonePlan, mergePlans
  */
 
 import { promises as fs } from 'fs';
@@ -15,7 +16,11 @@ import type {
   ToolResponse,
   PlanState,
   PlanStep,
-  RequestCategory
+  RequestCategory,
+  ClonePlanParams,
+  ClonePlanResult,
+  MergePlansParams,
+  MergePlansResult,
 } from '../../types/index.js';
 import * as store from '../../storage/file-store.js';
 import { archivePlanPrompts } from '../prompt-storage.js';
@@ -685,6 +690,222 @@ export async function exportPlan(params: {
     return {
       success: false,
       error: `Failed to export plan: ${(error as Error).message}`,
+    };
+  }
+}
+
+// =============================================================================
+// clonePlan
+// =============================================================================
+
+/**
+ * Deep-copy a plan with a new generated ID.
+ * Optionally resets all step statuses to 'pending'.
+ * Clears sessions, lineage, and agent history.
+ * Preserves steps, goals, success_criteria, description.
+ */
+export async function clonePlan(
+  params: ClonePlanParams
+): Promise<ToolResponse<ClonePlanResult>> {
+  try {
+    const { workspace_id, plan_id, new_title, reset_steps = true, link_to_same_program = false } = params;
+
+    if (!workspace_id || !plan_id) {
+      return {
+        success: false,
+        error: 'workspace_id and plan_id are required for clone_plan',
+      };
+    }
+
+    // Load source plan
+    const source = await store.getPlanState(workspace_id, plan_id);
+    if (!source) {
+      return {
+        success: false,
+        error: `Plan not found: ${plan_id}`,
+      };
+    }
+
+    const title = new_title || `${source.title} (Clone)`;
+
+    // Create the new plan
+    const cloned = await store.createPlan(
+      workspace_id,
+      title,
+      source.description,
+      source.category,
+      source.priority,
+      source.categorization,
+      source.goals ? [...source.goals] : undefined,
+      source.success_criteria ? [...source.success_criteria] : undefined
+    );
+
+    // Copy steps (deep clone)
+    cloned.steps = source.steps.map((step, i) => ({
+      ...step,
+      index: i,
+      status: reset_steps ? 'pending' as const : step.status,
+      notes: reset_steps ? undefined : step.notes,
+    }));
+
+    // Optionally link to the same program
+    if (link_to_same_program && source.program_id) {
+      cloned.program_id = source.program_id;
+
+      // Add to program's child_plan_ids
+      const program = await store.getPlanState(workspace_id, source.program_id);
+      if (program && program.child_plan_ids) {
+        program.child_plan_ids.push(cloned.id);
+        program.updated_at = store.nowISO();
+        await store.savePlanState(program);
+      }
+    }
+
+    cloned.updated_at = store.nowISO();
+    await store.savePlanState(cloned);
+    await store.generatePlanMd(cloned);
+
+    events.planCreated(workspace_id, cloned.id, title, 'clone');
+
+    return {
+      success: true,
+      data: {
+        source_plan_id: plan_id,
+        cloned_plan: cloned,
+        message: `Cloned plan "${source.title}" → "${title}" (${cloned.id})${reset_steps ? ' with steps reset to pending' : ''}`,
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to clone plan: ${(error as Error).message}`,
+    };
+  }
+}
+
+// =============================================================================
+// mergePlans
+// =============================================================================
+
+/**
+ * Merge steps from multiple source plans into a single target plan.
+ * Appends source steps after the target's existing steps.
+ * Optionally archives source plans after merge.
+ */
+export async function mergePlans(
+  params: MergePlansParams
+): Promise<ToolResponse<MergePlansResult>> {
+  try {
+    const { workspace_id, target_plan_id, source_plan_ids, archive_sources = false } = params;
+
+    if (!workspace_id || !target_plan_id || !Array.isArray(source_plan_ids) || source_plan_ids.length === 0) {
+      return {
+        success: false,
+        error: 'workspace_id, target_plan_id, and at least one source_plan_id are required for merge_plans',
+      };
+    }
+
+    // Prevent self-merge
+    if (source_plan_ids.includes(target_plan_id)) {
+      return {
+        success: false,
+        error: 'target_plan_id cannot be in source_plan_ids — a plan cannot merge with itself',
+      };
+    }
+
+    // Load target plan
+    const target = await store.getPlanState(workspace_id, target_plan_id);
+    if (!target) {
+      return {
+        success: false,
+        error: `Target plan not found: ${target_plan_id}`,
+      };
+    }
+
+    // Load all source plans
+    const missingPlans: string[] = [];
+    const sourcePlans: PlanState[] = [];
+    for (const srcId of source_plan_ids) {
+      const src = await store.getPlanState(workspace_id, srcId);
+      if (!src) {
+        missingPlans.push(srcId);
+      } else {
+        sourcePlans.push(src);
+      }
+    }
+
+    if (missingPlans.length > 0) {
+      return {
+        success: false,
+        error: `Source plans not found: ${missingPlans.join(', ')}`,
+      };
+    }
+
+    // Merge steps from all sources into target
+    let nextIndex = target.steps.length;
+    let totalStepsMerged = 0;
+
+    for (const src of sourcePlans) {
+      for (const step of src.steps) {
+        target.steps.push({
+          ...step,
+          index: nextIndex,
+          notes: step.notes
+            ? `[Merged from ${src.title}] ${step.notes}`
+            : `[Merged from ${src.title}]`,
+        });
+        nextIndex++;
+        totalStepsMerged++;
+      }
+    }
+
+    target.updated_at = store.nowISO();
+    await store.savePlanState(target);
+    await store.generatePlanMd(target);
+
+    // Optionally archive source plans
+    const archivedPlanIds: string[] = [];
+    if (archive_sources) {
+      for (const src of sourcePlans) {
+        src.status = 'archived';
+        src.current_agent = null;
+        src.updated_at = store.nowISO();
+        await store.savePlanState(src);
+        await store.generatePlanMd(src);
+
+        // Update workspace metadata
+        const workspace = await store.getWorkspace(workspace_id);
+        if (workspace) {
+          workspace.active_plans = workspace.active_plans.filter(id => id !== src.id);
+          if (!workspace.archived_plans.includes(src.id)) {
+            workspace.archived_plans.push(src.id);
+          }
+          await store.saveWorkspace(workspace);
+        }
+
+        archivedPlanIds.push(src.id);
+      }
+    }
+
+    await events.planUpdated(workspace_id, target_plan_id, {
+      merged_from: source_plan_ids,
+      steps_merged: totalStepsMerged,
+    });
+
+    return {
+      success: true,
+      data: {
+        target_plan_id,
+        source_plan_ids,
+        steps_merged: totalStepsMerged,
+        archived_sources: archivedPlanIds,
+        message: `Merged ${totalStepsMerged} steps from ${sourcePlans.length} plans into "${target.title}"${archivedPlanIds.length > 0 ? `. Archived ${archivedPlanIds.length} source plans.` : ''}`,
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to merge plans: ${(error as Error).message}`,
     };
   }
 }

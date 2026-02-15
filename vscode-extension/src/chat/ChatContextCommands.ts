@@ -8,6 +8,7 @@
 
 import * as vscode from 'vscode';
 import { McpBridge } from './McpBridge';
+import { withProgress } from './ChatResponseHelpers';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -80,12 +81,12 @@ export async function handleContextCommand(
     }
 
     response.markdown('🔍 **Gathering workspace context...**\n\n');
-    response.progress('Querying workspace info...');
-
     try {
-        const result = await mcpBridge.callTool<WorkspaceInfo>(
-            'memory_workspace',
-            { action: 'info', workspace_id: workspaceId }
+        const result = await withProgress(response, 'Loading workspace info...', async () =>
+            mcpBridge.callTool<WorkspaceInfo>(
+                'memory_workspace',
+                { action: 'info', workspace_id: workspaceId }
+            )
         );
 
         response.markdown(`## Workspace Information\n\n`);
@@ -113,11 +114,11 @@ export async function handleContextCommand(
 
     // Fetch workspace context sections
     try {
-        response.progress('Fetching workspace context...');
-
-        const contextResult = await mcpBridge.callTool<WorkspaceContextResponse>(
-            'memory_context',
-            { action: 'workspace_get', workspace_id: workspaceId }
+        const contextResult = await withProgress(response, 'Loading workspace context...', async () =>
+            mcpBridge.callTool<WorkspaceContextResponse>(
+                'memory_context',
+                { action: 'workspace_get', workspace_id: workspaceId }
+            )
         );
 
         const sections = contextResult?.sections;
@@ -153,11 +154,11 @@ export async function handleContextCommand(
 
     // Fetch knowledge files summary
     try {
-        response.progress('Fetching knowledge files...');
-
-        const knowledgeResult = await mcpBridge.callTool<{ files: KnowledgeFileMeta[] }>(
-            'memory_context',
-            { action: 'knowledge_list', workspace_id: workspaceId }
+        const knowledgeResult = await withProgress(response, 'Listing knowledge files...', async () =>
+            mcpBridge.callTool<{ files: KnowledgeFileMeta[] }>(
+                'memory_context',
+                { action: 'knowledge_list', workspace_id: workspaceId }
+            )
         );
 
         const files = knowledgeResult?.files ?? [];
@@ -204,17 +205,17 @@ async function handleContextSetSubcommand(
         return { metadata: { command: 'context', action: 'set' } };
     }
 
-    response.progress(`Setting ${sectionKey}…`);
-
     try {
-        await mcpBridge.callTool(
-            'memory_context',
-            {
-                action: 'workspace_update',
-                workspace_id: workspaceId,
-                type: sectionKey,
-                data: { summary: content },
-            }
+        await withProgress(response, `Updating ${formatSectionLabel(sectionKey)}...`, async () =>
+            mcpBridge.callTool(
+                'memory_context',
+                {
+                    action: 'workspace_update',
+                    workspace_id: workspaceId,
+                    type: sectionKey,
+                    data: { summary: content },
+                }
+            )
         );
 
         response.markdown(`✅ **${formatSectionLabel(sectionKey)}** updated.\n\n`);

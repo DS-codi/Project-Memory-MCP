@@ -15,19 +15,14 @@ import { WorkspaceContextPanel } from '@/components/workspace/WorkspaceContextPa
 import { KnowledgeFilesPanel } from '@/components/workspace/KnowledgeFilesPanel';
 import { useCopilotStatus } from '@/hooks/useCopilotStatus';
 import { usePrograms } from '@/hooks/usePrograms';
+import { usePlans } from '@/hooks/usePlans';
 import { formatDate, formatRelative } from '@/utils/formatters';
 import { getDeployDefaults, type DeployDefaults } from '@/utils/deployDefaults';
-import type { WorkspaceMeta, PlanSummary, WorkspaceHealth } from '@/types';
+import type { WorkspaceMeta, WorkspaceHealth } from '@/types';
 
 async function fetchWorkspace(id: string): Promise<WorkspaceMeta> {
   const res = await fetch(`/api/workspaces/${id}`);
   if (!res.ok) throw new Error('Failed to fetch workspace');
-  return res.json();
-}
-
-async function fetchPlans(workspaceId: string): Promise<{ plans: PlanSummary[] }> {
-  const res = await fetch(`/api/plans/workspace/${workspaceId}`);
-  if (!res.ok) throw new Error('Failed to fetch plans');
   return res.json();
 }
 
@@ -48,11 +43,7 @@ export function WorkspacePage() {
     enabled: !!workspaceId,
   });
 
-  const { data: plansData, isLoading: plansLoading } = useQuery({
-    queryKey: ['plans', workspaceId],
-    queryFn: () => fetchPlans(workspaceId!),
-    enabled: !!workspaceId,
-  });
+  const { data: plansData, isLoading: plansLoading } = usePlans(workspaceId);
 
   const { data: copilotData, isLoading: copilotLoading, refetch: refetchCopilot } = useCopilotStatus(workspaceId);
 

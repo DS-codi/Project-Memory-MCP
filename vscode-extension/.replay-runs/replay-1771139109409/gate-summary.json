@@ -1,0 +1,33 @@
+{
+  "flake_controls": {
+    "retry_once_enabled": false,
+    "retry_performed": false
+  },
+  "gate": {
+    "annotations": [],
+    "classification": "clean",
+    "generated_at": "2026-02-15T07:05:09.427Z",
+    "mode": "strict",
+    "passed": true,
+    "reason": "Strict gate passed with no blocking replay drift.",
+    "retried": false,
+    "status": "PASS",
+    "summary": {
+      "failed_scenarios": 0,
+      "high_severity_drifts": 0,
+      "low_severity_drifts": 0,
+      "medium_severity_drifts": 0,
+      "passed_scenarios": 1,
+      "total_scenarios": 1
+    },
+    "triage_labels": [
+      "replay",
+      "clean",
+      "gate:strict"
+    ]
+  },
+  "report": {
+    "comparison_json": ".replay-runs/replay-1771139109409/comparison.json",
+    "report_markdown": ".replay-runs/replay-1771139109409/report.md"
+  }
+}

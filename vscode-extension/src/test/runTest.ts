@@ -8,6 +8,8 @@ import { runTests } from '@vscode/test-electron';
 
 async function main() {
     try {
+        process.env.PROJECT_MEMORY_TEST_MODE = '1';
+
         // The folder containing the Extension Manifest package.json
         const extensionDevelopmentPath = path.resolve(__dirname, '../../');
 

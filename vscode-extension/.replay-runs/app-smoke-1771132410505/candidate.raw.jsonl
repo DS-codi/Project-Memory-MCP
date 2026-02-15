@@ -1,0 +1,218 @@
+{
+  "event": {
+    "event_type": "user_prompt",
+    "payload": {
+      "profile": "candidate",
+      "prompt": "Implement replay harness phase bundle in scoped vscode-extension paths"
+    },
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "step_id": "step_1",
+    "timestamp_ms": 1771132410532
+  },
+  "profile": "candidate",
+  "run_id": "app-smoke-1771132410505",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "action_raw": "update",
+    "authorization": {
+      "outcome": "allowed",
+      "reason_class": "allowlist_match"
+    },
+    "event_type": "tool_call",
+    "payload": {
+      "args": {
+        "status": "active",
+        "step_index": 2
+      },
+      "profile": "candidate"
+    },
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "step_id": "step_2",
+    "timestamp_ms": 1771132410557,
+    "tool_name": "memory_steps"
+  },
+  "profile": "candidate",
+  "run_id": "app-smoke-1771132410505",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "event_type": "plan_step_update",
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "step_id": "step_2",
+    "timestamp_ms": 1771132410558
+  },
+  "profile": "candidate",
+  "run_id": "app-smoke-1771132410505",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "action_raw": "confirm",
+    "authorization": {
+      "outcome": "allowed",
+      "reason_class": "allowlist_match"
+    },
+    "event_type": "tool_call",
+    "payload": {
+      "args": {
+        "confirm_step_index": 2,
+        "confirmation_scope": "step"
+      },
+      "profile": "candidate"
+    },
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "step_id": "step_2b",
+    "timestamp_ms": 1771132410582,
+    "tool_name": "memory_plan"
+  },
+  "profile": "candidate",
+  "run_id": "app-smoke-1771132410505",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "event_type": "confirmation",
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "step_id": "step_2b",
+    "timestamp_ms": 1771132410583
+  },
+  "profile": "candidate",
+  "run_id": "app-smoke-1771132410505",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "action_raw": "update",
+    "authorization": {
+      "outcome": "allowed",
+      "reason_class": "allowlist_match"
+    },
+    "event_type": "tool_call",
+    "payload": {
+      "args": {
+        "status": "done",
+        "step_index": 6
+      },
+      "profile": "candidate"
+    },
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "step_id": "step_3",
+    "timestamp_ms": 1771132410607,
+    "tool_name": "memory_steps"
+  },
+  "profile": "candidate",
+  "run_id": "app-smoke-1771132410505",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "event_type": "plan_step_update",
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "step_id": "step_3",
+    "timestamp_ms": 1771132410608
+  },
+  "profile": "candidate",
+  "run_id": "app-smoke-1771132410505",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "action_raw": "handoff",
+    "authorization": {
+      "outcome": "allowed",
+      "reason_class": "allowlist_match"
+    },
+    "event_type": "tool_call",
+    "payload": {
+      "args": {
+        "from_agent": "Executor",
+        "to_agent": "Coordinator"
+      },
+      "profile": "candidate"
+    },
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "step_id": "step_4",
+    "timestamp_ms": 1771132410632,
+    "tool_name": "memory_agent"
+  },
+  "profile": "candidate",
+  "run_id": "app-smoke-1771132410505",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "event_type": "handoff",
+    "payload": {
+      "from_agent": "Executor",
+      "to_agent": "Coordinator"
+    },
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "step_id": "step_4",
+    "timestamp_ms": 1771132410633
+  },
+  "profile": "candidate",
+  "run_id": "app-smoke-1771132410505",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "action_raw": "complete",
+    "authorization": {
+      "outcome": "allowed",
+      "reason_class": "allowlist_match"
+    },
+    "event_type": "tool_call",
+    "payload": {
+      "args": {
+        "agent_type": "Executor"
+      },
+      "profile": "candidate"
+    },
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "step_id": "step_5",
+    "timestamp_ms": 1771132410657,
+    "tool_name": "memory_agent"
+  },
+  "profile": "candidate",
+  "run_id": "app-smoke-1771132410505",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "event_type": "complete",
+    "payload": {},
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "step_id": "step_5",
+    "timestamp_ms": 1771132410658
+  },
+  "profile": "candidate",
+  "run_id": "app-smoke-1771132410505",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "event_type": "outcome",
+    "phase": "final",
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "success_signature": "phase3_steps_2_to_6_done",
+    "timestamp_ms": 1771132410667
+  },
+  "profile": "candidate",
+  "run_id": "app-smoke-1771132410505",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "event_type": "outcome",
+    "phase": "final",
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "success_signature": "handoff_to_coordinator",
+    "timestamp_ms": 1771132410677
+  },
+  "profile": "candidate",
+  "run_id": "app-smoke-1771132410505",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}

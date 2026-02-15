@@ -40,7 +40,8 @@ export type MessageType =
   | 'getConfig'
   | 'refresh'
   | 'createPlan'
-  | 'deployAgents';
+  | 'deployAgents'
+  | 'discussPlanInChat';
 
 export interface VsCodeMessage {
   type: MessageType;
@@ -52,6 +53,11 @@ export const postToVsCode = (message: VsCodeMessage): void => {
   const vscode = getVsCodeApi();
   if (vscode) {
     vscode.postMessage(message);
+  } else if (typeof window !== 'undefined' && window.parent && window.parent !== window) {
+    window.parent.postMessage({
+      type: 'projectMemory.dashboard',
+      payload: message,
+    }, '*');
   } else {
     console.log('[VSCode Bridge] Not in webview, ignoring message:', message);
   }

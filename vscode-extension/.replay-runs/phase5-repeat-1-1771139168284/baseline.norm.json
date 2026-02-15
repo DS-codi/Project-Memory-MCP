@@ -1,0 +1,1153 @@
+{
+  "profile": "baseline",
+  "scenarios": [
+    {
+      "normalized_events": [
+        {
+          "event_type": "user_prompt",
+          "payload": {
+            "profile": "baseline",
+            "prompt": "Run auth policy scenario pack"
+          },
+          "scenario_id": "AUTH_POLICY_MATRIX_P0",
+          "step_id": "step_1",
+          "timestamp_ms": 0
+        },
+        {
+          "action_canonical": "validate",
+          "action_raw": "validate",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "AUTH_POLICY_MATRIX_P0",
+          "step_id": "step_2",
+          "timestamp_ms": 25,
+          "tool_name": "memory_agent"
+        },
+        {
+          "action_canonical": "handoff",
+          "action_raw": "handoff",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "args": {
+              "to_agent": "Coordinator"
+            },
+            "profile": "baseline"
+          },
+          "scenario_id": "AUTH_POLICY_MATRIX_P0",
+          "step_id": "step_3",
+          "timestamp_ms": 50,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "handoff",
+          "payload": {
+            "to_agent": "Coordinator"
+          },
+          "scenario_id": "AUTH_POLICY_MATRIX_P0",
+          "step_id": "step_3",
+          "timestamp_ms": 51
+        },
+        {
+          "action_canonical": "complete",
+          "action_raw": "complete",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "AUTH_POLICY_MATRIX_P0",
+          "step_id": "step_4",
+          "timestamp_ms": 75,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "complete",
+          "payload": {},
+          "scenario_id": "AUTH_POLICY_MATRIX_P0",
+          "step_id": "step_4",
+          "timestamp_ms": 76
+        },
+        {
+          "event_type": "outcome",
+          "phase": "final",
+          "scenario_id": "AUTH_POLICY_MATRIX_P0",
+          "success_signature": "auth_policy_matrix_pass",
+          "timestamp_ms": 85
+        }
+      ],
+      "profile": "baseline",
+      "raw_events": [
+        {
+          "event_type": "user_prompt",
+          "payload": {
+            "profile": "baseline",
+            "prompt": "Run auth policy scenario pack"
+          },
+          "scenario_id": "AUTH_POLICY_MATRIX_P0",
+          "step_id": "step_1",
+          "timestamp_ms": 1771139168310
+        },
+        {
+          "action_raw": "validate",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "AUTH_POLICY_MATRIX_P0",
+          "step_id": "step_2",
+          "timestamp_ms": 1771139168335,
+          "tool_name": "memory_agent"
+        },
+        {
+          "action_raw": "handoff",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "args": {
+              "to_agent": "Coordinator"
+            },
+            "profile": "baseline"
+          },
+          "scenario_id": "AUTH_POLICY_MATRIX_P0",
+          "step_id": "step_3",
+          "timestamp_ms": 1771139168360,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "handoff",
+          "payload": {
+            "to_agent": "Coordinator"
+          },
+          "scenario_id": "AUTH_POLICY_MATRIX_P0",
+          "step_id": "step_3",
+          "timestamp_ms": 1771139168361
+        },
+        {
+          "action_raw": "complete",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "AUTH_POLICY_MATRIX_P0",
+          "step_id": "step_4",
+          "timestamp_ms": 1771139168385,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "complete",
+          "payload": {},
+          "scenario_id": "AUTH_POLICY_MATRIX_P0",
+          "step_id": "step_4",
+          "timestamp_ms": 1771139168386
+        },
+        {
+          "event_type": "outcome",
+          "phase": "final",
+          "scenario_id": "AUTH_POLICY_MATRIX_P0",
+          "success_signature": "auth_policy_matrix_pass",
+          "timestamp_ms": 1771139168395
+        }
+      ],
+      "scenario_id": "AUTH_POLICY_MATRIX_P0",
+      "success": true
+    },
+    {
+      "normalized_events": [
+        {
+          "event_type": "user_prompt",
+          "payload": {
+            "profile": "baseline",
+            "prompt": "Run protocol ordering scenario pack"
+          },
+          "scenario_id": "PROTOCOL_ORDERING_P0",
+          "step_id": "step_1",
+          "timestamp_ms": 0
+        },
+        {
+          "action_canonical": "confirm",
+          "action_raw": "confirm",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "PROTOCOL_ORDERING_P0",
+          "step_id": "step_2",
+          "timestamp_ms": 25,
+          "tool_name": "memory_plan"
+        },
+        {
+          "event_type": "confirmation",
+          "scenario_id": "PROTOCOL_ORDERING_P0",
+          "step_id": "step_2",
+          "timestamp_ms": 26
+        },
+        {
+          "action_canonical": "update",
+          "action_raw": "update",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "PROTOCOL_ORDERING_P0",
+          "step_id": "step_3",
+          "timestamp_ms": 50,
+          "tool_name": "memory_steps"
+        },
+        {
+          "event_type": "plan_step_update",
+          "scenario_id": "PROTOCOL_ORDERING_P0",
+          "step_id": "step_3",
+          "timestamp_ms": 51
+        },
+        {
+          "action_canonical": "handoff",
+          "action_raw": "handoff",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "args": {
+              "to_agent": "Coordinator"
+            },
+            "profile": "baseline"
+          },
+          "scenario_id": "PROTOCOL_ORDERING_P0",
+          "step_id": "step_4",
+          "timestamp_ms": 75,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "handoff",
+          "payload": {
+            "to_agent": "Coordinator"
+          },
+          "scenario_id": "PROTOCOL_ORDERING_P0",
+          "step_id": "step_4",
+          "timestamp_ms": 76
+        },
+        {
+          "action_canonical": "complete",
+          "action_raw": "complete",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "PROTOCOL_ORDERING_P0",
+          "step_id": "step_5",
+          "timestamp_ms": 100,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "complete",
+          "payload": {},
+          "scenario_id": "PROTOCOL_ORDERING_P0",
+          "step_id": "step_5",
+          "timestamp_ms": 101
+        },
+        {
+          "event_type": "outcome",
+          "phase": "final",
+          "scenario_id": "PROTOCOL_ORDERING_P0",
+          "success_signature": "protocol_ordering_pass",
+          "timestamp_ms": 110
+        }
+      ],
+      "profile": "baseline",
+      "raw_events": [
+        {
+          "event_type": "user_prompt",
+          "payload": {
+            "profile": "baseline",
+            "prompt": "Run protocol ordering scenario pack"
+          },
+          "scenario_id": "PROTOCOL_ORDERING_P0",
+          "step_id": "step_1",
+          "timestamp_ms": 1771139168310
+        },
+        {
+          "action_raw": "confirm",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "PROTOCOL_ORDERING_P0",
+          "step_id": "step_2",
+          "timestamp_ms": 1771139168335,
+          "tool_name": "memory_plan"
+        },
+        {
+          "event_type": "confirmation",
+          "scenario_id": "PROTOCOL_ORDERING_P0",
+          "step_id": "step_2",
+          "timestamp_ms": 1771139168336
+        },
+        {
+          "action_raw": "update",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "PROTOCOL_ORDERING_P0",
+          "step_id": "step_3",
+          "timestamp_ms": 1771139168360,
+          "tool_name": "memory_steps"
+        },
+        {
+          "event_type": "plan_step_update",
+          "scenario_id": "PROTOCOL_ORDERING_P0",
+          "step_id": "step_3",
+          "timestamp_ms": 1771139168361
+        },
+        {
+          "action_raw": "handoff",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "args": {
+              "to_agent": "Coordinator"
+            },
+            "profile": "baseline"
+          },
+          "scenario_id": "PROTOCOL_ORDERING_P0",
+          "step_id": "step_4",
+          "timestamp_ms": 1771139168385,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "handoff",
+          "payload": {
+            "to_agent": "Coordinator"
+          },
+          "scenario_id": "PROTOCOL_ORDERING_P0",
+          "step_id": "step_4",
+          "timestamp_ms": 1771139168386
+        },
+        {
+          "action_raw": "complete",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "PROTOCOL_ORDERING_P0",
+          "step_id": "step_5",
+          "timestamp_ms": 1771139168410,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "complete",
+          "payload": {},
+          "scenario_id": "PROTOCOL_ORDERING_P0",
+          "step_id": "step_5",
+          "timestamp_ms": 1771139168411
+        },
+        {
+          "event_type": "outcome",
+          "phase": "final",
+          "scenario_id": "PROTOCOL_ORDERING_P0",
+          "success_signature": "protocol_ordering_pass",
+          "timestamp_ms": 1771139168420
+        }
+      ],
+      "scenario_id": "PROTOCOL_ORDERING_P0",
+      "success": true
+    },
+    {
+      "normalized_events": [
+        {
+          "event_type": "user_prompt",
+          "payload": {
+            "profile": "baseline",
+            "prompt": "Run artifact integrity fallback pack"
+          },
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_1",
+          "timestamp_ms": 0
+        },
+        {
+          "action_canonical": "run_build_script",
+          "action_raw": "run_build_script",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_2",
+          "timestamp_ms": 25,
+          "tool_name": "memory_plan"
+        },
+        {
+          "action_canonical": "handoff",
+          "action_raw": "handoff",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "args": {
+              "to_agent": "Coordinator"
+            },
+            "profile": "baseline"
+          },
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_3",
+          "timestamp_ms": 50,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "handoff",
+          "payload": {
+            "to_agent": "Coordinator"
+          },
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_3",
+          "timestamp_ms": 51
+        },
+        {
+          "action_canonical": "complete",
+          "action_raw": "complete",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_4",
+          "timestamp_ms": 75,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "complete",
+          "payload": {},
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_4",
+          "timestamp_ms": 76
+        },
+        {
+          "event_type": "outcome",
+          "phase": "final",
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "success_signature": "artifact_integrity_fallback_pass",
+          "timestamp_ms": 85
+        }
+      ],
+      "profile": "baseline",
+      "raw_events": [
+        {
+          "event_type": "user_prompt",
+          "payload": {
+            "profile": "baseline",
+            "prompt": "Run artifact integrity fallback pack"
+          },
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_1",
+          "timestamp_ms": 1771139168311
+        },
+        {
+          "action_raw": "run_build_script",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_2",
+          "timestamp_ms": 1771139168336,
+          "tool_name": "memory_plan"
+        },
+        {
+          "action_raw": "handoff",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "args": {
+              "to_agent": "Coordinator"
+            },
+            "profile": "baseline"
+          },
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_3",
+          "timestamp_ms": 1771139168361,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "handoff",
+          "payload": {
+            "to_agent": "Coordinator"
+          },
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_3",
+          "timestamp_ms": 1771139168362
+        },
+        {
+          "action_raw": "complete",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_4",
+          "timestamp_ms": 1771139168386,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "complete",
+          "payload": {},
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_4",
+          "timestamp_ms": 1771139168387
+        },
+        {
+          "event_type": "outcome",
+          "phase": "final",
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "success_signature": "artifact_integrity_fallback_pass",
+          "timestamp_ms": 1771139168396
+        }
+      ],
+      "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+      "success": true
+    },
+    {
+      "normalized_events": [
+        {
+          "event_type": "user_prompt",
+          "payload": {
+            "profile": "baseline",
+            "prompt": "Run tool alias optional-tool drift pack"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_1",
+          "timestamp_ms": 0
+        },
+        {
+          "action_canonical": "execute",
+          "action_raw": "run",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_2",
+          "timestamp_ms": 25,
+          "tool_name": "memory_terminal"
+        },
+        {
+          "action_canonical": "terminate",
+          "action_raw": "kill",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_3",
+          "timestamp_ms": 50,
+          "tool_name": "memory_terminal"
+        },
+        {
+          "action_canonical": "handoff",
+          "action_raw": "handoff",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "args": {
+              "to_agent": "Coordinator"
+            },
+            "profile": "baseline"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_4",
+          "timestamp_ms": 75,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "handoff",
+          "payload": {
+            "to_agent": "Coordinator"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_4",
+          "timestamp_ms": 76
+        },
+        {
+          "action_canonical": "complete",
+          "action_raw": "complete",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_5",
+          "timestamp_ms": 100,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "complete",
+          "payload": {},
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_5",
+          "timestamp_ms": 101
+        },
+        {
+          "event_type": "outcome",
+          "phase": "final",
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "success_signature": "tool_alias_optional_drift_pass",
+          "timestamp_ms": 110
+        }
+      ],
+      "profile": "baseline",
+      "raw_events": [
+        {
+          "event_type": "user_prompt",
+          "payload": {
+            "profile": "baseline",
+            "prompt": "Run tool alias optional-tool drift pack"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_1",
+          "timestamp_ms": 1771139168311
+        },
+        {
+          "action_raw": "run",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_2",
+          "timestamp_ms": 1771139168336,
+          "tool_name": "memory_terminal"
+        },
+        {
+          "action_raw": "kill",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_3",
+          "timestamp_ms": 1771139168361,
+          "tool_name": "memory_terminal"
+        },
+        {
+          "action_raw": "handoff",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "args": {
+              "to_agent": "Coordinator"
+            },
+            "profile": "baseline"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_4",
+          "timestamp_ms": 1771139168386,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "handoff",
+          "payload": {
+            "to_agent": "Coordinator"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_4",
+          "timestamp_ms": 1771139168387
+        },
+        {
+          "action_raw": "complete",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_5",
+          "timestamp_ms": 1771139168411,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "complete",
+          "payload": {},
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_5",
+          "timestamp_ms": 1771139168412
+        },
+        {
+          "event_type": "outcome",
+          "phase": "final",
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "success_signature": "tool_alias_optional_drift_pass",
+          "timestamp_ms": 1771139168421
+        }
+      ],
+      "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+      "success": true
+    },
+    {
+      "normalized_events": [
+        {
+          "event_type": "user_prompt",
+          "payload": {
+            "profile": "baseline",
+            "prompt": "Run cross-platform normalization pack"
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_1",
+          "timestamp_ms": 0
+        },
+        {
+          "action_canonical": "execute",
+          "action_raw": "run",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_2",
+          "timestamp_ms": 25,
+          "tool_name": "memory_terminal"
+        },
+        {
+          "event_type": "wait",
+          "payload": {
+            "wait_ms": 160
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_3",
+          "timestamp_ms": 50
+        },
+        {
+          "action_canonical": "handoff",
+          "action_raw": "handoff",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "args": {
+              "to_agent": "Coordinator"
+            },
+            "profile": "baseline"
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_4",
+          "timestamp_ms": 75,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "handoff",
+          "payload": {
+            "to_agent": "Coordinator"
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_4",
+          "timestamp_ms": 76
+        },
+        {
+          "action_canonical": "complete",
+          "action_raw": "complete",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_5",
+          "timestamp_ms": 100,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "complete",
+          "payload": {},
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_5",
+          "timestamp_ms": 101
+        },
+        {
+          "event_type": "outcome",
+          "phase": "final",
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "success_signature": "cross_platform_normalization_pass",
+          "timestamp_ms": 110
+        }
+      ],
+      "profile": "baseline",
+      "raw_events": [
+        {
+          "event_type": "user_prompt",
+          "payload": {
+            "profile": "baseline",
+            "prompt": "Run cross-platform normalization pack"
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_1",
+          "timestamp_ms": 1771139168311
+        },
+        {
+          "action_raw": "run",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_2",
+          "timestamp_ms": 1771139168336,
+          "tool_name": "memory_terminal"
+        },
+        {
+          "event_type": "wait",
+          "payload": {
+            "wait_ms": 160
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_3",
+          "timestamp_ms": 1771139168361
+        },
+        {
+          "action_raw": "handoff",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "args": {
+              "to_agent": "Coordinator"
+            },
+            "profile": "baseline"
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_4",
+          "timestamp_ms": 1771139168386,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "handoff",
+          "payload": {
+            "to_agent": "Coordinator"
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_4",
+          "timestamp_ms": 1771139168387
+        },
+        {
+          "action_raw": "complete",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_5",
+          "timestamp_ms": 1771139168411,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "complete",
+          "payload": {},
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_5",
+          "timestamp_ms": 1771139168412
+        },
+        {
+          "event_type": "outcome",
+          "phase": "final",
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "success_signature": "cross_platform_normalization_pass",
+          "timestamp_ms": 1771139168421
+        }
+      ],
+      "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+      "success": true
+    },
+    {
+      "normalized_events": [
+        {
+          "event_type": "user_prompt",
+          "payload": {
+            "profile": "baseline",
+            "prompt": "Run retry classification consistency pack"
+          },
+          "scenario_id": "RETRY_CLASSIFICATION_CONSISTENCY_P2",
+          "step_id": "step_1",
+          "timestamp_ms": 0
+        },
+        {
+          "action_canonical": "run_build_script",
+          "action_raw": "run_build_script",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "RETRY_CLASSIFICATION_CONSISTENCY_P2",
+          "step_id": "step_2",
+          "timestamp_ms": 25,
+          "tool_name": "memory_plan"
+        },
+        {
+          "action_canonical": "handoff",
+          "action_raw": "handoff",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "args": {
+              "to_agent": "Coordinator"
+            },
+            "profile": "baseline"
+          },
+          "scenario_id": "RETRY_CLASSIFICATION_CONSISTENCY_P2",
+          "step_id": "step_3",
+          "timestamp_ms": 50,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "handoff",
+          "payload": {
+            "to_agent": "Coordinator"
+          },
+          "scenario_id": "RETRY_CLASSIFICATION_CONSISTENCY_P2",
+          "step_id": "step_3",
+          "timestamp_ms": 51
+        },
+        {
+          "action_canonical": "complete",
+          "action_raw": "complete",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "RETRY_CLASSIFICATION_CONSISTENCY_P2",
+          "step_id": "step_4",
+          "timestamp_ms": 75,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "complete",
+          "payload": {},
+          "scenario_id": "RETRY_CLASSIFICATION_CONSISTENCY_P2",
+          "step_id": "step_4",
+          "timestamp_ms": 76
+        },
+        {
+          "event_type": "outcome",
+          "phase": "final",
+          "scenario_id": "RETRY_CLASSIFICATION_CONSISTENCY_P2",
+          "success_signature": "retry_classification_consistency_pass",
+          "timestamp_ms": 85
+        }
+      ],
+      "profile": "baseline",
+      "raw_events": [
+        {
+          "event_type": "user_prompt",
+          "payload": {
+            "profile": "baseline",
+            "prompt": "Run retry classification consistency pack"
+          },
+          "scenario_id": "RETRY_CLASSIFICATION_CONSISTENCY_P2",
+          "step_id": "step_1",
+          "timestamp_ms": 1771139168311
+        },
+        {
+          "action_raw": "run_build_script",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "RETRY_CLASSIFICATION_CONSISTENCY_P2",
+          "step_id": "step_2",
+          "timestamp_ms": 1771139168336,
+          "tool_name": "memory_plan"
+        },
+        {
+          "action_raw": "handoff",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "args": {
+              "to_agent": "Coordinator"
+            },
+            "profile": "baseline"
+          },
+          "scenario_id": "RETRY_CLASSIFICATION_CONSISTENCY_P2",
+          "step_id": "step_3",
+          "timestamp_ms": 1771139168361,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "handoff",
+          "payload": {
+            "to_agent": "Coordinator"
+          },
+          "scenario_id": "RETRY_CLASSIFICATION_CONSISTENCY_P2",
+          "step_id": "step_3",
+          "timestamp_ms": 1771139168362
+        },
+        {
+          "action_raw": "complete",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "RETRY_CLASSIFICATION_CONSISTENCY_P2",
+          "step_id": "step_4",
+          "timestamp_ms": 1771139168386,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "complete",
+          "payload": {},
+          "scenario_id": "RETRY_CLASSIFICATION_CONSISTENCY_P2",
+          "step_id": "step_4",
+          "timestamp_ms": 1771139168387
+        },
+        {
+          "event_type": "outcome",
+          "phase": "final",
+          "scenario_id": "RETRY_CLASSIFICATION_CONSISTENCY_P2",
+          "success_signature": "retry_classification_consistency_pass",
+          "timestamp_ms": 1771139168396
+        }
+      ],
+      "scenario_id": "RETRY_CLASSIFICATION_CONSISTENCY_P2",
+      "success": true
+    }
+  ]
+}

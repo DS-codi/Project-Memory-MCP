@@ -6,6 +6,15 @@ applyTo: "agents/runner.agent.md"
 
 > **Source:** Extracted verbatim from `agents/runner.agent.md` — this is the canonical location for these sections.
 
+## Canonical Terminal Policy Cross-Link
+
+When selecting terminal surfaces during ad-hoc execution, use `instructions/mcp-usage.instructions.md` as the authoritative policy:
+- `memory_terminal` for headless server/container execution,
+- `memory_terminal_interactive` for visible host-terminal workflows,
+- Rust+QML gateway path for approval/routing flows that still resolve to one terminal surface.
+
+Do not introduce local variants of terminal policy in Runner notes; align to `mcp-usage.instructions.md` and flag stale/conflicting guidance for cleanup.
+
 ## 🔄 INTERMITTENT LOGGING
 
 Unlike other agents that track every action, you log **intermittently**:

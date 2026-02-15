@@ -6,7 +6,7 @@
  * is_program=true and child_plan_ids tracking its constituent plans.
  */
 
-import type { PlanPriority, PlanStatus } from './plan.types.js';
+import type { PlanPriority, PlanState, PlanStatus } from './plan.types.js';
 
 // =============================================================================
 // Program Aggregate Progress
@@ -87,4 +87,60 @@ export interface UpgradeToProgramParams {
 export interface ListProgramPlansParams {
   workspace_id: string;
   program_id: string;
+}
+
+// =============================================================================
+// Unlink / Dependency / Clone / Merge Parameters
+// =============================================================================
+
+export interface UnlinkFromProgramParams {
+  workspace_id: string;
+  plan_id: string;
+}
+
+export interface SetPlanDependenciesParams {
+  workspace_id: string;
+  plan_id: string;
+  depends_on_plans: string[];
+}
+
+export interface GetPlanDependenciesParams {
+  workspace_id: string;
+  plan_id: string;
+}
+
+export interface GetPlanDependenciesResult {
+  plan_id: string;
+  depends_on_plans: string[];
+  dependents: string[];
+  message: string;
+}
+
+export interface ClonePlanParams {
+  workspace_id: string;
+  plan_id: string;
+  new_title?: string;
+  reset_steps?: boolean;
+  link_to_same_program?: boolean;
+}
+
+export interface ClonePlanResult {
+  source_plan_id: string;
+  cloned_plan: PlanState;
+  message: string;
+}
+
+export interface MergePlansParams {
+  workspace_id: string;
+  target_plan_id: string;
+  source_plan_ids: string[];
+  archive_sources?: boolean;
+}
+
+export interface MergePlansResult {
+  target_plan_id: string;
+  source_plan_ids: string[];
+  steps_merged: number;
+  archived_sources: string[];
+  message: string;
 }

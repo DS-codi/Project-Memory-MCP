@@ -1,5 +1,5 @@
 /**
- * Tool Provider - Registers all 7 language model tools for Copilot Chat
+ * Tool Provider - Registers language model tools for Copilot Chat
  *
  * Delegates to individual tool handlers in ./tools/:
  *   1. memory_workspace             - Workspace management
@@ -7,8 +7,9 @@
  *   3. memory_plan                  - Plan operations
  *   4. memory_steps                 - Step management
  *   5. memory_context               - Context, notes, research, briefings
- *   6. memory_terminal_interactive  - Interactive VS Code terminals
- *   7. memory_spawn_agent           - Prepare spawn context for native runSubagent flow
+ *   6. memory_terminal_interactive  - Canonical interactive/headless terminal contract via MCP bridge
+ *   7. memory_terminal_vscode       - Visible VS Code terminal management contract
+ *   8. memory_spawn_agent           - Prepare spawn context for native runSubagent flow
  *
  * @see ./tools/ for individual handler implementations
  */
@@ -21,13 +22,14 @@ import {
     handlePlanTool,
     handleStepsTool,
     handleContextTool,
-    handleInteractiveTerminalTool,
+    handleCanonicalInteractiveTerminalTool,
+    handleVsCodeTerminalTool,
     handleSpawnAgentTool,
     type ToolContext
 } from './tools';
 
 /**
- * Tool Provider class that registers all 7 consolidated Language Model Tools
+ * Tool Provider class that registers consolidated Language Model Tools
  */
 export class ToolProvider implements vscode.Disposable {
     private mcpBridge: McpBridge;
@@ -35,8 +37,9 @@ export class ToolProvider implements vscode.Disposable {
     private disposables: vscode.Disposable[] = [];
     private ctx: ToolContext;
 
-    constructor(mcpBridge: McpBridge) {
+    constructor(mcpBridge: McpBridge, options?: { registerTools?: boolean }) {
         this.mcpBridge = mcpBridge;
+        const registerTools = options?.registerTools ?? true;
 
         // Build shared context for tool handlers
         this.ctx = {
@@ -45,7 +48,9 @@ export class ToolProvider implements vscode.Disposable {
             setWorkspaceId: (id: string) => { this.workspaceId = id; }
         };
 
-        this.registerTools();
+        if (registerTools) {
+            this.registerTools();
+        }
     }
 
     public resetWorkspace(): void {
@@ -88,14 +93,21 @@ export class ToolProvider implements vscode.Disposable {
             })
         );
 
-        // 6. memory_terminal_interactive
+        // 6. memory_terminal_interactive (canonical MCP-facing contract)
         this.disposables.push(
             vscode.lm.registerTool('memory_terminal_interactive', {
-                invoke: (options, token) => handleInteractiveTerminalTool(options as never, token, this.ctx)
+                invoke: (options, token) => handleCanonicalInteractiveTerminalTool(options as never, token, this.ctx)
             })
         );
 
-        // 7. memory_spawn_agent (context preparation only)
+        // 7. memory_terminal_vscode (visible VS Code terminal management)
+        this.disposables.push(
+            vscode.lm.registerTool('memory_terminal_vscode', {
+                invoke: (options, token) => handleVsCodeTerminalTool(options as never, token, this.ctx)
+            })
+        );
+
+        // 8. memory_spawn_agent (context preparation only)
         this.disposables.push(
             vscode.lm.registerTool('memory_spawn_agent', {
                 invoke: (options, token) => handleSpawnAgentTool(options as never, token, this.ctx)

@@ -15,7 +15,8 @@ export interface WorkspaceMeta {
   workspace_id: string;
   workspace_path?: string;
   path: string;
-  name: string;
+  name: string; // Backward-compat mirror of display_name for legacy consumers
+  display_name?: string; // Editable display label persisted in workspace.meta.json
   created_at?: string;
   updated_at?: string;
   registered_at: string;

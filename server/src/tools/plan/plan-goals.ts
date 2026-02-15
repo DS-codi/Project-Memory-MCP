@@ -1,12 +1,13 @@
 /**
- * Plan Goals - Goals, success criteria, and plan notes
+ * Plan Goals - Goals, success criteria, plan notes, and plan priority
  *
- * Functions: setGoals, addPlanNote
+ * Functions: setGoals, addPlanNote, setPlanPriority
  */
 
 import type {
   ToolResponse,
-  PlanState
+  PlanState,
+  PlanPriority,
 } from '../../types/index.js';
 import * as store from '../../storage/file-store.js';
 import { events } from '../../events/event-emitter.js';
@@ -158,6 +159,82 @@ export async function setGoals(
     return {
       success: false,
       error: `Failed to set goals: ${(error as Error).message}`
+    };
+  }
+}
+
+// =============================================================================
+// Plan Priority
+// =============================================================================
+
+const VALID_PRIORITIES: PlanPriority[] = ['low', 'medium', 'high', 'critical'];
+
+export interface SetPlanPriorityParams {
+  workspace_id: string;
+  plan_id: string;
+  priority: PlanPriority;
+}
+
+export interface SetPlanPriorityResult {
+  plan_id: string;
+  previous_priority: PlanPriority;
+  priority: PlanPriority;
+  message: string;
+}
+
+/**
+ * Set or update the priority of a plan.
+ * Validates the priority value is one of: low, medium, high, critical.
+ */
+export async function setPlanPriority(
+  params: SetPlanPriorityParams
+): Promise<ToolResponse<SetPlanPriorityResult>> {
+  try {
+    const { workspace_id, plan_id, priority } = params;
+
+    if (!workspace_id || !plan_id) {
+      return {
+        success: false,
+        error: 'workspace_id and plan_id are required for set_plan_priority'
+      };
+    }
+
+    if (!priority || !VALID_PRIORITIES.includes(priority)) {
+      return {
+        success: false,
+        error: `Invalid priority: "${priority}". Must be one of: ${VALID_PRIORITIES.join(', ')}`
+      };
+    }
+
+    const state = await store.getPlanState(workspace_id, plan_id);
+    if (!state) {
+      return {
+        success: false,
+        error: `Plan not found: ${plan_id}`
+      };
+    }
+
+    const previousPriority = state.priority;
+    state.priority = priority;
+    state.updated_at = store.nowISO();
+    await store.savePlanState(state);
+    await store.generatePlanMd(state);
+
+    await events.planUpdated(workspace_id, plan_id, { priority_changed: { from: previousPriority, to: priority } });
+
+    return {
+      success: true,
+      data: {
+        plan_id,
+        previous_priority: previousPriority,
+        priority,
+        message: `Plan priority changed from "${previousPriority}" to "${priority}"`
+      }
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to set plan priority: ${(error as Error).message}`
     };
   }
 }

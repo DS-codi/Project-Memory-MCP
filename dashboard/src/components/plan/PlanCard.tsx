@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Clock, FolderTree } from 'lucide-react';
 import { Badge } from '../common/Badge';
 import { CopyButton } from '../common/CopyButton';
@@ -20,6 +20,14 @@ interface PlanCardProps {
 }
 
 export function PlanCard({ plan, workspaceId }: PlanCardProps) {
+  const navigate = useNavigate();
+  const parentProgramId = plan.relationships?.parent_program_id ?? plan.program_id;
+  const childPlanCount = plan.relationships?.child_plan_ids?.length ?? plan.child_plan_ids?.length ?? 0;
+  const linkedPlanCount = plan.relationships?.linked_plan_ids?.length ?? plan.linked_plan_ids?.length ?? plan.depends_on_plans?.length ?? 0;
+  const dependentPlanCount = plan.relationships?.dependent_plan_ids?.length ?? 0;
+  const unresolvedLinkedCount = plan.relationships?.unresolved_linked_plan_ids?.length ?? 0;
+  const hasAnyRelationships = Boolean(plan.is_program) || Boolean(parentProgramId) || childPlanCount > 0 || linkedPlanCount > 0 || dependentPlanCount > 0 || unresolvedLinkedCount > 0;
+
   return (
     <Link
       to={`/workspace/${workspaceId}/plan/${plan.id}`}
@@ -55,17 +63,48 @@ export function PlanCard({ plan, workspaceId }: PlanCardProps) {
       )}
 
       {/* Program Membership */}
-      {plan.program_id && (
-        <Link
-          to={`/workspace/${workspaceId}/program/${plan.program_id}`}
-          onClick={(e) => e.stopPropagation()}
+      {parentProgramId && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            navigate(`/workspace/${workspaceId}/program/${parentProgramId}`);
+          }}
           className="flex items-center gap-1.5 mb-3 text-xs text-violet-400 hover:text-violet-300 transition-colors"
         >
           <FolderTree size={12} />
           <span>Part of program</span>
-          <span className="font-mono text-slate-500">{plan.program_id.slice(-8)}</span>
-        </Link>
+          <span className="font-mono text-slate-500">{parentProgramId.slice(-8)}</span>
+        </button>
       )}
+
+      <div className="mb-3">
+        <div className="text-xs text-slate-500 mb-1">Relationships</div>
+        <div className="flex flex-wrap gap-1.5 text-xs">
+          {plan.is_program && (
+            <span className="px-2 py-0.5 rounded bg-violet-500/20 text-violet-300">Program</span>
+          )}
+          {parentProgramId && (
+            <span className="px-2 py-0.5 rounded bg-slate-700 text-slate-200">Child of program</span>
+          )}
+          {childPlanCount > 0 && (
+            <span className="px-2 py-0.5 rounded bg-slate-700 text-slate-200">Children: {childPlanCount}</span>
+          )}
+          {linkedPlanCount > 0 && (
+            <span className="px-2 py-0.5 rounded bg-slate-700 text-slate-200">Linked: {linkedPlanCount}</span>
+          )}
+          {dependentPlanCount > 0 && (
+            <span className="px-2 py-0.5 rounded bg-slate-700 text-slate-200">Linked by: {dependentPlanCount}</span>
+          )}
+          {unresolvedLinkedCount > 0 && (
+            <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300">Unresolved links: {unresolvedLinkedCount}</span>
+          )}
+          {!hasAnyRelationships && (
+            <span className="px-2 py-0.5 rounded bg-slate-700 text-slate-400">No relationships</span>
+          )}
+        </div>
+      </div>
 
       {/* Progress */}
       <div className="mb-3">

@@ -23,14 +23,8 @@ suite('ToolProvider Test Suite', () => {
         const mockConfig = { serverMode: 'bundled' as const };
         const bridge = new McpBridge(mockConfig);
         
-        // ToolProvider requires bridge
-        try {
-            // This will fail in test environment without VS Code LM API
-            new ToolProvider(bridge);
-        } catch {
-            // Expected in test environment without VS Code
-        }
-        
+        const provider = new ToolProvider(bridge, { registerTools: false });
+        provider.dispose();
         bridge.dispose();
     });
 

@@ -10,6 +10,16 @@ A web-based dashboard for monitoring the Project Memory MCP Server. View agent w
 - **Agent Tracking**: Visualize handoff sequences and current agent sessions
 - **Agent Inventory**: Manage agent instruction file deployments
 
+## Release Notes (2026-02-15)
+
+- **Plan list sectioning**: The plans view renders separate **Active Plans** and **Archived Plans** sections, each with its own count and empty-state message.
+- **Relationship indicators on plan cards**: Plan cards now surface relationship badges including **Program**, **Child of program**, **Children**, **Linked**, **Linked by**, and **Unresolved links**, with **No relationships** as a fallback.
+
+### Release Handoff Summary
+
+- Updated dashboard docs to reflect shipped plan relationship visualization and active-vs-archived section behavior.
+- Scope was limited to documentation/changelog notes; no runtime code behavior was changed in this step.
+
 ## Quick Start
 
 ### Prerequisites

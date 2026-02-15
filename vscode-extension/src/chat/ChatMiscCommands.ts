@@ -5,6 +5,7 @@
 
 import * as vscode from 'vscode';
 import { McpBridge } from './McpBridge';
+import { createPlanIdCommandLink, createTrustedMarkdown, withProgress } from './ChatResponseHelpers';
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
@@ -16,6 +17,58 @@ function getStatusEmoji(status?: string): string {
         case 'blocked': return '🔴';
         default: return '⚪';
     }
+}
+
+const KNOWN_AGENT_TYPES = [
+    'Coordinator',
+    'Researcher',
+    'Architect',
+    'Executor',
+    'Reviewer',
+    'Tester',
+    'Archivist',
+    'Analyst',
+    'Brainstorm',
+    'Runner',
+    'Revisionist',
+    'Worker',
+    'Cognition',
+    'Builder',
+    'TDDDriver',
+] as const;
+
+function canonicalizeAgentType(agentToken: string): string {
+    const normalized = agentToken.trim();
+    const match = KNOWN_AGENT_TYPES.find(agent => agent.toLowerCase() === normalized.toLowerCase());
+    return match ?? normalized;
+}
+
+function parseHandoffInput(prompt: string): {
+    targetAgent?: string;
+    planId?: string;
+    summary?: string;
+    error?: string;
+} {
+    const tokens = prompt.split(/\s+/).map(token => token.trim()).filter(Boolean);
+
+    while (tokens.length > 0 && /^\/?handoff$/i.test(tokens[0])) {
+        tokens.shift();
+    }
+
+    if (tokens.length < 2) {
+        return { error: '⚠️ Please provide both agent type and plan ID.\nExample: `/handoff Executor plan_abc123`' };
+    }
+
+    const rawTargetAgent = tokens[0];
+    if (rawTargetAgent.startsWith('/')) {
+        return { error: '⚠️ Invalid agent type. Use an agent name like `Coordinator`, `Executor`, or `Reviewer`.' };
+    }
+
+    return {
+        targetAgent: canonicalizeAgentType(rawTargetAgent),
+        planId: tokens[1],
+        summary: tokens.slice(2).join(' ') || 'Handoff from chat'
+    };
 }
 
 // ── /handoff ───────────────────────────────────────────────────────────
@@ -46,36 +99,37 @@ export async function handleHandoffCommand(
         response.markdown('- `Analyst` - Deep investigation and analysis\n');
         response.markdown('- `Brainstorm` - Explore and refine ideas\n');
         response.markdown('- `Runner` - Quick tasks and exploration\n');
-        return { metadata: { command: 'handoff' } };
+        return { metadata: { command: 'handoff', action: 'help' } };
     }
 
-    const parts = prompt.split(' ');
-    if (parts.length < 2) {
-        response.markdown('⚠️ Please provide both agent type and plan ID.\n');
-        response.markdown('Example: `/handoff Executor plan_abc123`');
-        return { metadata: { command: 'handoff' } };
+    const parsed = parseHandoffInput(prompt);
+    if (parsed.error || !parsed.targetAgent || !parsed.planId) {
+        response.markdown(parsed.error ?? '⚠️ Invalid handoff command.');
+        return { metadata: { command: 'handoff', action: 'validate' } };
     }
 
-    const targetAgent = parts[0];
-    const planId = parts[1];
-    const summary = parts.slice(2).join(' ') || 'Handoff from chat';
+    const targetAgent = parsed.targetAgent;
+    const planId = parsed.planId;
+    const summary = parsed.summary ?? 'Handoff from chat';
 
     if (!workspaceId) {
         response.markdown('⚠️ Workspace not registered.');
-        return { metadata: { command: 'handoff' } };
+        return { metadata: { command: 'handoff', action: 'execute' } };
     }
 
     response.markdown(`🔄 Initiating handoff to **${targetAgent}**...\n\n`);
 
     try {
-        const result = await mcpBridge.callTool<{ warning?: string }>('memory_agent', {
-            action: 'handoff',
-            workspace_id: workspaceId,
-            plan_id: planId,
-            from_agent: 'User',
-            to_agent: targetAgent,
-            summary
-        });
+        const result = await withProgress(response, 'Recording handoff...', async () =>
+            mcpBridge.callTool<{ warning?: string }>('memory_agent', {
+                action: 'handoff',
+                workspace_id: workspaceId,
+                plan_id: planId,
+                from_agent: 'User',
+                to_agent: targetAgent,
+                summary
+            })
+        );
 
         response.markdown(`✅ **Handoff recorded!**\n\n`);
         response.markdown(`Plan \`${planId}\` handoff to **${targetAgent}** has been recorded.\n`);
@@ -87,7 +141,7 @@ export async function handleHandoffCommand(
         response.markdown(`❌ Handoff failed: ${errorMessage}`);
     }
 
-    return { metadata: { command: 'handoff', targetAgent, planId } };
+    return { metadata: { command: 'handoff', action: 'execute', targetAgent, planId } };
 }
 
 // ── /status ────────────────────────────────────────────────────────────
@@ -104,8 +158,10 @@ export async function handleStatusCommand(
 ): Promise<vscode.ChatResult> {
     if (!workspaceId) {
         response.markdown('⚠️ Workspace not registered.');
-        return { metadata: { command: 'status' } };
+        return { metadata: { command: 'status', action: 'show' } };
     }
+
+    let mostActivePlan: { planId: string; title: string } | undefined;
 
     response.markdown('📊 **Project Memory Status**\n\n');
     response.progress('Checking MCP connection...');
@@ -116,19 +172,20 @@ export async function handleStatusCommand(
     response.markdown(`**Workspace ID**: \`${workspaceId}\`\n\n`);
 
     // Get active plans
-    response.progress('Fetching plans...');
     try {
-        const result = await mcpBridge.callTool<{
-            active_plans: Array<{
-                plan_id?: string;
-                id?: string;
-                title: string;
-                status?: string;
-                done_steps?: number;
-                total_steps?: number;
-                progress?: { done?: number; total?: number };
-            }>;
-        }>('memory_plan', { action: 'list', workspace_id: workspaceId });
+        const result = await withProgress(response, 'Listing plans...', async () =>
+            mcpBridge.callTool<{
+                active_plans: Array<{
+                    plan_id?: string;
+                    id?: string;
+                    title: string;
+                    status?: string;
+                    done_steps?: number;
+                    total_steps?: number;
+                    progress?: { done?: number; total?: number };
+                }>;
+            }>('memory_plan', { action: 'list', workspace_id: workspaceId })
+        );
 
         const plans = result.active_plans || [];
         const activePlans = plans.filter(p => p.status !== 'archived');
@@ -138,13 +195,39 @@ export async function handleStatusCommand(
         if (activePlans.length === 0) {
             response.markdown('No active plans.\n');
         } else {
+            const prioritizedPlans = [...activePlans].sort((left, right) => {
+                const leftStatus = left.status === 'active' ? 1 : 0;
+                const rightStatus = right.status === 'active' ? 1 : 0;
+                if (leftStatus !== rightStatus) {
+                    return rightStatus - leftStatus;
+                }
+
+                const leftDone = left.done_steps ?? left.progress?.done ?? 0;
+                const rightDone = right.done_steps ?? right.progress?.done ?? 0;
+                return rightDone - leftDone;
+            });
+
+            const topPlan = prioritizedPlans[0];
+            const topPlanId = topPlan?.plan_id || topPlan?.id;
+            if (topPlan && topPlanId) {
+                mostActivePlan = { planId: topPlanId, title: topPlan.title };
+            }
+
             for (const plan of activePlans) {
                 const statusEmoji = getStatusEmoji(plan.status);
                 const doneSteps = plan.done_steps ?? plan.progress?.done ?? 0;
                 const totalSteps = plan.total_steps ?? plan.progress?.total ?? 0;
                 const planId = plan.plan_id || plan.id;
+                const planSuffix = planId
+                    ? ` (${createPlanIdCommandLink(planId)})`
+                    : '';
 
-                response.markdown(`${statusEmoji} **${plan.title}**${planId ? ` (\`${planId}\`)` : ''}\n`);
+                response.markdown(
+                    createTrustedMarkdown(
+                        `${statusEmoji} **${plan.title}**${planSuffix}\n`,
+                        ['projectMemory.showPlanInChat']
+                    )
+                );
                 if (totalSteps > 0) {
                     response.markdown(`   Progress: ${doneSteps}/${totalSteps} steps\n`);
                 }
@@ -154,7 +237,14 @@ export async function handleStatusCommand(
         response.markdown('Could not retrieve plan status.\n');
     }
 
-    return { metadata: { command: 'status' } };
+    return {
+        metadata: {
+            command: 'status',
+            action: 'show',
+            planId: mostActivePlan?.planId,
+            mostActivePlanTitle: mostActivePlan?.title
+        }
+    };
 }
 
 // ── /deploy ────────────────────────────────────────────────────────────
@@ -177,7 +267,7 @@ export async function handleDeployCommand(
         response.markdown('- `skills` — Copy skill files to the open workspace\n');
         response.markdown('- `instructions` — Copy instruction files to the open workspace\n');
         response.markdown('- `all` — Deploy agents, skills, and instructions\n');
-        return { metadata: { command: 'deploy' } };
+        return { metadata: { command: 'deploy', action: 'help' } };
     }
 
     const cmdMap: Record<string, string> = {
@@ -190,7 +280,7 @@ export async function handleDeployCommand(
     const cmd = cmdMap[prompt];
     if (!cmd) {
         response.markdown(`⚠️ Unknown deploy target: **${prompt}**\n\nUse: agents, skills, instructions, or all`);
-        return { metadata: { command: 'deploy' } };
+        return { metadata: { command: 'deploy', action: 'validate' } };
     }
 
     response.markdown(`🚀 Running **deploy ${prompt}**...\n`);
@@ -202,7 +292,7 @@ export async function handleDeployCommand(
         response.markdown(`\n❌ Deploy failed: ${msg}`);
     }
 
-    return { metadata: { command: 'deploy', target: prompt } };
+    return { metadata: { command: 'deploy', action: 'run', target: prompt } };
 }
 
 // ── /diagnostics ───────────────────────────────────────────────────────
@@ -227,9 +317,11 @@ export async function handleDiagnosticsCommand(
         if (mcpBridge.isConnected()) {
             try {
                 const start = Date.now();
-                const wsResult = await mcpBridge.callTool<{
-                    workspaces?: unknown[];
-                }>('memory_workspace', { action: 'list' });
+                const wsResult = await withProgress(response, 'Listing workspaces...', async () =>
+                    mcpBridge.callTool<{
+                        workspaces?: unknown[];
+                    }>('memory_workspace', { action: 'list' })
+                );
                 const probeMs = Date.now() - start;
                 const wsCount = Array.isArray(wsResult.workspaces) ? wsResult.workspaces.length : 0;
 
@@ -250,7 +342,7 @@ export async function handleDiagnosticsCommand(
         response.markdown(`❌ Diagnostics failed: ${msg}`);
     }
 
-    return { metadata: { command: 'diagnostics' } };
+    return { metadata: { command: 'diagnostics', action: 'run' } };
 }
 
 // ── default (no command) ───────────────────────────────────────────────
@@ -280,7 +372,7 @@ export async function handleDefaultCommand(
         response.markdown('- `/deploy` - Deploy agents, skills, or instructions\n');
         response.markdown('- `/diagnostics` - Run system health diagnostics\n');
         response.markdown('\nOr just ask me about your project!');
-        return { metadata: { command: 'help' } };
+        return { metadata: { command: 'help', action: 'show' } };
     }
 
     // Try to intelligently route the request
@@ -299,5 +391,5 @@ export async function handleDefaultCommand(
         response.markdown(`- Use \`/context\` to get workspace information\n`);
     }
 
-    return { metadata: { command: 'default' } };
+    return { metadata: { command: 'default', action: 'route' } };
 }

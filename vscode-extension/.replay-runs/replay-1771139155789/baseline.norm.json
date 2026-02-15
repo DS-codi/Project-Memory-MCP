@@ -1,0 +1,197 @@
+{
+  "profile": "baseline",
+  "scenarios": [
+    {
+      "normalized_events": [
+        {
+          "event_type": "user_prompt",
+          "payload": {
+            "profile": "baseline",
+            "prompt": "Run cross-platform normalization pack"
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_1",
+          "timestamp_ms": 0
+        },
+        {
+          "action_canonical": "execute",
+          "action_raw": "run",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_2",
+          "timestamp_ms": 25,
+          "tool_name": "memory_terminal"
+        },
+        {
+          "event_type": "wait",
+          "payload": {
+            "wait_ms": 160
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_3",
+          "timestamp_ms": 50
+        },
+        {
+          "action_canonical": "handoff",
+          "action_raw": "handoff",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "args": {
+              "to_agent": "Coordinator"
+            },
+            "profile": "baseline"
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_4",
+          "timestamp_ms": 75,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "handoff",
+          "payload": {
+            "to_agent": "Coordinator"
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_4",
+          "timestamp_ms": 76
+        },
+        {
+          "action_canonical": "complete",
+          "action_raw": "complete",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_5",
+          "timestamp_ms": 100,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "complete",
+          "payload": {},
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_5",
+          "timestamp_ms": 101
+        },
+        {
+          "event_type": "outcome",
+          "phase": "final",
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "success_signature": "cross_platform_normalization_pass",
+          "timestamp_ms": 110
+        }
+      ],
+      "profile": "baseline",
+      "raw_events": [
+        {
+          "event_type": "user_prompt",
+          "payload": {
+            "profile": "baseline",
+            "prompt": "Run cross-platform normalization pack"
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_1",
+          "timestamp_ms": 1771139155815
+        },
+        {
+          "action_raw": "run",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_2",
+          "timestamp_ms": 1771139155840,
+          "tool_name": "memory_terminal"
+        },
+        {
+          "event_type": "wait",
+          "payload": {
+            "wait_ms": 160
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_3",
+          "timestamp_ms": 1771139155865
+        },
+        {
+          "action_raw": "handoff",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "args": {
+              "to_agent": "Coordinator"
+            },
+            "profile": "baseline"
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_4",
+          "timestamp_ms": 1771139155890,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "handoff",
+          "payload": {
+            "to_agent": "Coordinator"
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_4",
+          "timestamp_ms": 1771139155891
+        },
+        {
+          "action_raw": "complete",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_5",
+          "timestamp_ms": 1771139155915,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "complete",
+          "payload": {},
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "step_id": "step_5",
+          "timestamp_ms": 1771139155916
+        },
+        {
+          "event_type": "outcome",
+          "phase": "final",
+          "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+          "success_signature": "cross_platform_normalization_pass",
+          "timestamp_ms": 1771139155925
+        }
+      ],
+      "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+      "success": true
+    }
+  ]
+}

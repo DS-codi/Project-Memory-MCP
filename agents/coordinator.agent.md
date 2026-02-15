@@ -192,6 +192,13 @@ After Executor completes a phase:
 
 > **Note:** Subagents use `memory_agent` (action: handoff) to recommend which agent to deploy next. When a subagent calls handoff, it sets `recommended_next_agent` in the plan state. You read this via `memory_plan` (action: get) and then spawn the appropriate subagent.
 
+## Terminal Surface Guidance (Canonical)
+
+- Coordinator does not execute terminal work directly; encode terminal-surface expectations in spawned-agent prompts.
+- Use `memory_terminal` for deterministic headless server/container execution and `memory_terminal_interactive` for visible host-terminal workflows.
+- When Rust+QML interactive gateway context is present, treat it as approval/routing; downstream execution must still target `memory_terminal` or `memory_terminal_interactive`.
+- Require subagents to keep terminal contracts separate and avoid cross-copying payloads between surfaces.
+
 ### Sub-Agent Tool
 ```javascript
 runSubagent({

@@ -1,0 +1,218 @@
+{
+  "event": {
+    "event_type": "user_prompt",
+    "payload": {
+      "profile": "candidate",
+      "prompt": "Implement replay harness phase bundle in scoped vscode-extension paths"
+    },
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "step_id": "step_1",
+    "timestamp_ms": 1771132354785
+  },
+  "profile": "candidate",
+  "run_id": "replay-1771132354758",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "action_raw": "update",
+    "authorization": {
+      "outcome": "allowed",
+      "reason_class": "allowlist_match"
+    },
+    "event_type": "tool_call",
+    "payload": {
+      "args": {
+        "status": "active",
+        "step_index": 2
+      },
+      "profile": "candidate"
+    },
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "step_id": "step_2",
+    "timestamp_ms": 1771132354810,
+    "tool_name": "memory_steps"
+  },
+  "profile": "candidate",
+  "run_id": "replay-1771132354758",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "event_type": "plan_step_update",
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "step_id": "step_2",
+    "timestamp_ms": 1771132354811
+  },
+  "profile": "candidate",
+  "run_id": "replay-1771132354758",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "action_raw": "confirm",
+    "authorization": {
+      "outcome": "allowed",
+      "reason_class": "allowlist_match"
+    },
+    "event_type": "tool_call",
+    "payload": {
+      "args": {
+        "confirm_step_index": 2,
+        "confirmation_scope": "step"
+      },
+      "profile": "candidate"
+    },
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "step_id": "step_2b",
+    "timestamp_ms": 1771132354835,
+    "tool_name": "memory_plan"
+  },
+  "profile": "candidate",
+  "run_id": "replay-1771132354758",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "event_type": "confirmation",
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "step_id": "step_2b",
+    "timestamp_ms": 1771132354836
+  },
+  "profile": "candidate",
+  "run_id": "replay-1771132354758",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "action_raw": "update",
+    "authorization": {
+      "outcome": "allowed",
+      "reason_class": "allowlist_match"
+    },
+    "event_type": "tool_call",
+    "payload": {
+      "args": {
+        "status": "done",
+        "step_index": 6
+      },
+      "profile": "candidate"
+    },
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "step_id": "step_3",
+    "timestamp_ms": 1771132354860,
+    "tool_name": "memory_steps"
+  },
+  "profile": "candidate",
+  "run_id": "replay-1771132354758",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "event_type": "plan_step_update",
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "step_id": "step_3",
+    "timestamp_ms": 1771132354861
+  },
+  "profile": "candidate",
+  "run_id": "replay-1771132354758",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "action_raw": "handoff",
+    "authorization": {
+      "outcome": "allowed",
+      "reason_class": "allowlist_match"
+    },
+    "event_type": "tool_call",
+    "payload": {
+      "args": {
+        "from_agent": "Executor",
+        "to_agent": "Coordinator"
+      },
+      "profile": "candidate"
+    },
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "step_id": "step_4",
+    "timestamp_ms": 1771132354885,
+    "tool_name": "memory_agent"
+  },
+  "profile": "candidate",
+  "run_id": "replay-1771132354758",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "event_type": "handoff",
+    "payload": {
+      "from_agent": "Executor",
+      "to_agent": "Coordinator"
+    },
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "step_id": "step_4",
+    "timestamp_ms": 1771132354886
+  },
+  "profile": "candidate",
+  "run_id": "replay-1771132354758",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "action_raw": "complete",
+    "authorization": {
+      "outcome": "allowed",
+      "reason_class": "allowlist_match"
+    },
+    "event_type": "tool_call",
+    "payload": {
+      "args": {
+        "agent_type": "Executor"
+      },
+      "profile": "candidate"
+    },
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "step_id": "step_5",
+    "timestamp_ms": 1771132354910,
+    "tool_name": "memory_agent"
+  },
+  "profile": "candidate",
+  "run_id": "replay-1771132354758",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "event_type": "complete",
+    "payload": {},
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "step_id": "step_5",
+    "timestamp_ms": 1771132354911
+  },
+  "profile": "candidate",
+  "run_id": "replay-1771132354758",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "event_type": "outcome",
+    "phase": "final",
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "success_signature": "phase3_steps_2_to_6_done",
+    "timestamp_ms": 1771132354920
+  },
+  "profile": "candidate",
+  "run_id": "replay-1771132354758",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}
+{
+  "event": {
+    "event_type": "outcome",
+    "phase": "final",
+    "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+    "success_signature": "handoff_to_coordinator",
+    "timestamp_ms": 1771132354930
+  },
+  "profile": "candidate",
+  "run_id": "replay-1771132354758",
+  "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+}

@@ -22,3 +22,7 @@ Prevent creation of oversized, multi-responsibility files by favoring small, coh
 
 ## Reporting
 - Briefly mention what was split and why in your response.
+
+## Related Skills
+- Use `.github/skills/monolith-refactor/SKILL.md` when planning and executing a monolith split into smaller, responsibility-focused modules.
+- Use `.github/skills/monolith-cleanup/SKILL.md` after a split to archive the original file, remove duplicate module paths, and verify API continuity.

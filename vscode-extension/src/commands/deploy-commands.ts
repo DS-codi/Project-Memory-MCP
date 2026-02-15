@@ -9,6 +9,7 @@ import { DashboardViewProvider } from '../providers/DashboardViewProvider';
 import { DefaultDeployer } from '../deployer/DefaultDeployer';
 import { notify } from '../utils/helpers';
 import { getDefaultAgentsRoot, getDefaultInstructionsRoot, getDefaultSkillsRoot } from '../utils/defaults';
+import { buildMissingSkillsSourceWarning, resolveSkillsSourceRoot } from '../utils/skillsSourceRoot';
 
 export function registerDeployCommands(
     context: vscode.ExtensionContext,
@@ -124,20 +125,29 @@ export function registerDeployCommands(
             }
 
             const config = vscode.workspace.getConfiguration('projectMemory');
-            const skillsRoot = config.get<string>('skillsRoot') || getDefaultSkillsRoot();
+            const configuredSkillsRoot = config.get<string>('skillsRoot') || getDefaultSkillsRoot();
+            const globalSkillsRoot = config.get<string>('globalSkillsRoot');
 
-            if (!skillsRoot) {
-                vscode.window.showErrorMessage('Skills root not configured. Set projectMemory.skillsRoot in settings.');
+            const workspacePath = workspaceFolders[0].uri.fsPath;
+            const skillsSource = resolveSkillsSourceRoot(
+                configuredSkillsRoot,
+                workspacePath,
+                fs.existsSync,
+                [globalSkillsRoot]
+            );
+
+            if (!skillsSource.root) {
+                vscode.window.showWarningMessage(buildMissingSkillsSourceWarning(workspacePath, skillsSource.checkedPaths));
                 return;
             }
 
-            const workspacePath = workspaceFolders[0].uri.fsPath;
+            const skillsSourceRoot = skillsSource.root;
 
             try {
                 // Skills are subdirectories containing a SKILL.md file
-                const allSkillDirs = fs.readdirSync(skillsRoot)
+                const allSkillDirs = fs.readdirSync(skillsSourceRoot)
                     .filter((f: string) => {
-                        const skillPath = path.join(skillsRoot, f, 'SKILL.md');
+                        const skillPath = path.join(skillsSourceRoot, f, 'SKILL.md');
                         return fs.existsSync(skillPath);
                     });
 
@@ -150,7 +160,7 @@ export function registerDeployCommands(
                     // Try to extract description from SKILL.md front matter
                     let description = dirName;
                     try {
-                        const skillContent = fs.readFileSync(path.join(skillsRoot, dirName, 'SKILL.md'), 'utf-8');
+                        const skillContent = fs.readFileSync(path.join(skillsSourceRoot, dirName, 'SKILL.md'), 'utf-8');
                         const descMatch = skillContent.match(/^description:\s*(.+)$/m);
                         if (descMatch) {
                             description = descMatch[1].substring(0, 80);
@@ -176,7 +186,7 @@ export function registerDeployCommands(
 
                 let copiedCount = 0;
                 for (const item of selectedItems) {
-                    const sourceDir = path.join(skillsRoot, item.label);
+                    const sourceDir = path.join(skillsSourceRoot, item.label);
                     const destDir = path.join(targetDir, item.label);
                     fs.mkdirSync(destDir, { recursive: true });
                     // Copy all files in the skill directory
@@ -284,12 +294,24 @@ export function registerDeployCommands(
 
         vscode.commands.registerCommand('projectMemory.listSkills', async () => {
             const config = vscode.workspace.getConfiguration('projectMemory');
-            const skillsRoot = config.get<string>('skillsRoot') || getDefaultSkillsRoot();
+            const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+            const configuredSkillsRoot = config.get<string>('skillsRoot') || getDefaultSkillsRoot();
+            const globalSkillsRoot = config.get<string>('globalSkillsRoot');
+            const sourceResolution = resolveSkillsSourceRoot(
+                configuredSkillsRoot,
+                workspacePath ?? process.cwd(),
+                fs.existsSync,
+                [globalSkillsRoot]
+            );
 
-            if (!skillsRoot || !fs.existsSync(skillsRoot)) {
-                vscode.window.showWarningMessage('Skills root not configured or does not exist. Set projectMemory.skillsRoot in settings.');
+            if (!sourceResolution.root) {
+                vscode.window.showWarningMessage(
+                    buildMissingSkillsSourceWarning(workspacePath ?? process.cwd(), sourceResolution.checkedPaths)
+                );
                 return;
             }
+
+            const skillsRoot = sourceResolution.root;
 
             try {
                 const skillDirs = fs.readdirSync(skillsRoot)
@@ -338,12 +360,23 @@ export function registerDeployCommands(
             }
 
             const config = vscode.workspace.getConfiguration('projectMemory');
-            const skillsRoot = config.get<string>('skillsRoot') || getDefaultSkillsRoot();
+            const configuredSkillsRoot = config.get<string>('skillsRoot') || getDefaultSkillsRoot();
+            const globalSkillsRoot = config.get<string>('globalSkillsRoot');
+            const sourceResolution = resolveSkillsSourceRoot(
+                configuredSkillsRoot,
+                workspaceFolders[0].uri.fsPath,
+                fs.existsSync,
+                [globalSkillsRoot]
+            );
 
-            if (!skillsRoot || !fs.existsSync(skillsRoot)) {
-                vscode.window.showErrorMessage('Skills root not configured. Set projectMemory.skillsRoot in settings.');
+            if (!sourceResolution.root) {
+                vscode.window.showWarningMessage(
+                    buildMissingSkillsSourceWarning(workspaceFolders[0].uri.fsPath, sourceResolution.checkedPaths)
+                );
                 return;
             }
+
+            const skillsRoot = sourceResolution.root;
 
             try {
                 const skillDirs = fs.readdirSync(skillsRoot)

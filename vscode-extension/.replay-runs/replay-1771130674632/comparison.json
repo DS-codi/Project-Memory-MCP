@@ -1,0 +1,33 @@
+{
+  "generated_at": "2026-02-15T04:44:34.656Z",
+  "passed": false,
+  "profile_name": "default-replay-profile",
+  "scenarios": [
+    {
+      "checks_executed": [
+        "tool-order-1",
+        "auth-1",
+        "flow-1",
+        "signatures-1"
+      ],
+      "drifts": [
+        {
+          "check_id": "flow-1",
+          "message": "Plan step updates occurred without a confirmation event.",
+          "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+          "severity": "high"
+        }
+      ],
+      "passed": false,
+      "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+    }
+  ],
+  "summary": {
+    "failed_scenarios": 1,
+    "high_severity_drifts": 1,
+    "low_severity_drifts": 0,
+    "medium_severity_drifts": 0,
+    "passed_scenarios": 0,
+    "total_scenarios": 1
+  }
+}

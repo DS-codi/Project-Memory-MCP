@@ -21,6 +21,7 @@ import { useBuildScripts, useAddBuildScript, useDeleteBuildScript, useRunBuildSc
 import { formatDate, formatRelative } from '@/utils/formatters';
 import { categoryColors, priorityColors, priorityIcons, planStatusColors, agentBgColors, agentIcons } from '@/utils/colors';
 import { cn } from '@/utils/cn';
+import { postToVsCode } from '@/utils/vscode-bridge';
 import type { PlanState, AgentType } from '@/types';
 
 async function fetchPlan(workspaceId: string, planId: string): Promise<PlanState> {
@@ -104,6 +105,13 @@ export function PlanDetailPage() {
     { id: 'context', label: 'Context', icon: <Database size={16} /> },
     { id: 'activity', label: 'Activity', icon: <Activity size={16} /> },
   ];
+
+  const openDiscussInChat = () => {
+    postToVsCode({
+      type: 'discussPlanInChat',
+      data: { planId: plan.id },
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -204,6 +212,13 @@ export function PlanDetailPage() {
         </div>
 
         <div className="flex flex-wrap gap-2 mb-4">
+          <button
+            onClick={openDiscussInChat}
+            className="inline-flex items-center gap-2 px-3 py-2 bg-slate-700/60 text-slate-200 rounded-lg hover:bg-slate-700 transition-colors text-sm"
+          >
+            <MessageSquare size={16} />
+            Discuss in Chat
+          </button>
           <Link
             to={`/workspace/${workspaceId}/plan/${planId}/context`}
             className="inline-flex items-center gap-2 px-3 py-2 bg-slate-700/60 text-slate-200 rounded-lg hover:bg-slate-700 transition-colors text-sm"

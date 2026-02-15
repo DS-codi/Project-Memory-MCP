@@ -6,6 +6,15 @@ applyTo: "agents/coordinator.agent.md"
 
 Detailed operational procedures for the Coordinator agent, including planning phases, startup sequence, session recovery, and workspace context population.
 
+## Canonical Terminal Policy Cross-Link
+
+When coordinating terminal-related decisions, treat `instructions/mcp-usage.instructions.md` as the source of truth for:
+- terminal surface selection (`memory_terminal` vs `memory_terminal_interactive` vs Rust+QML gateway path),
+- contract-collision warnings, and
+- gateway routing semantics (approval/orchestration layer, not a third terminal executor).
+
+If wording in this file conflicts with `instructions/mcp-usage.instructions.md`, follow `mcp-usage.instructions.md` and route corrections through Reviewer/Revisionist.
+
 ---
 
 ## 📋 PLANNING PHASE - YOU DO NOT WRITE PLANS

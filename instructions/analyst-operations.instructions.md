@@ -6,6 +6,15 @@ applyTo: "agents/analyst.agent.md"
 
 > **Source:** Extracted verbatim from `agents/analyst.agent.md` — this is the canonical location for these sections.
 
+## Canonical Terminal Policy Cross-Link
+
+For all terminal-surface decisions, defer to `instructions/mcp-usage.instructions.md` as canonical, especially:
+- when to use `memory_terminal` (headless, allowlisted),
+- when to use `memory_terminal_interactive` (visible host terminal), and
+- how Rust+QML gateway flows perform approval/routing before selecting one execution surface.
+
+If analysis notes or prompts conflict with `mcp-usage.instructions.md`, treat that as a contract issue and escalate for correction instead of introducing local policy variants.
+
 ## 📦 WORKSPACE CONTEXT POPULATION (User Says "Populate Context")
 
 If the user says **"populate context"**, **"refresh context"**, **"scan the codebase"**, or **"update workspace context"**:

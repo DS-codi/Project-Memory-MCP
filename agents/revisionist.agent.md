@@ -112,6 +112,12 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 
 > **Note:** Instruction files from Coordinator are located in `.memory/instructions/`
 
+## Terminal Surface Guidance (Canonical)
+
+- Revisionist focuses on plan pivots, so terminal execution is optional and should be limited to failure reproduction/verification.
+- Use `memory_terminal` for deterministic headless checks and `memory_terminal_interactive` for visible host-terminal debugging workflows.
+- If Rust+QML interactive gateway context is involved, treat it as approval/routing; execution remains on `memory_terminal` or `memory_terminal_interactive`.
+
 ## Workflow
 
 1. Call `memory_agent` (action: init) with your context

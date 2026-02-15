@@ -75,8 +75,9 @@ export function getClientHelpers(): string {
                 if (response.ok) {
                     const data = await response.json();
                     console.log('Plans data:', data);
-                    const nextActive = (data.plans || []).filter(p => p.status === 'active');
-                    const nextArchived = (data.plans || []).filter(p => p.status === 'archived');
+                    const allPlans = Array.isArray(data.plans) ? data.plans : [];
+                    const nextActive = allPlans.filter(p => (p.status || '').toLowerCase() !== 'archived');
+                    const nextArchived = allPlans.filter(p => (p.status || '').toLowerCase() === 'archived');
                     const signature = getPlanSignature(nextActive) + '||' + getPlanSignature(nextArchived);
                     if (signature !== lastPlanSignature) {
                         lastPlanSignature = signature;

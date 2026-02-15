@@ -263,6 +263,18 @@ export interface PlanSummary {
   updated_at: string;
   is_program?: boolean;
   program_id?: string;
+  child_plan_ids?: string[];
+  depends_on_plans?: string[];
+  linked_plan_ids?: string[];
+  relationships?: {
+    kind: 'program' | 'child' | 'standalone';
+    parent_program_id?: string;
+    child_plan_ids: string[];
+    linked_plan_ids: string[];
+    dependent_plan_ids: string[];
+    unresolved_linked_plan_ids: string[];
+    state: 'none' | 'ready' | 'partial';
+  };
 }
 
 // =============================================================================

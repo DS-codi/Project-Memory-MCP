@@ -1,0 +1,116 @@
+{
+  "event": {
+    "event_type": "user_prompt",
+    "payload": {
+      "profile": "baseline",
+      "prompt": "Run artifact integrity fallback pack"
+    },
+    "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+    "step_id": "step_1",
+    "timestamp_ms": 1771139069862
+  },
+  "profile": "baseline",
+  "run_id": "replay-1771139069837",
+  "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1"
+}
+{
+  "event": {
+    "action_raw": "run_build_script",
+    "authorization": {
+      "outcome": "allowed",
+      "reason_class": "allowlist_match"
+    },
+    "event_type": "tool_call",
+    "payload": {
+      "profile": "baseline"
+    },
+    "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+    "step_id": "step_2",
+    "timestamp_ms": 1771139069887,
+    "tool_name": "memory_plan"
+  },
+  "profile": "baseline",
+  "run_id": "replay-1771139069837",
+  "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1"
+}
+{
+  "event": {
+    "action_raw": "handoff",
+    "authorization": {
+      "outcome": "allowed",
+      "reason_class": "allowlist_match"
+    },
+    "event_type": "tool_call",
+    "payload": {
+      "args": {
+        "to_agent": "Coordinator"
+      },
+      "profile": "baseline"
+    },
+    "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+    "step_id": "step_3",
+    "timestamp_ms": 1771139069912,
+    "tool_name": "memory_agent"
+  },
+  "profile": "baseline",
+  "run_id": "replay-1771139069837",
+  "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1"
+}
+{
+  "event": {
+    "event_type": "handoff",
+    "payload": {
+      "to_agent": "Coordinator"
+    },
+    "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+    "step_id": "step_3",
+    "timestamp_ms": 1771139069913
+  },
+  "profile": "baseline",
+  "run_id": "replay-1771139069837",
+  "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1"
+}
+{
+  "event": {
+    "action_raw": "complete",
+    "authorization": {
+      "outcome": "allowed",
+      "reason_class": "allowlist_match"
+    },
+    "event_type": "tool_call",
+    "payload": {
+      "profile": "baseline"
+    },
+    "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+    "step_id": "step_4",
+    "timestamp_ms": 1771139069937,
+    "tool_name": "memory_agent"
+  },
+  "profile": "baseline",
+  "run_id": "replay-1771139069837",
+  "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1"
+}
+{
+  "event": {
+    "event_type": "complete",
+    "payload": {},
+    "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+    "step_id": "step_4",
+    "timestamp_ms": 1771139069938
+  },
+  "profile": "baseline",
+  "run_id": "replay-1771139069837",
+  "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1"
+}
+{
+  "event": {
+    "event_type": "outcome",
+    "phase": "final",
+    "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+    "success_signature": "artifact_integrity_fallback_pass",
+    "timestamp_ms": 1771139069947
+  },
+  "profile": "baseline",
+  "run_id": "replay-1771139069837",
+  "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1"
+}

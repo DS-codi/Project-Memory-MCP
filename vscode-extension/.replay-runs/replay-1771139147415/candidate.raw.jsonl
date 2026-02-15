@@ -1,0 +1,136 @@
+{
+  "event": {
+    "event_type": "user_prompt",
+    "payload": {
+      "profile": "candidate",
+      "prompt": "Run tool alias optional-tool drift pack"
+    },
+    "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+    "step_id": "step_1",
+    "timestamp_ms": 1771139147441
+  },
+  "profile": "candidate",
+  "run_id": "replay-1771139147415",
+  "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1"
+}
+{
+  "event": {
+    "action_raw": "run",
+    "authorization": {
+      "outcome": "allowed",
+      "reason_class": "allowlist_match"
+    },
+    "event_type": "tool_call",
+    "payload": {
+      "profile": "candidate"
+    },
+    "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+    "step_id": "step_2",
+    "timestamp_ms": 1771139147466,
+    "tool_name": "memory_terminal"
+  },
+  "profile": "candidate",
+  "run_id": "replay-1771139147415",
+  "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1"
+}
+{
+  "event": {
+    "action_raw": "kill",
+    "authorization": {
+      "outcome": "allowed",
+      "reason_class": "allowlist_match"
+    },
+    "event_type": "tool_call",
+    "payload": {
+      "profile": "candidate"
+    },
+    "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+    "step_id": "step_3",
+    "timestamp_ms": 1771139147491,
+    "tool_name": "memory_terminal"
+  },
+  "profile": "candidate",
+  "run_id": "replay-1771139147415",
+  "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1"
+}
+{
+  "event": {
+    "action_raw": "handoff",
+    "authorization": {
+      "outcome": "allowed",
+      "reason_class": "allowlist_match"
+    },
+    "event_type": "tool_call",
+    "payload": {
+      "args": {
+        "to_agent": "Coordinator"
+      },
+      "profile": "candidate"
+    },
+    "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+    "step_id": "step_4",
+    "timestamp_ms": 1771139147516,
+    "tool_name": "memory_agent"
+  },
+  "profile": "candidate",
+  "run_id": "replay-1771139147415",
+  "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1"
+}
+{
+  "event": {
+    "event_type": "handoff",
+    "payload": {
+      "to_agent": "Coordinator"
+    },
+    "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+    "step_id": "step_4",
+    "timestamp_ms": 1771139147517
+  },
+  "profile": "candidate",
+  "run_id": "replay-1771139147415",
+  "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1"
+}
+{
+  "event": {
+    "action_raw": "complete",
+    "authorization": {
+      "outcome": "allowed",
+      "reason_class": "allowlist_match"
+    },
+    "event_type": "tool_call",
+    "payload": {
+      "profile": "candidate"
+    },
+    "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+    "step_id": "step_5",
+    "timestamp_ms": 1771139147541,
+    "tool_name": "memory_agent"
+  },
+  "profile": "candidate",
+  "run_id": "replay-1771139147415",
+  "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1"
+}
+{
+  "event": {
+    "event_type": "complete",
+    "payload": {},
+    "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+    "step_id": "step_5",
+    "timestamp_ms": 1771139147542
+  },
+  "profile": "candidate",
+  "run_id": "replay-1771139147415",
+  "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1"
+}
+{
+  "event": {
+    "event_type": "outcome",
+    "phase": "final",
+    "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+    "success_signature": "tool_alias_optional_drift_pass",
+    "timestamp_ms": 1771139147551
+  },
+  "profile": "candidate",
+  "run_id": "replay-1771139147415",
+  "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1"
+}

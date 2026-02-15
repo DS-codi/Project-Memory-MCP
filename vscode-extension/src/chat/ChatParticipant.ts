@@ -15,6 +15,10 @@
 import * as vscode from 'vscode';
 import { McpBridge } from './McpBridge';
 import { resolveWorkspaceIdentity } from '../utils/workspace-identity';
+import {
+    extractWorkspaceIdFromRegisterResponse,
+    resolveWorkspaceIdFromWorkspaceList,
+} from './workspaceRegistration';
 import { handleKnowledgeCommand } from './KnowledgeCommandHandler';
 import { handlePlanCommand } from './ChatPlanCommands';
 import { handleContextCommand } from './ChatContextCommands';
@@ -26,29 +30,50 @@ import {
     handleDefaultCommand,
 } from './ChatMiscCommands';
 
+interface StepCountsMetadata {
+    pending?: number;
+    active?: number;
+    done?: number;
+    blocked?: number;
+}
+
+interface ChatResultMetadata {
+    command?: string;
+    action?: string;
+    planId?: string;
+    recommendedAgent?: string;
+    stepCounts?: StepCountsMetadata;
+    hasScripts?: boolean;
+}
+
 /**
  * Chat Participant class for @memory
  */
 export class ChatParticipant implements vscode.Disposable {
-    private participant: vscode.ChatParticipant;
+    private participant: {
+        dispose(): void;
+        iconPath?: vscode.ThemeIcon;
+        followupProvider?: vscode.ChatFollowupProvider;
+    };
     private mcpBridge: McpBridge;
     private workspaceId: string | null = null;
 
-    constructor(mcpBridge: McpBridge) {
+    constructor(mcpBridge: McpBridge, options?: { registerWithVscode?: boolean }) {
         this.mcpBridge = mcpBridge;
+        const registerWithVscode = options?.registerWithVscode ?? true;
 
-        // Create the chat participant
-        this.participant = vscode.chat.createChatParticipant(
-            'project-memory.memory',
-            this.handleRequest.bind(this)
-        );
-
-        this.participant.iconPath = new vscode.ThemeIcon('book');
-
-        // Register follow-up provider
-        this.participant.followupProvider = {
-            provideFollowups: this.provideFollowups.bind(this)
-        };
+        if (registerWithVscode) {
+            this.participant = vscode.chat.createChatParticipant(
+                'project-memory.memory',
+                this.handleRequest.bind(this)
+            );
+            this.participant.iconPath = new vscode.ThemeIcon('book');
+            this.participant.followupProvider = {
+                provideFollowups: this.provideFollowups.bind(this)
+            };
+        } else {
+            this.participant = { dispose: () => { /* no-op for tests */ } };
+        }
     }
 
     /**
@@ -129,12 +154,26 @@ export class ChatParticipant implements vscode.Disposable {
 
             console.log(`Register workspace result: ${JSON.stringify(result)}`);
 
-            if (result.workspace_id) {
-                this.workspaceId = result.workspace_id;
+            const parsedWorkspaceId = extractWorkspaceIdFromRegisterResponse(result);
+            if (parsedWorkspaceId) {
+                this.workspaceId = parsedWorkspaceId;
                 console.log(`Workspace registered: ${this.workspaceId}`);
             } else {
-                console.error('Unexpected response format:', result);
-                response.markdown(`⚠️ Unexpected response from MCP server. Check console for details.\n`);
+                const listResult = await this.mcpBridge.callTool<unknown>('memory_workspace', { action: 'list' });
+                const fallbackWorkspaceId = resolveWorkspaceIdFromWorkspaceList(
+                    listResult,
+                    workspaceFolder.uri.fsPath,
+                    effectivePath
+                );
+
+                if (fallbackWorkspaceId) {
+                    this.workspaceId = fallbackWorkspaceId;
+                    console.log(`Workspace resolved from list fallback: ${this.workspaceId}`);
+                } else {
+                    console.error('Unexpected response format:', result);
+                    console.error('Workspace list fallback also failed:', listResult);
+                    response.markdown(`⚠️ Unexpected response from MCP server. Check console for details.\n`);
+                }
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
@@ -151,33 +190,78 @@ export class ChatParticipant implements vscode.Disposable {
         _context: vscode.ChatContext,
         _token: vscode.CancellationToken
     ): vscode.ProviderResult<vscode.ChatFollowup[]> {
-        const metadata = result.metadata as Record<string, unknown> | undefined;
+        const metadata = result.metadata as ChatResultMetadata | undefined;
         const command = metadata?.command;
 
         const followups: vscode.ChatFollowup[] = [];
 
         switch (command) {
             case 'plan':
-                if (metadata?.action === 'created' && metadata?.planId) {
+                if (metadata?.action === 'show' && metadata?.planId) {
+                    followups.push({
+                        prompt: `Archivist ${metadata.planId} Archive requested from /plan show`,
+                        label: 'Archive Plan',
+                        command: 'handoff'
+                    });
+                    followups.push({
+                        prompt: `Add step to plan ${metadata.planId}: `,
+                        label: 'Add Step',
+                        command: 'plan'
+                    });
+
+                    if (metadata.recommendedAgent) {
+                        followups.push({
+                            prompt: `${metadata.recommendedAgent} ${metadata.planId} Launch requested from /plan show`,
+                            label: `Launch ${metadata.recommendedAgent}`,
+                            command: 'handoff'
+                        });
+                    } else {
+                        const hasBlocked = (metadata.stepCounts?.blocked ?? 0) > 0;
+                        if (hasBlocked) {
+                            followups.push({
+                                prompt: `Revisionist ${metadata.planId} Resolve blocked plan steps`,
+                                label: 'Launch Revisionist',
+                                command: 'handoff'
+                            });
+                        }
+                    }
+                }
+
+                if (metadata?.action === 'create' && metadata?.planId) {
                     followups.push({
                         prompt: `/plan show ${metadata.planId}`,
                         label: 'View plan details',
                         command: 'plan'
                     });
+                    followups.push({
+                        prompt: `Architect ${metadata.planId} Initial architecture assignment`,
+                        label: 'Assign Architect',
+                        command: 'handoff'
+                    });
                 }
-                followups.push({
-                    prompt: '/status',
-                    label: 'Check status',
-                    command: 'status'
-                });
+                if (followups.length === 0) {
+                    followups.push({
+                        prompt: '/status',
+                        label: 'Check status',
+                        command: 'status'
+                    });
+                }
                 break;
 
             case 'status':
-                followups.push({
-                    prompt: '/plan list',
-                    label: 'List all plans',
-                    command: 'plan'
-                });
+                if (metadata?.planId) {
+                    followups.push({
+                        prompt: `/plan show ${metadata.planId}`,
+                        label: 'View most-active plan',
+                        command: 'plan'
+                    });
+                } else {
+                    followups.push({
+                        prompt: '/plan list',
+                        label: 'List all plans',
+                        command: 'plan'
+                    });
+                }
                 break;
 
             case 'help':

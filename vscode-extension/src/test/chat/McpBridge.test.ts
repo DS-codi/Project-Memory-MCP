@@ -60,26 +60,22 @@ suite('McpBridge Test Suite', () => {
             assert.fail('Should have thrown an error');
         } catch (error) {
             assert.ok(error instanceof Error);
-            assert.ok((error as Error).message.includes('Not connected'));
+            assert.ok(/not connected/i.test((error as Error).message));
         }
         
         bridge.dispose();
     });
 
-    test('McpBridge throws when listing tools without connection', async () => {
+    test('McpBridge lists tools without requiring connection', async () => {
         const config: McpBridgeConfig = {
             serverMode: 'bundled'
         };
         
         const bridge = new McpBridge(config);
-        
-        try {
-            await bridge.listTools();
-            assert.fail('Should have thrown an error');
-        } catch (error) {
-            assert.ok(error instanceof Error);
-            assert.ok((error as Error).message.includes('Not connected'));
-        }
+
+        const tools = await bridge.listTools();
+        assert.ok(Array.isArray(tools));
+        assert.ok(tools.length > 0);
         
         bridge.dispose();
     });

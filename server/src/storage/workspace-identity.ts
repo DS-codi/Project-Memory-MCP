@@ -12,7 +12,12 @@
 
 import path from 'path';
 import { promises as fs } from 'fs';
-import type { WorkspaceMeta, WorkspaceContext } from '../types/index.js';
+import type {
+  WorkspaceMeta,
+  WorkspaceContext,
+  WorkspaceContextSection,
+  WorkspaceContextSectionItem,
+} from '../types/index.js';
 import {
   getWorkspaceIdFromPath,
   normalizeWorkspacePath,
@@ -24,6 +29,7 @@ import {
   modifyJsonLocked,
 } from './file-lock.js';
 import { lookupByPath, upsertRegistryEntry } from './workspace-registry.js';
+import { buildWorkspaceContextSectionsFromProfile } from '../utils/workspace-context-seed.js';
 
 // Re-export the identity file interface used by file-store.ts
 export interface WorkspaceIdentityFile {
@@ -164,6 +170,404 @@ async function moveDirSafe(src: string, dest: string): Promise<void> {
       );
     }
   }
+}
+
+const MAX_CONTEXT_LOG_ENTRIES = 500;
+
+function hasText(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function normalizeSectionItem(value: unknown): WorkspaceContextSectionItem | null {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Record<string, unknown>;
+  if (!hasText(raw.title)) return null;
+
+  const item: WorkspaceContextSectionItem = {
+    title: raw.title.trim(),
+  };
+
+  if (hasText(raw.description)) {
+    item.description = raw.description;
+  }
+
+  if (Array.isArray(raw.links)) {
+    const links = raw.links.filter((link): link is string => hasText(link)).map(link => link.trim());
+    if (links.length > 0) {
+      item.links = links;
+    }
+  }
+
+  return item;
+}
+
+function normalizeSection(value: unknown): WorkspaceContextSection | null {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Record<string, unknown>;
+
+  const section: WorkspaceContextSection = {};
+  if (hasText(raw.summary)) {
+    section.summary = raw.summary;
+  }
+
+  if (Array.isArray(raw.items)) {
+    const items = raw.items
+      .map(item => normalizeSectionItem(item))
+      .filter((item): item is WorkspaceContextSectionItem => item !== null);
+    if (items.length > 0) {
+      section.items = items;
+    }
+  }
+
+  if (!section.summary && !section.items) {
+    return null;
+  }
+
+  return section;
+}
+
+function isSectionEmpty(section: WorkspaceContextSection | undefined): boolean {
+  if (!section) return true;
+  const hasSummary = hasText(section.summary);
+  const hasItems = Array.isArray(section.items) && section.items.length > 0;
+  return !hasSummary && !hasItems;
+}
+
+function areSectionsEmpty(sections: Record<string, WorkspaceContextSection> | undefined): boolean {
+  if (!sections || Object.keys(sections).length === 0) {
+    return true;
+  }
+
+  return Object.values(sections).every(section => isSectionEmpty(section));
+}
+
+function mergeSectionItems(
+  canonicalItems: WorkspaceContextSectionItem[] = [],
+  sourceItems: WorkspaceContextSectionItem[] = []
+): WorkspaceContextSectionItem[] {
+  const merged = [...canonicalItems];
+  const seenTitles = new Set(
+    canonicalItems
+      .map(item => item.title.trim().toLowerCase())
+      .filter(title => title.length > 0)
+  );
+
+  for (const sourceItem of sourceItems) {
+    const normalizedTitle = sourceItem.title.trim().toLowerCase();
+    if (!normalizedTitle || seenTitles.has(normalizedTitle)) {
+      continue;
+    }
+
+    merged.push(sourceItem);
+    seenTitles.add(normalizedTitle);
+  }
+
+  return merged;
+}
+
+function mergeSections(
+  canonicalSections: Record<string, WorkspaceContextSection> = {},
+  sourceSections: Record<string, WorkspaceContextSection> = {},
+  notes: string[],
+  sourceId: string
+): Record<string, WorkspaceContextSection> {
+  const merged: Record<string, WorkspaceContextSection> = {};
+
+  for (const [key, section] of Object.entries(canonicalSections)) {
+    const normalized = normalizeSection(section);
+    if (normalized) {
+      merged[key] = normalized;
+    }
+  }
+
+  for (const [key, sourceRawSection] of Object.entries(sourceSections)) {
+    const sourceSection = normalizeSection(sourceRawSection);
+    if (!sourceSection) {
+      notes.push(`Skipped invalid source context section '${key}' from '${sourceId}'.`);
+      continue;
+    }
+
+    const canonicalSection = merged[key];
+    if (!canonicalSection) {
+      merged[key] = sourceSection;
+      continue;
+    }
+
+    const mergedSection: WorkspaceContextSection = {
+      summary: hasText(canonicalSection.summary)
+        ? canonicalSection.summary
+        : sourceSection.summary,
+      items: mergeSectionItems(canonicalSection.items || [], sourceSection.items || []),
+    };
+
+    if (!mergedSection.summary) {
+      delete mergedSection.summary;
+    }
+    if (!mergedSection.items || mergedSection.items.length === 0) {
+      delete mergedSection.items;
+    }
+
+    merged[key] = mergedSection;
+  }
+
+  return merged;
+}
+
+type ContextLog<TEntry extends { timestamp?: string }> = {
+  entries: TEntry[];
+  last_updated: string;
+};
+
+function mergeContextLog<TEntry extends { timestamp?: string }>(
+  canonicalLog: ContextLog<TEntry> | undefined,
+  sourceLog: ContextLog<TEntry> | undefined
+): ContextLog<TEntry> | undefined {
+  if (!canonicalLog && !sourceLog) {
+    return undefined;
+  }
+
+  const mergedEntries: TEntry[] = [
+    ...(canonicalLog?.entries || []),
+    ...(sourceLog?.entries || []),
+  ];
+
+  mergedEntries.sort((left, right) => {
+    const leftTime = typeof left.timestamp === 'string'
+      ? Date.parse(left.timestamp)
+      : Number.NaN;
+    const rightTime = typeof right.timestamp === 'string'
+      ? Date.parse(right.timestamp)
+      : Number.NaN;
+
+    if (Number.isNaN(leftTime) || Number.isNaN(rightTime)) {
+      return 0;
+    }
+
+    return leftTime - rightTime;
+  });
+
+  const trimmedEntries = mergedEntries.slice(-MAX_CONTEXT_LOG_ENTRIES);
+  const lastUpdatedCandidates = [canonicalLog?.last_updated, sourceLog?.last_updated]
+    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .sort();
+
+  return {
+    entries: trimmedEntries,
+    last_updated: lastUpdatedCandidates[lastUpdatedCandidates.length - 1] || new Date().toISOString(),
+  };
+}
+
+interface PlanArtifactSignals {
+  totalPlans: number;
+  titledPlans: string[];
+  architectureFiles: number;
+  researchFiles: number;
+  reviewFiles: number;
+  researchNotes: number;
+}
+
+async function collectPlanArtifactSignals(canonicalWorkspacePath: string): Promise<PlanArtifactSignals> {
+  const plansDir = path.join(canonicalWorkspacePath, 'plans');
+  const planIds = await listDirs(plansDir);
+
+  let architectureFiles = 0;
+  let researchFiles = 0;
+  let reviewFiles = 0;
+  let researchNotes = 0;
+  const titledPlans: string[] = [];
+
+  for (const planId of planIds) {
+    const planDir = path.join(plansDir, planId);
+    const statePath = path.join(planDir, 'state.json');
+    const state = await readJsonSafe<Record<string, unknown>>(statePath);
+    const title = typeof state?.title === 'string' && state.title.trim().length > 0
+      ? state.title.trim()
+      : planId;
+    titledPlans.push(title);
+
+    if (await pathExists(path.join(planDir, 'architecture.json'))) architectureFiles += 1;
+    if (await pathExists(path.join(planDir, 'research.json'))) researchFiles += 1;
+    if (await pathExists(path.join(planDir, 'review.json'))) reviewFiles += 1;
+
+    const researchNotesDir = path.join(planDir, 'research_notes');
+    if (await pathExists(researchNotesDir)) {
+      try {
+        const entries = await fs.readdir(researchNotesDir);
+        researchNotes += entries.length;
+      } catch {
+        // Ignore unreadable research notes directories
+      }
+    }
+  }
+
+  return {
+    totalPlans: planIds.length,
+    titledPlans,
+    architectureFiles,
+    researchFiles,
+    reviewFiles,
+    researchNotes,
+  };
+}
+
+function buildSectionsFromPlanArtifactSignals(signals: PlanArtifactSignals): Record<string, WorkspaceContextSection> {
+  const sections: Record<string, WorkspaceContextSection> = {};
+
+  if (signals.totalPlans > 0) {
+    sections.project_details = {
+      summary: `Recovered context from ${signals.totalPlans} plan artifact(s) during workspace migration.`,
+      items: signals.titledPlans.slice(0, 5).map(title => ({
+        title,
+        description: 'Recovered plan context artifact',
+      })),
+    };
+  }
+
+  if (signals.architectureFiles > 0) {
+    sections.architecture = {
+      summary: `Recovered ${signals.architectureFiles} architecture artifact file(s) from migrated plans.`,
+      items: [],
+    };
+  }
+
+  const researchSignalTotal = signals.researchFiles + signals.reviewFiles + signals.researchNotes;
+  if (researchSignalTotal > 0) {
+    sections.research_artifacts = {
+      summary: `Recovered research/review signals: ${signals.researchFiles} research.json, ${signals.reviewFiles} review.json, ${signals.researchNotes} research note file(s).`,
+      items: [],
+    };
+  }
+
+  return sections;
+}
+
+async function repopulateSectionsIfEmpty(
+  context: WorkspaceContext,
+  canonicalWorkspacePath: string,
+  canonicalMeta: WorkspaceMeta,
+  notes: string[]
+): Promise<{ context: WorkspaceContext; repopulated: boolean }> {
+  if (!areSectionsEmpty(context.sections)) {
+    return { context, repopulated: false };
+  }
+
+  const now = new Date().toISOString();
+  const signals = await collectPlanArtifactSignals(canonicalWorkspacePath);
+  const signalSections = buildSectionsFromPlanArtifactSignals(signals);
+
+  if (!areSectionsEmpty(signalSections)) {
+    context.sections = signalSections;
+    context.updated_at = now;
+    notes.push('Repopulated workspace context sections from plan/research artifacts.');
+    return { context, repopulated: true };
+  }
+
+  if (canonicalMeta.profile) {
+    const profileSections = buildWorkspaceContextSectionsFromProfile(canonicalMeta.profile);
+    if (!areSectionsEmpty(profileSections)) {
+      context.sections = profileSections;
+      context.updated_at = now;
+      notes.push('Repopulated workspace context sections from workspace profile.');
+      return { context, repopulated: true };
+    }
+  }
+
+  context.sections = {
+    migration_status: {
+      summary: 'Workspace migration completed with no recoverable plan/research/profile context signals.',
+      items: [
+        {
+          title: 'Recovery summary',
+          description: `plans=${signals.totalPlans}, architecture=${signals.architectureFiles}, research=${signals.researchFiles}, review=${signals.reviewFiles}, research_notes=${signals.researchNotes}`,
+        },
+      ],
+    },
+  };
+  context.updated_at = now;
+  notes.push('Repopulated workspace context with migration_status safety section.');
+  return { context, repopulated: true };
+}
+
+interface ContextMergeOutcome {
+  sourceHadContext: boolean;
+  mergedSourceSections: boolean;
+  repopulatedSections: boolean;
+}
+
+async function mergeContextIntoCanonical(
+  sourcePath: string,
+  sourceId: string,
+  targetPath: string,
+  targetId: string,
+  targetMeta: WorkspaceMeta,
+  notes: string[]
+): Promise<ContextMergeOutcome> {
+  const now = new Date().toISOString();
+  const sourceContextPath = path.join(sourcePath, 'workspace.context.json');
+  const targetContextPath = path.join(targetPath, 'workspace.context.json');
+  const sourceHadContext = await pathExists(sourceContextPath);
+
+  const sourceContext = sourceHadContext
+    ? await readJsonSafe<WorkspaceContext>(sourceContextPath)
+    : null;
+  const canonicalContext = await readJsonSafe<WorkspaceContext>(targetContextPath);
+
+  const mergedSections = mergeSections(
+    canonicalContext?.sections || {},
+    sourceContext?.sections || {},
+    notes,
+    sourceId
+  );
+
+  const merged: WorkspaceContext = {
+    schema_version: canonicalContext?.schema_version || sourceContext?.schema_version || '1.0.0',
+    workspace_id: targetId,
+    workspace_path: targetMeta.workspace_path || targetMeta.path || '',
+    identity_file_path: canonicalContext?.identity_file_path || sourceContext?.identity_file_path,
+    name: targetMeta.name || targetId,
+    created_at: canonicalContext?.created_at || sourceContext?.created_at || now,
+    updated_at: now,
+    sections: mergedSections,
+    update_log: mergeContextLog(canonicalContext?.update_log, sourceContext?.update_log),
+    audit_log: mergeContextLog(canonicalContext?.audit_log, sourceContext?.audit_log),
+  };
+
+  const repopulated = await repopulateSectionsIfEmpty(merged, targetPath, targetMeta, notes);
+  await writeJsonLocked(targetContextPath, repopulated.context);
+
+  return {
+    sourceHadContext,
+    mergedSourceSections: sourceHadContext && !areSectionsEmpty(sourceContext?.sections || {}),
+    repopulatedSections: repopulated.repopulated,
+  };
+}
+
+async function ensureCanonicalContextNotEmpty(
+  targetPath: string,
+  targetId: string,
+  targetMeta: WorkspaceMeta,
+  notes: string[]
+): Promise<boolean> {
+  const now = new Date().toISOString();
+  const contextPath = path.join(targetPath, 'workspace.context.json');
+  const existing = await readJsonSafe<WorkspaceContext>(contextPath);
+
+  const context: WorkspaceContext = {
+    schema_version: existing?.schema_version || '1.0.0',
+    workspace_id: targetId,
+    workspace_path: targetMeta.workspace_path || targetMeta.path || '',
+    identity_file_path: existing?.identity_file_path,
+    name: targetMeta.name || targetId,
+    created_at: existing?.created_at || now,
+    updated_at: now,
+    sections: mergeSections(existing?.sections || {}, {}, notes, targetId),
+    update_log: existing?.update_log,
+    audit_log: existing?.audit_log,
+  };
+
+  const repopulated = await repopulateSectionsIfEmpty(context, targetPath, targetMeta, notes);
+  await writeJsonLocked(contextPath, repopulated.context);
+  return repopulated.repopulated;
 }
 
 // ---------------------------------------------------------------------------
@@ -659,6 +1063,8 @@ export async function mergeWorkspace(
   const sourcePlanIds = await findPlanIdsInDir(sourcePath);
   const targetPlanIds = await findPlanIdsInDir(targetPath);
   const targetPlanSet = new Set(targetPlanIds);
+  const sourceContextPath = path.join(sourcePath, 'workspace.context.json');
+  const sourceHasContext = await pathExists(sourceContextPath);
 
   // Move plans
   for (const planId of sourcePlanIds) {
@@ -734,6 +1140,36 @@ export async function mergeWorkspace(
     }
   }
 
+  let contextReadyForDeletion = true;
+
+  // Merge workspace context before any source deletion checks
+  if (!dryRun) {
+    try {
+      const contextOutcome = await mergeContextIntoCanonical(
+        sourcePath,
+        sourceId,
+        targetPath,
+        targetId,
+        targetMeta,
+        result.notes
+      );
+
+      if (contextOutcome.sourceHadContext && contextOutcome.mergedSourceSections) {
+        result.notes.push(`Merged workspace context sections from '${sourceId}' into '${targetId}'.`);
+      }
+      if (contextOutcome.repopulatedSections) {
+        result.notes.push(`Repopulated minimal workspace context sections for '${targetId}'.`);
+      }
+    } catch (error) {
+      contextReadyForDeletion = false;
+      result.notes.push(
+        `ERROR: Failed to merge workspace context from '${sourceId}': ${(error as Error).message}`
+      );
+    }
+  } else if (sourceHasContext) {
+    result.notes.push(`DRY RUN: would merge workspace context from '${sourceId}' into '${targetId}' before deletion.`);
+  }
+
   // Update target's workspace.meta.json with legacy ID
   if (!dryRun) {
     const legacyIds = new Set<string>(targetMeta.legacy_workspace_ids || []);
@@ -777,6 +1213,10 @@ export async function mergeWorkspace(
     if (remainingRefs.length > 0) {
       result.notes.push(
         `WARNING: ${remainingRefs.length} plan state(s) still reference '${sourceId}'. Not deleting source.`
+      );
+    } else if (sourceHasContext && !contextReadyForDeletion) {
+      result.notes.push(
+        `WARNING: Source '${sourceId}' has workspace.context.json but context merge/persist did not complete. Not deleting source.`
       );
     } else {
       // Delete source folder
@@ -1048,13 +1488,61 @@ export async function migrateWorkspace(
       result.ghost_folders_merged.push(ghost.folder_name);
     }
 
-    // Delete the ghost folder
+    const ghostContextPath = path.join(ghostPath, 'workspace.context.json');
+    const ghostHasContext = await pathExists(ghostContextPath);
+    let contextReadyForDeletion = true;
+
     try {
-      await fs.rm(ghostPath, { recursive: true, force: true });
-      result.folders_deleted.push(ghost.folder_name);
-    } catch (err) {
-      result.notes.push(`Failed to delete '${ghost.folder_name}': ${(err as Error).message}`);
+      const contextOutcome = await mergeContextIntoCanonical(
+        ghostPath,
+        ghost.folder_name,
+        canonicalPath,
+        canonicalId,
+        canonicalMeta,
+        result.notes
+      );
+
+      if (contextOutcome.sourceHadContext && contextOutcome.mergedSourceSections) {
+        result.notes.push(`Merged workspace context sections from '${ghost.folder_name}' into '${canonicalId}'.`);
+      }
+      if (contextOutcome.repopulatedSections) {
+        result.notes.push(`Repopulated minimal workspace context sections for '${canonicalId}'.`);
+      }
+    } catch (error) {
+      contextReadyForDeletion = false;
+      result.notes.push(
+        `ERROR: Failed to merge workspace context from '${ghost.folder_name}': ${(error as Error).message}`
+      );
     }
+
+    // Delete the ghost folder
+    if (ghostHasContext && !contextReadyForDeletion) {
+      result.notes.push(
+        `WARNING: '${ghost.folder_name}' retains workspace.context.json and merge did not complete. Folder not deleted.`
+      );
+    } else {
+      try {
+        await fs.rm(ghostPath, { recursive: true, force: true });
+        result.folders_deleted.push(ghost.folder_name);
+      } catch (err) {
+        result.notes.push(`Failed to delete '${ghost.folder_name}': ${(err as Error).message}`);
+      }
+    }
+  }
+
+  // Ensure canonical context is non-empty even when no source provided sections
+  try {
+    const repopulated = await ensureCanonicalContextNotEmpty(
+      canonicalPath,
+      canonicalId,
+      canonicalMeta,
+      result.notes
+    );
+    if (repopulated) {
+      result.notes.push(`Final context repopulation applied for '${canonicalId}'.`);
+    }
+  } catch (error) {
+    result.notes.push(`Failed final canonical context repopulation: ${(error as Error).message}`);
   }
 
   // 4. Update the canonical workspace.meta.json plan lists

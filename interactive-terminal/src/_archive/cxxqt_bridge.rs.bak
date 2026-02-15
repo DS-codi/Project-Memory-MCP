@@ -1,0 +1,1542 @@
+use cxx_qt::CxxQtType;
+use cxx_qt::Threading;
+use cxx_qt_lib::QString;
+
+use crate::command_executor::{self, OutputLine};
+use crate::protocol::{
+    CommandRequest, CommandResponse, Message, ResponseStatus, SavedCommandRecord,
+    SavedCommandsAction, SavedCommandsRequest, SavedCommandsResponse, TerminalProfile,
+};
+use crate::saved_commands::{normalize_workspace_id, SavedCommand, WorkspaceSavedCommands};
+use crate::saved_commands_repository::SavedCommandsRepository;
+use serde::Serialize;
+use std::collections::HashMap;
+use std::pin::Pin;
+use std::sync::{Arc, Mutex};
+use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::Duration;
+use tokio::sync::broadcast;
+
+// ---------------------------------------------------------------------------
+// CxxQt Bridge Module
+// ---------------------------------------------------------------------------
+
+#[cxx_qt::bridge]
+pub mod ffi {
+    unsafe extern "C++" {
+        include!("cxx-qt-lib/qstring.h");
+        type QString = cxx_qt_lib::QString;
+    }
+
+    unsafe extern "RustQt" {
+        // -----------------------------------------------------------------
+        // QObject + Properties (Step 11)
+        // -----------------------------------------------------------------
+        #[qobject]
+        #[qml_element]
+        #[qproperty(QString, command_text, cxx_name = "commandText")]
+        #[qproperty(QString, working_directory, cxx_name = "workingDirectory")]
+        #[qproperty(QString, context_info, cxx_name = "contextInfo")]
+        #[qproperty(QString, status_text, cxx_name = "statusText")]
+        #[qproperty(QString, output_text, cxx_name = "outputText")]
+        #[qproperty(bool, is_connected, cxx_name = "isConnected")]
+        #[qproperty(i32, pending_count, cxx_name = "pendingCount")]
+        #[qproperty(QString, current_request_id, cxx_name = "currentRequestId")]
+        #[qproperty(QString, current_session_id, cxx_name = "currentSessionId")]
+        #[qproperty(QString, current_terminal_profile, cxx_name = "currentTerminalProfile")]
+        #[qproperty(QString, pending_commands_json, cxx_name = "pendingCommandsJson")]
+        #[qproperty(QString, session_tabs_json, cxx_name = "sessionTabsJson")]
+        type TerminalApp = super::TerminalAppRust;
+
+        // -----------------------------------------------------------------
+        // Signals (Step 12)
+        // -----------------------------------------------------------------
+        #[qsignal]
+        #[cxx_name = "commandReceived"]
+        fn command_received(self: Pin<&mut TerminalApp>, id: QString);
+
+        #[qsignal]
+        #[cxx_name = "commandCompleted"]
+        fn command_completed(self: Pin<&mut TerminalApp>, id: QString, success: bool);
+
+        #[qsignal]
+        #[cxx_name = "outputLineReceived"]
+        fn output_line_received(self: Pin<&mut TerminalApp>, line: QString);
+
+        #[qsignal]
+        #[cxx_name = "connectionStatusChanged"]
+        fn connection_status_changed(self: Pin<&mut TerminalApp>, connected: bool);
+
+        // -----------------------------------------------------------------
+        // Invokables (Step 13)
+        // -----------------------------------------------------------------
+        #[qinvokable]
+        #[cxx_name = "approveCommand"]
+        fn approve_command(self: Pin<&mut TerminalApp>, id: QString);
+
+        #[qinvokable]
+        #[cxx_name = "declineCommand"]
+        fn decline_command(self: Pin<&mut TerminalApp>, id: QString, reason: QString);
+
+        #[qinvokable]
+        #[cxx_name = "clearOutput"]
+        fn clear_output(self: Pin<&mut TerminalApp>);
+
+        #[qinvokable]
+        #[cxx_name = "createSession"]
+        fn create_session(self: Pin<&mut TerminalApp>) -> QString;
+
+        #[qinvokable]
+        #[cxx_name = "switchSession"]
+        fn switch_session(self: Pin<&mut TerminalApp>, session_id: QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "closeSession"]
+        fn close_session(self: Pin<&mut TerminalApp>, session_id: QString) -> bool;
+    }
+
+    impl cxx_qt::Threading for TerminalApp {}
+}
+
+// ---------------------------------------------------------------------------
+// Rust Backing Struct (Steps 11 + 14)
+// ---------------------------------------------------------------------------
+
+/// Rust backing struct for the `TerminalApp` QObject.
+///
+/// Property fields match 1-to-1 with `#[qproperty]` declarations above.
+/// Non-property fields are wrapped in `Arc<Mutex<AppState>>` so they can be
+/// accessed without going through `Pin::rust_mut()`, avoiding Pin/Unpin
+/// issues with `QString` (which is `!Unpin`).
+pub struct TerminalAppRust {
+    // -- qproperty-backed fields ------------------------------------------
+    command_text: QString,
+    working_directory: QString,
+    context_info: QString,
+    status_text: QString,
+    output_text: QString,
+    is_connected: bool,
+    pending_count: i32,
+    current_request_id: QString,
+    current_session_id: QString,
+    current_terminal_profile: QString,
+    pending_commands_json: QString,
+    session_tabs_json: QString,
+
+    // -- internal state (Step 14) -----------------------------------------
+    /// Shared mutable state accessed via `Arc<Mutex<>>` to sidestep Pin
+    /// constraints. Both the QObject methods and the background tokio
+    /// tasks can lock this to read/write the command queue and response
+    /// channel.
+    state: Arc<Mutex<AppState>>,
+}
+
+/// Internal application state shared behind `Arc<Mutex<>>`.
+pub struct AppState {
+    /// Pending command requests partitioned by `session_id`.
+    pub pending_commands_by_session: HashMap<String, Vec<CommandRequest>>,
+
+    /// Per-session workspace and venv context used for safe fallback
+    /// hydration when subsequent requests omit these fields.
+    pub session_context_by_id: HashMap<String, SessionRuntimeContext>,
+
+    /// Current selected/active session context.
+    pub selected_session_id: String,
+
+    /// Workspace-scoped saved commands loaded from on-disk persistence.
+    pub saved_commands_by_workspace: HashMap<String, WorkspaceSavedCommands>,
+
+    /// Persistence repository for saved commands using stable workspace paths.
+    pub saved_commands_repository: SavedCommandsRepository,
+
+    /// Channel sender for outgoing protocol messages (responses back to
+    /// the MCP client via the TCP server). Set during initialization and
+    /// shared with the background tokio runtime.
+    pub response_tx: Option<tokio::sync::mpsc::Sender<Message>>,
+
+    /// Channel sender for approved commands to be executed by the
+    /// background tokio runtime. Set during initialization.
+    pub command_tx: Option<tokio::sync::mpsc::Sender<CommandRequest>>,
+}
+
+#[derive(Default, Clone)]
+pub struct SessionRuntimeContext {
+    pub workspace_path: String,
+    pub selected_venv_path: String,
+    pub activate_venv: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SessionTabView {
+    session_id: String,
+    label: String,
+    pending_count: i32,
+    is_active: bool,
+    can_close: bool,
+}
+
+impl Default for TerminalAppRust {
+    fn default() -> Self {
+        let state = Arc::new(Mutex::new(AppState {
+            pending_commands_by_session: HashMap::from([(
+                "default".to_string(),
+                Vec::new(),
+            )]),
+            session_context_by_id: HashMap::new(),
+            selected_session_id: "default".to_string(),
+            saved_commands_by_workspace: HashMap::new(),
+            saved_commands_repository: SavedCommandsRepository::from_env_or_default(),
+            response_tx: None,
+            command_tx: None,
+        }));
+
+        let session_tabs_json = {
+            let s = state.lock().unwrap();
+            s.session_tabs_to_json()
+        };
+
+        Self {
+            command_text: QString::default(),
+            working_directory: QString::default(),
+            context_info: QString::default(),
+            status_text: QString::from("Initializing..."),
+            output_text: QString::default(),
+            is_connected: false,
+            pending_count: 0,
+            current_request_id: QString::default(),
+            current_session_id: QString::from("default"),
+            current_terminal_profile: QString::from("system"),
+            pending_commands_json: QString::from("[]"),
+            session_tabs_json,
+            state,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Internal helpers on AppState (Step 14)
+// ---------------------------------------------------------------------------
+
+impl AppState {
+    fn has_session(&self, session_id: &str) -> bool {
+        self.pending_commands_by_session.contains_key(session_id)
+            || self.session_context_by_id.contains_key(session_id)
+    }
+
+    fn session_ids_sorted(&self) -> Vec<String> {
+        let mut ids: Vec<String> = self.pending_commands_by_session.keys().cloned().collect();
+
+        for session_id in self.session_context_by_id.keys() {
+            if !ids.contains(session_id) {
+                ids.push(session_id.clone());
+            }
+        }
+
+        if !self.selected_session_id.trim().is_empty()
+            && !ids.contains(&self.selected_session_id)
+        {
+            ids.push(self.selected_session_id.clone());
+        }
+
+        ids.sort_by(|left, right| match (left == "default", right == "default") {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => left.cmp(right),
+        });
+
+        ids
+    }
+
+    fn session_tabs_to_json(&self) -> QString {
+        let tabs = self
+            .session_ids_sorted()
+            .into_iter()
+            .map(|session_id| SessionTabView {
+                label: if session_id == "default" {
+                    "default".to_string()
+                } else {
+                    session_id.clone()
+                },
+                pending_count: self
+                    .pending_commands_by_session
+                    .get(&session_id)
+                    .map(|queue| queue.len() as i32)
+                    .unwrap_or(0),
+                is_active: session_id == self.selected_session_id,
+                can_close: session_id != "default"
+                    && self
+                        .pending_commands_by_session
+                        .get(&session_id)
+                        .map(|queue| queue.is_empty())
+                        .unwrap_or(true),
+                session_id,
+            })
+            .collect::<Vec<_>>();
+
+        let json = serde_json::to_string(&tabs).unwrap_or_else(|_| "[]".to_string());
+        QString::from(&json)
+    }
+
+    fn create_session(&mut self) -> String {
+        let mut suffix = monotonic_millis();
+
+        loop {
+            let candidate = format!("session-{suffix}");
+            if !self.has_session(&candidate) {
+                self.pending_commands_by_session
+                    .insert(candidate.clone(), Vec::new());
+                self.session_context_by_id
+                    .entry(candidate.clone())
+                    .or_default();
+                self.selected_session_id = candidate.clone();
+                return candidate;
+            }
+
+            suffix += 1;
+        }
+    }
+
+    fn switch_session(&mut self, session_id: &str) -> Result<(), String> {
+        let selected = session_id.trim();
+        if selected.is_empty() {
+            return Err("session_id is required".to_string());
+        }
+
+        if !self.has_session(selected) {
+            return Err(format!("session not found: {selected}"));
+        }
+
+        self.pending_commands_by_session
+            .entry(selected.to_string())
+            .or_default();
+        self.selected_session_id = selected.to_string();
+        Ok(())
+    }
+
+    fn close_session(&mut self, session_id: &str) -> Result<(), String> {
+        let target = session_id.trim();
+        if target.is_empty() {
+            return Err("session_id is required".to_string());
+        }
+
+        if target == "default" {
+            return Err("default session cannot be closed".to_string());
+        }
+
+        if !self.has_session(target) {
+            return Err(format!("session not found: {target}"));
+        }
+
+        let has_pending = self
+            .pending_commands_by_session
+            .get(target)
+            .map(|queue| !queue.is_empty())
+            .unwrap_or(false);
+        if has_pending {
+            return Err("cannot close session with pending approvals".to_string());
+        }
+
+        self.pending_commands_by_session.remove(target);
+        self.session_context_by_id.remove(target);
+
+        if self.selected_session_id == target {
+            if self.pending_commands_by_session.contains_key("default") {
+                self.selected_session_id = "default".to_string();
+            } else if let Some(fallback) = self.session_ids_sorted().into_iter().next() {
+                self.selected_session_id = fallback;
+            } else {
+                self.pending_commands_by_session
+                    .insert("default".to_string(), Vec::new());
+                self.selected_session_id = "default".to_string();
+            }
+        }
+
+        self.pending_commands_by_session
+            .entry(self.selected_session_id.clone())
+            .or_default();
+
+        Ok(())
+    }
+
+    fn hydrate_request_with_session_context(&mut self, req: &mut CommandRequest) {
+        let session_id = req.session_id.clone();
+        let ctx = self
+            .session_context_by_id
+            .entry(session_id)
+            .or_default();
+
+        if req.workspace_path.trim().is_empty() {
+            req.workspace_path = ctx.workspace_path.clone();
+        } else {
+            ctx.workspace_path = req.workspace_path.clone();
+        }
+
+        if req.activate_venv {
+            ctx.activate_venv = true;
+        } else if ctx.activate_venv && !req.workspace_path.trim().is_empty() {
+            req.activate_venv = true;
+        }
+
+        if req.venv_path.trim().is_empty() {
+            req.venv_path = ctx.selected_venv_path.clone();
+        } else {
+            ctx.selected_venv_path = req.venv_path.clone();
+        }
+
+        if req.activate_venv
+            && req.venv_path.trim().is_empty()
+            && !req.workspace_path.trim().is_empty()
+        {
+            if let Some(detected) =
+                crate::command_executor::detect_default_venv(&req.workspace_path)
+            {
+                req.venv_path = detected.clone();
+                ctx.selected_venv_path = detected;
+            }
+        }
+    }
+
+    fn selected_pending_commands(&self) -> Vec<CommandRequest> {
+        self.pending_commands_by_session
+            .get(&self.selected_session_id)
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    fn selected_first_command(&self) -> Option<CommandRequest> {
+        self.pending_commands_by_session
+            .get(&self.selected_session_id)
+            .and_then(|queue| queue.first().cloned())
+    }
+
+    fn selected_pending_count(&self) -> i32 {
+        self.pending_commands_by_session
+            .get(&self.selected_session_id)
+            .map(|queue| queue.len() as i32)
+            .unwrap_or(0)
+    }
+
+    fn enqueue_pending_request(
+        &mut self,
+        mut req: CommandRequest,
+    ) -> (bool, i32, QString, Option<CommandRequest>) {
+        self.hydrate_request_with_session_context(&mut req);
+
+        if !self
+            .pending_commands_by_session
+            .contains_key(&self.selected_session_id)
+        {
+            let selected_session_id = self.selected_session_id.clone();
+            self.pending_commands_by_session
+                .insert(selected_session_id, Vec::new());
+        }
+
+        let selected_is_empty = self
+            .pending_commands_by_session
+            .get(&self.selected_session_id)
+            .map(|queue| queue.is_empty())
+            .unwrap_or(true);
+
+        if selected_is_empty && req.session_id != self.selected_session_id {
+            self.selected_session_id = req.session_id.clone();
+        }
+
+        let selected_id = self.selected_session_id.clone();
+        let queue = self
+            .pending_commands_by_session
+            .entry(req.session_id.clone())
+            .or_default();
+        let target_was_empty = queue.is_empty();
+        queue.push(req.clone());
+
+        let is_first = req.session_id == selected_id && target_was_empty;
+        let count = self.selected_pending_count();
+        let json = self.pending_commands_to_json();
+        let selected_cmd = self.selected_first_command();
+        (is_first, count, json, selected_cmd)
+    }
+
+    /// Serialize selected-session pending commands to a JSON array string for QML.
+    fn pending_commands_to_json(&self) -> QString {
+        let json = serde_json::to_string(&self.selected_pending_commands())
+            .unwrap_or_else(|_| "[]".into());
+        QString::from(&json)
+    }
+
+    /// Send a protocol [`Message`] through the outgoing response channel.
+    fn send_response(&self, msg: Message) {
+        if let Some(tx) = self.response_tx.as_ref() {
+            let _ = tx.try_send(msg);
+        }
+    }
+
+    fn workspace_model_mut(&mut self, workspace_id: &str) -> Result<&mut WorkspaceSavedCommands, String> {
+        let normalized = normalize_workspace_id(workspace_id)
+            .ok_or_else(|| "workspace_id is required and must be normalized".to_string())?;
+
+        if !self.saved_commands_by_workspace.contains_key(&normalized) {
+            let loaded = self.saved_commands_repository.load_workspace(&normalized);
+            self.saved_commands_by_workspace.insert(normalized.clone(), loaded);
+        }
+
+        self.saved_commands_by_workspace
+            .get_mut(&normalized)
+            .ok_or_else(|| "workspace state unavailable".to_string())
+    }
+
+    fn persist_workspace(&mut self, workspace_id: &str) -> Result<(), String> {
+        let model = self
+            .workspace_model_mut(workspace_id)?
+            .clone();
+        self.saved_commands_repository
+            .save_workspace(&model)
+            .map_err(|err| format!("failed to persist saved commands: {err}"))
+    }
+
+    fn list_saved_commands(
+        &mut self,
+        workspace_id: &str,
+    ) -> Result<Vec<SavedCommandRecord>, String> {
+        let mut commands = self
+            .workspace_model_mut(workspace_id)?
+            .commands
+            .iter()
+            .cloned()
+            .map(saved_command_to_record)
+            .collect::<Vec<_>>();
+        commands.sort_by(|left, right| left.name.cmp(&right.name).then(left.id.cmp(&right.id)));
+        Ok(commands)
+    }
+
+    fn save_saved_command(
+        &mut self,
+        workspace_id: &str,
+        name: &str,
+        command: &str,
+    ) -> Result<SavedCommandRecord, String> {
+        let normalized_name = name.trim();
+        let normalized_command = command.trim();
+
+        if normalized_name.is_empty() {
+            return Err("name is required".to_string());
+        }
+
+        if normalized_command.is_empty() {
+            return Err("command is required".to_string());
+        }
+
+        let now = timestamp_now();
+        let new_id = format!("cmd-{}", monotonic_millis());
+
+        {
+            let model = self.workspace_model_mut(workspace_id)?;
+            model.commands.push(SavedCommand {
+                id: new_id,
+                name: normalized_name.to_string(),
+                command: normalized_command.to_string(),
+                created_at: now.clone(),
+                updated_at: now,
+                last_used_at: None,
+            });
+        }
+
+        self.persist_workspace(workspace_id)?;
+
+        let entry = self
+            .workspace_model_mut(workspace_id)?
+            .commands
+            .last()
+            .cloned()
+            .ok_or_else(|| "saved command was not persisted".to_string())?;
+
+        Ok(saved_command_to_record(entry))
+    }
+
+    fn delete_saved_command(
+        &mut self,
+        workspace_id: &str,
+        command_id: &str,
+    ) -> Result<(), String> {
+        if command_id.trim().is_empty() {
+            return Err("command_id is required".to_string());
+        }
+
+        {
+            let model = self.workspace_model_mut(workspace_id)?;
+            let before = model.commands.len();
+            model.commands.retain(|entry| entry.id != command_id);
+            if model.commands.len() == before {
+                return Err("saved command not found".to_string());
+            }
+        }
+
+        self.persist_workspace(workspace_id)
+    }
+
+    fn use_saved_command(
+        &mut self,
+        workspace_id: &str,
+        command_id: &str,
+        requested_session_id: &str,
+    ) -> Result<UseSavedCommandResult, String> {
+        if command_id.trim().is_empty() {
+            return Err("command_id is required".to_string());
+        }
+
+        let selected_session_id = self.selected_session_id.clone();
+        let requested = requested_session_id.trim();
+        if !requested.is_empty() && requested != selected_session_id {
+            return Err(format!(
+                "session_id must match selected session: {selected_session_id}"
+            ));
+        }
+
+        let saved_entry = {
+            let model = self.workspace_model_mut(workspace_id)?;
+            let Some(saved) = model
+                .commands
+                .iter_mut()
+                .find(|entry| entry.id == command_id)
+            else {
+                return Err("saved command not found".to_string());
+            };
+
+            let now = timestamp_now();
+            saved.updated_at = now.clone();
+            saved.last_used_at = Some(now);
+            saved.clone()
+        };
+
+        self.persist_workspace(workspace_id)?;
+
+        let context = self
+            .session_context_by_id
+            .get(&selected_session_id)
+            .cloned()
+            .unwrap_or_default();
+
+        let request = CommandRequest {
+            id: format!("saved-{}", monotonic_millis()),
+            command: saved_entry.command.clone(),
+            working_directory: context.workspace_path.clone(),
+            context: format!("Saved command: {}", saved_entry.name),
+            session_id: selected_session_id.clone(),
+            terminal_profile: TerminalProfile::System,
+            workspace_path: context.workspace_path,
+            venv_path: context.selected_venv_path,
+            activate_venv: context.activate_venv,
+            timeout_seconds: 300,
+        };
+
+        let (_, count, json, selected_cmd) = self.enqueue_pending_request(request.clone());
+
+        Ok(UseSavedCommandResult {
+            command_entry: saved_command_to_record(saved_entry),
+            queued_request: request,
+            targeted_session_id: selected_session_id,
+            pending_count: count,
+            pending_json: json,
+            selected_cmd,
+        })
+    }
+}
+
+#[derive(Debug)]
+struct UseSavedCommandResult {
+    command_entry: SavedCommandRecord,
+    queued_request: CommandRequest,
+    targeted_session_id: String,
+    pending_count: i32,
+    pending_json: QString,
+    selected_cmd: Option<CommandRequest>,
+}
+
+fn monotonic_millis() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+}
+
+fn timestamp_now() -> String {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    format!("{}.{:03}Z", now.as_secs(), now.subsec_millis())
+}
+
+fn saved_command_to_record(command: SavedCommand) -> SavedCommandRecord {
+    SavedCommandRecord {
+        id: command.id,
+        name: command.name,
+        command: command.command,
+        created_at: command.created_at,
+        updated_at: command.updated_at,
+        last_used_at: command.last_used_at,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+    use std::path::PathBuf;
+
+    fn unique_temp_dir() -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "interactive-terminal-bridge-test-{}",
+            monotonic_millis()
+        ))
+    }
+
+    fn test_state() -> AppState {
+        AppState {
+            pending_commands_by_session: HashMap::from([(
+                "default".to_string(),
+                Vec::new(),
+            )]),
+            session_context_by_id: HashMap::new(),
+            selected_session_id: "default".to_string(),
+            saved_commands_by_workspace: HashMap::new(),
+            saved_commands_repository: SavedCommandsRepository::new(unique_temp_dir()),
+            response_tx: None,
+            command_tx: None,
+        }
+    }
+
+    #[test]
+    fn saved_command_crud_is_workspace_scoped() {
+        let mut state = test_state();
+
+        let ws1 = "project-memory-mcp-40f6678f5a9b";
+        let ws2 = "project-memory-mcp-40f6678f5a9c";
+
+        let first = state
+            .save_saved_command(ws1, "Build", "npm run build")
+            .expect("save in ws1 should succeed");
+        let _second = state
+            .save_saved_command(ws2, "Test", "npx vitest run")
+            .expect("save in ws2 should succeed");
+
+        let ws1_list = state.list_saved_commands(ws1).expect("list ws1");
+        let ws2_list = state.list_saved_commands(ws2).expect("list ws2");
+
+        assert_eq!(ws1_list.len(), 1);
+        assert_eq!(ws2_list.len(), 1);
+        assert_eq!(ws1_list[0].command, "npm run build");
+        assert_eq!(ws2_list[0].command, "npx vitest run");
+
+        state
+            .delete_saved_command(ws1, &first.id)
+            .expect("delete in ws1 should succeed");
+
+        let ws1_after_delete = state.list_saved_commands(ws1).expect("list ws1 after delete");
+        let ws2_after_delete = state.list_saved_commands(ws2).expect("list ws2 after delete");
+
+        assert!(ws1_after_delete.is_empty());
+        assert_eq!(ws2_after_delete.len(), 1);
+    }
+
+    #[test]
+    fn use_saved_command_enforces_selected_session_targeting() {
+        let mut state = test_state();
+        let ws = "project-memory-mcp-40f6678f5a9b";
+
+        state.selected_session_id = "session-a".to_string();
+        state
+            .pending_commands_by_session
+            .insert("session-a".to_string(), Vec::new());
+
+        let saved = state
+            .save_saved_command(ws, "Build", "npm run build")
+            .expect("save should succeed");
+
+        let wrong_session = state
+            .use_saved_command(ws, &saved.id, "session-b")
+            .expect_err("use should reject non-selected session target");
+        assert!(wrong_session.contains("selected session"));
+
+        let used = state
+            .use_saved_command(ws, &saved.id, "")
+            .expect("use should target selected session");
+
+        assert_eq!(used.targeted_session_id, "session-a");
+        assert_eq!(used.queued_request.session_id, "session-a");
+
+        let queued = state
+            .pending_commands_by_session
+            .get("session-a")
+            .expect("selected session queue exists");
+        assert_eq!(queued.len(), 1);
+        assert_eq!(queued[0].command, "npm run build");
+    }
+
+    #[test]
+    fn create_session_switch_session_and_close_session_follow_runtime_model() {
+        let mut state = test_state();
+
+        let created = state.create_session();
+        assert!(created.starts_with("session-"));
+        assert_eq!(state.selected_session_id, created);
+        assert!(state.pending_commands_by_session.contains_key(&created));
+
+        state
+            .switch_session("default")
+            .expect("switch to default should succeed");
+        assert_eq!(state.selected_session_id, "default");
+
+        state
+            .close_session(&created)
+            .expect("close created session should succeed");
+        assert!(!state.pending_commands_by_session.contains_key(&created));
+    }
+
+    #[test]
+    fn close_session_rejects_pending_approval_queue() {
+        let mut state = test_state();
+        let session_id = state.create_session();
+
+        state
+            .pending_commands_by_session
+            .entry(session_id.clone())
+            .or_default()
+            .push(CommandRequest {
+                id: "req-1".to_string(),
+                command: "echo blocked".to_string(),
+                working_directory: String::new(),
+                context: String::new(),
+                session_id: session_id.clone(),
+                terminal_profile: TerminalProfile::System,
+                workspace_path: String::new(),
+                venv_path: String::new(),
+                activate_venv: false,
+                timeout_seconds: 60,
+            });
+
+        let err = state
+            .close_session(&session_id)
+            .expect_err("close must be rejected for pending approvals");
+        assert!(err.contains("pending approvals"));
+        assert!(state.pending_commands_by_session.contains_key(&session_id));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Invokable implementations (Step 13)
+// ---------------------------------------------------------------------------
+
+impl ffi::TerminalApp {
+    /// Approve a pending command by ID.
+    ///
+    /// Removes the command from the pending queue, sends it to the
+    /// background executor task via `command_tx`, and advances to the
+    /// next pending command (if any). The actual `CommandResponse` is
+    /// sent later by the executor task once the process completes.
+    fn approve_command(mut self: Pin<&mut Self>, id: QString) {
+        let id_str = id.to_string();
+
+        // Access internal state through Arc<Mutex<>> (no Pin issues).
+        let state_arc = self.rust().state.clone();
+        let (next_cmd, count, json, tabs_json, selected_session_id) = {
+            let mut state = state_arc.lock().unwrap();
+            let selected_session = state.selected_session_id.clone();
+            let queue = state
+                .pending_commands_by_session
+                .entry(selected_session)
+                .or_default();
+
+            // Find and remove the approved command from the queue.
+            let cmd = queue.iter().find(|c| c.id == id_str).cloned();
+            queue.retain(|c| c.id != id_str);
+
+            // Send the command to the execution channel.
+            if let (Some(tx), Some(cmd)) = (&state.command_tx, cmd) {
+                let _ = tx.try_send(cmd);
+            }
+
+            let next = state.selected_first_command();
+            let count = state.selected_pending_count();
+            let json = state.pending_commands_to_json();
+            let tabs_json = state.session_tabs_to_json();
+            let selected_session_id = state.selected_session_id.clone();
+            (next, count, json, tabs_json, selected_session_id)
+        };
+
+        // Update Qt properties (lock released above).
+        self.as_mut().set_pending_count(count);
+        self.as_mut().set_pending_commands_json(json);
+        self.as_mut().set_session_tabs_json(tabs_json);
+        self.as_mut()
+            .set_current_session_id(QString::from(&selected_session_id));
+        self.as_mut()
+            .set_status_text(QString::from("Executing command..."));
+        self.as_mut().set_output_text(QString::default());
+
+        Self::show_command(&mut self, next_cmd.as_ref());
+    }
+
+    /// Decline a pending command by ID with a user-provided reason.
+    ///
+    /// Creates a `CommandResponse` with `Declined` status and the reason
+    /// text, sends it through the TCP response channel, removes the command
+    /// from the pending queue, and advances to the next pending command.
+    fn decline_command(mut self: Pin<&mut Self>, id: QString, reason: QString) {
+        let id_str = id.to_string();
+        let reason_str = reason.to_string();
+
+        let response = Message::CommandResponse(CommandResponse {
+            id: id_str.clone(),
+            status: ResponseStatus::Declined,
+            output: None,
+            exit_code: None,
+            reason: Some(reason_str),
+        });
+
+        let state_arc = self.rust().state.clone();
+        let (next_cmd, count, json, tabs_json, selected_session_id) = {
+            let mut state = state_arc.lock().unwrap();
+            state.send_response(response);
+            let selected_session = state.selected_session_id.clone();
+            let queue = state
+                .pending_commands_by_session
+                .entry(selected_session)
+                .or_default();
+            queue.retain(|c| c.id != id_str);
+            let next = state.selected_first_command();
+            let count = state.selected_pending_count();
+            let json = state.pending_commands_to_json();
+            let tabs_json = state.session_tabs_to_json();
+            let selected_session_id = state.selected_session_id.clone();
+            (next, count, json, tabs_json, selected_session_id)
+        };
+
+        self.as_mut().set_pending_count(count);
+        self.as_mut().set_pending_commands_json(json);
+        self.as_mut().set_session_tabs_json(tabs_json);
+        self.as_mut()
+            .set_current_session_id(QString::from(&selected_session_id));
+        self.as_mut().set_status_text(QString::from("Command declined"));
+
+        Self::show_command(&mut self, next_cmd.as_ref());
+        self.as_mut().command_completed(id, false);
+    }
+
+    /// Clear the output text area.
+    fn clear_output(mut self: Pin<&mut Self>) {
+        self.as_mut().set_output_text(QString::default());
+    }
+
+    fn create_session(mut self: Pin<&mut Self>) -> QString {
+        let state_arc = self.rust().state.clone();
+        let (session_id, count, json, tabs_json, selected_cmd) = {
+            let mut state = state_arc.lock().unwrap();
+            let session_id = state.create_session();
+            let selected_cmd = state.selected_first_command();
+            let count = state.selected_pending_count();
+            let json = state.pending_commands_to_json();
+            let tabs_json = state.session_tabs_to_json();
+            (session_id, count, json, tabs_json, selected_cmd)
+        };
+
+        self.as_mut().set_current_session_id(QString::from(&session_id));
+        self.as_mut().set_pending_count(count);
+        self.as_mut().set_pending_commands_json(json);
+        self.as_mut().set_session_tabs_json(tabs_json);
+        self.as_mut()
+            .set_status_text(QString::from(&format!("Created session: {session_id}")));
+        Self::show_command(&mut self, selected_cmd.as_ref());
+        QString::from(&session_id)
+    }
+
+    fn switch_session(mut self: Pin<&mut Self>, session_id: QString) -> bool {
+        let requested = session_id.to_string();
+        let state_arc = self.rust().state.clone();
+        let result = {
+            let mut state = state_arc.lock().unwrap();
+            state.switch_session(&requested).map(|_| {
+                let selected_cmd = state.selected_first_command();
+                let count = state.selected_pending_count();
+                let json = state.pending_commands_to_json();
+                let tabs_json = state.session_tabs_to_json();
+                let selected_session_id = state.selected_session_id.clone();
+                (selected_cmd, count, json, tabs_json, selected_session_id)
+            })
+        };
+
+        match result {
+            Ok((selected_cmd, count, json, tabs_json, selected_session_id)) => {
+                self.as_mut()
+                    .set_current_session_id(QString::from(&selected_session_id));
+                self.as_mut().set_pending_count(count);
+                self.as_mut().set_pending_commands_json(json);
+                self.as_mut().set_session_tabs_json(tabs_json);
+                self.as_mut().set_status_text(QString::from(&format!(
+                    "Active session: {selected_session_id}"
+                )));
+                Self::show_command(&mut self, selected_cmd.as_ref());
+                true
+            }
+            Err(err) => {
+                self.as_mut().set_status_text(QString::from(&err));
+                false
+            }
+        }
+    }
+
+    fn close_session(mut self: Pin<&mut Self>, session_id: QString) -> bool {
+        let requested = session_id.to_string();
+        let state_arc = self.rust().state.clone();
+        let result = {
+            let mut state = state_arc.lock().unwrap();
+            state.close_session(&requested).map(|_| {
+                let selected_cmd = state.selected_first_command();
+                let count = state.selected_pending_count();
+                let json = state.pending_commands_to_json();
+                let tabs_json = state.session_tabs_to_json();
+                let selected_session_id = state.selected_session_id.clone();
+                (selected_cmd, count, json, tabs_json, selected_session_id)
+            })
+        };
+
+        match result {
+            Ok((selected_cmd, count, json, tabs_json, selected_session_id)) => {
+                self.as_mut()
+                    .set_current_session_id(QString::from(&selected_session_id));
+                self.as_mut().set_pending_count(count);
+                self.as_mut().set_pending_commands_json(json);
+                self.as_mut().set_session_tabs_json(tabs_json);
+                self.as_mut().set_status_text(QString::from(&format!(
+                    "Closed session: {}",
+                    requested.trim()
+                )));
+                Self::show_command(&mut self, selected_cmd.as_ref());
+                true
+            }
+            Err(err) => {
+                self.as_mut().set_status_text(QString::from(&err));
+                false
+            }
+        }
+    }
+
+    // -- private helpers --------------------------------------------------
+
+    /// Populate the "current command" properties from the given request,
+    /// or clear them if `cmd` is `None` (queue empty).
+    fn show_command(this: &mut Pin<&mut Self>, cmd: Option<&CommandRequest>) {
+        if let Some(c) = cmd {
+            this.as_mut().set_command_text(QString::from(&*c.command));
+            this.as_mut()
+                .set_working_directory(QString::from(&*c.working_directory));
+            this.as_mut().set_context_info(QString::from(&*c.context));
+            this.as_mut()
+                .set_current_request_id(QString::from(&*c.id));
+            this.as_mut()
+                .set_current_session_id(QString::from(&*c.session_id));
+            this.as_mut().set_current_terminal_profile(QString::from(
+                &serde_json::to_string(&c.terminal_profile)
+                    .unwrap_or_else(|_| "\"system\"".to_string())
+                    .replace('"', ""),
+            ));
+        } else {
+            this.as_mut().set_command_text(QString::default());
+            this.as_mut().set_working_directory(QString::default());
+            this.as_mut().set_context_info(QString::default());
+            this.as_mut().set_current_request_id(QString::default());
+            this.as_mut().set_current_terminal_profile(QString::default());
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// cxx_qt::Initialize — server startup (Step 15)
+// ---------------------------------------------------------------------------
+
+impl cxx_qt::Initialize for ffi::TerminalApp {
+    fn initialize(mut self: Pin<&mut Self>) {
+        use crate::tcp_server::{ConnectionEvent, TcpServer};
+
+        let port = *crate::SERVER_PORT.get().unwrap_or(&9100);
+        let heartbeat_secs = *crate::HEARTBEAT_INTERVAL.get().unwrap_or(&5);
+        let mut server = TcpServer::new(port, Duration::from_secs(heartbeat_secs));
+
+        // Clone the outgoing sender so the QObject can send responses.
+        let outgoing_tx = server.outgoing_tx.clone();
+
+        // Take the real incoming_rx; replace with a dummy so the struct
+        // remains valid (start() never reads incoming_rx — only incoming_tx).
+        let (_, dummy_rx) = tokio::sync::mpsc::channel(1);
+        let incoming_rx = std::mem::replace(&mut server.incoming_rx, dummy_rx);
+
+        // Subscribe to connection lifecycle events.
+        let mut event_rx = server.event_subscriber();
+
+        // Store the outgoing sender in the shared state so that
+        // approve_command / decline_command can send responses.
+        {
+            let state_arc = self.rust().state.clone();
+            let mut state = state_arc.lock().unwrap();
+            state.response_tx = Some(outgoing_tx);
+
+            // Load workspace-scoped saved command data at startup so runtime
+            // state is immediately hydrated from persistent storage.
+            state.saved_commands_by_workspace = state
+                .saved_commands_repository
+                .load_all_workspaces();
+
+            self.as_mut()
+                .set_session_tabs_json(state.session_tabs_to_json());
+        }
+
+        self.as_mut()
+            .set_status_text(QString::from(&format!("Listening on port {port}")));
+
+        // Create a channel for approved commands → executor task.
+        let (command_tx, command_rx) =
+            tokio::sync::mpsc::channel::<CommandRequest>(16);
+
+        // Store the command sender in shared state.
+        {
+            let state_arc = self.rust().state.clone();
+            let mut state = state_arc.lock().unwrap();
+            state.command_tx = Some(command_tx);
+        }
+
+        // Capture CxxQtThread handles for cross-thread property updates.
+        let qt_thread_msg = self.qt_thread();
+        let qt_thread_evt = self.qt_thread();
+        let qt_thread_exec = self.qt_thread();
+
+        // Clone the state Arc so the message-forwarding task can also
+        // push incoming commands into the queue.
+        let state_for_msg = self.rust().state.clone();
+        let state_for_exec = self.rust().state.clone();
+
+        // Spawn a background OS thread hosting the tokio runtime.
+        std::thread::spawn(move || {
+            let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+            rt.block_on(async move {
+                // Task 1: TCP server accept loop (runs forever).
+                let server_task = async move {
+                    if let Err(e) = server.start().await {
+                        eprintln!("TCP server error: {e}");
+                    }
+                };
+
+                // Task 2: Forward incoming TCP messages → Qt thread.
+                let msg_task = {
+                    let qt = qt_thread_msg;
+                    let state = state_for_msg;
+                    async move {
+                        let mut rx = incoming_rx;
+                        while let Some(msg) = rx.recv().await {
+                            match msg {
+                                Message::CommandRequest(mut req) => {
+                                    // Push into the shared queue on the
+                                    // current (tokio) thread — cheap lock.
+                                    let (is_first, count, json, tabs_json, selected_session_id, selected_cmd) = {
+                                        let mut s = state.lock().unwrap();
+                                        let (is_first, count, json, selected_cmd) =
+                                            s.enqueue_pending_request(req.clone());
+                                        let tabs_json = s.session_tabs_to_json();
+                                        let selected_session_id = s.selected_session_id.clone();
+                                        (
+                                            is_first,
+                                            count,
+                                            json,
+                                            tabs_json,
+                                            selected_session_id,
+                                            selected_cmd,
+                                        )
+                                    };
+
+                                    // Update Qt properties on the Qt thread.
+                                    let _ = qt.queue(move |mut obj| {
+                                        obj.as_mut().set_pending_count(count);
+                                        obj.as_mut().set_pending_commands_json(json);
+                                        obj.as_mut().set_session_tabs_json(tabs_json);
+                                        obj.as_mut().set_current_session_id(QString::from(
+                                            &selected_session_id,
+                                        ));
+
+                                        if is_first {
+                                            if let Some(cmd) = selected_cmd.as_ref() {
+                                                obj.as_mut().set_command_text(
+                                                    QString::from(&*cmd.command),
+                                                );
+                                                obj.as_mut().set_working_directory(
+                                                    QString::from(&*cmd.working_directory),
+                                                );
+                                                obj.as_mut().set_context_info(
+                                                    QString::from(&*cmd.context),
+                                                );
+                                                obj.as_mut().set_current_request_id(
+                                                    QString::from(&*cmd.id),
+                                                );
+                                                obj.as_mut().set_current_session_id(
+                                                    QString::from(&*cmd.session_id),
+                                                );
+                                                obj.as_mut().set_current_terminal_profile(
+                                                    QString::from(
+                                                        &serde_json::to_string(&cmd.terminal_profile)
+                                                            .unwrap_or_else(|_| "\"system\"".to_string())
+                                                            .replace('"', ""),
+                                                    ),
+                                                );
+                                            }
+                                        }
+
+                                        obj.as_mut().set_status_text(
+                                            QString::from("Command pending approval"),
+                                        );
+
+                                        let id = QString::from(&*req.id);
+                                        obj.as_mut().command_received(id);
+                                    });
+                                }
+                                Message::SavedCommandsRequest(req) => {
+                                    let mut notify_command_received: Option<String> = None;
+                                    let mut selected_cmd: Option<CommandRequest> = None;
+                                    let mut pending_count = 0;
+                                    let mut pending_json = QString::from("[]");
+                                    let mut status = String::from("Saved command action complete");
+                                    let action = req.action.clone();
+                                    let request_id = req.id.clone();
+                                    let workspace_id = req.workspace_id.clone();
+
+                                    let response = {
+                                        let mut s = state.lock().unwrap();
+
+                                        let to_error_response = |message: String| SavedCommandsResponse {
+                                            id: request_id.clone(),
+                                            action: action.clone(),
+                                            workspace_id: workspace_id.clone(),
+                                            success: false,
+                                            commands: Vec::new(),
+                                            command_entry: None,
+                                            targeted_session_id: None,
+                                            error: Some(message),
+                                        };
+
+                                        let operation = match action.clone() {
+                                            SavedCommandsAction::Save => s
+                                                .save_saved_command(
+                                                    &workspace_id,
+                                                    &req.name,
+                                                    &req.command,
+                                                )
+                                                .map(|entry| SavedCommandsResponse {
+                                                    id: request_id.clone(),
+                                                    action: SavedCommandsAction::Save,
+                                                    workspace_id: workspace_id.clone(),
+                                                    success: true,
+                                                    commands: Vec::new(),
+                                                    command_entry: Some(entry),
+                                                    targeted_session_id: None,
+                                                    error: None,
+                                                }),
+                                            SavedCommandsAction::List => s
+                                                .list_saved_commands(&workspace_id)
+                                                .map(|entries| SavedCommandsResponse {
+                                                    id: request_id.clone(),
+                                                    action: SavedCommandsAction::List,
+                                                    workspace_id: workspace_id.clone(),
+                                                    success: true,
+                                                    commands: entries,
+                                                    command_entry: None,
+                                                    targeted_session_id: None,
+                                                    error: None,
+                                                }),
+                                            SavedCommandsAction::Delete => s
+                                                .delete_saved_command(
+                                                    &workspace_id,
+                                                    &req.command_id,
+                                                )
+                                                .map(|_| SavedCommandsResponse {
+                                                    id: request_id.clone(),
+                                                    action: SavedCommandsAction::Delete,
+                                                    workspace_id: workspace_id.clone(),
+                                                    success: true,
+                                                    commands: Vec::new(),
+                                                    command_entry: None,
+                                                    targeted_session_id: None,
+                                                    error: None,
+                                                }),
+                                            SavedCommandsAction::Use => s
+                                                .use_saved_command(
+                                                    &workspace_id,
+                                                    &req.command_id,
+                                                    &req.session_id,
+                                                )
+                                                .map(|use_result| {
+                                                    pending_count = use_result.pending_count;
+                                                    pending_json = use_result.pending_json.clone();
+                                                    selected_cmd = use_result.selected_cmd.clone();
+                                                    notify_command_received =
+                                                        Some(use_result.queued_request.id.clone());
+                                                    status =
+                                                        "Saved command queued for approval".to_string();
+
+                                                    SavedCommandsResponse {
+                                                        id: request_id.clone(),
+                                                        action: SavedCommandsAction::Use,
+                                                        workspace_id: workspace_id.clone(),
+                                                        success: true,
+                                                        commands: Vec::new(),
+                                                        command_entry: Some(use_result.command_entry),
+                                                        targeted_session_id: Some(
+                                                            use_result.targeted_session_id,
+                                                        ),
+                                                        error: None,
+                                                    }
+                                                }),
+                                        };
+
+                                        let response = operation.unwrap_or_else(to_error_response);
+                                        s.send_response(Message::SavedCommandsResponse(
+                                            response.clone(),
+                                        ));
+                                        response
+                                    };
+
+                                    if response.action == SavedCommandsAction::Use
+                                        && response.success
+                                    {
+                                        let (tabs_json, selected_session_id) = {
+                                            let s = state.lock().unwrap();
+                                            (s.session_tabs_to_json(), s.selected_session_id.clone())
+                                        };
+
+                                        let _ = qt.queue(move |mut obj| {
+                                            obj.as_mut().set_pending_count(pending_count);
+                                            obj.as_mut().set_pending_commands_json(pending_json);
+                                            obj.as_mut().set_session_tabs_json(tabs_json);
+                                            obj.as_mut().set_current_session_id(QString::from(
+                                                &selected_session_id,
+                                            ));
+
+                                            if let Some(cmd) = selected_cmd.as_ref() {
+                                                if notify_command_received.is_some() {
+                                                    obj.as_mut().set_command_text(
+                                                        QString::from(&*cmd.command),
+                                                    );
+                                                    obj.as_mut().set_working_directory(
+                                                        QString::from(&*cmd.working_directory),
+                                                    );
+                                                    obj.as_mut().set_context_info(
+                                                        QString::from(&*cmd.context),
+                                                    );
+                                                    obj.as_mut().set_current_request_id(
+                                                        QString::from(&*cmd.id),
+                                                    );
+                                                    obj.as_mut().set_current_session_id(
+                                                        QString::from(&*cmd.session_id),
+                                                    );
+                                                    obj.as_mut().set_current_terminal_profile(
+                                                        QString::from(
+                                                            &serde_json::to_string(
+                                                                &cmd.terminal_profile,
+                                                            )
+                                                            .unwrap_or_else(|_| {
+                                                                "\"system\"".to_string()
+                                                            })
+                                                            .replace('"', ""),
+                                                        ),
+                                                    );
+                                                }
+                                            }
+
+                                            obj.as_mut().set_status_text(QString::from(&status));
+
+                                            if let Some(request_id) = notify_command_received {
+                                                obj.as_mut().command_received(QString::from(
+                                                    &request_id,
+                                                ));
+                                            }
+                                        });
+                                    }
+                                }
+                                Message::Heartbeat(_) => {
+                                    // Heartbeats handled by TcpServer internally.
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                };
+
+                // Task 3: Forward connection lifecycle events → Qt thread.
+                let evt_task = {
+                    let qt = qt_thread_evt;
+                    async move {
+                        loop {
+                            match event_rx.recv().await {
+                                Ok(event) => {
+                                    let (connected, status) = match &event {
+                                        ConnectionEvent::Connected(addr) => (
+                                            true,
+                                            format!("Client connected from {addr}"),
+                                        ),
+                                        ConnectionEvent::Disconnected => {
+                                            (false, "Client disconnected".into())
+                                        }
+                                        ConnectionEvent::HeartbeatLost => {
+                                            (false, "Heartbeat lost".into())
+                                        }
+                                    };
+
+                                    let _ = qt.queue(move |mut obj| {
+                                        obj.as_mut().set_is_connected(connected);
+                                        obj.as_mut()
+                                            .set_status_text(QString::from(&*status));
+                                        obj.as_mut()
+                                            .connection_status_changed(connected);
+                                    });
+                                }
+                                Err(broadcast::error::RecvError::Lagged(n)) => {
+                                    eprintln!(
+                                        "Event receiver lagged by {n} messages"
+                                    );
+                                }
+                                Err(broadcast::error::RecvError::Closed) => break,
+                            }
+                        }
+                    }
+                };
+
+                // Task 4: Execute approved commands on the tokio runtime.
+                let exec_task = {
+                    let qt = qt_thread_exec;
+                    let state = state_for_exec;
+                    async move {
+                        let mut cmd_rx = command_rx;
+                        while let Some(req) = cmd_rx.recv().await {
+                            let (output_tx, mut output_rx) =
+                                tokio::sync::mpsc::channel::<OutputLine>(64);
+
+                            // Sub-task: forward output lines → Qt UI.
+                            let qt_output = qt.clone();
+                            let output_forward = tokio::spawn(async move {
+                                while let Some(line) = output_rx.recv().await {
+                                    let text = match &line {
+                                        OutputLine::Stdout(l) => l.clone(),
+                                        OutputLine::Stderr(l) => {
+                                            format!("[stderr] {l}")
+                                        }
+                                    };
+                                    let _ = qt_output.queue(move |mut obj| {
+                                        let cur = obj
+                                            .as_ref()
+                                            .output_text()
+                                            .to_string();
+                                        let new_text = if cur.is_empty() {
+                                            text
+                                        } else {
+                                            format!("{cur}\n{text}")
+                                        };
+                                        obj.as_mut().set_output_text(
+                                            QString::from(&new_text),
+                                        );
+                                        let line_q = QString::from(&new_text);
+                                        obj.as_mut()
+                                            .output_line_received(line_q);
+                                    });
+                                }
+                            });
+
+                            // Execute the command with timeout.
+                            let result =
+                                command_executor::execute_command_with_timeout(
+                                    &req, output_tx,
+                                )
+                                .await;
+
+                            // Wait for output forwarding to finish.
+                            let _ = output_forward.await;
+
+                            match result {
+                                Ok(exec_result) => {
+                                    let response = Message::CommandResponse(
+                                        CommandResponse {
+                                            id: exec_result
+                                                .request_id
+                                                .clone(),
+                                            status: ResponseStatus::Approved,
+                                            output: Some(
+                                                exec_result.output,
+                                            ),
+                                            exit_code: exec_result.exit_code,
+                                            reason: None,
+                                        },
+                                    );
+
+                                    {
+                                        let s = state.lock().unwrap();
+                                        s.send_response(response);
+                                    }
+
+                                    let id_str = exec_result.request_id;
+                                    let success =
+                                        exec_result.exit_code == Some(0);
+                                    let _ = qt.queue(move |mut obj| {
+                                        let msg = if success {
+                                            "Command completed successfully"
+                                        } else {
+                                            "Command failed"
+                                        };
+                                        obj.as_mut().set_status_text(
+                                            QString::from(msg),
+                                        );
+                                        obj.as_mut().command_completed(
+                                            QString::from(&id_str),
+                                            success,
+                                        );
+                                    });
+                                }
+                                Err(err) => {
+                                    let response = Message::CommandResponse(
+                                        CommandResponse {
+                                            id: req.id.clone(),
+                                            status: ResponseStatus::Approved,
+                                            output: Some(err.clone()),
+                                            exit_code: Some(-1),
+                                            reason: None,
+                                        },
+                                    );
+
+                                    {
+                                        let s = state.lock().unwrap();
+                                        s.send_response(response);
+                                    }
+
+                                    let id_str = req.id.clone();
+                                    let _ = qt.queue(move |mut obj| {
+                                        obj.as_mut().set_status_text(
+                                            QString::from(&format!(
+                                                "Error: {err}"
+                                            )),
+                                        );
+                                        obj.as_mut().command_completed(
+                                            QString::from(&id_str),
+                                            false,
+                                        );
+                                    });
+                                }
+                            }
+                        }
+                    }
+                };
+
+                // Run all four tasks concurrently; if any exits, the
+                // others are cancelled (typical for app shutdown).
+                tokio::select! {
+                    _ = server_task => {}
+                    _ = msg_task => {}
+                    _ = evt_task => {}
+                    _ = exec_task => {}
+                }
+            });
+        });
+    }
+}

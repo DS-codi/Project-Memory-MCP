@@ -1,0 +1,210 @@
+{
+  "profile": "baseline",
+  "scenarios": [
+    {
+      "normalized_events": [
+        {
+          "event_type": "user_prompt",
+          "payload": {
+            "profile": "baseline",
+            "prompt": "Run tool alias optional-tool drift pack"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_1",
+          "timestamp_ms": 0
+        },
+        {
+          "action_canonical": "execute",
+          "action_raw": "run",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_2",
+          "timestamp_ms": 25,
+          "tool_name": "memory_terminal"
+        },
+        {
+          "action_canonical": "terminate",
+          "action_raw": "kill",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_3",
+          "timestamp_ms": 50,
+          "tool_name": "memory_terminal"
+        },
+        {
+          "action_canonical": "handoff",
+          "action_raw": "handoff",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "args": {
+              "to_agent": "Coordinator"
+            },
+            "profile": "baseline"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_4",
+          "timestamp_ms": 75,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "handoff",
+          "payload": {
+            "to_agent": "Coordinator"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_4",
+          "timestamp_ms": 76
+        },
+        {
+          "action_canonical": "complete",
+          "action_raw": "complete",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_5",
+          "timestamp_ms": 100,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "complete",
+          "payload": {},
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_5",
+          "timestamp_ms": 101
+        },
+        {
+          "event_type": "outcome",
+          "phase": "final",
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "success_signature": "tool_alias_optional_drift_pass",
+          "timestamp_ms": 110
+        }
+      ],
+      "profile": "baseline",
+      "raw_events": [
+        {
+          "event_type": "user_prompt",
+          "payload": {
+            "profile": "baseline",
+            "prompt": "Run tool alias optional-tool drift pack"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_1",
+          "timestamp_ms": 1771139109435
+        },
+        {
+          "action_raw": "run",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_2",
+          "timestamp_ms": 1771139109460,
+          "tool_name": "memory_terminal"
+        },
+        {
+          "action_raw": "kill",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_3",
+          "timestamp_ms": 1771139109485,
+          "tool_name": "memory_terminal"
+        },
+        {
+          "action_raw": "handoff",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "args": {
+              "to_agent": "Coordinator"
+            },
+            "profile": "baseline"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_4",
+          "timestamp_ms": 1771139109510,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "handoff",
+          "payload": {
+            "to_agent": "Coordinator"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_4",
+          "timestamp_ms": 1771139109511
+        },
+        {
+          "action_raw": "complete",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "baseline"
+          },
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_5",
+          "timestamp_ms": 1771139109535,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "complete",
+          "payload": {},
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "step_id": "step_5",
+          "timestamp_ms": 1771139109536
+        },
+        {
+          "event_type": "outcome",
+          "phase": "final",
+          "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+          "success_signature": "tool_alias_optional_drift_pass",
+          "timestamp_ms": 1771139109545
+        }
+      ],
+      "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+      "success": true
+    }
+  ]
+}

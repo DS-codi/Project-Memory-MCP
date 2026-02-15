@@ -1,0 +1,15 @@
+{
+  "artifact": {
+    "normalized_artifact_file": "baseline.norm.json",
+    "profile": "baseline",
+    "scenario_count": 1,
+    "scenario_ids": [
+      "PHASE3_EXECUTOR_IMPLEMENTATION"
+    ]
+  },
+  "baseline_id": "smoke-v1",
+  "promoted_at": "2026-02-15T05:37:28.461Z",
+  "schema_version": "replay-golden-baseline-metadata.v1",
+  "source_candidate_file": "C:/Users/User/Project_Memory_MCP/Project-Memory-MCP/vscode-extension/.replay-runs/app-smoke-1771132410505/baseline.norm.json",
+  "store_version": "v1"
+}

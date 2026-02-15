@@ -1,0 +1,179 @@
+{
+  "profile": "candidate",
+  "scenarios": [
+    {
+      "normalized_events": [
+        {
+          "event_type": "user_prompt",
+          "payload": {
+            "profile": "candidate",
+            "prompt": "Run artifact integrity fallback pack"
+          },
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_1",
+          "timestamp_ms": 0
+        },
+        {
+          "action_canonical": "run_build_script",
+          "action_raw": "run_build_script",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "candidate"
+          },
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_2",
+          "timestamp_ms": 25,
+          "tool_name": "memory_plan"
+        },
+        {
+          "action_canonical": "handoff",
+          "action_raw": "handoff",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "args": {
+              "to_agent": "Coordinator"
+            },
+            "profile": "candidate"
+          },
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_3",
+          "timestamp_ms": 50,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "handoff",
+          "payload": {
+            "to_agent": "Coordinator"
+          },
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_3",
+          "timestamp_ms": 51
+        },
+        {
+          "action_canonical": "complete",
+          "action_raw": "complete",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "candidate"
+          },
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_4",
+          "timestamp_ms": 75,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "complete",
+          "payload": {},
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_4",
+          "timestamp_ms": 76
+        },
+        {
+          "event_type": "outcome",
+          "phase": "final",
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "success_signature": "artifact_integrity_fallback_pass",
+          "timestamp_ms": 85
+        }
+      ],
+      "profile": "candidate",
+      "raw_events": [
+        {
+          "event_type": "user_prompt",
+          "payload": {
+            "profile": "candidate",
+            "prompt": "Run artifact integrity fallback pack"
+          },
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_1",
+          "timestamp_ms": 1771139069863
+        },
+        {
+          "action_raw": "run_build_script",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "candidate"
+          },
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_2",
+          "timestamp_ms": 1771139069888,
+          "tool_name": "memory_plan"
+        },
+        {
+          "action_raw": "handoff",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "args": {
+              "to_agent": "Coordinator"
+            },
+            "profile": "candidate"
+          },
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_3",
+          "timestamp_ms": 1771139069913,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "handoff",
+          "payload": {
+            "to_agent": "Coordinator"
+          },
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_3",
+          "timestamp_ms": 1771139069914
+        },
+        {
+          "action_raw": "complete",
+          "authorization": {
+            "outcome": "allowed",
+            "reason_class": "allowlist_match"
+          },
+          "event_type": "tool_call",
+          "payload": {
+            "profile": "candidate"
+          },
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_4",
+          "timestamp_ms": 1771139069938,
+          "tool_name": "memory_agent"
+        },
+        {
+          "event_type": "complete",
+          "payload": {},
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "step_id": "step_4",
+          "timestamp_ms": 1771139069939
+        },
+        {
+          "event_type": "outcome",
+          "phase": "final",
+          "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+          "success_signature": "artifact_integrity_fallback_pass",
+          "timestamp_ms": 1771139069948
+        }
+      ],
+      "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+      "success": true
+    }
+  ]
+}

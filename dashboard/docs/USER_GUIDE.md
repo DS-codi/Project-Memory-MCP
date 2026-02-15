@@ -135,6 +135,8 @@ The Plans page shows all plans across workspaces with filtering options.
 - **Filter by category**: Feature, Bug, Change, Analysis, etc.
 - **Filter by priority**: Critical, High, Medium, Low
 - **Search**: Find plans by title or description
+- **Sectioned plan lists**: Plans are displayed in separate **Active Plans** and **Archived Plans** sections
+- **Relationship visualization on cards**: Each plan card includes a **Relationships** row with badges for Program/Child, linked plans, dependents, unresolved links, or **No relationships**
 
 **Plan Detail View:**
 
@@ -365,4 +367,4 @@ Access via `Settings > Extensions > Project Memory`:
 
 ---
 
-*Last updated: January 2026*
+*Last updated: February 2026*

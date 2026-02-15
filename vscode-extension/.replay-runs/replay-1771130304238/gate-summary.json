@@ -1,0 +1,42 @@
+{
+  "flake_controls": {
+    "retry_once_enabled": false,
+    "retry_performed": false
+  },
+  "gate": {
+    "annotations": [
+      {
+        "check_id": "flow-1",
+        "level": "warning",
+        "message": "Plan step updates occurred without a confirmation event.",
+        "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+        "severity": "high"
+      }
+    ],
+    "classification": "deterministic_regression",
+    "generated_at": "2026-02-15T04:38:24.289Z",
+    "mode": "warn",
+    "passed": true,
+    "reason": "Warn gate allows CI to pass while emitting replay drift annotations.",
+    "retried": false,
+    "status": "WARN",
+    "summary": {
+      "failed_scenarios": 1,
+      "high_severity_drifts": 1,
+      "low_severity_drifts": 0,
+      "medium_severity_drifts": 0,
+      "passed_scenarios": 0,
+      "total_scenarios": 1
+    },
+    "triage_labels": [
+      "replay",
+      "deterministic-regression",
+      "gate:warn",
+      "stable-fingerprint"
+    ]
+  },
+  "report": {
+    "comparison_json": "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\vscode-extension\\.replay-runs\\replay-1771130304238\\comparison.json",
+    "report_markdown": "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\vscode-extension\\.replay-runs\\replay-1771130304238\\report.md"
+  }
+}

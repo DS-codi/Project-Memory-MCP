@@ -18,11 +18,27 @@ export class DashboardPanel {
 
         // Handle messages from the webview
         this._panel.webview.onDidReceiveMessage(
-            message => {
+            async message => {
                 switch (message.type) {
                     case 'alert':
                         vscode.window.showInformationMessage(message.text);
                         break;
+                    case 'discussPlanInChat': {
+                        const planId = typeof message.data?.planId === 'string' ? message.data.planId.trim() : '';
+                        if (!planId) {
+                            return;
+                        }
+
+                        try {
+                            await vscode.commands.executeCommand('projectMemory.showPlanInChat', planId);
+                        } catch {
+                            await vscode.commands.executeCommand('workbench.action.chat.newChat');
+                            await vscode.commands.executeCommand('workbench.action.chat.open', {
+                                query: `@memory /plan show ${planId}`,
+                            });
+                        }
+                        break;
+                    }
                 }
             },
             null,
@@ -133,7 +149,24 @@ export class DashboardPanel {
     
     <script nonce="${nonce}">
         (function() {
+            const vscode = acquireVsCodeApi();
             const iframe = document.getElementById('dashboard-frame');
+
+            window.addEventListener('message', function(event) {
+                if (!iframe || event.source !== iframe.contentWindow) {
+                    return;
+                }
+
+                const data = event.data;
+                if (!data || data.type !== 'projectMemory.dashboard') {
+                    return;
+                }
+
+                if (data.payload && typeof data.payload.type === 'string') {
+                    vscode.postMessage(data.payload);
+                }
+            });
+
             if (iframe) {
                 iframe.onerror = function() {
                     document.body.innerHTML = \`

@@ -94,6 +94,12 @@ You are a **hub agent**. You **CAN** call `runSubagent` to spawn:
 | `memory_context` | `get` | Retrieve stored context |
 | `runSubagent` | — | Spawn Tester, Executor, or Reviewer |
 
+## Terminal Surface Guidance (Canonical)
+
+- TDDDriver orchestrates subagents and does not perform direct terminal execution.
+- In spawn prompts, specify `memory_terminal` for deterministic headless test/build execution and `memory_terminal_interactive` for visible host-terminal workflows.
+- When Rust+QML interactive gateway context applies, describe it as approval/routing; spawned agents still execute on `memory_terminal` or `memory_terminal_interactive`.
+
 ---
 
 ## 📋 TDD CYCLE STATE MANAGEMENT

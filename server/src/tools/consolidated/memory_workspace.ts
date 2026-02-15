@@ -15,7 +15,7 @@ import { linkWorkspaces, unlinkWorkspaces, getWorkspaceHierarchy, checkRegistryF
 import type { WorkspaceHierarchyInfo } from '../../storage/workspace-hierarchy.js';
 import { normalizeWorkspacePath } from '../../storage/workspace-utils.js';
 
-export type WorkspaceAction = 'register' | 'list' | 'info' | 'reindex' | 'merge' | 'scan_ghosts' | 'migrate' | 'link';
+export type WorkspaceAction = 'register' | 'list' | 'info' | 'reindex' | 'merge' | 'scan_ghosts' | 'migrate' | 'link' | 'set_display_name';
 
 export interface MemoryWorkspaceParams {
   action: WorkspaceAction;
@@ -28,6 +28,7 @@ export interface MemoryWorkspaceParams {
   child_workspace_id?: string;       // for link
   mode?: 'link' | 'unlink';          // for link
   hierarchical?: boolean;            // for list (hierarchical grouping)
+  display_name?: string;             // for set_display_name
 }
 
 interface WorkspaceInfoResult {
@@ -48,7 +49,8 @@ type WorkspaceResult =
   | { action: 'merge'; data: MergeResult }
   | { action: 'scan_ghosts'; data: { ghosts: GhostFolderInfo[]; hierarchy_overlaps?: WorkspaceOverlapInfo[] } }
   | { action: 'migrate'; data: MigrateWorkspaceResult }
-  | { action: 'link'; data: { mode: 'link' | 'unlink'; parent_id: string; child_id: string; hierarchy: WorkspaceHierarchyInfo } };
+  | { action: 'link'; data: { mode: 'link' | 'unlink'; parent_id: string; child_id: string; hierarchy: WorkspaceHierarchyInfo } }
+  | { action: 'set_display_name'; data: { workspace: WorkspaceMeta } };
 
 export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<ToolResponse<WorkspaceResult>> {
   const { action } = params;
@@ -56,7 +58,7 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
   if (!action) {
     return {
       success: false,
-      error: 'action is required. Valid actions: register, list, info, reindex, merge, scan_ghosts, migrate'
+      error: 'action is required. Valid actions: register, list, info, reindex, merge, scan_ghosts, migrate, link, set_display_name'
     };
   }
 
@@ -404,10 +406,58 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
       }
     }
 
+    case 'set_display_name': {
+      if (!params.workspace_id) {
+        return {
+          success: false,
+          error: 'workspace_id is required for action: set_display_name'
+        };
+      }
+
+      if (typeof params.display_name !== 'string') {
+        return {
+          success: false,
+          error: 'display_name is required for action: set_display_name'
+        };
+      }
+
+      const nextDisplayName = params.display_name.trim();
+      if (!nextDisplayName) {
+        return {
+          success: false,
+          error: 'display_name must be a non-empty string'
+        };
+      }
+
+      const validated = await validateAndResolveWorkspaceId(params.workspace_id);
+      if (!validated.success) return validated.error_response as ToolResponse<WorkspaceResult>;
+
+      const workspace = await store.getWorkspace(validated.workspace_id);
+      if (!workspace) {
+        return {
+          success: false,
+          error: `Workspace not found: ${validated.workspace_id}`
+        };
+      }
+
+      workspace.display_name = nextDisplayName;
+      workspace.name = nextDisplayName;
+      workspace.updated_at = new Date().toISOString();
+      await store.saveWorkspace(workspace);
+
+      return {
+        success: true,
+        data: {
+          action: 'set_display_name',
+          data: { workspace }
+        }
+      };
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: register, list, info, reindex, merge, scan_ghosts, migrate, link`
+        error: `Unknown action: ${action}. Valid actions: register, list, info, reindex, merge, scan_ghosts, migrate, link, set_display_name`
       };
   }
 }

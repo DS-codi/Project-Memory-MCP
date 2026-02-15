@@ -1,0 +1,29 @@
+{
+  "artifact_envelope": {
+    "baseline": {
+      "normalized_file": ".replay-runs/phase5-mixed-stress-1771139181719/baseline.norm.json",
+      "raw_file": ".replay-runs/phase5-mixed-stress-1771139181719/baseline.raw.jsonl",
+      "scenario_count": 4
+    },
+    "candidate": {
+      "normalized_file": ".replay-runs/phase5-mixed-stress-1771139181719/candidate.norm.json",
+      "raw_file": ".replay-runs/phase5-mixed-stress-1771139181719/candidate.raw.jsonl",
+      "scenario_count": 4
+    }
+  },
+  "baseline_artifact_file": ".replay-runs/phase5-mixed-stress-1771139181719/baseline.norm.json",
+  "baseline_normalized_artifact_file": ".replay-runs/phase5-mixed-stress-1771139181719/baseline.norm.json",
+  "baseline_raw_artifact_file": ".replay-runs/phase5-mixed-stress-1771139181719/baseline.raw.jsonl",
+  "candidate_artifact_file": ".replay-runs/phase5-mixed-stress-1771139181719/candidate.norm.json",
+  "candidate_normalized_artifact_file": ".replay-runs/phase5-mixed-stress-1771139181719/candidate.norm.json",
+  "candidate_raw_artifact_file": ".replay-runs/phase5-mixed-stress-1771139181719/candidate.raw.jsonl",
+  "created_at": "2026-02-15T07:06:21.730Z",
+  "determinism_env": {
+    "locale": "en_US.UTF-8",
+    "node_version": "v22.14.0",
+    "tz": "UTC"
+  },
+  "output_dir": ".replay-runs/phase5-mixed-stress-1771139181719",
+  "run_id": "phase5-mixed-stress-1771139181719",
+  "scenario_count": 4
+}

@@ -24,6 +24,22 @@ interface IdentityJson {
     project_mcps?: unknown[];
 }
 
+interface RegistryWorkspaceEntry {
+    workspace_id?: string;
+    workspaceId?: string;
+    id?: string;
+    path?: string;
+    workspace_path?: string;
+    workspacePath?: string;
+    legacy_workspace_ids?: unknown;
+    legacyWorkspaceIds?: unknown;
+}
+
+interface WorkspaceRegistryJson {
+    entries?: Record<string, string | RegistryWorkspaceEntry>;
+    workspaces?: RegistryWorkspaceEntry[];
+}
+
 // Module-level cache: rootPath -> resolved identity (or null)
 const identityCache = new Map<string, WorkspaceIdentity | null>();
 
@@ -52,13 +68,139 @@ function tryReadIdentity(dir: string): WorkspaceIdentity | null {
         }
 
         return {
-            workspaceId: parsed.workspace_id,
+            workspaceId: canonicalizeWorkspaceId(parsed),
             workspaceName: path.basename(parsed.workspace_path),
             projectPath: parsed.workspace_path,
         };
     } catch {
         // Corrupt or unreadable file
         return null;
+    }
+}
+
+function collectCanonicalAndLegacy(
+    entry: RegistryWorkspaceEntry,
+    registeredIds: Set<string>,
+    legacyToCanonical: Map<string, string>
+): void {
+    const canonicalId = entry.workspace_id ?? entry.workspaceId ?? entry.id;
+    if (!canonicalId || typeof canonicalId !== 'string') {
+        return;
+    }
+
+    registeredIds.add(canonicalId);
+
+    const legacyIds = entry.legacy_workspace_ids ?? entry.legacyWorkspaceIds;
+    if (!Array.isArray(legacyIds)) {
+        return;
+    }
+
+    for (const legacyId of legacyIds) {
+        if (typeof legacyId === 'string') {
+            legacyToCanonical.set(legacyId, canonicalId);
+        }
+    }
+}
+
+function normalizePathForMatch(inputPath: string): string {
+    const normalized = path.normalize(inputPath).replace(/[\\/]+/g, '\\').toLowerCase();
+    return normalized.endsWith('\\') ? normalized.slice(0, -1) : normalized;
+}
+
+function getEntryPath(entry: RegistryWorkspaceEntry): string | undefined {
+    const candidate = entry.path ?? entry.workspace_path ?? entry.workspacePath;
+    return typeof candidate === 'string' && candidate.trim().length > 0 ? candidate : undefined;
+}
+
+function isParentOrChildPath(a: string, b: string): boolean {
+    if (!a || !b) return false;
+    const withSepA = a.endsWith('\\') ? a : `${a}\\`;
+    const withSepB = b.endsWith('\\') ? b : `${b}\\`;
+    return withSepA.startsWith(withSepB) || withSepB.startsWith(withSepA);
+}
+
+function canonicalizeWorkspaceId(parsed: IdentityJson): string {
+    if (!parsed.workspace_id || !parsed.data_root) {
+        return parsed.workspace_id;
+    }
+
+    const registryPath = path.join(parsed.data_root, 'workspace-registry.json');
+
+    try {
+        if (!fs.existsSync(registryPath)) {
+            return parsed.workspace_id;
+        }
+
+        const registryRaw = fs.readFileSync(registryPath, 'utf-8');
+        const registry: WorkspaceRegistryJson = JSON.parse(registryRaw);
+
+        const registeredIds = new Set<string>();
+        const legacyToCanonical = new Map<string, string>();
+        const registryPathToCanonical = new Map<string, string>();
+
+        const entries = registry.entries ?? {};
+        for (const [entryPath, value] of Object.entries(entries)) {
+            if (typeof value === 'string') {
+                registeredIds.add(value);
+                if (entryPath) {
+                    registryPathToCanonical.set(normalizePathForMatch(entryPath), value);
+                }
+                continue;
+            }
+            collectCanonicalAndLegacy(value, registeredIds, legacyToCanonical);
+            const candidatePath = getEntryPath(value);
+            if (candidatePath) {
+                registryPathToCanonical.set(normalizePathForMatch(candidatePath), value.workspace_id ?? value.workspaceId ?? value.id ?? '');
+            }
+        }
+
+        const workspaces = registry.workspaces ?? [];
+        for (const workspace of workspaces) {
+            collectCanonicalAndLegacy(workspace, registeredIds, legacyToCanonical);
+            const candidatePath = getEntryPath(workspace);
+            const candidateId = workspace.workspace_id ?? workspace.workspaceId ?? workspace.id;
+            if (candidatePath && typeof candidateId === 'string') {
+                registryPathToCanonical.set(normalizePathForMatch(candidatePath), candidateId);
+            }
+        }
+
+        if (registeredIds.has(parsed.workspace_id)) {
+            return parsed.workspace_id;
+        }
+
+        const byLegacy = legacyToCanonical.get(parsed.workspace_id);
+        if (byLegacy) {
+            return byLegacy;
+        }
+
+        if (parsed.workspace_path) {
+            const desired = normalizePathForMatch(parsed.workspace_path);
+            let bestScore = -1;
+            let bestId: string | undefined;
+
+            for (const [candidatePath, candidateId] of registryPathToCanonical.entries()) {
+                if (!candidateId) continue;
+
+                if (candidatePath === desired && bestScore < 3) {
+                    bestScore = 3;
+                    bestId = candidateId;
+                    continue;
+                }
+
+                if (isParentOrChildPath(candidatePath, desired) && bestScore < 2) {
+                    bestScore = 2;
+                    bestId = candidateId;
+                }
+            }
+
+            if (bestId) {
+                return bestId;
+            }
+        }
+
+        return parsed.workspace_id;
+    } catch {
+        return parsed.workspace_id;
     }
 }
 

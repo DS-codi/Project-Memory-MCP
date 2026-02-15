@@ -37,6 +37,14 @@ interface PlanState {
   steps: { status: string }[];
   is_program?: boolean;
   program_id?: string;
+  child_plan_ids?: string[];
+  depends_on_plans?: string[];
+  linked_plan_ids?: string[];
+  relationships?: {
+    parent_program_id?: string;
+    child_plan_ids?: string[];
+    linked_plan_ids?: string[];
+  };
 }
 
 interface WorkspaceSummary {
@@ -65,6 +73,18 @@ interface PlanSummary {
   updated_at: string;
   is_program?: boolean;
   program_id?: string;
+  child_plan_ids?: string[];
+  depends_on_plans?: string[];
+  linked_plan_ids?: string[];
+}
+
+function toStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const filtered = value.filter((entry): entry is string => typeof entry === 'string');
+  return filtered.length > 0 ? filtered : undefined;
 }
 
 // Calculate workspace health based on plan activity
@@ -230,6 +250,17 @@ export async function getWorkspacePlans(dataRoot: string, workspaceId: string): 
           updated_at: state.updated_at,
           is_program: state.is_program || false,
           program_id: state.program_id || undefined,
+          child_plan_ids:
+            toStringArray(state.child_plan_ids)
+            ?? toStringArray(state.relationships?.child_plan_ids),
+          depends_on_plans:
+            toStringArray(state.depends_on_plans)
+            ?? toStringArray(state.linked_plan_ids)
+            ?? toStringArray(state.relationships?.linked_plan_ids),
+          linked_plan_ids:
+            toStringArray(state.linked_plan_ids)
+            ?? toStringArray(state.depends_on_plans)
+            ?? toStringArray(state.relationships?.linked_plan_ids),
         });
       } catch {
         // Skip invalid plan directories

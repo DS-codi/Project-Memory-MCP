@@ -24,16 +24,8 @@ suite('ChatParticipant Test Suite', () => {
         const mockConfig = { serverMode: 'bundled' as const };
         const bridge = new McpBridge(mockConfig);
         
-        // ChatParticipant requires bridge - just verify it can be constructed
-        // Note: In actual VS Code environment, vscode.chat.createChatParticipant would be called
-        try {
-            // This will fail in test environment without VS Code API
-            // but we're mainly checking the module structure
-            new ChatParticipant(bridge);
-        } catch {
-            // Expected in test environment without VS Code
-        }
-        
+        const participant = new ChatParticipant(bridge, { registerWithVscode: false });
+        participant.dispose();
         bridge.dispose();
     });
 });

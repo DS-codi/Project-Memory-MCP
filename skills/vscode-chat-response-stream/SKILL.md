@@ -1,16 +1,6 @@
 ---
 name: vscode-chat-response-stream
 description: "Use this skill when building VS Code chat participant responses using ChatResponseStream. Covers markdown, command buttons, command links, file trees, progress messages, references/anchors, the generic push() method, and ChatFollowupProvider for suggested follow-ups."
-category: vscode-extension
-tags:
-  - vscode
-  - chat-participant
-  - chatresponsestream
-  - extension-development
-language_targets:
-  - typescript
-framework_targets:
-  - vscode
 ---
 
 # VS Code ChatResponseStream API

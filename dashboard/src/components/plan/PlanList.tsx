@@ -4,6 +4,7 @@ import { PlanCard } from './PlanCard';
 import { Badge } from '../common/Badge';
 import { cn } from '@/utils/cn';
 import { planStatusColors, categoryColors, priorityColors } from '@/utils/colors';
+import { partitionPlanSummaries } from '@/hooks/usePlans';
 import type { PlanSummary, PlanStatus, RequestCategory, PlanPriority } from '@/types';
 
 interface PlanListProps {
@@ -29,6 +30,7 @@ export function PlanList({ plans, workspaceId, isLoading }: PlanListProps) {
     if (priorityFilter.length > 0 && !priorityFilter.includes(plan.priority)) return false;
     return true;
   });
+  const { activePlans, archivedPlans } = partitionPlanSummaries(filteredPlans);
 
   const toggleFilter = <T extends string>(
     value: T,
@@ -173,9 +175,41 @@ export function PlanList({ plans, workspaceId, isLoading }: PlanListProps) {
         </div>
       ) : (
         <div className="space-y-4">
-          {filteredPlans.map((plan) => (
-            <PlanCard key={plan.id} plan={plan} workspaceId={workspaceId} />
-          ))}
+          <section aria-label="Active Plans" className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wide">Active Plans</h3>
+              <span className="text-xs text-slate-500">{activePlans.length}</span>
+            </div>
+            {activePlans.length === 0 ? (
+              <div className="text-sm text-slate-500 bg-slate-800/50 border border-slate-700 rounded-lg p-3">
+                No active plans
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {activePlans.map((plan) => (
+                  <PlanCard key={plan.id} plan={plan} workspaceId={workspaceId} />
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section aria-label="Archived Plans" className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wide">Archived Plans</h3>
+              <span className="text-xs text-slate-500">{archivedPlans.length}</span>
+            </div>
+            {archivedPlans.length === 0 ? (
+              <div className="text-sm text-slate-500 bg-slate-800/50 border border-slate-700 rounded-lg p-3">
+                No archived plans
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {archivedPlans.map((plan) => (
+                  <PlanCard key={plan.id} plan={plan} workspaceId={workspaceId} />
+                ))}
+              </div>
+            )}
+          </section>
         </div>
       )}
     </div>

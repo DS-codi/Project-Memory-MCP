@@ -1,0 +1,25 @@
+{
+  "generated_at": "2026-02-15T07:05:07.679Z",
+  "passed": true,
+  "profile_name": "default-replay-profile",
+  "scenarios": [
+    {
+      "checks_executed": [
+        "auth-outcome",
+        "flow",
+        "signature"
+      ],
+      "drifts": [],
+      "passed": true,
+      "scenario_id": "AUTH_POLICY_MATRIX_P0"
+    }
+  ],
+  "summary": {
+    "failed_scenarios": 0,
+    "high_severity_drifts": 0,
+    "low_severity_drifts": 0,
+    "medium_severity_drifts": 0,
+    "passed_scenarios": 1,
+    "total_scenarios": 1
+  }
+}

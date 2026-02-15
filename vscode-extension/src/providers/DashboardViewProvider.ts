@@ -27,6 +27,13 @@ export interface Message {
     data?: unknown;
 }
 
+interface WorkspaceResolution {
+    workspaceId: string;
+    workspaceName: string;
+    workspacePath: string;
+    source: 'identity' | 'fallback';
+}
+
 export class DashboardViewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'projectMemory.dashboardView';
 
@@ -64,6 +71,11 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
 
     // Compute workspace ID - checks identity.json first, falls back to hash
     private getWorkspaceId(): string | null {
+        const resolution = this.resolveWorkspaceContext();
+        return resolution?.workspaceId ?? null;
+    }
+
+    private resolveWorkspaceContext(): WorkspaceResolution | null {
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
         if (!workspaceFolder) return null;
 
@@ -72,23 +84,27 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
         const identity = resolveWorkspaceIdentity(fsPath);
         if (identity) {
             console.log('[PM Debug] Found identity:', identity.workspaceId, 'from', identity.projectPath);
-            return identity.workspaceId;
+            return {
+                workspaceId: identity.workspaceId,
+                workspaceName: identity.workspaceName,
+                workspacePath: identity.projectPath,
+                source: 'identity'
+            };
         }
         const fallbackId = computeFallbackWorkspaceId(fsPath);
         console.log('[PM Debug] Using fallback ID:', fallbackId);
-        return fallbackId;
+        return {
+            workspaceId: fallbackId,
+            workspaceName: workspaceFolder.name,
+            workspacePath: fsPath,
+            source: 'fallback'
+        };
     }
 
     // Get workspace display name - checks identity.json first
     private getWorkspaceName(): string {
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-        if (!workspaceFolder) return 'No workspace';
-
-        const identity = resolveWorkspaceIdentity(workspaceFolder.uri.fsPath);
-        if (identity) {
-            return identity.workspaceName;
-        }
-        return workspaceFolder.name;
+        const resolution = this.resolveWorkspaceContext();
+        return resolution?.workspaceName ?? 'No workspace';
     }
 
     public resolveWebviewView(
@@ -106,6 +122,15 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
         this.dispose();
         
         this._view = webviewView;
+
+        const workspaceResolution = this.resolveWorkspaceContext();
+        if (workspaceResolution) {
+            const startupMessage = `[Project Memory] Resolved workspace at panel startup: ${workspaceResolution.workspaceId} | ${workspaceResolution.workspacePath} | source=${workspaceResolution.source}`;
+            console.log(startupMessage);
+            notify(startupMessage);
+        } else {
+            console.log('[Project Memory] No workspace folder is available at panel startup.');
+        }
 
         webviewView.webview.options = {
             enableScripts: true,
@@ -135,10 +160,10 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                         break;
 
                     case 'runCommand':
-                        const { command } = message.data as { command: string };
+                        const { command, args } = message.data as { command: string; args?: unknown[] };
                         console.log('Executing command:', command);
                         try {
-                            await vscode.commands.executeCommand(command);
+                            await vscode.commands.executeCommand(command, ...(Array.isArray(args) ? args : []));
                             console.log('Command executed successfully');
                     } catch (err) {
                         console.error('Command execution failed:', err);
@@ -375,13 +400,14 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
     private _getHtmlForWebview(webview: vscode.Webview): string {
         const config = vscode.workspace.getConfiguration('projectMemory');
         const apiPort = config.get<number>('serverPort') || config.get<number>('apiPort') || 3001;
+        const workspaceResolution = this.resolveWorkspaceContext();
 
         return getWebviewHtml({
             cspSource: webview.cspSource,
             apiPort,
             dashboardUrl: getDashboardFrontendUrl(),
-            workspaceId: this.getWorkspaceId() || '',
-            workspaceName: this.getWorkspaceName(),
+            workspaceId: workspaceResolution?.workspaceId || '',
+            workspaceName: workspaceResolution?.workspaceName || 'No workspace',
             dataRoot: JSON.stringify(this._dataRoot),
         });
     }

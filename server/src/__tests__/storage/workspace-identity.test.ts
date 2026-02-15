@@ -442,6 +442,113 @@ describe('mergeWorkspace', () => {
     expect(result.notes.some(n => n.includes('WARNING') && n.includes('still reference'))).toBe(true);
     expect(result.source_deleted).toBe(false);
   });
+
+  it('merges workspace context with canonical-first conflict strategy and source-only sections', async () => {
+    await createFakeWorkspace('target-aabbccddeeff');
+    const ghostDir = path.join(TEST_DATA_ROOT, 'ctx-source');
+    await fs.mkdir(ghostDir, { recursive: true });
+
+    const targetContextPath = path.join(TEST_DATA_ROOT, 'target-aabbccddeeff', 'workspace.context.json');
+    await fs.writeFile(
+      targetContextPath,
+      JSON.stringify({
+        schema_version: '1.0.0',
+        workspace_id: 'target-aabbccddeeff',
+        workspace_path: TEST_WORKSPACE_PATH,
+        name: 'Test',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        sections: {
+          project_details: {
+            summary: 'Canonical summary',
+            items: [{ title: 'Core', description: 'canonical item' }],
+          },
+        },
+      }),
+      'utf-8'
+    );
+
+    await fs.writeFile(
+      path.join(ghostDir, 'workspace.context.json'),
+      JSON.stringify({
+        schema_version: '1.0.0',
+        workspace_id: 'ctx-source',
+        workspace_path: '/source/path',
+        name: 'Source',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        sections: {
+          project_details: {
+            summary: 'Source summary should not override',
+            items: [
+              { title: 'core', description: 'duplicate by title (case-insensitive)' },
+              { title: 'Extra', description: 'source-only item' },
+            ],
+          },
+          research_artifacts: {
+            summary: 'Source-only section',
+          },
+        },
+      }),
+      'utf-8'
+    );
+
+    const result = await mod.mergeWorkspace('ctx-source', 'target-aabbccddeeff', false);
+    expect(result.source_deleted).toBe(true);
+
+    const mergedContext = JSON.parse(await fs.readFile(targetContextPath, 'utf-8'));
+    expect(mergedContext.sections.project_details.summary).toBe('Canonical summary');
+    expect(mergedContext.sections.project_details.items.map((item: { title: string }) => item.title)).toEqual([
+      'Core',
+      'Extra',
+    ]);
+    expect(mergedContext.sections.research_artifacts.summary).toBe('Source-only section');
+  });
+
+  it('repopulates minimal context sections from plan/research artifacts when merged sections are empty', async () => {
+    await createFakeWorkspace('target-aabbccddeeff');
+
+    const planDir = path.join(TEST_DATA_ROOT, 'target-aabbccddeeff', 'plans', 'plan_recovery_1');
+    await fs.mkdir(path.join(planDir, 'research_notes'), { recursive: true });
+    await fs.writeFile(
+      path.join(planDir, 'state.json'),
+      JSON.stringify({
+        workspace_id: 'target-aabbccddeeff',
+        title: 'Recovered Plan',
+        status: 'active',
+      }),
+      'utf-8'
+    );
+    await fs.writeFile(path.join(planDir, 'research.json'), JSON.stringify({ notes: 'x' }), 'utf-8');
+    await fs.writeFile(path.join(planDir, 'architecture.json'), JSON.stringify({ notes: 'x' }), 'utf-8');
+    await fs.writeFile(path.join(planDir, 'research_notes', 'note.md'), '# note', 'utf-8');
+
+    const ghostDir = path.join(TEST_DATA_ROOT, 'empty-context-source');
+    await fs.mkdir(ghostDir, { recursive: true });
+    await fs.writeFile(
+      path.join(ghostDir, 'workspace.context.json'),
+      JSON.stringify({
+        schema_version: '1.0.0',
+        workspace_id: 'empty-context-source',
+        workspace_path: '/source/path',
+        name: 'Source',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        sections: {},
+      }),
+      'utf-8'
+    );
+
+    const result = await mod.mergeWorkspace('empty-context-source', 'target-aabbccddeeff', false);
+    expect(result.source_deleted).toBe(true);
+    expect(result.notes.some((note: string) => note.includes('Repopulated'))).toBe(true);
+
+    const mergedContext = JSON.parse(
+      await fs.readFile(path.join(TEST_DATA_ROOT, 'target-aabbccddeeff', 'workspace.context.json'), 'utf-8')
+    );
+    expect(Object.keys(mergedContext.sections).length).toBeGreaterThan(0);
+    expect(mergedContext.sections.project_details?.summary || '').toContain('Recovered context');
+  });
 });
 
 // ===========================================================================
@@ -662,5 +769,52 @@ describe('readWorkspaceIdentityFile cross-machine acceptance', () => {
 
     const result = await mod.readWorkspaceIdentityFile(TEST_WORKSPACE_PATH);
     expect(result).toBeNull();
+  });
+});
+
+describe('migrateWorkspace context merge behavior', () => {
+  it('merges ghost workspace context sections into canonical context before deleting source folder', async () => {
+    const canonicalId = 'test-workspace-aabbccddeeff';
+    await createIdentityFile(TEST_WORKSPACE_PATH, canonicalId);
+    await createFakeWorkspace(canonicalId, {
+      workspace_path: TEST_WORKSPACE_PATH,
+      path: TEST_WORKSPACE_PATH,
+      legacy_workspace_ids: [],
+    });
+
+    const ghostFolderName = path.basename(TEST_WORKSPACE_PATH);
+    const ghostPath = path.join(TEST_DATA_ROOT, ghostFolderName);
+    await fs.mkdir(path.join(ghostPath, 'plans', 'plan_ghost_1'), { recursive: true });
+    await fs.writeFile(
+      path.join(ghostPath, 'plans', 'plan_ghost_1', 'state.json'),
+      JSON.stringify({ workspace_id: ghostFolderName, title: 'Ghost Plan', status: 'active' }),
+      'utf-8'
+    );
+    await fs.writeFile(
+      path.join(ghostPath, 'workspace.context.json'),
+      JSON.stringify({
+        schema_version: '1.0.0',
+        workspace_id: ghostFolderName,
+        workspace_path: '/old/path',
+        name: 'Ghost',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        sections: {
+          research_artifacts: {
+            summary: 'Ghost section',
+          },
+        },
+      }),
+      'utf-8'
+    );
+
+    const migration = await mod.migrateWorkspace(TEST_WORKSPACE_PATH);
+    expect(migration.workspace_id).toBe(canonicalId);
+    expect(migration.folders_deleted).toContain(ghostFolderName);
+
+    const canonicalContext = JSON.parse(
+      await fs.readFile(path.join(TEST_DATA_ROOT, canonicalId, 'workspace.context.json'), 'utf-8')
+    );
+    expect(canonicalContext.sections.research_artifacts.summary).toBe('Ghost section');
   });
 });

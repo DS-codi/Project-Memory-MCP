@@ -1,0 +1,33 @@
+{
+  "flake_controls": {
+    "retry_once_enabled": false,
+    "retry_performed": false
+  },
+  "gate": {
+    "annotations": [],
+    "classification": "clean",
+    "generated_at": "2026-02-15T05:13:02.887Z",
+    "mode": "info",
+    "passed": true,
+    "reason": "Info gate passed with no replay drift annotations.",
+    "retried": false,
+    "status": "PASS",
+    "summary": {
+      "failed_scenarios": 0,
+      "high_severity_drifts": 0,
+      "low_severity_drifts": 0,
+      "medium_severity_drifts": 0,
+      "passed_scenarios": 1,
+      "total_scenarios": 1
+    },
+    "triage_labels": [
+      "replay",
+      "clean",
+      "gate:info"
+    ]
+  },
+  "report": {
+    "comparison_json": "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\vscode-extension\\.replay-runs\\smoke-v1-1771132382860\\comparison.json",
+    "report_markdown": "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\vscode-extension\\.replay-runs\\smoke-v1-1771132382860\\report.md"
+  }
+}

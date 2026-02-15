@@ -91,7 +91,7 @@ export async function updatePlanSteps(
 // ======================================================================
 
 /**
- * Handle `memory_workspace` actions (register, list, info, reindex).
+ * Handle `memory_workspace` actions (register, list, info, reindex, set_display_name).
  */
 export async function handleMemoryWorkspace(
     client: McpHttpClient,
@@ -113,6 +113,20 @@ export async function handleMemoryWorkspace(
 
         case 'reindex':
             throw new Error('Workspace reindex is not available via the HTTP bridge.');
+
+        case 'set_display_name': {
+            const workspaceId = args.workspace_id as string | undefined;
+            const displayName = (args.display_name as string | undefined) ?? (args.displayName as string | undefined);
+            if (!workspaceId) {
+                throw new Error('workspace_id is required');
+            }
+            if (!displayName || !displayName.trim()) {
+                throw new Error('display_name is required');
+            }
+            return client.httpPost(`/api/workspaces/${workspaceId}/display-name`, {
+                display_name: displayName
+            });
+        }
 
         default:
             throw new Error(`Unknown memory_workspace action: ${action}`);

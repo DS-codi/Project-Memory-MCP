@@ -73,6 +73,21 @@ export function getWorkspaceIdFromPath(workspacePath: string): string {
 }
 
 export function getWorkspaceDisplayName(workspacePath: string): string {
-  const resolved = safeResolvePath(workspacePath);
-  return path.basename(resolved);
+  const trimmedInput = workspacePath.trim().replace(/[\\/]+$/, '');
+
+  // Handle Windows-style paths explicitly so Linux/macOS hosts don't treat them
+  // as plain strings and accidentally return the full input as the display name.
+  const isWindowsStyle = /^[a-zA-Z]:[\\/]/.test(trimmedInput) || trimmedInput.includes('\\');
+  if (isWindowsStyle) {
+    const segments = trimmedInput.split(/[\\/]+/).filter(Boolean);
+    const candidate = segments[segments.length - 1];
+    if (candidate && !/^[a-zA-Z]:$/.test(candidate)) {
+      return candidate;
+    }
+  }
+
+  const resolved = safeResolvePath(trimmedInput);
+  const trimmedResolved = resolved.replace(/[\\/]+$/, '');
+  const posixBasename = path.posix.basename(trimmedResolved);
+  return posixBasename || trimmedResolved;
 }

@@ -1,0 +1,71 @@
+{
+  "generated_at": "2026-02-15T07:04:32.435Z",
+  "passed": true,
+  "profile_name": "default-replay-profile",
+  "scenarios": [
+    {
+      "checks_executed": [
+        "auth-outcome",
+        "flow",
+        "signature"
+      ],
+      "drifts": [],
+      "passed": true,
+      "scenario_id": "AUTH_POLICY_MATRIX_P0"
+    },
+    {
+      "checks_executed": [
+        "tool-order",
+        "flow",
+        "signature"
+      ],
+      "drifts": [],
+      "passed": true,
+      "scenario_id": "PROTOCOL_ORDERING_P0"
+    },
+    {
+      "checks_executed": [
+        "tool-order",
+        "signature"
+      ],
+      "drifts": [],
+      "passed": true,
+      "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1"
+    },
+    {
+      "checks_executed": [
+        "tool-order",
+        "signature"
+      ],
+      "drifts": [],
+      "passed": true,
+      "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1"
+    },
+    {
+      "checks_executed": [
+        "tool-order",
+        "signature"
+      ],
+      "drifts": [],
+      "passed": true,
+      "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2"
+    },
+    {
+      "checks_executed": [
+        "flow",
+        "signature"
+      ],
+      "drifts": [],
+      "passed": true,
+      "scenario_id": "RETRY_CLASSIFICATION_CONSISTENCY_P2"
+    }
+  ],
+  "summary": {
+    "failed_scenarios": 0,
+    "high_severity_drifts": 0,
+    "low_severity_drifts": 0,
+    "medium_severity_drifts": 0,
+    "passed_scenarios": 6,
+    "total_scenarios": 6
+  }
+}

@@ -195,9 +195,9 @@ server.tool(
 
 server.tool(
   'memory_plan',
-  'Consolidated plan lifecycle management. Actions: list (list plans), get (get plan state), create (create new plan), update (modify plan steps), archive (archive completed plan), import (import existing plan file), find (find plan by ID), add_note (add note to plan), delete (delete plan), consolidate (consolidate steps), set_goals (set goals and success criteria), add_build_script (add build script), list_build_scripts (list build scripts), run_build_script (resolve build script for terminal execution), delete_build_script (delete build script), create_from_template (create plan from template), list_templates (list available templates).',
+  'Consolidated plan lifecycle management. Actions: list (list plans), get (get plan state), create (create new plan), update (modify plan steps), archive (archive completed plan), import (import existing plan file), find (find plan by ID), add_note (add note to plan), delete (delete plan), consolidate (consolidate steps), set_goals (set goals and success criteria), add_build_script (add build script), list_build_scripts (list build scripts), run_build_script (resolve build script for terminal execution), delete_build_script (delete build script), create_from_template (create plan from template), list_templates (list available templates), link_to_program (link plan to program), unlink_from_program (unlink plan from program), set_plan_dependencies (set plan dependencies), get_plan_dependencies (get plan dependencies and dependents), set_plan_priority (update plan priority), clone_plan (deep copy a plan), merge_plans (merge steps from multiple plans).',
   {
-    action: z.enum(['list', 'get', 'create', 'update', 'archive', 'import', 'find', 'add_note', 'delete', 'consolidate', 'set_goals', 'add_build_script', 'list_build_scripts', 'run_build_script', 'delete_build_script', 'create_from_template', 'list_templates', 'confirm', 'create_program', 'add_plan_to_program', 'upgrade_to_program', 'list_program_plans', 'export_plan']).describe('The action to perform'),
+    action: z.enum(['list', 'get', 'create', 'update', 'archive', 'import', 'find', 'add_note', 'delete', 'consolidate', 'set_goals', 'add_build_script', 'list_build_scripts', 'run_build_script', 'delete_build_script', 'create_from_template', 'list_templates', 'confirm', 'create_program', 'add_plan_to_program', 'upgrade_to_program', 'list_program_plans', 'export_plan', 'link_to_program', 'unlink_from_program', 'set_plan_dependencies', 'get_plan_dependencies', 'set_plan_priority', 'clone_plan', 'merge_plans']).describe('The action to perform'),
     workspace_id: z.string().optional().describe('Workspace ID'),
     workspace_path: z.string().optional().describe('Workspace path (alternative to workspace_id for list)'),
     plan_id: z.string().optional().describe('Plan ID'),
@@ -239,7 +239,14 @@ server.tool(
     confirmation_scope: z.enum(['phase', 'step']).optional().describe('Confirmation scope (for confirm action)'),
     confirm_phase: z.string().optional().describe('Phase to confirm (for confirm action)'),
     confirm_step_index: z.number().optional().describe('0-based step index to confirm (for confirm action)'),
-    confirmed_by: z.string().optional().describe('Who confirmed the phase/step')
+    confirmed_by: z.string().optional().describe('Who confirmed the phase/step'),
+    depends_on_plans: z.array(z.string()).optional().describe('Array of plan IDs this plan depends on (for set_plan_dependencies)'),
+    new_title: z.string().optional().describe('New title for cloned plan (for clone_plan)'),
+    reset_steps: z.boolean().optional().describe('Reset all step statuses to pending (for clone_plan, default true)'),
+    link_to_same_program: z.boolean().optional().describe('Link cloned plan to same program as source (for clone_plan)'),
+    target_plan_id: z.string().optional().describe('Target plan ID to merge steps into (for merge_plans)'),
+    source_plan_ids: z.array(z.string()).optional().describe('Source plan IDs to merge from (for merge_plans)'),
+    archive_sources: z.boolean().optional().describe('Archive source plans after merge (for merge_plans)')
   },
   async (params) => {
     const result = await withLogging('memory_plan', params, () =>
@@ -449,15 +456,46 @@ server.tool(
 
 server.tool(
   'memory_terminal_interactive',
-  'Interactive terminal with relaxed safety. Destructive commands blocked, all others allowed (warnings for non-allowlisted). Actions: run, read_output, kill, list.',
+  'Interactive terminal under canonical contract with legacy aliases. Canonical actions: execute, read_output, terminate, list. Legacy aliases accepted: run, kill, send, close, create.',
   {
-    action: z.enum(['run', 'read_output', 'kill', 'list']).describe('The action to perform'),
-    command: z.string().optional().describe('Command to execute (for run)'),
-    args: z.array(z.string()).optional().describe('Command arguments (for run)'),
-    cwd: z.string().optional().describe('Working directory (for run)'),
-    timeout: z.number().optional().describe('Timeout in ms (for run). Default 30000'),
-    workspace_id: z.string().optional().describe('Workspace ID for allowlist lookups (for run)'),
-    session_id: z.string().optional().describe('Session ID (for read_output, kill)'),
+    action: z.enum(['execute', 'read_output', 'terminate', 'list', 'run', 'kill', 'send', 'close', 'create']).describe('Canonical actions: execute/read_output/terminate/list. Legacy aliases: run/kill/send/close/create.'),
+    command: z.string().optional().describe('Legacy/top-level command input (canonical prefers execution.command)'),
+    args: z.array(z.string()).optional().describe('Legacy/top-level args input (canonical prefers execution.args)'),
+    cwd: z.string().optional().describe('Legacy/top-level cwd input (canonical prefers runtime.cwd)'),
+    timeout: z.number().optional().describe('Legacy timeout in ms (canonical prefers runtime.timeout_ms)'),
+    timeout_ms: z.number().optional().describe('Canonical timeout in ms'),
+    workspace_id: z.string().optional().describe('Legacy workspace id (canonical prefers runtime.workspace_id)'),
+    env: z.record(z.string()).optional().describe('Execution environment map'),
+    invocation: z.object({
+      mode: z.enum(['interactive', 'headless']).optional(),
+      intent: z.enum(['open_only', 'execute_command']).optional(),
+    }).optional().describe('Canonical invocation envelope'),
+    correlation: z.object({
+      request_id: z.string().optional(),
+      trace_id: z.string().optional(),
+      client_request_id: z.string().optional(),
+    }).optional().describe('Canonical correlation ids'),
+    runtime: z.object({
+      workspace_id: z.string().optional(),
+      cwd: z.string().optional(),
+      timeout_ms: z.number().optional(),
+      adapter_override: z.enum(['local', 'bundled', 'container_bridge', 'auto']).optional(),
+    }).optional().describe('Canonical runtime envelope'),
+    execution: z.object({
+      command: z.string().optional(),
+      args: z.array(z.string()).optional(),
+      env: z.record(z.string()).optional(),
+    }).optional().describe('Canonical execution envelope'),
+    target: z.object({
+      session_id: z.string().optional(),
+      terminal_id: z.string().optional(),
+    }).optional().describe('Canonical target identity envelope'),
+    compat: z.object({
+      legacy_action: z.enum(['run', 'kill', 'send', 'close', 'create', 'list']).optional(),
+      caller_surface: z.enum(['server', 'extension', 'dashboard', 'chat_button']).optional(),
+    }).optional().describe('Canonical compatibility metadata'),
+    session_id: z.string().optional().describe('Legacy short target session id'),
+    terminal_id: z.string().optional().describe('Legacy short target terminal id'),
   },
   async (params) => {
     const result = await withLogging('memory_terminal_interactive', params, () =>
@@ -475,18 +513,23 @@ server.tool(
 
 server.tool(
   'memory_filesystem',
-  'Workspace-scoped filesystem operations with safety boundaries. Actions: read (read file content), write (write/create a file), search (find files by glob/regex), list (directory listing), tree (recursive directory tree).',
+  'Workspace-scoped filesystem operations with safety boundaries. Actions: read (read file content), write (write/create a file), search (find files by glob/regex), list (directory listing), tree (recursive directory tree), delete (delete file/empty directory; requires confirm), move (move/rename path), copy (copy file), append (append to existing file), exists (check existence and type).',
   {
-    action: z.enum(['read', 'write', 'search', 'list', 'tree']).describe('The action to perform'),
+    action: z.enum(['read', 'write', 'search', 'list', 'tree', 'delete', 'move', 'copy', 'append', 'exists']).describe('The action to perform'),
     workspace_id: z.string().describe('Workspace ID — all paths are resolved relative to the workspace root'),
     path: z.string().optional().describe('File or directory path relative to workspace root'),
-    content: z.string().optional().describe('File content (for write)'),
+    content: z.string().optional().describe('File content (for write/append)'),
     create_dirs: z.boolean().optional().describe('Auto-create parent directories (for write). Default true'),
     pattern: z.string().optional().describe('Glob pattern (for search)'),
     regex: z.string().optional().describe('Regex pattern (for search, alternative to glob)'),
     include: z.string().optional().describe('File include filter, e.g. "*.ts" (for search)'),
     recursive: z.boolean().optional().describe('Recurse into subdirectories (for list)'),
-    max_depth: z.number().optional().describe('Maximum tree depth (for tree). Default 3, max 10')
+    max_depth: z.number().optional().describe('Maximum tree depth (for tree). Default 3, max 10'),
+    confirm: z.boolean().optional().describe('Explicit confirmation for destructive operations (required for delete)'),
+    dry_run: z.boolean().optional().describe('Preview destructive operation without side effects (delete/move)'),
+    source: z.string().optional().describe('Source path for move/copy actions'),
+    destination: z.string().optional().describe('Destination path for move/copy actions'),
+    overwrite: z.boolean().optional().describe('Overwrite destination when it exists (move/copy). Default false')
   },
   async (params) => {
     const result = await withLogging('memory_filesystem', params, () =>

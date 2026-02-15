@@ -1,0 +1,523 @@
+{
+  "schema_version": "1.0",
+  "scenarios": [
+    {
+      "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+      "title": "Executor implements scoped replay harness files",
+      "intent": "Validate scoped file edits, step state transitions, and coordinator-centric handoff flow.",
+      "driver": "copilot-sdk",
+      "workspace": {
+        "workspace_path": "./Project-Memory-MCP",
+        "workspace_id": "project_memory_mcp-50e04147a402"
+      },
+      "runtime": {
+        "mode": "headless",
+        "terminal_surface": "memory_terminal"
+      },
+      "tag_metadata": {
+        "domain": "phase3-executor",
+        "surface": "memory-terminal",
+        "risk": "p1",
+        "priority": "high"
+      },
+      "tags": ["domain:phase3-executor", "surface:memory-terminal", "risk:p1", "priority:high"],
+      "stabilization": {
+        "fixture_seed": 3101,
+        "frozen_clock_delta_ms": 25,
+        "wait_budget_ms": 150,
+        "resolver_fixture_tree": "fixtures/replay/phase3"
+      },
+      "acceptance_thresholds": {
+        "max_total_drifts": 0,
+        "max_high_severity_drifts": 0,
+        "max_medium_severity_drifts": 0,
+        "max_low_severity_drifts": 0
+      },
+      "determinism": "strict",
+      "normalization": {
+        "mask_ids": true,
+        "canonicalize_timestamps": true,
+        "canonicalize_paths": true,
+        "strip_nondeterministic_text": true
+      },
+      "steps": [
+        {
+          "kind": "user",
+          "id": "step_1",
+          "prompt": "Implement replay harness phase bundle in scoped vscode-extension paths"
+        },
+        {
+          "kind": "tool",
+          "id": "step_2",
+          "tool": "memory_steps",
+          "action": "update",
+          "expect_auth": "allowed",
+          "args": {
+            "status": "active",
+            "step_index": 2
+          }
+        },
+        {
+          "kind": "tool",
+          "id": "step_2b",
+          "tool": "memory_plan",
+          "action": "confirm",
+          "expect_auth": "allowed",
+          "args": {
+            "confirmation_scope": "step",
+            "confirm_step_index": 2
+          }
+        },
+        {
+          "kind": "tool",
+          "id": "step_3",
+          "tool": "memory_steps",
+          "action": "update",
+          "expect_auth": "allowed",
+          "args": {
+            "status": "done",
+            "step_index": 6
+          }
+        },
+        {
+          "kind": "tool",
+          "id": "step_4",
+          "tool": "memory_agent",
+          "action": "handoff",
+          "expect_auth": "allowed",
+          "args": {
+            "from_agent": "Executor",
+            "to_agent": "Coordinator"
+          }
+        },
+        {
+          "kind": "tool",
+          "id": "step_5",
+          "tool": "memory_agent",
+          "action": "complete",
+          "expect_auth": "allowed",
+          "args": {
+            "agent_type": "Executor"
+          }
+        }
+      ],
+      "expectations": {
+        "success_signature": {
+          "must_include": [
+            "phase3_steps_2_to_6_done",
+            "handoff_to_coordinator"
+          ]
+        },
+        "checks": [
+          {
+            "id": "tool-order-1",
+            "type": "tool_order",
+            "severity": "high",
+            "strict_order": true
+          },
+          {
+            "id": "auth-1",
+            "type": "auth_outcome",
+            "severity": "high"
+          },
+          {
+            "id": "flow-1",
+            "type": "flow",
+            "severity": "high"
+          },
+          {
+            "id": "signatures-1",
+            "type": "success_signature",
+            "severity": "high"
+          }
+        ]
+      }
+    },
+    {
+      "scenario_id": "AUTH_POLICY_MATRIX_P0",
+      "title": "P0 Auth Policy Matrix coverage",
+      "intent": "Validate allowed, allowed_with_warning, and blocked outcomes with reason_class parity.",
+      "workspace": {
+        "workspace_path": "./Project-Memory-MCP",
+        "workspace_id": "project_memory_mcp-50e04147a402"
+      },
+      "runtime": {
+        "mode": "headless",
+        "terminal_surface": "memory_terminal"
+      },
+      "tag_metadata": {
+        "domain": "auth-policy",
+        "surface": "memory-terminal",
+        "risk": "p0",
+        "priority": "high"
+      },
+      "tags": ["domain:auth-policy", "surface:memory-terminal", "risk:p0", "priority:high"],
+      "stabilization": {
+        "fixture_seed": 3201,
+        "frozen_clock_delta_ms": 10,
+        "wait_budget_ms": 120,
+        "resolver_fixture_tree": "fixtures/replay/auth-policy"
+      },
+      "acceptance_thresholds": {
+        "max_total_drifts": 0,
+        "max_high_severity_drifts": 0
+      },
+      "steps": [
+        { "kind": "user", "id": "step_1", "prompt": "Run auth policy scenario pack" },
+        { "kind": "tool", "id": "step_2", "tool": "memory_agent", "action": "validate", "expect_auth": "allowed" },
+        { "kind": "tool", "id": "step_3", "tool": "memory_agent", "action": "handoff", "expect_auth": "allowed", "args": { "to_agent": "Coordinator" } },
+        { "kind": "tool", "id": "step_4", "tool": "memory_agent", "action": "complete", "expect_auth": "allowed" }
+      ],
+      "expectations": {
+        "success_signature": {
+          "must_include": ["auth_policy_matrix_pass"]
+        },
+        "checks": [
+          { "id": "auth-outcome", "type": "auth_outcome", "severity": "high" },
+          { "id": "flow", "type": "flow", "severity": "high" },
+          { "id": "signature", "type": "success_signature", "severity": "high" }
+        ]
+      }
+    },
+    {
+      "scenario_id": "PROTOCOL_ORDERING_P0",
+      "title": "P0 Protocol Ordering invariants",
+      "intent": "Assert confirm-before-gated-update and handoff-before-complete coordinator flow.",
+      "workspace": {
+        "workspace_path": "./Project-Memory-MCP",
+        "workspace_id": "project_memory_mcp-50e04147a402"
+      },
+      "runtime": {
+        "mode": "headless",
+        "terminal_surface": "memory_terminal"
+      },
+      "tag_metadata": {
+        "domain": "protocol-ordering",
+        "surface": "memory-terminal",
+        "risk": "p0",
+        "priority": "high"
+      },
+      "tags": ["domain:protocol-ordering", "surface:memory-terminal", "risk:p0", "priority:high"],
+      "stabilization": {
+        "fixture_seed": 3202,
+        "frozen_clock_delta_ms": 10,
+        "wait_budget_ms": 120,
+        "resolver_fixture_tree": "fixtures/replay/protocol-ordering"
+      },
+      "acceptance_thresholds": {
+        "max_total_drifts": 0,
+        "max_high_severity_drifts": 0
+      },
+      "steps": [
+        { "kind": "user", "id": "step_1", "prompt": "Run protocol ordering scenario pack" },
+        { "kind": "tool", "id": "step_2", "tool": "memory_plan", "action": "confirm", "expect_auth": "allowed" },
+        { "kind": "tool", "id": "step_3", "tool": "memory_steps", "action": "update", "expect_auth": "allowed" },
+        { "kind": "tool", "id": "step_4", "tool": "memory_agent", "action": "handoff", "expect_auth": "allowed", "args": { "to_agent": "Coordinator" } },
+        { "kind": "tool", "id": "step_5", "tool": "memory_agent", "action": "complete", "expect_auth": "allowed" }
+      ],
+      "expectations": {
+        "success_signature": {
+          "must_include": ["protocol_ordering_pass"]
+        },
+        "checks": [
+          { "id": "tool-order", "type": "tool_order", "severity": "high", "strict_order": true },
+          { "id": "flow", "type": "flow", "severity": "high" },
+          { "id": "signature", "type": "success_signature", "severity": "high" }
+        ]
+      }
+    },
+    {
+      "scenario_id": "AUTO_ROUTING_SURFACES_P0",
+      "title": "P0 Auto routing execution-surface parity",
+      "intent": "Validate auto surface routing emits expected selected-surface flow across interactive and headless launch paths.",
+      "workspace": {
+        "workspace_path": "./Project-Memory-MCP",
+        "workspace_id": "project_memory_mcp-50e04147a402"
+      },
+      "runtime": {
+        "mode": "headless",
+        "terminal_surface": "auto"
+      },
+      "tag_metadata": {
+        "domain": "auto-routing",
+        "surface": "auto",
+        "risk": "p0",
+        "priority": "high"
+      },
+      "tags": ["domain:auto-routing", "surface:auto", "risk:p0", "priority:high"],
+      "stabilization": {
+        "fixture_seed": 3207,
+        "frozen_clock_delta_ms": 10,
+        "wait_budget_ms": 120,
+        "resolver_fixture_tree": "fixtures/replay/auto-routing"
+      },
+      "acceptance_thresholds": {
+        "max_total_drifts": 0,
+        "max_high_severity_drifts": 0
+      },
+      "steps": [
+        { "kind": "user", "id": "step_1", "prompt": "Run auto routing surface parity pack" },
+        { "kind": "tool", "id": "step_2", "tool": "memory_terminal_interactive", "action": "execute", "expect_auth": "allowed_with_warning" },
+        { "kind": "tool", "id": "step_3", "tool": "memory_plan", "action": "run_build_script", "expect_auth": "allowed" },
+        { "kind": "tool", "id": "step_4", "tool": "memory_agent", "action": "handoff", "expect_auth": "allowed", "args": { "to_agent": "Coordinator" } },
+        { "kind": "tool", "id": "step_5", "tool": "memory_agent", "action": "complete", "expect_auth": "allowed" }
+      ],
+      "expectations": {
+        "success_signature": {
+          "must_include": ["auto_routing_surface_parity_pass"]
+        },
+        "checks": [
+          { "id": "tool-order", "type": "tool_order", "severity": "high", "strict_order": false },
+          { "id": "auth-outcome", "type": "auth_outcome", "severity": "high" },
+          {
+            "id": "flow-surface-sequence",
+            "type": "flow",
+            "severity": "high",
+            "strict_order": true,
+            "metadata": {
+              "expected_selected_surfaces": ["memory_terminal_interactive", "memory_terminal"]
+            }
+          },
+          { "id": "signature", "type": "success_signature", "severity": "high" }
+        ]
+      }
+    },
+    {
+      "scenario_id": "ARTIFACT_INTEGRITY_FALLBACK_P1",
+      "title": "P1 Artifact integrity and fallback",
+      "intent": "Validate explicit artifact, golden v1 resolution, legacy fallback, and missing artifact negatives.",
+      "workspace": {
+        "workspace_path": "./Project-Memory-MCP",
+        "workspace_id": "project_memory_mcp-50e04147a402"
+      },
+      "runtime": {
+        "mode": "headless",
+        "terminal_surface": "memory_terminal"
+      },
+      "tag_metadata": {
+        "domain": "artifact-integrity",
+        "surface": "migration-resolver",
+        "risk": "p1",
+        "priority": "high"
+      },
+      "tags": ["domain:artifact-integrity", "surface:migration-resolver", "risk:p1", "priority:high"],
+      "stabilization": {
+        "fixture_seed": 3203,
+        "frozen_clock_delta_ms": 15,
+        "wait_budget_ms": 140,
+        "resolver_fixture_tree": "fixtures/replay/artifact-integrity"
+      },
+      "acceptance_thresholds": {
+        "max_total_drifts": 1,
+        "max_high_severity_drifts": 0
+      },
+      "steps": [
+        { "kind": "user", "id": "step_1", "prompt": "Run artifact integrity fallback pack" },
+        { "kind": "tool", "id": "step_2", "tool": "memory_plan", "action": "run_build_script", "expect_auth": "allowed" },
+        { "kind": "tool", "id": "step_3", "tool": "memory_agent", "action": "handoff", "expect_auth": "allowed", "args": { "to_agent": "Coordinator" } },
+        { "kind": "tool", "id": "step_4", "tool": "memory_agent", "action": "complete", "expect_auth": "allowed" }
+      ],
+      "expectations": {
+        "success_signature": {
+          "must_include": ["artifact_integrity_fallback_pass"]
+        },
+        "checks": [
+          { "id": "tool-order", "type": "tool_order", "severity": "medium" },
+          { "id": "signature", "type": "success_signature", "severity": "high" }
+        ]
+      }
+    },
+    {
+      "scenario_id": "BUILD_SCRIPT_SURFACE_INTERACTIVE_P1",
+      "title": "P1 Build-script resolve-to-interactive launch path",
+      "intent": "Validate run_build_script resolve flow aligns to interactive selected surface under auto interactive runtime.",
+      "workspace": {
+        "workspace_path": "./Project-Memory-MCP",
+        "workspace_id": "project_memory_mcp-50e04147a402"
+      },
+      "runtime": {
+        "mode": "interactive",
+        "terminal_surface": "auto"
+      },
+      "tag_metadata": {
+        "domain": "build-script-surface",
+        "surface": "auto",
+        "risk": "p1",
+        "priority": "high"
+      },
+      "tags": ["domain:build-script-surface", "surface:auto", "risk:p1", "priority:high"],
+      "stabilization": {
+        "fixture_seed": 3208,
+        "frozen_clock_delta_ms": 10,
+        "wait_budget_ms": 120,
+        "resolver_fixture_tree": "fixtures/replay/build-script-surface"
+      },
+      "acceptance_thresholds": {
+        "max_total_drifts": 0,
+        "max_high_severity_drifts": 0
+      },
+      "steps": [
+        { "kind": "user", "id": "step_1", "prompt": "Run build script interactive surface pack" },
+        { "kind": "tool", "id": "step_2", "tool": "memory_plan", "action": "run_build_script", "expect_auth": "allowed" },
+        { "kind": "tool", "id": "step_3", "tool": "memory_agent", "action": "handoff", "expect_auth": "allowed", "args": { "to_agent": "Coordinator" } },
+        { "kind": "tool", "id": "step_4", "tool": "memory_agent", "action": "complete", "expect_auth": "allowed" }
+      ],
+      "expectations": {
+        "success_signature": {
+          "must_include": ["build_script_surface_interactive_pass"]
+        },
+        "checks": [
+          { "id": "tool-order", "type": "tool_order", "severity": "medium" },
+          {
+            "id": "flow-build-script-surface",
+            "type": "flow",
+            "severity": "high",
+            "metadata": {
+              "expected_selected_surfaces": ["memory_terminal_interactive"]
+            }
+          },
+          { "id": "signature", "type": "success_signature", "severity": "high" }
+        ]
+      }
+    },
+    {
+      "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1",
+      "title": "P1 Tool alias and optional-tool drift",
+      "intent": "Validate action alias canonicalization and optional-tool exclusion from strict ordering.",
+      "workspace": {
+        "workspace_path": "./Project-Memory-MCP",
+        "workspace_id": "project_memory_mcp-50e04147a402"
+      },
+      "runtime": {
+        "mode": "headless",
+        "terminal_surface": "memory_terminal"
+      },
+      "tag_metadata": {
+        "domain": "tool-alias-drift",
+        "surface": "normalization",
+        "risk": "p1",
+        "priority": "medium"
+      },
+      "tags": ["domain:tool-alias-drift", "surface:normalization", "risk:p1", "priority:medium"],
+      "stabilization": {
+        "fixture_seed": 3204,
+        "frozen_clock_delta_ms": 20,
+        "wait_budget_ms": 120,
+        "resolver_fixture_tree": "fixtures/replay/tool-alias"
+      },
+      "acceptance_thresholds": {
+        "max_total_drifts": 0,
+        "max_high_severity_drifts": 0
+      },
+      "steps": [
+        { "kind": "user", "id": "step_1", "prompt": "Run tool alias optional-tool drift pack" },
+        { "kind": "tool", "id": "step_2", "tool": "memory_terminal", "action": "run", "expect_auth": "allowed" },
+        { "kind": "tool", "id": "step_3", "tool": "memory_terminal", "action": "kill", "expect_auth": "allowed" },
+        { "kind": "tool", "id": "step_4", "tool": "memory_agent", "action": "handoff", "expect_auth": "allowed", "args": { "to_agent": "Coordinator" } },
+        { "kind": "tool", "id": "step_5", "tool": "memory_agent", "action": "complete", "expect_auth": "allowed" }
+      ],
+      "expectations": {
+        "success_signature": {
+          "must_include": ["tool_alias_optional_drift_pass"]
+        },
+        "checks": [
+          { "id": "tool-order", "type": "tool_order", "severity": "high" },
+          { "id": "signature", "type": "success_signature", "severity": "medium" }
+        ]
+      }
+    },
+    {
+      "scenario_id": "CROSS_PLATFORM_NORMALIZATION_P2",
+      "title": "P2 Cross-platform normalization",
+      "intent": "Validate Windows/POSIX path parity and volatile-text masking equivalence.",
+      "workspace": {
+        "workspace_path": "./Project-Memory-MCP",
+        "workspace_id": "project_memory_mcp-50e04147a402"
+      },
+      "runtime": {
+        "mode": "headless",
+        "terminal_surface": "memory_terminal"
+      },
+      "tag_metadata": {
+        "domain": "cross-platform-normalization",
+        "surface": "normalization",
+        "risk": "p2",
+        "priority": "medium"
+      },
+      "tags": ["domain:cross-platform-normalization", "surface:normalization", "risk:p2", "priority:medium"],
+      "stabilization": {
+        "fixture_seed": 3205,
+        "frozen_clock_delta_ms": 25,
+        "wait_budget_ms": 160,
+        "resolver_fixture_tree": "fixtures/replay/cross-platform"
+      },
+      "acceptance_thresholds": {
+        "max_total_drifts": 0,
+        "max_high_severity_drifts": 0,
+        "max_medium_severity_drifts": 0
+      },
+      "steps": [
+        { "kind": "user", "id": "step_1", "prompt": "Run cross-platform normalization pack" },
+        { "kind": "tool", "id": "step_2", "tool": "memory_terminal", "action": "run", "expect_auth": "allowed" },
+        { "kind": "wait", "id": "step_3", "wait_ms": 500 },
+        { "kind": "tool", "id": "step_4", "tool": "memory_agent", "action": "handoff", "expect_auth": "allowed", "args": { "to_agent": "Coordinator" } },
+        { "kind": "tool", "id": "step_5", "tool": "memory_agent", "action": "complete", "expect_auth": "allowed" }
+      ],
+      "expectations": {
+        "success_signature": {
+          "must_include": ["cross_platform_normalization_pass"]
+        },
+        "checks": [
+          { "id": "tool-order", "type": "tool_order", "severity": "medium", "strict_order": false },
+          { "id": "signature", "type": "success_signature", "severity": "medium" }
+        ]
+      }
+    },
+    {
+      "scenario_id": "RETRY_CLASSIFICATION_CONSISTENCY_P2",
+      "title": "P2 Retry classification consistency",
+      "intent": "Validate deterministic vs intermittent triage labels and fingerprint stability across retries.",
+      "workspace": {
+        "workspace_path": "./Project-Memory-MCP",
+        "workspace_id": "project_memory_mcp-50e04147a402"
+      },
+      "runtime": {
+        "mode": "headless",
+        "terminal_surface": "memory_terminal"
+      },
+      "tag_metadata": {
+        "domain": "retry-classification",
+        "surface": "gate-evaluator",
+        "risk": "p2",
+        "priority": "medium"
+      },
+      "tags": ["domain:retry-classification", "surface:gate-evaluator", "risk:p2", "priority:medium"],
+      "stabilization": {
+        "fixture_seed": 3206,
+        "frozen_clock_delta_ms": 25,
+        "wait_budget_ms": 140,
+        "resolver_fixture_tree": "fixtures/replay/retry"
+      },
+      "acceptance_thresholds": {
+        "max_total_drifts": 1,
+        "max_high_severity_drifts": 0,
+        "max_medium_severity_drifts": 1
+      },
+      "steps": [
+        { "kind": "user", "id": "step_1", "prompt": "Run retry classification consistency pack" },
+        { "kind": "tool", "id": "step_2", "tool": "memory_plan", "action": "run_build_script", "expect_auth": "allowed" },
+        { "kind": "tool", "id": "step_3", "tool": "memory_agent", "action": "handoff", "expect_auth": "allowed", "args": { "to_agent": "Coordinator" } },
+        { "kind": "tool", "id": "step_4", "tool": "memory_agent", "action": "complete", "expect_auth": "allowed" }
+      ],
+      "expectations": {
+        "success_signature": {
+          "must_include": ["retry_classification_consistency_pass"]
+        },
+        "checks": [
+          { "id": "flow", "type": "flow", "severity": "medium" },
+          { "id": "signature", "type": "success_signature", "severity": "medium" }
+        ]
+      }
+    }
+  ]
+}

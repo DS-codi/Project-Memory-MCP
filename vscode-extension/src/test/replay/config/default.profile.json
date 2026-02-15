@@ -1,0 +1,21 @@
+{
+  "profile_name": "default-replay-profile",
+  "tool_order": {
+    "strict_default": true,
+    "ignore_optional_tools": [
+      "telemetry",
+      "metrics"
+    ]
+  },
+  "authorization": {
+    "compare_reason_class": true
+  },
+  "flow": {
+    "require_handoff_before_complete": true,
+    "require_confirmation_before_gated_updates": true,
+    "required_handoff_target": "Coordinator"
+  },
+  "success_signatures": {
+    "require_all": true
+  }
+}

@@ -22,8 +22,8 @@
  * 6. memory_terminal - Terminal command execution (5 actions)
  *    Actions: run, read_output, kill, get_allowlist, update_allowlist
  * 
- * 7. memory_filesystem - Workspace-scoped filesystem operations (5 actions)
- *    Actions: read, write, search, list, tree
+ * 7. memory_filesystem - Workspace-scoped filesystem operations (10 actions)
+ *    Actions: read, write, search, list, tree, delete, move, copy, append, exists
  * 
  * 8. memory_terminal_interactive - Interactive terminal with relaxed auth (4 actions)
  *    Actions: run, read_output, kill, list

@@ -113,6 +113,10 @@ export class McpBridge implements vscode.Disposable, McpHttpClient {
         return this.connected;
     }
 
+    getServerMode(): McpBridgeConfig['serverMode'] {
+        return this.config.serverMode;
+    }
+
     /**
      * Attempt to reconnect to the server
      */

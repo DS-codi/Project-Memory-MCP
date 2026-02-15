@@ -215,4 +215,72 @@ describe('MCP Tool: memory_workspace Actions', () => {
       }
     });
   });
+
+  describe('set_display_name action', () => {
+    it('should require workspace_id', async () => {
+      const result = await memoryWorkspace({
+        action: 'set_display_name',
+        display_name: 'Custom Name'
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('workspace_id');
+    });
+
+    it('should require display_name', async () => {
+      const result = await memoryWorkspace({
+        action: 'set_display_name',
+        workspace_id: mockWorkspaceId
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('display_name');
+    });
+
+    it('should reject whitespace-only display_name', async () => {
+      const saveWorkspaceSpy = vi.spyOn(store, 'saveWorkspace').mockResolvedValue(undefined);
+
+      const result = await memoryWorkspace({
+        action: 'set_display_name',
+        workspace_id: mockWorkspaceId,
+        display_name: '   '
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('non-empty');
+      expect(saveWorkspaceSpy).not.toHaveBeenCalled();
+    });
+
+    it('should update and persist display_name and name', async () => {
+      const workspace = {
+        workspace_id: mockWorkspaceId,
+        name: 'Old Name',
+        path: '/test/workspace',
+        registered_at: '2026-02-04T10:00:00Z',
+        last_accessed: '2026-02-04T10:00:00Z',
+        active_plans: [],
+        archived_plans: [],
+        active_programs: [],
+        indexed: false,
+      };
+
+      const saveWorkspaceSpy = vi.spyOn(store, 'saveWorkspace').mockResolvedValue(undefined);
+      vi.spyOn(store, 'getWorkspace').mockResolvedValue(workspace);
+
+      const result = await memoryWorkspace({
+        action: 'set_display_name',
+        workspace_id: mockWorkspaceId,
+        display_name: 'Custom Workspace Label'
+      });
+
+      expect(result.success).toBe(true);
+      expect(saveWorkspaceSpy).toHaveBeenCalledTimes(1);
+      expect(workspace.display_name).toBe('Custom Workspace Label');
+      expect(workspace.name).toBe('Custom Workspace Label');
+      if (result.data && result.data.action === 'set_display_name') {
+        expect(result.data.data.workspace.display_name).toBe('Custom Workspace Label');
+        expect(result.data.data.workspace.name).toBe('Custom Workspace Label');
+      }
+    });
+  });
 });

@@ -720,8 +720,87 @@
       {
         "name": "memory_terminal_interactive",
         "displayName": "Project Memory Interactive Terminal",
-        "description": "Create and manage real VS Code integrated terminals with safety guardrails",
-        "modelDescription": "Create and manage real VS Code integrated terminals that the user can see and interact with. Unlike memory_terminal (headless server-side), this creates visible terminals. Actions: 'create' to open a new terminal (optional name, cwd, env), 'send' to send a command to a terminal (requires terminal_id, command; checks against destructive command blocklist), 'close' to dispose a terminal (requires terminal_id), 'list' to show all tracked terminals.",
+        "description": "Canonical interactive terminal contract routed through MCP bridge",
+        "modelDescription": "Canonical interactive terminal tool routed through MCP. Canonical actions: 'execute', 'read_output', 'terminate', 'list'. Legacy aliases accepted for compatibility: 'run', 'kill', 'send', 'close', 'create'.",
+        "parametersSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": ["execute", "read_output", "terminate", "list", "run", "kill", "send", "close", "create"],
+              "description": "The action to perform"
+            },
+            "invocation": {
+              "type": "object",
+              "description": "Invocation mode/intent metadata"
+            },
+            "correlation": {
+              "type": "object",
+              "description": "Correlation metadata"
+            },
+            "runtime": {
+              "type": "object",
+              "description": "Runtime metadata including adapter hints"
+            },
+            "execution": {
+              "type": "object",
+              "description": "Execution payload"
+            },
+            "target": {
+              "type": "object",
+              "description": "Target identity payload"
+            },
+            "compat": {
+              "type": "object",
+              "description": "Compatibility metadata"
+            },
+            "workspace_id": {
+              "type": "string",
+              "description": "Legacy workspace_id"
+            },
+            "cwd": {
+              "type": "string",
+              "description": "Legacy cwd"
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Legacy timeout"
+            },
+            "timeout_ms": {
+              "type": "number",
+              "description": "Legacy timeout_ms"
+            },
+            "command": {
+              "type": "string",
+              "description": "Legacy command"
+            },
+            "args": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Legacy args"
+            },
+            "env": {
+              "type": "object",
+              "description": "Legacy env"
+            },
+            "session_id": {
+              "type": "string",
+              "description": "Legacy session target"
+            },
+            "terminal_id": {
+              "type": "string",
+              "description": "Legacy terminal target"
+            }
+          },
+          "required": ["action"]
+        },
+        "canBeInvokedManually": true
+      },
+      {
+        "name": "memory_terminal_vscode",
+        "displayName": "Project Memory VS Code Terminal",
+        "description": "Create and manage visible VS Code integrated terminals with safety guardrails",
+        "modelDescription": "Manage visible host terminals in VS Code. Actions: 'create', 'send', 'close', 'list'.",
         "parametersSchema": {
           "type": "object",
           "properties": {
@@ -762,46 +841,95 @@
       {
         "name": "memory_spawn_agent",
         "displayName": "Project Memory Spawn Agent",
-        "description": "Spawn a subagent with plan-aware orchestration, anti-spawning rules, and scope boundaries",
-        "modelDescription": "Spawn a Project Memory subagent with MCP plan-aware orchestration. Only hub agents (Coordinator, Analyst, Runner, TDDDriver) can spawn subagents. Validates the target agent exists, injects workspace/plan context into the prompt, enforces anti-spawning rules for spoke agents, and supports scope boundary injection. The spawned agent receives the enriched prompt with context and handoff protocol instructions.",
+        "description": "Prepare context and prompt payload for native runSubagent flow (does not execute spawn)",
+        "modelDescription": "Prepare a Project Memory subagent spawn payload only. This tool does NOT execute subagent launch. It enriches the prompt with workspace/plan context, applies scope boundaries, and injects anti-spawning rules for spoke targets. Then call native runSubagent using prep_config.enriched_prompt. Supports compat_mode legacy/strict and a deprecated spawn_config alias during migration.",
         "parametersSchema": {
           "type": "object",
           "properties": {
             "agent_name": {
               "type": "string",
-              "description": "Name of the agent to spawn (e.g., Executor, Reviewer, Tester)"
+              "description": "Name of the target agent for prompt preparation (e.g., Executor, Reviewer, Tester)"
             },
             "prompt": {
               "type": "string",
-              "description": "The prompt/task description to send to the spawned agent"
+              "description": "Task description used to build prep_config.enriched_prompt"
             },
             "workspace_id": {
               "type": "string",
-              "description": "Workspace ID to inject into the agent context (optional)"
+              "description": "Workspace ID to inject into prepared context (optional)"
             },
             "plan_id": {
               "type": "string",
-              "description": "Plan ID to inject into the agent context (optional)"
+              "description": "Plan ID to inject into prepared context (optional)"
+            },
+            "compat_mode": {
+              "type": "string",
+              "enum": ["legacy", "strict"],
+              "description": "Compatibility response mode. legacy returns prep_config + deprecated spawn_config alias; strict returns canonical prep_config only."
+            },
+            "prep_config": {
+              "type": "object",
+              "properties": {
+                "scope_boundaries": {
+                  "type": "object",
+                  "properties": {
+                    "files_allowed": {
+                      "type": "array",
+                      "items": { "type": "string" },
+                      "description": "List of files the agent is allowed to modify"
+                    },
+                    "directories_allowed": {
+                      "type": "array",
+                      "items": { "type": "string" },
+                      "description": "List of directories where the agent can create files"
+                    },
+                    "scope_escalation_instruction": {
+                      "type": "string",
+                      "description": "Custom instruction for what to do if agent needs out-of-scope changes"
+                    }
+                  }
+                }
+              },
+              "description": "Canonical context preparation config."
+            },
+            "spawn_config": {
+              "type": "object",
+              "description": "Deprecated input alias for prep_config. Use prep_config instead.",
+              "properties": {
+                "scope_boundaries": {
+                  "type": "object",
+                  "properties": {
+                    "files_allowed": {
+                      "type": "array",
+                      "items": { "type": "string" }
+                    },
+                    "directories_allowed": {
+                      "type": "array",
+                      "items": { "type": "string" }
+                    },
+                    "scope_escalation_instruction": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
             },
             "scope_boundaries": {
               "type": "object",
+              "description": "Deprecated top-level alias. Prefer prep_config.scope_boundaries.",
               "properties": {
                 "files_allowed": {
                   "type": "array",
-                  "items": { "type": "string" },
-                  "description": "List of files the agent is allowed to modify"
+                  "items": { "type": "string" }
                 },
                 "directories_allowed": {
                   "type": "array",
-                  "items": { "type": "string" },
-                  "description": "List of directories where the agent can create files"
+                  "items": { "type": "string" }
                 },
                 "scope_escalation_instruction": {
-                  "type": "string",
-                  "description": "Custom instruction for what to do if agent needs out-of-scope changes"
+                  "type": "string"
                 }
-              },
-              "description": "Scope boundaries to inject into the spawned agent's prompt"
+              }
             }
           },
           "required": ["agent_name", "prompt"]
@@ -883,6 +1011,61 @@
       {
         "command": "projectMemory.addToPlan",
         "title": "Add to Plan",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.showPlanInChat",
+        "title": "Show Plan In Chat",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.archivePlan",
+        "title": "Archive Plan",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.markStepActive",
+        "title": "Mark Step Active",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.markStepDone",
+        "title": "Mark Step Done",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.runBuildScript",
+        "title": "Run Build Script",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.addStepToPlan",
+        "title": "Add Step To Plan",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.confirmAction",
+        "title": "Confirm Action",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.cancelAction",
+        "title": "Cancel Action",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.launchAgentChat",
+        "title": "Launch Agent Chat",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.openPlanInDashboard",
+        "title": "Open Plan In Dashboard",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.createDedicatedPlan",
+        "title": "Create Dedicated Plan",
         "category": "Project Memory"
       },
       {
@@ -1031,6 +1214,12 @@
           "description": "Path to the skills directory containing skill subdirectories with SKILL.md files",
           "scope": "application"
         },
+        "projectMemory.globalSkillsRoot": {
+          "type": "string",
+          "default": "",
+          "description": "Fallback absolute path to main/shared skills source",
+          "scope": "application"
+        },
         "projectMemory.instructionsRoot": {
           "type": "string",
           "default": "",
@@ -1161,6 +1350,9 @@
     "esbuild": "npm run esbuild-base -- --sourcemap",
     "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
     "compile": "npm run esbuild",
+    "replay": "node ./tools/replay-cli-runner.js",
+    "replay:list": "npm run replay -- list-scenarios",
+    "replay:run": "npm run replay -- run",
     "watch": "npm run esbuild-watch",
     "pretest": "npm run esbuild",
     "test": "node ./out/test/runTest.js",

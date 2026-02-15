@@ -36,6 +36,50 @@ $ScriptRoot = $PSScriptRoot
 # Resolve workspace root (script is at repo root)
 $WorkspaceRoot = if ($ScriptRoot) { $ScriptRoot } else { Get-Location }
 
+$BridgeHostAlias = if ($env:PM_INTERACTIVE_TERMINAL_HOST_ALIAS) { $env:PM_INTERACTIVE_TERMINAL_HOST_ALIAS } else { 'host.containers.internal' }
+$BridgeFallbackAlias = if ($env:PM_INTERACTIVE_TERMINAL_HOST_FALLBACK_ALIAS) { $env:PM_INTERACTIVE_TERMINAL_HOST_FALLBACK_ALIAS } else { 'host.docker.internal' }
+$bridgePortCandidate = 0
+$BridgePort = if (
+    $env:PM_INTERACTIVE_TERMINAL_HOST_PORT -and
+    [int]::TryParse($env:PM_INTERACTIVE_TERMINAL_HOST_PORT, [ref]$bridgePortCandidate)
+) { $bridgePortCandidate } else { 45459 }
+
+$bridgeConnectTimeoutCandidate = 0
+$BridgeConnectTimeoutMs = if (
+    $env:PM_INTERACTIVE_TERMINAL_CONNECT_TIMEOUT_MS -and
+    [int]::TryParse($env:PM_INTERACTIVE_TERMINAL_CONNECT_TIMEOUT_MS, [ref]$bridgeConnectTimeoutCandidate)
+) { $bridgeConnectTimeoutCandidate } else { 3000 }
+
+$bridgeRequestTimeoutCandidate = 0
+$BridgeRequestTimeoutMs = if (
+    $env:PM_INTERACTIVE_TERMINAL_REQUEST_TIMEOUT_MS -and
+    [int]::TryParse($env:PM_INTERACTIVE_TERMINAL_REQUEST_TIMEOUT_MS, [ref]$bridgeRequestTimeoutCandidate)
+) { $bridgeRequestTimeoutCandidate } else { 30000 }
+$BridgeTrace = if ($env:PM_INTERACTIVE_TERMINAL_TRACE_BRIDGE) { $env:PM_INTERACTIVE_TERMINAL_TRACE_BRIDGE } else { '0' }
+
+function Test-HostGuiBridge {
+    param(
+        [int]$Port,
+        [int]$TimeoutMs
+    )
+
+    $client = New-Object System.Net.Sockets.TcpClient
+    try {
+        $connectTask = $client.ConnectAsync('127.0.0.1', $Port)
+        $connected = $connectTask.Wait([Math]::Max($TimeoutMs, 250))
+        if (-not $connected -or -not $client.Connected) {
+            return $false
+        }
+        return $true
+    }
+    catch {
+        return $false
+    }
+    finally {
+        try { $client.Dispose() } catch {}
+    }
+}
+
 # ---------------------------------------------------------------------------
 # Workspace Mount Discovery
 # ---------------------------------------------------------------------------
@@ -124,6 +168,22 @@ function Start-Container {
 
     Write-Host "Starting container '$ContainerName'..." -ForegroundColor Cyan
 
+    Write-Host "Interactive-terminal bridge config:" -ForegroundColor Cyan
+    Write-Host "  Adapter mode:    container_bridge" -ForegroundColor White
+    Write-Host "  Host alias:      $BridgeHostAlias" -ForegroundColor White
+    Write-Host "  Fallback alias:  $BridgeFallbackAlias" -ForegroundColor White
+    Write-Host "  Host port:       $BridgePort" -ForegroundColor White
+    Write-Host "  Connect timeout: $BridgeConnectTimeoutMs ms" -ForegroundColor White
+    Write-Host "  Request timeout: $BridgeRequestTimeoutMs ms" -ForegroundColor White
+
+    $bridgeReady = Test-HostGuiBridge -Port $BridgePort -TimeoutMs $BridgeConnectTimeoutMs
+    if (-not $bridgeReady) {
+        Write-Host "  Preflight:       WARNING - No listener on localhost:$BridgePort" -ForegroundColor Yellow
+        Write-Host "                   Start the host interactive-terminal GUI bridge or set PM_INTERACTIVE_TERMINAL_HOST_PORT." -ForegroundColor Yellow
+    } else {
+        Write-Host "  Preflight:       OK - Host bridge listener detected on localhost:$BridgePort" -ForegroundColor Green
+    }
+
     # Discover workspace mounts from registry
     Write-Host "Discovering workspace mounts..." -ForegroundColor Cyan
     $mounts = Get-WorkspaceMounts
@@ -156,6 +216,14 @@ function Start-Container {
         "-e", "MBS_AGENTS_ROOT=/agents",
         "-e", "MBS_HOST_MCP_URL=$hostMcpUrl",
         "-e", "MBS_WORKSPACE_MOUNTS=$($mounts.MountMap)",
+        "-e", "PM_RUNNING_IN_CONTAINER=true",
+        "-e", "PM_TERM_ADAPTER_MODE=container_bridge",
+        "-e", "PM_INTERACTIVE_TERMINAL_HOST_ALIAS=$BridgeHostAlias",
+        "-e", "PM_INTERACTIVE_TERMINAL_HOST_FALLBACK_ALIAS=$BridgeFallbackAlias",
+        "-e", "PM_INTERACTIVE_TERMINAL_HOST_PORT=$BridgePort",
+        "-e", "PM_INTERACTIVE_TERMINAL_CONNECT_TIMEOUT_MS=$BridgeConnectTimeoutMs",
+        "-e", "PM_INTERACTIVE_TERMINAL_REQUEST_TIMEOUT_MS=$BridgeRequestTimeoutMs",
+        "-e", "PM_INTERACTIVE_TERMINAL_TRACE_BRIDGE=$BridgeTrace",
         "-e", "NODE_ENV=production"
     )
 

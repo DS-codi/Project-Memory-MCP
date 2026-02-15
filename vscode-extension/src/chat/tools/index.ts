@@ -8,5 +8,9 @@ export { handleAgentTool } from './agent-tool';
 export { handlePlanTool } from './plan-tool';
 export { handleStepsTool } from './steps-tool';
 export { handleContextTool } from './context-tool';
-export { handleInteractiveTerminalTool, disposeTerminalTracking } from './terminal-tool';
+export {
+	handleCanonicalInteractiveTerminalTool,
+	handleVsCodeTerminalTool,
+	disposeTerminalTracking,
+} from './terminal-tool';
 export { handleSpawnAgentTool } from './spawn-agent-tool';

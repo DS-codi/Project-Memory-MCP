@@ -148,6 +148,7 @@ suite('KnowledgeCommandHandler Test Suite', () => {
         assert.strictEqual(bridge.calls[0].tool, 'memory_context');
         assert.strictEqual(bridge.calls[0].args.action, 'knowledge_list');
         assert.strictEqual(bridge.calls[0].args.workspace_id, 'ws-abc');
+        assert.ok(response.progressCalls.includes('Listing knowledge files...'));
     });
 
     test('list shows empty-state message when no files', async function () {
@@ -295,6 +296,7 @@ suite('KnowledgeCommandHandler Test Suite', () => {
         assert.ok(response.fullMarkdown.includes('Archivist'));
         assert.ok(response.fullMarkdown.includes('## Users Table'));
         assert.deepStrictEqual(result.metadata, { command: 'knowledge', action: 'show', slug: 'db-schema' });
+        assert.ok(response.progressCalls.includes('Loading knowledge file "db-schema"...'));
     });
 
     test('show handles not-found (null file)', async function () {
@@ -470,6 +472,7 @@ suite('KnowledgeCommandHandler Test Suite', () => {
         assert.strictEqual(bridge.calls[0].args.workspace_id, 'ws-42');
         assert.strictEqual(bridge.calls[0].args.slug, 'test-file');
         assert.strictEqual(bridge.calls[0].args.content, 'Hello world');
+        assert.ok(response.progressCalls.includes('Creating knowledge file "test-file"...'));
     });
 
     test('add shows confirmation with title and slug', async function () {
@@ -556,6 +559,7 @@ suite('KnowledgeCommandHandler Test Suite', () => {
         assert.strictEqual(bridge.calls[0].args.action, 'knowledge_delete');
         assert.strictEqual(bridge.calls[0].args.slug, 'old-notes');
         assert.strictEqual(bridge.calls[0].args.workspace_id, 'ws-77');
+        assert.ok(response.progressCalls.includes('Deleting knowledge file "old-notes"...'));
     });
 
     test('delete shows confirmation', async function () {

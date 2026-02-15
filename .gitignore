@@ -27,6 +27,9 @@ npm-debug.log*
 # Data directory (may contain local state)
 data/
 
+# Rust build output
+interactive-terminal/target/
+
 # Playwright
 e2e-report/
 playwright-report/

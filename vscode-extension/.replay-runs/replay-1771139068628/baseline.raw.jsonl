@@ -1,0 +1,116 @@
+{
+  "event": {
+    "event_type": "user_prompt",
+    "payload": {
+      "profile": "baseline",
+      "prompt": "Run auth policy scenario pack"
+    },
+    "scenario_id": "AUTH_POLICY_MATRIX_P0",
+    "step_id": "step_1",
+    "timestamp_ms": 1771139068654
+  },
+  "profile": "baseline",
+  "run_id": "replay-1771139068628",
+  "scenario_id": "AUTH_POLICY_MATRIX_P0"
+}
+{
+  "event": {
+    "action_raw": "validate",
+    "authorization": {
+      "outcome": "allowed",
+      "reason_class": "allowlist_match"
+    },
+    "event_type": "tool_call",
+    "payload": {
+      "profile": "baseline"
+    },
+    "scenario_id": "AUTH_POLICY_MATRIX_P0",
+    "step_id": "step_2",
+    "timestamp_ms": 1771139068679,
+    "tool_name": "memory_agent"
+  },
+  "profile": "baseline",
+  "run_id": "replay-1771139068628",
+  "scenario_id": "AUTH_POLICY_MATRIX_P0"
+}
+{
+  "event": {
+    "action_raw": "handoff",
+    "authorization": {
+      "outcome": "allowed",
+      "reason_class": "allowlist_match"
+    },
+    "event_type": "tool_call",
+    "payload": {
+      "args": {
+        "to_agent": "Coordinator"
+      },
+      "profile": "baseline"
+    },
+    "scenario_id": "AUTH_POLICY_MATRIX_P0",
+    "step_id": "step_3",
+    "timestamp_ms": 1771139068704,
+    "tool_name": "memory_agent"
+  },
+  "profile": "baseline",
+  "run_id": "replay-1771139068628",
+  "scenario_id": "AUTH_POLICY_MATRIX_P0"
+}
+{
+  "event": {
+    "event_type": "handoff",
+    "payload": {
+      "to_agent": "Coordinator"
+    },
+    "scenario_id": "AUTH_POLICY_MATRIX_P0",
+    "step_id": "step_3",
+    "timestamp_ms": 1771139068705
+  },
+  "profile": "baseline",
+  "run_id": "replay-1771139068628",
+  "scenario_id": "AUTH_POLICY_MATRIX_P0"
+}
+{
+  "event": {
+    "action_raw": "complete",
+    "authorization": {
+      "outcome": "allowed",
+      "reason_class": "allowlist_match"
+    },
+    "event_type": "tool_call",
+    "payload": {
+      "profile": "baseline"
+    },
+    "scenario_id": "AUTH_POLICY_MATRIX_P0",
+    "step_id": "step_4",
+    "timestamp_ms": 1771139068729,
+    "tool_name": "memory_agent"
+  },
+  "profile": "baseline",
+  "run_id": "replay-1771139068628",
+  "scenario_id": "AUTH_POLICY_MATRIX_P0"
+}
+{
+  "event": {
+    "event_type": "complete",
+    "payload": {},
+    "scenario_id": "AUTH_POLICY_MATRIX_P0",
+    "step_id": "step_4",
+    "timestamp_ms": 1771139068730
+  },
+  "profile": "baseline",
+  "run_id": "replay-1771139068628",
+  "scenario_id": "AUTH_POLICY_MATRIX_P0"
+}
+{
+  "event": {
+    "event_type": "outcome",
+    "phase": "final",
+    "scenario_id": "AUTH_POLICY_MATRIX_P0",
+    "success_signature": "auth_policy_matrix_pass",
+    "timestamp_ms": 1771139068739
+  },
+  "profile": "baseline",
+  "run_id": "replay-1771139068628",
+  "scenario_id": "AUTH_POLICY_MATRIX_P0"
+}

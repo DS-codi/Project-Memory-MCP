@@ -1,4 +1,4 @@
----
+ ---
 agent: "coordinator"
 description: "Add test coverage to existing code"
 ---

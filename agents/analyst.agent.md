@@ -146,6 +146,13 @@ runSubagent({
 // Note: Use Researcher ONLY for external web documentation
 ```
 
+## Terminal Surface Guidance (Canonical)
+
+- Use `memory_terminal` for deterministic, headless execution when experiments need automated build/lint/test style checks in the server/container.
+- Use `memory_terminal_interactive` when you need a visible VS Code host terminal for interactive debugging or manual reproduction.
+- If the Rust+QML interactive gateway is present in the investigation scope, treat it as an approval/routing layer; execution still lands on `memory_terminal` or `memory_terminal_interactive`.
+- Keep surface contracts separated; do not mix action payloads between terminal tools in one execution flow.
+
 ---
 
 ## 📋 INVESTIGATION PHASES

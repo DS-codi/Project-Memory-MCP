@@ -1,24 +1,66 @@
 /**
- * Interactive Terminal Tool Handler — memory_terminal_interactive language model tool
+ * Terminal Tool Handlers
  *
- * Creates and manages real VS Code integrated terminals that the user can see
- * and interact with. Unlike the server-side `memory_terminal` (headless, allowlist-only),
- * this tool creates VISIBLE terminals on the host machine.
- *
- * Actions: create, send, close, list
- *
- * Safety: Destructive commands are always blocked. Non-allowlisted commands are
- * allowed with a warning (since the user can see the terminal).
+ * 1) Canonical MCP interactive terminal contract (`memory_terminal_interactive`)
+ *    routed through the MCP bridge.
+ * 2) VS Code host terminal management contract (`memory_terminal_vscode`)
+ *    for visible terminal create/send/close/list operations.
  */
 
 import * as vscode from 'vscode';
+import { randomUUID } from 'crypto';
+import { getContainerMode, shouldUseContainer } from '../../server/ContainerDetection';
 import type { ToolContext } from './types';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export interface TerminalToolInput {
+type RuntimeAdapterOverride = 'local' | 'bundled' | 'container_bridge' | 'auto';
+
+export interface CanonicalTerminalToolInput {
+    action: 'execute' | 'read_output' | 'terminate' | 'list' | 'run' | 'kill' | 'send' | 'close' | 'create';
+    invocation?: {
+        mode?: 'interactive' | 'headless';
+        intent?: 'open_only' | 'execute_command';
+    };
+    correlation?: {
+        request_id?: string;
+        trace_id?: string;
+        client_request_id?: string;
+    };
+    runtime?: {
+        workspace_id?: string;
+        cwd?: string;
+        timeout_ms?: number;
+        adapter_override?: RuntimeAdapterOverride;
+    };
+    execution?: {
+        command?: string;
+        args?: string[];
+        env?: Record<string, string>;
+    };
+    target?: {
+        session_id?: string;
+        terminal_id?: string;
+    };
+    compat?: {
+        legacy_action?: 'run' | 'kill' | 'send' | 'close' | 'create' | 'list';
+        caller_surface?: 'server' | 'extension' | 'dashboard' | 'chat_button';
+    };
+
+    command?: string;
+    args?: string[];
+    cwd?: string;
+    timeout?: number;
+    timeout_ms?: number;
+    workspace_id?: string;
+    session_id?: string;
+    terminal_id?: string;
+    env?: Record<string, string>;
+}
+
+export interface VsCodeTerminalToolInput {
     action: 'create' | 'send' | 'close' | 'list';
     terminal_id?: string;
     name?: string;
@@ -26,6 +68,113 @@ export interface TerminalToolInput {
     env?: Record<string, string>;
     command?: string;
     workspace_id?: string;
+}
+
+async function resolveAdapterOverride(ctx: ToolContext): Promise<RuntimeAdapterOverride> {
+    const configuredMode = getContainerMode();
+    if (configuredMode === 'container') {
+        return 'container_bridge';
+    }
+    if (configuredMode === 'local') {
+        return ctx.mcpBridge.getServerMode() === 'bundled' ? 'bundled' : 'local';
+    }
+
+    try {
+        const detected = await shouldUseContainer();
+        if (detected.useContainer) {
+            return 'container_bridge';
+        }
+    } catch {
+        // fall through to server-mode mapping
+    }
+
+    return ctx.mcpBridge.getServerMode() === 'bundled' ? 'bundled' : 'local';
+}
+
+function workspaceCwdFallback(): string | undefined {
+    return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+}
+
+async function buildCanonicalPayload(
+    input: CanonicalTerminalToolInput,
+    ctx: ToolContext
+): Promise<Record<string, unknown>> {
+    const ensuredWorkspaceId = input.runtime?.workspace_id || input.workspace_id || await ctx.ensureWorkspace();
+    const adapterOverride = input.runtime?.adapter_override ?? await resolveAdapterOverride(ctx);
+    const timeoutMs = input.runtime?.timeout_ms ?? input.timeout_ms ?? input.timeout ?? 30000;
+    const defaultCommand = input.execution?.command ?? input.command;
+    const defaultArgs = input.execution?.args ?? input.args;
+    const defaultEnv = input.execution?.env ?? input.env;
+
+    const resolvedMode = input.invocation?.mode
+        ?? ((input.action === 'create' || input.action === 'send') ? 'interactive' : 'headless');
+    const resolvedIntent = input.invocation?.intent
+        ?? ((input.action === 'create') ? 'open_only' : 'execute_command');
+
+    return {
+        action: input.action,
+        invocation: {
+            mode: resolvedMode,
+            intent: resolvedIntent,
+        },
+        correlation: {
+            request_id: input.correlation?.request_id ?? `req_${randomUUID()}`,
+            trace_id: input.correlation?.trace_id ?? `trace_${randomUUID()}`,
+            ...(input.correlation?.client_request_id ? { client_request_id: input.correlation.client_request_id } : {}),
+        },
+        runtime: {
+            workspace_id: ensuredWorkspaceId,
+            cwd: input.runtime?.cwd ?? input.cwd ?? workspaceCwdFallback(),
+            timeout_ms: timeoutMs,
+            adapter_override: adapterOverride,
+        },
+        ...(defaultCommand || defaultArgs || defaultEnv
+            ? {
+                execution: {
+                    ...(defaultCommand ? { command: defaultCommand } : {}),
+                    ...(defaultArgs ? { args: defaultArgs } : {}),
+                    ...(defaultEnv ? { env: defaultEnv } : {}),
+                }
+            }
+            : {}),
+        ...((input.target?.session_id || input.target?.terminal_id || input.session_id || input.terminal_id)
+            ? {
+                target: {
+                    ...(input.target?.session_id || input.session_id
+                        ? { session_id: input.target?.session_id ?? input.session_id }
+                        : {}),
+                    ...(input.target?.terminal_id || input.terminal_id
+                        ? { terminal_id: input.target?.terminal_id ?? input.terminal_id }
+                        : {}),
+                }
+            }
+            : {}),
+        compat: {
+            legacy_action: input.compat?.legacy_action,
+            caller_surface: input.compat?.caller_surface ?? 'extension',
+        },
+    };
+}
+
+export async function handleCanonicalInteractiveTerminalTool(
+    options: vscode.LanguageModelToolInvocationOptions<CanonicalTerminalToolInput>,
+    _token: vscode.CancellationToken,
+    ctx: ToolContext
+): Promise<vscode.LanguageModelToolResult> {
+    try {
+        if (!ctx.mcpBridge.isConnected()) {
+            return errorResult('MCP server not connected');
+        }
+
+        const payload = await buildCanonicalPayload(options.input, ctx);
+        const result = await ctx.mcpBridge.callTool<unknown>('memory_terminal_interactive', payload);
+
+        return new vscode.LanguageModelToolResult([
+            new vscode.LanguageModelTextPart(JSON.stringify(result, null, 2))
+        ]);
+    } catch (error) {
+        return errorResult(error);
+    }
 }
 
 interface TrackedTerminal {
@@ -144,7 +293,7 @@ function matchesAllowlist(command: string, patterns: string[]): boolean {
 // Action handlers
 // ---------------------------------------------------------------------------
 
-function handleCreate(input: TerminalToolInput): vscode.LanguageModelToolResult {
+function handleCreate(input: VsCodeTerminalToolInput): vscode.LanguageModelToolResult {
     const termName = input.name || `PM Terminal ${nextId}`;
     const termOptions: vscode.TerminalOptions = { name: termName };
 
@@ -176,7 +325,7 @@ function handleCreate(input: TerminalToolInput): vscode.LanguageModelToolResult 
 }
 
 async function handleSend(
-    input: TerminalToolInput,
+    input: VsCodeTerminalToolInput,
     ctx: ToolContext
 ): Promise<vscode.LanguageModelToolResult> {
     const { terminal_id, command, workspace_id } = input;
@@ -239,7 +388,7 @@ async function handleSend(
     return successResult(result);
 }
 
-function handleClose(input: TerminalToolInput): vscode.LanguageModelToolResult {
+function handleClose(input: VsCodeTerminalToolInput): vscode.LanguageModelToolResult {
     const { terminal_id } = input;
 
     if (!terminal_id) {
@@ -284,8 +433,8 @@ function handleList(): vscode.LanguageModelToolResult {
 // Main handler
 // ---------------------------------------------------------------------------
 
-export async function handleInteractiveTerminalTool(
-    options: vscode.LanguageModelToolInvocationOptions<TerminalToolInput>,
+export async function handleVsCodeTerminalTool(
+    options: vscode.LanguageModelToolInvocationOptions<VsCodeTerminalToolInput>,
     _token: vscode.CancellationToken,
     ctx: ToolContext
 ): Promise<vscode.LanguageModelToolResult> {

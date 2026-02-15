@@ -1,7 +1,7 @@
 /**
  * Consolidated Filesystem Tool - memory_filesystem
  * 
- * Actions: read, write, search, list, tree
+ * Actions: read, write, search, list, tree, delete, move, copy, append, exists
  * Provides workspace-scoped filesystem operations with safety boundaries.
  */
 
@@ -12,14 +12,26 @@ import {
   handleSearch,
   handleList,
   handleTree,
+  handleDelete,
+  handleMove,
+  handleCopy,
+  handleAppend,
+  handleExists,
   type FileReadResult,
   type FileWriteResult,
   type FileSearchResult,
   type FileListResult,
   type FileTreeResult,
+  type FileDeleteResult,
+  type FileDeletePreviewResult,
+  type FileMoveResult,
+  type FileMovePreviewResult,
+  type FileCopyResult,
+  type FileAppendResult,
+  type FileExistsResult,
 } from '../filesystem.tools.js';
 
-export type FilesystemAction = 'read' | 'write' | 'search' | 'list' | 'tree';
+export type FilesystemAction = 'read' | 'write' | 'search' | 'list' | 'tree' | 'delete' | 'move' | 'copy' | 'append' | 'exists';
 
 export interface MemoryFilesystemParams {
   action: FilesystemAction;
@@ -37,6 +49,15 @@ export interface MemoryFilesystemParams {
   regex?: string;        // regex pattern (alternative to glob)
   include?: string;      // file include pattern (e.g. "*.ts")
 
+  // For delete
+  confirm?: boolean;
+  dry_run?: boolean;
+
+  // For move, copy
+  source?: string;
+  destination?: string;
+  overwrite?: boolean;
+
   // For list, tree
   recursive?: boolean;
   max_depth?: number;    // default 3 for tree
@@ -47,7 +68,12 @@ type FilesystemResult =
   | { action: 'write'; data: FileWriteResult }
   | { action: 'search'; data: FileSearchResult }
   | { action: 'list'; data: FileListResult }
-  | { action: 'tree'; data: FileTreeResult };
+  | { action: 'tree'; data: FileTreeResult }
+  | { action: 'delete'; data: FileDeleteResult | FileDeletePreviewResult }
+  | { action: 'move'; data: FileMoveResult | FileMovePreviewResult }
+  | { action: 'copy'; data: FileCopyResult }
+  | { action: 'append'; data: FileAppendResult }
+  | { action: 'exists'; data: FileExistsResult };
 
 export async function memoryFilesystem(params: MemoryFilesystemParams): Promise<ToolResponse<FilesystemResult>> {
   const { action, workspace_id } = params;
@@ -55,7 +81,7 @@ export async function memoryFilesystem(params: MemoryFilesystemParams): Promise<
   if (!action) {
     return {
       success: false,
-      error: 'action is required. Valid actions: read, write, search, list, tree',
+      error: 'action is required. Valid actions: read, write, search, list, tree, delete, move, copy, append, exists',
     };
   }
 
@@ -130,10 +156,87 @@ export async function memoryFilesystem(params: MemoryFilesystemParams): Promise<
       return { success: true, data: { action: 'tree', data: result.data! } };
     }
 
+    case 'delete': {
+      if (!params.path) {
+        return { success: false, error: 'path is required for action: delete' };
+      }
+      const result = await handleDelete({
+        workspace_id,
+        path: params.path,
+        confirm: params.confirm,
+        dry_run: params.dry_run,
+      });
+      if (!result.success) return { success: false, error: result.error };
+      return { success: true, data: { action: 'delete', data: result.data! } };
+    }
+
+    case 'move': {
+      if (!params.source) {
+        return { success: false, error: 'source is required for action: move' };
+      }
+      if (!params.destination) {
+        return { success: false, error: 'destination is required for action: move' };
+      }
+      const result = await handleMove({
+        workspace_id,
+        source: params.source,
+        destination: params.destination,
+        overwrite: params.overwrite,
+        dry_run: params.dry_run,
+      });
+      if (!result.success) return { success: false, error: result.error };
+      return { success: true, data: { action: 'move', data: result.data! } };
+    }
+
+    case 'copy': {
+      if (!params.source) {
+        return { success: false, error: 'source is required for action: copy' };
+      }
+      if (!params.destination) {
+        return { success: false, error: 'destination is required for action: copy' };
+      }
+      const result = await handleCopy({
+        workspace_id,
+        source: params.source,
+        destination: params.destination,
+        overwrite: params.overwrite,
+      });
+      if (!result.success) return { success: false, error: result.error };
+      return { success: true, data: { action: 'copy', data: result.data! } };
+    }
+
+    case 'append': {
+      if (!params.path) {
+        return { success: false, error: 'path is required for action: append' };
+      }
+      if (params.content === undefined) {
+        return { success: false, error: 'content is required for action: append' };
+      }
+      const result = await handleAppend({
+        workspace_id,
+        path: params.path,
+        content: params.content,
+      });
+      if (!result.success) return { success: false, error: result.error };
+      return { success: true, data: { action: 'append', data: result.data! } };
+    }
+
+    case 'exists': {
+      if (!params.path) {
+        return { success: false, error: 'path is required for action: exists' };
+      }
+      const result = await handleExists({
+        workspace_id,
+        path: params.path,
+      });
+      if (!result.success) return { success: false, error: result.error };
+      return { success: true, data: { action: 'exists', data: result.data! } };
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: read, write, search, list, tree`,
+        error: `Unknown action: ${action}. Valid actions: read, write, search, list, tree, delete, move, copy, append, exists`,
       };
   }
 }

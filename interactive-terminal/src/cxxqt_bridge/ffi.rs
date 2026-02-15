@@ -1,0 +1,98 @@
+use std::pin::Pin;
+
+pub(crate) type TerminalAppRust = super::TerminalAppRust;
+
+#[cxx_qt::bridge]
+pub mod ffi {
+    unsafe extern "C++" {
+        include!("cxx-qt-lib/qstring.h");
+        type QString = cxx_qt_lib::QString;
+    }
+
+    unsafe extern "RustQt" {
+        #[qobject]
+        #[qml_element]
+        #[qproperty(QString, command_text, cxx_name = "commandText")]
+        #[qproperty(QString, working_directory, cxx_name = "workingDirectory")]
+        #[qproperty(QString, context_info, cxx_name = "contextInfo")]
+        #[qproperty(QString, status_text, cxx_name = "statusText")]
+        #[qproperty(QString, output_text, cxx_name = "outputText")]
+        #[qproperty(bool, is_connected, cxx_name = "isConnected")]
+        #[qproperty(i32, pending_count, cxx_name = "pendingCount")]
+        #[qproperty(QString, current_request_id, cxx_name = "currentRequestId")]
+        #[qproperty(QString, current_session_id, cxx_name = "currentSessionId")]
+        #[qproperty(QString, current_terminal_profile, cxx_name = "currentTerminalProfile")]
+        #[qproperty(QString, current_workspace_path, cxx_name = "currentWorkspacePath")]
+        #[qproperty(QString, current_venv_path, cxx_name = "currentVenvPath")]
+        #[qproperty(bool, current_activate_venv, cxx_name = "currentActivateVenv")]
+        #[qproperty(QString, pending_commands_json, cxx_name = "pendingCommandsJson")]
+        #[qproperty(QString, session_tabs_json, cxx_name = "sessionTabsJson")]
+        type TerminalApp = super::TerminalAppRust;
+
+        #[qsignal]
+        #[cxx_name = "commandReceived"]
+        fn command_received(self: Pin<&mut TerminalApp>, id: QString);
+
+        #[qsignal]
+        #[cxx_name = "commandCompleted"]
+        fn command_completed(
+            self: Pin<&mut TerminalApp>,
+            id: QString,
+            success: bool,
+        );
+
+        #[qsignal]
+        #[cxx_name = "outputLineReceived"]
+        fn output_line_received(self: Pin<&mut TerminalApp>, line: QString);
+
+        #[qsignal]
+        #[cxx_name = "connectionStatusChanged"]
+        fn connection_status_changed(self: Pin<&mut TerminalApp>, connected: bool);
+
+        #[qinvokable]
+        #[cxx_name = "approveCommand"]
+        fn approve_command(self: Pin<&mut TerminalApp>, id: QString);
+
+        #[qinvokable]
+        #[cxx_name = "declineCommand"]
+        fn decline_command(
+            self: Pin<&mut TerminalApp>,
+            id: QString,
+            reason: QString,
+        );
+
+        #[qinvokable]
+        #[cxx_name = "clearOutput"]
+        fn clear_output(self: Pin<&mut TerminalApp>);
+
+        #[qinvokable]
+        #[cxx_name = "createSession"]
+        fn create_session(self: Pin<&mut TerminalApp>) -> QString;
+
+        #[qinvokable]
+        #[cxx_name = "switchSession"]
+        fn switch_session(self: Pin<&mut TerminalApp>, session_id: QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "closeSession"]
+        fn close_session(self: Pin<&mut TerminalApp>, session_id: QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "setSessionTerminalProfile"]
+        fn set_session_terminal_profile(self: Pin<&mut TerminalApp>, profile: QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "setSessionWorkspacePath"]
+        fn set_session_workspace_path(self: Pin<&mut TerminalApp>, workspace_path: QString);
+
+        #[qinvokable]
+        #[cxx_name = "setSessionVenvPath"]
+        fn set_session_venv_path(self: Pin<&mut TerminalApp>, venv_path: QString);
+
+        #[qinvokable]
+        #[cxx_name = "setSessionActivateVenv"]
+        fn set_session_activate_venv(self: Pin<&mut TerminalApp>, activate: bool);
+    }
+
+    impl cxx_qt::Threading for TerminalApp {}
+}

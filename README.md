@@ -639,6 +639,45 @@ podman run -p 3000:3000 -p 3001:3001 -p 3002:3002 \
 
 A `podman-compose.yml` is provided for orchestrated deployment.
 
+### Interactive Terminal Host Bridge (Container Mode)
+
+`memory_terminal_interactive` is the canonical MCP lifecycle contract (`execute`, `read_output`, `terminate`, `list`).
+Use `memory_terminal_vscode` for visible VS Code terminal lifecycle (`create`, `send`, `close`, `list`).
+
+When `memory_terminal_interactive` runs with `container_bridge`, the container must reach a host-side GUI bridge listener.
+
+Defaults are preconfigured in `Containerfile`, `container/entrypoint.sh`, `podman-compose.yml`, and `run-container.ps1` and can be overridden via environment variables:
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `PM_RUNNING_IN_CONTAINER` | `true` | Marks runtime as containerized for adapter selection |
+| `PM_TERM_ADAPTER_MODE` | `container_bridge` | Forces adapter mode for interactive terminal calls |
+| `PM_INTERACTIVE_TERMINAL_HOST_ALIAS` | `host.containers.internal` | Primary host alias from container |
+| `PM_INTERACTIVE_TERMINAL_HOST_FALLBACK_ALIAS` | `host.docker.internal` | Fallback host alias |
+| `PM_INTERACTIVE_TERMINAL_HOST_PORT` | `45459` | Host GUI bridge TCP port |
+| `PM_INTERACTIVE_TERMINAL_CONNECT_TIMEOUT_MS` | `3000` | Bridge connect timeout for preflight |
+| `PM_INTERACTIVE_TERMINAL_REQUEST_TIMEOUT_MS` | `30000` | Bridge request/response timeout |
+| `PM_INTERACTIVE_TERMINAL_TRACE_BRIDGE` | `0` | Verbose bridge tracing toggle |
+
+`run-container.ps1 run` performs a host-side preflight check and prints actionable guidance when the bridge listener is unavailable.
+
+### Interactive Terminal Migration + Compatibility
+
+Legacy aliases are still accepted by `memory_terminal_interactive` for migration (`run`, `kill`, `send`, `close`, `create`, `list`) and are normalized to canonical actions with resolution metadata (`resolved.alias_applied`, `resolved.legacy_action`).
+
+Recommended migration mapping:
+
+- `run` -> `execute`
+- `kill` -> `terminate`
+- `send` -> `execute`
+- `close` -> `terminate`
+- `create` -> `execute` + `intent: open_only`
+
+Reference docs:
+
+- [Interactive Terminal Contract Unification Design](docs/interactive-terminal-contract-unification-design.md)
+- [Interactive Terminal Operator Troubleshooting](docs/interactive-terminal-operator-troubleshooting.md)
+
 ### Extension Container Mode
 
 The VS Code extension can connect to a containerized server. Configure in extension settings:

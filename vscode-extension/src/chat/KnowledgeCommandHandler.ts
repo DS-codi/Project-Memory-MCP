@@ -10,6 +10,7 @@
 
 import * as vscode from 'vscode';
 import { McpBridge } from './McpBridge';
+import { withProgress } from './ChatResponseHelpers';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -109,12 +110,12 @@ async function handleList(
     workspaceId: string,
 ): Promise<vscode.ChatResult> {
     response.markdown('📚 **Knowledge Files**\n\n');
-    response.progress('Fetching knowledge files…');
-
     try {
-        const result = await mcpBridge.callTool<KnowledgeListResult>(
-            'memory_context',
-            { action: 'knowledge_list', workspace_id: workspaceId },
+        const result = await withProgress(response, 'Listing knowledge files...', async () =>
+            mcpBridge.callTool<KnowledgeListResult>(
+                'memory_context',
+                { action: 'knowledge_list', workspace_id: workspaceId },
+            )
         );
 
         const files = result?.files ?? [];
@@ -157,12 +158,12 @@ async function handleShow(
         return { metadata: { command: 'knowledge', action: 'show' } };
     }
 
-    response.progress(`Loading knowledge file "${slug}"…`);
-
     try {
-        const result = await mcpBridge.callTool<KnowledgeGetResult>(
-            'memory_context',
-            { action: 'knowledge_get', workspace_id: workspaceId, slug },
+        const result = await withProgress(response, `Loading knowledge file "${slug}"...`, async () =>
+            mcpBridge.callTool<KnowledgeGetResult>(
+                'memory_context',
+                { action: 'knowledge_get', workspace_id: workspaceId, slug },
+            )
         );
 
         const file = result?.file;
@@ -229,19 +230,19 @@ async function handleAdd(
         .replace(/-/g, ' ')
         .replace(/\b\w/g, c => c.toUpperCase());
 
-    response.progress(`Creating knowledge file "${slug}"…`);
-
     try {
-        const result = await mcpBridge.callTool<KnowledgeStoreResult>(
-            'memory_context',
-            {
-                action: 'knowledge_store',
-                workspace_id: workspaceId,
-                slug,
-                title,
-                content,
-                category: 'reference', // default category
-            },
+        const result = await withProgress(response, `Creating knowledge file "${slug}"...`, async () =>
+            mcpBridge.callTool<KnowledgeStoreResult>(
+                'memory_context',
+                {
+                    action: 'knowledge_store',
+                    workspace_id: workspaceId,
+                    slug,
+                    title,
+                    content,
+                    category: 'reference', // default category
+                },
+            )
         );
 
         response.markdown(`✅ Knowledge file created: **${result.title ?? title}** (\`${result.slug ?? slug}\`)\n\n`);
@@ -269,12 +270,12 @@ async function handleDelete(
         return { metadata: { command: 'knowledge', action: 'delete' } };
     }
 
-    response.progress(`Deleting knowledge file "${slug}"…`);
-
     try {
-        await mcpBridge.callTool<KnowledgeDeleteResult>(
-            'memory_context',
-            { action: 'knowledge_delete', workspace_id: workspaceId, slug },
+        await withProgress(response, `Deleting knowledge file "${slug}"...`, async () =>
+            mcpBridge.callTool<KnowledgeDeleteResult>(
+                'memory_context',
+                { action: 'knowledge_delete', workspace_id: workspaceId, slug },
+            )
         );
 
         response.markdown(`🗑️ Knowledge file \`${slug}\` deleted.\n`);

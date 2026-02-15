@@ -10,96 +10,95 @@
 
 import type { ToolResponse } from '../../types/index.js';
 import {
-  handleInteractiveTerminalRun,
-  handleListSessions,
-  type InteractiveTerminalRunResult,
-  type SessionListResult,
+  executeCanonicalInteractiveRequest,
+  type CanonicalInteractiveResponse,
 } from '../interactive-terminal.tools.js';
 import {
-  handleReadOutput,
-  handleKill,
-  type TerminalOutputResult,
-  type TerminalKillResult,
-} from '../terminal.tools.js';
+  type InteractiveTerminalCanonicalErrorResponse,
+  parseInteractiveTerminalRequest,
+} from '../interactive-terminal-contract.js';
 
-export type InteractiveTerminalAction = 'run' | 'read_output' | 'kill' | 'list';
+export type InteractiveTerminalAction =
+  | 'execute'
+  | 'read_output'
+  | 'terminate'
+  | 'list'
+  | 'run'
+  | 'kill'
+  | 'send'
+  | 'close'
+  | 'create';
 
 export interface MemoryTerminalInteractiveParams {
   action: InteractiveTerminalAction;
 
-  // For run
+  // Legacy and canonical execution fields
   command?: string;
   args?: string[];
   cwd?: string;
-  timeout?: number;       // ms, default 30000
+  timeout?: number;
+  timeout_ms?: number;
   workspace_id?: string;
+  env?: Record<string, string>;
+  invocation?: {
+    mode?: 'interactive' | 'headless';
+    intent?: 'open_only' | 'execute_command';
+  };
+  correlation?: {
+    request_id?: string;
+    trace_id?: string;
+    client_request_id?: string;
+  };
+  runtime?: {
+    workspace_id?: string;
+    cwd?: string;
+    timeout_ms?: number;
+    adapter_override?: 'local' | 'bundled' | 'container_bridge' | 'auto';
+  };
+  execution?: {
+    command?: string;
+    args?: string[];
+    env?: Record<string, string>;
+  };
+  target?: {
+    session_id?: string;
+    terminal_id?: string;
+  };
+  compat?: {
+    legacy_action?: 'run' | 'kill' | 'send' | 'close' | 'create' | 'list';
+    caller_surface?: 'server' | 'extension' | 'dashboard' | 'chat_button';
+  };
 
-  // For read_output, kill
+  // Legacy short target fields
   session_id?: string;
+  terminal_id?: string;
 }
 
-type InteractiveTerminalResult =
-  | { action: 'run'; data: InteractiveTerminalRunResult }
-  | { action: 'read_output'; data: TerminalOutputResult }
-  | { action: 'kill'; data: TerminalKillResult }
-  | { action: 'list'; data: SessionListResult };
+type InteractiveTerminalResult = CanonicalInteractiveResponse | InteractiveTerminalCanonicalErrorResponse;
 
 export async function memoryTerminalInteractive(
   params: MemoryTerminalInteractiveParams,
 ): Promise<ToolResponse<InteractiveTerminalResult>> {
-  const { action } = params;
-
-  if (!action) {
+  const parsed = parseInteractiveTerminalRequest(params);
+  if (!parsed.ok) {
     return {
       success: false,
-      error: 'action is required. Valid actions: run, read_output, kill, list',
+      error: parsed.response.error.message,
+      data: parsed.response,
     };
   }
 
-  switch (action) {
-    case 'run': {
-      if (!params.command) {
-        return { success: false, error: 'command is required for action: run' };
-      }
-      const result = await handleInteractiveTerminalRun({
-        command: params.command,
-        args: params.args,
-        cwd: params.cwd,
-        timeout: params.timeout,
-        workspace_id: params.workspace_id,
-      });
-      if (!result.success) return { success: false, error: result.error };
-      return { success: true, data: { action: 'run', data: result.data! } };
-    }
-
-    case 'read_output': {
-      if (!params.session_id) {
-        return { success: false, error: 'session_id is required for action: read_output' };
-      }
-      const result = await handleReadOutput({ session_id: params.session_id });
-      if (!result.success) return { success: false, error: result.error };
-      return { success: true, data: { action: 'read_output', data: result.data! } };
-    }
-
-    case 'kill': {
-      if (!params.session_id) {
-        return { success: false, error: 'session_id is required for action: kill' };
-      }
-      const result = await handleKill({ session_id: params.session_id });
-      if (!result.success) return { success: false, error: result.error };
-      return { success: true, data: { action: 'kill', data: result.data! } };
-    }
-
-    case 'list': {
-      const result = await handleListSessions();
-      if (!result.success) return { success: false, error: result.error };
-      return { success: true, data: { action: 'list', data: result.data! } };
-    }
-
-    default:
-      return {
-        success: false,
-        error: `Unknown action: ${action}. Valid actions: run, read_output, kill, list`,
-      };
+  const execution = await executeCanonicalInteractiveRequest(parsed.request, parsed.resolved);
+  if (!execution.success) {
+    return {
+      success: false,
+      error: execution.error.error.message,
+      data: execution.error,
+    };
   }
+
+  return {
+    success: true,
+    data: execution.data,
+  };
 }

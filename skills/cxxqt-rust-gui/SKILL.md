@@ -26,6 +26,38 @@ Guidelines for building Qt-based GUI applications in Rust using CxxQt.
 └─────────────────────────────────────────┘
 ```
 
+## Interactive-Terminal App Profile (Rust+QML)
+
+Use this profile when the CxxQt app is acting as a human-approval gateway for MCP command execution.
+
+### Approval Queue Model
+
+- Incoming command requests are enqueued in Rust backend state before any execution request is routed.
+- QML renders pending items from bridge properties (request id, command, cwd, context/metadata).
+- User actions (`approve`/`decline`) are emitted as bridge invokables/signals and persisted to request state.
+
+### Event Flow (Recommended)
+
+1. Transport layer receives request (TCP/bridge input) and emits `requestReceived`.
+2. QObject bridge updates queue properties (`pendingCount`, active request details).
+3. QML updates approval UI reactively from NOTIFY signals.
+4. User approves/declines via invokable methods.
+5. Rust backend emits response event and routing metadata.
+6. Request is routed to one terminal surface and completion status is signaled back to QML.
+
+### Bridge Responsibilities
+
+- Keep bridge logic focused on state sync and signal/slot translation.
+- Keep execution routing decisions in Rust service/backend layer, not in QML components.
+- Expose explicit properties for queue depth, current request, decision state, and execution status.
+- Emit stable NOTIFY signals so the UI remains deterministic under rapid queue updates.
+
+### Policy Cross-References
+
+- For terminal-surface selection semantics, follow `instructions/mcp-usage.instructions.md` (`Canonical Terminal Surface Selection`).
+- Treat Rust+QML as approval/orchestration; execution still resolves to `memory_terminal` or `memory_terminal_interactive`.
+- If docs conflict on surface contracts, follow `instructions/mcp-usage.instructions.md` (`Contract-Collision Warnings`) and escalate for cleanup.
+
 ## Project Structure
 
 ```

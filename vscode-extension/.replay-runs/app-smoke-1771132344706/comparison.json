@@ -1,0 +1,26 @@
+{
+  "generated_at": "2026-02-15T05:12:24.735Z",
+  "passed": true,
+  "profile_name": "default-replay-profile",
+  "scenarios": [
+    {
+      "checks_executed": [
+        "tool-order-1",
+        "auth-1",
+        "flow-1",
+        "signatures-1"
+      ],
+      "drifts": [],
+      "passed": true,
+      "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION"
+    }
+  ],
+  "summary": {
+    "failed_scenarios": 0,
+    "high_severity_drifts": 0,
+    "low_severity_drifts": 0,
+    "medium_severity_drifts": 0,
+    "passed_scenarios": 1,
+    "total_scenarios": 1
+  }
+}

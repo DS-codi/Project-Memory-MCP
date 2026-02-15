@@ -9,6 +9,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { getDefaultSkillsRoot, getDefaultInstructionsRoot } from '../../utils/defaults';
+import { buildMissingSkillsSourceWarning, resolveSkillsSourceRoot } from '../../utils/skillsSourceRoot';
 
 /** Message posting interface (subset of DashboardViewProvider) */
 export interface MessagePoster {
@@ -29,13 +30,22 @@ function notify(message: string, ...items: string[]): Thenable<string | undefine
 export function handleGetSkills(poster: MessagePoster): void {
     try {
         const config = vscode.workspace.getConfiguration('projectMemory');
-        const skillsRoot = config.get<string>('skillsRoot') || getDefaultSkillsRoot();
-        if (!skillsRoot || !fs.existsSync(skillsRoot)) {
+        const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        const configuredSkillsRoot = config.get<string>('skillsRoot') || getDefaultSkillsRoot();
+        const globalSkillsRoot = config.get<string>('globalSkillsRoot');
+        const sourceResolution = resolveSkillsSourceRoot(
+            configuredSkillsRoot,
+            workspacePath ?? process.cwd(),
+            fs.existsSync,
+            [globalSkillsRoot]
+        );
+
+        if (!sourceResolution.root) {
             poster.postMessage({ type: 'skillsList', data: { skills: [] } });
             return;
         }
 
-        const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        const skillsRoot = sourceResolution.root;
         const skills = fs.readdirSync(skillsRoot)
             .filter((dir: string) => {
                 const skillFile = path.join(skillsRoot, dir, 'SKILL.md');
@@ -74,14 +84,26 @@ export function handleDeploySkill(poster: MessagePoster, data: { skillName: stri
     }
 
     const config = vscode.workspace.getConfiguration('projectMemory');
-    const skillsRoot = config.get<string>('skillsRoot') || getDefaultSkillsRoot();
-    if (!skillsRoot) {
-        vscode.window.showErrorMessage('Skills root not configured');
+    const configuredSkillsRoot = config.get<string>('skillsRoot') || getDefaultSkillsRoot();
+    const globalSkillsRoot = config.get<string>('globalSkillsRoot');
+    const sourceResolution = resolveSkillsSourceRoot(
+        configuredSkillsRoot,
+        workspacePath,
+        fs.existsSync,
+        [globalSkillsRoot]
+    );
+    if (!sourceResolution.root) {
+        vscode.window.showWarningMessage(buildMissingSkillsSourceWarning(workspacePath, sourceResolution.checkedPaths));
         return;
     }
+    const skillsRoot = sourceResolution.root;
 
     try {
         const sourceDir = path.join(skillsRoot, data.skillName);
+        if (!fs.existsSync(sourceDir)) {
+            vscode.window.showWarningMessage(`Skill "${data.skillName}" not found in source root.`);
+            return;
+        }
         const destDir = path.join(workspacePath, '.github', 'skills', data.skillName);
         fs.mkdirSync(destDir, { recursive: true });
 

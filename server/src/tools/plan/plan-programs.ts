@@ -4,7 +4,8 @@
  * Programs are multi-plan containers that group related plans under a
  * single umbrella. A program is stored as a PlanState with is_program=true.
  *
- * Functions: createProgram, addPlanToProgram, upgradeToProgram, listProgramPlans
+ * Functions: createProgram, addPlanToProgram, linkToProgram, unlinkFromProgram,
+ *            upgradeToProgram, listProgramPlans, setPlanDependencies, getPlanDependencies
  */
 
 import type {
@@ -17,6 +18,10 @@ import type {
   ListProgramPlansParams,
   ProgramPlansResult,
   ProgramChildPlanSummary,
+  UnlinkFromProgramParams,
+  SetPlanDependenciesParams,
+  GetPlanDependenciesParams,
+  GetPlanDependenciesResult,
 } from '../../types/index.js';
 import * as store from '../../storage/file-store.js';
 import { events } from '../../events/event-emitter.js';
@@ -412,6 +417,302 @@ export async function listProgramPlans(
     return {
       success: false,
       error: `Failed to list program plans: ${(error as Error).message}`,
+    };
+  }
+}
+
+// =============================================================================
+// linkToProgram (wrapper around addPlanToProgram with enhanced error messages)
+// =============================================================================
+
+/**
+ * Link a plan to a program. Wrapper around addPlanToProgram with
+ * enhanced error messages and user-friendly validation.
+ */
+export async function linkToProgram(
+  params: AddPlanToProgramParams
+): Promise<ToolResponse<{ program: PlanState; plan: PlanState }>> {
+  try {
+    const { workspace_id, program_id, plan_id } = params;
+
+    if (!workspace_id || !program_id || !plan_id) {
+      return {
+        success: false,
+        error: 'workspace_id, program_id, and plan_id are required for link_to_program',
+      };
+    }
+
+    // Pre-validate with friendlier error messages
+    if (program_id === plan_id) {
+      return {
+        success: false,
+        error: `Cannot link plan "${plan_id}" to itself as a program`,
+      };
+    }
+
+    const program = await store.getPlanState(workspace_id, program_id);
+    if (!program) {
+      return {
+        success: false,
+        error: `Program "${program_id}" not found in workspace "${workspace_id}". Verify the program_id or create a program first with create_program.`,
+      };
+    }
+    if (!program.is_program) {
+      return {
+        success: false,
+        error: `"${program_id}" (${program.title}) is a regular plan, not a program. Use upgrade_to_program to convert it first, or create a new program with create_program.`,
+      };
+    }
+
+    const plan = await store.getPlanState(workspace_id, plan_id);
+    if (!plan) {
+      return {
+        success: false,
+        error: `Plan "${plan_id}" not found in workspace "${workspace_id}". Verify the plan_id exists.`,
+      };
+    }
+
+    if (plan.program_id && plan.program_id !== program_id) {
+      const existingProgram = await store.getPlanState(workspace_id, plan.program_id);
+      const existingTitle = existingProgram?.title || plan.program_id;
+      return {
+        success: false,
+        error: `Plan "${plan.title}" already belongs to program "${existingTitle}" (${plan.program_id}). Use unlink_from_program to remove it first.`,
+      };
+    }
+
+    // Delegate to existing implementation
+    return await addPlanToProgram(params);
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to link plan to program: ${(error as Error).message}`,
+    };
+  }
+}
+
+// =============================================================================
+// unlinkFromProgram
+// =============================================================================
+
+/**
+ * Remove a plan from a program. Clears plan.program_id and removes
+ * the plan from program.child_plan_ids. Bidirectional update.
+ */
+export async function unlinkFromProgram(
+  params: UnlinkFromProgramParams
+): Promise<ToolResponse<{ program: PlanState; plan: PlanState }>> {
+  try {
+    const { workspace_id, plan_id } = params;
+
+    if (!workspace_id || !plan_id) {
+      return {
+        success: false,
+        error: 'workspace_id and plan_id are required for unlink_from_program',
+      };
+    }
+
+    // Load the plan
+    const plan = await store.getPlanState(workspace_id, plan_id);
+    if (!plan) {
+      return {
+        success: false,
+        error: `Plan not found: ${plan_id}`,
+      };
+    }
+
+    // Verify plan is actually in a program
+    if (!plan.program_id) {
+      return {
+        success: false,
+        error: `Plan "${plan.title}" (${plan_id}) is not linked to any program`,
+      };
+    }
+
+    const programId = plan.program_id;
+
+    // Load the program
+    const program = await store.getPlanState(workspace_id, programId);
+    if (!program) {
+      // Program doesn't exist — clean up the orphaned reference on the plan
+      plan.program_id = undefined;
+      plan.updated_at = store.nowISO();
+      await store.savePlanState(plan);
+      return {
+        success: false,
+        error: `Program ${programId} not found. Cleared orphaned program_id from plan.`,
+      };
+    }
+
+    // Remove plan from program's child_plan_ids
+    if (program.child_plan_ids) {
+      program.child_plan_ids = program.child_plan_ids.filter(id => id !== plan_id);
+    }
+
+    // Clear plan's program_id
+    plan.program_id = undefined;
+
+    // Save both atomically (as much as file-based storage allows)
+    plan.updated_at = store.nowISO();
+    program.updated_at = store.nowISO();
+    await store.savePlanState(plan);
+    await store.savePlanState(program);
+
+    await store.generatePlanMd(plan);
+    await store.generatePlanMd(program);
+
+    await events.planUpdated(workspace_id, plan_id, { unlinked_from_program: programId });
+
+    return {
+      success: true,
+      data: { program, plan },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to unlink plan from program: ${(error as Error).message}`,
+    };
+  }
+}
+
+// =============================================================================
+// setPlanDependencies
+// =============================================================================
+
+/**
+ * Set the depends_on_plans array on a plan. Validates that all referenced
+ * plans exist and checks for circular dependencies.
+ */
+export async function setPlanDependencies(
+  params: SetPlanDependenciesParams
+): Promise<ToolResponse<{ plan_id: string; depends_on_plans: string[]; message: string }>> {
+  try {
+    const { workspace_id, plan_id, depends_on_plans } = params;
+
+    if (!workspace_id || !plan_id) {
+      return {
+        success: false,
+        error: 'workspace_id and plan_id are required for set_plan_dependencies',
+      };
+    }
+
+    if (!Array.isArray(depends_on_plans)) {
+      return {
+        success: false,
+        error: 'depends_on_plans must be an array of plan IDs',
+      };
+    }
+
+    // Load the plan
+    const plan = await store.getPlanState(workspace_id, plan_id);
+    if (!plan) {
+      return {
+        success: false,
+        error: `Plan not found: ${plan_id}`,
+      };
+    }
+
+    // Validate that all referenced plans exist
+    const missingPlans: string[] = [];
+    for (const depId of depends_on_plans) {
+      const dep = await store.getPlanState(workspace_id, depId);
+      if (!dep) {
+        missingPlans.push(depId);
+      }
+    }
+    if (missingPlans.length > 0) {
+      return {
+        success: false,
+        error: `Referenced plans not found: ${missingPlans.join(', ')}`,
+      };
+    }
+
+    // Check for circular dependencies
+    const cyclePlanId = await validatePlanDependencies(workspace_id, plan_id, depends_on_plans);
+    if (cyclePlanId) {
+      return {
+        success: false,
+        error: `Circular dependency detected: adding dependency on "${cyclePlanId}" would create a cycle`,
+      };
+    }
+
+    // Set dependencies
+    plan.depends_on_plans = depends_on_plans;
+    plan.updated_at = store.nowISO();
+    await store.savePlanState(plan);
+    await store.generatePlanMd(plan);
+
+    await events.planUpdated(workspace_id, plan_id, { dependencies_updated: depends_on_plans });
+
+    return {
+      success: true,
+      data: {
+        plan_id,
+        depends_on_plans,
+        message: depends_on_plans.length > 0
+          ? `Set ${depends_on_plans.length} dependencies on plan ${plan_id}`
+          : `Cleared all dependencies from plan ${plan_id}`,
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to set plan dependencies: ${(error as Error).message}`,
+    };
+  }
+}
+
+// =============================================================================
+// getPlanDependencies
+// =============================================================================
+
+/**
+ * Get the dependencies for a plan and also find dependents (plans that
+ * depend on this plan). Performs a reverse lookup across all workspace plans.
+ */
+export async function getPlanDependencies(
+  params: GetPlanDependenciesParams
+): Promise<ToolResponse<GetPlanDependenciesResult>> {
+  try {
+    const { workspace_id, plan_id } = params;
+
+    if (!workspace_id || !plan_id) {
+      return {
+        success: false,
+        error: 'workspace_id and plan_id are required for get_plan_dependencies',
+      };
+    }
+
+    // Load the plan
+    const plan = await store.getPlanState(workspace_id, plan_id);
+    if (!plan) {
+      return {
+        success: false,
+        error: `Plan not found: ${plan_id}`,
+      };
+    }
+
+    const dependsOn = plan.depends_on_plans || [];
+
+    // Reverse lookup: find all plans that depend on this plan
+    const allPlans = await store.getWorkspacePlans(workspace_id);
+    const dependents = allPlans
+      .filter(p => p.id !== plan_id && p.depends_on_plans?.includes(plan_id))
+      .map(p => p.id);
+
+    return {
+      success: true,
+      data: {
+        plan_id,
+        depends_on_plans: dependsOn,
+        dependents,
+        message: `Plan has ${dependsOn.length} dependencies and ${dependents.length} dependents`,
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Failed to get plan dependencies: ${(error as Error).message}`,
     };
   }
 }

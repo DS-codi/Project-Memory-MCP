@@ -203,15 +203,26 @@ You have access to Project Memory MCP tools, but you use them **opportunisticall
 | `memory_terminal` | `kill` | Kill a running process |
 | `memory_terminal` | `get_allowlist` | View auto-approved command patterns |
 | `memory_terminal` | `update_allowlist` | Add/remove auto-approve patterns for the workspace |
-| `memory_terminal_interactive` | `create` | Open a visible VS Code terminal for interactive work |
-| `memory_terminal_interactive` | `send` | Send commands to a visible terminal (destructive commands blocked) |
-| `memory_terminal_interactive` | `close` | Close a visible terminal |
-| `memory_terminal_interactive` | `list` | List all open tracked terminals |
+| `memory_terminal_interactive` | `execute` | Execute interactive-terminal requests via canonical contract |
+| `memory_terminal_interactive` | `read_output` | Read buffered output from interactive-terminal sessions |
+| `memory_terminal_interactive` | `terminate` | Terminate an interactive-terminal session |
+| `memory_terminal_interactive` | `list` | List all open interactive-terminal sessions |
+| `memory_terminal_vscode` | `create` | Open a visible VS Code terminal for interactive work |
+| `memory_terminal_vscode` | `send` | Send commands to a visible terminal (destructive commands blocked) |
+| `memory_terminal_vscode` | `close` | Close a visible terminal |
+| `memory_terminal_vscode` | `list` | List all open tracked VS Code terminals |
 | `memory_filesystem` | `read` | Read workspace-scoped files |
 | `memory_filesystem` | `write` | Write/create files within workspace |
 | `memory_filesystem` | `search` | Search files by glob or regex |
 | `memory_filesystem` | `list` | List directory contents |
 | `memory_filesystem` | `tree` | View recursive directory tree |
+
+## Terminal Surface Guidance (Canonical)
+
+- Choose `memory_terminal` for deterministic headless automation in server/container workflows.
+- Choose `memory_terminal_vscode` for visible host-terminal commands when interactive feedback is required.
+- Follow the canonical matrix in `instructions/mcp-usage.instructions.md` and keep terminal contracts separate.
+- If Rust+QML interactive gateway context is present, use it as approval/routing; execution still lands on `memory_terminal`, `memory_terminal_interactive`, or `memory_terminal_vscode`.
 
 ---
 

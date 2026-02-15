@@ -1,0 +1,15 @@
+## Replay Gate Summary
+
+- Mode: warn
+- Status: WARN
+- Passed: yes
+- Reason: Warn gate allows CI to pass while emitting replay drift annotations.
+- Classification: deterministic_regression
+- Retried: no
+- Triage labels: replay, deterministic-regression, gate:warn, stable-fingerprint
+- Total scenarios: 1
+- Failed scenarios: 1
+- High drifts: 1
+- Medium drifts: 0
+- Low drifts: 0
+- Annotation count: 1

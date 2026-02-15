@@ -1,0 +1,29 @@
+{
+  "artifact_envelope": {
+    "baseline": {
+      "normalized_file": ".replay-runs/app-smoke-1771132116710/baseline.norm.json",
+      "raw_file": ".replay-runs/app-smoke-1771132116710/baseline.raw.jsonl",
+      "scenario_count": 1
+    },
+    "candidate": {
+      "normalized_file": ".replay-runs/app-smoke-1771132116710/candidate.norm.json",
+      "raw_file": ".replay-runs/app-smoke-1771132116710/candidate.raw.jsonl",
+      "scenario_count": 1
+    }
+  },
+  "baseline_artifact_file": ".replay-runs/app-smoke-1771132116710/baseline.norm.json",
+  "baseline_normalized_artifact_file": ".replay-runs/app-smoke-1771132116710/baseline.norm.json",
+  "baseline_raw_artifact_file": ".replay-runs/app-smoke-1771132116710/baseline.raw.jsonl",
+  "candidate_artifact_file": ".replay-runs/app-smoke-1771132116710/candidate.norm.json",
+  "candidate_normalized_artifact_file": ".replay-runs/app-smoke-1771132116710/candidate.norm.json",
+  "candidate_raw_artifact_file": ".replay-runs/app-smoke-1771132116710/candidate.raw.jsonl",
+  "created_at": "2026-02-15T05:08:36.736Z",
+  "determinism_env": {
+    "locale": "en_US.UTF-8",
+    "node_version": "v22.14.0",
+    "tz": "UTC"
+  },
+  "output_dir": ".replay-runs/app-smoke-1771132116710",
+  "run_id": "app-smoke-1771132116710",
+  "scenario_count": 1
+}

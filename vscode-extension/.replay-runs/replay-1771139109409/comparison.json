@@ -1,0 +1,24 @@
+{
+  "generated_at": "2026-02-15T07:05:09.423Z",
+  "passed": true,
+  "profile_name": "default-replay-profile",
+  "scenarios": [
+    {
+      "checks_executed": [
+        "tool-order",
+        "signature"
+      ],
+      "drifts": [],
+      "passed": true,
+      "scenario_id": "TOOL_ALIAS_OPTIONAL_DRIFT_P1"
+    }
+  ],
+  "summary": {
+    "failed_scenarios": 0,
+    "high_severity_drifts": 0,
+    "low_severity_drifts": 0,
+    "medium_severity_drifts": 0,
+    "passed_scenarios": 1,
+    "total_scenarios": 1
+  }
+}

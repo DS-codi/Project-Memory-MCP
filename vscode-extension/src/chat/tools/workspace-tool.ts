@@ -9,9 +9,11 @@ import { McpBridge } from '../McpBridge';
 import type { ToolContext } from './types';
 
 export interface WorkspaceToolInput {
-    action: 'register' | 'list' | 'info' | 'reindex';
+    action: 'register' | 'list' | 'info' | 'reindex' | 'set_display_name';
     workspacePath?: string;
     workspaceId?: string;
+    displayName?: string;
+    display_name?: string;
 }
 
 export async function handleWorkspaceTool(
@@ -24,7 +26,7 @@ export async function handleWorkspaceTool(
             return errorResult('MCP server not connected');
         }
 
-        const { action, workspacePath, workspaceId: inputWsId } = options.input;
+        const { action, workspacePath, workspaceId: inputWsId, displayName, display_name } = options.input;
         let result: unknown;
 
         switch (action) {
@@ -60,6 +62,20 @@ export async function handleWorkspaceTool(
                 result = await ctx.mcpBridge.callTool('memory_workspace', {
                     action: 'reindex',
                     workspace_id: wsId
+                });
+                break;
+            }
+
+            case 'set_display_name': {
+                const wsId = inputWsId ?? (await ctx.ensureWorkspace());
+                const nextDisplayName = displayName ?? display_name;
+                if (typeof nextDisplayName !== 'string' || !nextDisplayName.trim()) {
+                    return errorResult('displayName is required for action: set_display_name');
+                }
+                result = await ctx.mcpBridge.callTool('memory_workspace', {
+                    action: 'set_display_name',
+                    workspace_id: wsId,
+                    display_name: nextDisplayName
                 });
                 break;
             }

@@ -15,6 +15,7 @@ import type {
 import * as store from '../storage/file-store.js';
 import { indexWorkspace, needsIndexing } from '../indexing/workspace-indexer.js';
 import type { WorkspaceMigrationReport } from '../storage/file-store.js';
+import { buildWorkspaceContextSectionsFromProfile } from '../utils/workspace-context-seed.js';
 
 interface RegisterWorkspaceResult {
   workspace: WorkspaceMeta;
@@ -276,41 +277,7 @@ async function seedWorkspaceContext(
 
     const now = store.nowISO();
 
-    // Build project_details from detected languages & frameworks
-    const langNames = profile.languages.map(l => l.name);
-    const stackParts = [...langNames, ...profile.frameworks].filter(Boolean);
-    const projectSummary = stackParts.length > 0
-      ? `Detected stack: ${stackParts.join(', ')}.`
-      : 'Codebase indexed but no specific stack detected.';
-
-    const projectItems = profile.languages.map(l => ({
-      title: l.name,
-      description: `${l.percentage}% of codebase (${l.file_count} files)`
-    }));
-    if (profile.build_system) {
-      projectItems.push({
-        title: `Build: ${profile.build_system.type}`,
-        description: profile.build_system.config_file
-      });
-    }
-    if (profile.test_framework) {
-      projectItems.push({
-        title: `Tests: ${profile.test_framework.name}`,
-        description: profile.test_framework.config_file ?? 'auto-detected'
-      });
-    }
-    if (profile.package_manager) {
-      projectItems.push({
-        title: `Package Manager: ${profile.package_manager}`,
-        description: ''
-      });
-    }
-
-    // Build dependencies section from frameworks
-    const depItems = profile.frameworks.map(fw => ({
-      title: fw,
-      description: 'Detected framework/library'
-    }));
+    const sections = buildWorkspaceContextSectionsFromProfile(profile);
 
     const context: WorkspaceContext = {
       schema_version: '1.0',
@@ -319,22 +286,13 @@ async function seedWorkspaceContext(
       name: workspaceName,
       created_at: now,
       updated_at: now,
-      sections: {
-        project_details: {
-          summary: projectSummary,
-          items: projectItems
-        },
-        ...(depItems.length > 0 ? {
-          dependencies: {
-            summary: `${depItems.length} framework(s)/library(s) detected.`,
-            items: depItems
-          }
-        } : {})
-      }
+      sections
     };
 
     await store.writeJsonLocked(contextPath, context);
-    console.log(`Auto-seeded workspace context for ${workspaceId} with ${projectItems.length} project details and ${depItems.length} dependencies`);
+    const projectItemsCount = sections.project_details?.items?.length ?? 0;
+    const dependencyItemsCount = sections.dependencies?.items?.length ?? 0;
+    console.log(`Auto-seeded workspace context for ${workspaceId} with ${projectItemsCount} project details and ${dependencyItemsCount} dependencies`);
   } catch (error) {
     // Non-fatal — context seeding is best-effort
     console.warn('Failed to auto-seed workspace context:', 

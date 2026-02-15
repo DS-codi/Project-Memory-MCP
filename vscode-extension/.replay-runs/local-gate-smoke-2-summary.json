@@ -1,0 +1,30 @@
+{
+  "gate": {
+    "mode": "info",
+    "passed": true,
+    "status": "INFO",
+    "reason": "Info gate collected replay drift insights without failing CI.",
+    "annotations": [
+      {
+        "level": "notice",
+        "scenario_id": "PHASE3_EXECUTOR_IMPLEMENTATION",
+        "check_id": "flow-1",
+        "severity": "high",
+        "message": "Plan step updates occurred without a confirmation event."
+      }
+    ],
+    "summary": {
+      "total_scenarios": 1,
+      "passed_scenarios": 0,
+      "failed_scenarios": 1,
+      "high_severity_drifts": 1,
+      "medium_severity_drifts": 0,
+      "low_severity_drifts": 0
+    },
+    "generated_at": "2026-02-15T00:24:45.987Z"
+  },
+  "report": {
+    "comparison_json": "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\vscode-extension\\.replay-runs\\local-gate-smoke-2-1771115085971\\comparison.json",
+    "report_markdown": "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\vscode-extension\\.replay-runs\\local-gate-smoke-2-1771115085971\\report.md"
+  }
+}

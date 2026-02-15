@@ -73,6 +73,47 @@ suite('Commands Test Suite', () => {
             'addToPlan command should be registered'
         );
     });
+
+    test('Mark Step commands should be registered', async () => {
+        const commands = await vscode.commands.getCommands();
+        assert.ok(
+            commands.includes('projectMemory.markStepActive'),
+            'markStepActive command should be registered'
+        );
+        assert.ok(
+            commands.includes('projectMemory.markStepDone'),
+            'markStepDone command should be registered'
+        );
+        assert.ok(
+            commands.includes('projectMemory.openPlanInDashboard'),
+            'openPlanInDashboard command should be registered'
+        );
+        assert.ok(
+            commands.includes('projectMemory.archivePlan'),
+            'archivePlan command should be registered'
+        );
+        assert.ok(
+            commands.includes('projectMemory.confirmPlanStep'),
+            'confirmPlanStep command should be registered'
+        );
+        assert.ok(
+            commands.includes('projectMemory.confirmPlanPhase'),
+            'confirmPlanPhase command should be registered'
+        );
+        assert.ok(
+            commands.includes('projectMemory.confirmAction'),
+            'confirmAction command should be registered'
+        );
+        assert.ok(
+            commands.includes('projectMemory.cancelAction'),
+            'cancelAction command should be registered'
+        );
+    });
+
+    test('Mark Step commands handle invalid chat-action args without throwing', async () => {
+        await vscode.commands.executeCommand('projectMemory.markStepActive', undefined, 0);
+        await vscode.commands.executeCommand('projectMemory.markStepDone', 'plan_abc', 'not-a-number');
+    });
 });
 
 suite('Configuration Test Suite', () => {
