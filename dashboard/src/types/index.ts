@@ -308,6 +308,7 @@ export interface PlanFilter {
   category: RequestCategory[];
   priority: PlanPriority[];
   search: string;
+  programId?: string;
 }
 
 export interface LiveUpdate {

@@ -1,33 +1,51 @@
-import { useState } from 'react';
-import { Filter } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Filter, FolderTree } from 'lucide-react';
 import { PlanCard } from './PlanCard';
 import { Badge } from '../common/Badge';
 import { cn } from '@/utils/cn';
 import { planStatusColors, categoryColors, priorityColors } from '@/utils/colors';
 import { partitionPlanSummaries } from '@/hooks/usePlans';
-import type { PlanSummary, PlanStatus, RequestCategory, PlanPriority } from '@/types';
+import type { PlanSummary, PlanStatus, RequestCategory, PlanPriority, ProgramSummary } from '@/types';
 
 interface PlanListProps {
   plans: PlanSummary[];
   workspaceId: string;
   isLoading?: boolean;
+  programs?: ProgramSummary[];
 }
 
 const statuses: PlanStatus[] = ['active', 'paused', 'completed', 'archived', 'failed'];
 const categories: RequestCategory[] = ['feature', 'bug', 'change', 'refactor', 'analysis', 'investigation', 'debug', 'documentation'];
 const priorities: PlanPriority[] = ['critical', 'high', 'medium', 'low'];
 
-export function PlanList({ plans, workspaceId, isLoading }: PlanListProps) {
+export function PlanList({ plans, workspaceId, isLoading, programs }: PlanListProps) {
   const [showFilters, setShowFilters] = useState(false);
   const [statusFilter, setStatusFilter] = useState<PlanStatus[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<RequestCategory[]>([]);
   const [priorityFilter, setPriorityFilter] = useState<PlanPriority[]>([]);
+  const [programFilter, setProgramFilter] = useState<string | undefined>(undefined);
+
+  // Build program ID → name lookup
+  const programIdToName = useMemo(() => {
+    const map = new Map<string, string>();
+    if (programs) {
+      for (const p of programs) {
+        map.set(p.program_id, p.name);
+      }
+    }
+    return map;
+  }, [programs]);
 
   // Filter plans
   const filteredPlans = plans.filter((plan) => {
     if (statusFilter.length > 0 && !statusFilter.includes(plan.status)) return false;
     if (categoryFilter.length > 0 && !categoryFilter.includes(plan.category)) return false;
     if (priorityFilter.length > 0 && !priorityFilter.includes(plan.priority)) return false;
+    if (programFilter === '__standalone__') {
+      if (plan.program_id || plan.is_program) return false;
+    } else if (programFilter) {
+      if (plan.program_id !== programFilter) return false;
+    }
     return true;
   });
   const { activePlans, archivedPlans } = partitionPlanSummaries(filteredPlans);
@@ -79,9 +97,9 @@ export function PlanList({ plans, workspaceId, isLoading }: PlanListProps) {
         >
           <Filter size={16} />
           <span>Filters</span>
-          {(statusFilter.length + categoryFilter.length + priorityFilter.length) > 0 && (
+          {(statusFilter.length + categoryFilter.length + priorityFilter.length + (programFilter ? 1 : 0)) > 0 && (
             <span className="ml-1 px-1.5 py-0.5 bg-violet-500 text-white text-xs rounded-full">
-              {statusFilter.length + categoryFilter.length + priorityFilter.length}
+              {statusFilter.length + categoryFilter.length + priorityFilter.length + (programFilter ? 1 : 0)}
             </span>
           )}
         </button>
@@ -145,13 +163,60 @@ export function PlanList({ plans, workspaceId, isLoading }: PlanListProps) {
               </div>
             </div>
 
+            {/* Program Filter */}
+            {programs && programs.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-2">Program</label>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setProgramFilter(undefined)}
+                    className={cn(
+                      'px-2 py-0.5 rounded text-xs transition-opacity',
+                      !programFilter
+                        ? 'bg-violet-500/30 text-violet-200 opacity-100'
+                        : 'bg-slate-700 text-slate-300 opacity-50 hover:opacity-75'
+                    )}
+                  >
+                    All plans
+                  </button>
+                  <button
+                    onClick={() => setProgramFilter('__standalone__')}
+                    className={cn(
+                      'px-2 py-0.5 rounded text-xs transition-opacity',
+                      programFilter === '__standalone__'
+                        ? 'bg-violet-500/30 text-violet-200 opacity-100'
+                        : 'bg-slate-700 text-slate-300 opacity-50 hover:opacity-75'
+                    )}
+                  >
+                    Standalone only
+                  </button>
+                  {programs.map((prog) => (
+                    <button
+                      key={prog.program_id}
+                      onClick={() => setProgramFilter(prog.program_id)}
+                      className={cn(
+                        'inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs transition-opacity',
+                        programFilter === prog.program_id
+                          ? 'bg-violet-500/30 text-violet-200 opacity-100'
+                          : 'bg-slate-700 text-slate-300 opacity-50 hover:opacity-75'
+                      )}
+                    >
+                      <FolderTree size={10} />
+                      {prog.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Clear Filters */}
-            {(statusFilter.length + categoryFilter.length + priorityFilter.length) > 0 && (
+            {(statusFilter.length + categoryFilter.length + priorityFilter.length + (programFilter ? 1 : 0)) > 0 && (
               <button
                 onClick={() => {
                   setStatusFilter([]);
                   setCategoryFilter([]);
                   setPriorityFilter([]);
+                  setProgramFilter(undefined);
                 }}
                 className="text-sm text-violet-400 hover:text-violet-300"
               >
@@ -187,7 +252,7 @@ export function PlanList({ plans, workspaceId, isLoading }: PlanListProps) {
             ) : (
               <div className="space-y-4">
                 {activePlans.map((plan) => (
-                  <PlanCard key={plan.id} plan={plan} workspaceId={workspaceId} />
+                  <PlanCard key={plan.id} plan={plan} workspaceId={workspaceId} programName={programIdToName.get(plan.program_id ?? '') ?? undefined} />
                 ))}
               </div>
             )}
@@ -205,7 +270,7 @@ export function PlanList({ plans, workspaceId, isLoading }: PlanListProps) {
             ) : (
               <div className="space-y-4">
                 {archivedPlans.map((plan) => (
-                  <PlanCard key={plan.id} plan={plan} workspaceId={workspaceId} />
+                  <PlanCard key={plan.id} plan={plan} workspaceId={workspaceId} programName={programIdToName.get(plan.program_id ?? '') ?? undefined} />
                 ))}
               </div>
             )}

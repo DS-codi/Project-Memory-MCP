@@ -21,6 +21,7 @@ const defaultFilter: PlanFilter = {
   category: [],
   priority: [],
   search: '',
+  programId: undefined,
 };
 
 export const useAppStore = create<AppState>((set) => ({

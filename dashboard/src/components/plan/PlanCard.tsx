@@ -17,9 +17,10 @@ import type { PlanSummary, AgentType } from '@/types';
 interface PlanCardProps {
   plan: PlanSummary;
   workspaceId: string;
+  programName?: string;
 }
 
-export function PlanCard({ plan, workspaceId }: PlanCardProps) {
+export function PlanCard({ plan, workspaceId, programName }: PlanCardProps) {
   const navigate = useNavigate();
   const parentProgramId = plan.relationships?.parent_program_id ?? plan.program_id;
   const childPlanCount = plan.relationships?.child_plan_ids?.length ?? plan.child_plan_ids?.length ?? 0;
@@ -71,11 +72,10 @@ export function PlanCard({ plan, workspaceId }: PlanCardProps) {
             e.stopPropagation();
             navigate(`/workspace/${workspaceId}/program/${parentProgramId}`);
           }}
-          className="flex items-center gap-1.5 mb-3 text-xs text-violet-400 hover:text-violet-300 transition-colors"
+          className="inline-flex items-center gap-1.5 mb-3 px-2 py-0.5 rounded bg-violet-500/20 text-xs text-violet-400 hover:text-violet-300 hover:bg-violet-500/30 transition-colors"
         >
           <FolderTree size={12} />
-          <span>Part of program</span>
-          <span className="font-mono text-slate-500">{parentProgramId.slice(-8)}</span>
+          <span>{programName || parentProgramId.slice(-8)}</span>
         </button>
       )}
 

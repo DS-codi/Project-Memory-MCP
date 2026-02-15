@@ -360,7 +360,7 @@ export function WorkspacePage() {
             New Plan
           </button>
         </div>
-        <PlanList plans={plans} workspaceId={workspaceId!} isLoading={plansLoading} />
+        <PlanList plans={plans} workspaceId={workspaceId!} isLoading={plansLoading} programs={programs} />
       </div>
 
       {/* Create Plan Modal */}

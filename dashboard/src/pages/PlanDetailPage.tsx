@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Clock, GitBranch, ListChecks, FileText, Activity, BarChart, Info, AlertTriangle, MessageSquare, Target, Terminal, Database, FolderTree } from 'lucide-react';
+import { ArrowLeft, Clock, GitBranch, ListChecks, FileText, Activity, BarChart, Info, AlertTriangle, MessageSquare, Target, Terminal, Database, FolderTree, Users } from 'lucide-react';
 import { CopyButton } from '@/components/common/CopyButton';
 import { Badge } from '@/components/common/Badge';
 import { ProgressBar } from '@/components/common/ProgressBar';
@@ -18,11 +18,12 @@ import { BuildScriptsTab } from '@/components/plan/BuildScriptsTab';
 import { HandoffTimeline } from '@/components/timeline/HandoffTimeline';
 import { BallInCourt } from '@/components/timeline/BallInCourt';
 import { useBuildScripts, useAddBuildScript, useDeleteBuildScript, useRunBuildScript } from '@/hooks/useBuildScripts';
+import { useProgram } from '@/hooks/usePrograms';
 import { formatDate, formatRelative } from '@/utils/formatters';
 import { categoryColors, priorityColors, priorityIcons, planStatusColors, agentBgColors, agentIcons } from '@/utils/colors';
 import { cn } from '@/utils/cn';
 import { postToVsCode } from '@/utils/vscode-bridge';
-import type { PlanState, AgentType } from '@/types';
+import type { PlanState, AgentType, ProgramPlanRef } from '@/types';
 
 async function fetchPlan(workspaceId: string, planId: string): Promise<PlanState> {
   const res = await fetch(`/api/plans/${workspaceId}/${planId}`);
@@ -64,6 +65,9 @@ export function PlanDetailPage() {
   const addScriptMutation = useAddBuildScript();
   const deleteScriptMutation = useDeleteBuildScript();
   const runScriptMutation = useRunBuildScript();
+
+  // Fetch parent program for sibling plans and breadcrumb name
+  const { data: parentProgram } = useProgram(workspaceId, plan?.program_id);
 
   if (isLoading) {
     return (
@@ -132,7 +136,7 @@ export function PlanDetailPage() {
               className="inline-flex items-center gap-1.5 text-violet-400 hover:text-violet-300 transition-colors"
             >
               <FolderTree size={14} />
-              Part of Program
+              Part of {parentProgram?.name ?? 'Program'}
             </Link>
           </>
         )}
@@ -243,6 +247,43 @@ export function PlanDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Sibling Plans */}
+      {parentProgram?.plans && parentProgram.plans.length > 1 && (() => {
+        const siblings = parentProgram.plans.filter((p: ProgramPlanRef) => p.plan_id !== planId);
+        if (siblings.length === 0) return null;
+        return (
+          <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Users size={16} className="text-violet-400" />
+              <h3 className="font-semibold text-sm">Sibling Plans in {parentProgram.name}</h3>
+              <Badge variant="violet">{siblings.length}</Badge>
+            </div>
+            <div className="grid gap-2">
+              {siblings.map((sibling: ProgramPlanRef) => (
+                <Link
+                  key={sibling.plan_id}
+                  to={`/workspace/${workspaceId}/plan/${sibling.plan_id}`}
+                  className="flex items-center justify-between p-3 bg-slate-900/50 border border-slate-700 rounded-lg hover:border-violet-500/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-200 truncate">{sibling.title}</p>
+                      <p className="text-xs text-slate-500">{sibling.current_phase}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <Badge variant={planStatusColors[sibling.status]}>{sibling.status}</Badge>
+                    <div className="w-24">
+                      <ProgressBar value={sibling.progress.done} max={sibling.progress.total} />
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Pending Notes */}
       {plan.pending_notes && plan.pending_notes.length > 0 && (
