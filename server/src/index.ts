@@ -170,9 +170,9 @@ const RequestCategorizationSchema = z.object({
 
 server.tool(
   'memory_workspace',
-  'Consolidated workspace management tool. Actions: register (register a workspace directory), list (list all workspaces), info (get plans for a workspace), reindex (update codebase profile after changes), merge (merge a ghost/source workspace into a canonical target), scan_ghosts (scan for unregistered data-root directories), migrate (re-register workspace, find and merge all ghost/duplicate folders, recover plans, and clean up — use this when opening old workspaces), link (link/unlink parent-child workspace hierarchy).',
+  'Consolidated workspace management tool. Actions: register (register a workspace directory), list (list all workspaces), info (get plans for a workspace), reindex (update codebase profile after changes), merge (merge a ghost/source workspace into a canonical target), scan_ghosts (scan for unregistered data-root directories), migrate (re-register workspace, find and merge all ghost/duplicate folders, recover plans, and clean up — use this when opening old workspaces), link (link/unlink parent-child workspace hierarchy), export_pending (export all unfinished steps from every plan to a .md file in the workspace).',
   {
-    action: z.enum(['register', 'list', 'info', 'reindex', 'merge', 'scan_ghosts', 'migrate', 'link']).describe('The action to perform'),
+    action: z.enum(['register', 'list', 'info', 'reindex', 'merge', 'scan_ghosts', 'migrate', 'link', 'export_pending']).describe('The action to perform'),
     workspace_id: z.string().optional().describe('Workspace ID (for info, reindex, link)'),
     workspace_path: z.string().optional().describe('Workspace path (for register, migrate)'),
     force: z.boolean().optional().describe('Force registration even if directory overlaps with existing workspace (for register)'),
@@ -181,7 +181,8 @@ server.tool(
     dry_run: z.boolean().optional().describe('If true (default), report what would be merged without making changes (for merge)'),
     child_workspace_id: z.string().optional().describe('Child workspace ID (for link action)'),
     mode: z.enum(['link', 'unlink']).optional().describe('Link or unlink mode (for link action, defaults to link)'),
-    hierarchical: z.boolean().optional().describe('When true, group child workspaces under parents in list results (for list action)')
+    hierarchical: z.boolean().optional().describe('When true, group child workspaces under parents in list results (for list action)'),
+    output_filename: z.string().optional().describe('Custom output filename for export_pending (defaults to pending-steps.md)')
   },
   async (params) => {
     const result = await withLogging('memory_workspace', params, () =>

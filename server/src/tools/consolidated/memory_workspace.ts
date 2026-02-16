@@ -15,7 +15,7 @@ import { linkWorkspaces, unlinkWorkspaces, getWorkspaceHierarchy, checkRegistryF
 import type { WorkspaceHierarchyInfo } from '../../storage/workspace-hierarchy.js';
 import { normalizeWorkspacePath } from '../../storage/workspace-utils.js';
 
-export type WorkspaceAction = 'register' | 'list' | 'info' | 'reindex' | 'merge' | 'scan_ghosts' | 'migrate' | 'link' | 'set_display_name';
+export type WorkspaceAction = 'register' | 'list' | 'info' | 'reindex' | 'merge' | 'scan_ghosts' | 'migrate' | 'link' | 'set_display_name' | 'export_pending';
 
 export interface MemoryWorkspaceParams {
   action: WorkspaceAction;
@@ -29,6 +29,7 @@ export interface MemoryWorkspaceParams {
   mode?: 'link' | 'unlink';          // for link
   hierarchical?: boolean;            // for list (hierarchical grouping)
   display_name?: string;             // for set_display_name
+  output_filename?: string;          // for export_pending (custom filename, defaults to 'pending-steps.md')
 }
 
 interface WorkspaceInfoResult {
@@ -50,7 +51,8 @@ type WorkspaceResult =
   | { action: 'scan_ghosts'; data: { ghosts: GhostFolderInfo[]; hierarchy_overlaps?: WorkspaceOverlapInfo[] } }
   | { action: 'migrate'; data: MigrateWorkspaceResult }
   | { action: 'link'; data: { mode: 'link' | 'unlink'; parent_id: string; child_id: string; hierarchy: WorkspaceHierarchyInfo } }
-  | { action: 'set_display_name'; data: { workspace: WorkspaceMeta } };
+  | { action: 'set_display_name'; data: { workspace: WorkspaceMeta } }
+  | { action: 'export_pending'; data: { workspace_id: string; file_path: string; plans_included: number; total_pending_steps: number } };
 
 export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<ToolResponse<WorkspaceResult>> {
   const { action } = params;
@@ -454,10 +456,130 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
       };
     }
 
+    case 'export_pending': {
+      if (!params.workspace_id) {
+        return {
+          success: false,
+          error: 'workspace_id is required for action: export_pending'
+        };
+      }
+
+      const epValidated = await validateAndResolveWorkspaceId(params.workspace_id);
+      if (!epValidated.success) return epValidated.error_response as ToolResponse<WorkspaceResult>;
+      const epWorkspaceId = epValidated.workspace_id;
+
+      const epWorkspace = await store.getWorkspace(epWorkspaceId);
+      if (!epWorkspace) {
+        return {
+          success: false,
+          error: `Workspace not found: ${epWorkspaceId}`
+        };
+      }
+
+      const epWsPath = epWorkspace.workspace_path || epWorkspace.path;
+      if (!epWsPath) {
+        return {
+          success: false,
+          error: `Workspace has no filesystem path: ${epWorkspaceId}`
+        };
+      }
+
+      // Fetch all plans for this workspace
+      const epPlansResult = await workspaceTools.getWorkspacePlans({ workspace_id: epWorkspaceId });
+      const epPlans = epPlansResult.success ? epPlansResult.data! : [];
+
+      // Filter to non-archived plans that have unfinished steps
+      const plansWithPending: { plan: PlanState; pendingSteps: PlanState['steps'] }[] = [];
+      for (const plan of epPlans) {
+        if (plan.status === 'archived') continue;
+        const pending = plan.steps.filter(s => s.status !== 'done');
+        if (pending.length > 0) {
+          plansWithPending.push({ plan, pendingSteps: pending });
+        }
+      }
+
+      // Build markdown content
+      const lines: string[] = [];
+      const now = new Date().toISOString();
+      lines.push(`# Pending Steps — ${epWorkspace.display_name || epWorkspace.name}`);
+      lines.push('');
+      lines.push(`> Exported on ${now}`);
+      lines.push(`> Workspace ID: \`${epWorkspaceId}\``);
+      lines.push('');
+
+      if (plansWithPending.length === 0) {
+        lines.push('*No plans with unfinished steps found.*');
+      } else {
+        let totalPending = 0;
+        for (const { plan, pendingSteps } of plansWithPending) {
+          totalPending += pendingSteps.length;
+          lines.push(`## ${plan.title}`);
+          lines.push('');
+          lines.push(`- **Plan ID:** \`${plan.id}\``);
+          lines.push(`- **Category:** ${plan.category}`);
+          lines.push(`- **Priority:** ${plan.priority}`);
+          lines.push(`- **Status:** ${plan.status}`);
+          lines.push(`- **Current Phase:** ${plan.current_phase}`);
+          if (plan.description) {
+            lines.push(`- **Description:** ${plan.description}`);
+          }
+          lines.push('');
+
+          // Group pending steps by phase
+          const phaseMap = new Map<string, typeof pendingSteps>();
+          for (const step of pendingSteps) {
+            const phase = step.phase || 'Unphased';
+            if (!phaseMap.has(phase)) phaseMap.set(phase, []);
+            phaseMap.get(phase)!.push(step);
+          }
+
+          for (const [phase, steps] of phaseMap) {
+            lines.push(`### ${phase}`);
+            lines.push('');
+            for (const step of steps) {
+              const statusIcon = step.status === 'active' ? '🔄' : step.status === 'blocked' ? '🚫' : '⬜';
+              const assignee = step.assignee ? ` *(${step.assignee})*` : '';
+              lines.push(`- ${statusIcon} **[${step.status.toUpperCase()}]** ${step.task}${assignee}`);
+              if (step.notes) {
+                lines.push(`  - Notes: ${step.notes}`);
+              }
+              if (step.depends_on?.length) {
+                lines.push(`  - Depends on steps: ${step.depends_on.join(', ')}`);
+              }
+            }
+            lines.push('');
+          }
+        }
+
+        // Summary at top
+        lines.splice(4, 0, `> **${plansWithPending.length} plan(s)** with **${totalPending} unfinished step(s)**`);
+      }
+
+      // Write the file
+      const { promises: fsPromises } = await import('fs');
+      const { join } = await import('path');
+      const filename = params.output_filename || 'pending-steps.md';
+      const outputPath = join(epWsPath, filename);
+      await fsPromises.writeFile(outputPath, lines.join('\n'), 'utf-8');
+
+      return {
+        success: true,
+        data: {
+          action: 'export_pending',
+          data: {
+            workspace_id: epWorkspaceId,
+            file_path: outputPath,
+            plans_included: plansWithPending.length,
+            total_pending_steps: plansWithPending.reduce((sum, p) => sum + p.pendingSteps.length, 0)
+          }
+        }
+      };
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: register, list, info, reindex, merge, scan_ghosts, migrate, link, set_display_name`
+        error: `Unknown action: ${action}. Valid actions: register, list, info, reindex, merge, scan_ghosts, migrate, link, set_display_name, export_pending`
       };
   }
 }

@@ -520,3 +520,70 @@ fn execute_saved_command_queues_in_selected_session() {
     assert_eq!(queue[0].command, "npm run deploy");
     assert_eq!(queue[0].session_id, session_id);
 }
+
+// ---------------------------------------------------------------------------
+// Bridge parity test — verifies ffi.rs and mod.rs declare the same
+// set of #[qinvokable] functions.  Moved from tests/bridge_parity.rs
+// to avoid integration-test linker errors with CxxQt.
+// ---------------------------------------------------------------------------
+
+/// Extract all Rust function names annotated with `#[qinvokable]`.
+fn extract_qinvokable_names(source: &str) -> std::collections::BTreeSet<String> {
+    let re = regex::Regex::new(r"(?s)#\[qinvokable\].*?fn\s+([a-z_][a-z0-9_]*)").unwrap();
+    re.captures_iter(source)
+        .map(|cap| cap[1].to_string())
+        .collect()
+}
+
+#[test]
+fn ffi_and_mod_have_identical_qinvokable_sets() {
+    let ffi_path = concat!(env!("CARGO_MANIFEST_DIR"), "/src/cxxqt_bridge/ffi.rs");
+    let mod_path = concat!(env!("CARGO_MANIFEST_DIR"), "/src/cxxqt_bridge/mod.rs");
+
+    let ffi_src = std::fs::read_to_string(ffi_path)
+        .unwrap_or_else(|e| panic!("Failed to read {ffi_path}: {e}"));
+    let mod_src = std::fs::read_to_string(mod_path)
+        .unwrap_or_else(|e| panic!("Failed to read {mod_path}: {e}"));
+
+    let ffi_names = extract_qinvokable_names(&ffi_src);
+    let mod_names = extract_qinvokable_names(&mod_src);
+
+    assert!(
+        !ffi_names.is_empty(),
+        "ffi.rs contains zero #[qinvokable] declarations — regex may need updating"
+    );
+    assert!(
+        !mod_names.is_empty(),
+        "mod.rs contains zero #[qinvokable] declarations — regex may need updating"
+    );
+
+    let only_in_ffi: std::collections::BTreeSet<_> = ffi_names.difference(&mod_names).collect();
+    let only_in_mod: std::collections::BTreeSet<_> = mod_names.difference(&ffi_names).collect();
+
+    let mut failures = Vec::new();
+    if !only_in_ffi.is_empty() {
+        failures.push(format!(
+            "Invokables in ffi.rs but MISSING from mod.rs: {:?}",
+            only_in_ffi
+        ));
+    }
+    if !only_in_mod.is_empty() {
+        failures.push(format!(
+            "Invokables in mod.rs but MISSING from ffi.rs: {:?}",
+            only_in_mod
+        ));
+    }
+
+    assert!(
+        failures.is_empty(),
+        "Bridge parity failure!\n{}\n\nffi.rs invokables ({count_ffi}): {ffi_names:?}\nmod.rs invokables ({count_mod}): {mod_names:?}",
+        failures.join("\n"),
+        count_ffi = ffi_names.len(),
+        count_mod = mod_names.len(),
+    );
+
+    eprintln!(
+        "Bridge parity OK — {} invokables match in both ffi.rs and mod.rs",
+        ffi_names.len()
+    );
+}
