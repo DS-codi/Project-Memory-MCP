@@ -1,0 +1,16 @@
+{
+  "type": "active_run_lane",
+  "workspace_id": "vscode_modularagenticproceduresystem-e81f1c0eb2b1",
+  "plan_id": "plan_mloaqhxh_9e61a5d2",
+  "active_run": {
+    "run_id": "run_sess_mloon028_207cde96",
+    "workspace_id": "vscode_modularagenticproceduresystem-e81f1c0eb2b1",
+    "plan_id": "plan_mloaqhxh_9e61a5d2",
+    "status": "released",
+    "started_at": "2026-02-16T04:36:51.381Z",
+    "last_updated_at": "2026-02-16T04:39:21.024Z",
+    "owner_agent": "Archivist",
+    "release_reason_code": "SPAWN_STALE_RECOVERY"
+  },
+  "updated_at": "2026-02-16T04:39:21.024Z"
+}
