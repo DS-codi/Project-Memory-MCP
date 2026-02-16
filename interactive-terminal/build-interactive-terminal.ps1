@@ -165,17 +165,101 @@ if ($doDeploy) {
             throw 'windeployqt deployment failed.'
         }
 
-        $requiredDlls = @('Qt6Core.dll', 'Qt6Gui.dll', 'Qt6Qml.dll', 'Qt6Quick.dll')
-        $missingDlls = @()
+        # ---------------------------------------------------------------
+        # Comprehensive DLL verification + fallback copy from Qt bin
+        # ---------------------------------------------------------------
+        $outputDir = Split-Path -Parent $exePath
+
+        $requiredDlls = @(
+            # Core Qt runtime
+            'Qt6Core.dll',
+            'Qt6Gui.dll',
+            'Qt6Network.dll',
+            'Qt6OpenGL.dll',
+            'Qt6Qml.dll',
+            'Qt6QmlMeta.dll',
+            'Qt6QmlModels.dll',
+            'Qt6QmlWorkerScript.dll',
+            'Qt6Quick.dll',
+            'Qt6QuickControls2.dll',
+            'Qt6QuickControls2Impl.dll',
+            'Qt6QuickTemplates2.dll',
+            'Qt6QuickLayouts.dll',
+            'Qt6QuickShapes.dll',
+            'Qt6QuickEffects.dll',
+            'Qt6Svg.dll',
+            # Controls style plugins
+            'Qt6QuickControls2Basic.dll',
+            'Qt6QuickControls2BasicStyleImpl.dll',
+            'Qt6QuickControls2Fusion.dll',
+            'Qt6QuickControls2FusionStyleImpl.dll',
+            'Qt6QuickControls2Material.dll',
+            'Qt6QuickControls2MaterialStyleImpl.dll',
+            'Qt6QuickControls2Universal.dll',
+            'Qt6QuickControls2UniversalStyleImpl.dll',
+            'Qt6QuickControls2WindowsStyleImpl.dll',
+            'Qt6QuickControls2Imagine.dll',
+            'Qt6QuickControls2ImagineStyleImpl.dll',
+            'Qt6QuickControls2FluentWinUI3StyleImpl.dll',
+            # Labs
+            'Qt6LabsQmlModels.dll',
+            # Rendering support
+            'D3Dcompiler_47.dll',
+            'opengl32sw.dll'
+        )
+
+        $missingDlls  = @()
+        $copiedDlls   = @()
+
         foreach ($dll in $requiredDlls) {
-            $dllPath = Join-Path (Split-Path -Parent $exePath) $dll
-            if (-not (Test-Path $dllPath)) {
-                $missingDlls += $dll
+            $dllDest = Join-Path $outputDir $dll
+            if (-not (Test-Path $dllDest)) {
+                # Try to copy from Qt bin directory
+                $dllSrc = Join-Path $qtBin $dll
+                if (Test-Path $dllSrc) {
+                    Copy-Item $dllSrc $dllDest -Force
+                    $copiedDlls += $dll
+                } else {
+                    $missingDlls += $dll
+                }
             }
         }
 
+        # Verify platform plugin
+        $platformDir = Join-Path $outputDir 'platforms'
+        if (-not (Test-Path (Join-Path $platformDir 'qwindows.dll'))) {
+            $srcPlatform = Join-Path $QtDir 'plugins\platforms\qwindows.dll'
+            if (Test-Path $srcPlatform) {
+                New-Item -ItemType Directory -Force -Path $platformDir | Out-Null
+                Copy-Item $srcPlatform (Join-Path $platformDir 'qwindows.dll') -Force
+                $copiedDlls += 'platforms\qwindows.dll'
+            } else {
+                $missingDlls += 'platforms\qwindows.dll'
+            }
+        }
+
+        # Verify QML module directories exist (windeployqt should have created these)
+        $requiredQmlDirs = @(
+            'qml\QtQuick',
+            'qml\QtQuick\Controls',
+            'qml\QtQuick\Layouts',
+            'qml\QtQml'
+        )
+        foreach ($qmlDir in $requiredQmlDirs) {
+            $qmlPath = Join-Path $outputDir $qmlDir
+            if (-not (Test-Path $qmlPath)) {
+                Write-Host "WARNING: QML module directory missing: $qmlDir" -ForegroundColor Yellow
+                $missingDlls += "qml-dir:$qmlDir"
+            }
+        }
+
+        if ($copiedDlls.Count -gt 0) {
+            Write-Host "Copied $($copiedDlls.Count) missing DLL(s) from Qt:" -ForegroundColor Yellow
+            $copiedDlls | ForEach-Object { Write-Host "  + $_" -ForegroundColor Yellow }
+        }
+
         if ($missingDlls.Count -gt 0) {
-            throw "Qt deployment incomplete. Missing DLLs: $($missingDlls -join ', ')"
+            throw "Qt deployment incomplete. Missing: $($missingDlls -join ', ')"
         }
 
         Write-Host 'Qt runtime deployment verified.' -ForegroundColor Green

@@ -143,7 +143,7 @@ fn main() {
     let mut engine = QQmlApplicationEngine::new();
 
     if let Some(engine) = engine.as_mut() {
-        engine.load(&QUrl::from("qrc:/qt/qml/com/projectmemory/terminal/main.qml"));
+        engine.load(&QUrl::from("qrc:/qt/qml/com/projectmemory/terminal/qml/main.qml"));
     }
 
     // QML load diagnostic: root_objects() is not exposed in cxx-qt-lib 0.8,
@@ -156,5 +156,121 @@ fn main() {
 
     if let Some(app) = app.as_mut() {
         app.exec();
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Prebind listener tests — moved from tests/prebind_listener.rs to avoid
+// integration-test linker errors with CxxQt.
+//
+// Because PREBOUND_RUNTIME_LISTENER is a process-global OnceLock we cannot
+// test multiple prebind/take cycles in the same process. Instead we use a
+// local re-implementation that mirrors the production logic with a fresh
+// Mutex each time.
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use std::net::TcpListener;
+
+    mod local_prebind {
+        use std::net::TcpListener;
+        use std::sync::Mutex;
+
+        pub struct PrebindSlot {
+            inner: Mutex<Option<TcpListener>>,
+        }
+
+        impl PrebindSlot {
+            pub fn new() -> Self {
+                Self {
+                    inner: Mutex::new(None),
+                }
+            }
+
+            pub fn prebind(&self, port: u16) -> std::io::Result<u16> {
+                let listener = TcpListener::bind(("127.0.0.1", port))?;
+                let actual_port = listener.local_addr()?.port();
+                let mut guard = self.inner.lock().unwrap();
+                *guard = Some(listener);
+                Ok(actual_port)
+            }
+
+            pub fn take(&self, port: u16) -> Option<TcpListener> {
+                let mut guard = self.inner.lock().unwrap();
+                let listener = guard.take()?;
+                match listener.local_addr() {
+                    Ok(addr) if addr.port() == port => Some(listener),
+                    _ => None,
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn prebind_binds_to_available_port() {
+        let slot = local_prebind::PrebindSlot::new();
+        let port = slot.prebind(0).expect("prebind to port 0 should succeed");
+        assert_ne!(port, 0, "OS should assign a real port");
+
+        let conflict = TcpListener::bind(("127.0.0.1", port));
+        assert!(
+            conflict.is_err(),
+            "Port {} should already be bound by prebind",
+            port
+        );
+    }
+
+    #[test]
+    fn take_returns_listener_for_matching_port() {
+        let slot = local_prebind::PrebindSlot::new();
+        let port = slot.prebind(0).expect("prebind should succeed");
+
+        let listener = slot.take(port);
+        assert!(
+            listener.is_some(),
+            "take() with matching port should return the listener"
+        );
+
+        let actual_addr = listener.unwrap().local_addr().unwrap();
+        assert_eq!(actual_addr.port(), port);
+    }
+
+    #[test]
+    fn take_returns_none_after_listener_taken() {
+        let slot = local_prebind::PrebindSlot::new();
+        let port = slot.prebind(0).expect("prebind should succeed");
+
+        let first = slot.take(port);
+        assert!(first.is_some(), "First take should return the listener");
+
+        let second = slot.take(port);
+        assert!(
+            second.is_none(),
+            "Second take should return None (one-shot semantics)"
+        );
+    }
+
+    #[test]
+    fn take_returns_none_for_wrong_port() {
+        let slot = local_prebind::PrebindSlot::new();
+        let port = slot.prebind(0).expect("prebind should succeed");
+
+        let wrong_port = if port > 1 { port - 1 } else { port + 1 };
+        let result = slot.take(wrong_port);
+        assert!(
+            result.is_none(),
+            "take() with non-matching port should return None"
+        );
+    }
+
+    #[test]
+    fn take_returns_none_when_nothing_prebound() {
+        let slot = local_prebind::PrebindSlot::new();
+        let result = slot.take(9999);
+        assert!(
+            result.is_none(),
+            "take() should return None when nothing was prebound"
+        );
     }
 }

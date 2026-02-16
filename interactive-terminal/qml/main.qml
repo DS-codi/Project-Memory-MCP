@@ -272,7 +272,6 @@ ApplicationWindow {
                             anchors.leftMargin: 8
                             anchors.rightMargin: 6
                             spacing: 6
-                            verticalCenter: parent.verticalCenter
 
                             Button {
                                 id: tabLabel
