@@ -117,6 +117,10 @@ mod tests {
             venv_path: String::new(),
             activate_venv: false,
             timeout_seconds: 30,
+            args: Vec::new(),
+            env: std::collections::HashMap::new(),
+            workspace_id: String::new(),
+            allowlisted: false,
         }
     }
 

@@ -168,6 +168,8 @@ export function getClientScript(params: ClientScriptParams): string {
                 vscode.postMessage({ type: 'isolateServer' });
             } else if (action === 'run-command' && command) {
                 vscode.postMessage({ type: 'runCommand', data: { command: command } });
+            } else if (action === 'open-plan-browser' && planId) {
+                vscode.postMessage({ type: 'openPlanInBrowser', data: { planId: planId, workspaceId: workspaceId } });
             } else if (action === 'open-plan' && planId) {
                 vscode.postMessage({ type: 'openPlan', data: { planId: planId, workspaceId: workspaceId } });
             } else if (action === 'copy' && copyText) {

@@ -1,0 +1,135 @@
+{
+  "command_requests": [
+    {
+      "description": "minimal — required fields only",
+      "message": {
+        "type": "command_request",
+        "id": "test-req-minimal",
+        "command": "echo hello",
+        "working_directory": "/tmp"
+      }
+    },
+    {
+      "description": "full — all TS-spec fields populated",
+      "message": {
+        "type": "command_request",
+        "id": "test-req-full",
+        "command": "npm run build",
+        "working_directory": "/home/user/project",
+        "args": ["--production"],
+        "env": { "NODE_ENV": "production" },
+        "workspace_id": "my-project-abc123",
+        "session_id": "sess-001",
+        "timeout_seconds": 120,
+        "allowlisted": true
+      }
+    },
+    {
+      "description": "empty args/env arrays",
+      "message": {
+        "type": "command_request",
+        "id": "test-req-empty-arrays",
+        "command": "ls -la",
+        "working_directory": "/home/user",
+        "args": [],
+        "env": {},
+        "allowlisted": false
+      }
+    }
+  ],
+  "command_responses": [
+    {
+      "description": "approved with output and exit code",
+      "message": {
+        "type": "command_response",
+        "id": "test-resp-approved",
+        "status": "approved",
+        "output": "Build succeeded\nDone in 3.2s",
+        "exit_code": 0,
+        "output_file_path": "/tmp/.projectmemory/terminal-output/output-001.json"
+      }
+    },
+    {
+      "description": "declined with reason",
+      "message": {
+        "type": "command_response",
+        "id": "test-resp-declined",
+        "status": "declined",
+        "reason": "Command not on allowlist"
+      }
+    },
+    {
+      "description": "timeout with partial output",
+      "message": {
+        "type": "command_response",
+        "id": "test-resp-timeout",
+        "status": "timeout",
+        "output": "partial output before timeout",
+        "reason": "User did not respond within 60s",
+        "output_file_path": "/tmp/.projectmemory/terminal-output/partial-002.json"
+      }
+    },
+    {
+      "description": "approved minimal — no optional fields",
+      "message": {
+        "type": "command_response",
+        "id": "test-resp-minimal",
+        "status": "approved"
+      }
+    },
+    {
+      "description": "approved with null exit_code (process killed)",
+      "message": {
+        "type": "command_response",
+        "id": "test-resp-null-exit",
+        "status": "approved",
+        "output": "killed",
+        "exit_code": null
+      }
+    }
+  ],
+  "heartbeats": [
+    {
+      "description": "standard heartbeat",
+      "message": {
+        "type": "heartbeat",
+        "id": "hb-001",
+        "timestamp_ms": 1771020000000
+      }
+    },
+    {
+      "description": "heartbeat with zero timestamp",
+      "message": {
+        "type": "heartbeat",
+        "id": "hb-zero",
+        "timestamp_ms": 0
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "description": "unknown type field",
+      "raw": "{\"type\":\"unknown_message\",\"id\":\"bad-001\"}"
+    },
+    {
+      "description": "missing type field",
+      "raw": "{\"id\":\"bad-002\",\"command\":\"ls\"}"
+    },
+    {
+      "description": "not JSON at all",
+      "raw": "this is not json"
+    },
+    {
+      "description": "empty string",
+      "raw": ""
+    },
+    {
+      "description": "whitespace only",
+      "raw": "   "
+    },
+    {
+      "description": "missing id field",
+      "raw": "{\"type\":\"command_request\",\"command\":\"ls\",\"working_directory\":\"/tmp\"}"
+    }
+  ]
+}

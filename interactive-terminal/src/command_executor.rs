@@ -384,6 +384,10 @@ mod tests {
             venv_path: String::new(),
             activate_venv: false,
             timeout_seconds: 10,
+            args: Vec::new(),
+            env: std::collections::HashMap::new(),
+            workspace_id: String::new(),
+            allowlisted: false,
         };
 
         let (tx, mut rx) = mpsc::channel(64);
@@ -423,6 +427,10 @@ mod tests {
             venv_path: String::new(),
             activate_venv: false,
             timeout_seconds: 10,
+            args: Vec::new(),
+            env: std::collections::HashMap::new(),
+            workspace_id: String::new(),
+            allowlisted: false,
         };
 
         let (tx, _rx) = mpsc::channel(64);
@@ -454,6 +462,10 @@ mod tests {
             venv_path: String::new(),
             activate_venv: false,
             timeout_seconds: 1, // 1 second timeout
+            args: Vec::new(),
+            env: std::collections::HashMap::new(),
+            workspace_id: String::new(),
+            allowlisted: false,
         };
 
         let (tx, _rx) = mpsc::channel(64);
@@ -485,6 +497,10 @@ mod tests {
             venv_path: String::new(),
             activate_venv: false,
             timeout_seconds: 30,
+            args: Vec::new(),
+            env: std::collections::HashMap::new(),
+            workspace_id: String::new(),
+            allowlisted: false,
         };
 
         let (tx, _rx) = mpsc::channel(64);
@@ -513,6 +529,10 @@ mod tests {
             venv_path: String::new(),
             activate_venv: false,
             timeout_seconds: 10,
+            args: Vec::new(),
+            env: std::collections::HashMap::new(),
+            workspace_id: String::new(),
+            allowlisted: false,
         };
 
         let (program, args) = shell_invocation(&request);
@@ -540,6 +560,10 @@ mod tests {
             venv_path: String::new(),
             activate_venv: false,
             timeout_seconds: 5,
+            args: Vec::new(),
+            env: std::collections::HashMap::new(),
+            workspace_id: String::new(),
+            allowlisted: false,
         };
 
         let resolved = resolve_working_directory(&request);

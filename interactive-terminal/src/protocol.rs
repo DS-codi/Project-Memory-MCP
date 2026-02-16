@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Top-level message envelope, tagged by "type" field.
 ///
@@ -89,6 +90,19 @@ pub struct CommandRequest {
     pub activate_venv: bool,
     #[serde(default = "default_timeout")]
     pub timeout_seconds: u64,
+    /// Optional argument list (unified protocol addition).
+    #[serde(default)]
+    pub args: Vec<String>,
+    /// Optional environment variables (unified protocol addition).
+    #[serde(default)]
+    pub env: HashMap<String, String>,
+    /// Workspace ID for output-file scoping (unified protocol addition).
+    #[serde(default)]
+    pub workspace_id: String,
+    /// Whether the command was pre-approved by the MCP allowlist.
+    /// true → GUI auto-executes; false → GUI shows approval dialog.
+    #[serde(default)]
+    pub allowlisted: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -110,12 +124,14 @@ fn default_timeout() -> u64 {
     300
 }
 
-/// Response status for a command approval/decline.
+/// Response status for a command approval/decline/timeout.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum ResponseStatus {
     Approved,
     Declined,
+    /// MCP timeout — user did not respond within the timeout window.
+    Timeout,
 }
 
 /// GUI → MCP server: approval/decline result.
@@ -129,12 +145,23 @@ pub struct CommandResponse {
     pub exit_code: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
+    /// Path to JSON output file (unified protocol addition).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_file_path: Option<String>,
 }
 
 /// Bidirectional heartbeat for liveness detection.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Heartbeat {
+    /// Unique heartbeat ID (unified protocol addition).
+    #[serde(default)]
+    pub id: String,
+    /// Legacy ISO-8601 timestamp — kept for backward compatibility.
+    #[serde(default)]
     pub timestamp: String,
+    /// Epoch milliseconds (unified protocol addition).
+    #[serde(default)]
+    pub timestamp_ms: u64,
 }
 
 // ---------------------------------------------------------------------------
@@ -175,6 +202,10 @@ mod tests {
             venv_path: String::new(),
             activate_venv: false,
             timeout_seconds: 120,
+            args: vec!["--release".into()],
+            env: HashMap::from([("RUST_LOG".into(), "debug".into())]),
+            workspace_id: "project-memory-mcp-50e04147a402".into(),
+            allowlisted: true,
         }
     }
 
@@ -185,6 +216,7 @@ mod tests {
             output: Some("Compiling...done".into()),
             exit_code: Some(0),
             reason: None,
+            output_file_path: Some("/tmp/output.json".into()),
         }
     }
 
@@ -195,12 +227,15 @@ mod tests {
             output: None,
             exit_code: None,
             reason: Some("Command looks dangerous".into()),
+            output_file_path: None,
         }
     }
 
     fn sample_heartbeat() -> Heartbeat {
         Heartbeat {
+            id: "hb-001".into(),
             timestamp: "2026-02-14T00:00:00Z".into(),
+            timestamp_ms: 1771020000000,
         }
     }
 
@@ -345,6 +380,90 @@ mod tests {
         assert_eq!(val, "declined");
     }
 
+    #[test]
+    fn response_status_timeout_snake_case() {
+        let val = serde_json::to_value(ResponseStatus::Timeout).unwrap();
+        assert_eq!(val, "timeout");
+    }
+
+    #[test]
+    fn roundtrip_timeout_response() {
+        let resp = CommandResponse {
+            id: "req-timeout".into(),
+            status: ResponseStatus::Timeout,
+            output: Some("partial output".into()),
+            exit_code: None,
+            reason: Some("User did not respond within 50s".into()),
+            output_file_path: Some("/tmp/partial.json".into()),
+        };
+        let msg = Message::CommandResponse(resp);
+        let json = serde_json::to_string(&msg).unwrap();
+        let decoded: Message = serde_json::from_str(&json).unwrap();
+        assert_eq!(msg, decoded);
+    }
+
+    #[test]
+    fn timeout_status_deserializes_from_json() {
+        let json = r#"{"type":"command_response","id":"t1","status":"timeout","reason":"timed out"}"#;
+        let msg: Message = serde_json::from_str(json).unwrap();
+        if let Message::CommandResponse(resp) = msg {
+            assert_eq!(resp.status, ResponseStatus::Timeout);
+            assert_eq!(resp.reason.as_deref(), Some("timed out"));
+        } else {
+            panic!("expected CommandResponse");
+        }
+    }
+
+    #[test]
+    fn heartbeat_new_fields_roundtrip() {
+        let hb = Heartbeat {
+            id: "hb-rt".into(),
+            timestamp: String::new(),
+            timestamp_ms: 1700000000000,
+        };
+        let msg = Message::Heartbeat(hb);
+        let json = serde_json::to_string(&msg).unwrap();
+        let decoded: Message = serde_json::from_str(&json).unwrap();
+        assert_eq!(msg, decoded);
+    }
+
+    #[test]
+    fn heartbeat_defaults_when_fields_missing() {
+        let json = r#"{"type":"heartbeat"}"#;
+        let msg: Message = serde_json::from_str(json).unwrap();
+        if let Message::Heartbeat(hb) = msg {
+            assert_eq!(hb.id, "");
+            assert_eq!(hb.timestamp, "");
+            assert_eq!(hb.timestamp_ms, 0);
+        } else {
+            panic!("expected Heartbeat");
+        }
+    }
+
+    #[test]
+    fn command_request_new_fields_roundtrip() {
+        let req = CommandRequest {
+            id: "new-fields".into(),
+            command: "npm test".into(),
+            working_directory: "/app".into(),
+            context: String::new(),
+            session_id: "default".into(),
+            terminal_profile: TerminalProfile::System,
+            workspace_path: String::new(),
+            venv_path: String::new(),
+            activate_venv: false,
+            timeout_seconds: 60,
+            args: vec!["--watch".into(), "--coverage".into()],
+            env: HashMap::from([("NODE_ENV".into(), "test".into())]),
+            workspace_id: "my-workspace-abc123".into(),
+            allowlisted: false,
+        };
+        let msg = Message::CommandRequest(req);
+        let encoded = encode(&msg).unwrap();
+        let decoded = decode(&encoded).unwrap();
+        assert_eq!(msg, decoded);
+    }
+
     // -- optional field handling ------------------------------------------
 
     #[test]
@@ -355,12 +474,14 @@ mod tests {
             output: None,
             exit_code: None,
             reason: None,
+            output_file_path: None,
         };
         let msg = Message::CommandResponse(resp);
         let json = serde_json::to_string(&msg).unwrap();
         assert!(!json.contains("\"output\""));
         assert!(!json.contains("\"exit_code\""));
         assert!(!json.contains("\"reason\""));
+        assert!(!json.contains("\"output_file_path\""));
     }
 
     #[test]
@@ -371,6 +492,7 @@ mod tests {
             assert!(resp.output.is_none());
             assert!(resp.exit_code.is_none());
             assert!(resp.reason.is_none());
+            assert!(resp.output_file_path.is_none());
         } else {
             panic!("expected CommandResponse");
         }
@@ -388,6 +510,11 @@ mod tests {
             assert_eq!(req.workspace_path, "");
             assert_eq!(req.venv_path, "");
             assert!(!req.activate_venv);
+            // Unified protocol new-field defaults
+            assert!(req.args.is_empty());
+            assert!(req.env.is_empty());
+            assert_eq!(req.workspace_id, "");
+            assert!(!req.allowlisted);
         } else {
             panic!("expected CommandRequest");
         }
@@ -408,6 +535,10 @@ mod tests {
             venv_path: String::new(),
             activate_venv: false,
             timeout_seconds: 60,
+            args: vec![],
+            env: HashMap::new(),
+            workspace_id: String::new(),
+            allowlisted: false,
         };
         let msg = Message::CommandRequest(req);
         let json = serde_json::to_string(&msg).unwrap();
@@ -429,6 +560,7 @@ mod tests {
             output: None,
             exit_code: None,
             reason: Some("reason with \"quotes\", newlines\nand\ttabs, and unicode: ñ 中文 🎉".into()),
+            output_file_path: None,
         };
         let msg = Message::CommandResponse(resp);
         let json = serde_json::to_string(&msg).unwrap();
@@ -445,6 +577,7 @@ mod tests {
             output: Some(long_output.clone()),
             exit_code: Some(0),
             reason: None,
+            output_file_path: None,
         };
         let msg = Message::CommandResponse(resp);
         let json = serde_json::to_string(&msg).unwrap();
@@ -514,5 +647,175 @@ mod tests {
         let json = r#"{"type":"unknown_variant","id":"u1"}"#;
         let result = decode(json);
         assert!(result.is_err());
+    }
+
+    // =================================================================
+    // Cross-language protocol conformance tests
+    //
+    // These JSON strings are CHARACTER-FOR-CHARACTER identical to the
+    // fixtures in server/src/__tests__/tools/shared-protocol-fixtures.json.
+    // Both sides must decode them identically.
+    // =================================================================
+
+    // -- CommandRequest conformance ------------------------------------
+
+    #[test]
+    fn conformance_command_request_minimal() {
+        let json = r#"{"type":"command_request","id":"test-req-minimal","command":"echo hello","working_directory":"/tmp"}"#;
+        let msg = decode(json).expect("should decode minimal command_request");
+        if let Message::CommandRequest(req) = msg {
+            assert_eq!(req.id, "test-req-minimal");
+            assert_eq!(req.command, "echo hello");
+            assert_eq!(req.working_directory, "/tmp");
+            // Rust defaults for missing optional fields
+            assert!(req.args.is_empty());
+            assert!(req.env.is_empty());
+            assert_eq!(req.workspace_id, "");
+            assert_eq!(req.session_id, "default");
+            assert_eq!(req.timeout_seconds, 300);
+            assert!(!req.allowlisted);
+        } else {
+            panic!("expected CommandRequest");
+        }
+    }
+
+    #[test]
+    fn conformance_command_request_full() {
+        let json = r#"{"type":"command_request","id":"test-req-full","command":"npm run build","working_directory":"/home/user/project","args":["--production"],"env":{"NODE_ENV":"production"},"workspace_id":"my-project-abc123","session_id":"sess-001","timeout_seconds":120,"allowlisted":true}"#;
+        let msg = decode(json).expect("should decode full command_request");
+        if let Message::CommandRequest(req) = msg {
+            assert_eq!(req.id, "test-req-full");
+            assert_eq!(req.command, "npm run build");
+            assert_eq!(req.working_directory, "/home/user/project");
+            assert_eq!(req.args, vec!["--production"]);
+            assert_eq!(req.env.get("NODE_ENV").map(|s| s.as_str()), Some("production"));
+            assert_eq!(req.workspace_id, "my-project-abc123");
+            assert_eq!(req.session_id, "sess-001");
+            assert_eq!(req.timeout_seconds, 120);
+            assert!(req.allowlisted);
+        } else {
+            panic!("expected CommandRequest");
+        }
+    }
+
+    #[test]
+    fn conformance_command_request_empty_arrays() {
+        let json = r#"{"type":"command_request","id":"test-req-empty-arrays","command":"ls -la","working_directory":"/home/user","args":[],"env":{},"allowlisted":false}"#;
+        let msg = decode(json).expect("should decode command_request with empty arrays");
+        if let Message::CommandRequest(req) = msg {
+            assert_eq!(req.id, "test-req-empty-arrays");
+            assert_eq!(req.command, "ls -la");
+            assert_eq!(req.working_directory, "/home/user");
+            assert!(req.args.is_empty());
+            assert!(req.env.is_empty());
+            assert!(!req.allowlisted);
+        } else {
+            panic!("expected CommandRequest");
+        }
+    }
+
+    // -- CommandResponse conformance -----------------------------------
+
+    #[test]
+    fn conformance_command_response_approved() {
+        let json = r#"{"type":"command_response","id":"test-resp-approved","status":"approved","output":"Build succeeded\nDone in 3.2s","exit_code":0,"output_file_path":"/tmp/.projectmemory/terminal-output/output-001.json"}"#;
+        let msg = decode(json).expect("should decode approved command_response");
+        if let Message::CommandResponse(resp) = msg {
+            assert_eq!(resp.id, "test-resp-approved");
+            assert_eq!(resp.status, ResponseStatus::Approved);
+            assert_eq!(resp.output.as_deref(), Some("Build succeeded\nDone in 3.2s"));
+            assert_eq!(resp.exit_code, Some(0));
+            assert!(resp.reason.is_none());
+            assert_eq!(resp.output_file_path.as_deref(), Some("/tmp/.projectmemory/terminal-output/output-001.json"));
+        } else {
+            panic!("expected CommandResponse");
+        }
+    }
+
+    #[test]
+    fn conformance_command_response_declined() {
+        let json = r#"{"type":"command_response","id":"test-resp-declined","status":"declined","reason":"Command not on allowlist"}"#;
+        let msg = decode(json).expect("should decode declined command_response");
+        if let Message::CommandResponse(resp) = msg {
+            assert_eq!(resp.id, "test-resp-declined");
+            assert_eq!(resp.status, ResponseStatus::Declined);
+            assert!(resp.output.is_none());
+            assert!(resp.exit_code.is_none());
+            assert_eq!(resp.reason.as_deref(), Some("Command not on allowlist"));
+            assert!(resp.output_file_path.is_none());
+        } else {
+            panic!("expected CommandResponse");
+        }
+    }
+
+    #[test]
+    fn conformance_command_response_timeout() {
+        let json = r#"{"type":"command_response","id":"test-resp-timeout","status":"timeout","output":"partial output before timeout","reason":"User did not respond within 60s","output_file_path":"/tmp/.projectmemory/terminal-output/partial-002.json"}"#;
+        let msg = decode(json).expect("should decode timeout command_response");
+        if let Message::CommandResponse(resp) = msg {
+            assert_eq!(resp.id, "test-resp-timeout");
+            assert_eq!(resp.status, ResponseStatus::Timeout);
+            assert_eq!(resp.output.as_deref(), Some("partial output before timeout"));
+            assert_eq!(resp.reason.as_deref(), Some("User did not respond within 60s"));
+            assert_eq!(resp.output_file_path.as_deref(), Some("/tmp/.projectmemory/terminal-output/partial-002.json"));
+        } else {
+            panic!("expected CommandResponse");
+        }
+    }
+
+    #[test]
+    fn conformance_command_response_minimal() {
+        let json = r#"{"type":"command_response","id":"test-resp-minimal","status":"approved"}"#;
+        let msg = decode(json).expect("should decode minimal command_response");
+        if let Message::CommandResponse(resp) = msg {
+            assert_eq!(resp.id, "test-resp-minimal");
+            assert_eq!(resp.status, ResponseStatus::Approved);
+            assert!(resp.output.is_none());
+            assert!(resp.exit_code.is_none());
+            assert!(resp.reason.is_none());
+            assert!(resp.output_file_path.is_none());
+        } else {
+            panic!("expected CommandResponse");
+        }
+    }
+
+    #[test]
+    fn conformance_command_response_null_exit_code() {
+        let json = r#"{"type":"command_response","id":"test-resp-null-exit","status":"approved","output":"killed","exit_code":null}"#;
+        let msg = decode(json).expect("should decode command_response with null exit_code");
+        if let Message::CommandResponse(resp) = msg {
+            assert_eq!(resp.id, "test-resp-null-exit");
+            assert_eq!(resp.status, ResponseStatus::Approved);
+            assert_eq!(resp.output.as_deref(), Some("killed"));
+            assert!(resp.exit_code.is_none());
+        } else {
+            panic!("expected CommandResponse");
+        }
+    }
+
+    // -- Heartbeat conformance -----------------------------------------
+
+    #[test]
+    fn conformance_heartbeat_standard() {
+        let json = r#"{"type":"heartbeat","id":"hb-001","timestamp_ms":1771020000000}"#;
+        let msg = decode(json).expect("should decode standard heartbeat");
+        if let Message::Heartbeat(hb) = msg {
+            assert_eq!(hb.id, "hb-001");
+            assert_eq!(hb.timestamp_ms, 1771020000000);
+        } else {
+            panic!("expected Heartbeat");
+        }
+    }
+
+    #[test]
+    fn conformance_heartbeat_zero_timestamp() {
+        let json = r#"{"type":"heartbeat","id":"hb-zero","timestamp_ms":0}"#;
+        let msg = decode(json).expect("should decode heartbeat with zero timestamp");
+        if let Message::Heartbeat(hb) = msg {
+            assert_eq!(hb.id, "hb-zero");
+            assert_eq!(hb.timestamp_ms, 0);
+        } else {
+            panic!("expected Heartbeat");
+        }
     }
 }

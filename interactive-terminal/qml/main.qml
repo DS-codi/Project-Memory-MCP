@@ -2,11 +2,12 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Controls.Material 2.15
 import QtQuick.Layouts 1.15
+import Qt.labs.platform 1.1 as Platform
 import com.projectmemory.terminal 1.0
 
 ApplicationWindow {
     id: root
-    visible: true
+    visible: false
     width: 1100
     height: 760
     minimumWidth: 900
@@ -80,6 +81,17 @@ ApplicationWindow {
         return ({})
     }
 
+    function showMainWindow() {
+        root.visible = true
+        root.showNormal()
+        root.raise()
+        root.requestActivate()
+    }
+
+    function hideToTray() {
+        root.visible = false
+    }
+
     function syncApprovalDialog() {
         if (terminalApp.pendingCount <= 0 || !terminalApp.currentRequestId) {
             approvalDialog.visible = false
@@ -89,31 +101,31 @@ ApplicationWindow {
 
         const parsedContext = parseContextInfo(terminalApp.contextInfo || "")
         const correlation = parsedContext.correlation || {}
-        const approval = parsedContext.approval || {}
         const source = parsedContext.source || {}
 
-        const requestId = correlation.request_id || terminalApp.currentRequestId
-        const looksChatOrigin = parsedContext.origin === "chat" || /^req[_-]/.test(requestId || "")
-        const approvalRequired = approval.required === undefined ? true : !!approval.required
-
-        if (!looksChatOrigin || !approvalRequired) {
+        if (terminalApp.currentAllowlisted) {
             approvalDialog.visible = false
             approvalDialogRequest = ({})
             return
         }
+
+        const requestId = correlation.request_id || terminalApp.currentRequestId
 
         approvalDialogRequest = {
             command: source.command || terminalApp.commandText,
             args: Array.isArray(source.args) ? source.args : [],
             mode: source.mode || "interactive",
             workspaceId: source.workspace_id || "",
+            workspacePath: terminalApp.currentWorkspacePath || "",
+            workingDirectory: terminalApp.workingDirectory || "",
             sessionId: source.session_id || terminalApp.currentSessionId,
             requestId: requestId,
             traceId: correlation.trace_id || "",
             clientRequestId: correlation.client_request_id || "",
-            contextId: approval.context_id || "",
+            contextId: (parsedContext.approval || {}).context_id || "",
         }
 
+        root.showMainWindow()
         approvalDialog.visible = true
         approvalDialog.raise()
         approvalDialog.requestActivate()
@@ -167,6 +179,13 @@ ApplicationWindow {
         function onContextInfoChanged() {
             root.syncApprovalDialog()
         }
+
+        function onCommandReceived() {
+            if (!terminalApp.currentAllowlisted) {
+                root.showMainWindow()
+            }
+            root.syncApprovalDialog()
+        }
     }
 
     Component.onCompleted: {
@@ -174,8 +193,48 @@ ApplicationWindow {
         refreshSavedCommands()
         terminalApp.showSessionStartup()
         root.syncApprovalDialog()
-        root.raise()
-        root.requestActivate()
+        root.hideToTray()
+    }
+
+    onClosing: function(close) {
+        close.accepted = false
+        root.hideToTray()
+    }
+
+    Platform.SystemTrayIcon {
+        id: trayIcon
+        visible: true
+        tooltip: "Interactive Terminal | Pending: " + terminalApp.pendingCount
+            + " | CPU: " + terminalApp.cpuUsagePercent.toFixed(1) + "%"
+            + " | RAM: " + terminalApp.memoryUsageMb.toFixed(1) + " MB"
+
+        onActivated: function(reason) {
+            if (reason === Platform.SystemTrayIcon.Trigger || reason === Platform.SystemTrayIcon.DoubleClick) {
+                root.showMainWindow()
+            }
+        }
+
+        menu: Platform.Menu {
+            Platform.MenuItem {
+                text: "Show"
+                onTriggered: root.showMainWindow()
+            }
+            Platform.MenuItem {
+                text: "Start with Windows"
+                checkable: true
+                checked: terminalApp.startWithWindows
+                onTriggered: {
+                    const next = !terminalApp.startWithWindows
+                    terminalApp.setStartWithWindowsEnabled(next)
+                    checked = terminalApp.startWithWindows
+                }
+            }
+            Platform.MenuSeparator {}
+            Platform.MenuItem {
+                text: "Quit"
+                onTriggered: Qt.quit()
+            }
+        }
     }
 
     ColumnLayout {
@@ -201,6 +260,12 @@ ApplicationWindow {
 
                 Text {
                     text: terminalApp.isConnected ? "Connected" : "Disconnected"
+                    color: "#808080"
+                    font.pixelSize: 12
+                }
+
+                Text {
+                    text: "CPU " + terminalApp.cpuUsagePercent.toFixed(1) + "% | RAM " + terminalApp.memoryUsageMb.toFixed(1) + " MB"
                     color: "#808080"
                     font.pixelSize: 12
                 }
@@ -615,6 +680,12 @@ ApplicationWindow {
 
                 Text { text: "Workspace ID"; color: "#808080"; font.pixelSize: 12 }
                 Text { text: approvalDialogRequest.workspaceId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+
+                Text { text: "Workspace Path"; color: "#808080"; font.pixelSize: 12 }
+                Text { text: approvalDialogRequest.workspacePath || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+
+                Text { text: "Working Directory"; color: "#808080"; font.pixelSize: 12 }
+                Text { text: approvalDialogRequest.workingDirectory || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
 
                 Text { text: "Session ID"; color: "#808080"; font.pixelSize: 12 }
                 Text { text: approvalDialogRequest.sessionId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }

@@ -226,7 +226,9 @@ impl TcpServer {
                 _ = heartbeat_tick.tick() => {
                     // Send our heartbeat to the client
                     let hb = Message::Heartbeat(protocol::Heartbeat {
+                        id: String::new(),
                         timestamp: chrono_timestamp(),
+                        timestamp_ms: crate::cxxqt_bridge::monotonic_millis() as u64,
                     });
                     if let Ok(encoded) = protocol::encode(&hb) {
                         if let Err(e) = writer.write_all(encoded.as_bytes()).await {
@@ -381,6 +383,10 @@ mod tests {
             venv_path: String::new(),
             activate_venv: false,
             timeout_seconds: 30,
+            args: Vec::new(),
+            env: std::collections::HashMap::new(),
+            workspace_id: String::new(),
+            allowlisted: false,
         });
         let encoded = protocol::encode(&msg).unwrap();
         stream.write_all(encoded.as_bytes()).await.unwrap();
@@ -416,6 +422,7 @@ mod tests {
             output: Some("hello\n".into()),
             exit_code: Some(0),
             reason: None,
+            output_file_path: None,
         });
         outgoing_tx.send(msg.clone()).await.unwrap();
 
@@ -447,7 +454,9 @@ mod tests {
 
         // Client sends a Heartbeat
         let hb = Message::Heartbeat(crate::protocol::Heartbeat {
+            id: String::new(),
             timestamp: "1234567890.000Z".into(),
+            timestamp_ms: 0,
         });
         let encoded = protocol::encode(&hb).unwrap();
         stream.write_all(encoded.as_bytes()).await.unwrap();

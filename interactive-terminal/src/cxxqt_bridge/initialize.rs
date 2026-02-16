@@ -38,6 +38,17 @@ impl cxx_qt::Initialize for ffi::TerminalApp {
             self.as_mut().set_session_tabs_json(state.session_tabs_to_json());
         }
 
+        match crate::system_tray::sync_startup_with_settings(port) {
+            Ok(settings) => {
+                self.as_mut().set_start_with_windows(settings.start_with_windows);
+            }
+            Err(error) => {
+                self.as_mut().set_status_text(QString::from(&format!(
+                    "Listening on port {port} (startup setting warning: {error})"
+                )));
+            }
+        }
+
         self.as_mut()
             .set_status_text(QString::from(&format!("Listening on port {port}")));
 
@@ -52,6 +63,7 @@ impl cxx_qt::Initialize for ffi::TerminalApp {
         let qt_thread_msg = self.qt_thread();
         let qt_thread_evt = self.qt_thread();
         let qt_thread_exec = self.qt_thread();
+        let qt_thread_perf = self.qt_thread();
 
         let state_for_msg = self.rust().state.clone();
         let state_for_exec = self.rust().state.clone();
@@ -66,6 +78,7 @@ impl cxx_qt::Initialize for ffi::TerminalApp {
             qt_thread_msg,
             qt_thread_evt,
             qt_thread_exec,
+            qt_thread_perf,
         );
     }
 }

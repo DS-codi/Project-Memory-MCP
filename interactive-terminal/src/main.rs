@@ -4,10 +4,12 @@ mod build_check;
 mod command_executor;
 mod cxxqt_bridge;
 mod host_bridge_listener;
+mod perf_monitor;
 mod protocol;
 mod saved_commands;
 mod saved_commands_repository;
 mod session;
+mod system_tray;
 mod tcp_server;
 
 pub use tcp_server::TcpServer;

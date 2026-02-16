@@ -156,6 +156,10 @@ fn close_session_rejects_pending_approval_queue() {
             venv_path: String::new(),
             activate_venv: false,
             timeout_seconds: 60,
+            args: Vec::new(),
+            env: HashMap::new(),
+            workspace_id: String::new(),
+            allowlisted: false,
         });
 
     let err = state
@@ -186,6 +190,10 @@ fn selected_session_selector_values_hydrate_incoming_request() {
         venv_path: String::new(),
         activate_venv: false,
         timeout_seconds: 60,
+        args: Vec::new(),
+        env: HashMap::new(),
+        workspace_id: String::new(),
+        allowlisted: false,
     };
 
     state.hydrate_request_with_session_context(&mut incoming);
@@ -283,6 +291,10 @@ fn enabling_venv_activation_auto_detects_workspace_default_venv() {
         venv_path: String::new(),
         activate_venv: true,
         timeout_seconds: 60,
+        args: Vec::new(),
+        env: HashMap::new(),
+        workspace_id: String::new(),
+        allowlisted: false,
     };
 
     state.hydrate_request_with_session_context(&mut incoming);

@@ -185,6 +185,7 @@ impl ffi::TerminalApp {
             output: None,
             exit_code: None,
             reason: Some(reason_str),
+            output_file_path: None,
         });
 
         let state_arc = self.rust().state.clone();
@@ -214,6 +215,34 @@ impl ffi::TerminalApp {
 
         Self::show_command(&mut self, next_cmd.as_ref());
         self.as_mut().command_completed(id, false);
+    }
+
+    pub fn set_start_with_windows_enabled(mut self: Pin<&mut Self>, enabled: bool) -> bool {
+        let port = *crate::SERVER_PORT.get().unwrap_or(&9100);
+        if let Err(error) = crate::system_tray::set_start_with_windows(enabled, port) {
+            self.as_mut().set_status_text(QString::from(&format!(
+                "Failed to update startup setting: {error}"
+            )));
+            return false;
+        }
+
+        let mut settings = crate::system_tray::load_settings();
+        settings.start_with_windows = enabled;
+        if let Err(error) = crate::system_tray::save_settings(&settings) {
+            self.as_mut().set_status_text(QString::from(&format!(
+                "Startup setting changed but failed to persist config: {error}"
+            )));
+            self.as_mut().set_start_with_windows(enabled);
+            return false;
+        }
+
+        self.as_mut().set_start_with_windows(enabled);
+        self.as_mut().set_status_text(QString::from(if enabled {
+            "Start with Windows enabled"
+        } else {
+            "Start with Windows disabled"
+        }));
+        true
     }
 
     pub fn clear_output(mut self: Pin<&mut Self>) {
@@ -366,11 +395,13 @@ impl ffi::TerminalApp {
             this.as_mut()
                 .set_current_venv_path(QString::from(&*c.venv_path));
             this.as_mut().set_current_activate_venv(c.activate_venv);
+            this.as_mut().set_current_allowlisted(c.allowlisted);
         } else {
             this.as_mut().set_command_text(QString::default());
             this.as_mut().set_working_directory(QString::default());
             this.as_mut().set_context_info(QString::default());
             this.as_mut().set_current_request_id(QString::default());
+            this.as_mut().set_current_allowlisted(false);
             Self::sync_selected_session_context(this);
         }
     }
@@ -614,6 +645,10 @@ impl ffi::TerminalApp {
                 venv_path: context.selected_venv_path.clone(),
                 activate_venv: context.activate_venv,
                 timeout_seconds: 300,
+                args: Vec::new(),
+                env: std::collections::HashMap::new(),
+                workspace_id: String::new(),
+                allowlisted: true,
             };
 
             (
@@ -657,6 +692,7 @@ impl ffi::TerminalApp {
                     .set_current_terminal_profile(QString::from(&profile_key));
                 self.as_mut()
                     .set_working_directory(QString::from(&request.working_directory));
+                self.as_mut().set_current_allowlisted(true);
                 self.as_mut().set_status_text(QString::from(&format!(
                     "Running command in session {selected_session_id}"
                 )));

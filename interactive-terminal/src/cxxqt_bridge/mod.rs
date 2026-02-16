@@ -31,6 +31,10 @@ pub mod ffi {
         #[qproperty(QString, current_workspace_path, cxx_name = "currentWorkspacePath")]
         #[qproperty(QString, current_venv_path, cxx_name = "currentVenvPath")]
         #[qproperty(bool, current_activate_venv, cxx_name = "currentActivateVenv")]
+        #[qproperty(bool, current_allowlisted, cxx_name = "currentAllowlisted")]
+        #[qproperty(bool, start_with_windows, cxx_name = "startWithWindows")]
+        #[qproperty(f64, cpu_usage_percent, cxx_name = "cpuUsagePercent")]
+        #[qproperty(f64, memory_usage_mb, cxx_name = "memoryUsageMb")]
         #[qproperty(QString, pending_commands_json, cxx_name = "pendingCommandsJson")]
         #[qproperty(QString, session_tabs_json, cxx_name = "sessionTabsJson")]
         type TerminalApp = super::TerminalAppRust;
@@ -94,6 +98,10 @@ pub mod ffi {
         #[qinvokable]
         #[cxx_name = "setSessionActivateVenv"]
         fn set_session_activate_venv(self: Pin<&mut TerminalApp>, activate: bool);
+
+        #[qinvokable]
+        #[cxx_name = "setStartWithWindowsEnabled"]
+        fn set_start_with_windows_enabled(self: Pin<&mut TerminalApp>, enabled: bool) -> bool;
 
         #[qinvokable]
         #[cxx_name = "openSavedCommands"]

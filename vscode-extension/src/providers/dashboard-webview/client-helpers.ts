@@ -34,6 +34,7 @@ export function getClientHelpers(): string {
                         <span class="plan-status \${plan.status}">\${plan.status}</span>
                         <div class="plan-actions">
                             <button class="btn btn-small btn-secondary" data-action="copy" data-copy="\${planId}" title="Copy plan ID">&#128203;</button>
+                            <button class="btn btn-small btn-secondary" data-action="open-plan-browser" data-plan-id="\${planId}" title="Open plan in default browser">&#8599;</button>
                             <button class="btn btn-small" data-action="open-plan" data-plan-id="\${planId}" title="Open plan">&#8594;</button>
                         </div>
                     </div>

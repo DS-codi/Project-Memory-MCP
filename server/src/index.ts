@@ -424,57 +424,26 @@ server.tool(
 );
 
 // =============================================================================
-// Interactive Terminal Tool — relaxed safety model
+// Terminal Tool — GUI approval flow
 // =============================================================================
 
 server.tool(
-  'memory_terminal_interactive',
-  'Unified terminal surface under canonical contract with legacy aliases and headless policy actions. Canonical actions: execute, read_output, terminate, list. Legacy aliases accepted: run, kill, send, close, create. Headless policy actions: get_allowlist, update_allowlist.',
+  'memory_terminal',
+  'Terminal tool with GUI approval flow. Actions: run (execute command — auto-approves allowlisted, blocks destructive, shows GUI approval for others), read_output (get output from a session), kill (terminate a session), get_allowlist (view allowlist), update_allowlist (manage allowlist patterns).',
   {
-    action: z.enum(['execute', 'read_output', 'terminate', 'list', 'run', 'kill', 'send', 'close', 'create', 'get_allowlist', 'update_allowlist']).describe('Canonical actions: execute/read_output/terminate/list. Legacy aliases: run/kill/send/close/create. Unified allowlist actions: get_allowlist/update_allowlist.'),
-    command: z.string().optional().describe('Legacy/top-level command input (canonical prefers execution.command)'),
-    args: z.array(z.string()).optional().describe('Legacy/top-level args input (canonical prefers execution.args)'),
-    cwd: z.string().optional().describe('Legacy/top-level cwd input (canonical prefers runtime.cwd)'),
-    timeout: z.number().optional().describe('Legacy timeout in ms (canonical prefers runtime.timeout_ms)'),
-    timeout_ms: z.number().optional().describe('Canonical timeout in ms'),
-    workspace_id: z.string().optional().describe('Legacy workspace id (canonical prefers runtime.workspace_id)'),
-    env: z.record(z.string()).optional().describe('Execution environment map'),
-    invocation: z.object({
-      mode: z.enum(['interactive', 'headless']).optional(),
-      intent: z.enum(['open_only', 'execute_command']).optional(),
-    }).optional().describe('Canonical invocation envelope'),
-    correlation: z.object({
-      request_id: z.string().optional(),
-      trace_id: z.string().optional(),
-      client_request_id: z.string().optional(),
-    }).optional().describe('Canonical correlation ids'),
-    runtime: z.object({
-      workspace_id: z.string().optional(),
-      cwd: z.string().optional(),
-      timeout_ms: z.number().optional(),
-      adapter_override: z.enum(['local', 'bundled', 'container_bridge', 'auto']).optional(),
-    }).optional().describe('Canonical runtime envelope'),
-    execution: z.object({
-      command: z.string().optional(),
-      args: z.array(z.string()).optional(),
-      env: z.record(z.string()).optional(),
-    }).optional().describe('Canonical execution envelope'),
-    target: z.object({
-      session_id: z.string().optional(),
-      terminal_id: z.string().optional(),
-    }).optional().describe('Canonical target identity envelope'),
-    compat: z.object({
-      legacy_action: z.enum(['run', 'kill', 'send', 'close', 'create', 'list']).optional(),
-      caller_surface: z.enum(['server', 'extension', 'dashboard', 'chat_button']).optional(),
-    }).optional().describe('Canonical compatibility metadata'),
+    action: z.enum(['run', 'read_output', 'kill', 'get_allowlist', 'update_allowlist']).describe('The action to perform'),
+    command: z.string().optional().describe('Command to execute (for run)'),
+    args: z.array(z.string()).optional().describe('Command arguments (for run)'),
+    cwd: z.string().optional().describe('Working directory (for run)'),
+    timeout_ms: z.number().optional().describe('Execution timeout in milliseconds (for run)'),
+    workspace_id: z.string().optional().describe('Workspace ID'),
+    session_id: z.string().optional().describe('Session ID (for read_output, kill)'),
     patterns: z.array(z.string()).optional().describe('Allowlist patterns (for update_allowlist)'),
     operation: z.enum(['add', 'remove', 'set']).optional().describe('How to modify the allowlist (for update_allowlist)'),
-    session_id: z.string().optional().describe('Legacy short target session id'),
-    terminal_id: z.string().optional().describe('Legacy short target terminal id'),
   },
-  async (params) => {
-    const result = await withLogging('memory_terminal_interactive', params, () =>
-      consolidatedTools.memoryTerminalInteractive(params as consolidatedTools.MemoryTerminalInteractiveParams)
+  async (params, extra) => {
+    const result = await withLogging('memory_terminal', params, () =>
+      consolidatedTools.memoryTerminal(params as consolidatedTools.MemoryTerminalParams, extra)
     );
     return {
       content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]

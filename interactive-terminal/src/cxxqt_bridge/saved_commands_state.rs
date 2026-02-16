@@ -157,6 +157,10 @@ impl AppState {
             venv_path: context.selected_venv_path,
             activate_venv: context.activate_venv,
             timeout_seconds: 300,
+            args: Vec::new(),
+            env: std::collections::HashMap::new(),
+            workspace_id: workspace_id.to_string(),
+            allowlisted: false,
         };
 
         let (_, count, json, selected_cmd) = self.enqueue_pending_request(request.clone());

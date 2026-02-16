@@ -5,6 +5,7 @@ use crate::protocol::{
     CommandRequest, CommandResponse, Message, ResponseStatus, SavedCommandsAction,
     SavedCommandsResponse,
 };
+use crate::perf_monitor::PerfMonitor;
 use super::AppState;
 use crate::tcp_server::{ConnectionEvent, TcpServer};
 use cxx_qt_lib::QString;
@@ -23,6 +24,7 @@ pub(crate) fn spawn_runtime_tasks(
     qt_thread_msg: cxx_qt::CxxQtThread<ffi::TerminalApp>,
     qt_thread_evt: cxx_qt::CxxQtThread<ffi::TerminalApp>,
     qt_thread_exec: cxx_qt::CxxQtThread<ffi::TerminalApp>,
+    qt_thread_perf: cxx_qt::CxxQtThread<ffi::TerminalApp>,
 ) {
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
@@ -49,6 +51,52 @@ pub(crate) fn spawn_runtime_tasks(
                     while let Some(msg) = rx.recv().await {
                         match msg {
                             Message::CommandRequest(req) => {
+                                if req.allowlisted {
+                                    let (send_result, tabs_json, selected_session_id) = {
+                                        let mut s = state.lock().unwrap();
+                                        let mut hydrated = req.clone();
+                                        s.hydrate_request_with_session_context(&mut hydrated);
+                                        s.selected_session_id = hydrated.session_id.clone();
+                                        let sender = s.command_tx.clone();
+                                        let send_result = sender
+                                            .ok_or_else(|| "Command runtime is not ready".to_string())
+                                            .and_then(|tx| {
+                                                tx.try_send(hydrated.clone())
+                                                    .map_err(|error| format!("Failed to queue command: {error}"))
+                                            });
+                                        let tabs_json = s.session_tabs_to_json();
+                                        let selected_session_id = s.selected_session_id.clone();
+                                        (send_result, tabs_json, selected_session_id)
+                                    };
+
+                                    let req_clone = req.clone();
+                                    let _ = qt.queue(move |mut obj| {
+                                        obj.as_mut().set_session_tabs_json(tabs_json);
+                                        obj.as_mut().set_current_session_id(QString::from(&selected_session_id));
+                                        obj.as_mut().set_command_text(QString::from(&*req_clone.command));
+                                        obj.as_mut().set_working_directory(QString::from(&*req_clone.working_directory));
+                                        obj.as_mut().set_context_info(QString::from(&*req_clone.context));
+                                        obj.as_mut().set_current_request_id(QString::from(&*req_clone.id));
+                                        obj.as_mut().set_current_terminal_profile(QString::from(
+                                            terminal_profile_to_key(&req_clone.terminal_profile),
+                                        ));
+                                        obj.as_mut().set_current_workspace_path(QString::from(&*req_clone.workspace_path));
+                                        obj.as_mut().set_current_venv_path(QString::from(&*req_clone.venv_path));
+                                        obj.as_mut().set_current_activate_venv(req_clone.activate_venv);
+                                        obj.as_mut().set_current_allowlisted(true);
+
+                                        match send_result {
+                                            Ok(()) => obj
+                                                .as_mut()
+                                                .set_status_text(QString::from("Allowlisted command auto-approved")),
+                                            Err(error) => obj
+                                                .as_mut()
+                                                .set_status_text(QString::from(&error)),
+                                        }
+                                    });
+                                    continue;
+                                }
+
                                 let (is_first, count, json, tabs_json, selected_session_id, selected_cmd) = {
                                     let mut s = state.lock().unwrap();
                                     let (is_first, count, json, selected_cmd) =
@@ -94,6 +142,7 @@ pub(crate) fn spawn_runtime_tasks(
                                                 &*cmd.venv_path,
                                             ));
                                             obj.as_mut().set_current_activate_venv(cmd.activate_venv);
+                                            obj.as_mut().set_current_allowlisted(cmd.allowlisted);
                                         }
                                     }
 
@@ -242,6 +291,7 @@ pub(crate) fn spawn_runtime_tasks(
                                                 obj.as_mut().set_current_activate_venv(
                                                     cmd.activate_venv,
                                                 );
+                                                obj.as_mut().set_current_allowlisted(cmd.allowlisted);
                                             }
                                         }
 
@@ -343,6 +393,7 @@ pub(crate) fn spawn_runtime_tasks(
                                     output: Some(exec_result.output),
                                     exit_code: exec_result.exit_code,
                                     reason: None,
+                                    output_file_path: None,
                                 });
 
                                 {
@@ -369,6 +420,7 @@ pub(crate) fn spawn_runtime_tasks(
                                     output: Some(err.clone()),
                                     exit_code: Some(-1),
                                     reason: None,
+                                    output_file_path: None,
                                 });
 
                                 {
@@ -437,12 +489,28 @@ pub(crate) fn spawn_runtime_tasks(
                 }
             };
 
+            let perf_task = {
+                let qt = qt_thread_perf;
+                async move {
+                    let mut monitor = PerfMonitor::new();
+                    loop {
+                        let snapshot = monitor.sample();
+                        let _ = qt.queue(move |mut obj| {
+                            obj.as_mut().set_cpu_usage_percent(snapshot.cpu_usage_percent);
+                            obj.as_mut().set_memory_usage_mb(snapshot.memory_usage_mb);
+                        });
+                        sleep(Duration::from_secs(5)).await;
+                    }
+                }
+            };
+
             tokio::select! {
                 _ = server_task => {}
                 _ = msg_task => {}
                 _ = evt_task => {}
                 _ = exec_task => {}
                 _ = idle_timeout_task => {}
+                _ = perf_task => {}
             }
         });
     });

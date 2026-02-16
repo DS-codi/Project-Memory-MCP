@@ -22,10 +22,8 @@
  * 6. memory_filesystem - Workspace-scoped filesystem operations (10 actions)
  *    Actions: read, write, search, list, tree, delete, move, copy, append, exists
  * 
- * 7. memory_terminal_interactive - Unified terminal surface (11 actions)
- *    Canonical: execute, read_output, terminate, list
- *    Legacy aliases: run, kill, send, close, create
- *    Headless policy: get_allowlist, update_allowlist
+ * 7. memory_terminal - Terminal tool with GUI approval flow (5 actions)
+ *    Actions: run, read_output, kill, get_allowlist, update_allowlist
  */
 
 export { memoryWorkspace, type MemoryWorkspaceParams, type WorkspaceAction } from './memory_workspace.js';
@@ -34,4 +32,4 @@ export { memorySteps, type MemoryStepsParams, type StepsAction } from './memory_
 export { memoryAgent, type MemoryAgentParams, type AgentAction } from './memory_agent.js';
 export { memoryContext, type MemoryContextParams, type ContextAction } from './memory_context.js';
 export { memoryFilesystem, type MemoryFilesystemParams, type FilesystemAction } from './memory_filesystem.js';
-export { memoryTerminalInteractive, type MemoryTerminalInteractiveParams, type InteractiveTerminalAction } from './memory_terminal_interactive.js';
+export { memoryTerminal, type MemoryTerminalParams, type MemoryTerminalAction } from './memory_terminal.js';

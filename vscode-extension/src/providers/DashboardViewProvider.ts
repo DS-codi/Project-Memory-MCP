@@ -185,6 +185,13 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                     vscode.commands.executeCommand('projectMemory.openDashboardPanel', planUrl);
                     break;
 
+                case 'openPlanInBrowser':
+                    const { planId: browserPlanId, workspaceId: browserWorkspaceId } = message.data as { planId: string; workspaceId: string };
+                    const browserPlanUrl = `${this.getDashboardUrl()}/workspace/${browserWorkspaceId}/plan/${browserPlanId}`;
+                    console.log('Opening plan in external browser:', browserPlanUrl);
+                    await vscode.env.openExternal(vscode.Uri.parse(browserPlanUrl));
+                    break;
+
                 case 'openPlanRoute':
                     await this.openPlanRoute(message.data as { route: string; query?: string });
                     break;
