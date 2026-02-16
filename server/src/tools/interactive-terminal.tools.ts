@@ -90,6 +90,12 @@ export interface CanonicalInteractiveResponse {
   result: {
     authorization?: 'allowed' | 'allowed_with_warning' | 'blocked';
     warning?: string;
+    approval_required?: boolean;
+    approved_by?: 'allowlist' | 'user';
+    correlation?: {
+      request_id?: string;
+      context_id?: string;
+    };
     stdout?: string;
     stderr?: string;
     exit_code?: number | null;
@@ -584,6 +590,9 @@ async function handleInProcessInteractiveExecute(
       result: {
         authorization: orchestration.response?.authorization,
         warning: orchestration.response?.warning,
+        approval_required: orchestration.response?.approval_required,
+        approved_by: orchestration.response?.approved_by,
+        correlation: orchestration.correlation,
         stdout: orchestration.response?.stdout,
         stderr: orchestration.response?.stderr,
         exit_code: orchestration.response?.exit_code,
@@ -748,6 +757,10 @@ function createInProcessInteractiveAdapter(
         return {
           ok: true,
           decision: 'declined',
+          correlation: {
+            request_id: request.correlation.request_id,
+            context_id: undefined,
+          },
           response: {
             reason: 'Interactive command declined by policy override.',
           },
@@ -758,6 +771,10 @@ function createInProcessInteractiveAdapter(
         return {
           ok: true,
           decision: 'declined',
+          correlation: {
+            request_id: request.correlation.request_id,
+            context_id: undefined,
+          },
           response: {
             ...storedResponse,
             reason: storedResponse.reason ?? 'Blocked destructive command.',
@@ -768,6 +785,10 @@ function createInProcessInteractiveAdapter(
       return {
         ok: true,
         decision: 'approved',
+        correlation: {
+          request_id: request.correlation.request_id,
+          context_id: undefined,
+        },
         response: storedResponse,
       };
     },
@@ -1021,11 +1042,96 @@ export async function executeCanonicalInteractiveRequest(
     };
   }
 
+  const normalizedExecution = normalizeExecutionForPlatform(
+    request.execution?.command ?? '',
+    request.execution?.args,
+  );
+  if (request.runtime.workspace_id) {
+    await ensureAllowlistLoaded(request.runtime.workspace_id);
+  }
+  const strictAuthorization = authorizeCommand(
+    normalizedExecution.command,
+    normalizedExecution.args,
+    request.runtime.workspace_id,
+  );
+  const strictReason = strictAuthorization.reason?.toLowerCase() ?? '';
+  const blockedByDestructive =
+    strictAuthorization.status === 'blocked'
+    && (strictReason.includes('destructive') || strictReason.includes('blocked for safety'));
+  const approvalRequiredForExecute =
+    request.action === 'execute'
+    && request.invocation.intent === 'execute_command'
+    && strictAuthorization.status === 'blocked'
+    && !blockedByDestructive;
+
   if (request.invocation.mode === 'headless') {
-    const normalizedExecution = normalizeExecutionForPlatform(
-      request.execution?.command ?? '',
-      request.execution?.args,
-    );
+    if (approvalRequiredForExecute) {
+      const spawn = await spawnAndTrackSession({
+        command: normalizedExecution.command,
+        args: normalizedExecution.args,
+        cwd: request.runtime.cwd,
+        timeout: request.runtime.timeout_ms,
+      });
+      if (!spawn.success) {
+        return {
+          success: false,
+          error: {
+            success: false,
+            action: request.action,
+            status: 'failed',
+            correlation: request.correlation,
+            resolved: {
+              canonical_action: request.action,
+              alias_applied: resolved.alias_applied,
+              legacy_action: resolved.legacy_action,
+              mode: request.invocation.mode,
+            },
+            error: {
+              code: 'PM_TERM_INTERNAL',
+              category: 'internal',
+              message: spawn.error ?? 'Approved headless execute failed.',
+              retriable: true,
+            },
+            fallback: {
+              strategy: 'deterministic_internal_fallback',
+              next_action: 'execute',
+              user_message: 'Approved headless execution failed. Retry may succeed.',
+              can_auto_retry: false,
+            },
+          },
+        };
+      }
+
+      return {
+        success: true,
+        data: {
+          success: true,
+          action: request.action,
+          status: 'completed',
+          correlation: request.correlation,
+          resolved: {
+            canonical_action: request.action,
+            alias_applied: resolved.alias_applied,
+            legacy_action: resolved.legacy_action,
+            mode: request.invocation.mode,
+          },
+          identity: {
+            session_id: spawn.data?.session_id,
+          },
+          result: {
+            authorization: 'allowed_with_warning',
+            warning: 'Executed via explicit user approval context because command is outside allowlist.',
+            approval_required: true,
+            approved_by: 'user',
+            stdout: spawn.data?.stdout,
+            stderr: spawn.data?.stderr,
+            exit_code: spawn.data?.exit_code,
+            running: spawn.data?.running,
+          },
+          error: null,
+        },
+      };
+    }
 
     const run = await handleHeadlessTerminalRun({
       command: normalizedExecution.command,
@@ -1094,6 +1200,8 @@ export async function executeCanonicalInteractiveRequest(
         result: {
           authorization: run.data?.authorization,
           warning: run.data?.warning,
+          approval_required: false,
+          approved_by: 'allowlist',
           stdout: run.data?.stdout,
           stderr: run.data?.stderr,
           exit_code: run.data?.exit_code,

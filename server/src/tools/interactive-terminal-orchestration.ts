@@ -7,6 +7,7 @@ export type InteractiveLifecycleStage =
   | 'spawn'
   | 'ready'
   | 'request_sent'
+  | 'correlation_verified'
   | 'user_decision'
   | 'response_returned';
 
@@ -31,6 +32,10 @@ export interface AdapterAwaitResult {
   ok: boolean;
   decision?: 'approved' | 'declined';
   error?: 'timeout' | 'disconnected' | 'internal';
+  correlation?: {
+    request_id?: string;
+    context_id?: string;
+  };
   response?: {
     session_id?: string;
     terminal_id?: string;
@@ -81,6 +86,10 @@ export interface OrchestrationResult {
   ok: boolean;
   lifecycle: InteractiveLifecycleEntry[];
   error?: 'timeout' | 'disconnected' | 'unavailable' | 'declined' | 'internal';
+  correlation?: {
+    request_id?: string;
+    context_id?: string;
+  };
   response?: {
     session_id?: string;
     terminal_id?: string;
@@ -170,6 +179,29 @@ export async function orchestrateInteractiveLifecycle(input: {
     };
   }
 
+  const expectedRequestId = input.request.correlation.request_id;
+  const actualRequestId = awaitResult.correlation?.request_id;
+  if (actualRequestId && actualRequestId !== expectedRequestId) {
+    push('correlation_verified', {
+      matched: false,
+      expected_request_id: expectedRequestId,
+      actual_request_id: actualRequestId,
+    });
+    await input.adapter.close({ correlation: input.request.correlation });
+    return {
+      ok: false,
+      lifecycle,
+      error: 'internal',
+      correlation: awaitResult.correlation,
+    };
+  }
+
+  push('correlation_verified', {
+    matched: true,
+    request_id: actualRequestId ?? expectedRequestId,
+    context_id: awaitResult.correlation?.context_id,
+  });
+
   push('user_decision', { decision: awaitResult.decision });
 
   if (awaitResult.decision === 'declined') {
@@ -179,6 +211,7 @@ export async function orchestrateInteractiveLifecycle(input: {
       ok: false,
       lifecycle,
       error: 'declined',
+      correlation: awaitResult.correlation,
       response: awaitResult.response,
     };
   }
@@ -188,6 +221,7 @@ export async function orchestrateInteractiveLifecycle(input: {
   return {
     ok: true,
     lifecycle,
+    correlation: awaitResult.correlation,
     response: awaitResult.response,
   };
 }

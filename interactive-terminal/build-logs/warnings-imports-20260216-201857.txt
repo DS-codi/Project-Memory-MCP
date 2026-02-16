@@ -1,0 +1,53 @@
+﻿Interactive Terminal Build: warnings and QML imports report
+Generated: 2026-02-16T20:18:57.5724990+11:00
+
+Warnings (19)
+  warning: method `connect_command_received` is never used
+  warning: method `on_command_received` is never used
+  warning: method `connect_command_completed` is never used
+  warning: method `on_command_completed` is never used
+  warning: method `connect_output_line_received` is never used
+  warning: method `on_output_line_received` is never used
+  warning: method `connect_connection_status_changed` is never used
+  warning: method `on_connection_status_changed` is never used
+  warning: function `TerminalApp_connect_command_received` is never used
+  warning: function `TerminalApp_connect_command_completed` is never used
+  warning: function `TerminalApp_connect_output_line_received` is never used
+  warning: function `TerminalApp_connect_connection_status_changed` is never used
+  warning: associated function `new` is never used
+  warning: associated items `new` and `data_root` are never used
+  warning: struct `SessionManager` is never constructed
+  warning: multiple associated items are never used
+  warning: `interactive-terminal` (bin "interactive-terminal") generated 16 warnings
+  Warning: Cannot find any version of the dxcompiler.dll and dxil.dll.
+  Warning: Cannot find Visual Studio installation directory, VCINSTALLDIR is not set.
+
+QML Imports (28)
+  'QtQuick' C:\Qt\6.10.2\msvc2022_64\qml\QtQuick
+  'QtQml' C:\Qt\6.10.2\msvc2022_64\qml\QtQml
+  'QML' C:\Qt\6.10.2\msvc2022_64\qml\QML
+  'QtQml.Models' C:\Qt\6.10.2\msvc2022_64\qml\QtQml\Models
+  'QtQml.WorkerScript' C:\Qt\6.10.2\msvc2022_64\qml\QtQml\WorkerScript
+  'QtQuick.Controls' C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls
+  'QtQuick.Controls.Fusion' C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\Fusion
+  'QtQuick.Controls.Material' C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\Material
+  'QtQuick.Controls.Imagine' C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\Imagine
+  'QtQuick.Controls.Universal' C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\Universal
+  'QtQuick.Controls.FluentWinUI3' C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\FluentWinUI3
+  'QtQuick.Controls.Windows' C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\Windows
+  'QtQuick.Controls.Basic' C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\Basic
+  'QtQuick.Templates' C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Templates
+  'QtQuick.Controls.impl' C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\impl
+  'QtQuick.Controls.Fusion.impl' C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\Fusion\impl
+  'QtQuick.Window' C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Window
+  'QtQuick.Controls.Material.impl' C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\Material\impl
+  'QtQuick.Controls.Imagine.impl' C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\Imagine\impl
+  'QtQuick.Controls.Universal.impl' C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\Universal\impl
+  'QtQuick.Controls.FluentWinUI3.impl' C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\FluentWinUI3\impl
+  'QtQuick.Effects' C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Effects
+  'QtQuick.Layouts' C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Layouts
+  'QtQuick.Shapes' C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Shapes
+  'QtQuick.NativeStyle' C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\NativeStyle
+  'QtQuick.Controls.Windows.impl' C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\Windows\impl
+  'QtQuick.Controls.Basic.impl' C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\Basic\impl
+  'Qt.labs.qmlmodels' C:\Qt\6.10.2\msvc2022_64\qml\Qt\labs\qmlmodels

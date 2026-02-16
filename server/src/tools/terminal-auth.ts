@@ -76,6 +76,26 @@ function getAllowlistPath(workspaceId: string): string {
   return join(store.getWorkspacePath(workspaceId), ALLOWLIST_FILENAME);
 }
 
+function sanitizePatterns(input: unknown): string[] {
+  if (!Array.isArray(input)) return [];
+
+  const dedup = new Set<string>();
+  const normalized: string[] = [];
+
+  for (const value of input) {
+    if (typeof value !== 'string') continue;
+    const trimmed = value.trim();
+    if (!trimmed) continue;
+
+    const key = trimmed.toLowerCase();
+    if (dedup.has(key)) continue;
+    dedup.add(key);
+    normalized.push(trimmed);
+  }
+
+  return normalized;
+}
+
 /**
  * Load an allowlist from disk into the in-memory cache.
  * Returns the loaded patterns or null if no file exists.
@@ -125,11 +145,11 @@ export async function getEffectiveAllowlist(workspaceId?: string): Promise<strin
     const diskPatterns = await loadAllowlistFromDisk(workspaceId);
     if (diskPatterns) {
       workspaceAllowlists.set(workspaceId, diskPatterns);
-      return diskPatterns;
     }
   }
 
-  return DEFAULT_ALLOWLIST;
+  const basePatterns = workspaceAllowlists.get(workspaceId) ?? DEFAULT_ALLOWLIST;
+  return basePatterns;
 }
 
 /**

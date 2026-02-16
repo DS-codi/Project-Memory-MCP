@@ -5,6 +5,7 @@ import {
   executeCanonicalInteractiveRequest,
 } from '../../tools/interactive-terminal.tools.js';
 import { spawn } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
 import { parseInteractiveTerminalRequest } from '../../tools/interactive-terminal-contract.js';
 import {
   serializeCommandRequestToNdjson,
@@ -151,6 +152,68 @@ describe('handleInteractiveTerminalRun', () => {
   });
 });
 
+describe('headless workspace policy integration', () => {
+  it('allows headless execute when command is present in GUI policy file for workspace', async () => {
+    const mockedReadFile = vi.mocked(readFile);
+    try {
+      mockedReadFile.mockImplementation(async (filePath: string | Buffer | URL) => {
+        const target = String(filePath);
+        if (target.includes('interactive-terminal') && target.includes('headless-allowlist-policy.v1.json')) {
+          return JSON.stringify({
+            workspace_id: 'ws_headless_policy',
+            patterns: ['custom-headless-tool --safe'],
+          });
+        }
+        throw new Error('ENOENT');
+      });
+
+      const mod = await import('../../tools/consolidated/memory_terminal_interactive.js');
+      const result = await mod.memoryTerminalInteractive({
+        action: 'execute',
+        invocation: { mode: 'headless', intent: 'execute_command' },
+        runtime: { workspace_id: 'ws_headless_policy' },
+        execution: { command: 'custom-headless-tool', args: ['--safe'] },
+      });
+
+      expect(result.success).toBe(true);
+      expect((result.data as any)?.result?.authorization).toBe('allowed');
+    } finally {
+      mockedReadFile.mockReset();
+      mockedReadFile.mockRejectedValue(new Error('ENOENT'));
+    }
+  });
+
+  it('keeps headless blocking when command is absent from GUI policy file', async () => {
+    const mockedReadFile = vi.mocked(readFile);
+    try {
+      mockedReadFile.mockImplementation(async (filePath: string | Buffer | URL) => {
+        const target = String(filePath);
+        if (target.includes('interactive-terminal') && target.includes('headless-allowlist-policy.v1.json')) {
+          return JSON.stringify({
+            workspace_id: 'ws_headless_policy_blocked',
+            patterns: ['echo approved-only'],
+          });
+        }
+        throw new Error('ENOENT');
+      });
+
+      const mod = await import('../../tools/consolidated/memory_terminal_interactive.js');
+      const result = await mod.memoryTerminalInteractive({
+        action: 'execute',
+        invocation: { mode: 'headless', intent: 'execute_command' },
+        runtime: { workspace_id: 'ws_headless_policy_blocked' },
+        execution: { command: 'custom-headless-tool', args: ['--safe'] },
+      });
+
+      expect(result.success).toBe(false);
+      expect((result.data as any)?.error?.message).toContain('Approval context is required');
+    } finally {
+      mockedReadFile.mockReset();
+      mockedReadFile.mockRejectedValue(new Error('ENOENT'));
+    }
+  });
+});
+
 // ---------------------------------------------------------------------------
 // handleListSessions
 // ---------------------------------------------------------------------------
@@ -253,6 +316,7 @@ describe('memoryTerminalInteractive (consolidated router)', () => {
       'spawn',
       'ready',
       'request_sent',
+      'correlation_verified',
       'user_decision',
       'response_returned',
     ]);
@@ -266,7 +330,7 @@ describe('memoryTerminalInteractive (consolidated router)', () => {
     });
 
     expect(result.success).toBe(false);
-    expect((result.data as any)?.error?.message).toContain('allowlist');
+    expect((result.data as any)?.error?.message).toContain('Approval context is required');
   });
 
   it('marks interactive execute as attached when explicit target identity is provided', async () => {
@@ -334,6 +398,27 @@ describe('memoryTerminalInteractive (consolidated router)', () => {
     });
     expect(result.success).toBe(true);
     expect(result.data).toHaveProperty('action', 'terminate');
+  });
+
+  it('supports get_allowlist on the unified terminal surface', async () => {
+    const result = await memoryTerminalInteractive({ action: 'get_allowlist' as any });
+
+    expect(result.success).toBe(true);
+    expect((result.data as any)?.action).toBe('get_allowlist');
+    expect(Array.isArray((result.data as any)?.result?.patterns)).toBe(true);
+  });
+
+  it('supports update_allowlist on the unified terminal surface', async () => {
+    const result = await memoryTerminalInteractive({
+      action: 'update_allowlist' as any,
+      workspace_id: 'ws_unified_allowlist',
+      patterns: ['echo unified-allowlist-test'],
+      operation: 'add',
+    });
+
+    expect(result.success).toBe(true);
+    expect((result.data as any)?.action).toBe('update_allowlist');
+    expect((result.data as any)?.result?.patterns).toContain('echo unified-allowlist-test');
   });
 });
 
@@ -477,7 +562,7 @@ describe('interactive terminal canonical parser', () => {
 });
 
 describe('interactive terminal protocol serialization', () => {
-  it('normalizes /bin/sh to Windows shell for interactive execute path on win32', async () => {
+  it('normalizes /bin/sh to Windows shell for headless execute path on win32', async () => {
     const platformSpy = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32');
     const spawnMock = vi.mocked(spawn);
     spawnMock.mockClear();
@@ -485,7 +570,8 @@ describe('interactive terminal protocol serialization', () => {
     try {
       const parsed = parseInteractiveTerminalRequest({
         action: 'execute',
-        invocation: { mode: 'interactive', intent: 'execute_command' },
+        invocation: { mode: 'headless', intent: 'execute_command' },
+        runtime: { workspace_id: 'ws_windows_shell', adapter_override: 'local' },
         execution: { command: '/bin/sh', args: ['-lc', 'echo windows-shell'] },
       });
       expect(parsed.ok).toBe(true);
@@ -541,6 +627,10 @@ describe('interactive terminal protocol serialization', () => {
       request_id: 'req_x',
       payload: {
         decision: 'approved',
+        correlation: {
+          request_id: 'req_x',
+          context_id: 'ctx_x',
+        },
         result: {
           session_id: 'sess_1',
           stdout: 'ok',
@@ -553,6 +643,8 @@ describe('interactive terminal protocol serialization', () => {
 
     expect(mapped).toBeTruthy();
     expect(mapped?.user_decision).toBe('approved');
+    expect(mapped?.correlation?.request_id).toBe('req_x');
+    expect(mapped?.correlation?.context_id).toBe('ctx_x');
     expect(mapped?.result.session_id).toBe('sess_1');
   });
 });
@@ -659,6 +751,7 @@ describe('interactive lifecycle recovery', () => {
         'spawn',
         'ready',
         'request_sent',
+        'correlation_verified',
         'user_decision',
         'response_returned',
       ]);
@@ -800,6 +893,7 @@ describe('interactive lifecycle recovery', () => {
       'spawn',
       'ready',
       'request_sent',
+      'correlation_verified',
       'user_decision',
       'response_returned',
     ]);
@@ -808,6 +902,56 @@ describe('interactive lifecycle recovery', () => {
       expect.objectContaining({ reason: 'timeout' }),
     );
     expect(awaitResponse).toHaveBeenCalledTimes(2);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails deterministically when adapter response correlation request_id mismatches', async () => {
+    const parsed = parseInteractiveTerminalRequest({
+      action: 'execute',
+      invocation: { mode: 'interactive', intent: 'execute_command' },
+      execution: { command: 'echo', args: ['correlation-mismatch'] },
+      correlation: {
+        request_id: 'req_expected',
+        trace_id: 'trace_expected',
+      },
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const close = vi.fn(async () => undefined);
+
+    const orchestration = await orchestrateInteractiveLifecycle({
+      request: parsed.request,
+      adapter: {
+        adapter_type: 'inprocess',
+        connect: async () => ({ ok: true, runtime_session_id: 'runtime_3' }),
+        sendRequest: async () => ({ ok: true }),
+        awaitResponse: async () => ({
+          ok: true,
+          decision: 'approved',
+          correlation: {
+            request_id: 'req_wrong',
+            context_id: 'ctx_wrong',
+          },
+          response: {
+            session_id: 'sess_should_not_be_used',
+            authorization: 'allowed',
+          },
+        }),
+        recover: async () => ({ ok: true, recovered: false }),
+        close,
+      },
+    });
+
+    expect(orchestration.ok).toBe(false);
+    expect(orchestration.error).toBe('internal');
+    expect(orchestration.correlation?.request_id).toBe('req_wrong');
+    expect(orchestration.lifecycle.map((entry) => entry.stage)).toEqual([
+      'spawn',
+      'ready',
+      'request_sent',
+      'correlation_verified',
+    ]);
     expect(close).toHaveBeenCalledTimes(1);
   });
 

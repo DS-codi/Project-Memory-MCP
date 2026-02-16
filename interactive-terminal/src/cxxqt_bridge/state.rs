@@ -3,6 +3,14 @@ use crate::protocol::{CommandRequest, Message};
 use cxx_qt_lib::QString;
 
 impl AppState {
+    fn session_display_name_for(&self, session_id: &str) -> String {
+        self.session_display_names
+            .get(session_id)
+            .cloned()
+            .filter(|name| !name.trim().is_empty())
+            .unwrap_or_else(|| session_id.to_string())
+    }
+
     pub(crate) fn has_session(&self, session_id: &str) -> bool {
         self.pending_commands_by_session.contains_key(session_id)
             || self.session_context_by_id.contains_key(session_id)
@@ -35,11 +43,7 @@ impl AppState {
             .session_ids_sorted()
             .into_iter()
             .map(|session_id| SessionTabView {
-                label: if session_id == "default" {
-                    "default".to_string()
-                } else {
-                    session_id.clone()
-                },
+                label: self.session_display_name_for(&session_id),
                 pending_count: self
                     .pending_commands_by_session
                     .get(&session_id)
@@ -68,6 +72,8 @@ impl AppState {
             if !self.has_session(&candidate) {
                 self.pending_commands_by_session
                     .insert(candidate.clone(), Vec::new());
+                self.session_display_names
+                    .insert(candidate.clone(), candidate.clone());
                 self.session_context_by_id.entry(candidate.clone()).or_default();
                 self.selected_session_id = candidate.clone();
                 return candidate;
@@ -118,6 +124,7 @@ impl AppState {
         }
 
         self.pending_commands_by_session.remove(target);
+        self.session_display_names.remove(target);
         self.session_context_by_id.remove(target);
 
         if self.selected_session_id == target {
@@ -136,6 +143,25 @@ impl AppState {
             .entry(self.selected_session_id.clone())
             .or_default();
 
+        Ok(())
+    }
+
+    pub(crate) fn rename_session(&mut self, session_id: &str, display_name: &str) -> Result<(), String> {
+        let target = session_id.trim();
+        if target.is_empty() {
+            return Err("session_id is required".to_string());
+        }
+        if !self.has_session(target) {
+            return Err(format!("session not found: {target}"));
+        }
+
+        let next_name = display_name.trim();
+        if next_name.is_empty() {
+            return Err("session display name cannot be empty".to_string());
+        }
+
+        self.session_display_names
+            .insert(target.to_string(), next_name.to_string());
         Ok(())
     }
 

@@ -36,6 +36,10 @@ export type InteractiveTerminalNdjsonMessage =
       payload: {
         decision: 'approved' | 'declined' | 'timeout' | 'disconnected';
         reason?: string;
+        correlation?: {
+          request_id?: string;
+          context_id?: string;
+        };
         result?: {
           session_id?: string;
           terminal_id?: string;
@@ -64,6 +68,10 @@ export type InteractiveTerminalNdjsonMessage =
 
 export interface CanonicalMappedResponse {
   user_decision: 'approved' | 'declined' | 'timeout' | 'disconnected';
+  correlation?: {
+    request_id?: string;
+    context_id?: string;
+  };
   result: {
     session_id?: string;
     terminal_id?: string;
@@ -149,6 +157,7 @@ export function mapCommandResponseFromNdjson(message: InteractiveTerminalNdjsonM
   return {
     user_decision: message.payload.decision,
     reason: message.payload.reason,
+    correlation: message.payload.correlation,
     result: {
       session_id: message.payload.result?.session_id,
       terminal_id: message.payload.result?.terminal_id,

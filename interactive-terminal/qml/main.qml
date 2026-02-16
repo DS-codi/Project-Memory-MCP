@@ -1,21 +1,44 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
+import QtQuick.Controls.Material 2.15
 import QtQuick.Layouts 1.15
 import com.projectmemory.terminal 1.0
 
 ApplicationWindow {
     id: root
     visible: true
-    width: 800
-    height: 600
-    minimumWidth: 600
-    minimumHeight: 400
+    width: 1100
+    height: 760
+    minimumWidth: 900
+    minimumHeight: 620
     title: "Interactive Terminal"
     color: "#1e1e1e"
+    Material.theme: Material.Dark
+    Material.accent: Material.Blue
 
     property var sessionTabs: []
     property var savedCommands: []
     property string selectedSavedCommandId: ""
+    property string pendingSessionDisplayName: ""
+    property var approvalDialogRequest: ({})
+    property bool hasActiveTerminalSession: {
+        const current = (terminalApp.currentSessionId || "").trim()
+        if (!current) {
+            return false
+        }
+        return sessionTabs.some(function(tab) { return tab.sessionId === current })
+    }
+
+    function syncSessionDisplayName() {
+        const current = (terminalApp.currentSessionId || "").trim()
+        if (!current) {
+            pendingSessionDisplayName = ""
+            return
+        }
+
+        const match = sessionTabs.find(function(tab) { return tab.sessionId === current })
+        pendingSessionDisplayName = match && match.label ? match.label : current
+    }
 
     function refreshSessionTabs() {
         try {
@@ -24,6 +47,7 @@ ApplicationWindow {
         } catch (e) {
             sessionTabs = []
         }
+        syncSessionDisplayName()
     }
 
     function refreshSavedCommands() {
@@ -39,6 +63,62 @@ ApplicationWindow {
         }
     }
 
+    function parseContextInfo(contextInfo) {
+        if (!contextInfo || !contextInfo.trim().length) {
+            return ({})
+        }
+
+        try {
+            const parsed = JSON.parse(contextInfo)
+            if (parsed && typeof parsed === "object") {
+                return parsed
+            }
+        } catch (e) {
+            // no-op: context info may be plain text
+        }
+
+        return ({})
+    }
+
+    function syncApprovalDialog() {
+        if (terminalApp.pendingCount <= 0 || !terminalApp.currentRequestId) {
+            approvalDialog.visible = false
+            approvalDialogRequest = ({})
+            return
+        }
+
+        const parsedContext = parseContextInfo(terminalApp.contextInfo || "")
+        const correlation = parsedContext.correlation || {}
+        const approval = parsedContext.approval || {}
+        const source = parsedContext.source || {}
+
+        const requestId = correlation.request_id || terminalApp.currentRequestId
+        const looksChatOrigin = parsedContext.origin === "chat" || /^req[_-]/.test(requestId || "")
+        const approvalRequired = approval.required === undefined ? true : !!approval.required
+
+        if (!looksChatOrigin || !approvalRequired) {
+            approvalDialog.visible = false
+            approvalDialogRequest = ({})
+            return
+        }
+
+        approvalDialogRequest = {
+            command: source.command || terminalApp.commandText,
+            args: Array.isArray(source.args) ? source.args : [],
+            mode: source.mode || "interactive",
+            workspaceId: source.workspace_id || "",
+            sessionId: source.session_id || terminalApp.currentSessionId,
+            requestId: requestId,
+            traceId: correlation.trace_id || "",
+            clientRequestId: correlation.client_request_id || "",
+            contextId: approval.context_id || "",
+        }
+
+        approvalDialog.visible = true
+        approvalDialog.raise()
+        approvalDialog.requestActivate()
+    }
+
     TerminalApp {
         id: terminalApp
 
@@ -47,6 +127,10 @@ ApplicationWindow {
 
     Connections {
         target: terminalApp
+
+        function onCurrentSessionIdChanged() {
+            root.syncSessionDisplayName()
+        }
 
         function onCurrentTerminalProfileChanged() {
             if (terminalProfileSelector) {
@@ -71,11 +155,27 @@ ApplicationWindow {
                 activateVenvCheck.checked = terminalApp.currentActivateVenv
             }
         }
+
+        function onPendingCountChanged() {
+            root.syncApprovalDialog()
+        }
+
+        function onCurrentRequestIdChanged() {
+            root.syncApprovalDialog()
+        }
+
+        function onContextInfoChanged() {
+            root.syncApprovalDialog()
+        }
     }
 
     Component.onCompleted: {
         refreshSessionTabs()
         refreshSavedCommands()
+        terminalApp.showSessionStartup()
+        root.syncApprovalDialog()
+        root.raise()
+        root.requestActivate()
     }
 
     ColumnLayout {
@@ -138,7 +238,7 @@ ApplicationWindow {
         // Session runtime controls
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 96
+            Layout.preferredHeight: 128
             color: "#252526"
 
             ColumnLayout {
@@ -216,7 +316,7 @@ ApplicationWindow {
         // Session tabs
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 44
+            Layout.preferredHeight: 38
             color: "#2d2d30"
 
             RowLayout {
@@ -227,14 +327,21 @@ ApplicationWindow {
 
                 Button {
                     text: "+"
+                    Layout.preferredWidth: 56
+                    Layout.preferredHeight: 34
                     onClicked: {
-                        terminalApp.createSession()
+                        const createdId = terminalApp.createSession()
+                        if (createdId) {
+                            terminalApp.showSessionStartup()
+                        }
                         root.refreshSessionTabs()
                     }
                 }
 
                 Button {
                     text: "Saved Commands"
+                    Layout.preferredWidth: 164
+                    Layout.preferredHeight: 34
                     onClicked: {
                         if (terminalApp.openSavedCommands(savedCommandsWorkspaceField.text)) {
                             savedCommandsWorkspaceField.text = terminalApp.savedCommandsWorkspaceId()
@@ -246,6 +353,8 @@ ApplicationWindow {
 
                 Button {
                     text: "Reopen"
+                    Layout.preferredWidth: 104
+                    Layout.preferredHeight: 34
                     onClicked: {
                         if (terminalApp.reopenSavedCommands()) {
                             savedCommandsWorkspaceField.text = terminalApp.savedCommandsWorkspaceId()
@@ -264,8 +373,8 @@ ApplicationWindow {
                         color: tabData.isActive ? "#3a3d41" : "#252526"
                         border.color: tabData.isActive ? "#569cd6" : "#3c3c3c"
                         border.width: 1
-                        implicitHeight: 30
-                        implicitWidth: tabLabel.implicitWidth + closeButton.implicitWidth + 18
+                        implicitHeight: 34
+                        implicitWidth: Math.max(112, tabLabel.implicitWidth + closeButton.implicitWidth + 18)
 
                         Row {
                             anchors.fill: parent
@@ -277,9 +386,14 @@ ApplicationWindow {
                                 id: tabLabel
                                 flat: true
                                 anchors.verticalCenter: parent.verticalCenter
+                                font.pixelSize: 13
+                                padding: 0
+                                leftPadding: 0
+                                rightPadding: 0
                                 text: tabData.pendingCount > 0
                                     ? tabData.label + " (" + tabData.pendingCount + ")"
                                     : tabData.label
+                                display: AbstractButton.TextOnly
                                 onClicked: {
                                     terminalApp.switchSession(tabData.sessionId)
                                     root.refreshSessionTabs()
@@ -292,11 +406,43 @@ ApplicationWindow {
                                 enabled: tabData.canClose
                                 text: "×"
                                 flat: true
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 18
+                                height: 18
+                                font.pixelSize: 14
+                                padding: 0
+                                leftPadding: 0
+                                rightPadding: 0
                                 onClicked: {
                                     terminalApp.closeSession(tabData.sessionId)
                                     root.refreshSessionTabs()
                                 }
                             }
+                        }
+                    }
+                }
+
+                TextField {
+                    id: sessionNameInput
+                    Layout.preferredWidth: 160
+                    Layout.preferredHeight: 30
+                    placeholderText: "Session name"
+                    text: root.pendingSessionDisplayName
+                    onTextChanged: root.pendingSessionDisplayName = text
+                    onAccepted: {
+                        if (terminalApp.renameSession(terminalApp.currentSessionId || "default", text)) {
+                            root.refreshSessionTabs()
+                        }
+                    }
+                }
+
+                Button {
+                    text: "Rename"
+                    Layout.preferredWidth: 86
+                    Layout.preferredHeight: 30
+                    onClicked: {
+                        if (terminalApp.renameSession(terminalApp.currentSessionId || "default", sessionNameInput.text)) {
+                            root.refreshSessionTabs()
                         }
                     }
                 }
@@ -315,8 +461,8 @@ ApplicationWindow {
 
             // Left pane: Command cards
             Rectangle {
-                SplitView.preferredWidth: 400
-                SplitView.minimumWidth: 300
+                SplitView.preferredWidth: Math.max(260, root.width * 0.35)
+                SplitView.minimumWidth: 240
                 color: "#1e1e1e"
 
                 ScrollView {
@@ -351,9 +497,54 @@ ApplicationWindow {
 
             // Right pane: Output
             OutputView {
-                SplitView.preferredWidth: 400
+                SplitView.preferredWidth: Math.max(420, root.width * 0.65)
                 SplitView.minimumWidth: 200
                 outputText: terminalApp.outputText
+                terminalApp: terminalApp
+            }
+        }
+
+        Rectangle { Layout.fillWidth: true; height: 1; color: "#3c3c3c" }
+
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 64
+            color: "#252526"
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.topMargin: 8
+                anchors.bottomMargin: 8
+                anchors.leftMargin: 12
+                anchors.rightMargin: 12
+                spacing: 8
+
+                TextField {
+                    id: manualCommandInput
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 280
+                    enabled: root.hasActiveTerminalSession
+                    opacity: enabled ? 1.0 : 0.55
+                    placeholderText: enabled
+                        ? "Enter command for current session"
+                        : "No active terminal session"
+                    onAccepted: {
+                        if (terminalApp.runCommand(text)) {
+                            text = ""
+                        }
+                    }
+                }
+
+                Button {
+                    text: "Run"
+                    Layout.preferredWidth: 92
+                    enabled: root.hasActiveTerminalSession
+                    onClicked: {
+                        if (terminalApp.runCommand(manualCommandInput.text)) {
+                            manualCommandInput.text = ""
+                        }
+                    }
+                }
             }
         }
     }
@@ -361,6 +552,112 @@ ApplicationWindow {
     // Decline dialog (modal)
     DeclineDialog {
         id: declineDialog
+    }
+
+    Window {
+        id: approvalDialog
+        width: 700
+        height: 430
+        minimumWidth: 640
+        minimumHeight: 380
+        visible: false
+        modality: Qt.ApplicationModal
+        title: "Terminal Approval Required"
+        color: "#1e1e1e"
+        flags: Qt.Dialog | Qt.WindowTitleHint | Qt.CustomizeWindowHint | Qt.WindowStaysOnTopHint
+
+        onVisibleChanged: {
+            if (visible) {
+                raise()
+                requestActivate()
+            }
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 16
+            spacing: 10
+
+            Text {
+                text: "Approval Required for Chat Terminal Request"
+                color: "#d4d4d4"
+                font.pixelSize: 18
+                font.bold: true
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1
+                color: "#3c3c3c"
+            }
+
+            GridLayout {
+                Layout.fillWidth: true
+                columns: 2
+                columnSpacing: 12
+                rowSpacing: 8
+
+                Text { text: "Command"; color: "#808080"; font.pixelSize: 12 }
+                Text { text: approvalDialogRequest.command || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+
+                Text { text: "Args"; color: "#808080"; font.pixelSize: 12 }
+                Text {
+                    text: Array.isArray(approvalDialogRequest.args) && approvalDialogRequest.args.length
+                        ? approvalDialogRequest.args.join(" ")
+                        : "(none)"
+                    color: "#d4d4d4"
+                    font.pixelSize: 12
+                    wrapMode: Text.WrapAnywhere
+                }
+
+                Text { text: "Mode"; color: "#808080"; font.pixelSize: 12 }
+                Text { text: approvalDialogRequest.mode || "interactive"; color: "#d4d4d4"; font.pixelSize: 12 }
+
+                Text { text: "Workspace ID"; color: "#808080"; font.pixelSize: 12 }
+                Text { text: approvalDialogRequest.workspaceId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+
+                Text { text: "Session ID"; color: "#808080"; font.pixelSize: 12 }
+                Text { text: approvalDialogRequest.sessionId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+
+                Text { text: "Request ID"; color: "#808080"; font.pixelSize: 12 }
+                Text { text: approvalDialogRequest.requestId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+
+                Text { text: "Trace ID"; color: "#808080"; font.pixelSize: 12 }
+                Text { text: approvalDialogRequest.traceId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+
+                Text { text: "Client Request ID"; color: "#808080"; font.pixelSize: 12 }
+                Text { text: approvalDialogRequest.clientRequestId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+
+                Text { text: "Approval Context ID"; color: "#808080"; font.pixelSize: 12 }
+                Text { text: approvalDialogRequest.contextId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+            }
+
+            Item { Layout.fillHeight: true }
+
+            RowLayout {
+                Layout.alignment: Qt.AlignRight
+                spacing: 8
+
+                Button {
+                    text: "Deny"
+                    onClicked: {
+                        terminalApp.declineCommand(
+                            terminalApp.currentRequestId,
+                            "Denied by user in topmost approval dialog"
+                        )
+                        approvalDialog.visible = false
+                    }
+                }
+
+                Button {
+                    text: "Approve"
+                    onClicked: {
+                        terminalApp.approveCommand(terminalApp.currentRequestId)
+                        approvalDialog.visible = false
+                    }
+                }
+            }
+        }
     }
 
     Drawer {

@@ -104,16 +104,17 @@ name: skill-name-kebab-case
 description: >
   Use this skill when [specific trigger conditions].
   Covers [specific topics and patterns].
-category: architecture|testing|deployment|frontend|backend|database|devops|security
-tags:
-  - tag1
-  - tag2
-language_targets:
-  - typescript
-  - python
-framework_targets:
-  - react
-  - pyside6
+metadata:
+  category: architecture|testing|deployment|frontend|backend|database|devops|security
+  tags:
+    - tag1
+    - tag2
+  language_targets:
+    - typescript
+    - python
+  framework_targets:
+    - react
+    - pyside6
 ---
 
 # Skill Name
@@ -150,10 +151,10 @@ framework_targets:
 |-------|----------|-------------|
 | `name` | Yes | Kebab-case unique identifier |
 | `description` | Yes | When/how to use this skill (used for matching) |
-| `category` | Yes | One of: architecture, testing, deployment, frontend, backend, database, devops, security |
-| `tags` | Yes | Freeform tags for flexible matching |
-| `language_targets` | No | Programming languages this skill applies to |
-| `framework_targets` | No | Frameworks/libraries this skill applies to |
+| `metadata.category` | Yes | One of: architecture, testing, deployment, frontend, backend, database, devops, security |
+| `metadata.tags` | Yes | Freeform tags for flexible matching |
+| `metadata.language_targets` | No | Programming languages this skill applies to |
+| `metadata.framework_targets` | No | Frameworks/libraries this skill applies to |
 
 ## When to Create Skills
 

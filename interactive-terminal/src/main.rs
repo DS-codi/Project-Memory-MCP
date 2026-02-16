@@ -1,4 +1,4 @@
-#![windows_subsystem = "windows"]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod build_check;
 mod command_executor;
@@ -138,6 +138,7 @@ fn main() {
 
     #[cfg(windows)]
     std::env::set_var("QT_QPA_PLATFORM", "windows:darkmode=2");
+    std::env::set_var("QT_QUICK_CONTROLS_STYLE", "Material");
 
     let mut app = QGuiApplication::new();
     let mut engine = QQmlApplicationEngine::new();

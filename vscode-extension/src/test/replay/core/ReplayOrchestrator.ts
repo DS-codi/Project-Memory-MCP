@@ -301,6 +301,7 @@ async function defaultScenarioRunner(
         if (step.kind === 'tool') {
             const authOutcome = step.expect_auth ?? 'allowed';
             const surfaceResolution = resolveSelectedSurface(scenario, step.tool);
+            const isLegacyTerminalAlias = step.tool === 'memory_terminal';
             events.push({
                 event_type: 'tool_call',
                 timestamp_ms: timestamp,
@@ -317,7 +318,14 @@ async function defaultScenarioRunner(
                     profile: context.profile,
                     requested_terminal_surface: surfaceResolution.requested_surface,
                     selected_terminal_surface: surfaceResolution.selected_surface,
-                    selected_surface_reason: surfaceResolution.selection_reason
+                    selected_surface_reason: surfaceResolution.selection_reason,
+                    ...(isLegacyTerminalAlias
+                        ? {
+                            legacy_alias_used: true,
+                            deprecation_warning: 'DEPRECATED_TOOL_ALIAS: memory_terminal is a temporary compatibility alias. Prefer memory_terminal_interactive.',
+                            replacement_tool: 'memory_terminal_interactive'
+                        }
+                        : {})
                 }
             });
 

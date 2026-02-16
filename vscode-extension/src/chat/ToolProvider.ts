@@ -7,9 +7,7 @@
  *   3. memory_plan                  - Plan operations
  *   4. memory_steps                 - Step management
  *   5. memory_context               - Context, notes, research, briefings
- *   6. memory_terminal_interactive  - Canonical interactive/headless terminal contract via MCP bridge
- *   7. memory_terminal_vscode       - Visible VS Code terminal management contract
- *   8. memory_spawn_agent           - Prepare spawn context for native runSubagent flow
+ *   6. memory_spawn_agent           - Prepare spawn context for native runSubagent flow
  *
  * @see ./tools/ for individual handler implementations
  */
@@ -22,8 +20,6 @@ import {
     handlePlanTool,
     handleStepsTool,
     handleContextTool,
-    handleCanonicalInteractiveTerminalTool,
-    handleVsCodeTerminalTool,
     handleSpawnAgentTool,
     type ToolContext
 } from './tools';
@@ -93,21 +89,7 @@ export class ToolProvider implements vscode.Disposable {
             })
         );
 
-        // 6. memory_terminal_interactive (canonical MCP-facing contract)
-        this.disposables.push(
-            vscode.lm.registerTool('memory_terminal_interactive', {
-                invoke: (options, token) => handleCanonicalInteractiveTerminalTool(options as never, token, this.ctx)
-            })
-        );
-
-        // 7. memory_terminal_vscode (visible VS Code terminal management)
-        this.disposables.push(
-            vscode.lm.registerTool('memory_terminal_vscode', {
-                invoke: (options, token) => handleVsCodeTerminalTool(options as never, token, this.ctx)
-            })
-        );
-
-        // 8. memory_spawn_agent (context preparation only)
+        // 6. memory_spawn_agent (context preparation only)
         this.disposables.push(
             vscode.lm.registerTool('memory_spawn_agent', {
                 invoke: (options, token) => handleSpawnAgentTool(options as never, token, this.ctx)

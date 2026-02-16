@@ -424,42 +424,14 @@ server.tool(
 );
 
 // =============================================================================
-// Terminal Tool — safe command execution with session management
-// =============================================================================
-
-server.tool(
-  'memory_terminal',
-  'Terminal command execution with session management and authorization. Actions: run (execute a command), read_output (get buffered output for a session), kill (terminate a process), get_allowlist (view auto-approved commands), update_allowlist (manage allowlist patterns).',
-  {
-    action: z.enum(['run', 'read_output', 'kill', 'get_allowlist', 'update_allowlist']).describe('The action to perform'),
-    command: z.string().optional().describe('Command to execute (for run)'),
-    args: z.array(z.string()).optional().describe('Arguments to pass to the command (for run)'),
-    cwd: z.string().optional().describe('Working directory (for run). Defaults to process cwd'),
-    timeout: z.number().optional().describe('Timeout in ms (for run). Default 30000'),
-    workspace_id: z.string().optional().describe('Workspace ID (for run, get_allowlist, update_allowlist)'),
-    session_id: z.string().optional().describe('Session ID (for read_output, kill)'),
-    patterns: z.array(z.string()).optional().describe('Allowlist patterns (for update_allowlist)'),
-    operation: z.enum(['add', 'remove', 'set']).optional().describe('How to modify the allowlist (for update_allowlist)')
-  },
-  async (params) => {
-    const result = await withLogging('memory_terminal', params, () =>
-      consolidatedTools.memoryTerminal(params as consolidatedTools.MemoryTerminalParams)
-    );
-    return {
-      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
-    };
-  }
-);
-
-// =============================================================================
 // Interactive Terminal Tool — relaxed safety model
 // =============================================================================
 
 server.tool(
   'memory_terminal_interactive',
-  'Interactive terminal under canonical contract with legacy aliases. Canonical actions: execute, read_output, terminate, list. Legacy aliases accepted: run, kill, send, close, create.',
+  'Unified terminal surface under canonical contract with legacy aliases and headless policy actions. Canonical actions: execute, read_output, terminate, list. Legacy aliases accepted: run, kill, send, close, create. Headless policy actions: get_allowlist, update_allowlist.',
   {
-    action: z.enum(['execute', 'read_output', 'terminate', 'list', 'run', 'kill', 'send', 'close', 'create']).describe('Canonical actions: execute/read_output/terminate/list. Legacy aliases: run/kill/send/close/create.'),
+    action: z.enum(['execute', 'read_output', 'terminate', 'list', 'run', 'kill', 'send', 'close', 'create', 'get_allowlist', 'update_allowlist']).describe('Canonical actions: execute/read_output/terminate/list. Legacy aliases: run/kill/send/close/create. Unified allowlist actions: get_allowlist/update_allowlist.'),
     command: z.string().optional().describe('Legacy/top-level command input (canonical prefers execution.command)'),
     args: z.array(z.string()).optional().describe('Legacy/top-level args input (canonical prefers execution.args)'),
     cwd: z.string().optional().describe('Legacy/top-level cwd input (canonical prefers runtime.cwd)'),
@@ -495,6 +467,8 @@ server.tool(
       legacy_action: z.enum(['run', 'kill', 'send', 'close', 'create', 'list']).optional(),
       caller_surface: z.enum(['server', 'extension', 'dashboard', 'chat_button']).optional(),
     }).optional().describe('Canonical compatibility metadata'),
+    patterns: z.array(z.string()).optional().describe('Allowlist patterns (for update_allowlist)'),
+    operation: z.enum(['add', 'remove', 'set']).optional().describe('How to modify the allowlist (for update_allowlist)'),
     session_id: z.string().optional().describe('Legacy short target session id'),
     terminal_id: z.string().optional().describe('Legacy short target terminal id'),
   },

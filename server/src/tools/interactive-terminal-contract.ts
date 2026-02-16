@@ -74,6 +74,8 @@ export interface InteractiveTerminalError {
     | 'PM_TERM_GUI_UNAVAILABLE'
     | 'PM_TERM_BLOCKED_DESTRUCTIVE'
     | 'PM_TERM_NOT_FOUND'
+    | 'PM_TERM_APPROVAL_REQUIRED'
+    | 'PM_TERM_APPROVAL_INVALID'
     | 'PM_TERM_INTERNAL';
   category:
     | 'validation'
@@ -82,6 +84,7 @@ export interface InteractiveTerminalError {
     | 'transport'
     | 'runtime_unavailable'
     | 'authorization'
+    | 'approval'
     | 'identity'
     | 'internal';
   message: string;
@@ -225,6 +228,20 @@ function fallbackFor(code: InteractiveTerminalError['code']): InteractiveTermina
         strategy: 'refresh_list_then_retry',
         next_action: 'list',
         user_message: 'The terminal/session was not found. Refresh list and retry.',
+        can_auto_retry: false,
+      };
+    case 'PM_TERM_APPROVAL_REQUIRED':
+      return {
+        strategy: 'report_decline',
+        next_action: 'execute',
+        user_message: 'Explicit user approval is required before this terminal action can run.',
+        can_auto_retry: false,
+      };
+    case 'PM_TERM_APPROVAL_INVALID':
+      return {
+        strategy: 'reject_no_retry',
+        next_action: 'execute',
+        user_message: 'Provided approval context is invalid, expired, or mismatched.',
         can_auto_retry: false,
       };
     case 'PM_TERM_INTERNAL':

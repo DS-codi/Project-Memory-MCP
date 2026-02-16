@@ -28,6 +28,7 @@ pub struct TerminalAppRust {
 
 pub struct AppState {
     pub pending_commands_by_session: HashMap<String, Vec<CommandRequest>>,
+    pub session_display_names: HashMap<String, String>,
     pub session_context_by_id: HashMap<String, SessionRuntimeContext>,
     pub selected_session_id: String,
     pub saved_commands_ui_workspace_id: String,
@@ -69,6 +70,7 @@ impl Default for TerminalAppRust {
     fn default() -> Self {
         let state = Arc::new(Mutex::new(AppState {
             pending_commands_by_session: HashMap::from([("default".to_string(), Vec::new())]),
+            session_display_names: HashMap::from([("default".to_string(), "default".to_string())]),
             session_context_by_id: HashMap::new(),
             selected_session_id: "default".to_string(),
             saved_commands_ui_workspace_id: String::new(),

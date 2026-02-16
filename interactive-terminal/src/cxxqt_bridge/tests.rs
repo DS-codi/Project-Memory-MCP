@@ -24,6 +24,7 @@ fn unique_temp_dir() -> PathBuf {
 fn test_state() -> AppState {
     AppState {
         pending_commands_by_session: HashMap::from([("default".to_string(), Vec::new())]),
+        session_display_names: HashMap::from([("default".to_string(), "default".to_string())]),
         session_context_by_id: HashMap::new(),
         selected_session_id: "default".to_string(),
         saved_commands_ui_workspace_id: String::new(),
@@ -37,6 +38,7 @@ fn test_state() -> AppState {
 fn test_state_with_repo(repo_root: PathBuf) -> AppState {
     AppState {
         pending_commands_by_session: HashMap::from([("default".to_string(), Vec::new())]),
+        session_display_names: HashMap::from([("default".to_string(), "default".to_string())]),
         session_context_by_id: HashMap::new(),
         selected_session_id: "default".to_string(),
         saved_commands_ui_workspace_id: String::new(),

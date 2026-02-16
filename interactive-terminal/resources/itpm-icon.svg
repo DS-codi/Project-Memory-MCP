@@ -1,0 +1,27 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Background Squircle with Gradient -->
+            <defs>
+                <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#334155"></stop>
+                    <stop offset="100%" style="stop-color:#0f172a"></stop>
+                </linearGradient>
+                <linearGradient id="strokeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" style="stop-color:#38bdf8"></stop>
+                    <stop offset="100%" style="stop-color:#818cf8"></stop>
+                </linearGradient>
+            </defs>
+
+            <!-- Main Shell -->
+            <rect x="28" y="28" width="200" height="200" rx="60" fill="url(#bgGradient)" stroke="#1e293b" stroke-width="2"></rect>
+            
+            <!-- Stylized Prompt Shape (Curved '>' and '_') -->
+            <path d="M80 90C95 105 110 115 110 128C110 141 95 151 80 166" stroke="url(#strokeGradient)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"></path>
+            
+            <!-- Curved Cursor Line -->
+            <path d="M130 166C145 166 165 166 180 166" stroke="#94a3b8" stroke-width="18" stroke-linecap="round"></path>
+            
+            <!-- Top Window Controls (Subtle curves) -->
+            <circle cx="80" cy="60" r="6" fill="#ef4444" opacity="0.8"></circle>
+            <circle cx="105" cy="60" r="6" fill="#fbbf24" opacity="0.8"></circle>
+            <circle cx="130" cy="60" r="6" fill="#22c55e" opacity="0.8"></circle>
+        </svg>

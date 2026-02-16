@@ -1,39 +1,117 @@
-[2026-02-14T22:20:38.797Z] GET http://localhost:3001/api/health
-[2026-02-14T22:20:38.844Z] Connected to shared server at localhost:3001
-[2026-02-14T22:20:38.844Z] Data root: /data
-[2026-02-14T22:20:41.233Z] GET http://localhost:3001/api/health
-[2026-02-14T22:20:41.238Z] Connected to shared server at localhost:3001
-[2026-02-14T22:20:41.239Z] Data root: /data
-[2026-02-14T22:20:46.536Z] Calling tool: memory_workspace with args: {"action":"list"}
-[2026-02-14T22:20:46.536Z] GET http://localhost:3001/api/workspaces
-[2026-02-14T22:20:46.646Z] Tool memory_workspace result: {"workspaces":[{"workspace_id":"DS-Program-Hotkeys-97bde3e31ca8","name":"DS-Program-Hotkeys","path":"c:\\Users\\User\\CodeDump\\AHK_Manager\\DS-PROGRAM\\DS-Program-Hotkeys","health":"stale","active_pl...
-[2026-02-14T22:20:54.027Z] Calling tool: memory_workspace with args: {"action":"list"}
-[2026-02-14T22:20:54.027Z] GET http://localhost:3001/api/workspaces
-[2026-02-14T22:20:54.124Z] Tool memory_workspace result: {"workspaces":[{"workspace_id":"DS-Program-Hotkeys-97bde3e31ca8","name":"DS-Program-Hotkeys","path":"c:\\Users\\User\\CodeDump\\AHK_Manager\\DS-PROGRAM\\DS-Program-Hotkeys","health":"stale","active_pl...
-[2026-02-14T22:21:07.802Z] Calling tool: memory_workspace with args: {"action":"register","workspace_path":"c:\\Users\\User\\Project_Memory_MCP"}
-[2026-02-14T22:21:07.802Z] GET http://localhost:3001/api/workspaces
-[2026-02-14T22:21:07.917Z] Tool memory_workspace result: {}...
-[2026-02-14T22:21:37.846Z] Calling tool: memory_workspace with args: {"action":"register","workspace_path":"c:\\Users\\User\\Project_Memory_MCP"}
-[2026-02-14T22:21:37.846Z] GET http://localhost:3001/api/workspaces
-[2026-02-14T22:21:37.965Z] Tool memory_workspace result: {}...
-[2026-02-14T22:21:38.808Z] Calling tool: memory_workspace with args: {"action":"list"}
-[2026-02-14T22:21:38.808Z] GET http://localhost:3001/api/workspaces
-[2026-02-14T22:21:38.927Z] Tool memory_workspace result: {"workspaces":[{"workspace_id":"DS-Program-Hotkeys-97bde3e31ca8","name":"DS-Program-Hotkeys","path":"c:\\Users\\User\\CodeDump\\AHK_Manager\\DS-PROGRAM\\DS-Program-Hotkeys","health":"stale","active_pl...
-[2026-02-14T22:21:39.945Z] Calling tool: memory_workspace with args: {"action":"register","workspace_path":"c:\\Users\\User\\Project_Memory_MCP"}
-[2026-02-14T22:21:39.946Z] GET http://localhost:3001/api/workspaces
-[2026-02-14T22:21:40.063Z] Tool memory_workspace result: {}...
-[2026-02-14T22:21:52.268Z] Calling tool: memory_workspace with args: {"action":"register","workspace_path":"c:\\Users\\User\\Project_Memory_MCP"}
-[2026-02-14T22:21:52.268Z] GET http://localhost:3001/api/workspaces
-[2026-02-14T22:21:52.387Z] Tool memory_workspace result: {}...
-[2026-02-14T22:22:00.732Z] Calling tool: memory_workspace with args: {"action":"register","workspace_path":"c:\\Users\\User\\Project_Memory_MCP"}
-[2026-02-14T22:22:00.732Z] GET http://localhost:3001/api/workspaces
-[2026-02-14T22:22:00.850Z] Tool memory_workspace result: {}...
-[2026-02-14T22:22:14.943Z] Calling tool: memory_workspace with args: {"action":"register","workspace_path":"c:\\Users\\User\\Project_Memory_MCP"}
-[2026-02-14T22:22:14.943Z] GET http://localhost:3001/api/workspaces
-[2026-02-14T22:22:15.424Z] Tool memory_workspace result: {}...
-[2026-02-14T22:22:21.760Z] Calling tool: memory_workspace with args: {"action":"register","workspace_path":"c:\\Users\\User\\Project_Memory_MCP"}
-[2026-02-14T22:22:21.760Z] GET http://localhost:3001/api/workspaces
-[2026-02-14T22:22:21.900Z] Tool memory_workspace result: {}...
-[2026-02-14T22:22:38.815Z] Calling tool: memory_workspace with args: {"action":"list"}
-[2026-02-14T22:22:38.816Z] GET http://localhost:3001/api/workspaces
-[2026-02-14T22:22:38.914Z] Tool memory_workspace result: {"workspaces":[{"workspace_id":"DS-Program-Hotkeys-97bde3e31ca8","name":"DS-Program-Hotkeys","path":"c:\\Users\\User\\CodeDump\\AHK_Manager\\DS-PROGRAM\\DS-Program-Hotkeys","health":"stale","active_pl...
+PS C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\server> npx vitest run src/__tests__/tools/interactive-terminal.test.ts
+
+ RUN  v3.2.4 C:/Users/User/Project_Memory_MCP/Project-Memory-MCP/server
+
+ ✓ src/__tests__/tools/interactive-terminal.test.ts (52 tests) 236ms
+   ✓ handleInteractiveTerminalRun > allows an allowlisted command without warning 5ms
+   ✓ handleInteractiveTerminalRun > allows a non-allowlisted command with a warning 1ms
+   ✓ handleInteractiveTerminalRun > allows shell operators with a warning (NOT blocked like memory_terminal) 1ms
+   ✓ handleInteractiveTerminalRun > blocks destructive commands 0ms
+   ✓ handleInteractiveTerminalRun > blocks Remove-Item as destructive 0ms
+   ✓ handleInteractiveTerminalRun > blocks shutdown as destructive 0ms
+   ✓ handleInteractiveTerminalRun > shows both warnings when non-allowlisted AND has shell operators 1ms
+   ✓ handleInteractiveTerminalRun > returns session_id and output for successful commands 1ms
+   ✓ headless workspace policy integration > allows headless execute when command is present in GUI policy file for workspace 13ms
+   ✓ headless workspace policy integration > keeps headless blocking when command is absent from GUI policy file 1ms
+   ✓ handleListSessions > returns a list of sessions 1ms
+   ✓ memoryTerminalInteractive (consolidated router) > returns error when action is missing 1ms
+   ✓ memoryTerminalInteractive (consolidated router) > returns error for execute without command 0ms
+   ✓ memoryTerminalInteractive (consolidated router) > returns error for read_output without session_id 0ms
+   ✓ memoryTerminalInteractive (consolidated router) > returns error for terminate without session_id 0ms
+   ✓ memoryTerminalInteractive (consolidated router) > returns error for unknown action 0ms
+   ✓ memoryTerminalInteractive (consolidated router) > execute action routes to canonical handler 2ms
+   ✓ memoryTerminalInteractive (consolidated router) > uses interactive execute path with lifecycle semantics (viewer/session flow) via MCP tool entrypoint 3ms
+   ✓ memoryTerminalInteractive (consolidated router) > blocks non-allowlisted commands in headless mode 1ms
+   ✓ memoryTerminalInteractive (consolidated router) > returns deterministic approval-required error for non-allowlisted headless execute without approval_context 0ms
+   ✓ memoryTerminalInteractive (consolidated router) > rejects update_allowlist without explicit approval_context 0ms
+   ✓ memoryTerminalInteractive (consolidated router) > marks interactive execute as attached when explicit target identity is provided 2ms
+   ✓ memoryTerminalInteractive (consolidated router) > legacy run alias maps to execute 1ms
+   ✓ memoryTerminalInteractive (consolidated router) > list action returns sessions 0ms
+   ✓ memoryTerminalInteractive (consolidated router) > read_output with valid session_id returns output 1ms
+   ✓ memoryTerminalInteractive (consolidated router) > terminate with valid session_id succeeds 1ms
+   ✓ memoryTerminalInteractive (consolidated router) > supports get_allowlist on the unified terminal surface 0ms
+   ✓ memoryTerminalInteractive (consolidated router) > supports update_allowlist on the unified terminal surface 2ms
+   ✓ memoryTerminal (legacy compatibility shim) > routes legacy run through unified surface and emits deterministic deprecation warning 11ms
+   ✓ memoryTerminal (legacy compatibility shim) > honors staged cutover switch and rejects legacy requests when disabled 0ms
+   ✓ interactive terminal canonical parser > accepts canonical execute payload and normalizes runtime/correlation fields 1ms
+   ✓ interactive terminal canonical parser > maps backward-compat aliases to canonical actions with expected invocation defaults 1ms
+   ✓ interactive terminal canonical parser > returns structured canonical error payload for invalid execute payload 0ms
+   ✓ interactive terminal canonical parser > maps legacy create alias to interactive open_only execute 0ms
+   ✓ interactive terminal canonical parser > rejects headless execute when terminal_id is provided 0ms
+   ✓ interactive terminal protocol serialization > normalizes /bin/sh to Windows shell for headless execute path on win32 2ms
+   ✓ interactive terminal protocol serialization > serializes command_request and parses it back 0ms
+   ✓ interactive terminal protocol serialization > serializes heartbeat frame 0ms
+   ✓ interactive terminal protocol serialization > maps command_response frame to canonical mapped response 0ms
+   ✓ interactive lifecycle recovery > does not fall back to headless execution when interactive container bridge is unavailable 4ms
+   ✓ interactive lifecycle recovery > fails closed when adapter_override=auto resolves to container bridge and preflight fails 1ms
+   ✓ interactive lifecycle recovery > rejects default container bridge when preflight is unavailable but still supports explicit local override 2ms
+   ✓ interactive lifecycle recovery > uses env adapter mode bundled unless explicitly overridden to container_bridge 2ms
+   ✓ interactive lifecycle recovery > returns structured declined payload when interactive approval is declined 1ms
+   ✓ interactive lifecycle recovery > maintains parity for shared execute result fields between interactive and headless paths 2ms
+   ✓ interactive lifecycle recovery > recovers from timeout and returns structured approved response 2ms
+   ✓ interactive lifecycle recovery > returns disconnected when recovery cannot restore lifecycle 1ms
+   ✓ interactive lifecycle recovery > maps timeout to deterministic canonical error payload 2ms
+   ✓ interactive lifecycle recovery > maps disconnect to deterministic canonical error payload 1ms
+   ✓ interactive lifecycle recovery > returns PM_TERM_INVALID_MODE when container bridge preflight env is invalid 1ms
+   ✓ interactive lifecycle recovery > returns PM_TERM_GUI_UNAVAILABLE with connectivity diagnostics when bridge host is unreachable 2ms
+   ✓ interactive lifecycle recovery > includes explicit gateway host in bridge candidate diagnostics 152ms
+
+ Test Files  1 passed (1)
+      Tests  52 passed (52)
+   Start at  22:07:15
+   Duration  936ms (transform 219ms, setup 0ms, collect 250ms, tests 236ms, environment 0ms, prepare 171ms)
+
+PS C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\server> cd "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP\vscode-extension"; npm run compile  
+
+> project-memory-dashboard@0.2.0 compile
+> npm run esbuild
+
+
+> project-memory-dashboard@0.2.0 esbuild
+> npm run esbuild-base -- --sourcemap
+
+
+> project-memory-dashboard@0.2.0 esbuild-base
+> node esbuild.js --sourcemap
+
+PS C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\vscode-extension> npx mocha --ui tdd "out/test/suite/replay-harness-core.test.js"
+
+
+  Replay Scenario Schema
+    ✔ parses and normalizes scenario IDs, defaults, and check fields
+    ✔ rejects invalid suites with duplicate normalized scenario IDs
+
+  Replay Normalization
+    ✔ normalizes deterministically and preserves cross-platform workspace-relative path parity
+
+  Replay Comparator Rules
+    ✔ flags strict-order drift when tool actions are reordered
+    ✔ applies profile ignore rules and still catches auth, flow, and signature drift
+    ✔ derives stable explainability groups and operator-bucket rollups across mixed drift checks
+    ✔ adds threshold drift when scenario acceptance limits are exceeded
+
+  Replay Report Rendering
+    ✔ renders markdown and writes JSON+Markdown report outputs with expected key fields
+    ✔ appends explainability markdown section only when explainability data is present
+
+  Replay Gate Evaluator
+    ✔ strict mode fails on replay drift and emits error annotations
+    ✔ warn mode passes and emits warning annotations
+    ✔ propagates explainability rollup to gate output without changing classification labels
+    ✔ info mode passes and produces markdown summary plus notice annotations
+    ✔ github annotations append optional evidence and fingerprint suffix tokens without changing prefix
+    ✔ strict mode retry-once classifies intermittent flake and passes with warn status
+
+  Replay Migration Resolver
+    ✔ prefers explicit file for baseline resolution when provided
+    ✔ resolves baseline from golden v1 store before legacy fallback
+    ✔ resolves latest legacy run artifact when explicit and golden are absent
+
+  Replay Matrix Contract + Scoring
+    ✔ parses matrix run-contract and expands deterministic matrix cells
+    ✔ computes WDS/SPR/ECI/BBR/CMS and non-promotable deterministic regression
+
+
+  20 passing (57ms)
+
+PS C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\vscode-extension> 

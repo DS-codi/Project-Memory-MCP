@@ -599,6 +599,30 @@ suite('Replay Orchestrator Runner Mode', () => {
         assert.strictEqual((buildScriptLaunch?.payload as Record<string, unknown>)?.launch_surface, 'memory_terminal');
     });
 
+    test('emits deprecation metadata when legacy memory_terminal alias is used in replay scenarios', async () => {
+        const scenario = createScenario({
+            scenario_id: 'SC_ORCHESTRATOR_LEGACY_ALIAS',
+            runtime: { mode: 'headless', terminal_surface: 'auto' },
+            steps: [
+                { kind: 'tool', id: 'step_1', tool: 'memory_terminal', action: 'run', expect_auth: 'allowed' }
+            ],
+            expectations: {
+                success_signature: { must_include: ['ALL_GOOD'] },
+                checks: []
+            }
+        });
+
+        const orchestrator = new ReplayOrchestrator({ output_root: tempOutputRoot });
+        const result = await orchestrator.capture('baseline', [scenario], 'legacy-alias-metadata');
+        const toolCall = result.profile.scenarios[0].raw_events.find((event) => event.event_type === 'tool_call');
+        const payload = (toolCall?.payload ?? {}) as Record<string, unknown>;
+
+        assert.strictEqual(payload.legacy_alias_used, true);
+        assert.strictEqual(payload.replacement_tool, 'memory_terminal_interactive');
+        assert.strictEqual(typeof payload.deprecation_warning, 'string');
+        assert.ok((payload.deprecation_warning as string).includes('DEPRECATED_TOOL_ALIAS'));
+    });
+
     test('uses adapter runner when runner_mode is adapter and preserves synthetic default in other callers', async () => {
         const scenario = createScenario({
             scenario_id: 'SC_ORCHESTRATOR_ADAPTER',

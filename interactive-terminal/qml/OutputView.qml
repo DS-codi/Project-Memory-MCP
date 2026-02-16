@@ -15,6 +15,7 @@ Rectangle {
 
     // --- public property -----------------------------------------------------
     property string outputText: ""
+    property var terminalApp: null
 
     color: "#1a1a1a"
 
@@ -43,6 +44,90 @@ Rectangle {
                 Item { Layout.fillWidth: true }
 
                 Button {
+                    id: copyBtn
+                    text: "Copy"
+                    implicitWidth: 58
+                    implicitHeight: 26
+
+                    contentItem: Text {
+                        text: copyBtn.text
+                        color: "#d4d4d4"
+                        font.pixelSize: 11
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    background: Rectangle {
+                        color: copyBtn.down ? "#404040" : (copyBtn.hovered ? "#383838" : "transparent")
+                        border.color: "#555555"
+                        border.width: 1
+                        radius: 3
+                    }
+
+                    onClicked: {
+                        outputArea.selectAll()
+                        outputArea.copy()
+                        outputArea.deselect()
+                    }
+                }
+
+                Button {
+                    id: saveTxtBtn
+                    text: "Save TXT"
+                    implicitWidth: 78
+                    implicitHeight: 26
+
+                    contentItem: Text {
+                        text: saveTxtBtn.text
+                        color: "#d4d4d4"
+                        font.pixelSize: 11
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    background: Rectangle {
+                        color: saveTxtBtn.down ? "#404040" : (saveTxtBtn.hovered ? "#383838" : "transparent")
+                        border.color: "#555555"
+                        border.width: 1
+                        radius: 3
+                    }
+
+                    onClicked: {
+                        if (terminalApp) {
+                            terminalApp.exportOutputText(terminalApp.currentWorkspacePath || "")
+                        }
+                    }
+                }
+
+                Button {
+                    id: saveJsonBtn
+                    text: "Save JSON"
+                    implicitWidth: 82
+                    implicitHeight: 26
+
+                    contentItem: Text {
+                        text: saveJsonBtn.text
+                        color: "#d4d4d4"
+                        font.pixelSize: 11
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    background: Rectangle {
+                        color: saveJsonBtn.down ? "#404040" : (saveJsonBtn.hovered ? "#383838" : "transparent")
+                        border.color: "#555555"
+                        border.width: 1
+                        radius: 3
+                    }
+
+                    onClicked: {
+                        if (terminalApp) {
+                            terminalApp.exportOutputJson(terminalApp.currentWorkspacePath || "")
+                        }
+                    }
+                }
+
+                Button {
                     id: clearBtn
                     text: "Clear"
                     implicitWidth: 56
@@ -63,7 +148,11 @@ Rectangle {
                         radius: 3
                     }
 
-                    onClicked: terminalApp.clearOutput()
+                    onClicked: {
+                        if (terminalApp) {
+                            terminalApp.clearOutput()
+                        }
+                    }
                 }
             }
         }

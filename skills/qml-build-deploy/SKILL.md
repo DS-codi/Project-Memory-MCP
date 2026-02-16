@@ -1,29 +1,25 @@
 ---
 name: qml-build-deploy
-description: >
-  Use this skill when creating build scripts for applications that use QML files
-  and require Qt DLL deployment. Covers windeployqt usage, comprehensive DLL
-  verification, fallback copy strategies, QML module directory checks, platform
-  plugin deployment, QRC resource path conventions, and PowerShell build script
-  patterns for Rust+CxxQt and PySide6+QML projects on Windows.
-category: devops
-tags:
-  - qt
-  - qml
-  - dll
-  - deployment
-  - build-script
-  - windeployqt
-  - powershell
-  - windows
-language_targets:
-  - rust
-  - python
-  - powershell
-framework_targets:
-  - qt6
-  - cxxqt
-  - pyside6
+description: Use this skill when creating build scripts for applications that use QML files and require Qt DLL deployment. Covers windeployqt usage, comprehensive DLL verification, fallback copy strategies, QML module directory checks, platform plugin deployment, QRC resource path conventions, and PowerShell build script patterns for Rust+CxxQt and PySide6+QML projects on Windows.
+metadata:
+  category: devops
+  tags:
+    - qt
+    - qml
+    - dll
+    - deployment
+    - build-script
+    - windeployqt
+    - powershell
+    - windows
+  language_targets:
+    - rust
+    - python
+    - powershell
+  framework_targets:
+    - qt6
+    - cxxqt
+    - pyside6
 ---
 
 # QML Application Build & DLL Deployment
@@ -478,6 +474,135 @@ if ($Run) {
 
 Write-Host 'Done.' -ForegroundColor Green
 ```
+
+## Script Output Refinement Playbook (Reproducible)
+
+Use this when you want a build script that is informative but not noisy. These steps mirror the refinements applied to `build-interactive-terminal.ps1`.
+
+### 1) Stream Cargo Progress with Live Warning Count
+
+Problem: `cargo build` can appear silent for long periods.
+
+Pattern:
+- Run cargo with redirected stdout/stderr to temp files.
+- Poll stderr at a moderate cadence (default ~1.5s) for `^warning:` count.
+- Print heartbeat every few seconds and on count change.
+
+```powershell
+Write-Host "Running: cargo $($buildArgs -join ' ')" -ForegroundColor Cyan
+while (-not $process.HasExited) {
+    $warningCount = (Select-String -Path $stderrFile -Pattern '^warning:' -SimpleMatch:$false).Count
+    Write-Host ("cargo build in progress... warnings so far: {0}" -f $warningCount) -ForegroundColor DarkGray
+    Start-Sleep -Milliseconds 1500
+}
+```
+
+Performance note:
+- Make polling interval configurable (`PollIntervalMs`) and clamp to a safe floor (e.g. 200ms).
+- Use a separate heartbeat interval (`HeartbeatSeconds`) to avoid frequent duplicate updates when warning count is unchanged.
+
+### 2) Keep Warnings Yellow, Errors Red
+
+Problem: all native stderr can render as “error-looking” output.
+
+Pattern:
+- Capture output first.
+- Replay lines with explicit coloring:
+  - `^warning` → Yellow
+  - `^error|^ERROR` → Red
+  - everything else → default
+
+```powershell
+if ($trimmed -match '^warning[:\[]') {
+    Write-Host $line -ForegroundColor Yellow
+} elseif ($trimmed -match '^error[:\[]|^ERROR\b') {
+    Write-Host $line -ForegroundColor Red
+} else {
+    Write-Host $line
+}
+```
+
+### 3) Collapse windeployqt Chatter into Summaries
+
+Problem: `windeployqt` prints thousands of low-value lines (`is up to date`, per-file copy details).
+
+Pattern:
+- Suppress repetitive lines and count them.
+- Print compact summary lines at the end.
+
+Recommended counters:
+- `upToDateLineCount`
+- `translationCreateCount`
+- `pluginTypeAddCount`
+- `pluginResolvedDependencyCount`
+- `skippedPluginCount`
+- `additionalPassCount`
+
+Example summaries:
+- `windeployqt up-to-date items: 1325`
+- `windeployqt translation files created: 32`
+- `windeployqt dependency summary: binary=1, scanPaths=1, localDeps=1, pluginTypes=14, resolvedDeps=2, skippedPlugins=2, additionalPasses=1`
+
+### 4) Replace Raw QML Import Dump with Progress
+
+Problem: full `QML imports:` listing is useful for logs but noisy in terminal.
+
+Pattern:
+- Capture import lines into an array.
+- Print count + 10% incremental progress updates only.
+
+```powershell
+Write-Host ("QML imports discovered: {0}" -f $capturedQmlImports.Count) -ForegroundColor DarkGray
+for ($pct = 10; $pct -le 100; $pct += 10) {
+    $processed = [Math]::Ceiling(($capturedQmlImports.Count * $pct) / 100.0)
+    Write-Host ("QML import scan progress: {0}% ({1}/{2})" -f $pct, $processed, $capturedQmlImports.Count) -ForegroundColor DarkGray
+}
+```
+
+### 5) Add Optional Warnings/Imports Report Output
+
+Problem: terminal is readable, but teams still need full traceability.
+
+Pattern:
+- Add optional parameter:
+
+```powershell
+[string]$WarningsImportsLogPath = ''
+```
+
+- If set:
+  - treat path as file OR directory,
+  - if directory, generate timestamped file name,
+  - write:
+    - warning lines (cargo + deploy warnings),
+    - full captured QML import list.
+
+Suggested file format sections:
+- `Warnings (N)`
+- `QML Imports (N)`
+
+### 6) Robust Exit Criteria for Cargo in Progress Mode
+
+Problem: some process wrappers can occasionally return bad/unstable exit states.
+
+Pattern:
+- Primary failure rule: non-zero exit code.
+- Validation rule: accept completion only when output includes cargo finished marker:
+
+```text
+Finished `release` profile [optimized] target(s) in ...
+```
+
+- If non-zero and no finished marker: fail hard.
+
+### 7) Known-Good UX Goals
+
+A refined QML build/deploy script should provide:
+- live cargo progress every few seconds,
+- visible warning growth signal during compile,
+- no red text unless true errors,
+- compact deploy summaries instead of per-file spam,
+- optional machine-readable text artifact of warnings/imports.
 
 ## PySide6 Deployment Differences
 

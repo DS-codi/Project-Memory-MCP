@@ -1,7 +1,9 @@
 /**
  * Consolidated Interactive Terminal Tool — memory_terminal_interactive
  *
- * Actions: run, read_output, kill, list
+ * Canonical actions: execute, read_output, terminate, list
+ * Legacy aliases accepted: run, kill, send, close, create
+ * Unified headless policy actions: get_allowlist, update_allowlist
  *
  * Relaxed authorization: destructive commands are blocked, everything
  * else is allowed (with warnings for non-allowlisted or shell-operator
@@ -13,6 +15,11 @@ import {
   executeCanonicalInteractiveRequest,
   type CanonicalInteractiveResponse,
 } from '../interactive-terminal.tools.js';
+import {
+  handleGetAllowlist,
+  handleUpdateAllowlist,
+  type AllowlistResult,
+} from '../terminal.tools.js';
 import {
   type InteractiveTerminalCanonicalErrorResponse,
   parseInteractiveTerminalRequest,
@@ -27,7 +34,9 @@ export type InteractiveTerminalAction =
   | 'kill'
   | 'send'
   | 'close'
-  | 'create';
+  | 'create'
+  | 'get_allowlist'
+  | 'update_allowlist';
 
 export interface MemoryTerminalInteractiveParams {
   action: InteractiveTerminalAction;
@@ -72,13 +81,119 @@ export interface MemoryTerminalInteractiveParams {
   // Legacy short target fields
   session_id?: string;
   terminal_id?: string;
+
+  // Unified allowlist-management fields
+  patterns?: string[];
+  operation?: 'add' | 'remove' | 'set';
 }
 
-type InteractiveTerminalResult = CanonicalInteractiveResponse | InteractiveTerminalCanonicalErrorResponse;
+type UnifiedAllowlistAction = 'get_allowlist' | 'update_allowlist';
+
+interface UnifiedAllowlistResponse {
+  success: true;
+  action: UnifiedAllowlistAction;
+  status: 'completed';
+  correlation: {
+    request_id: string;
+    trace_id: string;
+    client_request_id?: string;
+  };
+  resolved: {
+    canonical_action: 'execute';
+    alias_applied: false;
+    legacy_action: null;
+    mode: 'headless';
+  };
+  identity: {};
+  result: AllowlistResult;
+  error: null;
+}
+
+type InteractiveTerminalResult = CanonicalInteractiveResponse | InteractiveTerminalCanonicalErrorResponse | UnifiedAllowlistResponse;
+
+function buildAllowlistCorrelation() {
+  const now = Date.now();
+  return {
+    request_id: `req_allowlist_${now}`,
+    trace_id: `trace_allowlist_${now}`,
+  };
+}
 
 export async function memoryTerminalInteractive(
   params: MemoryTerminalInteractiveParams,
 ): Promise<ToolResponse<InteractiveTerminalResult>> {
+  if (params.action === 'get_allowlist') {
+    const workspaceId = params.runtime?.workspace_id ?? params.workspace_id;
+    const result = await handleGetAllowlist({ workspace_id: workspaceId });
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error,
+      };
+    }
+
+    return {
+      success: true,
+      data: {
+        success: true,
+        action: 'get_allowlist',
+        status: 'completed',
+        correlation: buildAllowlistCorrelation(),
+        resolved: {
+          canonical_action: 'execute',
+          alias_applied: false,
+          legacy_action: null,
+          mode: 'headless',
+        },
+        identity: {},
+        result: result.data!,
+        error: null,
+      },
+    };
+  }
+
+  if (params.action === 'update_allowlist') {
+    if (!params.patterns || !params.operation) {
+      return {
+        success: false,
+        error: 'patterns and operation are required for action: update_allowlist',
+      };
+    }
+
+    const workspaceId = params.runtime?.workspace_id ?? params.workspace_id;
+
+    const result = await handleUpdateAllowlist({
+      workspace_id: workspaceId,
+      patterns: params.patterns,
+      operation: params.operation,
+    });
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error,
+      };
+    }
+
+    return {
+      success: true,
+      data: {
+        success: true,
+        action: 'update_allowlist',
+        status: 'completed',
+        correlation: buildAllowlistCorrelation(),
+        resolved: {
+          canonical_action: 'execute',
+          alias_applied: false,
+          legacy_action: null,
+          mode: 'headless',
+        },
+        identity: {},
+        result: result.data!,
+        error: null,
+      },
+    };
+  }
+
   const parsed = parseInteractiveTerminalRequest(params);
   if (!parsed.ok) {
     return {
@@ -92,7 +207,7 @@ export async function memoryTerminalInteractive(
   if (!execution.success) {
     return {
       success: false,
-      error: execution.error.error.message,
+      error: `${execution.error.error.code}: ${execution.error.error.message}`,
       data: execution.error,
     };
   }
