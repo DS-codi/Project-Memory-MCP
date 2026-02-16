@@ -1,0 +1,14 @@
+# Cargo configuration for interactive-terminal
+# Addresses SSL certificate revocation check failures on Windows in corporate/firewall environments
+
+[http]
+# Disable certificate revocation checking (CRYPT_E_NO_REVOCATION_CHECK workaround)
+check-revoke = false
+
+[net]
+# Use git CLI for fetches (more reliable through proxies)
+git-fetch-with-cli = true
+
+[registries.crates-io]
+# Use sparse protocol (faster, fewer connections)
+protocol = "sparse"

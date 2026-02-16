@@ -1,0 +1,172 @@
+PS C:\Users\codi.f> ssh root@localhost -p 2222
+ssh: connect to host localhost port 2222: Connection refused
+PS C:\Users\codi.f> ssh root@10.0.0.253 -p 2222
+The authenticity of host '[10.0.0.253]:2222 ([10.0.0.253]:2222)' can't be established.
+ED25519 key fingerprint is SHA256:+wMhUzWn11TEiQtZdelOQ7Ts3LWE40lJEGs8RDxoY/M.
+This key is not known by any other names.
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added '[10.0.0.253]:2222' (ED25519) to the list of known hosts.
+root@10.0.0.253's password:
+Last login: Mon Feb  9 11:13:32 2026 from 172.20.224.1
+[root@DS-APP01 ~]# systemctl enable --now podman.socket
+[root@DS-APP01 ~]# exit
+logout
+Connection to 10.0.0.253 closed.
+PS C:\Users\codi.f> podman system connection add production ssh://root@10.0.0.253:2222/run/podman/podman.sock
+PS C:\Users\codi.f> podman --connection production info
+root's login password:
+Client:
+  APIVersion: 5.7.1
+  Built: 1765378491
+  BuiltTime: Thu Dec 11 01:54:51 2025
+  GitCommit: f845d14e941889ba4c071f35233d09b29d363c75
+  GoVersion: go1.25.5
+  Os: windows
+  OsArch: windows/amd64
+  Version: 5.7.1
+host:
+  arch: amd64
+  buildahVersion: 1.42.2
+  cgroupControllers:
+  - cpuset
+  - cpu
+  - io
+  - memory
+  - hugetlb
+  - pids
+  - rdma
+  cgroupManager: cgroupfs
+  cgroupVersion: v2
+  conmon:
+    package: conmon-2.1.13-2.fc43.x86_64
+    path: /usr/bin/conmon
+    version: 'conmon version 2.1.13, commit: '
+  cpuUtilization:
+    idlePercent: 99.29
+    systemPercent: 0.47
+    userPercent: 0.24
+  cpus: 6
+  databaseBackend: sqlite
+  distribution:
+    distribution: fedora
+    variant: container
+    version: "43"
+  eventLogger: journald
+  freeLocks: 2048
+  hostname: DS-APP01
+  idMappings:
+    gidmap: null
+    uidmap: null
+  kernel: 6.6.87.2-microsoft-standard-WSL2
+  linkmode: dynamic
+  logDriver: journald
+  memFree: 7789346816
+  memTotal: 8326451200
+  networkBackend: netavark
+  networkBackendInfo:
+    backend: netavark
+    dns:
+      package: aardvark-dns-1.17.0-1.fc43.x86_64
+      path: /usr/libexec/podman/aardvark-dns
+      version: aardvark-dns 1.17.0
+    package: netavark-1.17.0-1.fc43.x86_64
+    path: /usr/libexec/podman/netavark
+    version: netavark 1.17.0
+  ociRuntime:
+    name: crun
+    package: crun-1.25.1-1.fc43.x86_64
+    path: /usr/bin/crun
+    version: |-
+      crun version 1.25.1
+      commit: 156ae065d4a322d149c7307034f98d9637aa92a2
+      rundir: /run/crun
+      spec: 1.0.0
+      +SYSTEMD +SELINUX +APPARMOR +CAP +SECCOMP +EBPF +CRIU +LIBKRUN +WASM:wasmedge +YAJL
+  os: linux
+  pasta:
+    executable: /usr/bin/pasta
+    package: passt-0^20250919.g623dbf6-1.fc43.x86_64
+    version: |
+      pasta 0^20250919.g623dbf6-1.fc43.x86_64
+      Copyright Red Hat
+      GNU General Public License, version 2 or later
+        <https://www.gnu.org/licenses/old-licenses/gpl-2.0.html>
+      This is free software: you are free to change and redistribute it.
+      There is NO WARRANTY, to the extent permitted by law.
+  remoteSocket:
+    exists: true
+    path: unix:///run/podman/podman.sock
+  rootlessNetworkCmd: pasta
+  security:
+    apparmorEnabled: false
+    capabilities: CAP_CHOWN,CAP_DAC_OVERRIDE,CAP_FOWNER,CAP_FSETID,CAP_KILL,CAP_NET_BIND_SERVICE,CAP_SETFCAP,CAP_SETGID,CAP_SETPCAP,CAP_SETUID,CAP_SYS_CHROOT
+    rootless: false
+    seccompEnabled: true
+    seccompProfilePath: /usr/share/containers/seccomp.json
+    selinuxEnabled: false
+  serviceIsRemote: true
+  slirp4netns:
+    executable: ""
+    package: ""
+    version: ""
+  swapFree: 2147483648
+  swapTotal: 2147483648
+  uptime: 0h 32m 43.00s
+  variant: ""
+plugins:
+  authorization: null
+  log:
+  - k8s-file
+  - none
+  - passthrough
+  - journald
+  network:
+  - bridge
+  - macvlan
+  - ipvlan
+  volume:
+  - local
+registries:
+  search:
+  - docker.io
+store:
+  configFile: /usr/share/containers/storage.conf
+  containerStore:
+    number: 0
+    paused: 0
+    running: 0
+    stopped: 0
+  graphDriverName: overlay
+  graphOptions:
+    overlay.additionalImageStores:
+    - /usr/lib/containers/storage
+    overlay.imagestore: /usr/lib/containers/storage
+    overlay.mountopt: nodev,metacopy=on
+  graphRoot: /var/lib/containers/storage
+  graphRootAllocated: 1081101176832
+  graphRootUsed: 3295727616
+  graphStatus:
+    Backing Filesystem: extfs
+    Native Overlay Diff: "false"
+    Supports d_type: "true"
+    Supports shifting: "true"
+    Supports volatile: "true"
+    Using metacopy: "true"
+  imageCopyTmpDir: /var/tmp
+  imageStore:
+    number: 9
+  runRoot: /run/containers/storage
+  transientStore: false
+  volumePath: /var/lib/containers/storage/volumes
+version:
+  APIVersion: 5.7.1
+  BuildOrigin: 'Copr: packit/containers-podman-27732'
+  Built: 1765238400
+  BuiltTime: Tue Dec  9 11:00:00 2025
+  GitCommit: f845d14e941889ba4c071f35233d09b29d363c75
+  GoVersion: go1.25.4 X:nodwarf5
+  Os: linux
+  OsArch: linux/amd64
+  Version: 5.7.1
+
+PS C:\Users\codi.f>

@@ -6,7 +6,7 @@ param(
     [int]$Port = 9100,
     [ValidateSet('debug', 'release')]
     [string]$Profile = 'release',
-    [string]$QtDir = 'C:\Qt\6.10.2\msvc2022_64'
+    [string]$QtDir = $(if ($env:QT_DIR) { $env:QT_DIR } else { 'C:\Qt\6.10.2\msvc2022_64' })
 )
 
 $ErrorActionPreference = 'Stop'
@@ -14,6 +14,10 @@ Set-StrictMode -Version Latest
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $scriptDir
+
+if (-not (Test-Path $QtDir)) {
+    throw "Qt directory not found at: $QtDir. Set `$env:QT_DIR` to your Qt installation path (e.g. 'C:\Qt\6.10.2\msvc2022_64')."
+}
 
 $qtBin = Join-Path $QtDir 'bin'
 $qmakePath = Join-Path $qtBin 'qmake6.exe'
@@ -25,10 +29,25 @@ if (-not (Test-Path $qmakePath)) {
 $env:QMAKE = $qmakePath
 $env:PATH = "$qtBin;$env:PATH"
 
+# Cargo network stability defaults for Windows environments where certificate
+# revocation checks are blocked by corporate/firewall policy.
+if (-not $env:CARGO_HTTP_CHECK_REVOKE) {
+    $env:CARGO_HTTP_CHECK_REVOKE = 'false'
+}
+if (-not $env:CARGO_REGISTRIES_CRATES_IO_PROTOCOL) {
+    $env:CARGO_REGISTRIES_CRATES_IO_PROTOCOL = 'sparse'
+}
+if (-not $env:CARGO_NET_GIT_FETCH_WITH_CLI) {
+    $env:CARGO_NET_GIT_FETCH_WITH_CLI = 'true'
+}
+
 Write-Host '=== Interactive Terminal Build ===' -ForegroundColor Cyan
 Write-Host "QtDir:   $QtDir" -ForegroundColor Gray
 Write-Host "QMAKE:   $env:QMAKE" -ForegroundColor Gray
 Write-Host "Profile: $Profile" -ForegroundColor Gray
+Write-Host "Cargo SSL revoke check: $env:CARGO_HTTP_CHECK_REVOKE" -ForegroundColor Gray
+Write-Host "Cargo registry protocol: $env:CARGO_REGISTRIES_CRATES_IO_PROTOCOL" -ForegroundColor Gray
+Write-Host "Cargo git fetch via CLI: $env:CARGO_NET_GIT_FETCH_WITH_CLI" -ForegroundColor Gray
 
 $doDeploy = ($Profile -eq 'release') -or $Deploy.IsPresent
 Write-Host "Deploy:  $doDeploy" -ForegroundColor Gray
@@ -52,6 +71,43 @@ if ($Test) {
     if ($LASTEXITCODE -ne 0) {
         throw 'cargo test failed.'
     }
+
+    # Qt deployment validation: verify required DLLs are present in the build
+    # output directory.  This runs after cargo test and only when -Test is
+    # specified, ensuring the deployment artifacts are present for release
+    # builds.
+    $testTargetDir = if ($Profile -eq 'release') { 'release' } else { 'debug' }
+    $testExePath   = Join-Path $scriptDir "target\$testTargetDir\interactive-terminal.exe"
+    $testOutputDir = Split-Path -Parent $testExePath
+
+    if (Test-Path $testExePath) {
+        Write-Host 'Validating Qt deployment artifacts...' -ForegroundColor Cyan
+
+        $deployRequiredDlls = @('Qt6Core.dll', 'Qt6Gui.dll', 'Qt6Qml.dll', 'Qt6Quick.dll')
+        $deployMissingDlls  = @()
+
+        foreach ($dll in $deployRequiredDlls) {
+            $dllPath = Join-Path $testOutputDir $dll
+            if (-not (Test-Path $dllPath)) {
+                $deployMissingDlls += $dll
+            }
+        }
+
+        # Check for the platform plugin
+        $platformPlugin = Join-Path $testOutputDir 'platforms\qwindows.dll'
+        if (-not (Test-Path $platformPlugin)) {
+            $deployMissingDlls += 'platforms\qwindows.dll'
+        }
+
+        if ($deployMissingDlls.Count -gt 0) {
+            Write-Host "Qt deployment validation WARNING: Missing DLLs: $($deployMissingDlls -join ', ')" -ForegroundColor Yellow
+            Write-Host 'Run with -Deploy or build in release mode to deploy Qt runtime.' -ForegroundColor Yellow
+        } else {
+            Write-Host 'Qt deployment validation PASSED — all required DLLs present.' -ForegroundColor Green
+        }
+    } else {
+        Write-Host 'Skipping Qt deployment validation (executable not found; build first).' -ForegroundColor Yellow
+    }
 }
 
 $buildArgs = @('build')
@@ -60,8 +116,17 @@ if ($Profile -eq 'release') {
 }
 
 Write-Host "Running: cargo $($buildArgs -join ' ')" -ForegroundColor Cyan
-& cargo @buildArgs
+$cargoOutput = & cargo @buildArgs 2>&1
+$cargoOutput | ForEach-Object { $_ }
 if ($LASTEXITCODE -ne 0) {
+    $cargoText = ($cargoOutput | Out-String)
+    if ($cargoText -match 'CRYPT_E_NO_REVOCATION_CHECK|SSL connect error') {
+        Write-Host '' -ForegroundColor Yellow
+        Write-Host 'Detected Windows certificate revocation check failure (schannel).' -ForegroundColor Yellow
+        Write-Host 'The script sets CARGO_HTTP_CHECK_REVOKE=false for this session.' -ForegroundColor Yellow
+        Write-Host 'To persist system-wide for your user profile:' -ForegroundColor Yellow
+        Write-Host '  setx CARGO_HTTP_CHECK_REVOKE false' -ForegroundColor Yellow
+    }
     throw 'cargo build failed.'
 }
 

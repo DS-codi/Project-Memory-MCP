@@ -92,6 +92,26 @@ pub mod ffi {
         #[qinvokable]
         #[cxx_name = "setSessionActivateVenv"]
         fn set_session_activate_venv(self: Pin<&mut TerminalApp>, activate: bool);
+
+        #[qinvokable]
+        #[cxx_name = "openSavedCommands"]
+        fn open_saved_commands(self: Pin<&mut TerminalApp>, workspace_id: QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "savedCommandsJson"]
+        fn saved_commands_json(self: &TerminalApp) -> QString;
+
+        #[qinvokable]
+        #[cxx_name = "savedCommandsWorkspaceId"]
+        fn saved_commands_workspace_id(self: &TerminalApp) -> QString;
+
+        #[qinvokable]
+        #[cxx_name = "reopenSavedCommands"]
+        fn reopen_saved_commands(self: Pin<&mut TerminalApp>) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "executeSavedCommand"]
+        fn execute_saved_command(self: Pin<&mut TerminalApp>, command_id: QString) -> bool;
     }
 
     impl cxx_qt::Threading for TerminalApp {}

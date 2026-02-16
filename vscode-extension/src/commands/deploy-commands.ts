@@ -508,8 +508,13 @@ export function registerDeployCommands(
             }
 
             const plan = defaultDeployer.getDeploymentPlan();
+            const parts: string[] = [];
+            if (plan.agents.length > 0) { parts.push(`${plan.agents.length} agents`); }
+            if (plan.instructions.length > 0) { parts.push(`${plan.instructions.length} instructions`); }
+            if (plan.skills.length > 0) { parts.push(`${plan.skills.length} skills`); }
+            const summary = parts.length > 0 ? parts.join(', ') : 'defaults';
             const confirm = await vscode.window.showQuickPick(['Yes', 'No'], {
-                placeHolder: `Deploy ${plan.agents.length} agents and ${plan.instructions.length} instructions?`
+                placeHolder: `Deploy ${summary}?`
             });
 
             if (confirm === 'Yes') {

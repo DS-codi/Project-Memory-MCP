@@ -431,6 +431,39 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_heartbeat_exchange() {
+        // Verify that sending a Heartbeat message from a client is received by the server.
+        let (port, _outgoing_tx, mut incoming_rx, mut event_rx, _connected) =
+            start_server().await;
+
+        let mut stream = TcpStream::connect(format!("127.0.0.1:{}", port))
+            .await
+            .unwrap();
+
+        // Wait for Connected event
+        let _ = timeout(Duration::from_secs(2), event_rx.recv())
+            .await
+            .unwrap();
+
+        // Client sends a Heartbeat
+        let hb = Message::Heartbeat(crate::protocol::Heartbeat {
+            timestamp: "1234567890.000Z".into(),
+        });
+        let encoded = protocol::encode(&hb).unwrap();
+        stream.write_all(encoded.as_bytes()).await.unwrap();
+
+        // Server should forward it to incoming_rx
+        let received = timeout(Duration::from_secs(2), incoming_rx.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(matches!(received, Message::Heartbeat(_)));
+        if let Message::Heartbeat(h) = received {
+            assert_eq!(h.timestamp, "1234567890.000Z");
+        }
+    }
+
+    #[tokio::test]
     async fn test_heartbeat_loss_event() {
         // Use a very short heartbeat interval to trigger timeout quickly
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();

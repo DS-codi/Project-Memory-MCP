@@ -349,3 +349,174 @@ fn saved_commands_stay_workspace_isolated_after_restart() {
 
     let _ = std::fs::remove_dir_all(repo_root);
 }
+
+// ---------------------------------------------------------------------------
+// Extended saved-commands coverage (Step #13)
+// ---------------------------------------------------------------------------
+
+/// Mirrors the `open_saved_commands` invokable: setting the workspace ID on
+/// state and loading workspace data on demand via `workspace_model_mut`.
+#[test]
+fn open_saved_commands_loads_workspace_data() {
+    let repo_root = unique_temp_dir();
+    let workspace_id = "project-memory-mcp-40f6678f5a9b";
+
+    // Pre-populate the repo with a saved command.
+    {
+        let mut setup_state = test_state_with_repo(repo_root.clone());
+        setup_state
+            .save_saved_command(workspace_id, "Build", "npm run build")
+            .expect("setup save should succeed");
+    }
+
+    // New state simulating a fresh app launch.
+    let mut state = test_state_with_repo(repo_root.clone());
+
+    // Simulate open_saved_commands: set the UI workspace ID and load data.
+    state.saved_commands_ui_workspace_id = workspace_id.to_string();
+    let model = state.workspace_model_mut(workspace_id);
+    assert!(model.is_ok(), "workspace_model_mut should succeed");
+
+    let commands = state.list_saved_commands(workspace_id).expect("list should succeed");
+    assert_eq!(commands.len(), 1, "Should load the pre-saved command");
+    assert_eq!(commands[0].name, "Build");
+    assert_eq!(commands[0].command, "npm run build");
+
+    let _ = std::fs::remove_dir_all(repo_root);
+}
+
+/// Mirrors the `saved_commands_json` invokable: verify list_saved_commands
+/// output serializes to valid JSON.
+#[test]
+fn saved_commands_json_returns_valid_json() {
+    let mut state = test_state();
+    let workspace_id = "project-memory-mcp-40f6678f5a9b";
+
+    state
+        .save_saved_command(workspace_id, "Build", "npm run build")
+        .expect("save should succeed");
+    state
+        .save_saved_command(workspace_id, "Test", "npx vitest run")
+        .expect("save should succeed");
+
+    let commands = state.list_saved_commands(workspace_id).expect("list should succeed");
+    let json = serde_json::to_string(&commands).expect("JSON serialization should succeed");
+
+    // Verify it's valid JSON and round-trips.
+    let parsed: Vec<serde_json::Value> =
+        serde_json::from_str(&json).expect("JSON should parse back");
+    assert_eq!(parsed.len(), 2, "Should have 2 saved commands in JSON");
+
+    // Verify key fields are present.
+    for entry in &parsed {
+        assert!(entry.get("id").is_some(), "Each entry should have 'id'");
+        assert!(entry.get("name").is_some(), "Each entry should have 'name'");
+        assert!(
+            entry.get("command").is_some(),
+            "Each entry should have 'command'"
+        );
+        assert!(
+            entry.get("created_at").is_some(),
+            "Each entry should have 'created_at'"
+        );
+        assert!(
+            entry.get("updated_at").is_some(),
+            "Each entry should have 'updated_at'"
+        );
+    }
+}
+
+/// Mirrors the `saved_commands_workspace_id` invokable: verify the
+/// `saved_commands_ui_workspace_id` field is correctly get/set.
+#[test]
+fn saved_commands_workspace_id_returns_set_value() {
+    let mut state = test_state();
+
+    assert_eq!(
+        state.saved_commands_ui_workspace_id, "",
+        "Initially empty"
+    );
+
+    state.saved_commands_ui_workspace_id = "my-workspace-abc123".to_string();
+    assert_eq!(
+        state.saved_commands_ui_workspace_id, "my-workspace-abc123",
+        "Should return the value that was set"
+    );
+}
+
+/// Mirrors the `reopen_saved_commands` invokable: verify that reloading
+/// picks up externally-added commands.
+#[test]
+fn reopen_saved_commands_refreshes_data() {
+    let repo_root = unique_temp_dir();
+    let workspace_id = "project-memory-mcp-40f6678f5a9b";
+
+    // First session: save a command.
+    {
+        let mut first = test_state_with_repo(repo_root.clone());
+        first
+            .save_saved_command(workspace_id, "Build", "npm run build")
+            .expect("save should succeed");
+    }
+
+    // Second session: load and verify 1 command.
+    let mut state = test_state_with_repo(repo_root.clone());
+    state.saved_commands_ui_workspace_id = workspace_id.to_string();
+    let commands_before = state
+        .list_saved_commands(workspace_id)
+        .expect("list should succeed");
+    assert_eq!(commands_before.len(), 1);
+
+    // Simulate external addition: use a separate state to add another command
+    // directly to the repository file.
+    {
+        let mut external = test_state_with_repo(repo_root.clone());
+        external
+            .save_saved_command(workspace_id, "Test", "npx vitest run")
+            .expect("external save should succeed");
+    }
+
+    // "Reopen": clear in-memory cache and reload from disk.
+    state.saved_commands_by_workspace.remove(workspace_id);
+    let commands_after = state
+        .list_saved_commands(workspace_id)
+        .expect("list should succeed");
+    assert_eq!(
+        commands_after.len(),
+        2,
+        "Reopen should pick up the externally-added command"
+    );
+
+    let _ = std::fs::remove_dir_all(repo_root);
+}
+
+/// Mirrors the `execute_saved_command` invokable: verify that using a saved
+/// command enqueues it in the selected session's pending queue.
+#[test]
+fn execute_saved_command_queues_in_selected_session() {
+    let mut state = test_state();
+    let workspace_id = "project-memory-mcp-40f6678f5a9b";
+
+    let session_id = state.create_session();
+    let saved = state
+        .save_saved_command(workspace_id, "Deploy", "npm run deploy")
+        .expect("save should succeed");
+
+    let result = state
+        .use_saved_command(workspace_id, &saved.id, &session_id)
+        .expect("execute should succeed");
+
+    // Verify the command was queued.
+    assert_eq!(result.targeted_session_id, session_id);
+    assert_eq!(result.queued_request.command, "npm run deploy");
+    assert_eq!(result.pending_count, 1);
+
+    // Verify it's actually in the pending queue.
+    let queue = state
+        .pending_commands_by_session
+        .get(&session_id)
+        .expect("queue should exist");
+    assert_eq!(queue.len(), 1);
+    assert_eq!(queue[0].command, "npm run deploy");
+    assert_eq!(queue[0].session_id, session_id);
+}

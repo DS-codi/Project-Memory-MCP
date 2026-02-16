@@ -24,7 +24,7 @@
 
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('build', 'run', 'stop', 'logs', 'status')]
+    [ValidateSet('build', 'clean-build', 'run', 'stop', 'logs', 'status')]
     [string]$Action = 'run'
 )
 
@@ -80,6 +80,118 @@ function Test-HostGuiBridge {
     }
 }
 
+function Convert-WindowsPathToPodmanVmPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    if ($Path -notmatch '^([A-Za-z]):\\(.*)$') {
+        return $null
+    }
+
+    $drive = $Matches[1].ToLower()
+    $rest = $Matches[2] -replace '\\', '/'
+    return "/mnt/$drive/$rest"
+}
+
+function Mount-NetworkDriveInWSL {
+    <#
+    .SYNOPSIS
+        Mounts a mapped Windows network drive into the Podman WSL machine using drvfs.
+        Returns $true if the mount is already present or was created successfully.
+    #>
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DriveLetter   # e.g. "S"
+    )
+
+    $letter = $DriveLetter.ToLower()
+    $mountPoint = "/mnt/$letter"
+
+    # Check if already mounted
+    try {
+        $null = podman machine ssh "mount | grep -q 'on $mountPoint '" 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            return $true
+        }
+    } catch {}
+
+    # Create mount point and mount via drvfs
+    try {
+        podman machine ssh "sudo mkdir -p '$mountPoint'" 2>$null
+        podman machine ssh "sudo mount -t drvfs '${DriveLetter}:' '$mountPoint'" 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "  Mounted network drive ${DriveLetter}: -> $mountPoint (drvfs)" -ForegroundColor DarkCyan
+            return $true
+        } else {
+            Write-Host "  Warning: Failed to mount ${DriveLetter}: in WSL (exit code $LASTEXITCODE)" -ForegroundColor Yellow
+            return $false
+        }
+    } catch {
+        Write-Host "  Warning: Failed to mount ${DriveLetter}: in WSL: $_" -ForegroundColor Yellow
+        return $false
+    }
+}
+
+function Test-PodmanMountablePath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$WindowsPath
+    )
+
+    # UNC paths and non-drive paths are not reliably mountable in podman machine.
+    if ($WindowsPath -match '^\\\\') {
+        return $false
+    }
+
+    # Detect mapped network drives (e.g. S:\ mapped to \\server\share).
+    # WSL cannot natively see these — mount them via drvfs before allowing.
+    if ($WindowsPath -match '^([A-Za-z]):') {
+        $driveLetter = $Matches[1].ToUpper()
+        $isNetworkDrive = $false
+
+        try {
+            $disk = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DeviceID='${driveLetter}:'" -ErrorAction Stop
+            # DriveType 4 = Network Drive
+            if ($disk -and $disk.DriveType -eq 4) {
+                $isNetworkDrive = $true
+            }
+        } catch {
+            # If CIM query fails, fall back to checking if 'net use' knows the drive
+            try {
+                $netUse = net use "${driveLetter}:" 2>&1
+                if ($netUse -match 'Remote name') {
+                    $isNetworkDrive = $true
+                }
+            } catch {
+                # Can't determine — allow the VM path probe below to decide
+            }
+        }
+
+        if ($isNetworkDrive) {
+            # Attempt to mount the network drive into WSL via drvfs
+            if (-not (Mount-NetworkDriveInWSL -DriveLetter $driveLetter)) {
+                return $false
+            }
+            # Fall through to the VM path probe below
+        }
+    }
+
+    $vmPath = Convert-WindowsPathToPodmanVmPath -Path $WindowsPath
+    if (-not $vmPath) {
+        return $false
+    }
+
+    try {
+        $null = podman machine ssh "test -d '$vmPath'" 2>$null
+        return ($LASTEXITCODE -eq 0)
+    } catch {
+        # If machine probe is unavailable, be permissive to avoid false negatives.
+        return $true
+    }
+}
+
 # ---------------------------------------------------------------------------
 # Workspace Mount Discovery
 # ---------------------------------------------------------------------------
@@ -119,6 +231,11 @@ function Get-WorkspaceMounts {
                 continue
             }
 
+            if (-not (Test-PodmanMountablePath -WindowsPath $nativePath)) {
+                Write-Host "  Skip (not mountable in podman VM): $nativePath" -ForegroundColor Yellow
+                continue
+            }
+
             $containerMount = "/workspaces/$wsId"
             $volumeArgs += "-v"
             $volumeArgs += "${nativePath}:${containerMount}:ro"
@@ -145,6 +262,38 @@ function Build-Container {
         exit 1
     }
     Write-Host "Build complete." -ForegroundColor Green
+}
+
+function Clean-BuildContainer {
+    Write-Host "Running clean rebuild for image '$ImageName'..." -ForegroundColor Cyan
+
+    # Stop and remove container if present
+    $existing = podman ps -a --filter "name=$ContainerName" --format "{{.Names}}" 2>$null
+    if ($existing) {
+        Write-Host "  Removing existing container '$ContainerName'..." -ForegroundColor DarkGray
+        podman rm -f $ContainerName 2>$null | Out-Null
+    }
+
+    # Remove image if present
+    $imageExists = podman images --filter "reference=$ImageName" --format "{{.Repository}}" 2>$null
+    if ($imageExists) {
+        Write-Host "  Removing existing image '$ImageName'..." -ForegroundColor DarkGray
+        podman rmi -f $ImageName 2>$null | Out-Null
+    }
+
+    # Remove dangling layers to maximize cleanliness
+    Write-Host "  Pruning dangling images..." -ForegroundColor DarkGray
+    podman image prune -f 2>$null | Out-Null
+
+    # No-cache rebuild
+    Write-Host "  Building with --no-cache..." -ForegroundColor DarkGray
+    podman build --no-cache -t $ImageName -f "$WorkspaceRoot\Containerfile" $WorkspaceRoot
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Clean container build failed"
+        exit 1
+    }
+
+    Write-Host "Clean build complete." -ForegroundColor Green
 }
 
 function Start-Container {
@@ -305,6 +454,7 @@ function Show-Status {
 # Dispatch
 switch ($Action) {
     'build'  { Build-Container }
+    'clean-build' { Clean-BuildContainer }
     'run'    { Start-Container }
     'stop'   { Stop-Container }
     'logs'   { Show-Logs }

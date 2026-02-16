@@ -1,5 +1,6 @@
 #![windows_subsystem = "windows"]
 
+mod build_check;
 mod command_executor;
 mod cxxqt_bridge;
 mod host_bridge_listener;
@@ -76,10 +77,36 @@ struct Args {
     /// Idle timeout in seconds (exit after no activity)
     #[arg(long, default_value_t = 300)]
     idle_timeout: u64,
+
+    /// Enable debug mode: allocates a console window (Windows) so stderr is visible
+    #[arg(long)]
+    debug: bool,
 }
 
 fn main() {
     let args = Args::parse();
+
+    // Debug mode: allocate a console window on Windows so stderr/stdout are visible.
+    // Triggered by --debug flag or INTERACTIVE_TERMINAL_DEBUG=1 env var.
+    let debug_mode = args.debug
+        || std::env::var("INTERACTIVE_TERMINAL_DEBUG")
+            .map(|v| v == "1")
+            .unwrap_or(false);
+
+    if debug_mode {
+        #[cfg(windows)]
+        {
+            // SAFETY: AllocConsole is a well-known Win32 API that is safe to call.
+            // It attaches a console to a GUI process so stderr/stdout become visible.
+            extern "system" {
+                fn AllocConsole() -> i32;
+            }
+            unsafe {
+                AllocConsole();
+            }
+        }
+        eprintln!("Interactive Terminal debug mode enabled");
+    }
 
     // Allow TERMINAL_PORT env var to override the CLI default.
     let port = std::env::var("TERMINAL_PORT")
@@ -106,6 +133,9 @@ fn main() {
     eprintln!("Interactive Terminal listening on 127.0.0.1:{port}");
     host_bridge_listener::spawn(host_bridge_port, port);
 
+    // Verify Qt DLLs are deployed before trying to initialize Qt.
+    build_check::verify_qt_runtime();
+
     #[cfg(windows)]
     std::env::set_var("QT_QPA_PLATFORM", "windows:darkmode=2");
 
@@ -115,6 +145,14 @@ fn main() {
     if let Some(engine) = engine.as_mut() {
         engine.load(&QUrl::from("qrc:/qt/qml/com/projectmemory/terminal/main.qml"));
     }
+
+    // QML load diagnostic: root_objects() is not exposed in cxx-qt-lib 0.8,
+    // so log a diagnostic that stderr consumers (--debug mode / AllocConsole)
+    // can observe. The objectCreationFailed signal fires internally on failure.
+    eprintln!(
+        "QML engine load() completed. If the window does not appear, \
+         check Qt deployment and bridge definition parity (ffi.rs vs mod.rs)."
+    );
 
     if let Some(app) = app.as_mut() {
         app.exec();
