@@ -12,11 +12,17 @@ import {
   type CommandRequest,
   type CommandResponse,
   type Heartbeat,
+  type ReadOutputRequest,
+  type ReadOutputResponse,
+  type KillSessionRequest,
+  type KillSessionResponse,
   type TerminalIpcMessage,
   encodeMessage,
   decodeMessage,
   isCommandResponse,
   isHeartbeat,
+  isReadOutputResponse,
+  isKillSessionResponse,
 } from './terminal-ipc-protocol.js';
 
 // =========================================================================
@@ -176,24 +182,27 @@ export class TcpTerminalAdapter {
   }
 
   // -----------------------------------------------------------------------
-  // Send and Await
+  // Send and Await (generic helper)
   // -----------------------------------------------------------------------
 
   /**
-   * Send a CommandRequest and wait for the matching CommandResponse.
-   * Heartbeat messages received while waiting are forwarded to progressCallback.
-   * Throws on timeout, disconnect, or socket error.
+   * Generic send-and-await: write a request message, then wait for a response
+   * that matches the given predicate. Heartbeats are forwarded to progressCallback.
    */
-  async sendAndAwait(request: CommandRequest): Promise<CommandResponse> {
+  private async sendAndAwaitTyped<TReq extends TerminalIpcMessage, TRes>(
+    request: TReq,
+    requestId: string,
+    isMatch: (msg: TerminalIpcMessage) => msg is TRes & TerminalIpcMessage,
+    matchId: (msg: TRes) => string,
+  ): Promise<TRes> {
     if (!this.socket || !this.connected || this.socket.destroyed) {
-      // One reconnect attempt
       await this.reconnect();
     }
 
     const socket = this.socket!;
     const encoded = encodeMessage(request);
 
-    return new Promise<CommandResponse>((resolve, reject) => {
+    return new Promise<TRes>((resolve, reject) => {
       let settled = false;
 
       const timer = setTimeout(() => {
@@ -202,7 +211,7 @@ export class TcpTerminalAdapter {
           cleanup();
           reject(
             new Error(
-              `Timeout waiting for response to request ${request.id} after ${RESPONSE_TIMEOUT_MS}ms`,
+              `Timeout waiting for response to request ${requestId} after ${RESPONSE_TIMEOUT_MS}ms`,
             ),
           );
         }
@@ -212,7 +221,6 @@ export class TcpTerminalAdapter {
         if (settled) return;
         this.lineBuffer += chunk.toString('utf8');
 
-        // Process complete NDJSON lines
         let newlineIdx: number;
         while ((newlineIdx = this.lineBuffer.indexOf('\n')) !== -1) {
           const line = this.lineBuffer.slice(0, newlineIdx);
@@ -228,14 +236,13 @@ export class TcpTerminalAdapter {
             continue;
           }
 
-          if (isCommandResponse(msg) && msg.id === request.id) {
+          if (isMatch(msg) && matchId(msg as TRes) === requestId) {
             settled = true;
             clearTimeout(timer);
             cleanup();
-            resolve(msg);
+            resolve(msg as TRes);
             return;
           }
-          // Ignore unrelated messages (responses for other IDs, etc.)
         }
       };
 
@@ -269,7 +276,6 @@ export class TcpTerminalAdapter {
       socket.on('error', onError);
       socket.on('close', onClose);
 
-      // Write the request
       socket.write(encoded, (err) => {
         if (err && !settled) {
           settled = true;
@@ -279,6 +285,70 @@ export class TcpTerminalAdapter {
         }
       });
     });
+  }
+
+  // -----------------------------------------------------------------------
+  // Send and Await (CommandRequest → CommandResponse)
+  // -----------------------------------------------------------------------
+
+  /**
+   * Send a CommandRequest and wait for the matching CommandResponse.
+   * Heartbeat messages received while waiting are forwarded to progressCallback.
+   * Throws on timeout, disconnect, or socket error.
+   */
+  async sendAndAwait(request: CommandRequest): Promise<CommandResponse> {
+    return this.sendAndAwaitTyped<CommandRequest, CommandResponse>(
+      request,
+      request.id,
+      isCommandResponse,
+      (msg) => msg.id,
+    );
+  }
+
+  // -----------------------------------------------------------------------
+  // Read Output (ReadOutputRequest → ReadOutputResponse)
+  // -----------------------------------------------------------------------
+
+  /**
+   * Send a ReadOutputRequest and wait for the matching ReadOutputResponse.
+   * Throws on timeout, disconnect, or socket error.
+   */
+  async sendReadOutput(sessionId: string): Promise<ReadOutputResponse> {
+    const requestId = `read_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const request: ReadOutputRequest = {
+      type: 'read_output_request',
+      id: requestId,
+      session_id: sessionId,
+    };
+    return this.sendAndAwaitTyped<ReadOutputRequest, ReadOutputResponse>(
+      request,
+      requestId,
+      isReadOutputResponse,
+      (msg) => msg.id,
+    );
+  }
+
+  // -----------------------------------------------------------------------
+  // Kill Session (KillSessionRequest → KillSessionResponse)
+  // -----------------------------------------------------------------------
+
+  /**
+   * Send a KillSessionRequest and wait for the matching KillSessionResponse.
+   * Throws on timeout, disconnect, or socket error.
+   */
+  async sendKill(sessionId: string): Promise<KillSessionResponse> {
+    const requestId = `kill_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const request: KillSessionRequest = {
+      type: 'kill_session_request',
+      id: requestId,
+      session_id: sessionId,
+    };
+    return this.sendAndAwaitTyped<KillSessionRequest, KillSessionResponse>(
+      request,
+      requestId,
+      isKillSessionResponse,
+      (msg) => msg.id,
+    );
   }
 
   // -----------------------------------------------------------------------

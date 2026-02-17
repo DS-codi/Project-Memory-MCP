@@ -1,5 +1,6 @@
 use std::pin::Pin;
 
+pub(crate) mod completed_outputs;
 mod helpers;
 mod initialize;
 mod invokables;

@@ -29,6 +29,16 @@ import type { CommandRequest, CommandResponse } from '../terminal-ipc-protocol.j
 import { TcpTerminalAdapter } from '../terminal-tcp-adapter.js';
 
 // =========================================================================
+// GUI Session Tracking
+// =========================================================================
+
+/**
+ * Session IDs that were created by routing a command through the GUI TCP path.
+ * read_output / kill for these sessions must go through TCP, not local child_process.
+ */
+const guiSessions = new Set<string>();
+
+// =========================================================================
 // Public Types
 // =========================================================================
 
@@ -298,6 +308,11 @@ async function handleRun(
     stopHeartbeat();
     adapter.close();
 
+    // Track this session as a GUI session so read_output/kill routes through TCP
+    if (response.status === 'approved') {
+      guiSessions.add(response.id);
+    }
+
     return mapCommandResponseToToolResponse(response);
   } catch (err) {
     stopHeartbeat();
@@ -318,6 +333,12 @@ async function handleReadOutputAction(
       error: 'session_id is required for action: read_output',
     };
   }
+
+  // Route through TCP for sessions that were created via the GUI
+  if (guiSessions.has(params.session_id)) {
+    return handleReadOutputViaTcp(params.session_id);
+  }
+
   return handleReadOutput({ session_id: params.session_id });
 }
 
@@ -330,7 +351,91 @@ async function handleKillAction(
       error: 'session_id is required for action: kill',
     };
   }
+
+  // Route through TCP for sessions that were created via the GUI
+  if (guiSessions.has(params.session_id)) {
+    return handleKillViaTcp(params.session_id);
+  }
+
   return handleKill({ session_id: params.session_id });
+}
+
+// =========================================================================
+// GUI TCP Routing (read_output / kill)
+// =========================================================================
+
+/**
+ * Read output for a GUI session over TCP.
+ * Creates a fresh adapter, sends ReadOutputRequest, returns mapped response.
+ */
+async function handleReadOutputViaTcp(sessionId: string): Promise<ToolResponse> {
+  const adapter = new TcpTerminalAdapter();
+  try {
+    await adapter.connect();
+    const response = await adapter.sendReadOutput(sessionId);
+    adapter.close();
+
+    // If the session is no longer running, we can stop tracking it
+    if (!response.running) {
+      guiSessions.delete(sessionId);
+    }
+
+    return {
+      success: true,
+      data: {
+        session_id: response.session_id,
+        running: response.running,
+        exit_code: response.exit_code ?? null,
+        stdout: response.stdout,
+        stderr: response.stderr,
+        truncated: response.truncated,
+      },
+    };
+  } catch (err) {
+    adapter.close();
+    return {
+      success: false,
+      error: `read_output via GUI failed: ${(err as Error).message}`,
+    };
+  }
+}
+
+/**
+ * Kill a GUI session over TCP.
+ * Creates a fresh adapter, sends KillSessionRequest, returns mapped response.
+ */
+async function handleKillViaTcp(sessionId: string): Promise<ToolResponse> {
+  const adapter = new TcpTerminalAdapter();
+  try {
+    await adapter.connect();
+    const response = await adapter.sendKill(sessionId);
+    adapter.close();
+
+    // Remove from tracking regardless of kill result
+    guiSessions.delete(sessionId);
+
+    if (response.killed) {
+      return {
+        success: true,
+        data: {
+          session_id: response.session_id,
+          killed: true,
+          message: response.message ?? 'Process killed',
+        },
+      };
+    } else {
+      return {
+        success: false,
+        error: response.error ?? 'Kill failed — process may have already exited',
+      };
+    }
+  } catch (err) {
+    adapter.close();
+    return {
+      success: false,
+      error: `kill via GUI failed: ${(err as Error).message}`,
+    };
+  }
 }
 
 async function handleGetAllowlistAction(

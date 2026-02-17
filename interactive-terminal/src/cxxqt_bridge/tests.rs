@@ -1,4 +1,5 @@
 use super::*;
+use crate::cxxqt_bridge::completed_outputs::OutputTracker;
 use crate::protocol::{CommandRequest, TerminalProfile};
 use crate::saved_commands_repository::SavedCommandsRepository;
 use std::collections::HashMap;
@@ -32,6 +33,7 @@ fn test_state() -> AppState {
         saved_commands_repository: SavedCommandsRepository::new(unique_temp_dir()),
         response_tx: None,
         command_tx: None,
+        output_tracker: OutputTracker::default(),
     }
 }
 
@@ -46,6 +48,7 @@ fn test_state_with_repo(repo_root: PathBuf) -> AppState {
         saved_commands_repository: SavedCommandsRepository::new(repo_root),
         response_tx: None,
         command_tx: None,
+        output_tracker: OutputTracker::default(),
     }
 }
 

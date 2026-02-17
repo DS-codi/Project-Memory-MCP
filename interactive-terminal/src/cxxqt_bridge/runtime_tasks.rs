@@ -1,4 +1,5 @@
 use crate::command_executor::{self, OutputLine};
+use crate::cxxqt_bridge::completed_outputs::CompletedOutput;
 use crate::cxxqt_bridge::terminal_profile_to_key;
 use crate::cxxqt_bridge::ffi;
 use crate::protocol::{
@@ -304,6 +305,26 @@ pub(crate) fn spawn_runtime_tasks(
                                 }
                             }
                             Message::Heartbeat(_) => {}
+                            Message::ReadOutputRequest(req) => {
+                                let response = {
+                                    let s = state.lock().unwrap();
+                                    s.output_tracker.build_read_output_response(&req.id, &req.session_id)
+                                };
+                                {
+                                    let s = state.lock().unwrap();
+                                    s.send_response(response);
+                                }
+                            }
+                            Message::KillSessionRequest(req) => {
+                                let response = {
+                                    let mut s = state.lock().unwrap();
+                                    s.output_tracker.try_kill(&req.id, &req.session_id)
+                                };
+                                {
+                                    let s = state.lock().unwrap();
+                                    s.send_response(response);
+                                }
+                            }
                             _ => {}
                         }
                     }
@@ -357,12 +378,49 @@ pub(crate) fn spawn_runtime_tasks(
                     while let Some(req) = cmd_rx.recv().await {
                         let (output_tx, mut output_rx) = tokio::sync::mpsc::channel::<OutputLine>(64);
 
+                        // --- OutputTracker: register running entry and kill channel ---
+                        let (kill_tx, kill_rx) = tokio::sync::oneshot::channel::<()>();
+                        {
+                            let mut s = state.lock().unwrap();
+                            s.output_tracker.store(CompletedOutput {
+                                request_id: req.id.clone(),
+                                stdout: String::new(),
+                                stderr: String::new(),
+                                exit_code: None,
+                                running: true,
+                                completed_at: tokio::time::Instant::now(),
+                            });
+                            s.output_tracker.register_kill_sender(&req.id, kill_tx);
+                        }
+
+                        // Shared buffers for accumulating output to store in the tracker.
+                        let stdout_buf = Arc::new(Mutex::new(String::new()));
+                        let stderr_buf = Arc::new(Mutex::new(String::new()));
+
                         let qt_output = qt.clone();
+                        let stdout_buf_fwd = stdout_buf.clone();
+                        let stderr_buf_fwd = stderr_buf.clone();
                         let output_forward = tokio::spawn(async move {
                             while let Some(line) = output_rx.recv().await {
                                 let text = match &line {
-                                    OutputLine::Stdout(l) => l.clone(),
+                                    OutputLine::Stdout(l) => {
+                                        {
+                                            let mut buf = stdout_buf_fwd.lock().unwrap();
+                                            if !buf.is_empty() {
+                                                buf.push('\n');
+                                            }
+                                            buf.push_str(l);
+                                        }
+                                        l.clone()
+                                    }
                                     OutputLine::Stderr(l) => {
+                                        {
+                                            let mut buf = stderr_buf_fwd.lock().unwrap();
+                                            if !buf.is_empty() {
+                                                buf.push('\n');
+                                            }
+                                            buf.push_str(l);
+                                        }
                                         format!("[stderr] {l}")
                                     }
                                 };
@@ -380,13 +438,36 @@ pub(crate) fn spawn_runtime_tasks(
                             }
                         });
 
-                        let result =
-                            command_executor::execute_command_with_timeout(&req, output_tx).await;
+                        // Race execution against the kill signal.
+                        let req_id_for_kill = req.id.clone();
+                        let result = tokio::select! {
+                            res = command_executor::execute_command_with_timeout(&req, output_tx) => Some(res),
+                            _ = kill_rx => {
+                                // Kill signal received — log and treat as killed.
+                                eprintln!("Kill signal received for request {req_id_for_kill}");
+                                None
+                            }
+                        };
 
                         let _ = output_forward.await;
 
+                        // Collect accumulated output.
+                        let final_stdout = stdout_buf.lock().unwrap().clone();
+                        let final_stderr = stderr_buf.lock().unwrap().clone();
+
                         match result {
-                            Ok(exec_result) => {
+                            Some(Ok(exec_result)) => {
+                                // --- OutputTracker: mark completed ---
+                                {
+                                    let mut s = state.lock().unwrap();
+                                    s.output_tracker.mark_completed(
+                                        &exec_result.request_id,
+                                        exec_result.exit_code,
+                                        final_stdout,
+                                        final_stderr,
+                                    );
+                                }
+
                                 let response = Message::CommandResponse(CommandResponse {
                                     id: exec_result.request_id.clone(),
                                     status: ResponseStatus::Approved,
@@ -413,7 +494,18 @@ pub(crate) fn spawn_runtime_tasks(
                                     obj.as_mut().command_completed(QString::from(&id_str), success);
                                 });
                             }
-                            Err(err) => {
+                            Some(Err(err)) => {
+                                // --- OutputTracker: mark completed with error ---
+                                {
+                                    let mut s = state.lock().unwrap();
+                                    s.output_tracker.mark_completed(
+                                        &req.id,
+                                        Some(-1),
+                                        final_stdout,
+                                        final_stderr,
+                                    );
+                                }
+
                                 let response = Message::CommandResponse(CommandResponse {
                                     id: req.id.clone(),
                                     status: ResponseStatus::Approved,
@@ -432,6 +524,39 @@ pub(crate) fn spawn_runtime_tasks(
                                 let _ = qt.queue(move |mut obj| {
                                     obj.as_mut()
                                         .set_status_text(QString::from(&format!("Error: {err}")));
+                                    obj.as_mut().command_completed(QString::from(&id_str), false);
+                                });
+                            }
+                            None => {
+                                // Killed by remote signal.
+                                {
+                                    let mut s = state.lock().unwrap();
+                                    s.output_tracker.mark_completed(
+                                        &req.id,
+                                        Some(-9),
+                                        final_stdout,
+                                        final_stderr,
+                                    );
+                                }
+
+                                let response = Message::CommandResponse(CommandResponse {
+                                    id: req.id.clone(),
+                                    status: ResponseStatus::Approved,
+                                    output: Some("Process killed by remote request".to_string()),
+                                    exit_code: Some(-9),
+                                    reason: None,
+                                    output_file_path: None,
+                                });
+
+                                {
+                                    let s = state.lock().unwrap();
+                                    s.send_response(response);
+                                }
+
+                                let id_str = req.id.clone();
+                                let _ = qt.queue(move |mut obj| {
+                                    obj.as_mut()
+                                        .set_status_text(QString::from("Process killed by remote request"));
                                     obj.as_mut().command_completed(QString::from(&id_str), false);
                                 });
                             }

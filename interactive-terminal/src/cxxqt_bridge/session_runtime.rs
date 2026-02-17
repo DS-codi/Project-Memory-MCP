@@ -1,3 +1,4 @@
+use crate::cxxqt_bridge::completed_outputs::OutputTracker;
 use crate::protocol::CommandRequest;
 use crate::protocol::TerminalProfile;
 use crate::saved_commands::WorkspaceSavedCommands;
@@ -40,6 +41,7 @@ pub struct AppState {
     pub saved_commands_repository: SavedCommandsRepository,
     pub response_tx: Option<tokio::sync::mpsc::Sender<crate::protocol::Message>>,
     pub command_tx: Option<tokio::sync::mpsc::Sender<CommandRequest>>,
+    pub output_tracker: OutputTracker,
 }
 
 #[derive(Default, Clone)]
@@ -82,6 +84,7 @@ impl Default for TerminalAppRust {
             saved_commands_repository: SavedCommandsRepository::from_env_or_default(),
             response_tx: None,
             command_tx: None,
+            output_tracker: OutputTracker::default(),
         }));
 
         let session_tabs_json = {

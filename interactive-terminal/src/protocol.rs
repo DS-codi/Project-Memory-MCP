@@ -13,6 +13,10 @@ pub enum Message {
     SavedCommandsRequest(SavedCommandsRequest),
     SavedCommandsResponse(SavedCommandsResponse),
     Heartbeat(Heartbeat),
+    ReadOutputRequest(ReadOutputRequest),
+    ReadOutputResponse(ReadOutputResponse),
+    KillSessionRequest(KillSessionRequest),
+    KillSessionResponse(KillSessionResponse),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -150,6 +154,45 @@ pub struct CommandResponse {
     pub output_file_path: Option<String>,
 }
 
+/// MCP server → GUI: request the captured output for a completed/running session.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ReadOutputRequest {
+    pub id: String,
+    pub session_id: String,
+}
+
+/// GUI → MCP server: captured output for a session.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ReadOutputResponse {
+    pub id: String,
+    pub session_id: String,
+    pub running: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exit_code: Option<i32>,
+    pub stdout: String,
+    pub stderr: String,
+    pub truncated: bool,
+}
+
+/// MCP server → GUI: request to kill an active session/process.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct KillSessionRequest {
+    pub id: String,
+    pub session_id: String,
+}
+
+/// GUI → MCP server: result of a kill request.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct KillSessionResponse {
+    pub id: String,
+    pub session_id: String,
+    pub killed: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
 /// Bidirectional heartbeat for liveness detection.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Heartbeat {
@@ -275,6 +318,42 @@ mod tests {
         }
     }
 
+    fn sample_read_output_request() -> ReadOutputRequest {
+        ReadOutputRequest {
+            id: "ro-001".into(),
+            session_id: "sess-abc".into(),
+        }
+    }
+
+    fn sample_read_output_response() -> ReadOutputResponse {
+        ReadOutputResponse {
+            id: "ro-001".into(),
+            session_id: "sess-abc".into(),
+            running: false,
+            exit_code: Some(0),
+            stdout: "hello world\n".into(),
+            stderr: String::new(),
+            truncated: false,
+        }
+    }
+
+    fn sample_kill_session_request() -> KillSessionRequest {
+        KillSessionRequest {
+            id: "kill-001".into(),
+            session_id: "sess-abc".into(),
+        }
+    }
+
+    fn sample_kill_session_response() -> KillSessionResponse {
+        KillSessionResponse {
+            id: "kill-001".into(),
+            session_id: "sess-abc".into(),
+            killed: true,
+            message: Some("Process terminated".into()),
+            error: None,
+        }
+    }
+
     // -- round-trip tests -------------------------------------------------
 
     #[test]
@@ -325,6 +404,68 @@ mod tests {
         assert_eq!(msg, decoded);
     }
 
+    #[test]
+    fn roundtrip_read_output_request() {
+        let msg = Message::ReadOutputRequest(sample_read_output_request());
+        let json = serde_json::to_string(&msg).unwrap();
+        let decoded: Message = serde_json::from_str(&json).unwrap();
+        assert_eq!(msg, decoded);
+    }
+
+    #[test]
+    fn roundtrip_read_output_response() {
+        let msg = Message::ReadOutputResponse(sample_read_output_response());
+        let json = serde_json::to_string(&msg).unwrap();
+        let decoded: Message = serde_json::from_str(&json).unwrap();
+        assert_eq!(msg, decoded);
+    }
+
+    #[test]
+    fn roundtrip_read_output_response_running() {
+        let msg = Message::ReadOutputResponse(ReadOutputResponse {
+            id: "ro-002".into(),
+            session_id: "sess-running".into(),
+            running: true,
+            exit_code: None,
+            stdout: "partial output...".into(),
+            stderr: "warning: something\n".into(),
+            truncated: true,
+        });
+        let json = serde_json::to_string(&msg).unwrap();
+        let decoded: Message = serde_json::from_str(&json).unwrap();
+        assert_eq!(msg, decoded);
+    }
+
+    #[test]
+    fn roundtrip_kill_session_request() {
+        let msg = Message::KillSessionRequest(sample_kill_session_request());
+        let json = serde_json::to_string(&msg).unwrap();
+        let decoded: Message = serde_json::from_str(&json).unwrap();
+        assert_eq!(msg, decoded);
+    }
+
+    #[test]
+    fn roundtrip_kill_session_response() {
+        let msg = Message::KillSessionResponse(sample_kill_session_response());
+        let json = serde_json::to_string(&msg).unwrap();
+        let decoded: Message = serde_json::from_str(&json).unwrap();
+        assert_eq!(msg, decoded);
+    }
+
+    #[test]
+    fn roundtrip_kill_session_response_not_found() {
+        let msg = Message::KillSessionResponse(KillSessionResponse {
+            id: "kill-002".into(),
+            session_id: "sess-unknown".into(),
+            killed: false,
+            message: None,
+            error: Some("Session not found".into()),
+        });
+        let json = serde_json::to_string(&msg).unwrap();
+        let decoded: Message = serde_json::from_str(&json).unwrap();
+        assert_eq!(msg, decoded);
+    }
+
     // -- JSON type tag tests ----------------------------------------------
 
     #[test]
@@ -353,6 +494,34 @@ mod tests {
         let msg = Message::SavedCommandsRequest(sample_saved_commands_request());
         let val: serde_json::Value = serde_json::to_value(&msg).unwrap();
         assert_eq!(val["type"], "saved_commands_request");
+    }
+
+    #[test]
+    fn json_has_correct_type_tag_read_output_request() {
+        let msg = Message::ReadOutputRequest(sample_read_output_request());
+        let val: serde_json::Value = serde_json::to_value(&msg).unwrap();
+        assert_eq!(val["type"], "read_output_request");
+    }
+
+    #[test]
+    fn json_has_correct_type_tag_read_output_response() {
+        let msg = Message::ReadOutputResponse(sample_read_output_response());
+        let val: serde_json::Value = serde_json::to_value(&msg).unwrap();
+        assert_eq!(val["type"], "read_output_response");
+    }
+
+    #[test]
+    fn json_has_correct_type_tag_kill_session_request() {
+        let msg = Message::KillSessionRequest(sample_kill_session_request());
+        let val: serde_json::Value = serde_json::to_value(&msg).unwrap();
+        assert_eq!(val["type"], "kill_session_request");
+    }
+
+    #[test]
+    fn json_has_correct_type_tag_kill_session_response() {
+        let msg = Message::KillSessionResponse(sample_kill_session_response());
+        let val: serde_json::Value = serde_json::to_value(&msg).unwrap();
+        assert_eq!(val["type"], "kill_session_response");
     }
 
     #[test]
@@ -637,6 +806,38 @@ mod tests {
     }
 
     #[test]
+    fn encode_decode_roundtrip_read_output_request() {
+        let msg = Message::ReadOutputRequest(sample_read_output_request());
+        let encoded = encode(&msg).unwrap();
+        let decoded = decode(&encoded).unwrap();
+        assert_eq!(msg, decoded);
+    }
+
+    #[test]
+    fn encode_decode_roundtrip_read_output_response() {
+        let msg = Message::ReadOutputResponse(sample_read_output_response());
+        let encoded = encode(&msg).unwrap();
+        let decoded = decode(&encoded).unwrap();
+        assert_eq!(msg, decoded);
+    }
+
+    #[test]
+    fn encode_decode_roundtrip_kill_session_request() {
+        let msg = Message::KillSessionRequest(sample_kill_session_request());
+        let encoded = encode(&msg).unwrap();
+        let decoded = decode(&encoded).unwrap();
+        assert_eq!(msg, decoded);
+    }
+
+    #[test]
+    fn encode_decode_roundtrip_kill_session_response() {
+        let msg = Message::KillSessionResponse(sample_kill_session_response());
+        let encoded = encode(&msg).unwrap();
+        let decoded = decode(&encoded).unwrap();
+        assert_eq!(msg, decoded);
+    }
+
+    #[test]
     fn decode_invalid_json_returns_error() {
         let result = decode("not valid json");
         assert!(result.is_err());
@@ -817,5 +1018,123 @@ mod tests {
         } else {
             panic!("expected Heartbeat");
         }
+    }
+
+    // -- ReadOutputRequest/Response conformance -------------------------
+
+    #[test]
+    fn conformance_read_output_request() {
+        let json = r#"{"type":"read_output_request","id":"ro-conf-001","session_id":"sess-conf-abc"}"#;
+        let msg = decode(json).expect("should decode read_output_request");
+        if let Message::ReadOutputRequest(req) = msg {
+            assert_eq!(req.id, "ro-conf-001");
+            assert_eq!(req.session_id, "sess-conf-abc");
+        } else {
+            panic!("expected ReadOutputRequest");
+        }
+    }
+
+    #[test]
+    fn conformance_read_output_response_completed() {
+        let json = r#"{"type":"read_output_response","id":"ro-conf-001","session_id":"sess-conf-abc","running":false,"exit_code":0,"stdout":"hello world\n","stderr":"","truncated":false}"#;
+        let msg = decode(json).expect("should decode completed read_output_response");
+        if let Message::ReadOutputResponse(resp) = msg {
+            assert_eq!(resp.id, "ro-conf-001");
+            assert_eq!(resp.session_id, "sess-conf-abc");
+            assert!(!resp.running);
+            assert_eq!(resp.exit_code, Some(0));
+            assert_eq!(resp.stdout, "hello world\n");
+            assert_eq!(resp.stderr, "");
+            assert!(!resp.truncated);
+        } else {
+            panic!("expected ReadOutputResponse");
+        }
+    }
+
+    #[test]
+    fn conformance_read_output_response_running() {
+        let json = r#"{"type":"read_output_response","id":"ro-conf-002","session_id":"sess-running","running":true,"stdout":"partial...","stderr":"warn","truncated":true}"#;
+        let msg = decode(json).expect("should decode running read_output_response");
+        if let Message::ReadOutputResponse(resp) = msg {
+            assert_eq!(resp.id, "ro-conf-002");
+            assert!(resp.running);
+            assert!(resp.exit_code.is_none());
+            assert!(resp.truncated);
+        } else {
+            panic!("expected ReadOutputResponse");
+        }
+    }
+
+    // -- KillSessionRequest/Response conformance ------------------------
+
+    #[test]
+    fn conformance_kill_session_request() {
+        let json = r#"{"type":"kill_session_request","id":"kill-conf-001","session_id":"sess-kill-abc"}"#;
+        let msg = decode(json).expect("should decode kill_session_request");
+        if let Message::KillSessionRequest(req) = msg {
+            assert_eq!(req.id, "kill-conf-001");
+            assert_eq!(req.session_id, "sess-kill-abc");
+        } else {
+            panic!("expected KillSessionRequest");
+        }
+    }
+
+    #[test]
+    fn conformance_kill_session_response_killed() {
+        let json = r#"{"type":"kill_session_response","id":"kill-conf-001","session_id":"sess-kill-abc","killed":true,"message":"Process terminated"}"#;
+        let msg = decode(json).expect("should decode killed kill_session_response");
+        if let Message::KillSessionResponse(resp) = msg {
+            assert_eq!(resp.id, "kill-conf-001");
+            assert!(resp.killed);
+            assert_eq!(resp.message.as_deref(), Some("Process terminated"));
+            assert!(resp.error.is_none());
+        } else {
+            panic!("expected KillSessionResponse");
+        }
+    }
+
+    #[test]
+    fn conformance_kill_session_response_not_found() {
+        let json = r#"{"type":"kill_session_response","id":"kill-conf-002","session_id":"sess-unknown","killed":false,"error":"Session not found"}"#;
+        let msg = decode(json).expect("should decode not-found kill_session_response");
+        if let Message::KillSessionResponse(resp) = msg {
+            assert_eq!(resp.id, "kill-conf-002");
+            assert!(!resp.killed);
+            assert!(resp.message.is_none());
+            assert_eq!(resp.error.as_deref(), Some("Session not found"));
+        } else {
+            panic!("expected KillSessionResponse");
+        }
+    }
+
+    #[test]
+    fn read_output_response_skips_none_exit_code() {
+        let resp = ReadOutputResponse {
+            id: "ro-skip".into(),
+            session_id: "sess-skip".into(),
+            running: true,
+            exit_code: None,
+            stdout: String::new(),
+            stderr: String::new(),
+            truncated: false,
+        };
+        let msg = Message::ReadOutputResponse(resp);
+        let json = serde_json::to_string(&msg).unwrap();
+        assert!(!json.contains("\"exit_code\""));
+    }
+
+    #[test]
+    fn kill_session_response_skips_none_fields() {
+        let resp = KillSessionResponse {
+            id: "kill-skip".into(),
+            session_id: "sess-skip".into(),
+            killed: true,
+            message: None,
+            error: None,
+        };
+        let msg = Message::KillSessionResponse(resp);
+        let json = serde_json::to_string(&msg).unwrap();
+        assert!(!json.contains("\"message\""));
+        assert!(!json.contains("\"error\""));
     }
 }

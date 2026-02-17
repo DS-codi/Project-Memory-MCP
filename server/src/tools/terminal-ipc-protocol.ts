@@ -5,10 +5,14 @@
  * over TCP/NDJSON. Field names are aligned with the Rust side (protocol.rs) to
  * minimize cross-language friction.
  *
- * Three message types:
- *   - CommandRequest  — MCP server → GUI: "run this command"
- *   - CommandResponse — GUI → MCP server: approval/decline/timeout result
- *   - Heartbeat       — bidirectional liveness probe
+ * Message types:
+ *   - CommandRequest        — MCP server → GUI: "run this command"
+ *   - CommandResponse       — GUI → MCP server: approval/decline/timeout result
+ *   - Heartbeat             — bidirectional liveness probe
+ *   - ReadOutputRequest     — MCP server → GUI: request output for a session
+ *   - ReadOutputResponse    — GUI → MCP server: session output data
+ *   - KillSessionRequest    — MCP server → GUI: kill a session/process
+ *   - KillSessionResponse   — GUI → MCP server: kill result
  *
  * Created in Phase 1 (Protocol Alignment) — replaces interactive-terminal-protocol.ts.
  */
@@ -68,8 +72,67 @@ export interface Heartbeat {
   timestamp_ms: number;
 }
 
+/** MCP server → GUI: request the captured output for a session. */
+export interface ReadOutputRequest {
+  type: 'read_output_request';
+  /** Unique request ID (correlates with ReadOutputResponse.id). */
+  id: string;
+  /** The session whose output to retrieve. */
+  session_id: string;
+}
+
+/** GUI → MCP server: captured output for a session. */
+export interface ReadOutputResponse {
+  type: 'read_output_response';
+  /** Correlates to the original ReadOutputRequest.id. */
+  id: string;
+  /** The session this output belongs to. */
+  session_id: string;
+  /** Whether the process is still running. */
+  running: boolean;
+  /** Process exit code (null/undefined if still running or killed). */
+  exit_code?: number | null;
+  /** Captured stdout. */
+  stdout: string;
+  /** Captured stderr. */
+  stderr: string;
+  /** Whether the output was truncated due to size limits. */
+  truncated: boolean;
+}
+
+/** MCP server → GUI: request to kill an active session/process. */
+export interface KillSessionRequest {
+  type: 'kill_session_request';
+  /** Unique request ID (correlates with KillSessionResponse.id). */
+  id: string;
+  /** The session to kill. */
+  session_id: string;
+}
+
+/** GUI → MCP server: result of a kill request. */
+export interface KillSessionResponse {
+  type: 'kill_session_response';
+  /** Correlates to the original KillSessionRequest.id. */
+  id: string;
+  /** The session that was targeted. */
+  session_id: string;
+  /** Whether the process was successfully killed. */
+  killed: boolean;
+  /** Human-readable message on success. */
+  message?: string;
+  /** Error message if kill failed. */
+  error?: string;
+}
+
 /** Union of all wire messages. */
-export type TerminalIpcMessage = CommandRequest | CommandResponse | Heartbeat;
+export type TerminalIpcMessage =
+  | CommandRequest
+  | CommandResponse
+  | Heartbeat
+  | ReadOutputRequest
+  | ReadOutputResponse
+  | KillSessionRequest
+  | KillSessionResponse;
 
 // =========================================================================
 // Type Guards
@@ -90,6 +153,16 @@ export function isHeartbeat(msg: TerminalIpcMessage): msg is Heartbeat {
   return msg.type === 'heartbeat';
 }
 
+/** Returns true if `msg` is a ReadOutputResponse. */
+export function isReadOutputResponse(msg: TerminalIpcMessage): msg is ReadOutputResponse {
+  return msg.type === 'read_output_response';
+}
+
+/** Returns true if `msg` is a KillSessionResponse. */
+export function isKillSessionResponse(msg: TerminalIpcMessage): msg is KillSessionResponse {
+  return msg.type === 'kill_session_response';
+}
+
 // =========================================================================
 // Encode / Decode
 // =========================================================================
@@ -106,6 +179,16 @@ export function encodeMessage(msg: TerminalIpcMessage): string {
  * Parse one line of NDJSON into a TerminalIpcMessage.
  * Returns `null` for blank lines, invalid JSON, or unrecognised `type` fields.
  */
+const KNOWN_TYPES = new Set([
+  'command_request',
+  'command_response',
+  'heartbeat',
+  'read_output_request',
+  'read_output_response',
+  'kill_session_request',
+  'kill_session_response',
+]);
+
 export function decodeMessage(line: string): TerminalIpcMessage | null {
   const trimmed = line.trim();
   if (!trimmed) return null;
@@ -115,7 +198,7 @@ export function decodeMessage(line: string): TerminalIpcMessage | null {
     if (!parsed || typeof parsed !== 'object') return null;
 
     const { type } = parsed;
-    if (type !== 'command_request' && type !== 'command_response' && type !== 'heartbeat') {
+    if (typeof type !== 'string' || !KNOWN_TYPES.has(type)) {
       return null;
     }
 
