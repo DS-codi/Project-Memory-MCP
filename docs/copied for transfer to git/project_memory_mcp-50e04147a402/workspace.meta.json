@@ -1,0 +1,131 @@
+{
+  "schema_version": "1.0.0",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "workspace_path": "c:\\Users\\User\\Project_Memory_MCP",
+  "path": "c:\\Users\\User\\Project_Memory_MCP",
+  "name": "c:\\Users\\User\\Project_Memory_MCP",
+  "created_at": "2026-02-14T22:29:40.725Z",
+  "updated_at": "2026-02-15T19:32:32.431Z",
+  "registered_at": "2026-02-14T22:29:40.725Z",
+  "last_accessed": "2026-02-16T19:37:16.615Z",
+  "last_seen_at": "2026-02-15T19:32:32.431Z",
+  "data_root": "/data",
+  "legacy_workspace_ids": [
+    "project-memory-mcp-40f6678f5a9b"
+  ],
+  "active_plans": [
+    "plan_mlkjmemm_f04cebfc",
+    "plan_mlkl6ack_ee788799",
+    "plan_mlkl8fh0_f61f6e26",
+    "plan_mllgnu1d_56838e50",
+    "plan_mln90wn8_491c69c7",
+    "plan_mlngqmi9_558588a9",
+    "plan_mlo57bml_d489e9bb",
+    "plan_mlo5nidc_7e15bbbc",
+    "plan_mlp8qxtq_ad821ebf",
+    "plan_mlpksy83_d5222084"
+  ],
+  "archived_plans": [
+    "_archived",
+    "plan_ml57j88i_f2b0dbce",
+    "plan_ml6y50bc_2763ec1a",
+    "plan_ml72da5d_09189d1a",
+    "plan_mlgbe4zs_41f944e1",
+    "plan_mlj9sir5_53ba779e",
+    "plan_mlkl6yw3_7e0a1787",
+    "plan_mlkl7hle_541c62b3",
+    "plan_mlkl7zuj_c2adac39",
+    "plan_mlkl8uls_ddc922f6",
+    "plan_mlkl9b6s_1341dcbf",
+    "plan_mlkl9sli_56a1957b",
+    "plan_mlkrcpzw_a77c874b",
+    "plan_mll9pkws_485d6ff0",
+    "plan_mllaot7r_2964d5f0",
+    "plan_mllc6x7s_5254485e",
+    "plan_mlld2y2l_78778d06",
+    "plan_mllgo3rk_e6a1fff0",
+    "plan_mllgocd5_95a81ffe",
+    "plan_mllgolot_3c671e13",
+    "plan_mllgqya4_1bf77769",
+    "plan_mllk399r_69d8f32a",
+    "plan_mlln0dl1_bdde9d9d",
+    "plan_mlmdv2mv_ce3503ef",
+    "plan_mlmifndl_ef8f927b",
+    "plan_mlmlx7k2_c9356d82",
+    "plan_mlmoos7f_e90cb553",
+    "plan_mlmp8lnj_c4415e8f",
+    "plan_mlmqj8ns_338b580a",
+    "plan_mlmszipb_1bde6342",
+    "plan_mlmt4jzq_21ac98e7",
+    "plan_mlmuo39q_155aeb95",
+    "plan_mlmx6bns_4f8352c2",
+    "plan_mln9xpn3_e30e1e01",
+    "plan_mlmuoa9v_e40d8edf",
+    "plan_mln9fiho_efefd3af",
+    "plan_mlndr1kz_6785bd7b",
+    "plan_mlmuoaa0_6fd79273",
+    "plan_mlmuoaad_7320fefc",
+    "plan_mlnfxh4x_bbb4035f",
+    "plan_mlmuoaaa_7d72246e",
+    "plan_mlmuny9s_04a511eb",
+    "plan_mlmwg7cr_19243d0a",
+    "plan_mlov60n5_21207af6"
+  ],
+  "active_programs": [
+    "plan_mlkjmemm_f04cebfc",
+    "plan_mllgnu1d_56838e50",
+    "plan_mlmuny9s_04a511eb"
+  ],
+  "indexed": true,
+  "child_workspace_ids": [
+    "project-memory-mcp-40f6678f5a9b"
+  ],
+  "hierarchy_linked_at": "2026-02-14T22:30:07.815Z",
+  "profile": {
+    "indexed_at": "2026-02-16T09:43:58.803Z",
+    "languages": [],
+    "frameworks": [],
+    "key_directories": [],
+    "conventions": {},
+    "total_files": 0,
+    "total_lines": 0
+  },
+  "workspace_build_scripts": [
+    {
+      "name": "VSCode Extension Compile",
+      "description": "Compile vscode-extension TypeScript bundle",
+      "command": "npm run compile",
+      "directory": "./Project-Memory-MCP/vscode-extension",
+      "id": "script_mlmz7a3n_70be8b76",
+      "workspace_id": "project_memory_mcp-50e04147a402",
+      "created_at": "2026-02-14T23:57:01.283Z"
+    },
+    {
+      "name": "VSCode Extension Replay Tests",
+      "description": "Run replay harness core test suite",
+      "command": "npm test -- --grep \"Replay\"",
+      "directory": "./Project-Memory-MCP/vscode-extension",
+      "id": "script_mlmz7a4e_b8a190e2",
+      "workspace_id": "project_memory_mcp-50e04147a402",
+      "created_at": "2026-02-14T23:57:01.310Z"
+    },
+    {
+      "name": "Interactive Terminal Build (Pinned Qt)",
+      "description": "Build interactive-terminal with pinned Qt/qmake configuration",
+      "command": "powershell -ExecutionPolicy Bypass -File .\\build-interactive-terminal.ps1",
+      "directory": "./Project-Memory-MCP/interactive-terminal",
+      "id": "script_mlneiycf_c0714fe4",
+      "workspace_id": "project_memory_mcp-50e04147a402",
+      "created_at": "2026-02-15T07:06:00.159Z"
+    },
+    {
+      "name": "Dashboard Targeted Display Name Test",
+      "description": "Run targeted dashboard test for workspace display-name edit flow",
+      "command": "npx vitest run src/__tests__/pages/workspace-page-display-name.test.tsx",
+      "directory": "./Project-Memory-MCP/dashboard",
+      "id": "script_mlnm7e09_13f68b01",
+      "workspace_id": "project_memory_mcp-50e04147a402",
+      "created_at": "2026-02-15T10:40:57.513Z"
+    }
+  ]
+}

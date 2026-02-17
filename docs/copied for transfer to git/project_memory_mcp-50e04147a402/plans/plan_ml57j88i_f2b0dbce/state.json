@@ -1,0 +1,113 @@
+{
+  "id": "plan_ml57j88i_f2b0dbce",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Hello World Application",
+  "description": "Create a simple hello world TypeScript application to test the agent workflow",
+  "priority": "low",
+  "category": "feature",
+  "status": "archived",
+  "current_phase": "complete",
+  "current_agent": null,
+  "created_at": "2026-02-02T13:30:24.499Z",
+  "updated_at": "2026-02-14T22:31:10.912Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_ml57jdje_d396b236",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-02T13:30:31.370Z",
+      "context": {},
+      "completed_at": "2026-02-02T13:31:02.369Z",
+      "summary": "Created Hello World plan with 4 steps. Recommended Executor to implement.",
+      "artifacts": []
+    },
+    {
+      "session_id": "sess_ml57k6m4_ab464f56",
+      "agent_type": "Executor",
+      "started_at": "2026-02-02T13:31:09.052Z",
+      "context": {}
+    },
+    {
+      "session_id": "sess_ml57kx24_cd16950f",
+      "agent_type": "Executor",
+      "started_at": "2026-02-02T13:31:43.324Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Implementing Hello World TypeScript application",
+        "current_step_index": 0,
+        "steps_to_complete": [
+          "Create hello-world directory",
+          "Create index.ts with console.log",
+          "Create tsconfig.json",
+          "Compile and run the application"
+        ],
+        "environment": {
+          "working_directory": "c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\hello-world",
+          "build_command": "tsc"
+        }
+      },
+      "completed_at": "2026-02-02T13:33:19.329Z",
+      "summary": "Successfully implemented Hello World TypeScript application. Created directory structure, index.ts with console.log, tsconfig.json with ES2020 config, installed TypeScript, compiled to dist/index.js, and verified output: 'Hello World'. All 4 steps completed. Recommended handoff to Reviewer for code review.",
+      "artifacts": [
+        "hello-world/index.ts",
+        "hello-world/tsconfig.json",
+        "hello-world/package.json",
+        "hello-world/dist/index.js"
+      ]
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-02T13:30:55.204Z",
+      "from_agent": "Coordinator",
+      "to_agent": "Executor",
+      "reason": "Plan created with 4 steps. Handing off to Executor to implement the Hello World application."
+    },
+    {
+      "timestamp": "2026-02-02T13:33:08.460Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "All 4 steps complete. Hello World application implemented, compiled, and executed successfully. Ready for code review."
+    },
+    {
+      "timestamp": "2026-02-02T13:33:12.939Z",
+      "from_agent": "Executor",
+      "to_agent": "Reviewer",
+      "reason": "All 4 steps complete. Hello World TypeScript application implemented, compiled, and executed successfully. Ready for code review."
+    }
+  ],
+  "steps": [
+    {
+      "phase": "setup",
+      "task": "Create hello-world directory",
+      "status": "done",
+      "index": 0,
+      "notes": "Directory created successfully",
+      "completed_at": "2026-02-02T13:32:11.310Z"
+    },
+    {
+      "phase": "implementation",
+      "task": "Create index.ts with console.log Hello World",
+      "status": "done",
+      "index": 1,
+      "notes": "index.ts created with Hello World console.log",
+      "completed_at": "2026-02-02T13:32:11.310Z"
+    },
+    {
+      "phase": "implementation",
+      "task": "Create tsconfig.json",
+      "status": "done",
+      "index": 2,
+      "notes": "tsconfig.json created with ES2020 target, commonjs module",
+      "completed_at": "2026-02-02T13:32:11.310Z"
+    },
+    {
+      "phase": "testing",
+      "task": "Compile and run the application",
+      "status": "done",
+      "index": 3,
+      "notes": "Compiled successfully with tsc, ran with node - output: Hello World",
+      "completed_at": "2026-02-02T13:32:59.878Z"
+    }
+  ],
+  "recommended_next_agent": "Reviewer"
+}

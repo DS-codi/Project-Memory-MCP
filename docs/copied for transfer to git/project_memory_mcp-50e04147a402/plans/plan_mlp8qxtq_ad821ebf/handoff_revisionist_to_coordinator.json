@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-02-16T20:28:58.393Z",
+  "from_agent": "Revisionist",
+  "to_agent": "Coordinator",
+  "reason": "Step 27 blocker analyzed and plan pivoted for minimal container-host TCP adapter resilience fix",
+  "data": {
+    "recommendation": "Executor",
+    "steps_completed": 2,
+    "files_modified": [
+      "plan steps (insert/update)",
+      "pivot context: pivot.json"
+    ],
+    "blockers": [
+      "LIVE PROOF currently pending until new fix step is implemented and validated"
+    ],
+    "next_steps": [
+      "Implement fallback host candidate resolution/attempt logic in server/src/tools/terminal-tcp-adapter.ts",
+      "If strictly needed, adjust server/src/tools/consolidated/memory_terminal.ts to surface richer diagnostics",
+      "Add tests under server/src/__tests__/tools/** for fallback success and all-candidates-failed diagnostics",
+      "Run server build/tests and then rerun Step 27 live proof"
+    ]
+  }
+}

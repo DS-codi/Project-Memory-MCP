@@ -1,0 +1,39 @@
+{
+  "type": "original_request",
+  "plan_id": "plan_mlkl7hle_541c62b3",
+  "workspace_id": "project-memory-mcp-40f6678f5a9b",
+  "captured_at": "2026-02-13T18:03:42.033Z",
+  "user_request": {
+    "sanitized": "Rewrite project-memory-system.instructions.md (1787 lines) into modular, agent-specific skill files. Create proper skill files following existing skills/ pattern (with SKILL.md). Make skills callable/accessible via MCP tools. Instructions that remain should be deployable hard-rules only. Depends on Plan 2 (Agent Consolidation) which is now complete. Some work from Plan 2 overlaps but the core skill creation and instruction reduction work is still all pending.",
+    "wasModified": false,
+    "injectionAttempts": [],
+    "warnings": []
+  },
+  "context": {
+    "files_mentioned": [
+      "instructions/project-memory-system.instructions.md",
+      "instructions/handoff-protocol.instructions.md",
+      "instructions/mcp-usage.instructions.md",
+      "instructions/build-scripts.instructions.md",
+      "server/src/tools/skills.tools.ts"
+    ],
+    "file_contents": {},
+    "requirements": [
+      "Extract knowledge/guidance from instruction files into SKILL.md files",
+      "Create 6 new skills: project-memory-overview, agent-handoff, mcp-tools-usage, build-scripts, plan-context, workspace-management",
+      "Reduce project-memory-system.instructions.md to mandatory rules only (<400 lines)",
+      "Reduce other instruction files similarly",
+      "Update skills.tools.ts to discover and serve new PM-specific skills",
+      "Update agent files to reference new skills"
+    ],
+    "constraints": [
+      "Follow existing skills/ directory pattern with SKILL.md files",
+      "Skills must be discoverable via MCP skills.tools.ts",
+      "Instruction files should only contain mandatory rules after extraction",
+      "Agent files must retain full functionality"
+    ],
+    "examples": [],
+    "conversation_context": null,
+    "additional_notes": null
+  }
+}

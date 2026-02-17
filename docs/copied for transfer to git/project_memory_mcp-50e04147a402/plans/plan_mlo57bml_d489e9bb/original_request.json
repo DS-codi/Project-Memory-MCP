@@ -1,0 +1,30 @@
+{
+  "type": "original_request",
+  "plan_id": "plan_mlo57bml_d489e9bb",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "captured_at": "2026-02-15T19:32:53.284Z",
+  "user_request": {
+    "sanitized": "Create a plan to update and fix the interactive terminal and the MCP integration: host-only GUI terminal, visible window for non-headless sends, approval except allowlist, identical behavior in local/container modes, and ability to send commands to existing instance.",
+    "wasModified": false,
+    "injectionAttempts": [],
+    "warnings": []
+  },
+  "context": {
+    "files_mentioned": [],
+    "file_contents": {},
+    "requirements": [
+      "Interactive terminal GUI always runs on host (never in container)",
+      "Non-headless command sends always open/show visible window",
+      "Approval required unless command on allowlist",
+      "Behavior identical in local and container modes",
+      "MCP tools can send commands to existing instance"
+    ],
+    "constraints": [
+      "Use dedicated headless tool for headless execution paths",
+      "No behavior divergence by runtime mode"
+    ],
+    "examples": [],
+    "conversation_context": null,
+    "additional_notes": null
+  }
+}

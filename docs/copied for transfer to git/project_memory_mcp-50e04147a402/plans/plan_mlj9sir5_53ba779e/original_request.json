@@ -1,0 +1,57 @@
+{
+  "type": "original_request",
+  "plan_id": "plan_mlj9sir5_53ba779e",
+  "workspace_id": "project-memory-mcp-40f6678f5a9b",
+  "captured_at": "2026-02-12T09:42:54.980Z",
+  "user_request": {
+    "sanitized": "Create a plan to make the following updates to this system (the MCP/Dashboard/Extension):\n\n1. BUILDER AGENT ROLE CHANGE: The builder agent should no longer be responsible for running builds. Its new purpose will be to create build scripts and ensure that a project/app/module is ready to build. It should also only be deployed at the end of a plan's lifecycle to check over everything and ensure that everything compiles correctly. The builder should include in the handoff to the Coordinator instructions that should then be provided to the user and any optimisation suggestions.\n\n2. INTEGRATED PROGRAMS: Add larger project-wide plans or \"Integrated Programs\" that can contain multiple plans within them. It should be possible for plans to be upgraded to this. The architect agent should decide on whether a plan should be an Integrated Program or not during plan creation and the hub agents should ask the user whether to create an Integrated Program when they are asked to do something way out of scope of the current plan. Plans that contain 100+ steps automatically qualify.\n\n3. SKILLS DEPLOYMENT SYSTEM: Adding skills (PySide6/QML architecture, bridge, models-services, views skills attached) to the deployable docs (similar to the other deployable docs like agents and instructions) would be good for long term development. When dealing with large codebases or projects, I want an agent with specific instructions to be deployable and have it write skills based on codebase/language/module or anything that would be beneficial to create skills for. All agents need to be improved to recognise these skills.\n\n4. CONTEXT OPTIMIZATION: Agents can still get overloaded with context at times. Improve this without degrading accuracy.\n\n5. SUBAGENT ARCHITECTURE: Coordinator and other hub agents seem to spawn subagents undefined by our current architecture recently. This is fine but I would like the subagents it uses to break up larger tasks or thinking to also be defined by our larger system so that we can grant them access to Project Memory (they often use the physical chat files for context) to ensure cohesion with the system.",
+    "wasModified": false,
+    "injectionAttempts": [],
+    "warnings": []
+  },
+  "context": {
+    "files_mentioned": [
+      "agents/builder.agent.md",
+      "agents/coordinator.agent.md",
+      "agents/architect.agent.md",
+      "agents/analyst.agent.md",
+      "agents/runner.agent.md",
+      ".github/skills/pyside6-qml-architecture/SKILL.md",
+      ".github/skills/pyside6-qml-bridge/SKILL.md",
+      ".github/skills/pyside6-qml-models-services/SKILL.md",
+      ".github/skills/pyside6-qml-views/SKILL.md"
+    ],
+    "file_contents": {},
+    "requirements": [
+      "Redefine Builder agent role: build script creation + end-of-plan compilation verification only",
+      "Builder handoff must include user-facing instructions and optimisation suggestions",
+      "Implement Integrated Programs as multi-plan containers",
+      "Plans can be upgraded to Integrated Programs",
+      "Architect decides Integrated Program status during plan creation",
+      "Hub agents ask user about Integrated Program when scope expands beyond current plan",
+      "100+ step plans auto-qualify as Integrated Programs",
+      "Add skills to deployable docs system alongside agents and instructions",
+      "Create a deployable agent that writes skills for codebases/languages/modules",
+      "All agents improved to recognise and use skills",
+      "Reduce context overload for agents without accuracy degradation",
+      "Define formal subagent types within system architecture",
+      "Grant spawned subagents access to Project Memory for cohesion"
+    ],
+    "constraints": [
+      "Must work with existing MCP server, dashboard, and VS Code extension architecture",
+      "No degradation of accuracy when optimising context",
+      "Backward compatibility with existing plans",
+      "Skills format should follow the pattern shown in the attached .github/skills folder"
+    ],
+    "examples": [
+      "Skills format from .github/skills/ folder - each skill has a SKILL.md with description attribute for matching and detailed instructions"
+    ],
+    "conversation_context": {
+      "sanitized": "User has attached .github/skills folder showing the PySide6/QML skills as reference for what skills look like. These are outside the MCP workspace but serve as the template. User wants this same pattern deployable via the MCP system.",
+      "wasModified": false,
+      "injectionAttempts": [],
+      "warnings": []
+    },
+    "additional_notes": null
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "type": "original_request",
+  "plan_id": "plan_mll9pkws_485d6ff0",
+  "workspace_id": "project-memory-mcp-40f6678f5a9b",
+  "captured_at": "2026-02-13T19:16:23.403Z",
+  "user_request": {
+    "sanitized": "Extend the SkillWriter agent to also be responsible for refactoring existing instruction files in other workspaces into skills and/or rules. Some workspaces will have rules or instructions that shouldn't be refactored, some will also have instructions that should be skills. Set the SkillWriter up to properly rewrite other workspaces' docs when requested by the user.",
+    "wasModified": false,
+    "injectionAttempts": [],
+    "warnings": []
+  },
+  "context": {
+    "files_mentioned": [],
+    "file_contents": {},
+    "requirements": [
+      "SkillWriter must be able to analyze instruction files in any workspace (not just PM's own workspace)",
+      "Must classify each file as: keep as instruction/rule, convert to skill, or consolidate/delete",
+      "Must follow the established skills-vs-instructions convention (knowledge file: convention-skills-vs-instructions)",
+      "Must have user confirmation gates before making any changes",
+      "Some workspaces will have rules that should NOT be refactored — SkillWriter must recognize and preserve these",
+      "Some workspaces will have instructions that SHOULD become skills — SkillWriter must identify and convert these",
+      "SkillWriter currently only creates new skills from codebase analysis — needs new 'refactor' workflow mode"
+    ],
+    "constraints": [],
+    "examples": [],
+    "conversation_context": {
+      "sanitized": "User completed Plan 3 (Instructions Reorganization) which established the skills-vs-instructions convention. Now wants to extend the SkillWriter agent so it can be deployed to ANY workspace to audit and refactor that workspace's instruction/rule files into proper skills vs instructions.",
+      "wasModified": false,
+      "injectionAttempts": [],
+      "warnings": []
+    },
+    "additional_notes": null
+  }
+}

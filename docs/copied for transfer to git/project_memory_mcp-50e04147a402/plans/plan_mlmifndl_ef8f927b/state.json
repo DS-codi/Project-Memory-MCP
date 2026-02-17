@@ -1,0 +1,315 @@
+{
+  "id": "plan_mlmifndl_ef8f927b",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Repurpose Spawn Tool to Context-Prep Only",
+  "description": "Remove custom subagent spawn tool behavior that attempts to spawn/validate agents and repurpose it to only store/prepare context before agent launches. Keep actual spawning on the platform-native path (runSubagent / existing orchestration flow) to eliminate current failures and restore known-stable behavior.",
+  "priority": "high",
+  "category": "change",
+  "goals": [
+    "Disable/remediate custom spawn logic that currently causes orchestration failures",
+    "Repurpose spawn tool interface to context preparation/storage only",
+    "Preserve or improve context quality passed to spawned agents",
+    "Maintain backward compatibility for command callers where practical",
+    "Document migration path and update related instructions/tests"
+  ],
+  "success_criteria": [
+    "No component attempts to perform custom subagent spawning via the removed behavior",
+    "Context-prep action successfully stores/returns context payload used before spawn",
+    "Agent launches continue through existing stable spawn pathway without regression",
+    "Related tests pass and stale spawn-tool failure paths are removed",
+    "User-facing docs and internal instructions reflect the new behavior"
+  ],
+  "status": "archived",
+  "current_phase": "complete",
+  "current_agent": null,
+  "confirmation_state": {
+    "phases": {
+      "Phase 0: Discovery": {
+        "confirmed": true,
+        "confirmed_by": "Analyst",
+        "confirmed_at": "2026-02-14T16:13:32.894Z"
+      },
+      "Phase 1: Contract Redesign": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T16:16:03.760Z"
+      },
+      "Phase 2: Implementation": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T16:42:21.106Z"
+      },
+      "Phase 3: Verification": {
+        "confirmed": true,
+        "confirmed_by": "Reviewer",
+        "confirmed_at": "2026-02-14T17:13:06.561Z"
+      },
+      "Phase 4: Documentation": {
+        "confirmed": true,
+        "confirmed_by": "Reviewer",
+        "confirmed_at": "2026-02-14T17:16:17.833Z"
+      }
+    },
+    "steps": {
+      "2": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T16:15:23.287Z"
+      },
+      "6": {
+        "confirmed": true,
+        "confirmed_by": "Coordinator",
+        "confirmed_at": "2026-02-14T17:11:42.929Z"
+      }
+    }
+  },
+  "created_at": "2026-02-14T16:07:38.269Z",
+  "updated_at": "2026-02-14T22:31:11.766Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mlmihmss_1d2c0705",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T16:09:10.828Z",
+      "context": {
+        "run_id": "run_sess_mlmihmss_1d2c0705"
+      },
+      "completed_at": "2026-02-14T16:42:00.054Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T16:42:00.054Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmii8sl_f52ee288",
+      "agent_type": "Analyst",
+      "started_at": "2026-02-14T16:09:39.359Z",
+      "context": {
+        "run_id": "run_sess_mlmii8sl_f52ee288"
+      },
+      "completed_at": "2026-02-14T16:13:55.257Z",
+      "summary": "Completed Phase 0 Discovery audit for spawn-tool redesign. Enumerated runtime and instruction-level call sites, documented concrete failure modes (including plan_mllc6x7s_5254485e issues), and produced an actionable minimal migration map for Architect.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmifndl_ef8f927b/research_notes/phase0-spawn-tool-discovery.md",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmifndl_ef8f927b/research_summary.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmiolpu_7965f846",
+      "agent_type": "Architect",
+      "started_at": "2026-02-14T16:14:36.032Z",
+      "context": {
+        "run_id": "run_sess_mlmiolpu_7965f846"
+      },
+      "completed_at": "2026-02-14T16:16:49.515Z",
+      "summary": "Completed Phase 1 Contract Redesign for plan_mlmifndl_ef8f927b. Finalized Step 1 (prep-only spawn-tool contract: input schema, persisted context format, return payload, explicit non-execution responsibility) and Step 2 (backward-compatibility strategy: shim/warnings/fallback with staged migration to native runSubagent flow). Confirmed required step/phase gates, updated step statuses to done, and handed off to Coordinator with recommendation Executor plus exact file list and ordered implementation checklist.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmifndl_ef8f927b/research_notes/phase1-contract-redesign.md",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmifndl_ef8f927b/research_notes/phase0-spawn-tool-discovery.md",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmifndl_ef8f927b/research_summary.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmism6o_5dda67b8",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T16:17:43.269Z",
+      "context": {
+        "run_id": "run_sess_mlmism6o_5dda67b8"
+      },
+      "completed_at": "2026-02-14T16:42:00.054Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T16:42:00.054Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmjnuab_a698f154",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T16:42:00.083Z",
+      "context": {
+        "run_id": "run_sess_mlmjnuab_a698f154"
+      },
+      "completed_at": "2026-02-14T17:10:30.110Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T17:10:30.110Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmjozh3_e386e951",
+      "agent_type": "Tester",
+      "started_at": "2026-02-14T16:42:53.485Z",
+      "context": {
+        "run_id": "run_sess_mlmjozh3_e386e951"
+      },
+      "completed_at": "2026-02-14T17:10:30.110Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T17:10:30.110Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmkohsl_41a63a35",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T17:10:30.165Z",
+      "context": {
+        "deployed_by": "User",
+        "reason": "Finish both plan_mlmifndl_ef8f927b and plan_mlmdv2mv_ce3503ef - complete remaining review/test/doc steps and archive",
+        "run_id": "run_sess_mlmkohsl_41a63a35"
+      }
+    },
+    {
+      "session_id": "sess_mlmkpmen_5f6835ae",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T17:11:22.820Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Final steps: regression check and documentation update for spawn tool refactor",
+        "mode": "review",
+        "current_step_index": 6,
+        "steps_to_complete": [
+          "Regression check - verify spawn tool is context-prep-only and extension compiles",
+          "Documentation update - update instructions to reflect prep-only spawn tool"
+        ],
+        "run_id": "run_sess_mlmkpmen_5f6835ae"
+      },
+      "completed_at": "2026-02-14T17:17:00.037Z",
+      "summary": "Completed steps 6-7 of plan 'Repurpose Spawn Tool to Context-Prep Only'. Step 6 (Regression Check): PASSED — spawn-agent-tool.ts is fully context-prep-only with no execution paths, no lane registry coupling, execution.spawn_executed always false. Extension compiles cleanly. Step 7 (Documentation): Updated 4 instruction files — added memory_spawn_agent to mcp-usage tool table with full Spawn Context Preparation section and migration note; added Spawn Preparation (Required) section to coordinator-subagent-templates with 2-step prep+launch workflow. Both instructions/ and .github/instructions/ copies kept in sync. All 8 plan steps are now done. Recommended Archivist for plan archival.",
+      "artifacts": [
+        "instructions/mcp-usage.instructions.md",
+        ".github/instructions/mcp-usage.instructions.md",
+        "instructions/coordinator-subagent-templates.instructions.md",
+        ".github/instructions/coordinator-subagent-templates.instructions.md"
+      ]
+    },
+    {
+      "session_id": "sess_mlmkxkmn_c91e006d",
+      "agent_type": "Archivist",
+      "started_at": "2026-02-14T17:17:33.766Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "All steps done — commit and archive",
+        "run_id": "run_sess_mlmkxkmn_c91e006d"
+      },
+      "completed_at": "2026-02-14T17:21:52.963Z",
+      "summary": "Archived plan_mlmifndl_ef8f927b (Repurpose Spawn Tool to Context-Prep Only). Committed 22 files to main (b5f25e5) and pushed to origin. Commit covers: spawn-agent-tool.ts refactor to prep-only, deprecation guard on agent-tool.ts, ToolProvider comment updates, git/* removal from 17 agent .md files, and documentation updates to 3 instruction files. Plan archived and knowledge file created.",
+      "artifacts": [
+        "vscode-extension/src/chat/tools/spawn-agent-tool.ts",
+        "vscode-extension/src/chat/ToolProvider.ts",
+        "vscode-extension/src/chat/tools/agent-tool.ts",
+        "agents/*.agent.md",
+        "archive/old_agents/*.agent.md",
+        "instructions/mcp-usage.instructions.md",
+        "instructions/coordinator-subagent-templates.instructions.md",
+        "instructions/handoff-protocol.instructions.md"
+      ]
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-14T16:13:47.896Z",
+      "from_agent": "Analyst",
+      "to_agent": "Coordinator",
+      "reason": "Phase 0 discovery complete. Recommend Architect for contract redesign. Key files: vscode-extension/src/chat/tools/spawn-agent-tool.ts; vscode-extension/src/chat/orchestration/active-run-registry.ts; vscode-extension/src/chat/orchestration/spawn-reason-codes.ts; vscode-extension/src/chat/tools/agent-tool.ts; vscode-extension/package.json; agents/coordinator.agent.md; instructions/handoff-protocol.instructions.md. Next steps: (1) define prep-only contract and compatibility shape, (2) remove unsupported memory_agent(action: spawn) guidance, (3) resolve lane lifecycle strategy (remove lane or wire deterministic release), (4) formalize migration to runSubagent execution path."
+    },
+    {
+      "timestamp": "2026-02-14T16:16:40.022Z",
+      "from_agent": "Architect",
+      "to_agent": "Coordinator",
+      "reason": "Phase 1 Contract Redesign complete. Recommendation=Executor. Exact implementation files: (1) vscode-extension/src/chat/tools/spawn-agent-tool.ts, (2) vscode-extension/package.json, (3) vscode-extension/src/chat/ToolProvider.ts, (4) vscode-extension/src/chat/tools/agent-tool.ts, (5) vscode-extension/src/chat/orchestration/active-run-registry.ts, (6) vscode-extension/src/chat/orchestration/spawn-reason-codes.ts, (7) agents/coordinator.agent.md, (8) agents/analyst.agent.md, (9) agents/runner.agent.md, (10) instructions/handoff-protocol.instructions.md. Ordered checklist for Executor: 1) Update memory_spawn_agent schema/descriptions to context-prep-only; 2) Implement canonical payload with mode=context-prep-only and execution.spawn_executed=false invariant; 3) Add legacy alias shim spawn_config -> prep_config; 4) Add warnings/deprecation envelope and compat_mode strict/legacy handling; 5) Remove prep-path lane-lock coupling and execution-centric reason-code dependence; 6) Patch hub caller docs/templates to explicit prep then native runSubagent flow; 7) Add/adjust tests for prep-only invariant, shim, warnings, and no-execution behavior; 8) Add migration/deprecation notes and telemetry assertions for legacy alias removal readiness."
+    },
+    {
+      "timestamp": "2026-02-14T17:16:50.690Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Steps 6-7 complete. Regression check passed (spawn tool is fully context-prep-only, extension compiles). Documentation updated in 4 instruction files. All 8 plan steps are done. Recommend Archivist for plan archival."
+    },
+    {
+      "timestamp": "2026-02-14T17:45:37.800Z",
+      "from_agent": "Coordinator",
+      "to_agent": "Coordinator",
+      "reason": "Both plans completed and archived. No further work needed.\""
+    }
+  ],
+  "steps": [
+    {
+      "phase": "Phase 0: Discovery",
+      "task": "Audit current custom spawn tool implementation and enumerate all call sites that depend on spawn behavior, including failure modes observed in plan_mllc6x7s_5254485e",
+      "type": "analysis",
+      "status": "done",
+      "assignee": "Researcher",
+      "index": 0,
+      "notes": "Phase 0 discovery complete. Audited custom spawn tool runtime path and instruction-level callers; documented behavior, call-site inventory, failure modes, redesign constraints, and migration sequence in research_notes/phase0-spawn-tool-discovery.md and research_summary.json.",
+      "completed_at": "2026-02-14T16:13:39.168Z"
+    },
+    {
+      "phase": "Phase 1: Contract Redesign",
+      "task": "Define new spawn-tool contract as context-prep only (input schema, persisted context format, return payload) and explicitly remove spawning responsibility",
+      "type": "planning",
+      "status": "done",
+      "assignee": "Architect",
+      "index": 1,
+      "notes": "Defined context-prep-only spawn-tool contract (schema, persisted format, return payload) and removed spawn responsibility.",
+      "completed_at": "2026-02-14T16:15:13.029Z"
+    },
+    {
+      "phase": "Phase 1: Contract Redesign",
+      "task": "Define compatibility strategy for existing callers (shim/warnings/fallback) so callers migrate to platform-native spawn flow without breakage",
+      "type": "planning",
+      "status": "done",
+      "assignee": "Architect",
+      "index": 2,
+      "notes": "Completed compatibility strategy design and migration checklist; phase confirmation satisfied.",
+      "completed_at": "2026-02-14T16:16:09.407Z"
+    },
+    {
+      "phase": "Phase 2: Implementation",
+      "task": "Refactor spawn tool handler to store/prepare context only; remove/disable custom spawn execution paths and agent-validation side effects",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 3,
+      "notes": "Refactored memory_spawn_agent to context-prep-only behavior: removed lane-lock/execution coupling and target-agent validation side effects; added canonical prep_config payload with mode=context-prep-only and execution.spawn_executed=false invariant; implemented compat_mode strict/legacy behavior, legacy alias shim (spawn_config -> prep_config), warning/deprecation envelope, and deprecated-input handling.",
+      "completed_at": "2026-02-14T16:28:33.819Z"
+    },
+    {
+      "phase": "Phase 2: Implementation",
+      "task": "Update all call sites to use context-prep step followed by existing stable agent launch path; keep prompts/instructions/context handoff quality at least equivalent",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 4,
+      "notes": "Phase 2 confirmed by user; implementation had already compiled and extension tests passed, so step is now completed.",
+      "completed_at": "2026-02-14T16:42:32.809Z"
+    },
+    {
+      "phase": "Phase 3: Verification",
+      "task": "Add or update tests covering context-prep behavior, backward-compatibility handling, and ensuring no custom spawn execution is attempted",
+      "type": "test",
+      "status": "done",
+      "assignee": "Tester",
+      "index": 5,
+      "notes": "Updated spawn-agent-tool tests for prep-only invariant, spawn_config->prep_config alias shim, strict/legacy warning envelope, and no-execution behavior. Ran npm test in vscode-extension: 52 passing, 0 failing.",
+      "completed_at": "2026-02-14T16:48:11.524Z"
+    },
+    {
+      "phase": "Phase 3: Verification",
+      "task": "Run regression checks for plan orchestration flows that previously used custom spawn and confirm no reintroduction of cancellation/spawn conflicts",
+      "type": "validation",
+      "status": "done",
+      "assignee": "Reviewer",
+      "index": 6,
+      "notes": "Regression check PASSED. Findings: (1) spawn-agent-tool.ts is fully context-prep-only — no imports of lane registry, no spawn execution paths, execution.spawn_executed is always false. (2) Extension compiles cleanly (npm run compile). (3) No remaining references to spawn_executed=true except in test file (as expected — tests verify legacy inputs are REJECTED in strict mode and IGNORED in legacy mode). (4) spawn-reason-codes.ts includes SPAWN_PREP_ONLY and related prep codes. (5) ToolProvider registers tool as 'context preparation only'. (6) package.json schema correctly describes prep-only behavior. No regressions detected.",
+      "completed_at": "2026-02-14T17:13:11.966Z"
+    },
+    {
+      "phase": "Phase 4: Documentation",
+      "task": "Update relevant docs/instructions to reflect new context-prep-only spawn tool behavior and migration guidance for future work",
+      "type": "documentation",
+      "status": "done",
+      "assignee": "Reviewer",
+      "index": 7,
+      "notes": "Documentation updates complete. Changes: (1) mcp-usage.instructions.md — added memory_spawn_agent to tool table + added full 'Spawn Context Preparation' section with usage examples, key rules, and migration note. (2) coordinator-subagent-templates.instructions.md — added 'Spawn Preparation (Required)' section with 2-step prep+launch workflow before existing templates. Both instructions/ and .github/instructions/ copies updated identically. Files already correct: handoff-protocol.instructions.md (already had full spawn prep section), coordinator.agent.md (already had Strict Spawn Delegation Protocol).",
+      "completed_at": "2026-02-14T17:16:29.130Z"
+    }
+  ],
+  "depends_on_plans": [
+    "plan_mlmdv2mv_ce3503ef"
+  ],
+  "pending_notes": [
+    {
+      "note": "User escalation: issue has consumed hours. Coordinator entered hard-stop mode for subagent spawning. Remaining reviewer/documentation steps are blocked pending fix of changed-files read freeze.",
+      "type": "warning",
+      "added_at": "2026-02-14T16:56:20.845Z",
+      "added_by": "user"
+    }
+  ],
+  "recommended_next_agent": "Coordinator"
+}

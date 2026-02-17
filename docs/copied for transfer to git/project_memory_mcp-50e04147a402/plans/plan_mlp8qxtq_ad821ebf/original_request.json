@@ -1,0 +1,57 @@
+{
+  "type": "original_request",
+  "plan_id": "plan_mlp8qxtq_ad821ebf",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "captured_at": "2026-02-16T14:00:12.642Z",
+  "user_request": {
+    "sanitized": "Redesign MCP terminal tool + GUI approval flow. When terminal tool is called: check if GUI running, launch minimized if not, route command via TCP/JSON IPC, surface approval dialog for non-allowlisted commands, save output as structured JSON to .projectmemory/terminal-output/ with last-10 retention. Handle timeouts (~50s) by returning partial output. Support container mode via host.containers.internal. Full clean slate — remove all old plan artifacts first. No backward compatibility.",
+    "wasModified": false,
+    "injectionAttempts": [],
+    "warnings": []
+  },
+  "context": {
+    "files_mentioned": [
+      "server/src/tools/consolidated/memory_terminal_interactive.ts",
+      "server/src/tools/consolidated/memory_terminal.ts",
+      "server/src/tools/interactive-terminal.tools.ts",
+      "server/src/tools/interactive-terminal-orchestration.ts",
+      "server/src/tools/interactive-terminal-protocol.ts",
+      "server/src/tools/interactive-terminal-contract.ts",
+      "server/src/tools/terminal-auth.ts",
+      "server/src/tools/terminal-approval-context.ts",
+      "interactive-terminal/qml/main.qml",
+      "interactive-terminal/src/headless_policy.rs",
+      "interactive-terminal/src/headless_policy_repository.rs",
+      "interactive-terminal/src/cxxqt_bridge/headless_policy_state.rs",
+      "vscode-extension/src/chat/tools/terminal-tool.ts"
+    ],
+    "file_contents": {},
+    "requirements": [
+      "GUI app launches minimized (system tray or taskbar, user-configurable) when MCP invokes it",
+      "Only approval dialog surfaces when launched via MCP — no main window unless user opens it",
+      "TCP health-check to detect if GUI is already running",
+      "TCP + JSON framing protocol for server-to-GUI IPC (existing pattern)",
+      "Container server reaches host GUI via host.containers.internal gateway IP",
+      "Non-allowlisted commands trigger approval dialog; user Approve/Deny resolves tool call",
+      "~50s timeout; if reached, return partial output + command state",
+      "Structured JSON output files in .projectmemory/terminal-output/ (command, exit code, timestamps, stdout, stderr, state)",
+      "Rolling last-10 retention policy per workspace",
+      "Research needed: MCP SDK tool timeout behavior, whether status updates possible during a single tool call",
+      "Full clean slate: remove ALL old approval artifacts, headless policy, extension-side approval UX, legacy memory_terminal compat shim"
+    ],
+    "constraints": [
+      "No backward compatibility with old memory_terminal or extension approval UX",
+      "GUI terminal app always runs on host machine, even when MCP server is containerized",
+      "MCP tools/actions no longer control GUI application state (show/hide/resize)",
+      "Single tool call = single response (research needed to confirm this MCP constraint)"
+    ],
+    "examples": [],
+    "conversation_context": null,
+    "additional_notes": {
+      "sanitized": "Key learnings from archived plan (plan_mlov60n5_21207af6): (1) VS Code LanguageModelToolResult cannot render trusted command links — extension-side approval is a dead end. (2) Unified contract types were partially validated. (3) Headless policy CRUD was implemented but user wants full clean slate. (4) TCP JSON IPC protocol works but needs formal approval correlation.  User explicitly stated: 'We do not need to support backwards compatibility seeing as the last system couldnt have ever worked and doing so would be a huge fucking waste of time.'",
+      "wasModified": false,
+      "injectionAttempts": [],
+      "warnings": []
+    }
+  }
+}

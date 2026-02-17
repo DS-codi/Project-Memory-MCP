@@ -44,6 +44,15 @@ services:
       - DASHBOARD_PORT=3001
       - WS_PORT=3002
       - NODE_ENV=production
+    extra_hosts:
+      # NOTE: host-gateway resolves to the Podman bridge gateway (10.88.0.1)
+      # on WSL2, NOT the Windows host. For reliable container-to-host
+      # connectivity, use run-container.ps1 which auto-detects the physical
+      # NIC IP. If using podman-compose directly, set the env var:
+      #   PM_INTERACTIVE_TERMINAL_HOST_IP=<your-host-ip>
+      # and change this to:
+      #   "host.containers.internal:${PM_INTERACTIVE_TERMINAL_HOST_IP}"
+      - "host.containers.internal:host-gateway"
     restart: on-failure:5
     healthcheck:
       test: ["CMD", "node", "-e", "const http=require('http');const r=http.get('http://localhost:3000/health',res=>{process.exit(res.statusCode===200?0:1)});r.on('error',()=>process.exit(1));r.setTimeout(3000,()=>{r.destroy();process.exit(1)})"]

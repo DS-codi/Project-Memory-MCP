@@ -1,0 +1,437 @@
+{
+  "id": "plan_mlmuo39q_155aeb95",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Replay Core Reliability",
+  "description": "Implement golden baselines and CI gate modes for deterministic replay regression enforcement.",
+  "priority": "high",
+  "category": "feature",
+  "status": "archived",
+  "current_phase": "complete",
+  "current_agent": null,
+  "confirmation_state": {
+    "phases": {
+      "Phase 1: Research": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T22:05:17.130Z"
+      },
+      "Phase 2: Planning": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T22:07:01.950Z"
+      },
+      "Phase 4: CI Gate Modes": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T00:26:45.214Z"
+      },
+      "Phase 3: Golden Baselines": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T00:27:47.197Z"
+      },
+      "Phase 5: Determinism & Flake Controls": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T00:35:20.946Z"
+      },
+      "Phase 6: Migration & Compatibility": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T00:42:07.957Z"
+      },
+      "Phase 7: Verification": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T00:48:00.455Z"
+      }
+    },
+    "steps": {
+      "2": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T00:27:21.992Z"
+      },
+      "11": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T00:44:59.374Z"
+      }
+    }
+  },
+  "created_at": "2026-02-14T21:50:07.503Z",
+  "updated_at": "2026-02-15T00:50:06.210Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mlmv2247_f5f0adbc",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T22:00:59.191Z",
+      "context": {
+        "run_id": "run_sess_mlmv2247_f5f0adbc"
+      },
+      "completed_at": "2026-02-14T23:34:51.178Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T23:34:51.178Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmv2l6a_78b35c9f",
+      "agent_type": "Researcher",
+      "started_at": "2026-02-14T22:01:23.892Z",
+      "context": {
+        "run_id": "run_sess_mlmv2l6a_78b35c9f"
+      },
+      "completed_at": "2026-02-14T22:04:50.652Z",
+      "summary": "Completed read-only research for Replay Core Reliability. Delivered current-state audit of replay baseline/artifact handling, recommended golden-baseline strategy and approval flow, CI gate mode design (strict/warn/info), determinism/flake controls, and repo-specific risks/tradeoffs. Findings stored in core-reliability-research.md and structured research.json.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmuo39q_155aeb95/research_notes/core-reliability-research.md",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmuo39q_155aeb95/research.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmv8gt6_777deaeb",
+      "agent_type": "Architect",
+      "started_at": "2026-02-14T22:05:58.172Z",
+      "context": {
+        "run_id": "run_sess_mlmv8gt6_777deaeb"
+      },
+      "completed_at": "2026-02-14T22:08:08.024Z",
+      "summary": "Completed implementation planning for Replay Core Reliability. Replaced initial setup with phased executable roadmap (golden baselines + approval flow, CI gate modes strict/warn/info, determinism/flake controls, migration compatibility), set goals/success criteria, confirmed planning phase, marked planning step done, and stored architecture deliverable including touch map, acceptance criteria, test strategy, and risk matrix.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmuo39q_155aeb95/state.json",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmuo39q_155aeb95/architecture.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmyert3_18f649c7",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T23:34:51.231Z",
+      "context": {
+        "run_id": "run_sess_mlmyert3_18f649c7"
+      },
+      "completed_at": "2026-02-14T23:45:41.065Z",
+      "summary": "Completed Phase 3 steps 2 and 3: added v1 golden baseline store layout and metadata contract for normalized artifacts, plus explicit promote flow with dry-run diff summary and guarded write path requiring approval. Verified by compiling vscode-extension and smoke-testing promote guard behavior.",
+      "artifacts": [
+        "vscode-extension/src/test/replay/core/types.ts",
+        "vscode-extension/src/test/replay/core/GoldenBaselineStore.ts",
+        "vscode-extension/src/test/replay/core/BaselinePromotion.ts",
+        "vscode-extension/src/test/replay/cli/replay-cli.ts",
+        "vscode-extension/src/test/replay/index.ts",
+        "vscode-extension/src/test/replay/goldens/v1/README.md",
+        "vscode-extension/src/test/replay/goldens/v1/.gitkeep",
+        "vscode-extension/src/test/replay/scenarios/README.md"
+      ]
+    },
+    {
+      "session_id": "sess_mlmytov1_d17aa8af",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T23:46:27.619Z",
+      "context": {
+        "run_id": "run_sess_mlmytov1_d17aa8af"
+      },
+      "completed_at": "2026-02-14T23:52:57.839Z",
+      "summary": "Completed Reviewer build-check/review for Phase 3 golden baseline store + promotion flow. Verified safeguards (dry-run diff summary + explicit approval guard) and metadata contract consistency (schema/store/version/profile alignment). Validation passed: npm run compile; npm test -- --grep Replay (replay suites passing). Stored findings in review context.",
+      "artifacts": [
+        "vscode-extension/src/test/replay/core/types.ts",
+        "vscode-extension/src/test/replay/core/GoldenBaselineStore.ts",
+        "vscode-extension/src/test/replay/core/BaselinePromotion.ts",
+        "vscode-extension/src/test/replay/cli/replay-cli.ts",
+        "vscode-extension/src/test/replay/config/default.profile.json",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlmuo39q_155aeb95/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmz36kh_0b481c8e",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T23:53:50.108Z",
+      "context": {
+        "run_id": "run_sess_mlmz36kh_0b481c8e"
+      },
+      "completed_at": "2026-02-15T00:25:47.643Z",
+      "summary": "Implemented gate-mode evaluator and CI replay gate wiring for Phase 4 steps 4/5. Added strict/warn/info evaluator with annotations + summary emission, wired CLI run/compare gate behavior and artifact outputs, added replay gate unit tests, and updated release workflow with replay-gate job + artifact upload. Compile and replay tests passed, plus replay gate smoke run passed. Step 5 remains blocked only due required phase confirmation gate in plan workflow.",
+      "artifacts": [
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/types.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/GateEvaluator.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/cli/replay-cli.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/index.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/suite/replay-harness-core.test.ts",
+        "Project-Memory-MCP/.github/workflows/release.yml",
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlmuo39q_155aeb95/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mln0bg3y_9ccef787",
+      "agent_type": "Executor",
+      "started_at": "2026-02-15T00:28:15.335Z",
+      "context": {
+        "run_id": "run_sess_mln0bg3y_9ccef787"
+      },
+      "completed_at": "2026-02-15T00:34:54.716Z",
+      "summary": "Implemented deterministic artifact hardening and flake mitigation in replay harness (stable JSON serialization, workspace-relative manifest paths, deterministic env metadata/defaults, retry-once with intermittent-vs-deterministic classification and triage labels). Validation passed: npm run compile and npm test -- --grep \"Replay\". Step 6 marked done; step 7 blocked only by required phase confirmation gate.",
+      "artifacts": [
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/StableJson.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/ReplayOrchestrator.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/GateEvaluator.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/cli/replay-cli.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/types.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/ReportWriter.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/GoldenBaselineStore.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/index.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/suite/replay-harness-core.test.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/scenarios/README.md"
+      ]
+    },
+    {
+      "session_id": "sess_mln0l469_f77b4490",
+      "agent_type": "Executor",
+      "started_at": "2026-02-15T00:35:46.420Z",
+      "context": {
+        "run_id": "run_sess_mln0l469_f77b4490"
+      },
+      "completed_at": "2026-02-15T00:41:42.995Z",
+      "summary": "Implemented backward-compatible replay artifact resolution and migration support for legacy run directories, added migrate-legacy-runs command, updated compare/promote resolution behavior, added resolver tests, and documented migration playbook/compatibility guarantees. Validation passed via compile and Replay tests; step 9 remains blocked only by phase confirmation requirement.",
+      "artifacts": [
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/MigrationResolver.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/cli/replay-cli.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/index.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/suite/replay-harness-core.test.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/scenarios/README.md",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/goldens/v1/README.md",
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlmuo39q_155aeb95/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mln0tu9d_9f2451ab",
+      "agent_type": "Tester",
+      "started_at": "2026-02-15T00:42:33.502Z",
+      "context": {
+        "run_id": "run_sess_mln0tu9d_9f2451ab"
+      },
+      "completed_at": "2026-02-15T00:44:28.869Z",
+      "summary": "Completed Phase 7 verification testing for Replay Core Reliability. Verified existing coverage for baseline resolution, gate evaluator, determinism controls, and migration resolver; ran compile + targeted replay harness validation for strict/warn/info and migration/determinism behavior. Result: PASS (181/181, exit code 0).",
+      "artifacts": [
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlmuo39q_155aeb95/test_results.json"
+      ]
+    },
+    {
+      "session_id": "sess_mln0xfab_e342e8a2",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-15T00:45:20.700Z",
+      "context": {
+        "run_id": "run_sess_mln0xfab_e342e8a2"
+      },
+      "completed_at": "2026-02-15T00:47:39.208Z",
+      "summary": "Completed final Replay Core Reliability validation. Verified acceptance criteria coverage against plan goals/success criteria; confirmed strict/warn/info behavior and output semantics from test evidence; confirmed migration compatibility and deterministic artifact controls in code/tests/docs; executed final compile + focused replay validation with pass (181 passing, exit 0). Stored findings in review context and reindexed workspace. Step 11 could not be set done due required Phase 7 confirmation gate, so it is marked blocked pending confirmation.",
+      "artifacts": [
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlmuo39q_155aeb95/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mln11btb_0f9bc9a6",
+      "agent_type": "Archivist",
+      "started_at": "2026-02-15T00:48:22.821Z",
+      "context": {
+        "run_id": "run_sess_mln11btb_0f9bc9a6"
+      },
+      "completed_at": "2026-02-15T00:50:06.194Z",
+      "summary": "Archivist finalization complete. Verified plan completion state (12/12 done, no pending/active/blocked) and required confirmations. Confirmed key artifacts exist (review.json, test_results.json, state.json). Archived plan plan_mlmuo39q_155aeb95, reindexed workspace, and stored concise completion summary context.",
+      "artifacts": [
+        "Project-Memory-MCP/data/project_memory_mcp-50e04147a402/plans/plan_mlmuo39q_155aeb95/completion.json",
+        "Project-Memory-MCP/data/project_memory_mcp-50e04147a402/plans/plan_mlmuo39q_155aeb95/review.json",
+        "Project-Memory-MCP/data/project_memory_mcp-50e04147a402/plans/plan_mlmuo39q_155aeb95/test_results.json",
+        "Project-Memory-MCP/data/project_memory_mcp-50e04147a402/plans/plan_mlmuo39q_155aeb95/state.json"
+      ]
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-14T22:04:42.600Z",
+      "from_agent": "Researcher",
+      "to_agent": "Coordinator",
+      "reason": "Research complete for replay baseline strategy, CI gate modes, determinism controls, and repo-specific risks. Recommend Architect for implementation planning."
+    },
+    {
+      "timestamp": "2026-02-14T22:08:02.825Z",
+      "from_agent": "Architect",
+      "to_agent": "Coordinator",
+      "reason": "Implementation planning deliverable completed for Replay Core Reliability; roadmap, touch map, acceptance criteria/test strategy, and risk matrix are ready for execution."
+    },
+    {
+      "timestamp": "2026-02-14T23:45:32.957Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Phase 3 golden baseline implementation complete (steps 2 and 3); ready for review/build-check."
+    },
+    {
+      "timestamp": "2026-02-14T23:52:50.188Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Golden baseline store + promotion flow review/build-check passed; recommend Executor continuation for next implementation step."
+    },
+    {
+      "timestamp": "2026-02-15T00:25:37.845Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Implemented Phase 4 steps 4 and 5 code changes and validated successfully; step 5 status blocked only by required phase confirmation gate."
+    },
+    {
+      "timestamp": "2026-02-15T00:34:42.547Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Implemented steps 6 and 7 code changes and validated compile/tests; step 7 cannot be marked done until required Phase 5 confirmation is completed."
+    },
+    {
+      "timestamp": "2026-02-15T00:41:34.190Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Implemented Phase 6 migration/backward-compatibility changes and documentation; validation passed. Step 9 transition is blocked only by required phase confirmation gate."
+    },
+    {
+      "timestamp": "2026-02-15T00:44:28.807Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Phase 7 verification testing passed with acceptance evidence; recommend Reviewer for final validation."
+    },
+    {
+      "timestamp": "2026-02-15T00:47:34.875Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Final validation passed; all required acceptance checks succeeded. Step 11 status transition is blocked only by Phase 7 confirmation gate."
+    }
+  ],
+  "steps": [
+    {
+      "phase": "Phase 1: Research",
+      "task": "Research current replay baseline strategy, CI gate options, and deterministic artifact management requirements.",
+      "type": "research",
+      "status": "done",
+      "notes": "Completed and stored in core-reliability-research.md + research.json.",
+      "assignee": "Researcher",
+      "index": 0
+    },
+    {
+      "phase": "Phase 2: Planning",
+      "task": "Design implementation plan for golden baselines, strict/warn/info gate modes, deterministic artifact controls, and migration path.",
+      "type": "planning",
+      "status": "done",
+      "notes": "Implementation roadmap finalized with phased execution steps covering golden baselines/versioning+approval flow, CI gate modes (strict/warn/info), deterministic artifact controls/flake mitigations, and migration/backward compatibility path.",
+      "assignee": "Architect",
+      "index": 1,
+      "completed_at": "2026-02-14T22:07:01.977Z"
+    },
+    {
+      "phase": "Phase 3: Golden Baselines",
+      "task": "Introduce versioned golden baseline store layout (v1) and baseline metadata contract for normalized artifacts.",
+      "type": "code",
+      "status": "done",
+      "notes": "Implemented v1 golden baseline store layout and metadata contract in replay core.",
+      "assignee": "Executor",
+      "index": 2,
+      "completed_at": "2026-02-15T00:27:56.450Z"
+    },
+    {
+      "phase": "Phase 3: Golden Baselines",
+      "task": "Add explicit baseline approval/promote flow with dry-run diff summary and guarded write path.",
+      "type": "code",
+      "status": "done",
+      "notes": "Implemented explicit baseline promotion flow with dry-run diff summary and guarded write path (apply+approve+optional force) via BaselinePromotion and CLI promote-baseline command.",
+      "assignee": "Executor",
+      "index": 3,
+      "completed_at": "2026-02-14T23:39:06.299Z"
+    },
+    {
+      "phase": "Phase 4: CI Gate Modes",
+      "task": "Implement gate-mode evaluator (strict/warn/info) that consumes comparison outputs and emits pass/fail + annotations.",
+      "type": "code",
+      "status": "done",
+      "notes": "Implemented gate-mode evaluator (strict/warn/info) with pass/fail semantics and drift annotations, wired into replay CLI run/compare outputs with JSON+markdown summaries and optional GitHub annotations. Added unit tests in replay-harness-core suite and validated compile/tests.",
+      "assignee": "Executor",
+      "index": 4,
+      "completed_at": "2026-02-15T00:24:55.557Z"
+    },
+    {
+      "phase": "Phase 4: CI Gate Modes",
+      "task": "Wire CI replay job to run harness, apply gate mode, and upload replay artifacts + summary.",
+      "type": "code",
+      "status": "done",
+      "notes": "CI replay job wiring completed and validated; gate mode artifacts/summary upload enabled.",
+      "assignee": "Executor",
+      "index": 5,
+      "completed_at": "2026-02-15T00:28:02.389Z"
+    },
+    {
+      "phase": "Phase 5: Determinism & Flake Controls",
+      "task": "Harden deterministic artifact behavior (stable serialization, workspace-relative manifest paths, invariant env settings).",
+      "type": "code",
+      "status": "done",
+      "notes": "Implemented deterministic artifact hardening: stable JSON serialization utility, workspace-relative manifest artifact paths, deterministic env metadata in manifest, and deterministic runtime env defaults in replay CLI.",
+      "assignee": "Executor",
+      "index": 6,
+      "completed_at": "2026-02-15T00:33:47.756Z"
+    },
+    {
+      "phase": "Phase 5: Determinism & Flake Controls",
+      "task": "Add flake mitigations (optional retry-once, triage labeling for intermittent failures, deterministic regression classification).",
+      "type": "code",
+      "status": "done",
+      "notes": "Flake controls implemented (retry-once, triage labels, deterministic/intermittent classification) with tests passing.",
+      "assignee": "Executor",
+      "index": 7,
+      "completed_at": "2026-02-15T00:35:27.903Z"
+    },
+    {
+      "phase": "Phase 6: Migration & Compatibility",
+      "task": "Implement backward-compatible baseline/artifact resolution and migration command for legacy run directories.",
+      "type": "code",
+      "status": "done",
+      "notes": "Implemented MigrationResolver-based backward-compatible artifact resolution (explicit > v1 goldens > legacy run dirs), added migrate-legacy-runs CLI command, and wired compare/promote commands to use compatibility resolver.",
+      "assignee": "Executor",
+      "index": 8,
+      "completed_at": "2026-02-15T00:40:37.664Z"
+    },
+    {
+      "phase": "Phase 6: Migration & Compatibility",
+      "task": "Document migration playbook and compatibility guarantees for existing replay scripts and CLI usage.",
+      "type": "documentation",
+      "status": "done",
+      "notes": "Migration playbook and compatibility guarantees documented; gate confirmed.",
+      "assignee": "Executor",
+      "index": 9,
+      "completed_at": "2026-02-15T00:42:15.679Z"
+    },
+    {
+      "phase": "Phase 7: Verification",
+      "task": "Add/extend unit tests for baseline resolver, gate evaluator, determinism controls, and migration resolver.",
+      "type": "test",
+      "status": "done",
+      "notes": "Phase 7 verification complete. Evidence: `npm run compile` passed, then targeted replay harness suites passed via `npm test -- --grep \"Replay Gate Evaluator|Replay Migration Resolver|Replay Normalization|Replay Comparator Rules\"` with exit code 0 and 181 passing tests. Verified required coverage/evidence for baseline resolver behavior (explicit/golden/legacy resolution), gate evaluator strict/warn/info semantics, determinism controls (normalization parity + retry classification), and migration resolver fallback order.",
+      "assignee": "Tester",
+      "index": 10,
+      "completed_at": "2026-02-15T00:44:13.515Z"
+    },
+    {
+      "phase": "Phase 7: Verification",
+      "task": "Run targeted replay harness integration validation in CI modes (strict/warn/info) and record acceptance evidence.",
+      "type": "validation",
+      "status": "done",
+      "notes": "Final validation passed and Phase 7 confirmed; acceptance evidence recorded in review/test artifacts.",
+      "assignee": "Reviewer",
+      "index": 11,
+      "completed_at": "2026-02-15T00:48:06.443Z"
+    }
+  ],
+  "program_id": "plan_mlmuny9s_04a511eb",
+  "depends_on_plans": [],
+  "recommended_next_agent": "Coordinator",
+  "goals": [
+    "Establish reliable versioned golden baselines with explicit approval/promotion workflow.",
+    "Enforce replay quality through configurable CI gate modes (strict/warn/info).",
+    "Reduce replay nondeterminism and isolate flaky behavior with deterministic artifact controls.",
+    "Provide backward-compatible migration path from legacy replay artifacts/workflows."
+  ],
+  "success_criteria": [
+    "Golden baseline artifacts are versioned, normalized, and can be promoted only through explicit approval flow.",
+    "CI replay gate supports strict/warn/info and produces correct pass/fail semantics plus actionable summary output.",
+    "Replay artifacts are stable across repeated runs in equivalent environments, with workspace-relative portability in metadata.",
+    "Legacy compare/run flows continue to work during migration, with documented fallback resolution order.",
+    "Unit/integration validation covers baseline resolution, gate mode behavior, determinism controls, and migration compatibility."
+  ]
+}

@@ -1,0 +1,249 @@
+{
+  "id": "plan_mlkjmemm_f04cebfc",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Platform Evolution Program",
+  "description": "Root program plan: Platform Evolution covering container resilience, agent consolidation, skills/instructions rework, MCP Apps, custom tools, VS Code extension updates, context dump/export, Cognition agent, and strict spawn tool.",
+  "priority": "high",
+  "category": "feature",
+  "status": "active",
+  "current_phase": "Program Container",
+  "current_agent": "Executor",
+  "confirmation_state": {
+    "phases": {},
+    "steps": {}
+  },
+  "created_at": "2026-02-13T07:05:20.787Z",
+  "updated_at": "2026-02-14T22:46:14.438Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mlkkt6z9_44734e0c",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-13T07:38:37.077Z",
+      "context": {
+        "task": "Build out Platform Evolution Integrated Program with child plans for all improvement areas"
+      },
+      "completed_at": "2026-02-14T22:46:14.360Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T22:46:14.360Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlkkuvn5_4847c1eb",
+      "agent_type": "Researcher",
+      "started_at": "2026-02-13T07:39:55.698Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Deep audit of codebase for Platform Evolution program - 12 improvement areas",
+        "research_targets": [
+          "container system",
+          "agent files",
+          "instructions & skills",
+          "vscode extension",
+          "MCP server tools",
+          "MCP apps",
+          "context dump/plan export"
+        ],
+        "questions_to_answer": [
+          "What is the current container architecture and what's missing for auto-mount/resilience?",
+          "Which agent files are too large and what content could be extracted?",
+          "What's the current distinction between instructions and skills?",
+          "What's the current state of the VS Code extension?",
+          "What's the current MCP tool architecture?",
+          "What infrastructure exists for UI rendering in chat?",
+          "What would need to be added for workspace dump and plan export?"
+        ],
+        "known_resources": [
+          "Containerfile",
+          "podman-compose.yml",
+          "agents/*.agent.md",
+          "instructions/",
+          "skills/",
+          "vscode-extension/",
+          "server/src/tools/consolidated/"
+        ]
+      },
+      "completed_at": "2026-02-13T07:45:59.152Z",
+      "summary": "Completed deep audit of 7 areas for Platform Evolution program. Key findings: (1) Container auto-mount partially exists in run-container.ps1 but has no resilience fallback when container goes down. (2) coordinator.agent.md (1388 lines) and analyst.agent.md (968 lines) are critically oversized — content extractable to skills. (3) project-memory-system.instructions.md (2248 lines) should be broken into agent-targeted skills. (4) Builder can be merged into Reviewer. (5) No MCP Apps infrastructure exists. (6) Context dump/export needs new actions. (7) VS Code dashboard panel is 1340-line monolith, prompts button needs replacement with skills. (8) Server architecture supports adding spawn/terminal/filesystem via established patterns. Stored comprehensive audit document and structured JSON with dependency graph and recommended 10-item execution order. Recommend Architect next to design child plans.\"",
+      "artifacts": [
+        "research_notes/platform_evolution_audit.md",
+        "research.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlkl41p6_28bb754c",
+      "agent_type": "Architect",
+      "started_at": "2026-02-13T07:47:03.450Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Design child plans for Platform Evolution Program based on Researcher audit findings",
+        "audit_summary": "Researcher completed codebase audit - findings in research notes",
+        "constraints": [
+          "Spoke agent - no runSubagent calls",
+          "Plans must be in dependency order",
+          "8-20 steps per child plan",
+          "Steps must be atomic and implementable"
+        ],
+        "acceptance_criteria": [
+          "8 child plans created with detailed steps",
+          "Plans added to program",
+          "Goals and success criteria set on program",
+          "Handoff to Coordinator for user approval"
+        ]
+      },
+      "completed_at": "2026-02-13T07:53:09.786Z",
+      "summary": "Designed 8 child plans for Platform Evolution Program with 108 total atomic steps:\\n\\n1. Container Resilience & Auto-Mount (11 steps, HIGH) - health checks, failover, auto-mount\\n2. Agent Consolidation & Size Reduction (17 steps, CRITICAL) - Builder→Reviewer merge, extract coordinator/analyst content\\n3. Instructions to Skills Rewrite (15 steps, HIGH) - 6 new skills, slim instructions to <400 lines\\n4. VS Code Extension Modernization (12 steps, MEDIUM) - split 3 monoliths, skills/instructions UI\\n5. Context Dump & Plan Export (12 steps, MEDIUM) - 2 new self-contained MCP actions\\n6. Cognition Agent & Strict Spawn (12 steps, MEDIUM) - new agent, spawn gatekeeper\\n7. MCP Apps (15 steps, LOW) - 3 interactive UI components\\n8. Terminal & Filesystem Tools (14 steps, MEDIUM) - 2 new MCP tools with auth/safety\\n\\nExecution waves: Wave 1 (parallel: 1,2,5,8), Wave 2 (after 2: 3,6), Wave 3 (after 3+6: 4), Wave 4 (after 4+6: 7)\\nSet 10 goals and 17 success criteria on program plan. Recommend user approval before execution.\"",
+      "artifacts": [
+        "architecture.json",
+        "8 child plans with 108 steps",
+        "program goals and success criteria",
+        "child plan registry note on program plan"
+      ]
+    },
+    {
+      "session_id": "sess_mlknr3m1_46b6357a",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-13T09:00:58.249Z",
+      "context": {
+        "resuming": true,
+        "task": "Continue Platform Evolution Program execution - Wave 1"
+      },
+      "completed_at": "2026-02-14T22:46:14.360Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T22:46:14.360Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlkr4bs8_c944af20",
+      "agent_type": "Researcher",
+      "started_at": "2026-02-13T10:35:14.216Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Audit dashboard for plan vs program visualization gap",
+        "research_targets": [
+          "dashboard components",
+          "program visualization",
+          "plan visualization",
+          "server program API"
+        ],
+        "questions_to_answer": [
+          "Does ANY program-specific visualization exist in the dashboard?",
+          "How are plans currently displayed?",
+          "What data does the server return for programs vs plans?",
+          "What program-specific data is available?",
+          "What dashboard components could be extended vs created from scratch?"
+        ],
+        "known_resources": [
+          "dashboard/src/",
+          "server/src/"
+        ]
+      },
+      "completed_at": "2026-02-14T22:46:14.360Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T22:46:14.360Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlkrfz2a_bea8ee22",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-13T10:44:17.602Z",
+      "context": {
+        "resuming": true,
+        "task": "Link Plan 9 to program, present plan to user, determine next steps"
+      },
+      "completed_at": "2026-02-14T22:46:14.360Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T22:46:14.360Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmwo961_9190c57e",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T22:46:14.394Z",
+      "context": {
+        "run_id": "run_sess_mlmwo961_9190c57e"
+      }
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-13T07:45:48.891Z",
+      "from_agent": "Researcher",
+      "to_agent": "Coordinator",
+      "reason": "Research complete — deep audit of all 7 areas finished. Recommend Architect to design child plans for the Platform Evolution program based on findings."
+    },
+    {
+      "timestamp": "2026-02-13T07:52:56.914Z",
+      "from_agent": "Architect",
+      "to_agent": "Coordinator",
+      "reason": "All 8 child plans designed with 108 atomic steps across 4 execution waves. Program goals and success criteria set. Recommend user approval before execution begins."
+    }
+  ],
+  "steps": [],
+  "pending_notes": [
+    {
+      "note": "## Child Plans Registry (Dependency Order)\\n\\n| # | Plan ID | Title | Priority | Steps | Dependencies |\\n|---|---------|-------|----------|-------|--------------|\\n| 1 | plan_mlkl6ack_ee788799 | Container Resilience & Auto-Mount | HIGH | 11 | None (independent) |\\n| 2 | plan_mlkl6yw3_7e0a1787 | Agent Consolidation & Size Reduction | CRITICAL | 17 | None (blocking) |\\n| 3 | plan_mlkl7hle_541c62b3 | Instructions to Skills Rewrite | HIGH | 15 | Plan 2 |\\n| 4 | plan_mlkl7zuj_c2adac39 | VS Code Extension Modernization | MEDIUM | 12 | Plans 2, 3 |\\n| 5 | plan_mlkl8fh0_f61f6e26 | New MCP Actions - Context Dump & Plan Export | MEDIUM | 12 | None (independent) |\\n| 6 | plan_mlkl8uls_ddc922f6 | Cognition Agent & Strict Spawn Tool | MEDIUM | 12 | Plan 2 |\\n| 7 | plan_mlkl9b6s_1341dcbf | MCP Apps - Interactive UI Components | LOW | 15 | Plans 4, 6 |\\n| 8 | plan_mlkl9sli_56a1957b | Custom Terminal & Filesystem Tools | MEDIUM | 14 | None (independent) |\\n\\n**Total: 108 steps across 8 child plans**\\n\\n## Execution Order (Recommended)\\n\\nWave 1 (parallel): Plans 1, 2, 5, 8 (all independent)\\nWave 2 (after Plan 2): Plans 3, 6\\nWave 3 (after Plans 3+6): Plan 4\\nWave 4 (after Plans 4+6): Plan 7",
+      "type": "info",
+      "added_at": "2026-02-13T07:52:09.427Z",
+      "added_by": "user"
+    },
+    {
+      "note": "CHILD PLAN 9 ADDED: plan_mlkrcpzw_a77c874b — Integrated Program Dashboard Visualization (MEDIUM priority, 12 steps, no hard dependencies). Wave: Independent — can execute in parallel with any wave. Steps cover: server endpoint upgrade, usePrograms hook, ProgramTreeView enhancement, ProgramDetailPage enhancement, PlanCard program badge, breadcrumb navigation, DashboardPage stats widget, program creation form, dependency visualization, validation.",
+      "type": "info",
+      "added_at": "2026-02-13T10:44:44.241Z",
+      "added_by": "user"
+    },
+    {
+      "note": "CHILD PLAN 10 ADDED: plan_mll9pkws_485d6ff0 — SkillWriter Cross-Workspace Instruction Refactoring (MEDIUM priority). Dependencies: Plan 3 (Instructions Reorganization, archived). Extends SkillWriter agent to analyze and refactor instruction files in foreign workspaces into skills vs rules.",
+      "type": "info",
+      "added_at": "2026-02-13T19:16:07.197Z",
+      "added_by": "user"
+    }
+  ],
+  "goals": [
+    "Eliminate all monolithic files (>400 lines) across agents, instructions, and VS Code extension",
+    "Consolidate agent roster by merging Builder into Reviewer",
+    "Transform knowledge-heavy instructions into modular, MCP-accessible skills",
+    "Add container resilience with graceful degradation for local/container mode switching",
+    "Implement strict spawn tool for controlled agent delegation",
+    "Create Cognition agent for read-only reasoning tasks",
+    "Add context dump and plan export MCP actions for workspace persistence",
+    "Build interactive MCP App UI components for plan management, handoff approval, and context selection",
+    "Add custom terminal and filesystem MCP tools with authorization and safety boundaries",
+    "Modernize VS Code extension with skills/instructions management UI"
+  ],
+  "success_criteria": [
+    "All agent .md files are under 400 lines",
+    "All instruction .md files are under 400 lines",
+    "All VS Code extension .ts files are under 400 lines",
+    "Builder agent merged into Reviewer with zero functionality loss",
+    "6+ new skill files created and accessible via MCP skills.tools.ts",
+    "project-memory-system.instructions.md reduced from 2248 to <400 lines",
+    "Container health check endpoint responds within 5s",
+    "Container-to-local failover completes without data loss",
+    "memory_agent spawn action validates agents against filesystem registry",
+    "Cognition agent successfully performs read-only analysis and hands off results",
+    "dump_context creates readable aggregated file in workspace",
+    "export_plan creates git-committable folder structure",
+    "Plan Phase Ticket, Handoff Gate, Context Weaver render in chat as interactive components",
+    "memory_terminal auto-approves safe commands and blocks destructive ones",
+    "memory_filesystem enforces workspace-scoped access boundaries",
+    "All existing tests continue to pass after changes",
+    "108 implementation steps across 8 child plans fully executed"
+  ],
+  "deployment_context": {
+    "deployed_agent": "Executor",
+    "deployed_by": "Coordinator",
+    "reason": "Implement editable workspace display names",
+    "override_validation": true,
+    "deployed_at": "2026-02-14T22:46:14.394Z"
+  },
+  "child_plan_ids": [
+    "plan_mlkl6ack_ee788799",
+    "plan_mlkl6yw3_7e0a1787",
+    "plan_mlkl7hle_541c62b3",
+    "plan_mlkl7zuj_c2adac39",
+    "plan_mlkl8fh0_f61f6e26",
+    "plan_mlkl8uls_ddc922f6",
+    "plan_mlkl9b6s_1341dcbf",
+    "plan_mlkl9sli_56a1957b",
+    "plan_mllaot7r_2964d5f0",
+    "plan_mllc6x7s_5254485e",
+    "plan_mlld2y2l_78778d06",
+    "plan_mllk399r_69d8f32a",
+    "plan_mlln0dl1_bdde9d9d",
+    "plan_mlmdv2mv_ce3503ef"
+  ],
+  "is_program": true
+}

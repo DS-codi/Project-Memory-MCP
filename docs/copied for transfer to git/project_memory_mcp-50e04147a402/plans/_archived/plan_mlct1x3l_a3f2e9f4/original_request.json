@@ -1,0 +1,37 @@
+{
+  "type": "original_request",
+  "plan_id": "plan_mlct1x3l_a3f2e9f4",
+  "workspace_id": "Project-Memory-MCP-652c624f8f59",
+  "captured_at": "2026-02-07T21:07:26.726Z",
+  "user_request": {
+    "sanitized": "Diagnose why there are duplicate workspace folders in data directory and add workspace-wide context/data storage support (project details, purpose, dependencies, app modules, test confirmations, development patterns, resources). Update frontend, MCP server, extension, agent files, and instructions.",
+    "wasModified": false,
+    "injectionAttempts": [],
+    "warnings": []
+  },
+  "context": {
+    "files_mentioned": [],
+    "file_contents": {},
+    "requirements": [
+      "Diagnose duplicate workspace folder creation under data directory",
+      "Add workspace-wide context/data storage (project details, purpose, dependencies, modules, test confirmations, feature patterns, resources)",
+      "Update frontend/dashboard",
+      "Update MCP server storage and API",
+      "Update VS Code extension",
+      "Update agent files and instructions"
+    ],
+    "constraints": [
+      "Must cover workspace-level (not plan-level) context",
+      "Should include overall project metadata and references",
+      "Touch all listed surfaces: frontend, server, extension, agents, instructions"
+    ],
+    "examples": [],
+    "conversation_context": {
+      "sanitized": "User requested a plan; wants diagnosis and new workspace-wide context support across system.",
+      "wasModified": false,
+      "injectionAttempts": [],
+      "warnings": []
+    },
+    "additional_notes": null
+  }
+}

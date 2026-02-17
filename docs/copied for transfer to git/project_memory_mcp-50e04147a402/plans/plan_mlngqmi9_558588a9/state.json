@@ -1,0 +1,148 @@
+{
+  "id": "plan_mlngqmi9_558588a9",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Global skills source fallback and unified resolver usage",
+  "description": "Add projectMemory.globalSkillsRoot setting, update skills source resolver candidate ordering, wire all skills flows through unified resolution, preserve missing-source warning, and add targeted tests.",
+  "priority": "high",
+  "category": "change",
+  "goals": [
+    "Skills source resolution supports explicit global fallback path",
+    "All listed skills flows use unified resolution with configured/default root then globalSkillsRoot",
+    "No implicit fallback to .github/skills target"
+  ],
+  "success_criteria": [
+    "Targeted skills source tests pass",
+    "Extension compiles if needed",
+    "Missing-source warning includes checked paths"
+  ],
+  "status": "active",
+  "current_phase": "complete",
+  "current_agent": "Coordinator",
+  "confirmation_state": {
+    "phases": {
+      "Implementation": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T08:11:24.695Z"
+      },
+      "Validation": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T08:13:54.928Z"
+      }
+    },
+    "steps": {
+      "4": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T08:12:03.334Z"
+      }
+    }
+  },
+  "created_at": "2026-02-15T08:07:57.313Z",
+  "updated_at": "2026-02-15T08:18:06.965Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mlngqwdr_a6be30f5",
+      "agent_type": "Executor",
+      "started_at": "2026-02-15T08:08:10.113Z",
+      "context": {
+        "run_id": "run_sess_mlngqwdr_a6be30f5"
+      },
+      "completed_at": "2026-02-15T08:14:58.602Z",
+      "summary": "Implemented global skills source fallback setting and unified source resolution across command and dashboard skill flows using ordered candidates (configured/default skillsRoot then globalSkillsRoot), with no implicit .github/skills source fallback. Added targeted resolver tests and validated via targeted test run (pass).",
+      "artifacts": [
+        "Project-Memory-MCP/vscode-extension/package.json",
+        "Project-Memory-MCP/vscode-extension/src/utils/skillsSourceRoot.ts",
+        "Project-Memory-MCP/vscode-extension/src/commands/deploy-commands.ts",
+        "Project-Memory-MCP/vscode-extension/src/providers/dashboard-webview/dashboard-message-handlers.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/suite/skillsSourceRoot.test.ts"
+      ]
+    },
+    {
+      "session_id": "sess_mlnh0zig_8fad428e",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-15T08:16:00.751Z",
+      "context": {
+        "run_id": "run_sess_mlnh0zig_8fad428e"
+      },
+      "completed_at": "2026-02-15T08:18:06.951Z",
+      "summary": "Completed scoped review for skills-source enhancement. Confirmed projectMemory.globalSkillsRoot setting, unified source resolution usage across deploy/list/dashboard flows, and no implicit .github/skills source fallback. Verification passed via compile and targeted skills-source tests. Decision: APPROVED; recommended Archivist.",
+      "artifacts": [
+        "Project-Memory-MCP/vscode-extension/package.json",
+        "Project-Memory-MCP/vscode-extension/src/utils/skillsSourceRoot.ts",
+        "Project-Memory-MCP/vscode-extension/src/commands/deploy-commands.ts",
+        "Project-Memory-MCP/vscode-extension/src/providers/dashboard-webview/dashboard-message-handlers.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/suite/skillsSourceRoot.test.ts",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlngqmi9_558588a9/review.json"
+      ]
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-15T08:14:48.572Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Implementation and validation complete for global skills source fallback enhancement; recommend Reviewer for verification."
+    },
+    {
+      "timestamp": "2026-02-15T08:18:01.314Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Review passed; skills-source enhancement is consistent with intent and validation succeeded. Recommend Archivist."
+    }
+  ],
+  "steps": [
+    {
+      "phase": "Implementation",
+      "task": "Add application-scoped projectMemory.globalSkillsRoot setting in vscode-extension/package.json",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 0,
+      "notes": "Added projectMemory.globalSkillsRoot setting (string, default empty, application scope) to package contributions.",
+      "completed_at": "2026-02-15T08:09:45.552Z"
+    },
+    {
+      "phase": "Implementation",
+      "task": "Update skills source root resolver to support ordered additional candidates and remove implicit .github/skills fallback behavior",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 1,
+      "notes": "Resolver now accepts ordered additional source candidates after primary root and before any future fallbacks; still no implicit .github/skills source fallback.",
+      "completed_at": "2026-02-15T08:10:23.602Z"
+    },
+    {
+      "phase": "Implementation",
+      "task": "Wire unified skills source resolution into command and dashboard skills flows (deploy/list/deploy single, handleGetSkills/handleDeploySkill)",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 2,
+      "notes": "Updated projectMemory.deploySkills/listSkills/deploySkill and dashboard handleGetSkills/handleDeploySkill to use unified resolver with candidates [configured/default skillsRoot, globalSkillsRoot]. Missing-source warnings remain path-aware with checked paths.",
+      "completed_at": "2026-02-15T08:11:31.249Z"
+    },
+    {
+      "phase": "Validation",
+      "task": "Add/update targeted tests for candidate ordering and no .github target fallback behavior",
+      "type": "test",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 3,
+      "notes": "Added tests for ordered additional candidate resolution and explicit no-implicit fallback to workspace .github/skills target.",
+      "completed_at": "2026-02-15T08:11:53.084Z"
+    },
+    {
+      "phase": "Validation",
+      "task": "Run targeted tests and compile if needed",
+      "type": "validation",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 4,
+      "notes": "Ran targeted tests: npm test -- --grep \"Skills Source Root Resolution|skills source\" (pass, exit 0). No TypeScript errors in changed files; compile not additionally required for this scoped change.",
+      "completed_at": "2026-02-15T08:13:59.747Z"
+    }
+  ],
+  "recommended_next_agent": "Coordinator"
+}

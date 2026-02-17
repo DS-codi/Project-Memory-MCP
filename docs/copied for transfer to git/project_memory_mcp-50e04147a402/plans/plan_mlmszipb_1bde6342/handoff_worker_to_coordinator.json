@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-02-14T21:12:56.263Z",
+  "from_agent": "Worker",
+  "to_agent": "Coordinator",
+  "reason": "Scoped instruction update completed: added references to monolith-refactor and monolith-cleanup skill files in avoid-monolithic guidance.",
+  "data": {
+    "recommendation": "Coordinator",
+    "files_modified": [
+      "Project-Memory-MCP/instructions/avoid-monolithic-files.instructions.md"
+    ],
+    "files_created": [],
+    "scope_escalation": false,
+    "budget_exceeded": false
+  }
+}

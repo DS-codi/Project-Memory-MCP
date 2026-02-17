@@ -39,11 +39,7 @@ pub mod ffi {
 
         #[qsignal]
         #[cxx_name = "commandCompleted"]
-        fn command_completed(
-            self: Pin<&mut TerminalApp>,
-            id: QString,
-            success: bool,
-        );
+        fn command_completed(self: Pin<&mut TerminalApp>, id: QString, success: bool);
 
         #[qsignal]
         #[cxx_name = "outputLineReceived"]
@@ -59,11 +55,7 @@ pub mod ffi {
 
         #[qinvokable]
         #[cxx_name = "declineCommand"]
-        fn decline_command(
-            self: Pin<&mut TerminalApp>,
-            id: QString,
-            reason: QString,
-        );
+        fn decline_command(self: Pin<&mut TerminalApp>, id: QString, reason: QString);
 
         #[qinvokable]
         #[cxx_name = "clearOutput"]
@@ -80,6 +72,10 @@ pub mod ffi {
         #[qinvokable]
         #[cxx_name = "closeSession"]
         fn close_session(self: Pin<&mut TerminalApp>, session_id: QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "renameSession"]
+        fn rename_session(self: Pin<&mut TerminalApp>, session_id: QString, display_name: QString) -> bool;
 
         #[qinvokable]
         #[cxx_name = "setSessionTerminalProfile"]
@@ -120,7 +116,24 @@ pub mod ffi {
         #[qinvokable]
         #[cxx_name = "executeSavedCommand"]
         fn execute_saved_command(self: Pin<&mut TerminalApp>, command_id: QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "runCommand"]
+        fn run_command(self: Pin<&mut TerminalApp>, command: QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "showSessionStartup"]
+        fn show_session_startup(self: Pin<&mut TerminalApp>);
+
+        #[qinvokable]
+        #[cxx_name = "exportOutputText"]
+        fn export_output_text(self: Pin<&mut TerminalApp>, directory: QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "exportOutputJson"]
+        fn export_output_json(self: Pin<&mut TerminalApp>, directory: QString) -> bool;
     }
 
+    impl cxx_qt::Initialize for TerminalApp {}
     impl cxx_qt::Threading for TerminalApp {}
 }

@@ -1,0 +1,365 @@
+{
+  "id": "plan_mlmuoaa0_6fd79273",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Replay Coverage Expansion",
+  "description": "Expand scenario packs and stabilization controls to broaden harness regression coverage.",
+  "priority": "high",
+  "category": "feature",
+  "status": "archived",
+  "current_phase": "complete",
+  "current_agent": null,
+  "confirmation_state": {
+    "phases": {
+      "Phase 1: Research": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T06:41:19.830Z"
+      },
+      "Phase 2: Planning": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T06:43:43.450Z"
+      },
+      "Phase 3: Executor Implementation": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T06:57:27.877Z"
+      },
+      "Phase 4: Reviewer Validation": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T06:59:29.008Z"
+      },
+      "Phase 5: Tester Verification": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T07:07:09.284Z"
+      }
+    },
+    "steps": {
+      "10": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T06:57:16.920Z"
+      },
+      "11": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T06:59:43.882Z"
+      },
+      "12": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T07:01:16.947Z"
+      }
+    }
+  },
+  "created_at": "2026-02-14T21:50:16.585Z",
+  "updated_at": "2026-02-15T07:09:55.493Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mlndj4ju_116e746a",
+      "agent_type": "Researcher",
+      "started_at": "2026-02-15T06:38:08.640Z",
+      "context": {
+        "run_id": "run_sess_mlndj4ju_116e746a"
+      },
+      "completed_at": "2026-02-15T06:40:55.051Z",
+      "summary": "Completed replay coverage expansion research. Audited current harness scope, identified six prioritized scenario-pack domains with impact/effort, mapped likely flake vectors, and documented stabilization opportunities. Stored findings in research artifacts. Step 0 is blocked only due required Phase 1 confirmation gate.",
+      "artifacts": [
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlmuoaa0_6fd79273/research_notes/replay-coverage-expansion-priorities.md",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlmuoaa0_6fd79273/research.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlndo0g9_7dc928d1",
+      "agent_type": "Architect",
+      "started_at": "2026-02-15T06:41:56.579Z",
+      "context": {
+        "run_id": "run_sess_mlndo0g9_7dc928d1"
+      },
+      "completed_at": "2026-02-15T06:44:12.003Z",
+      "summary": "Expanded the starter plan into a full phased roadmap focused on replay scenario-pack expansion and flake stabilization controls. Added 15 total steps across Research, Planning, Executor Implementation, Reviewer Validation, and Tester Verification. Set explicit goals and measurable success criteria, stored architecture decisions/file-map guidance, and completed the active planning step with phase confirmation.",
+      "artifacts": [
+        "Project-Memory-MCP/data/project_memory_mcp-50e04147a402/plans/plan_mlmuoaa0_6fd79273/architecture.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlndrtmw_7a067e07",
+      "agent_type": "Executor",
+      "started_at": "2026-02-15T06:44:54.374Z",
+      "context": {
+        "run_id": "run_sess_mlndrtmw_7a067e07"
+      },
+      "completed_at": "2026-02-15T06:56:47.454Z",
+      "summary": "Implemented and validated replay-harness Phase 3 scope across schema/comparator/CLI/scenario-pack/tests; stored execution log; marked steps 2-9 done. Step 10 state transition is confirmation-gated and documented for Coordinator/Reviewer.",
+      "artifacts": [
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/types.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/ScenarioSchema.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/Comparator.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/cli/replay-cli.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/scenarios/baseline-scenarios.v1.json",
+        "Project-Memory-MCP/vscode-extension/src/test/suite/replay-harness-core.test.ts",
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlmuoaa0_6fd79273/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlne8pwn_2626418f",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-15T06:58:02.682Z",
+      "context": {
+        "run_id": "run_sess_mlne8pwn_2626418f"
+      },
+      "completed_at": "2026-02-15T07:01:51.443Z",
+      "summary": "Completed Phase 4 Reviewer validation for Replay Coverage Expansion. Verified goals/success criteria alignment, reviewed scenario-pack completeness and tag/stabilization schema coverage, executed build/replay checks (compile pass, replay suite pass, targeted replay CLI pass), stored review findings, reindexed workspace profile, and handed off with recommendation to Tester.",
+      "artifacts": [
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlmuoaa0_6fd79273/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlneecd3_08b123a7",
+      "agent_type": "Tester",
+      "started_at": "2026-02-15T07:02:25.072Z",
+      "context": {
+        "run_id": "run_sess_mlneecd3_08b123a7"
+      },
+      "completed_at": "2026-02-15T07:07:50.677Z",
+      "summary": "Completed Phase 5 tester verification for Replay Coverage Expansion. Ran compile + replay-focused test suite (196 passing), executed deterministic single-run strict gate matrix across all six scenario packs, executed three repeated full-pack strict runs with retry-once enabled, and executed mixed stress validation for ordering/path/artifact/retry scenarios. All runs passed with zero high/medium/low drift and zero failed scenarios. Stored test_results artifact and recommended Archivist.",
+      "artifacts": [
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlmuoaa0_6fd79273/test_results.json",
+        "Project-Memory-MCP/vscode-extension/.replay-runs/phase5-repeat-1-1771139168284/gate-summary.json",
+        "Project-Memory-MCP/vscode-extension/.replay-runs/phase5-repeat-2-1771139169238/gate-summary.json",
+        "Project-Memory-MCP/vscode-extension/.replay-runs/phase5-repeat-3-1771139170166/gate-summary.json",
+        "Project-Memory-MCP/vscode-extension/.replay-runs/phase5-mixed-stress-1771139181719/gate-summary.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlnem9td_d61c237d",
+      "agent_type": "Archivist",
+      "started_at": "2026-02-15T07:08:35.030Z",
+      "context": {
+        "run_id": "run_sess_mlnem9td_d61c237d"
+      },
+      "completed_at": "2026-02-15T07:09:55.472Z",
+      "summary": "Archived plan plan_mlmuoaa0_6fd79273 (Replay Coverage Expansion) after validating completion state (15/15 steps done), reviewer verdict pass, and tester verdict pass with replay gate artifacts. Reindexed workspace metadata successfully. Residual risk: low-severity DisposableStore warning noise observed in test-host logs, non-blocking and not affecting pass/fail outcomes.",
+      "artifacts": [
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlmuoaa0_6fd79273/review.json",
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlmuoaa0_6fd79273/test_results.json",
+        "Project-Memory-MCP/vscode-extension/.replay-runs/phase5-repeat-1-1771139168284/gate-summary.json",
+        "Project-Memory-MCP/vscode-extension/.replay-runs/phase5-repeat-2-1771139169238/gate-summary.json",
+        "Project-Memory-MCP/vscode-extension/.replay-runs/phase5-repeat-3-1771139170166/gate-summary.json",
+        "Project-Memory-MCP/vscode-extension/.replay-runs/phase5-mixed-stress-1771139181719/gate-summary.json"
+      ]
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-15T06:40:50.379Z",
+      "from_agent": "Researcher",
+      "to_agent": "Coordinator",
+      "reason": "Research complete for replay coverage expansion priorities. Recommend Architect to plan scenario-pack implementation and stabilization controls after Phase 1 confirmation."
+    },
+    {
+      "timestamp": "2026-02-15T06:44:05.025Z",
+      "from_agent": "Architect",
+      "to_agent": "Coordinator",
+      "reason": "Planning complete: expanded phased roadmap for replay coverage expansion and stabilization controls is ready for implementation."
+    },
+    {
+      "timestamp": "2026-02-15T06:56:37.459Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Phase 3 replay implementation slice is stable and validated; ready for review. Step 10 status transition remains confirmation-gated."
+    },
+    {
+      "timestamp": "2026-02-15T07:01:44.558Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Phase 4 Reviewer validation passed; replay coverage and build-checks are green. Recommend Tester for Phase 5 verification matrix."
+    },
+    {
+      "timestamp": "2026-02-15T07:07:41.485Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Phase 5 tester verification passed: deterministic matrix and mixed stress replay validations are green with zero drift; recommend Archivist."
+    }
+  ],
+  "steps": [
+    {
+      "phase": "Phase 1: Research",
+      "task": "Research additional scenario domains and flake sources to prioritize next replay packs.",
+      "type": "research",
+      "status": "done",
+      "notes": "Research completed and confirmed by user; priorities and stabilization recommendations captured in research artifacts.",
+      "assignee": "Researcher",
+      "index": 0
+    },
+    {
+      "phase": "Phase 2: Planning",
+      "task": "Design phased execution roadmap for replay scenario-pack expansion and stabilization controls with maintenance constraints.",
+      "type": "planning",
+      "status": "done",
+      "notes": "Detailed phased roadmap created, goals/success criteria set, and architecture context stored for Executor→Reviewer→Tester flow.",
+      "assignee": "Architect",
+      "index": 1,
+      "completed_at": "2026-02-15T06:43:49.482Z"
+    },
+    {
+      "phase": "Phase 3: Executor Implementation",
+      "task": "Define scenario-pack contract updates: scenario metadata tags (domain/surface/risk/priority), deterministic scenario digest hashing, and acceptance thresholds for drift detection.",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 2,
+      "notes": "Extended replay contract: tag metadata (domain/surface/risk/priority), deterministic scenario digest hashing, and acceptance thresholds for drift detection.",
+      "completed_at": "2026-02-15T06:54:18.232Z"
+    },
+    {
+      "phase": "Phase 3: Executor Implementation",
+      "task": "Implement shared stabilization controls for new packs: deterministic fixture seeds, frozen clock deltas, explicit wait budgets, and deterministic resolver fixture trees.",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 3,
+      "notes": "Implemented shared stabilization controls in schema normalization (fixture seed/clock delta/wait budget/resolver fixture tree) with deterministic wait-budget capping.",
+      "completed_at": "2026-02-15T06:54:18.232Z"
+    },
+    {
+      "phase": "Phase 3: Executor Implementation",
+      "task": "Implement P0 Auth Policy Matrix Pack covering allowed/allowed_with_warning/blocked outcomes with canonical reason_class mapping assertions.",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 4,
+      "notes": "Added P0 Auth Policy Matrix scenario pack with canonical auth checks and P0 tags.",
+      "completed_at": "2026-02-15T06:54:18.232Z"
+    },
+    {
+      "phase": "Phase 3: Executor Implementation",
+      "task": "Implement P0 Protocol Ordering Pack to assert confirm-before-gated-update, handoff-before-complete, and coordinator-target invariants under replay sequencing.",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 5,
+      "notes": "Added P0 Protocol Ordering scenario pack asserting confirm-before-update and handoff-before-complete invariants.",
+      "completed_at": "2026-02-15T06:54:18.232Z"
+    },
+    {
+      "phase": "Phase 3: Executor Implementation",
+      "task": "Implement P1 Artifact Integrity & Fallback Pack covering explicit artifact file, goldens v1 resolution, legacy fallback, and missing/corrupt artifact negatives.",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 6,
+      "notes": "Added P1 Artifact Integrity & Fallback scenario pack with migration-resolver surface tagging and thresholds.",
+      "completed_at": "2026-02-15T06:54:18.232Z"
+    },
+    {
+      "phase": "Phase 3: Executor Implementation",
+      "task": "Implement P1 Tool Alias & Optional-Tool Drift Pack validating action alias canonicalization and optional-tool exclusion from strict ordering checks.",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 7,
+      "notes": "Added P1 Tool Alias & Optional-Tool Drift scenario pack and validated alias/optional behavior via replay checks.",
+      "completed_at": "2026-02-15T06:54:18.232Z"
+    },
+    {
+      "phase": "Phase 3: Executor Implementation",
+      "task": "Implement P2 Cross-Platform Normalization Pack validating Windows/POSIX path parity, volatile text masking, and normalization equivalence across OS-style payloads.",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 8,
+      "notes": "Added P2 Cross-Platform Normalization scenario pack with normalization-focused tagging and stabilization settings.",
+      "completed_at": "2026-02-15T06:54:18.232Z"
+    },
+    {
+      "phase": "Phase 3: Executor Implementation",
+      "task": "Implement P2 Retry Classification Consistency Pack validating deterministic vs intermittent triage labels and fingerprint stability across primary/retry comparisons.",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 9,
+      "notes": "Added P2 Retry Classification Consistency scenario pack with retry/gate-evaluator coverage and thresholds.",
+      "completed_at": "2026-02-15T06:54:18.232Z"
+    },
+    {
+      "phase": "Phase 3: Executor Implementation",
+      "task": "Add scenario tagging and CI shard execution matrix (domain/surface/risk) to run packs selectively without changing comparator semantics.",
+      "type": "build",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 10,
+      "notes": "Coordinator recorded user phase confirmation and finalized step after Executor completion.",
+      "completed_at": "2026-02-15T06:57:37.894Z"
+    },
+    {
+      "phase": "Phase 4: Reviewer Validation",
+      "task": "Review scenario-pack completeness, overlap, and maintenance budget constraints; confirm coverage maps cleanly to P0/P1/P2 priorities and flake vectors.",
+      "type": "validation",
+      "status": "done",
+      "assignee": "Reviewer",
+      "index": 11,
+      "notes": "Reviewed scenario-pack completeness and mapping: all six planned domains present with P0/P1/P2 risk+priority tags, stabilization controls, and acceptance thresholds in baseline-scenarios.v1.json; schema/type coverage validates metadata normalization and deterministic digesting.",
+      "completed_at": "2026-02-15T07:01:16.877Z"
+    },
+    {
+      "phase": "Phase 4: Reviewer Validation",
+      "task": "Run registered replay validation/build scripts and review signal quality for false positives/false negatives introduced by new packs and controls.",
+      "type": "build",
+      "status": "done",
+      "assignee": "Reviewer",
+      "index": 12,
+      "notes": "Ran registered replay validation/build scripts and replay checks: npm run compile (Exit code 0), npm test -- --grep \"Replay\" (196 passing, exit 0), npm run replay -- run -- --scenario AUTH_POLICY_MATRIX_P0 --gate-mode warn (Gate PASS clean, 0 drifts). Signal quality review: no false-positive/false-negative regressions observed for changed replay coverage scope.",
+      "completed_at": "2026-02-15T07:01:26.009Z"
+    },
+    {
+      "phase": "Phase 5: Tester Verification",
+      "task": "Execute deterministic replay test runs for all new packs (single-run and repeated-run matrix), capture pass/fail/flake evidence, and compare against acceptance thresholds.",
+      "type": "test",
+      "status": "done",
+      "assignee": "Tester",
+      "index": 13,
+      "notes": "Deterministic replay matrix completed: compile + replay suite pass; six scenario-pack single-run strict gates all PASS; three repeated full-pack strict runs PASS with zero drift and zero failed scenarios.",
+      "completed_at": "2026-02-15T07:07:27.540Z"
+    },
+    {
+      "phase": "Phase 5: Tester Verification",
+      "task": "Stress mixed ordering/path/artifact/retry scenarios to verify stabilization controls hold under replay variability and certify regression-readiness.",
+      "type": "test",
+      "status": "done",
+      "assignee": "Tester",
+      "index": 14,
+      "notes": "Mixed stress validation completed using protocol-ordering + cross-platform normalization + artifact-integrity/fallback + retry-classification pack set; strict gate PASS with zero drifts and no retry-required flake.",
+      "completed_at": "2026-02-15T07:07:27.540Z"
+    }
+  ],
+  "program_id": "plan_mlmuny9s_04a511eb",
+  "depends_on_plans": [
+    "plan_mlmuo39q_155aeb95"
+  ],
+  "recommended_next_agent": "Coordinator",
+  "goals": [
+    "Expand replay coverage with six prioritized scenario packs (P0/P1/P2) targeting highest-risk regressions.",
+    "Introduce deterministic stabilization controls that reduce replay flakiness without masking real regressions.",
+    "Enable selective CI execution via scenario tagging/sharding while preserving comparator semantics.",
+    "Establish review/test gates that validate both coverage breadth and signal quality before rollout."
+  ],
+  "success_criteria": [
+    "All six planned scenario-pack domains (Auth Policy, Protocol Ordering, Artifact Integrity/Fallback, Tool Alias/Optional Drift, Cross-Platform Normalization, Retry Classification) are implemented and runnable.",
+    "Each new pack includes explicit expected signatures/assertions and maps to documented flake vectors and stabilization controls.",
+    "Deterministic controls (seed/clock/wait budget/resolver fixture determinism/digest checks) are present and verified by tests.",
+    "Reviewer confirms no unacceptable false-positive/false-negative increase and maintenance constraints are satisfied.",
+    "Tester run matrix (single + repeated runs) meets agreed flake threshold and demonstrates stable classification behavior.",
+    "Scenario tags support shardable CI runs by domain/surface/risk without changing pass/fail semantics."
+  ],
+  "pending_notes": [
+    {
+      "note": "Executor implemented step-10 scope in code (tag/shard selective replay execution) but MCP step status transition for step index 10 is gated and requires explicit user confirmation before update.",
+      "type": "warning",
+      "added_at": "2026-02-15T06:56:25.997Z",
+      "added_by": "user"
+    }
+  ]
+}

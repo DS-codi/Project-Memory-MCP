@@ -1,0 +1,277 @@
+{
+  "id": "plan_mln9fiho_efefd3af",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Live Chat/Dashboard Enhancement Validation",
+  "description": "Execute an end-to-end manual verification pass for recent @memory chat and dashboard enhancements, including command buttons, trusted command links, followups, approval actions, progress indicators, and dashboard integration.",
+  "priority": "high",
+  "category": "investigation",
+  "goals": [
+    "Verify all newly added chat UI actions in real usage",
+    "Validate approval workflows (step/phase/archive confirmations)",
+    "Confirm dashboard navigation and discuss-in-chat bridge behavior",
+    "Capture any regressions with reproducible steps"
+  ],
+  "success_criteria": [
+    "All target enhancements are exercised from live chat responses",
+    "Approval buttons (Approve Step/Approve Phase) execute and refresh plan state",
+    "Open in Dashboard and Discuss in Chat round-trip works",
+    "Any failures are documented with concrete command, expected result, and actual result"
+  ],
+  "status": "archived",
+  "current_phase": "complete",
+  "current_agent": null,
+  "confirmation_state": {
+    "phases": {
+      "Phase 1: Setup": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T06:11:03.569Z"
+      },
+      "Phase 5: Program Actions": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T06:11:23.663Z"
+      },
+      "Phase 2: Plan UI": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T06:11:46.275Z"
+      },
+      "Phase 3: Approval Flows": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T06:12:22.085Z"
+      },
+      "Phase 4: Safety Prompts": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T06:12:39.536Z"
+      },
+      "Phase 6: Dashboard Bridge": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T06:12:55.171Z"
+      },
+      "Phase 7: Artifacts & Scripts": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T06:13:09.774Z"
+      },
+      "Phase 8: Findings": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T06:13:23.680Z"
+      }
+    },
+    "steps": {
+      "7": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T06:10:30.945Z"
+      }
+    }
+  },
+  "created_at": "2026-02-15T04:43:21.569Z",
+  "updated_at": "2026-02-15T06:41:26.508Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mln9ie5o_22871eaa",
+      "agent_type": "Tester",
+      "started_at": "2026-02-15T04:45:35.942Z",
+      "context": {
+        "run_id": "run_sess_mln9ie5o_22871eaa"
+      },
+      "completed_at": "2026-02-15T04:57:40.373Z",
+      "summary": "Executed final mini-matrix without file edits. Interactive runtime PASS (exit 0). Replay promotion FAIL (exit 1, requires --approve).",
+      "artifacts": []
+    },
+    {
+      "session_id": "sess_mlnc7siu_b8472507",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-15T06:01:20.166Z",
+      "context": {
+        "run_id": "run_sess_mlnc7siu_b8472507"
+      },
+      "completed_at": "2026-02-15T06:36:07.717Z",
+      "summary": "[STALE_RECOVERY 2026-02-15T06:36:07.717Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlnc8lsm_ee3578e6",
+      "agent_type": "Revisionist",
+      "started_at": "2026-02-15T06:01:58.129Z",
+      "context": {
+        "run_id": "run_sess_mlnc8lsm_ee3578e6"
+      },
+      "completed_at": "2026-02-15T06:02:39.433Z",
+      "summary": "Pivoted plan to resolve two blocked manual-validation UX failures by replacing blocked steps with explicit fix/test tasks scoped to vscode-extension. Stored pivot context and handed off to Coordinator with recommendation for Executor implementation.",
+      "artifacts": [
+        "data/project_memory_mcp-50e04147a402/plans/plan_mln9fiho_efefd3af/pivot.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlnca49v_3f6fe111",
+      "agent_type": "Executor",
+      "started_at": "2026-02-15T06:03:08.733Z",
+      "context": {
+        "run_id": "run_sess_mlnca49v_3f6fe111"
+      },
+      "completed_at": "2026-02-15T06:09:30.366Z",
+      "summary": "Implemented scoped vscode-extension fixes for integrated program /plan show distinction + child actions, fixed dashboard Discuss in Chat bridge reliability via projectMemory.showPlanInChat fallback, and added adjacent tests. Ran requested npm test -- --grep \"Replay\" and targeted grep test command (both exit 0). Step 4/5 done transitions are blocked by plan confirmation gate so they remain active.",
+      "artifacts": [
+        "Project-Memory-MCP/vscode-extension/src/chat/ChatPlanCommands.ts",
+        "Project-Memory-MCP/vscode-extension/src/ui/DashboardPanel.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/chat/ChatPlanCommands.test.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/ui/DashboardPanel.test.ts",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mln9fiho_efefd3af/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlndgjb8_aca216d8",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-15T06:36:07.779Z",
+      "context": {
+        "run_id": "run_sess_mlndgjb8_aca216d8"
+      },
+      "completed_at": "2026-02-15T06:38:21.995Z",
+      "summary": "Final verification APPROVED for scoped vscode-extension fixes. Confirmed integrated program /plan show distinction and independent child launch affordances, verified Dashboard discuss-in-chat primary and fallback bridge behavior, and validated existing test/build evidence from recent successful runs. Stored review context, reindexed workspace, and handed off to Coordinator recommending Archivist.",
+      "artifacts": [
+        "data/project_memory_mcp-50e04147a402/plans/plan_mln9fiho_efefd3af/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlndmlox_18210fe2",
+      "agent_type": "Archivist",
+      "started_at": "2026-02-15T06:40:50.793Z",
+      "context": {
+        "run_id": "run_sess_mlndmlox_18210fe2"
+      },
+      "completed_at": "2026-02-15T06:41:26.495Z",
+      "summary": "Validated Archivist role, confirmed no pending/blocked plan steps, archived plan plan_mln9fiho_efefd3af, reindexed workspace, and handed off completion recommendation to Coordinator.",
+      "artifacts": []
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-15T04:57:29.753Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Final mini-matrix run complete: interactive runtime passed, replay promotion failed."
+    },
+    {
+      "timestamp": "2026-02-15T04:57:40.480Z",
+      "from_agent": "Tester",
+      "to_agent": "Revisionist",
+      "reason": "Final mini-matrix failed on replay promotion (exit 1): explicit approval flag required."
+    },
+    {
+      "timestamp": "2026-02-15T06:02:35.749Z",
+      "from_agent": "Revisionist",
+      "to_agent": "Coordinator",
+      "reason": "Plan pivot complete for two blocked manual-validation UX failures; ready for implementation within vscode-extension scope."
+    },
+    {
+      "timestamp": "2026-02-15T06:09:22.105Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Implemented requested vscode-extension fixes and adjacent tests for steps 4-6; ready for review."
+    },
+    {
+      "timestamp": "2026-02-15T06:38:13.079Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Final verification passed for scoped vscode-extension fixes and evidence; recommend Archivist."
+    },
+    {
+      "timestamp": "2026-02-15T06:41:23.098Z",
+      "from_agent": "Archivist",
+      "to_agent": "Coordinator",
+      "reason": "Plan archived successfully; workflow complete"
+    }
+  ],
+  "steps": [
+    {
+      "phase": "Phase 1: Setup",
+      "task": "Open @memory chat and run /plan help, /plan list, /plan create, /plan scripts to validate command buttons and progress indicators",
+      "type": "test",
+      "status": "done",
+      "index": 0
+    },
+    {
+      "phase": "Phase 2: Plan UI",
+      "task": "Run /plan show on an active plan and verify action buttons, clickable plan/step links, and trusted command links behavior",
+      "type": "test",
+      "status": "done",
+      "index": 1
+    },
+    {
+      "phase": "Phase 3: Approval Flows",
+      "task": "Use a plan with confirmation-gated steps/phases and execute Approve Step and Approve Phase buttons; confirm state updates",
+      "type": "test",
+      "status": "done",
+      "notes": "Passed",
+      "index": 2
+    },
+    {
+      "phase": "Phase 4: Safety Prompts",
+      "task": "Trigger archive action and validate confirmation/cancel behavior before any destructive operation",
+      "type": "test",
+      "status": "done",
+      "notes": "Passed",
+      "index": 3
+    },
+    {
+      "phase": "Phase 5: Program Actions",
+      "task": "Implement minimal VS Code extension UX distinction for integrated programs in /plan show with explicit child-launch affordances",
+      "type": "fix",
+      "status": "done",
+      "notes": "Fixed: /plan show now clearly distinguishes Integrated Programs and renders explicit child plan launch/open actions.",
+      "index": 4,
+      "completed_at": "2026-02-15T06:11:53.002Z"
+    },
+    {
+      "phase": "Phase 6: Dashboard Bridge",
+      "task": "Implement minimal VS Code extension dashboard-to-chat bridge fix so Discuss in Chat from plan view triggers chat action",
+      "type": "fix",
+      "status": "done",
+      "notes": "Fixed: Dashboard 'Discuss in Chat' now invokes show-plan chat flow with fallback to newChat + chat.open query.",
+      "index": 5,
+      "completed_at": "2026-02-15T06:13:01.752Z"
+    },
+    {
+      "phase": "Phase 6: Dashboard Bridge",
+      "task": "Add/adjust adjacent vscode-extension tests to lock both fixes and run targeted extension tests (plus quick replay grep if available)",
+      "type": "test",
+      "status": "done",
+      "index": 6,
+      "notes": "Added targeted chat-plan/dashboard tests in src/test and ran requested targeted + replay grep npm test commands (both exit 0).",
+      "completed_at": "2026-02-15T06:08:38.272Z"
+    },
+    {
+      "phase": "Phase 7: Artifacts & Scripts",
+      "task": "Validate filetree rendering for plan artifacts and run a build script from /plan scripts Run button in integrated terminal",
+      "type": "test",
+      "status": "done",
+      "index": 7,
+      "notes": "Validated filetree accepted by user and replay/build script tests passed from integrated terminal.",
+      "completed_at": "2026-02-15T06:13:16.647Z"
+    },
+    {
+      "phase": "Phase 8: Findings",
+      "task": "Record pass/fail for each enhancement and log reproducible defects with command, expectation, and observed behavior",
+      "type": "documentation",
+      "status": "done",
+      "index": 8,
+      "notes": "Findings recorded: original Phase 5/6 failures resolved with code + tests; targeted and Replay test runs passing.",
+      "completed_at": "2026-02-15T06:13:32.902Z"
+    },
+    {
+      "phase": "Phase 3: Approval Flows",
+      "task": "Validate Approve Step and Approve Phase buttons using dedicated smoke plan",
+      "type": "test",
+      "status": "done",
+      "notes": "Passed",
+      "index": 9
+    }
+  ],
+  "recommended_next_agent": "Coordinator"
+}

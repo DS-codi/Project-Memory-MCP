@@ -1,0 +1,19 @@
+{
+  "timestamp": "2026-02-16T11:31:26.755Z",
+  "from_agent": "Revisionist",
+  "to_agent": "Coordinator",
+  "reason": "Plan pivot applied: rollback extension-side terminal approval UX and shift approval authority to interactive-terminal GUI-managed flow.",
+  "data": {
+    "recommendation": "Executor",
+    "steps_completed": 1,
+    "files_modified": [
+      "data/project_memory_mcp-50e04147a402/plans/plan_mlov60n5_21207af6/state.json",
+      "data/project_memory_mcp-50e04147a402/plans/plan_mlov60n5_21207af6/pivot.json"
+    ],
+    "next_steps": [
+      "Execute rollback scope in vscode-extension terminal approval symbols",
+      "Implement/verify GUI-managed approval flow in interactive-terminal protocol + bridge + QML",
+      "Run targeted server/extension/gui validation and update docs"
+    ]
+  }
+}

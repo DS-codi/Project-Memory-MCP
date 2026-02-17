@@ -1,0 +1,16 @@
+{
+  "type": "active_run_lane",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "plan_id": "plan_mlmuoaa0_6fd79273",
+  "active_run": {
+    "run_id": "run_sess_mlnem9td_d61c237d",
+    "workspace_id": "project_memory_mcp-50e04147a402",
+    "plan_id": "plan_mlmuoaa0_6fd79273",
+    "status": "released",
+    "started_at": "2026-02-15T07:08:35.030Z",
+    "last_updated_at": "2026-02-15T07:09:55.604Z",
+    "owner_agent": "Archivist",
+    "release_reason_code": "SPAWN_RELEASE_COMPLETE"
+  },
+  "updated_at": "2026-02-15T07:09:55.604Z"
+}

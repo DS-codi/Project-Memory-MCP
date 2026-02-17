@@ -1,0 +1,930 @@
+{
+  "id": "plan_mllgqya4_1bf77769",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Filesystem Tool Audit & Completion",
+  "description": "Audit the existing filesystem tool (memory_filesystem) for completeness and gaps. Currently has 5 actions (read, write, search, list, tree) with safety checks. Evaluate whether additional file operations are needed (move, copy, delete, rename, permissions, diff, etc.) and decide if filesystem operations also need interactive approval via the GUI terminal.",
+  "priority": "medium",
+  "category": "analysis",
+  "goals": [
+    "Fix handleList recursive parameter bug — recursive listing actually works",
+    "Harmonize SKIP_DIRS usage across search and tree handlers",
+    "Add 5 new filesystem actions: delete (confirm-gated), move/rename, copy, append, exists",
+    "Update MCP schema registration with all 10 actions and new params",
+    "Update instruction documentation to cover all new actions",
+    "Achieve happy-path test coverage for all 10 filesystem actions",
+    "Add operational hardening for destructive ops (dry-run, idempotency semantics, auditability)",
+    "Strengthen safety boundaries (size/result guardrails, symlink policy, cross-platform path handling)"
+  ],
+  "success_criteria": [
+    "handleList with recursive:true returns entries from subdirectories, filtering SKIP_DIRS",
+    "handleSearch uses canonical SKIP_DIRS set (not hardcoded node_modules/.git)",
+    "handleDelete returns error when confirm:true is not passed",
+    "handleDelete successfully deletes a file when confirm:true is passed",
+    "handleMove validates both source and destination paths against workspace boundary",
+    "handleCopy respects overwrite:false default — errors when destination exists",
+    "handleAppend rejects if target file does not exist",
+    "handleExists works for both files and directories, returns correct type",
+    "z.enum in index.ts lists all 10 actions",
+    "mcp-usage.instructions.md documents all new actions with examples",
+    "Server builds with zero TypeScript errors (npm run build)",
+    "All vitest tests pass including new happy-path tests",
+    "Existing filesystem-safety.test.ts and terminal-filesystem-e2e.test.ts still pass",
+    "delete and move support dry_run mode with zero filesystem side effects",
+    "idempotency/edge-case semantics are explicitly defined and tested for delete/move/copy/append",
+    "destructive ops emit structured audit events including action, path(s), outcome, and dry_run flag",
+    "write/append enforce max payload limits and search/list/tree enforce result limits",
+    "symlink traversal policy is documented, enforced, and tested against workspace-escape attempts",
+    "cross-platform path normalization tests pass for Windows and POSIX style inputs",
+    "documentation includes a filesystem safety model and guidance on when to use memory_filesystem vs memory_terminal"
+  ],
+  "status": "archived",
+  "current_phase": "complete",
+  "current_agent": null,
+  "confirmation_state": {
+    "phases": {
+      "Phase 1: Bug Fixes": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T18:43:09.504Z"
+      },
+      "Phase 2: New Actions — delete": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T18:46:35.088Z"
+      },
+      "Phase 2: New Actions — exists": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T18:46:35.133Z"
+      },
+      "Phase 2: New Actions — copy": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T18:46:35.441Z"
+      },
+      "Phase 2: New Actions — move/rename": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T18:46:35.848Z"
+      },
+      "Phase 2: New Actions — append": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T18:46:36.687Z"
+      },
+      "Phase 3: Observability & Safety": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T19:33:11.590Z"
+      },
+      "Phase 2: New Actions — semantics": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T19:33:11.717Z"
+      },
+      "Phase 2: New Actions — hardening": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T19:33:58.492Z"
+      },
+      "Phase 3: Schema & Registration": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T20:01:47.235Z"
+      },
+      "Phase 4: Tests": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T20:07:34.425Z"
+      },
+      "Phase 5: Review & Regression": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T20:11:40.262Z"
+      },
+      "Phase 5: Review & Docs": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T20:16:56.141Z"
+      }
+    },
+    "steps": {
+      "2": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T18:44:25.005Z"
+      },
+      "5": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T18:44:25.052Z"
+      },
+      "7": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T19:14:18.759Z"
+      },
+      "9": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T19:14:25.928Z"
+      },
+      "10": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T19:16:02.452Z"
+      },
+      "11": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T20:02:58.816Z"
+      },
+      "12": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T20:03:03.763Z"
+      },
+      "13": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T20:11:18.776Z"
+      },
+      "14": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T20:11:23.820Z"
+      },
+      "15": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T19:32:41.530Z"
+      },
+      "16": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T19:32:42.281Z"
+      },
+      "17": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T19:32:41.677Z"
+      },
+      "18": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T19:32:41.878Z"
+      },
+      "22": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T20:03:03.917Z"
+      },
+      "23": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T20:10:38.113Z"
+      }
+    }
+  },
+  "created_at": "2026-02-13T22:32:40.210Z",
+  "updated_at": "2026-02-14T22:31:11.636Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mlmm7af1_aa8e4d7e",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T17:53:06.685Z",
+      "context": {
+        "deployed_by": "User",
+        "reason": "Run researcher and architect for filesystem tool audit plan",
+        "run_id": "run_sess_mlmm7af1_aa8e4d7e"
+      },
+      "completed_at": "2026-02-14T18:26:35.671Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T18:26:35.671Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmm89z3_a7f80aa3",
+      "agent_type": "Researcher",
+      "started_at": "2026-02-14T17:53:52.790Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Perform filesystem tool audit and gap analysis",
+        "research_targets": [
+          "memory_filesystem tool implementation",
+          "filesystem tool test coverage",
+          "agent usage patterns for file operations",
+          "destructive operations policy"
+        ],
+        "questions_to_answer": [
+          "What actions does memory_filesystem currently support?",
+          "What safety checks are in place?",
+          "What file operations are missing?",
+          "How should destructive ops be handled?",
+          "What do agents actually need from the filesystem tool?"
+        ],
+        "run_id": "run_sess_mlmm89z3_a7f80aa3"
+      },
+      "completed_at": "2026-02-14T17:57:20.934Z",
+      "summary": "Completed comprehensive filesystem tool audit. Key findings: (1) 5 existing actions (read, write, search, list, tree) with solid safety infrastructure. (2) Missing high-priority operations: delete and move/rename. Medium: copy, append, exists. (3) Test coverage has no happy-path tests — only error/rejection cases. No dedicated test file. (4) list recursive param accepted but unimplemented. (5) search and tree use different SKIP_DIRS sets. (6) Destructive ops policy: recommend confirm:true pattern (matching plan delete) with sensitive file blocking — no GUI terminal approval needed. All findings stored in filesystem-audit.md research note and research.json structured context.",
+      "artifacts": [
+        "research_notes/filesystem-audit.md",
+        "research.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmmdpzq_4c6518e0",
+      "agent_type": "Architect",
+      "started_at": "2026-02-14T17:58:06.831Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Design implementation plan for Filesystem Tool Audit & Completion",
+        "audit_summary": "5 existing actions (read/write/search/list/tree), recursive bug in list, missing delete/move/copy/append/exists actions, SKIP_DIRS inconsistency, no happy-path tests",
+        "research_summary": "Full research completed by Researcher covering all handlers, safety infrastructure, and gap analysis",
+        "constraints": [
+          "Keep existing safety boundaries",
+          "Destructive ops need confirm:true",
+          "Follow existing handler patterns",
+          "Update MCP schema and docs"
+        ],
+        "acceptance_criteria": [
+          "All new actions implemented and registered",
+          "All existing bugs fixed",
+          "Happy-path tests for all actions",
+          "Docs updated"
+        ],
+        "run_id": "run_sess_mlmmdpzq_4c6518e0"
+      },
+      "completed_at": "2026-02-14T18:01:02.726Z",
+      "summary": "Designed 15-step implementation plan across 5 phases for Filesystem Tool Audit & Completion.\\n\\n**Phase 1 — Bug Fixes (2 steps):** Fix handleList recursive param (unused), harmonize SKIP_DIRS in handleSearch.\\n\\n**Phase 2 — New Actions (5 steps):** Add delete (confirm-gated), move/rename, copy, append, exists handlers in filesystem.tools.ts.\\n\\n**Phase 3 — Schema & Docs (4 steps):** Update consolidated router (memory_filesystem.ts), MCP schema in index.ts (z.enum + new params), consolidated/index.ts exports, and mcp-usage.instructions.md.\\n\\n**Phase 4 — Tests (2 steps):** New dedicated filesystem.tools.test.ts with happy-path tests for all 10 actions + SKIP_DIRS fix verification.\\n\\n**Phase 5 — Review (2 steps):** Build verification and code review.\\n\\nKey decisions: delete requires confirm:true (no GUI), no recursive deletion, exists skips sensitive-file check, move uses fs.rename, copy defaults overwrite:false, append requires file to exist. All stored in architecture.json.\"",
+      "artifacts": [
+        "architecture.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmneckl_f153a8e3",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T18:26:35.685Z",
+      "context": {
+        "run_id": "run_sess_mlmneckl_f153a8e3"
+      },
+      "completed_at": "2026-02-14T18:50:35.678Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T18:50:35.678Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmnf4tc_b5313d78",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T18:27:12.309Z",
+      "context": {
+        "run_id": "run_sess_mlmnf4tc_b5313d78"
+      },
+      "completed_at": "2026-02-14T18:32:40.737Z",
+      "summary": "Implemented Phase 1 scoped fixes: handleList recursive mode now performs walkDir traversal with SKIP_DIRS filtering and returns entry path metadata; handleSearch now uses canonical SKIP_DIRS segment-based filtering. Added focused regression tests and validated with targeted vitest plus server build. Step 0 marked done; Step 1 implementation complete but status transition to done is currently gated by required phase confirmation.",
+      "artifacts": [
+        "server/src/tools/filesystem.tools.ts",
+        "server/src/__tests__/tools/filesystem.tools.phase1.test.ts",
+        "/data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgqya4_1bf77769/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmnna4k_f07ca18e",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T18:33:32.449Z",
+      "context": {
+        "run_id": "run_sess_mlmnna4k_f07ca18e"
+      },
+      "completed_at": "2026-02-14T18:35:39.329Z",
+      "summary": "Completed Phase 1 scoped build-check + code review. Verified server build and full test suite pass. Confirmed Step 0/1 requirements in filesystem.tools.ts and phase1 tests: recursive handleList with SKIP_DIRS filtering and handleSearch canonical SKIP_DIRS segment-based filtering (no hardcoded .git/node_modules checks). Stored review findings and added plan note. Reindexed workspace. Handed off to Coordinator recommending Tester.",
+      "artifacts": [
+        "server/src/tools/filesystem.tools.ts",
+        "server/src/__tests__/tools/filesystem.tools.phase1.test.ts",
+        "/data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgqya4_1bf77769/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmnr5ls_4da08b0d",
+      "agent_type": "Tester",
+      "started_at": "2026-02-14T18:36:33.205Z",
+      "context": {
+        "run_id": "run_sess_mlmnr5ls_4da08b0d"
+      },
+      "completed_at": "2026-02-14T18:37:48.821Z",
+      "summary": "Phase 1 WRITE-loop testing complete. Reviewed existing Phase 1 tests in server/src/__tests__/tools/filesystem.tools.phase1.test.ts and confirmed coverage is sufficient for current bug-fix guarantees. No test code changes required. Ran targeted test command successfully (2/2 passing). Updated Phase 1 step notes with Tester validation context and stored test_plan context. Handed off to Coordinator recommending Executor for Phase 2.",
+      "artifacts": [
+        "server/src/__tests__/tools/filesystem.tools.phase1.test.ts",
+        "/data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgqya4_1bf77769/test_plan.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmo02k2_92304091",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T18:43:29.170Z",
+      "context": {
+        "run_id": "run_sess_mlmo02k2_92304091"
+      },
+      "completed_at": "2026-02-14T18:50:01.831Z",
+      "summary": "Implemented Phase 2 New Actions core set only (steps 2-6): handleDelete, handleMove, handleCopy, handleAppend, handleExists in filesystem.tools.ts. Added focused Phase 2 handler tests. Validation passed (server build + focused Phase1/Phase2 filesystem tests).",
+      "artifacts": [
+        "server/src/tools/filesystem.tools.ts",
+        "server/src/__tests__/tools/filesystem.tools.phase2.test.ts",
+        "/data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgqya4_1bf77769/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmo97os_2d15e44d",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T18:50:35.712Z",
+      "context": {
+        "run_id": "run_sess_mlmo97os_2d15e44d"
+      },
+      "completed_at": "2026-02-14T18:52:52.596Z",
+      "summary": "Completed Phase 2 build-check + review for filesystem handlers/tests. Server build passed and targeted Phase 2 + Phase 1 regression tests passed (11/11). Found one medium defect: handleExists returns exists:false on any stat error, masking non-ENOENT failures. Stored review report and handed off to Coordinator with recommendation for Revisionist.",
+      "artifacts": [
+        "server/src/tools/filesystem.tools.ts",
+        "server/src/__tests__/tools/filesystem.tools.phase2.test.ts",
+        "server/src/__tests__/tools/filesystem.tools.phase1.test.ts",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgqya4_1bf77769/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmocw0a_da77c14f",
+      "agent_type": "Revisionist",
+      "started_at": "2026-02-14T18:53:27.191Z",
+      "context": {
+        "run_id": "run_sess_mlmocw0a_da77c14f"
+      },
+      "completed_at": "2026-02-14T18:55:01.194Z",
+      "summary": "Completed Revisionist pivot for FS-EXISTS-001. Updated plan to reopen Phase 2 `handleExists` step with explicit requirement: return exists:false only for ENOENT and deterministic error response for non-ENOENT stat failures; added scoped testing requirement in phase2 test file. Recorded pivot note and handed off to Coordinator recommending Executor.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgqya4_1bf77769/research_notes/pivot-fs-exists-001.md"
+      ]
+    },
+    {
+      "session_id": "sess_mlmofnol_91a799ee",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T18:55:36.382Z",
+      "context": {
+        "run_id": "run_sess_mlmofnol_91a799ee"
+      },
+      "completed_at": "2026-02-14T18:58:10.746Z",
+      "summary": "Implemented FS-EXISTS-001 pivot in scoped files only. Updated handleExists to return exists:false only for ENOENT and return deterministic error response for non-ENOENT stat failures. Added focused Phase 2 tests for ENOENT and non-ENOENT branches. Validation passed: server build and targeted phase2 test file.",
+      "artifacts": [
+        "server/src/tools/filesystem.tools.ts",
+        "server/src/__tests__/tools/filesystem.tools.phase2.test.ts",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgqya4_1bf77769/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmojlw5_3c8aeadf",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T18:58:40.699Z",
+      "context": {
+        "run_id": "run_sess_mlmojlw5_3c8aeadf"
+      },
+      "completed_at": "2026-02-14T19:02:40.781Z",
+      "summary": "FS-EXISTS-001 remediation verified within scope. Reviewed server/src/tools/filesystem.tools.ts and server/src/__tests__/tools/filesystem.tools.phase2.test.ts. Confirmed ENOENT branch returns success with exists:false/type:null; non-ENOENT branch returns deterministic error 'Failed to check path existence: <message>' and does not map to exists:false. Ran server build (npm run build) and targeted phase2 tests (npx vitest run src/__tests__/tools/filesystem.tools.phase2.test.ts): passed (10/10). Recommended next agent: Tester.",
+      "artifacts": [
+        "server/src/tools/filesystem.tools.ts",
+        "server/src/__tests__/tools/filesystem.tools.phase2.test.ts"
+      ]
+    },
+    {
+      "session_id": "sess_mlmp2tc2_dbd01986",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T19:13:36.783Z",
+      "context": {
+        "run_id": "run_sess_mlmp2tc2_dbd01986"
+      },
+      "completed_at": "2026-02-14T19:18:56.703Z",
+      "summary": "Implemented scoped Phase 3 steps 7-10 only. Updated consolidated memory_filesystem router/types for 10 actions and new params, updated server index zod registration, aligned consolidated index comment, and updated mcp usage instructions for new filesystem actions and destructive-op policy. Validation passed: server build and targeted phase2 filesystem tests.",
+      "artifacts": [
+        "Project-Memory-MCP/server/src/tools/consolidated/memory_filesystem.ts",
+        "Project-Memory-MCP/server/src/index.ts",
+        "Project-Memory-MCP/server/src/tools/consolidated/index.ts",
+        ".github/instructions/mcp-usage.instructions.md",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgqya4_1bf77769/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmpac12_1f39d02b",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T19:19:27.619Z",
+      "context": {
+        "run_id": "run_sess_mlmpac12_1f39d02b"
+      },
+      "completed_at": "2026-02-14T19:21:51.601Z",
+      "summary": "Reviewed Phase 3 steps 7-10 scope. Verified consolidated filesystem router supports all 10 actions and maps parameters correctly; validated index.ts zod schema action enum and optional params (confirm/source/destination/overwrite) with aligned descriptions; confirmed consolidated index comment/export alignment; validated mcp-usage docs include new filesystem actions and destructive-op guidance. Build and targeted filesystem tests passed; no defects found. Stored review context and reindexed workspace; handoff recommendation: Tester.",
+      "artifacts": [
+        "Project-Memory-MCP/server/src/tools/consolidated/memory_filesystem.ts",
+        "Project-Memory-MCP/server/src/index.ts",
+        "Project-Memory-MCP/server/src/tools/consolidated/index.ts",
+        ".github/instructions/mcp-usage.instructions.md",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgqya4_1bf77769/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmper30_5e59ee28",
+      "agent_type": "Tester",
+      "started_at": "2026-02-14T19:22:53.893Z",
+      "context": {
+        "run_id": "run_sess_mlmper30_5e59ee28"
+      },
+      "completed_at": "2026-02-14T19:44:48.910Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T19:44:48.910Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmpjm5a_cbe4a734",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T19:26:40.629Z",
+      "context": {
+        "run_id": "run_sess_mlmpjm5a_cbe4a734"
+      },
+      "completed_at": "2026-02-14T19:37:00.429Z",
+      "summary": "Implemented and validated scoped hardening for steps 15-19 only: dry_run delete/move semantics, deterministic FS_* edge-case errors, structured audit events, configurable payload/result guardrails, and symlink escape policy enforcement. Updated router/schema wiring and focused tests; server build and targeted tests pass (20/20).",
+      "artifacts": [
+        "server/src/tools/filesystem-safety.ts",
+        "server/src/tools/filesystem.tools.ts",
+        "server/src/tools/consolidated/memory_filesystem.ts",
+        "server/src/index.ts",
+        "server/src/__tests__/tools/filesystem.tools.phase2.test.ts",
+        "server/src/__tests__/tools/memory-filesystem-actions.test.ts"
+      ]
+    },
+    {
+      "session_id": "sess_mlmpxn4h_7441239b",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T19:37:35.083Z",
+      "context": {
+        "run_id": "run_sess_mlmpxn4h_7441239b"
+      },
+      "completed_at": "2026-02-14T19:41:08.562Z",
+      "summary": "Reviewed Executor hardening implementation for steps 15-19 in scoped filesystem files. Verified build and targeted tests pass, but full server regression run fails with 3 tests including a scope-relevant e2e sensitive-read contract mismatch. Additional consistency gaps found in symlink policy enforcement and destructive-op audit coverage; recommendation is Revisionist.",
+      "artifacts": [
+        "server/src/tools/filesystem-safety.ts",
+        "server/src/tools/filesystem.tools.ts",
+        "server/src/tools/consolidated/memory_filesystem.ts",
+        "server/src/index.ts",
+        "server/src/__tests__/tools/filesystem.tools.phase2.test.ts",
+        "server/src/__tests__/tools/memory-filesystem-actions.test.ts"
+      ]
+    },
+    {
+      "session_id": "sess_mlmq2ulr_138ea216",
+      "agent_type": "Revisionist",
+      "started_at": "2026-02-14T19:41:38.062Z",
+      "context": {
+        "run_id": "run_sess_mlmq2ulr_138ea216"
+      },
+      "completed_at": "2026-02-14T19:44:08.235Z",
+      "summary": "Applied minimal plan pivot for reviewer defects: reopened exists symlink-policy consistency, reopened destructive-op early-exit audit coverage, reopened symlink-policy step with explicit sensitive-read ordering requirement for handleRead, and inserted dedicated filesystem-safety buildTree signature/option-shape regression fix step. Stored structured pivot targets and handed off to Coordinator recommending Executor.",
+      "artifacts": [
+        "/data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgqya4_1bf77769/state.json",
+        "/data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgqya4_1bf77769/pivot.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmq6xwg_5deb278a",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T19:44:48.950Z",
+      "context": {
+        "run_id": "run_sess_mlmq6xwg_5deb278a"
+      },
+      "completed_at": "2026-02-14T19:50:17.328Z",
+      "summary": "Implemented all scoped revision pivot targets: sensitive-first denial ordering in handleRead for .env contract preservation, symlink-policy consistency in handleExists, structured destructive-op audit events for early validation/error exits in delete/move, and buildTree signature/options compatibility fix in filesystem-safety. Added focused test assertions and validated with server build, targeted filesystem regressions, and full server vitest suite (all passing).",
+      "artifacts": [
+        "server/src/tools/filesystem.tools.ts",
+        "server/src/tools/filesystem-safety.ts",
+        "server/src/__tests__/tools/filesystem.tools.phase2.test.ts",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgqya4_1bf77769/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmqenma_30f815b9",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T19:50:48.865Z",
+      "context": {
+        "run_id": "run_sess_mlmqenma_30f815b9"
+      },
+      "completed_at": "2026-02-14T19:53:42.580Z",
+      "summary": "Completed Reviewer spoke validation for post-pivot filesystem fixes. Verified sensitive-read contract, symlink policy consistency incl. exists behavior, destructive-op early-validation + audit coverage, and buildTree regression. Server build passed and targeted suites passed (75/75). Recommended next agent: Tester.",
+      "artifacts": [
+        "server/src/tools/filesystem.tools.ts",
+        "server/src/tools/filesystem-safety.ts",
+        "server/src/__tests__/tools/filesystem.tools.phase2.test.ts",
+        "server/src/__tests__/tools/filesystem-safety.test.ts",
+        "server/src/__tests__/tools/terminal-filesystem-e2e.test.ts"
+      ]
+    },
+    {
+      "session_id": "sess_mlmqtqrf_6bc6f3da",
+      "agent_type": "Tester",
+      "started_at": "2026-02-14T20:02:32.783Z",
+      "context": {
+        "run_id": "run_sess_mlmqtqrf_6bc6f3da"
+      },
+      "completed_at": "2026-02-14T20:08:04.867Z",
+      "summary": "Completed tester steps 11, 12, 21, and 22 in one scoped run. Added dedicated filesystem tools test suite covering all 10 actions plus SKIP_DIRS harmonization, cross-platform path normalization, and hardening assertions. Ran targeted and broader filesystem suites: 23/23 and 100/100 passing.",
+      "artifacts": [
+        "server/src/__tests__/tools/filesystem.tools.test.ts",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgqya4_1bf77769/test_results.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmr1kn8_d78c6b72",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T20:08:38.119Z",
+      "context": {
+        "run_id": "run_sess_mlmr1kn8_d78c6b72"
+      },
+      "completed_at": "2026-02-14T20:18:06.539Z",
+      "summary": "Completed Reviewer mission for plan_mllgqya4_1bf77769. Finished pending steps 13, 14, and 23. Verification passed: server build exit 0, full vitest run passed (68 files/1263 tests), targeted filesystem-safety + terminal-filesystem-e2e passed (59 tests). Code review criteria for filesystem safety/signature/routing/schema alignment passed. Added concise filesystem safety model section and updated memory_filesystem action list in instructions. Stored review context and reindexed workspace. Handed off to Coordinator with recommendation Archivist.",
+      "artifacts": [
+        "instructions/mcp-usage.instructions.md",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgqya4_1bf77769/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmredon_746fe611",
+      "agent_type": "Archivist",
+      "started_at": "2026-02-14T20:18:35.615Z",
+      "context": {
+        "run_id": "run_sess_mlmredon_746fe611"
+      },
+      "completed_at": "2026-02-14T20:19:21.515Z",
+      "summary": "Archived plan after verifying completion readiness (all 24 steps done, phase complete, confirmation gates satisfied). Executed workspace reindex; profile unchanged (0 files/lines delta).",
+      "artifacts": [
+        "Plan archived: plan_mllgqya4_1bf77769",
+        "Workspace reindex: project-memory-mcp-40f6678f5a9b"
+      ]
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-14T17:57:13.607Z",
+      "from_agent": "Researcher",
+      "to_agent": "Coordinator",
+      "reason": "Research complete. Comprehensive filesystem tool audit produced: current capabilities matrix, test coverage gaps, agent usage patterns, missing operations analysis (delete, move, copy, append), destructive ops policy recommendation, and prioritized implementation phases. Recommend Architect to design the implementation plan."
+    },
+    {
+      "timestamp": "2026-02-14T18:00:53.117Z",
+      "from_agent": "Architect",
+      "to_agent": "Coordinator",
+      "reason": "Plan designed with 15 steps across 5 phases. Bug fixes (2), new actions (5), schema+docs (4), tests (2), review (2). Architecture decisions stored. Ready for Executor to begin Phase 1.\""
+    },
+    {
+      "timestamp": "2026-02-14T18:32:32.531Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Phase 1 bug-fix implementation complete with focused validation passing; ready for review after confirmation gate handling."
+    },
+    {
+      "timestamp": "2026-02-14T18:35:30.567Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Phase 1 build-check + code review passed for scoped bug-fix outputs; recommend Tester."
+    },
+    {
+      "timestamp": "2026-02-14T18:37:43.467Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Phase 1 WRITE-loop test review complete: existing Phase 1 tests are sufficient and targeted run is green. Recommend Executor for next implementation phase."
+    },
+    {
+      "timestamp": "2026-02-14T18:49:51.804Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Phase 2 core set (steps 2-6) implemented and focused validation passed; ready for review."
+    },
+    {
+      "timestamp": "2026-02-14T18:52:45.883Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Review/build-check complete for Phase 2 scope; one correctness defect found in handleExists behavior, recommend Revisionist."
+    },
+    {
+      "timestamp": "2026-02-14T18:54:55.087Z",
+      "from_agent": "Revisionist",
+      "to_agent": "Coordinator",
+      "reason": "Revisionist pivot complete for FS-EXISTS-001: reopened `handleExists` step with explicit ENOENT vs non-ENOENT requirements and scoped test updates. Recommend Executor to implement the code/test fix."
+    },
+    {
+      "timestamp": "2026-02-14T18:58:05.164Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "FS-EXISTS-001 pivot fix implemented with focused validation passing; ready for review."
+    },
+    {
+      "timestamp": "2026-02-14T19:02:15.723Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "FS-EXISTS-001 remediation verified in scoped files; build and targeted phase2 tests passed. Recommend Tester to continue flow."
+    },
+    {
+      "timestamp": "2026-02-14T19:18:52.186Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Phase 3 Schema & Registration steps 7-10 complete; ready for build-check/code review."
+    },
+    {
+      "timestamp": "2026-02-14T19:21:43.115Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Phase 3 Schema & Registration review passed for steps 7-10; recommend Tester."
+    },
+    {
+      "timestamp": "2026-02-14T19:25:37.203Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Phase 3 WRITE-loop validation complete for steps 7-10. Targeted tests are green and coverage fit is adequate for schema/router/doc alignment; recommend continuing implementation loop."
+    },
+    {
+      "timestamp": "2026-02-14T19:26:00.791Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Compliance handoff to satisfy Tester completion gate: targeted Phase 3 validation is green with no defects."
+    },
+    {
+      "timestamp": "2026-02-14T19:36:46.774Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Phase 2 hardening steps 15-19 complete and validated; ready for build-check/code review."
+    },
+    {
+      "timestamp": "2026-02-14T19:41:01.394Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Review found defects in steps 15-19 hardening scope and full server regression; recommend Revisionist for targeted fixes."
+    },
+    {
+      "timestamp": "2026-02-14T19:44:02.879Z",
+      "from_agent": "Revisionist",
+      "to_agent": "Coordinator",
+      "reason": "Plan pivot applied for reviewer-reported filesystem defects and full-suite buildTree contract regressions."
+    },
+    {
+      "timestamp": "2026-02-14T19:50:09.985Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Revision pivot targets implemented and validated; ready for review/build-check confirmation."
+    },
+    {
+      "timestamp": "2026-02-14T19:53:25.445Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Post-pivot filesystem review passed: scoped code checks, server build, and targeted regression suites all green."
+    },
+    {
+      "timestamp": "2026-02-14T20:07:58.672Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Tester scoped run complete for steps 11/12/21/22. New dedicated filesystem suite added; targeted and broader filesystem tests passing. Recommendation: Reviewer."
+    },
+    {
+      "timestamp": "2026-02-14T20:17:59.882Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Reviewer gates complete for steps 13/14/23; build+tests pass and docs safety model added. Recommend Archivist."
+    }
+  ],
+  "steps": [
+    {
+      "phase": "Phase 1: Bug Fixes",
+      "task": "Fix `handleList` recursive parameter — implement recursive directory listing using `walkDir` when `recursive: true` is passed, collecting entries from all subdirectories and filtering with SKIP_DIRS. Update `FileListResult` type to include relative paths for recursive entries.",
+      "type": "fix",
+      "status": "done",
+      "notes": "Implemented recursive listing path in handleList using walkDir when recursive=true, applied SKIP_DIRS segment filtering, and added optional entry.path to represent relative paths for recursive results.",
+      "assignee": "Executor",
+      "index": 0
+    },
+    {
+      "phase": "Phase 1: Bug Fixes",
+      "task": "Harmonize SKIP_DIRS usage in `handleSearch` — replace the hardcoded `node_modules`/`.git` check (line 204) with the canonical SKIP_DIRS set from filesystem-safety.ts. Import SKIP_DIRS and check all path segments against it, not just `firstSegment`.",
+      "type": "fix",
+      "status": "done",
+      "notes": "Normalized from pending after prior confirmation-gate/stale-recovery drift; implementation and validation were already completed.",
+      "assignee": "Executor",
+      "index": 1,
+      "completed_at": "2026-02-14T20:01:52.565Z"
+    },
+    {
+      "phase": "Phase 2: New Actions — delete",
+      "task": "Implement `handleDelete` in filesystem.tools.ts — delete a single file or empty directory. MUST require `confirm: true` parameter or return an error. Block sensitive files via `isSensitivePath`. Return `{ path, type, deleted: true }`. Do NOT support recursive directory deletion (too dangerous).",
+      "type": "code",
+      "status": "done",
+      "notes": "Implemented handleDelete (confirm-gated, sensitive-path denied, non-recursive delete for file/empty directory).",
+      "assignee": "Executor",
+      "index": 2
+    },
+    {
+      "phase": "Phase 2: New Actions — move/rename",
+      "task": "Implement `handleMove` in filesystem.tools.ts — move or rename a file/directory. Require `source` and `destination` params. Validate BOTH paths against workspace boundary. Block sensitive source/dest. Add optional `overwrite: boolean` (default false) — if false and dest exists, return error. Use `fs.rename`.",
+      "type": "code",
+      "status": "done",
+      "notes": "Implemented handleMove with source/destination validation, sensitive path blocking, overwrite=false guard, and rename-based move/rename.",
+      "assignee": "Executor",
+      "index": 3
+    },
+    {
+      "phase": "Phase 2: New Actions — copy",
+      "task": "Implement `handleCopy` in filesystem.tools.ts — copy a single file. Require `source` and `destination` params. Validate both paths. Block sensitive files. Add optional `overwrite: boolean` (default false). Use `fs.copyFile` with `fs.constants.COPYFILE_EXCL` when overwrite is false. Optionally create parent dirs.",
+      "type": "code",
+      "status": "done",
+      "notes": "Normalized from pending after stale-recovery drift; handleCopy implementation and validation were already completed.",
+      "assignee": "Executor",
+      "index": 4,
+      "completed_at": "2026-02-14T20:01:52.565Z"
+    },
+    {
+      "phase": "Phase 2: New Actions — append",
+      "task": "Implement `handleAppend` in filesystem.tools.ts — append content to an existing file. Require `path` and `content` params. Validate path and block sensitive files. File must exist (return error if not). Use `fs.appendFile`. Return `{ path, bytes_appended }`.",
+      "type": "code",
+      "status": "done",
+      "notes": "Implemented handleAppend requiring existing target file, with path validation, sensitive file blocking, appendFile write, and bytes_appended response.",
+      "assignee": "Executor",
+      "index": 5
+    },
+    {
+      "phase": "Phase 2: New Actions — exists",
+      "task": "Implement `handleExists` in filesystem.tools.ts — check if a file or directory exists. Require `path` param. Validate path (but do NOT block sensitive files — existence-checking is read-only enough). Use `fs.access` or try/catch `fs.stat`. Return `{ path, exists, type: 'file'|'directory'|null }`.",
+      "type": "code",
+      "status": "done",
+      "notes": "Applied symlink-policy consistency in handleExists using enforceSymlinkPolicy(..., { allowMissingLeaf: true }) while preserving ENOENT->exists:false semantics; added coverage in filesystem.tools.phase2.test.ts.",
+      "assignee": "Executor",
+      "index": 6,
+      "completed_at": "2026-02-14T19:49:19.153Z"
+    },
+    {
+      "phase": "Phase 3: Schema & Registration",
+      "task": "Update `memory_filesystem.ts` consolidated router — add cases for delete, move, copy, append, exists. Update `FilesystemAction` type union. Add `MemoryFilesystemParams` fields: `confirm`, `source`, `destination`, `overwrite`. Import all new handlers from filesystem.tools.ts.",
+      "type": "code",
+      "status": "done",
+      "notes": "Normalized from pending; Phase 3 router action expansion was implemented, reviewed, and tested.",
+      "assignee": "Executor",
+      "index": 7,
+      "completed_at": "2026-02-14T20:01:52.565Z"
+    },
+    {
+      "phase": "Phase 3: Schema & Registration",
+      "task": "Update MCP tool registration in index.ts — expand the `z.enum` for memory_filesystem action to include all 10 actions. Add new Zod params: `confirm: z.boolean().optional()`, `source: z.string().optional()`, `destination: z.string().optional()`, `overwrite: z.boolean().optional()`. Update the description string.",
+      "type": "code",
+      "status": "done",
+      "notes": "Normalized from pending; MCP schema expansion was implemented, reviewed, and tested.",
+      "assignee": "Executor",
+      "index": 8,
+      "completed_at": "2026-02-14T20:01:52.565Z"
+    },
+    {
+      "phase": "Phase 3: Schema & Registration",
+      "task": "Update `consolidated/index.ts` export and comment — change '5 actions' to '10 actions' in the comment and ensure new types are re-exported.",
+      "type": "code",
+      "status": "done",
+      "notes": "Tester revalidated Phase 3 alignment: consolidated index export/comment remains coherent with 10-action surface; covered by memory-filesystem-actions routing checks and passing targeted vitest run.",
+      "assignee": "Executor",
+      "index": 9
+    },
+    {
+      "phase": "Phase 3: Schema & Registration",
+      "task": "Update `mcp-usage.instructions.md` — add documentation for all 5 new actions (delete, move, copy, append, exists) following the existing pattern. Note the `confirm: true` requirement for delete. Update the actions table at the top. Also update the safety boundaries section to mention destructive ops policy.",
+      "type": "documentation",
+      "status": "done",
+      "notes": "Tester confirmed doc alignment impact for mcp-usage instructions remains consistent with tested action surface; no documentation test defects found during phase-loop validation.",
+      "assignee": "Executor",
+      "index": 10
+    },
+    {
+      "phase": "Phase 4: Tests",
+      "task": "Create dedicated test file `server/src/__tests__/tools/filesystem.tools.test.ts` with happy-path tests for ALL 10 actions. Use vitest, mock file-store and fs/promises. Test: read returns content, write creates file, search finds matches, list returns entries, tree returns tree string, delete removes file, move renames, copy duplicates, append adds content, exists returns correct status. Also test: list recursive mode, delete without confirm fails, move overwrite protection.",
+      "type": "test",
+      "status": "done",
+      "notes": "Created dedicated server/src/__tests__/tools/filesystem.tools.test.ts covering happy-path behavior for all 10 actions plus key edge checks.",
+      "assignee": "Tester",
+      "index": 11,
+      "completed_at": "2026-02-14T20:07:46.264Z"
+    },
+    {
+      "phase": "Phase 4: Tests",
+      "task": "Add tests for the SKIP_DIRS harmonization fix — verify that `handleSearch` now skips all dirs in SKIP_DIRS (not just node_modules/.git). Add a test that the `list` recursive mode skips SKIP_DIRS entries.",
+      "type": "test",
+      "status": "done",
+      "notes": "Added SKIP_DIRS harmonization assertions for search and recursive list using canonical SKIP_DIRS coverage.",
+      "assignee": "Tester",
+      "index": 12,
+      "completed_at": "2026-02-14T20:07:46.264Z"
+    },
+    {
+      "phase": "Phase 5: Review & Regression",
+      "task": "Build verification — run `npm run build` in server/ and verify zero compile errors. Run `npx vitest run` and verify all tests pass (existing + new). Check that the existing filesystem-safety.test.ts and terminal-filesystem-e2e.test.ts still pass.",
+      "type": "validation",
+      "status": "done",
+      "notes": "Build/test verification passed. `npm run build` exit 0, full `npx vitest run` passed (68 files, 1263 tests), and targeted `filesystem-safety` + `terminal-filesystem-e2e` suites passed (59 tests, exit 0).",
+      "assignee": "Reviewer",
+      "index": 13,
+      "completed_at": "2026-02-14T20:13:42.473Z"
+    },
+    {
+      "phase": "Phase 5: Review & Regression",
+      "task": "Code review — verify all new handlers follow existing patterns (resolveWorkspaceRoot → validatePath → isSensitivePath → operation → return). Verify destructive ops require confirm:true. Verify all paths are validated. Verify consolidated router correctly delegates. Verify MCP schema matches handler signatures.",
+      "type": "validation",
+      "status": "done",
+      "notes": "Reviewer validation passed: handlers follow resolveWorkspaceRoot->validatePath->(symlink policy + sensitive check)->operation pattern; destructive delete confirm=true enforced; source/destination path validation present for move/copy; consolidated router delegates all 10 actions; index.ts schema and params match handler signatures (confirm/dry_run/source/destination/overwrite).",
+      "assignee": "Reviewer",
+      "index": 14,
+      "completed_at": "2026-02-14T20:16:48.480Z"
+    },
+    {
+      "phase": "Phase 2: New Actions — hardening",
+      "task": "Add `dry_run: true` support for destructive actions (`delete`, `move`) returning a preview payload (`would_delete`/`would_move`) with zero filesystem side effects; keep `confirm: true` enforcement for actual deletes.",
+      "type": "code",
+      "status": "done",
+      "notes": "Done: delete/move now accept dry_run and return preview payloads (`would_delete`/`would_move`) with no filesystem side effects; delete still requires confirm:true for non-dry-run execution.",
+      "assignee": "Executor",
+      "index": 15
+    },
+    {
+      "phase": "Phase 2: New Actions — semantics",
+      "task": "Define and implement idempotency/edge-case semantics for `delete`, `move`, `copy`, and `append` (same-path move, missing source, existing destination, append target missing), and expose deterministic error codes/messages.",
+      "type": "code",
+      "status": "done",
+      "notes": "Done: idempotency/edge semantics defined and implemented — delete missing path returns noop success, move same-path returns noop success, copy same-path/missing source/existing destination and append missing target return deterministic FS_* error codes.",
+      "assignee": "Executor",
+      "index": 16
+    },
+    {
+      "phase": "Phase 3: Observability & Safety",
+      "task": "Add structured audit events for destructive operations (`delete`, `move`, and dry-run variants`) including action, normalized path(s), run context, outcome, and reason.",
+      "type": "code",
+      "status": "done",
+      "notes": "Added structured audit events on destructive-op early validation/error exits in handleDelete/handleMove (confirm required, destination exists, validation/symlink/sensitive denials, source missing, operation failure) via error responses carrying audit_event payload.",
+      "assignee": "Executor",
+      "index": 17,
+      "completed_at": "2026-02-14T19:49:19.153Z"
+    },
+    {
+      "phase": "Phase 3: Observability & Safety",
+      "task": "Introduce configurable guardrails: max bytes for `write`/`append` payloads and max result counts for `search`/`list`/`tree`, with explicit truncation/limit indicators in responses.",
+      "type": "code",
+      "status": "done",
+      "notes": "Done: configurable guardrails added via env-backed limits (`MCP_FILESYSTEM_MAX_WRITE_BYTES`, `MCP_FILESYSTEM_MAX_APPEND_BYTES`, `MCP_FILESYSTEM_MAX_SEARCH_RESULTS`, `MCP_FILESYSTEM_MAX_LIST_RESULTS`, `MCP_FILESYSTEM_MAX_TREE_ENTRIES`) with explicit response limit indicators/truncation flags.",
+      "assignee": "Executor",
+      "index": 18
+    },
+    {
+      "phase": "Phase 3: Observability & Safety",
+      "task": "Define and enforce a symlink policy for `memory_filesystem` (deny or constrained resolution), including explicit checks preventing workspace escape through symlink traversal.",
+      "type": "code",
+      "status": "done",
+      "notes": "Updated handleRead ordering to enforce sensitive-path denial before symlink-policy evaluation for sensitive targets (.env contract preservation), and aligned symlink policy checks for exists path flow.",
+      "assignee": "Executor",
+      "index": 19,
+      "completed_at": "2026-02-14T19:49:19.153Z"
+    },
+    {
+      "phase": "Phase 3: Observability & Safety",
+      "task": "Resolve full-suite regressions in filesystem-safety `buildTree` contract — fix signature/option-shape mismatch (either compatibility defaults/overload in buildTree or aligned callsites/tests) so existing filesystem-safety tests pass without weakening guardrails.",
+      "type": "fix",
+      "status": "done",
+      "notes": "Fixed filesystem-safety buildTree contract compatibility by making options optional with defaults and preserving truncation/max-entry behavior; legacy 6-arg callsites now pass full suite.",
+      "assignee": "Executor",
+      "index": 20,
+      "completed_at": "2026-02-14T19:49:19.153Z"
+    },
+    {
+      "phase": "Phase 4: Tests",
+      "task": "Add cross-platform path normalization tests (Windows + POSIX separators, traversal patterns, mixed-case path behavior where applicable) for validation and action handlers.",
+      "type": "test",
+      "status": "done",
+      "assignee": "Tester",
+      "index": 21,
+      "notes": "Added cross-platform path normalization assertions for mixed Windows/POSIX separators in action outputs.",
+      "completed_at": "2026-02-14T20:07:46.264Z"
+    },
+    {
+      "phase": "Phase 4: Tests",
+      "task": "Add hardening tests covering `dry_run` no-side-effects, audit event emission, guardrail limit behavior, partial-failure semantics, and symlink escape prevention.",
+      "type": "test",
+      "status": "done",
+      "notes": "Added hardening tests for dry_run no-side-effects, audit events, guardrail limits, symlink policy violations, and no-op/partial-failure semantics.",
+      "assignee": "Tester",
+      "index": 22,
+      "completed_at": "2026-02-14T20:07:46.264Z"
+    },
+    {
+      "phase": "Phase 5: Review & Docs",
+      "task": "Add a concise filesystem safety model section to instructions: destructive-op policy, symlink policy, guardrails, and when to use `memory_filesystem` vs `memory_terminal`.",
+      "type": "documentation",
+      "status": "done",
+      "assignee": "Reviewer",
+      "index": 23,
+      "notes": "Updated instructions/mcp-usage.instructions.md with concise filesystem safety model: destructive-op policy, symlink policy, guardrails, and when to use memory_filesystem vs memory_terminal; aligned action list to include delete/move/copy/append/exists.",
+      "completed_at": "2026-02-14T20:17:04.559Z"
+    }
+  ],
+  "program_id": "plan_mllgnu1d_56838e50",
+  "recommended_next_agent": "Coordinator",
+  "pending_notes": [
+    {
+      "note": "Reviewer PASS (Phase 1 scope): build+tests green; Step 0/1 requirements validated in filesystem.tools.ts and filesystem.tools.phase1.test.ts; no defects found. Recommend Tester.",
+      "type": "info",
+      "added_at": "2026-02-14T18:35:12.550Z",
+      "added_by": "user"
+    }
+  ]
+}

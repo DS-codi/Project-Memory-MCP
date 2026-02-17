@@ -1,0 +1,727 @@
+{
+  "id": "plan_mlov60n5_21207af6",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "MCP Terminal Tool Consolidation",
+  "description": "Consolidate memory_terminal and memory_terminal_interactive MCP tools into a single unified tool that always routes through the Rust+QML interactive-terminal application. The consolidated tool must merge all actions from both tools into one surface, support a headless execution mode via an action argument for a strict allowlisted subset, make the headless-allowed subset configurable through GUI app settings/preferences, deprecate and remove the separate memory_terminal tool, and update all docs/agent instructions that reference the old split.",
+  "priority": "high",
+  "category": "refactor",
+  "goals": [
+    "Unify terminal MCP functionality into one consolidated tool surface with merged action coverage",
+    "Enforce Rust+QML interactive-terminal routing as the default execution path for all terminal requests",
+    "Provide explicit headless execution mode with strict, configurable allowlisted command subset",
+    "Deliver GUI settings/preferences for workspace-scoped headless subset configuration and enforcement integration",
+    "Deprecate and retire separate memory_terminal surface with a minimal temporary compatibility bridge for rapid cutover",
+    "Align all documentation and agent instructions to the unified terminal contract"
+  ],
+  "success_criteria": [
+    "A single terminal MCP tool contract is the primary interface and supports both interactive and headless modes",
+    "Legacy memory_terminal call shapes continue to function during transition via deterministic compatibility shim behavior",
+    "Headless mode enforces allowlist restrictions and destructive-command protections with policy reflected from GUI-configurable settings",
+    "Allowlist mutation actions cannot execute autonomously and require explicit user confirmation context; unauthorized attempts must return deterministic deny responses",
+    "All non-allowlisted terminal actions require explicit user approval context before execution in both interactive and headless modes",
+    "A user-facing 'Run headlessly' option is available and maps deterministically to unified runtime mode semantics and policy enforcement",
+    "For chat-origin terminal requests, interactive-terminal shows a separate topmost approval dialog and the user decision (Approve/Deny) deterministically resolves the originating tool request",
+    "VS Code extension and replay harness operate against unified contract without split-surface assumptions",
+    "Migration documentation includes compatibility timeline, cutover checklist, rollback notes, and final removal gate criteria",
+    "Reviewer and Tester validations pass across server, extension, and interactive-terminal impacted test/build suites"
+  ],
+  "status": "archived",
+  "current_phase": "Phase 1: Unified Contract Design",
+  "current_agent": null,
+  "confirmation_state": {
+    "phases": {
+      "Phase 1: Unified Contract Design": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-16T08:00:26.579Z"
+      },
+      "Phase 2: Server Surface Consolidation": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-16T09:40:38.618Z"
+      },
+      "Phase 3: GUI Headless Policy Configuration": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-16T09:20:11.740Z"
+      }
+    },
+    "steps": {
+      "4": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-16T08:12:48.662Z"
+      },
+      "17": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-16T11:08:17.472Z"
+      }
+    }
+  },
+  "created_at": "2026-02-16T07:39:36.262Z",
+  "updated_at": "2026-02-16T13:39:11.957Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mlovbgkc_3f735503",
+      "agent_type": "Researcher",
+      "started_at": "2026-02-16T07:43:50.198Z",
+      "context": {
+        "run_id": "run_sess_mlovbgkc_3f735503"
+      },
+      "completed_at": "2026-02-16T08:14:24.914Z",
+      "summary": "[STALE_RECOVERY 2026-02-16T08:14:24.914Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlovithw_bcd1903f",
+      "agent_type": "Architect",
+      "started_at": "2026-02-16T07:49:33.543Z",
+      "context": {
+        "run_id": "run_sess_mlovithw_bcd1903f"
+      },
+      "completed_at": "2026-02-16T07:52:59.869Z",
+      "summary": "Completed Architect planning for MCP Terminal Tool Consolidation: reviewed goals/success criteria and research artifacts, replaced plan with 14 phased steps covering unified terminal surface, Rust+QML routing retention, headless mode subset and GUI preferences, legacy memory_terminal deprecation/compatibility migration, documentation alignment, and validation/cutover gates. Handoff submitted to Coordinator with recommendation for Executor.",
+      "artifacts": [
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlov60n5_21207af6/state.json",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlov60n5_21207af6/architecture.json",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlov60n5_21207af6/research.json",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlov60n5_21207af6/research_notes/terminal-tool-consolidation-research.md"
+      ]
+    },
+    {
+      "session_id": "sess_mlovspja_a2216d45",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-16T07:57:14.950Z",
+      "context": {
+        "run_id": "run_sess_mlovspja_a2216d45"
+      },
+      "completed_at": "2026-02-16T08:17:44.198Z",
+      "summary": "[STALE_RECOVERY 2026-02-16T08:17:44.198Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlovtl6r_e510bedf",
+      "agent_type": "Executor",
+      "started_at": "2026-02-16T07:57:55.991Z",
+      "context": {
+        "run_id": "run_sess_mlovtl6r_e510bedf"
+      },
+      "completed_at": "2026-02-16T08:01:05.810Z",
+      "summary": "Completed Phase 1 deliverables for steps 0-1 only. Added a single design artifact defining unified MCP terminal contract (canonical actions, legacy aliases, runtime mode semantics, PM_TERM compatibility mapping) and routing architecture enforcing Rust+QML interactive-terminal path with strict headless subset gating. Persisted architecture and execution_log context entries. No Phase 2+ code implementation started.",
+      "artifacts": [
+        "Project-Memory-MCP/docs/mcp-terminal-tool-consolidation-phase1-contract-routing.md",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlov60n5_21207af6/architecture.json",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlov60n5_21207af6/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlovyhr8_0ddea75c",
+      "agent_type": "Executor",
+      "started_at": "2026-02-16T08:01:44.825Z",
+      "context": {
+        "run_id": "run_sess_mlovyhr8_0ddea75c"
+      },
+      "completed_at": "2026-02-16T08:09:29.959Z",
+      "summary": "Implemented Phase 2 terminal server consolidation steps 2-4 within server scope: unified surface wiring via memory_terminal_interactive, migrated allowlist management into unified surface bound to terminal-auth policy store, and added legacy memory_terminal compatibility shim with deterministic deprecation metadata and PM_TERM_LEGACY_MEMORY_TERMINAL_MODE cutover switch. Added focused tests and validated with vitest (48 passed). Step 4 status is blocked by phase confirmation gate despite implementation completion.",
+      "artifacts": [
+        "Project-Memory-MCP/server/src/tools/consolidated/memory_terminal_interactive.ts",
+        "Project-Memory-MCP/server/src/tools/consolidated/memory_terminal.ts",
+        "Project-Memory-MCP/server/src/tools/consolidated/index.ts",
+        "Project-Memory-MCP/server/src/index.ts",
+        "Project-Memory-MCP/server/src/__tests__/tools/interactive-terminal.test.ts",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlov60n5_21207af6/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlowes9u_638f8f10",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-16T08:14:24.943Z",
+      "context": {
+        "run_id": "run_sess_mlowes9u_638f8f10"
+      },
+      "completed_at": "2026-02-16T08:17:06.048Z",
+      "summary": "Reviewed Phase 2 server consolidation scope. Unified registration/dispatch and allowlist CRUD behavior validated; targeted tests passed (48/48). Server build failed with TS2352 in memory_terminal legacy shim result casts, so phase not approved and Revisionist is recommended.",
+      "artifacts": [
+        "Project-Memory-MCP/server/src/tools/consolidated/memory_terminal_interactive.ts",
+        "Project-Memory-MCP/server/src/tools/consolidated/memory_terminal.ts",
+        "Project-Memory-MCP/server/src/tools/consolidated/index.ts",
+        "Project-Memory-MCP/server/src/index.ts",
+        "Project-Memory-MCP/server/src/__tests__/tools/interactive-terminal.test.ts",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlov60n5_21207af6/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlowj21n_da9da117",
+      "agent_type": "Revisionist",
+      "started_at": "2026-02-16T08:17:44.241Z",
+      "context": {
+        "run_id": "run_sess_mlowj21n_da9da117"
+      },
+      "completed_at": "2026-02-16T08:18:56.840Z",
+      "summary": "Completed blocker analysis and minimal plan pivot for Reviewer-reported TS2352 errors in legacy memory_terminal compatibility shim. Added one focused Phase 2 fix step before Phase 3 work, preserving temporary/minimal compatibility bridge preference. Stored pivot rationale and handed off to Coordinator recommending Executor for implementation and rebuild verification.",
+      "artifacts": [
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlov60n5_21207af6/state.json",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlov60n5_21207af6/pivot.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlowldlo_a74a0f4e",
+      "agent_type": "Executor",
+      "started_at": "2026-02-16T08:19:32.530Z",
+      "context": {
+        "run_id": "run_sess_mlowldlo_a74a0f4e"
+      },
+      "completed_at": "2026-02-16T08:24:04.676Z",
+      "summary": "Completed only inserted blocker-fix step 5. Applied minimal type-safe compatibility bridge fixes in legacy memory_terminal shim to eliminate TS2352 casts without expanding bridge scope. Verification: server TypeScript build passes and targeted interactive-terminal test file passes (48/48). Execution log stored; handoff submitted to Coordinator recommending Reviewer.",
+      "artifacts": [
+        "Project-Memory-MCP/server/src/tools/consolidated/memory_terminal.ts",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlov60n5_21207af6/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlowrwxc_9731624b",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-16T08:24:37.510Z",
+      "context": {
+        "run_id": "run_sess_mlowrwxc_9731624b"
+      },
+      "completed_at": "2026-02-16T08:26:34.424Z",
+      "summary": "Reviewed minimal TS2352 blocker-fix in legacy shim and verified closure. Target file validated for temporary/minimal compatibility-bridge adherence. Fresh evidence: server build passed; targeted interactive-terminal suite passed (48/48). Stored review context and handed off to Coordinator recommending Executor to continue Phase 3.",
+      "artifacts": [
+        "Project-Memory-MCP/server/src/tools/consolidated/memory_terminal.ts",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlov60n5_21207af6/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlowvkr5_5b488cc2",
+      "agent_type": "Executor",
+      "started_at": "2026-02-16T08:27:28.359Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Execute approved Phase 3 GUI headless policy configuration and server enforcement integration",
+        "current_step_index": 0,
+        "steps_to_complete": [
+          "GUI settings/preferences model for workspace-scoped headless allowlist policy",
+          "Server-side headless authorization integration",
+          "Focused tests and targeted verification"
+        ],
+        "environment": {
+          "working_directory": "c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP",
+          "active_branch": "unknown",
+          "build_command": "npx vitest run"
+        },
+        "blockers_to_avoid": [
+          "Do not modify vscode-extension/**",
+          "Do not start Phase 4 migration work"
+        ],
+        "run_id": "run_sess_mlowvkr5_5b488cc2"
+      },
+      "completed_at": "2026-02-16T09:18:38.527Z",
+      "summary": "Completed Phase 3 implementation for workspace-scoped GUI headless allowlist policy and server strict-headless enforcement integration. Added focused tests and ran targeted verification (interactive-terminal build, server targeted vitest, server build). Step 6 marked done. Step 7 implementation complete but status remains active due required phase confirmation gate.",
+      "artifacts": [
+        "interactive-terminal/src/main.rs",
+        "interactive-terminal/src/headless_policy.rs",
+        "interactive-terminal/src/headless_policy_repository.rs",
+        "interactive-terminal/src/cxxqt_bridge/mod.rs",
+        "interactive-terminal/src/cxxqt_bridge/ffi.rs",
+        "interactive-terminal/src/cxxqt_bridge/session_runtime.rs",
+        "interactive-terminal/src/cxxqt_bridge/initialize.rs",
+        "interactive-terminal/src/cxxqt_bridge/invokables.rs",
+        "interactive-terminal/src/cxxqt_bridge/state.rs",
+        "interactive-terminal/src/cxxqt_bridge/tests.rs",
+        "interactive-terminal/src/cxxqt_bridge/headless_policy_state.rs",
+        "interactive-terminal/qml/main.qml",
+        "server/src/tools/terminal-auth.ts",
+        "server/src/__tests__/tools/interactive-terminal.test.ts",
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlov60n5_21207af6/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mloysylh_48a7f5a7",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-16T09:21:25.572Z",
+      "context": {
+        "run_id": "run_sess_mloysylh_48a7f5a7"
+      },
+      "completed_at": "2026-02-16T09:41:41.421Z",
+      "summary": "[STALE_RECOVERY 2026-02-16T09:41:41.421Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlozj0te_ef4146da",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-16T09:41:41.497Z",
+      "context": {
+        "run_id": "run_sess_mlozj0te_ef4146da"
+      },
+      "completed_at": "2026-02-16T09:44:21.112Z",
+      "summary": "Completed focused Phase 3 review closeout in regression-check mode. Verified registered build scripts: interactive-terminal build passed, server targeted tests passed (50/50), and server TypeScript build passed. Stored review findings at plan review context, reindexed workspace profile, and handed off to Coordinator recommending Executor for Phase 4 migration steps.",
+      "artifacts": [
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlov60n5_21207af6/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlozn0f1_1805a0d5",
+      "agent_type": "Executor",
+      "started_at": "2026-02-16T09:44:47.604Z",
+      "context": {
+        "run_id": "run_sess_mlozn0f1_1805a0d5"
+      },
+      "completed_at": "2026-02-16T11:17:09.699Z",
+      "summary": "[STALE_RECOVERY 2026-02-16T11:17:09.699Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlp040w1_6f0b9289",
+      "agent_type": "Executor",
+      "started_at": "2026-02-16T09:58:01.368Z",
+      "context": {
+        "run_id": "run_sess_mlp040w1_6f0b9289"
+      },
+      "completed_at": "2026-02-16T11:17:09.699Z",
+      "summary": "[STALE_RECOVERY 2026-02-16T11:17:09.699Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlp2xss3_eb98d1b0",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-16T11:17:09.747Z",
+      "context": {
+        "run_id": "run_sess_mlp2xss3_eb98d1b0"
+      },
+      "completed_at": "2026-02-16T13:04:06.837Z",
+      "summary": "[STALE_RECOVERY 2026-02-16T13:04:06.837Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlp3bf4s_d53a5684",
+      "agent_type": "Revisionist",
+      "started_at": "2026-02-16T11:27:45.264Z",
+      "context": {
+        "run_id": "run_sess_mlp3bf4s_d53a5684"
+      },
+      "completed_at": "2026-02-16T11:31:36.206Z",
+      "summary": "Applied audited plan pivot for strict approval UX requirement: replaced extension-side terminal approval context/link approach with GUI-managed approval authority direction. Updated plan steps to include explicit rollback and replacement tasks, stored pivot context, and handed off to Coordinator recommending Executor.",
+      "artifacts": [
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlov60n5_21207af6/state.json",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlov60n5_21207af6/pivot.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlp3he73_c5a75c81",
+      "agent_type": "Executor",
+      "started_at": "2026-02-16T11:32:24.000Z",
+      "context": {
+        "run_id": "run_sess_mlp3he73_c5a75c81"
+      },
+      "completed_at": "2026-02-16T12:58:01.166Z",
+      "summary": "Implemented approved pivot rollback for extension-side terminal approval UX in scoped files only. Removed local approval context cache/helpers and Approve/Deny command-link path from terminal-tool, removed related exports, removed extension command registrations, and removed package command contributions. Preserved unified terminal canonical/legacy routing behavior and approval_context passthrough for GUI-managed approval lifecycle. Validation: extension compile passed; replay-focused extension tests passed; targeted replay harness core suite passed; targeted server interactive-terminal suite passed. One tooling issue: memory_context store rejected due required `data` field not available in current tool schema.",
+      "artifacts": [
+        "Project-Memory-MCP/vscode-extension/src/chat/tools/terminal-tool.ts",
+        "Project-Memory-MCP/vscode-extension/src/chat/tools/index.ts",
+        "Project-Memory-MCP/vscode-extension/src/extension.ts",
+        "Project-Memory-MCP/vscode-extension/package.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlp6rc9f_7337bdfe",
+      "agent_type": "Executor",
+      "started_at": "2026-02-16T13:04:06.907Z",
+      "context": {
+        "run_id": "run_sess_mlp6rc9f_7337bdfe"
+      },
+      "completed_at": "2026-02-16T13:12:40.555Z",
+      "summary": "Implemented separate topmost GUI approval dialog for chat-origin terminal requests and deterministic lifecycle request correlation verification with fail-close mismatch handling. Updated server mapping/payload propagation and targeted tests; validated server test suite and extension compile. Step 17 marked done; step 18/19 progression blocked by explicit confirmation gate requirement.",
+      "artifacts": [
+        "Project-Memory-MCP/server/src/tools/interactive-terminal-orchestration.ts",
+        "Project-Memory-MCP/server/src/tools/interactive-terminal-protocol.ts",
+        "Project-Memory-MCP/server/src/tools/interactive-terminal.tools.ts",
+        "Project-Memory-MCP/server/src/__tests__/tools/interactive-terminal.test.ts",
+        "Project-Memory-MCP/interactive-terminal/qml/main.qml",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlov60n5_21207af6/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlp800fc_f7fccd36",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-16T13:38:51.049Z",
+      "context": {
+        "deployed_by": "User",
+        "reason": "Archive current plan and create new refined plan for MCP Terminal Tool & GUI Approval Flow",
+        "run_id": "run_sess_mlp800fc_f7fccd36"
+      }
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-16T07:48:24.083Z",
+      "from_agent": "Researcher",
+      "to_agent": "Coordinator",
+      "reason": "Research complete on terminal tool consolidation; recommend Architect to design unified tool contract and migration plan."
+    },
+    {
+      "timestamp": "2026-02-16T07:48:38.323Z",
+      "from_agent": "Researcher",
+      "to_agent": "Coordinator",
+      "reason": "Research complete. Recommend Architect for solution design and migration architecture."
+    },
+    {
+      "timestamp": "2026-02-16T07:52:50.507Z",
+      "from_agent": "Architect",
+      "to_agent": "Coordinator",
+      "reason": "Implementation roadmap complete with phased steps, migration checkpoints, and validation gates; recommend Executor to begin implementation."
+    },
+    {
+      "timestamp": "2026-02-16T08:01:01.383Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Phase 1 steps 0-1 completed with unified contract and routing design artifact; ready for review."
+    },
+    {
+      "timestamp": "2026-02-16T08:09:23.051Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Phase 2 steps 2-4 implementation completed for server terminal consolidation; ready for Reviewer validation with confirmation-gate note."
+    },
+    {
+      "timestamp": "2026-02-16T08:16:56.315Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Phase 2 review failed due blocking TypeScript build errors in legacy compatibility shim; recommend Revisionist."
+    },
+    {
+      "timestamp": "2026-02-16T08:18:47.620Z",
+      "from_agent": "Revisionist",
+      "to_agent": "Coordinator",
+      "reason": "Plan pivot applied for TS2352 legacy shim blocker with strict minimal-bridge scope; ready for implementation retry."
+    },
+    {
+      "timestamp": "2026-02-16T08:23:59.003Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Inserted Phase 2 blocker-fix step 5 completed and verified; ready for review."
+    },
+    {
+      "timestamp": "2026-02-16T08:26:26.543Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Blocker-fix review passed; TS2352 legacy shim issue closed with fresh build/test verification."
+    },
+    {
+      "timestamp": "2026-02-16T09:18:31.646Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Phase 3 implementation complete and verified; ready for review/build-check with confirmation-gate note."
+    },
+    {
+      "timestamp": "2026-02-16T09:44:16.683Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Phase 3 focused review closeout passed with fresh build/test evidence; recommend proceeding to Phase 4 implementation."
+    },
+    {
+      "timestamp": "2026-02-16T11:31:26.755Z",
+      "from_agent": "Revisionist",
+      "to_agent": "Coordinator",
+      "reason": "Plan pivot applied: rollback extension-side terminal approval UX and shift approval authority to interactive-terminal GUI-managed flow."
+    },
+    {
+      "timestamp": "2026-02-16T12:57:53.788Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Step 16 rollback pivot implemented and validated; ready for review/build-check."
+    },
+    {
+      "timestamp": "2026-02-16T13:12:35.322Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Implementation and targeted validation complete for topmost approval dialog and deterministic request correlation; step 18 requires explicit user confirmation gate before status update. Recommend Coordinator obtain confirmation, then route to Reviewer."
+    }
+  ],
+  "steps": [
+    {
+      "phase": "Phase 1: Unified Contract Design",
+      "task": "Define the unified terminal MCP contract that merges memory_terminal and memory_terminal_interactive actions into one surface, including canonical action names, legacy aliases, runtime mode semantics (`headless|interactive`), and stable PM_TERM error-code compatibility mapping.",
+      "type": "planning",
+      "status": "done",
+      "notes": "Completed unified MCP terminal contract design in docs/mcp-terminal-tool-consolidation-phase1-contract-routing.md covering canonical actions, legacy aliases, runtime mode semantics, and PM_TERM compatibility mapping.",
+      "assignee": "Executor",
+      "index": 0
+    },
+    {
+      "phase": "Phase 1: Unified Contract Design",
+      "task": "Produce a routing architecture note that enforces all terminal requests through the Rust+QML interactive-terminal path, while allowing a strict headless execution subset selected via action/runtime mode arguments.",
+      "type": "planning",
+      "status": "done",
+      "notes": "Completed routing architecture note in docs/mcp-terminal-tool-consolidation-phase1-contract-routing.md enforcing Rust+QML interactive-terminal routing and strict headless subset selection by action/runtime mode; phase confirmation gate acknowledged.",
+      "assignee": "Executor",
+      "index": 1
+    },
+    {
+      "phase": "Phase 2: Server Surface Consolidation",
+      "task": "Implement unified server tool registration and handler wiring so one MCP tool exposes merged actions and internal dispatch for interactive and headless modes.",
+      "type": "code",
+      "status": "done",
+      "notes": "Completed unified server terminal handler wiring: memory_terminal_interactive now includes unified allowlist actions and server schema updated to treat it as primary terminal surface; memory_terminal moved to compatibility wrapper delegation path.",
+      "assignee": "Executor",
+      "index": 2
+    },
+    {
+      "phase": "Phase 2: Server Surface Consolidation",
+      "task": "Port allowlist management capabilities (`get_allowlist`/`update_allowlist` equivalents) into the unified tool surface and bind them to the same policy store used by strict headless authorization.",
+      "type": "code",
+      "status": "done",
+      "notes": "Ported get_allowlist/update_allowlist to memory_terminal_interactive unified surface, routed to terminal.tools handleGetAllowlist/handleUpdateAllowlist (terminal-auth policy store), and added focused tests validating both actions.",
+      "assignee": "Executor",
+      "index": 3
+    },
+    {
+      "phase": "Phase 2: Server Surface Consolidation",
+      "task": "Add explicit deprecation compatibility layer for legacy memory_terminal calls (alias/shim behavior, deterministic warnings, migration-safe responses), plus a staged removal switch/cutover mechanism.",
+      "type": "refactor",
+      "status": "done",
+      "notes": "Phase 2 confirmation reapplied sequentially; step finalized. User preference: keep compatibility bridge temporary/minimal for quick transition.",
+      "assignee": "Executor",
+      "index": 4
+    },
+    {
+      "phase": "Phase 2: Server Surface Consolidation",
+      "task": "Apply minimal strict-typing compatibility fix in legacy `memory_terminal` shim to remove TS2352 casts (narrow unified result payload/allowlist mapping without broadening bridge behavior) and re-run server build.",
+      "type": "fix",
+      "status": "done",
+      "notes": "Implemented minimal legacy shim typing fix in memory_terminal.ts by replacing unsafe casts with narrow object guards + allowlist payload mapper. Verified with `npm run build` (pass) and `npx vitest run src/__tests__/tools/interactive-terminal.test.ts` (48/48 pass).",
+      "assignee": "Executor",
+      "index": 5
+    },
+    {
+      "phase": "Phase 3: GUI Headless Policy Configuration",
+      "task": "Add Rust+QML settings/preferences model for workspace-scoped headless-allowed subset configuration, including bridge-exposed properties/invokables and persistence boundaries.",
+      "type": "code",
+      "status": "done",
+      "notes": "Implemented Rust+QML workspace-scoped headless policy settings model and persistence with bridge-exposed properties/invokables and minimal UI editor controls in existing drawer.",
+      "assignee": "Executor",
+      "index": 6
+    },
+    {
+      "phase": "Phase 3: GUI Headless Policy Configuration",
+      "task": "Integrate GUI-configured headless subset with server-side enforcement path so runtime authorization reflects configured preferences safely and deterministically.",
+      "type": "code",
+      "status": "done",
+      "notes": "Phase 3 confirmed by user; implementation + targeted verification complete. Finalized active Phase 3 integration step.",
+      "assignee": "Executor",
+      "index": 7
+    },
+    {
+      "phase": "Phase 4: Extension + Replay Migration",
+      "task": "Rollback extension terminal approval UX artifacts that rely on LanguageModelToolResult markdown links/context cache, while preserving unified terminal contract mapping and non-approval behavior.",
+      "type": "refactor",
+      "status": "pending",
+      "notes": "Pivot: remove extension-local approval-context cache + approve/deny command-link flow; keep canonical request normalization and tool routing intact.",
+      "assignee": "Executor",
+      "index": 8
+    },
+    {
+      "phase": "Phase 4: Extension + Replay Migration",
+      "task": "Refactor extension replay/test harness to assert approval-required passthrough semantics and GUI-managed approval lifecycle instead of extension-side approval-context retry semantics.",
+      "type": "test",
+      "status": "pending",
+      "notes": "Migration checkpoint: replay outputs should no longer depend on extension-side approval context issuance/consumption.",
+      "assignee": "Executor",
+      "index": 9
+    },
+    {
+      "phase": "Phase 5: Documentation and Instruction Alignment",
+      "task": "Update user docs, architecture docs, and agent instruction references to state approval ownership is the interactive-terminal GUI path (not extension tool-result UX), while preserving unified terminal contract guidance.",
+      "type": "documentation",
+      "status": "pending",
+      "notes": "Checkpoint: docs explicitly separate contract transport from approval UX surface ownership.",
+      "assignee": "Executor",
+      "index": 10
+    },
+    {
+      "phase": "Phase 5: Documentation and Instruction Alignment",
+      "task": "Implement and verify server-to-GUI approval handshake for allowlist mutations using deterministic request IDs and explicit approve/deny outcomes produced by interactive-terminal.",
+      "type": "critical",
+      "status": "pending",
+      "notes": "Must reject unauthorized/non-interacted mutations with deterministic deny responses and audit evidence.",
+      "assignee": "Executor",
+      "requires_user_confirmation": true,
+      "index": 11
+    },
+    {
+      "phase": "Phase 5: Documentation and Instruction Alignment",
+      "task": "Publish migration guide addendum covering rollback of extension approval UX, replacement GUI-managed flow, compatibility impact, and rollback safeguards.",
+      "type": "documentation",
+      "status": "pending",
+      "notes": "Include exact removed extension symbols and retained contract guarantees.",
+      "assignee": "Executor",
+      "index": 12
+    },
+    {
+      "phase": "Phase 6: Validation and Build Review",
+      "task": "Run targeted and integration validations for unified terminal flows with GUI-managed approval (interactive mode, headless mode, allowlist CRUD, alias compatibility, deprecation warnings) and capture pass/fail evidence.",
+      "type": "validation",
+      "status": "pending",
+      "notes": "Use registered build/test scripts where available; add script entries if missing for repeatable validation.",
+      "assignee": "Reviewer",
+      "index": 13
+    },
+    {
+      "phase": "Phase 6: Validation and Build Review",
+      "task": "Execute full test pass for server, extension, and interactive-terminal affected suites, verify no regressions in authorization boundaries, and confirm migration checkpoints are satisfied.",
+      "type": "test",
+      "status": "pending",
+      "notes": "Final checkpoint: approve only when compatibility + deprecation + docs criteria are all met.",
+      "assignee": "Tester",
+      "index": 14
+    },
+    {
+      "phase": "Phase 6: Cutover Decision",
+      "task": "Perform final deprecation gate review: confirm unified surface is authoritative, legacy memory_terminal compatibility window obligations are met, and approve/remove remaining split-tool references per migration plan.",
+      "type": "validation",
+      "status": "pending",
+      "notes": "Release checkpoint: do not finalize removal if any compatibility or documentation criterion remains unmet.",
+      "assignee": "Reviewer",
+      "index": 15
+    },
+    {
+      "phase": "Phase 4: Extension + Replay Migration",
+      "task": "Remove extension-side terminal approval-context UX primitives (Approve/Deny command links and local approval context issuance/validation) from chat terminal tool implementation.",
+      "type": "code",
+      "status": "done",
+      "notes": "Removed extension-side terminal approval-context UX primitives from terminal tool flow and command wiring. Deleted local approval context cache/helpers and Approve/Deny command-link generation path; canonical and legacy terminal payload routing preserved. Removed tool exports, extension command registrations, and package command contributions for projectMemory.approveTerminalApprovalContext / denyTerminalApprovalContext. Validation: vscode-extension compile passed; targeted replay harness suite passed (20/20); extension test run with Replay grep passed (199 passing); server interactive-terminal targeted suite passed (52/52).",
+      "assignee": "Executor",
+      "index": 16,
+      "completed_at": "2026-02-16T12:57:31.839Z"
+    },
+    {
+      "phase": "Phase 4: Extension + Replay Migration",
+      "task": "Implement GUI-managed approval path for all non-allowlisted terminal actions (interactive/headless), requiring interactive-terminal approve/deny decision before execution.",
+      "type": "critical",
+      "status": "done",
+      "notes": "Implemented GUI-managed approval lifecycle path for non-allowlisted terminal actions. Added explicit approval-context validation and deterministic PM_TERM approval-required/invalid errors for execute and allowlist mutation flows; preserved blocked destructive command behavior.",
+      "assignee": "Executor",
+      "index": 17,
+      "completed_at": "2026-02-16T13:11:45.822Z"
+    },
+    {
+      "phase": "Phase 4: Extension + Replay Migration",
+      "task": "Implement a separate topmost interactive-terminal GUI approval dialog for chat-origin terminal requests that presents request details and returns explicit Approve/Deny decisions to the waiting terminal tool request lifecycle.",
+      "type": "critical",
+      "status": "pending",
+      "notes": "Dialog must be visually on top, low-latency to open, and wired to deterministic response correlation (request_id/context_id) for tool completion.",
+      "assignee": "Executor",
+      "index": 18
+    },
+    {
+      "phase": "Phase 4: Extension + Replay Migration",
+      "task": "Keep the user-facing 'Run headlessly' option mapped to unified runtime semantics while ensuring its approval gating uses GUI-managed flow for non-allowlisted commands.",
+      "type": "code",
+      "status": "pending",
+      "notes": "Preserve already-working mode mapping and avoid unrelated UX additions.",
+      "assignee": "Executor",
+      "index": 19
+    },
+    {
+      "phase": "Phase 6: Validation and Build Review",
+      "task": "Add security validation proving agents cannot autonomously approve or execute non-allowlisted actions and that approval decisions originate only from explicit interactive-terminal GUI actions.",
+      "type": "validation",
+      "status": "pending",
+      "notes": "Capture audit evidence for approve/deny/expired/unauthorized flows under GUI-managed authority.",
+      "assignee": "Reviewer",
+      "index": 20
+    }
+  ],
+  "pending_notes": [
+    {
+      "note": "User direction (2026-02-16): prioritize rapid consolidation and do not optimize for long-lived compatibility layer; acceptable to keep compatibility bridge minimal/temporary for this VS Code instance during quick transition.",
+      "type": "instruction",
+      "added_at": "2026-02-16T08:12:14.183Z",
+      "added_by": "user"
+    },
+    {
+      "note": "Security constraint from user (2026-02-16): Agents must NOT be able to update terminal allowlists autonomously. Any allowlist mutation path must be gated by explicit user confirmation/approval in-flow.",
+      "type": "instruction",
+      "added_at": "2026-02-16T09:50:14.023Z",
+      "added_by": "user"
+    },
+    {
+      "note": "User requirement (2026-02-16): Add a ChatResponseStream-based approval UX for allowlist additions, require explicit user approval for all non-allowlisted memory terminal actions, and expose a user-facing 'run headlessly' option in the unified terminal flow.",
+      "type": "instruction",
+      "added_at": "2026-02-16T09:56:37.082Z",
+      "added_by": "user"
+    },
+    {
+      "note": "User validation gate (2026-02-16): Do not mark Phase 4 terminal UX steps complete until live interactive chat approval elements are observed working in VS Code (Approval Required markdown + Approve/Deny actions + run_headlessly behavior).",
+      "type": "instruction",
+      "added_at": "2026-02-16T11:18:15.322Z",
+      "added_by": "user"
+    },
+    {
+      "note": "Runtime approval gate validated via direct tool invocation (2026-02-16): non-allowlisted execute and update_allowlist both returned PM_TERM_APPROVAL_REQUIRED with deterministic payload hash/audit details. Still awaiting user confirmation of in-chat Approve/Deny UX rendering before completing Phase 4 steps.",
+      "type": "info",
+      "added_at": "2026-02-16T11:19:32.559Z",
+      "added_by": "user"
+    },
+    {
+      "note": "Coordinator technical finding (2026-02-16): The current extension tool path cannot guarantee trusted clickable Approve/Deny UX from terminal tool invocation because approval output is returned as LanguageModelToolResult text/JSON, not ChatResponseStream trusted markdown/button primitives. User requested rollback of extension-side approval UX and pivot to interactive-terminal GUI-managed approval flow.",
+      "type": "warning",
+      "added_at": "2026-02-16T11:24:10.815Z",
+      "added_by": "user"
+    },
+    {
+      "note": "VS Code source/API research (microsoft/vscode, vscode.d.ts, 2026-02-16): LanguageModelToolResult supports LanguageModelTextPart/PromptTsx/Data parts only; trusted command execution links are tied to MarkdownString via ChatResponseStream markdown pipeline. Therefore extension tool-result JSON cannot guarantee first-class Approve/Deny button UX for terminal tool calls. Proceeding with rollback of extension-side approval UX and pivot to interactive-terminal GUI-managed approval path.",
+      "type": "warning",
+      "added_at": "2026-02-16T11:27:09.938Z",
+      "added_by": "user"
+    },
+    {
+      "note": "Revisionist pivot (2026-02-16): rollback extension-side terminal approval UX implemented via LanguageModelToolResult markdown links/context cache; replace with interactive-terminal GUI-managed approval as source of truth. Preserve unified terminal contract/routing and existing headless-mode semantics.",
+      "type": "warning",
+      "added_at": "2026-02-16T11:31:05.284Z",
+      "added_by": "user"
+    },
+    {
+      "note": "Executor applied pivot rollback (2026-02-16): removed extension-side approval UX/cache/commands; kept unified terminal contract pass-through; approval authority now expected from interactive-terminal GUI lifecycle. Validation passed: vscode-extension compile, replay tests, and server interactive-terminal test suite.",
+      "type": "info",
+      "added_at": "2026-02-16T12:58:27.050Z",
+      "added_by": "user"
+    },
+    {
+      "note": "User pivot (2026-02-17): implement a fast, separate topmost GUI dialog for chat-origin terminal approval requests, with explicit approve/deny response routed back to the originating terminal tool request.",
+      "type": "instruction",
+      "added_at": "2026-02-16T13:03:31.563Z",
+      "added_by": "user"
+    },
+    {
+      "note": "ARCHIVED BY USER REQUEST: User decided to scrap this plan and start fresh. The extension-side approval approach was proven unviable (VS Code LanguageModelToolResult can't render trusted command links). The GUI-approval pivot was started but user wants a clean plan with proper upfront design before any implementation. Key learnings preserved: (1) unified terminal contract design validated, (2) headless policy CRUD works, (3) extension approval UX is a dead end, (4) GUI topmost dialog approach is the path forward.",
+      "type": "instruction",
+      "added_at": "2026-02-16T13:39:08.348Z",
+      "added_by": "user"
+    }
+  ],
+  "build_scripts": [
+    {
+      "name": "Server Interactive Terminal Targeted Tests",
+      "description": "Run targeted Vitest file for interactive terminal consolidated tools",
+      "command": "npx vitest run src/__tests__/tools/interactive-terminal.test.ts",
+      "directory": "./Project-Memory-MCP/server",
+      "id": "script_mlowfosa_ab9a968f",
+      "workspace_id": "project_memory_mcp-50e04147a402",
+      "plan_id": "plan_mlov60n5_21207af6",
+      "created_at": "2026-02-16T08:15:07.066Z"
+    },
+    {
+      "name": "Server Build",
+      "description": "Build server TypeScript",
+      "command": "npm run build",
+      "directory": "./Project-Memory-MCP/server",
+      "id": "script_mlowfxsj_aea9087b",
+      "workspace_id": "project_memory_mcp-50e04147a402",
+      "plan_id": "plan_mlov60n5_21207af6",
+      "created_at": "2026-02-16T08:15:18.739Z"
+    }
+  ],
+  "deployment_context": {
+    "deployed_agent": "Coordinator",
+    "deployed_by": "Coordinator",
+    "reason": "Agent initialized via init action",
+    "override_validation": true,
+    "deployed_at": "2026-02-16T13:38:51.049Z"
+  }
+}

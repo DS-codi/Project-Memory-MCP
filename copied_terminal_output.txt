@@ -1,0 +1,215 @@
+PS C:\Users\codi.f\vscode_ModularAgenticProcedureSystem> interactive-terminal\build-interactive-terminal.ps1                            
+=== Interactive Terminal Build ===
+QtDir:   C:\Qt\6.10.2\msvc2022_64
+QMAKE:   C:\Qt\6.10.2\msvc2022_64\bin\qmake6.exe
+Profile: release
+Cargo SSL revoke check: false
+Cargo registry protocol: sparse
+Cargo git fetch via CLI: true
+Deploy:  True
+QMake version 3.1
+Using Qt version 6.10.2 in C:/Qt/6.10.2/msvc2022_64/lib
+Running: cargo build --release
+cargo build in progress... warnings so far: 0
+cargo build in progress... warnings so far: 0
+cargo build in progress... warnings so far: 0
+cargo build in progress... warnings so far: 15
+cargo build in progress... warnings so far: 15
+cargo build in progress... warnings so far: 15
+cargo build in progress... warnings so far: 15
+   Compiling interactive-terminal v0.1.0 (C:\Users\codi.f\vscode_ModularAgenticProcedureSystem\interactive-terminal)
+warning: method `connect_command_received` is never used
+  --> src\cxxqt_bridge\mod.rs:44:12
+   |
+42 |         #[qsignal]
+   |         - method in this implementation
+43 |         #[cxx_name = "commandReceived"]
+44 |         fn command_received(self: Pin<&mut TerminalApp>, id: QString);
+   |            ^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+warning: method `on_command_received` is never used
+  --> src\cxxqt_bridge\mod.rs:11:1
+   |
+11 | #[cxx_qt::bridge]
+   | ^^^^^^^^^^^^^^^^^
+...
+42 |         #[qsignal]
+   |         - method in this implementation
+warning: method `connect_command_completed` is never used
+  --> src\cxxqt_bridge\mod.rs:48:12
+   |
+46 |         #[qsignal]
+   |         - method in this implementation
+47 |         #[cxx_name = "commandCompleted"]
+48 |         fn command_completed(self: Pin<&mut TerminalApp>, id: QString, success: bool);
+   |            ^^^^^^^^^^^^^^^^^
+warning: method `on_command_completed` is never used
+  --> src\cxxqt_bridge\mod.rs:11:1
+   |
+11 | #[cxx_qt::bridge]
+   | ^^^^^^^^^^^^^^^^^
+...
+46 |         #[qsignal]
+   |         - method in this implementation
+warning: method `connect_output_line_received` is never used
+  --> src\cxxqt_bridge\mod.rs:52:12
+   |
+50 |         #[qsignal]
+   |         - method in this implementation
+51 |         #[cxx_name = "outputLineReceived"]
+52 |         fn output_line_received(self: Pin<&mut TerminalApp>, line: QString);
+   |            ^^^^^^^^^^^^^^^^^^^^
+warning: method `on_output_line_received` is never used
+  --> src\cxxqt_bridge\mod.rs:11:1
+   |
+11 | #[cxx_qt::bridge]
+   | ^^^^^^^^^^^^^^^^^
+...
+50 |         #[qsignal]
+   |         - method in this implementation
+warning: method `connect_connection_status_changed` is never used
+  --> src\cxxqt_bridge\mod.rs:56:12
+   |
+54 |         #[qsignal]
+   |         - method in this implementation
+55 |         #[cxx_name = "connectionStatusChanged"]
+56 |         fn connection_status_changed(self: Pin<&mut TerminalApp>, connected: bool);
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+warning: method `on_connection_status_changed` is never used
+  --> src\cxxqt_bridge\mod.rs:11:1
+   |
+11 | #[cxx_qt::bridge]
+   | ^^^^^^^^^^^^^^^^^
+...
+54 |         #[qsignal]
+   |         - method in this implementation
+warning: function `TerminalApp_connect_command_received` is never used
+  --> src\cxxqt_bridge\mod.rs:40:14
+   |
+40 |         type TerminalApp = super::TerminalAppRust;
+   |              ^^^^^^^^^^^
+warning: function `TerminalApp_connect_command_completed` is never used
+  --> src\cxxqt_bridge\mod.rs:40:14
+   |
+40 |         type TerminalApp = super::TerminalAppRust;
+   |              ^^^^^^^^^^^
+warning: function `TerminalApp_connect_output_line_received` is never used
+  --> src\cxxqt_bridge\mod.rs:40:14
+   |
+40 |         type TerminalApp = super::TerminalAppRust;
+   |              ^^^^^^^^^^^
+warning: function `TerminalApp_connect_connection_status_changed` is never used
+  --> src\cxxqt_bridge\mod.rs:40:14
+   |
+40 |         type TerminalApp = super::TerminalAppRust;
+   |              ^^^^^^^^^^^
+warning: associated items `new` and `data_root` are never used
+  --> src\saved_commands_repository.rs:52:12
+   |
+19 | impl SavedCommandsRepository {
+   | ---------------------------- associated items in this implementation
+...
+52 |     pub fn new(data_root: PathBuf) -> Self {
+   |            ^^^
+...
+56 |     pub fn data_root(&self) -> &Path {
+   |            ^^^^^^^^^
+warning: struct `SessionManager` is never constructed
+  --> src\session.rs:13:12
+   |
+13 | pub struct SessionManager {
+   |            ^^^^^^^^^^^^^^
+warning: multiple associated items are never used
+  --> src\session.rs:30:12
+   |
+25 | impl SessionManager {
+   | ------------------- associated items in this implementation
+...
+30 |     pub fn new(_idle_timeout: Duration) -> Self {
+   |            ^^^
+...
+39 |     pub fn add_request(&mut self, request: CommandRequest) {
+   |            ^^^^^^^^^^^
+...
+45 |     pub fn remove_request(&mut self, id: &str) -> Option<CommandRequest> {
+   |            ^^^^^^^^^^^^^^
+...
+54 |     pub fn get_request(&self, id: &str) -> Option<&CommandRequest> {
+   |            ^^^^^^^^^^^
+...
+59 |     pub fn active_count(&self) -> usize {
+   |            ^^^^^^^^^^^^
+...
+64 |     pub fn is_idle(&self) -> bool {
+   |            ^^^^^^^
+...
+69 |     pub fn last_activity(&self) -> Instant {
+   |            ^^^^^^^^^^^^^
+...
+77 |     pub fn should_exit(&self, idle_timeout: Duration) -> bool {
+   |            ^^^^^^^^^^^
+...
+82 |     pub fn clear_all(&mut self) -> Vec<CommandRequest> {
+   |            ^^^^^^^^^
+...
+88 |     pub fn set_connected(&mut self, connected: bool) {
+   |            ^^^^^^^^^^^^^
+...
+94 |     pub fn is_connected(&self) -> bool {
+   |            ^^^^^^^^^^^^
+warning: `interactive-terminal` (bin "interactive-terminal") generated 15 warnings
+    Finished `release` profile [optimized] target(s) in 37.99s
+Build output: C:\Users\codi.f\vscode_ModularAgenticProcedureSystem\interactive-terminal\target\release\interactive-terminal.exe
+Deploying Qt runtime with: C:\Qt\6.10.2\msvc2022_64\bin\windeployqt.exe
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Warning: Cannot find any version of the dxcompiler.dll and dxil.dll.
+Warning: Cannot find Visual Studio installation directory, VCINSTALLDIR is not set.
+windeployqt up-to-date items: 1331
+windeployqt translation files created: 32
+windeployqt dependency summary: binary=1, scanPaths=1, localDeps=1, pluginTypes=16, resolvedDeps=2, skippedPlugins=2, additionalPasses=1
+Qt dependency sets: direct=4, all=30, deploy=32
+QML imports discovered: 29
+QML import scan progress: 10% (3/29)
+QML import scan progress: 20% (6/29)
+QML import scan progress: 30% (9/29)
+QML import scan progress: 40% (12/29)
+QML import scan progress: 50% (15/29)
+QML import scan progress: 60% (18/29)
+QML import scan progress: 70% (21/29)
+QML import scan progress: 80% (24/29)
+QML import scan progress: 90% (27/29)
+QML import scan progress: 100% (29/29)
+Qt runtime deployment verified.
+Done.
+
+
+
+PS C:\Users\codi.f\vscode_ModularAgenticProcedureSystem> ./run-container.ps1 run  
+Starting container 'project-memory'...
+Interactive-terminal bridge config:
+  Adapter mode:    container_bridge
+  Host alias:      host.containers.internal
+  Fallback alias:  host.docker.internal
+  Host port:       45459
+  Connect timeout: 3000 ms
+  Request timeout: 30000 ms
+  Preflight:       WARNING - No listener on localhost:45459
+                   Start the host interactive-terminal GUI bridge or set PM_INTERACTIVE_TERMINAL_HOST_PORT.
+  Firewall rule:   WARNING - No inbound firewall rule found
+                   WSL2/Podman may be blocked from reaching port 45459.
+                   Run as Administrator:  .\setup-firewall-rule.ps1
+Discovering workspace mounts...
+  Mount: S:\notionarchive -> /workspaces/notionarchive-8b2aa5a7a174
+  Mount: S:\ahk-ds-program\ds-hotkeys\ds-program-hotkeys-2 -> /workspaces/ds-program-hotkeys-2-29dbb03d12f0
+  Mount: C:\users\codi.f\vscode_modularagenticproceduresystem -> /workspaces/vscode_modularagenticproceduresystem-e81f1c0eb2b1
+  Mount: S:\programming_projects_codi\ds_cad -> /workspaces/ds_cad-c16418f4265f
+373e43dc892db1fa97fbdb16d98a20ab33d59be6d1fcaf22c6f1b0be39d07d02
+Waiting for container readiness...
+
+Container started and healthy.
+  MCP Server:    http://localhost:3000/health
+  Dashboard API: http://localhost:3001/api/health
+  WebSocket:     ws://localhost:3002
+PS C:\Users\codi.f\vscode_ModularAgenticProcedureSystem> 

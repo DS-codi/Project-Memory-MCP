@@ -1,0 +1,57 @@
+{
+  "type": "original_request",
+  "plan_id": "plan_mlkjmemm_f04cebfc",
+  "workspace_id": "project-memory-mcp-40f6678f5a9b",
+  "captured_at": "2026-02-13T07:39:05.173Z",
+  "user_request": {
+    "sanitized": "Create an Integrated Program for the following fixes and improvements to Project Memory MCP",
+    "wasModified": false,
+    "injectionAttempts": [],
+    "warnings": []
+  },
+  "context": {
+    "files_mentioned": [
+      "docs/plans/2many-different-ideas.md",
+      "docs/add2planpls.md",
+      "agents/coordinator.agent.md",
+      "agents/builder.agent.md",
+      "agents/reviewer.agent.md",
+      "server/src/tools/consolidated/memory_agent.ts",
+      "vscode-extension/",
+      "run-container.ps1",
+      "Containerfile",
+      "container/entrypoint.sh",
+      "podman-compose.yml"
+    ],
+    "file_contents": {},
+    "requirements": [
+      "1. Container auto-mount: Automatically mount workspace folders to container when running in container mode",
+      "2. Container resilience: System should continue working when container goes down (graceful degradation)",
+      "3. Agent file reduction: Agent .md files are too large - extract directions into targeted instruction files, make them available via MCP tools",
+      "4. VS Code extension panel updates: Replace prompts button with skills, make instructions deployable as hard rules",
+      "5. Instructions-to-skills rewrite: Rewrite instruction files as skills where relevant, target specific agents and step types for modularity",
+      "6. Agent consolidation: Review all agents for redundancy, e.g. merge Builder into Reviewer",
+      "7. Context dump actions: Add action for agents to dump context to temp workspace file + copy plan resources to workspace folder for commits",
+      "8. MCP Apps: Add UI components in chat (Plan ticket, Handoff gate, Context weaver) per add2planpls.md",
+      "9. Strict spawn tool: Add Agent-as-a-Tool spawn action to memory_agent with gatekeeper validation",
+      "10. Cognition agent: Create dedicated thinking/reasoning agent (read-only, no code changes)",
+      "11. Custom terminal tool: Add own terminal tool to replace buggy VS Code one, with authorization + auto-approve for certain actions",
+      "12. Custom filesystem tools: Add own filesystem tools (read, write, search, etc.)"
+    ],
+    "constraints": [
+      "Must maintain backward compatibility with existing plans and workspaces",
+      "Container mode should be optional - local mode must keep working",
+      "Custom tools should wrap/extend not replace MCP protocol",
+      "Agent files must stay under ~400 lines per monolith prevention convention",
+      "Skills and instructions must be accessible via MCP tools"
+    ],
+    "examples": [],
+    "conversation_context": {
+      "sanitized": "User has attached two doc files: 2many-different-ideas.md listing all improvements and add2planpls.md with detailed specs for spawn tool, Cognition agent, and MCP Apps. This is a large program spanning container infrastructure, agent system, VS Code extension, MCP server, and tooling layers.",
+      "wasModified": false,
+      "injectionAttempts": [],
+      "warnings": []
+    },
+    "additional_notes": null
+  }
+}

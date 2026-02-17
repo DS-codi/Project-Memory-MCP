@@ -1,0 +1,30 @@
+{
+  "timestamp": "2026-02-16T14:20:07.552Z",
+  "from_agent": "Researcher",
+  "to_agent": "Coordinator",
+  "reason": "Research complete for all 3 unknowns. Created comprehensive research notes on: (1) container-to-host launch mechanisms with 7 approaches evaluated, (2) MCP SDK timeout behavior with implementation guidance, (3) full codebase IPC audit with protocol mismatch analysis. Recommend Architect to design the solution architecture.",
+  "data": {
+    "recommendation": "Architect",
+    "files_modified": [],
+    "research_notes_created": [
+      "research_notes/container-host-launch.md",
+      "research_notes/mcp-timeout-behavior.md",
+      "research_notes/codebase-ipc-audit.md"
+    ],
+    "next_steps": [
+      "Architect should read all 3 research notes",
+      "Priority 1: Design canonical NDJSON protocol schema that both TS and Rust implement",
+      "Priority 2: Design real TcpAdapter implementing InteractiveRuntimeAdapter interface",
+      "Priority 3: Decide on container-to-host GUI launch approach (launcher shim vs. separate daemon)",
+      "Priority 4: Design progress notification integration for MCP timeout keep-alive",
+      "Priority 5: Plan protocol alignment changes in Rust CxxQt bridge"
+    ],
+    "critical_findings": [
+      "NDJSON protocol between TS and Rust is INCOMPATIBLE - field names, status values, and metadata fields all differ",
+      "The existing in-process adapter is a MOCK - no real TCP client exists connecting MCP server to GUI",
+      "MCP SDK progress notifications can keep tool calls alive indefinitely - 10-15s interval recommended",
+      "Container cannot launch host processes - host-side launcher service is required",
+      "Orchestration layer (adapter interface + lifecycle) is solid and reusable as-is"
+    ]
+  }
+}

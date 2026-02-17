@@ -1,0 +1,42 @@
+{
+  "type": "original_request",
+  "plan_id": "plan_ml6y50bc_2763ec1a",
+  "workspace_id": "Project-Memory-MCP-652c624f8f59",
+  "captured_at": "2026-02-03T18:43:14.283Z",
+  "user_request": {
+    "sanitized": "Implement step order validation, step types, and enhanced plan management actions for the Project Memory MCP system",
+    "wasModified": false,
+    "injectionAttempts": [],
+    "warnings": []
+  },
+  "context": {
+    "files_mentioned": [],
+    "file_contents": {},
+    "requirements": [
+      "1. Step Order Validation: Warn agents if they are working on a step before completing earlier steps in the plan",
+      "2. Insert Step Action: New action that inserts a step and auto-increments all subsequent step indices",
+      "3. Delete Step Action: Remove steps from plans",
+      "4. Delete Plan Action: Remove entire plans",
+      "5. Consolidate Actions: Combine/merge steps or plans",
+      "6. Step Types System: Add typing to steps with backwards compatibility for old plans",
+      "7. Step Type List (to refine): Update analysis, Plan Validation, User validation, Standard, Complex, Critical, Requires Immediate Validation, Fix, Build/Rebuild, Refactor, Archive, Confirmation"
+    ],
+    "constraints": [
+      "Must be backwards compatible with existing plans that have no step types",
+      "Step types should be optional - defaulting to 'standard' if not specified",
+      "Step order validation should be a warning, not a blocker (some steps may legitimately be done out of order)",
+      "Type system should be extensible for future types"
+    ],
+    "examples": [
+      "User screenshot shows steps being marked done out of order (#5, #6, #7 done but #41 pending)",
+      "Steps like 'BUILD & VALIDATE Phase 1-3' require user validation before marking complete"
+    ],
+    "conversation_context": null,
+    "additional_notes": {
+      "sanitized": "The user has observed agents completing steps out of order, which can cause issues. The step typing system should help agents understand the nature of each step and whether it requires special handling (user validation, immediate attention, etc.)",
+      "wasModified": false,
+      "injectionAttempts": [],
+      "warnings": []
+    }
+  }
+}

@@ -80,6 +80,77 @@ function Test-HostGuiBridge {
     }
 }
 
+function Get-HostBridgeIP {
+    <#
+    .SYNOPSIS
+        Detect the host IP that Podman containers can reach.
+
+    .DESCRIPTION
+        Podman on Windows runs containers inside WSL2. The 'host-gateway' extra_hosts
+        directive resolves to the Podman bridge gateway (10.88.0.1), NOT the Windows host.
+        The WSL2 vEthernet adapter has a separate Hyper-V firewall that blocks inbound
+        traffic, so the vEthernet IP (172.x.x.x) is also unreachable.
+
+        This function discovers the host's primary non-loopback, non-virtual IPv4 address
+        (typically the physical Ethernet/Wi-Fi adapter) which IS reachable from containers
+        because traffic routes through the physical NIC, bypassing the Hyper-V firewall.
+
+        Override: Set $env:PM_INTERACTIVE_TERMINAL_HOST_IP to skip detection.
+    #>
+
+    # Allow explicit override
+    if ($env:PM_INTERACTIVE_TERMINAL_HOST_IP) {
+        return $env:PM_INTERACTIVE_TERMINAL_HOST_IP
+    }
+
+    # Get all Up, non-loopback, non-tunnel IPv4 addresses
+    $candidates = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.IPAddress -ne '127.0.0.1' -and
+            $_.PrefixOrigin -ne 'WellKnown' -and
+            $_.AddressState -eq 'Preferred'
+        } |
+        ForEach-Object {
+            $adapter = Get-NetAdapter -InterfaceIndex $_.InterfaceIndex -ErrorAction SilentlyContinue
+            if ($adapter -and $adapter.Status -eq 'Up') {
+                [PSCustomObject]@{
+                    IP          = $_.IPAddress
+                    Prefix      = $_.PrefixLength
+                    Name        = $adapter.Name
+                    Description = $adapter.InterfaceDescription
+                    IsVirtual   = ($adapter.Name -match 'vEthernet|Loopback|WSL|Hyper-V|VPN')
+                    IsPhysical  = ($adapter.InterfaceDescription -match 'Ethernet|Wi-Fi|Wireless|Intel|Realtek|Broadcom|Killer')
+                }
+            }
+        }
+
+    # Prefer physical adapters over virtual ones
+    $physical = $candidates | Where-Object { $_.IsPhysical -and -not $_.IsVirtual }
+    if ($physical) {
+        $selected = ($physical | Select-Object -First 1).IP
+        Write-Host "  Host bridge IP:  $selected (auto-detected, physical adapter)" -ForegroundColor DarkCyan
+        return $selected
+    }
+
+    # Fallback: any non-virtual adapter
+    $nonVirtual = $candidates | Where-Object { -not $_.IsVirtual }
+    if ($nonVirtual) {
+        $selected = ($nonVirtual | Select-Object -First 1).IP
+        Write-Host "  Host bridge IP:  $selected (auto-detected, non-virtual adapter)" -ForegroundColor DarkCyan
+        return $selected
+    }
+
+    # Last resort: any address that isn't loopback
+    if ($candidates) {
+        $selected = ($candidates | Select-Object -First 1).IP
+        Write-Host "  Host bridge IP:  $selected (auto-detected, fallback)" -ForegroundColor Yellow
+        return $selected
+    }
+
+    Write-Host "  Host bridge IP:  FAILED - Could not detect host IP, falling back to host-gateway" -ForegroundColor Red
+    return $null
+}
+
 function Convert-WindowsPathToPodmanVmPath {
     param(
         [Parameter(Mandatory = $true)]
@@ -317,8 +388,19 @@ function Start-Container {
 
     Write-Host "Starting container '$ContainerName'..." -ForegroundColor Cyan
 
+    # -----------------------------------------------------------------------
+    # Auto-detect host IP for container bridge
+    # -----------------------------------------------------------------------
+    # Podman on Windows (WSL2): host-gateway resolves to the Podman bridge
+    # gateway (10.88.0.1), NOT the Windows host. The WSL2 vEthernet adapter
+    # has a Hyper-V firewall blocking inbound traffic. The physical NIC IP
+    # works because container traffic routes through it, bypassing Hyper-V.
+    $HostBridgeIP = Get-HostBridgeIP
+    $addHostValue = if ($HostBridgeIP) { $HostBridgeIP } else { 'host-gateway' }
+
     Write-Host "Interactive-terminal bridge config:" -ForegroundColor Cyan
     Write-Host "  Adapter mode:    container_bridge" -ForegroundColor White
+    Write-Host "  Host bridge IP:  $addHostValue$(if ($HostBridgeIP) { '' } else { ' (fallback - may not work on WSL2)' })" -ForegroundColor $(if ($HostBridgeIP) { 'White' } else { 'Yellow' })
     Write-Host "  Host alias:      $BridgeHostAlias" -ForegroundColor White
     Write-Host "  Fallback alias:  $BridgeFallbackAlias" -ForegroundColor White
     Write-Host "  Host port:       $BridgePort" -ForegroundColor White
@@ -331,6 +413,46 @@ function Start-Container {
         Write-Host "                   Start the host interactive-terminal GUI bridge or set PM_INTERACTIVE_TERMINAL_HOST_PORT." -ForegroundColor Yellow
     } else {
         Write-Host "  Preflight:       OK - Host bridge listener detected on localhost:$BridgePort" -ForegroundColor Green
+    }
+
+    # -----------------------------------------------------------------------
+    # Firewall rule verification (informational — not required when using
+    # physical NIC IP, but helps if the user overrides to a virtual adapter)
+    # -----------------------------------------------------------------------
+    $fwRuleName = "ProjectMemory-InteractiveTerminal-HostBridge"
+    Write-Host "  Firewall rule:   " -NoNewline -ForegroundColor White
+    try {
+        $fwRule = Get-NetFirewallRule -DisplayName $fwRuleName -ErrorAction SilentlyContinue
+        if ($fwRule) {
+            $fwPort = $fwRule | Get-NetFirewallPortFilter -ErrorAction SilentlyContinue
+            if ($fwPort -and ($fwPort.LocalPort -contains "$BridgePort" -or $fwPort.LocalPort -eq "$BridgePort")) {
+                Write-Host "OK - '$fwRuleName' exists for port $BridgePort" -ForegroundColor Green
+            } else {
+                Write-Host "WARNING - Rule exists but port filter may not match $BridgePort" -ForegroundColor Yellow
+            }
+        } else {
+            Write-Host "INFO - No inbound firewall rule found (not required for physical NIC routing)" -ForegroundColor DarkGray
+        }
+    } catch {
+        Write-Host "SKIP - Could not query firewall rules: $_" -ForegroundColor DarkGray
+    }
+
+    # -----------------------------------------------------------------------
+    # Container-to-host connectivity test (disposable container)
+    # -----------------------------------------------------------------------
+    if ($bridgeReady) {
+        Write-Host "  Container reach: " -NoNewline -ForegroundColor White
+        try {
+            $null = podman run --rm "--add-host=${BridgeHostAlias}:${addHostValue}" alpine nc -z -w 3 $BridgeHostAlias $BridgePort 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "OK - Container can reach ${BridgeHostAlias}:$BridgePort ($addHostValue)" -ForegroundColor Green
+            } else {
+                Write-Host "FAIL - Container cannot reach ${BridgeHostAlias}:$BridgePort ($addHostValue)" -ForegroundColor Red
+                Write-Host "                   Override with `$env:PM_INTERACTIVE_TERMINAL_HOST_IP=<ip> or check networking." -ForegroundColor Yellow
+            }
+        } catch {
+            Write-Host "SKIP - Could not run connectivity test: $_" -ForegroundColor DarkGray
+        }
     }
 
     # Discover workspace mounts from registry
@@ -352,6 +474,7 @@ function Start-Container {
         "-p", "3000:3000",
         "-p", "3001:3001",
         "-p", "3002:3002",
+        "--add-host=${BridgeHostAlias}:${addHostValue}",
         "-v", "${WorkspaceRoot}\data:/data",
         "-v", "${WorkspaceRoot}\agents:/agents:ro"
     )

@@ -1,0 +1,465 @@
+{
+  "id": "plan_mlld2y2l_78778d06",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Plan Management Tool Actions — Program Linking & Dependencies",
+  "description": "Add MCP tool actions for program and plan management: link_to_program, unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans. These actions enable agents to programmatically manage plan relationships, dependencies, and metadata without manual JSON editing.",
+  "priority": "medium",
+  "category": "feature",
+  "goals": [
+    "Agents can link/unlink plans to programs via MCP tools",
+    "Plan dependencies can be set and queried programmatically",
+    "Plan metadata (priority, status) can be updated via tool actions",
+    "Plan cloning and merging supported for complex workflows"
+  ],
+  "success_criteria": [
+    "link_to_program and unlink_from_program actions work bidirectionally (update both program and plan)",
+    "set_plan_dependencies validates no circular dependencies",
+    "All new actions have TypeScript types and validation",
+    "Existing tests continue to pass",
+    "New actions documented in mcp-tool-plan.instructions.md"
+  ],
+  "status": "archived",
+  "current_phase": "complete",
+  "current_agent": null,
+  "confirmation_state": {
+    "phases": {
+      "Research": {
+        "confirmed": true,
+        "confirmed_by": "Researcher",
+        "confirmed_at": "2026-02-13T23:38:26.142Z"
+      },
+      "Implementation": {
+        "confirmed": true,
+        "confirmed_by": "Executor",
+        "confirmed_at": "2026-02-14T00:11:07.767Z"
+      },
+      "Integration": {
+        "confirmed": true,
+        "confirmed_by": "Executor",
+        "confirmed_at": "2026-02-14T00:42:27.056Z"
+      },
+      "Validation": {
+        "confirmed": true,
+        "confirmed_by": "Tester",
+        "confirmed_at": "2026-02-14T00:53:10.882Z"
+      },
+      "Documentation": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T17:17:37.270Z"
+      }
+    },
+    "steps": {
+      "7": {
+        "confirmed": true,
+        "confirmed_by": "Executor",
+        "confirmed_at": "2026-02-14T00:10:54.840Z"
+      }
+    }
+  },
+  "created_at": "2026-02-13T20:50:01.346Z",
+  "updated_at": "2026-02-14T22:31:11.486Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mllixf2m_b6e2e332",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-13T23:33:41.134Z",
+      "context": {
+        "deployed_by": "User",
+        "reason": "Commence plan execution for Plan Management Tool Actions — Program Linking & Dependencies"
+      },
+      "completed_at": "2026-02-14T16:03:27.004Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T16:03:27.004Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlliyq7h_bd39d35b",
+      "agent_type": "Researcher",
+      "started_at": "2026-02-13T23:34:42.221Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Research plan management actions, audit existing capabilities, and document add_plan_to_program implementation for upcoming feature work",
+        "research_targets": [
+          "memory_plan actions",
+          "add_plan_to_program implementation",
+          "program linking logic",
+          "circular reference detection",
+          "plan dependencies"
+        ],
+        "questions_to_answer": [
+          "What memory_plan actions currently exist?",
+          "How does add_plan_to_program work?",
+          "How are child_plan_ids and parent_program_id managed?",
+          "Is there circular reference detection?",
+          "What new actions are needed: link_to_program, unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans"
+        ]
+      },
+      "completed_at": "2026-02-13T23:38:49.353Z",
+      "summary": "Completed Steps 0-1 (Research phase). Audited all 22 existing memory_plan actions. Documented add_plan_to_program implementation (bidirectional linking via plan.program_id + program.child_plan_ids), circular reference detection (wouldCreateCycle for programs, validatePlanDependencies for deps with DFS), and upgrade_to_program logic. Identified gaps: unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans, and optional link_to_program alias. Documented code patterns, conventions, file locations, and testing approaches for the Executor. All findings stored in plan-management-audit.md.\"",
+      "artifacts": [
+        "research_notes/plan-management-audit.md"
+      ]
+    },
+    {
+      "session_id": "sess_mllj5upf_60a0b90a",
+      "agent_type": "Executor",
+      "started_at": "2026-02-13T23:40:14.643Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Implementing Steps 2-10 of plan management tool actions - program linking & dependencies",
+        "current_step_index": 1,
+        "steps_to_complete": [
+          "Add link_to_program action",
+          "Add unlink_from_program action",
+          "Add set_plan_dependencies action",
+          "Add get_plan_dependencies action",
+          "Add set_plan_priority action",
+          "Add clone_plan action",
+          "Add merge_plans action",
+          "Add TypeScript types for all new actions",
+          "Register all new actions in handler"
+        ],
+        "environment": {
+          "working_directory": "c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP",
+          "build_command": "cd server && npm run build"
+        }
+      },
+      "completed_at": "2026-02-14T00:42:59.915Z",
+      "summary": "Completed Steps 2-10. Implemented 7 new memory_plan actions:\\n\\n1. **link_to_program** — Wrapper around addPlanToProgram with enhanced error messages (plan-programs.ts)\\n2. **unlink_from_program** — Bidirectional unlink: clears plan.program_id + removes from program.child_plan_ids (plan-programs.ts)\\n3. **set_plan_dependencies** — Sets depends_on_plans with circular dependency validation via validatePlanDependencies() (plan-programs.ts)\\n4. **get_plan_dependencies** — Returns depends_on_plans + reverse lookup for dependents across all workspace plans (plan-programs.ts)\\n5. **set_plan_priority** — Updates priority with validation (low/medium/high/critical) (plan-goals.ts)\\n6. **clone_plan** — Deep copy with new ID, optional step reset, optional program linking (plan-lifecycle.ts)\\n7. **merge_plans** — Merges steps from multiple source plans into target, optional source archival (plan-lifecycle.ts)\\n\\nAlso added: 8 new TypeScript interfaces in program.types.ts, full Zod schema registration in index.ts, switch-case dispatch in memory_plan.ts.\\n\\nBuild: PASS (zero errors). Tests: 1110/1110 passed across 60 test files.\"",
+      "artifacts": [
+        "server/src/tools/plan/plan-programs.ts",
+        "server/src/tools/plan/plan-goals.ts",
+        "server/src/tools/plan/plan-lifecycle.ts",
+        "server/src/tools/consolidated/memory_plan.ts",
+        "server/src/types/program.types.ts",
+        "server/src/index.ts"
+      ]
+    },
+    {
+      "session_id": "sess_mlllg15z_3097a4c1",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T00:44:08.808Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Build-check + code review after Executor implemented 7 new memory_plan tool actions",
+        "mode": "build_check_and_review",
+        "pre_plan_build_status": "passing"
+      },
+      "completed_at": "2026-02-14T00:46:58.856Z",
+      "summary": "Build-check + code review PASSED. Build: zero errors. Tests: 1110/1110 passed (60 files, zero regressions). Reviewed all 7 new memory_plan actions across 6 files. All success criteria verified: bidirectional link/unlink, circular dependency detection via DFS, TypeScript types + Zod schemas, existing tests unbroken. 3 minor observations noted (local type placement, per-plan workspace fetch in merge loop, wrapper pattern). Verdict: APPROVED. Recommend Tester for Steps 11-13.",
+      "artifacts": [
+        "server/src/tools/plan/plan-programs.ts",
+        "server/src/tools/plan/plan-goals.ts",
+        "server/src/tools/plan/plan-lifecycle.ts",
+        "server/src/types/program.types.ts",
+        "server/src/tools/consolidated/memory_plan.ts",
+        "server/src/index.ts"
+      ]
+    },
+    {
+      "session_id": "sess_mllll2e0_0d3bf027",
+      "agent_type": "Tester",
+      "started_at": "2026-02-14T00:48:03.672Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Write unit tests for 7 new memory_plan actions (Steps 11-13)",
+        "mode": "WRITE"
+      },
+      "completed_at": "2026-02-14T00:53:45.212Z",
+      "summary": "WRITE mode complete. Created 55 unit tests across 3 test files for Steps 11-13:\\n\\n1. plan-link-unlink.test.ts (16 tests): linkToProgram (8) — success bidirectional, already-linked error, non-existent program, non-program plan, self-reference, missing plan, missing fields, no-op same program. unlinkFromProgram (8) — success bidirectional, save calls, generatePlanMd calls, event emission, no program_id, plan missing, orphaned cleanup, missing fields.\\n\\n2. plan-dependency-mgmt.test.ts (18 tests): setPlanDependencies (11) — success, save+md, event, circular A→B→A, self-dep, missing dep, clear empty, plan missing, missing fields, not array, multiple missing. getPlanDependencies (7) — depends_on list, reverse lookup, empty, no self, message, plan missing, missing fields.\\n\\n3. plan-clone-merge-priority.test.ts (28 tests): clonePlan (11) — different ID, preserve steps/goals, reset default, preserve statuses, clear sessions, custom title, default suffix, missing plan, missing fields, event, link_to_program. mergePlans (9) — combine steps, reindex, annotate, archive, no-archive, self-merge, missing source/target, missing fields, event, multi-source. setPlanPriority (8) — 4 valid priorities, save+md, event, message, invalid, empty, missing plan, missing fields.\"",
+      "artifacts": [
+        "server/src/__tests__/tools/plan-link-unlink.test.ts",
+        "server/src/__tests__/tools/plan-dependency-mgmt.test.ts",
+        "server/src/__tests__/tools/plan-clone-merge-priority.test.ts"
+      ]
+    },
+    {
+      "session_id": "sess_mllltcsq_dadce6ea",
+      "agent_type": "Tester",
+      "started_at": "2026-02-14T00:54:30.410Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "RUN mode - execute full test suite to verify all tests pass",
+        "mode": "RUN"
+      },
+      "completed_at": "2026-02-14T01:05:16.800Z",
+      "summary": "RUN mode complete. 1177/1177 tests pass (63 files, 0 failures). Fixed 3 test expectation issues in new test files: (1-2) clonePlan custom/default title tests used expect.anything() which rejects undefined — replaced with exact values matching makePlan defaults; (3) linkToProgram no-op test hit wouldCreateCycle before reaching addPlanToProgram's no-op check — fixed by providing a mock plan without program_id for the cycle detection call. All existing 1110+ tests still pass (no regressions). All 67 new tests for the 7 new actions pass.\"",
+      "artifacts": [
+        "server/src/__tests__/tools/plan-clone-merge-priority.test.ts",
+        "server/src/__tests__/tools/plan-link-unlink.test.ts"
+      ]
+    },
+    {
+      "session_id": "sess_mllmynka_49110ec0",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T01:26:37.258Z",
+      "context": {},
+      "completed_at": "2026-02-14T16:03:27.004Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T16:03:27.004Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mllmzkzd_94bc6c33",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T01:27:20.569Z",
+      "context": {},
+      "completed_at": "2026-02-14T16:03:27.004Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T16:03:27.004Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mllmzv2m_9d7e253a",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T01:27:33.646Z",
+      "context": {},
+      "completed_at": "2026-02-14T16:03:27.004Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T16:03:27.004Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlln0lxn_1b28fe1c",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T01:28:08.459Z",
+      "context": {},
+      "completed_at": "2026-02-14T16:03:27.004Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T16:03:27.004Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmdg66v_cbad6bbe",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T13:48:04.567Z",
+      "context": {},
+      "completed_at": "2026-02-14T16:03:27.004Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T16:03:27.004Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmdhbnb_88fa7c3b",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T13:48:58.295Z",
+      "context": {},
+      "completed_at": "2026-02-14T16:03:27.004Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T16:03:27.004Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmia9is_4cc49b5d",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T16:03:27.065Z",
+      "context": {
+        "run_id": "run_sess_mlmia9is_4cc49b5d"
+      },
+      "completed_at": "2026-02-14T17:15:52.214Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T17:15:52.214Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmkvecg_3837b779",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T17:15:52.288Z",
+      "context": {
+        "run_id": "run_sess_mlmkvecg_3837b779"
+      }
+    },
+    {
+      "session_id": "sess_mlmkwd1d_9a184703",
+      "agent_type": "Archivist",
+      "started_at": "2026-02-14T17:16:37.280Z",
+      "context": {
+        "run_id": "run_sess_mlmkwd1d_9a184703"
+      },
+      "completed_at": "2026-02-14T17:18:33.291Z",
+      "summary": "Finalized and archived plan. Completed pending documentation step 14 by updating `.github/instructions/mcp-tool-plan.instructions.md` with sections for link_to_program, unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, and merge_plans. Added plan note, stored completion context, handled documentation phase confirmation, archived the plan, and wrote plan-summary knowledge entry.",
+      "artifacts": [
+        ".github/instructions/mcp-tool-plan.instructions.md",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlld2y2l_78778d06/completion.json"
+      ]
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-13T23:38:40.973Z",
+      "from_agent": "Researcher",
+      "to_agent": "Coordinator",
+      "reason": "Research complete — all existing memory_plan actions audited, add_plan_to_program implementation documented, circular reference detection analyzed, gaps identified for 7 new actions. Research stored in plan-management-audit.md. Recommend Executor for implementation."
+    },
+    {
+      "timestamp": "2026-02-14T00:42:49.066Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Steps 2-10 complete. Implemented all 7 new memory_plan actions (link_to_program, unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans) with TypeScript types via program.types.ts, handler registration via memory_plan.ts + index.ts. Build passes with zero errors. All 1110 existing tests pass. Ready for build verification and code review.\""
+    },
+    {
+      "timestamp": "2026-02-14T00:46:51.208Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Build verification and code review complete. Build passes (zero errors), all 1110 tests pass (zero regressions). All 7 new actions reviewed and APPROVED: link_to_program, unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans. All success criteria met. Recommend Tester for Steps 11-13 (unit test writing)."
+    },
+    {
+      "timestamp": "2026-02-14T00:53:31.565Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Tests written for all 7 new plan actions (Steps 11-13 complete). 55 tests across 3 files covering linkToProgram, unlinkFromProgram, setPlanDependencies, getPlanDependencies, clonePlan, mergePlans, setPlanPriority. Ready for Tester RUN mode."
+    },
+    {
+      "timestamp": "2026-02-14T01:04:56.991Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "All 1177 tests passing across 63 test files. All 67 new tests for the 7 new actions pass. 3 test expectation fixes applied. Recommend Reviewer for final verification."
+    }
+  ],
+  "steps": [
+    {
+      "phase": "Research",
+      "task": "Audit existing memory_plan actions and identify gaps in program/plan management capabilities",
+      "type": "research",
+      "status": "done",
+      "assignee": "Researcher",
+      "index": 0,
+      "notes": "Audited all memory_plan actions. 22 existing actions identified. Gaps identified for link_to_program, unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans.",
+      "completed_at": "2026-02-13T23:36:58.867Z"
+    },
+    {
+      "phase": "Research",
+      "task": "Review add_plan_to_program implementation to understand current linking logic and circular reference detection",
+      "type": "research",
+      "status": "done",
+      "assignee": "Researcher",
+      "index": 1,
+      "notes": "Reviewed add_plan_to_program implementation, circular reference detection (wouldCreateCycle, validatePlanDependencies, hasDependencyPath), upgrade_to_program logic. All patterns documented in plan-management-audit.md.",
+      "completed_at": "2026-02-13T23:38:30.812Z"
+    },
+    {
+      "phase": "Implementation",
+      "task": "Add link_to_program action — wrapper around add_plan_to_program with better error messages and validation",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 2,
+      "notes": "Added linkToProgram wrapper in plan-programs.ts with enhanced error messages",
+      "completed_at": "2026-02-14T00:10:43.990Z"
+    },
+    {
+      "phase": "Implementation",
+      "task": "Add unlink_from_program action — remove plan from program's child_plan_ids and clear plan's parent_program_id",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 3,
+      "notes": "Added unlinkFromProgram in plan-programs.ts with bidirectional update",
+      "completed_at": "2026-02-14T00:10:43.990Z"
+    },
+    {
+      "phase": "Implementation",
+      "task": "Add set_plan_dependencies action — set depends_on_plans array with circular dependency validation",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 4,
+      "notes": "Added setPlanDependencies in plan-programs.ts with circular dep validation",
+      "completed_at": "2026-02-14T00:10:43.990Z"
+    },
+    {
+      "phase": "Implementation",
+      "task": "Add get_plan_dependencies action — return depends_on_plans and dependents (plans that depend on this one)",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 5,
+      "notes": "Added getPlanDependencies in plan-programs.ts with reverse lookup",
+      "completed_at": "2026-02-14T00:10:43.990Z"
+    },
+    {
+      "phase": "Implementation",
+      "task": "Add set_plan_priority action — update priority with validation (low/medium/high/critical)",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 6,
+      "notes": "Added setPlanPriority in plan-goals.ts with validation",
+      "completed_at": "2026-02-14T00:10:43.990Z"
+    },
+    {
+      "phase": "Implementation",
+      "task": "Add clone_plan action — deep copy plan with new ID, optionally reset step statuses",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 7,
+      "notes": "Added clonePlan in plan-lifecycle.ts with deep copy and optional step reset",
+      "completed_at": "2026-02-14T00:11:14.204Z"
+    },
+    {
+      "phase": "Implementation",
+      "task": "Add merge_plans action — combine steps from multiple plans into one, archive sources optionally",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 8,
+      "notes": "Added mergePlans in plan-lifecycle.ts with optional source archival",
+      "completed_at": "2026-02-14T00:11:14.204Z"
+    },
+    {
+      "phase": "Implementation",
+      "task": "Add TypeScript types for all new actions in server/src/types/plan.types.ts",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 9,
+      "notes": "Added types in program.types.ts: UnlinkFromProgramParams, SetPlanDependenciesParams, GetPlanDependenciesParams, GetPlanDependenciesResult, ClonePlanParams, ClonePlanResult, MergePlansParams, MergePlansResult",
+      "completed_at": "2026-02-14T00:11:14.204Z"
+    },
+    {
+      "phase": "Integration",
+      "task": "Register all new actions in memory_plan tool handler with proper parameter validation",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 10,
+      "notes": "Registered all 7 new actions in memory_plan handler with Zod schemas, dispatch cases, type unions, and param definitions. Build passes, all 1110 tests pass.",
+      "completed_at": "2026-02-14T00:42:31.161Z"
+    },
+    {
+      "phase": "Validation",
+      "task": "Write unit tests for link/unlink program actions including edge cases",
+      "type": "test",
+      "status": "done",
+      "assignee": "Tester",
+      "index": 11,
+      "notes": "Created plan-link-unlink.test.ts: 8 tests for linkToProgram (success bidirectional, already-linked error, non-existent program, non-program, self-ref, missing plan, missing fields, no-op same program) + 8 tests for unlinkFromProgram (success bidirectional, savePlanState calls, generatePlanMd calls, event emission, no program_id error, plan missing, orphaned cleanup, missing fields)",
+      "completed_at": "2026-02-14T00:52:54.118Z"
+    },
+    {
+      "phase": "Validation",
+      "task": "Write unit tests for dependency management actions including circular detection",
+      "type": "test",
+      "status": "done",
+      "assignee": "Tester",
+      "index": 12,
+      "notes": "Created plan-dependency-mgmt.test.ts: 11 tests for setPlanDependencies (success, save+md, event, circular A→B→A, self-dep, non-existent dep, empty clears, plan not found, missing fields, not array, multiple missing) + 7 tests for getPlanDependencies (depends_on list, reverse lookup, empty deps, no self in dependents, message, plan not found, missing fields)",
+      "completed_at": "2026-02-14T00:52:58.815Z"
+    },
+    {
+      "phase": "Validation",
+      "task": "Write unit tests for clone_plan and merge_plans actions",
+      "type": "test",
+      "status": "done",
+      "assignee": "Tester",
+      "index": 13,
+      "notes": "Created plan-clone-merge-priority.test.ts: 11 tests for clonePlan, 9 tests for mergePlans, 8 tests for setPlanPriority. All comprehensive with edge cases.",
+      "completed_at": "2026-02-14T00:53:16.480Z"
+    },
+    {
+      "phase": "Documentation",
+      "task": "Update mcp-tool-plan.instructions.md with new action documentation",
+      "type": "documentation",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 14,
+      "notes": "Documentation phase confirmed by user request. Updated mcp-tool-plan.instructions.md with all implemented plan-management actions and parameter references.",
+      "completed_at": "2026-02-14T17:17:40.301Z"
+    }
+  ],
+  "parent_program_id": "plan_mlkjmemm_f04cebfc",
+  "pending_notes": [
+    {
+      "note": "Archivist finalized documentation step: `.github/instructions/mcp-tool-plan.instructions.md` now includes action references for link_to_program, unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, and merge_plans. Scope respected (docs-only change).",
+      "type": "info",
+      "added_at": "2026-02-14T17:17:45.079Z",
+      "added_by": "user"
+    }
+  ]
+}

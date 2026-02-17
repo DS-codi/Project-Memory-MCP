@@ -1,0 +1,49 @@
+{
+  "type": "original_request",
+  "plan_id": "plan_mlgbe4zs_41f944e1",
+  "workspace_id": "project-memory-mcp-ed224621605f",
+  "captured_at": "2026-02-10T08:04:13.909Z",
+  "user_request": {
+    "sanitized": "I have this system running on my work computer, why is it currently incapable of storing workspace context? Also, I'd like to update (mcp, dashboard and extension) to be able to store workspace wide context. There are several great ways this could become useful. I dont want the agents to be overloaded with context just from initialisation however (which they have been a bit). Please suggest ways that the context overload issue could be remedied.",
+    "wasModified": false,
+    "injectionAttempts": [],
+    "warnings": []
+  },
+  "context": {
+    "files_mentioned": [
+      "server/src/tools/workspace-context.tools.ts",
+      "server/src/tools/consolidated/memory_context.ts",
+      "dashboard/src/components/workspace/WorkspaceContextPanel.tsx",
+      "dashboard/server/src/routes/workspaces.ts",
+      "server/src/tools/handoff.tools.ts",
+      "server/src/storage/workspace-identity.ts",
+      "vscode-extension/src/chat/ChatParticipant.ts"
+    ],
+    "file_contents": {},
+    "requirements": [
+      "Fix why workspace context storage fails on work computer",
+      "Update MCP server to reliably store/retrieve workspace context",
+      "Update dashboard to display and edit workspace context",
+      "Update VS Code extension to consume/contribute workspace context",
+      "Address agent context overload during initialization - agents get too much data from init call"
+    ],
+    "constraints": [
+      "Must work across different machines (home vs work)",
+      "Agents should NOT be overloaded with context at init time",
+      "Changes span 3 components: MCP server, dashboard, extension"
+    ],
+    "examples": [],
+    "conversation_context": {
+      "sanitized": "User's screenshot shows the dashboard WorkspaceContextPanel rendering with all sections empty ('No content yet'). The system is running in a container (Podman). The workspace context.json is stored in the MCP data root. The identity validation in workspace-context.tools.ts uses resolveWorkspaceIdForPath which compares the workspace_path in the identity file against the registered path - this will fail when the same workspace is accessed from different machines with different mount paths.",
+      "wasModified": false,
+      "injectionAttempts": [],
+      "warnings": []
+    },
+    "additional_notes": {
+      "sanitized": "Root cause analysis: workspace-context.tools.ts line 35 calls resolveWorkspaceIdForPath which checks identity.json at the workspace_path. If the workspace was registered on machine A with path 'S:\\\\NotionArchive' but is accessed from machine B where the path might be different, the validation fails. The dashboard server (workspaces.ts) reads context directly from disk but the MCP context tools require identity validation which breaks cross-machine. Another issue: the agent init response returns full plan_state including ALL steps and ALL sessions - this is the context overload source.",
+      "wasModified": false,
+      "injectionAttempts": [],
+      "warnings": []
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "type": "original_request",
+  "plan_id": "plan_mlkl8uls_ddc922f6",
+  "workspace_id": "project-memory-mcp-40f6678f5a9b",
+  "captured_at": "2026-02-13T17:56:37.998Z",
+  "user_request": {
+    "sanitized": "Create Cognition agent (read-only reasoning/analysis agent). Add spawn action to memory_agent with gatekeeper validation. Enforce hub restrictions in Coordinator — must use spawn tool for delegation. System context injection for spawned agents. Detailed specs in docs/add2planpls.md.",
+    "wasModified": false,
+    "injectionAttempts": [],
+    "warnings": []
+  },
+  "context": {
+    "files_mentioned": [
+      "docs/add2planpls.md",
+      "server/src/tools/consolidated/memory_agent.ts",
+      "server/src/tools/agent.tools.ts",
+      "agents/coordinator.agent.md"
+    ],
+    "file_contents": {},
+    "requirements": [
+      "Create Cognition agent with read-only tool access",
+      "Add spawn action to memory_agent tool",
+      "Gatekeeper validation for spawn requests",
+      "System context injection for spawned agents",
+      "Update Coordinator to use spawn tool for delegation"
+    ],
+    "constraints": [],
+    "examples": [],
+    "conversation_context": null,
+    "additional_notes": null
+  }
+}

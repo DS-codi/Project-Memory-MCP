@@ -1,0 +1,40 @@
+{
+  "type": "original_request",
+  "plan_id": "plan_mlmqj8ns_338b580a",
+  "workspace_id": "project-memory-mcp-40f6678f5a9b",
+  "captured_at": "2026-02-14T19:54:46.684Z",
+  "user_request": {
+    "sanitized": "Use the copilot-sdk skill to do something cool related to this codebase and current systems; proceed with creating a plan for a replay-based regression harness.",
+    "wasModified": false,
+    "injectionAttempts": [],
+    "warnings": []
+  },
+  "context": {
+    "files_mentioned": [
+      "Project-Memory-MCP/skills/copilot-sdk/SKILL.md"
+    ],
+    "file_contents": {},
+    "requirements": [
+      "Leverage Copilot SDK capabilities against the current Project Memory MCP ecosystem",
+      "Create a formal plan (not just an idea list)",
+      "Focus on practical value for the existing codebase and systems"
+    ],
+    "constraints": [
+      "Align with current MCP orchestration and tool-safety model",
+      "Keep outcomes measurable via regression/report outputs"
+    ],
+    "examples": [],
+    "conversation_context": {
+      "sanitized": "User approved creating the plan after discussing high-value SDK applications and selected replay-based regression harness as best first project.",
+      "wasModified": false,
+      "injectionAttempts": [],
+      "warnings": []
+    },
+    "additional_notes": {
+      "sanitized": "Plan should support both local/manual execution and future CI integration.",
+      "wasModified": false,
+      "injectionAttempts": [],
+      "warnings": []
+    }
+  }
+}

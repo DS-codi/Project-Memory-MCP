@@ -1,0 +1,324 @@
+{
+  "id": "plan_mlmuoaad_7320fefc",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Replay Model Matrix",
+  "description": "Support comparative replay runs across model and profile variants with scored outputs.",
+  "priority": "medium",
+  "category": "analysis",
+  "status": "archived",
+  "current_phase": "complete",
+  "current_agent": null,
+  "confirmation_state": {
+    "phases": {
+      "Phase 1: Research": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T07:15:15.902Z"
+      },
+      "Phase 3: Execution": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T07:36:40.776Z"
+      },
+      "Phase 4: Review": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T07:43:53.572Z"
+      },
+      "Phase 2: Planning": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T07:44:18.796Z"
+      },
+      "Phase 5: Test": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T07:47:06.508Z"
+      }
+    },
+    "steps": {
+      "8": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T07:44:04.476Z"
+      },
+      "9": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T07:44:07.352Z"
+      }
+    }
+  },
+  "created_at": "2026-02-14T21:50:16.600Z",
+  "updated_at": "2026-02-15T07:48:01.379Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mlnep58p_62f25f49",
+      "agent_type": "Researcher",
+      "started_at": "2026-02-15T07:10:49.068Z",
+      "context": {
+        "run_id": "run_sess_mlnep58p_62f25f49"
+      },
+      "completed_at": "2026-02-15T07:14:49.606Z",
+      "summary": "Completed research on replay model/profile matrix design inputs. Audited current replay harness capabilities, defined practical variance dimensions, proposed weighted scoring and reliability metrics, and documented anti-noise constraints. Step 0 could not transition to done due to required phase confirmation gate, so it is marked blocked-with-ready-note.",
+      "artifacts": [
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlmuoaad_7320fefc/research_notes/replay-model-matrix-dimensions-and-scoring.md",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlmuoaad_7320fefc/research.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlneviwl_3f74a081",
+      "agent_type": "Architect",
+      "started_at": "2026-02-15T07:15:46.725Z",
+      "context": {
+        "run_id": "run_sess_mlneviwl_3f74a081"
+      },
+      "completed_at": "2026-02-15T07:17:29.774Z",
+      "summary": "Expanded plan_mlmuoaad_7320fefc from 2 starter steps into a full phased roadmap for replay model matrix orchestration, scoring, and reporting. Added Executor implementation steps, Reviewer validation steps, and Tester verification steps; set explicit goals/success criteria; stored architecture decisions; confirmed planning step as done in plan state; handed off to Coordinator with Executor recommendation.",
+      "artifacts": [
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlmuoaad_7320fefc/architecture.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlneyh2o_12c3f39c",
+      "agent_type": "Executor",
+      "started_at": "2026-02-15T07:18:04.308Z",
+      "context": {
+        "run_id": "run_sess_mlneyh2o_12c3f39c"
+      },
+      "completed_at": "2026-02-15T07:36:07.837Z",
+      "summary": "Completed stable Phase 3 Replay Model Matrix implementation slice. Steps 2-6 are done and validated via compile + replay-focused tests. Step 7 implementation artifacts are present but step status remains blocked by required Phase 3 confirmation gate.",
+      "artifacts": [
+        "vscode-extension/src/test/replay/core/types.ts",
+        "vscode-extension/src/test/replay/core/MatrixContract.ts",
+        "vscode-extension/src/test/replay/core/MatrixScoring.ts",
+        "vscode-extension/src/test/replay/core/MatrixRunner.ts",
+        "vscode-extension/src/test/replay/cli/replay-cli.ts",
+        "vscode-extension/src/test/replay/index.ts",
+        "vscode-extension/src/test/suite/replay-harness-core.test.ts",
+        "vscode-extension/src/test/replay/docs/matrix-report-semantics.md"
+      ]
+    },
+    {
+      "session_id": "sess_mlnfr1su_d48536be",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-15T07:40:17.517Z",
+      "context": {
+        "run_id": "run_sess_mlnfr1su_d48536be"
+      }
+    },
+    {
+      "session_id": "sess_mlnfwok9_2c881e25",
+      "agent_type": "Tester",
+      "started_at": "2026-02-15T07:44:40.306Z",
+      "context": {
+        "run_id": "run_sess_mlnfwok9_2c881e25"
+      },
+      "completed_at": "2026-02-15T07:46:51.224Z",
+      "summary": "Executed Phase 5 replay test run using registered scripts. Replay suite passed (196/196, exit 0), covering matrix expansion/scoring determinism/formula integrity, anti-noise + flake classification, and matrix report/gating smoke checks. Steps 10 and 11 marked done; step 12 marked blocked only due required Phase 5 confirmation gate.",
+      "artifacts": [
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlmuoaad_7320fefc/test_results.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlng09kf_0b9c7ed2",
+      "agent_type": "Archivist",
+      "started_at": "2026-02-15T07:47:27.498Z",
+      "context": {
+        "run_id": "run_sess_mlng09kf_0b9c7ed2"
+      }
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-15T07:14:40.832Z",
+      "from_agent": "Researcher",
+      "to_agent": "Coordinator",
+      "reason": "Research complete for replay model/profile matrix dimensions, scoring metrics, and anti-noise constraints; ready for planning."
+    },
+    {
+      "timestamp": "2026-02-15T07:17:25.189Z",
+      "from_agent": "Architect",
+      "to_agent": "Coordinator",
+      "reason": "Planning complete: starter plan expanded into phased Executor→Reviewer→Tester roadmap for model-matrix orchestration, comparative scoring, and reporting."
+    },
+    {
+      "timestamp": "2026-02-15T07:35:16.598Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Phase 3 implementation slice is stable and validated; steps 2-6 complete, step 7 blocked by phase confirmation gate."
+    },
+    {
+      "timestamp": "2026-02-15T07:43:02.332Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Phase 4 review passed for matrix orchestration/scoring/reporting; build-check scripts succeeded. Steps 8/9 are blocked only by explicit confirmation gate, not by defects."
+    },
+    {
+      "timestamp": "2026-02-15T07:43:31.161Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Review passed for scoped matrix orchestration/scoring/reporting and build-check scripts passed; recommend Tester next. Steps 8/9 are blocked only by required confirmation gate."
+    },
+    {
+      "timestamp": "2026-02-15T07:46:47.452Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Phase 5 RUN tests passed (196/196) for matrix/scoring/anti-noise/report checks. Step 12 remains blocked by required Phase 5 confirmation gate; recommend Revisionist per blocker-routing policy, otherwise proceed to confirmation then Archivist."
+    }
+  ],
+  "steps": [
+    {
+      "phase": "Phase 1: Research",
+      "task": "Consolidate matrix dimensions, scoring formulas, and anti-noise controls into planning inputs.",
+      "type": "research",
+      "status": "done",
+      "notes": "Dimensions: model identity metadata, comparator profile, scenario tags, execution surface, gate/retry mode, determinism normalization. Metrics: WDS, SPR, ECI, BBR, CMS.",
+      "assignee": "Researcher",
+      "index": 0
+    },
+    {
+      "phase": "Phase 2: Planning",
+      "task": "Define phased implementation roadmap for model-matrix orchestration, comparative scoring, and reporting.",
+      "type": "planning",
+      "status": "done",
+      "notes": "Roadmap expanded from starter plan with Executor→Reviewer→Tester flow and verifiable outcomes.",
+      "assignee": "Architect",
+      "index": 1
+    },
+    {
+      "phase": "Phase 3: Execution",
+      "task": "Define matrix run-contract schema covering axes, run metadata, risk tags, and deterministic control flags.",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 2,
+      "notes": "Added typed replay matrix run-contract schema (axes, run metadata, risk tiers, deterministic control flags) and parser/loader in replay core.",
+      "completed_at": "2026-02-15T07:32:04.690Z"
+    },
+    {
+      "phase": "Phase 3: Execution",
+      "task": "Implement matrix expansion and orchestration flow to schedule and execute replay cells across model/profile combinations.",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 3,
+      "notes": "Implemented matrix cell expansion and execution orchestration path (`runReplayMatrix`) with CLI `run-matrix` command support and per-cell scenario selection by tag-slice.",
+      "completed_at": "2026-02-15T07:32:11.753Z"
+    },
+    {
+      "phase": "Phase 3: Execution",
+      "task": "Implement comparative scoring pipeline with WDS, SPR, ECI, BBR, and CMS calculations including clamp/penalty rules.",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 4,
+      "notes": "Added scoring pipeline in `MatrixScoring.ts` implementing WDS/SPR/ECI/BBR/CMS with clamp and flake penalty semantics.",
+      "completed_at": "2026-02-15T07:32:48.838Z"
+    },
+    {
+      "phase": "Phase 3: Execution",
+      "task": "Implement anti-noise guardrails in run execution (fixed TZ/locale, normalization enabled, retry-once classification, fingerprint stability checks).",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 5,
+      "notes": "Implemented anti-noise controls in `MatrixRunner.ts`: fixed TZ/locale env, normalization-required overlay, retry-once comparison classification, and fingerprint stability check.",
+      "completed_at": "2026-02-15T07:32:53.125Z"
+    },
+    {
+      "phase": "Phase 3: Execution",
+      "task": "Implement result aggregation contract with per-cell outputs, axis rollups, risk-tier summaries, and promotion eligibility flags.",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 6,
+      "notes": "Implemented matrix result aggregation contract in `MatrixScoring.ts`/`MatrixRunner.ts` with per-cell output objects, axis rollups, risk-tier summaries, and promotable flags.",
+      "completed_at": "2026-02-15T07:32:56.857Z"
+    },
+    {
+      "phase": "Phase 3: Execution",
+      "task": "Document report payload semantics for score interpretation and deterministic-regression handling in comparative outputs.",
+      "type": "documentation",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 7,
+      "notes": "Coordinator recorded user phase confirmation and finalized Phase 3 documentation step.",
+      "completed_at": "2026-02-15T07:36:57.784Z"
+    },
+    {
+      "phase": "Phase 4: Review",
+      "task": "Review orchestration and scoring implementation against defined formulas, severity weighting, and anti-noise requirements.",
+      "type": "validation",
+      "status": "done",
+      "assignee": "Reviewer",
+      "index": 8,
+      "notes": "Review step confirmed and completed.",
+      "completed_at": "2026-02-15T07:44:22.488Z"
+    },
+    {
+      "phase": "Phase 4: Review",
+      "task": "Review comparative report structure for completeness, traceability, and actionability across matrix dimensions.",
+      "type": "validation",
+      "status": "done",
+      "assignee": "Reviewer",
+      "index": 9,
+      "notes": "Review step confirmed and completed.",
+      "completed_at": "2026-02-15T07:44:22.488Z"
+    },
+    {
+      "phase": "Phase 5: Test",
+      "task": "Run targeted tests for matrix expansion correctness, scoring determinism, and formula integrity across representative fixtures.",
+      "type": "test",
+      "status": "done",
+      "assignee": "Tester",
+      "index": 10,
+      "notes": "Executed registered Replay test script (`npm test -- --grep \"Replay\"`): passing coverage includes matrix run-contract expansion, scoring determinism, and formula integrity (WDS/SPR/ECI/BBR/CMS + promotable checks).",
+      "completed_at": "2026-02-15T07:45:49.156Z"
+    },
+    {
+      "phase": "Phase 5: Test",
+      "task": "Run anti-noise and flake-classification validation tests to verify retry behavior, fingerprint stability, and non-promotable regression handling.",
+      "type": "test",
+      "status": "done",
+      "assignee": "Tester",
+      "index": 11,
+      "notes": "Replay gate evaluator tests passed for anti-noise controls: retry-once intermittent flake classification, fingerprint evidence handling, and deterministic regression/non-promotable behavior.",
+      "completed_at": "2026-02-15T07:45:54.734Z"
+    },
+    {
+      "phase": "Phase 5: Test",
+      "task": "Run end-to-end matrix replay smoke and verify comparative report outputs, risk-tier summaries, and gating decisions.",
+      "type": "test",
+      "status": "done",
+      "assignee": "Tester",
+      "index": 12,
+      "notes": "Phase 5 confirmed by user; end-to-end matrix replay smoke and comparative report checks passed.",
+      "completed_at": "2026-02-15T07:47:12.037Z"
+    }
+  ],
+  "depends_on_plans": [
+    "plan_mlmuo39q_155aeb95",
+    "plan_mlmuoaa0_6fd79273"
+  ],
+  "recommended_next_agent": "Coordinator",
+  "goals": [
+    "Enable repeatable replay matrix runs across model/profile variants with controlled variance axes.",
+    "Produce comparative scoring that combines severity, pass-rate, and drift explainability into actionable outcomes.",
+    "Generate reporting outputs that support promotion/gating decisions with explicit anti-noise safeguards."
+  ],
+  "success_criteria": [
+    "Matrix execution supports configured dimensions: model identity metadata, comparator profile, scenario slices, execution surface, gate/retry mode, and normalization controls.",
+    "Scoring outputs include WDS, SPR, ECI, BBR, and CMS per run cell with documented formulas and deterministic clamp/penalty behavior.",
+    "Anti-noise controls (fixed TZ/locale, normalization, retry-once classification, fingerprint stability checks) are applied and reflected in outputs.",
+    "Comparative reports provide per-cell details, axis rollups, risk-tier summaries, and deterministic-regression non-promotable flags.",
+    "Reviewer validation and Tester run results confirm score reproducibility and report correctness on representative fixtures."
+  ],
+  "deployment_context": {
+    "deployed_agent": "Archivist",
+    "deployed_by": "Coordinator",
+    "reason": "All tests passed, ready for archive and finalize plan",
+    "override_validation": true,
+    "deployed_at": "2026-02-15T07:47:27.498Z"
+  }
+}

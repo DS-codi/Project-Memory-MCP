@@ -1,0 +1,233 @@
+---
+plan_id: plan_mlkl6yw3_7e0a1787
+created_at: 2026-02-13T08:39:30.538Z
+sanitized: false
+injection_attempts: 0
+warnings: 0
+---
+
+# Builder & Reviewer Agent Audit
+
+## 1. Builder Agent (agents/builder.agent.md)
+
+### File Stats
+- **Line count:** 345 lines (442 including frontmatter/whitespace per file read)
+- **Major sections:** 12+
+
+### Unique Capabilities Catalog
+
+#### A. Dual-Mode Operation
+Builder operates in two distinct modes based on deployment point:
+
+| Mode | When Deployed | Purpose |
+|------|---------------|---------|
+| **Regression Check** | Mid-plan (between phases) | Quick compile verification when `pre_plan_build_status='passing'` — detects which step broke the build |
+| **Final Verification** | End-of-plan (after all tests) | Comprehensive build with user-facing instructions and optimization suggestions |
+
+The Coordinator determines which mode based on `pre_plan_build_status` and plan lifecycle stage.
+
+#### B. Regression Detection (Mode 1)
+- Runs quick compilation check (e.g., `npx tsc --noEmit`, `npm run build`)
+- Cross-references errors with recently completed plan steps to identify which step broke the build
+- Produces structured **Regression Report** including:
+  - Error messages and affected files
+  - `suspected_step` with index, phase, task, confidence (high/medium/low), reasoning
+  - `regression_summary` text
+- Available ONLY when `pre_plan_build_status` is `'passing'`
+
+#### C. Final Verification (Mode 2) with User-Facing Build Report
+Produces comprehensive build report with:
+- **`build_instructions`**: Step-by-step copy-pasteable commands (install → build → run → test)
+- **`optimization_suggestions`**: Actionable build perf improvements, bundle size, CI/CD, caching
+- **`dependency_notes`**: New deps, version requirements, peer deps, security advisories
+- **`scripts_registered`**: List of registered build scripts
+- **`artifacts`**: List of build artifacts produced
+
+#### D. Build Script CRUD (MCP Tool Usage)
+Uses `memory_plan` actions exclusively for build script management:
+- `list_build_scripts` — list all workspace/plan build scripts
+- `add_build_script` — create new build script (name, command, directory, description, mcp_handle)
+- `run_build_script` — resolve script ID to command + directory for terminal execution
+- `delete_build_script` — remove a build script
+
+#### E. Error Diagnosis Framework
+Categorizes errors into:
+- Syntax errors → code structure
+- Type errors → TypeScript/type system
+- Import errors → missing deps / circular deps
+- Build tool errors → config issues
+
+Regression-specific: cross-refs errors with plan steps, rates confidence (high/medium/low).
+
+#### F. Terminal-First Execution
+Builder MUST run build scripts in the terminal. Uses `run_build_script` to resolve, then `run_in_terminal`.
+
+### MCP Tools Used by Builder
+| Tool | Action | Purpose |
+|------|--------|---------|
+| `memory_agent` | init, validate, handoff, complete | Lifecycle |
+| `memory_plan` | list_build_scripts, add_build_script, run_build_script, delete_build_script | Build script CRUD |
+| `memory_steps` | update, insert, delete, reorder, move, sort, set_order, replace | Step management |
+| `memory_context` | store | Save build/regression reports |
+
+### Handoff Patterns
+| Condition | Recommends |
+|-----------|-----------|
+| Regression check passes | Reviewer |
+| Regression check fails | Revisionist |
+| Final verification passes | Archivist |
+| Final verification fails | Revisionist |
+| No build scripts defined | Revisionist |
+
+---
+
+## 2. Reviewer Agent (agents/reviewer.agent.md)
+
+### File Stats
+- **Line count:** 145 lines (191 including frontmatter/whitespace)
+- **Major sections:** ~8
+
+### Current Structure
+1. **Frontmatter** (lines 1-14): name, description, tools, handoff labels
+2. **STOP First Actions** (lines 16-28): MCP init/validate/store/handoff
+3. **Workspace Identity** (lines 38-42): workspace_id policy
+4. **Subagent Policy** (lines 44-47): spoke agent rules
+5. **File Size Discipline** (lines 49-53): monolith prevention
+6. **Critical Hub-Spoke** (lines 55-68): review-then-return pattern
+7. **Mission** (lines 70-71): static analysis, best practices, requirement validation
+8. **First Action** (lines 73-85): init context template
+9. **Tools Table** (lines 87-107): consolidated tools list
+10. **Workflow** (lines 109-130): 9-step review workflow
+11. **Re-indexing** (lines 132-146): workspace reindex after passing review
+12. **Review Checklist** (lines 148-154): 6-item checklist
+13. **Exit Conditions** (lines 156-163): pass→Tester, issues→Revisionist, major→replan
+14. **Output Artifacts** (lines 165-167): review.json
+15. **Skills Awareness** (lines 169-171)
+16. **Security Boundaries** (lines 173-191)
+
+### Current Review Workflow
+1. init → 2. validate → 3. get audit context → 4. review changed files → 5. run linters → 6. store review → 7. reindex (if passed) → 8. handoff → 9. complete
+
+### Tools Currently Used by Reviewer
+- `memory_agent`: init, validate, handoff, complete
+- `memory_context`: get, store
+- `memory_workspace`: reindex
+- `memory_plan`: get
+- `memory_steps`: insert, delete, reorder, move, sort, set_order, replace
+- Git tools, Linter tools
+
+### Integration Points for Builder Capabilities
+
+**Where Builder capabilities can be merged into Reviewer:**
+
+1. **New "Build Phase" section** (after Workflow section, ~line 130): Add a new section documenting the build verification responsibilities that Reviewer inherits
+2. **Build Script Management section**: New section with the 4 CRUD operations (list, add, run, delete) — can be added after the tools table
+3. **Tools table expansion** (lines 87-107): Add `memory_plan` build script actions (list_build_scripts, add_build_script, run_build_script, delete_build_script)
+4. **Frontmatter tools** (line 4): Add 'execute' to tools list (needed for terminal build execution)
+5. **Dual-mode operation**: Add mode context to the init template — Reviewer can optionally run build verification
+6. **Exit conditions table** (lines 156-163): Add build-related exit paths (build passes → Tester, build fails → Revisionist)
+7. **Handoff patterns**: Executor currently recommends Builder → should change to recommend Reviewer; Reviewer then handles both review AND build verification
+8. **User-facing reports**: Reviewer's final verification mode should produce the same structured build report
+
+---
+
+## 3. Cross-Reference Analysis: Files Referencing Builder
+
+### agents/executor.agent.md (223 lines)
+- Line 59: recommends Builder after success
+- Line 157: handoff to Coordinator with recommendation for Builder
+- Line 176: exit condition table → recommends Builder
+- Line 188: example handoff JSON recommends Builder
+- **Update needed:** Change all "Builder" recommendations to "Reviewer"
+
+### agents/coordinator.agent.md (1388 lines)
+- Lines 158, 180, 186: Phase loop diagram references BUILDER
+- Lines 198, 210, 215: Decision tree and summary table reference Builder
+- Lines 1119-1151: Pseudo-code spawns Builder for regression check and final verification
+- Lines 1208, 1215: Executor prompt template and Builder prompt template
+- **Update needed:** Replace Builder spawning with Reviewer spawning; merge Builder prompt template into Reviewer's; update diagrams
+
+### agents/tdd-driver.agent.md (240 lines)
+- Line 237: exit condition → recommends Builder
+- Line 249: handoff JSON recommends Builder
+- **Update needed:** Change to recommend Reviewer
+
+### instructions/handoff-protocol.instructions.md (198 lines)
+- Line 39: Lists Builder as spoke agent
+- Line 102: TDDDriver recommends Builder
+- Lines 124-125: Executor recommends Builder; Builder section (lines 127-129)
+- Line 177: TDDDriver recommends Builder
+- **Update needed:** Remove Builder section, update Executor→Reviewer, update TDDDriver→Reviewer, update spoke list
+
+### instructions/project-memory-system.instructions.md
+- Line 50: Builder in agent table
+- Lines 630, 672, 687, 701: "Used by: Builder" references
+- Line 839: assignee: Builder example
+- Lines 2118, 2227: Builder type definition
+- **Update needed:** Remove Builder from agent table, update "Used by" references, update type enum
+
+### instructions/build-scripts.instructions.md
+- Line 103: Builder as primary consumer
+- Line 108: "Workflow: Builder Agent" section
+- **Update needed:** Change to Reviewer as primary consumer
+
+### instructions/mcp-usage.instructions.md
+- Line 21: "builders" reference (lowercase, generic)
+- **May not need update** (generic usage)
+
+---
+
+## 4. Agent Line Counts (Extraction Work Assessment)
+
+| Agent File | Lines | Notes |
+|-----------|-------|-------|
+| coordinator.agent.md | 1388 | **LARGEST — needs extraction** (~300 lines of subagent prompt templates at L1160+) |
+| analyst.agent.md | 761 | **Second largest — needs extraction** |
+| runner.agent.md | 408 | Moderate, may need trimming |
+| builder.agent.md | 345 | Being merged into reviewer |
+| architect.agent.md | 268 | OK |
+| tdd-driver.agent.md | 240 | OK |
+| archivist.agent.md | 237 | OK |
+| brainstorm.agent.md | 223 | OK |
+| executor.agent.md | 223 | OK (needs Builder→Reviewer ref updates) |
+| tester.agent.md | 199 | OK |
+| skill-writer.agent.md | 149 | OK |
+| reviewer.agent.md | 145 | Will grow to ~250-300 after Builder merge |
+| revisionist.agent.md | 143 | OK |
+| worker.agent.md | 136 | OK |
+| researcher.agent.md | 113 | OK |
+
+### Coordinator Extraction Scope
+The subagent prompt templates section starts at ~line 1160 and runs to ~line 1388 (228+ lines). This is a natural extraction target → `instructions/coordinator-subagent-templates.instructions.md`.
+
+### Analyst Extraction Scope
+Need to audit analyst.agent.md separately to identify extraction candidates (761 lines is well over the 400 threshold).
+
+---
+
+## 5. Summary of Merge Strategy
+
+### What moves from Builder → Reviewer:
+1. Build script CRUD (list, add, run, delete) — tool table + full reference section
+2. Regression Check mode (quick compile verification between phases)
+3. Final Verification mode (comprehensive build + user-facing report)
+4. Error diagnosis framework (categorization, regression cross-referencing)
+5. Terminal-first execution policy
+6. Build report format (instructions, optimizations, dependencies, artifacts)
+7. Handoff data template structure
+
+### What stays Reviewer-only:
+1. Static analysis / code quality review
+2. Requirements validation
+3. Review checklist
+4. Workspace re-indexing after review
+
+### Estimated final Reviewer size:
+- Current: 145 lines
+- Builder content distilled: +100-150 lines (not verbatim copy — merge and deduplicate)
+- Estimated total: ~250-300 lines (within 400-line threshold)
+
+### Cross-reference updates needed:
+- **5 agent files** need Builder→Reviewer reference changes
+- **3 instruction files** need Builder references updated
+- **1 file** (builder.agent.md) gets archived to `archive/old_agents/`

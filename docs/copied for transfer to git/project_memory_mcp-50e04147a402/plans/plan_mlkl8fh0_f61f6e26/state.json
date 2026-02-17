@@ -1,0 +1,313 @@
+{
+  "id": "plan_mlkl8fh0_f61f6e26",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "New MCP Actions \\u2014 Context Dump & Plan Export",
+  "description": "Add dump_context action to memory_context: dumps current context to temp file in workspace. Add export_plan action to memory_plan: copies plan + all resources to workspace folder for git commits. Self-contained server-side additions.",
+  "priority": "medium",
+  "category": "feature",
+  "status": "active",
+  "current_phase": "complete",
+  "current_agent": "Coordinator",
+  "confirmation_state": {
+    "phases": {
+      "Research": {
+        "confirmed": true,
+        "confirmed_by": "Researcher",
+        "confirmed_at": "2026-02-13T09:12:05.078Z"
+      },
+      "Implementation": {
+        "confirmed": true,
+        "confirmed_by": "Executor",
+        "confirmed_at": "2026-02-13T09:23:48.619Z"
+      },
+      "Integration": {
+        "confirmed": true,
+        "confirmed_by": "Executor",
+        "confirmed_at": "2026-02-13T09:53:57.822Z"
+      },
+      "Validation": {
+        "confirmed": true,
+        "confirmed_by": "Tester",
+        "confirmed_at": "2026-02-13T10:01:26.497Z"
+      }
+    },
+    "steps": {}
+  },
+  "created_at": "2026-02-13T07:50:27.929Z",
+  "updated_at": "2026-02-14T22:31:11.227Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mlko10wu_3604f320",
+      "agent_type": "Researcher",
+      "started_at": "2026-02-13T09:08:41.31Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Research context action architecture, plan action architecture, data directory structure, and existing action patterns for new MCP actions (context_dump & plan_export)",
+        "research_targets": [
+          "memory_context action routing",
+          "memory_plan action routing",
+          "data directory structure for plans",
+          "Zod schema patterns",
+          "MCP response format"
+        ],
+        "questions_to_answer": [
+          "What is the exact data path pattern for a plan's files?",
+          "What file format should dump_context produce?",
+          "Where should dump files be written?",
+          "Where should exported plans be written?",
+          "How does workspace_path get resolved for writing files?"
+        ],
+        "known_resources": [
+          "server/src/tools/consolidated/memory_context.ts",
+          "server/src/tools/consolidated/memory_plan.ts",
+          "server/src/tools/context.tools.ts",
+          "server/src/tools/plan/"
+        ]
+      },
+      "completed_at": "2026-02-13T09:12:34.39Z",
+      "summary": "Completed architecture audit for Context Dump & Plan Export feature. Documented: (1) Context action routing pattern — ContextAction type union in memory_context.ts, switch router dispatching to context.tools.ts handlers, Zod schema in index.ts. (2) Plan action routing pattern — PlanAction type in memory_plan.ts, dispatch to plan/ module handlers. (3) Complete data directory structure: data/{workspace_id}/plans/{plan_id}/ containing state.json, plan.md, context JSONs, research_notes/, prompts/, logs/. (4) workspace_path resolution via store.getWorkspace(). (5) Recommended output locations: dump_context → data dir dumps/, export_plan → {workspace_path}/.projectmemory/exports/. All findings saved to research note and structured research.json. Steps 0-1 marked done. Recommend Executor for implementation (steps 2-8).",
+      "artifacts": [
+        "research_notes/context_dump_export_audit.md",
+        "research.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlkocq7g_725078ef",
+      "agent_type": "Executor",
+      "started_at": "2026-02-13T09:17:47.309Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Implement steps 2-8 for New MCP Actions — Context Dump & Plan Export",
+        "current_step_index": 1,
+        "steps_to_complete": [
+          "Step 2: Add dump_context to ContextAction enum and Zod schema",
+          "Step 3: Implement handleDumpContext handler",
+          "Step 4: Add dump_context routing in memory_context.ts",
+          "Step 5: Add export_plan to PlanAction enum and Zod schema",
+          "Step 6: Implement handleExportPlan handler",
+          "Step 7: Add export_plan routing in memory_plan.ts",
+          "Step 8: Update VS Code extension package.json inputSchema"
+        ],
+        "environment": {
+          "working_directory": "c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP",
+          "build_command": "cd server && npx tsc --noEmit"
+        }
+      },
+      "completed_at": "2026-02-13T09:54:30.375Z",
+      "summary": "Implemented steps 2-8: dump_context (ContextAction + handler + routing) and export_plan (PlanAction + handler + routing) plus VS Code extension package.json updates. TypeScript compiles cleanly.",
+      "artifacts": [
+        "server/src/index.ts",
+        "server/src/tools/context.tools.ts",
+        "server/src/tools/consolidated/memory_context.ts",
+        "server/src/tools/consolidated/memory_plan.ts",
+        "server/src/tools/plan/plan-lifecycle.ts",
+        "vscode-extension/package.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlkpoq6s_2667ed52",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-13T09:55:06.772Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Phase complete, ready for review of dump_context and export_plan implementation",
+        "files_changed": [
+          "server/src/index.ts",
+          "server/src/tools/context.tools.ts",
+          "server/src/tools/consolidated/memory_context.ts",
+          "server/src/tools/plan/plan-lifecycle.ts",
+          "server/src/tools/consolidated/memory_plan.ts",
+          "vscode-extension/package.json"
+        ],
+        "original_requirements": "New MCP Actions — Context Dump & Plan Export",
+        "acceptance_criteria": [
+          "dump_context aggregates plan state, context files, research notes, workspace context",
+          "export_plan creates complete git-committable folder with README.md",
+          "Pattern consistency with existing actions",
+          "Error handling for edge cases"
+        ]
+      },
+      "completed_at": "2026-02-13T09:57:10.972Z",
+      "summary": "Reviewed all 6 changed files for the dump_context and export_plan implementation. VERDICT: APPROVED. Correctness: both handlers aggregate/export the correct artifacts. Pattern consistency: Zod enums, routing, type unions, and response format all follow established conventions. Error handling: proper validation, plan existence checks, and isolated try/catch for non-critical sections. TypeScript: zero compile errors. No regressions: existing routing intact, default cases preserved. Advisory: context.tools.ts (1097 lines) and plan-lifecycle.ts (691 lines) exceed the 400-line guideline but this is pre-existing. Reindexed workspace profile. Recommend Tester for unit tests (steps 9-11).\"",
+      "artifacts": [
+        "review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlkps91n_8e513bd0",
+      "agent_type": "Tester",
+      "started_at": "2026-02-13T09:57:51.179Z",
+      "context": {
+        "mode": "WRITE",
+        "phase": "Validation",
+        "steps": [
+          9,
+          10,
+          11
+        ],
+        "files_to_test": [
+          "server/src/tools/context.tools.ts",
+          "server/src/tools/plan/plan-lifecycle.ts"
+        ]
+      },
+      "completed_at": "2026-02-13T10:01:46.735Z",
+      "summary": "Wrote 32 tests for Validation phase (steps 9-11): dump-context.test.ts (10 unit tests for handleDumpContext), export-plan.test.ts (11 unit tests for exportPlan), dump-export-e2e.test.ts (11 integration tests through consolidated MCP layer). All files pass TypeScript type checking. Tests NOT executed (WRITE mode).",
+      "artifacts": [
+        "server/src/__tests__/tools/dump-context.test.ts",
+        "server/src/__tests__/tools/export-plan.test.ts",
+        "server/src/__tests__/tools/dump-export-e2e.test.ts"
+      ]
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-13T09:12:25.51Z",
+      "from_agent": "Researcher",
+      "to_agent": "Coordinator",
+      "reason": "Research complete for steps 0-1. Full architecture audit saved. Recommend Executor for implementation phase (steps 2-8)."
+    },
+    {
+      "timestamp": "2026-02-13T09:54:17.296Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Steps 2-8 complete. All new MCP actions (dump_context, export_plan) implemented and TypeScript compiles cleanly. Ready for build verification."
+    },
+    {
+      "timestamp": "2026-02-13T09:56:59.249Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Review APPROVED. All 6 checklist items pass. dump_context and export_plan implementations are correct, follow existing patterns, have proper error handling, and produce zero TypeScript errors. Recommend Tester to write unit tests for the new handlers."
+    },
+    {
+      "timestamp": "2026-02-13T10:01:41.188Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Tests written for Validation phase (steps 9-11). 32 tests across 3 files covering dump_context unit tests, export_plan unit tests, and e2e integration tests. Ready for next phase or final test run."
+    }
+  ],
+  "steps": [
+    {
+      "phase": "Research",
+      "task": "Audit existing context actions in server/src/tools/consolidated/memory_context.ts and server/src/tools/context.tools.ts — understand action routing pattern and file I/O approach",
+      "type": "research",
+      "status": "done",
+      "assignee": "Researcher",
+      "index": 0,
+      "notes": "Audited context action routing in memory_context.ts (ContextAction type, switch router, handler dispatch to context.tools.ts). Documented Zod schema location, handler patterns, and file I/O approach.",
+      "completed_at": "2026-02-13T09:11:52.321Z"
+    },
+    {
+      "phase": "Research",
+      "task": "Audit existing plan actions in server/src/tools/consolidated/memory_plan.ts and server/src/tools/plan/ — understand how plan data is stored and accessed",
+      "type": "research",
+      "status": "done",
+      "assignee": "Researcher",
+      "index": 1,
+      "notes": "Audited plan action routing in memory_plan.ts (PlanAction type, switch router, handler dispatch to plan/ modules). Documented complete data directory structure: state.json, plan.md, context files, research_notes/, prompts/, logs/. Documented workspace_path resolution via store.getWorkspace(). All research saved to context_dump_export_audit.md and research.json.",
+      "completed_at": "2026-02-13T09:12:15.142Z"
+    },
+    {
+      "phase": "Implementation",
+      "task": "Add 'dump_context' to ContextAction enum and Zod schema in server/src/tools/consolidated/index.ts",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 2,
+      "notes": "Added 'dump_context' to ContextAction type union and Zod schema",
+      "completed_at": "2026-02-13T09:20:29.496Z"
+    },
+    {
+      "phase": "Implementation",
+      "task": "Implement handleDumpContext handler in server/src/tools/context.tools.ts — aggregates plan state, context, research notes, workspace context into a single JSON/MD file written to workspace .projectmemory/dumps/",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 3,
+      "notes": "Implemented handleDumpContext in context.tools.ts — aggregates plan state, context files, research notes, workspace context into dumps/{timestamp}-context-dump.json",
+      "completed_at": "2026-02-13T09:21:18.676Z"
+    },
+    {
+      "phase": "Implementation",
+      "task": "Add 'dump_context' case to switch in server/src/tools/consolidated/memory_context.ts routing to the handler",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 4,
+      "notes": "Added dump_context case to switch in memory_context.ts, updated ContextResult type, and error messages",
+      "completed_at": "2026-02-13T09:22:01.615Z"
+    },
+    {
+      "phase": "Implementation",
+      "task": "Add 'export_plan' to PlanAction enum and Zod schema in server/src/tools/consolidated/index.ts",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 5,
+      "notes": "Added 'export_plan' to PlanAction type, Zod schema, and PlanResult union",
+      "completed_at": "2026-02-13T09:22:32.853Z"
+    },
+    {
+      "phase": "Implementation",
+      "task": "Implement handleExportPlan handler in server/src/tools/plan/ — copies plan.json, state.json, research notes, and context files to workspace .projectmemory/exports/{plan_id}/ for git commits",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 6,
+      "notes": "Implemented exportPlan in plan-lifecycle.ts — copies plan.json, context files, research notes, prompts to {workspace_path}/.projectmemory/exports/{plan_id}/ with README.md",
+      "completed_at": "2026-02-13T09:23:13.577Z"
+    },
+    {
+      "phase": "Implementation",
+      "task": "Add 'export_plan' case to switch in server/src/tools/consolidated/memory_plan.ts routing to the handler",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 7,
+      "notes": "Added export_plan routing case to memory_plan.ts switch statement",
+      "completed_at": "2026-02-13T09:23:53.496Z"
+    },
+    {
+      "phase": "Integration",
+      "task": "Update VS Code extension package.json inputSchema to include dump_context and export_plan actions",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 8,
+      "notes": "Added dump_context and export_plan to VS Code extension package.json enum arrays. TypeScript compiles cleanly.",
+      "completed_at": "2026-02-13T09:54:02.353Z"
+    },
+    {
+      "phase": "Validation",
+      "task": "Write unit tests for dump_context handler — verify file creation, content aggregation, and error handling",
+      "type": "test",
+      "status": "done",
+      "assignee": "Tester",
+      "index": 9,
+      "notes": "Created dump-context.test.ts with 10 unit tests covering file creation, sections, error handling, timestamp format",
+      "completed_at": "2026-02-13T10:01:30.431Z"
+    },
+    {
+      "phase": "Validation",
+      "task": "Write unit tests for export_plan handler — verify folder creation, file copying, and git-committable structure",
+      "type": "test",
+      "status": "done",
+      "assignee": "Tester",
+      "index": 10,
+      "notes": "Created export-plan.test.ts with 11 unit tests covering directory structure, file copying, README generation, error handling",
+      "completed_at": "2026-02-13T10:01:30.431Z"
+    },
+    {
+      "phase": "Validation",
+      "task": "End-to-end test: dump_context creates readable file in workspace, export_plan creates complete folder",
+      "type": "test",
+      "status": "done",
+      "assignee": "Tester",
+      "index": 11,
+      "notes": "Created dump-export-e2e.test.ts with 11 e2e tests covering MCP response format, error propagation, JSON serializability",
+      "completed_at": "2026-02-13T10:01:30.431Z"
+    }
+  ],
+  "recommended_next_agent": "Coordinator",
+  "program_id": "plan_mlkjmemm_f04cebfc",
+  "parent_program_id": "plan_mlkjmemm_f04cebfc"
+}

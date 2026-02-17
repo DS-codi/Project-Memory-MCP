@@ -1,0 +1,16 @@
+{
+  "slug": "plan-summary-plan-mlndr1kz-6785bd7b",
+  "title": "Plan Summary: Fix skills deploy ENOENT on external workspaces",
+  "category": "plan-summary",
+  "content": "",
+  "tags": [
+    "plan-summary",
+    "archived",
+    "bugfix",
+    "vscode-extension"
+  ],
+  "created_at": "2026-02-15T07:02:47.260Z",
+  "updated_at": "2026-02-15T07:02:47.260Z",
+  "created_by_agent": "Archivist",
+  "created_by_plan": "plan_mlndr1kz_6785bd7b"
+}

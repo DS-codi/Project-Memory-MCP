@@ -1,0 +1,400 @@
+{
+  "id": "plan_mlln0dl1_bdde9d9d",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Dashboard Plan View Relationships & Active/Archived Sections",
+  "description": "Update the dashboard plan view to visualize plan relationships (program/child and related links) and separate archived plans from active plans into distinct UI sections.",
+  "priority": "high",
+  "category": "feature",
+  "goals": [
+    "Expose and display plan relationships (program, child, linked) in dashboard plan view.",
+    "Segment dashboard plan listing into explicit Active Plans and Archived Plans sections.",
+    "Maintain clear scanning and existing plan navigation behavior while introducing relationship and section context."
+  ],
+  "success_criteria": [
+    "Each plan item can render relationship context (program parent, child membership, linked references) when available.",
+    "Dashboard UI presents separate Active Plans and Archived Plans sections sourced from deterministic partition logic.",
+    "Relationship rendering and sectioning are covered by unit/integration/e2e tests appropriate to this workspace.",
+    "Reviewer verification confirms no regression in existing plan list rendering, filtering, and navigation flows.",
+    "Documentation reflects new relationship indicators and active/archived section behavior."
+  ],
+  "status": "archived",
+  "current_phase": "complete",
+  "current_agent": null,
+  "confirmation_state": {
+    "phases": {
+      "Phase 1: Scope & Data Contract": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T01:57:47.907Z"
+      },
+      "Phase 2: Relationship Data Exposure": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T17:16:57.195Z"
+      },
+      "Phase 3: Active vs Archived Segmentation": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T17:31:35.399Z"
+      },
+      "Phase 5: Validation & Test Coverage": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T17:32:07.073Z"
+      },
+      "Phase 4: Relationship Presentation in UI": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T17:32:03.135Z"
+      },
+      "Phase 6: Review & QA Verification": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T17:37:12.333Z"
+      },
+      "Phase 6: Documentation & Handoff": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T17:39:36.323Z"
+      }
+    },
+    "steps": {
+      "10": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T17:32:59.386Z"
+      }
+    }
+  },
+  "created_at": "2026-02-14T01:27:57.641Z",
+  "updated_at": "2026-02-14T22:31:11.699Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mllnw7tu_7dfa8374",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T01:52:43.170Z",
+      "context": {},
+      "completed_at": "2026-02-14T17:07:31.543Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T17:07:31.543Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mllnwyva_0131a000",
+      "agent_type": "Architect",
+      "started_at": "2026-02-14T01:53:18.214Z",
+      "context": {},
+      "completed_at": "2026-02-14T01:53:57.915Z",
+      "summary": "Seeded plan_mlln0dl1_bdde9d9d with a concise phased roadmap (12 atomic steps) covering dashboard relationship visualization (program/child/linked) and active-vs-archived sectioning, plus validation/testing/review/documentation workflow. Goals and success criteria were updated and architecture context stored; handoff sent to Coordinator with recommendation for Executor.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlln0dl1_bdde9d9d/state.json",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlln0dl1_bdde9d9d/architecture.json"
+      ]
+    },
+    {
+      "session_id": "sess_mllnzkt7_6c0bd296",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T01:55:19.963Z",
+      "context": {},
+      "completed_at": "2026-02-14T01:58:24.927Z",
+      "summary": "Completed ONLY Phase 1 scoped steps 0 and 1. Step 0 inventory documented concrete dashboard plan list data flow and identified relationship metadata source paths and gaps. Step 1 defined a normalized relationship view-model contract for plan cards/rows including explicit empty/missing/partial-state behavior. Stored findings in plan architecture context for downstream implementation. No application source files modified.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlln0dl1_bdde9d9d/architecture.json"
+      ]
+    },
+    {
+      "session_id": "sess_mllo4cvn_0131dc5e",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T01:59:02.963Z",
+      "context": {},
+      "completed_at": "2026-02-14T17:07:31.543Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T17:07:31.543Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmdgs38_1e9c1340",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T13:48:32.948Z",
+      "context": {},
+      "completed_at": "2026-02-14T17:07:31.543Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T17:07:31.543Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmdhkai_81a6b0da",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T13:49:09.498Z",
+      "context": {},
+      "completed_at": "2026-02-14T17:07:31.543Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T17:07:31.543Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmkknz5_7b90a067",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T17:07:31.553Z",
+      "context": {
+        "run_id": "run_sess_mlmkknz5_7b90a067"
+      },
+      "completed_at": "2026-02-14T17:27:46.120Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T17:27:46.120Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmklbuj_18accd98",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T17:08:02.511Z",
+      "context": {
+        "run_id": "run_sess_mlmklbuj_18accd98"
+      },
+      "completed_at": "2026-02-14T17:32:47.103Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T17:32:47.103Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmklr7p_22b47bd6",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T17:08:22.428Z",
+      "context": {
+        "run_id": "run_sess_mlmklr7p_22b47bd6"
+      },
+      "completed_at": "2026-02-14T17:16:17.226Z",
+      "summary": "Implemented Step 2 and Step 3 relationship exposure/mapping changes within dashboard server and dashboard data layer. Validation passed for targeted hook tests and dashboard server TypeScript build. Step 2 marked done. Step 3 implementation completed but could not be marked done due required Phase 2 confirmation gate; step set blocked with explicit confirmation note.",
+      "artifacts": [
+        "dashboard/server/src/services/fileScanner.ts",
+        "dashboard/src/hooks/usePlans.ts",
+        "dashboard/src/types/index.ts",
+        "dashboard/src/__tests__/hooks/plans-hooks.test.ts"
+      ]
+    },
+    {
+      "session_id": "sess_mlmkxe9y_dbbb8c6a",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T17:17:25.544Z",
+      "context": {
+        "run_id": "run_sess_mlmkxe9y_dbbb8c6a"
+      },
+      "completed_at": "2026-02-14T17:24:55.845Z",
+      "summary": "Implemented dashboard Steps 4-9 scope: deterministic active/archived partitioning, sectioned plan rendering, relationship indicators/fallback, navigation-safe program routing, and unit+component UI test coverage. Targeted tests and dashboard build passed. Could not mark steps done due MCP phase confirmation gate; steps 4-9 set blocked with exact unblock action.",
+      "artifacts": [
+        "dashboard/src/hooks/usePlans.ts",
+        "dashboard/src/components/plan/PlanList.tsx",
+        "dashboard/src/components/plan/PlanCard.tsx",
+        "dashboard/src/__tests__/hooks/plans-hooks.test.ts",
+        "dashboard/src/__tests__/components/plan-list.test.tsx"
+      ]
+    },
+    {
+      "session_id": "sess_mlmlap5q_303285c7",
+      "agent_type": "Revisionist",
+      "started_at": "2026-02-14T17:27:46.166Z",
+      "context": {
+        "run_id": "run_sess_mlmlap5q_303285c7"
+      },
+      "completed_at": "2026-02-14T17:31:11.653Z",
+      "summary": "Initialized and validated as Revisionist, inspected plan steps 4-9 and lineage, and verified blocker type. No code errors found in touched dashboard files. Dashboard tests/build passed. Attempt to transition steps 4-9 to done failed with explicit MCP phase-confirmation gate for Phase 3. Updated plan step notes to include exact Coordinator unblock action, stored pivot context, and handed off to Coordinator recommending Reviewer after confirmation.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlln0dl1_bdde9d9d/pivot.json",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlln0dl1_bdde9d9d/state.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmlh5ej_783d71c3",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T17:32:47.149Z",
+      "context": {
+        "run_id": "run_sess_mlmlh5ej_783d71c3"
+      },
+      "completed_at": "2026-02-14T17:37:27.811Z",
+      "summary": "Completed Step 10 review/build verification. Validated goals and success criteria for relationship indicators plus active/archived sectioning and navigation behavior. Executed registered server/dashboard test and build scripts successfully; no regressions detected on targeted surfaces. Stored review findings and reindexed workspace metadata.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlln0dl1_bdde9d9d/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmlnv4j_d2634527",
+      "agent_type": "Tester",
+      "started_at": "2026-02-14T17:38:00.437Z",
+      "context": {
+        "run_id": "run_sess_mlmlnv4j_d2634527"
+      },
+      "completed_at": "2026-02-14T17:39:55.852Z",
+      "summary": "Completed Step 11 by updating dashboard documentation/changelog notes to reflect relationship indicators and Active/Archived plan section behavior, added a release handoff summary, and verified inserted docs entries.",
+      "artifacts": [
+        "Project-Memory-MCP/dashboard/README.md",
+        "Project-Memory-MCP/dashboard/docs/USER_GUIDE.md"
+      ]
+    },
+    {
+      "session_id": "sess_mlmlqz9v_ddcd18fd",
+      "agent_type": "Archivist",
+      "started_at": "2026-02-14T17:40:25.775Z",
+      "context": {
+        "run_id": "run_sess_mlmlqz9v_ddcd18fd"
+      },
+      "completed_at": "2026-02-14T17:41:08.825Z",
+      "summary": "Executed finalization workflow: initialized and validated as Archivist, verified all plan steps (0-11) were done with no blockers, reindexed workspace, archived plan plan_mlln0dl1_bdde9d9d successfully, and completed session. No git commit/branch/tag operations were performed in this session.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlln0dl1_bdde9d9d/state.json",
+        "data/project-memory-mcp-40f6678f5a9b/workspace.meta.json"
+      ]
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-14T01:53:53.649Z",
+      "from_agent": "Architect",
+      "to_agent": "Coordinator",
+      "reason": "Plan seeded with phased atomic implementation steps covering relationship rendering and active/archived dashboard sections; ready for execution."
+    },
+    {
+      "timestamp": "2026-02-14T01:58:19.669Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Phase 1 complete: relationship data-flow inventory and normalized relationship view-model contract documented; ready for Phase 2 implementation."
+    },
+    {
+      "timestamp": "2026-02-14T17:16:05.647Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Step 2 and Step 3 implemented in scope and validated. Recommend Reviewer after phase confirmation gate is resolved. Changed files: dashboard/server/src/services/fileScanner.ts, dashboard/src/hooks/usePlans.ts, dashboard/src/types/index.ts, dashboard/src/__tests__/hooks/plans-hooks.test.ts. Note: MCP blocked setting Step 3 to done because Phase 2 requires memory_plan confirm(scope=phase)."
+    },
+    {
+      "timestamp": "2026-02-14T17:24:47.759Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Implemented Steps 4-9 in code/tests, but MCP confirmation gate blocked transitioning those steps to done. Recommend Revisionist to resolve plan-state transition flow after confirmation action."
+    },
+    {
+      "timestamp": "2026-02-14T17:31:04.650Z",
+      "from_agent": "Revisionist",
+      "to_agent": "Coordinator",
+      "reason": "Blockers are confirmation-gate only (not code errors). Steps 4-9 are implemented and validated but cannot transition due required Phase 3 confirmation."
+    },
+    {
+      "timestamp": "2026-02-14T17:37:22.972Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Step 10 review/build verification passed; recommend Tester for Step 11 documentation/handoff and final QA flow."
+    },
+    {
+      "timestamp": "2026-02-14T17:39:47.745Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Step 11 complete: documentation/changelog notes updated for relationship visualization and Active/Archived section behavior. Recommend Archivist for final archive/release handoff."
+    }
+  ],
+  "steps": [
+    {
+      "phase": "Phase 1: Scope & Data Contract",
+      "task": "Inventory current dashboard plan list data flow and identify where relationship metadata (program parent, child membership, linked relationships) is sourced.",
+      "type": "analysis",
+      "status": "done",
+      "notes": "Completed previously; inventory and source-path analysis captured.",
+      "assignee": "Executor",
+      "index": 0
+    },
+    {
+      "phase": "Phase 1: Scope & Data Contract",
+      "task": "Define normalized relationship view model for dashboard plan cards/rows, including empty-state handling when relationship data is missing.",
+      "type": "planning",
+      "status": "done",
+      "notes": "Completed previously; normalized relationship VM defined.",
+      "assignee": "Executor",
+      "index": 1
+    },
+    {
+      "phase": "Phase 2: Relationship Data Exposure",
+      "task": "Update backend/API aggregation path to include relationship fields required by dashboard plan view (program, children, linked).",
+      "type": "code",
+      "status": "done",
+      "notes": "Completed previously in dashboard/server aggregation layer.",
+      "assignee": "Executor",
+      "index": 2
+    },
+    {
+      "phase": "Phase 2: Relationship Data Exposure",
+      "task": "Add/adjust transformation logic in dashboard data layer so relationship payload is mapped into UI-ready structures without breaking existing consumers.",
+      "type": "code",
+      "status": "done",
+      "notes": "Completed previously; Phase 2 confirmed by user.",
+      "assignee": "Executor",
+      "index": 3
+    },
+    {
+      "phase": "Phase 3: Active vs Archived Segmentation",
+      "task": "Implement plan list partitioning logic that separates active plans and archived plans into distinct collections with stable ordering.",
+      "type": "code",
+      "status": "done",
+      "notes": "Phase 3 confirmed; partition logic implemented and validated.",
+      "assignee": "Executor",
+      "index": 4,
+      "completed_at": "2026-02-14T17:32:13.155Z"
+    },
+    {
+      "phase": "Phase 3: Active vs Archived Segmentation",
+      "task": "Render distinct 'Active Plans' and 'Archived Plans' sections in the dashboard plan view using existing layout patterns.",
+      "type": "code",
+      "status": "done",
+      "notes": "Phase 3 confirmed; Active/Archived sections rendered and validated.",
+      "assignee": "Executor",
+      "index": 5,
+      "completed_at": "2026-02-14T17:32:13.155Z"
+    },
+    {
+      "phase": "Phase 4: Relationship Presentation in UI",
+      "task": "Add relationship indicators in each plan item (program/child/linked context) with clear labels and fallback text for no relationships.",
+      "type": "code",
+      "status": "done",
+      "notes": "Phase 4 confirmed; relationship indicators/fallback UI implemented and validated.",
+      "assignee": "Executor",
+      "index": 6,
+      "completed_at": "2026-02-14T17:32:13.155Z"
+    },
+    {
+      "phase": "Phase 4: Relationship Presentation in UI",
+      "task": "Ensure relationship display integrates with active/archived sections consistently and does not regress existing navigation interactions.",
+      "type": "code",
+      "status": "done",
+      "notes": "Phase 4 confirmed; relationship + section integration validated with navigation preserved.",
+      "assignee": "Executor",
+      "index": 7,
+      "completed_at": "2026-02-14T17:32:13.155Z"
+    },
+    {
+      "phase": "Phase 5: Validation & Test Coverage",
+      "task": "Add/update unit tests for relationship mapping and active/archived partition logic in dashboard data/view-model layers.",
+      "type": "test",
+      "status": "done",
+      "notes": "Phase 5 confirmed; unit tests for mapping/partition implemented and passing.",
+      "assignee": "Executor",
+      "index": 8,
+      "completed_at": "2026-02-14T17:32:13.155Z"
+    },
+    {
+      "phase": "Phase 5: Validation & Test Coverage",
+      "task": "Add/update UI tests (component/integration/e2e as applicable) validating section separation and relationship rendering behavior.",
+      "type": "test",
+      "status": "done",
+      "notes": "Phase 5 confirmed; UI/component tests for section/relationship rendering implemented and passing.",
+      "assignee": "Executor",
+      "index": 9,
+      "completed_at": "2026-02-14T17:32:13.155Z"
+    },
+    {
+      "phase": "Phase 6: Review & QA Verification",
+      "task": "Run defined build/test scripts and perform Reviewer validation against plan goals and success criteria; capture any gaps as review notes.",
+      "type": "validation",
+      "status": "done",
+      "assignee": "Reviewer",
+      "index": 10,
+      "notes": "Reviewer validation passed. Executed registered scripts via memory_plan run_build_script: server tests/build and dashboard tests/build all passing. Regression check passed for plan list rendering, active/archived sectioning, relationship indicators, and navigation behavior. Non-blocking warnings observed: existing React act() test warnings and dashboard bundle size warning.",
+      "completed_at": "2026-02-14T17:37:16.918Z"
+    },
+    {
+      "phase": "Phase 6: Documentation & Handoff",
+      "task": "Update dashboard documentation/changelog notes describing relationship visualization and active-vs-archived section behavior, then prepare release handoff summary.",
+      "type": "documentation",
+      "status": "done",
+      "assignee": "Tester",
+      "index": 11,
+      "notes": "Updated dashboard README and USER_GUIDE with relationship-indicator and Active/Archived section behavior notes; added release handoff summary.",
+      "completed_at": "2026-02-14T17:39:40.364Z"
+    }
+  ],
+  "program_id": "plan_mlkjmemm_f04cebfc",
+  "recommended_next_agent": "Coordinator"
+}

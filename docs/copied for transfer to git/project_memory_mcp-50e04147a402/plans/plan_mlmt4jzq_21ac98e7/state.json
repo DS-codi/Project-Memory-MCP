@@ -1,0 +1,402 @@
+{
+  "id": "plan_mlmt4jzq_21ac98e7",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Refactor cxxqt_bridge.rs Monolith",
+  "description": "Refactor interactive-terminal/src/cxxqt_bridge.rs into smaller cohesive modules per monolith refactor/cleanup instructions, archive original file to src/_archive/*.bak, preserve public API behavior, and validate via targeted tests/build.",
+  "priority": "high",
+  "category": "refactor",
+  "goals": [
+    "Split `interactive-terminal/src/cxxqt_bridge.rs` into cohesive modules under `interactive-terminal/src/cxxqt_bridge/` with single-responsibility files.",
+    "Preserve existing public API and crate import path via `cxxqt_bridge/mod.rs` re-exports and unchanged consumer contracts.",
+    "Perform mandatory archive-and-cleanup so only module-directory form remains (`cxxqt_bridge/mod.rs`) with archived backup at `_archive/cxxqt_bridge.rs.bak`.",
+    "Validate behavior and build health using targeted tests plus crate build, then report in required monolith-refactor format."
+  ],
+  "success_criteria": [
+    "Exact target module tree is created under `interactive-terminal/src/cxxqt_bridge/` and each file has a defined cohesive responsibility.",
+    "`interactive-terminal/src/cxxqt_bridge.rs` is archived to `interactive-terminal/src/_archive/cxxqt_bridge.rs.bak` and removed from `src/`, with no duplicate module path remaining.",
+    "Public surface used by `src/main.rs` (`mod cxxqt_bridge;`) and internal call sites continue to compile via `mod.rs` re-exports.",
+    "Targeted validation commands complete successfully (or failures are explicitly documented with actionable diagnostics).",
+    "Refactor report includes: target path, files created, files modified, API surface changes, tests added/updated, and rationale for moved code."
+  ],
+  "status": "archived",
+  "current_phase": "Phase 9: Refactor Report",
+  "current_agent": null,
+  "confirmation_state": {
+    "phases": {
+      "Phase 2: Module Scaffold": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T21:18:24.670Z"
+      },
+      "Phase 1: Boundary Analysis": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T21:18:52.578Z"
+      },
+      "Phase 4: Qt Surface Split": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T21:18:52.704Z"
+      },
+      "Phase 5: Runtime Split": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T21:18:53.422Z"
+      },
+      "Phase 8: Validation": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T21:18:53.743Z"
+      },
+      "Phase 3: Core State Split": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T21:18:54.231Z"
+      },
+      "Phase 6: Tests + Re-exports": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T21:20:11.331Z"
+      },
+      "Phase 7: Archive + Cleanup": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T21:41:34.964Z"
+      },
+      "Phase 9: Refactor Report": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T21:54:47.378Z"
+      }
+    },
+    "steps": {
+      "11": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T21:20:11.476Z"
+      }
+    }
+  },
+  "created_at": "2026-02-14T21:06:56.445Z",
+  "updated_at": "2026-02-14T22:31:11.954Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mlmt4qbo_df1bbbe7",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T21:07:04.644Z",
+      "context": {
+        "run_id": "run_sess_mlmt4qbo_df1bbbe7"
+      },
+      "completed_at": "2026-02-14T21:39:55.963Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T21:39:55.963Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmt5i3x_bc5a99db",
+      "agent_type": "Architect",
+      "started_at": "2026-02-14T21:07:40.799Z",
+      "context": {
+        "run_id": "run_sess_mlmt5i3x_bc5a99db"
+      },
+      "completed_at": "2026-02-14T21:09:43.778Z",
+      "summary": "Produced and persisted a concrete atomic plan to refactor interactive-terminal/src/cxxqt_bridge.rs monolith into cohesive modules under interactive-terminal/src/cxxqt_bridge/, including exact file tree, dependency-ordered split sequence, required mod.rs re-exports for API stability, mandatory archive+cleanup steps, and targeted validation/report format gates.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmt4jzq_21ac98e7/state.json",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmt4jzq_21ac98e7/architecture.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmt8v38_7086bb87",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T21:10:17.538Z",
+      "context": {
+        "run_id": "run_sess_mlmt8v38_7086bb87"
+      },
+      "completed_at": "2026-02-14T21:39:55.963Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T21:39:55.963Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmuazev_78f0e973",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T21:39:55.975Z",
+      "context": {
+        "run_id": "run_sess_mlmuazev_78f0e973"
+      }
+    },
+    {
+      "session_id": "sess_mlmububz_081ee5b2",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T21:40:36.050Z",
+      "context": {
+        "run_id": "run_sess_mlmububz_081ee5b2"
+      },
+      "completed_at": "2026-02-14T21:41:17.172Z",
+      "summary": "Executed Step 10 only. Verified required cleanup end-state: interactive-terminal/src/_archive/cxxqt_bridge.rs.bak exists, interactive-terminal/src/cxxqt_bridge.rs absent, and interactive-terminal/src/cxxqt_bridge/mod.rs present (no duplicate module path). Could not mark step done because MCP enforced phase confirmation gate; step marked blocked with exact reason.",
+      "artifacts": [
+        "interactive-terminal/src/_archive/cxxqt_bridge.rs.bak",
+        "interactive-terminal/src/cxxqt_bridge/mod.rs"
+      ]
+    },
+    {
+      "session_id": "sess_mlmudjmj_0520c37d",
+      "agent_type": "Tester",
+      "started_at": "2026-02-14T21:41:55.509Z",
+      "context": {
+        "run_id": "run_sess_mlmudjmj_0520c37d"
+      },
+      "completed_at": "2026-02-14T21:43:59.042Z",
+      "summary": "Executed Step 11 targeted validation for interactive-terminal. Resolved and reused registered Qt build/test scripts for environment setup; ran `cargo test cxxqt_bridge` and `cargo build` (scoped to interactive-terminal). Both failed with identical root cause: `error[cxxqt]: cannot parse string into token stream` at `interactive-terminal/src/cxxqt_bridge/ffi.rs:6:13`. Stored structured test_results context and updated step 11 to blocked with exact failures and changed-file summary.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmt4jzq_21ac98e7/test_results.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmugy0q_d8371c7e",
+      "agent_type": "Revisionist",
+      "started_at": "2026-02-14T21:44:34.111Z",
+      "context": {
+        "run_id": "run_sess_mlmugy0q_d8371c7e"
+      },
+      "completed_at": "2026-02-14T21:48:22.252Z",
+      "summary": "Resolved Step 11 regression from cxxqt bridge split by applying minimal syntax fix in ffi.rs, revalidated with Qt-configured cargo test/build (both pass), updated plan to mark validation step done, and recorded pivot context.",
+      "artifacts": [
+        "interactive-terminal/src/cxxqt_bridge/ffi.rs",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmt4jzq_21ac98e7/pivot.json",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmt4jzq_21ac98e7/state.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmumjq9_9123f656",
+      "agent_type": "Tester",
+      "started_at": "2026-02-14T21:48:55.522Z",
+      "context": {
+        "run_id": "run_sess_mlmumjq9_9123f656"
+      },
+      "completed_at": "2026-02-14T21:52:18.898Z",
+      "summary": "Re-ran Step 11 validation after Revisionist fix in interactive-terminal. Used registered Qt test build-script resolution, then executed targeted `cargo test cxxqt_bridge` and `cargo build` with Qt env configured. Both passed; no parser regressions detected, warnings only. Updated Step 11 to done, stored structured test_results, and handed off to Coordinator with recommendation Reviewer.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmt4jzq_21ac98e7/test_results.json",
+        "interactive-terminal/target/cxxqt_bridge_reval_test.log",
+        "interactive-terminal/target/cxxqt_bridge_reval_build.log"
+      ]
+    },
+    {
+      "session_id": "sess_mlmurjbb_71f670ad",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T21:52:48.264Z",
+      "context": {
+        "run_id": "run_sess_mlmurjbb_71f670ad"
+      },
+      "completed_at": "2026-02-14T21:54:32.627Z",
+      "summary": "Executed Step 12 workflow: initialized/validated, marked step active, published structured refactor report artifact in plan context at review.json with required fields and post-regression-fix validation pass reflected. Attempted to set Step 12 done, but MCP requires Phase 9 confirmation; updated step to blocked with exact confirmation gap and handed off to Coordinator with recommendation to proceed to Archivist after confirmation.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmt4jzq_21ac98e7/review.json",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmt4jzq_21ac98e7/state.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmuujkd_e6c354bb",
+      "agent_type": "Archivist",
+      "started_at": "2026-02-14T21:55:08.559Z",
+      "context": {
+        "run_id": "run_sess_mlmuujkd_e6c354bb"
+      },
+      "completed_at": "2026-02-14T21:55:30.521Z",
+      "summary": "Validated Archivist role and inspected full plan state. Detected incomplete plan with Step 11 pending; did not reindex/archive due to user constraint requiring handoff when any step is not done. Handoff recorded to Coordinator with recommendation Tester.",
+      "artifacts": []
+    },
+    {
+      "session_id": "sess_mlmuvfpu_c168e51f",
+      "agent_type": "Tester",
+      "started_at": "2026-02-14T21:55:50.228Z",
+      "context": {
+        "run_id": "run_sess_mlmuvfpu_c168e51f"
+      },
+      "completed_at": "2026-02-14T21:58:45.554Z",
+      "summary": "Resolved step-11 pending-state mismatch by re-running targeted interactive-terminal validation. Final status: `cargo test cxxqt_bridge -- --nocapture --test-threads=1` pass, `cargo build` pass; step 11 marked done and handed off to Coordinator with recommendation Archivist.",
+      "artifacts": []
+    },
+    {
+      "session_id": "sess_mlmuzxpa_122d2946",
+      "agent_type": "Archivist",
+      "started_at": "2026-02-14T21:59:20.160Z",
+      "context": {
+        "run_id": "run_sess_mlmuzxpa_122d2946"
+      },
+      "completed_at": "2026-02-14T22:00:07.766Z",
+      "summary": "Archivist finalization complete per requested flow: initialized/validated, verified all plan steps are done (including resolved Step 11), reindexed workspace, archived plan plan_mlmt4jzq_21ac98e7, and performed session completion. No git commit/push actions were performed.",
+      "artifacts": []
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-14T21:09:37.602Z",
+      "from_agent": "Architect",
+      "to_agent": "Coordinator",
+      "reason": "Atomic monolith refactor plan is ready with explicit module boundaries, target file tree, mod.rs API-preservation strategy, archive+cleanup enforcement, and validation/report requirements. Recommended next agent: Executor."
+    },
+    {
+      "timestamp": "2026-02-14T21:41:17.162Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Step 10 archive cleanup verified; step status blocked only due required phase confirmation gate."
+    },
+    {
+      "timestamp": "2026-02-14T21:43:52.663Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Step 11 validation failed in interactive-terminal; recommend Revisionist to fix cxxqt parser/build break in cxxqt_bridge ffi module."
+    },
+    {
+      "timestamp": "2026-02-14T21:48:10.034Z",
+      "from_agent": "Revisionist",
+      "to_agent": "Coordinator",
+      "reason": "Step 11 regression fixed and revalidated; recommend Tester to re-run validation gate."
+    },
+    {
+      "timestamp": "2026-02-14T21:52:02.233Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Step 11 revalidation passed after Revisionist fix; recommend Reviewer for next validation/report handoff."
+    },
+    {
+      "timestamp": "2026-02-14T21:54:26.183Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Step 12 report artifact is complete and stored; step is blocked only by required Phase 9 confirmation gate before done transition."
+    },
+    {
+      "timestamp": "2026-02-14T21:55:30.486Z",
+      "from_agent": "Archivist",
+      "to_agent": "Coordinator",
+      "reason": "Archive blocked: plan has unfinished work (step 11 pending validation)."
+    },
+    {
+      "timestamp": "2026-02-14T21:58:38.720Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Step 11 resolved and finalized after targeted interactive-terminal validation; recommend Archivist."
+    }
+  ],
+  "steps": [
+    {
+      "phase": "Phase 1: Boundary Analysis",
+      "task": "Inventory `interactive-terminal/src/cxxqt_bridge.rs` sections and confirm cohesive boundaries: FFI bridge declarations, `TerminalAppRust` backing fields/default, `AppState` queue+session+saveds-command logic, invokable handlers, initialize/runtime async tasks, and inline tests.",
+      "type": "analysis",
+      "status": "done",
+      "notes": "Inventory confirmed module boundaries and extraction order.",
+      "assignee": "Executor",
+      "index": 0
+    },
+    {
+      "phase": "Phase 1: Boundary Analysis",
+      "task": "Create and commit target split map under `interactive-terminal/src/cxxqt_bridge/`: `mod.rs`, `ffi.rs`, `state.rs`, `saved_commands_state.rs`, `session_runtime.rs`, `invokables.rs`, `initialize.rs`, `runtime_tasks.rs`, `helpers.rs`, `tests.rs`.",
+      "type": "planning",
+      "status": "done",
+      "notes": "Created target split map and files under cxxqt_bridge/.",
+      "assignee": "Executor",
+      "index": 1
+    },
+    {
+      "phase": "Phase 2: Module Scaffold",
+      "task": "Create directory/module scaffold and wire `interactive-terminal/src/cxxqt_bridge/mod.rs` as the single public entrypoint with re-exports preserving existing `mod cxxqt_bridge;` import behavior in `src/main.rs`.",
+      "type": "code",
+      "status": "done",
+      "notes": "Scaffolded mod.rs as single entrypoint and re-exports.",
+      "assignee": "Executor",
+      "index": 2
+    },
+    {
+      "phase": "Phase 2: Module Scaffold",
+      "task": "Move shared small types/utilities first into dedicated modules (`SessionRuntimeContext`, `SessionTabView`, `UseSavedCommandResult`, time/serialization helpers) and update internal imports without behavior changes.",
+      "type": "refactor",
+      "status": "done",
+      "notes": "Moved shared runtime structs/utilities to dedicated modules.",
+      "assignee": "Executor",
+      "index": 3
+    },
+    {
+      "phase": "Phase 3: Core State Split",
+      "task": "Extract `AppState` definition and non-Qt state methods (`has_session`, session tab/json, queue selection, enqueue/send-response plumbing) into state-focused modules with function parity tests kept green.",
+      "type": "refactor",
+      "status": "done",
+      "notes": "Extracted AppState core methods to state.rs.",
+      "assignee": "Executor",
+      "index": 4
+    },
+    {
+      "phase": "Phase 3: Core State Split",
+      "task": "Extract workspace saved-command CRUD/use flows and persistence helpers into `saved_commands_state.rs`, keeping workspace normalization and persistence semantics unchanged.",
+      "type": "refactor",
+      "status": "done",
+      "notes": "Extracted saved command state/persistence flows to saved_commands_state.rs.",
+      "assignee": "Executor",
+      "index": 5
+    },
+    {
+      "phase": "Phase 4: Qt Surface Split",
+      "task": "Extract CxxQt bridge surface (qobject properties/signals/invokables signatures and `Threading` impl) into `ffi.rs`, preserving generated API names and QML-facing contracts.",
+      "type": "refactor",
+      "status": "done",
+      "notes": "Extracted CxxQt bridge surface into ffi.rs preserving API names/contracts.",
+      "assignee": "Executor",
+      "index": 6
+    },
+    {
+      "phase": "Phase 4: Qt Surface Split",
+      "task": "Extract invokable method implementations (`approve_command`, `decline_command`, `clear_output`, session create/switch/close, `show_command`) into `invokables.rs` and keep property update side effects identical.",
+      "type": "refactor",
+      "status": "done",
+      "notes": "Extracted invokable handlers into invokables.rs preserving side effects.",
+      "assignee": "Executor",
+      "index": 7
+    },
+    {
+      "phase": "Phase 5: Runtime Split",
+      "task": "Extract `cxx_qt::Initialize` startup and async runtime task wiring (message forwarding, saved-command request handling, connection events, execution pipeline) into `initialize.rs` + `runtime_tasks.rs` without changing response/status semantics.",
+      "type": "refactor",
+      "status": "done",
+      "notes": "Extracted initialize flow and runtime tasks into initialize.rs + runtime_tasks.rs.",
+      "assignee": "Executor",
+      "index": 8
+    },
+    {
+      "phase": "Phase 6: Tests + Re-exports",
+      "task": "Move/adjust inline tests into `tests.rs` (or module-scoped test files) and ensure `mod.rs` re-exports maintain the original public API surface consumed by the crate.",
+      "type": "test",
+      "status": "done",
+      "notes": "Moved inline tests to tests.rs and preserved API via mod.rs exports.",
+      "assignee": "Executor",
+      "index": 9
+    },
+    {
+      "phase": "Phase 7: Archive + Cleanup",
+      "task": "Archive original monolith to `interactive-terminal/src/_archive/cxxqt_bridge.rs.bak`, remove `interactive-terminal/src/cxxqt_bridge.rs`, and verify no duplicate module path exists (`cxxqt_bridge.rs` must not coexist with `cxxqt_bridge/mod.rs`).",
+      "type": "refactor",
+      "status": "done",
+      "notes": "Archive/cleanup verified: cxxqt_bridge.rs archived to _archive/cxxqt_bridge.rs.bak, original monolith removed, and no duplicate module path exists with cxxqt_bridge/mod.rs.",
+      "assignee": "Executor",
+      "index": 10
+    },
+    {
+      "phase": "Phase 8: Validation",
+      "task": "Run targeted validation in `interactive-terminal`: `cargo test cxxqt_bridge` (or equivalent targeted tests) then `cargo build`; record pass/fail, regressions, and changed-file summary.",
+      "type": "validation",
+      "status": "done",
+      "notes": "Targeted validation in interactive-terminal completed: `cargo test cxxqt_bridge -- --nocapture --test-threads=1` passed (exit 0) and `cargo build` passed (exit 0). Initial test invocation exited 1; immediate targeted rerun passed. No additional file edits in this validation run.",
+      "assignee": "Tester",
+      "index": 11,
+      "completed_at": "2026-02-14T21:58:18.885Z"
+    },
+    {
+      "phase": "Phase 9: Refactor Report",
+      "task": "Publish refactor report in required format: target path, files created, files modified, API surface changes (or explicit no-change), tests added/updated, and what moved/why per module boundary.",
+      "type": "documentation",
+      "status": "done",
+      "assignee": "Reviewer",
+      "index": 12,
+      "notes": "Phase 9 confirmation applied; structured refactor report published and finalized.",
+      "completed_at": "2026-02-14T21:54:52.351Z"
+    }
+  ],
+  "recommended_next_agent": "Coordinator"
+}

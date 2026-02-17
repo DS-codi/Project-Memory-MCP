@@ -1,0 +1,43 @@
+{
+  "type": "original_request",
+  "plan_id": "plan_ml72da5d_09189d1a",
+  "workspace_id": "Project-Memory-MCP-652c624f8f59",
+  "captured_at": "2026-02-03T20:41:38.931Z",
+  "user_request": {
+    "sanitized": "Create a Builder agent who's purpose is to recompile/build projects (towards end of plan) and troubleshoot build issues. Add build scripts storage per workspace/plan with fields: name, description, date, directory, MCP handles. Display scripts in frontend table. Add Goals/Success Criteria tab to plan display.",
+    "wasModified": false,
+    "injectionAttempts": [],
+    "warnings": []
+  },
+  "context": {
+    "files_mentioned": [],
+    "file_contents": {},
+    "requirements": [
+      "1. Create Builder agent with troubleshooting capabilities for build failures",
+      "2. Add build scripts storage in data folder (per workspace and per plan)",
+      "3. Scripts schema: name, description, created_at, required_directory, optional MCP handle",
+      "4. Display scripts as table in frontend",
+      "5. Add Goals and Success Criteria tab to frontend plan display",
+      "6. Optional: Expose scripts as custom MCP workspace tools"
+    ],
+    "constraints": [
+      "Must integrate with existing agent system and workflow",
+      "Scripts must be stored per workspace and per plan",
+      "Frontend must display scripts in table format",
+      "MCP tool exposure should be optional/configurable",
+      "Must not break existing agent functionality"
+    ],
+    "examples": [
+      "Build script example: npm run build in server directory",
+      "Script could be exposed as workspace-specific MCP tool",
+      "Goals tab similar to existing plan tabs (steps, context, etc.)"
+    ],
+    "conversation_context": null,
+    "additional_notes": {
+      "sanitized": "User wants Builder agent to troubleshoot build issues and ensure successful compilation. Build scripts should be trackable and potentially exposed as MCP workspace tools for automation.",
+      "wasModified": false,
+      "injectionAttempts": [],
+      "warnings": []
+    }
+  }
+}

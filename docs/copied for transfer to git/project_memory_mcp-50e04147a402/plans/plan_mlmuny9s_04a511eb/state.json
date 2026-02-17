@@ -1,0 +1,89 @@
+{
+  "id": "plan_mlmuny9s_04a511eb",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Replay Harness Expansion Program",
+  "description": "Integrated program to expand the replay regression harness with baseline governance, diagnostic UX, scenario breadth, execution-surface integration, and model-matrix analysis.",
+  "priority": "high",
+  "category": "feature",
+  "status": "archived",
+  "current_phase": "Program Container",
+  "current_agent": "Coordinator",
+  "confirmation_state": {
+    "phases": {},
+    "steps": {}
+  },
+  "created_at": "2026-02-14T21:50:01.028Z",
+  "updated_at": "2026-02-15T19:45:36.527Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mln9xxa8_a07601d6",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-15T04:57:40.574Z",
+      "context": {
+        "run_id": "run_sess_mln9xxa8_a07601d6"
+      },
+      "completed_at": "2026-02-15T05:13:55.907Z",
+      "summary": "Executed host-terminal replay matrix in vscode-extension across labels app-smoke, replay, and smoke-v1 with gate modes warn/strict/info. All runs exited 0 with gate status PASS and failed scenario count 0. Discovery found replay scripts and single listed scenario PHASE3_EXECUTOR_IMPLEMENTATION.",
+      "artifacts": [
+        "Project-Memory-MCP/vscode-extension/.replay-runs/app-smoke-*/",
+        "Project-Memory-MCP/vscode-extension/.replay-runs/replay-*/",
+        "Project-Memory-MCP/vscode-extension/.replay-runs/smoke-v1-*/"
+      ]
+    },
+    {
+      "session_id": "sess_mlnbb9l1_b6217c0a",
+      "agent_type": "Tester",
+      "started_at": "2026-02-15T05:36:02.649Z",
+      "context": {
+        "run_id": "run_sess_mlnbb9l1_b6217c0a"
+      },
+      "completed_at": "2026-02-15T19:45:09.986Z",
+      "summary": "[STALE_RECOVERY 2026-02-15T19:45:09.986Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlo5n8tn_ab83f4d1",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-15T19:45:09.996Z",
+      "context": {
+        "run_id": "run_sess_mlo5n8tn_ab83f4d1"
+      }
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-15T05:13:49.497Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Replay matrix verification complete; all requested runs passed."
+    },
+    {
+      "timestamp": "2026-02-15T05:37:40.397Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Executed requested promote-baseline command and collected exit/status output."
+    },
+    {
+      "timestamp": "2026-02-15T05:37:48.623Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Promotion command succeeded with no failures; recommending Archivist per Tester policy."
+    }
+  ],
+  "steps": [],
+  "is_program": true,
+  "child_plan_ids": [
+    "plan_mlmuoaad_7320fefc",
+    "plan_mlmuo39q_155aeb95",
+    "plan_mlmuoa9v_e40d8edf",
+    "plan_mlmuoaa0_6fd79273",
+    "plan_mlmuoaaa_7d72246e",
+    "plan_mlo5nidc_7e15bbbc"
+  ],
+  "deployment_context": {
+    "deployed_agent": "Coordinator",
+    "deployed_by": "User",
+    "reason": "Create new child plan attached to existing replay program",
+    "override_validation": true,
+    "deployed_at": "2026-02-15T19:45:09.996Z"
+  }
+}

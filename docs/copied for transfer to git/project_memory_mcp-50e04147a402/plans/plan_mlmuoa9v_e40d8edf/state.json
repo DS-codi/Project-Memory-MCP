@@ -1,0 +1,626 @@
+{
+  "id": "plan_mlmuoa9v_e40d8edf",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Replay Diagnostics UX",
+  "description": "Add rich drift explainers and operator-facing diagnostics for replay failures.",
+  "priority": "high",
+  "category": "feature",
+  "status": "archived",
+  "current_phase": "complete",
+  "current_agent": null,
+  "confirmation_state": {
+    "phases": {
+      "Phase 1: Research": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T04:33:33.839Z"
+      },
+      "Phase 3: Implementation": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T05:52:19.410Z"
+      },
+      "Phase 4: Review": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T05:54:32.131Z"
+      },
+      "Phase 5: Test Authoring": {
+        "confirmed": true,
+        "confirmed_by": "Tester",
+        "confirmed_at": "2026-02-15T06:07:28.725Z"
+      },
+      "Phase 6: Test Run Readiness": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T06:30:39.357Z"
+      }
+    },
+    "steps": {
+      "7": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T05:51:53.198Z"
+      },
+      "8": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T05:52:52.882Z"
+      },
+      "11": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T06:10:19.367Z"
+      }
+    }
+  },
+  "created_at": "2026-02-14T21:50:16.580Z",
+  "updated_at": "2026-02-15T06:37:14.755Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mln8wyfh_556916d3",
+      "agent_type": "Researcher",
+      "started_at": "2026-02-15T04:28:55.783Z",
+      "context": {
+        "run_id": "run_sess_mln8wyfh_556916d3"
+      },
+      "completed_at": "2026-02-15T04:33:57.870Z",
+      "summary": "Completed read-only replay diagnostics UX research: audited current outputs (JSON/Markdown/CLI/annotations), identified operator drift triage pain points, proposed high-value explanation patterns, drafted additive non-breaking data-contract extensions, and prioritized opportunities by impact/complexity. Step 0 marked done after required phase confirmation.",
+      "artifacts": [
+        "research_notes/diagnostics-ux-research.md",
+        "research.json"
+      ]
+    },
+    {
+      "session_id": "sess_mln95nlg_f41092fe",
+      "agent_type": "Architect",
+      "started_at": "2026-02-15T04:35:42.364Z",
+      "context": {
+        "run_id": "run_sess_mln95nlg_f41092fe"
+      },
+      "completed_at": "2026-02-15T04:38:41.413Z",
+      "summary": "Expanded Replay Diagnostics UX plan from 2 steps to a 12-step, 6-phase roadmap covering implementation, review, test authoring, and test-run readiness. Marked planning step complete, set explicit goals and success criteria, and stored architecture decisions with file map, risks, and dependencies. Handed off to Coordinator with recommendation for Executor.",
+      "artifacts": [
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlmuoa9v_e40d8edf/state.json",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlmuoa9v_e40d8edf/architecture.json"
+      ]
+    },
+    {
+      "session_id": "sess_mln9a2mg_1d7b1ff6",
+      "agent_type": "Executor",
+      "started_at": "2026-02-15T04:39:07.750Z",
+      "context": {
+        "run_id": "run_sess_mln9a2mg_1d7b1ff6"
+      },
+      "completed_at": "2026-02-15T04:43:12.079Z",
+      "summary": "Completed Step 3 (index 2): defined additive, optional explainability contract fields for replay diagnostics and gate reporting in types only; ran compile and replay-targeted tests successfully; no confirmation gate blockers.",
+      "artifacts": [
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/types.ts",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlmuoa9v_e40d8edf/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mln9fpyg_76565419",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-15T04:43:31.240Z",
+      "context": {
+        "run_id": "run_sess_mln9fpyg_76565419"
+      },
+      "completed_at": "2026-02-15T05:32:02.468Z",
+      "summary": "[STALE_RECOVERY 2026-02-15T05:32:02.468Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mln9gbb4_5b6567b9",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-15T04:43:58.942Z",
+      "context": {
+        "run_id": "run_sess_mln9gbb4_5b6567b9"
+      },
+      "completed_at": "2026-02-15T05:32:02.468Z",
+      "summary": "[STALE_RECOVERY 2026-02-15T05:32:02.468Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mln9gc0k_19b18697",
+      "agent_type": "Executor",
+      "started_at": "2026-02-15T04:43:59.854Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Fix replay/app-smoke warning after recent edits to ChatPlanCommands.ts",
+        "current_step_index": 0,
+        "steps_to_complete": [
+          "Reproduce app-smoke replay issue",
+          "Diagnose root cause in ChatPlanCommands.ts",
+          "Apply minimal fix",
+          "Re-run replay and targeted tests",
+          "Update plan steps and handoff"
+        ],
+        "environment": {
+          "working_directory": "c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\vscode-extension",
+          "active_branch": "unknown",
+          "build_command": "npm run replay:run -- --label app-smoke"
+        },
+        "blockers_to_avoid": [
+          "Do not perform broad refactors",
+          "Keep fix focused to ChatPlanCommands.ts and direct dependencies"
+        ],
+        "run_id": "run_sess_mln9gc0k_19b18697"
+      },
+      "completed_at": "2026-02-15T04:52:41.623Z",
+      "summary": "Implemented additive explainability derivation/rollup wiring for replay gate-summary outputs and validated with compile + replay-focused tests.",
+      "artifacts": [
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/Comparator.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/GateEvaluator.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/cli/replay-cli.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/suite/replay-harness-core.test.ts",
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlmuoa9v_e40d8edf/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mln9gnfm_9f509354",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-15T04:44:14.663Z",
+      "context": {
+        "run_id": "run_sess_mln9gnfm_9f509354"
+      },
+      "completed_at": "2026-02-15T04:47:39.461Z",
+      "summary": "Completed Reviewer build-check/code review for step index 2 (additive explainability contract types). Verified contract evolution is additive/non-breaking and aligned with low-noise diagnostics goals. Compile and replay-targeted tests passed; no must-fix issues found.",
+      "artifacts": [
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/types.ts",
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlmuoa9v_e40d8edf/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mln9lqls_0f3881a7",
+      "agent_type": "Executor",
+      "started_at": "2026-02-15T04:48:12.045Z",
+      "context": {
+        "run_id": "run_sess_mln9lqls_0f3881a7"
+      },
+      "completed_at": "2026-02-15T04:48:23.520Z",
+      "summary": "Reproduced replay/app-smoke warning, diagnosed root cause after reviewing ChatPlanCommands.ts (not source), and applied minimal fix in replay scenario to include explicit confirmation event before step updates. Re-ran replay and targeted replay tests; both green.",
+      "artifacts": [
+        "Project-Memory-MCP/vscode-extension/src/test/replay/scenarios/baseline-scenarios.v1.json",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlmuoa9v_e40d8edf/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mln9s5l0_270ac46a",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-15T04:53:11.398Z",
+      "context": {
+        "run_id": "run_sess_mln9s5l0_270ac46a"
+      },
+      "completed_at": "2026-02-15T04:55:43.353Z",
+      "summary": "Reviewer pass: explainability derivation and gate-summary wiring updates are additive/non-breaking and aligned with low-noise diagnostics behavior. Registered build scripts passed (compile + replay tests). Recommended next agent: Executor.",
+      "artifacts": [
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/types.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/Comparator.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/GateEvaluator.ts",
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlmuoa9v_e40d8edf/research_notes/review-findings.md"
+      ]
+    },
+    {
+      "session_id": "sess_mlnb64ak_def2b2c7",
+      "agent_type": "Executor",
+      "started_at": "2026-02-15T05:32:02.523Z",
+      "context": {
+        "run_id": "run_sess_mlnb64ak_def2b2c7"
+      },
+      "completed_at": "2026-02-15T05:35:34.424Z",
+      "summary": "Completed plan step index 5: enhanced replay markdown report rendering with additive explainability section emitted only when explainability data exists; preserved legacy markdown sections/order/content when absent. Added focused tests and validated with compile + replay-focused test run (pass).",
+      "artifacts": [
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/ReportWriter.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/suite/replay-harness-core.test.ts",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlmuoa9v_e40d8edf/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlnbbgza_50c6fdbe",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-15T05:36:12.229Z",
+      "context": {
+        "run_id": "run_sess_mlnbbgza_50c6fdbe"
+      },
+      "completed_at": "2026-02-15T05:38:44.896Z",
+      "summary": "Reviewer pass for step index 5 markdown explainability append behavior. Verified additive/non-breaking markdown output and conditional explainability rendering. Compile and replay tests passed; review findings stored; workspace reindexed. Recommended next agent: Executor.",
+      "artifacts": [
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/ReportWriter.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/suite/replay-harness-core.test.ts",
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlmuoa9v_e40d8edf/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlnbfdyt_24315e94",
+      "agent_type": "Executor",
+      "started_at": "2026-02-15T05:39:14.936Z",
+      "context": {
+        "run_id": "run_sess_mlnbfdyt_24315e94"
+      },
+      "completed_at": "2026-02-15T05:43:02.309Z",
+      "summary": "Completed step index 6 by enhancing GitHub annotation rendering with optional evidence/fingerprint suffix tokens while preserving existing prefix format and compatibility. Added focused tests for suffix emission and no-suffix legacy behavior. Targeted validation passed (compile + replay-focused tests).",
+      "artifacts": [
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/types.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/GateEvaluator.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/suite/replay-harness-core.test.ts",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlmuoa9v_e40d8edf/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlnbkznq_87acde72",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-15T05:43:36.329Z",
+      "context": {
+        "run_id": "run_sess_mlnbkznq_87acde72"
+      },
+      "completed_at": "2026-02-15T05:46:12.539Z",
+      "summary": "Completed review for implementation index 6 (GitHub annotation optional evidence/fingerprint suffix tokens). Reviewed scoped files, verified additive optional contract behavior and prefix compatibility, ran registered compile + replay-focused tests (both pass, replay exit code 0), stored review context, reindexed workspace, and handed off to Coordinator with recommendation Executor.",
+      "artifacts": [
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/types.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/GateEvaluator.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/suite/replay-harness-core.test.ts",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlmuoa9v_e40d8edf/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlnbp2vk_d36efdf6",
+      "agent_type": "Executor",
+      "started_at": "2026-02-15T05:46:47.123Z",
+      "context": {
+        "run_id": "run_sess_mlnbp2vk_d36efdf6"
+      },
+      "completed_at": "2026-02-15T05:51:34.218Z",
+      "summary": "Implemented scoped step-7 replay diagnostics/reporting path portability updates additively and non-breakingly. Compile and replay-focused tests pass. Execution log stored. Step transition to done is currently gated by required phase confirmation, so step remains blocked pending Coordinator/user confirmation.",
+      "artifacts": [
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/Comparator.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/GateEvaluator.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/ReportWriter.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/replay/cli/replay-cli.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/suite/replay-harness-core.test.ts",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlmuoa9v_e40d8edf/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlnbwltv_c5bc389b",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-15T05:52:38.277Z",
+      "context": {
+        "run_id": "run_sess_mlnbwltv_c5bc389b"
+      },
+      "completed_at": "2026-02-15T06:15:39.978Z",
+      "summary": "[STALE_RECOVERY 2026-02-15T06:15:39.978Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlncaaym_d55e3125",
+      "agent_type": "Tester",
+      "started_at": "2026-02-15T06:03:17.411Z",
+      "context": {
+        "run_id": "run_sess_mlncaaym_d55e3125"
+      },
+      "completed_at": "2026-02-15T06:09:15.824Z",
+      "summary": "Completed WRITE mode for Replay Diagnostics UX test authoring. Added/updated replay harness tests for step 9 (JSON compatibility and explainability semantics) and step 10 (markdown/annotation explainability emission + legacy behavior). Ran focused verification via registered scripts (compile and replay-targeted tests) with pass results. Stored results in research_notes/test-results-write-mode.md and handed off recommending Tester RUN mode for step 11.",
+      "artifacts": [
+        "Project-Memory-MCP/vscode-extension/src/test/suite/replay-harness-core.test.ts",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlmuoa9v_e40d8edf/research_notes/test-results-write-mode.md"
+      ]
+    },
+    {
+      "session_id": "sess_mlncimip_f9893b62",
+      "agent_type": "Tester",
+      "started_at": "2026-02-15T06:09:45.634Z",
+      "context": {
+        "run_id": "run_sess_mlncimip_f9893b62"
+      },
+      "completed_at": "2026-02-15T06:12:02.962Z",
+      "summary": "RUN mode executed for step 11 using registered scripts. Compile gate completed without reported compile errors. Replay tests failed (exit 1) with 2 comparator assertion regressions; step marked blocked and results stored in test_results.json. Recommended Revisionist.",
+      "artifacts": [
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlmuoa9v_e40d8edf/test_results.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlncm828_c7e4e152",
+      "agent_type": "Revisionist",
+      "started_at": "2026-02-15T06:12:33.520Z",
+      "context": {
+        "run_id": "run_sess_mlncm828_c7e4e152"
+      },
+      "completed_at": "2026-02-15T06:15:08.691Z",
+      "summary": "Reviewed plan state and RUN-mode test_results for blocked step 11. Identified minimal root-cause hypothesis around comparator classification precedence/regression and explainability rollup aggregation side-effect. Pivoted plan with minimal scope by converting step 11 from blocked to pending as a targeted Executor fix step with explicit file and assertion targets. Stored pivot reasoning in pivot.json and handed off to Coordinator recommending Executor.",
+      "artifacts": [
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlmuoa9v_e40d8edf/state.json",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlmuoa9v_e40d8edf/pivot.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlncq7z5_94c7beb4",
+      "agent_type": "Executor",
+      "started_at": "2026-02-15T06:15:40.034Z",
+      "context": {
+        "run_id": "run_sess_mlncq7z5_94c7beb4"
+      }
+    },
+    {
+      "session_id": "sess_mlncrmpk_724fb92b",
+      "agent_type": "Executor",
+      "started_at": "2026-02-15T06:16:45.787Z",
+      "context": {
+        "run_id": "run_sess_mlncrmpk_724fb92b"
+      }
+    },
+    {
+      "session_id": "sess_mlnd1jjv_7368c11f",
+      "agent_type": "Executor",
+      "started_at": "2026-02-15T06:24:28.252Z",
+      "context": {
+        "run_id": "run_sess_mlnd1jjv_7368c11f"
+      },
+      "completed_at": "2026-02-15T06:31:26.182Z",
+      "summary": "Completed step 11 with minimal scoped comparator regression fix and replay RUN-gate verification. Comparator flow/order handling and severity alignment corrected; compile passed and replay-focused tests passed (192 passing, 0 failing).",
+      "artifacts": [
+        "Project-Memory-MCP/vscode-extension/src/test/replay/core/Comparator.ts",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlmuoa9v_e40d8edf/research_notes/execution-log-step11.md"
+      ]
+    },
+    {
+      "session_id": "sess_mlndbcuf_b6823649",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-15T06:32:06.113Z",
+      "context": {
+        "run_id": "run_sess_mlndbcuf_b6823649"
+      },
+      "completed_at": "2026-02-15T06:34:52.985Z",
+      "summary": "Completed FINAL verification for Replay Diagnostics UX. Registered compile and replay test scripts passed (compile exit 0; replay tests 192 passing, 0 failing, exit 0). Validated additive/non-breaking outcomes against plan success criteria and stored build report.",
+      "artifacts": [
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlmuoa9v_e40d8edf/build_report.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlndfq9m_b9937bef",
+      "agent_type": "Archivist",
+      "started_at": "2026-02-15T06:35:30.151Z",
+      "context": {
+        "run_id": "run_sess_mlndfq9m_b9937bef"
+      },
+      "completed_at": "2026-02-15T06:37:14.740Z",
+      "summary": "Archived plan_mlmuoa9v_e40d8edf (Replay Diagnostics UX) after confirming all 12 steps done and final reviewer PASS context. Reindexed workspace profile and stored completion + plan-summary knowledge artifacts.",
+      "artifacts": [
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlmuoa9v_e40d8edf/completion.json",
+        "knowledge://plan-summary-plan-mlmuoa9v-e40d8edf"
+      ]
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-15T04:33:51.944Z",
+      "from_agent": "Researcher",
+      "to_agent": "Coordinator",
+      "reason": "Research complete for Replay Diagnostics UX Step 0. Recommend Architect to design explainability-first report UX and additive JSON/Markdown/annotation contracts based on stored findings."
+    },
+    {
+      "timestamp": "2026-02-15T04:38:37.211Z",
+      "from_agent": "Architect",
+      "to_agent": "Coordinator",
+      "reason": "Planning complete: replaced minimal plan with phased implementation/review/test roadmap for Replay Diagnostics UX."
+    },
+    {
+      "timestamp": "2026-02-15T04:43:02.434Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Completed first pending implementation step (additive explainability contract types) with targeted compile/test validation passing."
+    },
+    {
+      "timestamp": "2026-02-15T04:47:31.500Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Step 2 review/build-check passed: additive non-breaking explainability contract types validated; ready for next implementation step."
+    },
+    {
+      "timestamp": "2026-02-15T04:48:15.892Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Replay app-smoke warning resolved with minimal scoped fix and validation is green."
+    },
+    {
+      "timestamp": "2026-02-15T04:55:31.707Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Review/build-check passed for explainability derivation and gate-summary wiring updates; recommend Executor to proceed to next implementation step."
+    },
+    {
+      "timestamp": "2026-02-15T05:35:25.530Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Phase 3 step 5 complete: markdown replay report explainability section implemented additively with targeted compile/replay validation passing."
+    },
+    {
+      "timestamp": "2026-02-15T05:38:34.202Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Review/build-check passed for implementation index 5 markdown explainability append behavior; recommend Executor for next implementation step."
+    },
+    {
+      "timestamp": "2026-02-15T05:42:50.652Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Phase 3 step 6 complete: additive GitHub annotation evidence/fingerprint suffix tokens implemented with compatibility preserved and targeted validation passing."
+    },
+    {
+      "timestamp": "2026-02-15T05:46:04.525Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Step index 6 review passed. Compile and replay-focused tests succeeded; annotation prefix compatibility preserved and evidence/fingerprint suffix remains optional/additive. Recommend Executor for next implementation step (index 7)."
+    },
+    {
+      "timestamp": "2026-02-15T05:51:25.355Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Step 7 implementation complete and validated; phase confirmation gate prevents done transition without Coordinator/user confirmation."
+    },
+    {
+      "timestamp": "2026-02-15T05:54:52.094Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Phase 4 review (step 8) passed with compile + Replay-focused validation green; ready for test authoring."
+    },
+    {
+      "timestamp": "2026-02-15T06:09:06.863Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "WRITE-mode test authoring complete for steps 9 and 10 with focused replay verification passing; recommend Tester for RUN mode on step 11."
+    },
+    {
+      "timestamp": "2026-02-15T06:11:57.645Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "RUN mode step 11 blocked by replay diagnostics regressions; recommend Revisionist."
+    },
+    {
+      "timestamp": "2026-02-15T06:15:03.402Z",
+      "from_agent": "Revisionist",
+      "to_agent": "Coordinator",
+      "reason": "Plan pivoted to unblock step 11 with minimal deterministic fix scope; recommend Executor for targeted comparator/test alignment repair."
+    },
+    {
+      "timestamp": "2026-02-15T06:31:19.208Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Step 11 comparator regression fix and RUN-gate checks completed successfully; ready for review."
+    },
+    {
+      "timestamp": "2026-02-15T06:34:41.190Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Final verification passed (compile + replay tests green, success criteria met); recommend Archivist."
+    }
+  ],
+  "steps": [
+    {
+      "phase": "Phase 1: Research",
+      "task": "Research current replay report pain points and identify high-value drift explanation patterns for operators.",
+      "type": "research",
+      "status": "done",
+      "notes": "Completed. Findings captured in research_notes/diagnostics-ux-research.md and research context.",
+      "assignee": "Researcher",
+      "index": 0
+    },
+    {
+      "phase": "Phase 2: Planning",
+      "task": "Design diagnostics report UX and explanation architecture with JSON/Markdown compatibility, low-noise operator triage, and additive/non-breaking contracts.",
+      "type": "planning",
+      "status": "done",
+      "notes": "Architecture synthesized from completed research. Plan expanded to implementation, review, test authoring, and test-run readiness flow.",
+      "assignee": "Architect",
+      "index": 1
+    },
+    {
+      "phase": "Phase 3: Implementation",
+      "task": "Define additive explainability contract for replay diagnostics (drift/category/confidence/operator_bucket/remediation/evidence, explainability groups, gate rollup) with optional fields only and no removals/renames.",
+      "type": "code",
+      "status": "done",
+      "notes": "Implemented additive explainability contract in replay diagnostics types only: added optional drift fields (category/confidence/operator_bucket/remediation/evidence), optional scenario explainability_groups, optional summary explainability_rollup, optional gate annotation evidence_fingerprint, and optional gate-level explainability_rollup. Preserved all existing fields/keys unchanged.",
+      "assignee": "Executor",
+      "index": 2
+    },
+    {
+      "phase": "Phase 3: Implementation",
+      "task": "Implement explainability derivation in replay comparison pipeline: root-cause grouping taxonomy, confidence heuristic bands, operator buckets, and remediation/evidence population from existing comparison inputs.",
+      "type": "code",
+      "status": "done",
+      "notes": "Diagnosed app-smoke WARN as replay flow-policy mismatch (confirmation required before plan_step_update). Added explicit memory_plan confirm step to baseline replay scenario before memory_steps updates in src/test/replay/scenarios/baseline-scenarios.v1.json; replay gate now PASS clean.",
+      "assignee": "Executor",
+      "index": 3
+    },
+    {
+      "phase": "Phase 3: Implementation",
+      "task": "Wire explainability rollup into gate-summary JSON artifacts while keeping existing gate classification and triage labels intact.",
+      "type": "code",
+      "status": "done",
+      "notes": "Implemented additive explainability rollup wiring into gate-summary flow. Added explainability derivation/grouping heuristics in replay comparator (taxonomy, confidence bands, operator buckets, remediation/evidence), propagated rollup through gate evaluation output, and included top-level explainability_rollup in gate-summary JSON payloads while preserving classification and triage label behavior. Targeted validation passed: npm run compile; npm test -- --grep \"Replay\".",
+      "assignee": "Executor",
+      "index": 4
+    },
+    {
+      "phase": "Phase 3: Implementation",
+      "task": "Enhance markdown replay report rendering with an appended explainability section (group summaries, bucket rollups, top actions, evidence handles) while preserving existing section order/content.",
+      "type": "code",
+      "status": "done",
+      "notes": "Implemented additive markdown explainability append in replay report renderer: section emits only when explainability inputs exist (rollup/groups/actions/evidence), preserving legacy section order/content when absent. Validation passed: npm run compile; npm test -- --grep \"Replay\".",
+      "assignee": "Executor",
+      "index": 5
+    },
+    {
+      "phase": "Phase 3: Implementation",
+      "task": "Enhance GitHub annotation rendering with optional evidence/fingerprint suffix tokens for faster triage, preserving existing annotation prefix format and compatibility.",
+      "type": "code",
+      "status": "done",
+      "notes": "Implemented additive GitHub annotation suffix token rendering: optional evidence_refs and evidence_fingerprint suffixes are appended only when present, while preserving existing annotation prefix format for compatibility. Added tests for both suffix-emission and legacy-no-suffix paths. Validation passed via registered scripts: npm run compile and npm test -- --grep \"Replay\".",
+      "assignee": "Executor",
+      "index": 6
+    },
+    {
+      "phase": "Phase 3: Implementation",
+      "task": "Normalize artifact/evidence path handling for portability in diagnostics outputs (relative/stable refs where possible) without changing existing required manifest fields.",
+      "type": "code",
+      "status": "done",
+      "notes": "Done after user-confirmed Phase 3 gate. Implementation and targeted validation were already complete before confirmation.",
+      "assignee": "Executor",
+      "index": 7
+    },
+    {
+      "phase": "Phase 4: Review",
+      "task": "Review implementation for strict additive contract evolution, diagnostics UX clarity, and low-noise explainability behavior against research findings.",
+      "type": "validation",
+      "status": "done",
+      "notes": "Review PASS. Additive contract evolution validated, diagnostics UX clarity and low-noise behavior validated, no regression in report/annotation outputs. Build-check passed using registered scripts: VSCode Extension Compile and VSCode Extension Replay Tests (187 passing, exit code 0).",
+      "assignee": "Reviewer",
+      "index": 8
+    },
+    {
+      "phase": "Phase 5: Test Authoring",
+      "task": "Add/update tests for JSON compatibility and explainability fields (optional presence, backward compatibility when absent, stable grouping/bucket semantics).",
+      "type": "test",
+      "status": "done",
+      "notes": "Added JSON compatibility coverage in replay harness tests: asserts legacy comparison JSON omits explainability fields when absent; added stable explainability grouping/operator-bucket semantic assertions from comparator output. Verified with compile + replay-targeted test run (pass).",
+      "assignee": "Tester",
+      "index": 9
+    },
+    {
+      "phase": "Phase 5: Test Authoring",
+      "task": "Add/update markdown and annotation tests to verify explainability section/suffix emission rules, low-noise defaults, and unchanged legacy output when explainability inputs are absent.",
+      "type": "test",
+      "status": "done",
+      "notes": "Completed markdown + annotation explainability coverage: verified explainability rollup lines emit when data exists, legacy markdown output remains unchanged when absent, and no-evidence annotation output remains parse-compatible with exact legacy string while evidence/fingerprint suffix remains optional/additive. Focused compile + replay-targeted test run passed.",
+      "assignee": "Tester",
+      "index": 10
+    },
+    {
+      "phase": "Phase 6: Test Run Readiness",
+      "task": "Apply minimal replay comparator regression fix for RUN-gate mismatches, then execute targeted replay diagnostics test runs and gate checks using registered scripts.",
+      "type": "fix",
+      "status": "done",
+      "notes": "Applied minimal comparator regression fix in compareFlow/compareSuccessSignatures: (1) enforce handoff-before-complete only when complete event exists, (2) set missing-confirmation flow drift severity to medium, (3) align success-signature drift severity to check severity. Validation: npm run compile PASS; npm test -- --grep \"Replay\" PASS (192 passing, 0 failing).",
+      "assignee": "Executor",
+      "index": 11,
+      "completed_at": "2026-02-15T06:31:02.635Z"
+    }
+  ],
+  "program_id": "plan_mlmuny9s_04a511eb",
+  "depends_on_plans": [
+    "plan_mlmuo39q_155aeb95"
+  ],
+  "goals": [
+    "Deliver an explainability-first replay diagnostics UX that accelerates operator triage without increasing noise.",
+    "Evolve replay reporting contracts additively across JSON, Markdown, and GitHub annotation outputs.",
+    "Preserve backward compatibility for existing consumers while introducing optional diagnostics metadata.",
+    "Establish clear review and test gates for implementation quality and regression safety."
+  ],
+  "success_criteria": [
+    "Replay diagnostics JSON includes optional explainability metadata (groups, confidence, operator buckets, remediation, evidence) with no removed or renamed existing fields.",
+    "Gate-summary outputs include additive explainability rollups while existing classification and triage label behavior remains intact.",
+    "Markdown replay reports preserve legacy sections and append explainability content only when data exists.",
+    "GitHub annotations remain parse-compatible with existing prefix format and include optional evidence/fingerprint suffixes when available.",
+    "Path and artifact references used in diagnostics are portable/stable enough for cross-environment triage.",
+    "Reviewer validates low-noise behavior and non-breaking contract evolution against research findings.",
+    "Tester adds/updates coverage for JSON compatibility, explainability render rules, and annotation behavior, and targeted replay diagnostics test runs complete with pass criteria."
+  ],
+  "recommended_next_agent": "Coordinator"
+}

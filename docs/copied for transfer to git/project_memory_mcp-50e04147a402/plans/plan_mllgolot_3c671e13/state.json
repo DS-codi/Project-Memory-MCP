@@ -1,0 +1,217 @@
+{
+  "id": "plan_mllgolot_3c671e13",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Agent/Instructions/Skills Integration",
+  "description": "Update all agent files, instruction files, and skills to reflect the new interactive terminal GUI system. Update memory_terminal_interactive documentation across agent docs, mcp-usage.instructions.md, and the vscode-custom-tool-cloning skill. Create or update skills for the interactive terminal patterns. Ensure agents know when to use memory_terminal (headless/allowlist) vs memory_terminal_interactive (GUI approval).",
+  "priority": "medium",
+  "category": "documentation",
+  "goals": [
+    "All agent docs reflect interactive terminal availability",
+    "Instructions clearly distinguish headless vs interactive terminal",
+    "Skills capture the GUI approval pattern for reuse",
+    "Agent tool tables updated with correct usage guidance"
+  ],
+  "success_criteria": [
+    "All agent .md files have correct memory_terminal_interactive docs",
+    "mcp-usage.instructions.md documents the approval flow",
+    "vscode-custom-tool-cloning skill updated with GUI app pattern",
+    "No stale references to old terminal tool behavior"
+  ],
+  "status": "archived",
+  "current_phase": "complete",
+  "current_agent": "Coordinator",
+  "confirmation_state": {
+    "phases": {
+      "Skills": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T02:33:05.673Z"
+      }
+    },
+    "steps": {}
+  },
+  "created_at": "2026-02-13T22:30:50.577Z",
+  "updated_at": "2026-02-14T22:31:11.606Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mllp9twn_ee458d6f",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T02:31:17.927Z",
+      "context": {},
+      "completed_at": "2026-02-14T02:33:58.648Z",
+      "summary": "Orchestrated SkillWriter to create a new CxxQt Windows build recovery skill from user-provided references. Verified plan step completion and artifact presence.",
+      "artifacts": [
+        ".github/skills/cxxqt-windows-build-recovery/SKILL.md"
+      ]
+    },
+    {
+      "session_id": "sess_mllpam11_1b3d45fe",
+      "agent_type": "SkillWriter",
+      "started_at": "2026-02-14T02:31:54.373Z",
+      "context": {},
+      "completed_at": "2026-02-14T02:33:22.501Z",
+      "summary": "Created one reusable skill for CxxQt Windows build/preflight troubleshooting at `.github/skills/cxxqt-windows-build-recovery/SKILL.md`; updated step 0 to done after phase confirmation; handed off to Coordinator with recommendation for Architect.",
+      "artifacts": [
+        ".github/skills/cxxqt-windows-build-recovery/SKILL.md"
+      ]
+    },
+    {
+      "session_id": "sess_mlmdfomi_5816e39a",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T13:47:41.802Z",
+      "context": {},
+      "completed_at": "2026-02-14T17:16:33.950Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T17:16:33.950Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmdghb2_92e94894",
+      "agent_type": "SkillWriter",
+      "started_at": "2026-02-14T13:48:18.974Z",
+      "context": {},
+      "completed_at": "2026-02-14T17:16:33.950Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T17:16:33.950Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmkwaih_653f4b1b",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T17:16:33.977Z",
+      "context": {
+        "run_id": "run_sess_mlmkwaih_653f4b1b"
+      },
+      "completed_at": "2026-02-14T17:24:17.296Z",
+      "summary": "Resumed and completed orchestration: validated plan state, dispatched Architect then SkillWriter to finish pending step, dispatched Archivist for archive, and verified plan archived.",
+      "artifacts": [
+        ".github/skills/cxxqt-rust-gui/SKILL.md"
+      ]
+    },
+    {
+      "session_id": "sess_mlmkx7cp_e1bd2d1d",
+      "agent_type": "Architect",
+      "started_at": "2026-02-14T17:17:16.553Z",
+      "context": {
+        "run_id": "run_sess_mlmkx7cp_e1bd2d1d"
+      },
+      "completed_at": "2026-02-14T17:44:42.769Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T17:44:42.769Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmkykh3_63b9b77a",
+      "agent_type": "SkillWriter",
+      "started_at": "2026-02-14T17:18:20.231Z",
+      "context": {
+        "run_id": "run_sess_mlmkykh3_63b9b77a"
+      },
+      "completed_at": "2026-02-14T17:21:46.536Z",
+      "summary": "Consolidated CxxQt skills by merging unique Windows build-recovery guidance into canonical cxxqt-rust-gui skill and removing the duplicate cxxqt-windows-build-recovery skill file. Updated step 1 to done and handed off to Coordinator for archival flow.",
+      "artifacts": [
+        ".github/skills/cxxqt-rust-gui/SKILL.md",
+        ".github/skills/cxxqt-windows-build-recovery/SKILL.md"
+      ]
+    },
+    {
+      "session_id": "sess_mlml3wan_2a04e71b",
+      "agent_type": "Archivist",
+      "started_at": "2026-02-14T17:22:28.824Z",
+      "context": {
+        "run_id": "run_sess_mlml3wan_2a04e71b"
+      },
+      "completed_at": "2026-02-14T17:23:21.468Z",
+      "summary": "Validated plan completion (2/2 done), archived plan plan_mllgolot_3c671e13 successfully, and stored required plan-summary knowledge file for institutional memory.",
+      "artifacts": [
+        "plan:plan_mllgolot_3c671e13 (archived)",
+        "knowledge:plan-summary-plan-mllgolot-3c671e13"
+      ]
+    },
+    {
+      "session_id": "sess_mlmlwhly_baef4d87",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T17:44:42.790Z",
+      "context": {
+        "run_id": "run_sess_mlmlwhly_baef4d87"
+      }
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-14T02:33:15.922Z",
+      "from_agent": "SkillWriter",
+      "to_agent": "Coordinator",
+      "reason": "Skill file created and step complete; recommend Architect for follow-on integration/review direction."
+    },
+    {
+      "timestamp": "2026-02-14T02:33:50.250Z",
+      "from_agent": "Coordinator",
+      "to_agent": "Architect",
+      "reason": "User-requested skill file created successfully; recommend Architect only if broader skills/doc integration follow-up is desired."
+    },
+    {
+      "timestamp": "2026-02-14T17:17:32.933Z",
+      "from_agent": "Architect",
+      "to_agent": "Coordinator",
+      "reason": "Plan structure is already valid; remaining pending step is a skill-file consolidation task best executed by SkillWriter."
+    },
+    {
+      "timestamp": "2026-02-14T17:17:47.389Z",
+      "from_agent": "Architect",
+      "to_agent": "Coordinator",
+      "reason": "Protocol-compliant handoff for Architect session closure; pending step execution remains a SkillWriter task per plan assignee."
+    },
+    {
+      "timestamp": "2026-02-14T17:21:41.889Z",
+      "from_agent": "SkillWriter",
+      "to_agent": "Coordinator",
+      "reason": "CxxQt skill consolidation complete; canonical skill updated and duplicate file removed."
+    },
+    {
+      "timestamp": "2026-02-14T17:24:03.842Z",
+      "from_agent": "Coordinator",
+      "to_agent": "Coordinator",
+      "reason": "Plan archived successfully; orchestration cycle complete with no further implementation required."
+    },
+    {
+      "timestamp": "2026-02-14T17:24:12.698Z",
+      "from_agent": "Coordinator",
+      "to_agent": "Architect",
+      "reason": "Lifecycle compliance handoff after archival completion; no further execution required."
+    }
+  ],
+  "steps": [
+    {
+      "phase": "Skills",
+      "task": "Create a reusable CxxQt Windows build/preflight skill using user-provided working projects and build script as references.",
+      "type": "documentation",
+      "status": "done",
+      "assignee": "SkillWriter",
+      "index": 0,
+      "notes": "Created `.github/skills/cxxqt-windows-build-recovery/SKILL.md` focused on Windows CxxQt/QML build reliability and recovery; includes deterministic fail-fast preflight block, qmake/QMAKE/PATH guidance, cargo build/test/release sequence, and troubleshooting matrix for qmake not found, QMAKE unset, STATUS_DLL_NOT_FOUND, and Qt kit mismatch.",
+      "completed_at": "2026-02-14T02:33:10.608Z"
+    },
+    {
+      "phase": "Skills",
+      "task": "Consolidate cxxqt-windows-build-recovery into cxxqt-rust-gui as single canonical CxxQt skill and remove duplicate content file.",
+      "type": "documentation",
+      "status": "done",
+      "assignee": "SkillWriter",
+      "index": 1,
+      "notes": "Merged unique Windows preflight/recovery guidance into canonical .github/skills/cxxqt-rust-gui/SKILL.md and removed duplicate .github/skills/cxxqt-windows-build-recovery/SKILL.md.",
+      "completed_at": "2026-02-14T17:21:37.687Z"
+    }
+  ],
+  "program_id": "plan_mllgnu1d_56838e50",
+  "pending_notes": [
+    {
+      "note": "Routing decision: retain existing step structure (no mutations). Step 1 remains pending and assigned to SkillWriter for canonical CxxQt skill consolidation/de-duplication.",
+      "type": "info",
+      "added_at": "2026-02-14T17:17:25.555Z",
+      "added_by": "user"
+    }
+  ],
+  "recommended_next_agent": "Architect",
+  "deployment_context": {
+    "deployed_agent": "Coordinator",
+    "deployed_by": "User",
+    "reason": "Begin planning and research phases for Interactive Terminal GUI readiness plan",
+    "override_validation": true,
+    "deployed_at": "2026-02-14T17:44:42.790Z"
+  }
+}

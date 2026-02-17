@@ -140,6 +140,7 @@ pub mod ffi {
         fn export_output_json(self: Pin<&mut TerminalApp>, directory: QString) -> bool;
     }
 
+    impl cxx_qt::Initialize for TerminalApp {}
     impl cxx_qt::Threading for TerminalApp {}
 }
 

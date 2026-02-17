@@ -1,0 +1,45 @@
+{
+  "type": "original_request",
+  "plan_id": "plan_mllgo3rk_e6a1fff0",
+  "workspace_id": "project-memory-mcp-40f6678f5a9b",
+  "captured_at": "2026-02-13T22:36:48.120Z",
+  "user_request": {
+    "sanitized": "Create a GUI app (pure Rust + QML + CxxQt) to house a terminal that can be spawned on the host machine from container and have that provide approve/decline options. Decline could ask for a reason which it could send back to the MCP which could then provide back to the agent.",
+    "wasModified": false,
+    "injectionAttempts": [],
+    "warnings": []
+  },
+  "context": {
+    "files_mentioned": [],
+    "file_contents": {},
+    "requirements": [
+      "Standalone Rust+QML GUI application using CxxQt",
+      "Terminal widget showing pending command for approval",
+      "Approve button that executes command and streams output",
+      "Decline button with text field for reason capture",
+      "TCP loopback server listening for MCP server connections",
+      "JSON-based request/response protocol",
+      "Heartbeat mechanism for liveness detection",
+      "Command output display with scrollback",
+      "Multiple concurrent command approval support",
+      "Graceful shutdown on session end or timeout"
+    ],
+    "constraints": [
+      "Must use CxxQt for Rust+QML integration",
+      "TCP loopback for IPC (not file-based)",
+      "Pre-installed binary on host machine (not bundled in container)",
+      "Windows primary target, Linux secondary",
+      "Must handle: approve, decline (with reason), timeout",
+      "JSON protocol for structured communication",
+      "App auto-exits when session closes or heartbeat lost"
+    ],
+    "examples": [],
+    "conversation_context": null,
+    "additional_notes": {
+      "sanitized": "This is Plan 1 of the 'Interactive Terminal GUI System' program. The GUI app must be built first as Plans 2-4 depend on it. Reference repo: https://github.com/ttommyth/interactive-mcp (uses file-based IPC + Ink CLI — we are doing native GUI + TCP instead). CxxQt skill file exists at .github/skills/cxxqt-rust-gui/SKILL.md. The app directory should be created at the workspace root level (e.g., interactive-terminal/ or gui-terminal/).",
+      "wasModified": false,
+      "injectionAttempts": [],
+      "warnings": []
+    }
+  }
+}
