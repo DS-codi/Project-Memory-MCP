@@ -4,7 +4,7 @@ fn main() {
     #[cfg(windows)]
     {
         let mut res = winresource::WindowsResource::new();
-        // res.set_icon("resources/app.ico");  // Uncomment when icon is available
+        res.set_icon("resources/itpm-icon.ico");
         res.set_manifest_file("resources/app.manifest");
         res.compile().expect("Failed to compile Windows resources");
     }

@@ -1,0 +1,14 @@
+Phase 5: Server-Side Audit & Recovery — PARTIALLY IMPLEMENTED
+Step	Status	Evidence
+13. Add 3 new event types to event-emitter.ts	NOT DONE	No matches for session_interrupted/session_injected/session_stop_escalated
+14. Orphaned session detection in agent-tool.ts	NOT DONE	No matches for orphaned_sessions logic
+Phase 6: Agent Instruction Updates — NOT IMPLEMENTED
+Step	Status	Evidence
+15. Create session-interruption.instructions.md	NOT DONE	File not found
+16. Update subagent-recovery + handoff-protocol docs	NOT DONE	No session-related content found
+17. Update agent.md files	NOT DONE	Not checked in detail, likely not done
+Phase 7: Testing & Integration — NOT IMPLEMENTED
+Step	Status	Evidence
+18-21. Unit/integration tests	NOT DONE	No test files found
+22. Build verification	NOT DONE	
+23. Code review	NOT DONE	

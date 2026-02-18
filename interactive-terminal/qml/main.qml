@@ -204,6 +204,7 @@ ApplicationWindow {
     Platform.SystemTrayIcon {
         id: trayIcon
         visible: true
+        icon.source: terminalApp.trayIconUrl
         tooltip: "Interactive Terminal | Pending: " + terminalApp.pendingCount
             + " | CPU: " + terminalApp.cpuUsagePercent.toFixed(1) + "%"
             + " | RAM: " + terminalApp.memoryUsageMb.toFixed(1) + " MB"

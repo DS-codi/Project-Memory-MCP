@@ -34,8 +34,8 @@ impl PerfMonitor {
             .unwrap_or_else(|| self.system.global_cpu_info().cpu_usage() as f64);
 
         let memory_usage_mb = process
-            .map(|proc| proc.memory() as f64 / 1024.0)
-            .unwrap_or_else(|| self.system.used_memory() as f64 / 1024.0 / 1024.0);
+            .map(|proc| proc.memory() as f64 / (1024.0 * 1024.0))
+            .unwrap_or_else(|| self.system.used_memory() as f64 / (1024.0 * 1024.0));
 
         PerfSnapshot {
             cpu_usage_percent,

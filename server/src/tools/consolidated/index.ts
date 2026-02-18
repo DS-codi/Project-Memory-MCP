@@ -1,7 +1,7 @@
 /**
  * Consolidated MCP Tools Index
  * 
- * This module exports 7 consolidated tools that replace the 39 individual tools:
+ * This module exports 8 consolidated tools that replace the 39 individual tools:
  * 
  * 1. memory_workspace - Workspace management (4 actions)
  *    Actions: register, list, info, reindex
@@ -24,6 +24,9 @@
  * 
  * 7. memory_terminal - Terminal tool with GUI approval flow (5 actions)
  *    Actions: run, read_output, kill, get_allowlist, update_allowlist
+ * 
+ * 8. memory_session - Agent session management & spawn preparation (3 actions)
+ *    Actions: prep, list_sessions, get_session
  */
 
 export { memoryWorkspace, type MemoryWorkspaceParams, type WorkspaceAction } from './memory_workspace.js';
@@ -33,3 +36,4 @@ export { memoryAgent, type MemoryAgentParams, type AgentAction } from './memory_
 export { memoryContext, type MemoryContextParams, type ContextAction } from './memory_context.js';
 export { memoryFilesystem, type MemoryFilesystemParams, type FilesystemAction } from './memory_filesystem.js';
 export { memoryTerminal, type MemoryTerminalParams, type MemoryTerminalAction } from './memory_terminal.js';
+export { memorySession, type MemorySessionParams, type SessionAction } from './memory_session.js';

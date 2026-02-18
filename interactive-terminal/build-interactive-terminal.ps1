@@ -209,6 +209,73 @@ function Resolve-WarningsImportsLogPath {
     return $trimmed
 }
 
+function Stop-InteractiveTerminalProcesses {
+    param()
+
+    $stoppedCount = 0
+
+    $candidateProcesses = @(Get-Process -Name 'interactive-terminal', 'interactive_terminal' -ErrorAction SilentlyContinue)
+    foreach ($proc in $candidateProcesses) {
+        $procPath = ''
+        try {
+            $procPath = $proc.Path
+        }
+        catch {
+            $procPath = ''
+        }
+
+        if ([string]::IsNullOrWhiteSpace($procPath)) {
+            Write-Host "Stopping locked process: $($proc.ProcessName) (PID $($proc.Id))" -ForegroundColor Yellow
+        }
+        else {
+            Write-Host "Stopping locked process: $($proc.ProcessName) (PID $($proc.Id)) at $procPath" -ForegroundColor Yellow
+        }
+
+        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+        $stoppedCount += 1
+    }
+
+    return $stoppedCount
+}
+
+function Invoke-CargoCleanWithLockRecovery {
+    param(
+        [int]$MaxAttempts = 3,
+        [string]$WorkingDirectory = $scriptDir
+    )
+
+    $preStopped = Stop-InteractiveTerminalProcesses
+    if ($preStopped -gt 0) {
+        Write-Host "Pre-clean sweep stopped $preStopped interactive-terminal process(es)." -ForegroundColor Yellow
+        Start-Sleep -Seconds 1
+    }
+
+    for ($attempt = 1; $attempt -le [Math]::Max(1, $MaxAttempts); $attempt++) {
+        $cleanResult = Invoke-NativeCommandCapture -FilePath 'cargo' -Arguments @('clean') -WorkingDirectory $WorkingDirectory
+        foreach ($line in $cleanResult.AllLines) {
+            Write-Host $line
+        }
+
+        if ([int]$cleanResult.ExitCode -eq 0) {
+            return
+        }
+
+        $cleanOutput = @($cleanResult.AllLines) -join "`n"
+        $isLockedFileError = $cleanOutput -match 'Access is denied|os error 5|failed to remove file'
+
+        if (-not $isLockedFileError -or $attempt -ge $MaxAttempts) {
+            throw 'cargo clean failed.'
+        }
+
+        Write-Host "cargo clean attempt $attempt failed due to locked files. Attempting recovery..." -ForegroundColor Yellow
+        $stopped = Stop-InteractiveTerminalProcesses
+        if ($stopped -eq 0) {
+            Write-Host 'No interactive-terminal process found to stop. Retrying clean anyway...' -ForegroundColor Yellow
+        }
+        Start-Sleep -Seconds 2
+    }
+}
+
 function Get-DependencyCountFromLine {
     param([string]$DependencyLine)
 
@@ -266,10 +333,7 @@ if ($LASTEXITCODE -ne 0) {
 
 if ($Clean) {
     Write-Host 'Cleaning build artifacts...' -ForegroundColor Yellow
-    cargo clean
-    if ($LASTEXITCODE -ne 0) {
-        throw 'cargo clean failed.'
-    }
+    Invoke-CargoCleanWithLockRecovery
 }
 
 if ($Test) {

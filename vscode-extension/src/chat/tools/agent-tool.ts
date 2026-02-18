@@ -6,6 +6,7 @@
 
 import * as vscode from 'vscode';
 import type { ToolContext } from './types';
+import type { SessionEntry } from '../orchestration/session-types';
 
 export interface AgentToolInput {
     action: 'init' | 'complete' | 'handoff' | 'validate' | 'list' | 'get_instructions';
@@ -34,7 +35,7 @@ export async function handleAgentTool(
 
         if ((action as string) === 'spawn') {
             return errorResult(
-                'memory_agent(action="spawn") is no longer supported. Use memory_spawn_agent for context preparation, then invoke native runSubagent for execution.'
+                'memory_agent(action="spawn") is no longer supported. Use memory_session(action="prep") for context preparation, then invoke native runSubagent for execution.'
             );
         }
 
@@ -52,6 +53,35 @@ export async function handleAgentTool(
                     agent_type: agentType,
                     task_description: taskDescription
                 });
+
+                // Check for orphaned sessions after init
+                if (ctx.sessionRegistry) {
+                    const orphanedSessions = detectOrphanedSessions(
+                        ctx.sessionRegistry,
+                        workspaceId,
+                        planId
+                    );
+
+                    if (orphanedSessions.length > 0) {
+                        // Add orphaned session warnings to result
+                        const resultObj = result as any;
+                        if (resultObj.data) {
+                            resultObj.data.orphaned_sessions = orphanedSessions;
+                            resultObj.data.orphaned_session_warning = 
+                                `Found ${orphanedSessions.length} orphaned subagent session(s) from previous runs. These sessions were marked as completed.`;
+                        }
+
+                        // Auto-cleanup: mark orphaned sessions as completed
+                        for (const orphaned of orphanedSessions) {
+                            await ctx.sessionRegistry.markCompleted(
+                                orphaned.workspaceId,
+                                orphaned.planId,
+                                orphaned.sessionId,
+                                'orphaned_auto_cleanup'
+                            );
+                        }
+                    }
+                }
                 break;
             }
 
@@ -139,4 +169,42 @@ function errorResult(error: unknown): vscode.LanguageModelToolResult {
     return new vscode.LanguageModelToolResult([
         new vscode.LanguageModelTextPart(JSON.stringify({ success: false, error: message }))
     ]);
+}
+
+/**
+ * Detect orphaned sessions (active but stale) for a given workspace/plan
+ * Stale = no tool calls in last 10 minutes
+ */
+function detectOrphanedSessions(
+    registry: NonNullable<ToolContext['sessionRegistry']>,
+    workspaceId: string,
+    planId: string
+): Array<Pick<SessionEntry, 'sessionId' | 'workspaceId' | 'planId' | 'agentType' | 'startedAt' | 'lastToolCall'>> {
+    const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
+    const now = Date.now();
+    const orphaned: Array<any> = [];
+
+    const sessions = registry.getByPlan(workspaceId, planId);
+    for (const session of sessions) {
+        if (session.status !== 'active') continue;
+
+        // Check if stale (no recent tool calls)
+        const lastCallTime = session.lastToolCall
+            ? new Date(session.lastToolCall.timestamp).getTime()
+            : new Date(session.startedAt).getTime();
+
+        const age = now - lastCallTime;
+        if (age > STALE_THRESHOLD_MS) {
+            orphaned.push({
+                sessionId: session.sessionId,
+                workspaceId: session.workspaceId,
+                planId: session.planId,
+                agentType: session.agentType,
+                startedAt: session.startedAt,
+                lastToolCall: session.lastToolCall
+            });
+        }
+    }
+
+    return orphaned;
 }

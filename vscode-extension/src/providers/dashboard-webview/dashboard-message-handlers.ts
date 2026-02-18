@@ -10,6 +10,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { getDefaultSkillsRoot, getDefaultInstructionsRoot } from '../../utils/defaults';
 import { buildMissingSkillsSourceWarning, resolveSkillsSourceRoot } from '../../utils/skillsSourceRoot';
+import type { SessionInterceptRegistry } from '../../chat/orchestration/session-intercept-registry';
 
 /** Message posting interface (subset of DashboardViewProvider) */
 export interface MessagePoster {
@@ -201,5 +202,173 @@ export function handleUndeployInstruction(poster: MessagePoster, data: { instruc
         handleGetInstructions(poster); // Refresh the list
     } catch (error) {
         vscode.window.showErrorMessage(`Failed to remove instruction: ${error}`);
+    }
+}
+
+// --- Sessions handlers ---
+
+/** Options for server-side session discovery */
+export interface SessionDiscoveryContext {
+    apiPort: number;
+    workspaceId: string;
+}
+
+/**
+ * Fetch active agent sessions from the dashboard API and auto-register
+ * any that aren't already in the local SessionInterceptRegistry.
+ * Returns the count of newly registered sessions.
+ */
+async function syncServerSessions(
+    registry: SessionInterceptRegistry,
+    ctx: SessionDiscoveryContext
+): Promise<number> {
+    try {
+        const response = await fetch(
+            `http://localhost:${ctx.apiPort}/api/plans/workspace/${ctx.workspaceId}`
+        );
+        if (!response.ok) return 0;
+
+        const data = await response.json() as {
+            plans?: Array<{
+                id?: string;
+                plan_id?: string;
+                status?: string;
+                agent_sessions?: Array<{
+                    session_id: string;
+                    agent_type: string;
+                    started_at: string;
+                    completed_at?: string;
+                    context?: { parent_session_id?: string };
+                }>;
+            }>;
+        };
+
+        const plans = data.plans ?? [];
+        let registered = 0;
+
+        for (const plan of plans) {
+            if (plan.status === 'archived') continue;
+            const planId = plan.id ?? plan.plan_id;
+            if (!planId) continue;
+
+            for (const sess of plan.agent_sessions ?? []) {
+                // Skip completed sessions
+                if (sess.completed_at) continue;
+
+                // Skip if already tracked locally
+                if (registry.getBySessionId(sess.session_id)) continue;
+
+                // Auto-register into the local registry
+                await registry.register({
+                    sessionId: sess.session_id,
+                    workspaceId: ctx.workspaceId,
+                    planId,
+                    agentType: sess.agent_type,
+                    parentSessionId: sess.context?.parent_session_id,
+                    startedAt: sess.started_at
+                });
+                registered++;
+            }
+        }
+
+        return registered;
+    } catch (err) {
+        console.error('Failed to sync server sessions:', err);
+        return 0;
+    }
+}
+
+/** List active sessions from registry (with optional server-side discovery) */
+export async function handleGetSessions(
+    poster: MessagePoster,
+    registry: SessionInterceptRegistry | undefined,
+    discoveryCtx?: SessionDiscoveryContext
+): Promise<void> {
+    if (!registry) {
+        poster.postMessage({ type: 'sessionsList', data: { sessions: [] } });
+        return;
+    }
+    
+    try {
+        // Sync from server first if discovery context is available
+        if (discoveryCtx) {
+            await syncServerSessions(registry, discoveryCtx);
+        }
+
+        const sessions = registry.listActive();
+        poster.postMessage({ type: 'sessionsList', data: { sessions } });
+    } catch (error) {
+        console.error('Failed to list sessions:', error);
+        poster.postMessage({ type: 'sessionsList', data: { sessions: [] } });
+    }
+}
+
+/** Queue stop directive for a session */
+export function handleStopSession(
+    poster: MessagePoster,
+    registry: SessionInterceptRegistry | undefined,
+    data: { sessionKey: string }
+): void {
+    if (!registry) return;
+    
+    try {
+        // Parse tripleKey: 'workspaceId::planId::sessionId'
+        const [workspaceId, planId, sessionId] = data.sessionKey.split('::');
+        if (!workspaceId || !planId || !sessionId) {
+            poster.postMessage({ 
+                type: 'sessionStopResult', 
+                data: { success: false, sessionKey: data.sessionKey, error: 'Invalid session key' }
+            });
+            return;
+        }
+        
+        const queued = registry.queueInterrupt(workspaceId, planId, sessionId);
+        poster.postMessage({ 
+            type: 'sessionStopResult', 
+            data: { success: queued, sessionKey: data.sessionKey } 
+        });
+    } catch (error) {
+        console.error('Failed to stop session:', error);
+        poster.postMessage({ 
+            type: 'sessionStopResult', 
+            data: { success: false, sessionKey: data.sessionKey } 
+        });
+    }
+}
+
+/** Queue inject payload for a session */
+export function handleInjectSession(
+    poster: MessagePoster,
+    registry: SessionInterceptRegistry | undefined,
+    data: { sessionKey: string; text: string }
+): void {
+    if (!registry) return;
+    
+    try {
+        // Parse tripleKey: 'workspaceId::planId::sessionId'
+        const [workspaceId, planId, sessionId] = data.sessionKey.split('::');
+        if (!workspaceId || !planId || !sessionId) {
+            poster.postMessage({ 
+                type: 'sessionInjectResult', 
+                data: { success: false, sessionKey: data.sessionKey, error: 'Invalid session key' }
+            });
+            return;
+        }
+        
+        const queued = registry.queueInject(workspaceId, planId, sessionId, data.text);
+        poster.postMessage({ 
+            type: 'sessionInjectResult', 
+            data: { success: queued, sessionKey: data.sessionKey } 
+        });
+        
+        if (queued) {
+            notify(`Guidance injected into ${sessionId.substring(0, 12)}...`);
+        }
+    } catch (error) {
+        console.error('Failed to inject into session:', error);
+        poster.postMessage({ 
+            type: 'sessionInjectResult', 
+            data: { success: false, sessionKey: data.sessionKey } 
+        });
     }
 }

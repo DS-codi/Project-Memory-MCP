@@ -4,6 +4,7 @@ mod build_check;
 mod command_executor;
 mod cxxqt_bridge;
 mod host_bridge_listener;
+mod output_persistence;
 mod perf_monitor;
 mod protocol;
 mod saved_commands;
