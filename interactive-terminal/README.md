@@ -76,6 +76,117 @@ Direct launch after build:
   2. `PM_TERM_ADAPTER_MODE`
   3. Fallback by `PM_RUNNING_IN_CONTAINER` (`container_bridge` in container, otherwise `local`)
 
+## Persistent Process Architecture
+
+Commands executed through the GUI runtime follow a persistent-process model: the Rust process outlives the TCP connection that initiated it, and output is tracked in memory so that later `read_output` and `kill` requests can retrieve or terminate it.
+
+### Data Flow
+
+```
+TypeScript (memory_terminal action: run)
+    │
+    ▼
+TcpTerminalAdapter  ── TCP ──►  Rust TcpServer  ── mpsc ──►  msg_task
+    │                                                             │
+    │  (connection closed after                       CommandRequest queued
+    │   CommandResponse received)                     via command_tx
+    │                                                             │
+    ▼                                                             ▼
+guiSessions.add(response.id)                                 exec_task
+                                                                  │
+                                                    ┌─────────────┼─────────────┐
+                                                    │             │             │
+                                              OutputTracker   kill channel   command_executor
+                                              .store(running)  (oneshot tx)   .execute_command()
+                                                    │             │             │
+                                                    │             ▼             │
+                                                    │      tokio::select! {     │
+                                                    │        exec future,       │
+                                                    │        kill_rx            │
+                                                    │      }                    │
+                                                    │             │             │
+                                                    ▼             ▼             ▼
+                                              OutputTracker.mark_completed(exit_code, stdout, stderr)
+
+Later:  read_output / kill
+    │
+    ▼
+Fresh TcpTerminalAdapter  ── TCP ──►  msg_task match arm
+    │                                      │
+    │  ReadOutputRequest         OutputTracker.build_read_output_response()
+    │  KillSessionRequest        OutputTracker.try_kill() → oneshot::send()
+    │                                      │
+    ◄──────── response ───────────────────-┘
+```
+
+### Read Output Protocol
+
+1. TypeScript calls `memory_terminal` with `action: "read_output"` and `session_id`.
+2. The server checks `guiSessions`: if the session ID is present, it routes through TCP to the Rust runtime instead of the local headless handler.
+3. A **fresh `TcpTerminalAdapter`** is created, connects to the runtime, sends a `ReadOutputRequest`, and awaits the `ReadOutputResponse`.
+4. Inside Rust, `msg_task` matches `Message::ReadOutputRequest` and calls `OutputTracker.build_read_output_response()`, which looks up the session by ID and returns accumulated stdout/stderr, running state, and exit code.
+5. If the process has completed (`running: false`), TypeScript removes the session from `guiSessions` so future calls fall back to the local handler.
+
+### Kill Protocol
+
+1. TypeScript calls `memory_terminal` with `action: "kill"` and `session_id`.
+2. Same `guiSessions` routing as read_output — a fresh `TcpTerminalAdapter` sends a `KillSessionRequest`.
+3. Inside Rust, `msg_task` matches `Message::KillSessionRequest` and calls `OutputTracker.try_kill()`.
+4. `try_kill()` removes the `oneshot::Sender` for that session and sends `()` on it.
+5. In `exec_task`, the running command is inside a `tokio::select!` that races the execution future against `kill_rx`. When `kill_rx` resolves, the execution future is dropped (killing the child process), and `OutputTracker.mark_completed()` records exit code `-1`.
+6. TypeScript removes the session from `guiSessions` regardless of kill result.
+
+### Kill Channel Mechanism
+
+Each command execution creates a `tokio::sync::oneshot` channel pair:
+
+```rust
+let (kill_tx, kill_rx) = tokio::sync::oneshot::channel::<()>();
+```
+
+- **`kill_tx`** is registered with `OutputTracker.register_kill_sender(&req.id, kill_tx)` and stored in `OutputTracker.kill_senders` (keyed by request ID).
+- **`kill_rx`** is used inside `exec_task`'s `tokio::select!` block to race against the actual command execution.
+- When a `KillSessionRequest` arrives, `try_kill()` removes and fires the sender. The `select!` branch for `kill_rx` wins, dropping the execution future and capturing partial output.
+- After natural completion, `mark_completed()` removes the kill sender since it's no longer needed.
+
+### Session ID Mapping
+
+The session/request ID flows through the entire stack as a single consistent key:
+
+| Layer | Field | Usage |
+|-------|-------|-------|
+| TypeScript (server) | `guiSessions` Set | Tracks which sessions were routed through GUI |
+| TCP protocol | `CommandRequest.id` | Request identifier sent to Rust |
+| Rust `exec_task` | `req.id` | Key for `OutputTracker.store()` and `register_kill_sender()` |
+| Rust `OutputTracker` | `completed` HashMap key | Lookup key for `build_read_output_response()` and `try_kill()` |
+| TCP responses | `ReadOutputResponse.session_id` / `KillSessionResponse.session_id` | Returned to TypeScript for correlation |
+
+`CommandRequest.id` is the canonical session identifier. TypeScript adds it to `guiSessions` after a successful run, and all subsequent `read_output`/`kill` calls use it to route through TCP and look up the correct `OutputTracker` entry.
+
+### Fresh Adapter Pattern
+
+Each `read_output` and `kill` call creates a **new `TcpTerminalAdapter`** instance rather than reusing the one from the original `run` call. This works because:
+
+1. **Single-client TCP server**: The Rust runtime's `TcpServer` accepts one client at a time. The original connection is closed after the `CommandResponse` is received, freeing the listener for subsequent connections.
+2. **State is server-side**: All output and kill-channel state lives in `OutputTracker` (inside `AppState`), not in the TCP connection. Any new connection can query or mutate it.
+3. **Clean lifecycle**: Each adapter connects, sends one request, receives one response, and disconnects. No connection pooling or keepalive complexity.
+
+### OutputTracker
+
+`OutputTracker` (in `cxxqt_bridge/completed_outputs.rs`) is the in-memory store that bridges `exec_task` (producer) and `msg_task` (consumer):
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `completed` | `HashMap<String, CompletedOutput>` | Stores stdout/stderr/exit_code/running for each session |
+| `kill_senders` | `HashMap<String, oneshot::Sender<()>>` | Kill channels for running processes |
+
+Key methods:
+- `store()` — records a new entry (initially `running: true`, empty output)
+- `mark_completed()` — updates with final exit code and output, removes kill sender
+- `build_read_output_response()` — builds a `ReadOutputResponse` message from stored data
+- `try_kill()` — removes and fires the kill sender, returns `KillSessionResponse`
+- `evict_stale()` — removes entries older than 30 minutes
+
 ## Troubleshooting
 
 ```powershell
