@@ -15,6 +15,7 @@ import { StatusBarManager } from './ui/StatusBarManager';
 import { ServerManager } from './server/ServerManager';
 import { DefaultDeployer } from './deployer/DefaultDeployer';
 import { McpBridge, ChatParticipant, ToolProvider, confirmPendingAction, cancelPendingAction } from './chat';
+import { SessionInterceptRegistry } from './chat/orchestration/session-intercept-registry';
 import { DiagnosticsService } from './services/DiagnosticsService';
 import { notify } from './utils/helpers';
 import { getDefaultDataRoot, getDefaultAgentsRoot, getDefaultInstructionsRoot, getDefaultPromptsRoot, getDefaultSkillsRoot } from './utils/defaults';
@@ -37,6 +38,7 @@ let diagnosticsService: DiagnosticsService;
 let mcpBridge: McpBridge | null = null;
 let chatParticipant: ChatParticipant | null = null;
 let toolProvider: ToolProvider | null = null;
+let sessionInterceptRegistry: SessionInterceptRegistry | null = null;
 
 // Lazy server start state
 let serverStartPromise: Promise<boolean> | null = null;
@@ -333,6 +335,10 @@ function initializeChatIntegration(
         chatParticipant.dispose();
         chatParticipant = null;
     }
+    if (sessionInterceptRegistry) {
+        sessionInterceptRegistry.dispose();
+        sessionInterceptRegistry = null;
+    }
     if (mcpBridge) {
         try {
             mcpBridge.dispose();
@@ -357,15 +363,23 @@ function initializeChatIntegration(
         }
     });
 
+    // Initialize session registry before tools
+    sessionInterceptRegistry = new SessionInterceptRegistry(context.workspaceState);
+    sessionInterceptRegistry.restore();
+    context.subscriptions.push(sessionInterceptRegistry);
+
     if (registerChatParticipant) {
         chatParticipant = new ChatParticipant(mcpBridge);
         context.subscriptions.push(chatParticipant);
     }
 
     if (registerTools) {
-        toolProvider = new ToolProvider(mcpBridge);
+        toolProvider = new ToolProvider(mcpBridge, { sessionRegistry: sessionInterceptRegistry });
         context.subscriptions.push(toolProvider);
     }
+
+    // Set registry on dashboard provider
+    dashboardProvider.setSessionRegistry(sessionInterceptRegistry);
 
     // Reconnect command
     context.subscriptions.push(

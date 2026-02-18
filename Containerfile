@@ -104,6 +104,8 @@ ENV DASHBOARD_PORT=3001
 ENV WS_PORT=3002
 ENV PM_RUNNING_IN_CONTAINER=true
 ENV PM_TERM_ADAPTER_MODE=container_bridge
+# Container mode routes terminal approvals through the host GUI bridge
+# (host.containers.internal:45459 by default).
 ENV PM_INTERACTIVE_TERMINAL_HOST_ALIAS=host.containers.internal
 ENV PM_INTERACTIVE_TERMINAL_HOST_FALLBACK_ALIAS=host.docker.internal
 ENV PM_INTERACTIVE_TERMINAL_HOST_PORT=45459

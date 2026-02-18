@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   memoryTerminal,
   classifyCommand,
+  splitOutputIntoStreams,
+  summarizeOutput,
   type MemoryTerminalParams,
   type McpToolExtra,
 } from '../../tools/consolidated/memory_terminal.js';
@@ -161,6 +163,42 @@ describe('classifyCommand three-way authorization', () => {
   it('destructive check takes priority over allowlist', async () => {
     const result = await classifyCommand('rm', ['some-file.txt']);
     expect(result.decision).toBe('blocked');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Output summary helpers
+// ---------------------------------------------------------------------------
+
+describe('memoryTerminal output summary helpers', () => {
+  it('splits mixed output into stdout/stderr streams', () => {
+    const combined = [
+      'stdout line 1',
+      '[stderr] stderr line 1',
+      'stdout line 2',
+      '[stderr] stderr line 2',
+    ].join('\n');
+
+    const result = splitOutputIntoStreams(combined);
+
+    expect(result.stdout).toBe('stdout line 1\nstdout line 2');
+    expect(result.stderr).toBe('stderr line 1\nstderr line 2');
+  });
+
+  it('summarizes output to first 2000 chars by default', () => {
+    const longText = 'x'.repeat(2500);
+    const result = summarizeOutput(longText);
+
+    expect(result.summary).toHaveLength(2000);
+    expect(result.truncated).toBe(true);
+  });
+
+  it('does not truncate when output length is within limit', () => {
+    const shortText = 'short output';
+    const result = summarizeOutput(shortText);
+
+    expect(result.summary).toBe(shortText);
+    expect(result.truncated).toBe(false);
   });
 });
 

@@ -165,6 +165,51 @@ function stopHeartbeat(): void {
   }
 }
 
+const OUTPUT_SUMMARY_MAX_CHARS = 2000;
+
+export function splitOutputIntoStreams(output: string): {
+  stdout: string;
+  stderr: string;
+} {
+  if (!output) {
+    return { stdout: '', stderr: '' };
+  }
+
+  const stdoutLines: string[] = [];
+  const stderrLines: string[] = [];
+
+  for (const line of output.split(/\r?\n/)) {
+    if (line.startsWith('[stderr] ')) {
+      stderrLines.push(line.slice('[stderr] '.length));
+    } else if (line.length > 0) {
+      stdoutLines.push(line);
+    }
+  }
+
+  return {
+    stdout: stdoutLines.join('\n'),
+    stderr: stderrLines.join('\n'),
+  };
+}
+
+export function summarizeOutput(
+  text: string,
+  maxChars: number = OUTPUT_SUMMARY_MAX_CHARS,
+): { summary: string; truncated: boolean } {
+  if (!text) {
+    return { summary: '', truncated: false };
+  }
+
+  if (text.length <= maxChars) {
+    return { summary: text, truncated: false };
+  }
+
+  return {
+    summary: text.slice(0, maxChars),
+    truncated: true,
+  };
+}
+
 // =========================================================================
 // Response Mapping
 // =========================================================================
@@ -179,17 +224,25 @@ function mapCommandResponseToToolResponse(
   response: CommandResponse,
 ): ToolResponse {
   switch (response.status) {
-    case 'approved':
+    case 'approved': {
+      const streams = splitOutputIntoStreams(response.output ?? '');
+      const stdoutSummary = summarizeOutput(streams.stdout);
+      const stderrSummary = summarizeOutput(streams.stderr);
       return {
         success: true,
         data: {
           session_id: response.id,
-          stdout: response.output ?? '',
-          stderr: '',
+          stdout: stdoutSummary.summary,
+          stderr: stderrSummary.summary,
+          stdout_summary: stdoutSummary.summary,
+          stderr_summary: stderrSummary.summary,
+          output_summary_truncated:
+            stdoutSummary.truncated || stderrSummary.truncated,
           exit_code: response.exit_code ?? null,
           output_file_path: response.output_file_path,
         },
       };
+    }
     case 'declined':
       return {
         success: false,

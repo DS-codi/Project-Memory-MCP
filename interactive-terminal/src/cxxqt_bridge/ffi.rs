@@ -31,6 +31,7 @@ pub mod ffi {
         #[qproperty(f64, memory_usage_mb, cxx_name = "memoryUsageMb")]
         #[qproperty(QString, pending_commands_json, cxx_name = "pendingCommandsJson")]
         #[qproperty(QString, session_tabs_json, cxx_name = "sessionTabsJson")]
+        #[qproperty(QString, tray_icon_url, cxx_name = "trayIconUrl")]
         type TerminalApp = super::TerminalAppRust;
 
         #[qsignal]

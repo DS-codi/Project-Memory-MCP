@@ -6,6 +6,11 @@
     Builds the container image from the Containerfile and optionally runs it
     with appropriate port mappings and volume mounts.
 
+    IMPORTANT: In container mode, terminal approval/interactive execution is
+    handled by the host interactive-terminal GUI bridge (default port 45459).
+    Start the host GUI app before using memory_terminal run flows from inside
+    the container.
+
 .PARAMETER Action
     build   — Build the container image only
     run     — Run the container (builds first if image missing)
@@ -406,6 +411,7 @@ function Start-Container {
     Write-Host "  Host port:       $BridgePort" -ForegroundColor White
     Write-Host "  Connect timeout: $BridgeConnectTimeoutMs ms" -ForegroundColor White
     Write-Host "  Request timeout: $BridgeRequestTimeoutMs ms" -ForegroundColor White
+    Write-Host "  Requirement:     Host interactive-terminal GUI must be running" -ForegroundColor White
 
     $bridgeReady = Test-HostGuiBridge -Port $BridgePort -TimeoutMs $BridgeConnectTimeoutMs
     if (-not $bridgeReady) {

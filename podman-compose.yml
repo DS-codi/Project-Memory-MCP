@@ -44,6 +44,8 @@ services:
       - DASHBOARD_PORT=3001
       - WS_PORT=3002
       - NODE_ENV=production
+      # Host requirement: interactive-terminal GUI bridge must be running on the
+      # host (default localhost:45459) for memory_terminal run approval flows.
     extra_hosts:
       # NOTE: host-gateway resolves to the Podman bridge gateway (10.88.0.1)
       # on WSL2, NOT the Windows host. For reliable container-to-host

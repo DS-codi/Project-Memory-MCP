@@ -23,7 +23,10 @@ export type EventType =
   | 'agent_session_started'
   | 'agent_session_completed'
   | 'workspace_registered'
-  | 'context_stored';
+  | 'context_stored'
+  | 'session_interrupted'
+  | 'session_injected'
+  | 'session_stop_escalated';
 
 export interface MCPEvent {
   id: string;
@@ -186,13 +189,13 @@ export const events = {
     });
   },
   
-  agentSessionStarted: async (workspaceId: string, planId: string, agentType: string, sessionId: string) => {
+  agentSessionStarted: async (workspaceId: string, planId: string, agentType: string, sessionId: string, extraData?: Record<string, unknown>) => {
     await emitEvent({
       type: 'agent_session_started',
       workspace_id: workspaceId,
       plan_id: planId,
       agent_type: agentType,
-      data: { sessionId },
+      data: { sessionId, ...extraData },
     });
   },
   
@@ -212,6 +215,33 @@ export const events = {
       workspace_id: workspaceId,
       plan_id: planId,
       data: { note, type },
+    });
+  },
+
+  sessionInterrupted: async (workspaceId: string, planId: string, sessionId: string, escalationLevel: number, reason?: string) => {
+    await emitEvent({
+      type: 'session_interrupted',
+      workspace_id: workspaceId,
+      plan_id: planId,
+      data: { session_id: sessionId, escalation_level: escalationLevel, reason },
+    });
+  },
+
+  sessionInjected: async (workspaceId: string, planId: string, sessionId: string, textPreview: string) => {
+    await emitEvent({
+      type: 'session_injected',
+      workspace_id: workspaceId,
+      plan_id: planId,
+      data: { session_id: sessionId, text_preview: textPreview.slice(0, 100) },
+    });
+  },
+
+  sessionStopEscalated: async (workspaceId: string, planId: string, sessionId: string, fromLevel: number, toLevel: number) => {
+    await emitEvent({
+      type: 'session_stop_escalated',
+      workspace_id: workspaceId,
+      plan_id: planId,
+      data: { session_id: sessionId, from_level: fromLevel, to_level: toLevel },
     });
   },
 };

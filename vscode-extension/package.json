@@ -104,7 +104,10 @@
             },
             "mode": {
               "type": "string",
-              "enum": ["link", "unlink"],
+              "enum": [
+                "link",
+                "unlink"
+              ],
               "description": "Link or unlink mode (for link action, defaults to link)"
             },
             "hierarchical": {
@@ -654,38 +657,71 @@
               "description": "Maximum tree depth (for tree). Default 3, max 10"
             }
           },
-          "required": ["action", "workspace_id"]
+          "required": [
+            "action",
+            "workspace_id"
+          ]
         },
         "canBeInvokedManually": true
       },
       {
-        "name": "memory_spawn_agent",
-        "displayName": "Project Memory Spawn Agent",
-        "description": "Prepare context and prompt payload for native runSubagent flow (does not execute spawn)",
-        "modelDescription": "Prepare a Project Memory subagent spawn payload only. This tool does NOT execute subagent launch. It enriches the prompt with workspace/plan context, applies scope boundaries, and injects anti-spawning rules for spoke targets. Then call native runSubagent using prep_config.enriched_prompt. Supports compat_mode legacy/strict and a deprecated spawn_config alias during migration.",
+        "name": "memory_session",
+        "displayName": "Project Memory Session",
+        "description": "Agent session management. Actions: prep (context enrichment + session minting for spawn), list_sessions (query active sessions), get_session (find session by ID).",
+        "modelDescription": "Agent session management. Actions: prep (mint session ID, enrich prompt with context/scope/anti-spawning blocks — does NOT execute spawn, call runSubagent next), list_sessions (query sessions from plan state), get_session (find a specific session by ID). For prep: provide agent_name + prompt. For queries: provide workspace_id.",
         "parametersSchema": {
           "type": "object",
           "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "prep",
+                "list_sessions",
+                "get_session"
+              ],
+              "description": "The action to perform. Defaults to 'prep' when omitted for backwards compatibility."
+            },
             "agent_name": {
               "type": "string",
-              "description": "Name of the target agent for prompt preparation (e.g., Executor, Reviewer, Tester)"
+              "description": "Name of the target agent for prompt preparation (for prep action)"
             },
             "prompt": {
               "type": "string",
-              "description": "Task description used to build prep_config.enriched_prompt"
+              "description": "Task description used to build prep_config.enriched_prompt (for prep action)"
             },
             "workspace_id": {
               "type": "string",
-              "description": "Workspace ID to inject into prepared context (optional)"
+              "description": "Workspace ID"
             },
             "plan_id": {
               "type": "string",
-              "description": "Plan ID to inject into prepared context (optional)"
+              "description": "Plan ID"
             },
             "compat_mode": {
               "type": "string",
-              "enum": ["legacy", "strict"],
-              "description": "Compatibility response mode. legacy returns prep_config + deprecated spawn_config alias; strict returns canonical prep_config only."
+              "enum": [
+                "legacy",
+                "strict"
+              ],
+              "description": "Compatibility response mode (for prep). legacy returns prep_config + deprecated spawn_config alias; strict returns canonical prep_config only."
+            },
+            "parent_session_id": {
+              "type": "string",
+              "description": "Parent session ID for lineage tracking (for prep)"
+            },
+            "session_id": {
+              "type": "string",
+              "description": "Session ID to look up (for get_session)"
+            },
+            "status_filter": {
+              "type": "string",
+              "enum": [
+                "active",
+                "stopping",
+                "completed",
+                "all"
+              ],
+              "description": "Filter sessions by status (for list_sessions)"
             },
             "prep_config": {
               "type": "object",
@@ -695,12 +731,16 @@
                   "properties": {
                     "files_allowed": {
                       "type": "array",
-                      "items": { "type": "string" },
+                      "items": {
+                        "type": "string"
+                      },
                       "description": "List of files the agent is allowed to modify"
                     },
                     "directories_allowed": {
                       "type": "array",
-                      "items": { "type": "string" },
+                      "items": {
+                        "type": "string"
+                      },
                       "description": "List of directories where the agent can create files"
                     },
                     "scope_escalation_instruction": {
@@ -721,11 +761,15 @@
                   "properties": {
                     "files_allowed": {
                       "type": "array",
-                      "items": { "type": "string" }
+                      "items": {
+                        "type": "string"
+                      }
                     },
                     "directories_allowed": {
                       "type": "array",
-                      "items": { "type": "string" }
+                      "items": {
+                        "type": "string"
+                      }
                     },
                     "scope_escalation_instruction": {
                       "type": "string"
@@ -740,11 +784,15 @@
               "properties": {
                 "files_allowed": {
                   "type": "array",
-                  "items": { "type": "string" }
+                  "items": {
+                    "type": "string"
+                  }
                 },
                 "directories_allowed": {
                   "type": "array",
-                  "items": { "type": "string" }
+                  "items": {
+                    "type": "string"
+                  }
                 },
                 "scope_escalation_instruction": {
                   "type": "string"
@@ -752,7 +800,7 @@
               }
             }
           },
-          "required": ["agent_name", "prompt"]
+          "required": []
         },
         "canBeInvokedManually": true
       }
@@ -1190,12 +1238,15 @@
     "esbuild": "^0.27.3",
     "eslint": "^9.39.2",
     "mocha": "^11.7.5",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "vitest": "^4.0.18"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "chokidar": "^3.5.3",
-    "glob": "^13.0.1"  },
+    "glob": "^13.0.1"
+  },
   "overrides": {
-    "diff": "^8.0.3"  }
+    "diff": "^8.0.3"
+  }
 }

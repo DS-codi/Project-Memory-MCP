@@ -18,6 +18,7 @@ import * as handoffTools from '../handoff.tools.js';
 import * as agentTools from '../agent.tools.js';
 import * as validationTools from '../agent-validation.tools.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
+import { events } from '../../events/event-emitter.js';
 
 export type AgentAction = 
   | 'init' 
@@ -128,6 +129,22 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
       }
 
       const initData = result.data!;
+      
+      // If extension provided session_id in context, include it in event for audit trail
+      if (params.context?.session_id && params.workspace_id && params.plan_id && initData.session) {
+        try {
+          await events.agentSessionStarted(
+            params.workspace_id,
+            params.plan_id,
+            params.agent_type,
+            initData.session.session_id,
+            { extension_session_id: params.context.session_id }
+          );
+        } catch {
+          // Event emission failure is non-fatal
+        }
+      }
+
       const wantsValidation = params.validate === true || params.validation_mode === 'init+validate';
 
       if (wantsValidation && params.workspace_id && params.plan_id) {

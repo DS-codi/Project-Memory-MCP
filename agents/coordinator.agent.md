@@ -378,6 +378,15 @@ while plan.status != "archived":
 
 ---
 
+## Session Interruption Recovery
+
+- On re-init, check for `orphaned_sessions` in the `memory_agent(action: init)` response.
+- If orphaned sessions are found, follow the recovery protocol in `instructions/subagent-recovery.instructions.md` before spawning the next agent.
+- After a subagent returns with reason "User requested stop", assess plan state (`memory_plan(action: get)`) and check for partial work (`git diff --stat`) before spawning the next agent.
+- If injected guidance was sent to a subagent, verify the subagent incorporated it by reviewing its handoff data.
+
+---
+
 ## ⚠️ COMMON MISTAKES TO AVOID
 
 1. **Forgetting to call `memory_plan` (action: get)** after a sub-agent returns

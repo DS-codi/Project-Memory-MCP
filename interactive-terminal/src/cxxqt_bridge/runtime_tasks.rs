@@ -310,12 +310,17 @@ pub(crate) fn spawn_runtime_tasks(
                 }
             };
 
-            // Shared flag so the idle-timeout task can observe connection state.
+            // Shared flags so the idle-timeout task can observe connection state.
             let idle_connected = Arc::new(AtomicBool::new(false));
+            // Track whether any client has ever connected — idle timeout only
+            // starts counting after the first client connects and disconnects,
+            // so the tray app can wait indefinitely for its first client.
+            let has_ever_connected = Arc::new(AtomicBool::new(false));
 
             let evt_task = {
                 let qt = qt_thread_evt;
                 let idle_connected = idle_connected.clone();
+                let has_ever_connected = has_ever_connected.clone();
                 async move {
                     loop {
                         match event_rx.recv().await {
@@ -333,6 +338,9 @@ pub(crate) fn spawn_runtime_tasks(
                                 };
 
                                 idle_connected.store(connected, Ordering::Relaxed);
+                                if connected {
+                                    has_ever_connected.store(true, Ordering::Relaxed);
+                                }
 
                                 let _ = qt.queue(move |mut obj| {
                                     obj.as_mut().set_is_connected(connected);
@@ -355,23 +363,42 @@ pub(crate) fn spawn_runtime_tasks(
                 async move {
                     let mut cmd_rx = command_rx;
                     while let Some(req) = cmd_rx.recv().await {
+                        let started_at_ms = crate::output_persistence::now_epoch_millis();
                         let (output_tx, mut output_rx) = tokio::sync::mpsc::channel::<OutputLine>(64);
+                        let persisted_lines = Arc::new(Mutex::new(Vec::<crate::output_persistence::PersistedOutputLine>::new()));
 
                         let qt_output = qt.clone();
+                        let persisted_lines_for_task = persisted_lines.clone();
                         let output_forward = tokio::spawn(async move {
                             while let Some(line) = output_rx.recv().await {
-                                let text = match &line {
-                                    OutputLine::Stdout(l) => l.clone(),
-                                    OutputLine::Stderr(l) => {
-                                        format!("[stderr] {l}")
-                                    }
+                                let (stream, text, ui_line) = match &line {
+                                    OutputLine::Stdout(l) => (
+                                        "stdout".to_string(),
+                                        l.clone(),
+                                        l.clone(),
+                                    ),
+                                    OutputLine::Stderr(l) => (
+                                        "stderr".to_string(),
+                                        l.clone(),
+                                        format!("[stderr] {l}"),
+                                    ),
                                 };
+
+                                {
+                                    let mut lines = persisted_lines_for_task.lock().unwrap();
+                                    lines.push(crate::output_persistence::PersistedOutputLine {
+                                        timestamp_ms: crate::output_persistence::now_epoch_millis(),
+                                        stream,
+                                        text,
+                                    });
+                                }
+
                                 let _ = qt_output.queue(move |mut obj| {
                                     let cur = obj.as_ref().output_text().to_string();
                                     let new_text = if cur.is_empty() {
-                                        text
+                                        ui_line
                                     } else {
-                                        format!("{cur}\n{text}")
+                                        format!("{cur}\n{ui_line}")
                                     };
                                     obj.as_mut().set_output_text(QString::from(&new_text));
                                     let line_q = QString::from(&new_text);
@@ -384,16 +411,33 @@ pub(crate) fn spawn_runtime_tasks(
                             command_executor::execute_command_with_timeout(&req, output_tx).await;
 
                         let _ = output_forward.await;
+                        let completed_at_ms = crate::output_persistence::now_epoch_millis();
+                        let captured_lines = persisted_lines.lock().unwrap().clone();
 
                         match result {
                             Ok(exec_result) => {
+                                let persisted_path = match crate::output_persistence::write_command_output_file(
+                                    &req,
+                                    &ResponseStatus::Approved,
+                                    &captured_lines,
+                                    exec_result.exit_code,
+                                    started_at_ms,
+                                    completed_at_ms,
+                                ) {
+                                    Ok(path) => Some(path),
+                                    Err(error) => {
+                                        eprintln!("Failed to persist command output: {error}");
+                                        None
+                                    }
+                                };
+
                                 let response = Message::CommandResponse(CommandResponse {
                                     id: exec_result.request_id.clone(),
                                     status: ResponseStatus::Approved,
                                     output: Some(exec_result.output),
                                     exit_code: exec_result.exit_code,
                                     reason: None,
-                                    output_file_path: None,
+                                    output_file_path: persisted_path,
                                 });
 
                                 {
@@ -414,13 +458,37 @@ pub(crate) fn spawn_runtime_tasks(
                                 });
                             }
                             Err(err) => {
+                                let mut error_lines = captured_lines;
+                                if error_lines.is_empty() {
+                                    error_lines.push(crate::output_persistence::PersistedOutputLine {
+                                        timestamp_ms: completed_at_ms,
+                                        stream: "stderr".to_string(),
+                                        text: err.clone(),
+                                    });
+                                }
+
+                                let persisted_path = match crate::output_persistence::write_command_output_file(
+                                    &req,
+                                    &ResponseStatus::Approved,
+                                    &error_lines,
+                                    Some(-1),
+                                    started_at_ms,
+                                    completed_at_ms,
+                                ) {
+                                    Ok(path) => Some(path),
+                                    Err(error) => {
+                                        eprintln!("Failed to persist command output after error: {error}");
+                                        None
+                                    }
+                                };
+
                                 let response = Message::CommandResponse(CommandResponse {
                                     id: req.id.clone(),
                                     status: ResponseStatus::Approved,
                                     output: Some(err.clone()),
                                     exit_code: Some(-1),
                                     reason: None,
-                                    output_file_path: None,
+                                    output_file_path: persisted_path,
                                 });
 
                                 {
@@ -446,6 +514,7 @@ pub(crate) fn spawn_runtime_tasks(
             let idle_timeout_task = {
                 let state = state_for_idle;
                 let connected = idle_connected;
+                let ever_connected = has_ever_connected;
                 async move {
                     let idle_secs = *crate::IDLE_TIMEOUT.get().unwrap_or(&300);
                     if idle_secs == 0 {
@@ -474,8 +543,13 @@ pub(crate) fn spawn_runtime_tasks(
                         if is_connected || has_pending {
                             // Activity present — reset idle timer.
                             idle_since = None;
+                        } else if !ever_connected.load(Ordering::Relaxed) {
+                            // No client has ever connected — don't start the
+                            // idle timer yet (tray app waiting for first client).
+                            idle_since = None;
                         } else {
-                            // No client, no pending commands.
+                            // No client, no pending commands, but a client
+                            // connected at least once before.
                             let start = *idle_since.get_or_insert_with(Instant::now);
                             if start.elapsed() >= timeout {
                                 eprintln!(

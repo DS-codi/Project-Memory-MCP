@@ -10,6 +10,7 @@ import { getConnectedDashboardHtml, getDisconnectedFallbackHtml } from './sectio
 import { getClientHelpers } from './client-helpers';
 import { getSkillsClientHelpers } from './skills-section';
 import { getInstructionsClientHelpers } from './instructions-section';
+import { getSessionsClientHelpers } from './sessions-section';
 
 /** Parameters needed to generate the client-side script */
 export interface ClientScriptParams {
@@ -40,6 +41,7 @@ export function getClientScript(params: ClientScriptParams): string {
     const helpers = getClientHelpers();
     const skillsHelpers = getSkillsClientHelpers();
     const instructionsHelpers = getInstructionsClientHelpers();
+    const sessionsHelpers = getSessionsClientHelpers();
 
     return `
         const vscode = acquireVsCodeApi();
@@ -199,6 +201,7 @@ export function getClientScript(params: ClientScriptParams): string {
         // Skills and instructions management helpers (hoisted)
         ${skillsHelpers}
         ${instructionsHelpers}
+        ${sessionsHelpers}
 
         var sizeObserver = new ResizeObserver(function(entries) {
             for (var i = 0; i < entries.length; i++) {

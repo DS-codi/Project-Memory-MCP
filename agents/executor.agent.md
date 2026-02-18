@@ -217,6 +217,12 @@ Example handoff:
 }
 ```
 
+## Session Interruption Compliance
+
+- If you receive a stop directive (`⚠️ SESSION STOP` or `🛑 SESSION STOP — IMMEDIATE`) in any tool response, immediately call `memory_agent(action: handoff)` with reason "User requested stop" and then `memory_agent(action: complete)`. Do not continue work.
+- If you receive injected user guidance (`📝 USER GUIDANCE`) in a tool response, treat it as a high-priority direction from the user and adjust your approach accordingly. Continue working but incorporate the guidance.
+- Always include `_session_id` in MCP tool calls when provided in your enriched prompt.
+
 ## Output Artifacts
 
 - Modified source files

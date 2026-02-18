@@ -3,6 +3,7 @@
  */
 
 import { McpBridge } from '../McpBridge';
+import type { SessionInterceptRegistry } from '../orchestration/session-intercept-registry';
 
 /**
  * Context object passed to all tool handlers.
@@ -12,4 +13,5 @@ export interface ToolContext {
     mcpBridge: McpBridge;
     ensureWorkspace: () => Promise<string>;
     setWorkspaceId: (id: string) => void;
+    sessionRegistry?: SessionInterceptRegistry;
 }

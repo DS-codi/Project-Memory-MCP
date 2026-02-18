@@ -8,6 +8,7 @@
 import { IconSvgs } from './icons';
 import { getSkillsSectionHtml } from './skills-section';
 import { getInstructionsSectionHtml } from './instructions-section';
+import { getSessionsSectionHtml } from './sessions-section';
 
 /**
  * HTML for the connected dashboard state.
@@ -129,6 +130,8 @@ export function getConnectedDashboardHtml(
 ${getSkillsSectionHtml(iconSvgs)}
 
 ${getInstructionsSectionHtml(iconSvgs)}
+
+${getSessionsSectionHtml(iconSvgs)}
 
                             <section class="collapsible" id="widget-plans">
                                 <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-plans">
