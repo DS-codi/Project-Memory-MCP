@@ -17,7 +17,7 @@ import { events } from '../../events/event-emitter.js';
 // Template Types
 // =============================================================================
 
-export type PlanTemplate = 'feature' | 'bugfix' | 'refactor' | 'documentation' | 'analysis' | 'investigation';
+export type PlanTemplate = 'feature' | 'bugfix' | 'refactor' | 'documentation' | 'analysis' | 'investigation_workflow';
 
 export interface PlanTemplateSteps {
   template: PlanTemplate;
@@ -99,8 +99,8 @@ const PLAN_TEMPLATES: Record<PlanTemplate, PlanTemplateSteps> = {
       { phase: 'Reporting', task: 'Provide recommendations', status: 'pending', type: 'documentation' }
     ]
   },
-  investigation: {
-    template: 'investigation',
+  investigation_workflow: {
+    template: 'investigation_workflow',
     goals: ['Resolve the identified problem', 'Produce a validated explanation or fix path'],
     success_criteria: ['Root cause is identified', 'Evidence supports conclusions', 'Resolution path is clear'],
     steps: [
@@ -163,11 +163,11 @@ export async function createPlanFromTemplate(
     // Map template to category
     const categoryMap: Record<PlanTemplate, RequestCategory> = {
       feature: 'feature',
-      bugfix: 'bug',
+      bugfix: 'bugfix',
       refactor: 'refactor',
-      documentation: 'documentation',
-      analysis: 'analysis',
-      investigation: 'investigation'
+      documentation: 'quick_task',
+      analysis: 'advisory',
+      investigation_workflow: 'advisory'
     };
 
     const plan = await store.createPlan(

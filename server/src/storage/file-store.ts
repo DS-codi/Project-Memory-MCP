@@ -11,7 +11,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import type { PlanState, WorkspaceMeta, WorkspaceProfile, RequestCategory, RequestCategorization, BuildScript, WorkspaceContext, WorkspaceOverlapInfo } from '../types/index.js';
+import type { PlanState, WorkspaceMeta, WorkspaceProfile, RequestCategory, RequestCategorization, BuildScript, WorkspaceContext, WorkspaceOverlapInfo, Investigation } from '../types/index.js';
 import { STEP_TYPE_BEHAVIORS } from '../types/index.js';
 import { appendWorkspaceFileUpdate } from '../logging/workspace-update-log.js';
 import {
@@ -38,6 +38,7 @@ import {
 } from './file-lock.js';
 import { upsertRegistryEntry, readRegistry } from './workspace-registry.js';
 import { detectOverlaps, checkRegistryForOverlaps } from './workspace-hierarchy.js';
+import { PLAN_SCHEMA_VERSION } from '../tools/plan/plan-version.js';
 
 // Re-export from workspace-identity module for backwards compatibility
 export type { WorkspaceIdentityFile } from './workspace-identity.js';
@@ -157,6 +158,14 @@ export function getResearchNotesPath(workspaceId: string, planId: string): strin
 
 export function getContextPath(workspaceId: string, planId: string, contextType: string): string {
   return path.join(getPlanPath(workspaceId, planId), `${contextType}.json`);
+}
+
+function getInvestigationsDir(workspaceId: string, planId: string): string {
+  return path.join(getDataRoot(), workspaceId, 'plans', planId, 'investigations');
+}
+
+function getInvestigationStatePath(workspaceId: string, planId: string, investigationId: string): string {
+  return path.join(getInvestigationsDir(workspaceId, planId), investigationId, 'state.json');
 }
 
 // readWorkspaceIdentityFile is now provided by workspace-identity.ts
@@ -692,7 +701,15 @@ export async function findPlanById(planId: string): Promise<{ workspace_id: stri
 }
 
 /**
- * Get a plan state by ID
+ * Load plan state from disk.
+ *
+ * Returns the raw JSON plan state without mutation. Plans may or may not
+ * have `schema_version` and `phases` fields:
+ * - v1 plans (legacy): no schema_version, no phases — phases are implicit in step.phase strings
+ * - v2 plans: schema_version = '2.0', phases array present
+ *
+ * Callers should use `getPlanSchemaVersion()` from plan-version.ts to detect version.
+ * NO on-read mutation is performed — the Migrator agent handles v1 → v2 data migration.
  */
 export async function getPlanState(workspaceId: string, planId: string): Promise<PlanState | null> {
   const filePath = getPlanStatePath(workspaceId, planId);
@@ -774,7 +791,9 @@ export async function createPlan(
     goals,
     success_criteria,
     status: 'active',
+    schema_version: PLAN_SCHEMA_VERSION,
     current_phase: 'initialization',
+    phases: [],
     current_agent: null,
     confirmation_state: { phases: {}, steps: {} },
     created_at: now,
@@ -1009,6 +1028,58 @@ export async function deleteBuildScript(
 
 // Re-export findBuildScript from its own module for backwards compatibility
 export { findBuildScript } from './build-script-utils.js';
+
+// =============================================================================
+// Investigation CRUD
+// =============================================================================
+
+export async function createInvestigation(
+  workspaceId: string,
+  planId: string,
+  investigation: Investigation
+): Promise<void> {
+  const statePath = getInvestigationStatePath(workspaceId, planId, investigation.id);
+  await ensureDir(path.dirname(statePath));
+  await writeJsonLocked(statePath, investigation);
+}
+
+export async function getInvestigation(
+  workspaceId: string,
+  planId: string,
+  investigationId: string
+): Promise<Investigation | null> {
+  const statePath = getInvestigationStatePath(workspaceId, planId, investigationId);
+  if (!await exists(statePath)) return null;
+  return readJson(statePath) as Promise<Investigation>;
+}
+
+export async function updateInvestigation(
+  workspaceId: string,
+  planId: string,
+  investigation: Investigation
+): Promise<void> {
+  const statePath = getInvestigationStatePath(workspaceId, planId, investigation.id);
+  await writeJsonLocked(statePath, investigation);
+}
+
+export async function listInvestigations(
+  workspaceId: string,
+  planId: string
+): Promise<Investigation[]> {
+  const dir = getInvestigationsDir(workspaceId, planId);
+  if (!await exists(dir)) return [];
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const investigations: Investigation[] = [];
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      const statePath = path.join(dir, entry.name, 'state.json');
+      if (await exists(statePath)) {
+        investigations.push(await readJson(statePath) as Investigation);
+      }
+    }
+  }
+  return investigations;
+}
 
 export function parseCommandTokens(command: string): string[] {
   const tokens: string[] = [];

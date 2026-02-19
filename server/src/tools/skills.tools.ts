@@ -15,6 +15,7 @@ import type {
   SkillCategory,
 } from '../types/skill.types.js';
 import { appendWorkspaceFileUpdate } from '../logging/workspace-update-log.js';
+import { invalidateSkillRegistryCache } from './skill-registry.js';
 
 // Path to the skills directory (relative to the server)
 const SKILLS_ROOT = process.env.MBS_SKILLS_ROOT || path.join(process.cwd(), '..', 'skills');
@@ -27,7 +28,7 @@ const SKILLS_ROOT = process.env.MBS_SKILLS_ROOT || path.join(process.cwd(), '..'
  * Parse YAML-like frontmatter from a SKILL.md file.
  * Handles: name, description, category, tags, language_targets, framework_targets.
  */
-function parseFrontmatter(content: string): {
+export function parseFrontmatter(content: string): {
   frontmatter: Record<string, unknown>;
   body: string;
 } {
@@ -198,6 +199,13 @@ export async function deploySkillsToWorkspace(
       } catch (err) {
         result.errors!.push(`Failed to deploy ${entry}: ${(err as Error).message}`);
       }
+    }
+
+    // Invalidate skill registry cache so it rebuilds on next access
+    try {
+      invalidateSkillRegistryCache(workspace_path);
+    } catch {
+      // Non-fatal: cache invalidation failure shouldn't block deploy
     }
 
     return { success: true, data: result };

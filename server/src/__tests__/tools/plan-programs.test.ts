@@ -351,7 +351,7 @@ describe('Plan Programs (plan-programs.ts)', () => {
         { index: 0, phase: 'P1', task: 'T1', status: 'done' as const },
         { index: 1, phase: 'P1', task: 'T2', status: 'pending' as const },
       ];
-      const plan = makePlan({ id: 'plan_migrate', steps, category: 'bug' });
+      const plan = makePlan({ id: 'plan_migrate', steps, category: 'bugfix' });
       const childPlan = makePlan({ id: 'child_new' });
 
       vi.mocked(store.getPlanState).mockResolvedValueOnce(plan);

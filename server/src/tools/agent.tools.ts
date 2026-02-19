@@ -9,9 +9,9 @@ import { appendWorkspaceFileUpdate } from '../logging/workspace-update-log.js';
 import { deploySkillsToWorkspace } from './skills.tools.js';
 
 // Path to the agents directory (relative to the server)
-const AGENTS_ROOT = process.env.MBS_AGENTS_ROOT || path.join(process.cwd(), '..', 'agents');
+export const AGENTS_ROOT = process.env.MBS_AGENTS_ROOT || path.join(process.cwd(), '..', 'agents');
 const PROMPTS_ROOT = process.env.MBS_PROMPTS_ROOT || path.join(process.cwd(), '..', 'prompts');
-const INSTRUCTIONS_ROOT = process.env.MBS_INSTRUCTIONS_ROOT || path.join(process.cwd(), '..', 'instructions');
+export const INSTRUCTIONS_ROOT = process.env.MBS_INSTRUCTIONS_ROOT || path.join(process.cwd(), '..', 'instructions');
 
 /**
  * List available agent instruction files

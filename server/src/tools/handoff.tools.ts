@@ -31,14 +31,20 @@ import type {
   AgentRoleBoundaries,
   AgentInstructionFile
 } from '../types/index.js';
+import type { HandoffStats, StatsValidationResult } from '../types/index.js';
+import { promises as fs } from 'fs';
 import { AGENT_BOUNDARIES } from '../types/index.js';
 import * as store from '../storage/file-store.js';
 import { verifyLineageIntegrity, sanitizeJsonData } from '../security/sanitize.js';
 import { events } from '../events/event-emitter.js';
 import * as contextTools from './context.tools.js';
 import { compactifyPlanState, compactifyWithBudget } from '../utils/compact-plan-state.js';
+import { initSessionStats, finalizeSessionStats, validateStats } from './session-stats.js';
+import { generateIncidentReport } from './incident-report.js';
 import { buildWorkspaceContextSummary } from '../utils/workspace-context-summary.js';
-import { matchWorkspaceSkillsToContext } from './skills.tools.js';
+import { buildSkillRegistry } from './skill-registry.js';
+import { invalidateSkillRegistryCache } from './skill-registry.js';
+import { matchSkillsToStep } from './skill-phase-matcher.js';
 import {
   recoverStaleRuns,
   acquireActiveRun,
@@ -46,6 +52,7 @@ import {
   writeActiveRun,
   type ActiveRunLifecycleRecord
 } from './orchestration/stale-run-recovery.js';
+import { buildToolContracts } from './preflight/index.js';
 
 /**
  * Initialize an agent session - MUST be called first by every agent
@@ -288,6 +295,24 @@ export async function initialiseAgent(
     } catch {
       // Instruction file discovery failure is non-fatal, just continue without them
     }
+
+    // Initialize session stats tracking with context bundle file list
+    try {
+      const bundleFiles: string[] = [];
+      if (instruction_files) {
+        for (const inf of instruction_files) {
+          if (inf.files_to_read) bundleFiles.push(...inf.files_to_read);
+        }
+      }
+      // Include any context files the agent was told to read
+      const ctxFilesToRead = (sanitizedContext as Record<string, unknown>)?.files_to_read;
+      if (Array.isArray(ctxFilesToRead)) {
+        bundleFiles.push(...ctxFilesToRead.filter((f): f is string => typeof f === 'string'));
+      }
+      initSessionStats(session.session_id, bundleFiles);
+    } catch {
+      // Stats init failure is non-fatal
+    }
     
     // Determine plan_state payload: compact (default) or full
     const useCompact = params.compact !== false;
@@ -308,44 +333,80 @@ export async function initialiseAgent(
       }
     }
 
-    // Discover and match workspace skills against plan/step context
+    // Discover and match workspace skills against plan/step context (cached registry)
     let matched_skills: import('../types/index.js').MatchedSkillEntry[] | undefined;
+    if (params.include_skills !== false) {
+      try {
+        const registry = await buildSkillRegistry(workspace.path);
+        if (registry.entries.length > 0) {
+          // Collect keywords from plan title, current phase, and active/pending steps
+          const contextParts = [
+            state.title,
+            state.current_phase,
+            ...state.steps
+              .filter(s => s.status === 'active' || s.status === 'pending')
+              .slice(0, 5)
+              .map(s => s.task)
+          ];
+
+          // TDDDriver gets boosted testing-related context
+          if (agent_type === 'TDDDriver') {
+            contextParts.push('testing', 'tdd', 'test-driven development', 'unit test', 'test framework', 'red green refactor');
+          }
+
+          // Use matchSkillsToStep with a synthetic step built from aggregated context
+          const syntheticStep = { phase: state.current_phase || '', task: contextParts.filter(Boolean).join(' '), index: 0, status: 'active' as const };
+          const matches = matchSkillsToStep(registry, syntheticStep);
+
+          if (matches.length > 0) {
+            // Determine phase-linked skills from current phase definition
+            const currentPhase = state.phases?.find(p => p.name === state.current_phase);
+            const phaseLinkedSkills = new Set(currentPhase?.linked_skills ?? []);
+
+            // Build matched_skills with lazy content loading for top 3
+            const top = matches.slice(0, 5);
+            const entries: import('../types/index.js').MatchedSkillEntry[] = [];
+            for (let idx = 0; idx < top.length; idx++) {
+              const m = top[idx];
+              const isPhaseLinked = phaseLinkedSkills.has(m.skill_name);
+              let content: string | undefined;
+              if (idx < 3) {
+                const entry = registry.entries.find(e => e.name === m.skill_name);
+                if (entry?.file_path) {
+                  try { content = await fs.readFile(entry.file_path, 'utf-8'); } catch { /* skip */ }
+                }
+              }
+              entries.push({
+                skill_name: m.skill_name,
+                relevance_score: isPhaseLinked
+                  ? Math.round(Math.min(m.relevance_score + 0.2, 1.0) * 1000) / 1000
+                  : m.relevance_score,
+                matched_keywords: m.matched_keywords,
+                content,
+                phase_linked: isPhaseLinked || undefined,
+              });
+            }
+
+            // Re-sort after phase boost to keep highest scores first
+            entries.sort((a, b) => b.relevance_score - a.relevance_score);
+            matched_skills = entries;
+          }
+        }
+      } catch {
+        // Non-fatal: skill matching failure doesn't block init
+      }
+    }
+
+    // Build per-agent tool contract summaries (non-fatal)
+    let tool_contracts: import('../types/preflight.types.js').ToolContractSummary[] | undefined;
     try {
-      // Build context string from plan title, current phase, and active/pending step tasks
-      const contextParts = [
-        state.title,
-        state.current_phase,
-        ...state.steps
-          .filter(s => s.status === 'active' || s.status === 'pending')
-          .slice(0, 5)
-          .map(s => s.task)
-      ];
-
-      // TDDDriver gets boosted testing-related context for better skill matching
-      if (agent_type === 'TDDDriver') {
-        contextParts.push('testing', 'tdd', 'test-driven development', 'unit test', 'test framework', 'red green refactor');
-      }
-
-      const contextString = contextParts.filter(Boolean).join(' ');
-
-      const skillResult = await matchWorkspaceSkillsToContext({
-        workspace_path: workspace.path,
-        task_description: contextString,
-        min_score: 0.3,
-        max_results: 5
-      });
-
-      if (skillResult.success && skillResult.data && skillResult.data.length > 0) {
-        matched_skills = skillResult.data.map((m, idx) => ({
-          skill_name: m.skill_name,
-          relevance_score: m.relevance_score,
-          matched_keywords: m.matched_keywords,
-          // Include full content for top 3 matches only
-          content: idx < 3 ? m.content : undefined
-        }));
-      }
-    } catch {
-      // Non-fatal: skill matching failure doesn't block init
+      tool_contracts = buildToolContracts(agent_type);
+    } catch (contractErr) {
+      console.warn(
+        `[preflight] Failed to build tool contracts for ${agent_type}:`,
+        (contractErr as Error).message
+      );
+      // Continue without tool_contracts — non-fatal
     }
 
     return {
@@ -364,6 +425,7 @@ export async function initialiseAgent(
         instruction_files,
         matched_skills,
         workspace_context_summary,
+        tool_contracts,
         context_size_bytes: measurePayloadSize(plan_state_payload, workspace_context_summary, matched_skills)
       }
     };
@@ -456,7 +518,63 @@ export async function completeAgent(
     if (artifacts) {
       session.artifacts = artifacts;
     }
+
+    // --- Handoff Stats: finalize MCP-tracked stats & validate ---
+    const mcpTracked = finalizeSessionStats(session.session_id, session.started_at);
+    if (mcpTracked) {
+      session.handoff_stats = mcpTracked;
+
+      // Check for agent-reported stats stored during handoff()
+      const agentReported = (session as AgentSession & { agent_reported_stats?: HandoffStats }).agent_reported_stats;
+      if (agentReported) {
+        const validationResult = validateStats(mcpTracked, agentReported);
+        session.stats_validation = validationResult;
+        if (!validationResult.matches) {
+          console.warn(
+            `[handoff-stats] Stats discrepancies for session ${session.session_id} (${session.agent_type}):`,
+            validationResult.discrepancies
+          );
+        }
+        // Clean up temporary field
+        delete (session as AgentSession & { agent_reported_stats?: HandoffStats }).agent_reported_stats;
+      }
+    }
     
+    // --- Incident Report: auto-generate for Revisionist sessions ---
+    if (agent_type === 'Revisionist') {
+      try {
+        const report = generateIncidentReport(workspace_id, plan_id, session, state);
+        await contextTools.storeContext({
+          workspace_id,
+          plan_id,
+          type: 'incident_report',
+          data: report as unknown as Record<string, unknown>,
+        });
+        if (session.artifacts) {
+          session.artifacts.push('incident_report');
+        } else {
+          session.artifacts = ['incident_report'];
+        }
+      } catch (err) {
+        console.warn(
+          `[incident-report] Failed to generate incident report for session ${session.session_id}:`,
+          (err as Error).message,
+        );
+      }
+    }
+
+    // --- SkillWriter cache invalidation: when a SkillWriter completes with skill artifacts ---
+    if (agent_type === 'SkillWriter' && artifacts?.some(a => a.includes('.github/skills/'))) {
+      try {
+        const ws = await store.getWorkspace(workspace_id);
+        if (ws?.path) {
+          invalidateSkillRegistryCache(ws.path);
+        }
+      } catch {
+        // Non-fatal: cache invalidation failure shouldn't block completion
+      }
+    }
+
     // Control returns to Coordinator - set current_agent back to Coordinator
     // unless this is the Archivist finalizing the plan
     if (agent_type !== 'Archivist') {
@@ -557,6 +675,18 @@ export async function handoff(
     // Store the recommended next agent for Coordinator to read
     // Note: We don't change current_agent here - that happens when Coordinator deploys
     state.recommended_next_agent = to_agent;
+
+    // Accept agent-reported HandoffStats if provided in data
+    if (data && isValidHandoffStats(data.handoff_stats)) {
+      const currentSession = [...state.agent_sessions]
+        .reverse()
+        .find(s => s.agent_type === from_agent && !s.completed_at);
+      if (currentSession) {
+        // Store on session context so completeAgent can retrieve it for validation
+        (currentSession as AgentSession & { agent_reported_stats?: HandoffStats }).agent_reported_stats =
+          data.handoff_stats as HandoffStats;
+      }
+    }
     
     // Verify lineage integrity
     const verification = verifyLineageIntegrity(state.lineage);
@@ -1042,4 +1172,27 @@ function findActiveSessionRunId(state: PlanState, agentType: string): string | u
   }
 
   return extractRunId(activeSession.context);
+}
+
+/** Numeric metric keys expected on a valid HandoffStats object */
+const HANDOFF_STATS_NUMERIC_KEYS: readonly string[] = [
+  'steps_completed', 'steps_attempted', 'files_read', 'files_modified',
+  'tool_call_count', 'tool_retries', 'blockers_hit', 'scope_escalations',
+  'unsolicited_context_reads',
+] as const;
+
+const VALID_DURATION_CATEGORIES = new Set(['quick', 'moderate', 'extended']);
+
+/**
+ * Basic structural validation: checks that a value looks like a HandoffStats
+ * object (has the right keys with numeric values and a valid duration_category).
+ */
+function isValidHandoffStats(value: unknown): value is HandoffStats {
+  if (!value || typeof value !== 'object') return false;
+  const obj = value as Record<string, unknown>;
+  for (const key of HANDOFF_STATS_NUMERIC_KEYS) {
+    if (typeof obj[key] !== 'number') return false;
+  }
+  if (!VALID_DURATION_CATEGORIES.has(obj.duration_category as string)) return false;
+  return true;
 }

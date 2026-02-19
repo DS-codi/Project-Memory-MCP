@@ -38,6 +38,16 @@ export async function confirmPhase(
     }
 
     ensureConfirmationState(state);
+
+    // Soft validation: if plan has explicit v2 phases, warn on mismatch
+    let phase_warning: string | undefined;
+    if (state.phases && state.phases.length > 0 && phase) {
+      const phaseExists = state.phases.some(p => p.name === phase);
+      if (!phaseExists) {
+        phase_warning = `Phase "${phase}" not found in plan's phases array. Phase names may use different formatting — confirmation recorded anyway.`;
+      }
+    }
+
     const confirmation = {
       confirmed: true,
       confirmed_by: confirmed_by || 'user',
@@ -52,7 +62,8 @@ export async function confirmPhase(
       success: true,
       data: {
         plan_state: state,
-        confirmation
+        confirmation,
+        ...(phase_warning ? { warning: phase_warning } : {})
       }
     };
   } catch (error) {

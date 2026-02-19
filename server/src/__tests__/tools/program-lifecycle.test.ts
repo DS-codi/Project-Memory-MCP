@@ -1,0 +1,433 @@
+/**
+ * Tests for program-lifecycle.ts — CRUD lifecycle operations for v2 Programs.
+ *
+ * Uses a temp directory per test to exercise real file I/O.
+ * The data root is redirected via mocked getDataRoot.
+ * Event emitter is mocked to verify event calls without writing event files.
+ */
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { promises as fs } from 'fs';
+import path from 'path';
+import os from 'os';
+
+// Mock getDataRoot before importing modules
+vi.mock('../../storage/workspace-utils.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../storage/workspace-utils.js')>();
+  return {
+    ...actual,
+    getDataRoot: vi.fn(),
+  };
+});
+
+// Mock file-lock to bypass proper-lockfile in tests
+vi.mock('../../storage/file-lock.js', async () => {
+  const fsPromises = (await import('fs')).promises;
+  const pathMod = await import('path');
+
+  async function readJson<T>(filePath: string): Promise<T | null> {
+    try {
+      const content = await fsPromises.readFile(filePath, 'utf-8');
+      return JSON.parse(content) as T;
+    } catch {
+      return null;
+    }
+  }
+
+  async function writeJson<T>(filePath: string, data: T): Promise<void> {
+    await fsPromises.mkdir(pathMod.dirname(filePath), { recursive: true });
+    await fsPromises.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
+  }
+
+  async function modifyJsonLocked<T>(
+    filePath: string,
+    modifier: (data: T | null) => T | Promise<T>,
+  ): Promise<T> {
+    const data = await readJson<T>(filePath);
+    const modified = await modifier(data);
+    await writeJson(filePath, modified);
+    return modified;
+  }
+
+  return {
+    readJson,
+    writeJson,
+    modifyJsonLocked,
+    writeJsonLocked: writeJson,
+    fileLockManager: { withLock: (_: string, op: () => Promise<unknown>) => op() },
+  };
+});
+
+// Mock event emitter
+vi.mock('../../events/event-emitter.js', () => ({
+  events: {
+    programCreated: vi.fn().mockResolvedValue(undefined),
+    programUpdated: vi.fn().mockResolvedValue(undefined),
+    programArchived: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
+import { getDataRoot } from '../../storage/workspace-utils.js';
+import { events } from '../../events/event-emitter.js';
+import {
+  generateProgramId,
+  createProgram,
+  getProgram,
+  updateProgram,
+  archiveProgram,
+  listPrograms,
+} from '../../tools/program/program-lifecycle.js';
+import { readProgramState, readManifest, readDependencies, readRisks } from '../../storage/program-store.js';
+
+const WORKSPACE_ID = 'test-workspace-lifecycle';
+
+let tmpDir: string;
+
+beforeEach(async () => {
+  tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pm-prog-lifecycle-'));
+  vi.mocked(getDataRoot).mockReturnValue(tmpDir);
+  vi.clearAllMocks();
+});
+
+afterEach(async () => {
+  await fs.rm(tmpDir, { recursive: true, force: true });
+  vi.restoreAllMocks();
+});
+
+// =============================================================================
+// ID Generation
+// =============================================================================
+
+describe('generateProgramId', () => {
+  it('returns an ID starting with prog_', () => {
+    const id = generateProgramId();
+    expect(id).toMatch(/^prog_[a-z0-9]+_[a-f0-9]{8}$/);
+  });
+
+  it('generates unique IDs', () => {
+    const ids = new Set(Array.from({ length: 20 }, () => generateProgramId()));
+    expect(ids.size).toBe(20);
+  });
+});
+
+// =============================================================================
+// createProgram
+// =============================================================================
+
+describe('createProgram', () => {
+  it('creates a program with all storage files', async () => {
+    const result = await createProgram({
+      workspace_id: WORKSPACE_ID,
+      title: 'Test Program',
+      description: 'A test program',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data).toBeDefined();
+    expect(result.data!.id).toMatch(/^prog_/);
+    expect(result.data!.title).toBe('Test Program');
+    expect(result.data!.description).toBe('A test program');
+    expect(result.data!.status).toBe('active');
+    expect(result.data!.priority).toBe('medium');
+    expect(result.data!.category).toBe('feature');
+
+    // Verify all files were created
+    const programId = result.data!.id;
+    const state = await readProgramState(WORKSPACE_ID, programId);
+    expect(state).toEqual(result.data);
+
+    const manifest = await readManifest(WORKSPACE_ID, programId);
+    expect(manifest).toBeDefined();
+    expect(manifest!.plan_ids).toEqual([]);
+
+    const deps = await readDependencies(WORKSPACE_ID, programId);
+    expect(deps).toEqual([]);
+
+    const risks = await readRisks(WORKSPACE_ID, programId);
+    expect(risks).toEqual([]);
+  });
+
+  it('respects custom priority and category', async () => {
+    const result = await createProgram({
+      workspace_id: WORKSPACE_ID,
+      title: 'High Priority',
+      description: 'Urgent program',
+      priority: 'critical',
+      category: 'bug',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data!.priority).toBe('critical');
+    expect(result.data!.category).toBe('bug');
+  });
+
+  it('emits program_created event', async () => {
+    const result = await createProgram({
+      workspace_id: WORKSPACE_ID,
+      title: 'Event Test',
+      description: 'Test event emission',
+    });
+
+    expect(events.programCreated).toHaveBeenCalledWith(
+      WORKSPACE_ID,
+      result.data!.id,
+      'Event Test',
+      'feature',
+    );
+  });
+
+  it('fails when required fields are missing', async () => {
+    const result = await createProgram({
+      workspace_id: WORKSPACE_ID,
+      title: '',
+      description: 'No title',
+    });
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('required');
+  });
+
+  it('fails when description is missing', async () => {
+    const result = await createProgram({
+      workspace_id: WORKSPACE_ID,
+      title: 'No desc',
+      description: '',
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+// =============================================================================
+// getProgram
+// =============================================================================
+
+describe('getProgram', () => {
+  it('returns program state for existing program', async () => {
+    const created = await createProgram({
+      workspace_id: WORKSPACE_ID,
+      title: 'Get Test',
+      description: 'Testing getProgram',
+    });
+    const programId = created.data!.id;
+
+    const result = await getProgram(WORKSPACE_ID, programId);
+    expect(result.success).toBe(true);
+    expect(result.data!.id).toBe(programId);
+    expect(result.data!.title).toBe('Get Test');
+  });
+
+  it('returns error for non-existent program', async () => {
+    const result = await getProgram(WORKSPACE_ID, 'prog_nonexistent');
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('not found');
+  });
+
+  it('fails when workspace_id is empty', async () => {
+    const result = await getProgram('', 'prog_test');
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('required');
+  });
+});
+
+// =============================================================================
+// updateProgram
+// =============================================================================
+
+describe('updateProgram', () => {
+  it('updates title', async () => {
+    const created = await createProgram({
+      workspace_id: WORKSPACE_ID,
+      title: 'Original',
+      description: 'Desc',
+    });
+    const programId = created.data!.id;
+
+    const result = await updateProgram({
+      workspace_id: WORKSPACE_ID,
+      program_id: programId,
+      title: 'Updated Title',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data!.title).toBe('Updated Title');
+    expect(result.data!.description).toBe('Desc'); // unchanged
+
+    // Verify persisted
+    const persisted = await readProgramState(WORKSPACE_ID, programId);
+    expect(persisted!.title).toBe('Updated Title');
+  });
+
+  it('updates multiple fields', async () => {
+    const created = await createProgram({
+      workspace_id: WORKSPACE_ID,
+      title: 'Multi',
+      description: 'Original',
+    });
+    const programId = created.data!.id;
+
+    const result = await updateProgram({
+      workspace_id: WORKSPACE_ID,
+      program_id: programId,
+      title: 'New Title',
+      description: 'New Description',
+      priority: 'high',
+      category: 'refactor',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data!.title).toBe('New Title');
+    expect(result.data!.description).toBe('New Description');
+    expect(result.data!.priority).toBe('high');
+    expect(result.data!.category).toBe('refactor');
+  });
+
+  it('emits program_updated event with changes', async () => {
+    const created = await createProgram({
+      workspace_id: WORKSPACE_ID,
+      title: 'Event',
+      description: 'Desc',
+    });
+
+    await updateProgram({
+      workspace_id: WORKSPACE_ID,
+      program_id: created.data!.id,
+      title: 'Changed',
+    });
+
+    expect(events.programUpdated).toHaveBeenCalledWith(
+      WORKSPACE_ID,
+      created.data!.id,
+      { title: 'Changed' },
+    );
+  });
+
+  it('rejects update to archived program', async () => {
+    const created = await createProgram({
+      workspace_id: WORKSPACE_ID,
+      title: 'Archive Me',
+      description: 'Desc',
+    });
+    await archiveProgram({ workspace_id: WORKSPACE_ID, program_id: created.data!.id });
+
+    const result = await updateProgram({
+      workspace_id: WORKSPACE_ID,
+      program_id: created.data!.id,
+      title: 'Fail',
+    });
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('archived');
+  });
+
+  it('returns error for non-existent program', async () => {
+    const result = await updateProgram({
+      workspace_id: WORKSPACE_ID,
+      program_id: 'prog_fake',
+      title: 'Nope',
+    });
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('not found');
+  });
+});
+
+// =============================================================================
+// archiveProgram
+// =============================================================================
+
+describe('archiveProgram', () => {
+  it('archives an active program', async () => {
+    const created = await createProgram({
+      workspace_id: WORKSPACE_ID,
+      title: 'Archive Test',
+      description: 'Desc',
+    });
+    const programId = created.data!.id;
+
+    const result = await archiveProgram({ workspace_id: WORKSPACE_ID, program_id: programId });
+    expect(result.success).toBe(true);
+    expect(result.data!.status).toBe('archived');
+    expect(result.data!.archived_at).toBeDefined();
+
+    // Verify persisted
+    const persisted = await readProgramState(WORKSPACE_ID, programId);
+    expect(persisted!.status).toBe('archived');
+  });
+
+  it('emits program_archived event', async () => {
+    const created = await createProgram({
+      workspace_id: WORKSPACE_ID,
+      title: 'Archive Event',
+      description: 'Desc',
+    });
+
+    await archiveProgram({ workspace_id: WORKSPACE_ID, program_id: created.data!.id });
+    expect(events.programArchived).toHaveBeenCalledWith(WORKSPACE_ID, created.data!.id);
+  });
+
+  it('rejects archiving an already archived program', async () => {
+    const created = await createProgram({
+      workspace_id: WORKSPACE_ID,
+      title: 'Double',
+      description: 'Desc',
+    });
+    await archiveProgram({ workspace_id: WORKSPACE_ID, program_id: created.data!.id });
+
+    const result = await archiveProgram({ workspace_id: WORKSPACE_ID, program_id: created.data!.id });
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('already archived');
+  });
+
+  it('returns error for non-existent program', async () => {
+    const result = await archiveProgram({ workspace_id: WORKSPACE_ID, program_id: 'prog_nope' });
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('not found');
+  });
+});
+
+// =============================================================================
+// listPrograms
+// =============================================================================
+
+describe('listPrograms', () => {
+  it('returns empty array when no programs exist', async () => {
+    const result = await listPrograms(WORKSPACE_ID);
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual([]);
+  });
+
+  it('lists active programs', async () => {
+    await createProgram({ workspace_id: WORKSPACE_ID, title: 'P1', description: 'D1' });
+    await createProgram({ workspace_id: WORKSPACE_ID, title: 'P2', description: 'D2' });
+
+    const result = await listPrograms(WORKSPACE_ID);
+    expect(result.success).toBe(true);
+    expect(result.data!.length).toBe(2);
+    const titles = result.data!.map(p => p.title).sort();
+    expect(titles).toEqual(['P1', 'P2']);
+  });
+
+  it('excludes archived programs by default', async () => {
+    const p1 = await createProgram({ workspace_id: WORKSPACE_ID, title: 'Active', description: 'D' });
+    const p2 = await createProgram({ workspace_id: WORKSPACE_ID, title: 'Archived', description: 'D' });
+    await archiveProgram({ workspace_id: WORKSPACE_ID, program_id: p2.data!.id });
+
+    const result = await listPrograms(WORKSPACE_ID);
+    expect(result.success).toBe(true);
+    expect(result.data!.length).toBe(1);
+    expect(result.data![0].title).toBe('Active');
+  });
+
+  it('includes archived programs when includeArchived is true', async () => {
+    const p1 = await createProgram({ workspace_id: WORKSPACE_ID, title: 'Active', description: 'D' });
+    const p2 = await createProgram({ workspace_id: WORKSPACE_ID, title: 'Archived', description: 'D' });
+    await archiveProgram({ workspace_id: WORKSPACE_ID, program_id: p2.data!.id });
+
+    const result = await listPrograms(WORKSPACE_ID, true);
+    expect(result.success).toBe(true);
+    expect(result.data!.length).toBe(2);
+  });
+
+  it('fails when workspace_id is empty', async () => {
+    const result = await listPrograms('');
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('required');
+  });
+});

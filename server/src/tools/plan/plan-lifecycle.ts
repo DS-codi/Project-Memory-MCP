@@ -21,9 +21,16 @@ import type {
   ClonePlanResult,
   MergePlansParams,
   MergePlansResult,
+  SkillCreationRecommendation,
 } from '../../types/index.js';
 import * as store from '../../storage/file-store.js';
 import { archivePlanPrompts } from '../prompt-storage.js';
+import { buildPhasesFromSteps } from './plan-version.js';
+import { buildSkillRegistry } from '../skill-registry.js';
+import { matchSkillsToPhases } from '../skill-phase-matcher.js';
+import { generateDifficultyProfile } from '../difficulty-profile.js';
+import { evaluateSkillCreationNeed } from '../skill-creation-evaluator.js';
+import { storeKnowledgeFile } from '../knowledge.tools.js';
 import { events } from '../../events/event-emitter.js';
 import { appendWorkspaceFileUpdate } from '../../logging/workspace-update-log.js';
 
@@ -239,13 +246,14 @@ export async function createPlan(
       };
     }
 
-    if (category === 'investigation') {
+    const formalCategories: RequestCategory[] = ['feature', 'bugfix', 'refactor', 'orchestration', 'program'];
+    if (formalCategories.includes(category as RequestCategory)) {
       const hasGoals = Array.isArray(goals) && goals.length > 0;
       const hasCriteria = Array.isArray(success_criteria) && success_criteria.length > 0;
       if (!hasGoals || !hasCriteria) {
         return {
           success: false,
-          error: 'Investigation plans require at least 1 goal and 1 success criteria'
+          error: `${category} plans require at least 1 goal and 1 success criterion`
         };
       }
     }
@@ -377,9 +385,14 @@ export async function deletePlan(
 /**
  * Archive a completed plan
  */
+/** Archive response extends PlanState with optional skill recommendations */
+export type ArchivePlanResponse = PlanState & {
+  recommended_skillwriter_tasks?: SkillCreationRecommendation[];
+};
+
 export async function archivePlan(
   params: ArchivePlanParams
-): Promise<ToolResponse<PlanState>> {
+): Promise<ToolResponse<ArchivePlanResponse>> {
   try {
     const { workspace_id, plan_id } = params;
 
@@ -411,6 +424,55 @@ export async function archivePlan(
       // Non-fatal: prompt archival failure shouldn't block plan archive
     }
 
+    // Generate difficulty profile and evaluate skill-creation need
+    let skillRecommendations: SkillCreationRecommendation[] = [];
+    try {
+      const profile = generateDifficultyProfile(workspace_id, plan_id, state);
+
+      // Store difficulty profile as workspace knowledge
+      await storeKnowledgeFile({
+        workspace_id,
+        slug: `difficulty-profile-${plan_id}`,
+        title: `Difficulty Profile: ${state.title}`,
+        content: JSON.stringify(profile, null, 2),
+        category: 'difficulty-profile',
+        tags: ['metrics', 'plan-analysis'],
+        created_by_agent: 'Archivist',
+        created_by_plan: plan_id,
+      });
+
+      // Evaluate skill-creation need from profile + incident reports
+      try {
+        const incidentCtxPath = store.getContextPath(workspace_id, plan_id, 'incident_report');
+        let incidents: import('../../types/index.js').IncidentReport[] = [];
+        try {
+          const raw = await store.readJson<{ data?: import('../../types/index.js').IncidentReport }>(incidentCtxPath);
+          if (raw?.data) {
+            incidents = [raw.data];
+          }
+        } catch {
+          // No incident reports — that's fine
+        }
+        skillRecommendations = evaluateSkillCreationNeed(workspace_id, plan_id, profile, incidents);
+        if (skillRecommendations.length > 0) {
+          await storeKnowledgeFile({
+            workspace_id,
+            slug: `skill-recommendations-${plan_id}`,
+            title: `Skill Recommendations: ${state.title}`,
+            content: JSON.stringify(skillRecommendations, null, 2),
+            category: 'skill-recommendation',
+            tags: ['metrics', 'skill-creation'],
+            created_by_agent: 'Archivist',
+            created_by_plan: plan_id,
+          });
+        }
+      } catch {
+        // Non-fatal: skill-creation evaluation failure shouldn't block archive
+      }
+    } catch {
+      // Non-fatal: difficulty profile failure shouldn't block plan archive
+    }
+
     // Update workspace metadata
     const workspace = await store.getWorkspace(workspace_id);
     if (workspace) {
@@ -421,9 +483,14 @@ export async function archivePlan(
       await store.saveWorkspace(workspace);
     }
 
+    const responseData: ArchivePlanResponse = { ...state };
+    if (skillRecommendations.length > 0) {
+      responseData.recommended_skillwriter_tasks = skillRecommendations;
+    }
+
     return {
       success: true,
-      data: state
+      data: responseData
     };
   } catch (error) {
     return {
@@ -517,6 +584,7 @@ export async function importPlan(
     if (steps.length > 0) {
       plan.steps = steps;
       plan.current_phase = steps.find(s => s.status !== 'done')?.phase || 'complete';
+      plan.phases = await applySkillPhaseMatching(workspace.path, steps);
       await store.savePlanState(plan);
     }
 
@@ -908,4 +976,41 @@ export async function mergePlans(
       error: `Failed to merge plans: ${(error as Error).message}`,
     };
   }
+}
+
+// =============================================================================
+// Skill Phase Matching Helper
+// =============================================================================
+
+/**
+ * Build phases from steps and populate linked_skills via skill registry matching.
+ * Non-fatal — returns phases with empty linked_skills on any error.
+ *
+ * @param workspacePath — Absolute path to the workspace root
+ * @param steps — Plan steps to build phases from
+ * @returns PlanPhase[] with linked_skills populated from skill matching
+ */
+export async function applySkillPhaseMatching(
+  workspacePath: string,
+  steps: PlanStep[],
+): Promise<import('../../types/index.js').PlanPhase[]> {
+  const phases = buildPhasesFromSteps(steps);
+  try {
+    const registry = await buildSkillRegistry(workspacePath);
+    if (registry.entries.length === 0) return phases;
+
+    const result = matchSkillsToPhases(registry, steps, phases);
+
+    // Populate linked_skills on each phase from match results
+    for (const phase of phases) {
+      const matches = result.phase_matches[phase.name];
+      if (matches?.length) {
+        phase.linked_skills = matches.map(m => m.skill_name);
+      }
+    }
+  } catch (err) {
+    // Non-fatal — log but don't block plan creation
+    console.warn('[skill-phase-match] Failed to match skills to phases:', (err as Error).message);
+  }
+  return phases;
 }

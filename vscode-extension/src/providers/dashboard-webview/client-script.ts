@@ -71,6 +71,21 @@ export function getClientScript(params: ClientScriptParams): string {
                 updateSkillsList(message.data.skills || []);
             } else if (message.type === 'instructionsList') {
                 updateInstructionsList(message.data.instructions || []);
+            } else if (message.type === 'sessionsList') {
+                updateSessionsList(message.data.sessions || []);
+            } else if (message.type === 'sessionStopResult') {
+                if (message.data.success) {
+                    showToast('Stop directive queued', 'success');
+                    requestSessionsList();
+                } else {
+                    showToast('Failed to queue stop directive', 'error');
+                }
+            } else if (message.type === 'sessionInjectResult') {
+                if (message.data.success) {
+                    showToast('Guidance injected', 'success');
+                } else {
+                    showToast('Failed to inject guidance', 'error');
+                }
             } else if (message.type === 'isolateServerStatus') {
                 const { isolated, port } = message.data;
                 const isolateBtn = document.getElementById('isolateBtn');
@@ -166,6 +181,12 @@ export function getClientScript(params: ClientScriptParams): string {
                 if (instrName2) {
                     vscode.postMessage({ type: 'undeployInstruction', data: { instructionName: instrName2 } });
                 }
+            } else if (action === 'refresh-sessions') {
+                requestSessionsList();
+            } else if (action === 'stop-session') {
+                handleStopSession();
+            } else if (action === 'inject-session') {
+                handleInjectSession();
             } else if (action === 'isolate-server') {
                 vscode.postMessage({ type: 'isolateServer' });
             } else if (action === 'run-command' && command) {
@@ -229,6 +250,7 @@ export function getClientScript(params: ClientScriptParams): string {
                     fetchEvents();
                     requestSkillsList();
                     requestInstructionsList();
+                    requestSessionsList();
                 } else {
                     throw new Error('Server returned ' + response.status);
                 }

@@ -4,6 +4,8 @@
  * Core types for agent identity, sessions, lineage, and role boundaries.
  */
 
+import type { HandoffStats, StatsValidationResult } from './handoff-stats.types.js';
+
 // =============================================================================
 // Agent Types
 // =============================================================================
@@ -23,7 +25,8 @@ export type AgentType =
   | 'SkillWriter'
   | 'Worker'
   | 'TDDDriver'
-  | 'Cognition';
+  | 'Cognition'
+  | 'Migrator';
 
 // =============================================================================
 // Lineage & Handoff
@@ -44,6 +47,10 @@ export interface AgentSession {
   context: Record<string, unknown>;
   summary?: string;
   artifacts?: string[];
+  /** Auto-collected session metrics from MCP instrumentation */
+  handoff_stats?: HandoffStats;
+  /** Validation result comparing agent-reported vs MCP-tracked stats */
+  stats_validation?: StatsValidationResult;
 }
 
 // =============================================================================
@@ -200,5 +207,13 @@ export const AGENT_BOUNDARIES: Record<AgentType, AgentRoleBoundaries> = {
     must_handoff_to: ['Coordinator'],
     forbidden_actions: ['create files', 'edit code', 'implement features', 'run tests', 'modify plans', 'modify steps', 'store context'],
     primary_responsibility: 'Read-only reasoning and analysis — analyze, ideate, and critique using plan state and context data'
+  },
+  Migrator: {
+    agent_type: 'Migrator',
+    can_implement: true,
+    can_finalize: false,
+    must_handoff_to: ['Coordinator'],
+    forbidden_actions: ['spawn subagents', 'create plans', 'archive plans', 'run tests'],
+    primary_responsibility: 'Migrate v1 plans to v2 schema — assess complexity, archive old files, create v2 plan state with phases and updated categories'
   }
 };

@@ -11,6 +11,7 @@
  * - plan-confirmation.ts — Phase and step confirmation tracking
  * - plan-goals.ts        — Goals, success criteria, and plan notes
  * - plan-programs.ts     — Integrated Program management (create, add, upgrade, list)
+ * - plan-version.ts      — Schema versioning utilities (v1/v2 detection, phase builder)
  */
 
 export * from './plan-utils.js';
@@ -22,3 +23,4 @@ export * from './plan-templates.js';
 export * from './plan-confirmation.js';
 export * from './plan-goals.js';
 export * from './plan-programs.js';
+export * from './plan-version.js';

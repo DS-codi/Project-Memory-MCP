@@ -12,7 +12,9 @@ import type {
   StepStatus
 } from '../../types/index.js';
 import * as planTools from '../plan/index.js';
+import { recordStepChange } from '../stats-hooks.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
+import { preflightValidate } from '../preflight/index.js';
 
 /**
  * Enrich step objects with display_number (1-based) for agent/UI consumption.
@@ -37,6 +39,8 @@ export interface MemoryStepsParams {
   action: StepsAction;
   workspace_id: string;
   plan_id: string;
+  /** Session ID for instrumentation tracking */
+  _session_id?: string;
   
   // For 'add' action
   steps?: Omit<PlanStep, 'index'>[];
@@ -109,6 +113,12 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
   if (!validated.success) return validated.error_response as ToolResponse<StepsResult>;
   const resolvedWorkspaceId = validated.workspace_id;
 
+  // Preflight validation — catch missing required fields early
+  const preflight = preflightValidate('memory_steps', action, params as unknown as Record<string, unknown>);
+  if (!preflight.valid) {
+    return { success: false, error: preflight.message, preflight_failure: preflight } as ToolResponse<StepsResult>;
+  }
+
   switch (action) {
     case 'add': {
       if (!params.steps || params.steps.length === 0) {
@@ -148,6 +158,10 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
       if (!result.success) {
         return { success: false, error: result.error };
       }
+      // Track step status change for session instrumentation
+      if (params.status === 'active' || params.status === 'done' || params.status === 'blocked') {
+        recordStepChange(params._session_id, params.status);
+      }
       return {
         success: true,
         data: { action: 'update', data: enrichStepsWithDisplayNumber(result.data!) }
@@ -174,6 +188,12 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
       });
       if (!result.success) {
         return { success: false, error: result.error };
+      }
+      // Track step status changes for session instrumentation
+      for (const u of params.updates!) {
+        if (u.status === 'active' || u.status === 'done' || u.status === 'blocked') {
+          recordStepChange(params._session_id, u.status);
+        }
       }
       return {
         success: true,

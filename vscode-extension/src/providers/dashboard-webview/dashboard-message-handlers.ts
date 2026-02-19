@@ -223,51 +223,69 @@ async function syncServerSessions(
     ctx: SessionDiscoveryContext
 ): Promise<number> {
     try {
-        const response = await fetch(
+        // Step 1: Get plan listing for IDs and statuses (lightweight — no agent_sessions)
+        const listResponse = await fetch(
             `http://localhost:${ctx.apiPort}/api/plans/workspace/${ctx.workspaceId}`
         );
-        if (!response.ok) return 0;
+        if (!listResponse.ok) return 0;
 
-        const data = await response.json() as {
+        const listData = await listResponse.json() as {
             plans?: Array<{
                 id?: string;
                 plan_id?: string;
                 status?: string;
-                agent_sessions?: Array<{
-                    session_id: string;
-                    agent_type: string;
-                    started_at: string;
-                    completed_at?: string;
-                    context?: { parent_session_id?: string };
-                }>;
             }>;
         };
 
-        const plans = data.plans ?? [];
+        const plans = listData.plans ?? [];
+        const activePlanIds = plans
+            .filter(p => p.status !== 'archived')
+            .map(p => p.id ?? p.plan_id)
+            .filter((id): id is string => !!id)
+            .slice(0, 10); // Limit to 10 active plans to avoid excessive requests
+
+        if (activePlanIds.length === 0) return 0;
+
         let registered = 0;
 
-        for (const plan of plans) {
-            if (plan.status === 'archived') continue;
-            const planId = plan.id ?? plan.plan_id;
-            if (!planId) continue;
+        // Step 2: Fetch full state for each active plan (includes agent_sessions)
+        for (const planId of activePlanIds) {
+            try {
+                const planResponse = await fetch(
+                    `http://localhost:${ctx.apiPort}/api/plans/${ctx.workspaceId}/${planId}`
+                );
+                if (!planResponse.ok) continue;
 
-            for (const sess of plan.agent_sessions ?? []) {
-                // Skip completed sessions
-                if (sess.completed_at) continue;
+                const planState = await planResponse.json() as {
+                    agent_sessions?: Array<{
+                        session_id: string;
+                        agent_type: string;
+                        started_at: string;
+                        completed_at?: string;
+                        context?: { parent_session_id?: string };
+                    }>;
+                };
 
-                // Skip if already tracked locally
-                if (registry.getBySessionId(sess.session_id)) continue;
+                for (const sess of planState.agent_sessions ?? []) {
+                    // Skip completed sessions
+                    if (sess.completed_at) continue;
 
-                // Auto-register into the local registry
-                await registry.register({
-                    sessionId: sess.session_id,
-                    workspaceId: ctx.workspaceId,
-                    planId,
-                    agentType: sess.agent_type,
-                    parentSessionId: sess.context?.parent_session_id,
-                    startedAt: sess.started_at
-                });
-                registered++;
+                    // Skip if already tracked locally
+                    if (registry.getBySessionId(sess.session_id)) continue;
+
+                    // Auto-register into the local registry
+                    await registry.register({
+                        sessionId: sess.session_id,
+                        workspaceId: ctx.workspaceId,
+                        planId,
+                        agentType: sess.agent_type,
+                        parentSessionId: sess.context?.parent_session_id,
+                        startedAt: sess.started_at
+                    });
+                    registered++;
+                }
+            } catch {
+                // Skip individual plan fetch errors
             }
         }
 

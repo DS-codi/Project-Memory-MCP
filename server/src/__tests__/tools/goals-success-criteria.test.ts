@@ -162,7 +162,7 @@ describe('MCP Tool: memory_plan Goals and Success Criteria Actions', () => {
         workspace_id: mockWorkspaceId,
         title: 'Criteria Only Plan',
         description: 'A plan with only success criteria',
-        category: 'bug' as const,
+        category: 'bugfix' as const,
         priority: 'high' as const,
         status: 'active' as const,
         current_phase: 'initialization',
@@ -192,7 +192,7 @@ describe('MCP Tool: memory_plan Goals and Success Criteria Actions', () => {
         workspace_id: mockWorkspaceId,
         title: 'Criteria Only Plan',
         description: 'A plan with only success criteria',
-        category: 'bug',
+        category: 'bugfix',
         priority: 'high',
         success_criteria: ['Must pass all tests'],
       };
@@ -204,7 +204,7 @@ describe('MCP Tool: memory_plan Goals and Success Criteria Actions', () => {
         mockWorkspaceId,
         'Criteria Only Plan',
         'A plan with only success criteria',
-        'bug',
+        'bugfix',
         'high',
         undefined,
         undefined,
@@ -218,7 +218,7 @@ describe('MCP Tool: memory_plan Goals and Success Criteria Actions', () => {
         workspace_id: mockWorkspaceId,
         title: 'Basic Plan',
         description: 'A plan without goals',
-        category: 'change' as const,
+        category: 'feature' as const,
         priority: 'low' as const,
         status: 'active' as const,
         current_phase: 'initialization',
@@ -246,7 +246,7 @@ describe('MCP Tool: memory_plan Goals and Success Criteria Actions', () => {
         workspace_id: mockWorkspaceId,
         title: 'Basic Plan',
         description: 'A plan without goals',
-        category: 'change',
+        category: 'feature',
       };
 
       const result = await memoryPlan(params);
@@ -256,7 +256,7 @@ describe('MCP Tool: memory_plan Goals and Success Criteria Actions', () => {
         mockWorkspaceId,
         'Basic Plan',
         'A plan without goals',
-        'change',
+        'feature',
         undefined,
         undefined,
         undefined,

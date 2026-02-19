@@ -6,6 +6,7 @@
  */
 
 import type { ToolResponse } from '../../types/index.js';
+import { recordFileOp, recordToolCall } from '../stats-hooks.js';
 import {
   handleRead,
   handleWrite,
@@ -36,6 +37,8 @@ export type FilesystemAction = 'read' | 'write' | 'search' | 'list' | 'tree' | '
 export interface MemoryFilesystemParams {
   action: FilesystemAction;
   workspace_id: string;
+  /** Session ID for instrumentation tracking */
+  _session_id?: string;
 
   // For read, write, list, tree
   path?: string;
@@ -102,6 +105,7 @@ export async function memoryFilesystem(params: MemoryFilesystemParams): Promise<
         path: params.path,
       });
       if (!result.success) return { success: false, error: result.error };
+      recordFileOp(params._session_id, 'read', params.path);
       return { success: true, data: { action: 'read', data: result.data! } };
     }
 
@@ -119,6 +123,7 @@ export async function memoryFilesystem(params: MemoryFilesystemParams): Promise<
         create_dirs: params.create_dirs,
       });
       if (!result.success) return { success: false, error: result.error };
+      recordFileOp(params._session_id, 'write', params.path);
       return { success: true, data: { action: 'write', data: result.data! } };
     }
 
@@ -167,6 +172,7 @@ export async function memoryFilesystem(params: MemoryFilesystemParams): Promise<
         dry_run: params.dry_run,
       });
       if (!result.success) return { success: false, error: result.error };
+      recordFileOp(params._session_id, 'write', params.path);
       return { success: true, data: { action: 'delete', data: result.data! } };
     }
 
@@ -185,6 +191,7 @@ export async function memoryFilesystem(params: MemoryFilesystemParams): Promise<
         dry_run: params.dry_run,
       });
       if (!result.success) return { success: false, error: result.error };
+      recordFileOp(params._session_id, 'write', params.source);
       return { success: true, data: { action: 'move', data: result.data! } };
     }
 
@@ -202,6 +209,7 @@ export async function memoryFilesystem(params: MemoryFilesystemParams): Promise<
         overwrite: params.overwrite,
       });
       if (!result.success) return { success: false, error: result.error };
+      recordFileOp(params._session_id, 'write', params.destination);
       return { success: true, data: { action: 'copy', data: result.data! } };
     }
 
@@ -218,6 +226,7 @@ export async function memoryFilesystem(params: MemoryFilesystemParams): Promise<
         content: params.content,
       });
       if (!result.success) return { success: false, error: result.error };
+      recordFileOp(params._session_id, 'write', params.path);
       return { success: true, data: { action: 'append', data: result.data! } };
     }
 

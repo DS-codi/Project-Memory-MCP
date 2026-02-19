@@ -174,7 +174,7 @@ describe('Types Barrel Re-exports (types/index.ts)', () => {
         description: 'A compact plan',
         status: 'active',
         priority: 'low',
-        category: 'bug',
+        category: 'bugfix',
         current_phase: 'Phase 1',
         current_agent: null,
         created_at: '2026-01-01T00:00:00Z',

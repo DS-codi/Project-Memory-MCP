@@ -160,6 +160,49 @@ export interface PlanStep {
 }
 
 // =============================================================================
+// Plan Phases (v2)
+// =============================================================================
+
+/** How long a context file persists across agent handoffs. */
+export type ContextPersistence = 'phase-persistent' | 'single-agent';
+
+/** A context file attached to a phase with persistence rules. */
+export interface PlanPhaseContextFile {
+  /** Relative path to the context file. */
+  path: string;
+  /** Whether this context survives across all agents in the phase or is cleaned up after one agent. */
+  persistence: ContextPersistence;
+}
+
+/**
+ * Structured phase definition for v2 plans.
+ *
+ * In v1, phases are implicit strings on PlanStep.phase.
+ * In v2, phases are first-class objects with criteria, agent assignments,
+ * context rules, and approval gates.
+ */
+export interface PlanPhase {
+  /** Phase display name (e.g., "Phase 1: Setup"). */
+  name: string;
+  /** Ordinal position (1-based). */
+  sequence: number;
+  /** Measurable criteria that must be met to consider this phase complete. */
+  success_criteria: string[];
+  /** Agents expected to work on this phase. */
+  required_agents: AgentType[];
+  /** Context files assigned to this phase with persistence markers. */
+  context_files: PlanPhaseContextFile[];
+  /** Skill slugs relevant to this phase. */
+  linked_skills: string[];
+  /** Whether user/coordinator approval is needed before advancing past this phase. */
+  approval_required: boolean;
+  /** Expected number of steps in this phase. */
+  estimated_steps: number;
+  /** Whether the hub may auto-advance to the next phase without pausing. */
+  auto_continue_eligible: boolean;
+}
+
+// =============================================================================
 // Plan Notes - User annotations for agents
 // =============================================================================
 
@@ -183,9 +226,13 @@ export interface PlanState {
   description: string;
   priority: PlanPriority;
   status: PlanStatus;
+  /** Plan schema version. Absent on v1 plans; '2.0' on v2+. */
+  schema_version?: string;
   category: RequestCategory;  // Type of request (feature, bug, etc.)
   categorization?: RequestCategorization;  // Full categorization details
   current_phase: string;
+  /** Structured phase definitions (v2 only). V1 plans use implicit string phases on steps. */
+  phases?: PlanPhase[];
   current_agent: AgentType | null;  // Agent currently deployed by Coordinator
   recommended_next_agent?: AgentType;  // Subagent recommendation for Coordinator
   deployment_context?: {  // Set by orchestrators (Coordinator/Analyst/Runner) at deployment time
@@ -266,8 +313,12 @@ export interface CompactPlanState {
   description: string;
   priority: PlanPriority;
   status: PlanStatus;
+  /** Plan schema version. Absent on v1 plans; '2.0' on v2+. */
+  schema_version?: string;
   category: RequestCategory;
   current_phase: string;
+  /** Structured phase definitions (v2 only). V1 plans use implicit string phases on steps. */
+  phases?: PlanPhase[];
   current_agent: AgentType | null;
   recommended_next_agent?: AgentType;
   deployment_context?: PlanState['deployment_context'];

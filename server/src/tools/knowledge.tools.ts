@@ -21,7 +21,9 @@ export type KnowledgeFileCategory =
   | 'limitation'
   | 'plan-summary'
   | 'reference'
-  | 'convention';
+  | 'convention'
+  | 'difficulty-profile'
+  | 'skill-recommendation';
 
 export interface KnowledgeFile {
   slug: string;
@@ -68,7 +70,7 @@ const MAX_CONTENT_SIZE = 256 * 1024; // 256KB
 const MAX_FILES_PER_WORKSPACE = 100;
 
 const VALID_CATEGORIES: KnowledgeFileCategory[] = [
-  'schema', 'config', 'limitation', 'plan-summary', 'reference', 'convention'
+  'schema', 'config', 'limitation', 'plan-summary', 'reference', 'convention', 'difficulty-profile', 'skill-recommendation'
 ];
 
 // =============================================================================

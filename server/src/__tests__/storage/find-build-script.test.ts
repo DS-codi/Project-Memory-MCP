@@ -74,7 +74,7 @@ describe('findBuildScript()', () => {
       title: 'Plan',
       description: 'Plan description',
       priority: 'low',
-      category: 'analysis',
+      category: 'advisory',
       status: 'active',
       current_phase: 'phase',
       current_agent: 'Executor',

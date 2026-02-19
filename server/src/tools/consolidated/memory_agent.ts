@@ -1,7 +1,7 @@
 /**
  * Consolidated Agent Tool - memory_agent
  * 
- * Actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage
+ * Actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage, categorize, deploy_for_task
  * Replaces: initialise_agent, complete_agent, handoff, validate_*, list_agents, 
  *           get_agent_instructions, deploy_agents_to_workspace, get_mission_briefing, get_lineage
  */
@@ -12,12 +12,19 @@ import type {
   AgentSession,
   LineageEntry,
   MissionBriefing,
-  InitialiseAgentResult
+  InitialiseAgentResult,
+  RequestCategorization,
+  DeployForTaskResult
 } from '../../types/index.js';
+import type { CategoryDecision } from '../../types/categorization.types.js';
+import type { ContextPersistence } from '../../types/plan.types.js';
 import * as handoffTools from '../handoff.tools.js';
 import * as agentTools from '../agent.tools.js';
 import * as validationTools from '../agent-validation.tools.js';
+import { deployForTask, cleanupAgent } from '../agent-deploy.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
+import { preflightValidate } from '../preflight/index.js';
+import { incrementStat } from '../session-stats.js';
 import { events } from '../../events/event-emitter.js';
 
 export type AgentAction = 
@@ -29,10 +36,14 @@ export type AgentAction =
   | 'get_instructions' 
   | 'deploy'
   | 'get_briefing'
-  | 'get_lineage';
+  | 'get_lineage'
+  | 'categorize'
+  | 'deploy_for_task';
 
 export interface MemoryAgentParams {
   action: AgentAction;
+  /** Session ID for instrumentation tracking */
+  _session_id?: string;
   
   // For init, complete, handoff, validate, get_briefing, get_lineage
   workspace_id?: string;
@@ -71,6 +82,17 @@ export interface MemoryAgentParams {
   include_prompts?: boolean;
   include_instructions?: boolean;
   include_skills?: boolean;
+  
+  // For categorize
+  categorization_result?: CategoryDecision;
+
+  // For deploy_for_task
+  phase_context?: Record<string, unknown>;
+  context_markers?: Record<string, ContextPersistence>;
+  phase_name?: string;
+  step_indices?: number[];
+  include_research?: boolean;
+  include_architecture?: boolean;
 }
 
 type AgentResult = 
@@ -82,7 +104,9 @@ type AgentResult =
   | { action: 'get_instructions'; data: { filename: string; content: string } }
   | { action: 'deploy'; data: { deployed: string[]; prompts_deployed: string[]; instructions_deployed: string[]; skills_deployed: string[]; target_path: string } }
   | { action: 'get_briefing'; data: MissionBriefing }
-  | { action: 'get_lineage'; data: LineageEntry[] };
+  | { action: 'get_lineage'; data: LineageEntry[] }
+  | { action: 'categorize'; data: { categorization: RequestCategorization; category_decision: CategoryDecision; routing_resolved: boolean } }
+  | { action: 'deploy_for_task'; data: DeployForTaskResult };
 
 export async function memoryAgent(params: MemoryAgentParams): Promise<ToolResponse<AgentResult>> {
   const { action } = params;
@@ -90,7 +114,7 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
   if (!action) {
     return {
       success: false,
-      error: 'action is required. Valid actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage'
+      error: 'action is required. Valid actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage, categorize, deploy_for_task'
     };
   }
 
@@ -99,6 +123,12 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
     const validated = await validateAndResolveWorkspaceId(params.workspace_id);
     if (!validated.success) return validated.error_response as ToolResponse<AgentResult>;
     params.workspace_id = validated.workspace_id;
+  }
+
+  // Preflight validation — catch missing required fields early
+  const preflight = preflightValidate('memory_agent', action, params as unknown as Record<string, unknown>);
+  if (!preflight.valid) {
+    return { success: false, error: preflight.message, preflight_failure: preflight } as ToolResponse<AgentResult>;
   }
 
   switch (action) {
@@ -117,6 +147,7 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
         compact: params.compact,
         context_budget: params.context_budget,
         include_workspace_context: params.include_workspace_context,
+        include_skills: params.include_skills,
         deployment_context: params.deployment_context ? {
           deployed_by: params.deployment_context.deployed_by as any,
           reason: params.deployment_context.reason,
@@ -205,6 +236,19 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
       if (!result.success) {
         return { success: false, error: result.error };
       }
+
+      // Cleanup deployed agent files (non-fatal)
+      try {
+        const { getWorkspace } = await import('../../storage/file-store.js');
+        const wsMeta = await getWorkspace(params.workspace_id);
+        if (wsMeta) {
+          const wsPath = wsMeta.workspace_path || wsMeta.path;
+          await cleanupAgent(wsPath, params.agent_type, params.plan_id);
+        }
+      } catch (err) {
+        console.warn('[memory_agent/complete] cleanupAgent failed (non-fatal):', err);
+      }
+
       return {
         success: true,
         data: { action: 'complete', data: result.data! }
@@ -218,6 +262,16 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
           error: 'workspace_id, plan_id, from_agent, to_agent, and reason are required for action: handoff'
         };
       }
+
+      // Track scope escalation events
+      const sessionId = params._session_id;
+      if (sessionId && params.data) {
+        const d = params.data as Record<string, unknown>;
+        if (d.scope_escalation === true || d.scope_exceeded === true) {
+          incrementStat(sessionId, 'scope_escalations');
+        }
+      }
+
       const result = await handoffTools.handoff({
         workspace_id: params.workspace_id,
         plan_id: params.plan_id,
@@ -229,6 +283,19 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
       if (!result.success) {
         return { success: false, error: result.error };
       }
+
+      // Cleanup deployed agent files (non-fatal)
+      try {
+        const { getWorkspace } = await import('../../storage/file-store.js');
+        const wsMeta = await getWorkspace(params.workspace_id);
+        if (wsMeta) {
+          const wsPath = wsMeta.workspace_path || wsMeta.path;
+          await cleanupAgent(wsPath, params.from_agent, params.plan_id);
+        }
+      } catch (err) {
+        console.warn('[memory_agent/handoff] cleanupAgent failed (non-fatal):', err);
+      }
+
       return {
         success: true,
         data: { action: 'handoff', data: result.data! }
@@ -356,10 +423,92 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
       };
     }
 
+    case 'categorize': {
+      if (!params.workspace_id || !params.plan_id) {
+        return {
+          success: false,
+          error: 'workspace_id and plan_id are required for action: categorize'
+        };
+      }
+      if (!params.categorization_result) {
+        return {
+          success: false,
+          error: 'categorization_result is required for action: categorize'
+        };
+      }
+
+      const { CATEGORY_ROUTING } = await import('../../types/category-routing.js');
+      const { getPlanState, savePlanState } = await import('../../storage/file-store.js');
+
+      // Resolve routing from the category decision
+      const category = params.categorization_result.intent?.category;
+      const routing = category ? CATEGORY_ROUTING[category] : undefined;
+
+      // Build the categorization record to store on the plan
+      const categorization: RequestCategorization = {
+        category: category || 'feature',
+        confidence: params.categorization_result.intent?.confidence || 0,
+        reasoning: params.categorization_result.intent?.reasoning || '',
+        suggested_workflow: routing?.workflow_path || [],
+        skip_agents: routing?.skip_agents || [],
+        routing_workflow: routing
+      };
+
+      // Load and update plan state
+      const plan = await getPlanState(params.workspace_id, params.plan_id);
+      if (!plan) {
+        return { success: false, error: `Plan not found: ${params.plan_id}` };
+      }
+      plan.categorization = categorization;
+      await savePlanState(plan);
+
+      return {
+        success: true,
+        data: {
+          action: 'categorize' as const,
+          data: {
+            categorization,
+            category_decision: params.categorization_result,
+            routing_resolved: !!routing
+          }
+        }
+      };
+    }
+
+    case 'deploy_for_task': {
+      if (!params.workspace_id || !params.agent_type || !params.plan_id) {
+        return {
+          success: false,
+          error: 'workspace_id, agent_type, and plan_id are required for action: deploy_for_task'
+        };
+      }
+      const { getWorkspace } = await import('../../storage/file-store.js');
+      const wsMeta = await getWorkspace(params.workspace_id);
+      if (!wsMeta) {
+        return { success: false, error: `Workspace not found: ${params.workspace_id}` };
+      }
+      const workspacePath = wsMeta.workspace_path || wsMeta.path;
+      const result = await deployForTask({
+        workspace_id: params.workspace_id,
+        workspace_path: workspacePath,
+        agent_name: params.agent_type,
+        plan_id: params.plan_id,
+        phase_name: params.phase_name,
+        step_indices: params.step_indices,
+        include_skills: params.include_skills,
+        include_research: params.include_research,
+        include_architecture: params.include_architecture,
+      });
+      return {
+        success: true,
+        data: { action: 'deploy_for_task', data: result }
+      };
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage`
+        error: `Unknown action: ${action}. Valid actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage, categorize, deploy_for_task`
       };
   }
 }

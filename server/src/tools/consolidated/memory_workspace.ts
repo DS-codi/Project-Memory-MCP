@@ -9,6 +9,7 @@ import type { ToolResponse, WorkspaceMeta, WorkspaceProfile, PlanState, Workspac
 import * as workspaceTools from '../workspace.tools.js';
 import * as store from '../../storage/file-store.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
+import { preflightValidate } from '../preflight/index.js';
 import { scanGhostFolders, mergeWorkspace, validateWorkspaceId, migrateWorkspace, ensureIdentityFile } from '../../storage/workspace-identity.js';
 import type { GhostFolderInfo, MergeResult, MigrateWorkspaceResult } from '../../storage/workspace-identity.js';
 import { linkWorkspaces, unlinkWorkspaces, getWorkspaceHierarchy, checkRegistryForOverlaps } from '../../storage/workspace-hierarchy.js';
@@ -62,6 +63,12 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
       success: false,
       error: 'action is required. Valid actions: register, list, info, reindex, merge, scan_ghosts, migrate, link, set_display_name'
     };
+  }
+
+  // Preflight validation — catch missing required fields early
+  const preflight = preflightValidate('memory_workspace', action, params as unknown as Record<string, unknown>);
+  if (!preflight.valid) {
+    return { success: false, error: preflight.message, preflight_failure: preflight } as ToolResponse<WorkspaceResult>;
   }
 
   switch (action) {

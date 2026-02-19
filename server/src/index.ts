@@ -132,7 +132,8 @@ const server = new McpServer({
 const AgentTypeSchema = z.enum([
   'Coordinator', 'Analyst', 'Researcher', 'Architect', 'Executor',
   'Reviewer', 'Tester', 'Revisionist', 'Archivist',
-  'Brainstorm', 'Runner', 'SkillWriter', 'Worker', 'TDDDriver', 'Cognition'
+  'Brainstorm', 'Runner', 'SkillWriter', 'Worker', 'TDDDriver', 'Cognition',
+  'Migrator'
 ]);
 
 const StepStatusSchema = z.enum(['pending', 'active', 'done', 'blocked']);
@@ -146,14 +147,13 @@ const StepTypeSchema = z.enum([
 const PrioritySchema = z.enum(['low', 'medium', 'high', 'critical']);
 
 const RequestCategorySchema = z.enum([
-  'feature',       // Add new functionality
-  'bug',           // Fix something broken
-  'change',        // Modify existing behavior
-  'analysis',      // Understand how something works
-  'investigation', // Deep problem resolution and discovery
-  'debug',         // Investigate a specific issue
-  'refactor',      // Improve code without changing behavior
-  'documentation'  // Update or create docs
+  'feature',        // Add new functionality
+  'bugfix',         // Fix something broken
+  'refactor',       // Improve code without changing behavior
+  'orchestration',  // Systemic/cross-cutting agent system changes
+  'program',        // Multi-plan container
+  'quick_task',     // Small task, hub routes directly
+  'advisory'        // Conversational, no action taken
 ]);
 
 const RequestCategorizationSchema = z.object({
@@ -207,6 +207,7 @@ server.tool(
     child_plan_title: z.string().optional().describe('Title for child plan when upgrading with move_steps_to_child'),
     title: z.string().optional().describe('Plan title (for create/import)'),
     description: z.string().optional().describe('Plan description (for create)'),
+    schema_version: z.string().optional().describe('Plan schema version (auto-set to current version)'),
     category: RequestCategorySchema.optional().describe('Request category'),
     priority: PrioritySchema.optional().describe('Priority level'),
     steps: z.array(z.object({
@@ -236,7 +237,7 @@ server.tool(
     script_directory: z.string().optional().describe('Directory to run the build script in'),
     script_mcp_handle: z.string().optional().describe('MCP handle identifier for the script'),
     script_id: z.string().optional().describe('Build script ID (for run/delete)'),
-    template: z.enum(['feature', 'bugfix', 'refactor', 'documentation', 'analysis', 'investigation']).optional().describe('Plan template (for create_from_template)'),
+    template: z.enum(['feature', 'bugfix', 'refactor', 'documentation', 'analysis', 'investigation_workflow']).optional().describe('Plan template (for create_from_template)'),
     confirmation_scope: z.enum(['phase', 'step']).optional().describe('Confirmation scope (for confirm action)'),
     confirm_phase: z.string().optional().describe('Phase to confirm (for confirm action)'),
     confirm_step_index: z.number().optional().describe('0-based step index to confirm (for confirm action)'),
@@ -330,9 +331,9 @@ server.tool(
 
 server.tool(
   'memory_agent',
-  'Consolidated agent lifecycle and deployment tool. Actions: init (initialize agent session), complete (complete session), handoff (recommend next agent), validate (validate agent for current task), list (list available agents), get_instructions (get agent instructions), deploy (deploy agents to workspace), get_briefing (get mission briefing), get_lineage (get handoff history).',
+  'Consolidated agent lifecycle and deployment tool. Actions: init (initialize agent session), complete (complete session), handoff (recommend next agent), validate (validate agent for current task), list (list available agents), get_instructions (get agent instructions), deploy (deploy agents to workspace), get_briefing (get mission briefing), get_lineage (get handoff history), categorize (store categorization decision on plan), deploy_for_task (deploy agent files + context bundle for a specific task).',
   {
-    action: z.enum(['init', 'complete', 'handoff', 'validate', 'list', 'get_instructions', 'deploy', 'get_briefing', 'get_lineage']).describe('The action to perform'),
+    action: z.enum(['init', 'complete', 'handoff', 'validate', 'list', 'get_instructions', 'deploy', 'get_briefing', 'get_lineage', 'categorize', 'deploy_for_task']).describe('The action to perform'),
     workspace_id: z.string().optional().describe('Workspace ID'),
     plan_id: z.string().optional().describe('Plan ID'),
     agent_type: AgentTypeSchema.optional().describe('Agent type'),
@@ -358,7 +359,14 @@ server.tool(
     agents: z.array(z.string()).optional().describe('Specific agents to deploy'),
     include_prompts: z.boolean().optional().describe('Include prompts in deployment'),
     include_instructions: z.boolean().optional().describe('Include instructions in deployment'),
-    include_skills: z.boolean().optional().describe('Include skills in deployment')
+    include_skills: z.boolean().optional().describe('Include skills in deployment'),
+    categorization_result: z.record(z.unknown()).optional().describe('Categorization decision result — CategoryDecision object (for categorize)'),
+    phase_context: z.record(z.unknown()).optional().describe('Phase-specific context data (for deploy_for_task)'),
+    context_markers: z.record(z.enum(['phase-persistent', 'single-agent'])).optional().describe('Context persistence markers (for deploy_for_task)'),
+    include_research: z.boolean().optional().describe('Include research notes in context bundle (for deploy_for_task)'),
+    include_architecture: z.boolean().optional().describe('Include architecture context in bundle (for deploy_for_task)'),
+    phase_name: z.string().optional().describe('Current phase name (for deploy_for_task)'),
+    step_indices: z.array(z.number()).optional().describe('Step indices to work on (for deploy_for_task)')
   },
   async (params) => {
     const result = await withLogging('memory_agent', params, () =>

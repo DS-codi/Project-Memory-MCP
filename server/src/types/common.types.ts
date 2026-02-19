@@ -6,6 +6,7 @@
 
 import type { AgentType, AgentSession, AgentRoleBoundaries } from './agent.types.js';
 import type { BuildScript } from './build.types.js';
+import type { ToolContractSummary } from './preflight.types.js';
 import type { RequestCategory, RequestCategorization } from './context.types.js';
 import type {
   PlanState,
@@ -112,6 +113,7 @@ export interface InitialiseAgentParams {
   compact?: boolean;  // Default true - return compact plan state (summarized sessions/lineage/steps)
   context_budget?: number;  // Optional byte budget - progressively trim response to fit
   include_workspace_context?: boolean;  // If true, include workspace context summary in response
+  include_skills?: boolean;  // If false, skip skill matching (default: true)
   validate?: boolean;  // Optional - run validation as part of init
   validation_mode?: 'init+validate';
   deployment_context?: {  // Set by orchestrators to influence validation
@@ -252,9 +254,10 @@ export interface InitialiseAgentResult {
   role_boundaries: AgentRoleBoundaries;  // CRITICAL: Constraints this agent MUST follow
   instruction_files?: AgentInstructionFile[];  // Instruction files for this agent from Coordinator
   matched_skills?: MatchedSkillEntry[];  // Skills matched against current plan/step context
+  tool_contracts?: ToolContractSummary[];  // Per-agent tool action contracts (compact)
   validation?: { success: boolean; result?: unknown; error?: string };
   workspace_context_summary?: WorkspaceContextSummary;  // Opt-in via include_workspace_context=true
-  context_size_bytes?: number;  // Total payload size for monitoring (plan_state + workspace_context + matched_skills)
+  context_size_bytes?: number;  // Total payload size for monitoring (plan_state + workspace_context + matched_skills + tool_contracts)
 }
 
 /**
@@ -267,6 +270,8 @@ export interface MatchedSkillEntry {
   matched_keywords: string[];
   /** Full SKILL.md content — included only for top 2-3 matches */
   content?: string;
+  /** Whether this skill is linked to the current plan phase */
+  phase_linked?: boolean;
 }
 
 // =============================================================================

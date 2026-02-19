@@ -29,6 +29,7 @@ import type {
 import * as planTools from '../plan/index.js';
 import * as fileStore from '../../storage/file-store.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
+import { preflightValidate } from '../preflight/index.js';
 
 export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate' | 'set_goals' | 'add_build_script' | 'list_build_scripts' | 'run_build_script' | 'delete_build_script' | 'create_from_template' | 'list_templates' | 'confirm' | 'create_program' | 'add_plan_to_program' | 'upgrade_to_program' | 'list_program_plans' | 'export_plan' | 'link_to_program' | 'unlink_from_program' | 'set_plan_dependencies' | 'get_plan_dependencies' | 'set_plan_priority' | 'clone_plan' | 'merge_plans';
 
@@ -184,6 +185,12 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
     const validated = await validateAndResolveWorkspaceId(params.workspace_id);
     if (!validated.success) return validated.error_response as ToolResponse<PlanResult>;
     params.workspace_id = validated.workspace_id;
+  }
+
+  // Preflight validation — catch missing required fields early
+  const preflight = preflightValidate('memory_plan', action, params as unknown as Record<string, unknown>);
+  if (!preflight.valid) {
+    return { success: false, error: preflight.message, preflight_failure: preflight } as ToolResponse<PlanResult>;
   }
 
   switch (action) {

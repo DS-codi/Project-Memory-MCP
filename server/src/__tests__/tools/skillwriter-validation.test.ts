@@ -29,7 +29,7 @@ function makePlanState(overrides: Partial<PlanState> = {}): PlanState {
     description: 'Plan for generating skill files',
     priority: 'medium',
     status: 'active',
-    category: 'documentation',
+    category: 'quick_task',
     current_phase: 'Skill Generation',
     current_agent: 'SkillWriter',
     created_at: new Date().toISOString(),

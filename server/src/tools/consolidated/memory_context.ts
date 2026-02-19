@@ -17,7 +17,9 @@ import * as workspaceContextTools from '../workspace-context.tools.js';
 import * as knowledgeTools from '../knowledge.tools.js';
 import * as promptWriter from '../prompt-writer.js';
 import * as promptStorage from '../prompt-storage.js';
+import { recordFileOp } from '../stats-hooks.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
+import { preflightValidate } from '../preflight/index.js';
 
 export type ContextAction = 
   | 'store' 
@@ -43,6 +45,8 @@ export interface MemoryContextParams {
   action: ContextAction;
   workspace_id: string;
   plan_id?: string;
+  /** Session ID for instrumentation tracking */
+  _session_id?: string;
   
   // For store, get
   type?: string;
@@ -138,6 +142,12 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
   if (!validated.success) return validated.error_response as ToolResponse<ContextResult>;
   const resolvedWorkspaceId = validated.workspace_id;
 
+  // Preflight validation — catch missing required fields early
+  const preflight = preflightValidate('memory_context', action, params as unknown as Record<string, unknown>);
+  if (!preflight.valid) {
+    return { success: false, error: preflight.message, preflight_failure: preflight } as ToolResponse<ContextResult>;
+  }
+
   switch (action) {
     case 'store': {
       if (!plan_id) {
@@ -161,6 +171,7 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
       if (!result.success) {
         return { success: false, error: result.error };
       }
+      recordFileOp(params._session_id, 'write');
       return {
         success: true,
         data: { action: 'store', data: result.data! }
@@ -188,6 +199,7 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
       if (!result.success) {
         return { success: false, error: result.error };
       }
+      recordFileOp(params._session_id, 'read', params.type);
       return {
         success: true,
         data: { action: 'get', data: result.data! }
@@ -290,6 +302,7 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
       if (!result.success) {
         return { success: false, error: result.error };
       }
+      recordFileOp(params._session_id, 'write');
       return {
         success: true,
         data: { action: 'append_research', data: result.data! }

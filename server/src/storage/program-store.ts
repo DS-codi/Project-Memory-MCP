@@ -1,0 +1,227 @@
+/**
+ * Program Store - Disk I/O operations for the redesigned Programs system.
+ *
+ * Programs are stored in: data/{workspace_id}/programs/{program_id}/
+ * Each program directory contains:
+ *   - program.json     → ProgramState metadata
+ *   - dependencies.json → ProgramDependency[] cross-plan dependencies
+ *   - risks.json        → ProgramRisk[] risk register
+ *   - manifest.json     → ProgramManifest ordered child plan references
+ *
+ * Uses the same data root resolution as the rest of the storage layer
+ * (via workspace-utils.ts getDataRoot).
+ */
+
+import { promises as fs } from 'fs';
+import path from 'path';
+import type {
+  ProgramState,
+  ProgramDependency,
+  ProgramRisk,
+  ProgramManifest,
+} from '../types/program-v2.types.js';
+import { getDataRoot } from './workspace-utils.js';
+import { readJson, writeJson, modifyJsonLocked } from './file-lock.js';
+
+// =============================================================================
+// Path Helpers
+// =============================================================================
+
+/**
+ * Root directory for all programs in a workspace.
+ * data/{workspaceId}/programs/
+ */
+export function getProgramsPath(workspaceId: string): string {
+  return path.join(getDataRoot(), workspaceId, 'programs');
+}
+
+/**
+ * Directory for a specific program.
+ * data/{workspaceId}/programs/{programId}/
+ */
+export function getProgramPath(workspaceId: string, programId: string): string {
+  return path.join(getProgramsPath(workspaceId), programId);
+}
+
+/**
+ * Path to program.json (ProgramState metadata).
+ */
+export function getProgramStatePath(workspaceId: string, programId: string): string {
+  return path.join(getProgramPath(workspaceId, programId), 'program.json');
+}
+
+/**
+ * Path to dependencies.json (ProgramDependency[]).
+ */
+export function getDependenciesPath(workspaceId: string, programId: string): string {
+  return path.join(getProgramPath(workspaceId, programId), 'dependencies.json');
+}
+
+/**
+ * Path to risks.json (ProgramRisk[]).
+ */
+export function getRisksPath(workspaceId: string, programId: string): string {
+  return path.join(getProgramPath(workspaceId, programId), 'risks.json');
+}
+
+/**
+ * Path to manifest.json (ProgramManifest).
+ */
+export function getManifestPath(workspaceId: string, programId: string): string {
+  return path.join(getProgramPath(workspaceId, programId), 'manifest.json');
+}
+
+// =============================================================================
+// Directory Management
+// =============================================================================
+
+/**
+ * Create the program directory structure.
+ * Ensures the parent programs/ directory and the specific program directory exist.
+ */
+export async function createProgramDir(workspaceId: string, programId: string): Promise<void> {
+  const programDir = getProgramPath(workspaceId, programId);
+  await fs.mkdir(programDir, { recursive: true });
+}
+
+// =============================================================================
+// ProgramState CRUD
+// =============================================================================
+
+/**
+ * Read ProgramState from program.json.
+ * Returns null if file doesn't exist.
+ */
+export async function readProgramState(
+  workspaceId: string,
+  programId: string
+): Promise<ProgramState | null> {
+  const filePath = getProgramStatePath(workspaceId, programId);
+  return readJson<ProgramState>(filePath);
+}
+
+/**
+ * Save ProgramState to program.json with locking.
+ */
+export async function saveProgramState(
+  workspaceId: string,
+  programId: string,
+  state: ProgramState
+): Promise<void> {
+  const filePath = getProgramStatePath(workspaceId, programId);
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await modifyJsonLocked<ProgramState>(filePath, () => state);
+}
+
+// =============================================================================
+// Dependencies CRUD
+// =============================================================================
+
+/**
+ * Read the dependency graph from dependencies.json.
+ * Returns empty array if file doesn't exist.
+ */
+export async function readDependencies(
+  workspaceId: string,
+  programId: string
+): Promise<ProgramDependency[]> {
+  const filePath = getDependenciesPath(workspaceId, programId);
+  return (await readJson<ProgramDependency[]>(filePath)) ?? [];
+}
+
+/**
+ * Save the full dependency array to dependencies.json with locking.
+ */
+export async function saveDependencies(
+  workspaceId: string,
+  programId: string,
+  deps: ProgramDependency[]
+): Promise<void> {
+  const filePath = getDependenciesPath(workspaceId, programId);
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await modifyJsonLocked<ProgramDependency[]>(filePath, () => deps);
+}
+
+// =============================================================================
+// Risks CRUD
+// =============================================================================
+
+/**
+ * Read the risk register from risks.json.
+ * Returns empty array if file doesn't exist.
+ */
+export async function readRisks(
+  workspaceId: string,
+  programId: string
+): Promise<ProgramRisk[]> {
+  const filePath = getRisksPath(workspaceId, programId);
+  return (await readJson<ProgramRisk[]>(filePath)) ?? [];
+}
+
+/**
+ * Save the full risk array to risks.json with locking.
+ */
+export async function saveRisks(
+  workspaceId: string,
+  programId: string,
+  risks: ProgramRisk[]
+): Promise<void> {
+  const filePath = getRisksPath(workspaceId, programId);
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await modifyJsonLocked<ProgramRisk[]>(filePath, () => risks);
+}
+
+// =============================================================================
+// Manifest CRUD
+// =============================================================================
+
+/**
+ * Read the program manifest from manifest.json.
+ * Returns null if file doesn't exist.
+ */
+export async function readManifest(
+  workspaceId: string,
+  programId: string
+): Promise<ProgramManifest | null> {
+  const filePath = getManifestPath(workspaceId, programId);
+  return readJson<ProgramManifest>(filePath);
+}
+
+/**
+ * Save the program manifest to manifest.json with locking.
+ */
+export async function saveManifest(
+  workspaceId: string,
+  programId: string,
+  manifest: ProgramManifest
+): Promise<void> {
+  const filePath = getManifestPath(workspaceId, programId);
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await modifyJsonLocked<ProgramManifest>(filePath, () => manifest);
+}
+
+// =============================================================================
+// Listing & Deletion
+// =============================================================================
+
+/**
+ * List all program IDs in a workspace by scanning the programs/ directory.
+ * Returns an array of directory names (program IDs).
+ */
+export async function listPrograms(workspaceId: string): Promise<string[]> {
+  const programsDir = getProgramsPath(workspaceId);
+  try {
+    const entries = await fs.readdir(programsDir, { withFileTypes: true });
+    return entries.filter(e => e.isDirectory()).map(e => e.name);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Delete a program directory and all its contents.
+ */
+export async function deleteProgram(workspaceId: string, programId: string): Promise<void> {
+  const programDir = getProgramPath(workspaceId, programId);
+  await fs.rm(programDir, { recursive: true, force: true });
+}

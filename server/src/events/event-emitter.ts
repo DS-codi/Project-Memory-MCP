@@ -26,7 +26,10 @@ export type EventType =
   | 'context_stored'
   | 'session_interrupted'
   | 'session_injected'
-  | 'session_stop_escalated';
+  | 'session_stop_escalated'
+  | 'program_created'
+  | 'program_updated'
+  | 'program_archived';
 
 export interface MCPEvent {
   id: string;
@@ -242,6 +245,30 @@ export const events = {
       workspace_id: workspaceId,
       plan_id: planId,
       data: { session_id: sessionId, from_level: fromLevel, to_level: toLevel },
+    });
+  },
+
+  programCreated: async (workspaceId: string, programId: string, title: string, category: string) => {
+    await emitEvent({
+      type: 'program_created',
+      workspace_id: workspaceId,
+      data: { program_id: programId, title, category },
+    });
+  },
+
+  programUpdated: async (workspaceId: string, programId: string, changes: Record<string, unknown>) => {
+    await emitEvent({
+      type: 'program_updated',
+      workspace_id: workspaceId,
+      data: { program_id: programId, changes },
+    });
+  },
+
+  programArchived: async (workspaceId: string, programId: string) => {
+    await emitEvent({
+      type: 'program_archived',
+      workspace_id: workspaceId,
+      data: { program_id: programId },
     });
   },
 };

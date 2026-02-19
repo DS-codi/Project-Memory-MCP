@@ -24,6 +24,7 @@ import {
   validateStepOrder
 } from './plan-utils.js';
 import { checkProgramUpgradeSuggestion } from './plan-step-mutations.js';
+import { applySkillPhaseMatching } from './plan-lifecycle.js';
 
 // =============================================================================
 // Step Updates
@@ -424,6 +425,16 @@ export async function modifyPlan(
     // Set current phase to first phase if available
     if (indexedSteps.length > 0) {
       state.current_phase = indexedSteps[0].phase;
+    }
+
+    // Build phases and match skills (non-fatal)
+    try {
+      const workspace = await store.getWorkspace(workspace_id);
+      if (workspace?.path) {
+        state.phases = await applySkillPhaseMatching(workspace.path, indexedSteps);
+      }
+    } catch {
+      // Non-fatal — skill matching failure should not block plan modification
     }
 
     // Auto-upgrade detection: suggest program upgrade for large plans
