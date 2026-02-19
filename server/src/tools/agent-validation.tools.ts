@@ -126,7 +126,8 @@ const TASK_KEYWORDS: Record<AgentType, string[]> = {
   SkillWriter: ['generate skill', 'create skill', 'skill file', 'analyze patterns', 'codebase conventions', 'SKILL.md'],
   Worker: ['sub-task', 'delegated task', 'scoped work', 'worker task'],
   TDDDriver: ['tdd', 'test-driven', 'red green refactor', 'test first', 'failing test', 'tdd cycle'],
-  Cognition: ['reason', 'analyze plan', 'critique', 'ideate', 'evaluate approach', 'assess risk', 'read-only analysis']
+  Cognition: ['reason', 'analyze plan', 'critique', 'ideate', 'evaluate approach', 'assess risk', 'read-only analysis'],
+  Migrator: ['migrate', 'migration', 'upgrade schema', 'convert program', 'migrate program', 'schema migration', 'program migration']
 };
 
 // =============================================================================
@@ -244,7 +245,8 @@ function getAllowedTools(agentType: AgentType): string[] {
     SkillWriter: [...commonTools, 'update_step', 'store_context', 'list_skills', 'match_skills', 'deploy_skills'],
     Worker: [...commonTools, 'store_context', 'create_file', 'edit_file'],
     TDDDriver: [...commonTools, 'update_step', 'store_context', 'get_context', 'create_plan', 'modify_plan'],
-    Cognition: [...commonTools, 'get_plan_state', 'get_context', 'list_research_notes']
+    Cognition: [...commonTools, 'get_plan_state', 'get_context', 'list_research_notes'],
+    Migrator: [...commonTools, 'update_step', 'store_context', 'create_file', 'edit_file']
   };
   
   return agentTools[agentType];

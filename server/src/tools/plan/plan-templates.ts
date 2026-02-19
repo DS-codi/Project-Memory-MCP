@@ -17,7 +17,7 @@ import { events } from '../../events/event-emitter.js';
 // Template Types
 // =============================================================================
 
-export type PlanTemplate = 'feature' | 'bugfix' | 'refactor' | 'documentation' | 'analysis' | 'investigation_workflow';
+export type PlanTemplate = 'feature' | 'bugfix' | 'refactor' | 'documentation' | 'analysis' | 'investigation_workflow' | 'investigation';
 
 export interface PlanTemplateSteps {
   template: PlanTemplate;
@@ -99,6 +99,20 @@ const PLAN_TEMPLATES: Record<PlanTemplate, PlanTemplateSteps> = {
       { phase: 'Reporting', task: 'Provide recommendations', status: 'pending', type: 'documentation' }
     ]
   },
+  investigation: {
+    template: 'investigation',
+    goals: ['Investigate and resolve the identified problem', 'Produce a validated explanation or fix path'],
+    success_criteria: ['Root cause is identified', 'Evidence supports conclusions', 'Resolution path is clear'],
+    steps: [
+      { phase: 'Intake', task: 'Capture symptoms, scope, and constraints', status: 'pending', type: 'analysis' },
+      { phase: 'Recon', task: 'Survey relevant code, data, and logs', status: 'pending', type: 'analysis' },
+      { phase: 'Hypothesis', task: 'Form and prioritize hypotheses', status: 'pending', type: 'analysis' },
+      { phase: 'Experiment', task: 'Validate hypotheses with targeted experiments', status: 'pending', type: 'analysis' },
+      { phase: 'Validation', task: 'Confirm findings against evidence', status: 'pending', type: 'analysis' },
+      { phase: 'Resolution', task: 'Define the resolution plan and risks', status: 'pending', type: 'analysis' },
+      { phase: 'Handoff', task: 'Handoff findings and next steps', status: 'pending', type: 'analysis' }
+    ]
+  },
   investigation_workflow: {
     template: 'investigation_workflow',
     goals: ['Resolve the identified problem', 'Produce a validated explanation or fix path'],
@@ -167,6 +181,7 @@ export async function createPlanFromTemplate(
       refactor: 'refactor',
       documentation: 'quick_task',
       analysis: 'advisory',
+      investigation: 'advisory',
       investigation_workflow: 'advisory'
     };
 

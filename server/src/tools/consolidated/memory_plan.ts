@@ -3,7 +3,9 @@
  * 
  * Actions: list, get, create, update, archive, import, find, add_note,
  *          delete, consolidate, set_goals, build scripts, templates, confirm,
- *          create_program, add_plan_to_program, upgrade_to_program, list_program_plans
+ *          create_program, add_plan_to_program, upgrade_to_program, list_program_plans,
+ *          add_risk, list_risks, auto_detect_risks, set_dependency, get_dependencies,
+ *          migrate_programs
  */
 
 import path from 'path';
@@ -21,17 +23,27 @@ import type {
   ListBuildScriptsResult,
   RunBuildScriptResult,
   DeleteBuildScriptResult,
-  ProgramPlansResult,
   GetPlanDependenciesResult,
   ClonePlanResult,
   MergePlansResult,
 } from '../../types/index.js';
 import * as planTools from '../plan/index.js';
+import * as programTools from '../program/index.js';
 import * as fileStore from '../../storage/file-store.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
 import { preflightValidate } from '../preflight/index.js';
+import type {
+  ProgramRisk,
+  ProgramDependency,
+  ProgramState,
+  ProgramManifest,
+  RiskType,
+  RiskSeverity,
+  RiskStatus,
+  DependencyType,
+} from '../../types/program-v2.types.js';
 
-export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate' | 'set_goals' | 'add_build_script' | 'list_build_scripts' | 'run_build_script' | 'delete_build_script' | 'create_from_template' | 'list_templates' | 'confirm' | 'create_program' | 'add_plan_to_program' | 'upgrade_to_program' | 'list_program_plans' | 'export_plan' | 'link_to_program' | 'unlink_from_program' | 'set_plan_dependencies' | 'get_plan_dependencies' | 'set_plan_priority' | 'clone_plan' | 'merge_plans';
+export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate' | 'set_goals' | 'add_build_script' | 'list_build_scripts' | 'run_build_script' | 'delete_build_script' | 'create_from_template' | 'list_templates' | 'confirm' | 'create_program' | 'add_plan_to_program' | 'upgrade_to_program' | 'list_program_plans' | 'export_plan' | 'link_to_program' | 'unlink_from_program' | 'set_plan_dependencies' | 'get_plan_dependencies' | 'set_plan_priority' | 'clone_plan' | 'merge_plans' | 'add_risk' | 'list_risks' | 'auto_detect_risks' | 'set_dependency' | 'get_dependencies' | 'migrate_programs';
 
 export interface MemoryPlanParams {
   action: PlanAction;
@@ -82,11 +94,27 @@ export interface MemoryPlanParams {
   target_plan_id?: string;
   source_plan_ids?: string[];
   archive_sources?: boolean;
+  // Program v2 risk params
+  risk_type?: RiskType;
+  risk_severity?: RiskSeverity;
+  risk_status?: RiskStatus;
+  risk_title?: string;
+  risk_description?: string;
+  risk_mitigation?: string;
+  risk_detected_by?: 'auto' | 'manual';
+  risk_source_plan_id?: string;
+  risk_id?: string;
+  // Program v2 dependency params
+  source_plan_id?: string;
+  source_phase?: string;
+  target_plan_id_dep?: string;
+  target_phase?: string;
+  dependency_type?: DependencyType;
 }
 
 type PlanResult = 
   | { action: 'list'; data: planTools.ListPlansResult }
-  | { action: 'get'; data: PlanState }
+  | { action: 'get'; data: PlanState; migration_hint?: programTools.MigrationAdvisory }
   | { action: 'create'; data: PlanState }
   | { action: 'update'; data: PlanOperationResult }
   | { action: 'archive'; data: PlanState }
@@ -103,10 +131,10 @@ type PlanResult =
   | { action: 'create_from_template'; data: PlanState }
   | { action: 'list_templates'; data: planTools.PlanTemplateSteps[] }
   | { action: 'confirm'; data: { plan_state: PlanState; confirmation: unknown } }
-  | { action: 'create_program'; data: PlanState }
-  | { action: 'add_plan_to_program'; data: { program: PlanState; plan: PlanState } }
-  | { action: 'upgrade_to_program'; data: { program: PlanState; child_plan?: PlanState } }
-  | { action: 'list_program_plans'; data: ProgramPlansResult }
+  | { action: 'create_program'; data: ProgramState }
+  | { action: 'add_plan_to_program'; data: ProgramManifest }
+  | { action: 'upgrade_to_program'; data: { program: ProgramState; manifest: ProgramManifest } }
+  | { action: 'list_program_plans'; data: programTools.ProgramPlanSummary[] }
   | { action: 'export_plan'; data: planTools.ExportPlanResult }
   | { action: 'link_to_program'; data: { program: PlanState; plan: PlanState } }
   | { action: 'unlink_from_program'; data: { program: PlanState; plan: PlanState } }
@@ -114,7 +142,13 @@ type PlanResult =
   | { action: 'get_plan_dependencies'; data: GetPlanDependenciesResult }
   | { action: 'set_plan_priority'; data: planTools.SetPlanPriorityResult }
   | { action: 'clone_plan'; data: ClonePlanResult }
-  | { action: 'merge_plans'; data: MergePlansResult };
+  | { action: 'merge_plans'; data: MergePlansResult }
+  | { action: 'add_risk'; data: ProgramRisk }
+  | { action: 'list_risks'; data: ProgramRisk[] }
+  | { action: 'auto_detect_risks'; data: programTools.AutoDetectResult }
+  | { action: 'set_dependency'; data: programTools.SetDependencyResult }
+  | { action: 'get_dependencies'; data: ProgramDependency[] }
+  | { action: 'migrate_programs'; data: programTools.MigrationReport };
 
 const PATH_LIKE_EXTENSIONS = new Set([
   '.ps1',
@@ -176,7 +210,7 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
   if (!action) {
     return {
       success: false,
-      error: 'action is required. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, create_program, add_plan_to_program, upgrade_to_program, list_program_plans, link_to_program, unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans'
+      error: 'action is required. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, create_program, add_plan_to_program, upgrade_to_program, list_program_plans, link_to_program, unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans, add_risk, list_risks, auto_detect_risks, set_dependency, get_dependencies, migrate_programs'
     };
   }
 
@@ -228,9 +262,14 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
       if (!result.success) {
         return { success: false, error: result.error };
       }
+      const advisory = programTools.detectSinglePlanAdvisory(result.data!);
       return {
         success: true,
-        data: { action: 'get', data: result.data! }
+        data: {
+          action: 'get',
+          data: result.data!,
+          ...(advisory !== null ? { migration_hint: advisory } : {})
+        }
       };
     }
 
@@ -641,11 +680,12 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
           error: 'workspace_id, title, and description are required for action: create_program'
         };
       }
-      const result = await planTools.createProgram({
+      const result = await programTools.createProgram({
         workspace_id: params.workspace_id,
         title: params.title,
         description: params.description,
-        priority: params.priority
+        priority: params.priority,
+        category: params.category
       });
       if (!result.success) {
         return { success: false, error: result.error };
@@ -663,11 +703,11 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
           error: 'workspace_id, program_id, and plan_id are required for action: add_plan_to_program'
         };
       }
-      const result = await planTools.addPlanToProgram({
-        workspace_id: params.workspace_id,
-        program_id: params.program_id,
-        plan_id: params.plan_id
-      });
+      const result = await programTools.addPlanToProgram(
+        params.workspace_id,
+        params.program_id,
+        params.plan_id
+      );
       if (!result.success) {
         return { success: false, error: result.error };
       }
@@ -684,12 +724,10 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
           error: 'workspace_id and plan_id are required for action: upgrade_to_program'
         };
       }
-      const result = await planTools.upgradeToProgram({
-        workspace_id: params.workspace_id,
-        plan_id: params.plan_id,
-        move_steps_to_child: params.move_steps_to_child,
-        child_plan_title: params.child_plan_title
-      });
+      const result = await programTools.upgradeToProgram(
+        params.workspace_id,
+        params.plan_id
+      );
       if (!result.success) {
         return { success: false, error: result.error };
       }
@@ -706,10 +744,10 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
           error: 'workspace_id and program_id are required for action: list_program_plans'
         };
       }
-      const result = await planTools.listProgramPlans({
-        workspace_id: params.workspace_id,
-        program_id: params.program_id
-      });
+      const result = await programTools.listProgramPlans(
+        params.workspace_id,
+        params.program_id
+      );
       if (!result.success) {
         return { success: false, error: result.error };
       }
@@ -892,10 +930,160 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
       };
     }
 
+    // =========================================================================
+    // Program V2 Actions (risks, dependencies, migration)
+    // =========================================================================
+
+    case 'add_risk': {
+      if (!params.workspace_id || !params.program_id || !params.risk_title) {
+        return {
+          success: false,
+          error: 'workspace_id, program_id, and risk_title are required for action: add_risk'
+        };
+      }
+      try {
+        const risk = await programTools.addRisk(
+          params.workspace_id,
+          params.program_id,
+          {
+            program_id: params.program_id,
+            type: params.risk_type ?? 'dependency_risk',
+            severity: params.risk_severity ?? 'medium',
+            status: params.risk_status ?? 'identified',
+            title: params.risk_title,
+            description: params.risk_description ?? '',
+            mitigation: params.risk_mitigation,
+            detected_by: params.risk_detected_by ?? 'manual',
+            source_plan_id: params.risk_source_plan_id,
+          }
+        );
+        return {
+          success: true,
+          data: { action: 'add_risk', data: risk }
+        };
+      } catch (error) {
+        return { success: false, error: `Failed to add risk: ${(error as Error).message}` };
+      }
+    }
+
+    case 'list_risks': {
+      if (!params.workspace_id || !params.program_id) {
+        return {
+          success: false,
+          error: 'workspace_id and program_id are required for action: list_risks'
+        };
+      }
+      try {
+        const risks = await programTools.listRisks(
+          params.workspace_id,
+          params.program_id,
+          {
+            severity: params.risk_severity,
+            status: params.risk_status,
+            type: params.risk_type,
+          }
+        );
+        return {
+          success: true,
+          data: { action: 'list_risks', data: risks }
+        };
+      } catch (error) {
+        return { success: false, error: `Failed to list risks: ${(error as Error).message}` };
+      }
+    }
+
+    case 'auto_detect_risks': {
+      if (!params.workspace_id || !params.program_id) {
+        return {
+          success: false,
+          error: 'workspace_id and program_id are required for action: auto_detect_risks'
+        };
+      }
+      try {
+        const result = await programTools.autoDetectRisks(
+          params.workspace_id,
+          params.program_id
+        );
+        return {
+          success: true,
+          data: { action: 'auto_detect_risks', data: result }
+        };
+      } catch (error) {
+        return { success: false, error: `Failed to auto-detect risks: ${(error as Error).message}` };
+      }
+    }
+
+    case 'set_dependency': {
+      if (!params.workspace_id || !params.program_id || !params.source_plan_id || !params.target_plan_id_dep) {
+        return {
+          success: false,
+          error: 'workspace_id, program_id, source_plan_id, and target_plan_id_dep are required for action: set_dependency'
+        };
+      }
+      try {
+        const result = await programTools.setDependency(
+          params.workspace_id,
+          params.program_id,
+          {
+            source_plan_id: params.source_plan_id,
+            source_phase: params.source_phase,
+            target_plan_id: params.target_plan_id_dep,
+            target_phase: params.target_phase,
+            type: params.dependency_type ?? 'blocks',
+          }
+        );
+        return {
+          success: true,
+          data: { action: 'set_dependency', data: result }
+        };
+      } catch (error) {
+        return { success: false, error: `Failed to set dependency: ${(error as Error).message}` };
+      }
+    }
+
+    case 'get_dependencies': {
+      if (!params.workspace_id || !params.program_id) {
+        return {
+          success: false,
+          error: 'workspace_id and program_id are required for action: get_dependencies'
+        };
+      }
+      try {
+        const deps = await programTools.getDependencies(
+          params.workspace_id,
+          params.program_id
+        );
+        return {
+          success: true,
+          data: { action: 'get_dependencies', data: deps }
+        };
+      } catch (error) {
+        return { success: false, error: `Failed to get dependencies: ${(error as Error).message}` };
+      }
+    }
+
+    case 'migrate_programs': {
+      if (!params.workspace_id) {
+        return {
+          success: false,
+          error: 'workspace_id is required for action: migrate_programs'
+        };
+      }
+      try {
+        const report = await programTools.migratePrograms(params.workspace_id);
+        return {
+          success: true,
+          data: { action: 'migrate_programs', data: report }
+        };
+      } catch (error) {
+        return { success: false, error: `Failed to migrate programs: ${(error as Error).message}` };
+      }
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, create_program, add_plan_to_program, upgrade_to_program, list_program_plans, export_plan, link_to_program, unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans`
+        error: `Unknown action: ${action}. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, create_program, add_plan_to_program, upgrade_to_program, list_program_plans, export_plan, link_to_program, unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans, add_risk, list_risks, auto_detect_risks, set_dependency, get_dependencies, migrate_programs`
       };
   }
 }

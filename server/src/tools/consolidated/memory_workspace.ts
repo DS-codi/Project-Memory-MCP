@@ -15,6 +15,8 @@ import type { GhostFolderInfo, MergeResult, MigrateWorkspaceResult } from '../..
 import { linkWorkspaces, unlinkWorkspaces, getWorkspaceHierarchy, checkRegistryForOverlaps } from '../../storage/workspace-hierarchy.js';
 import type { WorkspaceHierarchyInfo } from '../../storage/workspace-hierarchy.js';
 import { normalizeWorkspacePath } from '../../storage/workspace-utils.js';
+import { detectMigrationAdvisories } from '../program/index.js';
+import type { MigrationAdvisory } from '../program/index.js';
 
 export type WorkspaceAction = 'register' | 'list' | 'info' | 'reindex' | 'merge' | 'scan_ghosts' | 'migrate' | 'link' | 'set_display_name' | 'export_pending';
 
@@ -39,13 +41,14 @@ interface WorkspaceInfoResult {
   active_plans: number;
   archived_plans: number;
   hierarchy?: WorkspaceHierarchyInfo;
+  migration_advisories?: MigrationAdvisory[];
 }
 
 type HierarchicalWorkspaceMeta = WorkspaceMeta & { children?: WorkspaceMeta[] };
 
 type WorkspaceResult = 
   | { action: 'register'; data: { workspace: WorkspaceMeta; first_time: boolean; indexed: boolean; profile?: WorkspaceProfile; overlap_detected?: boolean; overlaps?: WorkspaceOverlapInfo[]; message?: string } }
-  | { action: 'list'; data: WorkspaceMeta[] | HierarchicalWorkspaceMeta[] }
+  | { action: 'list'; data: WorkspaceMeta[] | HierarchicalWorkspaceMeta[]; migration_advisories?: MigrationAdvisory[] }
   | { action: 'info'; data: WorkspaceInfoResult }
   | { action: 'reindex'; data: { workspace_id: string; previous_profile?: WorkspaceProfile; new_profile: WorkspaceProfile; changes: object } }
   | { action: 'merge'; data: MergeResult }
@@ -102,6 +105,13 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
         }
       }
 
+      // Batch-load plans per workspace and detect migration advisories
+      const listPlanResults = await Promise.all(
+        result.data!.map(ws => workspaceTools.getWorkspacePlans({ workspace_id: ws.workspace_id }))
+      );
+      const listAllPlans = listPlanResults.flatMap(r => r && r.success && r.data ? r.data : []);
+      const listAdvisories = detectMigrationAdvisories(listAllPlans);
+
       // Hierarchical grouping: nest children under their parents
       if (params.hierarchical) {
         const allWorkspaces = result.data!;
@@ -135,13 +145,21 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
 
         return {
           success: true,
-          data: { action: 'list', data: hierarchicalList }
+          data: {
+            action: 'list',
+            data: hierarchicalList,
+            ...(listAdvisories.length > 0 ? { migration_advisories: listAdvisories } : {})
+          }
         };
       }
 
       return {
         success: true,
-        data: { action: 'list', data: result.data! }
+        data: {
+          action: 'list',
+          data: result.data!,
+          ...(listAdvisories.length > 0 ? { migration_advisories: listAdvisories } : {})
+        }
       };
     }
 
@@ -171,6 +189,8 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
       const plansResult = await workspaceTools.getWorkspacePlans({ workspace_id: infoWorkspaceId });
       const plans = plansResult.success ? plansResult.data! : [];
       
+      const advisories = detectMigrationAdvisories(plans);
+      
       const activePlans = plans.filter(p => p.status !== 'archived');
       const archivedPlans = plans.filter(p => p.status === 'archived');
       
@@ -192,7 +212,8 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
             plans,
             active_plans: activePlans.length,
             archived_plans: archivedPlans.length,
-            hierarchy
+            hierarchy,
+            ...(advisories.length > 0 ? { migration_advisories: advisories } : {})
           }
         }
       };
