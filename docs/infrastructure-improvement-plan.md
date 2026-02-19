@@ -83,7 +83,7 @@
 ### 5C: Container Mode
 
 - [ ] **5C.1** Build the container image and verify both MCP and dashboard servers start and are reachable on ports 3000, 3001, and 3002
-- [ ] **5C.2** Connect VS Code to the containerized MCP (via auto-detection or explicit `MBS_CONTAINER_URL`) and verify all 5 consolidated tools work (`memory_workspace`, `memory_plan`, `memory_steps`, `memory_agent`, `memory_context`)
+- [ ] **5C.2** Connect VS Code to the containerized MCP and verify all 5 consolidated tools work (`memory_workspace`, `memory_plan`, `memory_steps`, `memory_agent`, `memory_context`); container sends startup alert to local alert listener on port 9200
 - [ ] **5C.3** Open the dashboard frontend served from the container (port 3001) and verify workspaces, plans, and live WebSocket updates function
 - [ ] **5C.4** Open 3+ VS Code windows and verify they all connect to the same container instance — no duplicate server processes, shared state visible across windows
 - [ ] **5C.5** Stop the container while VS Code is connected — verify the extension detects the loss, shows a warning, and offers to restart locally or re-probe
@@ -129,7 +129,7 @@
 - [x] **6C.3** Updated `.vscode/mcp.json` with a `project-memory-container` SSE entry (`{ "type": "sse", "url": "http://localhost:3000/sse" }`) disabled by default — users enable it when switching to container mode and disable the stdio entry
 - [x] **6C.4** Added `container` status to `updateStatusBar()` — shows `$(package)` icon with "PM Server (container)" label and prominent background color; tooltip distinguishes container vs external vs local mode
 - [x] **6C.5** Implemented `startContainerHealthMonitor()` — polls container health every 30s; on failure: marks server as disconnected, shows warning with "Retry Container" / "Start Local" / "Dismiss" options; `stopContainerHealthMonitor()` called in `stop()` and `dispose()`
-- [x] **6C.6** Added automatic container proxy to MCP server — `server/src/transport/container-proxy.ts` detects a running container via health probe, connects as MCP Client (StreamableHTTP/SSE), and forwards all `tools/list` and `tools/call` requests; eliminates need for separate `project-memory-container` config entry; controlled by `MBS_CONTAINER_URL` and `MBS_NO_PROXY` env vars
+- [x] ~~**6C.6** Added automatic container proxy to MCP server~~ — **REMOVED** in `feature/strict-mode-boundaries`. Replaced with strict two-mode architecture: local mode runs `ContainerAlertListener` on port 9200; container mode runs `DataRootLiveness` hook + `sendStartupAlert()` to notify the host
 
 > Container validation is covered by Phase 5C.
 
@@ -205,8 +205,10 @@
 | Container entrypoint | [container/entrypoint.sh](container/entrypoint.sh) | Starts MCP (streamable-http) + dashboard, signal trapping |
 | Podman compose | [podman-compose.yml](podman-compose.yml) | Volume mounts, port mappings, healthcheck |
 | Container run script | [run-container.ps1](run-container.ps1) | PowerShell: build/run/stop/logs/status actions |
-| Container proxy | [server/src/transport/container-proxy.ts](server/src/transport/container-proxy.ts) | Auto-detects container, proxies tool calls via StreamableHTTP/SSE |
+| Container alert listener | [server/src/transport/container-alert-listener.ts](server/src/transport/container-alert-listener.ts) | Listens on port 9200 for container startup alerts (local mode) |
+| Container startup alert | [server/src/transport/container-startup-alert.ts](server/src/transport/container-startup-alert.ts) | Sends fire-and-forget POST to host alert listener on startup (container mode) |
+| Data root liveness | [server/src/transport/data-root-liveness.ts](server/src/transport/data-root-liveness.ts) | Tool-call hook + background polling for data root accessibility (container mode) |
 | Container detection | [vscode-extension/src/server/ContainerDetection.ts](vscode-extension/src/server/ContainerDetection.ts) | `probeContainer()`, `shouldUseContainer()`, settings |
-| MCP config | [.vscode/mcp.json](.vscode/mcp.json) | stdio entry with `MBS_CONTAINER_URL`/`MBS_NO_PROXY` env vars |
+| MCP config | [.vscode/mcp.json](.vscode/mcp.json) | stdio entry for local mode; `MBS_ALERT_PORT` configures alert listener |
 | Dashboard ErrorBoundary | [dashboard/src/components/common/ErrorBoundary.tsx](dashboard/src/components/common/ErrorBoundary.tsx) | Existing error handling |
 | Tool logger | [server/src/logging/tool-logger.ts](server/src/logging/tool-logger.ts) | Existing MCP logging |

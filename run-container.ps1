@@ -41,6 +41,13 @@ $ScriptRoot = $PSScriptRoot
 # Resolve workspace root (script is at repo root)
 $WorkspaceRoot = if ($ScriptRoot) { $ScriptRoot } else { Get-Location }
 
+# Alert listener port (host listens for container-ready alerts)
+$alertPortCandidate = 0
+$AlertPort = if (
+    $env:MBS_ALERT_PORT -and
+    [int]::TryParse($env:MBS_ALERT_PORT, [ref]$alertPortCandidate)
+) { $alertPortCandidate } else { 9200 }
+
 $BridgeHostAlias = if ($env:PM_INTERACTIVE_TERMINAL_HOST_ALIAS) { $env:PM_INTERACTIVE_TERMINAL_HOST_ALIAS } else { 'host.containers.internal' }
 $BridgeFallbackAlias = if ($env:PM_INTERACTIVE_TERMINAL_HOST_FALLBACK_ALIAS) { $env:PM_INTERACTIVE_TERMINAL_HOST_FALLBACK_ALIAS } else { 'host.docker.internal' }
 $bridgePortCandidate = 0
@@ -502,6 +509,8 @@ function Start-Container {
         "-e", "PM_INTERACTIVE_TERMINAL_CONNECT_TIMEOUT_MS=$BridgeConnectTimeoutMs",
         "-e", "PM_INTERACTIVE_TERMINAL_REQUEST_TIMEOUT_MS=$BridgeRequestTimeoutMs",
         "-e", "PM_INTERACTIVE_TERMINAL_TRACE_BRIDGE=$BridgeTrace",
+        "-e", "MBS_ALERT_HOST=$addHostValue",
+        "-e", "MBS_ALERT_PORT=$AlertPort",
         "-e", "NODE_ENV=production"
     )
 

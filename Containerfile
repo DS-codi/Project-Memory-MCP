@@ -104,6 +104,9 @@ ENV DASHBOARD_PORT=3001
 ENV WS_PORT=3002
 ENV PM_RUNNING_IN_CONTAINER=true
 ENV PM_TERM_ADAPTER_MODE=container_bridge
+# Alert listener on the host — container sends a startup POST to this address
+ENV MBS_ALERT_HOST=host.containers.internal
+ENV MBS_ALERT_PORT=9200
 # Container mode routes terminal approvals through the host GUI bridge
 # (host.containers.internal:45459 by default).
 ENV PM_INTERACTIVE_TERMINAL_HOST_ALIAS=host.containers.internal
