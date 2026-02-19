@@ -22,6 +22,7 @@ import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { InMemoryEventStore } from '@modelcontextprotocol/sdk/examples/shared/inMemoryEventStore.js';
 import { getDataRoot, listDirs } from '../storage/file-store.js';
+import { isDataRootAccessible } from './data-root-liveness.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -80,6 +81,7 @@ function buildHealthResponse(): Record<string, unknown> {
       platform: process.platform,
     },
     dataRoot: process.env.MBS_DATA_ROOT || 'default',
+    dataRootAccessible: isDataRootAccessible(),
     agentsRoot: process.env.MBS_AGENTS_ROOT || 'default',
     timestamp: new Date().toISOString(),
   };

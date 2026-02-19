@@ -28,11 +28,15 @@ import { logToolCall, runWithToolContext, setCurrentAgent } from './logging/tool
 // Import consolidated tools
 import * as consolidatedTools from './tools/consolidated/index.js';
 
-// Import container proxy (auto-detection of container instances)
-import { detectContainer, getContainerUrl, createProxyServer } from './transport/container-proxy.js';
-
 // Import HTTP transport (Phase 6A)
 import { createHttpApp, closeAllTransports, type TransportType } from './transport/http-transport.js';
+
+// Import container alert listener (strict mode boundaries)
+import { ContainerAlertListener } from './transport/container-alert-listener.js';
+
+// Import container startup alert and data-root liveness (container mode)
+import { sendStartupAlert } from './transport/container-startup-alert.js';
+import { setDataRoot, startLivenessPolling, stopLivenessPolling } from './transport/data-root-liveness.js';
 
 // =============================================================================
 // Logging Helper
@@ -571,44 +575,27 @@ async function main() {
   console.error(`Transport: ${transport}`);
 
   if (transport === 'stdio') {
-    // Check if a container instance is running — proxy to it if so
-    const containerUrl = getContainerUrl();
-    const skipProxy = process.env.MBS_NO_PROXY === '1' || process.env.MBS_NO_PROXY === 'true';
-
-    if (!skipProxy) {
-      const container = await detectContainer(containerUrl);
-      if (container) {
-        console.error(`[proxy] Container detected at ${container.url} (v${container.version})`);
-        console.error('[proxy] Entering proxy mode — all tool calls will be forwarded to container');
-
-        try {
-          const { server, connection, toolNames } = await createProxyServer(container.url);
-          console.error(`[proxy] ${toolNames.length} tools registered from container`);
-
-          const stdioTransport = new StdioServerTransport();
-          await server.connect(stdioTransport);
-          console.error('Project Memory MCP Server running (stdio → container proxy)');
-
-          // Graceful cleanup on exit
-          process.on('SIGINT', async () => {
-            await connection.close();
-            process.exit(0);
-          });
-          return;
-        } catch (err) {
-          console.error(`[proxy] Failed to connect to container: ${(err as Error).message}`);
-          console.error('[proxy] Falling back to local mode');
-        }
-      }
-    }
-
-    // Standard local stdio transport (default)
+    // Local stdio transport (default)
     const server = createMcpServer();
     const stdioTransport = new StdioServerTransport();
     await server.connect(stdioTransport);
     console.error('Project Memory MCP Server running (stdio, local)');
+
+    // Start alert listener for container-ready notifications
+    const alertListener = new ContainerAlertListener();
+    await alertListener.start();
+
+    // Graceful cleanup on exit
+    process.on('SIGINT', async () => {
+      await alertListener.stop();
+      process.exit(0);
+    });
   } else {
     // HTTP-based transport (container mode)
+    // Set up data-root liveness monitoring
+    setDataRoot(store.getDataRoot());
+    startLivenessPolling();
+
     const app = createHttpApp(createMcpServer);
     
     const httpServer = app.listen(port, () => {
@@ -618,11 +605,15 @@ async function main() {
         console.error(`  MCP:    http://localhost:${port}/mcp`);
         console.error(`  SSE:    http://localhost:${port}/sse`);
       }
+
+      // Send container-ready alert to host (fire-and-forget)
+      void sendStartupAlert(port, '1.0.0', transport);
     });
 
     // Graceful shutdown
     const shutdown = async () => {
       console.error('Shutting down...');
+      stopLivenessPolling();
       await closeAllTransports();
       httpServer.close();
       process.exit(0);
