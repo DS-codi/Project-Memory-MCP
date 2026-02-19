@@ -1,6 +1,7 @@
 //! Supervisor configuration — loaded from TOML, all sections optional with sensible defaults.
 
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::fmt;
 use std::io;
 use std::path::PathBuf;
@@ -126,6 +127,88 @@ impl Default for ReconnectSection {
     }
 }
 
+// ---------------------------------------------------------------------------
+// MCP backend selector
+// ---------------------------------------------------------------------------
+
+/// Which backend manages the MCP process.
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum McpBackend {
+    /// Spawn a local Node.js process (default).
+    #[default]
+    Node,
+    /// Run a Podman/Docker container.
+    Container,
+}
+
+// ---------------------------------------------------------------------------
+// NodeRunnerConfig
+// ---------------------------------------------------------------------------
+
+/// Configuration for the Node.js MCP process runner (`[mcp.node]` section).
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct NodeRunnerConfig {
+    /// Executable to invoke (default: `"node"`).
+    pub command: String,
+    /// Arguments passed to the command (default: `["dist/server.js"]`).
+    pub args: Vec<String>,
+    /// Working directory for the process.
+    pub working_dir: Option<PathBuf>,
+    /// Extra environment variables to inject.
+    pub env: HashMap<String, String>,
+}
+
+impl Default for NodeRunnerConfig {
+    fn default() -> Self {
+        Self {
+            command: default_node_command(),
+            args: default_node_args(),
+            working_dir: None,
+            env: HashMap::new(),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ContainerRunnerConfig
+// ---------------------------------------------------------------------------
+
+/// Configuration for the Podman/Docker container runner (`[mcp.container]` section).
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct ContainerRunnerConfig {
+    /// Container engine command to invoke (default: `"podman"`).
+    pub engine: String,
+    /// Container image (default: `"project-memory-mcp:latest"`).
+    pub image: String,
+    /// Name to assign to the running container (default: `"project-memory-mcp"`).
+    pub container_name: String,
+    /// Port mappings in `"host:container"` format (default: `["3000:3000"]`).
+    pub ports: Vec<String>,
+    /// Labels to attach to the container (default: `{"project-memory.mcp": "true"}`).
+    pub labels: HashMap<String, String>,
+}
+
+impl Default for ContainerRunnerConfig {
+    fn default() -> Self {
+        let mut labels = HashMap::new();
+        labels.insert("project-memory.mcp".to_string(), "true".to_string());
+        Self {
+            engine: "podman".to_string(),
+            image: "project-memory-mcp:latest".to_string(),
+            container_name: "project-memory-mcp".to_string(),
+            ports: vec!["3000:3000".to_string()],
+            labels,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// McpSection
+// ---------------------------------------------------------------------------
+
 #[derive(Debug, Deserialize)]
 #[serde(default)]
 pub struct McpSection {
@@ -133,6 +216,14 @@ pub struct McpSection {
     pub port: u16,
     /// Optional Unix/Windows named-pipe socket path.
     pub socket_path: Option<String>,
+    /// Timeout (ms) for the HTTP health probe (default: 1500).
+    pub health_timeout_ms: u64,
+    /// Which backend manages the MCP process.
+    pub backend: McpBackend,
+    /// Node.js runner configuration (`[mcp.node]` subsection).
+    pub node: NodeRunnerConfig,
+    /// Container runner configuration (`[mcp.container]` subsection).
+    pub container: ContainerRunnerConfig,
 }
 
 impl Default for McpSection {
@@ -141,6 +232,10 @@ impl Default for McpSection {
             enabled: true,
             port: 3457,
             socket_path: None,
+            health_timeout_ms: 1500,
+            backend: McpBackend::default(),
+            node: NodeRunnerConfig::default(),
+            container: ContainerRunnerConfig::default(),
         }
     }
 }
@@ -149,9 +244,17 @@ impl Default for McpSection {
 #[serde(default)]
 pub struct InteractiveTerminalSection {
     pub enabled: bool,
-    /// Path to the `interactive-terminal` executable.
+    /// Path to the `interactive-terminal` executable (deprecated; prefer `command`).
     pub executable_path: Option<PathBuf>,
     pub port: u16,
+    /// Executable to invoke for each terminal process (default: `"interactive-terminal"`).
+    pub command: String,
+    /// Arguments passed to the command (default: `[]`).
+    pub args: Vec<String>,
+    /// Working directory for spawned terminal processes.
+    pub working_dir: Option<PathBuf>,
+    /// Extra environment variables injected into each terminal process.
+    pub env: HashMap<String, String>,
 }
 
 impl Default for InteractiveTerminalSection {
@@ -160,6 +263,10 @@ impl Default for InteractiveTerminalSection {
             enabled: true,
             executable_path: None,
             port: 3458,
+            command: "interactive-terminal".to_string(),
+            args: Vec::new(),
+            working_dir: None,
+            env: HashMap::new(),
         }
     }
 }
@@ -171,6 +278,17 @@ pub struct DashboardSection {
     pub port: u16,
     /// Directory containing compiled dashboard static files.
     pub static_dir: Option<PathBuf>,
+    /// Executable to invoke for the dashboard process (default: `"node"`).
+    pub command: String,
+    /// Arguments passed to the command (default: `["dist/dashboard.js"]`).
+    pub args: Vec<String>,
+    /// Working directory for the dashboard process.
+    pub working_dir: Option<PathBuf>,
+    /// Extra environment variables injected into the dashboard process.
+    pub env: HashMap<String, String>,
+    /// When `true`, the dashboard enters degraded state if MCP becomes unavailable,
+    /// but the process is NOT killed (default: `true`).
+    pub requires_mcp: bool,
 }
 
 impl Default for DashboardSection {
@@ -179,6 +297,11 @@ impl Default for DashboardSection {
             enabled: true,
             port: 3459,
             static_dir: None,
+            command: "node".to_string(),
+            args: vec!["dist/dashboard.js".to_string()],
+            working_dir: None,
+            env: HashMap::new(),
+            requires_mcp: true,
         }
     }
 }
@@ -313,6 +436,14 @@ fn default_data_dir() -> PathBuf {
 
 const fn default_true() -> bool {
     true
+}
+
+fn default_node_command() -> String {
+    "node".to_string()
+}
+
+fn default_node_args() -> Vec<String> {
+    vec!["dist/server.js".to_string()]
 }
 
 /// Fallback for %APPDATA% when the env var is absent (should rarely happen).
@@ -644,6 +775,101 @@ command = "/usr/bin/node"
         assert!(
             cfg.servers[0].auto_restart,
             "auto_restart should default to true for a server that omits it"
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // Phase 2: McpSection / NodeRunnerConfig defaults
+    // ------------------------------------------------------------------
+
+    /// McpSection::default() must select the Node backend.
+    #[test]
+    fn mcp_backend_defaults_to_node() {
+        let mcp = McpSection::default();
+        assert!(
+            matches!(mcp.backend, McpBackend::Node),
+            "McpSection default backend should be Node"
+        );
+    }
+
+    /// McpSection::default() must set health_timeout_ms to 1500 ms.
+    #[test]
+    fn mcp_section_health_timeout_default() {
+        let mcp = McpSection::default();
+        assert_eq!(
+            mcp.health_timeout_ms, 1500,
+            "default health_timeout_ms should be 1500"
+        );
+    }
+
+    /// NodeRunnerConfig::default() must produce command="node" and
+    /// args=["dist/server.js"].
+    #[test]
+    fn node_runner_config_defaults() {
+        let node = NodeRunnerConfig::default();
+        assert_eq!(node.command, "node", "default command should be 'node'");
+        assert_eq!(
+            node.args,
+            vec!["dist/server.js".to_string()],
+            "default args should be ['dist/server.js']"
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // Phase 3: ContainerRunnerConfig defaults via McpSection
+    // ------------------------------------------------------------------
+
+    /// `McpSection::default().container` must carry `ContainerRunnerConfig`
+    /// defaults: engine="podman", image="project-memory-mcp:latest".
+    #[test]
+    fn mcp_section_container_defaults() {
+        let mcp = McpSection::default();
+        assert_eq!(
+            mcp.container.engine, "podman",
+            "McpSection default container engine should be 'podman'"
+        );
+        assert_eq!(
+            mcp.container.image, "project-memory-mcp:latest",
+            "McpSection default container image should be 'project-memory-mcp:latest'"
+        );
+        assert_eq!(
+            mcp.container.container_name, "project-memory-mcp",
+            "McpSection default container_name should be 'project-memory-mcp'"
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // Phase 4: InteractiveTerminalSection / DashboardSection defaults
+    // ------------------------------------------------------------------
+
+    /// `InteractiveTerminalSection::default()` must produce
+    /// `command = "interactive-terminal"` and empty `args`.
+    #[test]
+    fn interactive_terminal_section_defaults() {
+        let it = InteractiveTerminalSection::default();
+        assert_eq!(
+            it.command, "interactive-terminal",
+            "default command should be 'interactive-terminal'"
+        );
+        assert!(
+            it.args.is_empty(),
+            "default args should be empty, got: {:?}",
+            it.args
+        );
+    }
+
+    /// `DashboardSection::default()` must have `requires_mcp = true`
+    /// and `command = "node"`.
+    #[test]
+    fn dashboard_section_requires_mcp_default() {
+        let cfg = DashboardSection::default();
+        assert!(
+            cfg.requires_mcp,
+            "requires_mcp should default to true"
+        );
+        assert_eq!(
+            cfg.command, "node",
+            "command should default to 'node'"
         );
     }
 }
