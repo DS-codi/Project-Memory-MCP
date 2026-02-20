@@ -54,6 +54,31 @@ pub enum ControlRequest {
     /// Identity handshake — client sends its identity; supervisor replies with
     /// its own identity and capability list.
     WhoAmI(WhoAmIRequest),
+
+    /// Query health data for a single service: state, last_health timestamp,
+    /// last_error, and active backend.
+    ServiceHealth { service: String },
+
+    /// Query the last N state-transition events for a service.
+    /// `limit` defaults to 50 when absent.
+    StateEvents { service: String, limit: Option<usize> },
+
+    /// Signal the supervisor to perform a zero-downtime MCP upgrade.
+    /// Drains active sessions, stops the MCP runner, then restarts it.
+    UpgradeMcp,
+
+    /// Launch an on-demand form-app GUI process, pipe a payload on stdin,
+    /// and return the response from stdout.
+    LaunchApp {
+        /// Registered app name: `"brainstorm_gui"` or `"approval_gui"`.
+        app_name: String,
+        /// The full [`FormRequest`] JSON payload to pipe to the child process.
+        payload: serde_json::Value,
+        /// Optional per-request timeout override in seconds.
+        /// Falls back to the app's configured `timeout_seconds`.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        timeout_seconds: Option<u64>,
+    },
 }
 
 /// Body of the `WhoAmI` request.
@@ -107,6 +132,63 @@ pub struct WhoAmIResponse {
     /// Wire-protocol version string, currently `"1"`.
     pub protocol_version: String,
     pub capabilities: Vec<String>,
+}
+
+// ---------------------------------------------------------------------------
+// FormApp response types
+// ---------------------------------------------------------------------------
+
+/// Result of a `LaunchApp` request, returned inside `ControlResponse.data`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FormAppResponse {
+    /// The app that was launched.
+    pub app_name: String,
+    /// Whether the GUI produced a valid response.
+    pub success: bool,
+    /// The GUI's response payload (`FormResponse` JSON), present on success.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub response_payload: Option<serde_json::Value>,
+    /// Human-readable error message, present on failure.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    /// Duration in milliseconds from spawn to response (or timeout).
+    pub elapsed_ms: u64,
+    /// `true` when the process was killed because the timeout expired.
+    pub timed_out: bool,
+}
+
+/// Lifecycle state of a single form-app process.
+///
+/// Used internally by the Supervisor to track running GUI processes and
+/// enforce timeouts.
+#[derive(Debug)]
+pub enum FormAppLifecycleState {
+    /// The process has been spawned and is waiting for the user response.
+    Running,
+    /// The process finished and produced a response.
+    Completed,
+    /// The process was killed due to timeout.
+    TimedOut,
+    /// The process exited with an error or could not be started.
+    Failed(String),
+}
+
+/// Internal tracker for a running form-app process.
+///
+/// Not serialized over the wire; used by the launcher to manage child
+/// process handles and kill-on-timeout logic.
+#[derive(Debug)]
+pub struct FormAppLifecycle {
+    /// Name of the app (e.g. `"brainstorm_gui"`).
+    pub app_name: String,
+    /// OS process ID of the child, if successfully spawned.
+    pub pid: Option<u32>,
+    /// Current lifecycle state.
+    pub state: FormAppLifecycleState,
+    /// Unix timestamp (ms) when the process was spawned.
+    pub started_at_ms: u64,
+    /// Configured timeout in seconds.
+    pub timeout_seconds: u64,
 }
 
 // ---------------------------------------------------------------------------

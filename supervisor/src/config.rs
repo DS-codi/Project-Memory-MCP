@@ -24,6 +24,24 @@ pub enum ControlTransport {
 }
 
 // ---------------------------------------------------------------------------
+// Restart policy
+// ---------------------------------------------------------------------------
+
+/// Per-service restart policy, controlling how the supervisor responds when
+/// a service exits or fails.
+#[derive(Debug, Clone, Deserialize, Default, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum RestartPolicy {
+    /// Always attempt reconnect regardless of how the service stopped.
+    #[default]
+    AlwaysRestart,
+    /// Only reconnect if the service exited with an error.
+    RestartOnFailure,
+    /// Never reconnect — once stopped, the service stays stopped.
+    NeverRestart,
+}
+
+// ---------------------------------------------------------------------------
 // Top-level config
 // ---------------------------------------------------------------------------
 
@@ -47,6 +65,15 @@ pub struct SupervisorConfig {
 
     #[serde(default)]
     pub dashboard: DashboardSection,
+
+    #[serde(default)]
+    pub approval: ApprovalSection,
+
+    #[serde(default)]
+    pub brainstorm_gui: BrainstormGuiSection,
+
+    #[serde(default)]
+    pub approval_gui: ApprovalGuiSection,
 
     /// Zero or more managed server definitions.
     #[serde(default)]
@@ -244,6 +271,9 @@ pub struct McpSection {
     pub node: NodeRunnerConfig,
     /// Container runner configuration (`[mcp.container]` subsection).
     pub container: ContainerRunnerConfig,
+    /// Restart policy for the MCP service.
+    #[serde(default)]
+    pub restart_policy: RestartPolicy,
 }
 
 impl Default for McpSection {
@@ -256,6 +286,7 @@ impl Default for McpSection {
             backend: McpBackend::default(),
             node: NodeRunnerConfig::default(),
             container: ContainerRunnerConfig::default(),
+            restart_policy: RestartPolicy::default(),
         }
     }
 }
@@ -275,6 +306,9 @@ pub struct InteractiveTerminalSection {
     pub working_dir: Option<PathBuf>,
     /// Extra environment variables injected into each terminal process.
     pub env: HashMap<String, String>,
+    /// Restart policy for the interactive terminal service.
+    #[serde(default)]
+    pub restart_policy: RestartPolicy,
 }
 
 impl Default for InteractiveTerminalSection {
@@ -287,6 +321,7 @@ impl Default for InteractiveTerminalSection {
             args: Vec::new(),
             working_dir: None,
             env: HashMap::new(),
+            restart_policy: RestartPolicy::default(),
         }
     }
 }
@@ -309,6 +344,9 @@ pub struct DashboardSection {
     /// When `true`, the dashboard enters degraded state if MCP becomes unavailable,
     /// but the process is NOT killed (default: `true`).
     pub requires_mcp: bool,
+    /// Restart policy for the dashboard service.
+    #[serde(default)]
+    pub restart_policy: RestartPolicy,
 }
 
 impl Default for DashboardSection {
@@ -322,8 +360,142 @@ impl Default for DashboardSection {
             working_dir: None,
             env: HashMap::new(),
             requires_mcp: true,
+            restart_policy: RestartPolicy::default(),
         }
     }
+}
+
+/// Configuration for the approval-gate dialog.
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct ApprovalSection {
+    /// Default countdown duration in seconds before auto-action (default: 60).
+    pub default_countdown_seconds: u32,
+    /// Action to take when the timer expires: `"approve"` or `"reject"` (default: `"approve"`).
+    pub default_on_timeout: String,
+    /// Whether the approval dialog should stay on top of other windows (default: `true`).
+    pub always_on_top: bool,
+}
+
+impl Default for ApprovalSection {
+    fn default() -> Self {
+        Self {
+            default_countdown_seconds: 60,
+            default_on_timeout: "approve".to_string(),
+            always_on_top: true,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Launch mode for on-demand GUI apps
+// ---------------------------------------------------------------------------
+
+/// How and when a form-app process is started.
+#[derive(Debug, Clone, Deserialize, Default, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum LaunchMode {
+    /// Spawned when a request arrives and terminated after a response (default).
+    #[default]
+    OnDemand,
+    /// Kept running as long as the supervisor is alive (future use).
+    Persistent,
+}
+
+// ---------------------------------------------------------------------------
+// FormAppConfig — shared config for on-demand GUI app processes
+// ---------------------------------------------------------------------------
+
+/// Configuration for an on-demand GUI form application.
+///
+/// Both the brainstorm GUI and approval GUI share this shape. Each is stored
+/// under its own TOML section (`[brainstorm_gui]`, `[approval_gui]`).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct FormAppConfig {
+    /// Whether this app is available to launch (default: `true`).
+    pub enabled: bool,
+    /// Executable command (default: crate binary name).
+    pub command: String,
+    /// Arguments passed to the command (default: `[]`).
+    pub args: Vec<String>,
+    /// Working directory for the spawned process.
+    pub working_dir: Option<PathBuf>,
+    /// Extra environment variables injected into the process.
+    pub env: HashMap<String, String>,
+    /// Launch mode — how the process lifecycle is managed (default: `on_demand`).
+    pub launch_mode: LaunchMode,
+    /// Default timeout in seconds for waiting for the GUI to respond (default: 300 = 5 min).
+    pub timeout_seconds: u64,
+    /// Default window width in pixels (default: 720).
+    pub window_width: u32,
+    /// Default window height in pixels (default: 640).
+    pub window_height: u32,
+    /// Whether the window should stay on top of other windows (default: `false`).
+    pub always_on_top: bool,
+}
+
+/// Create a default [`FormAppConfig`] with the given binary name as `command`.
+fn default_form_app_config(binary_name: &str) -> FormAppConfig {
+    FormAppConfig {
+        enabled: true,
+        command: binary_name.to_string(),
+        args: Vec::new(),
+        working_dir: None,
+        env: HashMap::new(),
+        launch_mode: LaunchMode::OnDemand,
+        timeout_seconds: 300,
+        window_width: 720,
+        window_height: 640,
+        always_on_top: false,
+    }
+}
+
+impl Default for FormAppConfig {
+    fn default() -> Self {
+        default_form_app_config("form-app")
+    }
+}
+
+// ---------------------------------------------------------------------------
+// BrainstormGuiSection / ApprovalGuiSection
+// ---------------------------------------------------------------------------
+
+/// Configuration for the brainstorm decision-surface GUI (`[brainstorm_gui]`).
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct BrainstormGuiSection(pub FormAppConfig);
+
+impl Default for BrainstormGuiSection {
+    fn default() -> Self {
+        Self(default_form_app_config("pm-brainstorm-gui"))
+    }
+}
+
+impl std::ops::Deref for BrainstormGuiSection {
+    type Target = FormAppConfig;
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+/// Configuration for the approval-gate dialog GUI (`[approval_gui]`).
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct ApprovalGuiSection(pub FormAppConfig);
+
+impl Default for ApprovalGuiSection {
+    fn default() -> Self {
+        let mut cfg = default_form_app_config("pm-approval-gui");
+        cfg.always_on_top = true;
+        cfg.timeout_seconds = 60;
+        cfg.window_width = 480;
+        cfg.window_height = 360;
+        Self(cfg)
+    }
+}
+
+impl std::ops::Deref for ApprovalGuiSection {
+    type Target = FormAppConfig;
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
 /// A single externally-managed server definition.
@@ -339,9 +511,9 @@ pub struct ServerDefinition {
     /// Extra environment variables for the process.
     #[serde(default)]
     pub env: std::collections::HashMap<String, String>,
-    /// Whether the supervisor should auto-restart this server on crash.
-    #[serde(default = "default_true")]
-    pub auto_restart: bool,
+    /// Restart policy for this server.
+    #[serde(default)]
+    pub restart_policy: RestartPolicy,
 }
 
 // ---------------------------------------------------------------------------
@@ -454,10 +626,6 @@ fn default_data_dir() -> PathBuf {
     }
 }
 
-const fn default_true() -> bool {
-    true
-}
-
 fn default_node_command() -> String {
     "node".to_string()
 }
@@ -544,13 +712,13 @@ args = ["server.js", "--port", "3001"]
 name = "dashboard"
 command = "npx"
 args = ["vite"]
-auto_restart = false
+restart_policy = "never_restart"
 "#;
         let cfg: SupervisorConfig = toml::from_str(toml).expect("parse");
         assert_eq!(cfg.servers.len(), 2);
         assert_eq!(cfg.servers[0].name, "mcp-local");
-        assert!(cfg.servers[0].auto_restart); // default = true
-        assert!(!cfg.servers[1].auto_restart);
+        assert!(matches!(cfg.servers[0].restart_policy, RestartPolicy::AlwaysRestart)); // default
+        assert!(matches!(cfg.servers[1].restart_policy, RestartPolicy::NeverRestart));
     }
 
     #[test]
@@ -781,9 +949,9 @@ log_level = "trace"
         assert!(cfg.servers.is_empty());
     }
 
-    /// A [[servers]] entry that omits auto_restart must default to true.
+    /// A [[servers]] entry that omits restart_policy must default to AlwaysRestart.
     #[test]
-    fn server_auto_restart_defaults_to_true() {
+    fn server_restart_policy_defaults_to_always_restart() {
         let toml = r#"
 [[servers]]
 name = "my-server"
@@ -793,8 +961,8 @@ command = "/usr/bin/node"
         let cfg = load(&path).expect("parse");
         assert_eq!(cfg.servers.len(), 1);
         assert!(
-            cfg.servers[0].auto_restart,
-            "auto_restart should default to true for a server that omits it"
+            matches!(cfg.servers[0].restart_policy, RestartPolicy::AlwaysRestart),
+            "restart_policy should default to AlwaysRestart for a server that omits it"
         );
     }
 

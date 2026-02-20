@@ -8,16 +8,28 @@ use std::sync::Arc;
 use serde_json::json;
 use tokio::sync::Mutex;
 
+use crate::config::FormAppConfig;
 use crate::control::protocol::{ControlRequest, ControlResponse};
 use crate::control::registry::{Registry, ServiceStatus};
+use crate::runner::form_app::launch_form_app;
+
+/// Resolved form-app configuration map, keyed by app name.
+///
+/// Callers construct this from [`SupervisorConfig`] at startup and share it
+/// with the handler via `Arc`.
+pub type FormAppConfigs = std::collections::HashMap<String, FormAppConfig>;
 
 /// Dispatch one control-plane request and return its response.
 ///
 /// The registry is protected by an async mutex so multiple inflight requests
 /// can be handled concurrently without data races.
+///
+/// `form_apps` provides the resolved executable config for each on-demand
+/// GUI app so that `LaunchApp` can spawn the correct binary.
 pub async fn handle_request(
     req: ControlRequest,
     registry: Arc<Mutex<Registry>>,
+    form_apps: Arc<FormAppConfigs>,
 ) -> ControlResponse {
     match req {
         // ---------------------------------------------------------------
@@ -119,6 +131,84 @@ pub async fn handle_request(
                 "client_version": req.client_version
             }))
         }
+
+        // ---------------------------------------------------------------
+        // ServiceHealth — per-service health snapshot
+        // ---------------------------------------------------------------
+        ControlRequest::ServiceHealth { service } => {
+            let reg = registry.lock().await;
+            match reg.service_health(&service) {
+                Some(health) => match serde_json::to_value(&health) {
+                    Ok(data) => ControlResponse::ok(data),
+                    Err(e) => ControlResponse::err(format!("serialisation error: {e}")),
+                },
+                None => ControlResponse::err(format!("unknown service: {service}")),
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // StateEvents — last N state-transition events for a service
+        // ---------------------------------------------------------------
+        ControlRequest::StateEvents { service, limit } => {
+            let reg = registry.lock().await;
+            let events = reg.state_events(&service, limit.unwrap_or(50));
+            match serde_json::to_value(&events) {
+                Ok(data) => ControlResponse::ok(data),
+                Err(e) => ControlResponse::err(format!("serialisation error: {e}")),
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // UpgradeMcp — zero-downtime MCP upgrade: drain → stop → start
+        // ---------------------------------------------------------------
+        ControlRequest::UpgradeMcp => {
+            let mut reg = registry.lock().await;
+            reg.set_upgrade_pending(true);
+            reg.set_service_status("mcp", ServiceStatus::Stopping);
+            reg.set_service_status("mcp", ServiceStatus::Starting);
+            ControlResponse::ok(json!({ "upgrade": "initiated", "service": "mcp" }))
+        }
+
+        // ---------------------------------------------------------------
+        // LaunchApp — on-demand form-app lifecycle
+        // ---------------------------------------------------------------
+        ControlRequest::LaunchApp {
+            app_name,
+            payload,
+            timeout_seconds,
+        } => {
+            let cfg = match form_apps.get(&app_name) {
+                Some(c) if c.enabled => c,
+                Some(_) => {
+                    return ControlResponse::err(format!(
+                        "form app \"{app_name}\" is disabled in config"
+                    ));
+                }
+                None => {
+                    return ControlResponse::err(format!(
+                        "unknown form app: \"{app_name}\". \
+                         Known apps: {:?}",
+                        form_apps.keys().collect::<Vec<_>>()
+                    ));
+                }
+            };
+
+            let resp = launch_form_app(cfg, &app_name, &payload, timeout_seconds).await;
+            match serde_json::to_value(&resp) {
+                Ok(data) => {
+                    if resp.success {
+                        ControlResponse::ok(data)
+                    } else {
+                        ControlResponse {
+                            ok: false,
+                            error: resp.error.clone(),
+                            data,
+                        }
+                    }
+                }
+                Err(e) => ControlResponse::err(format!("serialisation error: {e}")),
+            }
+        }
     }
 }
 
@@ -136,10 +226,14 @@ mod tests {
         Arc::new(Mutex::new(Registry::new()))
     }
 
+    fn empty_form_apps() -> Arc<FormAppConfigs> {
+        Arc::new(FormAppConfigs::new())
+    }
+
     #[tokio::test]
     async fn status_returns_three_services() {
         let reg = make_registry();
-        let resp = handle_request(ControlRequest::Status, reg).await;
+        let resp = handle_request(ControlRequest::Status, reg, empty_form_apps()).await;
         assert!(resp.ok);
         let arr = resp.data.as_array().expect("data should be array");
         assert_eq!(arr.len(), 3);
@@ -151,6 +245,7 @@ mod tests {
         let resp = handle_request(
             ControlRequest::Start { service: "mcp".to_string() },
             Arc::clone(&reg),
+            empty_form_apps(),
         )
         .await;
         assert!(resp.ok);
@@ -167,6 +262,7 @@ mod tests {
         let resp = handle_request(
             ControlRequest::Stop { service: "dashboard".to_string() },
             Arc::clone(&reg),
+            empty_form_apps(),
         )
         .await;
         assert!(resp.ok);
@@ -179,6 +275,7 @@ mod tests {
         let resp = handle_request(
             ControlRequest::Restart { service: "mcp".to_string() },
             Arc::clone(&reg),
+            empty_form_apps(),
         )
         .await;
         assert!(resp.ok);
@@ -191,6 +288,7 @@ mod tests {
         let resp = handle_request(
             ControlRequest::SetBackend { backend: BackendKind::Container },
             Arc::clone(&reg),
+            empty_form_apps(),
         )
         .await;
         assert!(resp.ok);
@@ -200,15 +298,17 @@ mod tests {
     #[tokio::test]
     async fn attach_and_list_clients() {
         let reg = make_registry();
+        let fa = empty_form_apps();
         let attach_resp = handle_request(
             ControlRequest::AttachClient { pid: 999, window_id: "win-1".to_string() },
             Arc::clone(&reg),
+            Arc::clone(&fa),
         )
         .await;
         assert!(attach_resp.ok);
         let client_id = attach_resp.data["client_id"].as_str().unwrap().to_string();
 
-        let list_resp = handle_request(ControlRequest::ListClients, Arc::clone(&reg)).await;
+        let list_resp = handle_request(ControlRequest::ListClients, Arc::clone(&reg), fa).await;
         assert!(list_resp.ok);
         let arr = list_resp.data.as_array().unwrap();
         assert_eq!(arr.len(), 1);
@@ -218,14 +318,17 @@ mod tests {
     #[tokio::test]
     async fn detach_existing_client_succeeds() {
         let reg = make_registry();
+        let fa = empty_form_apps();
         handle_request(
             ControlRequest::AttachClient { pid: 1, window_id: "w".to_string() },
             Arc::clone(&reg),
+            Arc::clone(&fa),
         )
         .await;
         let resp = handle_request(
             ControlRequest::DetachClient { client_id: "client-1".to_string() },
             Arc::clone(&reg),
+            fa,
         )
         .await;
         assert!(resp.ok);
@@ -237,6 +340,7 @@ mod tests {
         let resp = handle_request(
             ControlRequest::DetachClient { client_id: "client-99".to_string() },
             reg,
+            empty_form_apps(),
         )
         .await;
         assert!(!resp.ok);
@@ -254,11 +358,74 @@ mod tests {
                 client_version: "1.0.0".to_string(),
             }),
             reg,
+            empty_form_apps(),
         )
         .await;
         assert!(resp.ok);
         assert_eq!(resp.data["client"], "vscode");
         assert_eq!(resp.data["client_version"], "1.0.0");
         assert_eq!(resp.data["message"], "WhoAmI received");
+    }
+
+    #[tokio::test]
+    async fn upgrade_mcp_returns_ok_with_upgrade_field() {
+        let reg = make_registry();
+        let resp = handle_request(ControlRequest::UpgradeMcp, Arc::clone(&reg), empty_form_apps()).await;
+        assert!(resp.ok, "upgrade_mcp should return ok");
+        assert_eq!(resp.data["upgrade"], "initiated");
+        assert_eq!(resp.data["service"], "mcp");
+    }
+
+    #[tokio::test]
+    async fn upgrade_mcp_sets_upgrade_pending_and_mcp_starting() {
+        let reg = make_registry();
+        handle_request(ControlRequest::UpgradeMcp, Arc::clone(&reg), empty_form_apps()).await;
+        let locked = reg.lock().await;
+        assert!(locked.is_upgrade_pending(), "upgrade_pending should be true after UpgradeMcp");
+        let mcp_state = locked.service_states().into_iter().find(|s| s.name == "mcp").unwrap();
+        assert!(
+            matches!(mcp_state.status, ServiceStatus::Starting),
+            "mcp service should be in Starting after upgrade command"
+        );
+    }
+
+    #[tokio::test]
+    async fn launch_app_unknown_name_returns_error() {
+        let reg = make_registry();
+        let resp = handle_request(
+            ControlRequest::LaunchApp {
+                app_name: "nonexistent_gui".to_string(),
+                payload: serde_json::json!({}),
+                timeout_seconds: None,
+            },
+            reg,
+            empty_form_apps(),
+        )
+        .await;
+        assert!(!resp.ok);
+        assert!(resp.error.unwrap().contains("unknown form app"));
+    }
+
+    #[tokio::test]
+    async fn launch_app_disabled_returns_error() {
+        let mut apps = FormAppConfigs::new();
+        apps.insert("test_gui".to_string(), FormAppConfig {
+            enabled: false,
+            command: "echo".to_string(),
+            ..FormAppConfig::default()
+        });
+        let reg = make_registry();
+        let resp = handle_request(
+            ControlRequest::LaunchApp {
+                app_name: "test_gui".to_string(),
+                payload: serde_json::json!({}),
+                timeout_seconds: None,
+            },
+            reg,
+            Arc::new(apps),
+        )
+        .await;
+        assert!(!resp.ok);
+        assert!(resp.error.unwrap().contains("disabled"));
     }
 }

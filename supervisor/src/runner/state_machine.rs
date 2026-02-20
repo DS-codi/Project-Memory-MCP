@@ -27,7 +27,8 @@
 //! - calling [`on_retry_elapsed`](ServiceStateMachine::on_retry_elapsed) when that timer fires
 //! - checking [`should_give_up`](ServiceStateMachine::should_give_up) to honour max-attempt policy
 
-use crate::config::ReconnectSection;
+use tracing::{debug, error, info, warn};
+use crate::config::{ReconnectSection, RestartPolicy};
 use super::backoff::BackoffState;
 
 // ---------------------------------------------------------------------------
@@ -71,16 +72,27 @@ pub struct ServiceStateMachine {
     max_attempts: u32,
     /// Cumulative number of failed connection attempts.
     attempt_count: u32,
+    /// Human-readable identifier for the service this machine manages.
+    /// Used as a structured field on every tracing event.
+    service_id: String,
+    /// Controls whether (and when) the service is automatically restarted
+    /// after a failure or disconnect.
+    restart_policy: RestartPolicy,
 }
 
 impl ServiceStateMachine {
     /// Create a new state machine starting in [`Disconnected`](ConnectionState::Disconnected).
-    pub fn new(reconnect_config: &ReconnectSection) -> Self {
+    ///
+    /// `service_id` is an identifier string included in every structured log
+    /// event emitted by this machine (e.g. `"mcp"`, `"dashboard"`).
+    pub fn new(reconnect_config: &ReconnectSection, service_id: &str, restart_policy: RestartPolicy) -> Self {
         Self {
             state: ConnectionState::Disconnected,
             backoff: BackoffState::from_config(reconnect_config),
             max_attempts: reconnect_config.max_attempts,
             attempt_count: 0,
+            service_id: service_id.to_owned(),
+            restart_policy,
         }
     }
 
@@ -108,7 +120,15 @@ impl ServiceStateMachine {
             self.state,
             ConnectionState::Disconnected | ConnectionState::Reconnecting { .. }
         ) {
+            let old_state = self.state.clone();
             self.state = ConnectionState::Probing;
+            info!(
+                service_id = %self.service_id,
+                old_state = ?old_state,
+                new_state = ?self.state,
+                reason = "service_start",
+                "state_transition"
+            );
         }
     }
 
@@ -118,14 +138,23 @@ impl ServiceStateMachine {
     /// Transitions to: `Connecting`.
     pub fn on_probe_success(&mut self) {
         if self.state == ConnectionState::Probing {
+            let old_state = self.state.clone();
             self.state = ConnectionState::Connecting;
+            debug!(
+                service_id = %self.service_id,
+                old_state = ?old_state,
+                new_state = ?self.state,
+                reason = "probe_success",
+                "state_transition"
+            );
         }
     }
 
     /// Probe (or early-stage connection) failed.
     ///
     /// Valid from: `Probing`, `Connecting`, `Verifying`.  
-    /// Transitions to: `Reconnecting { retry_after_ms }` using the back-off.
+    /// Transitions to: `Reconnecting { retry_after_ms }` using the back-off,
+    /// or `Disconnected` if the restart policy is `NeverRestart`.
     pub fn on_probe_failure(&mut self) {
         let should_transition = matches!(
             self.state,
@@ -134,11 +163,46 @@ impl ServiceStateMachine {
                 | ConnectionState::Verifying
         );
         if should_transition {
-            let delay = self.backoff.next_delay_ms();
+            let old_state = self.state.clone();
             self.attempt_count += 1;
+
+            if self.restart_policy == RestartPolicy::NeverRestart {
+                self.state = ConnectionState::Disconnected;
+                warn!(
+                    service_id = %self.service_id,
+                    old_state = ?old_state,
+                    new_state = ?self.state,
+                    reason = "probe_failure_never_restart",
+                    "state_transition"
+                );
+                return;
+            }
+
+            let delay = self.backoff.next_delay_ms();
             self.state = ConnectionState::Reconnecting {
                 retry_after_ms: delay,
             };
+            if self.should_give_up() {
+                error!(
+                    service_id = %self.service_id,
+                    old_state = ?old_state,
+                    new_state = ?self.state,
+                    attempt_count = self.attempt_count,
+                    max_attempts = self.max_attempts,
+                    reason = "max_attempts_reached",
+                    "state_transition"
+                );
+            } else {
+                warn!(
+                    service_id = %self.service_id,
+                    old_state = ?old_state,
+                    new_state = ?self.state,
+                    attempt_count = self.attempt_count,
+                    retry_after_ms = delay,
+                    reason = "probe_failure",
+                    "state_transition"
+                );
+            }
         }
     }
 
@@ -148,7 +212,15 @@ impl ServiceStateMachine {
     /// Transitions to: `Verifying`.
     pub fn on_process_ready(&mut self) {
         if self.state == ConnectionState::Connecting {
+            let old_state = self.state.clone();
             self.state = ConnectionState::Verifying;
+            debug!(
+                service_id = %self.service_id,
+                old_state = ?old_state,
+                new_state = ?self.state,
+                reason = "process_ready",
+                "state_transition"
+            );
         }
     }
 
@@ -159,27 +231,70 @@ impl ServiceStateMachine {
     /// `attempt_count`.
     pub fn on_health_ok(&mut self) {
         if self.state == ConnectionState::Verifying {
+            let old_state = self.state.clone();
             self.backoff.reset();
             self.attempt_count = 0;
             self.state = ConnectionState::Connected;
+            info!(
+                service_id = %self.service_id,
+                old_state = ?old_state,
+                new_state = ?self.state,
+                reason = "health_ok",
+                "state_transition"
+            );
         }
     }
 
     /// An IO or health-check failure occurred on an established connection.
     ///
     /// Valid from: `Connected`, `Verifying`.  
-    /// Transitions to: `Reconnecting { retry_after_ms }` using the back-off.
+    /// Transitions to: `Reconnecting { retry_after_ms }` using the back-off,
+    /// or `Disconnected` if the restart policy is `NeverRestart`.
     pub fn on_failure(&mut self) {
         let should_transition = matches!(
             self.state,
             ConnectionState::Connected | ConnectionState::Verifying
         );
         if should_transition {
-            let delay = self.backoff.next_delay_ms();
+            let old_state = self.state.clone();
             self.attempt_count += 1;
+
+            if self.restart_policy == RestartPolicy::NeverRestart {
+                self.state = ConnectionState::Disconnected;
+                warn!(
+                    service_id = %self.service_id,
+                    old_state = ?old_state,
+                    new_state = ?self.state,
+                    reason = "failure_never_restart",
+                    "state_transition"
+                );
+                return;
+            }
+
+            let delay = self.backoff.next_delay_ms();
             self.state = ConnectionState::Reconnecting {
                 retry_after_ms: delay,
             };
+            if self.should_give_up() {
+                error!(
+                    service_id = %self.service_id,
+                    old_state = ?old_state,
+                    new_state = ?self.state,
+                    attempt_count = self.attempt_count,
+                    max_attempts = self.max_attempts,
+                    reason = "max_attempts_reached",
+                    "state_transition"
+                );
+            } else {
+                warn!(
+                    service_id = %self.service_id,
+                    old_state = ?old_state,
+                    new_state = ?self.state,
+                    retry_after_ms = delay,
+                    reason = "connection_failure",
+                    "state_transition"
+                );
+            }
         }
     }
 
@@ -189,7 +304,15 @@ impl ServiceStateMachine {
     /// Transitions to: `Probing`.
     pub fn on_retry_elapsed(&mut self) {
         if matches!(self.state, ConnectionState::Reconnecting { .. }) {
+            let old_state = self.state.clone();
             self.state = ConnectionState::Probing;
+            info!(
+                service_id = %self.service_id,
+                old_state = ?old_state,
+                new_state = ?self.state,
+                reason = "retry_elapsed",
+                "state_transition"
+            );
         }
     }
 
@@ -198,9 +321,17 @@ impl ServiceStateMachine {
     /// Valid from: any state.  
     /// Transitions to: `Disconnected`; resets back-off and attempt counter.
     pub fn on_disconnect(&mut self) {
+        let old_state = self.state.clone();
         self.backoff.reset();
         self.attempt_count = 0;
         self.state = ConnectionState::Disconnected;
+        info!(
+            service_id = %self.service_id,
+            old_state = ?old_state,
+            new_state = ?self.state,
+            reason = "explicit_disconnect",
+            "state_transition"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -251,7 +382,7 @@ mod tests {
 
     fn make_sm() -> ServiceStateMachine {
         let config = ReconnectSection::default();
-        ServiceStateMachine::new(&config)
+        ServiceStateMachine::new(&config, "test-service", RestartPolicy::AlwaysRestart)
     }
 
     // -----------------------------------------------------------------------
@@ -386,7 +517,7 @@ mod tests {
             max_attempts: 2,
             jitter_ratio: 0.2,
         };
-        let mut sm = ServiceStateMachine::new(&config);
+        let mut sm = ServiceStateMachine::new(&config, "test-service", RestartPolicy::AlwaysRestart);
         sm.on_start();
         sm.on_probe_failure(); // attempt 1
         assert!(!sm.should_give_up());
@@ -420,5 +551,66 @@ mod tests {
         sm.on_start(); // Probing
         sm.on_retry_elapsed();
         assert_eq!(*sm.state(), ConnectionState::Probing, "should remain Probing");
+    }
+
+    // -----------------------------------------------------------------------
+    // RestartPolicy tests
+    // -----------------------------------------------------------------------
+
+    fn make_sm_with_policy(policy: RestartPolicy) -> ServiceStateMachine {
+        let config = ReconnectSection::default();
+        ServiceStateMachine::new(&config, "policy-svc", policy)
+    }
+
+    #[test]
+    fn never_restart_on_probe_failure_goes_disconnected() {
+        let mut sm = make_sm_with_policy(RestartPolicy::NeverRestart);
+        sm.on_start(); // → Probing
+        sm.on_probe_failure(); // → Disconnected (not Reconnecting)
+        assert_eq!(
+            *sm.state(),
+            ConnectionState::Disconnected,
+            "NeverRestart: on_probe_failure should go to Disconnected"
+        );
+    }
+
+    #[test]
+    fn never_restart_on_failure_from_connected_goes_disconnected() {
+        let mut sm = make_sm_with_policy(RestartPolicy::NeverRestart);
+        sm.on_start();
+        sm.on_probe_success();
+        sm.on_process_ready();
+        sm.on_health_ok(); // → Connected
+        sm.on_failure();   // → Disconnected (not Reconnecting)
+        assert_eq!(
+            *sm.state(),
+            ConnectionState::Disconnected,
+            "NeverRestart: on_failure should go to Disconnected"
+        );
+    }
+
+    #[test]
+    fn always_restart_on_probe_failure_goes_reconnecting() {
+        let mut sm = make_sm_with_policy(RestartPolicy::AlwaysRestart);
+        sm.on_start();
+        sm.on_probe_failure();
+        assert!(
+            matches!(*sm.state(), ConnectionState::Reconnecting { .. }),
+            "AlwaysRestart: on_probe_failure should go to Reconnecting"
+        );
+    }
+
+    #[test]
+    fn always_restart_on_failure_goes_reconnecting() {
+        let mut sm = make_sm_with_policy(RestartPolicy::AlwaysRestart);
+        sm.on_start();
+        sm.on_probe_success();
+        sm.on_process_ready();
+        sm.on_health_ok(); // → Connected
+        sm.on_failure();
+        assert!(
+            matches!(*sm.state(), ConnectionState::Reconnecting { .. }),
+            "AlwaysRestart: on_failure should go to Reconnecting"
+        );
     }
 }

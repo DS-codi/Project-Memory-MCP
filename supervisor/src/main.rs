@@ -28,6 +28,17 @@ struct Cli {
 
 #[tokio::main]
 async fn main() {
+    // Initialise structured JSON logging.
+    // Set RUST_LOG (e.g. `RUST_LOG=info,supervisor=debug`) to override the
+    // default "info" filter at runtime.
+    tracing_subscriber::fmt()
+        .json()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .init();
+
     let cli = Cli::parse();
 
     let config_path = config::get_config_path(cli.config.as_ref());
@@ -89,14 +100,25 @@ async fn main() {
                 }
             }
 
+            // Build the form-app config map so the handler can spawn GUI apps.
+            let mut form_apps = std::collections::HashMap::new();
+            form_apps.insert("brainstorm_gui".to_string(), cfg.brainstorm_gui.0.clone());
+            form_apps.insert("approval_gui".to_string(), cfg.approval_gui.0.clone());
+            let form_apps = Arc::new(form_apps);
+
             // Dispatch incoming control requests to the handler and route the
             // response back through the oneshot reply channel.
             let reg2 = Arc::clone(&registry);
+            let fa2 = Arc::clone(&form_apps);
             tokio::spawn(async move {
                 while let Some((req, resp_tx)) = rx.recv().await {
                     eprintln!("[supervisor] control request: {:?}", req);
-                    let resp =
-                        supervisor::control::handler::handle_request(req, Arc::clone(&reg2)).await;
+                    let resp = supervisor::control::handler::handle_request(
+                        req,
+                        Arc::clone(&reg2),
+                        Arc::clone(&fa2),
+                    )
+                    .await;
                     let _ = resp_tx.send(resp);
                 }
             });

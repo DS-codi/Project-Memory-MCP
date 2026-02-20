@@ -8,6 +8,7 @@
 pub mod backoff;
 pub mod container;
 pub mod dashboard;
+pub mod form_app;
 pub mod node;
 pub mod state_machine;
 pub mod terminal;
