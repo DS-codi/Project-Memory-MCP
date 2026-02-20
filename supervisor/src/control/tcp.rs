@@ -5,11 +5,12 @@
 //! the supervisor config.
 
 use anyhow::Context;
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
-use crate::control::protocol::{decode_request, ControlRequest};
+use crate::control::protocol::{decode_request, encode_response};
+use crate::control::RequestEnvelope;
 
 /// Bind a TCP listener on `bind_addr` and dispatch each incoming NDJSON line
 /// as a [`ControlRequest`] on `tx`.
@@ -17,7 +18,7 @@ use crate::control::protocol::{decode_request, ControlRequest};
 /// Each accepted connection is served in its own Tokio task.
 pub async fn serve_tcp(
     bind_addr: &str,
-    tx: mpsc::Sender<ControlRequest>,
+    tx: mpsc::Sender<RequestEnvelope>,
 ) -> anyhow::Result<()> {
     let listener = TcpListener::bind(bind_addr)
         .await
@@ -31,15 +32,23 @@ pub async fn serve_tcp(
         let tx = tx.clone();
 
         tokio::spawn(async move {
-            let reader = BufReader::new(stream);
+            let (reader_half, mut writer) = stream.into_split();
+            let reader = BufReader::new(reader_half);
             let mut lines = reader.lines();
 
             while let Ok(Some(line)) = lines.next_line().await {
                 match decode_request(&line) {
                     Ok(req) => {
-                        if tx.send(req).await.is_err() {
+                        let (resp_tx, resp_rx) = tokio::sync::oneshot::channel();
+                        if tx.send((req, resp_tx)).await.is_err() {
                             // Channel closed — supervisor is shutting down.
                             break;
+                        }
+                        if let Ok(resp) = resp_rx.await {
+                            let encoded = encode_response(&resp);
+                            if writer.write_all(encoded.as_bytes()).await.is_err() {
+                                break;
+                            }
                         }
                     }
                     Err(e) => {

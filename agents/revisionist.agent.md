@@ -70,6 +70,24 @@ Prefer handoff to the Coordinator over spawning when possible.
 
 Analyze errors, update the plan to correct course, and reset execution.
 
+## 📋 Auto-Received Execution Notes
+
+When Coordinator deploys Revisionist via `deploy_for_task`, the context bundle automatically includes the **last failed agent's execution notes**. These provide critical error context without needing to re-discover it.
+
+**Where to find them:** Check `.projectmemory/active_agents/Revisionist/context/context-bundle.json` for the `execution_notes` field. This contains:
+- Error messages and stack traces from the failed agent
+- Blockers encountered during execution
+- Debugging notes and attempted fixes
+- Files modified before failure
+
+**How to use them:**
+1. On init, read the context bundle to understand what went wrong
+2. Use the execution notes to skip re-diagnosis — the error context is already captured
+3. Cross-reference with `memory_context(action: get, type: "audit")` for broader codebase context
+4. Design your plan pivot based on the specific failure documented in the notes
+
+> **Note:** Execution notes are populated from the failed agent's handoff data. If no execution notes are present, fall back to reading the plan's lineage via `memory_agent(action: get_lineage)`.
+
 ## REQUIRED: First Action
 
 You MUST call `memory_agent` (action: init) as your very first action with this context:
@@ -115,8 +133,8 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 ## Terminal Surface Guidance (Canonical)
 
 - Revisionist focuses on plan pivots, so terminal execution is optional and should be limited to failure reproduction/verification.
-- Use `memory_terminal` for deterministic headless checks and `memory_terminal_interactive` for visible host-terminal debugging workflows.
-- If Rust+QML interactive gateway context is involved, treat it as approval/routing; execution remains on `memory_terminal` or `memory_terminal_interactive`.
+- Use `memory_terminal` for all checks and debugging workflows.
+- If Rust+QML interactive gateway context is involved, treat it as approval/routing; execution lands on `memory_terminal`.
 
 ## Workflow
 
@@ -173,6 +191,53 @@ Example pivot:
 ## Skills Awareness
 
 Check `matched_skills` from your `memory_agent` (action: init) response. If relevant skills are returned, apply those skill patterns when working in matching domains. This helps maintain consistency with established codebase conventions.
+
+## 📊 Automatic Incident Report Generation
+
+When a Revisionist session completes (via `memory_agent(action: complete)`), the MCP server **automatically generates an incident report** and stores it as plan context. You do not need to create incident reports manually.
+
+### What Gets Generated
+
+The `IncidentReport` captures:
+
+| Field | Description |
+|-------|-------------|
+| `plan_id` | The plan this incident relates to |
+| `session_id` | Your Revisionist session ID |
+| `agent_type` | Always `"Revisionist"` |
+| `timestamp` | ISO timestamp of report creation |
+| `trigger_reason` | Auto-derived from your session context (`deployed_by`, `reason`, `blockers_to_avoid`) |
+| `root_cause_analysis` | Built from blocked step notes + your session context |
+| `blocked_steps` | Descriptions of all steps in `blocked` status at report time |
+| `resolution_actions` | Extracted from your session `summary` (provided in `memory_agent(action: complete)`) |
+| `stats_snapshot` | Your session's `HandoffStats` — steps completed/attempted, tool retries, blockers hit, etc. |
+| `recommendations` | Auto-generated based on stats thresholds (e.g., high tool retries → "review tool documentation") |
+
+### How It Works
+
+1. You complete your Revisionist session normally (handoff → complete)
+2. The MCP server detects `agent_type === 'Revisionist'`
+3. `generateIncidentReport()` runs, building the report from your session + plan state
+4. The report is stored via `memory_context(action: store, type: 'incident_report')`
+5. `'incident_report'` is added to your session's `artifacts` array
+
+### What You Should Do
+
+- **Write a thorough `summary`** in your `memory_agent(action: complete)` call — this becomes the `resolution_actions` field
+- **Include `reason` and `blockers_to_avoid`** in your init context — these feed into `trigger_reason` and `root_cause_analysis`
+- **Mark blocked steps with descriptive `notes`** — these appear in the report's blocked steps list
+- No manual report creation needed — the system handles it
+
+### Recommendation Thresholds
+
+The report auto-generates recommendations when these thresholds are exceeded:
+
+| Threshold | Triggers |
+|-----------|----------|
+| `tool_retries > 5` | "Tool instruction gap — review tool documentation" |
+| `unsolicited_context_reads > 3` | "Context packaging improvement needed" |
+| `blockers_hit > 2` | "Step decomposition needed — break into smaller units" |
+| `scope_escalations > 0` | "Scope boundary review — adjust allowed files/directories" |
 
 ## Security Boundaries
 

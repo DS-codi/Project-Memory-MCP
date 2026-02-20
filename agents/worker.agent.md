@@ -85,14 +85,7 @@ If any of these are missing, call `memory_agent(action: handoff)` back to your d
 | `memory_terminal` | `run` | Execute build/lint commands to verify changes (authorization-gated) |
 | `memory_terminal` | `read_output` | Read buffered output from a running session |
 | `memory_terminal` | `kill` | Kill a hung process |
-| `memory_terminal_interactive` | `execute` | Execute interactive-terminal requests via canonical contract |
-| `memory_terminal_interactive` | `read_output` | Read buffered output from interactive-terminal sessions |
-| `memory_terminal_interactive` | `terminate` | Terminate an interactive-terminal session |
-| `memory_terminal_interactive` | `list` | List open interactive-terminal sessions |
-| `memory_terminal_vscode` | `create` | Open a visible VS Code terminal for interactive verification |
-| `memory_terminal_vscode` | `send` | Send commands to a visible terminal (destructive commands blocked) |
-| `memory_terminal_vscode` | `close` | Close a visible terminal |
-| `memory_terminal_vscode` | `list` | List open tracked VS Code terminals |
+
 | `memory_filesystem` | `read` | Read workspace-scoped source files (within scope only) |
 | `memory_filesystem` | `write` | Write/create files within workspace (within scope only) |
 | `memory_filesystem` | `search` | Search files by glob or regex pattern |
@@ -101,9 +94,8 @@ If any of these are missing, call `memory_agent(action: handoff)` back to your d
 ## Terminal Surface Guidance (Canonical)
 
 - Use `memory_terminal` for deterministic headless verification commands when validating scoped changes.
-- Use `memory_terminal_vscode` when visible host-terminal execution is required for interactive verification.
-- Follow the canonical matrix in `instructions/mcp-usage.instructions.md`; do not cross-copy terminal payload contracts.
-- If Rust+QML interactive gateway context applies, treat it as approval/routing and execute on `memory_terminal`, `memory_terminal_interactive`, or `memory_terminal_vscode`.
+- Use `memory_terminal` for all execution, including interactive verification workflows.
+- If Rust+QML interactive gateway context applies, treat it as approval/routing; execution lands on `memory_terminal`.
 
 **Tools you must NOT use:**
 - `memory_plan` (any action) — you cannot create, modify, or archive plans

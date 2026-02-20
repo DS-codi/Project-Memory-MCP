@@ -1,4 +1,5 @@
 import type { AgentType, StepStatus, StepType, PlanStatus, PlanPriority, WorkspaceHealth } from '@/types';
+import type { RiskSeverity, DifficultyLevel } from '@/types/schema-v2';
 
 export const agentColors: Record<AgentType, string> = {
   Coordinator: '#8b5cf6',
@@ -121,4 +122,38 @@ export const stepTypeColors: Record<StepType, string> = {
   code: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50',
   test: 'bg-pink-500/20 text-pink-300 border-pink-500/50',
   documentation: 'bg-slate-500/20 text-slate-300 border-slate-500/50'
+};
+
+// =============================================================================
+// Risk Severity Colors
+// =============================================================================
+
+export const riskSeverityColors: Record<RiskSeverity, string> = {
+  low: 'bg-green-500/20 text-green-300 border-green-500/50',
+  medium: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50',
+  high: 'bg-orange-500/20 text-orange-300 border-orange-500/50',
+  critical: 'bg-red-500/20 text-red-300 border-red-500/50',
+};
+
+// =============================================================================
+// Difficulty Level Colors
+// =============================================================================
+
+export const difficultyLevelColors: Record<DifficultyLevel, string> = {
+  trivial: 'bg-gray-500/20 text-gray-300 border-gray-500/50',
+  easy: 'bg-green-500/20 text-green-300 border-green-500/50',
+  moderate: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50',
+  hard: 'bg-orange-500/20 text-orange-300 border-orange-500/50',
+  extreme: 'bg-red-500/20 text-red-300 border-red-500/50',
+};
+
+// =============================================================================
+// Incident Status Colors
+// =============================================================================
+
+export const incidentStatusColors: Record<string, string> = {
+  open: 'bg-red-500/20 text-red-300 border-red-500/50',
+  investigating: 'bg-amber-500/20 text-amber-300 border-amber-500/50',
+  resolved: 'bg-green-500/20 text-green-300 border-green-500/50',
+  closed: 'bg-slate-500/20 text-slate-300 border-slate-500/50',
 };

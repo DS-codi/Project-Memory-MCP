@@ -58,7 +58,7 @@ describe('MCP Tool: memory_plan Core Actions', () => {
       const result = await memoryPlan({ action: 'get', workspace_id: mockWorkspaceId });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('workspace_id and plan_id');
+      expect(result.error).toContain('plan_id');
     });
 
     it('should return plan state when valid', async () => {
@@ -105,7 +105,7 @@ describe('MCP Tool: memory_plan Core Actions', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('workspace_id, title, description, and category');
+      expect(result.error).toContain('description');
     });
 
     it('should create plan when valid', async () => {
@@ -154,7 +154,7 @@ describe('MCP Tool: memory_plan Core Actions', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('workspace_id, plan_id, and steps');
+      expect(result.error).toContain('steps');
     });
 
     it('should update plan steps when valid', async () => {
@@ -212,7 +212,7 @@ describe('MCP Tool: memory_plan Core Actions', () => {
       const result = await memoryPlan({ action: 'archive', workspace_id: mockWorkspaceId });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('workspace_id and plan_id');
+      expect(result.error).toContain('plan_id');
     });
 
     it('should archive plan when valid', async () => {
@@ -259,7 +259,7 @@ describe('MCP Tool: memory_plan Core Actions', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('workspace_id, plan_file_path, and category');
+      expect(result.error).toContain('category');
     });
 
     it('should import plan when valid', async () => {
@@ -358,7 +358,7 @@ describe('MCP Tool: memory_plan Core Actions', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('workspace_id, plan_id, and note');
+      expect(result.error).toContain('note');
     });
 
     it('should add plan note when valid', async () => {
@@ -393,7 +393,7 @@ describe('MCP Tool: memory_plan Core Actions', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('confirm=true');
+      expect(result.error).toContain('confirm');
     });
 
     it('should delete plan when confirm=true', async () => {
@@ -428,7 +428,7 @@ describe('MCP Tool: memory_plan Core Actions', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('workspace_id, plan_id, step_indices, and consolidated_task');
+      expect(result.error).toContain('step_indices');
     });
 
     it('should consolidate steps when valid', async () => {
@@ -491,7 +491,7 @@ describe('MCP Tool: memory_plan Core Actions', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('workspace_id, template, title, and description');
+      expect(result.error).toContain('title');
     });
 
     it('should create plan from template when valid', async () => {

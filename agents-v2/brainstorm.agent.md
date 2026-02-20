@@ -49,7 +49,7 @@ You are a **spoke agent**. **NEVER** call `runSubagent` to spawn other agents. W
 ## Terminal Surface Guidance (Canonical)
 
 - Brainstorm does not execute implementation commands by default; keep terminal usage minimal and decision-focused.
-- When proposing execution paths, reference `memory_terminal` for headless automated flows and `memory_terminal_interactive` for visible host-terminal workflows.
+- When proposing execution paths, reference `memory_terminal` for all automated and interactive terminal flows.
 - If Rust+QML interactive gateway context is part of the design discussion, describe it as an approval/routing layer, not a third execution terminal.
 
 Use this agent when:

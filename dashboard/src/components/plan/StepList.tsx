@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Edit2, Check, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { Edit2, Check, X, ChevronDown, ChevronRight, CheckCircle2, Circle } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { Badge } from '../common/Badge';
 import { statusColors, statusIcons, stepTypeColors } from '@/utils/colors';
@@ -9,6 +9,7 @@ import { StepFilterBar, applyFiltersAndSort } from './StepFilterBar';
 import type { StepFilters, StepSort } from './StepFilterBar';
 import { useStepMutations } from '@/hooks/useStepMutations';
 import type { PlanStep, StepStatus, StepType } from '@/types';
+import type { PlanPhase } from '@/types/schema-v2';
 
 const STEP_TYPES: StepType[] = [
   'standard', 'analysis', 'validation', 'user_validation', 'complex', 'critical',
@@ -115,9 +116,10 @@ interface StepListProps {
   workspaceId?: string;
   planId?: string;
   editable?: boolean;
+  phases?: PlanPhase[];
 }
 
-export function StepList({ steps, workspaceId, planId, editable = false }: StepListProps) {
+export function StepList({ steps, workspaceId, planId, editable = false, phases }: StepListProps) {
   const [bulkEditing, setBulkEditing] = useState(false);
   const [editingStepIndex, setEditingStepIndex] = useState<number | null>(null);
   const [collapsedPhases, setCollapsedPhases] = useState<Set<string>>(new Set());
@@ -229,6 +231,9 @@ export function StepList({ steps, workspaceId, planId, editable = false }: StepL
       {Object.entries(groupedSteps).map(([phase, phaseSteps]) => {
         const isCollapsed = collapsedPhases.has(phase);
         const doneCount = phaseSteps.filter((s) => s.status === 'done').length;
+        const allDone = doneCount === phaseSteps.length && phaseSteps.length > 0;
+        const matchedPhase = phases?.find((p) => p.name === phase);
+        const hasCriteria = matchedPhase?.criteria && matchedPhase.criteria.length > 0;
 
         return (
           <div key={phase}>
@@ -247,6 +252,11 @@ export function StepList({ steps, workspaceId, planId, editable = false }: StepL
               <span className="text-xs text-slate-500">
                 {doneCount}/{phaseSteps.length}
               </span>
+              {hasCriteria && (
+                allDone
+                  ? <span title={`Phase criteria met (${matchedPhase!.criteria!.length})`}><CheckCircle2 size={14} className="text-green-400" /></span>
+                  : <span title={`Phase criteria: ${matchedPhase!.criteria!.join(', ')}`}><Circle size={14} className="text-slate-500" /></span>
+              )}
             </button>
 
             {!isCollapsed && (

@@ -58,7 +58,8 @@ context (action: store) with
   }
 
 // 3. Prepare spawn payload (context-prep only)
-memory_spawn_agent({
+memory_session({
+  action: "prep",
   agent_name: "Executor",
   workspace_id: "{workspace_id}",
   plan_id: "{plan_id}",
@@ -104,7 +105,26 @@ runSubagent({
 })
 ```
 
-For tasks that grow complex beyond your scope, escalate to the Coordinator instead (see Escalation section below).
+For tasks that grow complex beyond your scope, escalate to the Coordinator instead. When you detect scope escalation:
+
+1. **Stop spawning** — do not deploy more subagents
+2. **Pause and summarize** — emit a scope escalation summary (see Hub Interaction Discipline above)
+3. **Hand off to Coordinator** — include details on why scope grew and recommend full pause mode for the formal plan
+
+```json
+{
+  "from_agent": "Runner",
+  "to_agent": "Coordinator",
+  "reason": "Task exceeded quick_task scope — needs formal plan with pause discipline",
+  "data": {
+    "recommendation": "Architect",
+    "scope_escalation": true,
+    "original_task": "Fix JWT expiry handling",
+    "discovered_scope": "3 auth modules + test coverage gaps",
+    "pause_mode": "full"
+  }
+}
+```
 
 ### 🔧 Worker Agent — Lightweight Sub-Tasks
 
@@ -140,6 +160,48 @@ Use memory_agent(action: handoff) to recommend the next agent back to the Runner
 ```
 
 If Worker reports `budget_exceeded` or `scope_escalation`, reassess and either split the task or use a full Executor.
+
+---
+
+## 🛑 Hub Interaction Discipline
+
+> **Canonical policy:** See `instructions/hub-interaction-discipline.instructions.md`
+
+As a hub agent, the Runner follows the shared **Hub Interaction Discipline** — but with **lighter rules** than other hubs because Runner primarily handles `quick_task` category work.
+
+### Runner-Specific Pause Rules
+
+- **Auto-continue is DEFAULT for `quick_task` category** — Runner does not pause between its small sub-tasks unless the user explicitly requests pause mode. Quick tasks should flow without friction.
+- **Pause only when scope escalates** — if Runner discovers a task is growing beyond `quick_task` scope (e.g., needs 10+ steps, multi-phase work, or formal review), switch to full pause mode before handing off to Coordinator. See the Escalation Pause Protocol below.
+- **Pre-action summary is still mandatory** — even in auto-continue mode, always emit the summary before spawning any subagent. This is **non-disableable** per the discipline policy.
+- **Shorter summaries are acceptable** — for quick tasks, 1-2 lines (✅ + ➡️) are sufficient instead of the full 3-line format.
+
+### Pre-Action Summary Example
+
+```
+**Phase Update:**
+✅ Identified the bug in JWT validation logic
+➡️ Spawning Worker to apply the fix in src/auth/jwt.ts
+```
+
+### Escalation Pause Protocol
+
+When Runner detects scope growth beyond `quick_task`:
+
+1. **Pause immediately** — do not spawn another subagent
+2. **Summarize** what happened and why scope grew
+3. **Hand off to Coordinator** with a note that full pause mode should apply to the formal plan
+
+```
+**Scope Escalation:**
+⚠️ Task grew beyond quick_task scope — originally "fix JWT expiry" but discovered 
+   3 related auth modules need updates, plus missing test coverage.
+➡️ Recommending Coordinator to create a formal plan with full pause discipline.
+```
+
+See the discipline document §4 (Category-Dependent Pause Rules → `quick_task`) and §6 (Hub-Specific Considerations → Runner) for full details.
+
+---
 
 ## 🛑 Subagent Interruption Recovery
 
@@ -205,14 +267,7 @@ You have access to Project Memory MCP tools, but you use them **opportunisticall
 | `memory_terminal` | `kill` | Kill a running process |
 | `memory_terminal` | `get_allowlist` | View auto-approved command patterns |
 | `memory_terminal` | `update_allowlist` | Add/remove auto-approve patterns for the workspace |
-| `memory_terminal_interactive` | `execute` | Execute interactive-terminal requests via canonical contract |
-| `memory_terminal_interactive` | `read_output` | Read buffered output from interactive-terminal sessions |
-| `memory_terminal_interactive` | `terminate` | Terminate an interactive-terminal session |
-| `memory_terminal_interactive` | `list` | List all open interactive-terminal sessions |
-| `memory_terminal_vscode` | `create` | Open a visible VS Code terminal for interactive work |
-| `memory_terminal_vscode` | `send` | Send commands to a visible terminal (destructive commands blocked) |
-| `memory_terminal_vscode` | `close` | Close a visible terminal |
-| `memory_terminal_vscode` | `list` | List all open tracked VS Code terminals |
+
 | `memory_filesystem` | `read` | Read workspace-scoped files |
 | `memory_filesystem` | `write` | Write/create files within workspace |
 | `memory_filesystem` | `search` | Search files by glob or regex |
@@ -222,9 +277,8 @@ You have access to Project Memory MCP tools, but you use them **opportunisticall
 ## Terminal Surface Guidance (Canonical)
 
 - Choose `memory_terminal` for deterministic headless automation in server/container workflows.
-- Choose `memory_terminal_vscode` for visible host-terminal commands when interactive feedback is required.
-- Follow the canonical matrix in `instructions/mcp-usage.instructions.md` and keep terminal contracts separate.
-- If Rust+QML interactive gateway context is present, use it as approval/routing; execution still lands on `memory_terminal`, `memory_terminal_interactive`, or `memory_terminal_vscode`.
+- Use `memory_terminal` for all terminal execution — both headless and interactive workflows.
+- If Rust+QML interactive gateway context is present, use it as approval/routing; execution lands on `memory_terminal`.
 
 ---
 

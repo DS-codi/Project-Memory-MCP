@@ -25,6 +25,7 @@ import {
 } from './plan-utils.js';
 import { checkProgramUpgradeSuggestion } from './plan-step-mutations.js';
 import { applySkillPhaseMatching } from './plan-lifecycle.js';
+import { announcePhaseCompletion } from '../program/program-phase-announcer.js';
 
 // =============================================================================
 // Step Updates
@@ -142,6 +143,13 @@ export async function updateStep(
 
     // Emit step updated event for WebSocket listeners
     await events.stepUpdated(workspace_id, plan_id, step_index, status);
+
+    // Fire-and-forget: announce phase completion to satisfy cross-plan dependencies
+    if (allDone && status === 'done') {
+      announcePhaseCompletion(workspace_id, plan_id, step.phase).catch(() => {
+        /* Non-blocking — dependency satisfaction is best-effort */
+      });
+    }
 
     // Determine next action based on boundaries
     const shouldHandoff = !boundaries.can_finalize;
@@ -317,6 +325,25 @@ export async function batchUpdateSteps(
       if (step) {
         await events.stepUpdated(workspace_id, plan_id, update.step_index, update.status);
       }
+    }
+
+    // Fire-and-forget: announce phase completions for cross-plan dependencies
+    const completedPhases = new Set<string>();
+    for (const phase of phases) {
+      const phaseSteps = state.steps.filter(s => s.phase === phase);
+      const phaseAllDone = phaseSteps.every(s => s.status === 'done');
+      // Only announce if a batch update step in this phase was set to 'done'
+      const hadDoneUpdate = updates.some(
+        u => u.status === 'done' && phaseSteps.some(s => s.index === u.step_index),
+      );
+      if (phaseAllDone && hadDoneUpdate) {
+        completedPhases.add(phase);
+      }
+    }
+    for (const phase of completedPhases) {
+      announcePhaseCompletion(workspace_id, plan_id, phase).catch(() => {
+        /* Non-blocking — dependency satisfaction is best-effort */
+      });
     }
 
     // Determine next action based on boundaries

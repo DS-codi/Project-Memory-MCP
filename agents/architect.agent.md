@@ -122,8 +122,8 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 ## Terminal Surface Guidance (Canonical)
 
 - Architect plans command execution but does not execute it directly.
-- When authoring implementation steps, specify `memory_terminal` for deterministic headless build/lint/test flows and `memory_terminal_interactive` for visible host-terminal workflows.
-- If Rust+QML interactive gateway context applies, model it as approval/routing in the plan, with execution still on `memory_terminal` or `memory_terminal_interactive`.
+- When authoring implementation steps, specify `memory_terminal` for all build/lint/test and visible terminal workflows.
+- If Rust+QML interactive gateway context applies, model it as approval/routing in the plan, with execution on `memory_terminal`.
 
 ## 📋 Workspace Context Population
 

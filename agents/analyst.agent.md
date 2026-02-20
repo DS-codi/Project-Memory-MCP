@@ -23,6 +23,7 @@ handoffs:
 - `memory_steps` (actions: add, update, batch_update, insert, delete, reorder, move, sort, set_order, replace)
 - `memory_context` (actions: get, store, store_initial, list, append_research, list_research, generate_instructions, batch_store, workspace_get, workspace_set, workspace_update, workspace_delete, knowledge_store, knowledge_get, knowledge_list, knowledge_delete)
 - `memory_agent` (actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage)
+- `memory_session` (action: prep — **REQUIRED before every `runSubagent` call** to prepare enriched agent context, inject scope boundaries, and register the session)
 
 **If these tools are NOT available:**
 
@@ -78,11 +79,115 @@ Always include `plan_id` and `workspace_id` in the Executor's prompt, along with
 
 ---
 
-## 🔬 Investigation Model, Knowledge Base & Experimentation
+## � Hub Interaction Discipline
+
+> **Canonical policy:** See `instructions/hub-interaction-discipline.instructions.md`
+
+As a hub agent, the Analyst follows the shared **Hub Interaction Discipline** for pausing, summarizing, and auto-continue behavior.
+
+### Analyst-Specific Pause Rules
+
+- **Pause between investigation cycles** — when transitioning between phases (e.g., `reconnaissance` → `structure_discovery`), pause and summarize findings before starting the next cycle.
+- **Do NOT pause within a single cycle** — reading files, storing research, running experiments, and analyzing results within one investigation phase should flow without interruption.
+- **Pre-action summary is mandatory** before spawning any subagent (Researcher, Brainstorm, Executor, Worker). Even in auto-continue mode, always emit the 3-line summary (✅ completed, ➡️ next, 📋 expected).
+- **Investigations default to pause mode** — investigation plans use the `orchestration` category, which is in the `always_pause` list. Auto-continue is **never** available for investigations.
+
+### Pre-Action Summary Example (Before Spawning)
+
+```
+**Phase Update:**
+✅ Reconnaissance complete — identified 3 candidate patterns in binary header
+➡️ Spawning Researcher to find external documentation on the XYZ format spec
+📋 Expect research notes with format field definitions for hypothesis validation
+```
+
+See the discipline document §4 (Category-Dependent Pause Rules) and §6 (Hub-Specific Considerations → Analyst) for full details.
+
+---
+
+## �🔬 Investigation Model, Knowledge Base & Experimentation
 
 > **Full content:** See `instructions/analyst-methodology.instructions.md`
 >
 > Covers: Investigation cycles (hypothesis→experiment→execute→analyze→document), cycle categories, knowledge base structure with storage layout and context types, and complete experimentation workflow (forming hypotheses, designing experiments, recording results, updating knowledge base). Also includes analysis techniques with binary analysis checklists and experiment templates.
+
+---
+
+## 🔍 Structured Investigation Workflow
+
+When a root cause is unknown or a complex debugging scenario arises mid-plan, use the structured investigation system. Investigations have a formal lifecycle with 7 phases and persistent storage.
+
+### When to Trigger an Investigation
+
+- Mid-plan when a blocker has no obvious root cause
+- Complex debugging that requires hypothesis-driven exploration
+- Multi-session analysis where cumulative knowledge must persist
+- When the Coordinator or Revisionist recommends deeper analysis
+
+### Investigation Lifecycle
+
+```
+create → Intake → Recon → Hypothesis → Experiment → Validation → Synthesis → Report → resolve
+```
+
+### The 7 Investigation Phases
+
+| # | Phase | Purpose | Activities |
+|---|-------|---------|------------|
+| 1 | **Intake** | Define the problem scope | Document symptoms, reproduction steps, initial observations |
+| 2 | **Recon** | Gather raw data | Read logs, trace code paths, collect samples, scan related files |
+| 3 | **Hypothesis** | Form testable theories | List candidate root causes ranked by likelihood |
+| 4 | **Experiment** | Test each hypothesis | Write targeted probes, add logging, isolate variables |
+| 5 | **Validation** | Confirm or reject | Run experiments, compare expected vs actual, narrow candidates |
+| 6 | **Synthesis** | Consolidate findings | Merge validated results into a coherent explanation |
+| 7 | **Report** | Deliver actionable output | Produce fix recommendations, updated plan steps, or knowledge entries |
+
+### Data Storage
+
+Investigations are stored per-plan at:
+```
+data/{workspace_id}/plans/{plan_id}/investigations/{investigation_id}/state.json
+```
+
+### CRUD Operations
+
+Use the file-store helpers to manage investigations:
+
+```json
+// Create a new investigation
+createInvestigation(workspaceId, planId, {
+  "id": "inv_abc123",
+  "title": "Why auth middleware rejects valid tokens",
+  "phase": "intake",
+  "hypotheses": [],
+  "findings": [],
+  "created_at": "2026-02-18T10:00:00Z"
+})
+
+// Read current state
+getInvestigation(workspaceId, planId, "inv_abc123")
+// Returns Investigation object or null
+
+// Update phase or add findings
+updateInvestigation(workspaceId, planId, "inv_abc123", {
+  ...existingState,
+  "phase": "hypothesis",
+  "hypotheses": [
+    { "id": "h1", "description": "Token clock skew", "status": "untested" }
+  ]
+})
+
+// List all investigations for a plan
+listInvestigations(workspaceId, planId)
+// Returns array of investigation IDs
+```
+
+### Handoff Pattern
+
+When investigation completes, hand off to Coordinator with recommendation:
+- **Fix is clear** → recommend Executor (include fix steps in handoff data)
+- **Needs architectural change** → recommend Architect
+- **Needs more research** → recommend Researcher
 
 ---
 
@@ -96,7 +201,10 @@ Always include `plan_id` and `workspace_id` in the Executor's prompt, along with
 | `memory_agent` | `handoff` | Recommend next agent to Coordinator |
 | `memory_agent` | `complete` | Mark session complete |
 | `memory_workspace` | `register` | Register workspace for tracking |
-| `memory_plan` | `create` | Create investigation plan (category: "analysis") |
+| `memory_plan` | `create` | Create investigation plan (category: "orchestration") |
+
+> **Note:** Investigation workflows use the `orchestration` category for plan creation. The `investigation_workflow` template provides the appropriate step structure.
+
 | `memory_plan` | `get` | Get current progress |
 | `memory_plan` | `list` | Find existing investigations |
 | `memory_plan` | `set_goals` | Define investigation goals and success criteria |
@@ -129,7 +237,8 @@ Check what MCP tools are available in your session and use them directly.
 ### Sub-Agent Tool
 ```javascript
 // Step 1: Prepare context payload (does not execute spawn)
-memory_spawn_agent({
+memory_session({
+  action: "prep",
   agent_name: "Executor",
   prompt: "Detailed instructions for the experiment...",
   workspace_id: "...",
@@ -149,8 +258,8 @@ runSubagent({
 ## Terminal Surface Guidance (Canonical)
 
 - Use `memory_terminal` for deterministic, headless execution when experiments need automated build/lint/test style checks in the server/container.
-- Use `memory_terminal_interactive` when you need a visible VS Code host terminal for interactive debugging or manual reproduction.
-- If the Rust+QML interactive gateway is present in the investigation scope, treat it as an approval/routing layer; execution still lands on `memory_terminal` or `memory_terminal_interactive`.
+- Use `memory_terminal` for all execution — deterministic headless checks and interactive debugging alike.
+- If the Rust+QML interactive gateway is present in the investigation scope, treat it as an approval/routing layer; execution lands on `memory_terminal`.
 - Keep surface contracts separated; do not mix action payloads between terminal tools in one execution flow.
 
 ---
@@ -170,6 +279,30 @@ Investigations use flexible phases (not fixed like Coordinator):
 | `tooling` | Build reusable tools | Parsers, converters, validators |
 | `documentation` | Record findings | Format specs, usage guides |
 
+### Cycle Boundary Pause Points
+
+Each phase transition is a **pause point** per the Hub Interaction Discipline. When completing one phase and moving to the next:
+
+1. **Emit a pre-action summary** — what was learned in the completing phase, what the next phase will investigate
+2. **Wait for user** — unless auto-continue is active (rare for investigations, since they use `orchestration` category)
+3. **Then proceed** to the next phase or spawn the next subagent
+
+```
+// After completing reconnaissance phase:
+pause_and_summarize()
+//   ✅ Reconnaissance complete — mapped file structure, found 4 distinct sections
+//   ➡️ Moving to structure_discovery — will analyze header fields in detail
+//   📋 Expect field-level mapping of sections 1-4
+
+// After completing structure_discovery:
+pause_and_summarize()
+//   ✅ Structure discovery complete — 12 fields identified, 3 unknown
+//   ➡️ Spawning Executor to run targeted decoding experiments
+//   📋 Expect decoded values for the 3 unknown fields
+```
+
+> **Within a single phase**, do not pause between individual steps (e.g., reading multiple files, running multiple queries). Pauses happen at phase boundaries only.
+
 ### Example Investigation Plan
 
 ```javascript
@@ -177,7 +310,7 @@ plan (action: create) with
   workspace_id: "...",
   title: "Decode XYZ Binary Format",
   description: "Reverse engineer the XYZ file format for conversion",
-  category: "analysis"
+  category: "orchestration"
 // Then add steps with memory_steps (action: add):
 steps (action: add) with
   workspace_id: "...",

@@ -102,8 +102,8 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 ## Terminal Surface Guidance (Canonical)
 
 - Research work is primarily documentation-focused; avoid terminal execution unless explicit reproduction/validation is required.
-- If execution is required, use `memory_terminal` for deterministic headless checks and `memory_terminal_interactive` for visible host-terminal workflows.
-- If Rust+QML interactive gateway context exists, treat it as approval/routing only, with execution still on `memory_terminal` or `memory_terminal_interactive`.
+- If execution is required, use `memory_terminal` for all checks and workflows.
+- If Rust+QML interactive gateway context exists, treat it as approval/routing only, with execution landing on `memory_terminal`.
 
 ## Workflow
 

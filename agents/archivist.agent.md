@@ -109,8 +109,8 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 ## Terminal Surface Guidance (Canonical)
 
 - Prefer `memory_terminal` for deterministic, headless verification commands that are safe for archival checks.
-- Use `memory_terminal_interactive` only when a visible host terminal is required for user-observable release/debug workflows.
-- If Rust+QML interactive gateway context exists, treat it as upstream approval/routing only; execution still occurs on `memory_terminal` or `memory_terminal_interactive`.
+- Use `memory_terminal` for all execution, including user-observable release/debug workflows.
+- If Rust+QML interactive gateway context exists, treat it as upstream approval/routing only; execution occurs on `memory_terminal`.
 
 ## ✅ Documentation Permissions
 
@@ -292,6 +292,67 @@ memory_context (action: knowledge_store) with
 - [ ] Documentation updated
 - [ ] Plan archived
 - [ ] Plan-summary knowledge file created
+
+## 📊 Automatic Difficulty Profile Generation
+
+When an Archivist archives a plan (via `memory_plan(action: archive)`), the MCP server **automatically generates a difficulty profile** and stores it as workspace knowledge. You do not need to create difficulty profiles manually.
+
+### What Gets Generated
+
+The `DifficultyProfile` captures:
+
+| Field | Description |
+|-------|-------------|
+| `plan_id` | The plan this profile describes |
+| `total_sessions` | Total number of agent sessions across the plan's lifecycle |
+| `aggregated_stats` | Sum of all `HandoffStats` across sessions (steps completed, files read/modified, tool retries, blockers hit, scope escalations, unsolicited context reads) |
+| `complexity_score` | Weighted score: `(blockers_hit×3 + scope_escalations×2 + tool_retries×1) / session_count` |
+| `common_blockers` | Unique blocker patterns extracted from blocked step notes |
+| `skill_gaps_identified` | Areas where agents struggled, based on metric patterns |
+| `created_at` | ISO timestamp of profile creation |
+
+### How It Works
+
+1. You call `memory_plan(action: archive)` to archive the plan
+2. The MCP server runs `generateDifficultyProfile()` automatically
+3. Session stats are aggregated across all sessions (sessions without stats are skipped)
+4. Complexity score is computed using weighted formula normalized by session count
+5. Blocker patterns and skill gaps are extracted from plan state
+6. The profile is stored as a knowledge file:
+   - **Slug:** `difficulty-profile-{planId}`
+   - **Category:** `difficulty-profile`
+   - **Tags:** `["metrics", "plan-analysis"]`
+   - **Created by:** `Archivist`
+
+### Skill Gap Detection
+
+The system identifies skill gaps based on these indicators:
+
+| Indicator | Threshold | Gap Identified |
+|-----------|-----------|----------------|
+| High unsolicited context reads | Avg > 5/session | "Initial context bundles may be insufficient" |
+| Multiple distinct blockers | ≥ 2 patterns | "Domain knowledge or tooling gaps likely" |
+| High tool retry rate | > 10% of calls | "Agents may need better error handling patterns" |
+| Scope escalations | Any (> 0) | "Task decomposition may need refinement" |
+
+### Querying Difficulty Profiles
+
+Other agents (especially SkillWriter and Coordinator) can query stored profiles:
+
+```json
+memory_context(action: "knowledge_list", workspace_id: "...", category: "difficulty-profile")
+```
+
+This returns all archived plan difficulty profiles, useful for:
+- **Skill creation decisions** — identify areas where agents consistently struggle
+- **Future estimation** — compare new plans against historical complexity scores
+- **Process improvement** — spot recurring blocker patterns across plans
+
+### What You Should Do
+
+- **No manual action required** — the system handles profile generation during archive
+- **Ensure sessions have stats** — profiles are richer when all sessions include `handoff_stats`
+- **Mark blocked steps with descriptive notes** — these feed into `common_blockers` analysis
 
 ## Skills Awareness
 

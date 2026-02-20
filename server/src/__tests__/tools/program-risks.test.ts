@@ -1,0 +1,337 @@
+/**
+ * Tests for program-risks.ts — Risk register CRUD operations.
+ *
+ * Uses a temp directory per test to exercise real file I/O.
+ * The data root is redirected via mocked getDataRoot.
+ */
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { promises as fs } from 'fs';
+import path from 'path';
+import os from 'os';
+
+// Mock getDataRoot before importing modules
+vi.mock('../../storage/workspace-utils.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../storage/workspace-utils.js')>();
+  return {
+    ...actual,
+    getDataRoot: vi.fn(),
+  };
+});
+
+// Mock file-lock to bypass proper-lockfile in tests
+vi.mock('../../storage/file-lock.js', async () => {
+  const fsPromises = (await import('fs')).promises;
+  const pathMod = await import('path');
+
+  async function readJson<T>(filePath: string): Promise<T | null> {
+    try {
+      const content = await fsPromises.readFile(filePath, 'utf-8');
+      return JSON.parse(content) as T;
+    } catch {
+      return null;
+    }
+  }
+
+  async function writeJson<T>(filePath: string, data: T): Promise<void> {
+    await fsPromises.mkdir(pathMod.dirname(filePath), { recursive: true });
+    await fsPromises.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
+  }
+
+  async function modifyJsonLocked<T>(
+    filePath: string,
+    modifier: (data: T | null) => T | Promise<T>,
+  ): Promise<T> {
+    const data = await readJson<T>(filePath);
+    const modified = await modifier(data);
+    await writeJson(filePath, modified);
+    return modified;
+  }
+
+  return {
+    readJson,
+    writeJson,
+    modifyJsonLocked,
+    writeJsonLocked: writeJson,
+    fileLockManager: { withLock: (_: string, op: () => Promise<unknown>) => op() },
+  };
+});
+
+import { getDataRoot } from '../../storage/workspace-utils.js';
+import {
+  addRisk,
+  updateRisk,
+  removeRisk,
+  listRisks,
+  getRisk,
+} from '../../tools/program/program-risks.js';
+import type { ProgramRisk } from '../../types/program-v2.types.js';
+
+const WORKSPACE_ID = 'test-workspace-risks';
+const PROGRAM_ID = 'prog_test_risks';
+
+let tmpDir: string;
+
+beforeEach(async () => {
+  tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pm-prog-risks-'));
+  vi.mocked(getDataRoot).mockReturnValue(tmpDir);
+
+  // Create program directory
+  const programDir = path.join(tmpDir, WORKSPACE_ID, 'programs', PROGRAM_ID);
+  await fs.mkdir(programDir, { recursive: true });
+});
+
+afterEach(async () => {
+  vi.restoreAllMocks();
+  await fs.rm(tmpDir, { recursive: true, force: true });
+});
+
+// =============================================================================
+// addRisk
+// =============================================================================
+
+describe('addRisk', () => {
+  it('should create a risk with generated ID and timestamps', async () => {
+    const risk = await addRisk(WORKSPACE_ID, PROGRAM_ID, {
+      program_id: PROGRAM_ID,
+      type: 'functional_conflict',
+      severity: 'high',
+      status: 'identified',
+      title: 'API conflict between plan A and plan B',
+      description: 'Both plans modify the /users endpoint',
+      detected_by: 'manual',
+    });
+
+    expect(risk.id).toMatch(/^risk_/);
+    expect(risk.program_id).toBe(PROGRAM_ID);
+    expect(risk.type).toBe('functional_conflict');
+    expect(risk.severity).toBe('high');
+    expect(risk.status).toBe('identified');
+    expect(risk.created_at).toBeTruthy();
+    expect(risk.updated_at).toBeTruthy();
+  });
+
+  it('should persist the risk to disk', async () => {
+    await addRisk(WORKSPACE_ID, PROGRAM_ID, {
+      program_id: PROGRAM_ID,
+      type: 'dependency_risk',
+      severity: 'medium',
+      status: 'identified',
+      title: 'Plan B depends on Plan A phase 2',
+      description: 'Dependency risk detected',
+      detected_by: 'auto',
+    });
+
+    const all = await listRisks(WORKSPACE_ID, PROGRAM_ID);
+    expect(all).toHaveLength(1);
+    expect(all[0].title).toBe('Plan B depends on Plan A phase 2');
+  });
+
+  it('should append multiple risks', async () => {
+    await addRisk(WORKSPACE_ID, PROGRAM_ID, {
+      program_id: PROGRAM_ID,
+      type: 'functional_conflict',
+      severity: 'high',
+      status: 'identified',
+      title: 'Risk 1',
+      description: 'First risk',
+      detected_by: 'manual',
+    });
+    await addRisk(WORKSPACE_ID, PROGRAM_ID, {
+      program_id: PROGRAM_ID,
+      type: 'behavioral_change',
+      severity: 'low',
+      status: 'identified',
+      title: 'Risk 2',
+      description: 'Second risk',
+      detected_by: 'auto',
+    });
+
+    const all = await listRisks(WORKSPACE_ID, PROGRAM_ID);
+    expect(all).toHaveLength(2);
+  });
+});
+
+// =============================================================================
+// updateRisk
+// =============================================================================
+
+describe('updateRisk', () => {
+  it('should update status and mitigation', async () => {
+    const risk = await addRisk(WORKSPACE_ID, PROGRAM_ID, {
+      program_id: PROGRAM_ID,
+      type: 'functional_conflict',
+      severity: 'high',
+      status: 'identified',
+      title: 'Conflict risk',
+      description: 'Some conflict',
+      detected_by: 'manual',
+    });
+
+    const updated = await updateRisk(WORKSPACE_ID, PROGRAM_ID, risk.id, {
+      status: 'mitigated',
+      mitigation: 'Added feature flag to avoid conflict',
+    });
+
+    expect(updated.status).toBe('mitigated');
+    expect(updated.mitigation).toBe('Added feature flag to avoid conflict');
+    expect(updated.severity).toBe('high'); // unchanged
+    expect(new Date(updated.updated_at).getTime()).toBeGreaterThanOrEqual(
+      new Date(risk.updated_at).getTime()
+    );
+  });
+
+  it('should update severity', async () => {
+    const risk = await addRisk(WORKSPACE_ID, PROGRAM_ID, {
+      program_id: PROGRAM_ID,
+      type: 'behavioral_change',
+      severity: 'medium',
+      status: 'identified',
+      title: 'Behavior risk',
+      description: 'Some behavior change',
+      detected_by: 'auto',
+    });
+
+    const updated = await updateRisk(WORKSPACE_ID, PROGRAM_ID, risk.id, {
+      severity: 'critical',
+    });
+
+    expect(updated.severity).toBe('critical');
+    expect(updated.status).toBe('identified'); // unchanged
+  });
+
+  it('should throw for non-existent risk', async () => {
+    await expect(
+      updateRisk(WORKSPACE_ID, PROGRAM_ID, 'risk_nonexistent', { status: 'resolved' })
+    ).rejects.toThrow('Risk not found: risk_nonexistent');
+  });
+});
+
+// =============================================================================
+// removeRisk
+// =============================================================================
+
+describe('removeRisk', () => {
+  it('should remove an existing risk and return true', async () => {
+    const risk = await addRisk(WORKSPACE_ID, PROGRAM_ID, {
+      program_id: PROGRAM_ID,
+      type: 'dependency_risk',
+      severity: 'low',
+      status: 'identified',
+      title: 'To be removed',
+      description: 'Will be deleted',
+      detected_by: 'manual',
+    });
+
+    const removed = await removeRisk(WORKSPACE_ID, PROGRAM_ID, risk.id);
+    expect(removed).toBe(true);
+
+    const all = await listRisks(WORKSPACE_ID, PROGRAM_ID);
+    expect(all).toHaveLength(0);
+  });
+
+  it('should return false for non-existent risk', async () => {
+    const removed = await removeRisk(WORKSPACE_ID, PROGRAM_ID, 'risk_nonexistent');
+    expect(removed).toBe(false);
+  });
+});
+
+// =============================================================================
+// listRisks
+// =============================================================================
+
+describe('listRisks', () => {
+  async function seedRisks(): Promise<ProgramRisk[]> {
+    const r1 = await addRisk(WORKSPACE_ID, PROGRAM_ID, {
+      program_id: PROGRAM_ID,
+      type: 'functional_conflict',
+      severity: 'high',
+      status: 'identified',
+      title: 'High Conflict',
+      description: 'A',
+      detected_by: 'manual',
+    });
+    const r2 = await addRisk(WORKSPACE_ID, PROGRAM_ID, {
+      program_id: PROGRAM_ID,
+      type: 'behavioral_change',
+      severity: 'low',
+      status: 'mitigated',
+      title: 'Low Behavior',
+      description: 'B',
+      detected_by: 'auto',
+    });
+    const r3 = await addRisk(WORKSPACE_ID, PROGRAM_ID, {
+      program_id: PROGRAM_ID,
+      type: 'dependency_risk',
+      severity: 'high',
+      status: 'resolved',
+      title: 'High Dep',
+      description: 'C',
+      detected_by: 'auto',
+    });
+    return [r1, r2, r3];
+  }
+
+  it('should return all risks without filters', async () => {
+    await seedRisks();
+    const all = await listRisks(WORKSPACE_ID, PROGRAM_ID);
+    expect(all).toHaveLength(3);
+  });
+
+  it('should filter by severity', async () => {
+    await seedRisks();
+    const high = await listRisks(WORKSPACE_ID, PROGRAM_ID, { severity: 'high' });
+    expect(high).toHaveLength(2);
+    expect(high.every(r => r.severity === 'high')).toBe(true);
+  });
+
+  it('should filter by status', async () => {
+    await seedRisks();
+    const mitigated = await listRisks(WORKSPACE_ID, PROGRAM_ID, { status: 'mitigated' });
+    expect(mitigated).toHaveLength(1);
+    expect(mitigated[0].title).toBe('Low Behavior');
+  });
+
+  it('should combine severity and status filters (AND logic)', async () => {
+    await seedRisks();
+    const result = await listRisks(WORKSPACE_ID, PROGRAM_ID, {
+      severity: 'high',
+      status: 'identified',
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0].title).toBe('High Conflict');
+  });
+
+  it('should return empty array when no risks match', async () => {
+    await seedRisks();
+    const result = await listRisks(WORKSPACE_ID, PROGRAM_ID, { severity: 'critical' });
+    expect(result).toHaveLength(0);
+  });
+});
+
+// =============================================================================
+// getRisk
+// =============================================================================
+
+describe('getRisk', () => {
+  it('should return risk by ID', async () => {
+    const risk = await addRisk(WORKSPACE_ID, PROGRAM_ID, {
+      program_id: PROGRAM_ID,
+      type: 'functional_conflict',
+      severity: 'medium',
+      status: 'identified',
+      title: 'Specific risk',
+      description: 'Find me',
+      detected_by: 'manual',
+    });
+
+    const found = await getRisk(WORKSPACE_ID, PROGRAM_ID, risk.id);
+    expect(found).not.toBeNull();
+    expect(found!.title).toBe('Specific risk');
+  });
+
+  it('should return null for non-existent risk', async () => {
+    const found = await getRisk(WORKSPACE_ID, PROGRAM_ID, 'risk_nonexistent');
+    expect(found).toBeNull();
+  });
+});

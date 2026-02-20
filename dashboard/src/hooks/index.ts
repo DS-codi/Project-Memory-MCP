@@ -7,3 +7,5 @@ export { useInstructions, useInstruction, useWorkspaceInstructions, useCreateIns
 export { useCopilotStatus, useGlobalCopilotStatus } from './useCopilotStatus';
 export { usePrograms, useProgram } from './usePrograms';
 export { useSkills, useSkillContent } from './useSkills';
+export { usePlanPhases } from './usePlanPhases';
+export { useHandoffStats } from './useHandoffStats';

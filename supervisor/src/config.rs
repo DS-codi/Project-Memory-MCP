@@ -6,6 +6,8 @@ use std::fmt;
 use std::io;
 use std::path::PathBuf;
 
+use crate::control::protocol::BackendKind;
+
 // ---------------------------------------------------------------------------
 // Control-transport selector
 // ---------------------------------------------------------------------------
@@ -114,6 +116,8 @@ pub struct ReconnectSection {
     pub multiplier: f64,
     /// Maximum number of reconnect attempts (0 = unlimited).
     pub max_attempts: u32,
+    /// Fraction of the current base delay added as random jitter (default: 0.2).
+    pub jitter_ratio: f64,
 }
 
 impl Default for ReconnectSection {
@@ -123,6 +127,7 @@ impl Default for ReconnectSection {
             max_delay_ms: 30_000,
             multiplier: 2.0,
             max_attempts: 0,
+            jitter_ratio: 0.2,
         }
     }
 }
@@ -140,6 +145,21 @@ pub enum McpBackend {
     Node,
     /// Run a Podman/Docker container.
     Container,
+}
+
+// ---------------------------------------------------------------------------
+// McpBackend → BackendKind conversion
+// ---------------------------------------------------------------------------
+
+/// Lossless conversion from the config-layer backend selector to the
+/// control-API backend kind used by the control-plane registry.
+impl From<McpBackend> for BackendKind {
+    fn from(b: McpBackend) -> Self {
+        match b {
+            McpBackend::Node => BackendKind::Node,
+            McpBackend::Container => BackendKind::Container,
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

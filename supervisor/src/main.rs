@@ -47,12 +47,22 @@ async fn main() {
             let tcp_port = cfg.supervisor.control_tcp_port;
             let transport = cfg.supervisor.control_transport.clone();
 
+            // Gap 2: initialise registry with the backend the user configured in supervisor.toml.
             let registry = Arc::new(tokio::sync::Mutex::new(
-                supervisor::control::registry::Registry::new(),
+                supervisor::control::registry::Registry::with_backend(
+                    cfg.mcp.backend.clone().into(),
+                ),
             ));
 
+            // Gap 3: lifecycle state registry driven by runners / state machines.
+            // Epic D wires ServiceStateMachine transitions into this registry so
+            // the control-API Status command reflects the true connection state.
+            let _service_registry = supervisor::registry::ServiceRegistry::shared();
+
+            // Gap 5: bidirectional channel — each envelope carries a oneshot reply sender
+            // so transports can write the handler response back to the caller.
             let (tx, mut rx) =
-                tokio::sync::mpsc::channel::<supervisor::control::protocol::ControlRequest>(64);
+                tokio::sync::mpsc::channel::<supervisor::control::RequestEnvelope>(64);
 
             // Spawn the appropriate transport listener.
             match transport {
@@ -79,13 +89,15 @@ async fn main() {
                 }
             }
 
-            // Dispatch incoming control requests to the handler.
+            // Dispatch incoming control requests to the handler and route the
+            // response back through the oneshot reply channel.
             let reg2 = Arc::clone(&registry);
             tokio::spawn(async move {
-                while let Some(req) = rx.recv().await {
+                while let Some((req, resp_tx)) = rx.recv().await {
                     eprintln!("[supervisor] control request: {:?}", req);
-                    let _resp =
+                    let resp =
                         supervisor::control::handler::handle_request(req, Arc::clone(&reg2)).await;
+                    let _ = resp_tx.send(resp);
                 }
             });
 

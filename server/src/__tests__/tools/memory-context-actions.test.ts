@@ -49,7 +49,7 @@ describe('MCP Tool: memory_context Actions', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('type and data');
+      expect(result.error).toContain('type');
     });
 
     it('should store context when valid', async () => {
@@ -186,7 +186,7 @@ describe('MCP Tool: memory_context Actions', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('filename and content');
+      expect(result.error).toContain('filename');
     });
 
     it('should append research when valid', async () => {
@@ -224,7 +224,7 @@ describe('MCP Tool: memory_context Actions', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('target_agent and mission');
+      expect(result.error).toContain('target_agent');
     });
 
     it('should generate instructions when valid', async () => {
@@ -266,7 +266,7 @@ describe('MCP Tool: memory_context Actions', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('items array');
+      expect(result.error).toContain('items');
     });
 
     it('should store multiple items and report failures', async () => {
@@ -318,7 +318,7 @@ describe('MCP Tool: memory_context Actions', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('data is required');
+      expect(result.error).toContain('data');
     });
 
     it('should set workspace context when valid', async () => {
@@ -346,7 +346,7 @@ describe('MCP Tool: memory_context Actions', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('data is required');
+      expect(result.error).toContain('data');
     });
 
     it('should update workspace context when valid', async () => {

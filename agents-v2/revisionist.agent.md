@@ -133,8 +133,8 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 ## Terminal Surface Guidance (Canonical)
 
 - Revisionist focuses on plan pivots, so terminal execution is optional and should be limited to failure reproduction/verification.
-- Use `memory_terminal` for deterministic headless checks and `memory_terminal_interactive` for visible host-terminal debugging workflows.
-- If Rust+QML interactive gateway context is involved, treat it as approval/routing; execution remains on `memory_terminal` or `memory_terminal_interactive`.
+- Use `memory_terminal` for all checks and debugging workflows.
+- If Rust+QML interactive gateway context is involved, treat it as approval/routing; execution lands on `memory_terminal`.
 
 ## Workflow
 

@@ -219,6 +219,29 @@ impl ServiceStateMachine {
 }
 
 // ---------------------------------------------------------------------------
+// ServiceState bridge
+// ---------------------------------------------------------------------------
+
+/// Lossless conversion from the runner-layer [`ConnectionState`] to the
+/// lifecycle-registry [`crate::registry::ServiceState`].
+///
+/// Used by Epic D wiring to propagate state-machine transitions into the
+/// shared `ServiceRegistry` so control-API consumers see up-to-date lifecycle
+/// state.
+impl From<ConnectionState> for crate::registry::ServiceState {
+    fn from(cs: ConnectionState) -> Self {
+        match cs {
+            ConnectionState::Disconnected        => crate::registry::ServiceState::Disconnected,
+            ConnectionState::Probing             => crate::registry::ServiceState::Probing,
+            ConnectionState::Connecting          => crate::registry::ServiceState::Connecting,
+            ConnectionState::Verifying           => crate::registry::ServiceState::Verifying,
+            ConnectionState::Connected           => crate::registry::ServiceState::Connected,
+            ConnectionState::Reconnecting { .. } => crate::registry::ServiceState::Reconnecting,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -361,6 +384,7 @@ mod tests {
             max_delay_ms: 30_000,
             multiplier: 2.0,
             max_attempts: 2,
+            jitter_ratio: 0.2,
         };
         let mut sm = ServiceStateMachine::new(&config);
         sm.on_start();

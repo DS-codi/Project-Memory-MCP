@@ -6,7 +6,8 @@
 
 use tokio::sync::mpsc;
 
-use crate::control::protocol::{decode_request, ControlRequest};
+use crate::control::protocol::{decode_request, encode_response};
+use crate::control::RequestEnvelope;
 
 // ---------------------------------------------------------------------------
 // Windows implementation
@@ -15,9 +16,9 @@ use crate::control::protocol::{decode_request, ControlRequest};
 #[cfg(windows)]
 pub async fn serve_named_pipe(
     pipe_name: &str,
-    tx: mpsc::Sender<ControlRequest>,
+    tx: mpsc::Sender<RequestEnvelope>,
 ) -> anyhow::Result<()> {
-    use tokio::io::{AsyncBufReadExt, BufReader};
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
     use tokio::net::windows::named_pipe::ServerOptions;
 
     let pipe_name = pipe_name.to_string();
@@ -42,15 +43,23 @@ pub async fn serve_named_pipe(
         // Spawn a task to service this client; the loop immediately creates
         // the next server instance ready for the following connection.
         tokio::spawn(async move {
-            let reader = BufReader::new(server);
+            let (reader_half, mut writer) = tokio::io::split(server);
+            let reader = BufReader::new(reader_half);
             let mut lines = reader.lines();
 
             while let Ok(Some(line)) = lines.next_line().await {
                 match decode_request(&line) {
                     Ok(req) => {
-                        if tx.send(req).await.is_err() {
+                        let (resp_tx, resp_rx) = tokio::sync::oneshot::channel();
+                        if tx.send((req, resp_tx)).await.is_err() {
                             // Channel closed — supervisor is shutting down.
                             break;
+                        }
+                        if let Ok(resp) = resp_rx.await {
+                            let encoded = encode_response(&resp);
+                            if writer.write_all(encoded.as_bytes()).await.is_err() {
+                                break;
+                            }
                         }
                     }
                     Err(e) => {
@@ -69,7 +78,7 @@ pub async fn serve_named_pipe(
 #[cfg(not(windows))]
 pub async fn serve_named_pipe(
     _pipe_name: &str,
-    _tx: mpsc::Sender<ControlRequest>,
+    _tx: mpsc::Sender<RequestEnvelope>,
 ) -> anyhow::Result<()> {
     Err(anyhow::anyhow!(
         "named pipes are only available on Windows; use TCP transport instead"

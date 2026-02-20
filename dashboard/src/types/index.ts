@@ -4,6 +4,10 @@
  * Core types matching the MCP server for workspace, plan, and agent state.
  */
 
+// Re-export Plan Schema v2 types and analytics types
+export * from './schema-v2';
+export * from './stats';
+
 // =============================================================================
 // Agent Types
 // =============================================================================
@@ -164,6 +168,13 @@ export interface PlanState {
   agent_sessions: AgentSession[];
   lineage: LineageEntry[];
   steps: PlanStep[];
+
+  // Plan Schema v2 optional fields
+  phases?: import('./schema-v2').PlanPhase[];
+  difficulty_profile?: import('./schema-v2').DifficultyProfile;
+  risk_register?: import('./schema-v2').RiskEntry[];
+  pre_plan_build_status?: import('./schema-v2').PrePlanBuildStatus;
+  matched_skills?: import('./schema-v2').SkillMatch[];
 }
 
 export interface PlanTemplate {
@@ -413,6 +424,10 @@ export interface ProgramDetail extends ProgramSummary {
   goals?: string[];
   success_criteria?: string[];
   notes?: PlanNote[];
+
+  // Plan Schema v2 optional fields
+  risk_register?: import('./schema-v2').RiskEntry[];
+  phase_announcements?: import('./schema-v2').PhaseAnnouncement[];
 }
 
 // =============================================================================

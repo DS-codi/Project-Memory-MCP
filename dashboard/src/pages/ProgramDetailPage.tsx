@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, FolderTree, Target, ListChecks, CheckCircle, AlertTriangle, Activity } from 'lucide-react';
+import { ArrowLeft, FolderTree, Target, ListChecks, CheckCircle, AlertTriangle, Activity, Megaphone } from 'lucide-react';
 import { useProgram } from '@/hooks/usePrograms';
 import { Badge } from '@/components/common/Badge';
 import { ProgressBar } from '@/components/common/ProgressBar';
@@ -8,7 +8,8 @@ import { Skeleton } from '@/components/common/Skeleton';
 import { planStatusColors } from '@/utils/colors';
 import { formatDate } from '@/utils/formatters';
 import type { ProgramPlanRef, AggregateProgress } from '@/types';
-import { DependencyGraph } from '@/components/program/DependencyGraph';
+import { EnhancedDependencyGraph } from '@/components/program/EnhancedDependencyGraph';
+import { ProgramRiskOverview } from '@/components/program/ProgramRiskOverview';
 
 function PlanRow({ plan, workspaceId }: { plan: ProgramPlanRef; workspaceId: string }) {
   const percentage = plan.progress.total > 0
@@ -227,9 +228,39 @@ export function ProgramDetailPage() {
         </div>
       )}
 
+      {/* Program Risk Overview (v2 only) */}
+      {program.risk_register && program.risk_register.length > 0 && (
+        <ProgramRiskOverview risks={program.risk_register} workspaceId={workspaceId} />
+      )}
+
+      {/* Phase Announcements (v2 only) */}
+      {program.phase_announcements && program.phase_announcements.length > 0 && (
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <Megaphone size={16} className="text-violet-400" />
+            Phase Announcements
+          </h3>
+          <div className="space-y-2">
+            {program.phase_announcements.map((a, i) => (
+              <div key={i} className="flex items-start gap-2 text-sm">
+                <span className="text-violet-400 font-medium shrink-0">{a.phase}:</span>
+                <span className="text-slate-300">{a.message}</span>
+                {a.announced_by && (
+                  <span className="text-xs text-slate-500 shrink-0">— {a.announced_by}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Dependency Graph */}
       {program.plans.length > 1 && (
-        <DependencyGraph plans={program.plans} workspaceId={workspaceId!} />
+        <EnhancedDependencyGraph
+          plans={program.plans}
+          workspaceId={workspaceId!}
+          phaseAnnouncements={program.phase_announcements}
+        />
       )}
 
       {/* Child plans */}

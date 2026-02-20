@@ -9,3 +9,13 @@ pub mod pipe;
 pub mod protocol;
 pub mod registry;
 pub mod tcp;
+
+use tokio::sync::oneshot;
+
+use crate::control::protocol::{ControlRequest, ControlResponse};
+
+/// A request envelope pairing a decoded [`ControlRequest`] with a one-shot
+/// reply channel.  The transport layer creates the channel, forwards the
+/// envelope to the central dispatch loop, and awaits the reply to write back
+/// to the caller over the same connection.
+pub type RequestEnvelope = (ControlRequest, oneshot::Sender<ControlResponse>);

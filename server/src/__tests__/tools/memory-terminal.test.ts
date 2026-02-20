@@ -21,6 +21,19 @@ vi.mock('node:fs/promises', () => ({
   mkdir: vi.fn().mockResolvedValue(undefined),
 }));
 
+// Mock TcpTerminalAdapter so tests don't require a running GUI on port 9100.
+// This simulates the expected "no GUI running" environment so all TCP-dependent
+// tests get immediate ECONNREFUSED errors instead of live execution.
+vi.mock('../../tools/terminal-tcp-adapter.js', () => ({
+  TcpTerminalAdapter: vi.fn().mockImplementation(() => ({
+    connect: vi.fn().mockRejectedValue(new Error('TCP connect failed: connect ECONNREFUSED 127.0.0.1:9100')),
+    sendAndAwait: vi.fn(),
+    sendReadOutput: vi.fn(),
+    sendKill: vi.fn(),
+    close: vi.fn(),
+  })),
+}));
+
 // ---------------------------------------------------------------------------
 // Action Routing
 // ---------------------------------------------------------------------------

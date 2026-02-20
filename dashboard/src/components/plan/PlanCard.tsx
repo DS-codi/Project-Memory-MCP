@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Clock, FolderTree } from 'lucide-react';
+import { Clock, FolderTree, Shield, Gauge, BookOpen } from 'lucide-react';
 import { Badge } from '../common/Badge';
 import { CopyButton } from '../common/CopyButton';
 import { ProgressBar } from '../common/ProgressBar';
@@ -29,6 +29,13 @@ export function PlanCard({ plan, workspaceId, programName }: PlanCardProps) {
   const unresolvedLinkedCount = plan.relationships?.unresolved_linked_plan_ids?.length ?? 0;
   const hasAnyRelationships = Boolean(plan.is_program) || Boolean(parentProgramId) || childPlanCount > 0 || linkedPlanCount > 0 || dependentPlanCount > 0 || unresolvedLinkedCount > 0;
 
+  // v2 plan fields (may be present on enriched summary responses)
+  const v2 = plan as PlanSummary & {
+    difficulty_profile?: { level: string };
+    risk_register?: unknown[];
+    matched_skills?: unknown[];
+  };
+
   return (
     <Link
       to={`/workspace/${workspaceId}/plan/${plan.id}`}
@@ -47,6 +54,26 @@ export function PlanCard({ plan, workspaceId, programName }: PlanCardProps) {
               {plan.status}
             </Badge>
           </div>
+          {/* v2 indicators */}
+          {(v2.difficulty_profile || (v2.risk_register && v2.risk_register.length > 0) || (v2.matched_skills && v2.matched_skills.length > 0)) && (
+            <div className="flex items-center gap-1.5 mt-1">
+              {v2.difficulty_profile && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                  <Gauge size={10} /> {v2.difficulty_profile.level}
+                </span>
+              )}
+              {v2.risk_register && v2.risk_register.length > 0 && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-red-500/15 text-red-300 border border-red-500/30">
+                  <Shield size={10} /> {v2.risk_register.length}
+                </span>
+              )}
+              {v2.matched_skills && v2.matched_skills.length > 0 && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                  <BookOpen size={10} /> {v2.matched_skills.length}
+                </span>
+              )}
+            </div>
+          )}
           <h3 className="font-semibold text-lg truncate group-hover:text-violet-300 transition-colors">
             {plan.title}
           </h3>

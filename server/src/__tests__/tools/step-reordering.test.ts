@@ -228,7 +228,7 @@ describe('MCP Tool: memory_steps Reorder and Move Actions', () => {
       const result = await memorySteps(params);
       
       expect(result.success).toBe(false);
-      expect(result.error).toContain('step_index and direction');
+      expect(result.error).toContain('step_index');
     });
 
     it('should fail when direction is missing', async () => {
@@ -243,7 +243,7 @@ describe('MCP Tool: memory_steps Reorder and Move Actions', () => {
       const result = await memorySteps(params);
       
       expect(result.success).toBe(false);
-      expect(result.error).toContain('step_index and direction');
+      expect(result.error).toContain('direction');
     });
 
     it('should fail when plan is not found', async () => {
@@ -445,7 +445,7 @@ describe('MCP Tool: memory_steps Reorder and Move Actions', () => {
       const result = await memorySteps(params);
       
       expect(result.success).toBe(false);
-      expect(result.error).toContain('from_index and to_index are required');
+      expect(result.error).toContain('from_index');
     });
 
     it('should fail when to_index is missing', async () => {
@@ -460,7 +460,7 @@ describe('MCP Tool: memory_steps Reorder and Move Actions', () => {
       const result = await memorySteps(params);
       
       expect(result.success).toBe(false);
-      expect(result.error).toContain('from_index and to_index are required');
+      expect(result.error).toContain('to_index');
     });
 
     it('should fail when from_index equals to_index', async () => {

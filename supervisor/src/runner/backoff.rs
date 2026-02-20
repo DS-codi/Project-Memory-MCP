@@ -56,7 +56,7 @@ impl BackoffState {
             config.initial_delay_ms,
             config.max_delay_ms,
             config.multiplier,
-            0.2,
+            config.jitter_ratio,
         )
     }
 
@@ -158,6 +158,7 @@ mod tests {
             max_delay_ms: 30_000,
             multiplier: 2.0,
             max_attempts: 0,
+            jitter_ratio: 0.2,
         };
         let b = BackoffState::from_config(&config);
         assert_eq!(b.jitter_ratio, 0.2);

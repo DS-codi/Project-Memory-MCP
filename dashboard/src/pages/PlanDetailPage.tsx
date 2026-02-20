@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Clock, GitBranch, ListChecks, FileText, Activity, BarChart, Info, AlertTriangle, MessageSquare, Target, Terminal, Database, FolderTree, Users } from 'lucide-react';
+import { ArrowLeft, Clock, GitBranch, ListChecks, FileText, Activity, BarChart, Info, AlertTriangle, MessageSquare, Target, Terminal, Database, FolderTree, Users, Layers, Shield, TrendingUp } from 'lucide-react';
 import { CopyButton } from '@/components/common/CopyButton';
 import { Badge } from '@/components/common/Badge';
 import { ProgressBar } from '@/components/common/ProgressBar';
@@ -15,12 +15,19 @@ import { PlanActions } from '@/components/plan/PlanActions';
 import { AddNoteForm } from '@/components/plan/AddNoteForm';
 import { GoalsTab } from '@/components/plan/GoalsTab';
 import { BuildScriptsTab } from '@/components/plan/BuildScriptsTab';
+import { PhaseListView } from '@/components/plan/PhaseListView';
+import { RiskRegisterPanel } from '@/components/plan/RiskRegisterPanel';
+import { DifficultyProfileCard } from '@/components/plan/DifficultyProfileCard';
+import { SessionStatsCard } from '@/components/plan/SessionStatsCard';
+import { HandoffStatsPanel } from '@/components/plan/HandoffStatsPanel';
+import { SkillMatchPanel } from '@/components/plan/SkillMatchPanel';
+import { CategorizationBadge } from '@/components/plan/CategorizationBadge';
 import { HandoffTimeline } from '@/components/timeline/HandoffTimeline';
 import { BallInCourt } from '@/components/timeline/BallInCourt';
 import { useBuildScripts, useAddBuildScript, useDeleteBuildScript, useRunBuildScript } from '@/hooks/useBuildScripts';
 import { useProgram } from '@/hooks/usePrograms';
 import { formatDate, formatRelative } from '@/utils/formatters';
-import { categoryColors, priorityColors, priorityIcons, planStatusColors, agentBgColors, agentIcons } from '@/utils/colors';
+import { categoryColors, priorityColors, priorityIcons, planStatusColors } from '@/utils/colors';
 import { cn } from '@/utils/cn';
 import { postToVsCode } from '@/utils/vscode-bridge';
 import type { PlanState, AgentType, ProgramPlanRef } from '@/types';
@@ -31,7 +38,7 @@ async function fetchPlan(workspaceId: string, planId: string): Promise<PlanState
   return res.json();
 }
 
-type Tab = 'timeline' | 'steps' | 'research' | 'context' | 'activity' | 'goals' | 'build-scripts';
+type Tab = 'timeline' | 'steps' | 'phases' | 'risk' | 'stats' | 'research' | 'context' | 'activity' | 'goals' | 'build-scripts';
 
 export function PlanDetailPage() {
   const { workspaceId, planId } = useParams<{ workspaceId: string; planId: string }>();
@@ -39,7 +46,7 @@ export function PlanDetailPage() {
   const [activeTab, setActiveTab] = useState<Tab>('timeline');
   const [stepView, setStepView] = useState<'bar' | 'kanban'>('bar');
 
-  const validTabs: Tab[] = ['timeline', 'steps', 'research', 'activity', 'goals', 'build-scripts'];
+  const validTabs: Tab[] = ['timeline', 'steps', 'phases', 'risk', 'stats', 'research', 'activity', 'goals', 'build-scripts'];
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -103,6 +110,9 @@ export function PlanDetailPage() {
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'timeline', label: 'Timeline', icon: <GitBranch size={16} /> },
     { id: 'steps', label: 'Steps', icon: <ListChecks size={16} /> },
+    { id: 'phases', label: 'Phases', icon: <Layers size={16} /> },
+    { id: 'risk', label: 'Risk', icon: <Shield size={16} /> },
+    { id: 'stats', label: 'Stats', icon: <TrendingUp size={16} /> },
     { id: 'goals', label: 'Goals', icon: <Target size={16} /> },
     { id: 'build-scripts', label: 'Build Scripts', icon: <Terminal size={16} /> },
     { id: 'research', label: 'Research', icon: <FileText size={16} /> },
@@ -159,34 +169,8 @@ export function PlanDetailPage() {
             <h1 className="text-2xl font-bold mb-2">{plan.title}</h1>
             <p className="text-slate-400">{plan.description}</p>
             {plan.categorization && (
-              <div className="mt-4 space-y-2 text-sm text-slate-300">
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-400">Categorization</span>
-                  <span className="px-2 py-0.5 rounded border border-slate-600 text-slate-300">
-                    {plan.categorization.category}
-                  </span>
-                  <span className="text-slate-500">Confidence: {(plan.categorization.confidence * 100).toFixed(0)}%</span>
-                </div>
-                <div className="text-slate-400">{plan.categorization.reasoning}</div>
-                {plan.categorization.suggested_workflow.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {plan.categorization.suggested_workflow.map((agent) => (
-                      <Badge key={agent} variant={agentBgColors[agent]}>
-                        {agentIcons[agent]} {agent}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-                {plan.categorization.skip_agents && plan.categorization.skip_agents.length > 0 && (
-                  <div className="flex flex-wrap gap-2 text-slate-500">
-                    <span>Skip:</span>
-                    {plan.categorization.skip_agents.map((agent) => (
-                      <span key={agent} className="px-2 py-0.5 rounded border border-slate-700">
-                        {agent}
-                      </span>
-                    ))}
-                  </div>
-                )}
+              <div className="mt-4">
+                <CategorizationBadge categorization={plan.categorization} />
               </div>
             )}
           </div>
@@ -388,8 +372,29 @@ export function PlanDetailPage() {
                 workspaceId={workspaceId}
                 planId={planId}
                 editable={true}
+                phases={plan.phases}
               />
             </div>
+          </div>
+        )}
+        {activeTab === 'phases' && (
+          <div className="space-y-6">
+            <PhaseListView steps={plan.steps || []} phases={plan.phases} defaultOpen />
+            {plan.matched_skills && plan.matched_skills.length > 0 && (
+              <SkillMatchPanel matchedSkills={plan.matched_skills} phases={plan.phases} />
+            )}
+          </div>
+        )}
+        {activeTab === 'risk' && (
+          <div className="space-y-6">
+            <DifficultyProfileCard profile={plan.difficulty_profile} />
+            <RiskRegisterPanel risks={plan.risk_register} />
+          </div>
+        )}
+        {activeTab === 'stats' && (
+          <div className="space-y-6">
+            <SessionStatsCard sessions={plan.agent_sessions || []} />
+            <HandoffStatsPanel lineage={plan.lineage || []} sessions={plan.agent_sessions || []} />
           </div>
         )}
         {activeTab === 'goals' && (

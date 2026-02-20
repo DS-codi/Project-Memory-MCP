@@ -70,7 +70,7 @@ You are a **spoke agent**. **NEVER** call `runSubagent` to spawn other agents. W
 
 ## Terminal Surface Guidance (Canonical)
 
-- Cognition is read-only: do not use `memory_terminal` or `memory_terminal_interactive`.
+- Cognition is read-only: do not use `memory_terminal`.
 - Do not execute commands through Rust+QML interactive gateway paths; if terminal execution is needed, handoff with a recommendation to a writing/execution agent.
 
 **Tools you MUST NOT use:**

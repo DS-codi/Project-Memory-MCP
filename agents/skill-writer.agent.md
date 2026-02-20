@@ -231,7 +231,7 @@ When deployed with `mode: "refactor"` and `foreign_workspace_path` in context:
 
 ## Terminal Surface Guidance (Canonical)
 
-- SkillWriter does not execute build/test workflows; do not use `memory_terminal` or `memory_terminal_interactive` in normal operation.
+- SkillWriter does not execute build/test workflows; do not use `memory_terminal` in normal operation.
 - If terminal activity appears necessary, handoff to Coordinator with rationale rather than executing commands directly.
 - Rust+QML interactive gateway references are contextual only for this role and do not change the non-execution boundary.
 

@@ -109,8 +109,8 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 ## Terminal Surface Guidance (Canonical)
 
 - Prefer `memory_terminal` for deterministic, headless verification commands that are safe for archival checks.
-- Use `memory_terminal_interactive` only when a visible host terminal is required for user-observable release/debug workflows.
-- If Rust+QML interactive gateway context exists, treat it as upstream approval/routing only; execution still occurs on `memory_terminal` or `memory_terminal_interactive`.
+- Use `memory_terminal` for all execution, including user-observable release/debug workflows.
+- If Rust+QML interactive gateway context exists, treat it as upstream approval/routing only; execution occurs on `memory_terminal`.
 
 ## ✅ Documentation Permissions
 

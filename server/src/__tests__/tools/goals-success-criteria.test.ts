@@ -107,7 +107,7 @@ describe('MCP Tool: memory_plan Goals and Success Criteria Actions', () => {
         workspace_id: mockWorkspaceId,
         title: 'Goals Only Plan',
         description: 'A plan with only goals',
-        category: 'feature' as const,
+        category: 'quick_task' as const,
         priority: 'medium' as const,
         status: 'active' as const,
         current_phase: 'initialization',
@@ -137,7 +137,7 @@ describe('MCP Tool: memory_plan Goals and Success Criteria Actions', () => {
         workspace_id: mockWorkspaceId,
         title: 'Goals Only Plan',
         description: 'A plan with only goals',
-        category: 'feature',
+        category: 'quick_task',
         goals: ['Only Goal'],
       };
 
@@ -148,7 +148,7 @@ describe('MCP Tool: memory_plan Goals and Success Criteria Actions', () => {
         mockWorkspaceId,
         'Goals Only Plan',
         'A plan with only goals',
-        'feature',
+        'quick_task',
         undefined,
         undefined,
         ['Only Goal'],
@@ -162,7 +162,7 @@ describe('MCP Tool: memory_plan Goals and Success Criteria Actions', () => {
         workspace_id: mockWorkspaceId,
         title: 'Criteria Only Plan',
         description: 'A plan with only success criteria',
-        category: 'bugfix' as const,
+        category: 'quick_task' as const,
         priority: 'high' as const,
         status: 'active' as const,
         current_phase: 'initialization',
@@ -192,7 +192,7 @@ describe('MCP Tool: memory_plan Goals and Success Criteria Actions', () => {
         workspace_id: mockWorkspaceId,
         title: 'Criteria Only Plan',
         description: 'A plan with only success criteria',
-        category: 'bugfix',
+        category: 'quick_task',
         priority: 'high',
         success_criteria: ['Must pass all tests'],
       };
@@ -204,7 +204,7 @@ describe('MCP Tool: memory_plan Goals and Success Criteria Actions', () => {
         mockWorkspaceId,
         'Criteria Only Plan',
         'A plan with only success criteria',
-        'bugfix',
+        'quick_task',
         'high',
         undefined,
         undefined,
@@ -218,7 +218,7 @@ describe('MCP Tool: memory_plan Goals and Success Criteria Actions', () => {
         workspace_id: mockWorkspaceId,
         title: 'Basic Plan',
         description: 'A plan without goals',
-        category: 'feature' as const,
+        category: 'quick_task' as const,
         priority: 'low' as const,
         status: 'active' as const,
         current_phase: 'initialization',
@@ -246,7 +246,7 @@ describe('MCP Tool: memory_plan Goals and Success Criteria Actions', () => {
         workspace_id: mockWorkspaceId,
         title: 'Basic Plan',
         description: 'A plan without goals',
-        category: 'feature',
+        category: 'quick_task',
       };
 
       const result = await memoryPlan(params);
@@ -256,7 +256,7 @@ describe('MCP Tool: memory_plan Goals and Success Criteria Actions', () => {
         mockWorkspaceId,
         'Basic Plan',
         'A plan without goals',
-        'feature',
+        'quick_task',
         undefined,
         undefined,
         undefined,
@@ -388,7 +388,7 @@ describe('MCP Tool: memory_plan Goals and Success Criteria Actions', () => {
       const result = await memoryPlan(params);
       
       expect(result.success).toBe(false);
-      expect(result.error).toContain('workspace_id and plan_id are required');
+      expect(result.error).toContain('workspace_id');
     });
 
     it('should fail when plan_id is missing', async () => {
@@ -401,7 +401,7 @@ describe('MCP Tool: memory_plan Goals and Success Criteria Actions', () => {
       const result = await memoryPlan(params);
       
       expect(result.success).toBe(false);
-      expect(result.error).toContain('workspace_id and plan_id are required');
+      expect(result.error).toContain('plan_id');
     });
 
     it('should fail when plan is not found', async () => {

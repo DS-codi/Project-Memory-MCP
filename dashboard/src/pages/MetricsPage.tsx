@@ -8,7 +8,9 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Activity,
-  GitBranch
+  GitBranch,
+  AlertTriangle,
+  TrendingUp
 } from 'lucide-react';
 import { Badge } from '@/components/common/Badge';
 import { ProgressBar } from '@/components/common/ProgressBar';
@@ -401,6 +403,61 @@ export function MetricsPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Handoff Analytics */}
+      <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <TrendingUp size={18} className="text-cyan-400" />
+          Handoff Analytics
+        </h2>
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="text-center p-3 bg-slate-700/30 rounded-lg">
+            <div className="text-2xl font-bold text-cyan-400">{metrics.handoffs.total_handoffs}</div>
+            <div className="text-sm text-slate-400">Total Handoffs</div>
+          </div>
+          <div className="text-center p-3 bg-slate-700/30 rounded-lg">
+            <div className="text-2xl font-bold text-violet-400">
+              {Object.keys(metrics.handoffs.by_transition).length}
+            </div>
+            <div className="text-sm text-slate-400">Unique Flows</div>
+          </div>
+          <div className="text-center p-3 bg-slate-700/30 rounded-lg">
+            <div className="flex items-center justify-center gap-1">
+              <AlertTriangle size={16} className="text-amber-400" />
+              <span className="text-2xl font-bold text-amber-400">{metrics.steps.blocked}</span>
+            </div>
+            <div className="text-sm text-slate-400">Blocked Steps</div>
+          </div>
+        </div>
+        {metrics.handoffs.most_common_transitions.length > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold text-slate-300 mb-2">Top Transition Flows</h3>
+            <div className="space-y-1.5">
+              {metrics.handoffs.most_common_transitions.slice(0, 5).map((t) => {
+                const maxCount = metrics.handoffs.most_common_transitions[0]?.count || 1;
+                return (
+                  <div key={`${t.from}-${t.to}`} className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 min-w-[180px] text-sm">
+                      <span>{agentIcons[t.from as AgentType] || '🤖'}</span>
+                      <span className="text-slate-300">{t.from}</span>
+                      <GitBranch size={12} className="text-slate-500" />
+                      <span>{agentIcons[t.to as AgentType] || '🤖'}</span>
+                      <span className="text-slate-300">{t.to}</span>
+                    </div>
+                    <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-cyan-500/60 rounded-full transition-all"
+                        style={{ width: `${(t.count / maxCount) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-slate-400 min-w-[30px] text-right">{t.count}×</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Plans by Priority */}

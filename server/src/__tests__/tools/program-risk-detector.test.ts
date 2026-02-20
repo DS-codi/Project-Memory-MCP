@@ -1,0 +1,313 @@
+/**
+ * Tests for program-risk-detector.ts — Auto risk detection from blocked steps.
+ *
+ * Uses a temp directory per test. Mocks getDataRoot and file-lock.
+ * Also mocks file-store.ts getPlanState to provide plan data without
+ * needing the workspace registration layer.
+ */
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { promises as fs } from 'fs';
+import path from 'path';
+import os from 'os';
+
+// Mock getDataRoot before importing modules
+vi.mock('../../storage/workspace-utils.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../storage/workspace-utils.js')>();
+  return {
+    ...actual,
+    getDataRoot: vi.fn(),
+  };
+});
+
+// Mock file-lock to bypass proper-lockfile in tests
+vi.mock('../../storage/file-lock.js', async () => {
+  const fsPromises = (await import('fs')).promises;
+  const pathMod = await import('path');
+
+  async function readJson<T>(filePath: string): Promise<T | null> {
+    try {
+      const content = await fsPromises.readFile(filePath, 'utf-8');
+      return JSON.parse(content) as T;
+    } catch {
+      return null;
+    }
+  }
+
+  async function writeJson<T>(filePath: string, data: T): Promise<void> {
+    await fsPromises.mkdir(pathMod.dirname(filePath), { recursive: true });
+    await fsPromises.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
+  }
+
+  async function modifyJsonLocked<T>(
+    filePath: string,
+    modifier: (data: T | null) => T | Promise<T>,
+  ): Promise<T> {
+    const data = await readJson<T>(filePath);
+    const modified = await modifier(data);
+    await writeJson(filePath, modified);
+    return modified;
+  }
+
+  return {
+    readJson,
+    writeJson,
+    modifyJsonLocked,
+    writeJsonLocked: writeJson,
+    fileLockManager: { withLock: (_: string, op: () => Promise<unknown>) => op() },
+  };
+});
+
+// Mock file-store getPlanState to provide plan data
+vi.mock('../../storage/file-store.js', () => ({
+  getPlanState: vi.fn(),
+}));
+
+import { getDataRoot } from '../../storage/workspace-utils.js';
+import { getPlanState } from '../../storage/file-store.js';
+import { autoDetectRisks, classifyRiskType } from '../../tools/program/program-risk-detector.js';
+import { readRisks, saveRisks } from '../../storage/program-store.js';
+import type { ProgramManifest } from '../../types/program-v2.types.js';
+import type { PlanState } from '../../types/plan.types.js';
+
+const WORKSPACE_ID = 'test-workspace-detector';
+const PROGRAM_ID = 'prog_test_detector';
+
+let tmpDir: string;
+
+beforeEach(async () => {
+  tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pm-prog-detect-'));
+  vi.mocked(getDataRoot).mockReturnValue(tmpDir);
+
+  // Create program directory
+  const programDir = path.join(tmpDir, WORKSPACE_ID, 'programs', PROGRAM_ID);
+  await fs.mkdir(programDir, { recursive: true });
+});
+
+afterEach(async () => {
+  vi.restoreAllMocks();
+  await fs.rm(tmpDir, { recursive: true, force: true });
+});
+
+/**
+ * Helper: write a manifest.json to disk.
+ */
+async function writeManifest(planIds: string[]): Promise<void> {
+  const manifest: ProgramManifest = {
+    program_id: PROGRAM_ID,
+    plan_ids: planIds,
+    updated_at: new Date().toISOString(),
+  };
+  const manifestPath = path.join(
+    tmpDir, WORKSPACE_ID, 'programs', PROGRAM_ID, 'manifest.json'
+  );
+  await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
+}
+
+/**
+ * Helper: create a mock PlanState with given steps.
+ */
+function makePlan(planId: string, steps: Array<{ task: string; status: string; notes?: string }>): PlanState {
+  return {
+    id: planId,
+    workspace_id: WORKSPACE_ID,
+    title: `Plan ${planId}`,
+    description: 'Test plan',
+    category: 'feature',
+    priority: 'medium',
+    status: 'active',
+    current_phase: 'Phase 1',
+    current_agent: 'Executor',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    steps: steps.map((s, i) => ({
+      index: i,
+      phase: 'Phase 1',
+      task: s.task,
+      status: s.status as 'pending' | 'active' | 'done' | 'blocked',
+      notes: s.notes,
+    })),
+  } as PlanState;
+}
+
+// =============================================================================
+// classifyRiskType
+// =============================================================================
+
+describe('classifyRiskType', () => {
+  it('should classify "conflict" as functional_conflict', () => {
+    expect(classifyRiskType('There is a conflict in the API')).toBe('functional_conflict');
+  });
+
+  it('should classify "breaking change" as functional_conflict', () => {
+    expect(classifyRiskType('This is a breaking change')).toBe('functional_conflict');
+  });
+
+  it('should classify "breaking-change" as functional_conflict', () => {
+    expect(classifyRiskType('Possible breaking-change detected')).toBe('functional_conflict');
+  });
+
+  it('should classify "regression" as behavioral_change', () => {
+    expect(classifyRiskType('Potential regression in auth flow')).toBe('behavioral_change');
+  });
+
+  it('should classify "behavior" as behavioral_change', () => {
+    expect(classifyRiskType('This changes behavior of the API')).toBe('behavioral_change');
+  });
+
+  it('should classify "behaviour" as behavioral_change', () => {
+    expect(classifyRiskType('Changes the behaviour of login')).toBe('behavioral_change');
+  });
+
+  it('should default to dependency_risk for unmatched notes', () => {
+    expect(classifyRiskType('Blocked waiting for upstream work')).toBe('dependency_risk');
+  });
+
+  it('should prioritize conflict over behavior keywords', () => {
+    expect(classifyRiskType('Conflict causes regression')).toBe('functional_conflict');
+  });
+});
+
+// =============================================================================
+// autoDetectRisks
+// =============================================================================
+
+describe('autoDetectRisks', () => {
+  it('should return empty result for program with no manifest', async () => {
+    const result = await autoDetectRisks(WORKSPACE_ID, PROGRAM_ID);
+    expect(result.plans_scanned).toBe(0);
+    expect(result.risks_added).toHaveLength(0);
+  });
+
+  it('should return empty result for program with empty manifest', async () => {
+    await writeManifest([]);
+    const result = await autoDetectRisks(WORKSPACE_ID, PROGRAM_ID);
+    expect(result.plans_scanned).toBe(0);
+    expect(result.risks_added).toHaveLength(0);
+  });
+
+  it('should detect no risks when plans have no blocked steps', async () => {
+    await writeManifest(['plan_a']);
+    vi.mocked(getPlanState).mockResolvedValue(
+      makePlan('plan_a', [
+        { task: 'Do stuff', status: 'done' },
+        { task: 'More stuff', status: 'pending' },
+      ])
+    );
+
+    const result = await autoDetectRisks(WORKSPACE_ID, PROGRAM_ID);
+    expect(result.plans_scanned).toBe(1);
+    expect(result.blocked_steps_found).toBe(0);
+    expect(result.risks_added).toHaveLength(0);
+  });
+
+  it('should detect functional_conflict from blocked step with "conflict" note', async () => {
+    await writeManifest(['plan_a']);
+    vi.mocked(getPlanState).mockResolvedValue(
+      makePlan('plan_a', [
+        { task: 'Update user endpoint', status: 'blocked', notes: 'API conflict with plan_b changes' },
+      ])
+    );
+
+    const result = await autoDetectRisks(WORKSPACE_ID, PROGRAM_ID);
+    expect(result.risks_added).toHaveLength(1);
+    expect(result.risks_added[0].type).toBe('functional_conflict');
+    expect(result.risks_added[0].detected_by).toBe('auto');
+    expect(result.risks_added[0].source_plan_id).toBe('plan_a');
+  });
+
+  it('should detect behavioral_change from blocked step with "regression" note', async () => {
+    await writeManifest(['plan_b']);
+    vi.mocked(getPlanState).mockResolvedValue(
+      makePlan('plan_b', [
+        { task: 'Modify login', status: 'blocked', notes: 'Potential regression in auth flow' },
+      ])
+    );
+
+    const result = await autoDetectRisks(WORKSPACE_ID, PROGRAM_ID);
+    expect(result.risks_added).toHaveLength(1);
+    expect(result.risks_added[0].type).toBe('behavioral_change');
+  });
+
+  it('should detect dependency_risk for generic blocked steps', async () => {
+    await writeManifest(['plan_c']);
+    vi.mocked(getPlanState).mockResolvedValue(
+      makePlan('plan_c', [
+        { task: 'Wait for upstream', status: 'blocked', notes: 'Waiting for plan_a phase 2 to complete' },
+      ])
+    );
+
+    const result = await autoDetectRisks(WORKSPACE_ID, PROGRAM_ID);
+    expect(result.risks_added).toHaveLength(1);
+    expect(result.risks_added[0].type).toBe('dependency_risk');
+  });
+
+  it('should scan multiple plans and detect multiple risks', async () => {
+    await writeManifest(['plan_a', 'plan_b']);
+    vi.mocked(getPlanState)
+      .mockResolvedValueOnce(makePlan('plan_a', [
+        { task: 'Step A1', status: 'blocked', notes: 'API conflict' },
+        { task: 'Step A2', status: 'done' },
+      ]))
+      .mockResolvedValueOnce(makePlan('plan_b', [
+        { task: 'Step B1', status: 'blocked', notes: 'Regression detected' },
+      ]));
+
+    const result = await autoDetectRisks(WORKSPACE_ID, PROGRAM_ID);
+    expect(result.plans_scanned).toBe(2);
+    expect(result.blocked_steps_found).toBe(2);
+    expect(result.risks_added).toHaveLength(2);
+    expect(result.risks_added[0].type).toBe('functional_conflict');
+    expect(result.risks_added[1].type).toBe('behavioral_change');
+  });
+
+  it('should skip blocked steps without notes', async () => {
+    await writeManifest(['plan_a']);
+    vi.mocked(getPlanState).mockResolvedValue(
+      makePlan('plan_a', [
+        { task: 'Blocked no notes', status: 'blocked' },
+      ])
+    );
+
+    const result = await autoDetectRisks(WORKSPACE_ID, PROGRAM_ID);
+    expect(result.blocked_steps_found).toBe(0);
+    expect(result.risks_added).toHaveLength(0);
+  });
+
+  it('should skip duplicate risks (same title + source_plan_id)', async () => {
+    await writeManifest(['plan_a']);
+    vi.mocked(getPlanState).mockResolvedValue(
+      makePlan('plan_a', [
+        { task: 'Update endpoint', status: 'blocked', notes: 'API conflict' },
+      ])
+    );
+
+    // First run — should add the risk
+    const result1 = await autoDetectRisks(WORKSPACE_ID, PROGRAM_ID);
+    expect(result1.risks_added).toHaveLength(1);
+
+    // Second run — same step, same notes → duplicate
+    vi.mocked(getPlanState).mockResolvedValue(
+      makePlan('plan_a', [
+        { task: 'Update endpoint', status: 'blocked', notes: 'API conflict' },
+      ])
+    );
+    const result2 = await autoDetectRisks(WORKSPACE_ID, PROGRAM_ID);
+    expect(result2.risks_added).toHaveLength(0);
+    expect(result2.duplicates_skipped).toBe(1);
+
+    // Total risks on disk should still be 1
+    const allRisks = await readRisks(WORKSPACE_ID, PROGRAM_ID);
+    expect(allRisks).toHaveLength(1);
+  });
+
+  it('should handle plan that returns null (plan not found)', async () => {
+    await writeManifest(['plan_missing']);
+    vi.mocked(getPlanState).mockResolvedValue(null);
+
+    const result = await autoDetectRisks(WORKSPACE_ID, PROGRAM_ID);
+    expect(result.plans_scanned).toBe(1);
+    expect(result.blocked_steps_found).toBe(0);
+    expect(result.risks_added).toHaveLength(0);
+  });
+});

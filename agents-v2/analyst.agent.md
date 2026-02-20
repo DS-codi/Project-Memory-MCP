@@ -23,6 +23,7 @@ handoffs:
 - `memory_steps` (actions: add, update, batch_update, insert, delete, reorder, move, sort, set_order, replace)
 - `memory_context` (actions: get, store, store_initial, list, append_research, list_research, generate_instructions, batch_store, workspace_get, workspace_set, workspace_update, workspace_delete, knowledge_store, knowledge_get, knowledge_list, knowledge_delete)
 - `memory_agent` (actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage)
+- `memory_session` (action: prep — **REQUIRED before every `runSubagent` call** to prepare enriched agent context, inject scope boundaries, and register the session)
 
 **If these tools are NOT available:**
 
@@ -78,7 +79,33 @@ Always include `plan_id` and `workspace_id` in the Executor's prompt, along with
 
 ---
 
-## 🔬 Investigation Model, Knowledge Base & Experimentation
+## � Hub Interaction Discipline
+
+> **Canonical policy:** See `instructions/hub-interaction-discipline.instructions.md`
+
+As a hub agent, the Analyst follows the shared **Hub Interaction Discipline** for pausing, summarizing, and auto-continue behavior.
+
+### Analyst-Specific Pause Rules
+
+- **Pause between investigation cycles** — when transitioning between phases (e.g., `reconnaissance` → `structure_discovery`), pause and summarize findings before starting the next cycle.
+- **Do NOT pause within a single cycle** — reading files, storing research, running experiments, and analyzing results within one investigation phase should flow without interruption.
+- **Pre-action summary is mandatory** before spawning any subagent (Researcher, Brainstorm, Executor, Worker). Even in auto-continue mode, always emit the 3-line summary (✅ completed, ➡️ next, 📋 expected).
+- **Investigations default to pause mode** — investigation plans use the `orchestration` category, which is in the `always_pause` list. Auto-continue is **never** available for investigations.
+
+### Pre-Action Summary Example (Before Spawning)
+
+```
+**Phase Update:**
+✅ Reconnaissance complete — identified 3 candidate patterns in binary header
+➡️ Spawning Researcher to find external documentation on the XYZ format spec
+📋 Expect research notes with format field definitions for hypothesis validation
+```
+
+See the discipline document §4 (Category-Dependent Pause Rules) and §6 (Hub-Specific Considerations → Analyst) for full details.
+
+---
+
+## �🔬 Investigation Model, Knowledge Base & Experimentation
 
 > **Full content:** See `instructions/analyst-methodology.instructions.md`
 >
@@ -210,7 +237,8 @@ Check what MCP tools are available in your session and use them directly.
 ### Sub-Agent Tool
 ```javascript
 // Step 1: Prepare context payload (does not execute spawn)
-memory_spawn_agent({
+memory_session({
+  action: "prep",
   agent_name: "Executor",
   prompt: "Detailed instructions for the experiment...",
   workspace_id: "...",
@@ -230,8 +258,8 @@ runSubagent({
 ## Terminal Surface Guidance (Canonical)
 
 - Use `memory_terminal` for deterministic, headless execution when experiments need automated build/lint/test style checks in the server/container.
-- Use `memory_terminal_interactive` when you need a visible VS Code host terminal for interactive debugging or manual reproduction.
-- If the Rust+QML interactive gateway is present in the investigation scope, treat it as an approval/routing layer; execution still lands on `memory_terminal` or `memory_terminal_interactive`.
+- Use `memory_terminal` for all execution — deterministic headless checks and interactive debugging alike.
+- If the Rust+QML interactive gateway is present in the investigation scope, treat it as an approval/routing layer; execution lands on `memory_terminal`.
 - Keep surface contracts separated; do not mix action payloads between terminal tools in one execution flow.
 
 ---
@@ -250,6 +278,30 @@ Investigations use flexible phases (not fixed like Coordinator):
 | `validation` | Verify understanding | Cross-check with multiple samples, edge cases |
 | `tooling` | Build reusable tools | Parsers, converters, validators |
 | `documentation` | Record findings | Format specs, usage guides |
+
+### Cycle Boundary Pause Points
+
+Each phase transition is a **pause point** per the Hub Interaction Discipline. When completing one phase and moving to the next:
+
+1. **Emit a pre-action summary** — what was learned in the completing phase, what the next phase will investigate
+2. **Wait for user** — unless auto-continue is active (rare for investigations, since they use `orchestration` category)
+3. **Then proceed** to the next phase or spawn the next subagent
+
+```
+// After completing reconnaissance phase:
+pause_and_summarize()
+//   ✅ Reconnaissance complete — mapped file structure, found 4 distinct sections
+//   ➡️ Moving to structure_discovery — will analyze header fields in detail
+//   📋 Expect field-level mapping of sections 1-4
+
+// After completing structure_discovery:
+pause_and_summarize()
+//   ✅ Structure discovery complete — 12 fields identified, 3 unknown
+//   ➡️ Spawning Executor to run targeted decoding experiments
+//   📋 Expect decoded values for the 3 unknown fields
+```
+
+> **Within a single phase**, do not pause between individual steps (e.g., reading multiple files, running multiple queries). Pauses happen at phase boundaries only.
 
 ### Example Investigation Plan
 

@@ -110,14 +110,7 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 | `memory_terminal` | `kill` | Kill a running process |
 | `memory_terminal` | `get_allowlist` | View auto-approved command patterns |
 | `memory_terminal` | `update_allowlist` | Add/remove auto-approve patterns |
-| `memory_terminal_interactive` | `execute` | Execute interactive-terminal requests via canonical contract |
-| `memory_terminal_interactive` | `read_output` | Read buffered output from interactive-terminal sessions |
-| `memory_terminal_interactive` | `terminate` | Terminate an interactive-terminal session |
-| `memory_terminal_interactive` | `list` | List all open interactive-terminal sessions |
-| `memory_terminal_vscode` | `create` | Open a visible VS Code terminal (optional name, cwd, env) |
-| `memory_terminal_vscode` | `send` | Send a command to a visible terminal (destructive commands blocked) |
-| `memory_terminal_vscode` | `close` | Close a visible terminal |
-| `memory_terminal_vscode` | `list` | List all open tracked VS Code terminals |
+
 | `memory_filesystem` | `read` | Read workspace-scoped source files |
 | `memory_filesystem` | `write` | Write/create files within workspace |
 | `memory_filesystem` | `search` | Search files by glob or regex pattern |
@@ -127,10 +120,8 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 ### Terminal & Filesystem Usage
 
 - **Use `memory_terminal`** (server-side, headless) for automated build commands (`npm run build`), lint checks, and test execution inside the server/container. Commands go through a strict authorization model: only allowlisted commands run, destructive commands are blocked.
-- **Use `memory_terminal_interactive`** for canonical interactive-terminal request execution (`execute/read_output/terminate/list`) when GUI-mediated approval/bridge flow is needed.
-- **Use `memory_terminal_vscode`** (extension-side, visible) to create VS Code integrated terminals the user can see and interact with (`create/send/close/list`).
-- **Use the canonical selection matrix** in `instructions/mcp-usage.instructions.md` as the source of truth for terminal-surface selection.
-- **If Rust+QML interactive gateway context applies**, treat it as approval/routing only; execute on `memory_terminal`, `memory_terminal_interactive`, or `memory_terminal_vscode` based on the matrix.
+- **Use `memory_terminal`** for all command execution — headless and interactive terminal workflows alike.
+- **If Rust+QML interactive gateway context applies**, treat it as approval/routing only; execution lands on `memory_terminal`.
 - **Use `memory_filesystem`** for workspace-scoped file reads/writes. All paths are relative to the workspace root. Path traversal and sensitive files (`.env`, keys) are blocked. Reads are capped at 1 MB.
 
 ## 📄 Instruction Files

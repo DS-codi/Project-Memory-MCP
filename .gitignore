@@ -30,6 +30,7 @@ npm-debug.log*
 data/
 
 # Rust build output
+/target/
 interactive-terminal/target/
 
 # Playwright

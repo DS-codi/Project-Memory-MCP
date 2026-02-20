@@ -88,6 +88,14 @@ impl Registry {
         }
     }
 
+    /// Create a registry pre-populated with all known managed services and
+    /// the active backend pre-set from the loaded config.
+    pub fn with_backend(backend: BackendKind) -> Self {
+        let mut r = Self::new();
+        r.active_backend = backend;
+        r
+    }
+
     /// Return a snapshot of all service states.
     pub fn service_states(&self) -> Vec<ServiceState> {
         let mut states: Vec<ServiceState> = self.services.values().cloned().collect();

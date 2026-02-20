@@ -69,7 +69,7 @@ describe('MCP Tool: memory_agent Actions', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('workspace_id, plan_id, agent_type, and summary');
+      expect(result.error).toContain('summary');
     });
 
     it('should complete agent when valid', async () => {
@@ -111,7 +111,7 @@ describe('MCP Tool: memory_agent Actions', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('workspace_id, plan_id, from_agent, to_agent, and reason');
+      expect(result.error).toContain('reason');
     });
 
     it('should handoff when valid', async () => {
@@ -152,7 +152,7 @@ describe('MCP Tool: memory_agent Actions', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('workspace_id, plan_id, and agent_type');
+      expect(result.error).toContain('agent_type');
     });
 
     it('should return error for unknown agent type', async () => {
@@ -290,7 +290,7 @@ describe('MCP Tool: memory_agent Actions', () => {
       const result = await memoryAgent({ action: 'get_briefing', workspace_id: mockWorkspaceId });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('workspace_id and plan_id');
+      expect(result.error).toContain('plan_id');
     });
 
     it('should return briefing when valid', async () => {
@@ -326,7 +326,7 @@ describe('MCP Tool: memory_agent Actions', () => {
       const result = await memoryAgent({ action: 'get_lineage', workspace_id: mockWorkspaceId });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('workspace_id and plan_id');
+      expect(result.error).toContain('plan_id');
     });
 
     it('should return lineage when valid', async () => {

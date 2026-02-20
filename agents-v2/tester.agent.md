@@ -192,14 +192,7 @@ If the plan was created from a template, ensure template-related flows are cover
 | `memory_terminal` | `read_output` | ❌ | ✅ Read buffered test output |
 | `memory_terminal` | `kill` | ❌ | ✅ Kill hung test processes |
 | `memory_terminal` | `get_allowlist` | ❌ | ✅ View auto-approved commands |
-| `memory_terminal_interactive` | `execute` | ❌ | ✅ Execute interactive-terminal requests via canonical contract |
-| `memory_terminal_interactive` | `read_output` | ❌ | ✅ Read buffered output from interactive-terminal sessions |
-| `memory_terminal_interactive` | `terminate` | ❌ | ✅ Terminate an interactive-terminal session |
-| `memory_terminal_interactive` | `list` | ❌ | ✅ List open interactive-terminal sessions |
-| `memory_terminal_vscode` | `create` | ❌ | ✅ Open a visible terminal for interactive test runs |
-| `memory_terminal_vscode` | `send` | ❌ | ✅ Send test commands to a visible terminal |
-| `memory_terminal_vscode` | `close` | ❌ | ✅ Close a visible terminal |
-| `memory_terminal_vscode` | `list` | ❌ | ✅ List open tracked VS Code terminals |
+
 | `memory_filesystem` | `read` | ✅ Read implementation files | ✅ Read test result files |
 | `memory_filesystem` | `search` | ✅ Find source files to test | ✅ Find test output files |
 | `memory_filesystem` | `list` | ✅ Browse directories | ✅ Browse directories |
@@ -222,9 +215,8 @@ If the plan was created from a template, ensure template-related flows are cover
 ## Terminal Surface Guidance (Canonical)
 
 - RUN mode may execute commands; WRITE mode should not execute tests.
-- In RUN mode, use `memory_terminal` for deterministic headless test/build execution, `memory_terminal_interactive` for canonical interactive-terminal flows, and `memory_terminal_vscode` for visible host-terminal runs.
-- Follow the canonical selection matrix in `instructions/mcp-usage.instructions.md` and avoid mixing terminal payload contracts.
-- If Rust+QML interactive gateway context applies, treat it as approval/routing; execution remains on `memory_terminal`, `memory_terminal_interactive`, or `memory_terminal_vscode`.
+- In RUN mode, use `memory_terminal` for all test/build execution.
+- If Rust+QML interactive gateway context applies, treat it as approval/routing; execution lands on `memory_terminal`.
 
 ---
 

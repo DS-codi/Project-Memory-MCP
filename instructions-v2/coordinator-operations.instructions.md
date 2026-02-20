@@ -9,7 +9,7 @@ Detailed operational procedures for the Coordinator agent, including planning ph
 ## Canonical Terminal Policy Cross-Link
 
 When coordinating terminal-related decisions, treat `instructions/mcp-usage.instructions.md` as the source of truth for:
-- terminal surface selection (`memory_terminal` vs `memory_terminal_interactive` vs Rust+QML gateway path),
+- terminal surface selection (`memory_terminal` for headless server/container execution),
 - contract-collision warnings, and
 - gateway routing semantics (approval/orchestration layer, not a third terminal executor).
 
@@ -385,7 +385,110 @@ plan (action: create_from_template)
 
 ---
 
-## 🔄 SESSION RECOVERY (User Says "Continue")
+## � Hub Interaction Discipline Integration
+
+> **Full policy:** [hub-interaction-discipline.instructions.md](hub-interaction-discipline.instructions.md)
+
+This section covers how the Coordinator integrates the Hub Interaction Discipline into its operational procedures.
+
+### Startup Pause Evaluation
+
+During the startup sequence (§1 above), after loading the plan state, evaluate pause policy:
+
+```python
+# After plan (action: get) during startup
+plan_category = state.category        # feature, bugfix, orchestration, etc.
+plan_priority = state.priority        # low, medium, high, critical
+
+# Determine initial auto_continue state
+if plan_category == "quick_task":
+    auto_continue_active = True       # Quick tasks auto-continue by default
+elif plan_category in ["orchestration", "program"]:
+    auto_continue_active = False      # Always pause — never suggest auto-continue
+elif plan_priority in ["critical", "high"]:
+    auto_continue_active = False      # Always pause — priority override
+else:
+    auto_continue_active = False      # Default: pause at boundaries
+```
+
+### Auto-Continue Suggestion at Plan Approval
+
+After the Architect completes and you present the plan to the user for approval, evaluate whether to suggest auto-continue:
+
+```python
+# At plan approval stage (after Architect returns)
+total_steps = len(state.steps)
+phases = set(step.phase for step in state.steps)
+total_phases = len(phases)
+
+auto_continue_eligible = (
+    total_steps <= 4
+    and total_phases <= 2
+    and plan_category not in ["orchestration", "program"]
+    and plan_priority not in ["critical", "high"]
+)
+
+if auto_continue_eligible:
+    # Append to the plan summary presented to the user:
+    emit_chat(f"""
+    💡 This is a small-scope plan ({total_steps} steps, {total_phases} phases).
+    Want me to auto-continue through the phases without pausing?
+    You'll still see summaries before each step.
+    Say "auto-continue" to enable, or just "go" to proceed with normal pauses.
+    """)
+```
+
+### Session State Tracking
+
+The Coordinator tracks pause override state as an internal session variable:
+
+| Variable | Type | Default | Scope |
+|----------|------|---------|-------|
+| `auto_continue_active` | boolean | `False` (except `quick_task`) | Current session only |
+
+**State transitions:**
+- User says "auto-continue" → `auto_continue_active = True`
+- User says "pause" → `auto_continue_active = False`
+- Error recovery entered (Revisionist loop) → `auto_continue_active = False`
+- `always_pause` category/priority detected → `auto_continue_active = False`
+- Session ends → state is lost (not persisted)
+
+### Pause-Point Chat Template
+
+When pausing between phases, use this exact format:
+
+```
+**Phase Update:**
+✅ [Agent] completed [task] — [key result or metric]
+➡️ Deploying [next agent] to [next task description]
+📋 Expected: [what success looks like for the next step]
+
+Ready to continue? (say "continue", "go", or "auto-continue" to skip future pauses)
+```
+
+**First spawn of a new plan** (no prior agent completed):
+```
+**Phase Update:**
+✅ Plan approved — [N steps across M phases]
+➡️ Deploying [first agent] to [first task]
+📋 Expected: [what the first agent will produce]
+
+Ready to begin? (say "go" or "auto-continue" to skip future pauses)
+```
+
+**Error recovery pause** (always pauses regardless):
+```
+**⚠️ Error Recovery:**
+❌ [What failed — agent, error summary]
+🔧 Deploying Revisionist to analyze and fix the issue
+📋 Expected: Revisionist will diagnose the problem and update the plan
+
+Proceeding with error recovery. (auto-continue is disabled during recovery)
+```
+
+---
+
+## �🔄 SESSION RECOVERY (User Says "Continue")
 
 If the user simply says **"continue"**, **"resume"**, or **"pick up where we left off"**:
 
