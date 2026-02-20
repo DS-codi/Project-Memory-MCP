@@ -521,7 +521,8 @@ describe('MCP Tool: memory_plan Core Actions', () => {
         workspace_id: mockWorkspaceId,
         template: 'feature',
         title: 'Template Plan',
-        description: 'From template'
+        description: 'From template',
+        category: 'feature'
       });
 
       expect(result.success).toBe(true);

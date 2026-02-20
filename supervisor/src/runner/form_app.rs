@@ -1,4 +1,4 @@
-//! On-demand form-app launcher.
+//! On-demand form-app launcher with refinement session support.
 //!
 //! Spawns a GUI binary (e.g. `pm-brainstorm-gui`, `pm-approval-gui`) as a
 //! child process, pipes a [`FormRequest`] JSON payload to its stdin via
@@ -7,18 +7,59 @@
 //! Timeouts are enforced: if the child does not produce a response within
 //! the configured duration the process is killed and a timed-out
 //! [`FormAppResponse`] is returned.
+//!
+//! **Refinement sessions**: When the GUI responds with
+//! `status: "refinement_requested"`, the child process is kept alive and
+//! a session token is stored in the global [`FORM_SESSIONS`] registry.
+//! Call [`continue_form_app`] with that token to pipe a
+//! `FormRefinementResponse` and read the next round's `FormResponse`.
 
+use std::collections::HashMap;
 use std::process::Stdio;
+use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
+use tokio::sync::Mutex;
 use tokio::time::timeout;
+use uuid::Uuid;
 
 use crate::config::FormAppConfig;
 use crate::control::protocol::{
     FormAppLifecycle, FormAppLifecycleState, FormAppResponse,
 };
+
+// ---------------------------------------------------------------------------
+// Refinement session registry
+// ---------------------------------------------------------------------------
+
+/// State for a GUI process that has paused at a `refinement_requested` response.
+struct FormSession {
+    /// Child process handle (stdin taken; stdout taken — stored separately).
+    child: tokio::process::Child,
+    /// The child's stdin — used to pipe subsequent payloads.
+    stdin: tokio::process::ChildStdin,
+    /// Buffered reader wrapping the child's stdout.
+    stdout: BufReader<tokio::process::ChildStdout>,
+    /// Configured timeout for subsequent rounds.
+    timeout_seconds: u64,
+    /// Wall-clock start time (for elapsed_ms calculation).
+    started_at: Instant,
+}
+
+// Safety: tokio process handles, BufReader<ChildStdout>, and ChildStdin are all Send.
+unsafe impl Send for FormSession {}
+
+type SessionRegistry = Arc<Mutex<HashMap<String, FormSession>>>;
+
+static FORM_SESSIONS: OnceLock<SessionRegistry> = OnceLock::new();
+
+fn sessions() -> SessionRegistry {
+    FORM_SESSIONS
+        .get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
+        .clone()
+}
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -27,6 +68,12 @@ use crate::control::protocol::{
 /// Launch a form-app process, send a request on stdin, and wait for the
 /// response on stdout.
 ///
+/// If the GUI responds with `status: "refinement_requested"`, the child
+/// process is kept alive, a session is stored in the global registry, and
+/// `FormAppResponse::pending_refinement` is set to `true` alongside a
+/// `session_id` token.  Use [`continue_form_app`] to send the refinement
+/// response and read the next round.
+///
 /// # Arguments
 ///
 /// * `config`           – resolved [`FormAppConfig`] for the target app.
@@ -34,10 +81,6 @@ use crate::control::protocol::{
 /// * `payload`          – the full `FormRequest` JSON value to send.
 /// * `timeout_override` – optional per-request timeout (seconds). Falls back
 ///                        to `config.timeout_seconds`.
-///
-/// # Returns
-///
-/// A [`FormAppResponse`] summarising the outcome (success, error, or timeout).
 pub async fn launch_form_app(
     config: &FormAppConfig,
     app_name: &str,
@@ -77,6 +120,8 @@ pub async fn launch_form_app(
                 error: Some(format!("failed to spawn {app_name}: {e}")),
                 elapsed_ms: start.elapsed().as_millis() as u64,
                 timed_out: false,
+                pending_refinement: false,
+                session_id: None,
             };
         }
     };
@@ -91,28 +136,100 @@ pub async fn launch_form_app(
         timeout_seconds: timeout_secs,
     };
 
-    // -- Write request to stdin ----------------------------------------------
-    let write_result = write_request_to_stdin(&mut child, payload).await;
-    if let Err(e) = write_result {
-        kill_child(&mut child).await;
-        lifecycle.state = FormAppLifecycleState::Failed(e.clone());
-        return FormAppResponse {
-            app_name: app_name.to_string(),
-            success: false,
-            response_payload: None,
-            error: Some(e),
-            elapsed_ms: start.elapsed().as_millis() as u64,
-            timed_out: false,
-        };
-    }
+    // -- Take stdio handles before passing child around ----------------------
+    let stdin = match child.stdin.take() {
+        Some(s) => s,
+        None => {
+            kill_child(&mut child).await;
+            return FormAppResponse {
+                app_name: app_name.to_string(),
+                success: false,
+                response_payload: None,
+                error: Some("child stdin not captured".to_string()),
+                elapsed_ms: start.elapsed().as_millis() as u64,
+                timed_out: false,
+                pending_refinement: false,
+                session_id: None,
+            };
+        }
+    };
+    let stdout = match child.stdout.take() {
+        Some(s) => s,
+        None => {
+            kill_child(&mut child).await;
+            return FormAppResponse {
+                app_name: app_name.to_string(),
+                success: false,
+                response_payload: None,
+                error: Some("child stdout not captured".to_string()),
+                elapsed_ms: start.elapsed().as_millis() as u64,
+                timed_out: false,
+                pending_refinement: false,
+                session_id: None,
+            };
+        }
+    };
+    let mut reader = BufReader::new(stdout);
+
+    // -- Write request to stdin (keep stdin alive for potential refinement) --
+    let stdin = match write_payload_keep_stdin(stdin, payload).await {
+        Ok(s) => s,
+        Err(e) => {
+            kill_child(&mut child).await;
+            lifecycle.state = FormAppLifecycleState::Failed(e.clone());
+            return FormAppResponse {
+                app_name: app_name.to_string(),
+                success: false,
+                response_payload: None,
+                error: Some(e),
+                elapsed_ms: start.elapsed().as_millis() as u64,
+                timed_out: false,
+                pending_refinement: false,
+                session_id: None,
+            };
+        }
+    };
 
     // -- Read response from stdout with timeout ------------------------------
     let deadline = Duration::from_secs(timeout_secs);
-    match timeout(deadline, read_response_from_stdout(&mut child)).await {
+    match timeout(deadline, read_ndjson_line(&mut reader)).await {
         // Response received in time.
         Ok(Ok(response_value)) => {
+            let is_refinement = response_value
+                .get("status")
+                .and_then(|s| s.as_str())
+                .map(|s| s == "refinement_requested")
+                .unwrap_or(false);
+
+            if is_refinement {
+                // Keep the child alive and store the session.
+                let session_id = Uuid::new_v4().to_string();
+                sessions().lock().await.insert(
+                    session_id.clone(),
+                    FormSession {
+                        child,
+                        stdin,
+                        stdout: reader,
+                        timeout_seconds: timeout_secs,
+                        started_at: start,
+                    },
+                );
+                lifecycle.state = FormAppLifecycleState::Running; // still alive
+                return FormAppResponse {
+                    app_name: app_name.to_string(),
+                    success: true,
+                    response_payload: Some(response_value),
+                    error: None,
+                    elapsed_ms: start.elapsed().as_millis() as u64,
+                    timed_out: false,
+                    pending_refinement: true,
+                    session_id: Some(session_id),
+                };
+            }
+
+            // Normal completion — drop stdin (signals EOF to child).
+            drop(stdin);
             lifecycle.state = FormAppLifecycleState::Completed;
-            // Wait for the child to exit cleanly.
             let _ = child.wait().await;
             FormAppResponse {
                 app_name: app_name.to_string(),
@@ -121,10 +238,13 @@ pub async fn launch_form_app(
                 error: None,
                 elapsed_ms: start.elapsed().as_millis() as u64,
                 timed_out: false,
+                pending_refinement: false,
+                session_id: None,
             }
         }
         // Read error (child crashed, invalid JSON, etc.).
         Ok(Err(e)) => {
+            drop(stdin);
             lifecycle.state = FormAppLifecycleState::Failed(e.clone());
             kill_child(&mut child).await;
             FormAppResponse {
@@ -134,10 +254,13 @@ pub async fn launch_form_app(
                 error: Some(e),
                 elapsed_ms: start.elapsed().as_millis() as u64,
                 timed_out: false,
+                pending_refinement: false,
+                session_id: None,
             }
         }
         // Timeout expired.
         Err(_) => {
+            drop(stdin);
             lifecycle.state = FormAppLifecycleState::TimedOut;
             kill_child(&mut child).await;
             FormAppResponse {
@@ -149,26 +272,150 @@ pub async fn launch_form_app(
                 )),
                 elapsed_ms: start.elapsed().as_millis() as u64,
                 timed_out: true,
+                pending_refinement: false,
+                session_id: None,
             }
         }
     }
 }
 
+/// Send a `FormRefinementResponse` to a paused GUI session and read the
+/// next `FormResponse` from its stdout.
+///
+/// ## Session lifecycle
+/// - The session is removed from the registry regardless of outcome.
+/// - If the next response is again `refinement_requested`, a **new**
+///   session_id is issued and the session is re-inserted.
+pub async fn continue_form_app(
+    session_id: &str,
+    refinement_payload: &serde_json::Value,
+    timeout_override: Option<u64>,
+) -> FormAppResponse {
+    // Remove the session from the registry.
+    let session = {
+        let sessions_arc = sessions();
+        let mut reg = sessions_arc.lock().await;
+        reg.remove(session_id)
+    };
+
+    let Some(mut session) = session else {
+        return FormAppResponse {
+            app_name: "unknown".to_string(),
+            success: false,
+            response_payload: None,
+            error: Some(format!("session not found: {session_id}")),
+            elapsed_ms: 0,
+            timed_out: false,
+            pending_refinement: false,
+            session_id: None,
+        };
+    };
+
+    let timeout_secs = timeout_override.unwrap_or(session.timeout_seconds);
+
+    // Write the FormRefinementResponse to the GUI's stdin.
+    let stdin = match write_payload_keep_stdin(session.stdin, refinement_payload).await {
+        Ok(s) => s,
+        Err(e) => {
+            kill_child(&mut session.child).await;
+            return FormAppResponse {
+                app_name: "brainstorm_gui".to_string(),
+                success: false,
+                response_payload: None,
+                error: Some(e),
+                elapsed_ms: session.started_at.elapsed().as_millis() as u64,
+                timed_out: false,
+                pending_refinement: false,
+                session_id: None,
+            };
+        }
+    };
+
+    // Read the next FormResponse with timeout.
+    let deadline = Duration::from_secs(timeout_secs);
+    match timeout(deadline, read_ndjson_line(&mut session.stdout)).await {
+        Ok(Ok(response_value)) => {
+            let is_refinement = response_value
+                .get("status")
+                .and_then(|s| s.as_str())
+                .map(|s| s == "refinement_requested")
+                .unwrap_or(false);
+
+            if is_refinement {
+                // Another refinement round — re-register session.
+                let new_session_id = Uuid::new_v4().to_string();
+                sessions().lock().await.insert(
+                    new_session_id.clone(),
+                    FormSession { stdin, ..session },
+                );
+                return FormAppResponse {
+                    app_name: "brainstorm_gui".to_string(),
+                    success: true,
+                    response_payload: Some(response_value),
+                    error: None,
+                    elapsed_ms: session.started_at.elapsed().as_millis() as u64,
+                    timed_out: false,
+                    pending_refinement: true,
+                    session_id: Some(new_session_id),
+                };
+            }
+
+            // Final response — clean up.
+            drop(stdin);
+            let _ = session.child.wait().await;
+            FormAppResponse {
+                app_name: "brainstorm_gui".to_string(),
+                success: true,
+                response_payload: Some(response_value),
+                error: None,
+                elapsed_ms: session.started_at.elapsed().as_millis() as u64,
+                timed_out: false,
+                pending_refinement: false,
+                session_id: None,
+            }
+        }
+        Ok(Err(e)) => {
+            drop(stdin);
+            kill_child(&mut session.child).await;
+            FormAppResponse {
+                app_name: "brainstorm_gui".to_string(),
+                success: false,
+                response_payload: None,
+                error: Some(e),
+                elapsed_ms: session.started_at.elapsed().as_millis() as u64,
+                timed_out: false,
+                pending_refinement: false,
+                session_id: None,
+            }
+        }
+        Err(_) => {
+            drop(stdin);
+            kill_child(&mut session.child).await;
+            FormAppResponse {
+                app_name: "brainstorm_gui".to_string(),
+                success: false,
+                response_payload: None,
+                error: Some(format!("session timed out after {timeout_secs}s during refinement")),
+                elapsed_ms: session.started_at.elapsed().as_millis() as u64,
+                timed_out: true,
+                pending_refinement: false,
+                session_id: None,
+            }
+        }
+    }
+}
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// Write the `FormRequest` JSON payload to the child's stdin (NDJSON: one
-/// line of JSON followed by `\n`), then close the write end.
-async fn write_request_to_stdin(
-    child: &mut tokio::process::Child,
+/// Write a JSON payload to the child's stdin as NDJSON (one line terminated
+/// by `\n`), flush — but **keep stdin open** so subsequent payloads can be
+/// written.  Returns the `ChildStdin` handle so the caller retains
+/// ownership.
+async fn write_payload_keep_stdin(
+    mut stdin: tokio::process::ChildStdin,
     payload: &serde_json::Value,
-) -> Result<(), String> {
-    let mut stdin = child
-        .stdin
-        .take()
-        .ok_or_else(|| "child stdin not captured".to_string())?;
-
+) -> Result<tokio::process::ChildStdin, String> {
     let json = serde_json::to_string(payload)
         .map_err(|e| format!("failed to serialize payload: {e}"))?;
 
@@ -187,21 +434,14 @@ async fn write_request_to_stdin(
         .await
         .map_err(|e| format!("stdin flush error: {e}"))?;
 
-    // Drop stdin to signal EOF to the child.
-    drop(stdin);
-    Ok(())
+    Ok(stdin)
 }
 
-/// Read a single NDJSON line from the child's stdout and parse it as JSON.
-async fn read_response_from_stdout(
-    child: &mut tokio::process::Child,
+/// Read a single NDJSON line from a `BufReader<ChildStdout>` and parse it
+/// as a `serde_json::Value`.
+async fn read_ndjson_line(
+    reader: &mut BufReader<tokio::process::ChildStdout>,
 ) -> Result<serde_json::Value, String> {
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| "child stdout not captured".to_string())?;
-
-    let mut reader = BufReader::new(stdout);
     let mut line = String::new();
 
     let bytes_read = reader

@@ -55,35 +55,62 @@ export function getConnectedDashboardHtml(
                             <section class="collapsible" id="widget-actions">
                                 <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-actions">
                                     <span class="chevron">></span>
-                                    <h3>Actions Panel</h3>
+                                    <h3>Control Center</h3>
                                 </button>
                                 <div class="collapsible-content">
                                     <div class="widget-body">
-                                        <div class="icon-grid">
-                                            <button class="icon-btn" data-action="open-browser" title="Open Full Dashboard">
-                                                ${iconSvgs.dashboard}
-                                            </button>
-                                            <button class="icon-btn" data-action="refresh" title="Refresh Status">
-                                                ${iconSvgs.syncHistory}
-                                            </button>
-                                            <button class="icon-btn" data-action="run-command" data-command="projectMemory.createPlan" title="Create New Plan">
-                                                ${iconSvgs.createNewPlan}
-                                            </button>
-                                            <button class="icon-btn" data-action="run-command" data-command="projectMemory.deployAgents" title="Deploy Agents">
-                                                ${iconSvgs.deployAgents}
-                                            </button>
-                                            <button class="icon-btn" data-action="run-command" data-command="projectMemory.deployInstructions" title="Deploy Instructions">
-                                                ${iconSvgs.deployInstructions}
-                                            </button>
-                                            <button class="icon-btn" data-action="run-command" data-command="projectMemory.deploySkills" title="Deploy Skills">
-                                                ${iconSvgs.deploySkills}
-                                            </button>
-                                            <button class="icon-btn" data-action="open-resume-plan" title="Resume Plan">
-                                                ${iconSvgs.resumePlan}
-                                            </button>
-                                            <button class="icon-btn" data-action="open-archive-plan" title="Archive Plan">
-                                                ${iconSvgs.archive}
-                                            </button>
+                                        <div class="action-groups">
+                                            <div class="action-group">
+                                                <div class="icon-row-title">Workspace</div>
+                                                <div class="icon-grid">
+                                                    <button class="icon-btn" data-action="open-browser" title="Open Full Dashboard">
+                                                        ${iconSvgs.dashboard}
+                                                    </button>
+                                                    <button class="icon-btn" data-action="refresh" title="Refresh Status">
+                                                        ${iconSvgs.syncHistory}
+                                                    </button>
+                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemory.createPlan" title="Create New Plan">
+                                                        ${iconSvgs.createNewPlan}
+                                                    </button>
+                                                    <button class="icon-btn" data-action="open-resume-plan" title="Resume Plan">
+                                                        ${iconSvgs.resumePlan}
+                                                    </button>
+                                                    <button class="icon-btn" data-action="open-archive-plan" title="Archive Plan">
+                                                        ${iconSvgs.archive}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="action-group">
+                                                <div class="icon-row-title">Deploy</div>
+                                                <div class="icon-grid">
+                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemory.deployAgents" title="Deploy Agents">
+                                                        ${iconSvgs.deployAgents}
+                                                    </button>
+                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemory.deployInstructions" title="Deploy Instructions">
+                                                        ${iconSvgs.deployInstructions}
+                                                    </button>
+                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemory.deploySkills" title="Deploy Skills">
+                                                        ${iconSvgs.deploySkills}
+                                                    </button>
+                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemory.deployDefaults" title="Deploy All Defaults">
+                                                        ${iconSvgs.deployAllDefaults}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="action-group">
+                                                <div class="icon-row-title">Build & System</div>
+                                                <div class="icon-grid">
+                                                    <button class="icon-btn" data-action="open-build-scripts" title="Build Scripts">
+                                                        ${iconSvgs.buildScript}
+                                                    </button>
+                                                    <button class="icon-btn" data-action="open-run-script" title="Run Script">
+                                                        ${iconSvgs.runButton}
+                                                    </button>
+                                                    <button class="icon-btn" data-action="open-handoff" title="Agent Handoff">
+                                                        ${iconSvgs.agentHandoff}
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -181,27 +208,6 @@ ${getSessionsSectionHtml(iconSvgs)}
                                 </div>
                             </section>
 
-                            <section class="collapsible" id="widget-build">
-                                <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-build">
-                                    <span class="chevron">></span>
-                                    <h3>Build & System</h3>
-                                </button>
-                                <div class="collapsible-content">
-                                    <div class="widget-body">
-                                        <div class="icon-grid">
-                                            <button class="icon-btn" data-action="open-build-scripts" title="Build Scripts">
-                                                ${iconSvgs.buildScript}
-                                            </button>
-                                            <button class="icon-btn" data-action="open-run-script" title="Run Script">
-                                                ${iconSvgs.runButton}
-                                            </button>
-                                            <button class="icon-btn" data-action="open-handoff" title="Agent Handoff">
-                                                ${iconSvgs.agentHandoff}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </section>
                         `;
 }
 

@@ -86,7 +86,8 @@ impl TcpServer {
     /// listener errors).
     pub async fn start(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let addr = format!("127.0.0.1:{}", self.port);
-        let listener = if let Some(std_listener) = crate::take_prebound_runtime_listener(self.port) {
+        let listener = if let Some(std_listener) = crate::take_prebound_runtime_listener(self.port)
+        {
             std_listener.set_nonblocking(true)?;
             TcpListener::from_std(std_listener)?
         } else {
@@ -95,7 +96,10 @@ impl TcpServer {
         eprintln!("Interactive Terminal listening on {}", addr);
 
         let incoming_tx = self.incoming_tx.clone();
-        let outgoing_rx = self.outgoing_rx.take().expect("start() called more than once");
+        let outgoing_rx = self
+            .outgoing_rx
+            .take()
+            .expect("start() called more than once");
         let event_tx = self.event_tx.clone();
         let connected = self.connected.clone();
         let heartbeat_interval = self.heartbeat_interval;
@@ -228,7 +232,7 @@ impl TcpServer {
                     let hb = Message::Heartbeat(protocol::Heartbeat {
                         id: String::new(),
                         timestamp: chrono_timestamp(),
-                        timestamp_ms: crate::cxxqt_bridge::monotonic_millis() as u64,
+                        timestamp_ms: crate::terminal_core::time::monotonic_millis() as u64,
                     });
                     if let Ok(encoded) = protocol::encode(&hb) {
                         if let Err(e) = writer.write_all(encoded.as_bytes()).await {
@@ -359,8 +363,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_send_and_receive_message() {
-        let (port, _outgoing_tx, mut incoming_rx, mut event_rx, _connected) =
-            start_server().await;
+        let (port, _outgoing_tx, mut incoming_rx, mut event_rx, _connected) = start_server().await;
 
         let mut stream = TcpStream::connect(format!("127.0.0.1:{}", port))
             .await
@@ -440,8 +443,7 @@ mod tests {
     #[tokio::test]
     async fn test_heartbeat_exchange() {
         // Verify that sending a Heartbeat message from a client is received by the server.
-        let (port, _outgoing_tx, mut incoming_rx, mut event_rx, _connected) =
-            start_server().await;
+        let (port, _outgoing_tx, mut incoming_rx, mut event_rx, _connected) = start_server().await;
 
         let mut stream = TcpStream::connect(format!("127.0.0.1:{}", port))
             .await

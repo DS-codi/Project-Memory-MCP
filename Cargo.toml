@@ -1,12 +1,14 @@
 [workspace]
 resolver = "2"
-members = ["interactive-terminal", "supervisor"]
+members = ["interactive-terminal", "supervisor", "pm-gui-forms", "pm-brainstorm-gui", "pm-approval-gui"]
 
 [workspace.dependencies]
 async-trait = "0.1"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
 toml = "0.8"
 clap = { version = "4", features = ["derive"] }
 sysinfo = "0.29"
@@ -14,6 +16,8 @@ windows-sys = { version = "0.59", features = ["Win32_Foundation"] }
 anyhow = "1"
 rand = "0.8"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
 [profile.release]
 opt-level = 3

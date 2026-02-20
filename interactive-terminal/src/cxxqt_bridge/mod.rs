@@ -83,7 +83,11 @@ pub mod ffi {
 
         #[qinvokable]
         #[cxx_name = "renameSession"]
-        fn rename_session(self: Pin<&mut TerminalApp>, session_id: QString, display_name: QString) -> bool;
+        fn rename_session(
+            self: Pin<&mut TerminalApp>,
+            session_id: QString,
+            display_name: QString,
+        ) -> bool;
 
         #[qinvokable]
         #[cxx_name = "setSessionTerminalProfile"]
@@ -147,10 +151,7 @@ pub mod ffi {
 }
 
 pub(crate) use helpers::{
-    monotonic_millis,
-    saved_command_to_record,
-    terminal_profile_from_key,
-    terminal_profile_to_key,
+    monotonic_millis, saved_command_to_record, terminal_profile_from_key, terminal_profile_to_key,
     timestamp_now,
 };
 pub(crate) use session_runtime::{

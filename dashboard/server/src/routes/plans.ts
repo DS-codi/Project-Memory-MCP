@@ -1240,7 +1240,7 @@ plansRouter.post('/:planId/build-scripts/:scriptId/run', async (req, res) => {
   }
 });
 
-// POST /api/plans/:workspaceId/:planId/resume - Resume an archived plan
+// POST /api/plans/:workspaceId/:planId/resume - Resume an archived or paused plan
 plansRouter.post('/:workspaceId/:planId/resume', async (req, res) => {
   try {
     const { workspaceId, planId } = req.params;
@@ -1248,6 +1248,15 @@ plansRouter.post('/:workspaceId/:planId/resume', async (req, res) => {
     const statePath = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'plans', planId, 'state.json');
     const content = await fs.readFile(statePath, 'utf-8');
     const state = JSON.parse(content);
+
+    const wasPaused = state.status === 'paused';
+    const resumeStepIndex = state.paused_at_snapshot?.step_index;
+    const resumePhase = state.paused_at_snapshot?.phase;
+
+    // Clear paused snapshot if present
+    if (state.paused_at_snapshot) {
+      delete state.paused_at_snapshot;
+    }
 
     state.status = 'active';
     state.archived_at = null;
@@ -1272,9 +1281,15 @@ plansRouter.post('/:workspaceId/:planId/resume', async (req, res) => {
 
     await emitEvent('plan_resumed', {
       plan_title: state.title,
+      resumed_from: wasPaused ? 'paused' : 'archived',
+      ...(wasPaused && resumeStepIndex !== undefined ? { resume_step_index: resumeStepIndex, resume_phase: resumePhase } : {}),
     }, { workspace_id: workspaceId, plan_id: planId });
 
-    res.json({ success: true, plan: state });
+    res.json({
+      success: true,
+      plan: state,
+      ...(wasPaused ? { resumed_from: 'paused', resume_step_index: resumeStepIndex, resume_phase: resumePhase } : { resumed_from: 'archived' }),
+    });
   } catch (error) {
     console.error('Error resuming plan:', error);
     res.status(500).json({ error: 'Failed to resume plan' });

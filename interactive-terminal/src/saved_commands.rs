@@ -142,15 +142,17 @@ impl WorkspaceSavedCommands {
                 .commands
                 .into_iter()
                 .enumerate()
-                .map(|(index, cmd)| SavedCommand {
-                    id: cmd.id,
-                    name: cmd.name,
-                    command: cmd.command,
-                    created_at: cmd.created_at,
-                    updated_at: cmd.updated_at,
-                    last_used_at: cmd.last_used_at,
-                }
-                .normalize(index + 1))
+                .map(|(index, cmd)| {
+                    SavedCommand {
+                        id: cmd.id,
+                        name: cmd.name,
+                        command: cmd.command,
+                        created_at: cmd.created_at,
+                        updated_at: cmd.updated_at,
+                        last_used_at: cmd.last_used_at,
+                    }
+                    .normalize(index + 1)
+                })
                 .collect();
 
             return Some(Self {
@@ -165,15 +167,17 @@ impl WorkspaceSavedCommands {
             let commands = legacy_commands
                 .into_iter()
                 .enumerate()
-                .map(|(index, cmd)| SavedCommand {
-                    id: cmd.id,
-                    name: cmd.name,
-                    command: cmd.command,
-                    created_at: cmd.created_at,
-                    updated_at: cmd.updated_at,
-                    last_used_at: cmd.last_used_at,
-                }
-                .normalize(index + 1))
+                .map(|(index, cmd)| {
+                    SavedCommand {
+                        id: cmd.id,
+                        name: cmd.name,
+                        command: cmd.command,
+                        created_at: cmd.created_at,
+                        updated_at: cmd.updated_at,
+                        last_used_at: cmd.last_used_at,
+                    }
+                    .normalize(index + 1)
+                })
                 .collect();
 
             return Some(Self {

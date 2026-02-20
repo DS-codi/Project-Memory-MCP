@@ -52,7 +52,7 @@
 
 [CmdletBinding()]
 param(
-    [ValidateSet("Server", "Extension", "Container", "All")]
+    [ValidateSet("Server", "Extension", "Container", "Supervisor", "InteractiveTerminal", "Dashboard", "All")]
     [string[]]$Component = @("All"),
 
     [switch]$InstallOnly,
@@ -69,7 +69,7 @@ $Root = $PSScriptRoot
 
 # Normalise component list
 if ($Component -contains "All") {
-    $Components = @("Server", "Extension")
+    $Components = @("Supervisor", "InteractiveTerminal", "Server", "Dashboard", "Extension")
 } else {
     $Components = $Component
 }
@@ -99,6 +99,44 @@ function Invoke-Checked([string]$description, [scriptblock]$block) {
         Write-Fail "$description failed (exit $LASTEXITCODE)"
         exit $LASTEXITCODE
     }
+}
+
+# ──────────────────────────────────────────────────────────────
+# Rust crates
+# ──────────────────────────────────────────────────────────────
+
+function Install-Supervisor {
+    Write-Step "Supervisor (Rust)"
+    Push-Location $Root
+    try {
+        Invoke-Checked "cargo build --release -p supervisor" { cargo build --release -p supervisor 2>&1 | Write-Host }
+        Write-Ok "supervisor built → target/release/supervisor"
+    } finally {
+        Pop-Location
+    }
+}
+
+function Install-InteractiveTerminal {
+    Write-Step "Interactive Terminal (Rust + Qt)"
+
+    $BuildScript = Join-Path $Root "interactive-terminal\build-interactive-terminal.ps1"
+    if (-not (Test-Path $BuildScript)) {
+        Write-Fail "build-interactive-terminal.ps1 not found at $BuildScript"
+        exit 1
+    }
+
+    # Resolve Qt directory: honour $env:QT_DIR, fall back to the same default
+    # as build-interactive-terminal.ps1 itself uses.
+    $QtDir = if ($env:QT_DIR) { $env:QT_DIR } else { 'C:\Qt\6.10.2\msvc2022_64' }
+
+    Write-Host "   › Delegating to build-interactive-terminal.ps1 (QtDir=$QtDir)" -ForegroundColor Gray
+    & $BuildScript -Profile release -QtDir $QtDir
+    if ($LASTEXITCODE -ne 0) {
+        Write-Fail "build-interactive-terminal.ps1 failed (exit $LASTEXITCODE)"
+        exit $LASTEXITCODE
+    }
+
+    Write-Ok "interactive-terminal built + Qt runtime deployed → interactive-terminal\target\release\"
 }
 
 # ──────────────────────────────────────────────────────────────
@@ -170,6 +208,23 @@ function Install-Extension {
 }
 
 # ──────────────────────────────────────────────────────────────
+# Dashboard
+# ──────────────────────────────────────────────────────────────
+
+function Install-Dashboard {
+    Write-Step "Dashboard"
+    $DashDir = Join-Path $Root "dashboard"
+
+    Push-Location $DashDir
+    try {
+        Invoke-Checked "npx vite build" { npx vite build 2>&1 | Write-Host }
+        Write-Ok "Dashboard built → $DashDir\dist"
+    } finally {
+        Pop-Location
+    }
+}
+
+# ──────────────────────────────────────────────────────────────
 # Container
 # ──────────────────────────────────────────────────────────────
 
@@ -209,9 +264,12 @@ Write-Host "  Force      : $Force" -ForegroundColor DarkGray
 
 foreach ($comp in $Components) {
     switch ($comp) {
-        "Server"    { Install-Server }
-        "Extension" { Install-Extension }
-        "Container" { Install-Container }
+        "Supervisor"         { Install-Supervisor }
+        "InteractiveTerminal" { Install-InteractiveTerminal }
+        "Server"             { Install-Server }
+        "Dashboard"          { Install-Dashboard }
+        "Extension"          { Install-Extension }
+        "Container"          { Install-Container }
     }
 }
 

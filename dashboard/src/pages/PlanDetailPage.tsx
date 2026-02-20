@@ -22,9 +22,11 @@ import { SessionStatsCard } from '@/components/plan/SessionStatsCard';
 import { HandoffStatsPanel } from '@/components/plan/HandoffStatsPanel';
 import { SkillMatchPanel } from '@/components/plan/SkillMatchPanel';
 import { CategorizationBadge } from '@/components/plan/CategorizationBadge';
+import { PausedPlanBanner } from '@/components/plan/PausedPlanBanner';
 import { HandoffTimeline } from '@/components/timeline/HandoffTimeline';
 import { BallInCourt } from '@/components/timeline/BallInCourt';
 import { useBuildScripts, useAddBuildScript, useDeleteBuildScript, useRunBuildScript } from '@/hooks/useBuildScripts';
+import { useResumePlan } from '@/hooks/usePlans';
 import { useProgram } from '@/hooks/usePrograms';
 import { formatDate, formatRelative } from '@/utils/formatters';
 import { categoryColors, priorityColors, priorityIcons, planStatusColors } from '@/utils/colors';
@@ -75,6 +77,9 @@ export function PlanDetailPage() {
 
   // Fetch parent program for sibling plans and breadcrumb name
   const { data: parentProgram } = useProgram(workspaceId, plan?.program_id);
+
+  // Resume paused plan mutation
+  const resumeMutation = useResumePlan(workspaceId, planId);
 
   if (isLoading) {
     return (
@@ -294,6 +299,15 @@ export function PlanDetailPage() {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Paused Plan Banner */}
+      {plan.status === 'paused' && plan.paused_at_snapshot && (
+        <PausedPlanBanner
+          snapshot={plan.paused_at_snapshot}
+          onResume={() => resumeMutation.mutate()}
+          isResuming={resumeMutation.isPending}
+        />
       )}
 
       {/* Ball in Court */}

@@ -159,7 +159,9 @@ pub async fn execute_command_with_timeout(
                 "Command timed out after {} seconds",
                 request.timeout_seconds,
             );
-            let _ = output_tx.send(OutputLine::Stderr(timeout_msg.clone())).await;
+            let _ = output_tx
+                .send(OutputLine::Stderr(timeout_msg.clone()))
+                .await;
 
             let partial = accumulated.lock().unwrap().clone();
             let output = if partial.is_empty() {
@@ -202,25 +204,15 @@ fn shell_invocation(request: &CommandRequest) -> (String, Vec<String>) {
                 "pwsh".to_string(),
                 vec!["-NoProfile".to_string(), "-Command".to_string(), command],
             ),
-            TerminalProfile::Bash => (
-                "bash".to_string(),
-                vec!["-lc".to_string(), command],
-            ),
-            TerminalProfile::Cmd | TerminalProfile::System => (
-                "cmd".to_string(),
-                vec!["/C".to_string(), command],
-            ),
+            TerminalProfile::Bash => ("bash".to_string(), vec!["-lc".to_string(), command]),
+            TerminalProfile::Cmd | TerminalProfile::System => {
+                ("cmd".to_string(), vec!["/C".to_string(), command])
+            }
         }
     } else {
         match request.terminal_profile {
-            TerminalProfile::Bash => (
-                "bash".to_string(),
-                vec!["-lc".to_string(), command],
-            ),
-            _ => (
-                "sh".to_string(),
-                vec!["-c".to_string(), command],
-            ),
+            TerminalProfile::Bash => ("bash".to_string(), vec!["-lc".to_string(), command]),
+            _ => ("sh".to_string(), vec!["-c".to_string(), command]),
         }
     }
 }
@@ -301,8 +293,7 @@ fn is_valid_venv_path(path: &str) -> bool {
         root.join("Scripts").join("python.exe").exists()
             || root.join("Scripts").join("activate.bat").exists()
     } else {
-        root.join("bin").join("python").exists()
-            || root.join("bin").join("activate").exists()
+        root.join("bin").join("python").exists() || root.join("bin").join("activate").exists()
     }
 }
 
@@ -373,10 +364,7 @@ mod tests {
             } else {
                 "echo hello world".into()
             },
-            working_directory: std::env::current_dir()
-                .unwrap()
-                .to_string_lossy()
-                .into(),
+            working_directory: std::env::current_dir().unwrap().to_string_lossy().into(),
             context: String::new(),
             session_id: "default".into(),
             terminal_profile: TerminalProfile::System,
@@ -416,10 +404,7 @@ mod tests {
             } else {
                 "exit 42".into()
             },
-            working_directory: std::env::current_dir()
-                .unwrap()
-                .to_string_lossy()
-                .into(),
+            working_directory: std::env::current_dir().unwrap().to_string_lossy().into(),
             context: String::new(),
             session_id: "default".into(),
             terminal_profile: TerminalProfile::System,
@@ -451,10 +436,7 @@ mod tests {
             } else {
                 "sleep 60".into()
             },
-            working_directory: std::env::current_dir()
-                .unwrap()
-                .to_string_lossy()
-                .into(),
+            working_directory: std::env::current_dir().unwrap().to_string_lossy().into(),
             context: String::new(),
             session_id: "default".into(),
             terminal_profile: TerminalProfile::System,
@@ -486,10 +468,7 @@ mod tests {
             } else {
                 "echo fast".into()
             },
-            working_directory: std::env::current_dir()
-                .unwrap()
-                .to_string_lossy()
-                .into(),
+            working_directory: std::env::current_dir().unwrap().to_string_lossy().into(),
             context: String::new(),
             session_id: "default".into(),
             terminal_profile: TerminalProfile::System,
@@ -543,10 +522,7 @@ mod tests {
 
     #[test]
     fn resolve_working_directory_falls_back_to_workspace() {
-        let temp = std::env::temp_dir().join(format!(
-            "iterm-ws-fallback-{}",
-            std::process::id()
-        ));
+        let temp = std::env::temp_dir().join(format!("iterm-ws-fallback-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp);
         std::fs::create_dir_all(&temp).unwrap();
         let request = CommandRequest {
@@ -573,10 +549,7 @@ mod tests {
 
     #[test]
     fn detect_default_venv_prefers_dot_venv() {
-        let temp = std::env::temp_dir().join(format!(
-            "iterm-venv-detect-{}",
-            std::process::id()
-        ));
+        let temp = std::env::temp_dir().join(format!("iterm-venv-detect-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp);
         std::fs::create_dir_all(&temp).unwrap();
         let dot_venv = temp.join(".venv");
@@ -593,10 +566,7 @@ mod tests {
         }
 
         let detected = detect_default_venv(temp.to_string_lossy().as_ref());
-        assert_eq!(
-            detected,
-            Some(dot_venv.to_string_lossy().to_string())
-        );
+        assert_eq!(detected, Some(dot_venv.to_string_lossy().to_string()));
         let _ = std::fs::remove_dir_all(&temp);
     }
 }

@@ -69,6 +69,11 @@ pub enum ControlRequest {
 
     /// Launch an on-demand form-app GUI process, pipe a payload on stdin,
     /// and return the response from stdout.
+    ///
+    /// If the GUI response has `status: "refinement_requested"`, the response
+    /// will include `pending_refinement: true` and a `session_id` token.
+    /// Use `ContinueApp` with that token to send a `FormRefinementResponse`
+    /// and read the next `FormResponse` from the still-running GUI.
     LaunchApp {
         /// Registered app name: `"brainstorm_gui"` or `"approval_gui"`.
         app_name: String,
@@ -76,6 +81,20 @@ pub enum ControlRequest {
         payload: serde_json::Value,
         /// Optional per-request timeout override in seconds.
         /// Falls back to the app's configured `timeout_seconds`.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        timeout_seconds: Option<u64>,
+    },
+
+    /// Continue a GUI session that returned `pending_refinement: true`.
+    ///
+    /// Sends a `FormRefinementResponse` JSON payload to the running GUI's
+    /// stdin and waits for the next `FormResponse` on stdout.
+    ContinueApp {
+        /// Session token returned by `LaunchApp` with `pending_refinement: true`.
+        session_id: String,
+        /// The `FormRefinementResponse` JSON to send to the GUI.
+        payload: serde_json::Value,
+        /// Optional per-continuation timeout override in seconds.
         #[serde(skip_serializing_if = "Option::is_none")]
         timeout_seconds: Option<u64>,
     },
@@ -138,7 +157,7 @@ pub struct WhoAmIResponse {
 // FormApp response types
 // ---------------------------------------------------------------------------
 
-/// Result of a `LaunchApp` request, returned inside `ControlResponse.data`.
+/// Result of a `LaunchApp` or `ContinueApp` request, returned inside `ControlResponse.data`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FormAppResponse {
     /// The app that was launched.
@@ -155,6 +174,13 @@ pub struct FormAppResponse {
     pub elapsed_ms: u64,
     /// `true` when the process was killed because the timeout expired.
     pub timed_out: bool,
+    /// `true` when the GUI requested refinement and a session is waiting.
+    /// Supply the `session_id` in a subsequent `ContinueApp` request.
+    #[serde(default)]
+    pub pending_refinement: bool,
+    /// Session token for `ContinueApp` — only present when `pending_refinement == true`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
 }
 
 /// Lifecycle state of a single form-app process.

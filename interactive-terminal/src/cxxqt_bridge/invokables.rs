@@ -30,7 +30,10 @@ impl ffi::TerminalApp {
         }
     }
 
-    fn resolve_export_directory(this: &Pin<&mut Self>, override_dir: &str) -> Result<PathBuf, String> {
+    fn resolve_export_directory(
+        this: &Pin<&mut Self>,
+        override_dir: &str,
+    ) -> Result<PathBuf, String> {
         if !override_dir.trim().is_empty() {
             return Ok(PathBuf::from(override_dir.trim()));
         }
@@ -108,7 +111,10 @@ impl ffi::TerminalApp {
         Self::append_output_line(this, "Type a command below and press Enter to run it.");
     }
 
-    fn refresh_saved_commands_for_workspace(this: &mut Pin<&mut Self>, workspace_id: &str) -> Result<String, String> {
+    fn refresh_saved_commands_for_workspace(
+        this: &mut Pin<&mut Self>,
+        workspace_id: &str,
+    ) -> Result<String, String> {
         let state_arc = this.rust().state.clone();
         let mut state = state_arc.lock().unwrap();
         state.saved_commands_ui_workspace_id = workspace_id.to_string();
@@ -121,19 +127,24 @@ impl ffi::TerminalApp {
         let state_arc = this.rust().state.clone();
         let (selected_session_id, context) = {
             let state = state_arc.lock().unwrap();
-            (state.selected_session_id.clone(), state.selected_session_context())
+            (
+                state.selected_session_id.clone(),
+                state.selected_session_context(),
+            )
         };
 
         this.as_mut()
             .set_current_session_id(QString::from(&selected_session_id));
-        this.as_mut().set_current_terminal_profile(QString::from(
-            terminal_profile_to_key(&context.selected_terminal_profile),
-        ));
+        this.as_mut()
+            .set_current_terminal_profile(QString::from(terminal_profile_to_key(
+                &context.selected_terminal_profile,
+            )));
         this.as_mut()
             .set_current_workspace_path(QString::from(&context.workspace_path));
         this.as_mut()
             .set_current_venv_path(QString::from(&context.selected_venv_path));
-        this.as_mut().set_current_activate_venv(context.activate_venv);
+        this.as_mut()
+            .set_current_activate_venv(context.activate_venv);
     }
 
     pub fn approve_command(mut self: Pin<&mut Self>, id: QString) {
@@ -178,13 +189,18 @@ impl ffi::TerminalApp {
     pub fn decline_command(mut self: Pin<&mut Self>, id: QString, reason: QString) {
         let id_str = id.to_string();
         let reason_str = reason.to_string();
+        let normalized_reason = if reason_str.trim().is_empty() {
+            None
+        } else {
+            Some(reason_str)
+        };
 
         let response = Message::CommandResponse(CommandResponse {
             id: id_str.clone(),
             status: ResponseStatus::Declined,
             output: None,
             exit_code: None,
-            reason: Some(reason_str),
+            reason: normalized_reason,
             output_file_path: None,
         });
 
@@ -211,7 +227,8 @@ impl ffi::TerminalApp {
         self.as_mut().set_session_tabs_json(tabs_json);
         self.as_mut()
             .set_current_session_id(QString::from(&selected_session_id));
-        self.as_mut().set_status_text(QString::from("Command declined"));
+        self.as_mut()
+            .set_status_text(QString::from("Command declined"));
 
         Self::show_command(&mut self, next_cmd.as_ref());
         self.as_mut().command_completed(id, false);
@@ -261,7 +278,8 @@ impl ffi::TerminalApp {
             (session_id, count, json, tabs_json, selected_cmd)
         };
 
-        self.as_mut().set_current_session_id(QString::from(&session_id));
+        self.as_mut()
+            .set_current_session_id(QString::from(&session_id));
         self.as_mut().set_pending_count(count);
         self.as_mut().set_pending_commands_json(json);
         self.as_mut().set_session_tabs_json(tabs_json);
@@ -352,14 +370,20 @@ impl ffi::TerminalApp {
         }
     }
 
-    pub fn rename_session(mut self: Pin<&mut Self>, session_id: QString, display_name: QString) -> bool {
+    pub fn rename_session(
+        mut self: Pin<&mut Self>,
+        session_id: QString,
+        display_name: QString,
+    ) -> bool {
         let target_id = session_id.to_string();
         let display_name = display_name.to_string();
 
         let state_arc = self.rust().state.clone();
         let result = {
             let mut state = state_arc.lock().unwrap();
-            state.rename_session(&target_id, &display_name).map(|_| state.session_tabs_to_json())
+            state
+                .rename_session(&target_id, &display_name)
+                .map(|_| state.session_tabs_to_json())
         };
 
         match result {
@@ -386,10 +410,12 @@ impl ffi::TerminalApp {
                 .set_working_directory(QString::from(&*c.working_directory));
             this.as_mut().set_context_info(QString::from(&*c.context));
             this.as_mut().set_current_request_id(QString::from(&*c.id));
-            this.as_mut().set_current_session_id(QString::from(&*c.session_id));
-            this.as_mut().set_current_terminal_profile(QString::from(
-                terminal_profile_to_key(&c.terminal_profile),
-            ));
+            this.as_mut()
+                .set_current_session_id(QString::from(&*c.session_id));
+            this.as_mut()
+                .set_current_terminal_profile(QString::from(terminal_profile_to_key(
+                    &c.terminal_profile,
+                )));
             this.as_mut()
                 .set_current_workspace_path(QString::from(&*c.workspace_path));
             this.as_mut()
@@ -450,7 +476,8 @@ impl ffi::TerminalApp {
         }
 
         Self::sync_selected_session_context(&mut self);
-        self.as_mut().set_status_text(QString::from("Session venv updated"));
+        self.as_mut()
+            .set_status_text(QString::from("Session venv updated"));
     }
 
     pub fn set_session_activate_venv(mut self: Pin<&mut Self>, activate: bool) {
@@ -590,9 +617,10 @@ impl ffi::TerminalApp {
                 .set_current_request_id(QString::from(&*cmd.id));
             self.as_mut()
                 .set_current_session_id(QString::from(&*cmd.session_id));
-            self.as_mut().set_current_terminal_profile(QString::from(
-                terminal_profile_to_key(&cmd.terminal_profile),
-            ));
+            self.as_mut()
+                .set_current_terminal_profile(QString::from(terminal_profile_to_key(
+                    &cmd.terminal_profile,
+                )));
             self.as_mut()
                 .set_current_workspace_path(QString::from(&*cmd.workspace_path));
             self.as_mut()

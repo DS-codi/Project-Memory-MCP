@@ -4,6 +4,7 @@ mod build_check;
 mod command_executor;
 mod cxxqt_bridge;
 mod host_bridge_listener;
+mod integration;
 mod output_persistence;
 mod perf_monitor;
 mod protocol;
@@ -12,6 +13,7 @@ mod saved_commands_repository;
 mod session;
 mod system_tray;
 mod tcp_server;
+mod terminal_core;
 
 pub use tcp_server::TcpServer;
 
@@ -147,7 +149,9 @@ fn main() {
     let mut engine = QQmlApplicationEngine::new();
 
     if let Some(engine) = engine.as_mut() {
-        engine.load(&QUrl::from("qrc:/qt/qml/com/projectmemory/terminal/qml/main.qml"));
+        engine.load(&QUrl::from(
+            "qrc:/qt/qml/com/projectmemory/terminal/qml/main.qml",
+        ));
     }
 
     // QML load diagnostic: root_objects() is not exposed in cxx-qt-lib 0.8,

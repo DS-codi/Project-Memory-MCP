@@ -428,7 +428,93 @@ Response shows:
 
 ---
 
-## 🔄 ORCHESTRATION LOOP
+## �️ GUI-Enabled Brainstorm & Approval Flow
+
+When the Supervisor is running on the host, the Coordinator can route brainstorm decisions and approval gates through native GUI form apps. When the Supervisor is unavailable, all flows fall back gracefully to chat-only mode.
+
+### GUI Availability Detection
+
+Before routing to a GUI path, check availability via `checkGuiAvailability()` from the `supervisor-client` module. This returns:
+- `supervisor_running` — whether the Supervisor process is reachable
+- `brainstorm_gui` — whether the brainstorm form app is available
+- `approval_gui` — whether the approval gate dialog is available
+
+### Brainstorm → GUI Flow (feature / orchestration categories)
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ BRAINSTORM GUI ROUTING                                           │
+│                                                                  │
+│ 1. Brainstorm agent produces structured FormRequest payload      │
+│    (questions, options, recommendations)                         │
+│ 2. Coordinator calls routeBrainstormWithFallback(formRequest)    │
+│ 3a. GUI available → Supervisor launches brainstorm-gui binary    │
+│     → User interacts with native form (5 min timeout)            │
+│     → FormResponse with structured answers returned              │
+│ 3b. GUI unavailable → Auto-fill from recommended options         │
+│     → Text summary generated from recommendations               │
+│ 4. Architect receives BrainstormRoutingResult with:              │
+│    - answers[] (structured, always present)                      │
+│    - text_summary (readable, always present)                     │
+│    - path ('gui' | 'fallback')                                   │
+│                                                                  │
+│ The Architect does NOT need to know which path was used.          │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### Fallback Behavior
+
+When the GUI is unavailable (Supervisor not running, binary missing, launch failure):
+- Brainstorm agent's recommended options are auto-selected
+- Free-text questions use their `default_value`
+- Confirm/reject questions auto-approve
+- A plain-text summary is generated for the Architect
+- The flow continues identically — no user intervention needed
+
+### Approval Gate Routing
+
+When a gated plan step is reached (step type `user_validation` or `confirmation`):
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ APPROVAL GATE ROUTING                                            │
+│                                                                  │
+│ 1. Step requires user confirmation (type: user_validation)       │
+│ 2. Coordinator calls routeApprovalGate(planState, stepIndex)     │
+│ 3a. GUI available → Supervisor launches approval-gui binary      │
+│     → Native always-on-top dialog with countdown timer (60s)     │
+│     → User approves, rejects, or timer expires                   │
+│ 3b. GUI unavailable → Falls back to existing chat-based confirm  │
+│ 4. On approve → Continue plan (mark step done)                   │
+│ 5. On reject/timeout → Pause plan:                               │
+│    - Write PausedAtSnapshot to plan state                        │
+│    - Set plan status to 'paused'                                 │
+│    - Surface in dashboard for resume                             │
+│                                                                  │
+│ Resume: Dashboard/extension shows paused plans with resume       │
+│ button. On resume, Coordinator re-enters at paused_at step.      │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### Routing Decision Tree
+
+```
+Is Supervisor running?
+├── NO → Use chat-only fallback for all flows
+└── YES → Is this a brainstorm handoff?
+    ├── YES → Is brainstorm_gui available?
+    │   ├── YES → Route through GUI (routeBrainstormWithFallback)
+    │   └── NO  → Auto-fill from recommendations
+    └── NO → Is this an approval gate?
+        ├── YES → Is approval_gui available?
+        │   ├── YES → Launch approval dialog
+        │   └── NO  → Use existing chat-based confirmation
+        └── NO → Normal agent flow (no GUI involvement)
+```
+
+---
+
+## �🔄 ORCHESTRATION LOOP
 
 ```python
 # Pseudo-code for your orchestration logic

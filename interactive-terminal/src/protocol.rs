@@ -1,6 +1,12 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+pub use crate::integration::agent_session_protocol::{
+    AgentSessionState, HostedSessionKind, ReadAgentSessionOutputRequest,
+    ReadAgentSessionOutputResponse, StartAgentSessionRequest, StartAgentSessionResponse,
+    StopAgentSessionRequest, StopAgentSessionResponse,
+};
+
 /// Top-level message envelope, tagged by "type" field.
 ///
 /// Wire format is newline-delimited JSON (NDJSON) over TCP.
@@ -10,6 +16,12 @@ use std::collections::HashMap;
 pub enum Message {
     CommandRequest(CommandRequest),
     CommandResponse(CommandResponse),
+    StartAgentSessionRequest(StartAgentSessionRequest),
+    StartAgentSessionResponse(StartAgentSessionResponse),
+    ReadAgentSessionOutputRequest(ReadAgentSessionOutputRequest),
+    ReadAgentSessionOutputResponse(ReadAgentSessionOutputResponse),
+    StopAgentSessionRequest(StopAgentSessionRequest),
+    StopAgentSessionResponse(StopAgentSessionResponse),
     SavedCommandsRequest(SavedCommandsRequest),
     SavedCommandsResponse(SavedCommandsResponse),
     Heartbeat(Heartbeat),
@@ -573,7 +585,8 @@ mod tests {
 
     #[test]
     fn timeout_status_deserializes_from_json() {
-        let json = r#"{"type":"command_response","id":"t1","status":"timeout","reason":"timed out"}"#;
+        let json =
+            r#"{"type":"command_response","id":"t1","status":"timeout","reason":"timed out"}"#;
         let msg: Message = serde_json::from_str(json).unwrap();
         if let Message::CommandResponse(resp) = msg {
             assert_eq!(resp.status, ResponseStatus::Timeout);
@@ -669,7 +682,8 @@ mod tests {
 
     #[test]
     fn default_timeout_when_missing() {
-        let json = r#"{"type":"command_request","id":"r1","command":"ls","working_directory":"/tmp"}"#;
+        let json =
+            r#"{"type":"command_request","id":"r1","command":"ls","working_directory":"/tmp"}"#;
         let msg: Message = serde_json::from_str(json).unwrap();
         if let Message::CommandRequest(req) = msg {
             assert_eq!(req.timeout_seconds, 300);
@@ -728,7 +742,9 @@ mod tests {
             status: ResponseStatus::Declined,
             output: None,
             exit_code: None,
-            reason: Some("reason with \"quotes\", newlines\nand\ttabs, and unicode: ñ 中文 🎉".into()),
+            reason: Some(
+                "reason with \"quotes\", newlines\nand\ttabs, and unicode: ñ 中文 🎉".into(),
+            ),
             output_file_path: None,
         };
         let msg = Message::CommandResponse(resp);
@@ -889,7 +905,10 @@ mod tests {
             assert_eq!(req.command, "npm run build");
             assert_eq!(req.working_directory, "/home/user/project");
             assert_eq!(req.args, vec!["--production"]);
-            assert_eq!(req.env.get("NODE_ENV").map(|s| s.as_str()), Some("production"));
+            assert_eq!(
+                req.env.get("NODE_ENV").map(|s| s.as_str()),
+                Some("production")
+            );
             assert_eq!(req.workspace_id, "my-project-abc123");
             assert_eq!(req.session_id, "sess-001");
             assert_eq!(req.timeout_seconds, 120);
@@ -924,10 +943,16 @@ mod tests {
         if let Message::CommandResponse(resp) = msg {
             assert_eq!(resp.id, "test-resp-approved");
             assert_eq!(resp.status, ResponseStatus::Approved);
-            assert_eq!(resp.output.as_deref(), Some("Build succeeded\nDone in 3.2s"));
+            assert_eq!(
+                resp.output.as_deref(),
+                Some("Build succeeded\nDone in 3.2s")
+            );
             assert_eq!(resp.exit_code, Some(0));
             assert!(resp.reason.is_none());
-            assert_eq!(resp.output_file_path.as_deref(), Some("/tmp/.projectmemory/terminal-output/output-001.json"));
+            assert_eq!(
+                resp.output_file_path.as_deref(),
+                Some("/tmp/.projectmemory/terminal-output/output-001.json")
+            );
         } else {
             panic!("expected CommandResponse");
         }
@@ -956,9 +981,18 @@ mod tests {
         if let Message::CommandResponse(resp) = msg {
             assert_eq!(resp.id, "test-resp-timeout");
             assert_eq!(resp.status, ResponseStatus::Timeout);
-            assert_eq!(resp.output.as_deref(), Some("partial output before timeout"));
-            assert_eq!(resp.reason.as_deref(), Some("User did not respond within 60s"));
-            assert_eq!(resp.output_file_path.as_deref(), Some("/tmp/.projectmemory/terminal-output/partial-002.json"));
+            assert_eq!(
+                resp.output.as_deref(),
+                Some("partial output before timeout")
+            );
+            assert_eq!(
+                resp.reason.as_deref(),
+                Some("User did not respond within 60s")
+            );
+            assert_eq!(
+                resp.output_file_path.as_deref(),
+                Some("/tmp/.projectmemory/terminal-output/partial-002.json")
+            );
         } else {
             panic!("expected CommandResponse");
         }
@@ -1024,7 +1058,8 @@ mod tests {
 
     #[test]
     fn conformance_read_output_request() {
-        let json = r#"{"type":"read_output_request","id":"ro-conf-001","session_id":"sess-conf-abc"}"#;
+        let json =
+            r#"{"type":"read_output_request","id":"ro-conf-001","session_id":"sess-conf-abc"}"#;
         let msg = decode(json).expect("should decode read_output_request");
         if let Message::ReadOutputRequest(req) = msg {
             assert_eq!(req.id, "ro-conf-001");
@@ -1069,7 +1104,8 @@ mod tests {
 
     #[test]
     fn conformance_kill_session_request() {
-        let json = r#"{"type":"kill_session_request","id":"kill-conf-001","session_id":"sess-kill-abc"}"#;
+        let json =
+            r#"{"type":"kill_session_request","id":"kill-conf-001","session_id":"sess-kill-abc"}"#;
         let msg = decode(json).expect("should decode kill_session_request");
         if let Message::KillSessionRequest(req) = msg {
             assert_eq!(req.id, "kill-conf-001");

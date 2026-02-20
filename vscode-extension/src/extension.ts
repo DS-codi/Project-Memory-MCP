@@ -995,6 +995,62 @@ function initializeChatIntegration(
         }
     };
 
+    const resumePausedPlanFromChatAction = async (workspaceIdOrPlanId?: string, maybePlanId?: string): Promise<void> => {
+        const explicitWorkspaceId = typeof workspaceIdOrPlanId === 'string' && workspaceIdOrPlanId.trim().length > 0
+            && typeof maybePlanId === 'string' && maybePlanId.trim().length > 0
+            ? workspaceIdOrPlanId.trim()
+            : undefined;
+
+        const resolvedPlanId = typeof maybePlanId === 'string' && maybePlanId.trim().length > 0
+            ? maybePlanId.trim()
+            : typeof workspaceIdOrPlanId === 'string' && workspaceIdOrPlanId.trim().length > 0 && !explicitWorkspaceId
+                ? workspaceIdOrPlanId.trim()
+            : await vscode.window.showInputBox({
+                prompt: 'Enter the paused plan ID to resume',
+                placeHolder: 'plan_xxxxxxxx',
+            });
+
+        if (!resolvedPlanId) {
+            return;
+        }
+
+        if (!await ensureBridgeConnected()) {
+            return;
+        }
+
+        try {
+            await vscode.window.withProgress(
+                {
+                    location: vscode.ProgressLocation.Notification,
+                    title: 'Resuming paused plan...',
+                    cancellable: false,
+                },
+                async () => {
+                    const effectiveWorkspaceId = explicitWorkspaceId
+                        ?? (await resolveWorkspaceRegistration())?.workspaceId;
+
+                    if (!effectiveWorkspaceId) {
+                        return;
+                    }
+
+                    await mcpBridge!.callTool('memory_plan', {
+                        action: 'resume_plan',
+                        workspace_id: effectiveWorkspaceId,
+                        plan_id: resolvedPlanId,
+                    });
+                }
+            );
+
+            notify(`Resumed paused plan ${resolvedPlanId}.`);
+            await vscode.commands.executeCommand('workbench.action.chat.open', {
+                query: '@memory /plan list',
+            });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            vscode.window.showErrorMessage(`Failed to resume plan: ${message}`);
+        }
+    };
+
     const confirmPlanStepFromChatAction = async (planId?: string, stepIndex?: number): Promise<void> => {
         const resolvedPlanId = typeof planId === 'string' && planId.trim().length > 0
             ? planId.trim()
@@ -1185,6 +1241,9 @@ function initializeChatIntegration(
         ),
         vscode.commands.registerCommand('projectMemory.archivePlan', (workspaceIdOrPlanId?: string, maybePlanId?: string) =>
             archivePlanFromChatAction(workspaceIdOrPlanId, maybePlanId)
+        ),
+        vscode.commands.registerCommand('projectMemory.resumePausedPlan', (workspaceIdOrPlanId?: string, maybePlanId?: string) =>
+            resumePausedPlanFromChatAction(workspaceIdOrPlanId, maybePlanId)
         ),
         vscode.commands.registerCommand('projectMemory.confirmPlanStep', (planId?: string, stepIndex?: number) =>
             confirmPlanStepFromChatAction(planId, stepIndex)

@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Clock, FolderTree, Shield, Gauge, BookOpen } from 'lucide-react';
+import { Clock, FolderTree, Shield, Gauge, BookOpen, PauseCircle } from 'lucide-react';
 import { Badge } from '../common/Badge';
 import { CopyButton } from '../common/CopyButton';
 import { ProgressBar } from '../common/ProgressBar';
@@ -87,6 +87,16 @@ export function PlanCard({ plan, workspaceId, programName }: PlanCardProps) {
             {agentIcons[plan.current_agent as AgentType]} {plan.current_agent}
           </Badge>
           <span className="text-sm text-slate-500">currently active</span>
+        </div>
+      )}
+
+      {/* Paused Plan Indicator */}
+      {plan.status === 'paused' && plan.paused_at_snapshot && (
+        <div className="flex items-center gap-2 mb-3 px-2 py-1.5 bg-yellow-500/10 border border-yellow-500/30 rounded-md">
+          <PauseCircle size={14} className="text-yellow-400" />
+          <span className="text-xs text-yellow-300">
+            Paused at step #{plan.paused_at_snapshot.step_index + 1}: {plan.paused_at_snapshot.reason}
+          </span>
         </div>
       )}
 

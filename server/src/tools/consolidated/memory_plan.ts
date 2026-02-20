@@ -43,7 +43,7 @@ import type {
   DependencyType,
 } from '../../types/program-v2.types.js';
 
-export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate' | 'set_goals' | 'add_build_script' | 'list_build_scripts' | 'run_build_script' | 'delete_build_script' | 'create_from_template' | 'list_templates' | 'confirm' | 'create_program' | 'add_plan_to_program' | 'upgrade_to_program' | 'list_program_plans' | 'export_plan' | 'link_to_program' | 'unlink_from_program' | 'set_plan_dependencies' | 'get_plan_dependencies' | 'set_plan_priority' | 'clone_plan' | 'merge_plans' | 'add_risk' | 'list_risks' | 'auto_detect_risks' | 'set_dependency' | 'get_dependencies' | 'migrate_programs';
+export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate' | 'set_goals' | 'add_build_script' | 'list_build_scripts' | 'run_build_script' | 'delete_build_script' | 'create_from_template' | 'list_templates' | 'confirm' | 'create_program' | 'add_plan_to_program' | 'upgrade_to_program' | 'list_program_plans' | 'export_plan' | 'link_to_program' | 'unlink_from_program' | 'set_plan_dependencies' | 'get_plan_dependencies' | 'set_plan_priority' | 'clone_plan' | 'merge_plans' | 'add_risk' | 'list_risks' | 'auto_detect_risks' | 'set_dependency' | 'get_dependencies' | 'migrate_programs' | 'pause_plan' | 'resume_plan';
 
 export interface MemoryPlanParams {
   action: PlanAction;
@@ -94,6 +94,11 @@ export interface MemoryPlanParams {
   target_plan_id?: string;
   source_plan_ids?: string[];
   archive_sources?: boolean;
+  // Pause/resume params
+  pause_reason?: 'rejected' | 'timeout' | 'deferred';
+  pause_step_index?: number;
+  pause_user_notes?: string;
+  pause_session_id?: string;
   // Program v2 risk params
   risk_type?: RiskType;
   risk_severity?: RiskSeverity;
@@ -148,7 +153,9 @@ type PlanResult =
   | { action: 'auto_detect_risks'; data: programTools.AutoDetectResult }
   | { action: 'set_dependency'; data: programTools.SetDependencyResult }
   | { action: 'get_dependencies'; data: ProgramDependency[] }
-  | { action: 'migrate_programs'; data: programTools.MigrationReport };
+  | { action: 'migrate_programs'; data: programTools.MigrationReport }
+  | { action: 'pause_plan'; data: { plan_id: string; status: string; paused_at_snapshot: import('../../types/plan.types.js').PausedAtSnapshot } }
+  | { action: 'resume_plan'; data: { plan_id: string; status: string; step_index: number; phase: string } };
 
 const PATH_LIKE_EXTENSIONS = new Set([
   '.ps1',
@@ -1080,10 +1087,95 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
       }
     }
 
+    case 'pause_plan': {
+      if (!params.workspace_id || !params.plan_id) {
+        return {
+          success: false,
+          error: 'workspace_id and plan_id are required for action: pause_plan'
+        };
+      }
+      if (!params.pause_reason) {
+        return {
+          success: false,
+          error: 'pause_reason is required for action: pause_plan (rejected | timeout | deferred)'
+        };
+      }
+      try {
+        const state = await fileStore.getPlanState(params.workspace_id, params.plan_id);
+        if (!state) {
+          return { success: false, error: `Plan not found: ${params.plan_id}` };
+        }
+
+        const stepIndex = params.pause_step_index ?? 0;
+        const step = state.steps[stepIndex];
+
+        const snapshot: import('../../types/plan.types.js').PausedAtSnapshot = {
+          paused_at: new Date().toISOString(),
+          step_index: stepIndex,
+          phase: step?.phase ?? state.current_phase,
+          step_task: step?.task ?? 'Unknown',
+          reason: params.pause_reason,
+          user_notes: params.pause_user_notes,
+          session_id: params.pause_session_id,
+        };
+
+        state.paused_at_snapshot = snapshot;
+        state.status = 'paused';
+        state.updated_at = new Date().toISOString();
+
+        await fileStore.savePlanState(state);
+        await fileStore.generatePlanMd(state);
+
+        return {
+          success: true,
+          data: { action: 'pause_plan', data: { plan_id: params.plan_id, status: 'paused', paused_at_snapshot: snapshot } }
+        };
+      } catch (error) {
+        return { success: false, error: `Failed to pause plan: ${(error as Error).message}` };
+      }
+    }
+
+    case 'resume_plan': {
+      if (!params.workspace_id || !params.plan_id) {
+        return {
+          success: false,
+          error: 'workspace_id and plan_id are required for action: resume_plan'
+        };
+      }
+      try {
+        const state = await fileStore.getPlanState(params.workspace_id, params.plan_id);
+        if (!state) {
+          return { success: false, error: `Plan not found: ${params.plan_id}` };
+        }
+        if (state.status !== 'paused') {
+          return { success: false, error: `Plan is not paused (status: ${state.status})` };
+        }
+        if (!state.paused_at_snapshot) {
+          return { success: false, error: 'Plan has no paused_at_snapshot to resume from' };
+        }
+
+        const { step_index, phase } = state.paused_at_snapshot;
+
+        state.paused_at_snapshot = undefined;
+        state.status = 'active';
+        state.updated_at = new Date().toISOString();
+
+        await fileStore.savePlanState(state);
+        await fileStore.generatePlanMd(state);
+
+        return {
+          success: true,
+          data: { action: 'resume_plan', data: { plan_id: params.plan_id, status: 'active', step_index, phase } }
+        };
+      } catch (error) {
+        return { success: false, error: `Failed to resume plan: ${(error as Error).message}` };
+      }
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, create_program, add_plan_to_program, upgrade_to_program, list_program_plans, export_plan, link_to_program, unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans, add_risk, list_risks, auto_detect_risks, set_dependency, get_dependencies, migrate_programs`
+        error: `Unknown action: ${action}. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, create_program, add_plan_to_program, upgrade_to_program, list_program_plans, export_plan, link_to_program, unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans, add_risk, list_risks, auto_detect_risks, set_dependency, get_dependencies, migrate_programs, pause_plan, resume_plan`
       };
   }
 }

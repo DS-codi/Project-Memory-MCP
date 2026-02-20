@@ -12,16 +12,12 @@ pub fn spawn(host_port: u16, runtime_port: u16) {
         let listener = match TcpListener::bind(&bind_addr) {
             Ok(listener) => listener,
             Err(error) => {
-                eprintln!(
-                    "Host GUI bridge listener failed to bind on {bind_addr}: {error}"
-                );
+                eprintln!("Host GUI bridge listener failed to bind on {bind_addr}: {error}");
                 return;
             }
         };
 
-        eprintln!(
-            "Host GUI bridge listener active on {bind_addr} -> 127.0.0.1:{runtime_port}"
-        );
+        eprintln!("Host GUI bridge listener active on {bind_addr} -> 127.0.0.1:{runtime_port}");
 
         for incoming in listener.incoming() {
             let Ok(client_stream) = incoming else {
@@ -103,7 +99,10 @@ mod tests {
 
         // Verify we can connect to host_port (meaning spawn bound it).
         let conn = TcpStream::connect(("127.0.0.1", host_port));
-        assert!(conn.is_ok(), "Should be able to connect to host_port after spawn()");
+        assert!(
+            conn.is_ok(),
+            "Should be able to connect to host_port after spawn()"
+        );
 
         drop(runtime_listener);
     }

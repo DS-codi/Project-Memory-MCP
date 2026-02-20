@@ -183,6 +183,16 @@ export function getClientScript(params: ClientScriptParams): string {
                 }
             } else if (action === 'refresh-sessions') {
                 requestSessionsList();
+            } else if (action === 'select-session') {
+                var selectSessionKey = button.getAttribute('data-session-key');
+                if (selectSessionKey) {
+                    handleSessionSelect(selectSessionKey);
+                }
+            } else if (action === 'quick-stop-session') {
+                var quickStopSessionKey = button.getAttribute('data-session-key');
+                if (quickStopSessionKey) {
+                    handleStopSession(quickStopSessionKey);
+                }
             } else if (action === 'stop-session') {
                 handleStopSession();
             } else if (action === 'inject-session') {
@@ -208,6 +218,10 @@ export function getClientScript(params: ClientScriptParams): string {
             var target = e.target;
             if (target && target.classList && target.classList.contains('search-input') && e.key === 'Enter') {
                 openSearch(target.value.trim());
+            }
+            if (target && target.id === 'injectText' && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                handleInjectSession();
             }
         });
 

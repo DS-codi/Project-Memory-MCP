@@ -11,7 +11,7 @@ use tokio::sync::Mutex;
 use crate::config::FormAppConfig;
 use crate::control::protocol::{ControlRequest, ControlResponse};
 use crate::control::registry::{Registry, ServiceStatus};
-use crate::runner::form_app::launch_form_app;
+use crate::runner::form_app::{continue_form_app, launch_form_app};
 
 /// Resolved form-app configuration map, keyed by app name.
 ///
@@ -167,6 +167,31 @@ pub async fn handle_request(
             reg.set_service_status("mcp", ServiceStatus::Stopping);
             reg.set_service_status("mcp", ServiceStatus::Starting);
             ControlResponse::ok(json!({ "upgrade": "initiated", "service": "mcp" }))
+        }
+
+        // ---------------------------------------------------------------
+        // ContinueApp — pipe a refinement response into a paused session
+        // ---------------------------------------------------------------
+        ControlRequest::ContinueApp {
+            session_id,
+            payload,
+            timeout_seconds,
+        } => {
+            let resp = continue_form_app(&session_id, &payload, timeout_seconds).await;
+            match serde_json::to_value(&resp) {
+                Ok(data) => {
+                    if resp.success {
+                        ControlResponse::ok(data)
+                    } else {
+                        ControlResponse {
+                            ok: false,
+                            error: resp.error.clone(),
+                            data,
+                        }
+                    }
+                }
+                Err(e) => ControlResponse::err(format!("serialisation error: {e}")),
+            }
         }
 
         // ---------------------------------------------------------------

@@ -35,12 +35,14 @@ impl cxx_qt::Initialize for ffi::TerminalApp {
                 .unwrap_or_else(|| "default".to_string());
             state.saved_commands_ui_workspace_id = initial_workspace_id;
 
-            self.as_mut().set_session_tabs_json(state.session_tabs_to_json());
+            self.as_mut()
+                .set_session_tabs_json(state.session_tabs_to_json());
         }
 
         match crate::system_tray::sync_startup_with_settings(port) {
             Ok(settings) => {
-                self.as_mut().set_start_with_windows(settings.start_with_windows);
+                self.as_mut()
+                    .set_start_with_windows(settings.start_with_windows);
             }
             Err(error) => {
                 self.as_mut().set_status_text(QString::from(&format!(
@@ -52,7 +54,8 @@ impl cxx_qt::Initialize for ffi::TerminalApp {
         self.as_mut()
             .set_status_text(QString::from(&format!("Listening on port {port}")));
 
-        let (command_tx, command_rx) = tokio::sync::mpsc::channel::<crate::protocol::CommandRequest>(16);
+        let (command_tx, command_rx) =
+            tokio::sync::mpsc::channel::<crate::protocol::CommandRequest>(16);
 
         {
             let state_arc = self.rust().state.clone();

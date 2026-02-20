@@ -139,24 +139,43 @@ fn resolve_tray_icon_url() -> QString {
         exe_dir.join("itpm-icon.svg"),
         exe_dir.join("resources").join("itpm-icon.ico"),
         exe_dir.join("resources").join("itpm-icon.svg"),
-        exe_dir.join("..").join("..").join("resources").join("itpm-icon.ico"),
-        exe_dir.join("..").join("..").join("resources").join("itpm-icon.svg"),
+        exe_dir
+            .join("..")
+            .join("..")
+            .join("resources")
+            .join("itpm-icon.ico"),
+        exe_dir
+            .join("..")
+            .join("..")
+            .join("resources")
+            .join("itpm-icon.svg"),
     ];
 
     for candidate in &candidates {
         if candidate.exists() {
-            let canonical = candidate.canonicalize().unwrap_or_else(|_| candidate.clone());
+            let canonical = candidate
+                .canonicalize()
+                .unwrap_or_else(|_| candidate.clone());
             let mut path_str = canonical.display().to_string();
             // Strip Windows extended-length path prefix (\\?\) that canonicalize() adds
             if path_str.starts_with(r"\\?\") {
                 path_str = path_str[4..].to_string();
             }
-            let url = format!("file:///{}", path_str.replace('\\', "/").trim_start_matches('/'));
+            let url = format!(
+                "file:///{}",
+                path_str.replace('\\', "/").trim_start_matches('/')
+            );
             eprintln!("Tray icon resolved: {url}");
             return QString::from(&url);
         }
     }
 
-    eprintln!("WARNING: No tray icon found. Searched: {:?}", candidates.iter().map(|c| c.display().to_string()).collect::<Vec<_>>());
+    eprintln!(
+        "WARNING: No tray icon found. Searched: {:?}",
+        candidates
+            .iter()
+            .map(|c| c.display().to_string())
+            .collect::<Vec<_>>()
+    );
     QString::default()
 }

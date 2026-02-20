@@ -121,6 +121,20 @@ export function getStyles(): string {
             font-weight: 600;
             margin-bottom: 8px;
         }
+        .action-groups {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .action-group {
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 6px;
+            padding: 10px;
+            background: var(--vscode-editor-background);
+        }
+        .action-group .icon-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
         .plans-widget {
             background: var(--vscode-editor-inactiveSelectionBackground);
             border-radius: 6px;
@@ -463,6 +477,162 @@ export function getStyles(): string {
             font-weight: 500;
         }
         .instruction-actions { display: flex; gap: 6px; align-items: center; }
+
+        /* Sessions section */
+        .sessions-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .sessions-summary {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .sessions-pill {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            border: 1px solid var(--vscode-panel-border);
+            color: var(--vscode-descriptionForeground);
+            background: var(--vscode-editor-background);
+        }
+        .sessions-pill-active {
+            color: var(--vscode-testing-iconPassed);
+            border-color: var(--vscode-testing-iconPassed);
+        }
+        .sessions-pill-stopping {
+            color: var(--vscode-testing-iconFailed);
+            border-color: var(--vscode-testing-iconFailed);
+        }
+        .sessions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .session-item {
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+            padding: 10px;
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 6px;
+            background: var(--vscode-editor-background);
+            cursor: pointer;
+        }
+        .session-item:hover {
+            border-color: var(--vscode-focusBorder);
+            background: var(--vscode-list-hoverBackground);
+        }
+        .session-item.selected {
+            border-color: var(--vscode-focusBorder);
+            background: var(--vscode-list-activeSelectionBackground);
+        }
+        .session-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+            min-width: 0;
+        }
+        .session-agent {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            flex-wrap: wrap;
+        }
+        .session-agent strong {
+            font-weight: 600;
+        }
+        .session-elapsed {
+            font-size: 11px;
+            color: var(--vscode-descriptionForeground);
+        }
+        .session-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            font-size: 10px;
+            color: var(--vscode-descriptionForeground);
+        }
+        .session-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            justify-content: center;
+            min-width: 84px;
+        }
+        .sessions-controls {
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 6px;
+            padding: 10px;
+            background: var(--vscode-editor-background);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .sessions-controls-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .selected-session-label {
+            font-size: 11px;
+            color: var(--vscode-descriptionForeground);
+        }
+        .inject-row {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .inject-row textarea {
+            width: 100%;
+            min-height: 64px;
+            resize: vertical;
+            background: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 4px;
+            padding: 8px;
+            font-size: 12px;
+            font-family: inherit;
+        }
+        .inject-row textarea:focus {
+            outline: 1px solid var(--vscode-focusBorder);
+            outline-offset: 0;
+        }
+        .inject-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .inject-count {
+            font-size: 10px;
+            color: var(--vscode-descriptionForeground);
+        }
+
+        body.size-small .action-group .icon-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+        body.size-small .session-item {
+            flex-direction: column;
+        }
+        body.size-small .session-actions {
+            flex-direction: row;
+            min-width: 0;
+        }
+        body.size-small .sessions-controls-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
 
         /* Badges */
         .badge {

@@ -78,8 +78,12 @@ fn saved_command_crud_is_workspace_scoped() {
         .delete_saved_command(ws1, &first.id)
         .expect("delete in ws1 should succeed");
 
-    let ws1_after_delete = state.list_saved_commands(ws1).expect("list ws1 after delete");
-    let ws2_after_delete = state.list_saved_commands(ws2).expect("list ws2 after delete");
+    let ws1_after_delete = state
+        .list_saved_commands(ws1)
+        .expect("list ws1 after delete");
+    let ws2_after_delete = state
+        .list_saved_commands(ws2)
+        .expect("list ws2 after delete");
 
     assert!(ws1_after_delete.is_empty());
     assert_eq!(ws2_after_delete.len(), 1);
@@ -394,7 +398,9 @@ fn open_saved_commands_loads_workspace_data() {
     let model = state.workspace_model_mut(workspace_id);
     assert!(model.is_ok(), "workspace_model_mut should succeed");
 
-    let commands = state.list_saved_commands(workspace_id).expect("list should succeed");
+    let commands = state
+        .list_saved_commands(workspace_id)
+        .expect("list should succeed");
     assert_eq!(commands.len(), 1, "Should load the pre-saved command");
     assert_eq!(commands[0].name, "Build");
     assert_eq!(commands[0].command, "npm run build");
@@ -416,7 +422,9 @@ fn saved_commands_json_returns_valid_json() {
         .save_saved_command(workspace_id, "Test", "npx vitest run")
         .expect("save should succeed");
 
-    let commands = state.list_saved_commands(workspace_id).expect("list should succeed");
+    let commands = state
+        .list_saved_commands(workspace_id)
+        .expect("list should succeed");
     let json = serde_json::to_string(&commands).expect("JSON serialization should succeed");
 
     // Verify it's valid JSON and round-trips.
@@ -449,10 +457,7 @@ fn saved_commands_json_returns_valid_json() {
 fn saved_commands_workspace_id_returns_set_value() {
     let mut state = test_state();
 
-    assert_eq!(
-        state.saved_commands_ui_workspace_id, "",
-        "Initially empty"
-    );
+    assert_eq!(state.saved_commands_ui_workspace_id, "", "Initially empty");
 
     state.saved_commands_ui_workspace_id = "my-workspace-abc123".to_string();
     assert_eq!(

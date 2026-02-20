@@ -29,11 +29,13 @@ impl AppState {
             ids.push(self.selected_session_id.clone());
         }
 
-        ids.sort_by(|left, right| match (left == "default", right == "default") {
-            (true, false) => std::cmp::Ordering::Less,
-            (false, true) => std::cmp::Ordering::Greater,
-            _ => left.cmp(right),
-        });
+        ids.sort_by(
+            |left, right| match (left == "default", right == "default") {
+                (true, false) => std::cmp::Ordering::Less,
+                (false, true) => std::cmp::Ordering::Greater,
+                _ => left.cmp(right),
+            },
+        );
 
         ids
     }
@@ -74,7 +76,9 @@ impl AppState {
                     .insert(candidate.clone(), Vec::new());
                 self.session_display_names
                     .insert(candidate.clone(), candidate.clone());
-                self.session_context_by_id.entry(candidate.clone()).or_default();
+                self.session_context_by_id
+                    .entry(candidate.clone())
+                    .or_default();
                 self.selected_session_id = candidate.clone();
                 return candidate;
             }
@@ -146,7 +150,11 @@ impl AppState {
         Ok(())
     }
 
-    pub(crate) fn rename_session(&mut self, session_id: &str, display_name: &str) -> Result<(), String> {
+    pub(crate) fn rename_session(
+        &mut self,
+        session_id: &str,
+        display_name: &str,
+    ) -> Result<(), String> {
         let target = session_id.trim();
         if target.is_empty() {
             return Err("session_id is required".to_string());
@@ -189,8 +197,12 @@ impl AppState {
             .or_default();
         ctx.workspace_path = workspace_path.trim().to_string();
 
-        if ctx.activate_venv && ctx.selected_venv_path.trim().is_empty() && !ctx.workspace_path.is_empty() {
-            if let Some(detected) = crate::command_executor::detect_default_venv(&ctx.workspace_path)
+        if ctx.activate_venv
+            && ctx.selected_venv_path.trim().is_empty()
+            && !ctx.workspace_path.is_empty()
+        {
+            if let Some(detected) =
+                crate::command_executor::detect_default_venv(&ctx.workspace_path)
             {
                 ctx.selected_venv_path = detected;
             }
@@ -212,7 +224,8 @@ impl AppState {
         ctx.activate_venv = activate;
 
         if activate && ctx.selected_venv_path.trim().is_empty() && !ctx.workspace_path.is_empty() {
-            if let Some(detected) = crate::command_executor::detect_default_venv(&ctx.workspace_path)
+            if let Some(detected) =
+                crate::command_executor::detect_default_venv(&ctx.workspace_path)
             {
                 ctx.selected_venv_path = detected;
             }
@@ -223,7 +236,10 @@ impl AppState {
         let session_id = req.session_id.clone();
         let ctx = self.session_context_by_id.entry(session_id).or_default();
 
-        if matches!(req.terminal_profile, crate::protocol::TerminalProfile::System) {
+        if matches!(
+            req.terminal_profile,
+            crate::protocol::TerminalProfile::System
+        ) {
             req.terminal_profile = ctx.selected_terminal_profile.clone();
         } else {
             ctx.selected_terminal_profile = req.terminal_profile.clone();
@@ -247,8 +263,12 @@ impl AppState {
             ctx.selected_venv_path = req.venv_path.clone();
         }
 
-        if req.activate_venv && req.venv_path.trim().is_empty() && !req.workspace_path.trim().is_empty() {
-            if let Some(detected) = crate::command_executor::detect_default_venv(&req.workspace_path)
+        if req.activate_venv
+            && req.venv_path.trim().is_empty()
+            && !req.workspace_path.trim().is_empty()
+        {
+            if let Some(detected) =
+                crate::command_executor::detect_default_venv(&req.workspace_path)
             {
                 req.venv_path = detected.clone();
                 ctx.selected_venv_path = detected;

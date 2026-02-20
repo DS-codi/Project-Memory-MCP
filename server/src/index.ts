@@ -200,9 +200,9 @@ server.tool(
 
 server.tool(
   'memory_plan',
-  'Consolidated plan lifecycle management. Actions: list (list plans), get (get plan state), create (create new plan), update (modify plan steps), archive (archive completed plan), import (import existing plan file), find (find plan by ID), add_note (add note to plan), delete (delete plan), consolidate (consolidate steps), set_goals (set goals and success criteria), add_build_script (add build script), list_build_scripts (list build scripts), run_build_script (resolve build script for terminal execution), delete_build_script (delete build script), create_from_template (create plan from template), list_templates (list available templates), link_to_program (link plan to program), unlink_from_program (unlink plan from program), set_plan_dependencies (set plan dependencies), get_plan_dependencies (get plan dependencies and dependents), set_plan_priority (update plan priority), clone_plan (deep copy a plan), merge_plans (merge steps from multiple plans).',
+  'Consolidated plan lifecycle management. Actions: list (list plans), get (get plan state), create (create new plan), update (modify plan steps), archive (archive completed plan), import (import existing plan file), find (find plan by ID), add_note (add note to plan), delete (delete plan), consolidate (consolidate steps), set_goals (set goals and success criteria), add_build_script (add build script), list_build_scripts (list build scripts), run_build_script (resolve build script for terminal execution), delete_build_script (delete build script), create_from_template (create plan from template), list_templates (list available templates), link_to_program (link plan to program), unlink_from_program (unlink plan from program), set_plan_dependencies (set plan dependencies), get_plan_dependencies (get plan dependencies and dependents), set_plan_priority (update plan priority), clone_plan (deep copy a plan), merge_plans (merge steps from multiple plans), pause_plan (pause plan at approval gate), resume_plan (resume paused plan).',
   {
-    action: z.enum(['list', 'get', 'create', 'update', 'archive', 'import', 'find', 'add_note', 'delete', 'consolidate', 'set_goals', 'add_build_script', 'list_build_scripts', 'run_build_script', 'delete_build_script', 'create_from_template', 'list_templates', 'confirm', 'create_program', 'add_plan_to_program', 'upgrade_to_program', 'list_program_plans', 'export_plan', 'link_to_program', 'unlink_from_program', 'set_plan_dependencies', 'get_plan_dependencies', 'set_plan_priority', 'clone_plan', 'merge_plans']).describe('The action to perform'),
+    action: z.enum(['list', 'get', 'create', 'update', 'archive', 'import', 'find', 'add_note', 'delete', 'consolidate', 'set_goals', 'add_build_script', 'list_build_scripts', 'run_build_script', 'delete_build_script', 'create_from_template', 'list_templates', 'confirm', 'create_program', 'add_plan_to_program', 'upgrade_to_program', 'list_program_plans', 'export_plan', 'link_to_program', 'unlink_from_program', 'set_plan_dependencies', 'get_plan_dependencies', 'set_plan_priority', 'clone_plan', 'merge_plans', 'pause_plan', 'resume_plan']).describe('The action to perform'),
     workspace_id: z.string().optional().describe('Workspace ID'),
     workspace_path: z.string().optional().describe('Workspace path (alternative to workspace_id for list)'),
     plan_id: z.string().optional().describe('Plan ID'),
@@ -252,7 +252,11 @@ server.tool(
     link_to_same_program: z.boolean().optional().describe('Link cloned plan to same program as source (for clone_plan)'),
     target_plan_id: z.string().optional().describe('Target plan ID to merge steps into (for merge_plans)'),
     source_plan_ids: z.array(z.string()).optional().describe('Source plan IDs to merge from (for merge_plans)'),
-    archive_sources: z.boolean().optional().describe('Archive source plans after merge (for merge_plans)')
+    archive_sources: z.boolean().optional().describe('Archive source plans after merge (for merge_plans)'),
+    pause_reason: z.enum(['rejected', 'timeout', 'deferred']).optional().describe('Reason for pausing (for pause_plan)'),
+    pause_step_index: z.number().optional().describe('0-based step index that triggered the pause (for pause_plan)'),
+    pause_user_notes: z.string().optional().describe('User notes explaining the rejection (for pause_plan)'),
+    pause_session_id: z.string().optional().describe('Active session ID at time of pause (for pause_plan)')
   },
   async (params) => {
     const result = await withLogging('memory_plan', params, () =>

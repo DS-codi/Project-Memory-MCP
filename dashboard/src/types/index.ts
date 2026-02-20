@@ -138,6 +138,20 @@ export interface PlanNote {
 // Plan State
 // =============================================================================
 
+// =============================================================================
+// Paused Plan Snapshot
+// =============================================================================
+
+export interface PausedAtSnapshot {
+  paused_at: string;
+  step_index: number;
+  phase: string;
+  step_task: string;
+  reason: 'rejected' | 'timeout' | 'deferred';
+  user_notes?: string;
+  session_id?: string;
+}
+
 export interface RequestCategorization {
   category: RequestCategory;
   confidence: number;
@@ -163,6 +177,7 @@ export interface PlanState {
   build_scripts?: BuildScript[];
   is_program?: boolean;
   program_id?: string;
+  paused_at_snapshot?: PausedAtSnapshot;
   created_at: string;
   updated_at: string;
   agent_sessions: AgentSession[];
@@ -277,6 +292,7 @@ export interface PlanSummary {
   child_plan_ids?: string[];
   depends_on_plans?: string[];
   linked_plan_ids?: string[];
+  paused_at_snapshot?: PausedAtSnapshot;
   relationships?: {
     kind: 'program' | 'child' | 'standalone';
     parent_program_id?: string;

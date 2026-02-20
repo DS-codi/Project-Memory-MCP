@@ -16,6 +16,7 @@ Rectangle {
     // --- public property -----------------------------------------------------
     property string outputText: ""
     property var terminalApp: null
+    property bool hasActiveTerminalSession: true
 
     color: "#1a1a1a"
 
@@ -26,28 +27,34 @@ Rectangle {
         // Header bar
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 36
+            Layout.preferredHeight: 66
             color: "#252526"
 
-            RowLayout {
+            ColumnLayout {
                 anchors.fill: parent
                 anchors.leftMargin: 12
                 anchors.rightMargin: 12
+                anchors.topMargin: 6
+                anchors.bottomMargin: 6
+                spacing: 4
 
-                Text {
-                    text: "Output"
-                    color: "#d4d4d4"
-                    font.pixelSize: 13
-                    font.bold: true
-                }
+                RowLayout {
+                    Layout.fillWidth: true
 
-                Item { Layout.fillWidth: true }
+                    Text {
+                        text: "Output"
+                        color: "#d4d4d4"
+                        font.pixelSize: 13
+                        font.bold: true
+                    }
 
-                Button {
-                    id: copyBtn
-                    text: "Copy"
-                    implicitWidth: 58
-                    implicitHeight: 26
+                    Item { Layout.fillWidth: true }
+
+                    Button {
+                        id: copyBtn
+                        text: "Copy"
+                        implicitWidth: 58
+                        implicitHeight: 26
 
                     contentItem: Text {
                         text: copyBtn.text
@@ -64,18 +71,18 @@ Rectangle {
                         radius: 3
                     }
 
-                    onClicked: {
-                        outputArea.selectAll()
-                        outputArea.copy()
-                        outputArea.deselect()
+                        onClicked: {
+                            outputArea.selectAll()
+                            outputArea.copy()
+                            outputArea.deselect()
+                        }
                     }
-                }
 
-                Button {
-                    id: saveTxtBtn
-                    text: "Save TXT"
-                    implicitWidth: 78
-                    implicitHeight: 26
+                    Button {
+                        id: saveTxtBtn
+                        text: "Save TXT"
+                        implicitWidth: 78
+                        implicitHeight: 26
 
                     contentItem: Text {
                         text: saveTxtBtn.text
@@ -92,18 +99,18 @@ Rectangle {
                         radius: 3
                     }
 
-                    onClicked: {
-                        if (terminalApp) {
-                            terminalApp.exportOutputText(terminalApp.currentWorkspacePath || "")
+                        onClicked: {
+                            if (terminalApp) {
+                                terminalApp.exportOutputText(terminalApp.currentWorkspacePath || "")
+                            }
                         }
                     }
-                }
 
-                Button {
-                    id: saveJsonBtn
-                    text: "Save JSON"
-                    implicitWidth: 82
-                    implicitHeight: 26
+                    Button {
+                        id: saveJsonBtn
+                        text: "Save JSON"
+                        implicitWidth: 82
+                        implicitHeight: 26
 
                     contentItem: Text {
                         text: saveJsonBtn.text
@@ -120,18 +127,18 @@ Rectangle {
                         radius: 3
                     }
 
-                    onClicked: {
-                        if (terminalApp) {
-                            terminalApp.exportOutputJson(terminalApp.currentWorkspacePath || "")
+                        onClicked: {
+                            if (terminalApp) {
+                                terminalApp.exportOutputJson(terminalApp.currentWorkspacePath || "")
+                            }
                         }
                     }
-                }
 
-                Button {
-                    id: clearBtn
-                    text: "Clear"
-                    implicitWidth: 56
-                    implicitHeight: 26
+                    Button {
+                        id: clearBtn
+                        text: "Clear"
+                        implicitWidth: 56
+                        implicitHeight: 26
 
                     contentItem: Text {
                         text: clearBtn.text
@@ -148,11 +155,22 @@ Rectangle {
                         radius: 3
                     }
 
-                    onClicked: {
-                        if (terminalApp) {
-                            terminalApp.clearOutput()
+                        onClicked: {
+                            if (terminalApp) {
+                                terminalApp.clearOutput()
+                            }
                         }
                     }
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: terminalApp
+                        ? ((terminalApp.statusText || "") + (terminalApp.commandText ? " | Request: " + terminalApp.commandText : ""))
+                        : ""
+                    color: "#9da0a6"
+                    font.pixelSize: 11
+                    elide: Text.ElideRight
                 }
             }
         }
@@ -192,6 +210,47 @@ Rectangle {
                 rightPadding: 10
                 topPadding: 8
                 bottomPadding: 8
+            }
+        }
+
+        Rectangle { Layout.fillWidth: true; height: 1; color: "#3c3c3c" }
+
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 56
+            color: "#252526"
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: 8
+                spacing: 8
+
+                TextField {
+                    id: manualCommandInput
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 280
+                    enabled: outputRoot.hasActiveTerminalSession
+                    opacity: enabled ? 1.0 : 0.55
+                    placeholderText: enabled
+                        ? "Enter command for current session"
+                        : "No active terminal session"
+                    onAccepted: {
+                        if (terminalApp && terminalApp.runCommand(text)) {
+                            text = ""
+                        }
+                    }
+                }
+
+                Button {
+                    text: "Run"
+                    Layout.preferredWidth: 92
+                    enabled: outputRoot.hasActiveTerminalSession
+                    onClicked: {
+                        if (terminalApp && terminalApp.runCommand(manualCommandInput.text)) {
+                            manualCommandInput.text = ""
+                        }
+                    }
+                }
             }
         }
     }

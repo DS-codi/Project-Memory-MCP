@@ -1,19 +1,95 @@
+use super::AppState;
 use crate::command_executor::{self, OutputLine};
-use crate::cxxqt_bridge::terminal_profile_to_key;
+use crate::cxxqt_bridge::completed_outputs::CompletedOutput;
 use crate::cxxqt_bridge::ffi;
+use crate::cxxqt_bridge::terminal_profile_to_key;
+use crate::integration::hosted_session_adapter;
+use crate::perf_monitor::PerfMonitor;
 use crate::protocol::{
     CommandRequest, CommandResponse, Message, ResponseStatus, SavedCommandsAction,
-    SavedCommandsResponse,
+    SavedCommandsResponse, TerminalProfile,
 };
-use crate::perf_monitor::PerfMonitor;
-use super::AppState;
-use crate::cxxqt_bridge::completed_outputs::CompletedOutput;
 use crate::tcp_server::{ConnectionEvent, TcpServer};
 use cxx_qt_lib::QString;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast;
 use tokio::time::{sleep, Duration, Instant};
+
+impl hosted_session_adapter::HostedSessionAdapter for AppState {
+    fn hydrate_request_with_session_context(&mut self, request: &mut CommandRequest) {
+        self.hydrate_request_with_session_context(request);
+    }
+
+    fn queue_command(&mut self, request: CommandRequest) -> Result<(), String> {
+        self.command_tx
+            .as_ref()
+            .ok_or_else(|| "Command runtime is not ready".to_string())
+            .and_then(|tx| {
+                tx.try_send(request)
+                    .map_err(|error| format!("Failed to queue agent session command: {error}"))
+            })
+    }
+
+    fn register_running_output(&mut self, request_id: &str) {
+        self.output_tracker.store(CompletedOutput {
+            request_id: request_id.to_string(),
+            stdout: String::new(),
+            stderr: String::new(),
+            exit_code: None,
+            running: true,
+            completed_at: Instant::now(),
+        });
+    }
+
+    fn start_hosted_session(
+        &mut self,
+        response_id: &str,
+        session_id: &str,
+        request_id: &str,
+    ) -> Message {
+        self.output_tracker
+            .start_hosted_session(response_id, session_id, request_id)
+    }
+
+    fn fail_hosted_session_start(
+        &mut self,
+        response_id: &str,
+        session_id: &str,
+        runtime_session_id: &str,
+        error_code: &str,
+        error: &str,
+        fallback_reason: &str,
+    ) -> Message {
+        self.output_tracker.fail_hosted_session_start(
+            response_id,
+            session_id,
+            runtime_session_id,
+            error_code,
+            error,
+            fallback_reason,
+        )
+    }
+
+    fn build_read_hosted_session_output_response(
+        &self,
+        response_id: &str,
+        session_id: &str,
+    ) -> Message {
+        self.output_tracker
+            .build_read_hosted_session_output_response(response_id, session_id)
+    }
+
+    fn stop_hosted_session(
+        &mut self,
+        response_id: &str,
+        session_id: &str,
+        escalation_level: u8,
+    ) -> Message {
+        self.output_tracker
+            .stop_hosted_session(response_id, session_id, escalation_level)
+    }
+}
 
 pub(crate) fn spawn_runtime_tasks(
     mut server: TcpServer,
@@ -53,7 +129,7 @@ pub(crate) fn spawn_runtime_tasks(
                         match msg {
                             Message::CommandRequest(req) => {
                                 if req.allowlisted {
-                                    let (send_result, tabs_json, selected_session_id) = {
+                                    let (send_result, tabs_json, selected_session_id, hydrated) = {
                                         let mut s = state.lock().unwrap();
                                         let mut hydrated = req.clone();
                                         s.hydrate_request_with_session_context(&mut hydrated);
@@ -67,10 +143,10 @@ pub(crate) fn spawn_runtime_tasks(
                                             });
                                         let tabs_json = s.session_tabs_to_json();
                                         let selected_session_id = s.selected_session_id.clone();
-                                        (send_result, tabs_json, selected_session_id)
+                                        (send_result, tabs_json, selected_session_id, hydrated)
                                     };
 
-                                    let req_clone = req.clone();
+                                    let req_clone = hydrated;
                                     let _ = qt.queue(move |mut obj| {
                                         obj.as_mut().set_session_tabs_json(tabs_json);
                                         obj.as_mut().set_current_session_id(QString::from(&selected_session_id));
@@ -90,69 +166,60 @@ pub(crate) fn spawn_runtime_tasks(
                                             Ok(()) => obj
                                                 .as_mut()
                                                 .set_status_text(QString::from("Allowlisted command auto-approved")),
-                                            Err(error) => obj
-                                                .as_mut()
-                                                .set_status_text(QString::from(&error)),
+                                            Err(error) => obj.as_mut().set_status_text(QString::from(
+                                                &format!("Failed to queue allowlisted command: {error}"),
+                                            )),
                                         }
                                     });
-                                    continue;
-                                }
+                                } else {
+                                    let (is_first, count, json, selected_cmd, tabs_json, selected_session_id) = {
+                                        let mut s = state.lock().unwrap();
+                                        let (is_first, count, json, selected_cmd) =
+                                            s.enqueue_pending_request(req.clone());
+                                        let tabs_json = s.session_tabs_to_json();
+                                        let selected_session_id = s.selected_session_id.clone();
+                                        (is_first, count, json, selected_cmd, tabs_json, selected_session_id)
+                                    };
 
-                                let (is_first, count, json, tabs_json, selected_session_id, selected_cmd) = {
-                                    let mut s = state.lock().unwrap();
-                                    let (is_first, count, json, selected_cmd) =
-                                        s.enqueue_pending_request(req.clone());
-                                    let tabs_json = s.session_tabs_to_json();
-                                    let selected_session_id = s.selected_session_id.clone();
-                                    (
-                                        is_first,
-                                        count,
-                                        json,
-                                        tabs_json,
-                                        selected_session_id,
-                                        selected_cmd,
-                                    )
-                                };
+                                    let req_clone = req.clone();
+                                    let _ = qt.queue(move |mut obj| {
+                                        obj.as_mut().set_pending_count(count);
+                                        obj.as_mut().set_pending_commands_json(json);
+                                        obj.as_mut().set_session_tabs_json(tabs_json);
+                                        obj.as_mut().set_current_session_id(QString::from(&selected_session_id));
 
-                                let _ = qt.queue(move |mut obj| {
-                                    obj.as_mut().set_pending_count(count);
-                                    obj.as_mut().set_pending_commands_json(json);
-                                    obj.as_mut().set_session_tabs_json(tabs_json);
-                                    obj.as_mut()
-                                        .set_current_session_id(QString::from(&selected_session_id));
-
-                                    if is_first {
-                                        if let Some(cmd) = selected_cmd.as_ref() {
-                                            obj.as_mut().set_command_text(QString::from(&*cmd.command));
-                                            obj.as_mut().set_working_directory(QString::from(
-                                                &*cmd.working_directory,
-                                            ));
-                                            obj.as_mut().set_context_info(QString::from(&*cmd.context));
-                                            obj.as_mut()
-                                                .set_current_request_id(QString::from(&*cmd.id));
-                                            obj.as_mut().set_current_session_id(QString::from(
-                                                &*cmd.session_id,
-                                            ));
-                                            obj.as_mut().set_current_terminal_profile(QString::from(
-                                                terminal_profile_to_key(&cmd.terminal_profile),
-                                            ));
-                                            obj.as_mut().set_current_workspace_path(QString::from(
-                                                &*cmd.workspace_path,
-                                            ));
-                                            obj.as_mut().set_current_venv_path(QString::from(
-                                                &*cmd.venv_path,
-                                            ));
-                                            obj.as_mut().set_current_activate_venv(cmd.activate_venv);
-                                            obj.as_mut().set_current_allowlisted(cmd.allowlisted);
+                                        if is_first {
+                                            if let Some(cmd) = selected_cmd.as_ref() {
+                                                obj.as_mut().set_command_text(QString::from(&*cmd.command));
+                                                obj.as_mut().set_working_directory(QString::from(
+                                                    &*cmd.working_directory,
+                                                ));
+                                                obj.as_mut().set_context_info(QString::from(&*cmd.context));
+                                                obj.as_mut().set_current_request_id(QString::from(&*cmd.id));
+                                                obj.as_mut().set_current_session_id(QString::from(
+                                                    &*cmd.session_id,
+                                                ));
+                                                obj.as_mut().set_current_terminal_profile(QString::from(
+                                                    terminal_profile_to_key(&cmd.terminal_profile),
+                                                ));
+                                                obj.as_mut().set_current_workspace_path(QString::from(
+                                                    &*cmd.workspace_path,
+                                                ));
+                                                obj.as_mut().set_current_venv_path(QString::from(
+                                                    &*cmd.venv_path,
+                                                ));
+                                                obj.as_mut().set_current_activate_venv(cmd.activate_venv);
+                                                obj.as_mut().set_current_allowlisted(cmd.allowlisted);
+                                            }
                                         }
-                                    }
 
-                                    obj.as_mut()
-                                        .set_status_text(QString::from("Command pending approval"));
+                                        obj.as_mut()
+                                            .set_status_text(QString::from("Command pending approval"));
 
-                                    let id = QString::from(&*req.id);
-                                    obj.as_mut().command_received(id);
-                                });
+                                        let id = QString::from(&*req_clone.id);
+                                        obj.as_mut().command_received(id);
+                                    });
+                                }
                             }
                             Message::SavedCommandsRequest(req) => {
                                 let mut notify_command_received: Option<String> = None;
@@ -308,6 +375,31 @@ pub(crate) fn spawn_runtime_tasks(
                                 let response = {
                                     let s = state.lock().unwrap();
                                     s.output_tracker.build_read_output_response(&req.id, &req.session_id)
+                                };
+                                let s = state.lock().unwrap();
+                                s.send_response(response);
+                            }
+                            Message::StartAgentSessionRequest(req) => {
+                                let response = {
+                                    let mut s = state.lock().unwrap();
+                                    hosted_session_adapter::handle_start_session(&mut *s, &req)
+                                };
+
+                                let s = state.lock().unwrap();
+                                s.send_response(response);
+                            }
+                            Message::ReadAgentSessionOutputRequest(req) => {
+                                let response = {
+                                    let s = state.lock().unwrap();
+                                    hosted_session_adapter::handle_read_session_output(&*s, &req)
+                                };
+                                let s = state.lock().unwrap();
+                                s.send_response(response);
+                            }
+                            Message::StopAgentSessionRequest(req) => {
+                                let response = {
+                                    let mut s = state.lock().unwrap();
+                                    hosted_session_adapter::handle_stop_session(&mut *s, &req)
                                 };
                                 let s = state.lock().unwrap();
                                 s.send_response(response);

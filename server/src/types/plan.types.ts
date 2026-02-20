@@ -7,6 +7,7 @@
 import type { AgentType, AgentSession, LineageEntry, AgentRoleBoundaries } from './agent.types.js';
 import type { BuildScript } from './build.types.js';
 import type { RequestCategory, RequestCategorization } from './context.types.js';
+import type { FormResponse } from './gui-forms.types.js';
 
 // =============================================================================
 // Step & Plan Status
@@ -34,6 +35,36 @@ export type StepType =
 export type PlanStatus = 'active' | 'paused' | 'completed' | 'archived' | 'failed';
 
 export type PlanPriority = 'low' | 'medium' | 'high' | 'critical';
+
+// =============================================================================
+// Paused-at Snapshot (Approval Gate)
+// =============================================================================
+
+/**
+ * Snapshot written to PlanState when an approval gate pauses a plan.
+ * Used by the resume workflow to pick up where the plan left off.
+ *
+ * When a paused plan is resumed, the Coordinator reads step_index and phase
+ * to re-enter the plan. The snapshot is cleared (set to undefined) once resumed.
+ */
+export interface PausedAtSnapshot {
+  /** ISO 8601 timestamp — when the pause occurred. */
+  paused_at: string;
+  /** 0-based step index that triggered the approval gate. */
+  step_index: number;
+  /** Phase name at time of pause. */
+  phase: string;
+  /** Step task description at time of pause. */
+  step_task: string;
+  /** Why the plan was paused. */
+  reason: 'rejected' | 'timeout' | 'deferred';
+  /** Full FormResponse for audit trail. */
+  approval_response?: FormResponse;
+  /** User's rejection notes (extracted from ConfirmRejectAnswer.notes). */
+  user_notes?: string;
+  /** Active agent session at time of pause. */
+  session_id?: string;
+}
 
 // =============================================================================
 // Step Type Metadata - Behavioral properties for each step type
@@ -253,6 +284,8 @@ export interface PlanState {
   is_program?: boolean;          // True if this plan is a program container
   child_plan_ids?: string[];     // IDs of child plans (only for programs)
   depends_on_plans?: string[];   // Cross-program dependency tracking for child plans
+  // Approval gate pause context
+  paused_at_snapshot?: PausedAtSnapshot;  // Written when approval gate pauses a plan
   created_at: string;
   updated_at: string;
   agent_sessions: AgentSession[];

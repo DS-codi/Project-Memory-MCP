@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 export interface PlanActionButtonOptions {
     showArchive?: boolean;
+    showResume?: boolean;
     showRunBuild?: boolean;
     showAddStep?: boolean;
     showOpenDashboard?: boolean;
@@ -62,10 +63,19 @@ export function renderPlanActionButtons(
 ): void {
     const {
         showArchive = true,
+        showResume = false,
         showRunBuild = true,
         showAddStep = true,
         showOpenDashboard = true,
     } = options;
+
+    if (showResume) {
+        stream.button({
+            command: 'projectMemory.resumePausedPlan',
+            title: 'Resume Plan',
+            arguments: [workspaceId, planId]
+        });
+    }
 
     if (showArchive) {
         stream.button({

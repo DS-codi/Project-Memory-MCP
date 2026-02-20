@@ -128,7 +128,11 @@ impl AppState {
 
         let saved_entry = {
             let model = self.workspace_model_mut(workspace_id)?;
-            let Some(saved) = model.commands.iter_mut().find(|entry| entry.id == command_id) else {
+            let Some(saved) = model
+                .commands
+                .iter_mut()
+                .find(|entry| entry.id == command_id)
+            else {
                 return Err("saved command not found".to_string());
             };
 

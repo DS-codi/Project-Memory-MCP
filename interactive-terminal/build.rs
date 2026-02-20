@@ -9,15 +9,11 @@ fn main() {
         res.compile().expect("Failed to compile Windows resources");
     }
 
-    CxxQtBuilder::new_qml_module(
-        QmlModule::new("com.projectmemory.terminal")
-            .qml_files([
-                "qml/main.qml",
-                "qml/CommandCard.qml",
-                "qml/DeclineDialog.qml",
-                "qml/OutputView.qml",
-            ]),
-    )
+    CxxQtBuilder::new_qml_module(QmlModule::new("com.projectmemory.terminal").qml_files([
+        "qml/main.qml",
+        "qml/CommandCard.qml",
+        "qml/OutputView.qml",
+    ]))
     .file("src/cxxqt_bridge/ffi.rs")
     .build();
 }

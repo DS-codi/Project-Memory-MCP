@@ -113,7 +113,9 @@ impl SavedCommandsRepository {
                 continue;
             }
 
-            if self.existing_workspace_commands_path(&workspace_id).is_none()
+            if self
+                .existing_workspace_commands_path(&workspace_id)
+                .is_none()
                 && self.workspace_legacy_commands_path(&workspace_id).is_none()
             {
                 continue;
@@ -156,8 +158,8 @@ impl SavedCommandsRepository {
     }
 
     pub fn workspace_commands_path(&self, workspace_id: &str) -> PathBuf {
-        let normalized_workspace_id = normalize_workspace_id(workspace_id)
-            .unwrap_or_else(|| "default".to_string());
+        let normalized_workspace_id =
+            normalize_workspace_id(workspace_id).unwrap_or_else(|| "default".to_string());
 
         Self::workspace_commands_path_for(
             &self.data_root,
@@ -258,8 +260,8 @@ mod tests {
         let root = unique_temp_dir();
         let repo = SavedCommandsRepository::new(root.clone());
 
-        let mut model = WorkspaceSavedCommands::empty_for_workspace("project-memory-mcp-40f6678f5a9b")
-            .unwrap();
+        let mut model =
+            WorkspaceSavedCommands::empty_for_workspace("project-memory-mcp-40f6678f5a9b").unwrap();
         model.commands.push(SavedCommand {
             id: "build".into(),
             name: "Build".into(),

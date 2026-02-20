@@ -93,13 +93,7 @@ fn set_start_with_windows_windows(enabled: bool, port: u16) -> Result<(), String
     }
 
     let output = Command::new("reg")
-        .args([
-            "delete",
-            RUN_KEY_PATH,
-            "/v",
-            RUN_VALUE_NAME,
-            "/f",
-        ])
+        .args(["delete", RUN_KEY_PATH, "/v", RUN_VALUE_NAME, "/f"])
         .output()
         .map_err(|error| format!("failed to execute reg delete: {error}"))?;
 

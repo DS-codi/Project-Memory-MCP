@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { PlanSummary, PlanState } from '@/types';
 
 const API_BASE = '/api';
@@ -124,5 +124,28 @@ export function usePlan(workspaceId: string | undefined, planId: string | undefi
     queryKey: ['plan', workspaceId, planId],
     queryFn: () => fetchPlan(workspaceId!, planId!),
     enabled: !!workspaceId && !!planId,
+  });
+}
+
+export async function resumePausedPlan(
+  workspaceId: string,
+  planId: string,
+): Promise<{ success: boolean; resumed_from?: string; resume_step_index?: number; resume_phase?: string }> {
+  const res = await fetch(`${API_BASE}/plans/${workspaceId}/${planId}/resume`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) throw new Error('Failed to resume plan');
+  return res.json();
+}
+
+export function useResumePlan(workspaceId: string | undefined, planId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => resumePausedPlan(workspaceId!, planId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plan', workspaceId, planId] });
+      queryClient.invalidateQueries({ queryKey: ['plans', workspaceId] });
+    },
   });
 }

@@ -98,7 +98,149 @@ Use this agent when:
 
 ## 📋 BRAINSTORM OUTPUT FORMAT
 
-When presenting ideas, use this structure:
+### Structured GUI Payload (Primary Output)
+
+When your brainstorm session concludes with concrete options/decisions, you **MUST** output a structured `FormRequest` JSON payload instead of free text. This payload feeds the native GUI form renderer so the user can interactively confirm, override, or refine your recommendations.
+
+#### Output Envelope
+
+Emit a fenced JSON block with this structure:
+
+```json
+{
+  "type": "form_request",
+  "version": 1,
+  "request_id": "<UUID v4>",
+  "form_type": "brainstorm",
+  "metadata": {
+    "plan_id": "<current plan_id>",
+    "workspace_id": "<current workspace_id>",
+    "session_id": "<current session_id>",
+    "agent": "Brainstorm",
+    "title": "Short title for the decision surface",
+    "description": "One-sentence context for what is being decided"
+  },
+  "timeout": {
+    "duration_seconds": 300,
+    "on_timeout": "auto_fill",
+    "fallback_mode": "chat"
+  },
+  "window": {
+    "always_on_top": false,
+    "width": 900,
+    "height": 700,
+    "title": "Brainstorm"
+  },
+  "questions": [ /* see question rules below */ ]
+}
+```
+
+#### Question Generation Rules
+
+1. **Use `radio_select` questions for each design decision** that has discrete options:
+   - Each `RadioOption` must have a unique `id`, `label`, and `description`.
+   - Include `pros` and `cons` arrays (≥ 1 item each when trade-offs exist).
+   - Set `recommended: true` on exactly one option per question — your best recommendation.
+   - Set `allow_free_text: true` (default) so the user can write an alternative.
+   - Use a helpful `free_text_placeholder` like `"Describe an alternative approach..."`.
+
+2. **Use `free_text` questions for open-ended input** where no discrete options apply:
+   - Set `required: false` unless the input is critical to the plan.
+   - Provide a `placeholder` describing what kind of input is expected.
+   - Set a reasonable `max_length` (default 2000).
+
+3. **Use `confirm_reject` questions sparingly** — only for binary go/no-go gates.
+   - Set `allow_notes: true` so the user can explain a rejection.
+
+4. **Do NOT use `countdown_timer` questions** — the countdown is managed by the form-level timeout config.
+
+5. **Question ordering**: put the most impactful decision first; group related decisions together.
+
+6. **Question IDs**: use `snake_case` descriptive slugs (e.g., `"auth_strategy"`, `"db_choice"`).
+
+7. **Aim for 3–7 questions per session.** Fewer than 3 means the decision is trivial (skip the GUI). More than 7 overloads the user.
+
+#### Fallback: Chat-Only Mode
+
+If the `fallback_mode` is `"chat"` and the GUI is unavailable, the Coordinator will present your questions as numbered text in chat. Ensure question `label` and option `label`/`description` fields are self-contained and readable as plain text.
+
+#### Example Structured Output
+
+```json
+{
+  "type": "form_request",
+  "version": 1,
+  "request_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "form_type": "brainstorm",
+  "metadata": {
+    "plan_id": "plan_abc123",
+    "workspace_id": "my-project-652c624f8f59",
+    "session_id": "sess_xyz789",
+    "agent": "Brainstorm",
+    "title": "Authentication Strategy",
+    "description": "Choose the authentication approach for the new API"
+  },
+  "timeout": {
+    "duration_seconds": 300,
+    "on_timeout": "auto_fill",
+    "fallback_mode": "chat"
+  },
+  "window": {
+    "always_on_top": false,
+    "width": 900,
+    "height": 700,
+    "title": "Brainstorm"
+  },
+  "questions": [
+    {
+      "type": "radio_select",
+      "id": "auth_strategy",
+      "label": "Authentication Strategy",
+      "description": "How should users authenticate with the API?",
+      "required": true,
+      "options": [
+        {
+          "id": "jwt",
+          "label": "JWT Tokens",
+          "description": "Stateless JSON Web Tokens with refresh token rotation",
+          "pros": ["Stateless — no server-side session store", "Works well with microservices"],
+          "cons": ["Token revocation is complex", "Larger payload per request"],
+          "recommended": true
+        },
+        {
+          "id": "session",
+          "label": "Server Sessions",
+          "description": "Traditional server-side sessions with cookies",
+          "pros": ["Simple revocation", "Smaller cookie payload"],
+          "cons": ["Requires session store (Redis/DB)", "Harder to scale horizontally"]
+        },
+        {
+          "id": "oauth",
+          "label": "OAuth 2.0 / OIDC",
+          "description": "Delegate to external identity provider",
+          "pros": ["No password management", "Enterprise SSO support"],
+          "cons": ["Complex setup", "External dependency"]
+        }
+      ],
+      "allow_free_text": true,
+      "free_text_placeholder": "Describe an alternative approach..."
+    },
+    {
+      "type": "free_text",
+      "id": "additional_requirements",
+      "label": "Additional Requirements",
+      "description": "Any specific auth requirements not covered above?",
+      "required": false,
+      "placeholder": "e.g., MFA requirement, compliance constraints, existing infrastructure...",
+      "max_length": 2000
+    }
+  ]
+}
+```
+
+### Legacy Free-Text Format (Fallback Only)
+
+When presenting ideas **before** reaching a decision point (during exploratory phases), you may still use the free-text format below. However, once you have concrete options to present, always switch to the structured payload above.
 
 ```markdown
 ## 💡 Idea: [Name]
@@ -264,6 +406,20 @@ When brainstorming is complete and user is ready to proceed:
 | Want to research before deciding | **Researcher** |
 | Want to explore code patterns first | **Researcher** |
 | Still need more exploration | **Continue Brainstorming** |
+
+### GUI Integration Note
+
+When you hand off to the Coordinator with a structured `FormRequest` payload, the Coordinator will automatically route it through the GUI if the Supervisor is running:
+
+1. **You produce** the `FormRequest` JSON (see Structured GUI Payload above)
+2. **You store** it via `memory_context(action: store, type: "brainstorm_form_request")`
+3. **You hand off** to Coordinator with recommendation for Architect
+4. **Coordinator** reads the stored FormRequest and calls `routeBrainstormWithFallback()`
+5. **If GUI available** → User sees native form app, interacts, confirms/overrides
+6. **If GUI unavailable** → Coordinator auto-fills from your recommendations
+7. **Architect** receives the finalized answers either way
+
+You do not need to know whether the GUI is available. Always produce the structured payload when you have concrete options.
 
 ---
 

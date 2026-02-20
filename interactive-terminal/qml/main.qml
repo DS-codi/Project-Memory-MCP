@@ -13,6 +13,7 @@ ApplicationWindow {
     minimumWidth: 900
     minimumHeight: 620
     title: "Interactive Terminal"
+    icon: terminalApp.trayIconUrl
     color: "#1e1e1e"
     Material.theme: Material.Dark
     Material.accent: Material.Blue
@@ -94,7 +95,7 @@ ApplicationWindow {
 
     function syncApprovalDialog() {
         if (terminalApp.pendingCount <= 0 || !terminalApp.currentRequestId) {
-            approvalDialog.visible = false
+            approvalDialog.close()
             approvalDialogRequest = ({})
             return
         }
@@ -104,7 +105,7 @@ ApplicationWindow {
         const source = parsedContext.source || {}
 
         if (terminalApp.currentAllowlisted) {
-            approvalDialog.visible = false
+            approvalDialog.close()
             approvalDialogRequest = ({})
             return
         }
@@ -126,9 +127,10 @@ ApplicationWindow {
         }
 
         root.showMainWindow()
-        approvalDialog.visible = true
-        approvalDialog.raise()
-        approvalDialog.requestActivate()
+        if (!approvalDialog.visible) {
+            approvalDialog.open()
+        }
+        approvalDialog.forceActiveFocus()
     }
 
     TerminalApp {
@@ -253,14 +255,18 @@ ApplicationWindow {
                 anchors.leftMargin: 16
                 anchors.rightMargin: 16
 
-                // Connection status dot
+                // Connection/status indicator
                 Rectangle {
                     width: 10; height: 10; radius: 5
-                    color: terminalApp.isConnected ? "#4caf50" : "#f44336"
+                    color: terminalApp.isConnected
+                        ? "#4caf50"
+                        : ((terminalApp.statusText || "").toLowerCase().indexOf("listening") >= 0 ? "#ff9800" : "#f44336")
                 }
 
                 Text {
-                    text: terminalApp.isConnected ? "Connected" : "Disconnected"
+                    text: terminalApp.isConnected
+                        ? "Connected"
+                        : ((terminalApp.statusText || "").toLowerCase().indexOf("listening") >= 0 ? "Listening" : "Disconnected")
                     color: "#808080"
                     font.pixelSize: 12
                 }
@@ -519,124 +525,43 @@ ApplicationWindow {
 
         Rectangle { Layout.fillWidth: true; height: 1; color: "#3c3c3c" }
 
-        // Main content: SplitView with command area and output
-        SplitView {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            orientation: Qt.Horizontal
-
-            // Left pane: Command cards
-            Rectangle {
-                SplitView.preferredWidth: Math.max(260, root.width * 0.35)
-                SplitView.minimumWidth: 240
-                color: "#1e1e1e"
-
-                ScrollView {
-                    anchors.fill: parent
-                    anchors.margins: 8
-
-                    ColumnLayout {
-                        width: parent.width - 16
-
-                        // Status text when no commands
-                        Text {
-                            visible: terminalApp.pendingCount === 0
-                            text: terminalApp.statusText || "Waiting for commands..."
-                            color: "#808080"
-                            font.pixelSize: 14
-                            Layout.alignment: Qt.AlignHCenter
-                            Layout.topMargin: 40
-                        }
-
-                        // Current command card
-                        CommandCard {
-                            visible: terminalApp.pendingCount > 0
-                            commandText: terminalApp.commandText
-                            workingDir: terminalApp.workingDirectory
-                            contextInfo: terminalApp.contextInfo
-                            requestId: terminalApp.currentRequestId
-                            Layout.fillWidth: true
-                        }
-                    }
-                }
-            }
-
-            // Right pane: Output
-            OutputView {
-                SplitView.preferredWidth: Math.max(420, root.width * 0.65)
-                SplitView.minimumWidth: 200
-                outputText: terminalApp.outputText
-                terminalApp: terminalApp
-            }
-        }
-
-        Rectangle { Layout.fillWidth: true; height: 1; color: "#3c3c3c" }
-
+        // Main content: single terminal panel
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 64
-            color: "#252526"
+            Layout.fillHeight: true
+            color: "#1e1e1e"
 
-            RowLayout {
+            OutputView {
                 anchors.fill: parent
-                anchors.topMargin: 8
-                anchors.bottomMargin: 8
-                anchors.leftMargin: 12
-                anchors.rightMargin: 12
-                spacing: 8
-
-                TextField {
-                    id: manualCommandInput
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 280
-                    enabled: root.hasActiveTerminalSession
-                    opacity: enabled ? 1.0 : 0.55
-                    placeholderText: enabled
-                        ? "Enter command for current session"
-                        : "No active terminal session"
-                    onAccepted: {
-                        if (terminalApp.runCommand(text)) {
-                            text = ""
-                        }
-                    }
-                }
-
-                Button {
-                    text: "Run"
-                    Layout.preferredWidth: 92
-                    enabled: root.hasActiveTerminalSession
-                    onClicked: {
-                        if (terminalApp.runCommand(manualCommandInput.text)) {
-                            manualCommandInput.text = ""
-                        }
-                    }
-                }
+                outputText: terminalApp.outputText
+                terminalApp: terminalApp
+                hasActiveTerminalSession: root.hasActiveTerminalSession
             }
         }
     }
 
-    // Decline dialog (modal)
-    DeclineDialog {
-        id: declineDialog
-    }
-
-    Window {
+    Dialog {
         id: approvalDialog
-        width: 700
-        height: 430
-        minimumWidth: 640
-        minimumHeight: 380
+        modal: true
+        anchors.centerIn: Overlay.overlay
+        width: Math.min(root.width * 0.8, 760)
+        height: Math.min(root.height * 0.75, 460)
+        closePolicy: Popup.NoAutoClose
         visible: false
-        modality: Qt.ApplicationModal
         title: "Terminal Approval Required"
-        color: "#1e1e1e"
-        flags: Qt.Dialog | Qt.WindowTitleHint | Qt.CustomizeWindowHint | Qt.WindowStaysOnTopHint
+        padding: 0
 
         onVisibleChanged: {
             if (visible) {
-                raise()
-                requestActivate()
+                forceActiveFocus()
             }
+        }
+
+        background: Rectangle {
+            color: "#1e1e1e"
+            border.color: "#3c3c3c"
+            border.width: 1
+            radius: 8
         }
 
         ColumnLayout {
@@ -657,54 +582,58 @@ ApplicationWindow {
                 color: "#3c3c3c"
             }
 
-            GridLayout {
+            ScrollView {
                 Layout.fillWidth: true
-                columns: 2
-                columnSpacing: 12
-                rowSpacing: 8
+                Layout.fillHeight: true
+                clip: true
 
-                Text { text: "Command"; color: "#808080"; font.pixelSize: 12 }
-                Text { text: approvalDialogRequest.command || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+                GridLayout {
+                    width: approvalDialog.width - 48
+                    columns: 2
+                    columnSpacing: 12
+                    rowSpacing: 8
 
-                Text { text: "Args"; color: "#808080"; font.pixelSize: 12 }
-                Text {
-                    text: Array.isArray(approvalDialogRequest.args) && approvalDialogRequest.args.length
-                        ? approvalDialogRequest.args.join(" ")
-                        : "(none)"
-                    color: "#d4d4d4"
-                    font.pixelSize: 12
-                    wrapMode: Text.WrapAnywhere
+                    Text { text: "Command"; color: "#808080"; font.pixelSize: 12 }
+                    Text { text: approvalDialogRequest.command || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+
+                    Text { text: "Args"; color: "#808080"; font.pixelSize: 12 }
+                    Text {
+                        text: Array.isArray(approvalDialogRequest.args) && approvalDialogRequest.args.length
+                            ? approvalDialogRequest.args.join(" ")
+                            : "(none)"
+                        color: "#d4d4d4"
+                        font.pixelSize: 12
+                        wrapMode: Text.WrapAnywhere
+                    }
+
+                    Text { text: "Mode"; color: "#808080"; font.pixelSize: 12 }
+                    Text { text: approvalDialogRequest.mode || "interactive"; color: "#d4d4d4"; font.pixelSize: 12 }
+
+                    Text { text: "Workspace ID"; color: "#808080"; font.pixelSize: 12 }
+                    Text { text: approvalDialogRequest.workspaceId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+
+                    Text { text: "Workspace Path"; color: "#808080"; font.pixelSize: 12 }
+                    Text { text: approvalDialogRequest.workspacePath || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+
+                    Text { text: "Working Directory"; color: "#808080"; font.pixelSize: 12 }
+                    Text { text: approvalDialogRequest.workingDirectory || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+
+                    Text { text: "Session ID"; color: "#808080"; font.pixelSize: 12 }
+                    Text { text: approvalDialogRequest.sessionId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+
+                    Text { text: "Request ID"; color: "#808080"; font.pixelSize: 12 }
+                    Text { text: approvalDialogRequest.requestId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+
+                    Text { text: "Trace ID"; color: "#808080"; font.pixelSize: 12 }
+                    Text { text: approvalDialogRequest.traceId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+
+                    Text { text: "Client Request ID"; color: "#808080"; font.pixelSize: 12 }
+                    Text { text: approvalDialogRequest.clientRequestId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+
+                    Text { text: "Approval Context ID"; color: "#808080"; font.pixelSize: 12 }
+                    Text { text: approvalDialogRequest.contextId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
                 }
-
-                Text { text: "Mode"; color: "#808080"; font.pixelSize: 12 }
-                Text { text: approvalDialogRequest.mode || "interactive"; color: "#d4d4d4"; font.pixelSize: 12 }
-
-                Text { text: "Workspace ID"; color: "#808080"; font.pixelSize: 12 }
-                Text { text: approvalDialogRequest.workspaceId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
-
-                Text { text: "Workspace Path"; color: "#808080"; font.pixelSize: 12 }
-                Text { text: approvalDialogRequest.workspacePath || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
-
-                Text { text: "Working Directory"; color: "#808080"; font.pixelSize: 12 }
-                Text { text: approvalDialogRequest.workingDirectory || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
-
-                Text { text: "Session ID"; color: "#808080"; font.pixelSize: 12 }
-                Text { text: approvalDialogRequest.sessionId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
-
-                Text { text: "Request ID"; color: "#808080"; font.pixelSize: 12 }
-                Text { text: approvalDialogRequest.requestId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
-
-                Text { text: "Trace ID"; color: "#808080"; font.pixelSize: 12 }
-                Text { text: approvalDialogRequest.traceId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
-
-                Text { text: "Client Request ID"; color: "#808080"; font.pixelSize: 12 }
-                Text { text: approvalDialogRequest.clientRequestId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
-
-                Text { text: "Approval Context ID"; color: "#808080"; font.pixelSize: 12 }
-                Text { text: approvalDialogRequest.contextId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
             }
-
-            Item { Layout.fillHeight: true }
 
             RowLayout {
                 Layout.alignment: Qt.AlignRight
@@ -713,11 +642,8 @@ ApplicationWindow {
                 Button {
                     text: "Deny"
                     onClicked: {
-                        terminalApp.declineCommand(
-                            terminalApp.currentRequestId,
-                            "Denied by user in topmost approval dialog"
-                        )
-                        approvalDialog.visible = false
+                        terminalApp.declineCommand(terminalApp.currentRequestId, "")
+                        approvalDialog.close()
                     }
                 }
 
@@ -725,7 +651,7 @@ ApplicationWindow {
                     text: "Approve"
                     onClicked: {
                         terminalApp.approveCommand(terminalApp.currentRequestId)
-                        approvalDialog.visible = false
+                        approvalDialog.close()
                     }
                 }
             }

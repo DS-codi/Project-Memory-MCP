@@ -934,6 +934,11 @@
         "category": "Project Memory"
       },
       {
+        "command": "projectMemory.resumePausedPlan",
+        "title": "Resume Paused Plan",
+        "category": "Project Memory"
+      },
+      {
         "command": "projectMemory.markStepActive",
         "title": "Mark Step Active",
         "category": "Project Memory"

@@ -13,6 +13,7 @@
  * - workspace.types.ts — Workspace metadata, profiles, context
  * - common.types.ts  — Tool parameters, responses, instruction files
  * - handoff-stats.types.ts — Handoff stats, incident reports, difficulty profiles
+ * - gui-forms.types.ts — FormRequest/FormResponse wire protocol types (GUI forms)
  */
 
 export * from './agent.types.js';
@@ -30,3 +31,4 @@ export * from './skill.types.js';
 export * from './workspace.types.js';
 export * from './preflight.types.js';
 export * from './common.types.js';
+export * from './gui-forms.types.js';
