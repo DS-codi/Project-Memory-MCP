@@ -70,8 +70,8 @@
       {
         "name": "memory_workspace",
         "displayName": "Project Memory Workspace",
-        "description": "Manage workspaces - register, list, get info, reindex, or link/unlink hierarchy",
-        "modelDescription": "Manage Project Memory workspaces. Actions: 'register' to register a workspace (optional workspacePath), 'list' to list all workspaces (optional hierarchical=true for nested view), 'info' to get workspace details (optional workspaceId), 'reindex' to refresh the codebase profile (optional workspaceId), 'link' to link/unlink parent-child workspace hierarchy (requires workspaceId as parent, childWorkspaceId, optional mode='link'|'unlink').",
+        "description": "Manage workspaces - register, list, get info, reindex, link/unlink hierarchy, migrate, merge, scan ghosts",
+        "modelDescription": "Manage Project Memory workspaces. Actions: 'register' to register a workspace (optional workspacePath), 'list' to list all workspaces (optional hierarchical=true for nested view), 'info' to get workspace details (optional workspaceId), 'reindex' to refresh the codebase profile (optional workspaceId), 'link' to link/unlink parent-child workspace hierarchy (requires workspaceId as parent, childWorkspaceId, optional mode='link'|'unlink'), 'migrate' to migrate an old workspace (requires workspacePath), 'merge' to merge two workspaces (requires sourceWorkspaceId, targetWorkspaceId), 'scan_ghosts' to detect unregistered ghost directories.",
         "parametersSchema": {
           "type": "object",
           "properties": {
@@ -82,7 +82,10 @@
                 "list",
                 "info",
                 "reindex",
-                "link"
+                "link",
+                "migrate",
+                "merge",
+                "scan_ghosts"
               ],
               "description": "The action to perform"
             },
@@ -113,6 +116,18 @@
             "hierarchical": {
               "type": "boolean",
               "description": "When true, group child workspaces under parents in list results (for list action)"
+            },
+            "sourceWorkspaceId": {
+              "type": "string",
+              "description": "Source workspace ID to merge from (for merge action)"
+            },
+            "targetWorkspaceId": {
+              "type": "string",
+              "description": "Target workspace ID to merge into (for merge action)"
+            },
+            "dryRun": {
+              "type": "boolean",
+              "description": "Preview merge without making changes (for merge action, default true)"
             }
           },
           "required": [
@@ -194,8 +209,8 @@
       {
         "name": "memory_plan",
         "displayName": "Project Memory Plan",
-        "description": "Manage plans - list, get, create, archive, update, find, set goals, manage build scripts, add notes",
-        "modelDescription": "Manage Project Memory plans. Actions: 'list' to see all plans, 'get' to retrieve a plan by planId, 'create' to start a new plan (requires title, description), 'archive' to archive a plan, 'update' to update plan steps, 'find' to find a plan by ID, 'set_goals' to set goals and success criteria, 'add_build_script' to add a build script (requires scriptName, scriptCommand), 'delete_build_script' to remove a build script (requires scriptId), 'add_note' to add a note (requires note).",
+        "description": "Manage plans - list, get, create, archive, update, find, set goals, manage build scripts, add notes, program management",
+        "modelDescription": "Manage Project Memory plans. Actions: 'list' to see all plans, 'get' to retrieve a plan by planId, 'create' to start a new plan (requires title, description), 'archive' to archive a plan, 'update' to update plan steps, 'find' to find a plan by ID, 'set_goals' to set goals and success criteria, 'add_build_script' to add a build script (requires scriptName, scriptCommand), 'delete_build_script' to remove a build script (requires scriptId), 'add_note' to add a note (requires note). Program management: 'create_program', 'add_plan_to_program', 'upgrade_to_program', 'list_program_plans', 'clone_plan', 'merge_plans', 'set_plan_dependencies', 'get_plan_dependencies', 'set_plan_priority', 'export_plan'.",
         "parametersSchema": {
           "type": "object",
           "properties": {
@@ -216,6 +231,11 @@
                 "add_plan_to_program",
                 "upgrade_to_program",
                 "list_program_plans",
+                "clone_plan",
+                "merge_plans",
+                "set_plan_dependencies",
+                "get_plan_dependencies",
+                "set_plan_priority",
                 "export_plan"
               ],
               "description": "The action to perform"
@@ -315,6 +335,10 @@
               "type": "string",
               "description": "Program ID (for program actions)"
             },
+            "programId": {
+              "type": "string",
+              "description": "Program ID in camelCase (for program actions — add_plan_to_program, list_program_plans)"
+            },
             "move_steps_to_child": {
               "type": "boolean",
               "description": "Move existing steps to a child plan when upgrading to program"
@@ -322,6 +346,24 @@
             "child_plan_title": {
               "type": "string",
               "description": "Title for child plan when upgrading with move_steps_to_child"
+            },
+            "new_title": {
+              "type": "string",
+              "description": "New title for cloned plan (for clone_plan)"
+            },
+            "sourcePlanIds": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Source plan IDs to merge from (for merge_plans)"
+            },
+            "depends_on_plans": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Array of plan IDs this plan depends on (for set_plan_dependencies)"
+            },
+            "archive_sources": {
+              "type": "boolean",
+              "description": "Archive source plans after merge (for merge_plans)"
             }
           },
           "required": [
@@ -1187,6 +1229,39 @@
           "type": "number",
           "default": 3000,
           "description": "Port where the containerized MCP server is expected (Streamable HTTP + SSE)"
+        },
+        "supervisor.startupMode": {
+          "type": "string",
+          "enum": [
+            "off",
+            "prompt",
+            "auto"
+          ],
+          "default": "auto",
+          "description": "Controls whether the extension auto-starts the Supervisor on activation.",
+          "enumDescriptions": [
+            "Never start Supervisor automatically",
+            "Prompt user before starting Supervisor",
+            "Automatically start Supervisor on extension activation"
+          ]
+        },
+        "supervisor.launcherPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the Supervisor launcher executable. Leave empty to use bundled launcher.",
+          "scope": "application"
+        },
+        "supervisor.detectTimeoutMs": {
+          "type": "number",
+          "default": 1000,
+          "minimum": 100,
+          "description": "Timeout (ms) for detecting an already-running Supervisor on activation."
+        },
+        "supervisor.startupTimeoutMs": {
+          "type": "number",
+          "default": 15000,
+          "minimum": 1000,
+          "description": "Maximum time (ms) to wait for Supervisor to reach ready state after launch."
         }
       }
     },

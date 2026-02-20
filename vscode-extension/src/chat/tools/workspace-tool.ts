@@ -1,7 +1,8 @@
 /**
  * Workspace Tool Handler — memory_workspace language model tool
  *
- * Actions: register, list, info, reindex
+ * Actions: register, list, info, reindex, set_display_name,
+ *          migrate, merge, scan_ghosts
  */
 
 import * as vscode from 'vscode';
@@ -9,11 +10,16 @@ import { McpBridge } from '../McpBridge';
 import type { ToolContext } from './types';
 
 export interface WorkspaceToolInput {
-    action: 'register' | 'list' | 'info' | 'reindex' | 'set_display_name';
+    action: 'register' | 'list' | 'info' | 'reindex' | 'set_display_name'
+        | 'migrate' | 'merge' | 'scan_ghosts';
     workspacePath?: string;
     workspaceId?: string;
     displayName?: string;
     display_name?: string;
+    // migrate / merge
+    sourceWorkspaceId?: string;
+    targetWorkspaceId?: string;
+    dryRun?: boolean;
 }
 
 export async function handleWorkspaceTool(
@@ -76,6 +82,42 @@ export async function handleWorkspaceTool(
                     action: 'set_display_name',
                     workspace_id: wsId,
                     display_name: nextDisplayName
+                });
+                break;
+            }
+
+            // ── Migration / Ghost management (Migrator agent) ────────
+
+            case 'migrate': {
+                const { workspacePath: migratePath } = options.input;
+                const wsPath = migratePath ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+                if (!wsPath) {
+                    return errorResult('workspacePath is required for migrate');
+                }
+                result = await ctx.mcpBridge.callTool('memory_workspace', {
+                    action: 'migrate',
+                    workspace_path: wsPath
+                });
+                break;
+            }
+
+            case 'merge': {
+                const { sourceWorkspaceId, targetWorkspaceId, dryRun } = options.input;
+                if (!sourceWorkspaceId || !targetWorkspaceId) {
+                    return errorResult('sourceWorkspaceId and targetWorkspaceId are required for merge');
+                }
+                result = await ctx.mcpBridge.callTool('memory_workspace', {
+                    action: 'merge',
+                    source_workspace_id: sourceWorkspaceId,
+                    target_workspace_id: targetWorkspaceId,
+                    dry_run: dryRun ?? true
+                });
+                break;
+            }
+
+            case 'scan_ghosts': {
+                result = await ctx.mcpBridge.callTool('memory_workspace', {
+                    action: 'scan_ghosts'
                 });
                 break;
             }

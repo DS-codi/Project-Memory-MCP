@@ -24,6 +24,9 @@ import { clearIdentityCache } from './utils/workspace-identity';
 import { getDashboardFrontendUrl } from './server/ContainerDetection';
 import { registerServerCommands, registerDeployCommands, registerPlanCommands, registerWorkspaceCommands } from './commands';
 import { extractWorkspaceIdFromRegisterResponse, resolveWorkspaceIdFromWorkspaceList } from './chat/workspaceRegistration';
+import { readSupervisorSettings } from './supervisor/settings';
+import { runSupervisorActivation } from './supervisor/activation';
+import { enterDegradedMode } from './supervisor/degraded';
 
 // --- Module-level state ---
 let dashboardProvider: DashboardViewProvider;
@@ -174,6 +177,22 @@ export function activate(context: vscode.ExtensionContext) {
     if (idleTimeout > 0) {
         serverManager.startIdleMonitoring(idleTimeout);
     }
+
+    // --- Supervisor activation (fire-and-forget before MCP attach) ---
+    // runSupervisorActivation is async; we do not await it so extension
+    // activation is not blocked. Degraded mode is surfaced via status bar item.
+    const supervisorSettings = readSupervisorSettings();
+    runSupervisorActivation(context, supervisorSettings).then(supervisorResult => {
+        if (supervisorResult === 'degraded') {
+            enterDegradedMode(
+                context,
+                'Supervisor did not start in time. Click to retry.'
+            );
+        }
+    }).catch(err => {
+        console.error('[Supervisor] Activation error:', err);
+        enterDegradedMode(context, String(err));
+    });
 
     // --- Chat integration (lightweight init, async connect) ---
     const isExtensionHostTest = process.env.PROJECT_MEMORY_TEST_MODE === '1';

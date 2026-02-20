@@ -19,6 +19,7 @@ export async function run(): Promise<void> {
         path.resolve(__dirname, '.'),
         path.resolve(__dirname, '../chat'),
         path.resolve(__dirname, '../ui'),
+        path.resolve(__dirname, '../supervisor'),
     ];
 
     for (const root of testRoots) {

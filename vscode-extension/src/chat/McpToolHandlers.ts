@@ -128,6 +128,30 @@ export async function handleMemoryWorkspace(
             });
         }
 
+        case 'migrate': {
+            const workspacePath = args.workspace_path as string | undefined;
+            if (!workspacePath) {
+                throw new Error('workspace_path is required for migrate');
+            }
+            return client.httpPost('/api/workspaces/migrate', { workspace_path: workspacePath });
+        }
+
+        case 'merge': {
+            const sourceWorkspaceId = (args.source_workspace_id as string | undefined);
+            const targetWorkspaceId = (args.target_workspace_id as string | undefined);
+            if (!sourceWorkspaceId || !targetWorkspaceId) {
+                throw new Error('source_workspace_id and target_workspace_id are required for merge');
+            }
+            return client.httpPost('/api/workspaces/merge', {
+                source_workspace_id: sourceWorkspaceId,
+                target_workspace_id: targetWorkspaceId,
+                dry_run: args.dry_run ?? true
+            });
+        }
+
+        case 'scan_ghosts':
+            return client.httpGet('/api/workspaces/ghosts');
+
         default:
             throw new Error(`Unknown memory_workspace action: ${action}`);
     }

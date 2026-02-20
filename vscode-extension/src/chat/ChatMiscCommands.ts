@@ -35,6 +35,7 @@ const KNOWN_AGENT_TYPES = [
     'Cognition',
     'Builder',
     'TDDDriver',
+    'Migrator',
 ] as const;
 
 function canonicalizeAgentType(agentToken: string): string {
