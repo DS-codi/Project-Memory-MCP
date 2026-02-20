@@ -10,8 +10,8 @@ use pm_gui_forms::protocol::{
     FormRequest, FormResponse, FormStatus, FormType, FreeTextQuestion, Question, RadioOption,
     RadioSelectQuestion, ResponseMetadata, TimeoutAction, TimeoutConfig, WindowConfig,
 };
-use pm_gui_forms::protocol::answers::{ConfirmRejectAction, TimerResult};
-use pm_gui_forms::protocol::envelope::{FormRequestTag, FormResponseTag, RefinementRequestEntry};
+use pm_gui_forms::protocol::{ConfirmRejectAction, TimerResult};
+use pm_gui_forms::protocol::{FormRequestTag, FormResponseTag, RefinementRequestEntry};
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -319,6 +319,7 @@ fn sample_response_metadata() -> ResponseMetadata {
         completed_at: Some(Utc::now()),
         duration_ms: 12345,
         auto_filled_count: 0,
+        refinement_count: 0,
     }
 }
 
@@ -351,6 +352,7 @@ fn form_response_round_trip_json() {
             },
         ],
         refinement_requests: vec![],
+        refinement_session: None,
     };
 
     let json_str = serde_json::to_string_pretty(&response).unwrap();
@@ -372,6 +374,7 @@ fn form_response_type_tag_serializes_correctly() {
         metadata: sample_response_metadata(),
         answers: vec![],
         refinement_requests: vec![],
+        refinement_session: None,
     };
     let val: Value = serde_json::to_value(&response).unwrap();
     assert_eq!(val["type"], "form_response");
@@ -388,6 +391,7 @@ fn form_response_type_tag_rejects_wrong_value() {
         metadata: sample_response_metadata(),
         answers: vec![],
         refinement_requests: vec![],
+        refinement_session: None,
     };
     let mut val: Value = serde_json::to_value(&response).unwrap();
     val["type"] = json!("not_form_response");
@@ -406,6 +410,7 @@ fn form_response_skips_empty_refinement_requests() {
         metadata: sample_response_metadata(),
         answers: vec![],
         refinement_requests: vec![],
+        refinement_session: None,
     };
     let val: Value = serde_json::to_value(&response).unwrap();
     assert!(
@@ -428,6 +433,7 @@ fn form_response_with_refinement_requests() {
             question_id: "q_arch".into(),
             feedback: "Need more detail on option B".into(),
         }],
+        refinement_session: None,
     };
     let json_str = serde_json::to_string(&response).unwrap();
     let parsed: FormResponse = serde_json::from_str(&json_str).unwrap();

@@ -163,12 +163,12 @@ ${getSessionsSectionHtml(iconSvgs)}
                             <section class="collapsible" id="widget-plans">
                                 <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-plans">
                                     <span class="chevron">></span>
-                                    <h3>Plans</h3>
+                                    <h3>Plans & Programs</h3>
                                 </button>
                                 <div class="collapsible-content">
                                     <div class="plans-widget">
                                         <div class="plans-header">
-                                            <h3>Plans</h3>
+                                            <h3>Plans & Programs</h3>
                                         </div>
                                         <div class="plans-tabs">
                                             <button class="plans-tab active" id="plansTabActive" data-tab="active">

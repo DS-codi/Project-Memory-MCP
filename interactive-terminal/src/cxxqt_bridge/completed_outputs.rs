@@ -4,7 +4,8 @@
 //! so that `ReadOutputRequest` and `KillSessionRequest` can be served over TCP.
 
 use crate::protocol::{
-    AgentSessionState, HostedSessionKind, Message, ReadAgentSessionOutputResponse,
+    AgentSessionRecord, AgentSessionState, GetAgentSessionResponse, HostedSessionKind,
+    ListAgentSessionsResponse, Message, ReadAgentSessionOutputResponse,
     StartAgentSessionResponse, StopAgentSessionResponse,
 };
 use crate::terminal_core::output_tracker::CoreOutputTracker;
@@ -33,6 +34,36 @@ pub struct OutputTracker {
 }
 
 impl OutputTracker {
+    fn session_record(&self, session: &HostedSessionProjection) -> AgentSessionRecord {
+        let entry = self.core.completed.get(&session.request_id);
+        AgentSessionRecord {
+            session_id: session.session_id.clone(),
+            runtime_session_id: session.runtime_session_id.clone(),
+            session_kind: session.session_kind.clone(),
+            state: session.state.clone(),
+            stop_escalation_level: session.stop_escalation_level,
+            running: entry.map(|item| item.running).unwrap_or(matches!(
+                session.state,
+                AgentSessionState::Starting | AgentSessionState::Running | AgentSessionState::Stopping
+            )),
+            exit_code: entry.and_then(|item| item.exit_code),
+        }
+    }
+
+    fn status_matches_filter(state: &AgentSessionState, status_filter: &str) -> bool {
+        let normalized = status_filter.trim().to_ascii_lowercase();
+        match normalized.as_str() {
+            "" | "all" => true,
+            "active" => matches!(state, AgentSessionState::Starting | AgentSessionState::Running),
+            "stopping" => matches!(state, AgentSessionState::Stopping),
+            "completed" => matches!(
+                state,
+                AgentSessionState::Stopped | AgentSessionState::Completed | AgentSessionState::Failed
+            ),
+            _ => false,
+        }
+    }
+
     /// Record a completed output entry (or update a running one).
     pub fn store(&mut self, output: CompletedOutput) {
         self.core.store(output);
@@ -269,6 +300,40 @@ impl OutputTracker {
             queued,
             message,
             error,
+        })
+    }
+
+    pub fn list_hosted_sessions(&self, response_id: &str, status_filter: &str) -> Message {
+        let sessions = self
+            .hosted_sessions
+            .values()
+            .filter(|session| Self::status_matches_filter(&session.state, status_filter))
+            .map(|session| self.session_record(session))
+            .collect::<Vec<_>>();
+
+        Message::ListAgentSessionsResponse(ListAgentSessionsResponse {
+            id: response_id.to_string(),
+            session_kind: HostedSessionKind::AgentCliSpecialized,
+            count: sessions.len(),
+            sessions,
+        })
+    }
+
+    pub fn get_hosted_session(&self, response_id: &str, session_id: &str) -> Message {
+        let session = self
+            .hosted_sessions
+            .get(session_id)
+            .map(|projection| self.session_record(projection));
+
+        Message::GetAgentSessionResponse(GetAgentSessionResponse {
+            id: response_id.to_string(),
+            session_kind: HostedSessionKind::AgentCliSpecialized,
+            error: if session.is_some() {
+                None
+            } else {
+                Some("Hosted session not found".to_string())
+            },
+            session,
         })
     }
 

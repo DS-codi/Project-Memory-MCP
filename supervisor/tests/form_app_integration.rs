@@ -223,6 +223,8 @@ fn form_app_response_success_roundtrip() {
         error: None,
         elapsed_ms: 1234,
         timed_out: false,
+        pending_refinement: false,
+        session_id: None,
     };
 
     let json_str = serde_json::to_string(&resp).expect("serialize");
@@ -248,6 +250,8 @@ fn form_app_response_error_roundtrip() {
         error: Some("process crashed".to_string()),
         elapsed_ms: 50,
         timed_out: false,
+        pending_refinement: false,
+        session_id: None,
     };
 
     let json_str = serde_json::to_string(&resp).expect("serialize");
@@ -268,6 +272,8 @@ fn form_app_response_timeout_roundtrip() {
         error: Some("slow_gui timed out after 60s".to_string()),
         elapsed_ms: 60_000,
         timed_out: true,
+        pending_refinement: false,
+        session_id: None,
     };
 
     let json_str = serde_json::to_string(&resp).expect("serialize");
@@ -287,6 +293,8 @@ fn form_app_response_skip_serializing_none_fields() {
         error: None,
         elapsed_ms: 0,
         timed_out: false,
+        pending_refinement: false,
+        session_id: None,
     };
     let json_str = serde_json::to_string(&resp).expect("serialize");
     assert!(
@@ -308,6 +316,8 @@ fn form_app_response_inside_control_response_envelope() {
         error: None,
         elapsed_ms: 500,
         timed_out: false,
+        pending_refinement: false,
+        session_id: None,
     };
     let data = serde_json::to_value(&inner).expect("to_value");
     let envelope = ControlResponse::ok(data);
@@ -716,7 +726,7 @@ async fn launch_form_app_with_env_vars() {
         args: vec![
             "-NoProfile".to_string(),
             "-Command".to_string(),
-            r#"Write-Host (ConvertTo-Json @{test_var=$env:PM_TEST_VAR})"#.to_string(),
+            r#"Write-Output (ConvertTo-Json @{test_var=$env:PM_TEST_VAR} -Compress)"#.to_string(),
         ],
         env: {
             let mut m = HashMap::new();
@@ -793,6 +803,8 @@ fn form_app_response_all_fields_present_on_wire() {
         error: Some("oops".to_string()),
         elapsed_ms: 42,
         timed_out: true,
+        pending_refinement: false,
+        session_id: None,
     };
     let json_str = serde_json::to_string(&resp).unwrap();
     // When all fields have values, all should be serialised.

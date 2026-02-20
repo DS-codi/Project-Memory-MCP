@@ -2,7 +2,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 pub use crate::integration::agent_session_protocol::{
-    AgentSessionState, HostedSessionKind, ReadAgentSessionOutputRequest,
+    AgentSessionRecord, AgentSessionState, GetAgentSessionRequest, GetAgentSessionResponse,
+    HostedSessionKind, ListAgentSessionsRequest, ListAgentSessionsResponse,
+    ReadAgentSessionOutputRequest,
     ReadAgentSessionOutputResponse, StartAgentSessionRequest, StartAgentSessionResponse,
     StopAgentSessionRequest, StopAgentSessionResponse,
 };
@@ -22,6 +24,10 @@ pub enum Message {
     ReadAgentSessionOutputResponse(ReadAgentSessionOutputResponse),
     StopAgentSessionRequest(StopAgentSessionRequest),
     StopAgentSessionResponse(StopAgentSessionResponse),
+    ListAgentSessionsRequest(ListAgentSessionsRequest),
+    ListAgentSessionsResponse(ListAgentSessionsResponse),
+    GetAgentSessionRequest(GetAgentSessionRequest),
+    GetAgentSessionResponse(GetAgentSessionResponse),
     SavedCommandsRequest(SavedCommandsRequest),
     SavedCommandsResponse(SavedCommandsResponse),
     Heartbeat(Heartbeat),

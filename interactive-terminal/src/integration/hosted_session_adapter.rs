@@ -1,5 +1,6 @@
 use crate::integration::agent_session_protocol::{
-    HostedSessionKind, ReadAgentSessionOutputRequest, StartAgentSessionRequest,
+    GetAgentSessionRequest, HostedSessionKind, ListAgentSessionsRequest,
+    ReadAgentSessionOutputRequest, StartAgentSessionRequest,
     StopAgentSessionRequest,
 };
 use crate::protocol::{CommandRequest, Message, TerminalProfile};
@@ -42,6 +43,8 @@ pub trait HostedSessionAdapter {
         session_id: &str,
         escalation_level: u8,
     ) -> Message;
+    fn list_hosted_sessions(&self, response_id: &str, status_filter: &str) -> Message;
+    fn get_hosted_session(&self, response_id: &str, session_id: &str) -> Message;
 }
 
 fn effective_runtime_session_id(req: &StartAgentSessionRequest) -> String {
@@ -200,4 +203,15 @@ pub fn handle_stop_session(
     req: &StopAgentSessionRequest,
 ) -> Message {
     adapter.stop_hosted_session(&req.id, &req.session_id, req.escalation_level)
+}
+
+pub fn handle_list_sessions(
+    adapter: &impl HostedSessionAdapter,
+    req: &ListAgentSessionsRequest,
+) -> Message {
+    adapter.list_hosted_sessions(&req.id, &req.status_filter)
+}
+
+pub fn handle_get_session(adapter: &impl HostedSessionAdapter, req: &GetAgentSessionRequest) -> Message {
+    adapter.get_hosted_session(&req.id, &req.session_id)
 }

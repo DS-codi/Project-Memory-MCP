@@ -89,6 +89,16 @@ impl hosted_session_adapter::HostedSessionAdapter for AppState {
         self.output_tracker
             .stop_hosted_session(response_id, session_id, escalation_level)
     }
+
+    fn list_hosted_sessions(&self, response_id: &str, status_filter: &str) -> Message {
+        self.output_tracker
+            .list_hosted_sessions(response_id, status_filter)
+    }
+
+    fn get_hosted_session(&self, response_id: &str, session_id: &str) -> Message {
+        self.output_tracker
+            .get_hosted_session(response_id, session_id)
+    }
 }
 
 pub(crate) fn spawn_runtime_tasks(
@@ -400,6 +410,22 @@ pub(crate) fn spawn_runtime_tasks(
                                 let response = {
                                     let mut s = state.lock().unwrap();
                                     hosted_session_adapter::handle_stop_session(&mut *s, &req)
+                                };
+                                let s = state.lock().unwrap();
+                                s.send_response(response);
+                            }
+                            Message::ListAgentSessionsRequest(req) => {
+                                let response = {
+                                    let s = state.lock().unwrap();
+                                    hosted_session_adapter::handle_list_sessions(&*s, &req)
+                                };
+                                let s = state.lock().unwrap();
+                                s.send_response(response);
+                            }
+                            Message::GetAgentSessionRequest(req) => {
+                                let response = {
+                                    let s = state.lock().unwrap();
+                                    hosted_session_adapter::handle_get_session(&*s, &req)
                                 };
                                 let s = state.lock().unwrap();
                                 s.send_response(response);

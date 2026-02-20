@@ -14,24 +14,67 @@
  */
 export function getClientHelpers(): string {
     return `
+        function normalizePlanEntity(plan) {
+            const planId = plan.id || plan.plan_id || 'unknown';
+            const title = plan.title || '(untitled)';
+            const status = (plan.status || 'unknown').toLowerCase();
+            const category = plan.category || 'general';
+            const isProgram = Boolean(plan.is_program);
+            const schemaVersion = plan.schema_version || null;
+            const currentPhase = plan.current_phase || plan.phase || null;
+            const progressDone = plan.progress?.done || 0;
+            const progressTotal = plan.progress?.total || 0;
+            const childPlanCount = Array.isArray(plan.child_plan_ids)
+                ? plan.child_plan_ids.length
+                : (typeof plan.child_plans_count === 'number' ? plan.child_plans_count : null);
+            return {
+                ...plan,
+                id: planId,
+                title,
+                status,
+                category,
+                is_program: isProgram,
+                schema_version: schemaVersion,
+                current_phase: currentPhase,
+                progress: {
+                    done: progressDone,
+                    total: progressTotal,
+                },
+                child_plans_count: childPlanCount,
+            };
+        }
+
         function renderPlanList(plans, type) {
             if (plans.length === 0) {
                 return '<div class="empty-state">No ' + type + ' plans</div>';
             }
             return plans.map(plan => {
-                const planId = plan.id || plan.plan_id || 'unknown';
-                const shortId = planId.split('_').pop() || planId.substring(0, 8);
+                const planId = plan.id || 'unknown';
+                const entityType = plan.is_program ? 'Program' : 'Plan';
+                const entityClass = plan.is_program ? 'program' : 'plan';
+                const metaParts = [
+                    (plan.category || 'general'),
+                    (plan.progress?.done || 0) + '/' + (plan.progress?.total || 0) + ' steps',
+                ];
+                if (plan.schema_version) {
+                    metaParts.push('v' + plan.schema_version);
+                }
+                if (plan.current_phase) {
+                    metaParts.push(plan.current_phase);
+                }
+                if (plan.is_program && typeof plan.child_plans_count === 'number') {
+                    metaParts.push(plan.child_plans_count + ' child plans');
+                }
                 return \`
                     <div class="plan-item">
                         <div class="plan-info">
                             <div class="plan-title" title="\${plan.title}">\${plan.title}</div>
                             <div class="plan-meta">
-                                <span>\${plan.category || 'general'}</span>
-                                <span>&#8226;</span>
-                                <span>\${plan.progress?.done || 0}/\${plan.progress?.total || 0} steps</span>
+                                <span class="entity-badge ${entityClass}">${entityType}</span>
+                                ${metaParts.map(part => `<span>${part}</span>`).join('<span>&#8226;</span>')}
                             </div>
                         </div>
-                        <span class="plan-status \${plan.status}">\${plan.status}</span>
+                        <span class="plan-status ${plan.status}">${plan.status}</span>
                         <div class="plan-actions">
                             <button class="btn btn-small btn-secondary" data-action="copy" data-copy="\${planId}" title="Copy plan ID">&#128203;</button>
                             <button class="btn btn-small btn-secondary" data-action="open-plan-browser" data-plan-id="\${planId}" title="Open plan in default browser">&#8599;</button>
@@ -56,11 +99,15 @@ export function getClientHelpers(): string {
 
         function getPlanSignature(plans) {
             return plans.map(plan => {
-                const id = plan.id || plan.plan_id || 'unknown';
+                const id = plan.id || 'unknown';
                 const status = plan.status || 'unknown';
+                const type = plan.is_program ? 'program' : 'plan';
+                const schemaVersion = plan.schema_version || '';
+                const phase = plan.current_phase || '';
                 const done = plan.progress?.done || 0;
                 const total = plan.progress?.total || 0;
-                return id + ':' + status + ':' + done + '/' + total;
+                const childCount = typeof plan.child_plans_count === 'number' ? plan.child_plans_count : '';
+                return id + ':' + type + ':' + status + ':' + schemaVersion + ':' + phase + ':' + childCount + ':' + done + '/' + total;
             }).join('|');
         }
 
@@ -77,9 +124,9 @@ export function getClientHelpers(): string {
                     const data = await response.json();
                     console.log('Plans data:', data);
                     const allPlans = Array.isArray(data.plans) ? data.plans : [];
-                    const nonPrograms = allPlans.filter(p => !p.is_program);
-                    const nextActive = nonPrograms.filter(p => (p.status || '').toLowerCase() !== 'archived');
-                    const nextArchived = nonPrograms.filter(p => (p.status || '').toLowerCase() === 'archived');
+                    const normalized = allPlans.map(normalizePlanEntity);
+                    const nextActive = normalized.filter(p => p.status !== 'archived');
+                    const nextArchived = normalized.filter(p => p.status === 'archived');
                     const signature = getPlanSignature(nextActive) + '||' + getPlanSignature(nextArchived);
                     if (signature !== lastPlanSignature) {
                         lastPlanSignature = signature;

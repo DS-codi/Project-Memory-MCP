@@ -10,7 +10,7 @@ use pm_gui_forms::protocol::{
     FormResponse, FormStatus, FormType, Question, ResponseMetadata, RefinementSession, QuestionDiff,
     FormRefinementRequest, FormRefinementResponse, RefinementEntry,
 };
-use pm_gui_forms::protocol::envelope::FormResponseTag;
+use pm_gui_forms::protocol::FormResponseTag;
 
 // Note: FormRefinementRequestTag / FormRefinementResponseTag are not part of the
 // public re-export surface.  Tests that need a populated FormRefinementRequest or

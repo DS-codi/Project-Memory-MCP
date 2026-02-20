@@ -12,13 +12,13 @@ pub(crate) mod envelope;
 pub(crate) mod questions;
 pub(crate) mod refinement;
 
-pub use answers::{Answer, AnswerValue};
+pub use answers::{Answer, AnswerValue, ConfirmRejectAction, TimerResult};
 pub use approval::{ApprovalRequest, ApprovalResponse, ApprovalStepContext, ApprovalUrgency};
 pub use brainstorm::{BrainstormRequest, BrainstormResponse};
 pub use config::{FallbackMode, TimeoutAction, TimeoutConfig, WindowConfig};
-pub use envelope::{FormMetadata, FormRequest, FormResponse, FormResponseTag, FormStatus, FormType, ResponseMetadata, RefinementRequestEntry};
+pub use envelope::{FormMetadata, FormRequest, FormRequestTag, FormResponse, FormResponseTag, FormStatus, FormType, ResponseMetadata, RefinementRequestEntry};
 pub use questions::{
     ConfirmRejectQuestion, CountdownTimerQuestion, FreeTextQuestion, Question,
     RadioOption, RadioSelectQuestion,
 };
-pub use refinement::{FormRefinementRequest, FormRefinementResponse, RefinementEntry, RefinementSession, QuestionDiff};
+pub use refinement::{FormRefinementRequest, FormRefinementRequestTag, FormRefinementResponse, FormRefinementResponseTag, RefinementEntry, RefinementSession, QuestionDiff};

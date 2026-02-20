@@ -136,3 +136,39 @@ For each plan: what was added, what it improves, and what it deprecates/replaces
 
 - **Explicit file deletion observed in last 72h git history**: `server/src/transport/container-proxy.ts`.
 - Other “deprecates/replaces” entries above are **architecture-level replacements** documented by plan goals/descriptions; they may not yet correspond to a deleted file in git.
+
+---
+
+## Cleanup Candidate Classification Table (Proposal, No Moves Executed)
+
+Scope aligned to cleanup plan `plan_mlusbxe0_f860bcbf` and hard constraints:
+- `agents-v2/` and `instructions-v2/` remain permanent **KEEP**.
+- No action proposed under protected no-touch runtime paths.
+
+| Candidate | Exists Now | Classification | Rationale / Evidence | Blocker Before Move |
+|---|---:|---|---|---|
+| `agents-deprecated/` | Yes | **defer** | Legacy set exists, but references appear in historical plan/docs payloads; needs explicit active-reference verification pass first. | Complete full reference audit and confirm no active tooling loads from this path. |
+| `backup/post-consolidation-agents/` | No | **defer** | Candidate path not present in current workspace. | None; remove from execution list unless it reappears. |
+| `backup/DashboardViewProvider.before-restore.ts` | No | **defer** | Candidate file not present in current workspace. | None; remove from execution list unless it reappears. |
+| `agent_use-logDumps.txt` | Yes | **defer** | Referenced in historical research docs (`replay-input-inventory.md`) and prior replay artifacts. | Decide whether historical-research links must remain path-stable; if not, include link/path update plan. |
+| `chat_copy_from_other_workspace.md` | Yes | **archive-now** | Standalone transfer artifact; no active runtime coupling observed. | User approval gate only. |
+| `copied_devtools_log.md` | Yes | **archive-now** | Standalone copied log artifact; no active runtime coupling observed. | User approval gate only. |
+| `copied_logs.txt` | Yes | **archive-now** | Standalone copied log artifact; no active runtime coupling observed. | User approval gate only. |
+| `copied_terminal_output.txt` | Yes | **archive-now** | Standalone copied output artifact; no active runtime coupling observed. | User approval gate only. |
+| `copied_terminal_output-successful_connection_to_VMssh.txt` | Yes | **archive-now** | Standalone copied output artifact; no active runtime coupling observed. | User approval gate only. |
+| `html_containing_icons.html` | Yes | **defer** | Referenced in historical chat-history docs; likely safe to archive but currently path-referenced in docs. | Confirm whether doc-history links should remain valid. |
+| `incomplete.txt` | Yes | **archive-now** | Isolated root scratch artifact; no active runtime coupling observed. | User approval gate only. |
+| `Playwright Test Report.html` | Yes | **archive-now** | Root test artifact snapshot; not part of runtime execution path. | User approval gate only. |
+
+### Proposed Approval Batch A (Low Risk)
+- `chat_copy_from_other_workspace.md`
+- `copied_devtools_log.md`
+- `copied_logs.txt`
+- `copied_terminal_output.txt`
+- `copied_terminal_output-successful_connection_to_VMssh.txt`
+- `incomplete.txt`
+- `Playwright Test Report.html`
+
+### Keep/Defer Summary
+- **keep (hard constraint):** `agents-v2/`, `instructions-v2/`
+- **defer (needs explicit decision/audit):** `agents-deprecated/`, `agent_use-logDumps.txt`, `html_containing_icons.html`, and non-existent backup candidates

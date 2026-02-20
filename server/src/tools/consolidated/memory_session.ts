@@ -14,6 +14,7 @@
  */
 
 import { randomBytes } from 'crypto';
+import * as net from 'node:net';
 import * as store from '../../storage/file-store.js';
 
 // ---------------------------------------------------------------------------
@@ -75,11 +76,40 @@ interface PrepResult {
         parent_session_id?: string;
         started_at: string;
     };
+    launch_routing: LaunchRoutingDecision;
 }
 
 interface PrepWarning {
     code: string;
     message: string;
+}
+
+type FallbackReason =
+    | 'none'
+    | 'host_unavailable'
+    | 'contract_invalid'
+    | 'startup_degradation'
+    | 'control_plane_parity_gap'
+    | 'feature_gate_disabled';
+
+type LaunchMode = 'specialized_host' | 'legacy_runsubagent';
+
+interface LaunchRoutingDecision {
+    selected_mode: LaunchMode;
+    fallback_used: boolean;
+    fallback_reason: FallbackReason;
+    decision_points: {
+        d0_feature_gate: 'specialized' | 'legacy_fallback';
+        d1_host_availability: 'pass' | 'legacy_fallback';
+        d2_contract_validation: 'pass' | 'legacy_fallback';
+        d3_post_launch_degradation: 'monitor';
+        d4_control_plane_parity: 'pass' | 'legacy_fallback';
+    };
+    startup_policy: {
+        stabilization_required: true;
+        legacy_fallback_on_startup_degradation: true;
+        next_retry_fallback_reason: 'startup_degradation';
+    };
 }
 
 // ---------------------------------------------------------------------------
@@ -146,6 +176,133 @@ function err(message: string) {
     return { success: false as const, error: message };
 }
 
+function envFlag(name: string, defaultValue: boolean): boolean {
+    const raw = process.env[name]?.trim().toLowerCase();
+    if (!raw) return defaultValue;
+    if (raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on') return true;
+    if (raw === '0' || raw === 'false' || raw === 'no' || raw === 'off') return false;
+    return defaultValue;
+}
+
+function envPort(name: string, defaultValue: number): number {
+    const raw = process.env[name]?.trim();
+    if (!raw) return defaultValue;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 65535) return defaultValue;
+    return Math.floor(parsed);
+}
+
+async function checkHostAvailability(timeoutMs = 600): Promise<boolean> {
+    const host = process.env.PM_SPECIALIZED_HOST_PROBE_HOST?.trim() || '127.0.0.1';
+    const port = envPort('PM_SPECIALIZED_HOST_PROBE_PORT', 9100);
+
+    return new Promise<boolean>((resolve) => {
+        const socket = new net.Socket();
+        let settled = false;
+
+        const finish = (value: boolean) => {
+            if (settled) return;
+            settled = true;
+            socket.destroy();
+            resolve(value);
+        };
+
+        socket.setTimeout(timeoutMs);
+        socket.once('connect', () => finish(true));
+        socket.once('timeout', () => finish(false));
+        socket.once('error', () => finish(false));
+        socket.once('close', () => finish(false));
+        socket.connect(port, host);
+    });
+}
+
+async function selectLaunchRouting(params: MemorySessionParams): Promise<LaunchRoutingDecision> {
+    const featureGateEnabled = envFlag('PM_SPECIALIZED_HOST_MODE_ENABLED', true);
+    const controlPlaneParityOk = envFlag('PM_SPECIALIZED_HOST_CONTROL_PARITY_OK', true);
+
+    const hasContractMetadata = Boolean(
+        params.workspace_id?.trim()
+        && params.plan_id?.trim()
+        && params.agent_name?.trim()
+        && params.prompt?.trim()
+    );
+
+    const hostAvailable = featureGateEnabled ? await checkHostAvailability() : false;
+
+    const baseDecision: LaunchRoutingDecision = {
+        selected_mode: 'specialized_host',
+        fallback_used: false,
+        fallback_reason: 'none',
+        decision_points: {
+            d0_feature_gate: 'specialized',
+            d1_host_availability: 'pass',
+            d2_contract_validation: 'pass',
+            d3_post_launch_degradation: 'monitor',
+            d4_control_plane_parity: 'pass'
+        },
+        startup_policy: {
+            stabilization_required: true,
+            legacy_fallback_on_startup_degradation: true,
+            next_retry_fallback_reason: 'startup_degradation'
+        }
+    };
+
+    if (!featureGateEnabled) {
+        return {
+            ...baseDecision,
+            selected_mode: 'legacy_runsubagent',
+            fallback_used: true,
+            fallback_reason: 'feature_gate_disabled',
+            decision_points: {
+                ...baseDecision.decision_points,
+                d0_feature_gate: 'legacy_fallback',
+                d1_host_availability: 'legacy_fallback'
+            }
+        };
+    }
+
+    if (!hostAvailable) {
+        return {
+            ...baseDecision,
+            selected_mode: 'legacy_runsubagent',
+            fallback_used: true,
+            fallback_reason: 'host_unavailable',
+            decision_points: {
+                ...baseDecision.decision_points,
+                d1_host_availability: 'legacy_fallback'
+            }
+        };
+    }
+
+    if (!hasContractMetadata) {
+        return {
+            ...baseDecision,
+            selected_mode: 'legacy_runsubagent',
+            fallback_used: true,
+            fallback_reason: 'contract_invalid',
+            decision_points: {
+                ...baseDecision.decision_points,
+                d2_contract_validation: 'legacy_fallback'
+            }
+        };
+    }
+
+    if (!controlPlaneParityOk) {
+        return {
+            ...baseDecision,
+            selected_mode: 'legacy_runsubagent',
+            fallback_used: true,
+            fallback_reason: 'control_plane_parity_gap',
+            decision_points: {
+                ...baseDecision.decision_points,
+                d4_control_plane_parity: 'legacy_fallback'
+            }
+        };
+    }
+
+    return baseDecision;
+}
+
 // ---------------------------------------------------------------------------
 // Action: prep
 // ---------------------------------------------------------------------------
@@ -158,6 +315,7 @@ async function handlePrep(params: MemorySessionParams) {
     if (!prompt) return err('prompt is required');
 
     const compatMode = params.compat_mode === 'strict' ? 'strict' : 'legacy';
+    const launchRouting = await selectLaunchRouting(params);
 
     // Fetch workspace context
     let workspaceContext: PrepResult['workspace_context'];
@@ -222,6 +380,15 @@ async function handlePrep(params: MemorySessionParams) {
         promptParts.push('--- END CONTEXT ---\n');
     }
 
+    promptParts.push(
+        '--- ORCHESTRATION ROUTING ---',
+        `selected_mode: ${launchRouting.selected_mode}`,
+        `fallback_used: ${String(launchRouting.fallback_used)}`,
+        `fallback_reason: ${launchRouting.fallback_reason}`,
+        'Section16_decision_points: D0,D1,D2,D3,D4',
+        '--- END ORCHESTRATION ROUTING ---\n'
+    );
+
     // Session tracking meta-instruction
     promptParts.push(
         '--- SESSION TRACKING (REQUIRED) ---',
@@ -272,7 +439,8 @@ async function handlePrep(params: MemorySessionParams) {
         plan_context: planContext,
         scope_boundaries_injected: scopeBoundariesInjected,
         anti_spawning_injected: antiSpawningInjected,
-        session_registration: sessionRegistration
+        session_registration: sessionRegistration,
+        launch_routing: launchRouting
     };
 
     const output: Record<string, unknown> = {
@@ -280,11 +448,19 @@ async function handlePrep(params: MemorySessionParams) {
         mode: 'context-prep-only',
         message: 'Spawn context prepared. Call runSubagent next using prep_config.enriched_prompt.',
         prep_config: prepResult,
+        launch_routing: launchRouting,
         warnings,
         note: antiSpawningInjected
             ? 'Anti-spawning instructions were injected for a spoke target.'
             : 'No anti-spawning instructions needed for a hub target.'
     };
+
+    if (launchRouting.fallback_used) {
+        warnings.push({
+            code: 'SPECIALIZED_ROUTE_FALLBACK',
+            message: `Specialized route unavailable; use legacy runSubagent (${launchRouting.fallback_reason}).`
+        });
+    }
 
     if (compatMode === 'legacy') {
         output.spawn_config = prepResult;

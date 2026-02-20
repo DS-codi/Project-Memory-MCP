@@ -159,3 +159,48 @@ pub struct StopAgentSessionResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ListAgentSessionsRequest {
+    pub id: String,
+    pub session_kind: HostedSessionKind,
+    #[serde(default)]
+    pub status_filter: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct GetAgentSessionRequest {
+    pub id: String,
+    pub session_kind: HostedSessionKind,
+    pub session_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AgentSessionRecord {
+    pub session_id: String,
+    pub runtime_session_id: String,
+    pub session_kind: HostedSessionKind,
+    pub state: AgentSessionState,
+    pub stop_escalation_level: u8,
+    pub running: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exit_code: Option<i32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ListAgentSessionsResponse {
+    pub id: String,
+    pub session_kind: HostedSessionKind,
+    pub sessions: Vec<AgentSessionRecord>,
+    pub count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct GetAgentSessionResponse {
+    pub id: String,
+    pub session_kind: HostedSessionKind,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session: Option<AgentSessionRecord>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}

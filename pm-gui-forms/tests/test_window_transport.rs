@@ -7,7 +7,7 @@ use pm_gui_forms::protocol::{
     FormMetadata, FormRequest, FormResponse, FormStatus, FormType, Question,
     RadioOption, RadioSelectQuestion, TimeoutAction, TimeoutConfig, WindowConfig,
 };
-use pm_gui_forms::protocol::envelope::{FormRequestTag, FormResponseTag, ResponseMetadata};
+use pm_gui_forms::protocol::{FormRequestTag, FormResponseTag, ResponseMetadata};
 use pm_gui_forms::transport::{ndjson_decode, ndjson_encode};
 use pm_gui_forms::window::{default_window_config, merge_with_defaults};
 
@@ -220,9 +220,11 @@ fn sample_form_response() -> FormResponse {
             completed_at: None,
             duration_ms: 5000,
             auto_filled_count: 0,
+            refinement_count: 0,
         },
         answers: vec![],
         refinement_requests: vec![],
+        refinement_session: None,
     }
 }
 
@@ -321,7 +323,7 @@ async fn ndjson_multiple_messages_sequential() {
 #[tokio::test]
 async fn ndjson_encode_decode_refinement_request_round_trip() {
     use pm_gui_forms::protocol::{FormRefinementRequest, RefinementEntry};
-    use pm_gui_forms::protocol::refinement::FormRefinementRequestTag;
+    use pm_gui_forms::protocol::FormRefinementRequestTag;
 
     let req = FormRefinementRequest {
         message_type: FormRefinementRequestTag,
@@ -350,7 +352,7 @@ async fn ndjson_encode_decode_refinement_request_round_trip() {
 #[tokio::test]
 async fn ndjson_encode_decode_refinement_response_round_trip() {
     use pm_gui_forms::protocol::{FormRefinementResponse, FreeTextQuestion};
-    use pm_gui_forms::protocol::refinement::FormRefinementResponseTag;
+    use pm_gui_forms::protocol::FormRefinementResponseTag;
 
     let resp = FormRefinementResponse {
         message_type: FormRefinementResponseTag,

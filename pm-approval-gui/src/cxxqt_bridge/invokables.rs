@@ -58,9 +58,11 @@ impl ffi::ApprovalApp {
                 completed_at: Some(chrono::Utc::now()),
                 duration_ms: elapsed * 1000,
                 auto_filled_count: if timed_out { 2 } else { 0 },
+                refinement_count: 0,
             },
             answers,
             refinement_requests: Vec::new(),
+            refinement_session: None,
         };
 
         write_response_blocking(&response);
@@ -114,9 +116,11 @@ impl ffi::ApprovalApp {
                 completed_at: Some(chrono::Utc::now()),
                 duration_ms: elapsed * 1000,
                 auto_filled_count: if timed_out { 2 } else { 0 },
+                refinement_count: 0,
             },
             answers,
             refinement_requests: Vec::new(),
+            refinement_session: None,
         };
 
         write_response_blocking(&response);

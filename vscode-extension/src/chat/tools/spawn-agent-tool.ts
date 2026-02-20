@@ -60,6 +60,20 @@ interface PrepWarning {
     message: string;
 }
 
+interface LaunchRoutingDecision {
+    selected_mode: 'specialized_host' | 'legacy_runsubagent';
+    fallback_used: boolean;
+    fallback_reason:
+        | 'none'
+        | 'host_unavailable'
+        | 'contract_invalid'
+        | 'startup_degradation'
+        | 'control_plane_parity_gap'
+        | 'feature_gate_disabled';
+    decision_points?: Record<string, unknown>;
+    startup_policy?: Record<string, unknown>;
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -218,6 +232,7 @@ async function handlePrep(
                 prep_config?: {
                     session_id?: string;
                     enriched_prompt?: string;
+                    launch_routing?: LaunchRoutingDecision;
                     agent_name?: string;
                     session_registration?: {
                         session_id: string;
@@ -229,6 +244,7 @@ async function handlePrep(
                     };
                     [key: string]: unknown;
                 };
+                launch_routing?: LaunchRoutingDecision;
                 warnings?: PrepWarning[];
                 [key: string]: unknown;
             };
@@ -245,6 +261,7 @@ async function handlePrep(
 
     const serverData = mcpResult.data.data;
     const prepConfig = serverData.prep_config;
+    const launchRouting = serverData.launch_routing ?? prepConfig?.launch_routing;
     const sessionReg = prepConfig?.session_registration;
 
     // Register session locally in SessionInterceptRegistry
@@ -272,12 +289,18 @@ async function handlePrep(
     }
 
     // Build output — preserving the established response shape
+    const postPrepNextAction = launchRouting?.selected_mode === 'specialized_host'
+        ? 'Use specialized host launch first; if startup health degrades, retry via legacy runSubagent.'
+        : `Use legacy runSubagent for this session (fallback_reason=${launchRouting?.fallback_reason ?? 'unknown'}).`;
+
     const output: Record<string, unknown> = {
         accepted: true,
         mode: 'context-prep-only',
         reason_code: SPAWN_REASON_CODES.SPAWN_PREP_ONLY,
         message: 'Spawn context prepared. Call runSubagent next using prep_config.enriched_prompt.',
         prep_config: prepConfig,
+        launch_routing: launchRouting,
+        next_action: postPrepNextAction,
         warnings,
         deprecation: {
             legacy_alias_supported: compatMode === 'legacy',

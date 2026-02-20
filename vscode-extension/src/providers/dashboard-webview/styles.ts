@@ -404,6 +404,25 @@ export function getStyles(): string {
             display: flex;
             gap: 8px;
             margin-top: 2px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .entity-badge {
+            padding: 1px 6px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 600;
+            border: 1px solid var(--vscode-panel-border);
+            background: var(--vscode-editor-background);
+            color: var(--vscode-descriptionForeground);
+        }
+        .entity-badge.program {
+            color: var(--vscode-testing-iconQueued);
+            border-color: var(--vscode-testing-iconQueued);
+        }
+        .entity-badge.plan {
+            color: var(--vscode-textLink-foreground);
+            border-color: var(--vscode-textLink-foreground);
         }
         .plan-status {
             padding: 2px 6px;

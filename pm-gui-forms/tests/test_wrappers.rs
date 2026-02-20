@@ -10,9 +10,9 @@ use pm_gui_forms::protocol::{
     FormRefinementResponse, FormResponse, FormStatus, FormType, FreeTextQuestion, Question,
     RadioOption, RadioSelectQuestion, RefinementEntry, TimeoutAction, TimeoutConfig, WindowConfig,
 };
-use pm_gui_forms::protocol::answers::{ConfirmRejectAction, TimerResult};
-use pm_gui_forms::protocol::envelope::{FormResponseTag, ResponseMetadata};
-use pm_gui_forms::protocol::refinement::{FormRefinementRequestTag, FormRefinementResponseTag};
+use pm_gui_forms::protocol::{ConfirmRejectAction, TimerResult};
+use pm_gui_forms::protocol::{FormResponseTag, ResponseMetadata};
+use pm_gui_forms::protocol::{FormRefinementRequestTag, FormRefinementResponseTag};
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -81,9 +81,11 @@ fn mock_form_response(form_type: FormType, status: FormStatus) -> FormResponse {
             completed_at: None,
             duration_ms: 5000,
             auto_filled_count: 0,
+            refinement_count: 0,
         },
         answers: vec![],
         refinement_requests: vec![],
+        refinement_session: None,
     }
 }
 
