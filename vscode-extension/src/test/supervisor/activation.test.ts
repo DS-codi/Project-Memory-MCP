@@ -1,18 +1,18 @@
 /**
  * Unit tests for supervisor/activation.ts
  *
- * Exercises the full startup-mode branching of runSupervisorActivation():
+ * Exercises the startup-mode branching of runSupervisorActivation().
+ * The Supervisor is always externally managed; activation only probes
+ * whether one is already reachable.
  *
  *  - startupMode='off'    → 'skipped' immediately (detectSupervisor never called)
- *  - startupMode='prompt' + user picks Skip  → 'skipped'
- *  - startupMode='prompt' + user picks Start → proceeds to detection
- *  - startupMode='auto'   + already running  → 'ready'
- *  - startupMode='auto'   + spawn succeeds, becomes ready → 'ready'
- *  - startupMode='auto'   + startup timeout exceeded → 'degraded'
+ *  - startupMode='prompt' + user picks Skip    → 'skipped'
+ *  - startupMode='prompt' + user dismisses     → 'skipped'
+ *  - startupMode='prompt' + user picks Check   → proceeds to detection
+ *  - startupMode='auto'   + already running    → 'ready'
+ *  - startupMode='auto'   + not running        → 'degraded'
  *
- * All I/O-touching collaborators (detectSupervisor, spawnLauncher,
- * waitForSupervisorReady, vscode.window.showInformationMessage) are
- * monkey-patched so the tests run synchronously / without real processes.
+ * detectSupervisor is monkey-patched so tests run without real network I/O.
  */
 
 import * as assert from 'assert';
@@ -22,10 +22,6 @@ import type { SupervisorSettings } from '../../supervisor/settings';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const detectModule = require('../../supervisor/detect');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const launcherModule = require('../../supervisor/launcher');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const readyModule = require('../../supervisor/ready');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const activationModule = require('../../supervisor/activation');
 
 // ---------------------------------------------------------------------------
@@ -34,7 +30,7 @@ const activationModule = require('../../supervisor/activation');
 
 const BASE_SETTINGS: SupervisorSettings = {
     startupMode: 'auto',
-    launcherPath: 'C:\\fake\\launcher.exe',
+    launcherPath: '',
     detectTimeoutMs: 1000,
     startupTimeoutMs: 5000,
 };
@@ -53,26 +49,18 @@ function settings(overrides: Partial<SupervisorSettings>): SupervisorSettings {
 
 suite('runSupervisorActivation', () => {
     let origDetect: unknown;
-    let origSpawn: unknown;
-    let origReady: unknown;
     let origShowInfo: typeof vscode.window.showInformationMessage;
 
     setup(() => {
         origDetect   = detectModule.detectSupervisor;
-        origSpawn    = launcherModule.spawnLauncher;
-        origReady    = readyModule.waitForSupervisorReady;
         origShowInfo = vscode.window.showInformationMessage;
 
-        // Safe defaults: supervisor not running, spawn succeeds, ready resolves.
-        detectModule.detectSupervisor       = async (_t: number) => false;
-        launcherModule.spawnLauncher        = (_p: string) => ({ unref: () => undefined });
-        readyModule.waitForSupervisorReady  = async (_t: number) => undefined;
+        // Safe default: supervisor not running.
+        detectModule.detectSupervisor = async (_t: number) => false;
     });
 
     teardown(() => {
-        detectModule.detectSupervisor      = origDetect;
-        launcherModule.spawnLauncher       = origSpawn;
-        readyModule.waitForSupervisorReady = origReady;
+        detectModule.detectSupervisor        = origDetect;
         vscode.window.showInformationMessage = origShowInfo;
     });
 
@@ -120,10 +108,9 @@ suite('runSupervisorActivation', () => {
         assert.strictEqual(result, 'skipped');
     });
 
-    test("startupMode='prompt' + user picks Start proceeds with detection", async () => {
+    test("startupMode='prompt' + user picks Check proceeds with detection → 'ready'", async () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (vscode.window as any).showInformationMessage = async (..._args: unknown[]) => 'Start';
-        // Supervisor already running — detection succeeds immediately.
+        (vscode.window as any).showInformationMessage = async (..._args: unknown[]) => 'Check';
         detectModule.detectSupervisor = async (_t: number) => true;
 
         const result = await activationModule.runSupervisorActivation(
@@ -132,6 +119,19 @@ suite('runSupervisorActivation', () => {
         ) as string;
 
         assert.strictEqual(result, 'ready');
+    });
+
+    test("startupMode='prompt' + user picks Check + not running → 'degraded'", async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (vscode.window as any).showInformationMessage = async (..._args: unknown[]) => 'Check';
+        detectModule.detectSupervisor = async (_t: number) => false;
+
+        const result = await activationModule.runSupervisorActivation(
+            MOCK_CONTEXT,
+            settings({ startupMode: 'prompt' })
+        ) as string;
+
+        assert.strictEqual(result, 'degraded');
     });
 
     // ---- startupMode = 'auto' ----
@@ -147,27 +147,8 @@ suite('runSupervisorActivation', () => {
         assert.strictEqual(result, 'ready');
     });
 
-    test("startupMode='auto' + spawn succeeds, supervisor becomes ready returns 'ready'", async () => {
-        let spawnCalled = false;
-        detectModule.detectSupervisor       = async (_t: number) => false;
-        launcherModule.spawnLauncher        = (_p: string) => { spawnCalled = true; return { unref: () => undefined }; };
-        readyModule.waitForSupervisorReady  = async (_t: number) => undefined; // resolves
-
-        const result = await activationModule.runSupervisorActivation(
-            MOCK_CONTEXT,
-            settings({ startupMode: 'auto' })
-        ) as string;
-
-        assert.strictEqual(result, 'ready');
-        assert.strictEqual(spawnCalled, true, 'spawnLauncher should have been called');
-    });
-
-    test("startupMode='auto' + startup timeout exceeded returns 'degraded'", async () => {
-        detectModule.detectSupervisor      = async (_t: number) => false;
-        launcherModule.spawnLauncher       = (_p: string) => ({ unref: () => undefined });
-        readyModule.waitForSupervisorReady = async (_t: number): Promise<void> => {
-            throw new Error('waitForSupervisorReady: Supervisor did not become ready within 5000 ms.');
-        };
+    test("startupMode='auto' + supervisor not running returns 'degraded'", async () => {
+        detectModule.detectSupervisor = async (_t: number) => false;
 
         const result = await activationModule.runSupervisorActivation(
             MOCK_CONTEXT,
@@ -175,22 +156,5 @@ suite('runSupervisorActivation', () => {
         ) as string;
 
         assert.strictEqual(result, 'degraded');
-    });
-
-    test("startupMode='auto' + spawnLauncher throws still proceeds to waitForReady", async () => {
-        detectModule.detectSupervisor = async (_t: number) => false;
-        launcherModule.spawnLauncher  = (_p: string) => {
-            throw new Error('spawnLauncher: launcher executable not found');
-        };
-        // Even though spawn failed, waitForSupervisorReady resolves → 'ready'.
-        readyModule.waitForSupervisorReady = async (_t: number) => undefined;
-
-        const result = await activationModule.runSupervisorActivation(
-            MOCK_CONTEXT,
-            settings({ startupMode: 'auto' })
-        ) as string;
-
-        // Activation swallows the spawnLauncher error and continues to ready-wait.
-        assert.strictEqual(result, 'ready');
     });
 });

@@ -77,6 +77,7 @@ interface PrepResult {
         started_at: string;
     };
     launch_routing: LaunchRoutingDecision;
+    orchestration_routing: LaunchRoutingDecision;
 }
 
 interface PrepWarning {
@@ -440,7 +441,8 @@ async function handlePrep(params: MemorySessionParams) {
         scope_boundaries_injected: scopeBoundariesInjected,
         anti_spawning_injected: antiSpawningInjected,
         session_registration: sessionRegistration,
-        launch_routing: launchRouting
+        launch_routing: launchRouting,
+        orchestration_routing: launchRouting
     };
 
     const output: Record<string, unknown> = {
@@ -449,6 +451,7 @@ async function handlePrep(params: MemorySessionParams) {
         message: 'Spawn context prepared. Call runSubagent next using prep_config.enriched_prompt.',
         prep_config: prepResult,
         launch_routing: launchRouting,
+        orchestration_routing: launchRouting,
         warnings,
         note: antiSpawningInjected
             ? 'Anti-spawning instructions were injected for a spoke target.'

@@ -63,6 +63,16 @@ pub enum ControlRequest {
     /// `limit` defaults to 50 when absent.
     StateEvents { service: String, limit: Option<usize> },
 
+    /// Return aggregate connection health and per-child status for the
+    /// minimal supervisor health GUI.
+    HealthSnapshot,
+
+    /// Update health window visibility state (`true` = shown, `false` = hidden).
+    SetHealthWindowVisibility { visible: bool },
+
+    /// Request graceful supervisor shutdown.
+    ShutdownSupervisor,
+
     /// Signal the supervisor to perform a zero-downtime MCP upgrade.
     /// Drains active sessions, stops the MCP runner, then restarts it.
     UpgradeMcp,
@@ -181,6 +191,32 @@ pub struct FormAppResponse {
     /// Session token for `ContinueApp` — only present when `pending_refinement == true`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
+}
+
+/// Aggregate connection health summary for the minimal health GUI.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConnectionHealthSummary {
+    pub state: String,
+    pub last_transition_at: Option<u64>,
+    pub last_error: Option<String>,
+}
+
+/// Per-child service health row for the minimal health GUI.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChildHealthStatus {
+    pub service_name: String,
+    pub status: String,
+    pub pid: Option<u32>,
+    pub last_health_error: Option<String>,
+    pub updated_at: Option<u64>,
+}
+
+/// Full minimal health snapshot for supervisor UI consumption.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HealthSnapshot {
+    pub connection: ConnectionHealthSummary,
+    pub children: Vec<ChildHealthStatus>,
+    pub health_window_visible: bool,
 }
 
 /// Lifecycle state of a single form-app process.

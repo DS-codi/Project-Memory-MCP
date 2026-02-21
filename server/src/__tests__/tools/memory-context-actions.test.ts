@@ -4,10 +4,14 @@ import type { MemoryContextParams } from '../../tools/consolidated/memory_contex
 import * as contextTools from '../../tools/context.tools.js';
 import * as workspaceContextTools from '../../tools/workspace-context.tools.js';
 import * as validation from '../../tools/consolidated/workspace-validation.js';
+import * as contextSearchTools from '../../tools/context-search.tools.js';
+import * as contextPullTools from '../../tools/context-pull.tools.js';
 
 vi.mock('../../tools/context.tools.js');
 vi.mock('../../tools/workspace-context.tools.js');
 vi.mock('../../tools/consolidated/workspace-validation.js');
+vi.mock('../../tools/context-search.tools.js');
+vi.mock('../../tools/context-pull.tools.js');
 vi.mock('../../storage/workspace-identity.js');
 
 const mockWorkspaceId = 'ws_context_test_123';
@@ -381,6 +385,117 @@ describe('MCP Tool: memory_context Actions', () => {
       expect(result.success).toBe(true);
       if (result.data && result.data.action === 'workspace_delete') {
         expect(result.data.data.deleted).toBe(true);
+      }
+    });
+  });
+
+  describe('search action', () => {
+    it('should forward scope/types/limit and return deterministic truncation payload', async () => {
+      const searchSpy = vi.spyOn(contextSearchTools, 'searchContext').mockResolvedValue({
+        success: true,
+        data: {
+          scope: 'workspace',
+          query: 'agent',
+          types: ['research', 'architecture'],
+          limit: 2,
+          total: 5,
+          truncated: true,
+          truncation: {
+            requested_limit: 2,
+            applied_limit: 2,
+            returned: 2,
+            total_before_limit: 5,
+          },
+          results: [
+            { id: 'r1', type: 'research', title: 'alpha' },
+            { id: 'r2', type: 'architecture', title: 'beta' },
+          ],
+        },
+      } as any);
+
+      const result = await memoryContext({
+        action: 'search',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        query: 'agent',
+        scope: 'workspace',
+        types: ['research', 'architecture'],
+        limit: 2,
+        _session_id: 'sess_ctx_search',
+      });
+
+      expect(result.success).toBe(true);
+      expect(searchSpy).toHaveBeenCalledWith({
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        query: 'agent',
+        scope: 'workspace',
+        types: ['research', 'architecture'],
+        limit: 2,
+      });
+
+      if (result.data && result.data.action === 'search') {
+        expect(result.data.data.scope).toBe('workspace');
+        expect(result.data.data.types).toEqual(['research', 'architecture']);
+        expect(result.data.data.limit).toBe(2);
+        expect(result.data.data.truncated).toBe(true);
+        expect(result.data.data.truncation.returned).toBe(2);
+        expect(result.data.data.results).toHaveLength(2);
+      }
+    });
+  });
+
+  describe('pull action', () => {
+    it('should forward selectors/session id and preserve staged output contract', async () => {
+      const pullSpy = vi.spyOn(contextPullTools, 'pullContext').mockResolvedValue({
+        success: true,
+        data: {
+          scope: 'plan',
+          selectors: [{ id: 'ctx-2' }, { index: 0 }],
+          total: 1,
+          staged: [
+            {
+              id: 'ctx-2',
+              source_path: '/tmp/source/context.json',
+              staged_path: '/tmp/.projectmemory/active_agents/tester/pull_staging/sess_ctx_pull/001-research-alpha.json',
+              bytes: 321,
+              type: 'research',
+              title: 'alpha',
+            },
+          ],
+        },
+      } as any);
+
+      const result = await memoryContext({
+        action: 'pull',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        scope: 'plan',
+        query: 'alpha',
+        types: ['research'],
+        selectors: [{ id: 'ctx-2' }, { index: 0 }],
+        limit: 5,
+        _session_id: 'sess_ctx_pull',
+      });
+
+      expect(result.success).toBe(true);
+      expect(pullSpy).toHaveBeenCalledWith({
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        scope: 'plan',
+        query: 'alpha',
+        types: ['research'],
+        selectors: [{ id: 'ctx-2' }, { index: 0 }],
+        limit: 5,
+        session_id: 'sess_ctx_pull',
+      });
+
+      if (result.data && result.data.action === 'pull') {
+        expect(result.data.data.selectors).toEqual([{ id: 'ctx-2' }, { index: 0 }]);
+        expect(result.data.data.total).toBe(1);
+        expect(result.data.data.staged).toHaveLength(1);
+        expect(result.data.data.staged[0].id).toBe('ctx-2');
+        expect(String(result.data.data.staged[0].staged_path)).toContain('.projectmemory');
       }
     });
   });

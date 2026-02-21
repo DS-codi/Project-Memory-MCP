@@ -449,7 +449,7 @@ export class ServerManager implements vscode.Disposable {
         const labels: Record<string, string> = {
             starting: 'PM Server',
             running: 'PM Server (local)',
-            connected: 'PM Server (shared)',
+            connected: 'PM Server',
             container: 'PM Server (container)',
             stopping: 'PM Server',
             stopped: 'PM Server',

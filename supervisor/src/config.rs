@@ -194,7 +194,7 @@ impl From<McpBackend> for BackendKind {
 // ---------------------------------------------------------------------------
 
 /// Configuration for the Node.js MCP process runner (`[mcp.node]` section).
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct NodeRunnerConfig {
     /// Executable to invoke (default: `"node"`).
@@ -291,7 +291,7 @@ impl Default for McpSection {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct InteractiveTerminalSection {
     pub enabled: bool,
@@ -326,7 +326,7 @@ impl Default for InteractiveTerminalSection {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct DashboardSection {
     pub enabled: bool,

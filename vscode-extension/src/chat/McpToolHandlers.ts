@@ -330,12 +330,13 @@ export async function handleMemoryContext(
     const workspaceId = args.workspace_id as string | undefined;
     const planId = args.plan_id as string | undefined;
 
-    if (!workspaceId || !planId) {
-        throw new Error('workspace_id and plan_id are required');
+    if (!workspaceId) {
+        throw new Error('workspace_id is required');
     }
 
     switch (action) {
         case 'store': {
+            if (!planId) throw new Error('plan_id is required for store');
             return client.httpPost(`/api/plans/${workspaceId}/${planId}/context`, {
                 type: args.type,
                 data: args.data
@@ -343,6 +344,7 @@ export async function handleMemoryContext(
         }
 
         case 'get': {
+            if (!planId) throw new Error('plan_id is required for get');
             if (!args.type) {
                 throw new Error('type is required for context get');
             }
@@ -350,6 +352,7 @@ export async function handleMemoryContext(
         }
 
         case 'store_initial': {
+            if (!planId) throw new Error('plan_id is required for store_initial');
             return client.httpPost(`/api/plans/${workspaceId}/${planId}/context/initial`, {
                 user_request: args.user_request,
                 files_mentioned: args.files_mentioned,
@@ -363,6 +366,7 @@ export async function handleMemoryContext(
         }
 
         case 'list': {
+            if (!planId) throw new Error('plan_id is required for list');
             const result = await client.httpGet<{ context?: string[] }>(
                 `/api/plans/${workspaceId}/${planId}/context`
             );
@@ -370,6 +374,7 @@ export async function handleMemoryContext(
         }
 
         case 'list_research': {
+            if (!planId) throw new Error('plan_id is required for list_research');
             const result = await client.httpGet<{ notes?: string[] }>(
                 `/api/plans/${workspaceId}/${planId}/context/research`
             );
@@ -377,6 +382,7 @@ export async function handleMemoryContext(
         }
 
         case 'append_research': {
+            if (!planId) throw new Error('plan_id is required for append_research');
             return client.httpPost(`/api/plans/${workspaceId}/${planId}/research`, {
                 filename: args.filename,
                 content: args.content
@@ -384,6 +390,7 @@ export async function handleMemoryContext(
         }
 
         case 'batch_store': {
+            if (!planId) throw new Error('plan_id is required for batch_store');
             const items = Array.isArray(args.items) ? args.items : [];
             if (items.length === 0) {
                 throw new Error('items array is required for batch_store');
@@ -397,6 +404,54 @@ export async function handleMemoryContext(
                 stored.push({ type: item.type, result });
             }
             return { stored };
+        }
+
+        case 'search': {
+            const scope = (args.scope as string | undefined) ?? 'plan';
+            if (scope === 'plan' && !planId) {
+                throw new Error('plan_id is required for memory_context search when scope is plan');
+            }
+
+            if (planId) {
+                return client.httpPost(`/api/plans/${workspaceId}/${planId}/context/search`, {
+                    query: args.query,
+                    scope: args.scope,
+                    types: args.types,
+                    limit: args.limit
+                });
+            }
+
+            return client.httpPost(`/api/workspaces/${workspaceId}/context/search`, {
+                query: args.query,
+                scope: args.scope,
+                types: args.types,
+                limit: args.limit
+            });
+        }
+
+        case 'pull': {
+            const scope = (args.scope as string | undefined) ?? 'plan';
+            if (scope === 'plan' && !planId) {
+                throw new Error('plan_id is required for memory_context pull when scope is plan');
+            }
+
+            if (planId) {
+                return client.httpPost(`/api/plans/${workspaceId}/${planId}/context/pull`, {
+                    query: args.query,
+                    scope: args.scope,
+                    types: args.types,
+                    selectors: args.selectors,
+                    limit: args.limit
+                });
+            }
+
+            return client.httpPost(`/api/workspaces/${workspaceId}/context/pull`, {
+                query: args.query,
+                scope: args.scope,
+                types: args.types,
+                selectors: args.selectors,
+                limit: args.limit
+            });
         }
 
         case 'generate_instructions':

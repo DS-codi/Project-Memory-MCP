@@ -292,6 +292,33 @@ export const CONTEXT_PARAMS: Record<string, ActionParamDef> = {
     optional: [],
   },
 
+  search: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+    ],
+    optional: [
+      { name: 'plan_id', type: 'string', description: 'Plan ID (required when scope is plan)' },
+      { name: 'query', type: 'string', description: 'Query string (defaults to empty for broad search)' },
+      { name: 'scope', type: 'string', description: 'Search scope: plan, workspace, program, or all (default: plan)' },
+      { name: 'types', type: 'string[]', description: 'Optional source/type filters' },
+      { name: 'limit', type: 'number', description: 'Result limit (bounded and defaulted server-side)' },
+    ],
+  },
+
+  pull: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+    ],
+    optional: [
+      { name: 'plan_id', type: 'string', description: 'Plan ID (required when scope is plan)' },
+      { name: 'query', type: 'string', description: 'Optional pre-filter query before selector resolution' },
+      { name: 'scope', type: 'string', description: 'Pull scope: plan, workspace, program, or all (default: plan)' },
+      { name: 'types', type: 'string[]', description: 'Optional source/type filters' },
+      { name: 'selectors', type: 'object[]', description: 'Optional selectors to stage only matching results' },
+      { name: 'limit', type: 'number', description: 'Candidate limit before selector application (server-bounded)' },
+    ],
+  },
+
   write_prompt: {
     required: [
       { name: 'workspace_id', type: 'string', description: 'Workspace ID' },

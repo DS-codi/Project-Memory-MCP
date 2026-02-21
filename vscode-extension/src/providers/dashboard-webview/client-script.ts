@@ -54,6 +54,7 @@ export function getClientScript(params: ClientScriptParams): string {
         
         let activePlans = [];
         let archivedPlans = [];
+        let programPlans = [];
         let currentPlanTab = 'active';
         let recentEvents = [];
         let hasRenderedDashboard = false;
@@ -86,6 +87,22 @@ export function getClientScript(params: ClientScriptParams): string {
                 } else {
                     showToast('Failed to inject guidance', 'error');
                 }
+            } else if (message.type === 'clearAllSessionsResult') {
+                if (message.data.success) {
+                    showToast('Closed ' + (message.data.closed || 0) + ' session(s)', 'success');
+                    requestSessionsList();
+                } else {
+                    showToast('Failed to clear sessions', 'error');
+                }
+            } else if (message.type === 'forceCloseSessionResult') {
+                if (message.data.success) {
+                    showToast('Session force-closed', 'success');
+                    requestSessionsList();
+                } else {
+                    showToast('Failed to force-close session', 'error');
+                }
+            } else if (message.type === 'supervisorCommandCopied') {
+                showToast('\u2714 Copied: ' + (message.data.path || 'supervisor command'), 'success');
             } else if (message.type === 'isolateServerStatus') {
                 const { isolated, port } = message.data;
                 const isolateBtn = document.getElementById('isolateBtn');
@@ -94,7 +111,7 @@ export function getClientScript(params: ClientScriptParams): string {
                     if (isolated) {
                         isolateBtn.classList.add('isolated');
                         isolateBtnText.textContent = 'Isolated:' + port;
-                        isolateBtn.title = 'Running isolated server on port ' + port + '. Click to reconnect to shared server.';
+                        isolateBtn.title = 'Running isolated server on port ' + port + '. Click to reconnect to main server.';
                     } else {
                         isolateBtn.classList.remove('isolated');
                         isolateBtnText.textContent = 'Isolate';
@@ -183,6 +200,8 @@ export function getClientScript(params: ClientScriptParams): string {
                 }
             } else if (action === 'refresh-sessions') {
                 requestSessionsList();
+            } else if (action === 'clear-all-sessions') {
+                vscode.postMessage({ type: 'clearAllSessions' });
             } else if (action === 'select-session') {
                 var selectSessionKey = button.getAttribute('data-session-key');
                 if (selectSessionKey) {
@@ -193,12 +212,23 @@ export function getClientScript(params: ClientScriptParams): string {
                 if (quickStopSessionKey) {
                     handleStopSession(quickStopSessionKey);
                 }
+            } else if (action === 'force-close-session') {
+                var forceCloseKey = button.getAttribute('data-session-key');
+                if (forceCloseKey) {
+                    vscode.postMessage({ type: 'forceCloseSession', data: { sessionKey: forceCloseKey } });
+                }
             } else if (action === 'stop-session') {
                 handleStopSession();
             } else if (action === 'inject-session') {
                 handleInjectSession();
             } else if (action === 'isolate-server') {
                 vscode.postMessage({ type: 'isolateServer' });
+            } else if (action === 'open-workspace-folder') {
+                vscode.postMessage({ type: 'openWorkspaceFolder' });
+            } else if (action === 'copy-supervisor-command') {
+                vscode.postMessage({ type: 'copySupervisorCommand' });
+            } else if (action === 'open-workspace-terminal') {
+                vscode.postMessage({ type: 'openWorkspaceTerminal' });
             } else if (action === 'run-command' && command) {
                 vscode.postMessage({ type: 'runCommand', data: { command: command } });
             } else if (action === 'open-plan-browser' && planId) {
@@ -287,7 +317,7 @@ export function getClientScript(params: ClientScriptParams): string {
             if (isolateBtn && isolateBtnText && isIsolated) {
                 isolateBtn.classList.add('isolated');
                 isolateBtnText.textContent = 'Isolated:' + apiPort;
-                isolateBtn.title = 'Running isolated server on port ' + apiPort + '. Click to reconnect to shared server.';
+                isolateBtn.title = 'Running isolated server on port ' + apiPort + '. Click to reconnect to main server.';
             }
         })();
         

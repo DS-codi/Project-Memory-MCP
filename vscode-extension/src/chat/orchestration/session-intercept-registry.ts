@@ -17,6 +17,7 @@ import type {
 
 const STORAGE_KEY = 'sessionInterceptRegistry';
 const PRUNE_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+const STALE_AGE_MS = 30 * 60 * 1000; // 30 minutes with no tool call activity
 
 /**
  * Registry for tracking and managing subagent sessions
@@ -316,6 +317,61 @@ export class SessionInterceptRegistry implements vscode.Disposable {
             await this.persist();
         }
         return pruned;
+    }
+
+    /**
+     * Prune sessions that have been active with no tool-call activity for staleAgeMs.
+     * These are zombie sessions where the agent died without calling complete().
+     */
+    async pruneStale(staleAgeMs: number = STALE_AGE_MS): Promise<number> {
+        const now = Date.now();
+        let pruned = 0;
+
+        for (const entry of this.sessions.values()) {
+            if (entry.status !== 'active') continue;
+            // Use last tool call timestamp if available, otherwise fall back to session start
+            const lastActivityAt = entry.lastToolCall?.timestamp ?? entry.startedAt;
+            const age = now - new Date(lastActivityAt).getTime();
+            if (age > staleAgeMs) {
+                entry.status = 'stopped';
+                pruned++;
+            }
+        }
+
+        if (pruned > 0) {
+            await this.persist();
+        }
+        return pruned;
+    }
+
+    /**
+     * Close all active and stopping sessions immediately (used by "Clear All" UI action).
+     * Returns the number of sessions that were closed.
+     */
+    async closeAll(): Promise<number> {
+        let closed = 0;
+        for (const entry of this.sessions.values()) {
+            if (entry.status === 'active' || entry.status === 'stopping') {
+                entry.status = 'stopped';
+                closed++;
+            }
+        }
+        if (closed > 0) {
+            await this.persist();
+        }
+        return closed;
+    }
+
+    /**
+     * Force-close a single session regardless of its current status.
+     * Use for sessions stuck in 'stopping' that never acknowledged the stop directive.
+     */
+    async forceClose(workspaceId: string, planId: string, sessionId: string): Promise<boolean> {
+        const entry = this.get(workspaceId, planId, sessionId);
+        if (!entry) return false;
+        entry.status = 'stopped';
+        await this.persist();
+        return true;
     }
 
     dispose(): void {

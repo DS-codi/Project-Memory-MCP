@@ -172,3 +172,45 @@ Scope aligned to cleanup plan `plan_mlusbxe0_f860bcbf` and hard constraints:
 ### Keep/Defer Summary
 - **keep (hard constraint):** `agents-v2/`, `instructions-v2/`
 - **defer (needs explicit decision/audit):** `agents-deprecated/`, `agent_use-logDumps.txt`, `html_containing_icons.html`, and non-existent backup candidates
+
+---
+
+## Comparison vs Tag `work-machine-snapshot-2026-02-21`
+
+Comparison baseline used:
+- Tag checkout at `C:\Users\User\Project_Memory_MCP\git_Tag-work-machine-snapshot` (detached at `work-machine-snapshot-2026-02-21`)
+- Current workspace head in `Project-Memory-MCP`
+
+### Commit Delta
+- **Ahead of tag:** 11 commits
+- **Behind tag:** 0 commits
+
+### Post-Tag Change Footprint (by top-level area)
+- `server/` (99 files)
+- `interactive-terminal/` (29 files)
+- `vscode-extension/` (28 files)
+- `instructions-v2/` (28 files)
+- `pm-gui-forms/` (27 files)
+- `dashboard/` (27 files)
+- `supervisor/` (26 files)
+- `agents/` + `agents-v2/` + `agents-deprecated/` (47 files combined)
+
+### Systems Added or Expanded Since Tag
+- **Supervisor + Extension integration expansion**
+  - Added full `supervisor/` crate and extension supervisor modules under `vscode-extension/src/supervisor/`.
+- **Program v2 infrastructure growth**
+  - Added `server/src/storage/program-store.ts` and full `server/src/tools/program/*` suite.
+- **Preflight/contract validation layer**
+  - Added `server/src/tools/preflight/*` modules.
+- **GUI orchestration stack additions**
+  - Added `pm-gui-forms/`, `pm-approval-gui/`, `pm-brainstorm-gui/` crates/apps and routing tests.
+- **Dashboard schema-v2 rendering improvements**
+  - Added phase/risk/stats/skills components and hooks in `dashboard/src/components/plan/` and `dashboard/src/hooks/`.
+
+### Test Surface Added Since Tag (high-level)
+- New test modules were added across:
+  - `server/src/__tests__/tools/` (program tools, advisory flows, supervisor client, GUI routing)
+  - `supervisor/tests/` (form app integration, lock, observability)
+  - `vscode-extension/src/test/supervisor/` (activation/detect/ready/degraded/settings)
+  - `pm-gui-forms/tests/` (protocol/timer/window transport/refinement)
+  - `dashboard/src/__tests__/components/` (paused plan banner)

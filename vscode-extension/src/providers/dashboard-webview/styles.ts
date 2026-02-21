@@ -154,7 +154,7 @@ export function getStyles(): string {
         }
         .plans-tabs {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             border-bottom: 1px solid var(--vscode-panel-border);
         }
         .plans-tab {
@@ -180,6 +180,37 @@ export function getStyles(): string {
         .plans-content { max-height: 300px; overflow-y: auto; }
         .plans-pane { display: none; }
         .plans-pane.active { display: block; }
+        .programs-summary {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 6px;
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--vscode-panel-border);
+            background: var(--vscode-editor-background);
+        }
+        .programs-summary-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 4px;
+            padding: 4px 6px;
+            background: var(--vscode-editor-inactiveSelectionBackground);
+            min-width: 0;
+        }
+        .programs-summary-label {
+            font-size: 10px;
+            color: var(--vscode-descriptionForeground);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .programs-summary-value {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--vscode-editor-foreground);
+            line-height: 1.2;
+        }
         .activity-list {
             display: flex;
             flex-direction: column;
@@ -640,6 +671,9 @@ export function getStyles(): string {
 
         body.size-small .action-group .icon-grid {
             grid-template-columns: repeat(3, 1fr);
+        }
+        body.size-small .plans-tabs {
+            grid-template-columns: 1fr;
         }
         body.size-small .session-item {
             flex-direction: column;

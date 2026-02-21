@@ -1216,8 +1216,8 @@ mod tests {
             Message::ReadOutputResponse(r) => assert!(r.running),
             _ => panic!("expected ReadOutputResponse"),
         }
-        assert!(tracker.kill_senders.contains_key("sess-b"));
-        assert!(!tracker.kill_senders.contains_key("sess-a"));
+        assert!(tracker.core.kill_senders.contains_key("sess-b"));
+        assert!(!tracker.core.kill_senders.contains_key("sess-a"));
     }
 
     // ===================================================================

@@ -25,9 +25,14 @@ export function getSessionsSectionHtml(iconSvgs: IconSvgs): string {
                                                 <span class="sessions-pill sessions-pill-active" id="sessionsActiveCount">0 active</span>
                                                 <span class="sessions-pill sessions-pill-stopping" id="sessionsStoppingCount">0 stopping</span>
                                             </div>
-                                            <button class="btn btn-small btn-secondary" data-action="refresh-sessions" title="Refresh session list">
-                                                ${iconSvgs.syncHistory} Refresh
-                                            </button>
+                                            <div class="sessions-header-actions">
+                                                <button class="btn btn-small btn-danger" data-action="clear-all-sessions" title="Close all active sessions">
+                                                    Clear All
+                                                </button>
+                                                <button class="btn btn-small btn-secondary" data-action="refresh-sessions" title="Refresh session list">
+                                                    ${iconSvgs.syncHistory} Refresh
+                                                </button>
+                                            </div>
                                         </div>
                                         <div class="sessions-list" id="sessionsList">
                                             <div class="empty-state">No active sessions</div>
@@ -182,6 +187,10 @@ export function getSessionsClientHelpers(): string {
                 var stopLevel = session.interruptDirective ? session.interruptDirective.escalationLevel : 0;
                 var sessionLabel = escapeHtml(session.agentType) + ' · ' + shortId(session.sessionId);
 
+                var forceCloseBtn = session.status === 'stopping'
+                    ? '<button class="btn btn-small btn-danger" data-action="force-close-session" data-session-key="' + tripleKey + '" title="Force-close stuck session">Force Close</button>'
+                    : '';
+
                 return '<div class="session-item' + selectedClass + '" data-session-key="' + tripleKey + '">' +
                     '<div class="session-info" data-session-label="' + sessionLabel + '">' +
                         '<div class="session-agent">' +
@@ -203,6 +212,7 @@ export function getSessionsClientHelpers(): string {
                     '<div class="session-actions">' +
                         '<button class="btn btn-small btn-secondary" data-action="select-session" data-session-key="' + tripleKey + '">Select</button>' +
                         '<button class="btn btn-small" data-action="quick-stop-session" data-session-key="' + tripleKey + '">Stop</button>' +
+                        forceCloseBtn +
                     '</div>' +
                 '</div>';
             }).join('');

@@ -12,7 +12,8 @@ import type { ToolContext } from './types';
 export interface ContextToolInput {
     action: 'add_note' | 'briefing' | 'handoff' | 'workspace' | 'store' | 'get'
         | 'store_initial' | 'list' | 'list_research' | 'append_research'
-        | 'batch_store' | 'workspace_get' | 'workspace_set' | 'workspace_update' | 'workspace_delete';
+        | 'batch_store' | 'workspace_get' | 'workspace_set' | 'workspace_update' | 'workspace_delete'
+        | 'search' | 'pull';
     planId?: string;
     // add_note
     note?: string;
@@ -37,6 +38,12 @@ export interface ContextToolInput {
     content?: string;
     // batch_store
     items?: Array<{ type: string; data: Record<string, unknown> }>;
+    // search/pull
+    query?: string;
+    scope?: 'plan' | 'workspace' | 'program' | 'all';
+    types?: string[];
+    selectors?: Array<Record<string, unknown>>;
+    limit?: number;
 }
 
 export async function handleContextTool(
@@ -195,10 +202,66 @@ export async function handleContextTool(
                 break;
             }
 
+            case 'search': {
+                if ((input.scope === 'plan' || !input.scope) && !input.planId) {
+                    return errorResult('planId is required when scope is plan (or omitted) for search');
+                }
+                if (input.types && !Array.isArray(input.types)) {
+                    return errorResult('types must be an array when provided');
+                }
+                if (input.limit !== undefined && (!Number.isFinite(input.limit) || input.limit <= 0)) {
+                    return errorResult('limit must be a positive number when provided');
+                }
+                result = await ctx.mcpBridge.callTool('memory_context', {
+                    action: 'search',
+                    workspace_id: workspaceId,
+                    plan_id: input.planId,
+                    query: input.query,
+                    scope: input.scope,
+                    types: input.types,
+                    limit: input.limit
+                });
+                break;
+            }
+
+            case 'pull': {
+                if ((input.scope === 'plan' || !input.scope) && !input.planId) {
+                    return errorResult('planId is required when scope is plan (or omitted) for pull');
+                }
+                if (input.types && !Array.isArray(input.types)) {
+                    return errorResult('types must be an array when provided');
+                }
+                if (input.selectors && !Array.isArray(input.selectors)) {
+                    return errorResult('selectors must be an array when provided');
+                }
+                if (input.limit !== undefined && (!Number.isFinite(input.limit) || input.limit <= 0)) {
+                    return errorResult('limit must be a positive number when provided');
+                }
+                result = await ctx.mcpBridge.callTool('memory_context', {
+                    action: 'pull',
+                    workspace_id: workspaceId,
+                    plan_id: input.planId,
+                    query: input.query,
+                    scope: input.scope,
+                    types: input.types,
+                    selectors: input.selectors,
+                    limit: input.limit
+                });
+                break;
+            }
+
             case 'workspace_get':
-            case 'workspace_set':
-            case 'workspace_update':
             case 'workspace_delete': {
+                result = await ctx.mcpBridge.callTool('memory_context', {
+                    action: input.action,
+                    workspace_id: workspaceId,
+                    type: input.type
+                });
+                break;
+            }
+
+            case 'workspace_set':
+            case 'workspace_update': {
                 if (!input.type) return errorResult('type is required for workspace-scoped context');
                 result = await ctx.mcpBridge.callTool('memory_context', {
                     action: input.action,

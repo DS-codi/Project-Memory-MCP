@@ -70,11 +70,11 @@ export function getClientHelpers(): string {
                         <div class="plan-info">
                             <div class="plan-title" title="\${plan.title}">\${plan.title}</div>
                             <div class="plan-meta">
-                                <span class="entity-badge ${entityClass}">${entityType}</span>
-                                ${metaParts.map(part => `<span>${part}</span>`).join('<span>&#8226;</span>')}
+                                <span class="entity-badge \${entityClass}">\${entityType}</span>
+                                \${metaParts.map(part => \`<span>\${part}</span>\`).join('<span>&#8226;</span>')}
                             </div>
                         </div>
-                        <span class="plan-status ${plan.status}">${plan.status}</span>
+                        <span class="plan-status \${plan.status}">\${plan.status}</span>
                         <div class="plan-actions">
                             <button class="btn btn-small btn-secondary" data-action="copy" data-copy="\${planId}" title="Copy plan ID">&#128203;</button>
                             <button class="btn btn-small btn-secondary" data-action="open-plan-browser" data-plan-id="\${planId}" title="Open plan in default browser">&#8599;</button>
@@ -85,16 +85,42 @@ export function getClientHelpers(): string {
             }).join('');
         }
 
+        function renderProgramsSummary(programs) {
+            const totalPrograms = programs.length;
+            const activePrograms = programs.filter(program => program.status !== 'archived').length;
+            const totalChildPlans = programs.reduce((total, program) => {
+                const childCount = typeof program.child_plans_count === 'number' ? program.child_plans_count : 0;
+                return total + childCount;
+            }, 0);
+            return \
+                '<div class="programs-summary-item">' +
+                    '<span class="programs-summary-label">Programs</span>' +
+                    '<span class="programs-summary-value">' + totalPrograms + '</span>' +
+                '</div>' +
+                '<div class="programs-summary-item">' +
+                    '<span class="programs-summary-label">Active</span>' +
+                    '<span class="programs-summary-value">' + activePrograms + '</span>' +
+                '</div>' +
+                '<div class="programs-summary-item">' +
+                    '<span class="programs-summary-label">Child plans</span>' +
+                    '<span class="programs-summary-value">' + totalChildPlans + '</span>' +
+                '</div>';
+        }
+
         function setPlanTab(tab) {
-            currentPlanTab = tab === 'archived' ? 'archived' : 'active';
+            currentPlanTab = (tab === 'archived' || tab === 'programs') ? tab : 'active';
             const activeTab = document.getElementById('plansTabActive');
             const archivedTab = document.getElementById('plansTabArchived');
+            const programsTab = document.getElementById('plansTabPrograms');
             const activePane = document.getElementById('plansPaneActive');
             const archivedPane = document.getElementById('plansPaneArchived');
+            const programsPane = document.getElementById('plansPanePrograms');
             if (activeTab) activeTab.classList.toggle('active', currentPlanTab === 'active');
             if (archivedTab) archivedTab.classList.toggle('active', currentPlanTab === 'archived');
+            if (programsTab) programsTab.classList.toggle('active', currentPlanTab === 'programs');
             if (activePane) activePane.classList.toggle('active', currentPlanTab === 'active');
             if (archivedPane) archivedPane.classList.toggle('active', currentPlanTab === 'archived');
+            if (programsPane) programsPane.classList.toggle('active', currentPlanTab === 'programs');
         }
 
         function getPlanSignature(plans) {
@@ -125,13 +151,16 @@ export function getClientHelpers(): string {
                     console.log('Plans data:', data);
                     const allPlans = Array.isArray(data.plans) ? data.plans : [];
                     const normalized = allPlans.map(normalizePlanEntity);
-                    const nextActive = normalized.filter(p => p.status !== 'archived');
-                    const nextArchived = normalized.filter(p => p.status === 'archived');
-                    const signature = getPlanSignature(nextActive) + '||' + getPlanSignature(nextArchived);
+                    const nextPrograms = normalized.filter(p => p.is_program);
+                    const nonProgramPlans = normalized.filter(p => !p.is_program);
+                    const nextActive = nonProgramPlans.filter(p => p.status !== 'archived');
+                    const nextArchived = nonProgramPlans.filter(p => p.status === 'archived');
+                    const signature = getPlanSignature(nextActive) + '||' + getPlanSignature(nextArchived) + '||' + getPlanSignature(nextPrograms);
                     if (signature !== lastPlanSignature) {
                         lastPlanSignature = signature;
                         activePlans = nextActive;
                         archivedPlans = nextArchived;
+                        programPlans = nextPrograms;
                         updatePlanLists();
                     }
                 }
@@ -143,12 +172,18 @@ export function getClientHelpers(): string {
         function updatePlanLists() {
             const activeList = document.getElementById('plansListActive');
             const archivedList = document.getElementById('plansListArchived');
+            const programsList = document.getElementById('plansListPrograms');
+            const programsSummary = document.getElementById('programsSummary');
             const activeCount = document.getElementById('activeCount');
             const archivedCount = document.getElementById('archivedCount');
+            const programsCount = document.getElementById('programsCount');
             if (activeList) activeList.innerHTML = renderPlanList(activePlans, 'active');
             if (archivedList) archivedList.innerHTML = renderPlanList(archivedPlans, 'archived');
+            if (programsList) programsList.innerHTML = renderPlanList(programPlans, 'programs');
+            if (programsSummary) programsSummary.innerHTML = renderProgramsSummary(programPlans);
             if (activeCount) activeCount.textContent = activePlans.length;
             if (archivedCount) archivedCount.textContent = archivedPlans.length;
+            if (programsCount) programsCount.textContent = programPlans.length;
             setPlanTab(currentPlanTab);
         }
 

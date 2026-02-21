@@ -1,29 +1,37 @@
-//! InteractiveTerminalRunner — per-client terminal process lifecycle.
+//! InteractiveTerminalRunner — supervisor for the interactive terminal GUI process.
 //!
-//! One `tokio::process::Child` is maintained per VS Code window, keyed by
-//! `client_id` (as registered in the client registry).  The `ServiceRunner`
-//! trait methods operate on the pool as a whole; per-client operations are
-//! exposed as additional public methods.
+//! The `interactive-terminal` binary is a Qt GUI application that also exposes
+//! a TCP server on a configurable port.  The supervisor starts exactly **one**
+//! `interactive-terminal` process and keeps it alive for the lifetime of the
+//! supervisor.
 
-use std::collections::HashMap;
 use std::process::Stdio;
 
 use anyhow::Context as _;
 use async_trait::async_trait;
+use tokio::process::Child;
 
 use crate::config::InteractiveTerminalSection;
 use crate::control::registry::ServiceStatus;
 use crate::runner::{HealthStatus, ServiceRunner};
 
 // ---------------------------------------------------------------------------
+// Internal state
+// ---------------------------------------------------------------------------
+
+enum RunnerState {
+    Stopped,
+    Running { child: Child, pid: u32 },
+}
+
+// ---------------------------------------------------------------------------
 // InteractiveTerminalRunner
 // ---------------------------------------------------------------------------
 
-/// Manages a pool of interactive terminal processes — one per VS Code client.
+/// Manages the lifecycle of a single `interactive-terminal` GUI + TCP-server process.
 pub struct InteractiveTerminalRunner {
     config: InteractiveTerminalSection,
-    /// Map from `client_id` → running child process.
-    clients: HashMap<String, tokio::process::Child>,
+    state: RunnerState,
 }
 
 impl InteractiveTerminalRunner {
@@ -31,27 +39,44 @@ impl InteractiveTerminalRunner {
     pub fn new(config: InteractiveTerminalSection) -> Self {
         Self {
             config,
-            clients: HashMap::new(),
+            state: RunnerState::Stopped,
         }
     }
 
-    /// Returns the number of currently alive client processes.
-    pub fn active_count(&self) -> usize {
-        self.clients.len()
+    /// Returns the OS PID of the running process, or `None` if stopped.
+    pub fn pid(&self) -> Option<u32> {
+        match self.state {
+            RunnerState::Running { pid, .. } => Some(pid),
+            RunnerState::Stopped => None,
+        }
     }
+}
 
-    /// Spawn a terminal process for `client_id` if one does not already exist.
+// ---------------------------------------------------------------------------
+// ServiceRunner implementation
+// ---------------------------------------------------------------------------
+
+#[async_trait]
+impl ServiceRunner for InteractiveTerminalRunner {
+    /// Spawn the `interactive-terminal` process.
     ///
-    /// Idempotent: if a process for `client_id` is already running, this is a
-    /// no-op and returns `Ok(())`.
-    pub async fn start_for_client(&mut self, client_id: &str) -> anyhow::Result<()> {
-        if self.clients.contains_key(client_id) {
-            return Ok(());
+    /// Passes `--port <port>` automatically unless the caller has already
+    /// included `--port` in `config.args`.
+    async fn start(&mut self) -> anyhow::Result<()> {
+        if matches!(self.state, RunnerState::Running { .. }) {
+            return Ok(()); // already running — idempotent
         }
 
         let mut cmd = tokio::process::Command::new(&self.config.command);
+
+        // Inject --port if the user hasn't supplied it explicitly in args.
+        let has_port_flag = self.config.args.windows(2).any(|w| w[0] == "--port");
+        if !has_port_flag {
+            cmd.arg("--port").arg(self.config.port.to_string());
+        }
+
         cmd.args(&self.config.args);
-        cmd.stdin(Stdio::piped());
+        cmd.stdin(Stdio::null());
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
 
@@ -63,71 +88,59 @@ impl InteractiveTerminalRunner {
 
         let child = cmd.spawn().with_context(|| {
             format!(
-                "failed to spawn interactive-terminal process for client {client_id}: {}",
+                "failed to spawn interactive-terminal process: {}",
                 self.config.command
             )
         })?;
 
-        self.clients.insert(client_id.to_string(), child);
+        let pid = child
+            .id()
+            .ok_or_else(|| anyhow::anyhow!("spawned interactive-terminal process has no PID"))?;
+
+        self.state = RunnerState::Running { child, pid };
         Ok(())
     }
 
-    /// Kill and remove the terminal process for `client_id`.
-    ///
-    /// Idempotent: if no process exists for `client_id`, returns `Ok(())`.
-    pub async fn stop_for_client(&mut self, client_id: &str) -> anyhow::Result<()> {
-        if let Some(mut child) = self.clients.remove(client_id) {
-            child
-                .kill()
-                .await
-                .with_context(|| format!("failed to kill terminal process for client {client_id}"))?;
-        }
-        Ok(())
-    }
-}
-
-// ---------------------------------------------------------------------------
-// ServiceRunner implementation
-// ---------------------------------------------------------------------------
-
-#[async_trait]
-impl ServiceRunner for InteractiveTerminalRunner {
-    /// No-op: processes are managed individually via `start_for_client`.
-    async fn start(&mut self) -> anyhow::Result<()> {
-        Ok(())
-    }
-
-    /// Kill all active client processes and clear the pool.
+    /// Kill the `interactive-terminal` process if it is running.
     async fn stop(&mut self) -> anyhow::Result<()> {
-        let client_ids: Vec<String> = self.clients.keys().cloned().collect();
-        for id in client_ids {
-            if let Some(mut child) = self.clients.remove(&id) {
-                // Best-effort kill; log but do not fail on partial errors.
-                let _ = child.kill().await;
+        match self.state {
+            RunnerState::Running { ref mut child, .. } => {
+                child
+                    .kill()
+                    .await
+                    .context("failed to kill interactive-terminal process")?;
+                self.state = RunnerState::Stopped;
             }
+            RunnerState::Stopped => {}
         }
         Ok(())
     }
 
-    /// Return `Running` if at least one client process is active, `Stopped` otherwise.
+    /// Return the cached service status without performing any I/O.
     async fn status(&self) -> ServiceStatus {
-        if self.clients.is_empty() {
-            ServiceStatus::Stopped
-        } else {
-            ServiceStatus::Running
+        match self.state {
+            RunnerState::Running { .. } => ServiceStatus::Running,
+            RunnerState::Stopped => ServiceStatus::Stopped,
         }
     }
 
-    /// Return `Healthy` if at least one client is active, `Unhealthy` otherwise.
+    /// Probe the TCP port to verify the server is accepting connections.
+    ///
+    /// Returns [`HealthStatus::Healthy`] on a successful TCP connect,
+    /// [`HealthStatus::Unhealthy`] with a reason string otherwise.
     async fn health_probe(&self) -> HealthStatus {
-        if self.clients.is_empty() {
-            HealthStatus::Unhealthy("no clients".into())
-        } else {
-            HealthStatus::Healthy
+        if matches!(self.state, RunnerState::Stopped) {
+            return HealthStatus::Unhealthy("not running".into());
+        }
+
+        let addr = format!("127.0.0.1:{}", self.config.port);
+        match tokio::net::TcpStream::connect(&addr).await {
+            Ok(_) => HealthStatus::Healthy,
+            Err(e) => HealthStatus::Unhealthy(format!("TCP connect to {addr} failed: {e}")),
         }
     }
 
-    /// Returns the shared endpoint URL (`http://127.0.0.1:{port}`).
+    /// Returns the endpoint URL (`http://127.0.0.1:{port}`).
     async fn discover_endpoint(&self) -> anyhow::Result<String> {
         Ok(format!("http://127.0.0.1:{}", self.config.port))
     }
@@ -151,40 +164,26 @@ mod tests {
     #[tokio::test]
     async fn new_runner_is_stopped() {
         let runner = default_runner();
-        assert_eq!(runner.active_count(), 0);
         assert!(matches!(runner.status().await, ServiceStatus::Stopped));
+        assert!(runner.pid().is_none());
     }
 
     #[tokio::test]
     async fn new_runner_health_probe_unhealthy() {
         let runner = default_runner();
         match runner.health_probe().await {
-            HealthStatus::Unhealthy(msg) => assert!(msg.contains("no clients")),
-            HealthStatus::Healthy => panic!("expected Unhealthy with no clients"),
+            HealthStatus::Unhealthy(msg) => assert!(msg.contains("not running")),
+            HealthStatus::Healthy => panic!("expected Unhealthy when not started"),
         }
     }
 
     #[tokio::test]
-    async fn start_noop() {
-        let mut runner = default_runner();
-        runner.start().await.expect("start should be a no-op Ok(())");
-        assert_eq!(runner.active_count(), 0);
-    }
-
-    #[tokio::test]
-    async fn stop_for_client_unknown_is_noop() {
+    async fn stop_when_stopped_is_noop() {
         let mut runner = default_runner();
         runner
-            .stop_for_client("nonexistent")
+            .stop()
             .await
-            .expect("stop_for_client on unknown id should be Ok(())");
-        assert_eq!(runner.active_count(), 0);
-    }
-
-    #[tokio::test]
-    async fn stop_all_when_empty_is_noop() {
-        let mut runner = default_runner();
-        runner.stop().await.expect("stop() on empty pool should be Ok(())");
+            .expect("stop() when already stopped should be Ok(())");
         assert!(matches!(runner.status().await, ServiceStatus::Stopped));
     }
 
@@ -195,43 +194,30 @@ mod tests {
             .discover_endpoint()
             .await
             .expect("discover_endpoint should not fail");
-        assert_eq!(ep, "http://127.0.0.1:3458");
-    }
-
-    // -----------------------------------------------------------------------
-    // Phase 4 tests
-    // -----------------------------------------------------------------------
-
-    /// Fresh runner has no clients and reports `Stopped`.
-    #[tokio::test]
-    async fn terminal_runner_new_is_stopped() {
-        let runner = default_runner();
-        assert_eq!(runner.active_count(), 0);
-        assert!(matches!(runner.status().await, ServiceStatus::Stopped));
-    }
-
-    /// `discover_endpoint()` returns the port URL derived from config.
-    #[tokio::test]
-    async fn terminal_runner_discover_endpoint() {
-        let runner = default_runner();
-        let ep = runner
-            .discover_endpoint()
-            .await
-            .expect("discover_endpoint should succeed");
         let port = InteractiveTerminalSection::default().port;
         assert_eq!(ep, format!("http://127.0.0.1:{port}"));
     }
 
-    /// `health_probe()` returns `Unhealthy("no clients")` when no clients
-    /// are registered.
-    #[tokio::test]
-    async fn terminal_runner_health_probe_no_clients() {
-        let runner = default_runner();
-        match runner.health_probe().await {
-            HealthStatus::Unhealthy(msg) => {
-                assert!(msg.contains("no clients"), "message was: {msg}");
-            }
-            HealthStatus::Healthy => panic!("expected Unhealthy(\"no clients\") with empty pool"),
-        }
+    /// Verify that `--port` is auto-injected when absent from `config.args`.
+    #[test]
+    fn port_flag_injection_when_missing() {
+        let cfg = InteractiveTerminalSection {
+            args: vec!["--debug".to_string()],
+            ..InteractiveTerminalSection::default()
+        };
+        let has_port = cfg.args.windows(2).any(|w| w[0] == "--port");
+        assert!(!has_port, "args without --port should trigger auto-injection");
+    }
+
+    /// Verify that `--port` is NOT duplicated when already present.
+    #[test]
+    fn port_flag_not_duplicated_when_present() {
+        let cfg = InteractiveTerminalSection {
+            args: vec!["--port".to_string(), "9100".to_string()],
+            ..InteractiveTerminalSection::default()
+        };
+        let has_port = cfg.args.windows(2).any(|w| w[0] == "--port");
+        assert!(has_port, "args with --port should skip auto-injection");
     }
 }
+

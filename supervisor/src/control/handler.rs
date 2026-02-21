@@ -30,6 +30,7 @@ pub async fn handle_request(
     req: ControlRequest,
     registry: Arc<Mutex<Registry>>,
     form_apps: Arc<FormAppConfigs>,
+    shutdown_tx: tokio::sync::watch::Sender<bool>,
 ) -> ControlResponse {
     match req {
         // ---------------------------------------------------------------
@@ -159,6 +160,34 @@ pub async fn handle_request(
         }
 
         // ---------------------------------------------------------------
+        // HealthSnapshot — aggregate + per-child status for minimal GUI
+        // ---------------------------------------------------------------
+        ControlRequest::HealthSnapshot => {
+            let reg = registry.lock().await;
+            match serde_json::to_value(reg.health_snapshot()) {
+                Ok(data) => ControlResponse::ok(data),
+                Err(e) => ControlResponse::err(format!("serialisation error: {e}")),
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // SetHealthWindowVisibility
+        // ---------------------------------------------------------------
+        ControlRequest::SetHealthWindowVisibility { visible } => {
+            let mut reg = registry.lock().await;
+            reg.set_health_window_visible(visible);
+            ControlResponse::ok(json!({ "health_window_visible": visible }))
+        }
+
+        // ---------------------------------------------------------------
+        // ShutdownSupervisor — signal graceful shutdown in main runtime
+        // ---------------------------------------------------------------
+        ControlRequest::ShutdownSupervisor => {
+            let _ = shutdown_tx.send(true);
+            ControlResponse::ok(json!({ "shutdown": "requested" }))
+        }
+
+        // ---------------------------------------------------------------
         // UpgradeMcp — zero-downtime MCP upgrade: drain → stop → start
         // ---------------------------------------------------------------
         ControlRequest::UpgradeMcp => {
@@ -255,10 +284,15 @@ mod tests {
         Arc::new(FormAppConfigs::new())
     }
 
+    fn shutdown_channel() -> tokio::sync::watch::Sender<bool> {
+        let (tx, _rx) = tokio::sync::watch::channel(false);
+        tx
+    }
+
     #[tokio::test]
     async fn status_returns_three_services() {
         let reg = make_registry();
-        let resp = handle_request(ControlRequest::Status, reg, empty_form_apps()).await;
+        let resp = handle_request(ControlRequest::Status, reg, empty_form_apps(), shutdown_channel()).await;
         assert!(resp.ok);
         let arr = resp.data.as_array().expect("data should be array");
         assert_eq!(arr.len(), 3);
@@ -271,6 +305,7 @@ mod tests {
             ControlRequest::Start { service: "mcp".to_string() },
             Arc::clone(&reg),
             empty_form_apps(),
+            shutdown_channel(),
         )
         .await;
         assert!(resp.ok);
@@ -288,6 +323,7 @@ mod tests {
             ControlRequest::Stop { service: "dashboard".to_string() },
             Arc::clone(&reg),
             empty_form_apps(),
+            shutdown_channel(),
         )
         .await;
         assert!(resp.ok);
@@ -301,6 +337,7 @@ mod tests {
             ControlRequest::Restart { service: "mcp".to_string() },
             Arc::clone(&reg),
             empty_form_apps(),
+            shutdown_channel(),
         )
         .await;
         assert!(resp.ok);
@@ -314,6 +351,7 @@ mod tests {
             ControlRequest::SetBackend { backend: BackendKind::Container },
             Arc::clone(&reg),
             empty_form_apps(),
+            shutdown_channel(),
         )
         .await;
         assert!(resp.ok);
@@ -328,12 +366,13 @@ mod tests {
             ControlRequest::AttachClient { pid: 999, window_id: "win-1".to_string() },
             Arc::clone(&reg),
             Arc::clone(&fa),
+            shutdown_channel(),
         )
         .await;
         assert!(attach_resp.ok);
         let client_id = attach_resp.data["client_id"].as_str().unwrap().to_string();
 
-        let list_resp = handle_request(ControlRequest::ListClients, Arc::clone(&reg), fa).await;
+        let list_resp = handle_request(ControlRequest::ListClients, Arc::clone(&reg), fa, shutdown_channel()).await;
         assert!(list_resp.ok);
         let arr = list_resp.data.as_array().unwrap();
         assert_eq!(arr.len(), 1);
@@ -348,12 +387,14 @@ mod tests {
             ControlRequest::AttachClient { pid: 1, window_id: "w".to_string() },
             Arc::clone(&reg),
             Arc::clone(&fa),
+            shutdown_channel(),
         )
         .await;
         let resp = handle_request(
             ControlRequest::DetachClient { client_id: "client-1".to_string() },
             Arc::clone(&reg),
             fa,
+            shutdown_channel(),
         )
         .await;
         assert!(resp.ok);
@@ -366,6 +407,7 @@ mod tests {
             ControlRequest::DetachClient { client_id: "client-99".to_string() },
             reg,
             empty_form_apps(),
+            shutdown_channel(),
         )
         .await;
         assert!(!resp.ok);
@@ -384,6 +426,7 @@ mod tests {
             }),
             reg,
             empty_form_apps(),
+            shutdown_channel(),
         )
         .await;
         assert!(resp.ok);
@@ -395,7 +438,7 @@ mod tests {
     #[tokio::test]
     async fn upgrade_mcp_returns_ok_with_upgrade_field() {
         let reg = make_registry();
-        let resp = handle_request(ControlRequest::UpgradeMcp, Arc::clone(&reg), empty_form_apps()).await;
+        let resp = handle_request(ControlRequest::UpgradeMcp, Arc::clone(&reg), empty_form_apps(), shutdown_channel()).await;
         assert!(resp.ok, "upgrade_mcp should return ok");
         assert_eq!(resp.data["upgrade"], "initiated");
         assert_eq!(resp.data["service"], "mcp");
@@ -404,7 +447,7 @@ mod tests {
     #[tokio::test]
     async fn upgrade_mcp_sets_upgrade_pending_and_mcp_starting() {
         let reg = make_registry();
-        handle_request(ControlRequest::UpgradeMcp, Arc::clone(&reg), empty_form_apps()).await;
+        handle_request(ControlRequest::UpgradeMcp, Arc::clone(&reg), empty_form_apps(), shutdown_channel()).await;
         let locked = reg.lock().await;
         assert!(locked.is_upgrade_pending(), "upgrade_pending should be true after UpgradeMcp");
         let mcp_state = locked.service_states().into_iter().find(|s| s.name == "mcp").unwrap();
@@ -425,6 +468,7 @@ mod tests {
             },
             reg,
             empty_form_apps(),
+            shutdown_channel(),
         )
         .await;
         assert!(!resp.ok);
@@ -448,6 +492,7 @@ mod tests {
             },
             reg,
             Arc::new(apps),
+            shutdown_channel(),
         )
         .await;
         assert!(!resp.ok);

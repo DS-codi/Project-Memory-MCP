@@ -5,11 +5,15 @@ import * as handoffTools from '../../tools/handoff.tools.js';
 import * as agentTools from '../../tools/agent.tools.js';
 import * as validationTools from '../../tools/agent-validation.tools.js';
 import * as validation from '../../tools/consolidated/workspace-validation.js';
+import * as agentDeploy from '../../tools/agent-deploy.js';
+import * as fileStore from '../../storage/file-store.js';
 
 vi.mock('../../tools/handoff.tools.js');
 vi.mock('../../tools/agent.tools.js');
 vi.mock('../../tools/agent-validation.tools.js');
 vi.mock('../../tools/consolidated/workspace-validation.js');
+vi.mock('../../tools/agent-deploy.js');
+vi.mock('../../storage/file-store.js');
 vi.mock('../../storage/workspace-identity.js');
 
 const mockWorkspaceId = 'ws_agent_test_123';
@@ -22,6 +26,11 @@ describe('MCP Tool: memory_agent Actions', () => {
       success: true,
       workspace_id: mockWorkspaceId,
     } as any);
+    vi.spyOn(fileStore, 'getWorkspace').mockResolvedValue({
+      id: mockWorkspaceId,
+      workspace_path: '/test/workspace',
+    } as any);
+    vi.spyOn(agentDeploy, 'cleanupAgent').mockResolvedValue(undefined);
   });
 
   describe('init action', () => {
@@ -97,6 +106,35 @@ describe('MCP Tool: memory_agent Actions', () => {
       if (result.data && result.data.action === 'complete') {
         expect(result.data.data.summary).toBe('Done');
       }
+      expect(agentDeploy.cleanupAgent).toHaveBeenCalledWith('/test/workspace', 'Executor', mockPlanId);
+    });
+
+    it('should preserve successful completion when cleanup throws (non-fatal)', async () => {
+      vi.spyOn(handoffTools, 'completeAgent').mockResolvedValue({
+        success: true,
+        data: {
+          session_id: 'sess_2b',
+          agent_type: 'Executor',
+          started_at: '2026-02-04T10:00:00Z',
+          completed_at: '2026-02-04T12:00:00Z',
+          context: {},
+          summary: 'Done with cleanup warning'
+        }
+      });
+      vi.spyOn(agentDeploy, 'cleanupAgent').mockRejectedValue(new Error('cleanup failed'));
+
+      const result = await memoryAgent({
+        action: 'complete',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        agent_type: 'Executor',
+        summary: 'Done with cleanup warning'
+      });
+
+      expect(result.success).toBe(true);
+      if (result.data && result.data.action === 'complete') {
+        expect(result.data.data.summary).toContain('cleanup warning');
+      }
     });
   });
 
@@ -126,6 +164,36 @@ describe('MCP Tool: memory_agent Actions', () => {
           coordinator_instruction: 'ok'
         }
       });
+
+      const result = await memoryAgent({
+        action: 'handoff',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        from_agent: 'Executor',
+        to_agent: 'Reviewer',
+        reason: 'Review'
+      });
+
+      expect(result.success).toBe(true);
+      if (result.data && result.data.action === 'handoff') {
+        expect(result.data.data.to_agent).toBe('Reviewer');
+      }
+      expect(agentDeploy.cleanupAgent).toHaveBeenCalledWith('/test/workspace', 'Executor', mockPlanId);
+    });
+
+    it('should preserve successful handoff when cleanup throws (non-fatal)', async () => {
+      vi.spyOn(handoffTools, 'handoff').mockResolvedValue({
+        success: true,
+        data: {
+          timestamp: '2026-02-04T10:00:00Z',
+          from_agent: 'Executor',
+          to_agent: 'Reviewer',
+          reason: 'Review',
+          verification: { valid: true, issues: [] },
+          coordinator_instruction: 'ok'
+        }
+      });
+      vi.spyOn(agentDeploy, 'cleanupAgent').mockRejectedValue(new Error('cleanup failed'));
 
       const result = await memoryAgent({
         action: 'handoff',

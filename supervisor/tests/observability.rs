@@ -15,7 +15,7 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use tokio::sync::Mutex;
+use tokio::sync::{watch, Mutex};
 
 use supervisor::config::{ReconnectSection, RestartPolicy};
 use supervisor::control::handler::{handle_request, FormAppConfigs};
@@ -41,6 +41,11 @@ fn make_registry() -> Arc<Mutex<Registry>> {
 
 fn empty_form_apps() -> Arc<FormAppConfigs> {
     Arc::new(FormAppConfigs::new())
+}
+
+fn test_shutdown_tx() -> watch::Sender<bool> {
+    let (tx, _rx) = watch::channel(false);
+    tx
 }
 
 fn svc(name: &str, state: &str, backend: Option<&str>, endpoint: Option<&str>) -> ServiceSummary {
@@ -448,7 +453,13 @@ fn redact_repeated_same_field() {
 #[tokio::test]
 async fn upgrade_mcp_response_contains_upgrade_initiated() {
     let reg = make_registry();
-    let resp = handle_request(ControlRequest::UpgradeMcp, Arc::clone(&reg), empty_form_apps()).await;
+    let resp = handle_request(
+        ControlRequest::UpgradeMcp,
+        Arc::clone(&reg),
+        empty_form_apps(),
+        test_shutdown_tx(),
+    )
+    .await;
     assert!(resp.ok, "UpgradeMcp should return ok");
     assert_eq!(resp.data["upgrade"], "initiated");
     assert_eq!(resp.data["service"], "mcp");
@@ -457,7 +468,13 @@ async fn upgrade_mcp_response_contains_upgrade_initiated() {
 #[tokio::test]
 async fn upgrade_mcp_sets_mcp_to_starting() {
     let reg = make_registry();
-    handle_request(ControlRequest::UpgradeMcp, Arc::clone(&reg), empty_form_apps()).await;
+    handle_request(
+        ControlRequest::UpgradeMcp,
+        Arc::clone(&reg),
+        empty_form_apps(),
+        test_shutdown_tx(),
+    )
+    .await;
     let locked = reg.lock().await;
     let mcp_state = locked
         .service_states()
@@ -474,7 +491,13 @@ async fn upgrade_mcp_sets_mcp_to_starting() {
 #[tokio::test]
 async fn upgrade_mcp_sets_upgrade_pending_true() {
     let reg = make_registry();
-    handle_request(ControlRequest::UpgradeMcp, Arc::clone(&reg), empty_form_apps()).await;
+    handle_request(
+        ControlRequest::UpgradeMcp,
+        Arc::clone(&reg),
+        empty_form_apps(),
+        test_shutdown_tx(),
+    )
+    .await;
     let locked = reg.lock().await;
     assert!(
         locked.is_upgrade_pending(),

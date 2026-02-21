@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detective Icon Variations</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: #f1f5f9;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 4rem 2rem;
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+        }
+
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .icon-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 2rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: all 0.3s ease;
+            border: 1px solid #e2e8f0;
+        }
+
+        .icon-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.1);
+        }
+
+        .svg-icon {
+            width: 180px;
+            height: 180px;
+            filter: drop-shadow(0 8px 6px rgba(0, 0, 0, 0.08));
+        }
+
+        /* Color Themes */
+        .theme-blue { --primary: #1e3a8a; --light: #eff6ff; }
+        .theme-emerald { --primary: #065f46; --light: #ecfdf5; }
+        .theme-crimson { --primary: #991b1b; --light: #fef2f2; }
+        .theme-purple { --primary: #5b21b6; --light: #f5f3ff; }
+        .theme-amber { --primary: #92400e; --light: #fffbeb; }
+
+        .card-label {
+            margin-top: 1.5rem;
+            color: var(--primary);
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="text-center mb-12">
+        <h1 class="text-3xl font-black text-slate-800 mb-2">Agency Branding Kit</h1>
+        <p class="text-slate-500">Evidence Collector Icon – Color Variations</p>
+    </header>
+
+    <div class="icon-grid">
+        <!-- Blue Variation -->
+        <div class="icon-card theme-blue">
+            <svg viewBox="0 0 100 100" class="svg-icon" xmlns="http://www.w3.org/2000/svg">
+                <rect x="74" y="74" width="8" height="30" rx="4" transform="rotate(-45 78 89)" fill="var(--primary)" />
+                <circle cx="45" cy="42" r="34" stroke="var(--primary)" stroke-width="7" fill="#ffffff" />
+                <path d="M 22 25 Q 30 14 45 14" fill="none" stroke="var(--light)" stroke-width="4" stroke-linecap="round" />
+                <!-- Larger Clipboard Group -->
+                <g transform="translate(30, 24)">
+                    <rect x="0" y="2" width="30" height="38" rx="2.5" fill="var(--primary)" />
+                    <rect x="4" y="8" width="22" height="26" rx="1.5" fill="#ffffff" />
+                    <rect x="9" y="0" width="12" height="6" rx="2" fill="var(--primary)" />
+                    <line x1="8" y1="14" x2="22" y2="14" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" />
+                    <line x1="8" y1="20" x2="22" y2="20" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" />
+                    <line x1="8" y1="26" x2="16" y2="26" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" />
+                </g>
+            </svg>
+            <span class="card-label">Midnight Blue</span>
+        </div>
+
+        <!-- Emerald Variation -->
+        <div class="icon-card theme-emerald">
+            <svg viewBox="0 0 100 100" class="svg-icon" xmlns="http://www.w3.org/2000/svg">
+                <rect x="74" y="74" width="8" height="30" rx="4" transform="rotate(-45 78 89)" fill="var(--primary)" />
+                <circle cx="45" cy="42" r="34" stroke="var(--primary)" stroke-width="7" fill="#ffffff" />
+                <path d="M 22 25 Q 30 14 45 14" fill="none" stroke="var(--light)" stroke-width="4" stroke-linecap="round" />
+                <g transform="translate(30, 24)">
+                    <rect x="0" y="2" width="30" height="38" rx="2.5" fill="var(--primary)" />
+                    <rect x="4" y="8" width="22" height="26" rx="1.5" fill="#ffffff" />
+                    <rect x="9" y="0" width="12" height="6" rx="2" fill="var(--primary)" />
+                    <line x1="8" y1="14" x2="22" y2="14" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" />
+                    <line x1="8" y1="20" x2="22" y2="20" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" />
+                    <line x1="8" y1="26" x2="16" y2="26" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" />
+                </g>
+            </svg>
+            <span class="card-label">Forest Asset</span>
+        </div>
+
+        <!-- Crimson Variation -->
+        <div class="icon-card theme-crimson">
+            <svg viewBox="0 0 100 100" class="svg-icon" xmlns="http://www.w3.org/2000/svg">
+                <rect x="74" y="74" width="8" height="30" rx="4" transform="rotate(-45 78 89)" fill="var(--primary)" />
+                <circle cx="45" cy="42" r="34" stroke="var(--primary)" stroke-width="7" fill="#ffffff" />
+                <path d="M 22 25 Q 30 14 45 14" fill="none" stroke="var(--light)" stroke-width="4" stroke-linecap="round" />
+                <g transform="translate(30, 24)">
+                    <rect x="0" y="2" width="30" height="38" rx="2.5" fill="var(--primary)" />
+                    <rect x="4" y="8" width="22" height="26" rx="1.5" fill="#ffffff" />
+                    <rect x="9" y="0" width="12" height="6" rx="2" fill="var(--primary)" />
+                    <line x1="8" y1="14" x2="22" y2="14" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" />
+                    <line x1="8" y1="20" x2="22" y2="20" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" />
+                    <line x1="8" y1="26" x2="16" y2="26" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" />
+                </g>
+            </svg>
+            <span class="card-label">High Alert Red</span>
+        </div>
+
+        <!-- Purple Variation -->
+        <div class="icon-card theme-purple">
+            <svg viewBox="0 0 100 100" class="svg-icon" xmlns="http://www.w3.org/2000/svg">
+                <rect x="74" y="74" width="8" height="30" rx="4" transform="rotate(-45 78 89)" fill="var(--primary)" />
+                <circle cx="45" cy="42" r="34" stroke="var(--primary)" stroke-width="7" fill="#ffffff" />
+                <path d="M 22 25 Q 30 14 45 14" fill="none" stroke="var(--light)" stroke-width="4" stroke-linecap="round" />
+                <g transform="translate(30, 24)">
+                    <rect x="0" y="2" width="30" height="38" rx="2.5" fill="var(--primary)" />
+                    <rect x="4" y="8" width="22" height="26" rx="1.5" fill="#ffffff" />
+                    <rect x="9" y="0" width="12" height="6" rx="2" fill="var(--primary)" />
+                    <line x1="8" y1="14" x2="22" y2="14" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" />
+                    <line x1="8" y1="20" x2="22" y2="20" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" />
+                    <line x1="8" y1="26" x2="16" y2="26" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" />
+                </g>
+            </svg>
+            <span class="card-label">Royal Inquiry</span>
+        </div>
+    </div>
+
+    <footer class="mt-16 text-slate-400 text-sm">
+        Click on any variation to select it for your project.
+    </footer>
+
+</body>
+</html>

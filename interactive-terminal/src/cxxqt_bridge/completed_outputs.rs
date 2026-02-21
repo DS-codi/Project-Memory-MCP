@@ -451,6 +451,8 @@ mod tests {
             HostedSessionProjection {
                 session_id: "sess-1".into(),
                 request_id: "req-1".into(),
+                runtime_session_id: "req-1".into(),
+                session_kind: HostedSessionKind::AgentCliSpecialized,
                 state: AgentSessionState::Stopped,
                 stop_escalation_level: 1,
             },
@@ -470,6 +472,8 @@ mod tests {
             HostedSessionProjection {
                 session_id: "sess-1".into(),
                 request_id: "req-1".into(),
+                runtime_session_id: "req-1".into(),
+                session_kind: HostedSessionKind::AgentCliSpecialized,
                 state: AgentSessionState::Running,
                 stop_escalation_level: 0,
             },

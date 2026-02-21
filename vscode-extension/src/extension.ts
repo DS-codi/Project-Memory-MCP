@@ -26,7 +26,8 @@ import { registerServerCommands, registerDeployCommands, registerPlanCommands, r
 import { extractWorkspaceIdFromRegisterResponse, resolveWorkspaceIdFromWorkspaceList } from './chat/workspaceRegistration';
 import { readSupervisorSettings } from './supervisor/settings';
 import { runSupervisorActivation } from './supervisor/activation';
-import { enterDegradedMode } from './supervisor/degraded';
+import { enterDegradedMode, exitDegradedMode } from './supervisor/degraded';
+import { detectSupervisor } from './supervisor/detect';
 
 // --- Module-level state ---
 let dashboardProvider: DashboardViewProvider;
@@ -182,11 +183,37 @@ export function activate(context: vscode.ExtensionContext) {
     // runSupervisorActivation is async; we do not await it so extension
     // activation is not blocked. Degraded mode is surfaced via status bar item.
     const supervisorSettings = readSupervisorSettings();
+    const supervisorTransportHint = vscode.workspace
+        .getConfiguration('projectMemory')
+        .get<'auto' | 'local' | 'container'>('containerMode', 'auto') === 'container'
+        ? 'TCP/container mode'
+        : 'local mode';
+
+    // --- Register "Reconnect Supervisor" command ---
+    // The Supervisor is always an independently-managed process; this command
+    // only probes whether one is reachable and, if so, clears degraded mode.
+    // Users launch the Supervisor themselves (e.g. via start-supervisor.ps1).
+    context.subscriptions.push(
+        vscode.commands.registerCommand('project-memory.startSupervisor', async () => {
+            const settings = readSupervisorSettings();
+            const found = await detectSupervisor(settings.detectTimeoutMs);
+            if (found) {
+                exitDegradedMode();
+                void vscode.window.showInformationMessage('Project Memory Supervisor connected.');
+            } else {
+                void vscode.window.showWarningMessage(
+                    'Project Memory Supervisor not detected. ' +
+                    'Start it with start-supervisor.ps1, then click the status bar item to retry.'
+                );
+            }
+        })
+    );
+
     runSupervisorActivation(context, supervisorSettings).then(supervisorResult => {
         if (supervisorResult === 'degraded') {
             enterDegradedMode(
                 context,
-                'Supervisor did not start in time. Click to retry.'
+                `Supervisor was not detected in ${supervisorTransportHint}. Click to retry.`
             );
         }
     }).catch(err => {
@@ -386,6 +413,18 @@ function initializeChatIntegration(
     sessionInterceptRegistry = new SessionInterceptRegistry(context.workspaceState);
     sessionInterceptRegistry.restore();
     context.subscriptions.push(sessionInterceptRegistry);
+
+    // Prune stale/zombie sessions every 5 minutes
+    // Also syncs from the MCP server so sessions completed via direct stdio
+    // (bypassing agent-tool.ts) are reconciled into the local registry.
+    const pruneTimer = setInterval(async () => {
+        if (sessionInterceptRegistry) {
+            await dashboardProvider.syncSessions();
+            await sessionInterceptRegistry.pruneStale();
+            await sessionInterceptRegistry.pruneCompleted();
+        }
+    }, 5 * 60 * 1000);
+    context.subscriptions.push({ dispose: () => clearInterval(pruneTimer) });
 
     if (registerChatParticipant) {
         chatParticipant = new ChatParticipant(mcpBridge);

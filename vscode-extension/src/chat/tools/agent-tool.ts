@@ -97,6 +97,22 @@ export async function handleAgentTool(
                     summary,
                     artifacts
                 });
+                // Mark the corresponding session as completed in the local registry
+                if (ctx.sessionRegistry && planId) {
+                    const planSessions = ctx.sessionRegistry.getByPlan(workspaceId, planId);
+                    const activeSession = planSessions.find(
+                        s =>
+                            s.agentType === agentType &&
+                            (s.status === 'active' || s.status === 'stopping')
+                    );
+                    if (activeSession) {
+                        await ctx.sessionRegistry.markCompleted(
+                            activeSession.workspaceId,
+                            activeSession.planId,
+                            activeSession.sessionId
+                        );
+                    }
+                }
                 break;
             }
 

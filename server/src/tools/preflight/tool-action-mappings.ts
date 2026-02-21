@@ -83,7 +83,7 @@ export const AGENT_TOOL_MAPPINGS: AgentToolMappingRegistry = {
         'append_research', 'generate_instructions', 'batch_store',
         'workspace_get', 'workspace_set', 'workspace_update',
         'workspace_delete', 'knowledge_store', 'knowledge_get',
-        'knowledge_list', 'knowledge_delete', 'write_prompt', 'dump_context',
+        'knowledge_list', 'knowledge_delete', 'search', 'pull', 'write_prompt', 'dump_context',
       ],
     },
     {
@@ -101,7 +101,7 @@ export const AGENT_TOOL_MAPPINGS: AgentToolMappingRegistry = {
     PLAN_READ,
     {
       tool: 'memory_context',
-      actions: ['get', 'store', 'append_research', 'list_research'],
+      actions: ['get', 'store', 'append_research', 'list_research', 'search', 'pull'],
     },
   ],
 
@@ -118,7 +118,7 @@ export const AGENT_TOOL_MAPPINGS: AgentToolMappingRegistry = {
     },
     {
       tool: 'memory_context',
-      actions: ['store', 'get'],
+      actions: ['store', 'get', 'search', 'pull'],
     },
   ],
 
@@ -145,7 +145,7 @@ export const AGENT_TOOL_MAPPINGS: AgentToolMappingRegistry = {
     },
     {
       tool: 'memory_context',
-      actions: ['store', 'get'],
+      actions: ['store', 'get', 'search', 'pull'],
     },
   ],
 
@@ -168,7 +168,7 @@ export const AGENT_TOOL_MAPPINGS: AgentToolMappingRegistry = {
     },
     {
       tool: 'memory_context',
-      actions: ['get', 'store'],
+      actions: ['get', 'store', 'search', 'pull'],
     },
   ],
 
@@ -188,7 +188,7 @@ export const AGENT_TOOL_MAPPINGS: AgentToolMappingRegistry = {
     },
     {
       tool: 'memory_context',
-      actions: ['store', 'get'],
+      actions: ['store', 'get', 'search', 'pull'],
     },
   ],
 
@@ -205,7 +205,7 @@ export const AGENT_TOOL_MAPPINGS: AgentToolMappingRegistry = {
     },
     {
       tool: 'memory_context',
-      actions: ['store', 'get'],
+      actions: ['store', 'get', 'search', 'pull'],
     },
   ],
 
@@ -215,7 +215,7 @@ export const AGENT_TOOL_MAPPINGS: AgentToolMappingRegistry = {
     PLAN_READ,
     {
       tool: 'memory_context',
-      actions: ['append_research', 'list_research', 'get', 'store'],
+      actions: ['append_research', 'list_research', 'get', 'store', 'search', 'pull'],
     },
   ],
 
@@ -232,7 +232,7 @@ export const AGENT_TOOL_MAPPINGS: AgentToolMappingRegistry = {
     },
     {
       tool: 'memory_context',
-      actions: ['knowledge_store', 'knowledge_list', 'get'],
+      actions: ['knowledge_store', 'knowledge_list', 'get', 'search'],
     },
   ],
 
@@ -249,7 +249,7 @@ export const AGENT_TOOL_MAPPINGS: AgentToolMappingRegistry = {
     },
     {
       tool: 'memory_context',
-      actions: ['get', 'store'],
+      actions: ['get', 'store', 'search', 'pull'],
     },
   ],
 
@@ -259,7 +259,7 @@ export const AGENT_TOOL_MAPPINGS: AgentToolMappingRegistry = {
     PLAN_READ,
     {
       tool: 'memory_context',
-      actions: ['append_research', 'get'],
+      actions: ['append_research', 'get', 'search'],
     },
   ],
 
@@ -273,7 +273,7 @@ export const AGENT_TOOL_MAPPINGS: AgentToolMappingRegistry = {
     },
     {
       tool: 'memory_context',
-      actions: ['get'],
+      actions: ['get', 'search'],
     },
   ],
 
@@ -283,7 +283,7 @@ export const AGENT_TOOL_MAPPINGS: AgentToolMappingRegistry = {
     PLAN_READ,
     {
       tool: 'memory_context',
-      actions: ['get', 'list_research'],
+      actions: ['get', 'list_research', 'search'],
     },
   ],
 

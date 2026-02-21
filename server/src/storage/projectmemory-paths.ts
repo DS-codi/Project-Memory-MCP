@@ -54,6 +54,29 @@ export function getAgentContextDir(workspacePath: string, agentName: string): st
   return path.join(getAgentDeployDir(workspacePath, agentName), 'context');
 }
 
+/** Agent pull staging root under context/ */
+export function getAgentPullStagingDir(workspacePath: string, agentName: string): string {
+  return path.join(getAgentContextDir(workspacePath, agentName), 'pull_staging');
+}
+
+/** Session-scoped pull staging directory under active agent context */
+export function getAgentPullSessionDir(
+  workspacePath: string,
+  agentName: string,
+  sessionId: string,
+): string {
+  return path.join(getAgentPullStagingDir(workspacePath, agentName), sessionId);
+}
+
+/** Manifest path for session-scoped pull staging */
+export function getAgentPullManifestPath(
+  workspacePath: string,
+  agentName: string,
+  sessionId: string,
+): string {
+  return path.join(getAgentPullSessionDir(workspacePath, agentName, sessionId), 'manifest.json');
+}
+
 /** Agent instructions subdirectory */
 export function getAgentInstructionsDir(workspacePath: string, agentName: string): string {
   return path.join(getAgentDeployDir(workspacePath, agentName), 'instructions');

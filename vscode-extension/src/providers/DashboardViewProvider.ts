@@ -13,7 +13,9 @@ import type { SessionInterceptRegistry } from '../chat/orchestration/session-int
 import {
     handleGetSkills, handleDeploySkill,
     handleGetInstructions, handleDeployInstruction, handleUndeployInstruction,
-    handleGetSessions, handleStopSession, handleInjectSession
+    handleGetSessions, handleStopSession, handleInjectSession,
+    handleClearAllSessions, handleForceCloseSession,
+    syncServerSessions
 } from './dashboard-webview/dashboard-message-handlers';
 
 function notify(message: string, ...items: string[]): Thenable<string | undefined> {
@@ -60,6 +62,22 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
      */
     public setSessionRegistry(registry: SessionInterceptRegistry): void {
         this._sessionRegistry = registry;
+    }
+
+    /**
+     * Sync sessions from the MCP server into the local registry.
+     * Called by the prune timer so sessions completed via direct stdio calls
+     * (bypassing agent-tool.ts) are still reconciled.
+     */
+    public async syncSessions(): Promise<void> {
+        if (!this._sessionRegistry) return;
+        const ctx = this.getSessionDiscoveryCtx();
+        if (!ctx) return;
+        try {
+            await syncServerSessions(this._sessionRegistry, ctx);
+        } catch {
+            // Swallow — prune timer must not throw
+        }
     }
 
     /**
@@ -135,11 +153,9 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
 
         const workspaceResolution = this.resolveWorkspaceContext();
         if (workspaceResolution) {
-            const startupMessage = `[Project Memory] Resolved workspace at panel startup: ${workspaceResolution.workspaceId} | ${workspaceResolution.workspacePath} | source=${workspaceResolution.source}`;
-            console.log(startupMessage);
-            notify(startupMessage);
+            console.log(`[PM] Resolved workspace: ${workspaceResolution.workspaceId} | ${workspaceResolution.workspacePath} | source=${workspaceResolution.source}`);
         } else {
-            console.log('[Project Memory] No workspace folder is available at panel startup.');
+            console.log('[PM] No workspace folder is available at panel startup.');
         }
 
         webviewView.webview.options = {
@@ -300,6 +316,50 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                 case 'injectSession':
                     handleInjectSession(this, this._sessionRegistry, message.data as { sessionKey: string; text: string });
                     break;
+
+                case 'clearAllSessions':
+                    await handleClearAllSessions(this, this._sessionRegistry);
+                    // Refresh session list after clearing
+                    await handleGetSessions(this, this._sessionRegistry, this.getSessionDiscoveryCtx());
+                    break;
+
+                case 'forceCloseSession':
+                    await handleForceCloseSession(this, this._sessionRegistry, message.data as { sessionKey: string });
+                    await handleGetSessions(this, this._sessionRegistry, this.getSessionDiscoveryCtx());
+                    break;
+
+                case 'openWorkspaceFolder': {
+                    const folderUri = vscode.workspace.workspaceFolders?.[0]?.uri;
+                    if (folderUri) {
+                        await vscode.commands.executeCommand('revealFileInOS', folderUri);
+                    } else {
+                        vscode.window.showWarningMessage('No workspace folder is open.');
+                    }
+                    break;
+                }
+
+                case 'copySupervisorCommand': {
+                    const wsPath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+                    if (wsPath) {
+                        const scriptPath = require('path').join(wsPath, 'start-supervisor.ps1');
+                        await vscode.env.clipboard.writeText(scriptPath);
+                        this.postMessage({ type: 'supervisorCommandCopied', data: { path: scriptPath } });
+                        notify(`Copied: ${scriptPath}`);
+                    } else {
+                        vscode.window.showWarningMessage('No workspace folder is open.');
+                    }
+                    break;
+                }
+
+                case 'openWorkspaceTerminal': {
+                    const wsTerminalPath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+                    const terminal = vscode.window.createTerminal({
+                        name: 'Project Memory',
+                        cwd: wsTerminalPath
+                    });
+                    terminal.show();
+                    break;
+                }
             }
         })
         );

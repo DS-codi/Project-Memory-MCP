@@ -25,6 +25,7 @@ import {
 } from '../storage/file-store.js';
 import { readJson, writeJson } from '../storage/file-lock.js';
 import {
+  getActiveAgentsDir,
   getAgentDeployDir,
   getDeployedAgentFile,
   getContextBundlePath,
@@ -32,6 +33,7 @@ import {
   getAgentContextDir,
   getAgentInstructionsDir,
   getAgentExecutionNotesDir,
+  getAgentPullStagingDir,
   getReviewedAgentDir,
 } from '../storage/projectmemory-paths.js';
 import { AGENTS_ROOT, INSTRUCTIONS_ROOT } from './agent.tools.js';
@@ -232,8 +234,64 @@ export async function cleanupAgent(
   agentName: string,
   planId: string,
 ): Promise<void> {
+  async function cleanupPlanPullStaging(): Promise<void> {
+    try {
+      const activeAgentsDir = getActiveAgentsDir(workspacePath);
+      if (!(await exists(activeAgentsDir))) {
+        return;
+      }
+
+      const agentDirs = await fs.readdir(activeAgentsDir, { withFileTypes: true });
+      for (const agentDirEntry of agentDirs) {
+        if (!agentDirEntry.isDirectory()) {
+          continue;
+        }
+
+        const pullStagingRoot = getAgentPullStagingDir(workspacePath, agentDirEntry.name);
+        if (!(await exists(pullStagingRoot))) {
+          continue;
+        }
+
+        const sessionDirs = await fs.readdir(pullStagingRoot, { withFileTypes: true });
+        for (const sessionDirEntry of sessionDirs) {
+          if (!sessionDirEntry.isDirectory()) {
+            continue;
+          }
+
+          const sessionDir = path.join(pullStagingRoot, sessionDirEntry.name);
+          const manifestPath = path.join(sessionDir, 'manifest.json');
+          if (!(await exists(manifestPath))) {
+            continue;
+          }
+
+          try {
+            const manifest = await readJson<Record<string, unknown>>(manifestPath);
+            if (manifest?.plan_id === planId) {
+              await fs.rm(sessionDir, { recursive: true, force: true });
+            }
+          } catch {
+            // If manifest can't be read/parsed, leave session dir untouched
+          }
+        }
+
+        try {
+          const remaining = await fs.readdir(pullStagingRoot);
+          if (remaining.length === 0) {
+            await fs.rm(pullStagingRoot, { recursive: true, force: true });
+          }
+        } catch {
+          // Non-fatal cleanup best-effort
+        }
+      }
+    } catch {
+      // Non-fatal cleanup best-effort
+    }
+  }
+
   const agentLower = agentName.toLowerCase();
   const agentDir = getAgentDeployDir(workspacePath, agentLower);
+
+  await cleanupPlanPullStaging();
 
   // If agent dir doesn't exist, return silently (idempotent)
   if (!(await exists(agentDir))) {

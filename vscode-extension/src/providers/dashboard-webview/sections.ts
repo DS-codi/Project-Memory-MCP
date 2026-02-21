@@ -48,6 +48,12 @@ export function getConnectedDashboardHtml(
                                             <li><span class="label">Stale/Stop</span> <span class="status-value" id="staleStatusValue">Checking...</span></li>
                                             <li><span class="label">Data Root</span> <span class="status-value" id="dataRootValue">Loading...</span></li>
                                         </ul>
+                                        <div class="status-divider"></div>
+                                        <div class="status-actions">
+                                            <button class="btn btn-small btn-secondary" data-action="open-workspace-folder">&#128194; Open Folder</button>
+                                            <button class="btn btn-small btn-secondary" data-action="copy-supervisor-command">&#128203; Copy Launch Command</button>
+                                            <button class="btn btn-small btn-secondary" data-action="open-workspace-terminal">&gt;_ Terminal</button>
+                                        </div>
                                     </div>
                                 </div>
                             </section>
@@ -81,7 +87,7 @@ export function getConnectedDashboardHtml(
                                                 </div>
                                             </div>
                                             <div class="action-group">
-                                                <div class="icon-row-title">Deploy</div>
+                                                <div class="icon-row-title">Deploy &#x2014; Hub Agents</div>
                                                 <div class="icon-grid">
                                                     <button class="icon-btn" data-action="run-command" data-command="projectMemory.deployAgents" title="Deploy Agents">
                                                         ${iconSvgs.deployAgents}
@@ -177,6 +183,9 @@ ${getSessionsSectionHtml(iconSvgs)}
                                             <button class="plans-tab" id="plansTabArchived" data-tab="archived">
                                                 Archived <span class="count" id="archivedCount">0</span>
                                             </button>
+                                            <button class="plans-tab" id="plansTabPrograms" data-tab="programs">
+                                                Programs <span class="count" id="programsCount">0</span>
+                                            </button>
                                         </div>
                                         <div class="plans-content">
                                             <div class="plans-pane active" id="plansPaneActive">
@@ -186,6 +195,12 @@ ${getSessionsSectionHtml(iconSvgs)}
                                             </div>
                                             <div class="plans-pane" id="plansPaneArchived">
                                                 <div id="plansListArchived">
+                                                    <div class="empty-state">Loading...</div>
+                                                </div>
+                                            </div>
+                                            <div class="plans-pane" id="plansPanePrograms">
+                                                <div class="programs-summary" id="programsSummary"></div>
+                                                <div id="plansListPrograms">
                                                     <div class="empty-state">Loading...</div>
                                                 </div>
                                             </div>

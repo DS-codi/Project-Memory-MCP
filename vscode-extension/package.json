@@ -516,7 +516,7 @@
         "name": "memory_context",
         "displayName": "Project Memory Context",
         "description": "Manage context - notes, briefings, handoffs, store/get context, research, batch operations, workspace-scoped CRUD",
-        "modelDescription": "Manage Project Memory context. Actions: 'add_note' to add a note (requires planId, note), 'briefing' to get mission briefing (requires planId), 'handoff' to transfer to another agent (requires planId, targetAgent, reason), 'workspace' to get workspace info. 'store' to save context data (requires planId, type, data), 'get' to retrieve context (requires planId, type). 'store_initial' to store initial user request (requires planId, userRequest). 'list' to list context files (requires planId). 'list_research' to list research notes (requires planId). 'append_research' to add a research note (requires planId, filename, content). 'batch_store' to store multiple items (requires planId, items array). 'workspace_get/workspace_set/workspace_update/workspace_delete' for workspace-scoped context (requires type).",
+        "modelDescription": "Manage Project Memory context. Actions: 'add_note' to add a note (requires planId, note), 'briefing' to get mission briefing (requires planId), 'handoff' to transfer to another agent (requires planId, targetAgent, reason), 'workspace' to get workspace info. 'store' to save context data (requires planId, type, data), 'get' to retrieve context (requires planId, type). 'store_initial' to store initial user request (requires planId, userRequest). 'list' to list context files (requires planId). 'list_research' to list research notes (requires planId). 'append_research' to add a research note (requires planId, filename, content). 'batch_store' to store multiple items (requires planId, items array). 'search' to query context across scopes (optional query, scope, types, limit). 'pull' to stage selected context using optional query/scope/types/selectors/limit filters. 'workspace_get/workspace_set/workspace_update/workspace_delete' for workspace-scoped context (requires type).",
         "parametersSchema": {
           "type": "object",
           "properties": {
@@ -538,6 +538,8 @@
                 "workspace_set",
                 "workspace_update",
                 "workspace_delete",
+                "search",
+                "pull",
                 "write_prompt",
                 "dump_context"
               ],
@@ -635,6 +637,38 @@
                 }
               },
               "description": "Batch items (for batch_store)"
+            },
+            "query": {
+              "type": "string",
+              "description": "Search query text (for search)"
+            },
+            "scope": {
+              "type": "string",
+              "enum": [
+                "plan",
+                "workspace",
+                "program",
+                "all"
+              ],
+              "description": "Search/pull scope (default: plan)"
+            },
+            "types": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Optional context type filters (for search/pull)"
+            },
+            "selectors": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              },
+              "description": "Selected context item selectors (for pull)"
+            },
+            "limit": {
+              "type": "number",
+              "description": "Max search results (default: 20)"
             }
           },
           "required": [
@@ -1051,6 +1085,11 @@
       {
         "command": "projectMemory.chat.reconnect",
         "title": "Reconnect Chat to MCP Server",
+        "category": "Project Memory"
+      },
+      {
+        "command": "project-memory.startSupervisor",
+        "title": "Start / Reconnect Supervisor",
         "category": "Project Memory"
       }
     ],

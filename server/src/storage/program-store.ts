@@ -225,3 +225,86 @@ export async function deleteProgram(workspaceId: string, programId: string): Pro
   const programDir = getProgramPath(workspaceId, programId);
   await fs.rm(programDir, { recursive: true, force: true });
 }
+
+export interface ProgramSearchArtifact {
+  program_id: string;
+  file_type: 'program_state' | 'program_manifest' | 'program_dependencies' | 'program_risks';
+  file_path: string;
+  payload: unknown;
+  updated_at: string;
+}
+
+export async function listProgramSearchArtifacts(workspaceId: string): Promise<ProgramSearchArtifact[]> {
+  const artifacts: ProgramSearchArtifact[] = [];
+  const programIds = await listPrograms(workspaceId);
+
+  for (const programId of programIds) {
+    const statePath = getProgramStatePath(workspaceId, programId);
+    const state = await readProgramState(workspaceId, programId);
+    if (state) {
+      artifacts.push({
+        program_id: programId,
+        file_type: 'program_state',
+        file_path: statePath,
+        payload: state,
+        updated_at: state.updated_at || state.created_at || new Date(0).toISOString(),
+      });
+    }
+
+    const manifestPath = getManifestPath(workspaceId, programId);
+    const manifest = await readManifest(workspaceId, programId);
+    if (manifest) {
+      artifacts.push({
+        program_id: programId,
+        file_type: 'program_manifest',
+        file_path: manifestPath,
+        payload: manifest,
+        updated_at: manifest.updated_at || new Date(0).toISOString(),
+      });
+    }
+
+    const depsPath = getDependenciesPath(workspaceId, programId);
+    try {
+      const depsRaw = await readJson<ProgramDependency[] | null>(depsPath);
+      if (Array.isArray(depsRaw)) {
+        const updatedAt = depsRaw
+          .map(dep => dep.satisfied_at || dep.created_at)
+          .filter(Boolean)
+          .sort()
+          .at(-1) || new Date(0).toISOString();
+        artifacts.push({
+          program_id: programId,
+          file_type: 'program_dependencies',
+          file_path: depsPath,
+          payload: depsRaw,
+          updated_at: updatedAt,
+        });
+      }
+    } catch {
+      continue;
+    }
+
+    const risksPath = getRisksPath(workspaceId, programId);
+    try {
+      const risksRaw = await readJson<ProgramRisk[] | null>(risksPath);
+      if (Array.isArray(risksRaw)) {
+        const updatedAt = risksRaw
+          .map(risk => risk.updated_at || risk.created_at)
+          .filter(Boolean)
+          .sort()
+          .at(-1) || new Date(0).toISOString();
+        artifacts.push({
+          program_id: programId,
+          file_type: 'program_risks',
+          file_path: risksPath,
+          payload: risksRaw,
+          updated_at: updatedAt,
+        });
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return artifacts;
+}

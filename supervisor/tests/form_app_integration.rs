@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use serde_json::json;
-use tokio::sync::Mutex;
+use tokio::sync::{watch, Mutex};
 
 use supervisor::config::{
     ApprovalGuiSection, BrainstormGuiSection, FormAppConfig, LaunchMode,
@@ -33,6 +33,11 @@ fn make_registry() -> Arc<Mutex<Registry>> {
 
 fn empty_form_apps() -> Arc<FormAppConfigs> {
     Arc::new(FormAppConfigs::new())
+}
+
+fn test_shutdown_tx() -> watch::Sender<bool> {
+    let (tx, _rx) = watch::channel(false);
+    tx
 }
 
 /// Build a [`FormAppConfig`] that runs a cross-platform echo-back command.
@@ -489,6 +494,7 @@ async fn handler_launch_app_unknown_name_returns_error() {
         },
         reg,
         empty_form_apps(),
+        test_shutdown_tx(),
     )
     .await;
 
@@ -518,6 +524,7 @@ async fn handler_launch_app_disabled_returns_error() {
         },
         make_registry(),
         Arc::new(apps),
+        test_shutdown_tx(),
     )
     .await;
 
@@ -545,6 +552,7 @@ async fn handler_launch_app_missing_binary_returns_error_response() {
         },
         make_registry(),
         Arc::new(apps),
+        test_shutdown_tx(),
     )
     .await;
 
@@ -571,6 +579,7 @@ async fn handler_launch_app_unknown_lists_known_apps() {
         },
         make_registry(),
         Arc::new(apps),
+        test_shutdown_tx(),
     )
     .await;
 
@@ -597,6 +606,7 @@ async fn handler_launch_app_echo_succeeds() {
         },
         make_registry(),
         Arc::new(apps),
+        test_shutdown_tx(),
     )
     .await;
 
@@ -845,6 +855,7 @@ async fn handler_launch_app_multiple_apps_registered() {
         },
         make_registry(),
         Arc::clone(&fa),
+        test_shutdown_tx(),
     )
     .await;
     assert!(r1.ok, "brainstorm_gui should succeed");
@@ -858,6 +869,7 @@ async fn handler_launch_app_multiple_apps_registered() {
         },
         make_registry(),
         Arc::clone(&fa),
+        test_shutdown_tx(),
     )
     .await;
     assert!(!r2.ok, "disabled approval_gui should fail");

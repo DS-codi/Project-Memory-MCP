@@ -218,7 +218,7 @@ export interface SessionDiscoveryContext {
  * any that aren't already in the local SessionInterceptRegistry.
  * Returns the count of newly registered sessions.
  */
-async function syncServerSessions(
+export async function syncServerSessions(
     registry: SessionInterceptRegistry,
     ctx: SessionDiscoveryContext
 ): Promise<number> {
@@ -266,9 +266,22 @@ async function syncServerSessions(
                     }>;
                 };
 
+                const serverSessionIds = new Set<string>();
                 for (const sess of planState.agent_sessions ?? []) {
-                    // Skip completed sessions
-                    if (sess.completed_at) continue;
+                    serverSessionIds.add(sess.session_id);
+
+                    // Server reports session as completed — propagate to local registry
+                    if (sess.completed_at) {
+                        const existing = registry.getBySessionId(sess.session_id);
+                        if (existing && (existing.status === 'active' || existing.status === 'stopping')) {
+                            await registry.markCompleted(
+                                existing.workspaceId,
+                                existing.planId,
+                                existing.sessionId
+                            );
+                        }
+                        continue;
+                    }
 
                     // Skip if already tracked locally
                     if (registry.getBySessionId(sess.session_id)) continue;
@@ -283,6 +296,21 @@ async function syncServerSessions(
                         startedAt: sess.started_at
                     });
                     registered++;
+                }
+
+                // Mark registry sessions that are no longer in server response as completed
+                const registryPlanSessions = registry.getByPlan(ctx.workspaceId, planId);
+                for (const regSess of registryPlanSessions) {
+                    if (
+                        (regSess.status === 'active' || regSess.status === 'stopping') &&
+                        !serverSessionIds.has(regSess.sessionId)
+                    ) {
+                        await registry.markCompleted(
+                            regSess.workspaceId,
+                            regSess.planId,
+                            regSess.sessionId
+                        );
+                    }
                 }
             } catch {
                 // Skip individual plan fetch errors
@@ -351,6 +379,48 @@ export function handleStopSession(
             type: 'sessionStopResult', 
             data: { success: false, sessionKey: data.sessionKey } 
         });
+    }
+}
+
+/** Close all active + stopping sessions immediately */
+export async function handleClearAllSessions(
+    poster: MessagePoster,
+    registry: SessionInterceptRegistry | undefined
+): Promise<void> {
+    if (!registry) {
+        poster.postMessage({ type: 'clearAllSessionsResult', data: { success: false, closed: 0 } });
+        return;
+    }
+    try {
+        const closed = await registry.closeAll();
+        poster.postMessage({ type: 'clearAllSessionsResult', data: { success: true, closed } });
+    } catch (error) {
+        console.error('Failed to clear all sessions:', error);
+        poster.postMessage({ type: 'clearAllSessionsResult', data: { success: false, closed: 0 } });
+    }
+}
+
+/** Force-close a single session regardless of current status */
+export async function handleForceCloseSession(
+    poster: MessagePoster,
+    registry: SessionInterceptRegistry | undefined,
+    data: { sessionKey: string }
+): Promise<void> {
+    if (!registry) return;
+    try {
+        const [workspaceId, planId, sessionId] = data.sessionKey.split('::');
+        if (!workspaceId || !planId || !sessionId) {
+            poster.postMessage({
+                type: 'forceCloseSessionResult',
+                data: { success: false, sessionKey: data.sessionKey, error: 'Invalid session key' }
+            });
+            return;
+        }
+        const ok = await registry.forceClose(workspaceId, planId, sessionId);
+        poster.postMessage({ type: 'forceCloseSessionResult', data: { success: ok, sessionKey: data.sessionKey } });
+    } catch (error) {
+        console.error('Failed to force close session:', error);
+        poster.postMessage({ type: 'forceCloseSessionResult', data: { success: false, sessionKey: data.sessionKey } });
     }
 }
 

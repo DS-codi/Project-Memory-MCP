@@ -233,6 +233,7 @@ async function handlePrep(
                     session_id?: string;
                     enriched_prompt?: string;
                     launch_routing?: LaunchRoutingDecision;
+                    orchestration_routing?: LaunchRoutingDecision;
                     agent_name?: string;
                     session_registration?: {
                         session_id: string;
@@ -245,6 +246,7 @@ async function handlePrep(
                     [key: string]: unknown;
                 };
                 launch_routing?: LaunchRoutingDecision;
+                orchestration_routing?: LaunchRoutingDecision;
                 warnings?: PrepWarning[];
                 [key: string]: unknown;
             };
@@ -261,7 +263,11 @@ async function handlePrep(
 
     const serverData = mcpResult.data.data;
     const prepConfig = serverData.prep_config;
-    const launchRouting = serverData.launch_routing ?? prepConfig?.launch_routing;
+    const launchRouting =
+        serverData.launch_routing
+        ?? serverData.orchestration_routing
+        ?? prepConfig?.launch_routing
+        ?? prepConfig?.orchestration_routing;
     const sessionReg = prepConfig?.session_registration;
 
     // Register session locally in SessionInterceptRegistry

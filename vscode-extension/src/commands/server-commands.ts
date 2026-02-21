@@ -21,6 +21,12 @@ export function registerServerCommands(
         }),
 
         vscode.commands.registerCommand('projectMemory.openDashboardPanel', async (url?: string) => {
+            // Resolve the target URL first — this determines which backend we need.
+            // In auto mode (no container), getDashboardFrontendUrl() returns the API port (e.g. :3001)
+            // and no separate Vite dev server is needed. Only in local dev mode does it return :5173.
+            const dashboardUrl = url || getDashboardFrontendUrl();
+            const needsViteFrontend = dashboardUrl.includes(':5173');
+
             // In container mode, the container serves both API and frontend — no local starts needed
             if (!serverManager.isContainerMode) {
                 if (!serverManager.isRunning) {
@@ -45,7 +51,10 @@ export function registerServerCommands(
                     }
                 }
 
-                if (!serverManager.isFrontendRunning) {
+                // Only start the Vite dev server when the target URL actually uses it.
+                // In auto mode the dashboard is served by the API server on port 3001 directly,
+                // so attempting to start the Vite dev server would be unnecessary and misleading.
+                if (needsViteFrontend && !serverManager.isFrontendRunning) {
                     const success = await vscode.window.withProgress({
                         location: vscode.ProgressLocation.Notification,
                         title: 'Starting dashboard frontend...',
@@ -62,7 +71,6 @@ export function registerServerCommands(
                 }
             }
 
-            const dashboardUrl = url || getDashboardFrontendUrl();
             DashboardPanel.createOrShow(context.extensionUri, dashboardUrl);
         }),
 
@@ -146,7 +154,7 @@ export function registerServerCommands(
                 await serverManager.stopFrontend();
                 await serverManager.stop();
                 vscode.window.showInformationMessage(
-                    'Switching to shared server on port 3001. Reloading window...',
+                    'Switching to main server on port 3001. Reloading window...',
                     'Reload'
                 ).then(selection => {
                     if (selection === 'Reload') {

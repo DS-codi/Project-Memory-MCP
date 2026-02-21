@@ -8,7 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
-use crate::control::protocol::BackendKind;
+use crate::control::protocol::{BackendKind, ChildHealthStatus, ConnectionHealthSummary, HealthSnapshot};
 
 // ---------------------------------------------------------------------------
 // Service state
@@ -105,6 +105,8 @@ pub struct Registry {
     event_log: VecDeque<StateEvent>,
     /// Whether an upgrade has been requested but not yet completed.
     upgrade_pending: bool,
+    /// Minimal health window visibility state.
+    health_window_visible: bool,
 }
 
 impl Registry {
@@ -131,6 +133,7 @@ impl Registry {
             next_client_id: 1,
             event_log: VecDeque::new(),
             upgrade_pending: false,
+            health_window_visible: true,
         }
     }
 
@@ -244,6 +247,69 @@ impl Registry {
         self.upgrade_pending
     }
 
+    /// Update health window visibility state.
+    pub fn set_health_window_visible(&mut self, visible: bool) {
+        self.health_window_visible = visible;
+    }
+
+    /// Return current health window visibility state.
+    pub fn health_window_visible(&self) -> bool {
+        self.health_window_visible
+    }
+
+    /// Return minimal health snapshot for GUI consumers.
+    pub fn health_snapshot(&self) -> HealthSnapshot {
+        let mut children: Vec<ChildHealthStatus> = self
+            .services
+            .values()
+            .map(|svc| ChildHealthStatus {
+                service_name: svc.name.clone(),
+                status: service_status_label(&svc.status),
+                pid: svc.pid,
+                last_health_error: svc.last_error.clone(),
+                updated_at: svc.last_health,
+            })
+            .collect();
+        children.sort_by(|a, b| a.service_name.cmp(&b.service_name));
+
+        let has_error = children.iter().any(|c| c.last_health_error.is_some());
+        let all_running = children
+            .iter()
+            .all(|c| c.status == "running");
+        let all_stopped = children
+            .iter()
+            .all(|c| c.status == "stopped");
+        let any_transitioning = children.iter().any(|c| c.status == "starting" || c.status == "stopping");
+
+        let state = if has_error {
+            "degraded"
+        } else if all_running {
+            "connected"
+        } else if all_stopped {
+            "disconnected"
+        } else if any_transitioning {
+            "reconnecting"
+        } else {
+            "degraded"
+        }
+        .to_string();
+
+        let last_transition_at = children.iter().filter_map(|c| c.updated_at).max();
+        let last_error = children
+            .iter()
+            .find_map(|c| c.last_health_error.clone());
+
+        HealthSnapshot {
+            connection: ConnectionHealthSummary {
+                state,
+                last_transition_at,
+                last_error,
+            },
+            children,
+            health_window_visible: self.health_window_visible,
+        }
+    }
+
     /// Register a new VS Code window as an attached client.
     ///
     /// Returns the generated `client_id` string (`"client-N"`).
@@ -318,6 +384,16 @@ impl Registry {
 impl Default for Registry {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+fn service_status_label(status: &ServiceStatus) -> String {
+    match status {
+        ServiceStatus::Running => "running".to_string(),
+        ServiceStatus::Stopped => "stopped".to_string(),
+        ServiceStatus::Starting => "starting".to_string(),
+        ServiceStatus::Stopping => "stopping".to_string(),
+        ServiceStatus::Error(err) => format!("error:{err}"),
     }
 }
 

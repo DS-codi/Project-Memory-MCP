@@ -1,0 +1,109 @@
+# Project Memory MCP — Supervisor Configuration Reference
+# Copy this file to %APPDATA%\ProjectMemory\supervisor.toml and
+# adjust paths for your machine, or run .\start-supervisor.ps1 to
+# have a working config written automatically.
+#
+# All sections and keys are OPTIONAL — omit anything and the default
+# value documented here will be used.
+
+# ── Core supervisor settings ──────────────────────────────────────────────────
+
+[supervisor]
+# Minimum log level: trace | debug | info | warn | error
+log_level = "info"
+
+# Control-plane transport: named_pipe (Windows default, fastest) | tcp
+control_transport = "named_pipe"
+
+# Windows named-pipe path used by the VS Code extension to send control commands
+control_pipe = "\\\\.\\pipe\\project-memory-supervisor"
+
+# TCP port for the control API when control_transport = "tcp"
+control_tcp_port = 45470
+
+# ── MCP server ───────────────────────────────────────────────────────────────
+
+[mcp]
+enabled = true
+
+# Port the MCP server listens on (extension connects here)
+port = 3457
+
+# "node" (default) or "container"
+backend = "node"
+
+[mcp.node]
+command     = "node"
+args        = ["dist/server.js"]
+# Absolute path to the compiled server directory
+working_dir = "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\server"
+
+# Environment variables injected into the MCP server process
+# [mcp.node.env]
+# SOME_VAR = "value"
+
+# Container backend (only used when backend = "container")
+[mcp.container]
+engine         = "podman"
+image          = "project-memory-mcp-project-memory:latest"
+container_name = "project-memory-mcp"
+ports          = ["3000:3000"]
+
+# ── Interactive Terminal ──────────────────────────────────────────────────────
+
+[interactive_terminal]
+enabled = true
+port    = 3458
+
+# Full path to the interactive-terminal executable
+command = "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\interactive-terminal\\target\\release\\interactive-terminal.exe"
+
+# ── Dashboard ────────────────────────────────────────────────────────────────
+
+[dashboard]
+enabled      = true
+port         = 3459
+requires_mcp = true
+
+# Dashboard backend server process (dashboard/server/ — runs Express + WebSocket).
+# This is separate from the frontend statics (dashboard/dist/) which are served
+# by the VS Code extension's webview panel.
+command     = "node"
+args        = ["dist/index.js"]
+working_dir = "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\dashboard\\server"
+
+# ── Approval gate dialog ──────────────────────────────────────────────────────
+
+[approval]
+default_countdown_seconds = 60
+default_on_timeout        = "approve"   # "approve" | "reject"
+always_on_top             = true
+
+# ── Brainstorm GUI ────────────────────────────────────────────────────────────
+
+[brainstorm_gui]
+enabled         = true
+command         = "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\target\\release\\pm-brainstorm-gui.exe"
+timeout_seconds = 300
+window_width    = 720
+window_height   = 640
+always_on_top   = false
+
+# ── Approval GUI ──────────────────────────────────────────────────────────────
+
+[approval_gui]
+enabled         = true
+command         = "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\target\\release\\pm-approval-gui.exe"
+timeout_seconds = 60
+window_width    = 480
+window_height   = 320
+always_on_top   = true
+
+# ── Reconnect policy (applies to all managed processes) ──────────────────────
+
+[reconnect]
+initial_delay_ms = 500
+max_delay_ms     = 30000
+multiplier       = 2.0
+max_attempts     = 0        # 0 = unlimited retries
+jitter_ratio     = 0.2
