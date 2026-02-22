@@ -107,7 +107,7 @@ export function createHttpApp(getServer: () => McpServer): Express {
   app.use(express.json());
 
   // ---- Health endpoint (6A.3) ----
-  app.get('/health', async (_req: Request, res: Response) => {
+  const healthHandler = async (_req: Request, res: Response) => {
     try {
       const workspaceIds = await listDirs(getDataRoot());
       const health = buildHealthResponse();
@@ -118,7 +118,10 @@ export function createHttpApp(getServer: () => McpServer): Express {
       (health as Record<string, unknown>).registeredWorkspaces = 'error';
       res.json(health);
     }
-  });
+  };
+  app.get('/health', healthHandler);
+  // Alias used by the VS Code extension's checkHealth() utility
+  app.get('/api/health', healthHandler);
 
   // ---- Streamable HTTP transport (/mcp) ----
   app.all('/mcp', async (req: Request, res: Response) => {
