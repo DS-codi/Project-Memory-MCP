@@ -108,27 +108,23 @@ function calculateHealth(meta: WorkspaceMeta, plans: PlanState[]): 'active' | 's
 
 // Scan all workspaces in data root
 export async function scanWorkspaces(dataRoot: string): Promise<WorkspaceSummary[]> {
-  const workspaces: WorkspaceSummary[] = [];
-  
   try {
     const entries = await fs.readdir(dataRoot, { withFileTypes: true });
-    
-    for (const entry of entries) {
-      if (!entry.isDirectory() || entry.name === 'logs') continue;
-      
+    const dirs = entries.filter(e => e.isDirectory() && e.name !== 'logs');
+
+    const results = await Promise.all(dirs.map(async (entry) => {
       const metaPath = path.join(dataRoot, entry.name, 'workspace.meta.json');
-      
       try {
         const metaContent = await fs.readFile(metaPath, 'utf-8');
         const meta: WorkspaceMeta = JSON.parse(metaContent);
-        
+
         // Guard against null/invalid meta files
-        if (!meta || typeof meta !== 'object' || !meta.workspace_id) continue;
-        
-        // Load active plans to determine health
+        if (!meta || typeof meta !== 'object' || !meta.workspace_id) return null;
+
+        // Load active plans to determine health (parallelized within workspace)
         const plans = await loadPlanStates(dataRoot, meta.workspace_id, meta.active_plans || []);
-        
-        workspaces.push({
+
+        return {
           workspace_id: meta.workspace_id,
           name: meta.name,
           path: meta.path,
@@ -142,16 +138,18 @@ export async function scanWorkspaces(dataRoot: string): Promise<WorkspaceSummary
           })) || [],
           ...(meta.parent_workspace_id ? { parent_workspace_id: meta.parent_workspace_id } : {}),
           ...(meta.child_workspace_ids?.length ? { child_workspace_ids: meta.child_workspace_ids } : {}),
-        });
+        } as WorkspaceSummary;
       } catch {
         // Skip directories without valid workspace.meta.json
+        return null;
       }
-    }
+    }));
+
+    return results.filter((w): w is WorkspaceSummary => w !== null);
   } catch (error) {
     console.error('Error scanning workspaces:', error);
+    return [];
   }
-  
-  return workspaces;
 }
 
 /**
@@ -184,23 +182,21 @@ export function buildWorkspaceHierarchy(workspaces: WorkspaceSummary[]): Workspa
 
 // Load plan states for given plan IDs
 async function loadPlanStates(dataRoot: string, workspaceId: string, planIds: string[]): Promise<PlanState[]> {
-  const plans: PlanState[] = [];
-  
-  for (const planId of planIds) {
+  const results = await Promise.all(planIds.map(async (planId) => {
     const statePath = path.join(dataRoot, workspaceId, 'plans', planId, 'state.json');
     try {
       const content = await fs.readFile(statePath, 'utf-8');
       const parsed = JSON.parse(content);
       // Guard against null/invalid state files
       if (parsed && typeof parsed === 'object' && parsed.id) {
-        plans.push(parsed);
+        return parsed as PlanState;
       }
     } catch {
       // Skip missing plans
     }
-  }
-  
-  return plans;
+    return null;
+  }));
+  return results.filter((p): p is PlanState => p !== null);
 }
 
 // Get detailed workspace info
