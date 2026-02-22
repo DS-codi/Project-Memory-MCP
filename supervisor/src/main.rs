@@ -68,6 +68,37 @@ fn main() {
         }
     }
 
+    // ── Single-instance guard ────────────────────────────────────────────────
+    // Prevent multiple supervisor processes running side-by-side.  A named
+    // Win32 mutex owned by the first instance acts as the lock; any subsequent
+    // launch detects ERROR_ALREADY_EXISTS and aborts immediately.
+    #[cfg(windows)]
+    {
+        extern "system" {
+            fn CreateMutexW(
+                lp_mutex_attributes: *mut std::ffi::c_void,
+                b_initial_owner: i32,
+                lp_name: *const u16,
+            ) -> *mut std::ffi::c_void;
+            fn GetLastError() -> u32;
+        }
+        const ERROR_ALREADY_EXISTS: u32 = 183;
+        let mutex_name: Vec<u16> =
+            "Local\\ProjectMemorySupervisor_SingleInstance\0"
+                .encode_utf16()
+                .collect();
+        // SAFETY: pure Win32 call; name is null-terminated UTF-16.
+        let handle = unsafe { CreateMutexW(std::ptr::null_mut(), 1, mutex_name.as_ptr()) };
+        if handle.is_null() || unsafe { GetLastError() } == ERROR_ALREADY_EXISTS {
+            eprintln!("[supervisor] another instance is already running — aborting.");
+            std::process::exit(1);
+        }
+        // Intentionally leak the handle.  It must remain open for the entire
+        // process lifetime to keep the mutex claimed.  The OS releases it when
+        // the process exits.
+        std::mem::forget(handle);
+    }
+
     if debug_mode {
         eprintln!("[supervisor:debug] setting Qt env vars...");
     }
@@ -286,6 +317,11 @@ async fn supervisor_main() {
 
             let (shutdown_tx, mut shutdown_rx) = tokio::sync::watch::channel(false);
 
+            // Register the sender so the QML quitSupervisor() invokable can
+            // trigger a graceful Tokio shutdown without calling Qt.quit() directly.
+            #[cfg(feature = "supervisor_qml_gui")]
+            let _ = crate::cxxqt_bridge::SHUTDOWN_TX.set(shutdown_tx.clone());
+
             let (tx, mut rx) =
                 tokio::sync::mpsc::channel::<supervisor::control::RequestEnvelope>(64);
 
@@ -477,6 +513,11 @@ async fn supervisor_main() {
             }
 
             println!("Supervisor stopped.");
+
+            // Terminate the entire process now that all child services have
+            // been stopped.  This also exits the Qt event loop on the main
+            // thread, preventing orphaned node/vite/terminal processes.
+            std::process::exit(0);
         }
         Err(e) => {
             eprintln!("error: failed to load config: {e}");

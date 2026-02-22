@@ -5,38 +5,37 @@ import * as vscode from 'vscode';
 import type { SupervisorSettings } from './settings';
 
 /**
- * Spawn the Supervisor launcher executable as a fully detached process.
+ * Launch the Supervisor as a completely detached process using PowerShell Start-Process.
+ * 
+ * This creates a process that is fully independent of VS Code - it will continue
+ * running even if VS Code crashes or closes. Uses PowerShell Start-Process to
+ * ensure complete process tree detachment on Windows.
  *
- * The child process is detached and unreferenced so it continues running
- * independently of the VS Code extension host process.
- *
- * @param launcherPath Absolute path to the launcher executable.
- * @returns The spawned {@link cp.ChildProcess} (already unref'd).
- * @throws {Error} If `launcherPath` is empty or the file does not exist.
+ * @param settings Supervisor settings read from workspace configuration.
+ * @throws {Error} If no launch script or executable can be located.
  */
-export function spawnLauncher(launcherPath: string): cp.ChildProcess {
-  if (!launcherPath || launcherPath.trim().length === 0) {
-    throw new Error(
-      'spawnLauncher: launcherPath must not be empty. ' +
-        'Provide the absolute path to the Supervisor launcher executable.'
-    );
-  }
+export function launchSupervisorDetached(settings: SupervisorSettings): void {
+  const launchTarget = resolveLaunchTarget(settings);
 
-  if (!fs.existsSync(launcherPath)) {
-    throw new Error(
-      `spawnLauncher: launcher executable not found at path "${launcherPath}". ` +
-        'Ensure the Supervisor launcher is installed and the path is correct.'
-    );
-  }
+  // Use PowerShell Start-Process for complete detachment
+  // -WindowStyle Hidden runs in background
+  // Process survives even if VS Code closes
+  const psCommand = launchTarget.endsWith('.ps1')
+    ? `Start-Process powershell -ArgumentList "-ExecutionPolicy", "Bypass", "-File", "${launchTarget.replace(/\\/g, '\\\\')}" -WindowStyle Hidden`
+    : `Start-Process "${launchTarget.replace(/\\/g, '\\\\')}" -WindowStyle Hidden`;
 
-  const child = cp.spawn(launcherPath, [], {
-    detached: true,
-    stdio: 'ignore',
+  cp.exec(psCommand, { shell: 'powershell.exe' }, (error) => {
+    if (error) {
+      vscode.window.showErrorMessage(
+        `Failed to launch Supervisor: ${error.message}\n\n` +
+        `Try running manually: ${launchTarget}`
+      );
+    } else {
+      vscode.window.showInformationMessage(
+        'Supervisor launched in background. Checking for connection...'
+      );
+    }
   });
-
-  child.unref();
-
-  return child;
 }
 
 /**
@@ -74,6 +73,32 @@ export function launchSupervisorInTerminal(settings: SupervisorSettings): vscode
 }
 
 /**
+ * Get the supervisor directory path (to open in Explorer).
+ * Returns the first workspace folder that contains start-supervisor.ps1,
+ * or the configured launcher path directory, or null if not found.
+ */
+export function getSupervisorDirectory(settings: SupervisorSettings): string | null {
+  // 1. Check explicit setting
+  if (settings.launcherPath && settings.launcherPath.trim().length > 0) {
+    const p = settings.launcherPath.trim();
+    if (fs.existsSync(p)) {
+      return path.dirname(p);
+    }
+  }
+
+  // 2. Look for start-supervisor.ps1 in workspace roots
+  const workspaceFolders = vscode.workspace.workspaceFolders ?? [];
+  for (const folder of workspaceFolders) {
+    const candidate = path.join(folder.uri.fsPath, 'start-supervisor.ps1');
+    if (fs.existsSync(candidate)) {
+      return folder.uri.fsPath;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Determine the absolute path to the launch target (script or exe).
  * Throws a descriptive error if nothing can be found.
  */
@@ -99,7 +124,15 @@ function resolveLaunchTarget(settings: SupervisorSettings): string {
     }
   }
 
-  // 3. Nothing found — tell the user how to fix it.
+  // 3. Look for _deprecated_start-supervisor.ps1 as fallback
+  for (const folder of workspaceFolders) {
+    const candidate = path.join(folder.uri.fsPath, '_deprecated_start-supervisor.ps1');
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  // 4. Nothing found — tell the user how to fix it.
   throw new Error(
     '[Supervisor] Could not locate start-supervisor.ps1 in any workspace folder, ' +
       'and supervisor.launcherPath is not configured. ' +

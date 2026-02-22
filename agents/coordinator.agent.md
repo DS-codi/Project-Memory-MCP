@@ -244,6 +244,8 @@ After Executor completes a phase:
 | `memory_context` | `workspace_get` | **Fetch workspace context** - check if populated/stale |
 | `memory_context` | `workspace_set` | Set full workspace context |
 | `memory_context` | `workspace_update` | Update specific workspace context sections |
+| `memory_context` | `search` | Search context across plan/workspace/program/knowledge scopes with filters |
+| `memory_context` | `pull` | Stage selected context into temporary `.projectmemory` working artifacts |
 | `memory_session` | `prep` | **Prepare enriched spawn payload** — call before every `runSubagent`. Returns `prep_config.enriched_prompt` with workspace/plan context, scope boundaries, and anti-spawning instructions injected. |
 
 > **Note:** Subagents use `memory_agent` (action: handoff) to recommend which agent to deploy next. When a subagent calls handoff, it sets `recommended_next_agent` in the plan state. You read this via `memory_plan` (action: get) and then spawn the appropriate subagent.
@@ -254,6 +256,12 @@ After Executor completes a phase:
 - Use `memory_terminal` for all command execution — both headless server/container flows and visible terminal workflows.
 - When Rust+QML interactive gateway context is present, treat it as approval/routing; execution targets `memory_terminal`.
 - Require subagents to keep terminal contracts separate and avoid cross-copying payloads between surfaces.
+
+## Context Search/Pull Lifecycle Guidance
+
+- When routing context-heavy work, require subagents to use `memory_context` `search` before `pull` and keep scope/type filters narrow.
+- Treat `pull` output under `.projectmemory` as temporary staging only, not durable context.
+- Require review/testing checks to confirm pull-temp cleanup semantics on both `memory_agent` handoff and complete lifecycle paths.
 
 ### Sub-Agent Tool
 ```javascript

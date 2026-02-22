@@ -23,6 +23,7 @@ import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { InMemoryEventStore } from '@modelcontextprotocol/sdk/examples/shared/inMemoryEventStore.js';
 import { getDataRoot, listDirs } from '../storage/file-store.js';
 import { isDataRootAccessible } from './data-root-liveness.js';
+import { getAllLiveSessions, getLiveSessionCount } from '../tools/session-live-store.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -71,6 +72,7 @@ function buildHealthResponse(): Record<string, unknown> {
     connectionState,
     activeSessions: sessionEntries.length,
     sessionsByType,
+    liveAgentSessions: getLiveSessionCount(),
     memory: {
       heapUsedMB: Math.round(mem.heapUsed / 1024 / 1024 * 100) / 100,
       rssMB: Math.round(mem.rss / 1024 / 1024 * 100) / 100,
@@ -176,6 +178,11 @@ export function createHttpApp(getServer: () => McpServer): Express {
         });
       }
     }
+  });
+
+  // ---- Live agent sessions endpoint ----
+  app.get('/sessions/live', (_req: Request, res: Response) => {
+    res.json(getAllLiveSessions());
   });
 
   // ---- Legacy SSE transport (/sse + /messages) ----

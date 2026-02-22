@@ -45,6 +45,11 @@ export function getManifestPath(workspacePath: string, agentName: string): strin
   return path.join(getAgentDeployDir(workspacePath, agentName), 'manifest.json');
 }
 
+/** Init-context offload file path (large static context pre-loaded by deploy_and_prep) */
+export function getInitContextPath(workspacePath: string, agentName: string): string {
+  return path.join(getAgentDeployDir(workspacePath, agentName), 'init-context.json');
+}
+
 // ---------------------------------------------------------------------------
 // Agent sub-directories
 // ---------------------------------------------------------------------------
@@ -85,6 +90,12 @@ export function getAgentInstructionsDir(workspacePath: string, agentName: string
 /** Agent execution notes subdirectory */
 export function getAgentExecutionNotesDir(workspacePath: string, agentName: string): string {
   return path.join(getAgentDeployDir(workspacePath, agentName), 'execution_notes');
+}
+
+/** Tool responses mirroring directory within active agent deployment.
+ *  Populated by withLogging for session recovery; moved to reviewed_queue on cleanup. */
+export function getAgentToolResponsesDir(workspacePath: string, agentName: string): string {
+  return path.join(getAgentDeployDir(workspacePath, agentName), 'tool_responses');
 }
 
 // ---------------------------------------------------------------------------

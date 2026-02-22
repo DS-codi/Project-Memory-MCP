@@ -104,6 +104,8 @@ You MUST call `memory_agent` (action: init) as your very first action with this 
 | `memory_steps` | `set_order` | Apply a full order array |
 | `memory_steps` | `replace` | Replace all steps (rare) |
 | `memory_context` | `get` | Retrieve stored context from upstream agents (audit, architecture, affected_files, constraints, code_references, research_summary) |\n| `memory_context` | `store` | Save execution log |
+| `memory_context` | `search` | Discover scoped context items before retrieval/staging |
+| `memory_context` | `pull` | Stage selected context into temporary `.projectmemory` artifacts |
 | `memory_context` | `append_research` | Add research/experiment notes |
 | `memory_terminal` | `run` | Execute build/lint/test commands with authorization checks |
 | `memory_terminal` | `read_output` | Read buffered output from a running session |
@@ -156,8 +158,14 @@ Instruction files are located in `.memory/instructions/` in the workspace.
    - Call `memory_context(action: get, type: "constraints")` — technical constraints
    - Call `memory_context(action: get, type: "code_references")` — relevant code snippets
    - Call `memory_context(action: get, type: "research_summary")` — research findings (if from Analyst flow)
+  - Use `memory_context(action: search)` with narrow scope/types when additional context discovery is needed
+  - Use `memory_context(action: pull)` only for selected items needed in the active task
    - Check `instruction_files` from init response for `.memory/instructions/` files
    - **Do NOT perform broad codebase research if context is already provided.** Only read files that are listed in the stored context or directly relevant to the current step.
+
+  Pull-temp lifecycle note:
+  - Treat `.projectmemory` pulled artifacts as temporary working state only.
+  - Cleanup is expected on both `memory_agent(action: handoff)` and `memory_agent(action: complete)`.
 4. For each pending step:
    - Call `memory_steps` (action: update) to mark it `active`
    - Implement the change

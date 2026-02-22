@@ -23,7 +23,11 @@ import * as contextTools from './tools/context.tools.js';
 import * as agentTools from './tools/agent.tools.js';
 import * as validationTools from './tools/agent-validation.tools.js';
 import * as store from './storage/file-store.js';
+import { promises as fs } from 'fs';
+import path from 'path';
 import { logToolCall, runWithToolContext, setCurrentAgent } from './logging/tool-logger.js';
+import { touchLiveSession, getLiveSessionEntry } from './tools/session-live-store.js';
+import { getActiveAgentsDir, getAgentToolResponsesDir } from './storage/projectmemory-paths.js';
 
 // Import consolidated tools
 import * as consolidatedTools from './tools/consolidated/index.js';
@@ -39,6 +43,76 @@ import { sendStartupAlert } from './transport/container-startup-alert.js';
 import { setDataRoot, startLivenessPolling, stopLivenessPolling } from './transport/data-root-liveness.js';
 
 // =============================================================================
+// Tool-Response Mirroring
+// =============================================================================
+
+/** Maximum serialised payload size to mirror (100 KB) to avoid runaway writes. */
+const TOOL_RESPONSE_MIRROR_MAX_BYTES = 100 * 1024;
+
+/**
+ * Mirror a tool response to .projectmemory/active_agents/{agent}/tool_responses/
+ * so agents and recovery tooling can access recent payloads without relying on
+ * VS Code's internal workspaceStorage cache.
+ *
+ * Fire-and-forget — never throws and never affects the returned tool result.
+ */
+async function mirrorToolResponse(
+  toolName: string,
+  params: Record<string, unknown>,
+  result: unknown,
+): Promise<void> {
+  try {
+    // 1. Need workspace_id to locate workspace source path
+    const workspaceId = params.workspace_id as string | undefined;
+    if (!workspaceId) return;
+
+    // 2. Resolve workspace source path from meta (data/{workspaceId}/workspace.meta.json)
+    const meta = await store.getWorkspace(workspaceId) as Record<string, unknown> | null;
+    if (!meta) return;
+    const workspaceSrcPath = (meta.workspace_path ?? meta.path) as string | undefined;
+    if (!workspaceSrcPath) return;
+
+    // 3. Determine active agent — try live session first (O(1))
+    let agentName: string | undefined;
+    const sessionId = params._session_id as string | undefined;
+    if (sessionId) {
+      agentName = getLiveSessionEntry(sessionId)?.agentType?.toLowerCase();
+    }
+    // Fallback: pick the first directory under active_agents/
+    if (!agentName) {
+      try {
+        const entries = await fs.readdir(getActiveAgentsDir(workspaceSrcPath), { withFileTypes: true });
+        agentName = entries.find(e => e.isDirectory())?.name;
+      } catch {
+        return;
+      }
+    }
+    if (!agentName) return;
+
+    // 4. Serialise and cap payload
+    const payload = JSON.stringify({
+      tool: toolName,
+      mirrored_at: new Date().toISOString(),
+      workspace_id: workspaceId,
+      result,
+    });
+    if (Buffer.byteLength(payload, 'utf-8') > TOOL_RESPONSE_MIRROR_MAX_BYTES) return;
+
+    // 5. Write to tool_responses dir
+    const toolResponsesDir = getAgentToolResponsesDir(workspaceSrcPath, agentName);
+    await fs.mkdir(toolResponsesDir, { recursive: true });
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    await fs.writeFile(
+      path.join(toolResponsesDir, `${toolName}_${timestamp}.json`),
+      payload,
+      'utf-8',
+    );
+  } catch {
+    // Fire-and-forget — mirroring failure must never affect the tool result
+  }
+}
+
+// =============================================================================
 // Logging Helper
 // =============================================================================
 
@@ -52,7 +126,13 @@ async function withLogging<T>(
 ): Promise<T> {
   return runWithToolContext(toolName, params, async () => {
     const startTime = Date.now();
-    
+
+    // Update live session metrics for every tool call
+    const sessionId = params._session_id as string | undefined;
+    if (sessionId) {
+      touchLiveSession(sessionId, toolName);
+    }
+
     try {
       const result = await fn();
       const durationMs = Date.now() - startTime;
@@ -66,7 +146,11 @@ async function withLogging<T>(
         resultObj.error,
         durationMs
       );
-      
+
+      // Mirror response to .projectmemory/active_agents/{agent}/tool_responses/
+      // so it is accessible for session recovery. Fire-and-forget.
+      void mirrorToolResponse(toolName, params, result);
+
       return result;
     } catch (error) {
       const durationMs = Date.now() - startTime;

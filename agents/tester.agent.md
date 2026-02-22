@@ -202,6 +202,8 @@ If the plan was created from a template, ensure template-related flows are cover
 | `memory_agent` | `complete` | Mark session complete | Mark session complete |
 | `memory_context` | `get` | Retrieve test_plan or context | Retrieve test_plan or context |
 | `memory_context` | `store` | `test_plan` | `test_results` |
+| `memory_context` | `search` | Optional scoped context discovery for test targeting | Optional scoped context discovery for run assertions |
+| `memory_context` | `pull` | Optional staging for fixture-like context inputs | Validate staged pull-temp lifecycle behavior |
 | `memory_steps` | `insert` | Insert a step at a specific index | - |
 | `memory_steps` | `delete` | Delete a step by index | - |
 | `memory_steps` | `reorder` | Move steps up/down | - |
@@ -217,6 +219,12 @@ If the plan was created from a template, ensure template-related flows are cover
 - RUN mode may execute commands; WRITE mode should not execute tests.
 - In RUN mode, use `memory_terminal` for all test/build execution.
 - If Rust+QML interactive gateway context applies, treat it as approval/routing; execution lands on `memory_terminal`.
+
+## Context Pull Lifecycle Checks (When Applicable)
+
+- If test scope includes `memory_context` `pull`, validate that staged `.projectmemory` data behaves as temporary working state.
+- Validate cleanup expectations on both `memory_agent(action: handoff)` and `memory_agent(action: complete)` paths.
+- Confirm durable context data remains intact after cleanup.
 
 ---
 

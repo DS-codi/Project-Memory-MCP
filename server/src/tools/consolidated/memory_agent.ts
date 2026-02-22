@@ -26,6 +26,7 @@ import { validateAndResolveWorkspaceId } from './workspace-validation.js';
 import { preflightValidate } from '../preflight/index.js';
 import { incrementStat } from '../session-stats.js';
 import { events } from '../../events/event-emitter.js';
+import { registerLiveSession, clearLiveSession, serverSessionIdForPrepId } from '../session-live-store.js';
 
 export type AgentAction = 
   | 'init' 
@@ -176,6 +177,19 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
         }
       }
 
+      // Register in live store so every subsequent tool call can update metrics
+      if (initData.session) {
+        registerLiveSession(
+          initData.session.session_id,
+          params._session_id,
+          {
+            agentType: params.agent_type,
+            planId: params.plan_id,
+            workspaceId: params.workspace_id
+          }
+        );
+      }
+
       const wantsValidation = params.validate === true || params.validation_mode === 'init+validate';
 
       if (wantsValidation && params.workspace_id && params.plan_id) {
@@ -235,6 +249,12 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
       });
       if (!result.success) {
         return { success: false, error: result.error };
+      }
+
+      // Clear from live store — session is done
+      if (params._session_id) {
+        const serverSid = serverSessionIdForPrepId(params._session_id);
+        if (serverSid) clearLiveSession(serverSid);
       }
 
       // Cleanup deployed agent files (non-fatal)

@@ -221,6 +221,8 @@ You MUST call `memory_agent` (action: init) as your very first action with conte
 | `memory_agent` | `complete` | Mark your session complete |
 | `memory_context` | `get` | Compare against audit findings |
 | `memory_context` | `store` | Save review/build reports |
+| `memory_context` | `search` | Validate scoped context discovery behavior and docs/examples |
+| `memory_context` | `pull` | Validate staging semantics and temporary lifecycle expectations |
 | `memory_workspace` | `reindex` | Update codebase profile after successful review |
 | `memory_plan` | `get` | Get current plan state |
 | `memory_plan` | `list_build_scripts` | List all build scripts |
@@ -256,6 +258,8 @@ You MUST call `memory_agent` (action: init) as your very first action with conte
    - If `action: continue` → proceed
 3. **Determine mode** from deployment context (review / regression_check / final_verification)
 4. Execute the appropriate workflow (see modes above)
+  - For context-tooling changes, confirm `search` scope/type/limit semantics are documented and examples are consistent.
+  - Confirm `pull` is documented as temporary `.projectmemory` staging with cleanup on both handoff and complete lifecycle paths.
 5. Store results via `memory_context` (action: store) with type `review` or `build_report` or `regression_report`
 6. **Call `memory_agent` (action: handoff)** to Coordinator with recommendation
 7. Call `memory_agent` (action: complete) with your summary

@@ -16,6 +16,8 @@ export interface DeployForTaskParams {
   include_skills?: boolean;
   include_research?: boolean;
   include_architecture?: boolean;
+  /** Optional: session_id minted by deploy_and_prep — embedded in manifest */
+  session_id?: string;
 }
 
 /** Assembled context bundle written alongside agent file */
@@ -38,6 +40,9 @@ export interface ActiveAgentManifest {
   plan_id: string;
   workspace_id: string;
   phase_name?: string;
+  step_indices?: number[];
+  /** Session ID minted during deploy_and_prep (absent when deployed via standalone deploy_for_task) */
+  session_id?: string;
   deployed_at: string;
   context_bundle_path: string;
   agent_file_path: string;

@@ -414,12 +414,20 @@ function initializeChatIntegration(
     sessionInterceptRegistry.restore();
     context.subscriptions.push(sessionInterceptRegistry);
 
-    // Prune stale/zombie sessions every 5 minutes
-    // Also syncs from the MCP server so sessions completed via direct stdio
-    // (bypassing agent-tool.ts) are reconciled into the local registry.
-    const pruneTimer = setInterval(async () => {
+    // Sync sessions from MCP server every 30 seconds.
+    // With HTTP transport all tool calls go directly to the server, bypassing
+    // agent-tool.ts entirely. This loop is the authoritative reconciliation path:
+    // it reads agent_sessions from the dashboard API and marks completed/registers.
+    const sessionSyncTimer = setInterval(async () => {
         if (sessionInterceptRegistry) {
             await dashboardProvider.syncSessions();
+        }
+    }, 30 * 1000);
+    context.subscriptions.push({ dispose: () => clearInterval(sessionSyncTimer) });
+
+    // Prune stale/zombie sessions every 5 minutes (housekeeping only).
+    const pruneTimer = setInterval(async () => {
+        if (sessionInterceptRegistry) {
             await sessionInterceptRegistry.pruneStale();
             await sessionInterceptRegistry.pruneCompleted();
         }

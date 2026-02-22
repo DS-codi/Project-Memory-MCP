@@ -33,6 +33,7 @@ import {
   getAgentContextDir,
   getAgentInstructionsDir,
   getAgentExecutionNotesDir,
+  getAgentToolResponsesDir,
   getAgentPullStagingDir,
   getReviewedAgentDir,
 } from '../storage/projectmemory-paths.js';
@@ -298,17 +299,25 @@ export async function cleanupAgent(
     return;
   }
 
-  // Move execution_notes/ to reviewed_queue if it exists
+  // Archive execution_notes/ and tool_responses/ to reviewed_queue/{planId}/{name}_{timestamp}/
+  // Both land under a shared session container dir for easy inspection and recovery.
   try {
+    const timestamp = nowISO().replace(/[:.]/g, '-');
+    const sessionDir = getReviewedAgentDir(workspacePath, planId, agentLower, timestamp);
+
     const notesDir = getAgentExecutionNotesDir(workspacePath, agentLower);
     if (await exists(notesDir)) {
-      const timestamp = nowISO().replace(/[:.]/g, '-');
-      const reviewedDir = getReviewedAgentDir(workspacePath, planId, agentLower, timestamp);
-      await ensureDir(path.dirname(reviewedDir));
-      await fs.rename(notesDir, reviewedDir);
+      await ensureDir(sessionDir);
+      await fs.rename(notesDir, path.join(sessionDir, 'execution_notes'));
+    }
+
+    const toolResponsesDir = getAgentToolResponsesDir(workspacePath, agentLower);
+    if (await exists(toolResponsesDir)) {
+      await ensureDir(sessionDir);
+      await fs.rename(toolResponsesDir, path.join(sessionDir, 'tool_responses'));
     }
   } catch {
-    // Non-fatal — notes archival failure shouldn't block cleanup
+    // Non-fatal — archival failure shouldn't block cleanup
   }
 
   // Remove entire agent deployment directory

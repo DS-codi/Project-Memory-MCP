@@ -73,7 +73,11 @@ ApplicationWindow {
             Platform.MenuSeparator {}
             Platform.MenuItem {
                 text: "Quit Supervisor"
-                onTriggered: Qt.quit()
+                // Route through the bridge so the Tokio runtime can stop all
+                // child processes (Node, Vite, terminal) before we exit.
+                // Never call Qt.quit() directly — it would kill the Qt event
+                // loop before services are shut down.
+                onTriggered: supervisorGuiBridge.quitSupervisor()
             }
         }
     }

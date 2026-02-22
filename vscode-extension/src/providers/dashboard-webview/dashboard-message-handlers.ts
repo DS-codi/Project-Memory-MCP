@@ -218,10 +218,32 @@ export interface SessionDiscoveryContext {
  * any that aren't already in the local SessionInterceptRegistry.
  * Returns the count of newly registered sessions.
  */
+/** Stats written by the server into agent_sessions[i] on complete */
+interface ServerHandoffStats {
+    tool_call_count?: number;
+    steps_completed?: number;
+    steps_attempted?: number;
+    files_read?: number;
+    files_modified?: number;
+    duration_category?: string;
+}
+
 export async function syncServerSessions(
     registry: SessionInterceptRegistry,
     ctx: SessionDiscoveryContext
 ): Promise<number> {
+    // Fetch live metrics from MCP server (port 3457) for in-flight tool counts.
+    // This is a best-effort overlay — failures are silently ignored.
+    let liveStats: Record<string, { lastTool: string; callCount: number }> = {};
+    try {
+        const liveResp = await fetch(`http://localhost:3457/sessions/live`);
+        if (liveResp.ok) {
+            liveStats = await liveResp.json() as typeof liveStats;
+        }
+    } catch {
+        // MCP server unreachable — skip live overlay
+    }
+
     try {
         // Step 1: Get plan listing for IDs and statuses (lightweight — no agent_sessions)
         const listResponse = await fetch(
@@ -262,7 +284,9 @@ export async function syncServerSessions(
                         agent_type: string;
                         started_at: string;
                         completed_at?: string;
+                        summary?: string;
                         context?: { parent_session_id?: string };
+                        handoff_stats?: ServerHandoffStats;
                     }>;
                 };
 
@@ -280,7 +304,25 @@ export async function syncServerSessions(
                                 existing.sessionId
                             );
                         }
+                        // Apply handoff_stats from the completed session's plan state record
+                        if (sess.handoff_stats?.tool_call_count !== undefined) {
+                            registry.updateLastTool(
+                                sess.session_id,
+                                'complete',
+                                sess.handoff_stats.tool_call_count
+                            );
+                        }
                         continue;
+                    }
+
+                    // For active sessions, overlay real-time call count from live store
+                    const live = liveStats[sess.session_id];
+                    if (live) {
+                        registry.updateLastTool(
+                            sess.session_id,
+                            live.lastTool,
+                            live.callCount
+                        );
                     }
 
                     // Skip if already tracked locally

@@ -11,6 +11,12 @@ use std::sync::OnceLock;
 pub static SUPERVISOR_QT: OnceLock<cxx_qt::CxxQtThread<ffi::SupervisorGuiBridge>> =
     OnceLock::new();
 
+/// Shutdown sender registered in `supervisor_main()` once the Tokio watch
+/// channel is created.  The QML `quitSupervisor()` invokable sends `true`
+/// here so the Tokio event loop performs a graceful service shutdown before
+/// the process exits.
+pub static SHUTDOWN_TX: OnceLock<tokio::sync::watch::Sender<bool>> = OnceLock::new();
+
 /// Resolve a `file:///` URL for a supervisor tray icon, searching next to the
 /// running executable so the path is correct whether we are running from
 /// `target/release/` or an installed location.

@@ -178,6 +178,25 @@ export class SessionInterceptRegistry implements vscode.Disposable {
     }
 
     /**
+     * Update last tool call info for a session (called from live-store sync).
+     * Does NOT persist — dashboard metrics are ephemeral and refreshed each cycle.
+     * Returns false if the session is not found.
+     */
+    updateLastTool(sessionId: string, toolName: string, callCount: number): boolean {
+        const entry = this.getBySessionId(sessionId);
+        if (!entry) return false;
+
+        entry.lastToolCall = {
+            toolName,
+            timestamp: new Date().toISOString(),
+            callCount
+        };
+        // Fire change event so the webview re-renders without a full persist round-trip
+        this.changeEmitter.fire();
+        return true;
+    }
+
+    /**
      * Queue an interrupt directive
      */
     async queueInterrupt(
