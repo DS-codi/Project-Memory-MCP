@@ -275,12 +275,14 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                     break;
 
                 case 'ready':
-                    // Webview is ready, send initial config
+                    // Webview is ready, send initial config (including workspaceId in case it was
+                    // empty when the webview HTML was generated on early startup)
                     this.postMessage({
                         type: 'init',
                         data: {
                             dataRoot: this._dataRoot,
-                            agentsRoot: this._agentsRoot
+                            agentsRoot: this._agentsRoot,
+                            workspaceId: this.resolveWorkspaceContext()?.workspaceId || '',
                         }
                     });
                     break;
@@ -358,6 +360,14 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                         cwd: wsTerminalPath
                     });
                     terminal.show();
+                    break;
+                }
+
+                case 'configureSupervisorPath': {
+                    vscode.commands.executeCommand(
+                        'workbench.action.openSettings',
+                        'supervisor.launcherPath'
+                    );
                     break;
                 }
             }

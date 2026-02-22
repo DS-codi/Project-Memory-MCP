@@ -47,7 +47,7 @@ export function getClientScript(params: ClientScriptParams): string {
         const vscode = acquireVsCodeApi();
         const apiPort = ${apiPort};
         const dashboardUrl = '${dashboardUrl}';
-        const workspaceId = '${workspaceId}';
+        let workspaceId = '${workspaceId}';
         const workspaceName = '${workspaceName}';
         const dataRoot = ${dataRoot};
         const icons = ${iconsJson};
@@ -116,6 +116,15 @@ export function getClientScript(params: ClientScriptParams): string {
                         isolateBtn.classList.remove('isolated');
                         isolateBtnText.textContent = 'Isolate';
                         isolateBtn.title = 'Spawn isolated server for this workspace';
+                    }
+                }
+            } else if (message.type === 'init') {
+                const newId = message.data && message.data.workspaceId;
+                if (newId && newId !== workspaceId) {
+                    workspaceId = newId;
+                    lastPlanSignature = '';
+                    if (hasRenderedDashboard) {
+                        fetchPlans();
                     }
                 }
             }
@@ -229,6 +238,8 @@ export function getClientScript(params: ClientScriptParams): string {
                 vscode.postMessage({ type: 'copySupervisorCommand' });
             } else if (action === 'open-workspace-terminal') {
                 vscode.postMessage({ type: 'openWorkspaceTerminal' });
+            } else if (action === 'configure-supervisor-path') {
+                vscode.postMessage({ type: 'configureSupervisorPath' });
             } else if (action === 'run-command' && command) {
                 vscode.postMessage({ type: 'runCommand', data: { command: command } });
             } else if (action === 'open-plan-browser' && planId) {
