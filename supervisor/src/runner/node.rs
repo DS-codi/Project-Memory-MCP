@@ -83,6 +83,10 @@ impl ServiceRunner for NodeRunner {
             .id()
             .ok_or_else(|| anyhow::anyhow!("spawned process has no PID"))?;
 
+        // Assign to the supervisor job object so the OS kills this process
+        // automatically if the supervisor exits or crashes.
+        crate::runner::job_object::adopt(pid);
+
         self.state = RunnerInternalState::Running { child, pid };
         Ok(())
     }
@@ -136,6 +140,25 @@ impl ServiceRunner for NodeRunner {
     /// Returns `http://127.0.0.1:{port}`.
     async fn discover_endpoint(&self) -> anyhow::Result<String> {
         Ok(format!("http://127.0.0.1:{}", self.port))
+    }
+}
+
+impl NodeRunner {
+    /// Returns `true` if the child process has already exited (dead but not yet
+    /// cleaned up).  Uses non-blocking `try_wait()` — no I/O.
+    pub fn is_process_dead(&mut self) -> bool {
+        match self.state {
+            RunnerInternalState::Running { ref mut child, .. } => {
+                matches!(child.try_wait(), Ok(Some(_)))
+            }
+            RunnerInternalState::Stopped => true,
+        }
+    }
+
+    /// Force state to Stopped, dropping the child handle without killing it.
+    /// Use before `start()` when the process is known to have already exited.
+    pub fn mark_stopped(&mut self) {
+        self.state = RunnerInternalState::Stopped;
     }
 }
 

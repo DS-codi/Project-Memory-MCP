@@ -1,28 +1,36 @@
 /**
  * DiagnosticsService
- * 
- * Tracks system health: active child processes, MCP server connection,
- * dashboard server health, memory usage. Provides a consolidated report
- * for the status bar indicator and diagnostics command.
+ *
+ * Tracks system health driven by the supervisor's SSE heartbeat stream
+ * (SupervisorHeartbeat) rather than periodic HTTP polling.
+ *
+ * The supervisor broadcasts a HeartbeatEvent every 10 seconds to all
+ * connected VS Code instances.  DiagnosticsService subscribes once and
+ * updates its report whenever a beat arrives or is lost.
+ *
+ * The old 30-second poll timer and bridge.httpGet probe have been removed —
+ * they caused false disconnections whenever the dashboard server was briefly
+ * slow.
  */
 
 import * as vscode from 'vscode';
-import { ServerManager } from '../server/ServerManager';
+import { ConnectionManager } from '../server/ConnectionManager';
 import { McpBridge } from '../chat';
+import { SupervisorHeartbeat, HeartbeatEvent } from '../supervisor/SupervisorHeartbeat';
 
 export interface DiagnosticsReport {
     timestamp: string;
-    server: {
-        running: boolean;
-        external: boolean;
-        containerMode: boolean;
-        port: number;
-        frontendRunning: boolean;
+    connection: {
+        dashboardConnected: boolean;
+        mcpConnected: boolean;
+        dashboardPort: number;
+        mcpPort: number;
     };
     mcp: {
-        connected: boolean;
-        lastProbeMs: number | null;
-        probeError: string | null;
+        bridgeConnected: boolean;
+        supervisorHeartbeat: boolean;
+        lastHeartbeatMs: number | null;
+        poolInstances: number;
     };
     extension: {
         memoryMB: number;
@@ -34,109 +42,112 @@ export interface DiagnosticsReport {
 
 export class DiagnosticsService implements vscode.Disposable {
     private extensionStartTime = Date.now();
-    private healthCheckTimer: ReturnType<typeof setInterval> | null = null;
     private lastReport: DiagnosticsReport | null = null;
     private _onHealthChange = new vscode.EventEmitter<DiagnosticsReport>();
     public readonly onHealthChange = this._onHealthChange.event;
 
+    private heartbeatSubscriptions: vscode.Disposable[] = [];
+    private lastHeartbeat: HeartbeatEvent | null = null;
+    private heartbeatAlive = false;
+
     constructor(
-        private serverManager: ServerManager,
+        private connectionManager: ConnectionManager,
         private getMcpBridge: () => McpBridge | null,
-        private serverPort: number
+        private dashboardPort: number
     ) {}
 
-    /** Start periodic health checks (every 30s). */
-    startMonitoring(intervalMs = 30_000): void {
-        if (this.healthCheckTimer) { return; }
-        this.healthCheckTimer = setInterval(() => {
-            this.runCheck();
-        }, intervalMs);
-        // Immediate first check
-        this.runCheck();
+    /**
+     * Wire up to a SupervisorHeartbeat instance.
+     * Call this once after the heartbeat client has been started.
+     * Each beat drives a fresh diagnostics report.
+     */
+    attachHeartbeat(heartbeat: SupervisorHeartbeat): void {
+        this.heartbeatSubscriptions.push(
+            heartbeat.onBeat(evt => {
+                this.lastHeartbeat = evt;
+                this.heartbeatAlive = true;
+                // If the ConnectionManager state is stale (services were down last poll),
+                // trigger an immediate re-check so we don't wait 30 s for the poll timer.
+                if (!this.connectionManager.isDashboardConnected || !this.connectionManager.isMcpConnected) {
+                    this.connectionManager.detectAndConnect().then(() => this.runCheck());
+                } else {
+                    this.runCheck();
+                }
+            }),
+            heartbeat.onLost(() => {
+                this.heartbeatAlive = false;
+                this.runCheck();
+            }),
+            heartbeat.onRestored(() => {
+                this.heartbeatAlive = true;
+                // Trigger an immediate ConnectionManager re-check so we don't
+                // wait up to 30 s for the poll timer to notice services came back.
+                this.connectionManager.detectAndConnect().then(() => this.runCheck());
+            }),
+        );
     }
 
-    stopMonitoring(): void {
-        if (this.healthCheckTimer) {
-            clearInterval(this.healthCheckTimer);
-            this.healthCheckTimer = null;
-        }
-    }
-
-    /** Run a full diagnostics check and return the report. */
-    async runCheck(): Promise<DiagnosticsReport> {
+    /** Run a diagnostics check and emit onHealthChange. */
+    runCheck(): DiagnosticsReport {
         const issues: string[] = [];
 
-        // Server status
-        const containerMode = this.serverManager.isContainerMode;
-        const serverRunning = this.serverManager.isRunning || containerMode;
-        const serverExternal = this.serverManager.isExternalServer;
-        const frontendRunning = this.serverManager.isFrontendRunning || containerMode;
+        // Connection status from ConnectionManager (still uses its own poll).
+        const dashboardConnected = this.connectionManager.isDashboardConnected;
+        const mcpConnected = this.connectionManager.isMcpConnected;
 
-        if (!serverRunning) {
-            issues.push('Dashboard server is not running');
+        if (!dashboardConnected) {
+            issues.push('Dashboard server is not reachable');
         }
-
-        // MCP status + health probe
-        const bridge = this.getMcpBridge();
-        const mcpConnected = bridge?.isConnected() ?? false;
-        let lastProbeMs: number | null = null;
-        let probeError: string | null = null;
-
-        if (mcpConnected && bridge) {
-            try {
-                const start = Date.now();
-                await Promise.race([
-                    bridge.callTool('memory_workspace', { action: 'list' }),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('MCP probe timeout (5s)')), 5000))
-                ]);
-                lastProbeMs = Date.now() - start;
-                if (lastProbeMs > 3000) {
-                    issues.push(`MCP server slow: ${lastProbeMs}ms response time`);
-                }
-            } catch (e) {
-                probeError = e instanceof Error ? e.message : String(e);
-                issues.push(`MCP health probe failed: ${probeError}`);
-            }
-        }
-
         if (!mcpConnected) {
-            issues.push('MCP server is not connected');
+            issues.push('MCP server (proxy) is not reachable');
         }
 
-        // Memory
+        // Supervisor heartbeat.
+        if (!this.heartbeatAlive) {
+            issues.push('Supervisor heartbeat lost — supervisor may be down');
+        }
+
+        // Bridge connected flag (no probe — just reads the cached state).
+        const bridge = this.getMcpBridge();
+        const bridgeConnected = bridge?.isConnected() ?? false;
+        if (!bridgeConnected) {
+            issues.push('MCP bridge is not connected');
+        }
+
+        // Memory — use 1000MB threshold; extension host routinely exceeds 500MB
+        // with Copilot and other extensions loaded.
         const memUsage = process.memoryUsage();
         const memoryMB = Math.round(memUsage.heapUsed / 1024 / 1024 * 100) / 100;
-        if (memoryMB > 500) {
+        if (memoryMB > 1000) {
             issues.push(`High memory usage: ${memoryMB} MB`);
         }
 
-        // Uptime
         const uptimeSeconds = Math.floor((Date.now() - this.extensionStartTime) / 1000);
 
-        // Overall health
         let health: 'green' | 'yellow' | 'red' = 'green';
         if (issues.length > 0) {
-            health = issues.some(i => i.includes('not running') || i.includes('not connected')) ? 'red' : 'yellow';
+            // Services genuinely unreachable → red.
+            // Bridge disconnected / heartbeat lost on its own → yellow (auto-recovers).
+            health = issues.some(i =>
+                i.includes('not reachable')
+            ) ? 'red' : 'yellow';
         }
 
         const report: DiagnosticsReport = {
             timestamp: new Date().toISOString(),
-            server: {
-                running: serverRunning,
-                external: serverExternal,
-                containerMode,
-                port: this.serverPort,
-                frontendRunning,
+            connection: {
+                dashboardConnected,
+                mcpConnected,
+                dashboardPort: this.dashboardPort,
+                mcpPort: this.connectionManager['config'].mcpPort,
             },
             mcp: {
-                connected: mcpConnected,
-                lastProbeMs,
-                probeError,
+                bridgeConnected,
+                supervisorHeartbeat: this.heartbeatAlive,
+                lastHeartbeatMs: this.lastHeartbeat?.timestamp_ms ?? null,
+                poolInstances: this.lastHeartbeat?.pool_instances ?? 0,
             },
-            extension: {
-                memoryMB,
-                uptime: uptimeSeconds,
-            },
+            extension: { memoryMB, uptime: uptimeSeconds },
             health,
             issues,
         };
@@ -147,53 +158,48 @@ export class DiagnosticsService implements vscode.Disposable {
     }
 
     /** Get the most recent cached report (or run a fresh check). */
-    async getReport(): Promise<DiagnosticsReport> {
-        if (this.lastReport) { return this.lastReport; }
-        return this.runCheck();
+    getReport(): DiagnosticsReport {
+        return this.lastReport ?? this.runCheck();
     }
 
     /** Format a report as human-readable text for an output channel. */
     formatReport(report: DiagnosticsReport): string {
-        const lines: string[] = [];
-        lines.push('=== Project Memory Diagnostics ===');
-        lines.push(`Timestamp: ${report.timestamp}`);
-        lines.push(`Health: ${report.health.toUpperCase()}`);
-        lines.push('');
-
-        lines.push('--- Dashboard Server ---');
-        lines.push(`  Running: ${report.server.running}`);
-        lines.push(`  Mode: ${report.server.containerMode ? 'container' : report.server.external ? 'external' : 'local'}`);
-        lines.push(`  Port: ${report.server.port}`);
-        lines.push(`  Frontend: ${report.server.frontendRunning}`);
-        lines.push('');
-
-        lines.push('--- MCP Server ---');
-        lines.push(`  Connected: ${report.mcp.connected}`);
-        if (report.mcp.lastProbeMs !== null) {
-            lines.push(`  Last probe: ${report.mcp.lastProbeMs}ms`);
-        }
-        if (report.mcp.probeError) {
-            lines.push(`  Probe error: ${report.mcp.probeError}`);
-        }
-        lines.push('');
-
-        lines.push('--- Extension ---');
-        lines.push(`  Memory: ${report.extension.memoryMB} MB`);
-        lines.push(`  Uptime: ${report.extension.uptime}s`);
-        lines.push('');
+        const lines: string[] = [
+            '=== Project Memory Diagnostics ===',
+            `Timestamp: ${report.timestamp}`,
+            `Health: ${report.health.toUpperCase()}`,
+            '',
+            '--- Connection Status ---',
+            `  Dashboard: ${report.connection.dashboardConnected ? 'Connected' : 'Disconnected'} (port ${report.connection.dashboardPort})`,
+            `  MCP Proxy: ${report.connection.mcpConnected ? 'Connected' : 'Disconnected'} (port ${report.connection.mcpPort})`,
+            '',
+            '--- Supervisor ---',
+            `  Heartbeat: ${report.mcp.supervisorHeartbeat ? '✓ alive' : '✗ lost'}`,
+            `  Pool instances: ${report.mcp.poolInstances}`,
+            `  Bridge connected: ${report.mcp.bridgeConnected}`,
+            '',
+            '--- Extension ---',
+            `  Memory: ${report.extension.memoryMB} MB`,
+            `  Uptime: ${report.extension.uptime}s`,
+            '',
+        ];
 
         if (report.issues.length > 0) {
             lines.push('--- Issues ---');
-            report.issues.forEach(issue => lines.push(`  ⚠ ${issue}`));
+            report.issues.forEach(i => lines.push(`  ⚠ ${i}`));
+            lines.push('');
+            lines.push('💡 Launch the Supervisor: "Project Memory: Launch Supervisor"');
         } else {
-            lines.push('No issues detected.');
+            lines.push('✓ No issues detected.');
         }
 
         return lines.join('\n');
     }
 
     dispose(): void {
-        this.stopMonitoring();
+        this.heartbeatSubscriptions.forEach(d => d.dispose());
+        this.heartbeatSubscriptions = [];
         this._onHealthChange.dispose();
     }
 }
+

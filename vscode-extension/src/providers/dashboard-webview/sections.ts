@@ -104,6 +104,23 @@ export function getConnectedDashboardHtml(
                                                 </div>
                                             </div>
                                             <div class="action-group">
+                                                <div class="icon-row-title">Supervisor</div>
+                                                <div class="icon-grid">
+                                                    <button class="icon-btn" data-action="run-command" data-command="project-memory.launchSupervisor" title="Launch Supervisor (background)">
+                                                        ${iconSvgs.runButton}
+                                                    </button>
+                                                    <button class="icon-btn" data-action="run-command" data-command="project-memory.launchSupervisorInTerminal" title="Launch Supervisor in Terminal">
+                                                        ${iconSvgs.terminalIcon}
+                                                    </button>
+                                                    <button class="icon-btn" data-action="run-command" data-command="project-memory.openSupervisorDirectory" title="Open Supervisor Directory">
+                                                        ${iconSvgs.folderOpen}
+                                                    </button>
+                                                    <button class="icon-btn" data-action="configure-supervisor-path" title="Configure Supervisor Path">
+                                                        ${iconSvgs.configureDefaults}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="action-group">
                                                 <div class="icon-row-title">Build & System</div>
                                                 <div class="icon-grid">
                                                     <button class="icon-btn" data-action="open-build-scripts" title="Build Scripts">
@@ -234,19 +251,23 @@ ${getSessionsSectionHtml(iconSvgs)}
  */
 export function getDisconnectedFallbackHtml(): string {
     return `
-                    <p>Dashboard server is not running</p>
+                    <p>Supervisor is not running</p>
                     <p style="margin-top: 8px; color: var(--vscode-descriptionForeground); font-size: 11px;">Health check: \${errorText}</p>
-                    <button class="btn" data-action="run-command" data-command="projectMemory.startServer">Start Server</button>
-                    <button class="btn btn-secondary" data-action="refresh">Retry</button>
-                    <div class="info-card" style="margin-top: 20px;">
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px;">
+                        <button class="btn" data-action="run-command" data-command="project-memory.launchSupervisor">&#9654; Launch</button>
+                        <button class="btn btn-secondary" data-action="run-command" data-command="project-memory.launchSupervisorInTerminal">&gt;_ Terminal</button>
+                        <button class="btn btn-secondary" data-action="run-command" data-command="project-memory.openSupervisorDirectory">&#128194; Directory</button>
+                    </div>
+                    <button class="btn btn-secondary" style="margin-top: 6px; width: 100%;" data-action="configure-supervisor-path">&#9881; Configure Supervisor Path</button>
+                    <button class="btn btn-secondary" style="margin-top: 6px; width: 100%;" data-action="refresh">&#8635; Retry Connection</button>
+                    <div class="info-card" style="margin-top: 16px;">
                         <h3>Troubleshooting</h3>
                         <ul>
+                            <li>Set <strong>supervisor.launcherPath</strong> to your supervisor.exe</li>
                             <li>Check if port \${apiPort} is available</li>
                             <li>View server logs for errors</li>
-                            <li>Try restarting the server</li>
                         </ul>
-                        <button class="btn btn-secondary" style="margin-top: 12px" data-action="run-command" data-command="projectMemory.showServerLogs">Show Server Logs</button>
-                        <button class="btn btn-secondary" style="margin-top: 12px" data-action="run-command" data-command="projectMemory.forceStopExternalServer">Force Stop External Server</button>
+                        <button class="btn btn-secondary" style="margin-top: 12px" data-action="run-command" data-command="projectMemory.showServerLogs">Show Logs</button>
                     </div>
                 `;
 }

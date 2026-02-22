@@ -1091,6 +1091,21 @@
         "command": "project-memory.startSupervisor",
         "title": "Start / Reconnect Supervisor",
         "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.showMcpSessions",
+        "title": "Show Active MCP Sessions",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.showMcpInstances",
+        "title": "Show MCP Pool Instances",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.scaleUpMcp",
+        "title": "Scale Up MCP Pool",
+        "category": "Project Memory"
       }
     ],
     "viewsContainers": {
@@ -1144,23 +1159,31 @@
         "projectMemory.serverPort": {
           "type": "number",
           "default": 3001,
-          "description": "Port for the dashboard API server (same as apiPort)"
+          "description": "Port for the dashboard API server"
+        },
+        "projectMemory.mcpPort": {
+          "type": "number",
+          "default": 3457,
+          "description": "Port for the MCP server"
         },
         "projectMemory.wsPort": {
           "type": "number",
           "default": 3002,
-          "description": "Port for the WebSocket server (live updates)"
+          "description": "Port for the WebSocket server (live updates) - DEPRECATED, managed by Supervisor",
+          "deprecationMessage": "WebSocket port is now managed by the Supervisor. This setting is ignored."
         },
         "projectMemory.autoStartServer": {
           "type": "boolean",
           "default": false,
-          "description": "Automatically start the dashboard server when extension activates. When false (default), the server starts on first dashboard open or explicit command."
+          "description": "DEPRECATED: Extension no longer starts servers. Launch the Supervisor externally via start-supervisor.ps1",
+          "deprecationMessage": "Server spawning has been removed. Launch the Supervisor externally using start-supervisor.ps1 or the Launch Supervisor command."
         },
         "projectMemory.idleServerTimeoutMinutes": {
           "type": "number",
           "default": 0,
           "minimum": 0,
-          "description": "Shut down the dashboard server after this many minutes of idle time (no WebSocket clients connected). Set to 0 to disable idle shutdown."
+          "description": "DEPRECATED: Idle timeout is now managed by the Supervisor.",
+          "deprecationMessage": "Idle server timeout is now configured in the Supervisor's supervisor.toml file."
         },
         "projectMemory.skillsRoot": {
           "type": "string",
@@ -1292,7 +1315,7 @@
         "supervisor.launcherPath": {
           "type": "string",
           "default": "",
-          "description": "Path to the Supervisor launcher executable. Leave empty to use bundled launcher.",
+          "markdownDescription": "Absolute path to the Supervisor executable or `start-supervisor.ps1` launch script (e.g. `C:\\tools\\project-memory\\start-supervisor.ps1`). This is a **global/user-level** setting — set it once and it applies to all workspaces. Leave empty if `start-supervisor.ps1` is present in your workspace root.",
           "scope": "application"
         },
         "supervisor.detectTimeoutMs": {

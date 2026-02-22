@@ -53,6 +53,11 @@ import {
   type ActiveRunLifecycleRecord
 } from './orchestration/stale-run-recovery.js';
 import { buildToolContracts } from './preflight/index.js';
+import {
+  getManifestPath,
+  getInitContextPath,
+  getAgentDeployDir,
+} from '../storage/projectmemory-paths.js';
 
 /**
  * Initialize an agent session - MUST be called first by every agent

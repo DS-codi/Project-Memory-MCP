@@ -23,7 +23,7 @@ handoffs:
 - `memory_steps` (actions: add, update, batch_update, insert, delete, reorder, move, sort, set_order, replace)
 - `memory_agent` (actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage)
 - `memory_context` (actions: get, store, store_initial, list, append_research, list_research, generate_instructions, batch_store, workspace_get, workspace_set, workspace_update, workspace_delete, knowledge_store, knowledge_get, knowledge_list, knowledge_delete)
-- `memory_session` (action: prep — **REQUIRED before every `runSubagent` call** to prepare enriched agent context, inject scope boundaries, and register the session)
+- `memory_session` (actions: `deploy_and_prep` preferred, `prep` legacy fallback — required before every `runSubagent` call)
 
 **If these tools are NOT available:**
 
@@ -230,7 +230,7 @@ After Executor completes a phase:
 | Tool | Action | Purpose |
 |------|--------|---------|
 | `memory_agent` | `init` | Record your activation (CALL FIRST). Returns **compact** plan state by default (trimmed sessions/lineage, pending steps only). Pass `compact: false` for full state. Pass `context_budget: <bytes>` for progressive trimming. Pass `include_workspace_context: true` to get workspace context summary (section names, item counts, staleness warnings). |
-| `memory_agent` | `validate` | Verify you're the correct agent (agent_type: Coordinator) |
+| `memory_agent` | `validate` | Legacy standalone validation path (backward compatibility). Prefer `memory_agent(action: init, validation_mode: "init+validate")`. |
 | `memory_agent` | `complete` | Mark session complete |
 | `memory_workspace` | `register` | Register a new workspace |
 | `memory_workspace` | `list` | List all registered workspaces |
@@ -246,7 +246,8 @@ After Executor completes a phase:
 | `memory_context` | `workspace_update` | Update specific workspace context sections |
 | `memory_context` | `search` | Search context across plan/workspace/program/knowledge scopes with filters |
 | `memory_context` | `pull` | Stage selected context into temporary `.projectmemory` working artifacts |
-| `memory_session` | `prep` | **Prepare enriched spawn payload** — call before every `runSubagent`. Returns `prep_config.enriched_prompt` with workspace/plan context, scope boundaries, and anti-spawning instructions injected. |
+| `memory_session` | `deploy_and_prep` | **Preferred spawn prep path** — single call that deploys context bundle and returns `prep_config.enriched_prompt` for `runSubagent`. |
+| `memory_session` | `prep` | Legacy prep-only fallback (use when `deploy_and_prep` is unavailable). |
 
 > **Note:** Subagents use `memory_agent` (action: handoff) to recommend which agent to deploy next. When a subagent calls handoff, it sets `recommended_next_agent` in the plan state. You read this via `memory_plan` (action: get) and then spawn the appropriate subagent.
 
@@ -274,14 +275,14 @@ runSubagent({
 
 ### 🚦 Strict Spawn Delegation Protocol (REQUIRED)
 
-**Before spawning any subagent with `runSubagent`, you MUST call `memory_session` (action: prep) first to prepare context.**
+**Before spawning any subagent with `runSubagent`, use `memory_session(action: deploy_and_prep)` as the default path.**
 
-This tool is prep-only and never executes the spawn. It returns canonical `prep_config`:
+This unified action handles deployment + context preparation and returns canonical `prep_config`:
 
 ```javascript
-// Step 1: Prepare spawn payload (context-prep only)
+// Step 1: Deploy context + prepare spawn payload (preferred)
 memory_session({
-  action: "prep",
+  action: "deploy_and_prep",
   agent_name: "Executor",
   prompt: "Implement auth module step 3",
   workspace_id: "ws-abc123",
@@ -305,11 +306,13 @@ runSubagent({
 ```
 
 **Rules:**
-1. **ALWAYS call `memory_session` (action: prep) before `runSubagent`** for standardized context preparation
-2. **Do NOT expect execution from `memory_session`** — it only prepares payloads
+1. **Prefer `memory_session` (action: deploy_and_prep) before `runSubagent`** for standardized deployment + context preparation
+2. **Do NOT expect execution from `memory_session`** — it prepares payloads only
 3. **If prep returns `success: false`**, do NOT proceed with `runSubagent`
 4. **You are FORBIDDEN from simulating subagent work** — if a task needs an Executor, spawn an Executor
 5. **Use `prep_config.enriched_prompt`** as the runSubagent prompt to preserve context and instructions
+
+**Backward compatibility:** Legacy standalone `memory_agent(action: deploy_for_task)` + `memory_session(action: prep)` remains supported for existing flows, but is no longer the default recommendation.
 
 ### Anti-Spawning Instructions (REQUIRED)
 When spawning any subagent, **always include** the following in your prompt:
@@ -317,11 +320,11 @@ When spawning any subagent, **always include** the following in your prompt:
 
 This prevents spoke agents from creating uncontrolled spawning chains.
 
-### 🚀 Context Deployment (`deploy_for_task`) — REQUIRED Before Spawn
+### 🚀 Legacy Context Deployment (`deploy_for_task`) — Backward Compatibility
 
-**Before every `runSubagent` call**, you MUST deploy the agent's context bundle using `memory_agent(action: deploy_for_task)`. This writes the agent's `.md` file, assigned instructions, and a context bundle (research, architecture, skills, execution notes) to `.projectmemory/active_agents/{name}/`.
+**Legacy note:** Existing flows may still deploy context with `memory_agent(action: deploy_for_task)` before `memory_session(action: prep)`. Prefer `memory_session(action: deploy_and_prep)` for new orchestration.
 
-**When to call:** Immediately before every `runSubagent` spawn — after `memory_session` (action: prep) and before native execution.
+**When to call (legacy only):** Immediately before every `runSubagent` spawn — before `memory_session` (action: prep) and native execution.
 
 **Parameters:**
 
@@ -336,7 +339,7 @@ This prevents spoke agents from creating uncontrolled spawning chains.
 | `include_research` | boolean | ❌ | Include research notes |
 | `include_architecture` | boolean | ❌ | Include architecture decisions |
 
-**Example — full spawn flow:**
+**Example — legacy full spawn flow:**
 
 ```json
 // 1. Deploy context bundle

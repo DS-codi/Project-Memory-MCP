@@ -253,6 +253,40 @@ impl Default for ContainerRunnerConfig {
 }
 
 // ---------------------------------------------------------------------------
+// PoolConfig
+// ---------------------------------------------------------------------------
+
+/// Configuration for the MCP instance pool (`[mcp.pool]` subsection).
+///
+/// When `max_connections_per_instance` is reached on all running instances the
+/// supervisor spawns a new instance (up to `max_instances`) on the next
+/// available port starting at `base_port`.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct PoolConfig {
+    /// Minimum number of MCP instances to keep running (default: 1).
+    pub min_instances: u16,
+    /// Hard cap on the number of MCP instances (default: 4).
+    pub max_instances: u16,
+    /// Connections per instance that triggers a scale-up (default: 5).
+    pub max_connections_per_instance: usize,
+    /// First port assigned to pool worker instances (default: 3460).
+    /// The supervisor proxy occupies the primary MCP port (e.g. 3457).
+    pub base_port: u16,
+}
+
+impl Default for PoolConfig {
+    fn default() -> Self {
+        Self {
+            min_instances: 1,
+            max_instances: 4,
+            max_connections_per_instance: 5,
+            base_port: 3460,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // McpSection
 // ---------------------------------------------------------------------------
 
@@ -274,6 +308,9 @@ pub struct McpSection {
     /// Restart policy for the MCP service.
     #[serde(default)]
     pub restart_policy: RestartPolicy,
+    /// Instance pool configuration (`[mcp.pool]` subsection).
+    #[serde(default)]
+    pub pool: PoolConfig,
 }
 
 impl Default for McpSection {
@@ -287,6 +324,7 @@ impl Default for McpSection {
             node: NodeRunnerConfig::default(),
             container: ContainerRunnerConfig::default(),
             restart_policy: RestartPolicy::default(),
+            pool: PoolConfig::default(),
         }
     }
 }

@@ -8,6 +8,7 @@
 //! console window is hidden at startup unless `--debug` is passed.
 
 use clap::Parser;
+use cxx_qt::CxxQtType;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -195,6 +196,11 @@ fn main() {
 // ── Async supervisor logic ────────────────────────────────────────────────────
 
 async fn supervisor_main() {
+    // Initialise the supervisor Job Object first — before any child processes
+    // are spawned — so every Node.js process we create is automatically owned
+    // by the supervisor and killed when it exits (even on a crash).
+    supervisor::runner::job_object::init();
+
     // Initialise structured JSON logging.
     // Set RUST_LOG (e.g. `RUST_LOG=info,supervisor=debug`) to override the
     // default "info" filter at runtime.
@@ -240,6 +246,26 @@ async fn supervisor_main() {
                     cfg.interactive_terminal.port, cfg.interactive_terminal.enabled);
                 eprintln!("[debug] dashboard: port={}, enabled={}",
                     cfg.dashboard.port, cfg.dashboard.enabled);
+            }
+
+            // ── Orphan cleanup ───────────────────────────────────────────────
+            // Kill any processes from a previous supervisor run that are still
+            // holding our ports.  This covers:
+            //   • cfg.mcp.port          — the proxy / VS Code entry point
+            //   • cfg.mcp.pool ports    — pool Node.js instances
+            //   • cfg.dashboard.port    — dashboard Node.js server
+            //   • cfg.interactive_terminal.port — terminal server
+            {
+                let mut ports_to_clear: Vec<u16> = vec![
+                    cfg.mcp.port,
+                    cfg.dashboard.port,
+                    cfg.interactive_terminal.port,
+                ];
+                for i in 0..cfg.mcp.pool.max_instances {
+                    ports_to_clear.push(cfg.mcp.pool.base_port + i);
+                }
+                println!("[supervisor] clearing orphan processes on ports: {ports_to_clear:?}");
+                kill_orphans_on_ports(&ports_to_clear).await;
             }
 
             let pipe_name = cfg.supervisor.control_pipe.clone();
@@ -320,7 +346,32 @@ async fn supervisor_main() {
             // Register the sender so the QML quitSupervisor() invokable can
             // trigger a graceful Tokio shutdown without calling Qt.quit() directly.
             #[cfg(feature = "supervisor_qml_gui")]
-            let _ = crate::cxxqt_bridge::SHUTDOWN_TX.set(shutdown_tx.clone());
+            let _ = supervisor::cxxqt_bridge::SHUTDOWN_TX.set(shutdown_tx.clone());
+
+            let (restart_tx, mut restart_rx) = tokio::sync::mpsc::channel::<String>(32);
+
+            #[cfg(feature = "supervisor_qml_gui")]
+            if let Some(qt) = supervisor::cxxqt_bridge::SUPERVISOR_QT.get() {
+                let restart_tx_for_qt = restart_tx.clone();
+                let dashboard_url = format!("http://127.0.0.1:{}", cfg.dashboard.port);
+                let terminal_url = format!("http://127.0.0.1:{}", cfg.interactive_terminal.port);
+                let resolved_config_path = config_path.to_string_lossy().into_owned();
+                let _ = qt.queue(move |mut obj| {
+                    obj.as_mut().set_dashboard_url(cxx_qt_lib::QString::from(&dashboard_url));
+                    obj.as_mut().set_terminal_url(cxx_qt_lib::QString::from(&terminal_url));
+                    obj.as_mut().rust_mut().restart_tx = Some(restart_tx_for_qt.clone());
+                    obj.as_mut().rust_mut().config_path = Some(resolved_config_path.clone());
+                });
+            }
+
+            let (restart_dispatch_tx, mut restart_dispatch_rx) = tokio::sync::mpsc::channel::<String>(32);
+            tokio::spawn(async move {
+                while let Some(service_name) = restart_rx.recv().await {
+                    if restart_dispatch_tx.send(service_name).await.is_err() {
+                        break;
+                    }
+                }
+            });
 
             let (tx, mut rx) =
                 tokio::sync::mpsc::channel::<supervisor::control::RequestEnvelope>(64);
@@ -357,6 +408,7 @@ async fn supervisor_main() {
             let reg2 = Arc::clone(&registry);
             let fa2 = Arc::clone(&form_apps);
             let shutdown_tx2 = shutdown_tx.clone();
+            let mcp_base_url_for_handler = format!("http://127.0.0.1:{}", cfg.mcp.pool.base_port);
             tokio::spawn(async move {
                 while let Some((req, resp_tx)) = rx.recv().await {
                     eprintln!("[supervisor] control request: {:?}", req);
@@ -365,6 +417,7 @@ async fn supervisor_main() {
                         Arc::clone(&reg2),
                         Arc::clone(&fa2),
                         shutdown_tx2.clone(),
+                        Some(mcp_base_url_for_handler.clone()),
                     )
                     .await;
                     let _ = resp_tx.send(resp);
@@ -376,20 +429,131 @@ async fn supervisor_main() {
             // ── Start managed services ────────────────────────────────────────
 
             if cfg.mcp.enabled {
-                println!("[supervisor] starting MCP server...");
-                if cli.debug { eprintln!("[debug] calling mcp_runner.start() (backend={:?}, port={})...", cfg.mcp.backend, cfg.mcp.port); }
-                set_service_status(&registry, &mut tray, "mcp", ServiceStatus::Starting).await;
-                match mcp_runner.start().await {
-                    Ok(()) => {
+                match cfg.mcp.backend {
+                    // ── Node backend: pool + proxy own port cfg.mcp.port ──────
+                    // The standalone mcp_runner is NOT started; the pool spawns
+                    // the actual Node.js processes on base_port..base_port+n and
+                    // the reverse proxy binds to cfg.mcp.port (3457) so VS Code
+                    // sees a single endpoint.
+                    McpBackend::Node => {
+                        use supervisor::runner::mcp_pool::ManagedPool;
+
+                        println!("[supervisor] starting MCP pool + proxy (Node backend)...");
+                        set_service_status(&registry, &mut tray, "mcp", ServiceStatus::Starting).await;
+
+                        let pool_cfg = cfg.mcp.pool.clone();
+                        let proxy_port = cfg.mcp.port; // VS Code connects here
+                        let base_port = pool_cfg.base_port;
+
+                        // Build and start the pool.
+                        let pool = Arc::new(tokio::sync::RwLock::new(
+                            ManagedPool::new(pool_cfg.clone(), cfg.mcp.node.clone(), cfg.mcp.health_timeout_ms),
+                        ));
+                        pool.write().await.init().await;
+                        println!("[supervisor] MCP pool initialised ({} instance(s) on port(s) {}+)", pool_cfg.min_instances, base_port);
                         set_service_status(&registry, &mut tray, "mcp", ServiceStatus::Running).await;
                         set_service_health_ok(&registry, &mut tray, "mcp").await;
-                        println!("[supervisor] MCP server started.");
-                        if cli.debug { eprintln!("[debug] mcp_runner.start() returned Ok"); }
+
+                        // ── Heartbeat pub/sub ─────────────────────────────────
+                        // One broadcast channel; VS Code instances subscribe via
+                        // GET /supervisor/heartbeat (SSE) instead of polling.
+                        let heartbeat_tx = supervisor::proxy::heartbeat_channel();
+                        let pool_for_hb = Arc::clone(&pool);
+                        supervisor::proxy::start_heartbeat_ticker(
+                            heartbeat_tx.clone(),
+                            Duration::from_secs(10),
+                            proxy_port,
+                            base_port,
+                            Arc::new(move || pool_for_hb.try_read().map(|g| g.ports().len()).unwrap_or(0)),
+                            Arc::new(|| true), // placeholder — pool health is checked in poll loop
+                        );
+
+                        // Start the reverse proxy on the primary MCP port.
+                        let pool_for_proxy = Arc::clone(&pool);
+                        let proxy_bind = format!("127.0.0.1:{proxy_port}");
+                        tokio::spawn(async move {
+                            let llp_fn: Arc<dyn Fn() -> u16 + Send + Sync> = Arc::new(move || {
+                                // try_read() is non-blocking and safe to call from async context.
+                                // If the pool is being written (rare, brief), fall back to base_port.
+                                pool_for_proxy.try_read()
+                                    .map(|guard| guard.least_loaded_port())
+                                    .unwrap_or(base_port)
+                            });
+                            if let Err(e) = supervisor::proxy::start_proxy(proxy_bind, base_port, llp_fn, heartbeat_tx).await {
+                                eprintln!("[supervisor] proxy error: {e}");
+                            }
+                        });
+
+                        // ── Poll loop: sync connections + auto-scale ──────────
+                        let pool_for_poll = Arc::clone(&pool);
+                        let reg_for_poll = Arc::clone(&registry);
+                        let health_timeout = cfg.mcp.health_timeout_ms;
+                        tokio::spawn(async move {
+                            let mut tick = tokio::time::interval(Duration::from_secs(5));
+                            loop {
+                                tick.tick().await;
+
+                                // Refresh health of all instances.
+                                pool_for_poll.write().await.refresh_health().await;
+
+                                // Collect connections from every instance.
+                                let ports = pool_for_poll.read().await.ports();
+                                let mut all_connections: Vec<supervisor::control::registry::McpConnectionEntry> = Vec::new();
+                                for port in &ports {
+                                    let base_url = format!("http://127.0.0.1:{port}");
+                                    match supervisor::control::mcp_admin::fetch_mcp_connections(&base_url, health_timeout).await {
+                                        Ok(remote) => {
+                                            for rc in remote {
+                                                all_connections.push(supervisor::control::registry::McpConnectionEntry {
+                                                    session_id: rc.session_id,
+                                                    transport_type: rc.transport_type,
+                                                    connected_at: rc.connected_at,
+                                                    last_activity: rc.last_activity,
+                                                    call_count: rc.call_count,
+                                                    linked_client_id: None,
+                                                    instance_port: *port,
+                                                });
+                                            }
+                                        }
+                                        Err(e) => {
+                                            eprintln!("[poll] failed to fetch connections from :{port}: {e}");
+                                        }
+                                    }
+                                }
+
+                                // Sync registry.
+                                let (added, removed) = reg_for_poll.lock().await.sync_mcp_connections(all_connections.clone());
+                                if added > 0 || removed > 0 {
+                                    eprintln!("[poll] connections: +{added} -{removed} (total {})", all_connections.len());
+                                }
+
+                                // Auto-scale if needed.
+                                let scaled = pool_for_poll.write().await.maybe_scale_up(&all_connections).await;
+                                if scaled {
+                                    eprintln!("[pool] scaled up to {} instance(s)", pool_for_poll.read().await.ports().len());
+                                }
+                            }
+                        });
                     }
-                    Err(e) => {
-                        set_service_status(&registry, &mut tray, "mcp", ServiceStatus::Error(e.to_string())).await;
-                        set_service_error(&registry, &mut tray, "mcp", e.to_string()).await;
-                        eprintln!("[supervisor] failed to start MCP server: {e}");
+
+                    // ── Container backend: standalone runner as before ─────────
+                    McpBackend::Container => {
+                        println!("[supervisor] starting MCP server (Container backend)...");
+                        if cli.debug { eprintln!("[debug] calling mcp_runner.start() (backend=Container, port={})...", cfg.mcp.port); }
+                        set_service_status(&registry, &mut tray, "mcp", ServiceStatus::Starting).await;
+                        match mcp_runner.start().await {
+                            Ok(()) => {
+                                set_service_status(&registry, &mut tray, "mcp", ServiceStatus::Running).await;
+                                set_service_health_ok(&registry, &mut tray, "mcp").await;
+                                println!("[supervisor] MCP server started.");
+                                if cli.debug { eprintln!("[debug] mcp_runner.start() returned Ok"); }
+                            }
+                            Err(e) => {
+                                set_service_status(&registry, &mut tray, "mcp", ServiceStatus::Error(e.to_string())).await;
+                                set_service_error(&registry, &mut tray, "mcp", e.to_string()).await;
+                                eprintln!("[supervisor] failed to start MCP server: {e}");
+                            }
+                        }
                     }
                 }
             } else {
@@ -414,6 +578,35 @@ async fn supervisor_main() {
                         eprintln!("[supervisor] failed to start interactive terminal: {e}");
                     }
                 }
+
+                // ── Terminal crash-recovery monitor ───────────────────────────
+                // Polls TCP connectivity every 5 s; restarts after 2 consecutive
+                // failures so the supervisor owns every terminal process it manages.
+                {
+                    let restart_tx_term = restart_tx.clone();
+                    let term_port = cfg.interactive_terminal.port;
+                    tokio::spawn(async move {
+                        tokio::time::sleep(Duration::from_secs(15)).await;
+                        let mut failures = 0u32;
+                        let mut interval = tokio::time::interval(Duration::from_secs(5));
+                        loop {
+                            interval.tick().await;
+                            if probe_tcp(term_port).await {
+                                failures = 0;
+                            } else {
+                                failures += 1;
+                                eprintln!("[supervisor] terminal health probe failed ({failures})");
+                                if failures >= 2 {
+                                    eprintln!("[supervisor] terminal appears dead — requesting restart");
+                                    failures = 0;
+                                    let _ = restart_tx_term.send("terminal".to_string()).await;
+                                    tokio::time::sleep(Duration::from_secs(10)).await;
+                                    interval.reset();
+                                }
+                            }
+                        }
+                    });
+                }
             } else {
                 println!("[supervisor] interactive terminal disabled — skipping.");
                 set_service_status(&registry, &mut tray, "interactive_terminal", ServiceStatus::Stopped).await;
@@ -435,6 +628,36 @@ async fn supervisor_main() {
                         set_service_error(&registry, &mut tray, "dashboard", e.to_string()).await;
                         eprintln!("[supervisor] failed to start dashboard: {e}");
                     }
+                }
+
+                // ── Dashboard crash-recovery monitor ──────────────────────────
+                // Polls HTTP /health every 5 s; restarts after 2 consecutive
+                // failures so the supervisor always owns the dashboard process.
+                {
+                    let restart_tx_dash = restart_tx.clone();
+                    let dash_port = cfg.dashboard.port;
+                    let health_ms = cfg.mcp.health_timeout_ms;
+                    tokio::spawn(async move {
+                        tokio::time::sleep(Duration::from_secs(15)).await;
+                        let mut failures = 0u32;
+                        let mut interval = tokio::time::interval(Duration::from_secs(5));
+                        loop {
+                            interval.tick().await;
+                            if probe_http_health(dash_port, health_ms).await {
+                                failures = 0;
+                            } else {
+                                failures += 1;
+                                eprintln!("[supervisor] dashboard health probe failed ({failures})");
+                                if failures >= 2 {
+                                    eprintln!("[supervisor] dashboard appears dead — requesting restart");
+                                    failures = 0;
+                                    let _ = restart_tx_dash.send("dashboard".to_string()).await;
+                                    tokio::time::sleep(Duration::from_secs(10)).await;
+                                    interval.reset();
+                                }
+                            }
+                        }
+                    });
                 }
             } else {
                 println!("[supervisor] dashboard disabled — skipping.");
@@ -467,6 +690,18 @@ async fn supervisor_main() {
                                 &mut terminal_runner,
                                 &mut dashboard_runner,
                                 shutdown_tx.clone(),
+                            ).await;
+                        }
+                    }
+                    restart_command = restart_dispatch_rx.recv() => {
+                        if let Some(service_name) = restart_command {
+                            handle_restart_command(
+                                &service_name,
+                                &registry,
+                                &mut tray,
+                                &mut *mcp_runner,
+                                &mut terminal_runner,
+                                &mut dashboard_runner,
                             ).await;
                         }
                     }
@@ -547,9 +782,26 @@ fn push_qt_status(snapshot: &supervisor::control::protocol::HealthSnapshot) {
     } else {
         lines.join("  ·  ")
     };
+
+    let mut mcp_status = String::from("Stopped");
+    let mut terminal_status = String::from("Stopped");
+    let mut dashboard_status = String::from("Stopped");
+    for child in &snapshot.children {
+        let state = display_state_for_service(&child.status);
+        match child.service_name.as_str() {
+            "mcp" => mcp_status = state,
+            "interactive_terminal" => terminal_status = state,
+            "dashboard" => dashboard_status = state,
+            _ => {}
+        }
+    }
+
     if let Some(qt) = supervisor::cxxqt_bridge::SUPERVISOR_QT.get() {
         let _ = qt.queue(move |mut obj| {
             obj.as_mut().set_status_text(cxx_qt_lib::QString::from(&text));
+            obj.as_mut().set_mcp_status(cxx_qt_lib::QString::from(&mcp_status));
+            obj.as_mut().set_terminal_status(cxx_qt_lib::QString::from(&terminal_status));
+            obj.as_mut().set_dashboard_status(cxx_qt_lib::QString::from(&dashboard_status));
         });
     }
 }
@@ -829,4 +1081,174 @@ async fn handle_component_action(
             }
         }
     }
+}
+
+async fn handle_restart_command(
+    service_name: &str,
+    registry: &Arc<tokio::sync::Mutex<supervisor::control::registry::Registry>>,
+    tray: &mut supervisor::tray_tooltip::TrayLifecycle,
+    mcp_runner: &mut dyn ServiceRunner,
+    terminal_runner: &mut InteractiveTerminalRunner,
+    dashboard_runner: &mut DashboardRunner,
+) {
+    match service_name.trim().to_ascii_lowercase().as_str() {
+        "mcp" => {
+            handle_component_action(
+                TrayComponent::Mcp,
+                TrayComponentAction::Restart,
+                registry,
+                tray,
+                mcp_runner,
+                terminal_runner,
+                dashboard_runner,
+            )
+            .await;
+        }
+        "terminal" | "interactive_terminal" => {
+            handle_component_action(
+                TrayComponent::InteractiveTerminal,
+                TrayComponentAction::Restart,
+                registry,
+                tray,
+                mcp_runner,
+                terminal_runner,
+                dashboard_runner,
+            )
+            .await;
+        }
+        "dashboard" => {
+            handle_component_action(
+                TrayComponent::Dashboard,
+                TrayComponentAction::Restart,
+                registry,
+                tray,
+                mcp_runner,
+                terminal_runner,
+                dashboard_runner,
+            )
+            .await;
+        }
+        other => {
+            eprintln!("[supervisor] unknown restart service requested: {other}");
+        }
+    }
+}
+
+// ── Orphan process cleanup ────────────────────────────────────────────────────
+
+/// Kill every process that is already listening on one of `ports`.
+///
+/// Called once at the top of `supervisor_main()` — before any runners are
+/// created — so that orphaned Node.js / dashboard processes left over from a
+/// previous (crashed or force-killed) supervisor run do not block the new
+/// instances from binding to the same ports.
+async fn kill_orphans_on_ports(ports: &[u16]) {
+    for &port in ports {
+        if let Some(pid) = find_pid_for_port(port).await {
+            kill_pid(pid, port);
+        }
+    }
+}
+
+#[cfg(windows)]
+async fn find_pid_for_port(port: u16) -> Option<u32> {
+    let output = tokio::process::Command::new("netstat")
+        .args(["-ano", "-p", "tcp"])
+        .output()
+        .await
+        .ok()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for line in stdout.lines() {
+        if !line.to_ascii_uppercase().contains("LISTENING") {
+            continue;
+        }
+        // Match ":<port> " — port at end of an address field, followed by whitespace.
+        let needle = format!(":{port} ");
+        if !line.contains(&needle) {
+            continue;
+        }
+        if let Some(pid_str) = line.split_whitespace().last() {
+            if let Ok(pid) = pid_str.parse::<u32>() {
+                return Some(pid);
+            }
+        }
+    }
+    None
+}
+
+#[cfg(not(windows))]
+async fn find_pid_for_port(port: u16) -> Option<u32> {
+    let output = tokio::process::Command::new("lsof")
+        .args(["-iTCP", &format!(":{port}"), "-sTCP:LISTEN", "-t"])
+        .output()
+        .await
+        .ok()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    stdout.split_whitespace().next()?.parse::<u32>().ok()
+}
+
+fn kill_pid(pid: u32, port: u16) {
+    #[cfg(windows)]
+    {
+        match std::process::Command::new("taskkill")
+            .args(["/F", "/PID", &pid.to_string()])
+            .output()
+        {
+            Ok(out) if out.status.success() => {
+                println!("[supervisor] killed orphan PID {pid} (port {port})");
+            }
+            Ok(out) => {
+                let msg = String::from_utf8_lossy(&out.stderr);
+                eprintln!("[supervisor] could not kill orphan PID {pid} (port {port}): {msg}");
+            }
+            Err(e) => {
+                eprintln!("[supervisor] error killing orphan PID {pid} (port {port}): {e}");
+            }
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = std::process::Command::new("kill")
+            .args(["-9", &pid.to_string()])
+            .output()
+            .map(|out| {
+                if out.status.success() {
+                    println!("[supervisor] killed orphan PID {pid} (port {port})");
+                } else {
+                    eprintln!("[supervisor] could not kill orphan PID {pid} (port {port})");
+                }
+            });
+    }
+}
+
+// ── Service health probes (used by crash-recovery monitor tasks) ─────────────
+
+/// HTTP GET `http://127.0.0.1:{port}/health`.
+/// Returns `true` for a 2xx response within `timeout_ms`.
+async fn probe_http_health(port: u16, timeout_ms: u64) -> bool {
+    let url = format!("http://127.0.0.1:{port}/health");
+    let Ok(client) = reqwest::Client::builder()
+        .timeout(Duration::from_millis(timeout_ms))
+        .build()
+    else {
+        return false;
+    };
+    client
+        .get(&url)
+        .send()
+        .await
+        .map(|r| r.status().is_success())
+        .unwrap_or(false)
+}
+
+/// TCP connect to `127.0.0.1:{port}`.
+/// Returns `true` if a connection is established within 3 seconds.
+async fn probe_tcp(port: u16) -> bool {
+    tokio::time::timeout(
+        Duration::from_secs(3),
+        tokio::net::TcpStream::connect(format!("127.0.0.1:{port}")),
+    )
+    .await
+    .map(|r| r.is_ok())
+    .unwrap_or(false)
 }

@@ -73,9 +73,20 @@ export function launchSupervisorInTerminal(settings: SupervisorSettings): vscode
 }
 
 /**
+ * Open a directory in the native OS file manager (Windows Explorer).
+ *
+ * Falls back to VS Code's openExternal if spawning explorer.exe fails.
+ *
+ * @param dir Absolute path to the directory to open.
+ */
+export function openDirectoryInExplorer(dir: string): void {
+  cp.spawn('explorer.exe', [dir], { detached: true, stdio: 'ignore' }).unref();
+}
+
+/**
  * Get the supervisor directory path (to open in Explorer).
- * Returns the first workspace folder that contains start-supervisor.ps1,
- * or the configured launcher path directory, or null if not found.
+ * Returns the directory containing the supervisor executable or launch script,
+ * or null if none can be located.
  */
 export function getSupervisorDirectory(settings: SupervisorSettings): string | null {
   // 1. Check explicit setting
@@ -86,12 +97,19 @@ export function getSupervisorDirectory(settings: SupervisorSettings): string | n
     }
   }
 
-  // 2. Look for start-supervisor.ps1 in workspace roots
+  // 2. Look for supervisor.exe or start-supervisor.ps1 in workspace roots
   const workspaceFolders = vscode.workspace.workspaceFolders ?? [];
   for (const folder of workspaceFolders) {
-    const candidate = path.join(folder.uri.fsPath, 'start-supervisor.ps1');
-    if (fs.existsSync(candidate)) {
-      return folder.uri.fsPath;
+    for (const name of ['supervisor.exe', 'start-supervisor.ps1']) {
+      const candidate = path.join(folder.uri.fsPath, name);
+      if (fs.existsSync(candidate)) {
+        return folder.uri.fsPath;
+      }
+    }
+    // Also check target/release (common for source builds)
+    const releaseExe = path.join(folder.uri.fsPath, 'target', 'release', 'supervisor.exe');
+    if (fs.existsSync(releaseExe)) {
+      return path.dirname(releaseExe);
     }
   }
 
@@ -115,12 +133,19 @@ function resolveLaunchTarget(settings: SupervisorSettings): string {
     return p;
   }
 
-  // 2. Look for start-supervisor.ps1 in each open workspace root.
+  // 2. Look for supervisor.exe or start-supervisor.ps1 in each open workspace root.
   const workspaceFolders = vscode.workspace.workspaceFolders ?? [];
   for (const folder of workspaceFolders) {
-    const candidate = path.join(folder.uri.fsPath, 'start-supervisor.ps1');
-    if (fs.existsSync(candidate)) {
-      return candidate;
+    for (const name of ['supervisor.exe', 'start-supervisor.ps1']) {
+      const candidate = path.join(folder.uri.fsPath, name);
+      if (fs.existsSync(candidate)) {
+        return candidate;
+      }
+    }
+    // Also check target/release (common for source builds)
+    const releaseExe = path.join(folder.uri.fsPath, 'target', 'release', 'supervisor.exe');
+    if (fs.existsSync(releaseExe)) {
+      return releaseExe;
     }
   }
 

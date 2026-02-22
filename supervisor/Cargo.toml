@@ -18,6 +18,10 @@ clap = { workspace = true }
 sysinfo = { workspace = true }
 anyhow = { workspace = true }
 reqwest = { workspace = true }
+axum = { workspace = true }
+hyper-util = { workspace = true }
+bytes = { workspace = true }
+futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
 rand = { workspace = true }
 uuid = { workspace = true }
 tracing = { workspace = true }

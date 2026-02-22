@@ -23,7 +23,7 @@ import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { InMemoryEventStore } from '@modelcontextprotocol/sdk/examples/shared/inMemoryEventStore.js';
 import { getDataRoot, listDirs } from '../storage/file-store.js';
 import { isDataRootAccessible } from './data-root-liveness.js';
-import { getAllLiveSessions, getLiveSessionCount } from '../tools/session-live-store.js';
+import { getAllLiveSessions, getLiveSessionCount, getLiveSessionEntry } from '../tools/session-live-store.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -34,6 +34,7 @@ export type TransportType = 'stdio' | 'sse' | 'streamable-http';
 interface TransportEntry {
   transport: StreamableHTTPServerTransport | SSEServerTransport;
   type: 'streamable-http' | 'sse';
+  connectedAt: string; // ISO 8601
 }
 
 // ---------------------------------------------------------------------------
@@ -140,13 +141,16 @@ export function createHttpApp(getServer: () => McpServer): Express {
           return;
         }
         transport = existing.transport as StreamableHTTPServerTransport;
-      } else if (!sessionId && req.method === 'POST' && isInitializeRequest(req.body)) {
+      } else if (req.method === 'POST' && isInitializeRequest(req.body)) {
+        // Initialize always creates a fresh session — even if a stale session ID
+        // header is present.  This is the reconnect path: client discarded its
+        // broken session and is starting over.
         const eventStore = new InMemoryEventStore();
         transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => randomUUID(),
           eventStore,
           onsessioninitialized: (sid) => {
-            transports[sid] = { transport, type: 'streamable-http' };
+            transports[sid] = { transport, type: 'streamable-http', connectedAt: new Date().toISOString() };
             console.error(`[http] Streamable HTTP session initialized: ${sid}`);
           },
         });
@@ -161,6 +165,15 @@ export function createHttpApp(getServer: () => McpServer): Express {
 
         const server = getServer();
         await server.connect(transport);
+      } else if (sessionId && !transports[sessionId]) {
+        // Session ID provided but not found — session has expired or been cleaned up.
+        // MCP spec §6.3: server MUST return 404; client SHOULD reinitialize on 404.
+        res.status(404).json({
+          jsonrpc: '2.0',
+          error: { code: -32001, message: 'Session not found — please reinitialize' },
+          id: null,
+        });
+        return;
       } else {
         res.status(400).json({
           jsonrpc: '2.0',
@@ -192,7 +205,7 @@ export function createHttpApp(getServer: () => McpServer): Express {
   app.get('/sse', async (_req: Request, res: Response) => {
     console.error('[http] SSE client connected');
     const transport = new SSEServerTransport('/messages', res);
-    transports[transport.sessionId] = { transport, type: 'sse' };
+    transports[transport.sessionId] = { transport, type: 'sse', connectedAt: new Date().toISOString() };
 
     res.on('close', () => {
       delete transports[transport.sessionId];
@@ -217,6 +230,43 @@ export function createHttpApp(getServer: () => McpServer): Express {
     }
 
     await (entry.transport as SSEServerTransport).handlePostMessage(req, res, req.body);
+  });
+
+  // ---- Admin: list active connections (for supervisor polling) ----
+  app.get('/admin/connections', (_req: Request, res: Response) => {
+    const connections = Object.entries(transports).map(([sessionId, entry]) => {
+      const liveEntry = getLiveSessionEntry(sessionId);
+      return {
+        sessionId,
+        type: entry.type,
+        connectedAt: entry.connectedAt,
+        lastActivity: liveEntry?.lastCallAt ?? null,
+        callCount: liveEntry?.callCount ?? 0,
+        agentType: liveEntry?.agentType ?? null,
+        workspaceId: liveEntry?.workspaceId ?? null,
+        planId: liveEntry?.planId ?? null,
+      };
+    });
+    res.json(connections);
+  });
+
+  // ---- Admin: close a specific connection ----
+  app.delete('/admin/connections/:sessionId', async (req: Request, res: Response) => {
+    const { sessionId } = req.params;
+    const entry = transports[sessionId];
+    if (!entry) {
+      res.status(404).json({ error: `Session not found: ${sessionId}` });
+      return;
+    }
+    try {
+      await entry.transport.close?.();
+      delete transports[sessionId];
+      console.error(`[http] Session closed by supervisor request: ${sessionId}`);
+      res.json({ closed: true, sessionId });
+    } catch (error) {
+      console.error(`[http] Error closing session ${sessionId}:`, error);
+      res.status(500).json({ error: 'Failed to close session' });
+    }
   });
 
   return app;

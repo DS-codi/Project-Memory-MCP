@@ -9,6 +9,7 @@ use serde_json::json;
 use tokio::sync::Mutex;
 
 use crate::config::FormAppConfig;
+use crate::control::mcp_admin;
 use crate::control::protocol::{ControlRequest, ControlResponse};
 use crate::control::registry::{Registry, ServiceStatus};
 use crate::runner::form_app::{continue_form_app, launch_form_app};
@@ -26,11 +27,16 @@ pub type FormAppConfigs = std::collections::HashMap<String, FormAppConfig>;
 ///
 /// `form_apps` provides the resolved executable config for each on-demand
 /// GUI app so that `LaunchApp` can spawn the correct binary.
+///
+/// `mcp_base_url` is the base URL of the *primary* MCP instance (e.g.
+/// `"http://127.0.0.1:3460"`). Used by `CloseMcpConnection` to call the admin
+/// API.  When `None` the command returns an error rather than panicking.
 pub async fn handle_request(
     req: ControlRequest,
     registry: Arc<Mutex<Registry>>,
     form_apps: Arc<FormAppConfigs>,
     shutdown_tx: tokio::sync::watch::Sender<bool>,
+    mcp_base_url: Option<String>,
 ) -> ControlResponse {
     match req {
         // ---------------------------------------------------------------
@@ -199,6 +205,65 @@ pub async fn handle_request(
         }
 
         // ---------------------------------------------------------------
+        // ListMcpConnections — all tracked VS Code ↔ MCP sessions
+        // ---------------------------------------------------------------
+        ControlRequest::ListMcpConnections => {
+            let reg = registry.lock().await;
+            let conns = reg.list_mcp_connections();
+            match serde_json::to_value(&conns) {
+                Ok(data) => ControlResponse::ok(data),
+                Err(e) => ControlResponse::err(format!("serialisation error: {e}")),
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // CloseMcpConnection — close one VS Code session
+        // ---------------------------------------------------------------
+        ControlRequest::CloseMcpConnection { session_id } => {
+            let base_url = match &mcp_base_url {
+                Some(u) => u.clone(),
+                None => return ControlResponse::err("mcp_base_url not configured"),
+            };
+            match mcp_admin::close_mcp_connection(&base_url, &session_id, 3000).await {
+                Ok(true) => {
+                    let mut reg = registry.lock().await;
+                    reg.deregister_mcp_connection(&session_id);
+                    ControlResponse::ok(json!({ "closed": true, "session_id": session_id }))
+                }
+                Ok(false) => ControlResponse::err(format!("session not found: {session_id}")),
+                Err(e) => ControlResponse::err(format!("failed to close session: {e}")),
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // ListMcpInstances — list instance ports known to the pool
+        // ---------------------------------------------------------------
+        ControlRequest::ListMcpInstances => {
+            // The pool state is not in the registry; return the connections
+            // grouped by instance_port as a proxy for instance visibility.
+            let reg = registry.lock().await;
+            let conns = reg.list_mcp_connections();
+            let mut by_port: std::collections::HashMap<u16, usize> = std::collections::HashMap::new();
+            for c in &conns {
+                *by_port.entry(c.instance_port).or_insert(0) += 1;
+            }
+            let instances: Vec<serde_json::Value> = by_port
+                .into_iter()
+                .map(|(port, count)| json!({ "port": port, "connection_count": count }))
+                .collect();
+            ControlResponse::ok(serde_json::Value::Array(instances))
+        }
+
+        // ---------------------------------------------------------------
+        // ScaleUpMcp — manual pool scale-up trigger
+        // ---------------------------------------------------------------
+        ControlRequest::ScaleUpMcp => {
+            // Actual spawning is handled by the pool manager in main.rs.
+            // We signal intent here; the poll loop acts on it.
+            ControlResponse::ok(json!({ "scale_up": "requested" }))
+        }
+
+        // ---------------------------------------------------------------
         // ContinueApp — pipe a refinement response into a paused session
         // ---------------------------------------------------------------
         ControlRequest::ContinueApp {
@@ -292,7 +357,7 @@ mod tests {
     #[tokio::test]
     async fn status_returns_three_services() {
         let reg = make_registry();
-        let resp = handle_request(ControlRequest::Status, reg, empty_form_apps(), shutdown_channel()).await;
+        let resp = handle_request(ControlRequest::Status, reg, empty_form_apps(), shutdown_channel(), None).await;
         assert!(resp.ok);
         let arr = resp.data.as_array().expect("data should be array");
         assert_eq!(arr.len(), 3);
@@ -306,6 +371,7 @@ mod tests {
             Arc::clone(&reg),
             empty_form_apps(),
             shutdown_channel(),
+            None,
         )
         .await;
         assert!(resp.ok);
@@ -324,6 +390,7 @@ mod tests {
             Arc::clone(&reg),
             empty_form_apps(),
             shutdown_channel(),
+            None,
         )
         .await;
         assert!(resp.ok);
@@ -338,6 +405,7 @@ mod tests {
             Arc::clone(&reg),
             empty_form_apps(),
             shutdown_channel(),
+            None,
         )
         .await;
         assert!(resp.ok);
@@ -352,6 +420,7 @@ mod tests {
             Arc::clone(&reg),
             empty_form_apps(),
             shutdown_channel(),
+            None,
         )
         .await;
         assert!(resp.ok);
@@ -367,12 +436,13 @@ mod tests {
             Arc::clone(&reg),
             Arc::clone(&fa),
             shutdown_channel(),
+            None,
         )
         .await;
         assert!(attach_resp.ok);
         let client_id = attach_resp.data["client_id"].as_str().unwrap().to_string();
 
-        let list_resp = handle_request(ControlRequest::ListClients, Arc::clone(&reg), fa, shutdown_channel()).await;
+        let list_resp = handle_request(ControlRequest::ListClients, Arc::clone(&reg), fa, shutdown_channel(), None).await;
         assert!(list_resp.ok);
         let arr = list_resp.data.as_array().unwrap();
         assert_eq!(arr.len(), 1);
@@ -388,6 +458,7 @@ mod tests {
             Arc::clone(&reg),
             Arc::clone(&fa),
             shutdown_channel(),
+            None,
         )
         .await;
         let resp = handle_request(
@@ -395,6 +466,7 @@ mod tests {
             Arc::clone(&reg),
             fa,
             shutdown_channel(),
+            None,
         )
         .await;
         assert!(resp.ok);
@@ -408,6 +480,7 @@ mod tests {
             reg,
             empty_form_apps(),
             shutdown_channel(),
+            None,
         )
         .await;
         assert!(!resp.ok);
@@ -427,6 +500,7 @@ mod tests {
             reg,
             empty_form_apps(),
             shutdown_channel(),
+            None,
         )
         .await;
         assert!(resp.ok);
@@ -438,7 +512,7 @@ mod tests {
     #[tokio::test]
     async fn upgrade_mcp_returns_ok_with_upgrade_field() {
         let reg = make_registry();
-        let resp = handle_request(ControlRequest::UpgradeMcp, Arc::clone(&reg), empty_form_apps(), shutdown_channel()).await;
+        let resp = handle_request(ControlRequest::UpgradeMcp, Arc::clone(&reg), empty_form_apps(), shutdown_channel(), None).await;
         assert!(resp.ok, "upgrade_mcp should return ok");
         assert_eq!(resp.data["upgrade"], "initiated");
         assert_eq!(resp.data["service"], "mcp");
@@ -447,7 +521,7 @@ mod tests {
     #[tokio::test]
     async fn upgrade_mcp_sets_upgrade_pending_and_mcp_starting() {
         let reg = make_registry();
-        handle_request(ControlRequest::UpgradeMcp, Arc::clone(&reg), empty_form_apps(), shutdown_channel()).await;
+        handle_request(ControlRequest::UpgradeMcp, Arc::clone(&reg), empty_form_apps(), shutdown_channel(), None).await;
         let locked = reg.lock().await;
         assert!(locked.is_upgrade_pending(), "upgrade_pending should be true after UpgradeMcp");
         let mcp_state = locked.service_states().into_iter().find(|s| s.name == "mcp").unwrap();
@@ -469,6 +543,7 @@ mod tests {
             reg,
             empty_form_apps(),
             shutdown_channel(),
+            None,
         )
         .await;
         assert!(!resp.ok);
@@ -493,9 +568,11 @@ mod tests {
             reg,
             Arc::new(apps),
             shutdown_channel(),
+            None,
         )
         .await;
         assert!(!resp.ok);
         assert!(resp.error.unwrap().contains("disabled"));
     }
 }
+

@@ -89,8 +89,30 @@ pub struct ClientEntry {
 }
 
 // ---------------------------------------------------------------------------
-// Registry
+// MCP connection entry
 // ---------------------------------------------------------------------------
+
+/// Snapshot of a single active VS Code ↔ MCP HTTP session, as reported by
+/// `GET /admin/connections` on the MCP server.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpConnectionEntry {
+    /// UUID assigned by the MCP HTTP transport (the `mcp-session-id` header value).
+    pub session_id: String,
+    /// Transport kind: `"streamable-http"` or `"sse"`.
+    pub transport_type: String,
+    /// ISO 8601 timestamp when the session was first established.
+    pub connected_at: String,
+    /// ISO 8601 timestamp of the most recent tool call, or `None`.
+    pub last_activity: Option<String>,
+    /// Total tool calls seen on this session.
+    pub call_count: u64,
+    /// Supervisor `ClientEntry` ID linked to this session (set on first sync).
+    pub linked_client_id: Option<String>,
+    /// Port of the MCP instance serving this session.
+    pub instance_port: u16,
+}
+
+
 
 /// Central registry — wraps service states and client list.
 ///
@@ -107,6 +129,8 @@ pub struct Registry {
     upgrade_pending: bool,
     /// Minimal health window visibility state.
     health_window_visible: bool,
+    /// Active VS Code ↔ MCP HTTP sessions, keyed by MCP session UUID.
+    mcp_connections: HashMap<String, McpConnectionEntry>,
 }
 
 impl Registry {
@@ -134,6 +158,7 @@ impl Registry {
             event_log: VecDeque::new(),
             upgrade_pending: false,
             health_window_visible: true,
+            mcp_connections: HashMap::new(),
         }
     }
 
@@ -379,6 +404,89 @@ impl Registry {
         clients.sort_by(|a, b| a.attached_at.cmp(&b.attached_at).then(a.client_id.cmp(&b.client_id)));
         clients
     }
+    // -----------------------------------------------------------------------
+    // MCP connection management
+    // -----------------------------------------------------------------------
+
+    /// Synchronise the in-memory connection table with the latest snapshot
+    /// from the MCP server's `/admin/connections` endpoint.
+    ///
+    /// - New sessions (in `incoming` but not yet tracked) are added and a
+    ///   corresponding `ClientEntry` is auto-created.
+    /// - Gone sessions (tracked but absent from `incoming`) are removed and
+    ///   their `ClientEntry` is detached.
+    ///
+    /// Returns `(added, removed)` counts for logging.
+    pub fn sync_mcp_connections(
+        &mut self,
+        incoming: Vec<McpConnectionEntry>,
+    ) -> (usize, usize) {
+        let incoming_ids: std::collections::HashSet<String> =
+            incoming.iter().map(|e| e.session_id.clone()).collect();
+
+        // --- Remove gone sessions ---
+        let gone: Vec<String> = self
+            .mcp_connections
+            .keys()
+            .filter(|id| !incoming_ids.contains(*id))
+            .cloned()
+            .collect();
+        let removed = gone.len();
+        for id in gone {
+            if let Some(entry) = self.mcp_connections.remove(&id) {
+                if let Some(cid) = entry.linked_client_id {
+                    self.clients.remove(&cid);
+                }
+            }
+        }
+
+        // --- Add new sessions ---
+        let mut added = 0;
+        for mut conn in incoming {
+            if self.mcp_connections.contains_key(&conn.session_id) {
+                // Update mutable health fields on existing entry.
+                if let Some(existing) = self.mcp_connections.get_mut(&conn.session_id) {
+                    existing.last_activity = conn.last_activity.clone();
+                    existing.call_count = conn.call_count;
+                }
+                continue;
+            }
+            // Register as a supervisor client so control-plane consumers can see it.
+            let client_id = self.attach_client(0, conn.session_id.clone());
+            conn.linked_client_id = Some(client_id);
+            self.mcp_connections.insert(conn.session_id.clone(), conn);
+            added += 1;
+        }
+
+        (added, removed)
+    }
+
+    /// Remove a single MCP session (called after a successful `CloseMcpConnection`).
+    pub fn deregister_mcp_connection(&mut self, session_id: &str) -> bool {
+        if let Some(entry) = self.mcp_connections.remove(session_id) {
+            if let Some(cid) = entry.linked_client_id {
+                self.clients.remove(&cid);
+            }
+            return true;
+        }
+        false
+    }
+
+    /// Return a snapshot of all currently tracked MCP connections.
+    pub fn list_mcp_connections(&self) -> Vec<McpConnectionEntry> {
+        let mut conns: Vec<McpConnectionEntry> = self.mcp_connections.values().cloned().collect();
+        conns.sort_by(|a, b| a.connected_at.cmp(&b.connected_at));
+        conns
+    }
+
+    /// Return the number of connections assigned to a specific instance port.
+    pub fn connection_count_for_port(&self, port: u16) -> usize {
+        self.mcp_connections
+            .values()
+            .filter(|c| c.instance_port == port)
+            .count()
+    }
+
 }
 
 impl Default for Registry {

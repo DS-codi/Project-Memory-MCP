@@ -5,7 +5,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { ServerManager } from '../server/ServerManager';
+import { ConnectionManager } from '../server/ConnectionManager';
 import { DashboardViewProvider } from '../providers/DashboardViewProvider';
 import { McpBridge } from '../chat';
 import { notify } from '../utils/helpers';
@@ -14,7 +14,7 @@ import { resolveSkillsSourceRoot, buildMissingSkillsSourceWarning } from '../uti
 
 export function registerWorkspaceCommands(
     context: vscode.ExtensionContext,
-    serverManager: ServerManager,
+    connectionManager: ConnectionManager,
     dashboardProvider: DashboardViewProvider,
     getMcpBridge: () => McpBridge | null
 ): void {

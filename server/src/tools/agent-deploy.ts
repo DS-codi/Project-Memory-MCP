@@ -30,6 +30,7 @@ import {
   getDeployedAgentFile,
   getContextBundlePath,
   getManifestPath,
+  getInitContextPath,
   getAgentContextDir,
   getAgentInstructionsDir,
   getAgentExecutionNotesDir,
@@ -38,6 +39,8 @@ import {
   getReviewedAgentDir,
 } from '../storage/projectmemory-paths.js';
 import { AGENTS_ROOT, INSTRUCTIONS_ROOT } from './agent.tools.js';
+import { AGENT_BOUNDARIES } from '../types/index.js';
+import { buildToolContracts } from './preflight/index.js';
 
 // ---------------------------------------------------------------------------
 // buildContextBundle
@@ -200,6 +203,8 @@ export async function deployForTask(
     plan_id: params.plan_id,
     workspace_id: params.workspace_id,
     phase_name: params.phase_name,
+    step_indices: params.step_indices,
+    session_id: params.session_id,
     deployed_at: nowISO(),
     context_bundle_path: bundlePath,
     agent_file_path: destPath,
@@ -209,6 +214,38 @@ export async function deployForTask(
   const manifestPath = getManifestPath(params.workspace_path, agentName);
   await writeJson(manifestPath, manifest);
 
+  // 6. Write init-context.json — pre-loads large static context for slim init response
+  const initContextPath = getInitContextPath(params.workspace_path, agentName);
+  try {
+    const agentType = params.agent_name as import('../types/index.js').AgentType;
+    const roleBoundaries = AGENT_BOUNDARIES[agentType];
+    let toolContracts: import('../types/preflight.types.js').ToolContractSummary[] | undefined;
+    try {
+      toolContracts = buildToolContracts(agentType);
+    } catch {
+      // Non-fatal: if tool contracts can't be built, skip
+    }
+    const initContext = {
+      schema_version: '1.0',
+      written_at: nowISO(),
+      agent_name: params.agent_name,
+      plan_id: params.plan_id,
+      workspace_id: params.workspace_id,
+      phase_name: params.phase_name,
+      step_indices: params.step_indices,
+      role_boundaries: roleBoundaries,
+      tool_contracts: toolContracts,
+      matched_skills: [] as { skill_name: string; file_path: string }[],
+      research_note_files: bundle.research_notes ?? [],
+      architecture_path: bundle.architecture_summary ? 'architecture.json' : undefined,
+      instruction_file_paths: deployedInstructionPaths,
+    };
+    await writeJson(initContextPath, initContext);
+  } catch {
+    // Non-fatal: init-context.json write failure doesn't block deployment
+    warnings.push('Could not write init-context.json (non-fatal)');
+  }
+
   return {
     deployed: true,
     agent_dir: deployDir,
@@ -217,9 +254,6 @@ export async function deployForTask(
     warnings,
   };
 }
-
-// ---------------------------------------------------------------------------
-// cleanupAgent
 // ---------------------------------------------------------------------------
 
 /**

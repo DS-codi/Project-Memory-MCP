@@ -18,11 +18,20 @@ import type {
 } from '../../types/index.js';
 import type { CategoryDecision } from '../../types/categorization.types.js';
 import type { ContextPersistence } from '../../types/plan.types.js';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 import * as handoffTools from '../handoff.tools.js';
 import * as agentTools from '../agent.tools.js';
 import * as validationTools from '../agent-validation.tools.js';
 import { deployForTask, cleanupAgent } from '../agent-deploy.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
+import { getPlanState, getWorkspace } from '../../storage/file-store.js';
+import {
+  getAgentDeployDir,
+  getContextBundlePath,
+  getInitContextPath,
+  getManifestPath,
+} from '../../storage/projectmemory-paths.js';
 import { preflightValidate } from '../preflight/index.js';
 import { incrementStat } from '../session-stats.js';
 import { events } from '../../events/event-emitter.js';
@@ -100,14 +109,14 @@ type AgentResult =
   | { action: 'init'; data: InitialiseAgentResult }
   | { action: 'complete'; data: AgentSession & { coordinator_next_action?: string } }
   | { action: 'handoff'; data: LineageEntry & { verification?: { valid: boolean; issues: string[] }; coordinator_instruction: string } }
-  | { action: 'validate'; data: validationTools.AgentValidationResult }
+  | { action: 'validate'; data: validationTools.AgentValidationResult & { deprecation_notice?: string } }
   | { action: 'list'; data: string[] }
   | { action: 'get_instructions'; data: { filename: string; content: string } }
   | { action: 'deploy'; data: { deployed: string[]; prompts_deployed: string[]; instructions_deployed: string[]; skills_deployed: string[]; target_path: string } }
-  | { action: 'get_briefing'; data: MissionBriefing }
+  | { action: 'get_briefing'; data: MissionBriefing & { deprecation_notice?: string } }
   | { action: 'get_lineage'; data: LineageEntry[] }
   | { action: 'categorize'; data: { categorization: RequestCategorization; category_decision: CategoryDecision; routing_resolved: boolean } }
-  | { action: 'deploy_for_task'; data: DeployForTaskResult };
+  | { action: 'deploy_for_task'; data: DeployForTaskResult & { deprecation_notice?: string } };
 
 export async function memoryAgent(params: MemoryAgentParams): Promise<ToolResponse<AgentResult>> {
   const { action } = params;
@@ -191,44 +200,77 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
       }
 
       const wantsValidation = params.validate === true || params.validation_mode === 'init+validate';
+      let validationError: string | undefined;
 
       if (wantsValidation && params.workspace_id && params.plan_id) {
         const validateFn = getValidationFunction(params.agent_type);
         if (!validateFn) {
+          validationError = `No validation function for agent type: ${params.agent_type}`;
           initData.validation = {
             success: false,
-            error: `No validation function for agent type: ${params.agent_type}`
+            error: validationError
           };
-          return {
-            success: false,
-            error: initData.validation.error,
-            data: { action: 'init', data: initData }
+        } else {
+          const validationResult = await validateFn({
+            workspace_id: params.workspace_id,
+            plan_id: params.plan_id
+          });
+
+          initData.validation = {
+            success: validationResult.success,
+            result: validationResult.data,
+            error: validationResult.error
           };
-        }
 
-        const validationResult = await validateFn({
-          workspace_id: params.workspace_id,
-          plan_id: params.plan_id
-        });
-
-        initData.validation = {
-          success: validationResult.success,
-          result: validationResult.data,
-          error: validationResult.error
-        };
-
-        if (!validationResult.success) {
-          return {
-            success: false,
-            error: validationResult.error,
-            data: { action: 'init', data: initData }
-          };
+          if (!validationResult.success) {
+            validationError = validationResult.error;
+          }
         }
       }
 
+      // Slim init payload by offloading bulky context to init-context.json
+      const offload = await offloadInitContextAndBuildPointers(params, initData);
+      if (offload.context_file_paths) {
+        const slimPlanState = buildSlimPlanStateSummary(params.plan_id, initData.plan_state);
+        const slimWorkspaceStatus = {
+          ...initData.workspace_status,
+          active_plan_count: initData.workspace_status.active_plans.length,
+          active_plans: []
+        };
+
+        const slimInitData = {
+          session: initData.session,
+          plan_state: slimPlanState,
+          workspace_status: slimWorkspaceStatus,
+          role_boundaries: initData.role_boundaries,
+          validation: initData.validation,
+          context_size_bytes: safeJsonSize({
+            session: initData.session,
+            plan_state: slimPlanState,
+            workspace_status: slimWorkspaceStatus,
+            role_boundaries: initData.role_boundaries,
+            validation: initData.validation,
+            context_file_paths: offload.context_file_paths
+          }),
+          context_file_paths: offload.context_file_paths,
+          fallback_notice: offload.fallback_notice
+        } as InitialiseAgentResult & { context_file_path?: string };
+
+        slimInitData.context_file_path = offload.context_file_paths.init_context_path;
+
+        return {
+          success: validationError ? false : result.success,
+          error: validationError ?? result.error,
+          data: { action: 'init', data: slimInitData }
+        };
+      }
+
+      initData.fallback_notice = offload.fallback_notice ??
+        'init response could not be slimmed; returning inline context fields.';
+
       return {
-        success: result.success,
-        error: result.error,
+        success: validationError ? false : result.success,
+        error: validationError ?? result.error,
         data: { action: 'init', data: initData }
       };
     }
@@ -344,9 +386,13 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
       if (!result.success) {
         return { success: false, error: result.error };
       }
+      const deprecation_notice = 'Deprecated path: memory_agent(action: "validate") remains supported for compatibility. Prefer memory_agent(action: "init", validation_mode: "init+validate") to combine initialization and validation in a single call.';
       return {
         success: true,
-        data: { action: 'validate', data: result.data! }
+        data: {
+          action: 'validate',
+          data: { ...result.data!, deprecation_notice }
+        }
       };
     }
 
@@ -417,9 +463,13 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
       if (!result.success) {
         return { success: false, error: result.error };
       }
+      const deprecation_notice = 'Deprecated path: memory_agent(action: "get_briefing") remains supported for compatibility. Prefer memory_agent(action: "init") and read the returned plan_state summary + context file pointers.';
       return {
         success: true,
-        data: { action: 'get_briefing', data: result.data! }
+        data: {
+          action: 'get_briefing',
+          data: { ...result.data!, deprecation_notice }
+        }
       };
     }
 
@@ -519,9 +569,13 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
         include_research: params.include_research,
         include_architecture: params.include_architecture,
       });
+      const deprecation_notice = 'Deprecated path: memory_agent(action: "deploy_for_task") remains supported for compatibility. Prefer memory_session(action: "deploy_and_prep") to combine deployment and prep in one call.';
       return {
         success: true,
-        data: { action: 'deploy_for_task', data: result }
+        data: {
+          action: 'deploy_for_task',
+          data: { ...result, deprecation_notice }
+        }
       };
     }
 
@@ -531,6 +585,150 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
         error: `Unknown action: ${action}. Valid actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage, categorize, deploy_for_task`
       };
   }
+}
+
+function safeJsonSize(value: unknown): number {
+  try {
+    return Buffer.byteLength(JSON.stringify(value), 'utf-8');
+  } catch {
+    return 0;
+  }
+}
+
+function buildSlimPlanStateSummary(planId: string | undefined, planState: unknown): unknown {
+  if (!planState || typeof planState !== 'object') {
+    return { plan_id: planId };
+  }
+
+  const state = planState as Record<string, unknown>;
+  const steps = Array.isArray(state.steps) ? state.steps as Array<Record<string, unknown>> : [];
+
+  const countByStatus = (status: string): number =>
+    steps.filter(step => step?.status === status).length;
+
+  const pendingStepSummaries = steps
+    .filter(step => step?.status === 'pending' || step?.status === 'active')
+    .slice(0, 10)
+    .map(step => ({
+      index: step.index,
+      phase: step.phase,
+      task: step.task,
+      status: step.status
+    }));
+
+  return {
+    plan_id: (state.id as string | undefined) ?? planId,
+    title: state.title,
+    current_phase: state.current_phase,
+    step_counts: {
+      total: steps.length,
+      pending: countByStatus('pending'),
+      active: countByStatus('active'),
+      done: countByStatus('done'),
+      blocked: countByStatus('blocked')
+    },
+    pending_steps: pendingStepSummaries
+  };
+}
+
+async function offloadInitContextAndBuildPointers(
+  params: MemoryAgentParams,
+  initData: InitialiseAgentResult
+): Promise<{
+  context_file_paths: InitialiseAgentResult['context_file_paths'];
+  fallback_notice?: string;
+}> {
+  if (!params.workspace_id || !params.plan_id || !params.agent_type) {
+    return {
+      context_file_paths: null,
+      fallback_notice: 'init offload unavailable: missing workspace_id, plan_id, or agent_type.'
+    };
+  }
+
+  const workspace = await getWorkspace(params.workspace_id);
+  if (!workspace) {
+    return {
+      context_file_paths: null,
+      fallback_notice: `init offload unavailable: workspace not found (${params.workspace_id}).`
+    };
+  }
+
+  const workspacePath = workspace.workspace_path || workspace.path;
+  if (!workspacePath) {
+    return {
+      context_file_paths: null,
+      fallback_notice: 'init offload unavailable: workspace path is missing.'
+    };
+  }
+
+  const agentName = params.agent_type.toLowerCase();
+  const agentDir = getAgentDeployDir(workspacePath, agentName);
+  const initContextPath = getInitContextPath(workspacePath, agentName);
+  const contextBundlePath = getContextBundlePath(workspacePath, agentName);
+  const manifestPath = getManifestPath(workspacePath, agentName);
+  const skillsDirPath = path.join(workspacePath, '.github', 'skills');
+
+  let contextBundlePathFromManifest = contextBundlePath;
+  try {
+    const manifestRaw = await fs.readFile(manifestPath, 'utf-8');
+    const manifest = JSON.parse(manifestRaw) as { context_bundle_path?: string };
+    if (manifest.context_bundle_path) {
+      contextBundlePathFromManifest = manifest.context_bundle_path;
+    }
+  } catch {
+    // Non-fatal: manifest may not exist when init is called directly
+  }
+
+  const fullPlanState = await getPlanState(params.workspace_id, params.plan_id);
+
+  const offloadedPayload = {
+    schema_version: '1.1',
+    written_at: new Date().toISOString(),
+    workspace_id: params.workspace_id,
+    plan_id: params.plan_id,
+    agent_type: params.agent_type,
+    session_id: initData.session?.session_id,
+    full_plan_state: fullPlanState,
+    role_boundaries: initData.role_boundaries,
+    instruction_files: initData.instruction_files,
+    matched_skills: initData.matched_skills,
+    workspace_context_summary: initData.workspace_context_summary,
+    tool_contracts: initData.tool_contracts
+  };
+
+  try {
+    await fs.mkdir(agentDir, { recursive: true });
+    await fs.writeFile(initContextPath, JSON.stringify(offloadedPayload, null, 2), 'utf-8');
+  } catch {
+    return {
+      context_file_paths: null,
+      fallback_notice: 'init offload unavailable: failed to write init-context.json; returning inline context fields.'
+    };
+  }
+
+  let skillsDir: string | null = null;
+  try {
+    const stat = await fs.stat(skillsDirPath);
+    if (stat.isDirectory()) {
+      skillsDir = skillsDirPath;
+    }
+  } catch {
+    skillsDir = null;
+  }
+
+  const instructionPaths = (initData.instruction_files ?? [])
+    .map(file => file.full_path)
+    .filter((v): v is string => typeof v === 'string' && v.length > 0);
+
+  return {
+    context_file_paths: {
+      agent_dir: agentDir,
+      instruction_file_paths: instructionPaths,
+      context_bundle_path: contextBundlePathFromManifest,
+      skills_dir: skillsDir,
+      init_context_path: initContextPath
+    }
+  };
 }
 
 /**

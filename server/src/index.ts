@@ -596,22 +596,27 @@ server.tool(
 
 server.tool(
   'memory_session',
-  'Agent session management and spawn preparation. Actions: prep (mint session ID, enrich prompt with context/scope/anti-spawning blocks — does NOT execute spawns), list_sessions (query sessions from plan state), get_session (find a specific session by ID).',
+  'Agent session management and spawn preparation. Actions: prep (mint session ID + enrich prompt), deploy_and_prep (deploy context bundle + prepare enriched prompt in one call), list_sessions (query sessions from plan state), get_session (find a specific session by ID).',
   {
-    action: z.enum(['prep', 'list_sessions', 'get_session']).describe('The action to perform'),
+    action: z.enum(['prep', 'deploy_and_prep', 'list_sessions', 'get_session']).describe('The action to perform'),
     workspace_id: z.string().optional().describe('Workspace ID'),
     plan_id: z.string().optional().describe('Plan ID'),
-    agent_name: z.string().optional().describe('Target agent name (for prep)'),
-    prompt: z.string().optional().describe('Base prompt to enrich (for prep)'),
-    compat_mode: z.enum(['legacy', 'strict']).optional().describe('Compatibility mode (for prep). strict returns prep_config only; legacy also returns spawn_config alias'),
-    parent_session_id: z.string().optional().describe('Parent session ID for lineage tracking (for prep)'),
+    agent_name: z.string().optional().describe('Target agent name (for prep/deploy_and_prep)'),
+    prompt: z.string().optional().describe('Base prompt to enrich (for prep/deploy_and_prep)'),
+    compat_mode: z.enum(['legacy', 'strict']).optional().describe('Compatibility mode (for prep/deploy_and_prep). strict returns prep_config only; legacy also returns spawn_config alias'),
+    parent_session_id: z.string().optional().describe('Parent session ID for lineage tracking (for prep/deploy_and_prep)'),
     prep_config: z.object({
       scope_boundaries: z.object({
         files_allowed: z.array(z.string()).optional().describe('Files the subagent may modify'),
         directories_allowed: z.array(z.string()).optional().describe('Directories for new file creation'),
         scope_escalation_instruction: z.string().optional().describe('Custom scope escalation instruction')
       }).optional()
-    }).optional().describe('Preparation config with scope boundaries (for prep)'),
+    }).optional().describe('Preparation config with scope boundaries (for prep/deploy_and_prep)'),
+    phase_name: z.string().optional().describe('Current phase name (for deploy_and_prep)'),
+    step_indices: z.array(z.number()).optional().describe('Step indices to work on (for deploy_and_prep)'),
+    include_skills: z.boolean().optional().describe('Include skills in deployment context (for deploy_and_prep)'),
+    include_research: z.boolean().optional().describe('Include research notes in deployment context (for deploy_and_prep)'),
+    include_architecture: z.boolean().optional().describe('Include architecture context in deployment context (for deploy_and_prep)'),
     session_id: z.string().optional().describe('Session ID to look up (for get_session)'),
     status_filter: z.enum(['active', 'stopping', 'completed', 'all']).optional().describe('Filter sessions by status (for list_sessions)')
   },

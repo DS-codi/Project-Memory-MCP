@@ -70,5 +70,11 @@ impl cxx_qt::Initialize for ffi::SupervisorGuiBridge {
             .set_status_text(QString::from("Supervisor starting…"));
         self.as_mut().set_window_visible(false);
         self.as_mut().set_tray_icon_url(resolve_tray_icon_url());
+        self.as_mut()
+            .set_mcp_status(QString::from("Starting\u{2026}"));
+        self.as_mut()
+            .set_terminal_status(QString::from("Starting\u{2026}"));
+        self.as_mut()
+            .set_dashboard_status(QString::from("Starting\u{2026}"));
     }
 }

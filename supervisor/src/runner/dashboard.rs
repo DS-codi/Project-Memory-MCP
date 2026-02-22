@@ -139,6 +139,10 @@ impl ServiceRunner for DashboardRunner {
             .id()
             .ok_or_else(|| anyhow::anyhow!("spawned dashboard process has no PID"))?;
 
+        // Assign to the supervisor job object so the OS kills this process
+        // automatically if the supervisor exits or crashes.
+        crate::runner::job_object::adopt(pid);
+
         self.state = DashboardState::Running { child, pid };
         Ok(())
     }

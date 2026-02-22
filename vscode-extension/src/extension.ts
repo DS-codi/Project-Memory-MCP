@@ -12,40 +12,42 @@ import { DashboardViewProvider } from './providers/DashboardViewProvider';
 import { AgentWatcher } from './watchers/AgentWatcher';
 import { CopilotFileWatcher } from './watchers/CopilotFileWatcher';
 import { StatusBarManager } from './ui/StatusBarManager';
-import { ServerManager } from './server/ServerManager';
+import { ConnectionManager } from './server/ConnectionManager';
 import { DefaultDeployer } from './deployer/DefaultDeployer';
 import { McpBridge, ChatParticipant, ToolProvider, confirmPendingAction, cancelPendingAction } from './chat';
 import { SessionInterceptRegistry } from './chat/orchestration/session-intercept-registry';
 import { DiagnosticsService } from './services/DiagnosticsService';
+import { SupervisorHeartbeat } from './supervisor/SupervisorHeartbeat';
 import { notify } from './utils/helpers';
 import { getDefaultDataRoot, getDefaultAgentsRoot, getDefaultInstructionsRoot, getDefaultPromptsRoot, getDefaultSkillsRoot } from './utils/defaults';
 import { resolveTerminalCwdForBuildScript } from './utils/buildScriptCwd';
 import { clearIdentityCache } from './utils/workspace-identity';
-import { getDashboardFrontendUrl } from './server/ContainerDetection';
 import { registerServerCommands, registerDeployCommands, registerPlanCommands, registerWorkspaceCommands } from './commands';
 import { extractWorkspaceIdFromRegisterResponse, resolveWorkspaceIdFromWorkspaceList } from './chat/workspaceRegistration';
 import { readSupervisorSettings } from './supervisor/settings';
 import { runSupervisorActivation } from './supervisor/activation';
 import { enterDegradedMode, exitDegradedMode } from './supervisor/degraded';
 import { detectSupervisor } from './supervisor/detect';
+import { launchSupervisorDetached, launchSupervisorInTerminal, getSupervisorDirectory, openDirectoryInExplorer } from './supervisor/launcher';
+import { SupervisorControlClient } from './supervisor/control-client';
 
 // --- Module-level state ---
 let dashboardProvider: DashboardViewProvider;
 let agentWatcher: AgentWatcher;
 let copilotFileWatcher: CopilotFileWatcher;
 let statusBarManager: StatusBarManager;
-let serverManager: ServerManager;
+let connectionManager: ConnectionManager;
 let defaultDeployer: DefaultDeployer;
 let diagnosticsService: DiagnosticsService;
+
+// Supervisor control client — registers this window with the pool manager.
+let supervisorClient: SupervisorControlClient | null = null;
 
 // Chat integration components
 let mcpBridge: McpBridge | null = null;
 let chatParticipant: ChatParticipant | null = null;
 let toolProvider: ToolProvider | null = null;
 let sessionInterceptRegistry: SessionInterceptRegistry | null = null;
-
-// Lazy server start state
-let serverStartPromise: Promise<boolean> | null = null;
 
 // --- Activation ---
 
@@ -58,9 +60,8 @@ export function activate(context: vscode.ExtensionContext) {
     const agentsRoot = config.get<string>('agentsRoot') || getDefaultAgentsRoot();
     const promptsRoot = config.get<string>('promptsRoot');
     const instructionsRoot = config.get<string>('instructionsRoot');
-    const serverPort = config.get<number>('serverPort') || 3001;
-    const wsPort = config.get<number>('wsPort') || 3002;
-    const autoStartServer = config.get<boolean>('autoStartServer') ?? true;
+    const dashboardPort = config.get<number>('serverPort') || 3001;
+    const mcpPort = config.get<number>('mcpPort') || 3457;
     const defaultAgents = config.get<string[]>('defaultAgents') || [];
     const defaultInstructions = config.get<string[]>('defaultInstructions') || [];
     const autoDeployOnWorkspaceOpen = config.get<boolean>('autoDeployOnWorkspaceOpen') ?? false;
@@ -77,21 +78,26 @@ export function activate(context: vscode.ExtensionContext) {
         defaultSkills: config.get<string[]>('defaultSkills') || [],
     });
 
-    serverManager = new ServerManager({
-        dataRoot,
-        agentsRoot,
-        promptsRoot,
-        instructionsRoot,
-        serverPort,
-        wsPort,
+    connectionManager = new ConnectionManager({
+        dashboardPort,
+        mcpPort,
     });
-    context.subscriptions.push(serverManager);
+    connectionManager.onConnected = () => {
+        exitDegradedMode();
+        // Reconnect the MCP bridge now that the server is up
+        if (mcpBridge && !mcpBridge.isConnected()) {
+            mcpBridge.connect().catch(err =>
+                console.warn('[ConnectionManager.onConnected] MCP bridge reconnect failed:', err)
+            );
+        }
+    };
+    context.subscriptions.push(connectionManager);
 
     dashboardProvider = new DashboardViewProvider(context.extensionUri, dataRoot, agentsRoot);
 
-    // Lazy server start: when dashboard panel opens for the first time
+    // When dashboard panel opens for the first time, try to detect services
     dashboardProvider.onFirstResolve(() => {
-        ensureServerRunning();
+        detectAndPromptIfNeeded();
     });
 
     statusBarManager = new StatusBarManager();
@@ -107,19 +113,40 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     // --- Register all commands (no I/O, just registrations) ---
-    const getServerPort = () => config.get<number>('serverPort') || 3001;
+    const getDashboardPort = () => config.get<number>('serverPort') || 3001;
 
-    registerServerCommands(context, serverManager, dashboardProvider, getServerPort);
+    registerServerCommands(context, connectionManager, dashboardProvider, getDashboardPort);
     registerDeployCommands(context, dashboardProvider, defaultDeployer);
-    registerPlanCommands(context, dashboardProvider, getServerPort);
-    registerWorkspaceCommands(context, serverManager, dashboardProvider, () => mcpBridge);
+    registerPlanCommands(context, dashboardProvider, getDashboardPort);
+    registerWorkspaceCommands(context, connectionManager, dashboardProvider, () => mcpBridge);
 
     // --- Diagnostics service and command ---
-    diagnosticsService = new DiagnosticsService(serverManager, () => mcpBridge, serverPort);
+    diagnosticsService = new DiagnosticsService(connectionManager, () => mcpBridge, dashboardPort);
     context.subscriptions.push(diagnosticsService);
 
-    // Start monitoring with 60s intervals (lightweight, non-blocking)
-    diagnosticsService.startMonitoring(60_000);
+    // Replace the old 60-second poll with a single shared SSE heartbeat.
+    // All VS Code windows subscribe to the supervisor's broadcast; no per-instance polling.
+    const supervisorHeartbeat = new SupervisorHeartbeat(
+        mcpPort, // proxy port is also where /supervisor/heartbeat lives
+        (msg) => console.log(msg),
+    );
+    supervisorHeartbeat.start();
+    context.subscriptions.push(supervisorHeartbeat);
+    diagnosticsService.attachHeartbeat(supervisorHeartbeat);
+
+    // Auto-reconnect the bridge: whenever diagnostics detects the server is
+    // healthy but the bridge is disconnected, trigger a reconnect.
+    context.subscriptions.push(
+        diagnosticsService.onHealthChange(report => {
+            if (report.connection.dashboardConnected && !report.mcp.bridgeConnected) {
+                if (mcpBridge) {
+                    mcpBridge.connect().catch(err =>
+                        console.warn('[DiagnosticsService] MCP bridge reconnect failed:', err)
+                    );
+                }
+            }
+        })
+    );
 
     // Diagnostics status bar indicator
     const diagnosticsStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
@@ -138,8 +165,8 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('projectMemory.showDiagnostics', async () => {
-            const report = await diagnosticsService.runCheck();
+        vscode.commands.registerCommand('projectMemory.showDiagnostics', () => {
+            const report = diagnosticsService.runCheck();
             const channel = vscode.window.createOutputChannel('Project Memory Diagnostics');
             channel.clear();
             channel.appendLine(diagnosticsService.formatReport(report));
@@ -167,59 +194,251 @@ export function activate(context: vscode.ExtensionContext) {
         });
     }
 
-    // Server start: immediate only if autoStartServer is explicitly enabled;
-    // otherwise the server starts lazily on first dashboard open or command
-    if (autoStartServer && serverManager.hasServerDirectory()) {
-        ensureServerRunning();
-    }
-
-    // Idle server timeout
-    const idleTimeout = config.get<number>('idleServerTimeoutMinutes') || 0;
-    if (idleTimeout > 0) {
-        serverManager.startIdleMonitoring(idleTimeout);
-    }
-
-    // --- Supervisor activation (fire-and-forget before MCP attach) ---
-    // runSupervisorActivation is async; we do not await it so extension
-    // activation is not blocked. Degraded mode is surfaced via status bar item.
-    const supervisorSettings = readSupervisorSettings();
-    const supervisorTransportHint = vscode.workspace
-        .getConfiguration('projectMemory')
-        .get<'auto' | 'local' | 'container'>('containerMode', 'auto') === 'container'
-        ? 'TCP/container mode'
-        : 'local mode';
-
-    // --- Register "Reconnect Supervisor" command ---
-    // The Supervisor is always an independently-managed process; this command
-    // only probes whether one is reachable and, if so, clears degraded mode.
-    // Users launch the Supervisor themselves (e.g. via start-supervisor.ps1).
-    context.subscriptions.push(
-        vscode.commands.registerCommand('project-memory.startSupervisor', async () => {
-            const settings = readSupervisorSettings();
-            const found = await detectSupervisor(settings.detectTimeoutMs);
-            if (found) {
-                exitDegradedMode();
-                void vscode.window.showInformationMessage('Project Memory Supervisor connected.');
-            } else {
-                void vscode.window.showWarningMessage(
-                    'Project Memory Supervisor not detected. ' +
-                    'Start it with start-supervisor.ps1, then click the status bar item to retry.'
+    // Initial connection attempt, then keep polling continuously.
+    connectionManager.detectAndConnect().then(connected => {
+        if (connected) {
+            exitDegradedMode();
+            // Connect the MCP bridge now that the server is known to be up.
+            if (mcpBridge && !mcpBridge.isConnected()) {
+                mcpBridge.connect().catch(err =>
+                    console.warn('[detectAndConnect] MCP bridge connect failed:', err)
                 );
+            }
+        }
+        // Always start polling so we can recover from future blips.
+        connectionManager.startAutoDetection();
+    });
+
+    // --- Supervisor activation and management commands ---
+    const supervisorSettings = readSupervisorSettings();
+
+    // Register "Launch Supervisor" command (detached process)
+    context.subscriptions.push(
+        vscode.commands.registerCommand('project-memory.launchSupervisor', async () => {
+            try {
+                const settings = readSupervisorSettings();
+                launchSupervisorDetached(settings);
+                
+                // Wait a bit for supervisor to start, then try to detect
+                setTimeout(async () => {
+                    const connected = await connectionManager.detectAndConnect();
+                    if (connected) {
+                        exitDegradedMode();
+                        // Also reconnect the MCP bridge
+                        if (mcpBridge && !mcpBridge.isConnected()) {
+                            mcpBridge.connect().catch(err =>
+                                console.warn('[launchSupervisor] MCP bridge connect failed:', err)
+                            );
+                        }
+                        vscode.window.showInformationMessage('Project Memory Supervisor connected.');
+                    } else {
+                        vscode.window.showWarningMessage(
+                            'Supervisor launched but services not yet detected. ' +
+                            'Check the supervisor is starting correctly.'
+                        );
+                    }
+                }, 5000); // Give supervisor 5s to start
+            } catch (error) {
+                const msg = error instanceof Error ? error.message : String(error);
+                vscode.window.showErrorMessage(
+                    `Failed to launch Supervisor: ${msg}`,
+                    'Configure Path'
+                ).then(choice => {
+                    if (choice === 'Configure Path') {
+                        vscode.commands.executeCommand(
+                            'workbench.action.openSettings',
+                            'supervisor.launcherPath'
+                        );
+                    }
+                });
             }
         })
     );
 
-    runSupervisorActivation(context, supervisorSettings).then(supervisorResult => {
+    // Register "Launch Supervisor in Terminal" command (visible terminal)
+    context.subscriptions.push(
+        vscode.commands.registerCommand('project-memory.launchSupervisorInTerminal', async () => {
+            try {
+                const settings = readSupervisorSettings();
+                launchSupervisorInTerminal(settings);
+                vscode.window.showInformationMessage(
+                    'Supervisor launching in terminal. Services will start momentarily.'
+                );
+                
+                // Poll for connection
+                setTimeout(async () => {
+                    await connectionManager.detectAndConnect();
+                }, 3000);
+            } catch (error) {
+                const msg = error instanceof Error ? error.message : String(error);
+                vscode.window.showErrorMessage(
+                    `Failed to launch Supervisor: ${msg}`,
+                    'Configure Path'
+                ).then(choice => {
+                    if (choice === 'Configure Path') {
+                        vscode.commands.executeCommand(
+                            'workbench.action.openSettings',
+                            'supervisor.launcherPath'
+                        );
+                    }
+                });
+            }
+        })
+    );
+
+    // Register "Open Supervisor Directory" command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('project-memory.openSupervisorDirectory', async () => {
+            const settings = readSupervisorSettings();
+            const dir = getSupervisorDirectory(settings);
+            
+            if (dir) {
+                openDirectoryInExplorer(dir);
+                vscode.window.showInformationMessage(
+                    `Opened supervisor directory in Explorer. Run supervisor.exe or start-supervisor.ps1 to launch.`
+                );
+            } else {
+                vscode.window.showErrorMessage(
+                    'Could not locate the Supervisor directory. ' +
+                    'Set supervisor.launcherPath to the full path of your supervisor executable or start-supervisor.ps1.',
+                    'Configure Path'
+                ).then(choice => {
+                    if (choice === 'Configure Path') {
+                        vscode.commands.executeCommand(
+                            'workbench.action.openSettings',
+                            'supervisor.launcherPath'
+                        );
+                    }
+                });
+            }
+        })
+    );
+
+    // Register "Reconnect/Detect" command (replaces startSupervisor)
+    context.subscriptions.push(
+        vscode.commands.registerCommand('project-memory.detectConnection', async () => {
+            const connected = await connectionManager.detectAndConnect();
+            if (connected) {
+                exitDegradedMode();
+                // Also reconnect the MCP bridge
+                if (mcpBridge && !mcpBridge.isConnected()) {
+                    mcpBridge.connect().catch(err =>
+                        console.warn('[detectConnection] MCP bridge connect failed:', err)
+                    );
+                }
+                vscode.window.showInformationMessage('Project Memory components connected.');
+            } else {
+                vscode.window.showWarningMessage(
+                    'Project Memory components not detected. ' +
+                    'Ensure the Supervisor is running (start-supervisor.ps1).',
+                    'Launch Supervisor', 'Open Directory'
+                ).then(choice => {
+                    if (choice === 'Launch Supervisor') {
+                        vscode.commands.executeCommand('project-memory.launchSupervisor');
+                    } else if (choice === 'Open Directory') {
+                        vscode.commands.executeCommand('project-memory.openSupervisorDirectory');
+                    }
+                });
+            }
+        })
+    );
+
+    runSupervisorActivation(context, supervisorSettings).then(async supervisorResult => {
         if (supervisorResult === 'degraded') {
+            const dir = getSupervisorDirectory(supervisorSettings);
+            const canLaunch = dir !== null;
             enterDegradedMode(
                 context,
-                `Supervisor was not detected in ${supervisorTransportHint}. Click to retry.`
+                'Supervisor was not detected. Launch it to enable full Project Memory functionality.',
+                canLaunch
             );
+        } else if (supervisorResult === 'ready') {
+            // Supervisor is running — register this VS Code window with it so
+            // the pool manager can track which windows are connected.
+            supervisorClient = new SupervisorControlClient();
+            context.subscriptions.push(supervisorClient);
+            const connected = await supervisorClient.connect();
+            if (connected) {
+                const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+                const windowId = workspaceFolder
+                    ? workspaceFolder.uri.fsPath
+                    : `${vscode.env.machineId}:${process.pid}`;
+                const clientId = await supervisorClient.attachClient(process.pid, windowId);
+                if (clientId) {
+                    console.log(`[Supervisor] Registered as ${clientId} (window: ${windowId})`);
+                }
+            }
         }
     }).catch(err => {
         console.error('[Supervisor] Activation error:', err);
-        enterDegradedMode(context, String(err));
+        enterDegradedMode(context, String(err), false);
     });
+
+    // --- Pool management commands ---
+    context.subscriptions.push(
+        vscode.commands.registerCommand('projectMemory.showMcpSessions', async () => {
+            if (!supervisorClient?.isConnected) {
+                vscode.window.showWarningMessage('Not connected to Supervisor. Launch it first.');
+                return;
+            }
+            const sessions = await supervisorClient.listMcpConnections();
+            if (sessions.length === 0) {
+                vscode.window.showInformationMessage('No active MCP sessions.');
+                return;
+            }
+            const channel = vscode.window.createOutputChannel('MCP Sessions');
+            channel.clear();
+            channel.appendLine(`Active MCP Sessions (${sessions.length}):`);
+            channel.appendLine('');
+            for (const s of sessions) {
+                channel.appendLine(`  Session: ${s.session_id}`);
+                channel.appendLine(`    Transport : ${s.transport_type}`);
+                channel.appendLine(`    Instance  : port ${s.instance_port}`);
+                channel.appendLine(`    Connected : ${s.connected_at}`);
+                channel.appendLine(`    Last call : ${s.last_activity ?? 'none'}`);
+                channel.appendLine(`    Calls     : ${s.call_count}`);
+                if (s.linked_client_id) {
+                    channel.appendLine(`    Client ID : ${s.linked_client_id}`);
+                }
+                channel.appendLine('');
+            }
+            channel.show();
+        }),
+
+        vscode.commands.registerCommand('projectMemory.showMcpInstances', async () => {
+            if (!supervisorClient?.isConnected) {
+                vscode.window.showWarningMessage('Not connected to Supervisor. Launch it first.');
+                return;
+            }
+            const instances = await supervisorClient.listMcpInstances();
+            if (instances.length === 0) {
+                vscode.window.showInformationMessage('No MCP pool instances found.');
+                return;
+            }
+            const lines = instances.map(i =>
+                `  Port ${i.port}: ${i.connection_count} connection(s)`
+            );
+            vscode.window.showInformationMessage(
+                `MCP Pool (${instances.length} instance${instances.length !== 1 ? 's' : ''}):\n${lines.join('\n')}`,
+                { modal: true }
+            );
+        }),
+
+        vscode.commands.registerCommand('projectMemory.scaleUpMcp', async () => {
+            if (!supervisorClient?.isConnected) {
+                vscode.window.showWarningMessage('Not connected to Supervisor. Launch it first.');
+                return;
+            }
+            const ok = await supervisorClient.scaleUpMcp();
+            if (ok) {
+                vscode.window.showInformationMessage('MCP pool scale-up requested.');
+            } else {
+                vscode.window.showWarningMessage(
+                    'Scale-up was not accepted. The pool may already be at maximum capacity.'
+                );
+            }
+        })
+    );
 
     // --- Chat integration (lightweight init, async connect) ---
     const isExtensionHostTest = process.env.PROJECT_MEMORY_TEST_MODE === '1';
@@ -265,6 +484,13 @@ export function activate(context: vscode.ExtensionContext) {
 export async function deactivate() {
     console.log('Project Memory Dashboard extension deactivating...');
 
+    // Unregister this window from the Supervisor pool manager.
+    if (supervisorClient) {
+        await supervisorClient.detachClient().catch(() => { /* ignore */ });
+        supervisorClient.dispose();
+        supervisorClient = null;
+    }
+
     // Dispose chat integration
     if (mcpBridge) {
         try {
@@ -297,68 +523,48 @@ export async function deactivate() {
         copilotFileWatcher.stop();
     }
 
-    // Stop servers — ensure child process cleanup with timeout
-    if (serverManager) {
-        try {
-            // Race against a 5s timeout to prevent hanging deactivation
-            await Promise.race([
-                (async () => {
-                    await serverManager.stopFrontend();
-                    await serverManager.stop();
-                    await serverManager.forceStopOwnedServer();
-                })(),
-                new Promise<void>(resolve => setTimeout(resolve, 5000))
-            ]);
-        } catch (e) {
-            console.error('Error stopping servers during deactivation:', e);
-            // Last resort: force-stop owned server even if stop() failed
-            try { await serverManager.forceStopOwnedServer(); } catch { /* ignore */ }
-        }
-    }
-
     console.log('Project Memory Dashboard extension deactivated');
 }
 
 // --- Private initialization helpers ---
 
 /**
- * Ensures the Express server is running. Called lazily on first dashboard
- * panel open or explicit server command. Deduplicates concurrent calls.
+ * Detect and prompt to launch supervisor if not connected.
+ * Called when dashboard opens or user explicitly requests detection.
  */
-export async function ensureServerRunning(): Promise<boolean> {
-    if (!serverManager) { return false; }
-    if (serverManager.isRunning) { return true; }
-    if (!serverManager.hasServerDirectory()) { return false; }
+async function detectAndPromptIfNeeded(): Promise<void> {
+    if (!connectionManager) { return; }
 
-    // Deduplicate: if a start is already in progress, await it
-    if (serverStartPromise) { return serverStartPromise; }
+    const connected = await connectionManager.detectAndConnect();
 
-    serverStartPromise = serverManager.start().then(success => {
-        serverStartPromise = null;
-        if (success) {
-            if (serverManager.isExternalServer) {
-                notify('Connected to existing Project Memory server');
-            } else {
-                notify('Project Memory API server started');
-            }
-        } else {
-            vscode.window.showWarningMessage(
-                'Failed to start Project Memory server. Click to view logs.',
-                'View Logs'
-            ).then(selection => {
-                if (selection === 'View Logs') {
-                    serverManager.showLogs();
-                }
-            });
+    if (connected) {
+        exitDegradedMode();
+        // Reconnect the MCP bridge if it lost its connection
+        if (mcpBridge && !mcpBridge.isConnected()) {
+            mcpBridge.connect().catch(err =>
+                console.warn('[detectAndPromptIfNeeded] MCP bridge connect failed:', err)
+            );
         }
-        return success;
-    }).catch(err => {
-        serverStartPromise = null;
-        console.error('Server start failed:', err);
-        return false;
-    });
+        return;
+    }
 
-    return serverStartPromise;
+    // Not connected — prompt the user
+    const supervisorSettings = readSupervisorSettings();
+    const dir = getSupervisorDirectory(supervisorSettings);
+    const canLaunch = dir !== null;
+
+    const choice = await vscode.window.showWarningMessage(
+        'Project Memory components not detected. Launch supervisor?',
+        'Launch Supervisor',
+        canLaunch ? 'Open Directory' : undefined,
+        'Cancel'
+    ).then(c => c);
+
+    if (choice === 'Launch Supervisor' && canLaunch) {
+        vscode.commands.executeCommand('project-memory.launchSupervisor');
+    } else if (choice === 'Open Directory' && canLaunch) {
+        vscode.commands.executeCommand('project-memory.openSupervisorDirectory');
+    }
 }
 
 function initializeChatIntegration(

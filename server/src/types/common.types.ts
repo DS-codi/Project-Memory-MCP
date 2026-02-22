@@ -249,6 +249,8 @@ export interface InitialiseAgentResult {
     workspace_id?: string;
     workspace_path?: string;
     active_plans: string[];
+    /** Slim mode only: count of active plans (active_plans array will be empty) */
+    active_plan_count?: number;
     message: string;
   };
   role_boundaries: AgentRoleBoundaries;  // CRITICAL: Constraints this agent MUST follow
@@ -258,6 +260,23 @@ export interface InitialiseAgentResult {
   validation?: { success: boolean; result?: unknown; error?: string };
   workspace_context_summary?: WorkspaceContextSummary;  // Opt-in via include_workspace_context=true
   context_size_bytes?: number;  // Total payload size for monitoring (plan_state + workspace_context + matched_skills + tool_contracts)
+  /**
+   * Slim response offload manifest — present when deploy_and_prep ran before this init.
+   * Agents should read large static context via memory_filesystem using these paths.
+   * Null when init called without prior deploy_and_prep (fallback to inline content).
+   */
+  context_file_paths?: {
+    agent_dir: string;
+    instruction_file_paths: string[];
+    context_bundle_path: string;
+    skills_dir: string | null;
+    init_context_path: string;
+  } | null;
+  /**
+   * Present when init falls back to inline content (no prior deploy_and_prep).
+   * Indicates large fields are inline and agents should call deploy_and_prep for slim responses.
+   */
+  fallback_notice?: string;
 }
 
 /**

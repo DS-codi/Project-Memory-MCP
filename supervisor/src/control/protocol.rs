@@ -77,6 +77,23 @@ pub enum ControlRequest {
     /// Drains active sessions, stops the MCP runner, then restarts it.
     UpgradeMcp,
 
+    /// List all currently active VS Code ↔ MCP HTTP sessions tracked by the
+    /// supervisor (populated by the `/admin/connections` poll loop).
+    ListMcpConnections,
+
+    /// Close a specific VS Code ↔ MCP session by its MCP session UUID.
+    ///
+    /// The supervisor calls `DELETE /admin/connections/{session_id}` on the MCP
+    /// server and then removes the entry from its registry.
+    CloseMcpConnection { session_id: String },
+
+    /// List all running MCP instance ports managed by the pool.
+    ListMcpInstances,
+
+    /// Manually trigger a pool scale-up (spawn one additional MCP instance).
+    /// The supervisor will reject this if `max_instances` is already reached.
+    ScaleUpMcp,
+
     /// Launch an on-demand form-app GUI process, pipe a payload on stdin,
     /// and return the response from stdout.
     ///

@@ -9,6 +9,8 @@ pub mod backoff;
 pub mod container;
 pub mod dashboard;
 pub mod form_app;
+pub mod job_object;
+pub mod mcp_pool;
 pub mod node;
 pub mod state_machine;
 pub mod terminal;
@@ -59,6 +61,15 @@ pub trait ServiceRunner: Send + Sync {
     ///
     /// Returns `Ok(())` once the service has stopped.
     async fn stop(&mut self) -> anyhow::Result<()>;
+
+    /// Restart the service using a graceful stop followed by a start.
+    ///
+    /// Implementors can override this when restart semantics need custom
+    /// behavior, but the default lifecycle is stop-then-start.
+    async fn restart(&mut self) -> anyhow::Result<()> {
+        self.stop().await?;
+        self.start().await
+    }
 
     /// Return the current [`ServiceStatus`] of the service without blocking.
     ///

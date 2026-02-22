@@ -97,6 +97,10 @@ impl ServiceRunner for InteractiveTerminalRunner {
             .id()
             .ok_or_else(|| anyhow::anyhow!("spawned interactive-terminal process has no PID"))?;
 
+        // Assign to the supervisor job object so the OS kills this process
+        // automatically if the supervisor exits or crashes.
+        crate::runner::job_object::adopt(pid);
+
         self.state = RunnerState::Running { child, pid };
         Ok(())
     }

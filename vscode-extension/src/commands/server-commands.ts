@@ -1,193 +1,146 @@
 /**
- * Server management commands: start, stop, restart, toggle, isolate, force-stop.
+ * Server/Connection management commands: detect, connect, disconnect, launch.
+ * 
+ * NOTE: The extension no longer spawns or manages server processes.
+ * All components must be launched externally via the Supervisor.
  */
 
 import * as vscode from 'vscode';
-import { ServerManager } from '../server/ServerManager';
+import { ConnectionManager } from '../server/ConnectionManager';
 import { DashboardViewProvider } from '../providers/DashboardViewProvider';
 import { DashboardPanel } from '../ui/DashboardPanel';
 import { notify } from '../utils/helpers';
-import { getDashboardFrontendUrl } from '../server/ContainerDetection';
 
 export function registerServerCommands(
     context: vscode.ExtensionContext,
-    serverManager: ServerManager,
+    connectionManager: ConnectionManager,
     dashboardProvider: DashboardViewProvider,
-    getServerPort: () => number
+    getDashboardPort: () => number
 ): void {
     context.subscriptions.push(
         vscode.commands.registerCommand('projectMemory.showDashboard', () => {
             vscode.commands.executeCommand('workbench.view.extension.projectMemory');
         }),
 
-        vscode.commands.registerCommand('projectMemory.openDashboardPanel', async (url?: string) => {
-            // Resolve the target URL first — this determines which backend we need.
-            // In auto mode (no container), getDashboardFrontendUrl() returns the API port (e.g. :3001)
-            // and no separate Vite dev server is needed. Only in local dev mode does it return :5173.
-            const dashboardUrl = url || getDashboardFrontendUrl();
-            const needsViteFrontend = dashboardUrl.includes(':5173');
+        vscode.commands.registerCommand('projectMemory.openDashboardPanel', async () => {
+            // Check if dashboard is connected
+            if (!connectionManager.isDashboardConnected) {
+                const choice = await vscode.window.showWarningMessage(
+                    'Dashboard server not detected. Launch Supervisor?',
+                    'Launch Supervisor', 'Open Directory', 'Cancel'
+                );
 
-            // In container mode, the container serves both API and frontend — no local starts needed
-            if (!serverManager.isContainerMode) {
-                if (!serverManager.isRunning) {
-                    const startServer = await vscode.window.showWarningMessage(
-                        'Project Memory server is not running. Start it first?',
-                        'Start Server', 'Cancel'
-                    );
-                    if (startServer !== 'Start Server') return;
-
-                    const success = await vscode.window.withProgress({
-                        location: vscode.ProgressLocation.Notification,
-                        title: 'Starting Project Memory server...',
-                        cancellable: false
-                    }, async () => {
-                        return await serverManager.start();
-                    });
-
-                    if (!success) {
-                        vscode.window.showErrorMessage('Failed to start server. Check logs for details.');
-                        serverManager.showLogs();
-                        return;
-                    }
-                }
-
-                // Only start the Vite dev server when the target URL actually uses it.
-                // In auto mode the dashboard is served by the API server on port 3001 directly,
-                // so attempting to start the Vite dev server would be unnecessary and misleading.
-                if (needsViteFrontend && !serverManager.isFrontendRunning) {
-                    const success = await vscode.window.withProgress({
-                        location: vscode.ProgressLocation.Notification,
-                        title: 'Starting dashboard frontend...',
-                        cancellable: false
-                    }, async () => {
-                        return await serverManager.startFrontend();
-                    });
-
-                    if (!success) {
-                        vscode.window.showErrorMessage('Failed to start dashboard frontend. Check server logs.');
-                        serverManager.showLogs();
-                        return;
-                    }
-                }
-            }
-
-            DashboardPanel.createOrShow(context.extensionUri, dashboardUrl);
-        }),
-
-        vscode.commands.registerCommand('projectMemory.toggleServer', async () => {
-            if (serverManager.isRunning) {
-                await serverManager.stopFrontend();
-                await serverManager.stop();
-                notify('Project Memory server stopped');
-            } else {
-                const success = await serverManager.start();
-                if (success) {
-                    notify('Project Memory server started');
+                if (choice === 'Launch Supervisor') {
+                    await vscode.commands.executeCommand('project-memory.launchSupervisor');
+                    // Wait a bit for supervisor to start
+                    await new Promise(resolve => setTimeout(resolve, 5000));
+                    await connectionManager.detectAndConnect();
+                } else if (choice === 'Open Directory') {
+                    await vscode.commands.executeCommand('project-memory.openSupervisorDirectory');
+                    return;
                 } else {
-                    vscode.window.showErrorMessage('Failed to start Project Memory server');
+                    return;
+                }
+            }
+
+            if (connectionManager.isDashboardConnected) {
+                const dashboardUrl = `http://localhost:${getDashboardPort()}`;
+                DashboardPanel.createOrShow(context.extensionUri, dashboardUrl);
+            } else {
+                vscode.window.showErrorMessage(
+                    'Could not connect to dashboard. Ensure Supervisor is running.'
+                );
+            }
+        }),
+
+        vscode.commands.registerCommand('projectMemory.toggleConnection', async () => {
+            if (connectionManager.isDashboardConnected) {
+                connectionManager.disconnect();
+                notify('Disconnected from Project Memory components');
+            } else {
+                const connected = await connectionManager.detectAndConnect();
+                if (connected) {
+                    notify('Connected to Project Memory components');
+                } else {
+                    const choice = await vscode.window.showWarningMessage(
+                        'Components not detected. Launch Supervisor?',
+                        'Launch Supervisor', 'Open Directory'
+                    );
+                    if (choice === 'Launch Supervisor') {
+                        vscode.commands.executeCommand('project-memory.launchSupervisor');
+                    } else if (choice === 'Open Directory') {
+                        vscode.commands.executeCommand('project-memory.openSupervisorDirectory');
+                    }
                 }
             }
         }),
 
+        // DEPRECATED: These commands now show guidance instead of performing actions
         vscode.commands.registerCommand('projectMemory.startServer', async () => {
-            if (serverManager.isRunning) {
-                notify('Server is already running');
-                return;
-            }
-            const success = await serverManager.start();
-            if (success) {
-                notify('Project Memory server started');
-            } else {
-                vscode.window.showErrorMessage('Failed to start server. Check logs for details.');
-                serverManager.showLogs();
-            }
+            vscode.window.showInformationMessage(
+                'The extension no longer starts servers. Launch the Supervisor instead.',
+                'Launch Supervisor', 'Open Directory'
+            ).then(choice => {
+                if (choice === 'Launch Supervisor') {
+                    vscode.commands.executeCommand('project-memory.launchSupervisor');
+                } else if (choice === 'Open Directory') {
+                    vscode.commands.executeCommand('project-memory.openSupervisorDirectory');
+                }
+            });
         }),
 
         vscode.commands.registerCommand('projectMemory.stopServer', async () => {
-            await serverManager.stopFrontend();
-            await serverManager.stop();
-            notify('Project Memory server stopped');
+            vscode.window.showInformationMessage(
+                'The extension no longer controls servers. Stop the Supervisor using:\n' +
+                '• stop-supervisor.ps1 script\n' +
+                '• Close the supervisor terminal\n' +
+                '• Use system task manager',
+                'Open Directory'
+            ).then(choice => {
+                if (choice === 'Open Directory') {
+                    vscode.commands.executeCommand('project-memory.openSupervisorDirectory');
+                }
+            });
         }),
 
         vscode.commands.registerCommand('projectMemory.restartServer', async () => {
-            notify('Restarting Project Memory server...');
-            await serverManager.stopFrontend();
-            const success = await serverManager.restart();
-            if (success) {
-                notify('Project Memory server restarted');
-            } else {
-                vscode.window.showErrorMessage('Failed to restart server');
-            }
+            vscode.window.showInformationMessage(
+                'The extension no longer restarts servers. To restart:\n' +
+                '1. Stop the Supervisor (stop-supervisor.ps1 or Ctrl+C)\n' +
+                '2. Launch it again (start-supervisor.ps1)',
+                'Open Directory'
+            ).then(choice => {
+                if (choice === 'Open Directory') {
+                    vscode.commands.executeCommand('project-memory.openSupervisorDirectory');
+                }
+            });
         }),
 
         vscode.commands.registerCommand('projectMemory.showServerLogs', () => {
-            serverManager.showLogs();
+            connectionManager.showLogs();
         }),
 
+        // This command is potentially dangerous and no longer needed
         vscode.commands.registerCommand('projectMemory.forceStopExternalServer', async () => {
-            const config = vscode.workspace.getConfiguration('projectMemory');
-            const port = config.get<number>('serverPort') || 3001;
-            const confirm = await vscode.window.showWarningMessage(
-                `Force stop the external server on port ${port}?`,
-                { modal: true },
-                'Force Stop'
+            vscode.window.showWarningMessage(
+                'Force-stopping external processes is no longer supported. ' +
+                'Use stop-supervisor.ps1 or system task manager instead.'
             );
-
-            if (confirm !== 'Force Stop') return;
-
-            const success = await serverManager.forceStopExternalServer();
-            if (success) {
-                notify('External server stopped');
-            } else {
-                vscode.window.showErrorMessage('Failed to stop external server. Check logs for details.');
-                serverManager.showLogs();
-            }
         }),
 
         vscode.commands.registerCommand('projectMemory.isolateServer', async () => {
-            const config = vscode.workspace.getConfiguration('projectMemory');
-            const currentPort = config.get<number>('serverPort') || 3001;
-            const isCurrentlyIsolated = currentPort !== 3001;
-
-            if (isCurrentlyIsolated) {
-                await config.update('serverPort', 3001, vscode.ConfigurationTarget.Workspace);
-                await serverManager.stopFrontend();
-                await serverManager.stop();
-                vscode.window.showInformationMessage(
-                    'Switching to main server on port 3001. Reloading window...',
-                    'Reload'
-                ).then(selection => {
-                    if (selection === 'Reload') {
-                        vscode.commands.executeCommand('workbench.action.reloadWindow');
-                    }
-                });
-            } else {
-                const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-                if (!workspaceFolder) {
-                    vscode.window.showErrorMessage('No workspace folder open');
-                    return;
+            vscode.window.showInformationMessage(
+                'Isolation mode has been simplified. To use a different port:\n' +
+                '1. Configure projectMemory.serverPort in workspace settings\n' +
+                '2. Launch a second Supervisor instance with a custom config pointing to that port\n' +
+                '3. Reload VS Code window',
+                'Learn More'
+            ).then(choice => {
+                if (choice === 'Learn More') {
+                    vscode.env.openExternal(vscode.Uri.parse(
+                        'https://github.com/project-memory/project-memory-mcp#isolation-mode'
+                    ));
                 }
-                const hash = require('crypto').createHash('md5')
-                    .update(workspaceFolder.uri.fsPath.toLowerCase())
-                    .digest('hex');
-                const isolatedPort = 3101 + (parseInt(hash.substring(0, 4), 16) % 99);
-
-                await config.update('serverPort', isolatedPort, vscode.ConfigurationTarget.Workspace);
-                await serverManager.stopFrontend();
-                await serverManager.stop();
-                vscode.window.showInformationMessage(
-                    `Switching to isolated server on port ${isolatedPort}. Reloading window...`,
-                    'Reload'
-                ).then(selection => {
-                    if (selection === 'Reload') {
-                        vscode.commands.executeCommand('workbench.action.reloadWindow');
-                    }
-                });
-            }
-
-            dashboardProvider?.postMessage({
-                type: 'isolateServerStatus',
-                data: { isolated: !isCurrentlyIsolated, port: isCurrentlyIsolated ? 3001 : currentPort }
             });
         }),
 

@@ -16,12 +16,13 @@
 import { randomBytes } from 'crypto';
 import * as net from 'node:net';
 import * as store from '../../storage/file-store.js';
+import { deployForTask } from '../agent-deploy.js';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export type SessionAction = 'prep' | 'list_sessions' | 'get_session';
+export type SessionAction = 'prep' | 'deploy_and_prep' | 'list_sessions' | 'get_session';
 
 export interface MemorySessionParams {
     action: SessionAction;
@@ -42,6 +43,11 @@ export interface MemorySessionParams {
             scope_escalation_instruction?: string;
         };
     };
+    phase_name?: string;
+    step_indices?: number[];
+    include_skills?: boolean;
+    include_research?: boolean;
+    include_architecture?: boolean;
 
     // For get_session
     session_id?: string;
@@ -477,6 +483,59 @@ async function handlePrep(params: MemorySessionParams) {
 }
 
 // ---------------------------------------------------------------------------
+// Action: deploy_and_prep
+// ---------------------------------------------------------------------------
+
+async function handleDeployAndPrep(params: MemorySessionParams) {
+    const { workspace_id, plan_id, agent_name } = params;
+
+    if (!workspace_id) return err('workspace_id is required');
+    if (!plan_id) return err('plan_id is required');
+    if (!agent_name) return err('agent_name is required');
+    if (!params.prompt) return err('prompt is required');
+
+    const ws = await store.getWorkspace(workspace_id);
+    if (!ws) return err(`Workspace not found: ${workspace_id}`);
+
+    const workspacePath = ws.workspace_path || ws.path;
+    if (!workspacePath) return err(`Workspace path missing for workspace: ${workspace_id}`);
+
+    const deployResult = await deployForTask({
+        workspace_id,
+        workspace_path: workspacePath,
+        agent_name,
+        plan_id,
+        phase_name: params.phase_name,
+        step_indices: params.step_indices,
+        include_skills: params.include_skills,
+        include_research: params.include_research,
+        include_architecture: params.include_architecture,
+    });
+
+    const prepResponse = await handlePrep(params);
+    if (!prepResponse.success || !prepResponse.data) {
+        return prepResponse;
+    }
+
+    const prepData = prepResponse.data.data as Record<string, unknown>;
+
+    return ok({
+        accepted: true,
+        mode: 'deploy-and-prep',
+        message: 'Deployment and spawn prep complete. Call runSubagent using prep_config.enriched_prompt.',
+        deployment: deployResult,
+        deploy_result: deployResult,
+        prep_config: prepData.prep_config,
+        prep_result: prepData.prep_config,
+        launch_routing: prepData.launch_routing,
+        orchestration_routing: prepData.orchestration_routing,
+        warnings: prepData.warnings ?? [],
+        note: prepData.note,
+        deprecation_notice: 'Use memory_session(action: "deploy_and_prep") for new orchestration flows. memory_agent(action: "deploy_for_task") and memory_session(action: "prep") remain supported for backward compatibility.'
+    });
+}
+
+// ---------------------------------------------------------------------------
 // Action: list_sessions
 // ---------------------------------------------------------------------------
 
@@ -582,6 +641,8 @@ export async function memorySession(params: MemorySessionParams) {
     switch (params.action) {
         case 'prep':
             return handlePrep(params);
+        case 'deploy_and_prep':
+            return handleDeployAndPrep(params);
         case 'list_sessions':
             return handleListSessions(params);
         case 'get_session':

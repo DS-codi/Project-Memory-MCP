@@ -41,7 +41,9 @@ export function checkHealth(port: number): Promise<boolean> {
             });
         });
         req.on('error', () => resolve(false));
-        req.setTimeout(1000, () => {
+        // Use a 3 s timeout — 1 s caused false negatives when the server was
+        // briefly under load, triggering unnecessary bridge disconnects.
+        req.setTimeout(3000, () => {
             req.destroy();
             resolve(false);
         });
@@ -57,7 +59,7 @@ export function checkPort(port: number): Promise<boolean> {
             resolve(res.statusCode !== undefined);
         });
         req.on('error', () => resolve(false));
-        req.setTimeout(1000, () => {
+        req.setTimeout(3000, () => {
             req.destroy();
             resolve(false);
         });
