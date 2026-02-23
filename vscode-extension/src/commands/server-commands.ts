@@ -18,11 +18,11 @@ export function registerServerCommands(
     getDashboardPort: () => number
 ): void {
     context.subscriptions.push(
-        vscode.commands.registerCommand('projectMemory.showDashboard', () => {
+        vscode.commands.registerCommand('projectMemoryDev.showDashboard', () => {
             vscode.commands.executeCommand('workbench.view.extension.projectMemory');
         }),
 
-        vscode.commands.registerCommand('projectMemory.openDashboardPanel', async () => {
+        vscode.commands.registerCommand('projectMemoryDev.openDashboardPanel', async () => {
             // Check if dashboard is connected
             if (!connectionManager.isDashboardConnected) {
                 const choice = await vscode.window.showWarningMessage(
@@ -31,12 +31,12 @@ export function registerServerCommands(
                 );
 
                 if (choice === 'Launch Supervisor') {
-                    await vscode.commands.executeCommand('project-memory.launchSupervisor');
+                    await vscode.commands.executeCommand('project-memory-dev.launchSupervisor');
                     // Wait a bit for supervisor to start
                     await new Promise(resolve => setTimeout(resolve, 5000));
                     await connectionManager.detectAndConnect();
                 } else if (choice === 'Open Directory') {
-                    await vscode.commands.executeCommand('project-memory.openSupervisorDirectory');
+                    await vscode.commands.executeCommand('project-memory-dev.openSupervisorDirectory');
                     return;
                 } else {
                     return;
@@ -53,7 +53,7 @@ export function registerServerCommands(
             }
         }),
 
-        vscode.commands.registerCommand('projectMemory.toggleConnection', async () => {
+        vscode.commands.registerCommand('projectMemoryDev.toggleConnection', async () => {
             if (connectionManager.isDashboardConnected) {
                 connectionManager.disconnect();
                 notify('Disconnected from Project Memory components');
@@ -67,29 +67,29 @@ export function registerServerCommands(
                         'Launch Supervisor', 'Open Directory'
                     );
                     if (choice === 'Launch Supervisor') {
-                        vscode.commands.executeCommand('project-memory.launchSupervisor');
+                        vscode.commands.executeCommand('project-memory-dev.launchSupervisor');
                     } else if (choice === 'Open Directory') {
-                        vscode.commands.executeCommand('project-memory.openSupervisorDirectory');
+                        vscode.commands.executeCommand('project-memory-dev.openSupervisorDirectory');
                     }
                 }
             }
         }),
 
         // DEPRECATED: These commands now show guidance instead of performing actions
-        vscode.commands.registerCommand('projectMemory.startServer', async () => {
+        vscode.commands.registerCommand('projectMemoryDev.startServer', async () => {
             vscode.window.showInformationMessage(
                 'The extension no longer starts servers. Launch the Supervisor instead.',
                 'Launch Supervisor', 'Open Directory'
             ).then(choice => {
                 if (choice === 'Launch Supervisor') {
-                    vscode.commands.executeCommand('project-memory.launchSupervisor');
+                    vscode.commands.executeCommand('project-memory-dev.launchSupervisor');
                 } else if (choice === 'Open Directory') {
-                    vscode.commands.executeCommand('project-memory.openSupervisorDirectory');
+                    vscode.commands.executeCommand('project-memory-dev.openSupervisorDirectory');
                 }
             });
         }),
 
-        vscode.commands.registerCommand('projectMemory.stopServer', async () => {
+        vscode.commands.registerCommand('projectMemoryDev.stopServer', async () => {
             vscode.window.showInformationMessage(
                 'The extension no longer controls servers. Stop the Supervisor using:\n' +
                 '• stop-supervisor.ps1 script\n' +
@@ -98,12 +98,12 @@ export function registerServerCommands(
                 'Open Directory'
             ).then(choice => {
                 if (choice === 'Open Directory') {
-                    vscode.commands.executeCommand('project-memory.openSupervisorDirectory');
+                    vscode.commands.executeCommand('project-memory-dev.openSupervisorDirectory');
                 }
             });
         }),
 
-        vscode.commands.registerCommand('projectMemory.restartServer', async () => {
+        vscode.commands.registerCommand('projectMemoryDev.restartServer', async () => {
             vscode.window.showInformationMessage(
                 'The extension no longer restarts servers. To restart:\n' +
                 '1. Stop the Supervisor (stop-supervisor.ps1 or Ctrl+C)\n' +
@@ -111,27 +111,27 @@ export function registerServerCommands(
                 'Open Directory'
             ).then(choice => {
                 if (choice === 'Open Directory') {
-                    vscode.commands.executeCommand('project-memory.openSupervisorDirectory');
+                    vscode.commands.executeCommand('project-memory-dev.openSupervisorDirectory');
                 }
             });
         }),
 
-        vscode.commands.registerCommand('projectMemory.showServerLogs', () => {
+        vscode.commands.registerCommand('projectMemoryDev.showServerLogs', () => {
             connectionManager.showLogs();
         }),
 
         // This command is potentially dangerous and no longer needed
-        vscode.commands.registerCommand('projectMemory.forceStopExternalServer', async () => {
+        vscode.commands.registerCommand('projectMemoryDev.forceStopExternalServer', async () => {
             vscode.window.showWarningMessage(
                 'Force-stopping external processes is no longer supported. ' +
                 'Use stop-supervisor.ps1 or system task manager instead.'
             );
         }),
 
-        vscode.commands.registerCommand('projectMemory.isolateServer', async () => {
+        vscode.commands.registerCommand('projectMemoryDev.isolateServer', async () => {
             vscode.window.showInformationMessage(
                 'Isolation mode has been simplified. To use a different port:\n' +
-                '1. Configure projectMemory.serverPort in workspace settings\n' +
+                '1. Configure projectMemoryDev.serverPort in workspace settings\n' +
                 '2. Launch a second Supervisor instance with a custom config pointing to that port\n' +
                 '3. Reload VS Code window',
                 'Learn More'
@@ -144,7 +144,7 @@ export function registerServerCommands(
             });
         }),
 
-        vscode.commands.registerCommand('projectMemory.refreshData', () => {
+        vscode.commands.registerCommand('projectMemoryDev.refreshData', () => {
             dashboardProvider.postMessage({ type: 'refresh' });
         })
     );

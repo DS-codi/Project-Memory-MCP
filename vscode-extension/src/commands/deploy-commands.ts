@@ -17,14 +17,14 @@ export function registerDeployCommands(
     defaultDeployer: DefaultDeployer
 ): void {
     context.subscriptions.push(
-        vscode.commands.registerCommand('projectMemory.deployAgents', async () => {
+        vscode.commands.registerCommand('projectMemoryDev.deployAgents', async () => {
             const workspaceFolders = vscode.workspace.workspaceFolders;
             if (!workspaceFolders) {
                 vscode.window.showErrorMessage('No workspace folder open');
                 return;
             }
 
-            const config = vscode.workspace.getConfiguration('projectMemory');
+            const config = vscode.workspace.getConfiguration('projectMemoryDev');
             const configuredAgentsRoot = config.get<string>('agentsRoot');
             const agentsRoot = configuredAgentsRoot || getDefaultAgentsRoot();
             const instructionsRoot = config.get<string>('instructionsRoot') || getDefaultInstructionsRoot();
@@ -32,7 +32,7 @@ export function registerDeployCommands(
             const defaultInstructions = config.get<string[]>('defaultInstructions') || [];
 
             if (!agentsRoot) {
-                vscode.window.showErrorMessage('Agents root not configured. Set projectMemory.agentsRoot in settings.');
+                vscode.window.showErrorMessage('Agents root not configured. Set projectMemoryDev.agentsRoot in settings.');
                 return;
             }
 
@@ -117,14 +117,14 @@ export function registerDeployCommands(
             }
         }),
 
-        vscode.commands.registerCommand('projectMemory.deploySkills', async () => {
+        vscode.commands.registerCommand('projectMemoryDev.deploySkills', async () => {
             const workspaceFolders = vscode.workspace.workspaceFolders;
             if (!workspaceFolders) {
                 vscode.window.showErrorMessage('No workspace folder open');
                 return;
             }
 
-            const config = vscode.workspace.getConfiguration('projectMemory');
+            const config = vscode.workspace.getConfiguration('projectMemoryDev');
             const configuredSkillsRoot = config.get<string>('skillsRoot') || getDefaultSkillsRoot();
             const globalSkillsRoot = config.get<string>('globalSkillsRoot');
 
@@ -220,19 +220,19 @@ export function registerDeployCommands(
             }
         }),
 
-        vscode.commands.registerCommand('projectMemory.deployInstructions', async () => {
+        vscode.commands.registerCommand('projectMemoryDev.deployInstructions', async () => {
             const workspaceFolders = vscode.workspace.workspaceFolders;
             if (!workspaceFolders) {
                 vscode.window.showErrorMessage('No workspace folder open');
                 return;
             }
 
-            const config = vscode.workspace.getConfiguration('projectMemory');
+            const config = vscode.workspace.getConfiguration('projectMemoryDev');
             const instructionsRoot = config.get<string>('instructionsRoot') || getDefaultInstructionsRoot();
             const defaultInstructions = config.get<string[]>('defaultInstructions') || [];
 
             if (!instructionsRoot) {
-                vscode.window.showErrorMessage('Instructions root not configured. Set projectMemory.instructionsRoot in settings.');
+                vscode.window.showErrorMessage('Instructions root not configured. Set projectMemoryDev.instructionsRoot in settings.');
                 return;
             }
 
@@ -294,8 +294,8 @@ export function registerDeployCommands(
             }
         }),
 
-        vscode.commands.registerCommand('projectMemory.listSkills', async () => {
-            const config = vscode.workspace.getConfiguration('projectMemory');
+        vscode.commands.registerCommand('projectMemoryDev.listSkills', async () => {
+            const config = vscode.workspace.getConfiguration('projectMemoryDev');
             const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
             const configuredSkillsRoot = config.get<string>('skillsRoot') || getDefaultSkillsRoot();
             const globalSkillsRoot = config.get<string>('globalSkillsRoot');
@@ -354,14 +354,14 @@ export function registerDeployCommands(
             }
         }),
 
-        vscode.commands.registerCommand('projectMemory.deploySkill', async () => {
+        vscode.commands.registerCommand('projectMemoryDev.deploySkill', async () => {
             const workspaceFolders = vscode.workspace.workspaceFolders;
             if (!workspaceFolders) {
                 vscode.window.showErrorMessage('No workspace folder open');
                 return;
             }
 
-            const config = vscode.workspace.getConfiguration('projectMemory');
+            const config = vscode.workspace.getConfiguration('projectMemoryDev');
             const configuredSkillsRoot = config.get<string>('skillsRoot') || getDefaultSkillsRoot();
             const globalSkillsRoot = config.get<string>('globalSkillsRoot');
             const sourceResolution = resolveSkillsSourceRoot(
@@ -440,12 +440,12 @@ export function registerDeployCommands(
             }
         }),
 
-        vscode.commands.registerCommand('projectMemory.listInstructions', async () => {
-            const config = vscode.workspace.getConfiguration('projectMemory');
+        vscode.commands.registerCommand('projectMemoryDev.listInstructions', async () => {
+            const config = vscode.workspace.getConfiguration('projectMemoryDev');
             const instructionsRoot = config.get<string>('instructionsRoot') || getDefaultInstructionsRoot();
 
             if (!instructionsRoot || !fs.existsSync(instructionsRoot)) {
-                vscode.window.showWarningMessage('Instructions root not configured or does not exist. Set projectMemory.instructionsRoot in settings.');
+                vscode.window.showWarningMessage('Instructions root not configured or does not exist. Set projectMemoryDev.instructionsRoot in settings.');
                 return;
             }
 
@@ -480,7 +480,7 @@ export function registerDeployCommands(
             }
         }),
 
-        vscode.commands.registerCommand('projectMemory.deployCopilotConfig', async () => {
+        vscode.commands.registerCommand('projectMemoryDev.deployCopilotConfig', async () => {
             const workspaceFolders = vscode.workspace.workspaceFolders;
             if (!workspaceFolders) {
                 vscode.window.showErrorMessage('No workspace folder open');
@@ -500,7 +500,7 @@ export function registerDeployCommands(
             }
         }),
 
-        vscode.commands.registerCommand('projectMemory.deployDefaults', async () => {
+        vscode.commands.registerCommand('projectMemoryDev.deployDefaults', async () => {
             const workspaceFolders = vscode.workspace.workspaceFolders;
             if (!workspaceFolders) {
                 vscode.window.showErrorMessage('No workspace folder open');
@@ -525,7 +525,7 @@ export function registerDeployCommands(
             }
         }),
 
-        vscode.commands.registerCommand('projectMemory.updateDefaults', async () => {
+        vscode.commands.registerCommand('projectMemoryDev.updateDefaults', async () => {
             const workspaceFolders = vscode.workspace.workspaceFolders;
             if (!workspaceFolders) {
                 vscode.window.showErrorMessage('No workspace folder open');

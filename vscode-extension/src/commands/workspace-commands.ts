@@ -19,7 +19,7 @@ export function registerWorkspaceCommands(
     getMcpBridge: () => McpBridge | null
 ): void {
     context.subscriptions.push(
-        vscode.commands.registerCommand('projectMemory.migrateWorkspace', async () => {
+        vscode.commands.registerCommand('projectMemoryDev.migrateWorkspace', async () => {
             const folderUri = await vscode.window.showOpenDialog({
                 canSelectFiles: false,
                 canSelectFolders: true,
@@ -108,8 +108,8 @@ export function registerWorkspaceCommands(
             });
         }),
 
-        vscode.commands.registerCommand('projectMemory.openSettings', async () => {
-            const config = vscode.workspace.getConfiguration('projectMemory');
+        vscode.commands.registerCommand('projectMemoryDev.openSettings', async () => {
+            const config = vscode.workspace.getConfiguration('projectMemoryDev');
             const agentsRoot = config.get<string>('agentsRoot') || getDefaultAgentsRoot();
             const instructionsRoot = config.get<string>('instructionsRoot') || getDefaultInstructionsRoot();
             const skillsRoot = config.get<string>('skillsRoot') || getDefaultSkillsRoot();
@@ -126,7 +126,7 @@ export function registerWorkspaceCommands(
             if (!choice) return;
 
             if (choice.value === 'settings') {
-                vscode.commands.executeCommand('workbench.action.openSettings', '@ext:project-memory.project-memory-dashboard');
+                vscode.commands.executeCommand('workbench.action.openSettings', '@ext:project-memory-dev.project-memory-dashboard-dev-dev-dev');
                 return;
             }
 
@@ -234,8 +234,8 @@ export function registerWorkspaceCommands(
             }
         }),
 
-        vscode.commands.registerCommand('projectMemory.openAgentFile', async () => {
-            const config = vscode.workspace.getConfiguration('projectMemory');
+        vscode.commands.registerCommand('projectMemoryDev.openAgentFile', async () => {
+            const config = vscode.workspace.getConfiguration('projectMemoryDev');
             const agentsRoot = config.get<string>('agentsRoot') || getDefaultAgentsRoot();
 
             if (!agentsRoot) {
@@ -261,12 +261,12 @@ export function registerWorkspaceCommands(
             }
         }),
 
-        vscode.commands.registerCommand('projectMemory.openPromptFile', async () => {
-            const config = vscode.workspace.getConfiguration('projectMemory');
+        vscode.commands.registerCommand('projectMemoryDev.openPromptFile', async () => {
+            const config = vscode.workspace.getConfiguration('projectMemoryDev');
             const promptsRoot = config.get<string>('promptsRoot');
 
             if (!promptsRoot) {
-                vscode.window.showErrorMessage('Prompts root not configured. Set projectMemory.promptsRoot in settings.');
+                vscode.window.showErrorMessage('Prompts root not configured. Set projectMemoryDev.promptsRoot in settings.');
                 return;
             }
 
@@ -288,12 +288,12 @@ export function registerWorkspaceCommands(
             }
         }),
 
-        vscode.commands.registerCommand('projectMemory.showCopilotStatus', () => {
+        vscode.commands.registerCommand('projectMemoryDev.showCopilotStatus', () => {
             dashboardProvider.postMessage({ type: 'showCopilotStatus' });
             vscode.commands.executeCommand('workbench.view.extension.projectMemory');
         }),
 
-        vscode.commands.registerCommand('projectMemory.openFile', async (filePath: string, line?: number) => {
+        vscode.commands.registerCommand('projectMemoryDev.openFile', async (filePath: string, line?: number) => {
             try {
                 const document = await vscode.workspace.openTextDocument(filePath);
                 const editor = await vscode.window.showTextDocument(document);

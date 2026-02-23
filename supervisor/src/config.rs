@@ -80,6 +80,38 @@ pub struct SupervisorConfig {
     pub servers: Vec<ServerDefinition>,
 }
 
+/// Port offset applied to dashboard ports in `--dev` mode.
+pub const DEV_PORT_OFFSET: u16 = 10;
+
+impl SupervisorConfig {
+    /// Apply development-mode port overrides.
+    ///
+    /// Offsets the dashboard HTTP port by [`DEV_PORT_OFFSET`] (3001 → 3011)
+    /// and updates the `PORT` / `WS_PORT` environment variables injected into
+    /// the dashboard process so the Node.js server listens on the right ports.
+    pub fn apply_dev_overrides(&mut self) {
+        self.dashboard.port += DEV_PORT_OFFSET;
+
+        // Update the PORT env var (or insert it if absent).
+        let new_port = self.dashboard.port.to_string();
+        self.dashboard
+            .env
+            .insert("PORT".to_string(), new_port);
+
+        // Offset WS_PORT if present; otherwise insert the dev default (3012).
+        let new_ws_port = self
+            .dashboard
+            .env
+            .get("WS_PORT")
+            .and_then(|v| v.parse::<u16>().ok())
+            .map(|p| p + DEV_PORT_OFFSET)
+            .unwrap_or(3002 + DEV_PORT_OFFSET);
+        self.dashboard
+            .env
+            .insert("WS_PORT".to_string(), new_ws_port.to_string());
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Section structs
 // ---------------------------------------------------------------------------
@@ -199,7 +231,7 @@ impl From<McpBackend> for BackendKind {
 pub struct NodeRunnerConfig {
     /// Executable to invoke (default: `"node"`).
     pub command: String,
-    /// Arguments passed to the command (default: `["dist/server.js"]`).
+    /// Arguments passed to the command (default: `["dist/index.js"]`).
     pub args: Vec<String>,
     /// Working directory for the process.
     pub working_dir: Option<PathBuf>,
@@ -212,7 +244,7 @@ impl Default for NodeRunnerConfig {
         Self {
             command: default_node_command(),
             args: default_node_args(),
-            working_dir: None,
+            working_dir: Some(PathBuf::from("./server")),
             env: HashMap::new(),
         }
     }
@@ -389,14 +421,17 @@ pub struct DashboardSection {
 
 impl Default for DashboardSection {
     fn default() -> Self {
+        let mut env = HashMap::new();
+        env.insert("PORT".to_string(), "3001".to_string());
+        env.insert("WS_PORT".to_string(), "3002".to_string());
         Self {
             enabled: true,
-            port: 3459,
+            port: 3001,
             static_dir: None,
-            command: "node".to_string(),
-            args: vec!["dist/dashboard.js".to_string()],
-            working_dir: None,
-            env: HashMap::new(),
+            command: default_dashboard_command(),
+            args: default_dashboard_args(),
+            working_dir: Some(PathBuf::from("./dashboard")),
+            env,
             requires_mcp: true,
             restart_policy: RestartPolicy::default(),
         }
@@ -629,8 +664,8 @@ pub fn get_config_path(override_path: Option<&PathBuf>) -> PathBuf {
 
 /// Load and deserialise the supervisor config from `path`.
 ///
-/// If the file does not exist, `Ok(SupervisorConfig::default())` is returned
-/// so the process can start with defaults without requiring a config file.
+/// If the file does not exist, a default config file is written to `path`
+/// (creating parent directories as needed) and the defaults are returned.
 pub fn load(path: &PathBuf) -> Result<SupervisorConfig, ConfigError> {
     match std::fs::read_to_string(path) {
         Ok(contents) => {
@@ -638,11 +673,100 @@ pub fn load(path: &PathBuf) -> Result<SupervisorConfig, ConfigError> {
             Ok(config)
         }
         Err(e) if e.kind() == io::ErrorKind::NotFound => {
-            // Missing config is not fatal — use all defaults.
-            Ok(SupervisorConfig::default())
+            // Auto-create the config with documented defaults so the user has
+            // a starting point for customization.
+            let defaults = SupervisorConfig::default();
+            if let Some(parent) = path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            let template = generate_default_config();
+            match std::fs::write(path, &template) {
+                Ok(()) => eprintln!("[supervisor] created default config at {}", path.display()),
+                Err(write_err) => {
+                    eprintln!(
+                        "[supervisor] warning: could not write default config to {}: {write_err}",
+                        path.display()
+                    );
+                }
+            }
+            Ok(defaults)
         }
         Err(e) => Err(ConfigError::Io(e)),
     }
+}
+
+/// Generate a commented TOML template with the compiled-in default values.
+///
+/// This template is written when no config file exists on first launch, giving
+/// the user a fully-documented starting point.
+pub fn generate_default_config() -> String {
+    let dash_cmd = default_dashboard_command();
+    let dash_args_toml = {
+        let args = default_dashboard_args();
+        let items: Vec<String> = args.iter().map(|a| format!("\"{}\"", a)).collect();
+        format!("[{}]", items.join(", "))
+    };
+
+    format!(
+        r##"# Project Memory Supervisor Configuration
+#
+# Auto-generated with built-in defaults.  Edit as needed — any section or
+# key that is removed will fall back to its compiled-in default on next load.
+
+[supervisor]
+log_level = "info"
+bind_address = "127.0.0.1:3456"
+control_transport = "named_pipe"     # "named_pipe" (Windows default) or "tcp"
+control_pipe = "\\\\.\\pipe\\project-memory-supervisor"
+control_tcp_port = 45470
+
+[discovery]
+methods = ["local"]
+advertise = true
+
+[reconnect]
+initial_delay_ms = 500
+max_delay_ms = 30000
+multiplier = 2.0
+max_attempts = 0                     # 0 = unlimited
+jitter_ratio = 0.2
+
+[mcp]
+enabled = true
+port = 3457
+health_timeout_ms = 1500
+backend = "node"                     # "node" or "container"
+
+[mcp.node]
+command = "node"
+args = ["dist/index.js"]
+working_dir = "./server"
+
+[mcp.pool]
+min_instances = 1
+max_instances = 4
+max_connections_per_instance = 5
+base_port = 3460
+
+[interactive_terminal]
+enabled = true
+port = 3458
+command = "interactive-terminal"
+args = []
+
+[dashboard]
+enabled = true
+port = 3001
+command = "{dash_cmd}"
+args = {dash_args_toml}
+working_dir = "./dashboard"
+requires_mcp = true
+
+[dashboard.env]
+PORT = "3001"
+WS_PORT = "3002"
+"##
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -669,7 +793,41 @@ fn default_node_command() -> String {
 }
 
 fn default_node_args() -> Vec<String> {
-    vec!["dist/server.js".to_string()]
+    vec!["dist/index.js".to_string()]
+}
+
+/// Dashboard command — `cmd` on Windows (wraps `npx` via `/c`),
+/// plain `npx` on Unix where the shell resolves it directly.
+fn default_dashboard_command() -> String {
+    #[cfg(target_os = "windows")]
+    {
+        "cmd".to_string()
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        "npx".to_string()
+    }
+}
+
+/// Dashboard arguments — runs `npx tsx server/src/index.ts`.
+/// On Windows the extra `/c npx` prefix is required because the command is `cmd`.
+fn default_dashboard_args() -> Vec<String> {
+    #[cfg(target_os = "windows")]
+    {
+        vec![
+            "/c".to_string(),
+            "npx".to_string(),
+            "tsx".to_string(),
+            "server/src/index.ts".to_string(),
+        ]
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        vec![
+            "tsx".to_string(),
+            "server/src/index.ts".to_string(),
+        ]
+    }
 }
 
 /// Fallback for %APPDATA% when the env var is absent (should rarely happen).
@@ -919,8 +1077,8 @@ port = "not_a_port_number"
 
         // [dashboard]
         assert!(cfg.dashboard.enabled);
-        assert_eq!(cfg.dashboard.port, 3459);
-        assert!(cfg.dashboard.static_dir.is_none());
+        assert_eq!(cfg.dashboard.port, 3001);
+        assert_eq!(cfg.dashboard.working_dir, Some(PathBuf::from("./dashboard")));
 
         // no servers by default
         assert!(cfg.servers.is_empty());
@@ -1028,16 +1186,21 @@ command = "/usr/bin/node"
         );
     }
 
-    /// NodeRunnerConfig::default() must produce command="node" and
-    /// args=["dist/server.js"].
+    /// NodeRunnerConfig::default() must produce command="node",
+    /// args=["dist/index.js"], working_dir="./server".
     #[test]
     fn node_runner_config_defaults() {
         let node = NodeRunnerConfig::default();
         assert_eq!(node.command, "node", "default command should be 'node'");
         assert_eq!(
             node.args,
-            vec!["dist/server.js".to_string()],
-            "default args should be ['dist/server.js']"
+            vec!["dist/index.js".to_string()],
+            "default args should be ['dist/index.js']"
+        );
+        assert_eq!(
+            node.working_dir.as_deref(),
+            Some(std::path::Path::new("./server")),
+            "default working_dir should be './server'"
         );
     }
 
@@ -1084,19 +1247,75 @@ command = "/usr/bin/node"
         );
     }
 
-    /// `DashboardSection::default()` must have `requires_mcp = true`
-    /// and `command = "node"`.
+    /// `DashboardSection::default()` must have `requires_mcp = true`,
+    /// correct port, and platform-appropriate command.
     #[test]
-    fn dashboard_section_requires_mcp_default() {
+    fn dashboard_section_defaults() {
         let cfg = DashboardSection::default();
         assert!(
             cfg.requires_mcp,
             "requires_mcp should default to true"
         );
+        assert_eq!(cfg.port, 3001, "port should default to 3001");
+        #[cfg(target_os = "windows")]
+        assert_eq!(cfg.command, "cmd", "command should default to 'cmd' on Windows");
+        #[cfg(not(target_os = "windows"))]
+        assert_eq!(cfg.command, "npx", "command should default to 'npx' on Unix");
         assert_eq!(
-            cfg.command, "node",
-            "command should default to 'node'"
+            cfg.working_dir,
+            Some(PathBuf::from("./dashboard")),
+            "working_dir should default to './dashboard'"
         );
+        assert_eq!(cfg.env.get("PORT").map(|s| s.as_str()), Some("3001"));
+        assert_eq!(cfg.env.get("WS_PORT").map(|s| s.as_str()), Some("3002"));
+    }
+
+    /// `apply_dev_overrides()` should offset dashboard ports by DEV_PORT_OFFSET.
+    #[test]
+    fn apply_dev_overrides_offsets_dashboard_ports() {
+        let mut cfg = SupervisorConfig::default();
+        assert_eq!(cfg.dashboard.port, 3001);
+        cfg.apply_dev_overrides();
+        assert_eq!(cfg.dashboard.port, 3011, "dashboard port should be 3001 + 10");
+        assert_eq!(
+            cfg.dashboard.env.get("PORT").map(|s| s.as_str()),
+            Some("3011"),
+            "PORT env should be updated to 3011"
+        );
+        assert_eq!(
+            cfg.dashboard.env.get("WS_PORT").map(|s| s.as_str()),
+            Some("3012"),
+            "WS_PORT env should be updated to 3012"
+        );
+        // Other ports should be unchanged
+        assert_eq!(cfg.mcp.port, 3457);
+        assert_eq!(cfg.interactive_terminal.port, 3458);
+    }
+
+    /// `generate_default_config()` must produce valid TOML that parses back to
+    /// a `SupervisorConfig` without errors.
+    #[test]
+    fn generated_default_config_is_valid_toml() {
+        let template = generate_default_config();
+        let cfg: SupervisorConfig =
+            toml::from_str(&template).expect("generated config template must be valid TOML");
+        assert_eq!(cfg.dashboard.port, 3001);
+        assert_eq!(cfg.mcp.port, 3457);
+    }
+
+    /// `load()` auto-creates the config file when it is missing.
+    #[test]
+    fn load_creates_config_when_missing() {
+        let dir = tempdir_like::TempDir::new().expect("temp dir");
+        let path = dir.path().join("subdir").join("supervisor.toml");
+        assert!(!path.exists(), "file should not exist yet");
+        let cfg = load(&path).expect("load with auto-create should succeed");
+        assert!(path.exists(), "config file should have been created");
+        assert_eq!(cfg.dashboard.port, 3001, "should return defaults");
+        // Verify the written file is parseable.
+        let contents = std::fs::read_to_string(&path).expect("read created file");
+        let _parsed: SupervisorConfig =
+            toml::from_str(&contents).expect("written config must parse");
     }
 }
 

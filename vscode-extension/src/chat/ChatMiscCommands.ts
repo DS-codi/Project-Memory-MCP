@@ -226,7 +226,7 @@ export async function handleStatusCommand(
                 response.markdown(
                     createTrustedMarkdown(
                         `${statusEmoji} **${plan.title}**${planSuffix}\n`,
-                        ['projectMemory.showPlanInChat']
+                        ['projectMemoryDev.showPlanInChat']
                     )
                 );
                 if (totalSteps > 0) {
@@ -272,10 +272,10 @@ export async function handleDeployCommand(
     }
 
     const cmdMap: Record<string, string> = {
-        agents: 'projectMemory.deployAgents',
-        skills: 'projectMemory.deploySkills',
-        instructions: 'projectMemory.deployInstructions',
-        all: 'projectMemory.deployCopilotConfig'
+        agents: 'projectMemoryDev.deployAgents',
+        skills: 'projectMemoryDev.deploySkills',
+        instructions: 'projectMemoryDev.deployInstructions',
+        all: 'projectMemoryDev.deployCopilotConfig'
     };
 
     const cmd = cmdMap[prompt];
@@ -311,7 +311,7 @@ export async function handleDiagnosticsCommand(
 
     try {
         // Execute the existing diagnostics command which writes to an output channel
-        await vscode.commands.executeCommand('projectMemory.showDiagnostics');
+        await vscode.commands.executeCommand('projectMemoryDev.showDiagnostics');
         response.markdown('✅ Diagnostics report written to the **Project Memory Diagnostics** output channel.\n\n');
 
         // Also provide inline summary by probing the MCP server

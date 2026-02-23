@@ -28,7 +28,7 @@ export function getInstructionsSectionHtml(iconSvgs: IconSvgs): string {
                                             <button class="btn btn-small" data-action="refresh-instructions" title="Refresh instructions list">
                                                 ${iconSvgs.syncHistory} Refresh
                                             </button>
-                                            <button class="btn btn-small btn-secondary" data-action="run-command" data-command="projectMemory.deployInstructions" title="Deploy instructions via picker">
+                                            <button class="btn btn-small btn-secondary" data-action="run-command" data-command="projectMemoryDev.deployInstructions" title="Deploy instructions via picker">
                                                 ${iconSvgs.deployInstructions} Deploy All
                                             </button>
                                         </div>

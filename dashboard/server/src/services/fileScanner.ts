@@ -1,5 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { dataCache } from './cache.js';
 
 interface WorkspaceMeta {
   workspace_id: string;
@@ -106,8 +107,12 @@ function calculateHealth(meta: WorkspaceMeta, plans: PlanState[]): 'active' | 's
   return 'active';
 }
 
-// Scan all workspaces in data root
+// Scan all workspaces in data root (cached for 30s)
 export async function scanWorkspaces(dataRoot: string): Promise<WorkspaceSummary[]> {
+  const cacheKey = 'workspaces';
+  const cached = dataCache.get<WorkspaceSummary[]>(cacheKey);
+  if (cached) return cached;
+
   try {
     const entries = await fs.readdir(dataRoot, { withFileTypes: true });
     const dirs = entries.filter(e => e.isDirectory() && e.name !== 'logs');
@@ -145,7 +150,9 @@ export async function scanWorkspaces(dataRoot: string): Promise<WorkspaceSummary
       }
     }));
 
-    return results.filter((w): w is WorkspaceSummary => w !== null);
+    const workspaces = results.filter((w): w is WorkspaceSummary => w !== null);
+    dataCache.set(cacheKey, workspaces);
+    return workspaces;
   } catch (error) {
     console.error('Error scanning workspaces:', error);
     return [];
@@ -211,8 +218,12 @@ export async function getWorkspaceDetails(dataRoot: string, workspaceId: string)
   }
 }
 
-// Get all plans for a workspace
+// Get all plans for a workspace (cached for 30s)
 export async function getWorkspacePlans(dataRoot: string, workspaceId: string): Promise<PlanSummary[]> {
+  const cacheKey = `plans:${workspaceId}`;
+  const cached = dataCache.get<PlanSummary[]>(cacheKey);
+  if (cached) return cached;
+
   const plans: PlanSummary[] = [];
   const plansDir = path.join(dataRoot, workspaceId, 'plans');
   
@@ -267,19 +278,28 @@ export async function getWorkspacePlans(dataRoot: string, workspaceId: string): 
   }
   
   // Sort by updated_at descending
-  return plans.sort((a, b) => 
+  const sorted = plans.sort((a, b) => 
     new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
   );
+  dataCache.set(cacheKey, sorted);
+  return sorted;
 }
 
-// Get full plan state
+// Get full plan state (cached for 30s)
 export async function getPlanState(dataRoot: string, workspaceId: string, planId: string): Promise<PlanState | null> {
+  const cacheKey = `planState:${workspaceId}:${planId}`;
+  const cached = dataCache.get<PlanState | null>(cacheKey);
+  if (cached !== undefined) return cached;
+
   const statePath = path.join(dataRoot, workspaceId, 'plans', planId, 'state.json');
   
   try {
     const content = await fs.readFile(statePath, 'utf-8');
-    return JSON.parse(content);
+    const plan = JSON.parse(content) as PlanState;
+    dataCache.set(cacheKey, plan);
+    return plan;
   } catch {
+    dataCache.set(cacheKey, null, 10_000); // Cache misses for 10s
     return null;
   }
 }

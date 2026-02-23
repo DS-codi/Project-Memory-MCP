@@ -33,7 +33,7 @@ export function createCommandLink(commandId: string, args: unknown[]): string {
 }
 
 export function createPlanIdCommandLink(planId: string, label: string = planId): string {
-    return `[${label}](${toCommandLink('projectMemory.showPlanInChat', [planId])})`;
+    return `[${label}](${toCommandLink('projectMemoryDev.showPlanInChat', [planId])})`;
 }
 
 export function createTrustedMarkdown(
@@ -71,7 +71,7 @@ export function renderPlanActionButtons(
 
     if (showResume) {
         stream.button({
-            command: 'projectMemory.resumePausedPlan',
+            command: 'projectMemoryDev.resumePausedPlan',
             title: 'Resume Plan',
             arguments: [workspaceId, planId]
         });
@@ -79,7 +79,7 @@ export function renderPlanActionButtons(
 
     if (showArchive) {
         stream.button({
-            command: 'projectMemory.archivePlan',
+            command: 'projectMemoryDev.archivePlan',
             title: 'Archive Plan',
             arguments: [workspaceId, planId]
         });
@@ -87,7 +87,7 @@ export function renderPlanActionButtons(
 
     if (showRunBuild) {
         stream.button({
-            command: 'projectMemory.runBuildScript',
+            command: 'projectMemoryDev.runBuildScript',
             title: 'Run Build',
             arguments: [planId]
         });
@@ -95,7 +95,7 @@ export function renderPlanActionButtons(
 
     if (showAddStep) {
         stream.button({
-            command: 'projectMemory.addStepToPlan',
+            command: 'projectMemoryDev.addStepToPlan',
             title: 'Add Step',
             arguments: [planId]
         });
@@ -103,7 +103,7 @@ export function renderPlanActionButtons(
 
     if (showOpenDashboard) {
         stream.button({
-            command: 'projectMemory.openPlanInDashboard',
+            command: 'projectMemoryDev.openPlanInDashboard',
             title: 'Open in Dashboard',
             arguments: [undefined, planId]
         });
@@ -122,13 +122,13 @@ export function renderStepCommandLinks(
     const lines = steps.map((step) => {
         const actions: string[] = [];
         if (step.status === 'pending') {
-            actions.push(`[Start](${toCommandLink('projectMemory.markStepActive', [planId, step.index])})`);
+            actions.push(`[Start](${toCommandLink('projectMemoryDev.markStepActive', [planId, step.index])})`);
         }
         if (step.status === 'active') {
-            actions.push(`[Done](${toCommandLink('projectMemory.markStepDone', [planId, step.index])})`);
+            actions.push(`[Done](${toCommandLink('projectMemoryDev.markStepDone', [planId, step.index])})`);
         }
         if (step.status === 'blocked') {
-            actions.push(`[Create Dedicated Plan](${toCommandLink('projectMemory.createDedicatedPlan', [planId, step.index])})`);
+            actions.push(`[Create Dedicated Plan](${toCommandLink('projectMemoryDev.createDedicatedPlan', [planId, step.index])})`);
         }
 
         const prefix =
@@ -147,7 +147,7 @@ export function renderStepCommandLinks(
     stream.markdown(
         createTrustedMarkdown(
             `${lines.join('\n\n')}\n`,
-            ['projectMemory.markStepActive', 'projectMemory.markStepDone', 'projectMemory.createDedicatedPlan']
+            ['projectMemoryDev.markStepActive', 'projectMemoryDev.markStepDone', 'projectMemoryDev.createDedicatedPlan']
         )
     );
 }
@@ -182,12 +182,12 @@ export function showConfirmation(
 
     stream.markdown(`⚠️ **Confirm ${actionLabel}**\n\n${description}\n`);
     stream.button({
-        command: 'projectMemory.confirmAction',
+        command: 'projectMemoryDev.confirmAction',
         title: 'Yes',
         arguments: [actionId]
     });
     stream.button({
-        command: 'projectMemory.cancelAction',
+        command: 'projectMemoryDev.cancelAction',
         title: 'Cancel',
         arguments: [actionId]
     });

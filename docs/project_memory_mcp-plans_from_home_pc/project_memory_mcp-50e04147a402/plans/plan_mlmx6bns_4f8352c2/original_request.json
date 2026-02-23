@@ -1,0 +1,33 @@
+{
+  "type": "original_request",
+  "plan_id": "plan_mlmx6bns_4f8352c2",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "captured_at": "2026-02-14T23:00:40.239Z",
+  "user_request": {
+    "sanitized": "Workspace context and research files appeared missing after workspace parent/child consolidation. Ensure migrate action restores/preserves workspace context so this does not recur.",
+    "wasModified": false,
+    "injectionAttempts": [],
+    "warnings": []
+  },
+  "context": {
+    "files_mentioned": [],
+    "file_contents": {},
+    "requirements": [
+      "Do not implement now",
+      "Track as dedicated plan",
+      "Target migrate action behavior"
+    ],
+    "constraints": [
+      "No immediate code changes in this request",
+      "Preserve existing research files and plan-scoped context during migration"
+    ],
+    "examples": [],
+    "conversation_context": {
+      "sanitized": "User confirmed they want planning only and noted this should happen with migrate action.",
+      "wasModified": false,
+      "injectionAttempts": [],
+      "warnings": []
+    },
+    "additional_notes": null
+  }
+}

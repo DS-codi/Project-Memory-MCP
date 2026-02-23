@@ -9,7 +9,7 @@ import { resolveWorkspaceIdentity } from './workspace-identity';
  * Show an information message if notifications are enabled.
  */
 export function notify(message: string, ...items: string[]): Thenable<string | undefined> {
-    const config = vscode.workspace.getConfiguration('projectMemory');
+    const config = vscode.workspace.getConfiguration('projectMemoryDev');
     if (config.get<boolean>('showNotifications', true)) {
         return vscode.window.showInformationMessage(message, ...items);
     }

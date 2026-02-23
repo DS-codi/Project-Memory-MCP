@@ -1,0 +1,407 @@
+{
+  "id": "plan_mll9pkws_485d6ff0",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "SkillWriter Cross-Workspace Instruction Refactoring",
+  "description": "Extend the SkillWriter agent to handle cross-workspace instruction refactoring. When deployed to a foreign workspace, SkillWriter should analyze existing instruction/rule files and classify each as: (1) keep as instruction/rule (hard rules specific to that workspace), (2) convert to skill (reusable domain knowledge), or (3) delete/consolidate (redundant or outdated). Must follow the established skills-vs-instructions convention. Agent needs new workflow modes, classification heuristics, and user confirmation gates before making changes.",
+  "priority": "medium",
+  "category": "feature",
+  "status": "archived",
+  "current_phase": "complete",
+  "current_agent": null,
+  "confirmation_state": {
+    "phases": {
+      "setup": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-13T19:55:27.132Z"
+      },
+      "core": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-13T19:59:26.771Z"
+      },
+      "integration": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-13T20:04:01.667Z"
+      },
+      "validation": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-13T20:10:55.529Z"
+      },
+      "documentation": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-13T20:11:38.001Z"
+      }
+    },
+    "steps": {
+      "2": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-13T19:55:09.599Z"
+      },
+      "8": {
+        "confirmed": true,
+        "confirmed_by": "Coordinator",
+        "confirmed_at": "2026-02-13T20:07:43.367Z"
+      },
+      "9": {
+        "confirmed": true,
+        "confirmed_by": "Coordinator",
+        "confirmed_at": "2026-02-13T20:08:49.172Z"
+      }
+    }
+  },
+  "created_at": "2026-02-13T19:15:38.913Z",
+  "updated_at": "2026-02-14T22:31:11.390Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mll9rdtq_8de2d642",
+      "agent_type": "Researcher",
+      "started_at": "2026-02-13T19:17:03.038Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Research what's needed to extend SkillWriter agent to handle cross-workspace instruction refactoring",
+        "research_targets": [
+          "SkillWriter agent structure",
+          "instruction file patterns",
+          "skills vs instructions convention",
+          "cross-workspace deployment",
+          "confirmation gate patterns"
+        ],
+        "questions_to_answer": [
+          "What workflow modes does SkillWriter currently support?",
+          "What instruction file formats/conventions exist?",
+          "What classification heuristics distinguish rules from skills?",
+          "How does cross-workspace deployment work?",
+          "What confirmation patterns exist in the PM system?"
+        ],
+        "known_resources": [
+          "agents/skill-writer.agent.md",
+          ".github/instructions/",
+          "Project-Memory-MCP/instructions/"
+        ]
+      },
+      "completed_at": "2026-02-13T19:21:25.917Z",
+      "summary": "Researched all 5 areas for SkillWriter cross-workspace instruction refactoring:\\n\\n1. **SkillWriter Current State**: Agent has one mode (create skills). Needs new refactor mode, modified permissions, updated exit conditions. 4 sections need modification, 5 new sections needed. May exceed monolith threshold (~350+ lines), recommend extracting refactor details to instructions/skillwriter-refactoring.instructions.md.\\n\\n2. **Instruction Formats**: Documented .github/instructions/ (GH Copilot format with applyTo), instructions/ (PM-internal ops), .github/skills/ (SKILL.md with rich frontmatter). Key difference: instructions = operational rules, skills = domain knowledge.\\n\\n3. **Classification Heuristics**: Built decision tree from established convention-skills-vs-instructions knowledge file. Signals for keep/convert/delete/protected categories. Conservative default: keep as instruction.\\n\\n4. **Cross-Workspace Deployment**: Documented memory_agent deploy mechanism. Identified dual-workspace pattern: plan data stays in PM workspace, file operations happen in foreign workspace. SkillWriter needs both workspace_id and foreign workspace_path.\\n\\n5. **Confirmation Flow**: Existing PM gates include plan-level confirm, step requires_user_confirmation, user_validation step type. Recommended Classification Report pattern with separate classify and execute phases.\\n\\nProduced 5 research notes and structured research summary. 4 open questions flagged for Architect.\""
+    },
+    {
+      "session_id": "sess_mll9yb2a_ecdb5ccc",
+      "agent_type": "Architect",
+      "started_at": "2026-02-13T19:22:26.050Z",
+      "context": {
+        "audit_summary": "SkillWriter agent needs new refactor workflow mode for cross-workspace instruction handling",
+        "research_summary": "Research completed on skills-vs-instructions convention and current SkillWriter structure",
+        "constraints": [
+          "Agent files under ~400 lines",
+          "SkillWriter remains spoke agent",
+          "User confirmation mandatory before changes",
+          "Conservative default: keep as instruction when unclear"
+        ],
+        "acceptance_criteria": [
+          "New refactor mode added to SkillWriter",
+          "Classification heuristics defined",
+          "Cross-workspace file handling supported",
+          "Plan has 8-15 atomic steps"
+        ]
+      },
+      "completed_at": "2026-02-13T19:24:45.213Z",
+      "summary": "Designed 11-step implementation plan for SkillWriter cross-workspace instruction refactoring across 5 phases:\\n\\n**Setup (3 steps):** Create skillwriter-refactor-mode.instructions.md with full classification heuristics and report format. Add Workflow Modes section to agent file. Update permissions for refactor-mode operations.\\n\\n**Core (3 steps):** Add refactor-mode workflow (two-phase: classify → execute). Update exit conditions for refactor-mode handoffs. Add cross-workspace identity/discovery logic to instruction file.\\n\\n**Integration (2 steps):** Add SkillWriter refactor-mode subagent template to coordinator-subagent-templates. Update agent frontmatter for delete permission and updated description.\\n\\n**Validation (2 steps):** Monolith compliance review (all files under thresholds). Consistency verification across all modified files.\\n\\n**Documentation (1 step):** Update convention-skills-vs-instructions knowledge file.\\n\\nKey architectural decisions: (1) Extract refactor details to instruction file to keep agent under 300 lines. (2) Two-phase workflow with natural confirmation gate between classify and execute. (3) Dual-workspace identity pattern. (4) Conservative default: always keep as instruction when unclear. All 4 open research questions resolved.\"",
+      "artifacts": [
+        "plan steps (11 steps across 5 phases)",
+        "architecture context (4 decisions, file map, line budgets, resolved questions)"
+      ]
+    },
+    {
+      "session_id": "sess_mllaxmj3_b938e2fb",
+      "agent_type": "Executor",
+      "started_at": "2026-02-13T19:49:53.871Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Implementing SkillWriter refactor-mode specification: instruction file, agent file updates",
+        "current_step_index": 0,
+        "steps_to_complete": [
+          "Create instructions/skillwriter-refactor-mode.instructions.md with full refactor-mode specification",
+          "Add Workflow Modes section to skill-writer.agent.md",
+          "Update SkillWriter What You Can and Cannot Do section"
+        ],
+        "environment": {
+          "working_directory": "c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP",
+          "active_branch": "main"
+        }
+      },
+      "completed_at": "2026-02-13T19:54:25.572Z",
+      "summary": "Completed Setup phase (steps 0-2). Created instructions/skillwriter-refactor-mode.instructions.md (178 lines, target 150-250) with all 7 required sections: Classification Decision Tree with 5 categories (including split), Classification Report Format with 5-row example table, Cross-Workspace File Handling, Protected Files, Two-Phase Workflow, Rollback Strategy, Skill Frontmatter Generation. Modified agents/skill-writer.agent.md (239 lines, under 300 limit): added Workflow Modes section (~30 lines) after Your Mission, added refactor-mode permissions to What You Can and Cannot Do (~10 lines), updated mission paragraph. Step 2 has a confirmation gate in the plan — code changes are done but step status requires user confirmation via Coordinator.",
+      "artifacts": [
+        "instructions/skillwriter-refactor-mode.instructions.md",
+        "agents/skill-writer.agent.md"
+      ]
+    },
+    {
+      "session_id": "sess_mllb6j6u_cb968e2f",
+      "agent_type": "Executor",
+      "started_at": "2026-02-13T19:56:49.446Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Implementing Core phase steps 3-5: Add refactor-mode workflow, update exit conditions, and enhance cross-workspace file handling section",
+        "current_step_index": 3,
+        "steps_to_complete": [
+          "Step 3: Add refactor-mode workflow subsection to skill-writer.agent.md",
+          "Step 4: Update exit conditions table with refactor-mode rows",
+          "Step 5: Enhance cross-workspace file handling section in instructions file"
+        ],
+        "environment": {
+          "working_directory": "c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP"
+        }
+      },
+      "completed_at": "2026-02-13T19:59:00.923Z",
+      "summary": "Completed Core phase steps 3-5. Step 3: Added Refactor Mode Workflow subsection (22 lines, two-phase numbered workflow). Step 4: Added 4 refactor-mode rows to Exit Conditions table. Step 5: Section 3 already covered most content from step 0; added only missing docs/ scanning subsection (4 lines). Both files within line limits (266/300 and 254/400). Step 5 status update blocked by phase confirmation gate.",
+      "artifacts": [
+        "agents/skill-writer.agent.md",
+        "instructions/skillwriter-refactor-mode.instructions.md"
+      ]
+    },
+    {
+      "session_id": "sess_mllbb9n4_1016ae5e",
+      "agent_type": "Executor",
+      "started_at": "2026-02-13T20:00:30.352Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Implementing Integration phase steps 6-7: SkillWriter refactor-mode subagent templates and agent description update",
+        "current_step_index": 6,
+        "steps_to_complete": [
+          "Add SkillWriter (Refactor Mode) subagent template to coordinator-subagent-templates.instructions.md",
+          "Update SkillWriter agent description to mention refactoring capability"
+        ],
+        "environment": {
+          "working_directory": "c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP"
+        }
+      },
+      "completed_at": "2026-02-13T20:03:37.552Z",
+      "summary": "Completed integration phase steps 6-7:\\n\\nStep 6: Added two SkillWriter refactor-mode subagent templates to coordinator-subagent-templates.instructions.md (after Archivist, before Worker). Classify template deploys SkillWriter in read-only mode to scan and classify instruction files. Execute template takes user-approved classifications and executes only approved changes. Both include SCOPE BOUNDARIES/ESCALATION and anti-spawning blocks. File: 270 lines.\\n\\nStep 7: Updated mission paragraph in skill-writer.agent.md to mention refactor mode capability alongside skill creation. File: 266 lines.\\n\\nNote: Step 7 status update to 'done' was blocked by integration phase confirmation gate. Work is complete but step shows 'active'.\"",
+      "artifacts": [
+        "instructions/coordinator-subagent-templates.instructions.md",
+        "agents/skill-writer.agent.md"
+      ]
+    },
+    {
+      "session_id": "sess_mllbgwbl_5f9c405e",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-13T20:04:53.025Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Validation review of all changes in the plan - steps 8 and 9",
+        "mode": "review"
+      },
+      "completed_at": "2026-02-13T20:10:08.540Z",
+      "summary": "Validation review of steps 8-9. Step 8 (monolith compliance): PASS — all 3 files under thresholds (266/300, 254/400, 270/400). Step 9 (consistency verification): All 8 specified checks PASS. Found 2 actionable inconsistencies in coordinator-subagent-templates.instructions.md: (1) 'convert_to_skill' should be 'convert' (3 occurrences), (2) 'protected' classification missing from list. Also 2 cosmetic items (consolidate/delete naming, scope width). Full findings stored in review context.\"",
+      "artifacts": [
+        "instructions/coordinator-subagent-templates.instructions.md",
+        "agents/skill-writer.agent.md",
+        "instructions/skillwriter-refactor-mode.instructions.md"
+      ]
+    },
+    {
+      "session_id": "sess_mllbr64z_d86e96d1",
+      "agent_type": "Archivist",
+      "started_at": "2026-02-13T20:12:52.307Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "All 11 steps done, finalize SkillWriter Cross-Workspace Instruction Refactoring plan",
+        "files_to_commit": [
+          "instructions/skillwriter-refactor-mode.instructions.md",
+          ".github/instructions/skillwriter-refactor-mode.instructions.md",
+          "agents/skill-writer.agent.md",
+          "instructions/coordinator-subagent-templates.instructions.md",
+          ".github/instructions/coordinator-subagent-templates.instructions.md"
+        ]
+      },
+      "completed_at": "2026-02-13T20:21:38.459Z",
+      "summary": "Archived plan plan_mll9pkws_485d6ff0 (SkillWriter Cross-Workspace Instruction Refactoring). Committed 3 files as 3fd3c5e: skill-writer.agent.md (refactor mode additions), skillwriter-refactor-mode.instructions.md (new spec), coordinator-subagent-templates.instructions.md (new templates). Plan archived and plan-summary knowledge file created.",
+      "artifacts": [
+        "agents/skill-writer.agent.md",
+        "instructions/skillwriter-refactor-mode.instructions.md",
+        "instructions/coordinator-subagent-templates.instructions.md"
+      ]
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-13T19:21:11.888Z",
+      "from_agent": "Researcher",
+      "to_agent": "Coordinator",
+      "reason": "Research complete. All 5 areas investigated: (1) SkillWriter current state and what needs modification vs addition, (2) instruction file formats/conventions in both .github/instructions/ and instructions/, (3) classification heuristics for rules vs skills with decision tree, (4) cross-workspace deployment model including dual-workspace pattern, (5) user confirmation flow patterns. Recommend Architect to design the solution."
+    },
+    {
+      "timestamp": "2026-02-13T19:24:33.786Z",
+      "from_agent": "Architect",
+      "to_agent": "Coordinator",
+      "reason": "Plan ready with 11 steps across 5 phases. Architecture decisions stored. Ready for Executor to implement."
+    },
+    {
+      "timestamp": "2026-02-13T19:54:16.423Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Setup phase (steps 0-2) implementation complete. Created skillwriter-refactor-mode.instructions.md (178 lines) with full spec. Updated skill-writer.agent.md (239 lines) with Workflow Modes section and refactor-mode permissions. Ready for build verification and review."
+    },
+    {
+      "timestamp": "2026-02-13T19:58:54.180Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Core phase steps 3-5 complete. Ready for build verification and review."
+    },
+    {
+      "timestamp": "2026-02-13T20:03:28.651Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Integration phase steps 6-7 complete. Step 6 done, step 7 implemented but status update blocked by phase confirmation gate. Ready for build verification and review."
+    },
+    {
+      "timestamp": "2026-02-13T20:10:00.060Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Validation review complete. Steps 8-9 done. Found 2 actionable naming inconsistencies in coordinator-subagent-templates.instructions.md (convert_to_skill should be convert; protected missing from classification list). Recommend Revisionist for quick fixes.\""
+    }
+  ],
+  "steps": [
+    {
+      "phase": "setup",
+      "task": "Create instructions/skillwriter-refactor-mode.instructions.md with full refactor-mode specification: classification heuristics decision tree, classification report format (markdown table schema), cross-workspace file-handling rules, protected-file conventions, and the two-phase classify→execute workflow. Apply applyTo: agents/skill-writer.agent.md frontmatter.",
+      "type": "code",
+      "notes": "Created instructions/skillwriter-refactor-mode.instructions.md (178 lines). Contains: Classification Decision Tree (5 categories including split), Classification Report Format with example table (5 sample rows), Cross-Workspace File Handling (dual-workspace + discovery), Protected Files list, Two-Phase Workflow (A: classify, B: execute), Rollback Strategy (git clean state check), Skill Frontmatter Generation with derivation rules and example.",
+      "assignee": "Executor",
+      "index": 0,
+      "status": "done",
+      "completed_at": "2026-02-13T19:52:30.423Z"
+    },
+    {
+      "phase": "setup",
+      "task": "Add 'Workflow Modes' section to skill-writer.agent.md distinguishing 'create' mode (existing behavior) from new 'refactor' mode. Add concise refactor-mode summary (~30 lines) that references instructions/skillwriter-refactor-mode.instructions.md for full details. Keep agent file under 300 lines total.",
+      "type": "code",
+      "status": "done",
+      "notes": "Added Workflow Modes section (~30 lines) after Your Mission. Covers create mode (default) and refactor mode with classification table, two-phase workflow summary, conservative default, and cross-reference to full spec. Also updated mission paragraph to mention refactor capability. Agent file at 239 lines (under 300 limit).",
+      "assignee": "Executor",
+      "index": 1,
+      "completed_at": "2026-02-13T19:53:35.252Z"
+    },
+    {
+      "phase": "setup",
+      "task": "Update the SkillWriter 'What You Can and Cannot Do' section to add refactor-mode permissions: CAN read/analyze instruction files in foreign workspaces, CAN delete/consolidate instruction files (after user approval), CAN move content between instruction and skill formats. Add CANNOT: execute changes without user confirmation, modify agent definition files, touch protected files.",
+      "type": "code",
+      "status": "done",
+      "notes": "Permissions section updated by Executor — 4 new CAN items and 2 new CANNOT items for refactor mode. Confirmed by Coordinator.",
+      "assignee": "Executor",
+      "index": 2,
+      "completed_at": "2026-02-13T19:55:33.019Z"
+    },
+    {
+      "phase": "core",
+      "task": "Add the refactor-mode workflow to skill-writer.agent.md: a concise numbered workflow (Phase A: init → validate → scan directories → read files → classify each → store classification report via memory_context → handoff for user confirmation. Phase B: retrieve approved classifications → execute approved changes → update steps → handoff for review).",
+      "type": "code",
+      "notes": "Added Refactor Mode Workflow subsection (~22 lines) after existing Workflow section. Two-phase numbered workflow with Phase A (classify, 6 steps) and Phase B (execute, 7 steps). File at 266 lines.",
+      "assignee": "Executor",
+      "index": 3,
+      "status": "done",
+      "completed_at": "2026-02-13T19:58:02.705Z"
+    },
+    {
+      "phase": "core",
+      "task": "Update SkillWriter exit conditions table to include refactor-mode handoff scenarios: (1) Classification report generated → Coordinator (for user confirmation), (2) Approved changes executed → Coordinator (recommends Reviewer), (3) No instruction files found in target workspace → Coordinator (nothing to refactor), (4) Blocked by file access error → Coordinator (recommends Revisionist).",
+      "type": "code",
+      "status": "done",
+      "notes": "Added 4 refactor-mode rows to Exit Conditions table: classification report → Coordinator, approved changes → Reviewer, no instruction files → Coordinator, file access error → Revisionist. Existing create-mode rows intact.",
+      "assignee": "Executor",
+      "index": 4,
+      "completed_at": "2026-02-13T19:58:02.705Z"
+    },
+    {
+      "phase": "core",
+      "task": "In instructions/skillwriter-refactor-mode.instructions.md, add the Cross-Workspace Identity section: how SkillWriter receives the foreign workspace path (from Coordinator deployment prompt), how to discover instruction file locations (check .github/instructions/, instructions/, docs/ in order), how MCP calls always use PM's workspace_id while file I/O uses the foreign path, and how to handle non-standard layouts (fall back to recursive glob for *.instructions.md and *.md files in common locations).",
+      "type": "code",
+      "status": "done",
+      "notes": "Section 3 already covered most content from step 0. Added docs/ subsection. Confirmed by Coordinator.",
+      "assignee": "Executor",
+      "index": 5,
+      "completed_at": "2026-02-13T19:59:32.753Z"
+    },
+    {
+      "phase": "integration",
+      "task": "Add a SkillWriter (Refactor Mode) subagent template to instructions/coordinator-subagent-templates.instructions.md. Template must include: plan_id, workspace_id, foreign_workspace_path, mode='refactor', phase (classify or execute), approved_classifications (for execute phase), scope boundaries, and anti-spawning instructions.",
+      "type": "code",
+      "status": "done",
+      "notes": "Added two SkillWriter refactor-mode subagent templates (Classify + Execute) after Archivist section, before Worker section. ~45 lines added.\"",
+      "assignee": "Executor",
+      "index": 6,
+      "completed_at": "2026-02-13T20:01:28.081Z"
+    },
+    {
+      "phase": "integration",
+      "task": "Update the SkillWriter agent description (top-level mission/purpose paragraph) to mention refactoring capability alongside the existing skill-creation purpose. Do NOT modify the frontmatter tools array.",
+      "type": "code",
+      "status": "done",
+      "notes": "Mission paragraph updated to mention refactor mode. Confirmed by Coordinator.",
+      "assignee": "Executor",
+      "index": 7,
+      "completed_at": "2026-02-13T20:04:07.164Z"
+    },
+    {
+      "phase": "validation",
+      "task": "Review all changes for monolith compliance: verify skill-writer.agent.md stays under 300 lines, verify skillwriter-refactor-mode.instructions.md stays under 400 lines, verify coordinator-subagent-templates.instructions.md stays under 400 lines after additions. If any file exceeds threshold, create a follow-up step to extract content.",
+      "type": "validation",
+      "status": "done",
+      "notes": "Monolith compliance PASS: skill-writer.agent.md 266/300, skillwriter-refactor-mode.instructions.md 254/400, coordinator-subagent-templates.instructions.md 272/400.",
+      "assignee": "Reviewer",
+      "requires_validation": true,
+      "index": 8,
+      "completed_at": "2026-02-13T20:11:03.500Z"
+    },
+    {
+      "phase": "validation",
+      "task": "Verify consistency between skill-writer.agent.md refactor-mode references and the actual content in instructions/skillwriter-refactor-mode.instructions.md. Ensure classification heuristics align with the convention-skills-vs-instructions knowledge file. Verify cross-workspace path handling is consistent across all modified files.",
+      "type": "validation",
+      "status": "done",
+      "notes": "Consistency verification PASS: All 8 checks pass. 2 naming issues (convert_to_skill→convert, missing protected class) fixed by Coordinator in coordinator-subagent-templates.instructions.md.",
+      "assignee": "Reviewer",
+      "requires_validation": true,
+      "index": 9,
+      "completed_at": "2026-02-13T20:11:03.500Z"
+    },
+    {
+      "phase": "documentation",
+      "task": "Update the convention-skills-vs-instructions knowledge file via memory_context(action: knowledge_store) to add a note that SkillWriter can now be deployed in refactor mode to classify and reorganize instruction files, with a reference to the plan that established this capability.",
+      "type": "documentation",
+      "status": "done",
+      "notes": "Updated convention-skills-vs-instructions knowledge file with Automated Classification section referencing SkillWriter refactor mode and plan_mll9pkws_485d6ff0.",
+      "assignee": "Executor",
+      "index": 10,
+      "completed_at": "2026-02-13T20:11:46.599Z"
+    }
+  ],
+  "pending_notes": [
+    {
+      "note": "Child plan of Platform Evolution Program (plan_mlkjmemm_f04cebfc). Plan #10 — SkillWriter Cross-Workspace Instruction Refactoring. Dependencies: Plan 3 (Instructions Reorganization) must complete first (done). Wave: Independent — can execute immediately.",
+      "type": "info",
+      "added_at": "2026-02-13T19:16:07.190Z",
+      "added_by": "user"
+    }
+  ],
+  "recommended_next_agent": "Coordinator",
+  "goals": [
+    "Add refactor workflow mode to SkillWriter agent for cross-workspace instruction reorganization",
+    "Define classification heuristics that align with the skills-vs-instructions convention",
+    "Support cross-workspace file handling (PM workspace for MCP, foreign workspace for file I/O)",
+    "Ensure user confirmation is mandatory before any file changes",
+    "Keep all files under monolith thresholds"
+  ],
+  "success_criteria": [
+    "skill-writer.agent.md has new 'Workflow Modes' section distinguishing create vs refactor mode and stays under 300 lines",
+    "instructions/skillwriter-refactor-mode.instructions.md exists with full classification heuristics, report format, and two-phase workflow",
+    "coordinator-subagent-templates.instructions.md has SkillWriter refactor-mode templates (classify + execute phases)",
+    "Classification decision tree uses conservative default (keep as instruction when unclear)",
+    "Foreign workspace path handling is consistent across all three files",
+    "No file exceeds 400-line monolith threshold",
+    "convention-skills-vs-instructions knowledge file references the new automated classification capability"
+  ]
+}

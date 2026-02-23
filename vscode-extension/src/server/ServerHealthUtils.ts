@@ -134,7 +134,7 @@ export function getPidForPort(port: number): Promise<number | null> {
  * Locate the dashboard Express server directory by checking known paths.
  */
 export function resolveServerDirectory(log?: (msg: string) => void): string | null {
-    const extensionPath = vscode.extensions.getExtension('project-memory.project-memory-dashboard')?.extensionPath;
+    const extensionPath = vscode.extensions.getExtension('project-memory-dev.project-memory-dashboard-dev-dev-dev')?.extensionPath;
     const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
     const possiblePaths = [
@@ -159,7 +159,7 @@ export function resolveServerDirectory(log?: (msg: string) => void): string | nu
  * Locate the dashboard frontend directory by checking known paths.
  */
 export function resolveDashboardDirectory(log?: (msg: string) => void): string | null {
-    const extensionPath = vscode.extensions.getExtension('project-memory.project-memory-dashboard')?.extensionPath;
+    const extensionPath = vscode.extensions.getExtension('project-memory-dev.project-memory-dashboard-dev-dev-dev')?.extensionPath;
     const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
     const possiblePaths = [

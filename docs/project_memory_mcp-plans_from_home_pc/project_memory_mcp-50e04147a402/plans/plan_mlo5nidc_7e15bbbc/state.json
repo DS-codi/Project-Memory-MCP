@@ -1,0 +1,48 @@
+{
+  "id": "plan_mlo5nidc_7e15bbbc",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Replay Ops Hardening Follow-up",
+  "description": "Stabilize and document replay-adjacent operational surfaces observed in recent runs: workspace display-name route persistence/sync, container run entrypoint consistency, and interactive-terminal launch reliability.",
+  "priority": "high",
+  "category": "change",
+  "goals": [
+    "Ensure workspace display-name updates are persisted and mirrored consistently in route behavior.",
+    "Eliminate ambiguous container startup behavior across root and nested invocation paths.",
+    "Harden interactive-terminal release launch flow and operational checks for replay workflows."
+  ],
+  "success_criteria": [
+    "Route-level validation confirms display_name and name fields remain synchronized after update operations.",
+    "Container run command succeeds consistently from the supported canonical working directory with clear fallback guidance.",
+    "Interactive-terminal release build and launch checks are reproducible and documented for operators."
+  ],
+  "status": "active",
+  "current_phase": "initialization",
+  "current_agent": null,
+  "confirmation_state": {
+    "phases": {},
+    "steps": {}
+  },
+  "created_at": "2026-02-15T19:45:22.373Z",
+  "updated_at": "2026-02-15T19:45:36.450Z",
+  "agent_sessions": [],
+  "lineage": [],
+  "steps": [
+    {
+      "phase": "Phase 1: Research",
+      "task": "Audit current behavior and constraints for display-name route updates, container run path handling, and interactive-terminal launch expectations.",
+      "type": "research",
+      "status": "pending",
+      "assignee": "Researcher",
+      "index": 0
+    },
+    {
+      "phase": "Phase 2: Planning",
+      "task": "Design a minimal implementation plan with scoped fixes, verification commands, and rollout notes for the three operational surfaces.",
+      "type": "planning",
+      "status": "pending",
+      "assignee": "Architect",
+      "index": 1
+    }
+  ],
+  "program_id": "plan_mlmuny9s_04a511eb"
+}

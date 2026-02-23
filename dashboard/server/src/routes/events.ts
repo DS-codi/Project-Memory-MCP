@@ -1,19 +1,10 @@
 import { Router } from 'express';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { eventBus } from '../events/eventBus.js';
+import type { MCPEvent } from '../events/emitter.js';
 
 export const eventsRouter = Router();
-
-interface MCPEvent {
-  id: string;
-  type: string;
-  timestamp: string;
-  workspace_id?: string;
-  plan_id?: string;
-  agent_type?: string;
-  tool_name?: string;
-  data: Record<string, unknown>;
-}
 
 // Get events directory
 function getEventsDir(): string {
@@ -75,41 +66,22 @@ eventsRouter.get('/stream', async (req, res) => {
   // Send initial connection event
   res.write(`event: connected\ndata: ${JSON.stringify({ connected: true })}\n\n`);
 
-  let lastEventTime = new Date().toISOString();
-  const dir = getEventsDir();
+  // Subscribe to in-memory event bus instead of polling filesystem
+  const onEvent = (event: MCPEvent) => {
+    res.write(`event: mcp_event\ndata: ${JSON.stringify(event)}\n\n`);
+  };
 
-  // Poll for new events every second
-  const interval = setInterval(async () => {
-    try {
-      const files = await fs.readdir(dir);
-      const eventFiles = files
-        .filter(f => f.startsWith('evt_') && f.endsWith('.json'))
-        .sort()
-        .reverse()
-        .slice(0, 10);
+  eventBus.on('event', onEvent);
 
-      for (const file of eventFiles) {
-        try {
-          const content = await fs.readFile(path.join(dir, file), 'utf-8');
-          const event = JSON.parse(content) as MCPEvent;
-
-          // Only send new events
-          if (event.timestamp > lastEventTime) {
-            res.write(`event: mcp_event\ndata: ${JSON.stringify(event)}\n\n`);
-            lastEventTime = event.timestamp;
-          }
-        } catch (e) {
-          // Skip
-        }
-      }
-    } catch (e) {
-      // Events dir doesn't exist
-    }
-  }, 1000);
+  // Send a heartbeat every 30s to keep the connection alive
+  const heartbeat = setInterval(() => {
+    res.write(`:heartbeat\n\n`);
+  }, 30000);
 
   // Cleanup on close
   req.on('close', () => {
-    clearInterval(interval);
+    eventBus.off('event', onEvent);
+    clearInterval(heartbeat);
     res.end();
   });
 });

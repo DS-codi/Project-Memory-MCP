@@ -38,7 +38,7 @@ export interface SupervisorSettings {
  * explicitly set by the user.
  */
 export function readSupervisorSettings(): SupervisorSettings {
-  const cfg = vscode.workspace.getConfiguration('supervisor');
+  const cfg = vscode.workspace.getConfiguration('supervisorDev');
 
   return {
     startupMode: cfg.get<'off' | 'prompt' | 'auto'>('startupMode', 'auto'),

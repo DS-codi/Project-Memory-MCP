@@ -256,7 +256,7 @@ mod tests {
             .discover_endpoint()
             .await
             .expect("discover_endpoint should not fail");
-        assert_eq!(ep, "http://127.0.0.1:3459");
+        assert_eq!(ep, format!("http://127.0.0.1:{}", DashboardSection::default().port));
     }
 
     /// `set_mcp_available(false)` on a Stopped runner must be a no-op
@@ -283,15 +283,24 @@ mod tests {
         assert!(!runner.is_degraded());
     }
 
-    /// `DashboardSection` defaults must match spec: command="node",
-    /// args=["dist/dashboard.js"], requires_mcp=true.
+    /// `DashboardSection` defaults must have requires_mcp=true and
+    /// the correct platform-dependent command and port.
     #[test]
     fn dashboard_config_defaults() {
         let cfg = DashboardSection::default();
-        assert_eq!(cfg.command, "node");
-        assert_eq!(cfg.args, vec!["dist/dashboard.js"]);
+        #[cfg(target_os = "windows")]
+        {
+            assert_eq!(cfg.command, "cmd");
+            assert_eq!(cfg.args[0], "/c");
+            assert_eq!(cfg.args[1], "npx");
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            assert_eq!(cfg.command, "npx");
+            assert_eq!(cfg.args[0], "tsx");
+        }
         assert!(cfg.requires_mcp);
-        assert_eq!(cfg.port, 3459);
+        assert_eq!(cfg.port, 3001);
     }
 
     // -----------------------------------------------------------------------

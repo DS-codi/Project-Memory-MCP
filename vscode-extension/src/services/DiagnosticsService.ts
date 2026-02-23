@@ -17,6 +17,7 @@ import * as vscode from 'vscode';
 import { ConnectionManager } from '../server/ConnectionManager';
 import { McpBridge } from '../chat';
 import { SupervisorHeartbeat, HeartbeatEvent } from '../supervisor/SupervisorHeartbeat';
+import { ConnectionEventLog } from './ConnectionEventLog';
 
 export interface DiagnosticsReport {
     timestamp: string;
@@ -49,6 +50,9 @@ export class DiagnosticsService implements vscode.Disposable {
     private heartbeatSubscriptions: vscode.Disposable[] = [];
     private lastHeartbeat: HeartbeatEvent | null = null;
     private heartbeatAlive = false;
+
+    /** Persistent event log — records every connection state transition. */
+    public readonly eventLog = new ConnectionEventLog();
 
     constructor(
         private connectionManager: ConnectionManager,
@@ -95,6 +99,16 @@ export class DiagnosticsService implements vscode.Disposable {
         const dashboardConnected = this.connectionManager.isDashboardConnected;
         const mcpConnected = this.connectionManager.isMcpConnected;
 
+        // Record state transitions into the event log.
+        this.eventLog.record(
+            'dashboard',
+            dashboardConnected ? 'connected' : 'disconnected'
+        );
+        this.eventLog.record(
+            'mcp',
+            mcpConnected ? 'connected' : 'disconnected'
+        );
+
         if (!dashboardConnected) {
             issues.push('Dashboard server is not reachable');
         }
@@ -110,6 +124,16 @@ export class DiagnosticsService implements vscode.Disposable {
         // Bridge connected flag (no probe — just reads the cached state).
         const bridge = this.getMcpBridge();
         const bridgeConnected = bridge?.isConnected() ?? false;
+
+        this.eventLog.record(
+            'bridge',
+            bridgeConnected ? 'connected' : 'disconnected'
+        );
+        this.eventLog.record(
+            'heartbeat',
+            this.heartbeatAlive ? 'connected' : 'disconnected'
+        );
+
         if (!bridgeConnected) {
             issues.push('MCP bridge is not connected');
         }
@@ -193,7 +217,33 @@ export class DiagnosticsService implements vscode.Disposable {
             lines.push('✓ No issues detected.');
         }
 
+        // Append a short event summary so the snapshot shows recent flux.
+        const stats = this.eventLog.getStats();
+        const recentEvents = this.eventLog.getRecentHistory(5);
+        lines.push('');
+        lines.push(`--- Connection Event Log (${stats.totalEvents} events this session) ---`);
+        if (recentEvents.length === 0) {
+            lines.push('  (no state changes recorded yet)');
+        } else {
+            lines.push('  Last 5 transitions:');
+            for (const evt of recentEvents) {
+                const uptime = `+${Math.round(evt.uptimeMs / 1000)}s`;
+                lines.push(
+                    `    ${evt.timestamp}  ${uptime.padStart(6)}  ${evt.service.padEnd(10)}  ${(evt.previousState ?? '?').padEnd(13)} → ${evt.state}`
+                );
+            }
+        }
+        lines.push('  Run "Project Memory: Show Connection Log" for the full timeline.');
+
         return lines.join('\n');
+    }
+
+    /**
+     * Return the full connection event history as a human-readable string.
+     * Delegates to ConnectionEventLog.formatHistory().
+     */
+    formatEventHistory(): string {
+        return this.eventLog.formatHistory();
     }
 
     dispose(): void {

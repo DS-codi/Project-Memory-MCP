@@ -5,7 +5,7 @@ export class DashboardPanel {
     private readonly _panel: vscode.WebviewPanel;
     private _disposables: vscode.Disposable[] = [];
 
-    public static readonly viewType = 'projectMemory.dashboard';
+    public static readonly viewType = 'projectMemoryDev.dashboard';
 
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, dashboardUrl: string) {
         this._panel = panel;
@@ -30,7 +30,7 @@ export class DashboardPanel {
                         }
 
                         try {
-                            await vscode.commands.executeCommand('projectMemory.showPlanInChat', planId);
+                            await vscode.commands.executeCommand('projectMemoryDev.showPlanInChat', planId);
                         } catch {
                             await vscode.commands.executeCommand('workbench.action.chat.newChat');
                             await vscode.commands.executeCommand('workbench.action.chat.open', {
@@ -96,7 +96,7 @@ export class DashboardPanel {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src ${dashboardUrl} http://localhost:*; style-src 'unsafe-inline';">
-    <title>Project Memory Dashboard</title>
+    <title>Project Memory Dashboard (Dev)</title>
     <style>
         html, body {
             height: 100%;
@@ -143,7 +143,7 @@ export class DashboardPanel {
     <iframe 
         id="dashboard-frame"
         src="${dashboardUrl}"
-        title="Project Memory Dashboard"
+        title="Project Memory Dashboard (Dev)"
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
     ></iframe>
     
@@ -158,7 +158,7 @@ export class DashboardPanel {
                 }
 
                 const data = event.data;
-                if (!data || data.type !== 'projectMemory.dashboard') {
+                if (!data || data.type !== 'projectMemoryDev.dashboard') {
                     return;
                 }
 

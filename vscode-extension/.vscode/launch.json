@@ -1,0 +1,57 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            // Opens the project root folder in the dev host window
+            "name": "Run Dev Extension (Project Root)",
+            "type": "extensionHost",
+            "request": "launch",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}",
+                "--profile=ProjectMemoryDev",
+                "--file-uri=${workspaceFolder}/../dev-host.code-workspace"
+            ],
+            "outFiles": [
+                "${workspaceFolder}/out/**/*.js"
+            ],
+            "preLaunchTask": "npm: compile",
+            "env": {
+                "VSCODE_DEV_EXTENSION": "true"
+            }
+        },
+        {
+            // Opens the dev host window empty -- you pick what to open
+            "name": "Run Dev Extension (Empty)",
+            "type": "extensionHost",
+            "request": "launch",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}",
+                "--profile=ProjectMemoryDev"
+            ],
+            "outFiles": [
+                "${workspaceFolder}/out/**/*.js"
+            ],
+            "preLaunchTask": "npm: compile",
+            "env": {
+                "VSCODE_DEV_EXTENSION": "true"
+            }
+        },
+        {
+            // Same as Project Root but skips compile (use after watch mode)
+            "name": "Run Dev Extension (No Compile)",
+            "type": "extensionHost",
+            "request": "launch",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}",
+                "--profile=ProjectMemoryDev",
+                "--file-uri=${workspaceFolder}/../dev-host.code-workspace"
+            ],
+            "outFiles": [
+                "${workspaceFolder}/out/**/*.js"
+            ],
+            "env": {
+                "VSCODE_DEV_EXTENSION": "true"
+            }
+        }
+    ]
+}

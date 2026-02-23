@@ -1,0 +1,35 @@
+{
+  "timestamp": "2026-02-13T12:23:42.205Z",
+  "from_agent": "Reviewer",
+  "to_agent": "Coordinator",
+  "reason": "Issues found in server test files - recommend Revisionist to fix 7 files with orphaned Builder references that will cause test failures",
+  "data": {
+    "review_result": "PARTIAL_PASS",
+    "issues_found": {
+      "count": 7,
+      "severity": "medium",
+      "category": "orphaned_builder_test_refs",
+      "files_affected": [
+        "server/src/__tests__/types/builder-types.test.ts",
+        "server/src/__tests__/types/barrel-exports.test.ts",
+        "server/src/__tests__/tools/builder-validation.test.ts",
+        "server/src/__tests__/tools/memory-agent-actions.test.ts",
+        "server/src/__tests__/tools/agent-validation.test.ts",
+        "server/src/__tests__/tools/context-metrics.test.ts",
+        "server/src/tools/handoff.tools.ts"
+      ]
+    },
+    "what_passed": [
+      "Agent files retain full functionality with correct references",
+      "Instruction files contain full original content",
+      "Builder capabilities properly merged into reviewer.agent.md",
+      "docs/builder-agent.md properly redirects to Reviewer",
+      "Server TypeScript compiles cleanly"
+    ],
+    "what_failed": [
+      "Server test files still reference AGENT_BOUNDARIES.Builder (removed)",
+      "5+ test files will fail at runtime"
+    ],
+    "fix_instructions": "Update server test files: (1) builder-types.test.ts - rename BuilderHandoffData refs contextually and rename AGENT_BOUNDARIES.Builder to AGENT_BOUNDARIES.Reviewer with updated assertions, (2) barrel-exports.test.ts - remove 'Builder' from expected agent types and adjust count, (3) builder-validation.test.ts - update deployed_agent to 'Reviewer', (4) memory-agent-actions.test.ts - update agent_type to valid type, (5) agent-validation.test.ts - update current_agent, (6) context-metrics.test.ts - update from_agent strings, (7) handoff.tools.ts - update comment"
+  }
+}

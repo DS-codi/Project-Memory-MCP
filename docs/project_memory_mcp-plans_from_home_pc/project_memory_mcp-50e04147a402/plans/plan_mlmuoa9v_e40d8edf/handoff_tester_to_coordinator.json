@@ -1,0 +1,19 @@
+{
+  "timestamp": "2026-02-15T06:11:57.645Z",
+  "from_agent": "Tester",
+  "to_agent": "Coordinator",
+  "reason": "RUN mode step 11 blocked by replay diagnostics regressions; recommend Revisionist.",
+  "data": {
+    "recommendation": "Revisionist",
+    "steps_completed": 0,
+    "files_modified": [],
+    "blockers": [
+      "Registered replay test script failed with 2 comparator assertion failures in replay-harness-core output JS lines 260 and 380."
+    ],
+    "next_steps": [
+      "Fix comparator classification expectation mismatch (`tool_sequence` vs `flow_protocol`).",
+      "Fix explainability rollup count regression (expected 1, actual 0).",
+      "Re-run compile + replay script gates for step 11."
+    ]
+  }
+}

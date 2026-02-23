@@ -19,7 +19,7 @@ import {
 } from './dashboard-webview/dashboard-message-handlers';
 
 function notify(message: string, ...items: string[]): Thenable<string | undefined> {
-    const config = vscode.workspace.getConfiguration('projectMemory');
+    const config = vscode.workspace.getConfiguration('projectMemoryDev');
     if (config.get<boolean>('showNotifications', true)) {
         return vscode.window.showInformationMessage(message, ...items);
     }
@@ -39,7 +39,7 @@ interface WorkspaceResolution {
 }
 
 export class DashboardViewProvider implements vscode.WebviewViewProvider {
-    public static readonly viewType = 'projectMemory.dashboardView';
+    public static readonly viewType = 'projectMemoryDev.dashboardView';
 
     private _view?: vscode.WebviewView;
     private _dataRoot: string;
@@ -190,7 +190,7 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                 switch (message.type) {
                     case 'openFile':
                         const { filePath, line } = message.data as { filePath: string; line?: number };
-                        vscode.commands.executeCommand('projectMemory.openFile', filePath, line);
+                        vscode.commands.executeCommand('projectMemoryDev.openFile', filePath, line);
                         break;
 
                     case 'runCommand':
@@ -209,14 +209,14 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                     const { url } = message.data as { url: string };
                     console.log('Opening dashboard panel:', url);
                     // Start frontend on-demand, then open panel
-                    vscode.commands.executeCommand('projectMemory.openDashboardPanel', url);
+                    vscode.commands.executeCommand('projectMemoryDev.openDashboardPanel', url);
                     break;
 
                 case 'openPlan':
                     const { planId, workspaceId } = message.data as { planId: string; workspaceId: string };
                     const planUrl = `${this.getDashboardUrl()}/workspace/${workspaceId}/plan/${planId}`;
                     console.log('Opening plan:', planUrl);
-                    vscode.commands.executeCommand('projectMemory.openDashboardPanel', planUrl);
+                    vscode.commands.executeCommand('projectMemoryDev.openDashboardPanel', planUrl);
                     break;
 
                 case 'openPlanInBrowser':
@@ -235,7 +235,7 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                     break;
 
                 case 'isolateServer':
-                    await vscode.commands.executeCommand('projectMemory.isolateServer');
+                    await vscode.commands.executeCommand('projectMemoryDev.isolateServer');
                     break;
 
                 case 'copyToClipboard':
@@ -391,7 +391,7 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
     }
 
     private getApiPort(): number {
-        const config = vscode.workspace.getConfiguration('projectMemory');
+        const config = vscode.workspace.getConfiguration('projectMemoryDev');
         return config.get<number>('serverPort') || config.get<number>('apiPort') || 3001;
     }
 
@@ -468,7 +468,7 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
             url += `?${options.query}`;
         }
 
-        vscode.commands.executeCommand('projectMemory.openDashboardPanel', url);
+        vscode.commands.executeCommand('projectMemoryDev.openDashboardPanel', url);
     }
 
     private async runPlanAction(options: { action: 'archive' | 'resume' }): Promise<void> {
@@ -505,14 +505,14 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
 
             notify(`${actionLabel}d plan ${planId}`);
             const url = `${this.getDashboardUrl()}/workspace/${workspaceId}/plan/${planId}`;
-            vscode.commands.executeCommand('projectMemory.openDashboardPanel', url);
+            vscode.commands.executeCommand('projectMemoryDev.openDashboardPanel', url);
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to ${options.action} plan: ${error}`);
         }
     }
 
     private _getHtmlForWebview(webview: vscode.Webview): string {
-        const config = vscode.workspace.getConfiguration('projectMemory');
+        const config = vscode.workspace.getConfiguration('projectMemoryDev');
         const apiPort = config.get<number>('serverPort') || config.get<number>('apiPort') || 3001;
         const workspaceResolution = this.resolveWorkspaceContext();
 

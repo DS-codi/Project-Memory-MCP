@@ -1,28 +1,8 @@
 {
   "servers": {
     "project-memory": {
-      "type": "stdio",
-      "command": "node",
-      "args": ["${workspaceFolder}\\server\\dist\\index.js"],
-      "env": {
-        "MBS_DATA_ROOT": "${workspaceFolder}\\data",
-        "MBS_AGENTS_ROOT": "${workspaceFolder}\\agents"
-      }
+      "type": "http",
+      "url": "http://127.0.0.1:3457/mcp"
     },
-    "filesystem": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-filesystem",
-        "${workspaceFolder}"
-      ]
-    },
-    "git": {
-      "command": "uvx",
-      "args": [
-        "--native-tls",
-        "mcp-server-git"
-      ]
-    }
   }
 }

@@ -1,6 +1,6 @@
 {
-  "name": "project-memory-dashboard",
-  "displayName": "Project Memory Dashboard",
+  "name": "project-memory-dashboard-dev",
+  "displayName": "Project Memory Dashboard (Dev)",
   "description": "Visual dashboard for the Project Memory MCP server - track agent workflows, plans, and handoffs",
   "version": "0.2.0",
   "publisher": "project-memory",
@@ -30,7 +30,7 @@
   "contributes": {
     "chatParticipants": [
       {
-        "id": "project-memory.memory",
+        "id": "project-memory-dev.memory",
         "name": "memory",
         "description": "Access project plans, context, and agent workflows from Project Memory",
         "isSticky": true,
@@ -883,327 +883,332 @@
     ],
     "commands": [
       {
-        "command": "projectMemory.showDashboard",
+        "command": "projectMemoryDev.showDashboard",
         "title": "Show Dashboard",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.openDashboardPanel",
+        "command": "projectMemoryDev.openDashboardPanel",
         "title": "Open Full Dashboard (PMD Tab)",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.createPlan",
+        "command": "projectMemoryDev.createPlan",
         "title": "Create New Plan",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.viewPrograms",
+        "command": "projectMemoryDev.viewPrograms",
         "title": "View Programs",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.deployAgents",
+        "command": "projectMemoryDev.deployAgents",
         "title": "Deploy Agents to Workspace",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.deploySkills",
+        "command": "projectMemoryDev.deploySkills",
         "title": "Deploy Skills to Workspace",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.listSkills",
+        "command": "projectMemoryDev.listSkills",
         "title": "List Skills",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.deploySkill",
+        "command": "projectMemoryDev.deploySkill",
         "title": "Deploy Skill to Workspace",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.deployInstructions",
+        "command": "projectMemoryDev.deployInstructions",
         "title": "Deploy Instructions to Workspace",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.listInstructions",
+        "command": "projectMemoryDev.listInstructions",
         "title": "List Instructions",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.deployCopilotConfig",
+        "command": "projectMemoryDev.deployCopilotConfig",
         "title": "Deploy All Copilot Config (Agents, Skills, Instructions)",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.deployDefaults",
+        "command": "projectMemoryDev.deployDefaults",
         "title": "Deploy Default Agents & Instructions",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.updateDefaults",
+        "command": "projectMemoryDev.updateDefaults",
         "title": "Update Deployed Files from Source",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.refreshData",
+        "command": "projectMemoryDev.refreshData",
         "title": "Refresh Dashboard",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.addToPlan",
+        "command": "projectMemoryDev.addToPlan",
         "title": "Add to Plan",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.showPlanInChat",
+        "command": "projectMemoryDev.showPlanInChat",
         "title": "Show Plan In Chat",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.archivePlan",
+        "command": "projectMemoryDev.archivePlan",
         "title": "Archive Plan",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.resumePausedPlan",
+        "command": "projectMemoryDev.resumePausedPlan",
         "title": "Resume Paused Plan",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.markStepActive",
+        "command": "projectMemoryDev.markStepActive",
         "title": "Mark Step Active",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.markStepDone",
+        "command": "projectMemoryDev.markStepDone",
         "title": "Mark Step Done",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.runBuildScript",
+        "command": "projectMemoryDev.runBuildScript",
         "title": "Run Build Script",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.addStepToPlan",
+        "command": "projectMemoryDev.addStepToPlan",
         "title": "Add Step To Plan",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.confirmAction",
+        "command": "projectMemoryDev.confirmAction",
         "title": "Confirm Action",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.cancelAction",
+        "command": "projectMemoryDev.cancelAction",
         "title": "Cancel Action",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.launchAgentChat",
+        "command": "projectMemoryDev.launchAgentChat",
         "title": "Launch Agent Chat",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.openPlanInDashboard",
+        "command": "projectMemoryDev.openPlanInDashboard",
         "title": "Open Plan In Dashboard",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.createDedicatedPlan",
+        "command": "projectMemoryDev.createDedicatedPlan",
         "title": "Create Dedicated Plan",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.openAgentFile",
+        "command": "projectMemoryDev.openAgentFile",
         "title": "Open Agent File",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.openPromptFile",
+        "command": "projectMemoryDev.openPromptFile",
         "title": "Open Prompt File",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.showCopilotStatus",
+        "command": "projectMemoryDev.showCopilotStatus",
         "title": "Show Copilot Status",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.toggleServer",
+        "command": "projectMemoryDev.toggleServer",
         "title": "Toggle Server",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.startServer",
+        "command": "projectMemoryDev.startServer",
         "title": "Start Server",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.stopServer",
+        "command": "projectMemoryDev.stopServer",
         "title": "Stop Server",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.migrateWorkspace",
+        "command": "projectMemoryDev.migrateWorkspace",
         "title": "Migrate Workspace to New Identity System",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.forceStopExternalServer",
+        "command": "projectMemoryDev.forceStopExternalServer",
         "title": "Force Stop External Server",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.restartServer",
+        "command": "projectMemoryDev.restartServer",
         "title": "Restart Server",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.showServerLogs",
+        "command": "projectMemoryDev.showServerLogs",
         "title": "Show Server Logs",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.showDiagnostics",
+        "command": "projectMemoryDev.showDiagnostics",
         "title": "Show Diagnostics",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.isolateServer",
+        "command": "projectMemoryDev.showConnectionLog",
+        "title": "Show Connection Log",
+        "category": "Project Memory Dev"
+      },
+      {
+        "command": "projectMemoryDev.isolateServer",
         "title": "Toggle Isolated Server Mode",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.openSettings",
+        "command": "projectMemoryDev.openSettings",
         "title": "Open Settings",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.chat.reconnect",
+        "command": "projectMemoryDev.chat.reconnect",
         "title": "Reconnect Chat to MCP Server",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "project-memory.startSupervisor",
+        "command": "project-memory-dev.startSupervisor",
         "title": "Start / Reconnect Supervisor",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.showMcpSessions",
+        "command": "projectMemoryDev.showMcpSessions",
         "title": "Show Active MCP Sessions",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.showMcpInstances",
+        "command": "projectMemoryDev.showMcpInstances",
         "title": "Show MCP Pool Instances",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       },
       {
-        "command": "projectMemory.scaleUpMcp",
+        "command": "projectMemoryDev.scaleUpMcp",
         "title": "Scale Up MCP Pool",
-        "category": "Project Memory"
+        "category": "Project Memory Dev"
       }
     ],
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "projectMemory",
-          "title": "Project Memory",
+          "id": "projectMemoryDev",
+          "title": "Project Memory Dev",
           "icon": "resources/sidebar-icon.svg"
         }
       ]
     },
     "views": {
-      "projectMemory": [
+      "projectMemoryDev": [
         {
           "type": "webview",
-          "id": "projectMemory.dashboardView",
+          "id": "projectMemoryDev.dashboardView",
           "name": "Dashboard"
         }
       ]
     },
     "configuration": {
-      "title": "Project Memory",
+      "title": "Project Memory Dev",
       "properties": {
-        "projectMemory.dataRoot": {
+        "projectMemoryDev.dataRoot": {
           "type": "string",
           "default": "",
           "description": "Path to the Project Memory data directory (MBS_DATA_ROOT)",
           "scope": "application"
         },
-        "projectMemory.agentsRoot": {
+        "projectMemoryDev.agentsRoot": {
           "type": "string",
           "default": "",
           "description": "Path to the agent templates directory (MBS_AGENTS_ROOT)",
           "scope": "application"
         },
-        "projectMemory.autoRefresh": {
+        "projectMemoryDev.autoRefresh": {
           "type": "boolean",
           "default": true,
           "description": "Automatically refresh dashboard when files change"
         },
-        "projectMemory.autoDeployAgents": {
+        "projectMemoryDev.autoDeployAgents": {
           "type": "boolean",
           "default": false,
           "description": "Automatically deploy agents when template files are saved"
         },
-        "projectMemory.apiPort": {
+        "projectMemoryDev.apiPort": {
           "type": "number",
           "default": 3001,
           "description": "Port for the dashboard API server"
         },
-        "projectMemory.serverPort": {
+        "projectMemoryDev.serverPort": {
           "type": "number",
           "default": 3001,
           "description": "Port for the dashboard API server"
         },
-        "projectMemory.mcpPort": {
+        "projectMemoryDev.mcpPort": {
           "type": "number",
           "default": 3457,
           "description": "Port for the MCP server"
         },
-        "projectMemory.wsPort": {
+        "projectMemoryDev.wsPort": {
           "type": "number",
           "default": 3002,
           "description": "Port for the WebSocket server (live updates) - DEPRECATED, managed by Supervisor",
           "deprecationMessage": "WebSocket port is now managed by the Supervisor. This setting is ignored."
         },
-        "projectMemory.autoStartServer": {
+        "projectMemoryDev.autoStartServer": {
           "type": "boolean",
           "default": false,
           "description": "DEPRECATED: Extension no longer starts servers. Launch the Supervisor externally via start-supervisor.ps1",
           "deprecationMessage": "Server spawning has been removed. Launch the Supervisor externally using start-supervisor.ps1 or the Launch Supervisor command."
         },
-        "projectMemory.idleServerTimeoutMinutes": {
+        "projectMemoryDev.idleServerTimeoutMinutes": {
           "type": "number",
           "default": 0,
           "minimum": 0,
           "description": "DEPRECATED: Idle timeout is now managed by the Supervisor.",
           "deprecationMessage": "Idle server timeout is now configured in the Supervisor's supervisor.toml file."
         },
-        "projectMemory.skillsRoot": {
+        "projectMemoryDev.skillsRoot": {
           "type": "string",
           "default": "",
           "description": "Path to the skills directory containing skill subdirectories with SKILL.md files",
           "scope": "application"
         },
-        "projectMemory.globalSkillsRoot": {
+        "projectMemoryDev.globalSkillsRoot": {
           "type": "string",
           "default": "",
           "description": "Fallback absolute path to main/shared skills source",
           "scope": "application"
         },
-        "projectMemory.instructionsRoot": {
+        "projectMemoryDev.instructionsRoot": {
           "type": "string",
           "default": "",
           "description": "Path to the instruction files directory (MBS_INSTRUCTIONS_ROOT)",
           "scope": "application"
         },
-        "projectMemory.defaultAgents": {
+        "projectMemoryDev.defaultAgents": {
           "type": "array",
           "default": [
             "coordinator",
@@ -1218,7 +1223,7 @@
           ],
           "description": "List of agent names to auto-deploy to new workspaces"
         },
-        "projectMemory.defaultInstructions": {
+        "projectMemoryDev.defaultInstructions": {
           "type": "array",
           "default": [
             "project-memory-system",
@@ -1227,27 +1232,27 @@
           ],
           "description": "List of instruction files to auto-deploy to new workspaces"
         },
-        "projectMemory.defaultSkills": {
+        "projectMemoryDev.defaultSkills": {
           "type": "array",
           "default": [],
           "description": "List of skill directory names to pre-select when deploying skills"
         },
-        "projectMemory.autoDeployOnWorkspaceOpen": {
+        "projectMemoryDev.autoDeployOnWorkspaceOpen": {
           "type": "boolean",
           "default": false,
           "description": "Automatically deploy default agents and instructions when opening a workspace"
         },
-        "projectMemory.autoDeploySkills": {
+        "projectMemoryDev.autoDeploySkills": {
           "type": "boolean",
           "default": false,
           "description": "Automatically deploy skills to workspace on open (even if full auto-deploy is off)"
         },
-        "projectMemory.showNotifications": {
+        "projectMemoryDev.showNotifications": {
           "type": "boolean",
           "default": true,
           "description": "Show toast notifications for deployment and server events"
         },
-        "projectMemory.chat.serverMode": {
+        "projectMemoryDev.chat.serverMode": {
           "type": "string",
           "enum": [
             "bundled",
@@ -1262,22 +1267,22 @@
             "Connect to external server"
           ]
         },
-        "projectMemory.chat.podmanImage": {
+        "projectMemoryDev.chat.podmanImage": {
           "type": "string",
           "default": "project-memory-mcp:latest",
           "description": "Podman/Docker image name for MCP server (when serverMode is 'podman')"
         },
-        "projectMemory.chat.externalServerPath": {
+        "projectMemoryDev.chat.externalServerPath": {
           "type": "string",
           "default": "",
           "description": "Path to external MCP server executable (when serverMode is 'external')"
         },
-        "projectMemory.chat.autoConnect": {
+        "projectMemoryDev.chat.autoConnect": {
           "type": "boolean",
           "default": true,
           "description": "Automatically connect to MCP server when extension activates"
         },
-        "projectMemory.containerMode": {
+        "projectMemoryDev.containerMode": {
           "type": "string",
           "enum": [
             "auto",
@@ -1292,12 +1297,12 @@
             "Always connect to container (requires running container)"
           ]
         },
-        "projectMemory.containerMcpPort": {
+        "projectMemoryDev.containerMcpPort": {
           "type": "number",
           "default": 3000,
           "description": "Port where the containerized MCP server is expected (Streamable HTTP + SSE)"
         },
-        "supervisor.startupMode": {
+        "supervisorDev.startupMode": {
           "type": "string",
           "enum": [
             "off",
@@ -1312,19 +1317,19 @@
             "Automatically start Supervisor on extension activation"
           ]
         },
-        "supervisor.launcherPath": {
+        "supervisorDev.launcherPath": {
           "type": "string",
           "default": "",
           "markdownDescription": "Absolute path to the Supervisor executable or `start-supervisor.ps1` launch script (e.g. `C:\\tools\\project-memory\\start-supervisor.ps1`). This is a **global/user-level** setting — set it once and it applies to all workspaces. Leave empty if `start-supervisor.ps1` is present in your workspace root.",
           "scope": "application"
         },
-        "supervisor.detectTimeoutMs": {
+        "supervisorDev.detectTimeoutMs": {
           "type": "number",
           "default": 1000,
           "minimum": 100,
           "description": "Timeout (ms) for detecting an already-running Supervisor on activation."
         },
-        "supervisor.startupTimeoutMs": {
+        "supervisorDev.startupTimeoutMs": {
           "type": "number",
           "default": 15000,
           "minimum": 1000,
@@ -1335,20 +1340,20 @@
     "menus": {
       "explorer/context": [
         {
-          "command": "projectMemory.createPlan",
-          "group": "projectMemory",
+          "command": "projectMemoryDev.createPlan",
+          "group": "projectMemoryDev",
           "when": "explorerResourceIsFolder"
         },
         {
-          "command": "projectMemory.addToPlan",
+          "command": "projectMemoryDev.addToPlan",
           "group": "projectMemory@2",
           "when": "!explorerResourceIsFolder"
         }
       ],
       "editor/context": [
         {
-          "command": "projectMemory.addToPlan",
-          "group": "projectMemory",
+          "command": "projectMemoryDev.addToPlan",
+          "group": "projectMemoryDev",
           "when": "editorHasSelection"
         }
       ]

@@ -47,7 +47,7 @@ suite('DashboardPanel Test Suite', () => {
             });
 
             assert.strictEqual(executeCalls.length, 1);
-            assert.strictEqual(executeCalls[0]?.command, 'projectMemory.showPlanInChat');
+            assert.strictEqual(executeCalls[0]?.command, 'projectMemoryDev.showPlanInChat');
             assert.deepStrictEqual(executeCalls[0]?.args, ['plan_123']);
         } finally {
             (vscode.commands as any).executeCommand = originalExecute;
@@ -63,7 +63,7 @@ suite('DashboardPanel Test Suite', () => {
         const originalExecute = vscode.commands.executeCommand;
         (vscode.commands as any).executeCommand = async (command: string, ...args: unknown[]) => {
             executeCalls.push({ command, args });
-            if (command === 'projectMemory.showPlanInChat') {
+            if (command === 'projectMemoryDev.showPlanInChat') {
                 throw new Error('command unavailable');
             }
             return undefined;
@@ -79,7 +79,7 @@ suite('DashboardPanel Test Suite', () => {
             });
 
             assert.strictEqual(executeCalls.length, 3);
-            assert.strictEqual(executeCalls[0]?.command, 'projectMemory.showPlanInChat');
+            assert.strictEqual(executeCalls[0]?.command, 'projectMemoryDev.showPlanInChat');
             assert.strictEqual(executeCalls[1]?.command, 'workbench.action.chat.newChat');
             assert.strictEqual(executeCalls[2]?.command, 'workbench.action.chat.open');
             assert.deepStrictEqual(executeCalls[2]?.args[0], { query: '@memory /plan show plan_123' });

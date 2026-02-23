@@ -46,7 +46,7 @@ export function resolveSkillsSourceRoot(
 }
 
 export function buildMissingSkillsSourceWarning(workspacePath: string, checkedPaths: string[]): string {
-    const settingsHint = 'Set projectMemory.skillsRoot or projectMemory.globalSkillsRoot in settings.';
+    const settingsHint = 'Set projectMemoryDev.skillsRoot or projectMemoryDev.globalSkillsRoot in settings.';
 
     if (checkedPaths.length === 0) {
         return `No skills source directory found. ${settingsHint}`;

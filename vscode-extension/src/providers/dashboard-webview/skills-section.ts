@@ -27,7 +27,7 @@ export function getSkillsSectionHtml(iconSvgs: IconSvgs): string {
                                             <button class="btn btn-small" data-action="refresh-skills" title="Refresh skills list">
                                                 ${iconSvgs.syncHistory} Refresh
                                             </button>
-                                            <button class="btn btn-small btn-secondary" data-action="run-command" data-command="projectMemory.deploySkills" title="Deploy skills via picker">
+                                            <button class="btn btn-small btn-secondary" data-action="run-command" data-command="projectMemoryDev.deploySkills" title="Deploy skills via picker">
                                                 ${iconSvgs.deploySkills} Deploy All
                                             </button>
                                         </div>

@@ -1,0 +1,19 @@
+{
+  "timestamp": "2026-02-13T18:24:44.346Z",
+  "from_agent": "Researcher",
+  "to_agent": "Coordinator",
+  "reason": "Research complete. All 3 monolith files audited with line-level responsibility maps and proposed split strategies. Key corrections documented: McpBridge.ts is in chat/ not server/, DashboardViewProvider needs webview template extraction not panel splitting. Ready for Executor to implement splits.",
+  "data": {
+    "recommended_next_agent": "Executor",
+    "research_artifact": "monolith-audit.md",
+    "corrections": [
+      "McpBridge.ts is at chat/McpBridge.ts not server/McpBridge.ts - Step 4 needs path fix",
+      "DashboardViewProvider split should extract webview HTML template modules, not separate VS Code panels"
+    ],
+    "split_order": [
+      "McpBridge (most consumers, stable API)",
+      "ChatParticipant (follows KnowledgeCommandHandler pattern)",
+      "DashboardViewProvider (largest, most complex)"
+    ]
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "type": "original_request",
+  "plan_id": "plan_mlov60n5_21207af6",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "captured_at": "2026-02-16T07:39:47.669Z",
+  "user_request": {
+    "sanitized": "Create a new plan titled \"MCP Terminal Tool Consolidation\" to consolidate memory_terminal and memory_terminal_interactive into one unified MCP terminal tool routed through Rust+QML interactive-terminal, with merged actions, headless subset via action argument, GUI-configurable headless allowlist, removal of separate memory_terminal tool, and updates to all docs/instructions referencing the old split.",
+    "wasModified": false,
+    "injectionAttempts": [],
+    "warnings": []
+  },
+  "context": {
+    "files_mentioned": [],
+    "file_contents": {},
+    "requirements": [
+      "Merge all actions from memory_terminal and memory_terminal_interactive into one tool surface",
+      "Always route terminal execution through Rust+QML interactive-terminal app",
+      "Support explicit headless execution mode via action argument",
+      "Restrict headless mode to a strict allowlisted command subset",
+      "Make headless allowlist configurable in GUI settings/preferences",
+      "Deprecate and remove separate memory_terminal tool",
+      "Update all documentation and agent instructions referencing old split"
+    ],
+    "constraints": [
+      "Must preserve safety/authorization semantics for terminal execution",
+      "Unified contract should remain compatible enough for migration",
+      "Documentation updates must include agent instruction files"
+    ],
+    "examples": [],
+    "conversation_context": null,
+    "additional_notes": {
+      "sanitized": "User requested plan creation only in this turn.",
+      "wasModified": false,
+      "injectionAttempts": [],
+      "warnings": []
+    }
+  }
+}

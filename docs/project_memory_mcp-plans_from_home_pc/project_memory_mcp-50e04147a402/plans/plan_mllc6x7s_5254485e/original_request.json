@@ -1,0 +1,46 @@
+{
+  "type": "original_request",
+  "plan_id": "plan_mllc6x7s_5254485e",
+  "workspace_id": "project-memory-mcp-40f6678f5a9b",
+  "captured_at": "2026-02-13T20:25:54.882Z",
+  "user_request": {
+    "sanitized": "Update the spawn subagent tool — it should be a clone of the default runSubagent tool, adding MCP plan-aware orchestration, anti-spawning rules, and handoff protocol.",
+    "wasModified": false,
+    "injectionAttempts": [],
+    "warnings": []
+  },
+  "context": {
+    "files_mentioned": [
+      "vscode-extension/package.json",
+      "vscode-extension/src/chat/ToolProvider.ts",
+      "vscode-extension/src/chat/tools/index.ts",
+      "server/src/tools/agent.tools.ts",
+      ".github/instructions/handoff-protocol.instructions.md",
+      ".github/instructions/coordinator-subagent-templates.instructions.md"
+    ],
+    "file_contents": {},
+    "requirements": [
+      "Clone runSubagent as memory_spawn_agent LM tool",
+      "Hybrid architecture: extension-side spawning + server-side validation",
+      "Anti-spawning enforcement: only hub agents (Coordinator, Analyst, Runner, TDDDriver) can spawn",
+      "Context injection: workspace_id, plan_id, scope boundaries in spawned agent prompts",
+      "Handoff protocol: spawned agents receive anti-spawning instructions",
+      "Action-based routing: spawn, validate, get_boundaries"
+    ],
+    "constraints": [
+      "Follow vscode-custom-tool-cloning skill patterns",
+      "Use existing memory_agent spawn action for server-side validation",
+      "Integrate with McpBridge for server communication",
+      "Keep handler under 300 lines per file size discipline",
+      "Match parametersSchema between package.json and server Zod schema"
+    ],
+    "examples": [],
+    "conversation_context": null,
+    "additional_notes": {
+      "sanitized": "Reference skill: .github/skills/vscode-custom-tool-cloning/SKILL.md - contains full architecture patterns for cloning VS Code default tools as Language Model Tools with MCP server integration.",
+      "wasModified": false,
+      "injectionAttempts": [],
+      "warnings": []
+    }
+  }
+}

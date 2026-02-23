@@ -14,7 +14,7 @@ export function registerPlanCommands(
     getServerPort: () => number
 ): void {
     context.subscriptions.push(
-        vscode.commands.registerCommand('projectMemory.createPlan', async () => {
+        vscode.commands.registerCommand('projectMemoryDev.createPlan', async () => {
             const workspaceFolders = vscode.workspace.workspaceFolders;
             if (!workspaceFolders) {
                 vscode.window.showErrorMessage('No workspace folder open');
@@ -199,7 +199,7 @@ export function registerPlanCommands(
                     const planId = data.plan_id || data.plan?.id || data.plan?.plan_id || data.planId;
                     notify(`Plan created: ${title}`, 'Open Dashboard').then(selection => {
                         if (selection === 'Open Dashboard' && planId) {
-                            vscode.commands.executeCommand('projectMemory.openDashboardPanel',
+                            vscode.commands.executeCommand('projectMemoryDev.openDashboardPanel',
                                 `${getDashboardFrontendUrl()}/workspace/${workspaceId}/plan/${planId}`);
                         }
                     });
@@ -212,7 +212,7 @@ export function registerPlanCommands(
             }
         }),
 
-        vscode.commands.registerCommand('projectMemory.addToPlan', async (uri?: vscode.Uri) => {
+        vscode.commands.registerCommand('projectMemoryDev.addToPlan', async (uri?: vscode.Uri) => {
             let filePath: string | undefined;
             let selectedText: string | undefined;
             let lineNumber: number | undefined;
@@ -269,7 +269,7 @@ export function registerPlanCommands(
             notify(`Added step to plan: "${stepTask}"`);
         }),
 
-        vscode.commands.registerCommand('projectMemory.viewPrograms', async () => {
+        vscode.commands.registerCommand('projectMemoryDev.viewPrograms', async () => {
             const workspaceFolders = vscode.workspace.workspaceFolders;
             if (!workspaceFolders) {
                 vscode.window.showErrorMessage('No workspace folder open');
@@ -309,7 +309,7 @@ export function registerPlanCommands(
 
                 if (pick) {
                     vscode.commands.executeCommand(
-                        'projectMemory.openDashboardPanel',
+                        'projectMemoryDev.openDashboardPanel',
                         `${getDashboardFrontendUrl()}/workspace/${workspaceId}/program/${pick.value}`,
                     );
                 }

@@ -1,7 +1,7 @@
 //! Supervisor binary entry-point.
 //!
 //! Usage:
-//!   supervisor [--config <path>] [--debug]
+//!   supervisor [--config <path>] [--debug] [--dev]
 //!
 //! When built with `supervisor_qml_gui` (the default) the binary runs as a
 //! normal console-subsystem executable so stdout/stderr always work—but the
@@ -38,6 +38,11 @@ struct Cli {
     /// Enable verbose debug output.
     #[arg(long)]
     debug: bool,
+
+    /// Development mode — offsets dashboard ports by +10 (3001→3011, 3002→3012)
+    /// so the dev supervisor does not conflict with a stable/container instance.
+    #[arg(long)]
+    dev: bool,
 }
 
 // ── Entry points ────────────────────────────────────────────────────────────
@@ -232,7 +237,17 @@ async fn supervisor_main() {
     }
 
     match config::load(&config_path) {
-        Ok(cfg) => {
+        Ok(mut cfg) => {
+            // ── Dev-mode port overrides ──────────────────────────────────
+            if cli.dev {
+                cfg.apply_dev_overrides();
+                println!(
+                    "[supervisor] --dev mode: dashboard port → {}, WS port → {}",
+                    cfg.dashboard.port,
+                    cfg.dashboard.env.get("WS_PORT").map(|s| s.as_str()).unwrap_or("?"),
+                );
+            }
+
             println!("Supervisor starting...");
             if cli.debug {
                 eprintln!("[debug] resolved config: {cfg:#?}");

@@ -1,0 +1,17 @@
+{
+  "timestamp": "2026-02-14T21:55:30.486Z",
+  "from_agent": "Archivist",
+  "to_agent": "Coordinator",
+  "reason": "Archive blocked: plan has unfinished work (step 11 pending validation).",
+  "data": {
+    "recommendation": "Tester",
+    "steps_completed": 12,
+    "blockers": [
+      "Step 11 (Phase 8: Validation) is pending and not done"
+    ],
+    "next_steps": [
+      "Have Tester complete Step 11 validation and mark it done",
+      "Return to Archivist for reindex + archive"
+    ]
+  }
+}

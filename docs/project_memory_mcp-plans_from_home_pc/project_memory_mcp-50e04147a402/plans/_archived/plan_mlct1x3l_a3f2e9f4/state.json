@@ -1,0 +1,1178 @@
+{
+  "id": "plan_mlct1x3l_a3f2e9f4",
+  "workspace_id": "project-memory-mcp-40f6678f5a9b",
+  "title": "Diagnose duplicate workspace folders and add workspace-wide context",
+  "description": "Identify duplicate workspace folder causes and add workspace-wide context/data support across server, dashboard, extension, and agent instructions.",
+  "priority": "high",
+  "category": "analysis",
+  "status": "active",
+  "current_phase": "workflow-governance",
+  "current_agent": "Coordinator",
+  "created_at": "2026-02-07T21:07:11.698Z",
+  "updated_at": "2026-02-10T13:40:20.202Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mlct2g5i_f142fc82",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-07T21:07:36.390Z",
+      "context": {
+        "reason": "Planning: diagnose duplicate workspace folders and design workspace-wide context storage support"
+      }
+    },
+    {
+      "session_id": "sess_mlct3tjw_624c8d13",
+      "agent_type": "Researcher",
+      "started_at": "2026-02-07T21:08:40.412Z",
+      "context": {},
+      "completed_at": "2026-02-07T21:12:37.437Z",
+      "summary": "Researched duplicate workspace folders: mismatched workspace ID derivation across server/extension (sha256 normalized vs md5/underscore and raw path), plus dashboard plan creation creates folders without verifying workspace meta. Documented data root sources, plan vs workspace storage patterns, and UI/extension touchpoints. Notes stored in research_notes/duplicate-workspace-folders.md and research.json."
+    },
+    {
+      "session_id": "sess_mlcta2oc_30a994a6",
+      "agent_type": "Architect",
+      "started_at": "2026-02-07T21:13:32.172Z",
+      "context": {},
+      "completed_at": "2026-02-07T21:15:29.313Z",
+      "summary": "Created phased plan with 12 steps covering workspace ID normalization, data root unification, workspace context schema/APIs, dashboard+extension updates, migration strategy, and tests. Stored architecture decisions and set goals/success criteria.",
+      "artifacts": [
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/architecture.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlctdm5l_50dc5a4d",
+      "agent_type": "Architect",
+      "started_at": "2026-02-07T21:16:17.385Z",
+      "context": {},
+      "completed_at": "2026-02-07T21:17:55.285Z",
+      "summary": "Updated plan steps with phased tasks covering workspace ID normalization, data root unification, workspace context schema/APIs, dashboard+extension updates, migration/back-compat, testing, and validation. Set goals/success criteria and stored architecture file map decisions.",
+      "artifacts": [
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/architecture.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlctzanc_ebdc56ce",
+      "agent_type": "Executor",
+      "started_at": "2026-02-07T21:33:08.904Z",
+      "context": {},
+      "completed_at": "2026-02-07T21:37:44.249Z",
+      "summary": "Completed diagnosis steps 0 and 12. Audited workspace ID/data root derivations across server/dashboard/extension and documented duplicate-folder triggers. Audited agent validation coverage and init+validate redundancy; documented missing Builder validation and desired flow in plan note.",
+      "artifacts": [
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlcu6wqf_bcfb7d04",
+      "agent_type": "Architect",
+      "started_at": "2026-02-07T21:39:04.119Z",
+      "context": {},
+      "completed_at": "2026-02-07T21:40:37.222Z",
+      "summary": "Completed design steps 1, 2, and 13 with concrete decisions on canonical workspace ID normalization + data root resolution, workspace context schema/storage/validation, and agent validation/build-script enforcement; documented rationale and implications; updated plan notes and step statuses.",
+      "artifacts": [
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/architecture.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlcu9nwu_0bbd52b6",
+      "agent_type": "Executor",
+      "started_at": "2026-02-07T21:41:12.654Z",
+      "context": {},
+      "completed_at": "2026-02-07T22:01:30.835Z",
+      "summary": "Completed server steps 3,4,14,15,16: canonical workspace utilities/data root resolver, workspace context CRUD + MCP actions, Builder validation/init+validate flow, and template exposure confirmation.",
+      "artifacts": [
+        "server/src/storage/workspace-utils.ts",
+        "server/src/storage/file-store.ts",
+        "server/src/tools/workspace-context.tools.ts",
+        "server/src/tools/consolidated/memory_context.ts",
+        "server/src/tools/consolidated/memory_agent.ts",
+        "server/src/tools/consolidated/index.ts",
+        "server/src/tools/agent-validation.tools.ts",
+        "server/src/types/index.ts",
+        "server/src/index.ts"
+      ]
+    },
+    {
+      "session_id": "sess_mlcv0xse_24ce749f",
+      "agent_type": "Builder",
+      "started_at": "2026-02-07T22:02:25.166Z",
+      "context": {},
+      "completed_at": "2026-02-07T22:03:20.019Z",
+      "summary": "Build verification failed. Added build script for server and attempted run; run_build_script could not spawn cmd.exe. Recorded failure analysis and blocked validation step 11.",
+      "artifacts": [
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/build_failure_analysis.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlcv3fh8_9ca2fc0a",
+      "agent_type": "Revisionist",
+      "started_at": "2026-02-07T22:04:21.405Z",
+      "context": {},
+      "completed_at": "2026-02-07T22:05:27.859Z",
+      "summary": "Assessed build failure as environment/runtime (cmd.exe ENOENT). Inserted validation step to verify cmd.exe/COMSPEC/PATH and rerun Build Server script. Validation step remains blocked pending environment verification. Stored pivot context and handed off to Executor.",
+      "artifacts": [
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/pivot.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlcvd0bd_6afd0339",
+      "agent_type": "Executor",
+      "started_at": "2026-02-07T22:11:48.370Z",
+      "context": {},
+      "completed_at": "2026-02-07T22:23:35.596Z",
+      "summary": "Aligned dashboard server data root with canonical resolver, added workspace registration endpoint, and blocked plan creation when workspace meta is missing.",
+      "artifacts": [
+        "dashboard/server/src/storage/workspace-utils.ts",
+        "dashboard/server/src/index.ts",
+        "dashboard/server/src/routes/workspaces.ts",
+        "dashboard/server/src/routes/plans.ts",
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlcw18vn_0f3a4eae",
+      "agent_type": "Builder",
+      "started_at": "2026-02-07T22:30:39.155Z",
+      "context": {},
+      "completed_at": "2026-02-07T22:31:39.622Z",
+      "summary": "Added dashboard server build script, attempted run_build_script, and captured tool failure where script was reported not found; also observed validate Builder error. Updated step 11 to blocked and stored build failure analysis.",
+      "artifacts": [
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/build_failure_analysis.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlcw52yu_2a8c5998",
+      "agent_type": "Revisionist",
+      "started_at": "2026-02-07T22:33:38.118Z",
+      "context": {},
+      "completed_at": "2026-02-07T22:35:25.293Z",
+      "summary": "Analyzed TS build errors. Root causes: missing DATA_ROOT constant after data root refactor, and workspace context return type mismatch in memory_context. Updated plan with a server fix step; stored pivot context; handed off to Executor with minimal fix guidance.",
+      "artifacts": [
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/pivot.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlcwgr7c_f81faebe",
+      "agent_type": "Executor",
+      "started_at": "2026-02-07T22:42:42.744Z",
+      "context": {},
+      "completed_at": "2026-02-07T22:43:29.212Z",
+      "summary": "Applied minimal build fixes: replaced DATA_ROOT usage with getDataRoot() in file-store and updated workspace_* context response types to WorkspaceContext. No tests run.",
+      "artifacts": [
+        "server/src/storage/file-store.ts",
+        "server/src/tools/consolidated/memory_context.ts",
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlcwijrt_448c4156",
+      "agent_type": "Builder",
+      "started_at": "2026-02-07T22:44:06.425Z",
+      "context": {},
+      "completed_at": "2026-02-07T22:44:29.360Z",
+      "summary": "Init+validate attempted. validate Builder failed with \"No validation function for agent type: Builder\"; build scripts not run. Marked validation step 12 blocked with note and handed off to Coordinator recommending Revisionist to fix validation/agent wiring before rerunning builds.",
+      "artifacts": []
+    },
+    {
+      "session_id": "sess_mlcxble1_c135b5b3",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-07T23:06:41.545Z",
+      "context": {},
+      "completed_at": "2026-02-07T23:10:06.513Z",
+      "summary": "Reviewed server + dashboard-server changes for steps 3,4,5,6,15-18. Found 2 issues: dashboard data root default resolves to dashboard/data when env unset (misaligned with MCP server); dashboard workspaces build-scripts endpoint uses crypto.randomUUID without node:crypto import (runtime risk). Stored review.json; handed off to Revisionist.",
+      "artifacts": [
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlcxh7ak_b71b02c9",
+      "agent_type": "Revisionist",
+      "started_at": "2026-02-07T23:11:03.212Z",
+      "context": {},
+      "completed_at": "2026-02-07T23:12:51.293Z",
+      "summary": "Updated plan to add two dashboard-server fix steps for review findings (data root default alignment and crypto.randomUUID import/fallback). Stored pivot context and handed off to Executor with implementation guidance.",
+      "artifacts": [
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/pivot.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlcyjlma_95c13ef4",
+      "agent_type": "Executor",
+      "started_at": "2026-02-07T23:40:54.706Z",
+      "context": {},
+      "completed_at": "2026-02-08T00:26:54.309Z",
+      "summary": "Implemented dashboard-server fixes for data root default (repo root resolution) and randomUUID fallback in workspace build-scripts route. Steps 7 and 8 done; execution log stored.",
+      "artifacts": [
+        "dashboard/server/src/storage/workspace-utils.ts",
+        "dashboard/server/src/routes/workspaces.ts",
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mld07dn7_382c34af",
+      "agent_type": "Builder",
+      "started_at": "2026-02-08T00:27:23.747Z",
+      "context": {},
+      "completed_at": "2026-02-08T00:28:16.755Z",
+      "summary": "Attempted build verification via Build Dashboard Server script. run_build_script returned \"Script script_mlcw1pml_bf513089 not found\" despite list_build_scripts showing it. Marked validation step 15 blocked and stored build_failure_analysis.json. Recommended Revisionist investigate build script registry/lookup issue.",
+      "artifacts": [
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/build_failure_analysis.json"
+      ]
+    },
+    {
+      "session_id": "sess_mld1u9pt_3a12291b",
+      "agent_type": "Revisionist",
+      "started_at": "2026-02-08T01:13:11.346Z",
+      "context": {},
+      "completed_at": "2026-02-08T01:14:31.678Z",
+      "summary": "Identified root cause for run_build_script not found: runBuildScript only searches workspace-level scripts because it calls getBuildScripts without planId. Added plan step to fix by passing plan_id through memory_plan -> fileStore.runBuildScript and updating lookup/tests. Stored pivot context and handed off to Executor.",
+      "artifacts": [
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/pivot.json"
+      ]
+    },
+    {
+      "session_id": "sess_mld261zg_8d19e0f4",
+      "agent_type": "Executor",
+      "started_at": "2026-02-08T01:22:21.196Z",
+      "context": {},
+      "completed_at": "2026-02-08T01:24:14.997Z",
+      "summary": "Passed plan_id through run_build_script to file-store, updated file-store lookup to include plan-level scripts, and expanded tests for plan-level execution and getBuildScripts(planId) usage. Tests not run.",
+      "artifacts": [
+        "server/src/tools/consolidated/memory_plan.ts",
+        "server/src/storage/file-store.ts",
+        "server/src/__tests__/tools/memory-plan-buildscripts.test.ts",
+        "server/src/__tests__/storage/file-store-buildscripts.test.ts"
+      ]
+    },
+    {
+      "session_id": "sess_mld2seco_cb860c7f",
+      "agent_type": "Builder",
+      "started_at": "2026-02-08T01:39:43.656Z",
+      "context": {},
+      "completed_at": "2026-02-08T01:40:45.471Z",
+      "summary": "Listed build scripts and reran Build Server + Build Dashboard Server. Both run_build_script calls failed with \"Script ... not found\". Updated validation step 16 to blocked and stored build_failure_analysis.json. Handed off to Coordinator recommending Revisionist to investigate build-script lookup/registry mismatch.",
+      "artifacts": [
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/build_failure_analysis.json"
+      ]
+    },
+    {
+      "session_id": "sess_mld2ysih_a53a3708",
+      "agent_type": "Executor",
+      "started_at": "2026-02-08T01:44:41.945Z",
+      "context": {},
+      "completed_at": "2026-02-08T01:57:17.259Z",
+      "summary": "Implemented dashboard UI for workspace context sections, plan template surfacing, deploy defaults persistence, and dynamic instruction defaults; added dashboard-server workspace context endpoints and updated settings/plan creation UI; stored execution log.",
+      "artifacts": [
+        "dashboard/server/src/routes/workspaces.ts",
+        "dashboard/src/pages/WorkspacePage.tsx",
+        "dashboard/src/components/plan/CreatePlanForm.tsx",
+        "dashboard/src/components/plan/PlanTemplatesPanel.tsx",
+        "dashboard/src/components/workspace/DeployModal.tsx",
+        "dashboard/src/components/workspace/DeployDefaultsCard.tsx",
+        "dashboard/src/components/workspace/WorkspaceContextPanel.tsx",
+        "dashboard/src/components/common/SettingsModal.tsx",
+        "dashboard/src/utils/deployDefaults.ts",
+        "dashboard/src/types/index.ts",
+        "dashboard/src/test/mocks/handlers.ts",
+        "dashboard/src/components/workspace/index.ts",
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mld3jibj_eafe450d",
+      "agent_type": "Architect",
+      "started_at": "2026-02-08T02:00:48.517Z",
+      "context": {},
+      "completed_at": "2026-02-08T02:03:10.431Z",
+      "summary": "Defined confirmation policy (phase-level default, step-level only when flagged) with high-risk criteria and PlanStep/PlanState tracking proposal; stored in architecture context and marked step 26 done. Handoff to Executor for implementation steps 27, 32, 33.",
+      "artifacts": [
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/architecture.json"
+      ]
+    },
+    {
+      "session_id": "sess_mld3nv99_77954aa8",
+      "agent_type": "Executor",
+      "started_at": "2026-02-08T02:04:11.901Z",
+      "context": {}
+    },
+    {
+      "session_id": "sess_mld454b7_0c51eeab",
+      "agent_type": "Executor",
+      "started_at": "2026-02-08T02:17:36.788Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Resume execution and wrap-up for workflow-governance steps 27/32/33",
+        "current_step_index": 0,
+        "steps_to_complete": [
+          "Confirm workflow-governance changes (steps 27, 32, 33) are implemented",
+          "Prepare handoff summary"
+        ],
+        "environment": {
+          "working_directory": "c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP",
+          "active_branch": "unknown",
+          "build_command": "not_run"
+        },
+        "blockers_to_avoid": [
+          "none"
+        ]
+      },
+      "completed_at": "2026-02-08T02:18:03.965Z",
+      "summary": "Workflow-governance implementation completed for steps 27/32/33: confirmation gating, confirm action, confirmation state types, and workspace update/audit logging with tool context. No tests run.",
+      "artifacts": [
+        "server/src/logging/workspace-update-log.ts",
+        "server/src/tools/plan.tools.ts",
+        "server/src/tools/consolidated/memory_plan.ts",
+        "server/src/types/index.ts",
+        "server/src/storage/file-store.ts",
+        "server/src/logging/tool-logger.ts",
+        "server/src/index.ts",
+        "server/src/tools/context.tools.ts",
+        "server/src/tools/workspace-context.tools.ts",
+        "server/src/tools/agent.tools.ts"
+      ]
+    },
+    {
+      "session_id": "sess_mld6qjkw_e7e682ba",
+      "agent_type": "Executor",
+      "started_at": "2026-02-08T03:30:15.585Z",
+      "context": {},
+      "completed_at": "2026-02-08T03:34:40.657Z",
+      "summary": "Added build-script lookup fallback in file-store, updated runBuildScript to use it, and added storage tests for plan script lookup. No tests run.",
+      "artifacts": [
+        "server/src/storage/file-store.ts",
+        "server/src/__tests__/storage/file-store-buildscripts.test.ts",
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mld72r4m_62d86416",
+      "agent_type": "Builder",
+      "started_at": "2026-02-08T03:39:45.238Z",
+      "context": {},
+      "completed_at": "2026-02-08T03:40:36.038Z",
+      "summary": "Listed build scripts and attempted run_build_script for Build Server and Build Dashboard Server. Both failed with \"Script ... not found\". Updated validation step 17 to blocked and stored build_failure_analysis context; handed off to Coordinator recommending Revisionist."
+    },
+    {
+      "session_id": "sess_mld77k40_5aeb7c8e",
+      "agent_type": "Builder",
+      "started_at": "2026-02-08T03:43:29.424Z",
+      "context": {},
+      "completed_at": "2026-02-08T03:44:00.537Z",
+      "summary": "Listed build scripts and reran Build Server + Build Dashboard Server via run_build_script. Both resolved IDs but failed to spawn cmd.exe (ENOENT). Updated validation step 17 to blocked and stored build_failure_analysis context."
+    },
+    {
+      "session_id": "sess_mld79sm9_f6d7fdb2",
+      "agent_type": "Revisionist",
+      "started_at": "2026-02-08T03:45:13.761Z",
+      "context": {},
+      "completed_at": "2026-02-08T03:47:03.234Z",
+      "summary": "Inserted environment-validation step for run_build_script cmd.exe ENOENT and added conditional server fallback step (honor COMSPEC/PowerShell). Updated validation step notes to block on new remediation steps; stored pivot context and handed off to Coordinator.",
+      "artifacts": [
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/pivot.json"
+      ]
+    },
+    {
+      "session_id": "sess_mld7gh0h_04aa8bfe",
+      "agent_type": "Builder",
+      "started_at": "2026-02-08T03:50:25.313Z",
+      "context": {},
+      "completed_at": "2026-02-08T03:51:29.999Z",
+      "summary": "Validated Builder role, attempted environment checks within tool limits, and reran Build Server/Build Dashboard Server via run_build_script. Both failed with cmd.exe ENOENT; step 17 marked blocked and build_failure_analysis stored. Handoff to Coordinator recommending Revisionist for env remediation or run_build_script fallback per step 18.",
+      "artifacts": [
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/build_failure_analysis.json"
+      ]
+    },
+    {
+      "session_id": "sess_mld7iqiv_b933d34e",
+      "agent_type": "Executor",
+      "started_at": "2026-02-08T03:52:10.952Z",
+      "context": {},
+      "completed_at": "2026-02-08T03:54:42.819Z",
+      "summary": "Implemented COMSPEC-aware shell selection and PowerShell fallback for run_build_script; added helper functions and unit tests for shell fallback logic. Tests not run.",
+      "artifacts": [
+        "server/src/storage/file-store.ts",
+        "server/src/__tests__/storage/file-store-buildscripts-shell.test.ts"
+      ]
+    },
+    {
+      "session_id": "sess_mld7psrl_c2253d95",
+      "agent_type": "Builder",
+      "started_at": "2026-02-08T03:57:40.449Z",
+      "context": {},
+      "completed_at": "2026-02-08T03:58:00.025Z",
+      "summary": "Listed build scripts and ran Build Server + Build Dashboard Server. Both failed with cmd.exe ENOENT. Updated validation step 19 to blocked with error details.",
+      "artifacts": []
+    },
+    {
+      "session_id": "sess_mld7vwpz_df07997a",
+      "agent_type": "Builder",
+      "started_at": "2026-02-08T04:02:25.511Z",
+      "context": {},
+      "completed_at": "2026-02-08T04:02:53.931Z",
+      "summary": "Listed build scripts and reran Build Server + Build Dashboard Server via run_build_script. Both failed with \"spawn powershell.exe ENOENT\" and empty output. Updated validation step 19 to blocked and handed off recommending Revisionist for environment/shell fallback remediation."
+    },
+    {
+      "session_id": "sess_mld7y2yh_eb972eaf",
+      "agent_type": "Executor",
+      "started_at": "2026-02-08T04:04:06.906Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Implement run_build_script fallback changes in server phase",
+        "current_step_index": 0,
+        "steps_to_complete": [
+          "Locate runBuildScript execution logic in server storage/tooling",
+          "Implement fallback to run script directly (resolve full script path, executable permission) and/or invoke command executable directly without shell",
+          "Update tests to cover this behavior",
+          "Mark fallback fix step done or blocked",
+          "Handoff to Coordinator with recommendation"
+        ],
+        "environment": {
+          "working_directory": "c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP",
+          "active_branch": "",
+          "build_command": ""
+        },
+        "blockers_to_avoid": []
+      },
+      "completed_at": "2026-02-08T04:08:31.303Z",
+      "summary": "Updated run_build_script to prefer direct execution via spawn with command parsing and shell detection; removed PowerShell fallback and added direct exec helper utilities. Expanded build script shell tests for token parsing, shell detection, and direct command resolution. No tests run.",
+      "artifacts": [
+        "server/src/storage/file-store.ts",
+        "server/src/__tests__/storage/file-store-buildscripts-shell.test.ts",
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mld89uck_1392b6f2",
+      "agent_type": "Builder",
+      "started_at": "2026-02-08T04:13:15.620Z",
+      "context": {},
+      "completed_at": "2026-02-08T04:13:46.684Z",
+      "summary": "Listed build scripts and reran Build Server/Build Dashboard Server via run_build_script. Both failed with cmd.exe ENOENT; updated validation step 19 to blocked and handed off to Coordinator recommending Revisionist."
+    },
+    {
+      "session_id": "sess_mld9tjum_d5e4d8d9",
+      "agent_type": "Executor",
+      "started_at": "2026-02-08T04:56:34.750Z",
+      "context": {},
+      "completed_at": "2026-02-08T05:02:39.250Z",
+      "summary": "Step 13 done: added workspace utils tests, memory_context workspace CRUD tests, dashboard plan creation guard test; fixed workspace context panel save rehydration/reset; added .project-memory/workspace.json workspace id record. No tests run.",
+      "artifacts": [
+        "dashboard/src/components/workspace/WorkspaceContextPanel.tsx",
+        "server/src/__tests__/tools/memory-context-actions.test.ts",
+        "server/src/__tests__/storage/workspace-utils.test.ts",
+        "dashboard/server/src/routes/plans-workspace-guard.test.ts",
+        ".project-memory/workspace.json",
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlda2x4v_3de07e9e",
+      "agent_type": "Executor",
+      "started_at": "2026-02-08T05:03:51.871Z",
+      "context": {},
+      "completed_at": "2026-02-08T05:08:31.431Z",
+      "summary": "Completed step 28 tests: Builder validation coverage/enforcement, template exposure for server/UI/extension. Execution log stored; tests not run.",
+      "artifacts": [
+        "server/src/__tests__/tools/memory-agent-actions.test.ts",
+        "server/src/__tests__/tools/memory-plan-actions.test.ts",
+        "server/src/__tests__/tools/agent-validation.test.ts",
+        "dashboard/src/__tests__/components/plan-templates.test.tsx",
+        "vscode-extension/src/test/chat/McpBridge.test.ts"
+      ]
+    },
+    {
+      "session_id": "sess_mldaapli_89a135c5",
+      "agent_type": "Executor",
+      "started_at": "2026-02-08T05:09:55.350Z",
+      "context": {},
+      "completed_at": "2026-02-08T05:13:04.124Z",
+      "summary": "Added tests for confirmation gating, deploy defaults persistence, and settings instruction list population; updated MSW handlers for /api/instructions. Step 34 remains active pending phase confirmation.",
+      "artifacts": [
+        "server/src/__tests__/tools/plan-confirmation-gating.test.ts",
+        "dashboard/src/__tests__/components/settings-modal.test.tsx",
+        "dashboard/src/__tests__/utils/deploy-defaults.test.ts",
+        "dashboard/src/test/mocks/handlers.ts",
+        "data/Project-Memory-MCP-652c624f8f59/plans/plan_mlct1x3l_a3f2e9f4/execution_log.json"
+      ]
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-07T21:12:32.794Z",
+      "from_agent": "Researcher",
+      "to_agent": "Architect",
+      "reason": "Research complete: identified workspace ID derivation mismatches and plan creation behavior creating folders; documented storage patterns and UI touchpoints."
+    },
+    {
+      "timestamp": "2026-02-07T21:15:26.065Z",
+      "from_agent": "Architect",
+      "to_agent": "Executor",
+      "reason": "Plan ready with 12 steps across diagnosis, design, server, dashboard, extension, docs, migration, testing, validation phases."
+    },
+    {
+      "timestamp": "2026-02-07T21:17:51.676Z",
+      "from_agent": "Architect",
+      "to_agent": "Executor",
+      "reason": "Plan steps updated and goals set; ready for implementation."
+    },
+    {
+      "timestamp": "2026-02-07T21:37:38.255Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Diagnosis steps 0 and 12 complete; findings documented. Recommend Builder next per user request."
+    },
+    {
+      "timestamp": "2026-02-07T21:40:33.514Z",
+      "from_agent": "Architect",
+      "to_agent": "Executor",
+      "reason": "Design steps 1,2,13 completed with canonical workspace ID/data root strategy, workspace context schema, and validation/build-script requirements documented in architecture context and plan note."
+    },
+    {
+      "timestamp": "2026-02-07T22:01:20.998Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Server phase steps 3,4,14,15,16 completed; recommend Builder per user request."
+    },
+    {
+      "timestamp": "2026-02-07T22:03:16.608Z",
+      "from_agent": "Builder",
+      "to_agent": "Coordinator",
+      "reason": "Build verification failed; recommend Revisionist."
+    },
+    {
+      "timestamp": "2026-02-07T22:05:21.112Z",
+      "from_agent": "Revisionist",
+      "to_agent": "Executor",
+      "reason": "Plan pivoted: build verification failure is environment/runtime (cmd.exe ENOENT). Added validation step to verify build environment (cmd.exe availability, COMSPEC/PATH) and rerun Build Server script before proceeding. Execute new step 11, then unblock validation step."
+    },
+    {
+      "timestamp": "2026-02-07T22:23:27.699Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Step 5 complete: dashboard server data root/workspace registration alignment implemented; recommend Builder for next phase handling."
+    },
+    {
+      "timestamp": "2026-02-07T22:31:35.660Z",
+      "from_agent": "Builder",
+      "to_agent": "Coordinator",
+      "reason": "Dashboard server build could not run via build script; recommend Revisionist to investigate run_build_script 'script not found' error and Builder validation failure."
+    },
+    {
+      "timestamp": "2026-02-07T22:35:20.790Z",
+      "from_agent": "Revisionist",
+      "to_agent": "Executor",
+      "reason": "Plan pivoted to add server fix step for TS build errors. Please apply minimal fixes: replace DATA_ROOT in file-store findPlanById with getDataRoot() or define const DATA_ROOT = getDataRoot(); update memory_context ContextResult workspace_* context types to WorkspaceContext (import type) so workspace_context.tools return types align."
+    },
+    {
+      "timestamp": "2026-02-07T22:43:25.582Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Step 5 fix complete; recommend Builder for build verification."
+    },
+    {
+      "timestamp": "2026-02-07T22:44:22.793Z",
+      "from_agent": "Builder",
+      "to_agent": "Coordinator",
+      "reason": "Builder validation failed; unable to run build scripts. Recommend Revisionist to fix validate Builder path or ensure correct validation wiring."
+    },
+    {
+      "timestamp": "2026-02-07T23:10:01.557Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Revisionist",
+      "reason": "Review found issues: (1) dashboard server workspace root resolves to dashboard/ so default data root mismatches MCP server when MBS_DATA_ROOT is unset; (2) dashboard workspaces build-scripts endpoint uses crypto.randomUUID without node:crypto import, risking runtime failure on older Node/global crypto absence. Please address and re-handoff for review."
+    },
+    {
+      "timestamp": "2026-02-07T23:12:43.009Z",
+      "from_agent": "Revisionist",
+      "to_agent": "Executor",
+      "reason": "Plan pivoted: added two dashboard-server fix steps for review findings. Please implement fixes in dashboard server: (1) ensure data root default uses canonical resolver when MBS_DATA_ROOT unset (avoid dashboard/data fallback); (2) import node:crypto or provide fallback before crypto.randomUUID in workspaces build-scripts route. After code changes, re-run build dashboard server if needed."
+    },
+    {
+      "timestamp": "2026-02-08T00:26:44.093Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Steps 7-8 complete; recommend Builder for build verification."
+    },
+    {
+      "timestamp": "2026-02-08T00:28:08.216Z",
+      "from_agent": "Builder",
+      "to_agent": "Coordinator",
+      "reason": "Build verification attempted; run_build_script failed."
+    },
+    {
+      "timestamp": "2026-02-08T01:14:26.559Z",
+      "from_agent": "Revisionist",
+      "to_agent": "Executor",
+      "reason": "Root cause found: run_build_script only searches workspace-level scripts (fileStore.runBuildScript calls getBuildScripts without planId), so plan-level scripts returned by list_build_scripts are not found. Added server fix step to pass plan_id through memory_plan and use it in fileStore.runBuildScript; update tests/typing accordingly."
+    },
+    {
+      "timestamp": "2026-02-08T01:24:07.858Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Plan-level run_build_script support implemented; ready for build verification."
+    },
+    {
+      "timestamp": "2026-02-08T01:40:39.930Z",
+      "from_agent": "Builder",
+      "to_agent": "Coordinator",
+      "reason": "Build verification failed; run_build_script could not find plan-level scripts"
+    },
+    {
+      "timestamp": "2026-02-08T01:57:07.968Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Dashboard UI steps 9, 22, 28, 29 implemented. Recommend Builder for build verification."
+    },
+    {
+      "timestamp": "2026-02-08T02:03:04.414Z",
+      "from_agent": "Architect",
+      "to_agent": "Executor",
+      "reason": "Confirmation policy defined and stored; step 26 done. Please implement server confirmation gating and workflow-governance items (steps 27, 32, 33) per architecture.json."
+    },
+    {
+      "timestamp": "2026-02-08T02:17:55.540Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Workflow-governance steps 27/32/33 complete; ready for review"
+    },
+    {
+      "timestamp": "2026-02-08T03:34:33.004Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Step 16 fix implemented with build-script lookup fallback and tests updated; recommend Builder rerun build scripts to validate."
+    },
+    {
+      "timestamp": "2026-02-08T03:40:32.171Z",
+      "from_agent": "Builder",
+      "to_agent": "Coordinator",
+      "reason": "Build verification complete; run_build_script still cannot resolve plan build script IDs."
+    },
+    {
+      "timestamp": "2026-02-08T03:43:56.960Z",
+      "from_agent": "Builder",
+      "to_agent": "Coordinator",
+      "reason": "Build verification failed: cmd.exe ENOENT when running build scripts."
+    },
+    {
+      "timestamp": "2026-02-08T03:46:58.386Z",
+      "from_agent": "Revisionist",
+      "to_agent": "Coordinator",
+      "reason": "Plan pivoted for run_build_script cmd.exe ENOENT. Added validation step to check COMSPEC/PATH/cmd.exe and rerun build scripts, plus conditional server fix to honor COMSPEC or fallback to PowerShell if env repair fails. Recommend Builder to execute new env validation step; if still failing, route to Executor for fallback implementation."
+    },
+    {
+      "timestamp": "2026-02-08T03:51:22.507Z",
+      "from_agent": "Builder",
+      "to_agent": "Coordinator",
+      "reason": "Environment validation attempted; build scripts still fail with cmd.exe ENOENT. Recommend Revisionist to pursue env remediation or run_build_script fallback per step 18."
+    },
+    {
+      "timestamp": "2026-02-08T03:54:39.196Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Implemented run_build_script shell fallback and added tests; step 18 done. Ready for review."
+    },
+    {
+      "timestamp": "2026-02-08T03:58:00.017Z",
+      "from_agent": "Builder",
+      "to_agent": "Coordinator",
+      "reason": "Build verification failed due to cmd.exe ENOENT."
+    },
+    {
+      "timestamp": "2026-02-08T04:02:46.275Z",
+      "from_agent": "Builder",
+      "to_agent": "Coordinator",
+      "reason": "Build verification complete"
+    },
+    {
+      "timestamp": "2026-02-08T04:08:26.822Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Run_build_script direct-exec fallback and tests updated; ready for review."
+    },
+    {
+      "timestamp": "2026-02-08T04:13:38.565Z",
+      "from_agent": "Builder",
+      "to_agent": "Coordinator",
+      "reason": "Build verification complete; run_build_script still fails with cmd.exe ENOENT."
+    },
+    {
+      "timestamp": "2026-02-08T05:02:33.456Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Step 13 complete with tests, UI fix, and workspace ID file; ready for review."
+    },
+    {
+      "timestamp": "2026-02-08T05:08:27.364Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Step 28 tests added for validation coverage, Builder enforcement, and template exposure; ready for review."
+    },
+    {
+      "timestamp": "2026-02-08T05:12:59.643Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Step 34 tests added; phase completion requires user confirmation before marking done."
+    }
+  ],
+  "steps": [
+    {
+      "phase": "diagnosis",
+      "task": "Confirm current workspace ID + data root derivations across MCP server, dashboard server, and extension; record mismatches and duplicate-folder triggers with concrete inputs/outputs.",
+      "type": "analysis",
+      "status": "done",
+      "notes": "Confirmed workspace ID/data root derivations and duplicate-folder triggers; recorded in plan note.",
+      "index": 0
+    },
+    {
+      "phase": "design",
+      "task": "Define canonical workspace ID normalization (path normalize/lowercase + hash + basename) and single data root resolution strategy; decide shared utility vs server-resolved ID endpoint.",
+      "type": "planning",
+      "status": "done",
+      "notes": "Canonical workspace ID + data root resolution defined with server-resolved endpoint/tool and shared resolver.",
+      "index": 1
+    },
+    {
+      "phase": "design",
+      "task": "Specify workspace-level context schema, storage location, and metadata (e.g., workspace.context.json + workspace.meta.json) including required fields and validation rules.",
+      "type": "planning",
+      "status": "done",
+      "notes": "Workspace context schema/storage/validation defined (workspace.context.json + workspace.meta.json).",
+      "index": 2
+    },
+    {
+      "phase": "server",
+      "task": "Implement canonical workspace ID + data root utilities in server storage layer and refactor file-store usage to rely on them.",
+      "type": "standard",
+      "status": "done",
+      "notes": "Added workspace-utils for canonical workspace ID/data root and refactored file-store/workspace meta to use it.",
+      "index": 3
+    },
+    {
+      "phase": "server",
+      "task": "Add workspace-scoped context CRUD to MCP tools/API (new tool or optional plan_id-less mode) with validation and clear error reporting.",
+      "type": "standard",
+      "status": "done",
+      "notes": "Added workspace-context CRUD tools and memory_context workspace_* actions with validation and schema updates.",
+      "index": 4
+    },
+    {
+      "phase": "server",
+      "task": "Fix server build TypeScript errors from recent refactors (DATA_ROOT reference, workspace context return typing).",
+      "type": "fix",
+      "status": "done",
+      "notes": "Replaced DATA_ROOT usage with getDataRoot() and updated workspace_* context response types to WorkspaceContext.",
+      "index": 5
+    },
+    {
+      "phase": "dashboard-server",
+      "task": "Align dashboard server data root + workspace ID derivations; prevent plan creation when workspace meta is missing or provide explicit workspace registration flow.",
+      "type": "standard",
+      "status": "done",
+      "notes": "Aligned dashboard server data root to canonical resolver, added workspace registration endpoint, and blocked plan creation when workspace meta is missing.",
+      "index": 6
+    },
+    {
+      "phase": "dashboard-server",
+      "task": "Fix dashboard server data root default to use canonical resolver when MBS_DATA_ROOT is unset (avoid dashboard/data fallback).",
+      "type": "fix",
+      "status": "done",
+      "notes": "Resolved dashboard server workspace root to repo root so data root defaults to canonical location when MBS_DATA_ROOT is unset.",
+      "index": 7
+    },
+    {
+      "phase": "dashboard-server",
+      "task": "Import node:crypto or provide fallback for randomUUID in workspaces routes build-scripts endpoint.",
+      "type": "fix",
+      "status": "done",
+      "notes": "Added crypto import and randomUUID fallback for workspace build-scripts IDs.",
+      "index": 8
+    },
+    {
+      "phase": "dashboard-ui",
+      "task": "Add dashboard UI for viewing/editing workspace context sections (project details, purpose, dependencies, modules, test confirmations, dev patterns, resources) wired to new APIs.",
+      "type": "standard",
+      "status": "done",
+      "notes": "Added workspace context UI with section editors and dashboard-server context endpoints.",
+      "index": 9
+    },
+    {
+      "phase": "extension",
+      "task": "Replace legacy workspace ID logic (md5/underscore/raw path) with canonical algorithm or server-resolved ID; update plan creation and fallback paths.",
+      "type": "standard",
+      "status": "done",
+      "notes": "Extension plan creation now registers workspace via /api/workspaces/register to use canonical workspace_id instead of md5-derived ids.",
+      "index": 10
+    },
+    {
+      "phase": "agents-docs",
+      "task": "Update agent prompts/instructions to distinguish workspace vs plan context and document new workspace context APIs and usage patterns.",
+      "type": "documentation",
+      "status": "done",
+      "notes": "Updated mcp-usage guidance for workspace vs plan context, workspace context APIs, and Coordinator handoff example. Prior updates also refreshed plan-context and agent docs to distinguish workspace context usage.",
+      "index": 11
+    },
+    {
+      "phase": "migration",
+      "task": "Implement migration/back-compat: detect legacy workspace IDs, map to canonical IDs, migrate/alias data folders, and log/report actions.",
+      "type": "standard",
+      "status": "done",
+      "index": 12,
+      "notes": "Implemented legacy workspace migration in file-store: detect legacy IDs via workspace_path match, alias legacy IDs when canonical exists, migrate legacy folder + metadata when canonical missing, update workspace context/plan workspace_id fields, and log migration. registerWorkspace now returns migration report for clients to surface.",
+      "completed_at": "2026-02-08T04:42:30.171Z"
+    },
+    {
+      "phase": "testing",
+      "task": "Add tests for workspace ID normalization, data root resolution, workspace context CRUD, and duplicate-folder prevention in plan creation flow.",
+      "type": "test",
+      "status": "done",
+      "index": 13,
+      "notes": "Added tests for workspace utils normalization/data root, memory_context workspace CRUD actions, and dashboard plan creation guard to prevent unregistered workspace folders; updated workspace context UI save rehydration and reset; added .project-memory/workspace.json for explicit workspace ID.",
+      "completed_at": "2026-02-08T05:02:17.362Z"
+    },
+    {
+      "phase": "validation",
+      "task": "Verify build environment for run_build_script (cmd.exe availability, COMSPEC/PATH) and rerun Build Server script; record outcome and any environment remediation needed.",
+      "type": "validation",
+      "status": "done",
+      "notes": "User ran build-and-install.ps1; server and extension builds succeeded.",
+      "index": 14
+    },
+    {
+      "phase": "server",
+      "task": "Fix run_build_script lookup to include plan-level build scripts when plan_id is provided; pass plan_id through memory_plan to file-store runBuildScript and update tests/typing accordingly.",
+      "type": "fix",
+      "status": "done",
+      "notes": "Passed plan_id through memory_plan to file-store runBuildScript, updated runBuildScript lookup to include plan-level scripts, and expanded build-script tests for plan-level execution.",
+      "index": 15
+    },
+    {
+      "phase": "server",
+      "task": "Investigate and fix build script registry mismatch where list_build_scripts returns IDs that run_build_script cannot resolve; ensure lookup uses consistent plan/workspace scope and IDs, then rerun validation step 16.",
+      "type": "fix",
+      "status": "done",
+      "notes": "Executor added run_build_script fallback to resolve plan-level scripts even when plan_id is omitted; updated file-store build-script tests to cover fallback lookup. Tests not run.",
+      "index": 16
+    },
+    {
+      "phase": "validation",
+      "task": "Verify run_build_script shell environment: confirm COMSPEC points to %SystemRoot%\\System32\\cmd.exe, cmd.exe exists, and PATH includes System32; re-run Build Server and Build Dashboard Server scripts; record diagnostics (COMSPEC, PATH, where cmd).",
+      "type": "validation",
+      "status": "done",
+      "notes": "Validated shell environment via PowerShell: COMSPEC=C:\\Windows\\system32\\cmd.exe, SystemRoot=C:\\Windows, Test-Path %SystemRoot%\\System32\\cmd.exe=True, Get-Command cmd.exe succeeded, PATH includes C:\\Windows\\system32. Reran builds: server `npm run build` and dashboard server `npm run build` succeeded.",
+      "index": 17,
+      "completed_at": "2026-02-08T04:51:00.234Z"
+    },
+    {
+      "phase": "server",
+      "task": "If cmd.exe remains unavailable after environment repair, update run_build_script to honor COMSPEC or fall back to PowerShell; add regression coverage and rerun build scripts.",
+      "type": "fix",
+      "status": "done",
+      "notes": "Added run_build_script shell selection with COMSPEC + PowerShell fallback helpers and tests for fallback logic.",
+      "index": 18,
+      "completed_at": "2026-02-08T03:54:25.937Z"
+    },
+    {
+      "phase": "validation",
+      "task": "Run targeted validation to confirm no duplicate workspace folders, workspace context persists across surfaces, and legacy data remains accessible.",
+      "type": "validation",
+      "status": "done",
+      "notes": "Validation: data root now has single canonical workspace folder for this project (Project-Memory-MCP-652c624f8f59). Removed duplicate legacy folders Project-Memory-MCP and project-memory-mcp-40f6678f5a9b which only contained redundant plan logs. workspace.context.json and workspace.meta.json exist under canonical workspace; plan data remains under canonical workspace. Server and dashboard server builds succeeded.",
+      "index": 19,
+      "completed_at": "2026-02-08T04:51:30.238Z"
+    },
+    {
+      "phase": "diagnosis",
+      "task": "Audit validation coverage for all agent types and identify gaps (e.g., Builder) plus redundant init+validate workflow; document desired validation flow.",
+      "type": "analysis",
+      "status": "done",
+      "notes": "Validation coverage and init/validate workflow gaps documented in plan note.",
+      "index": 20
+    },
+    {
+      "phase": "design",
+      "task": "Define required behavior: validate supports all agents, streamline init+validate, and enforce Builder build-script creation for tasks requiring builds.",
+      "type": "planning",
+      "status": "done",
+      "notes": "Validation behavior defined: validate all agents, init+validate option, Builder build-script enforcement.",
+      "index": 21
+    },
+    {
+      "phase": "server",
+      "task": "Extend agent validation to cover all agent types (including Builder) and adjust init/validate flow to reduce redundancy while preserving safety checks.",
+      "type": "standard",
+      "status": "done",
+      "notes": "Added Builder validation, build-phase mapping, and init+validate option in memory_agent.",
+      "index": 22
+    },
+    {
+      "phase": "server",
+      "task": "Enforce Builder workflow: require build scripts creation via memory_plan build script actions and block ad-hoc terminal commands; update role boundaries and checks accordingly.",
+      "type": "standard",
+      "status": "done",
+      "notes": "Builder workflow enforced via validation and role boundary updates; build scripts required for build-related steps.",
+      "index": 23
+    },
+    {
+      "phase": "server",
+      "task": "Expose plan templates via MCP tool or API endpoints and ensure template listing/creation is wired through consolidated tools.",
+      "type": "standard",
+      "status": "done",
+      "notes": "Confirmed plan templates exposed via memory_plan create_from_template/list_templates and MCP schema; updated consolidated tool docs.",
+      "index": 24
+    },
+    {
+      "phase": "dashboard-ui",
+      "task": "Add UI to list/create plans from templates, and surface available templates in the dashboard.",
+      "type": "standard",
+      "status": "done",
+      "notes": "Added plan template panel and CreatePlanForm template loading.",
+      "index": 25
+    },
+    {
+      "phase": "extension",
+      "task": "Expose plan templates in the VS Code extension UX (template list + create from template).",
+      "type": "standard",
+      "status": "done",
+      "notes": "Extension plan creation UX already surfaces plan templates from /api/plans/templates with fallback list; creation uses template endpoint when selected.",
+      "index": 26
+    },
+    {
+      "phase": "agents-docs",
+      "task": "Update agent prompts/instructions to reflect new validation flow and Builder build-script requirement; document plan template usage.",
+      "type": "documentation",
+      "status": "done",
+      "notes": "Updated agent instructions for validation flow, Builder build-script requirement, and plan template usage (Coordinator/Architect/Builder/Tester updates; mcp-usage template + init+validate guidance).",
+      "index": 27
+    },
+    {
+      "phase": "testing",
+      "task": "Add tests for expanded agent validation coverage, Builder build-script enforcement, and plan template exposure in server/UI/extension.",
+      "type": "test",
+      "status": "done",
+      "index": 28,
+      "notes": "Added tests for Builder validation enforcement and expanded agent validation coverage; tightened plan template exposure tests; added dashboard UI plan-template test coverage; added extension McpBridge test for template-based plan creation. Tests not run.",
+      "completed_at": "2026-02-08T05:09:43.202Z"
+    },
+    {
+      "phase": "workflow-governance",
+      "task": "Define confirmation policy: agents confirm only before phase transitions unless a step is flagged; require explicit user confirmation before high-risk steps; document flags/criteria.",
+      "type": "planning",
+      "status": "done",
+      "notes": "Confirmation policy defined with phase-level default, step-level flags for high-risk, and PlanState confirmation_state tracking proposal. Stored in architecture.json.",
+      "index": 29
+    },
+    {
+      "phase": "server",
+      "task": "Implement confirmation gating in agent workflow: phase-level confirmations by default, step-level confirmations only when requires_validation/high-risk; enforce user confirmation before high-risk steps.",
+      "type": "standard",
+      "status": "done",
+      "notes": "Added confirmation gating in updateStep and new confirm actions to track phase/step approvals with confirmation_state.",
+      "index": 30
+    },
+    {
+      "phase": "dashboard-ui",
+      "task": "Fix deploy defaults: persist defaults set by Configure Defaults and ensure values survive refresh/reopen.",
+      "type": "standard",
+      "status": "done",
+      "notes": "Persisted deploy defaults using localStorage and Configure Defaults modal.",
+      "index": 31
+    },
+    {
+      "phase": "dashboard-ui",
+      "task": "Populate default instructions dynamically in settings list from available instruction files instead of static entries.",
+      "type": "standard",
+      "status": "done",
+      "notes": "Settings modal now loads default instructions from /api/instructions and filters to general files.",
+      "index": 32
+    },
+    {
+      "phase": "agents-docs",
+      "task": "Update default instruction files to be non-language and non-workspace specific (except those explicitly scoped), and refresh all instructions in instructions/ for current behavior and tooling.",
+      "type": "documentation",
+      "status": "done",
+      "notes": "Scoped specialized instruction files to avoid language/workspace specificity; refreshed instructions for current behavior and tooling across instruction set.",
+      "index": 33
+    },
+    {
+      "phase": "testing",
+      "task": "Add tests for confirmation gating (phase vs step), deploy default persistence, and dynamic instruction list population.",
+      "type": "test",
+      "status": "active",
+      "index": 34,
+      "notes": "Tests added for confirmation gating, deploy defaults persistence, and settings modal instruction list; phase completion requires user confirmation before marking done."
+    },
+    {
+      "phase": "workflow-governance",
+      "task": "Add audit trail to Project Memory for untracked file changes (log agent/tool writes, reconcile missing records, and surface warnings when changes lack provenance).",
+      "type": "standard",
+      "status": "done",
+      "notes": "Added audit log entries for untracked file updates in workspace context.",
+      "index": 35
+    },
+    {
+      "phase": "workflow-governance",
+      "task": "Add workspace-wide file update log: per-agent entries with file path, action, timestamp, summary; stored in workspace context and surfaced across UI/extension; require agents to update after edits.",
+      "type": "standard",
+      "status": "done",
+      "notes": "Logged file updates with tool/action/plan provenance into workspace context update_log.",
+      "index": 36
+    },
+    {
+      "phase": "workflow-governance",
+      "task": "Add explicit guidance for agents to insert/update steps sequentially (avoid out-of-order edits) and document when reindexing is required.",
+      "type": "planning",
+      "status": "done",
+      "notes": "Added sequential insert/update and reindex guidance to mcp-usage instructions.",
+      "index": 37
+    },
+    {
+      "phase": "research",
+      "task": "Review available plan/step tools for ordering safeguards and identify improvements needed to prevent out-of-order edits.",
+      "type": "research",
+      "status": "done",
+      "notes": "Reviewed memory_steps tools and recorded ordering safeguards + improvement ideas in research_notes/step-ordering-tools-review.md.",
+      "index": 38
+    },
+    {
+      "phase": "server",
+      "task": "Update run_build_script fallback to execute build scripts directly (spawn absolute script path without shell) and extend tests.",
+      "type": "fix",
+      "status": "done",
+      "index": 39,
+      "notes": "Implemented direct-exec fallback for run_build_script, added command parsing and shell detection helpers, and updated tests for direct execution parsing.",
+      "completed_at": "2026-02-08T04:08:11.322Z"
+    }
+  ],
+  "goals": [
+    "Eliminate duplicate workspace folders by unifying workspace ID and data root resolution",
+    "Add workspace-wide context storage and APIs usable across server/dashboard/extension",
+    "Document workspace vs plan context usage in agents/instructions"
+  ],
+  "success_criteria": [
+    "Workspace ID is derived consistently across server, dashboard, and extension",
+    "Plan creation does not create a workspace folder without workspace meta",
+    "Workspace context CRUD is available and persisted under a single canonical path",
+    "Dashboard UI and extension can view/update workspace context",
+    "Legacy workspace data remains accessible or migrated with clear logs",
+    "Targeted tests for workspace ID normalization and context CRUD pass"
+  ],
+  "pending_notes": [
+    {
+      "note": "Step 0 findings: MCP server workspace ID uses normalized lowercase path + sha256 short hash + basename; data root is MBS_DATA_ROOT or process.cwd()/../data. Dashboard server data root is MBS_DATA_ROOT or fixed absolute path (c:\\\\Users\\\\User\\\\Project_Memory_MCP\\\\Project-Memory-MCP\\\\data). Extension DashboardViewProvider matches server algorithm, but plan creation uses basename lowercased with underscores + md5(raw path). McpBridge fallback uses sha256(raw path) without normalization. Duplicate-folder trigger: dashboard plan creation always mkdir data/<workspaceId>/plans/<planId>, then best-effort updates workspace.meta.json; if workspaceId does not match any registered workspace.meta.json, it still creates a new folder. Example input: c:\\\\Users\\\\User\\\\Project_Memory_MCP\\\\Project-Memory-MCP -> server workspaceId Project-Memory-MCP-652c624f8f59 (existing data folder) vs extension plan creation workspaceId project_memory_mcp-<md5>.\n\nStep 12 findings: memory_agent validate uses getValidationFunction with no Builder case; agent-validation.tools defines validators for all agents except Builder, so validate Builder would fail. Validation is documented as MUST be called after initialise_agent, and memory_agent init does not validate, forcing a redundant init+validate per session. Desired flow: add validateBuilder + include in getValidationFunction, and optionally make init return validation data (or add init+validate mode) to avoid double-call.",
+      "type": "info",
+      "added_at": "2026-02-07T21:37:10.637Z",
+      "added_by": "user"
+    },
+    {
+      "note": "Design decisions completed: canonical workspace ID uses server algorithm (normalized path -> sha256 -> `${basename}-${hash_prefix}`); data_root resolved via shared resolver using MBS_DATA_ROOT or repo-root-derived data path; clients resolve via server endpoint/tool. Workspace context schema defined at data/{workspaceId}/workspace.context.json plus workspace.meta.json with required fields + sectioned context; validation rules include schema versioning, size limits, merge semantics. Validation behavior: validate covers all agents incl Builder; init supports init+validate mode; Builder requires build scripts via memory_plan add_build_script and only run_build_script allowed. API/UI/extension implications captured in architecture context.",
+      "type": "info",
+      "added_at": "2026-02-07T21:40:29.990Z",
+      "added_by": "user"
+    },
+    {
+      "note": "Numbering clarification: user-referenced #12/#25/#31 correspond to plan step indices 11/24/30 (agents-docs). All three are completed with the documented updates.",
+      "type": "info",
+      "added_at": "2026-02-08T03:28:31.265Z",
+      "added_by": "user"
+    }
+  ],
+  "build_scripts": [
+    {
+      "name": "Build Server",
+      "description": "Run server build via npm",
+      "command": "npm run build",
+      "directory": "./server",
+      "mcp_handle": "build_server",
+      "id": "script_mlcv18rg_53945746",
+      "workspace_id": "Project-Memory-MCP-652c624f8f59",
+      "plan_id": "plan_mlct1x3l_a3f2e9f4",
+      "created_at": "2026-02-07T22:02:39.388Z"
+    },
+    {
+      "name": "Build Dashboard Server",
+      "description": "Run dashboard server build via npm",
+      "command": "npm run build",
+      "directory": "./dashboard/server",
+      "mcp_handle": "build_dashboard_server",
+      "id": "script_mlcw1pml_bf513089",
+      "workspace_id": "Project-Memory-MCP-652c624f8f59",
+      "plan_id": "plan_mlct1x3l_a3f2e9f4",
+      "created_at": "2026-02-07T22:31:00.861Z"
+    }
+  ],
+  "recommended_next_agent": "Coordinator",
+  "confirmation_state": {
+    "phases": {
+      "diagnosis": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-08T02:46:06.816Z"
+      },
+      "design": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-08T02:46:13.615Z"
+      },
+      "server": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-08T02:46:23.390Z"
+      },
+      "dashboard-server": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-08T02:46:50.194Z"
+      },
+      "dashboard-ui": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-08T02:46:50.205Z"
+      },
+      "workflow-governance": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-08T02:46:59.276Z"
+      },
+      "research": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-08T02:47:10.034Z"
+      },
+      "extension": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-08T02:51:11.043Z"
+      },
+      "agents-docs": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-08T03:25:09.293Z"
+      },
+      "migration": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-08T04:42:26.672Z"
+      },
+      "validation": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-08T04:51:24.020Z"
+      }
+    },
+    "steps": {
+      "12": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-08T04:42:09.633Z"
+      },
+      "17": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-08T04:50:55.273Z"
+      },
+      "19": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-08T04:51:11.103Z"
+      }
+    }
+  }
+}

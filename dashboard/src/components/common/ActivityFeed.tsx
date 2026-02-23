@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Activity, Clock, ArrowRight, FileText, CheckCircle, Zap } from 'lucide-react';
 import { cn } from '@/utils/cn';
+import { config } from '../../config';
 import { formatRelative, displayStepNumber } from '@/utils/formatters';
 import type { LiveUpdate } from '@/types';
 
@@ -104,7 +105,7 @@ export function LiveActivityFeed({ className }: { className?: string }) {
     };
 
     // Also connect to WebSocket for file watcher updates
-    const ws = new WebSocket('ws://localhost:3002');
+    const ws = new WebSocket(config.wsUrl);
 
     ws.onmessage = (event) => {
       try {

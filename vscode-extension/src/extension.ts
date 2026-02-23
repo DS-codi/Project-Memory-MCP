@@ -1,5 +1,5 @@
 /**
- * Project Memory Dashboard - VS Code Extension
+ * Project Memory Dashboard (Dev) - VS Code Extension
  * 
  * Main entry point. Delegates to extracted command modules for a clean,
  * maintainable structure. Implements lazy server start (Phase 1.1/1.2):
@@ -52,10 +52,10 @@ let sessionInterceptRegistry: SessionInterceptRegistry | null = null;
 // --- Activation ---
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('Project Memory Dashboard extension activating...');
+    console.log('Project Memory Dashboard (Dev) extension activating...');
 
     // Read configuration
-    const config = vscode.workspace.getConfiguration('projectMemory');
+    const config = vscode.workspace.getConfiguration('projectMemoryDev');
     const dataRoot = config.get<string>('dataRoot') || getDefaultDataRoot();
     const agentsRoot = config.get<string>('agentsRoot') || getDefaultAgentsRoot();
     const promptsRoot = config.get<string>('promptsRoot');
@@ -106,7 +106,7 @@ export function activate(context: vscode.ExtensionContext) {
     // --- Register webview provider ---
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(
-            'projectMemory.dashboardView',
+            'projectMemoryDev.dashboardView',
             dashboardProvider,
             { webviewOptions: { retainContextWhenHidden: true } }
         )
@@ -150,7 +150,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Diagnostics status bar indicator
     const diagnosticsStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
-    diagnosticsStatusBar.command = 'projectMemory.showDiagnostics';
+    diagnosticsStatusBar.command = 'projectMemoryDev.showDiagnostics';
     diagnosticsStatusBar.text = '$(pulse) PM';
     diagnosticsStatusBar.tooltip = 'Project Memory: Click for diagnostics';
     diagnosticsStatusBar.show();
@@ -164,13 +164,25 @@ export function activate(context: vscode.ExtensionContext) {
             : 'Project Memory: All systems healthy';
     });
 
+    // Reuse a single output channel instance for diagnostics.
+    const diagnosticsChannel = vscode.window.createOutputChannel('Project Memory Diagnostics');
+    context.subscriptions.push(diagnosticsChannel);
+
     context.subscriptions.push(
-        vscode.commands.registerCommand('projectMemory.showDiagnostics', () => {
+        vscode.commands.registerCommand('projectMemoryDev.showDiagnostics', () => {
             const report = diagnosticsService.runCheck();
-            const channel = vscode.window.createOutputChannel('Project Memory Diagnostics');
-            channel.clear();
-            channel.appendLine(diagnosticsService.formatReport(report));
-            channel.show();
+            diagnosticsChannel.clear();
+            diagnosticsChannel.appendLine(diagnosticsService.formatReport(report));
+            diagnosticsChannel.show();
+        }),
+
+        // Shows the full connection event timeline for the current session.
+        // Useful for diagnosing intermittent disconnects — run "Show Connection Log"
+        // after you notice a problem to see exactly when and what dropped.
+        vscode.commands.registerCommand('projectMemoryDev.showConnectionLog', () => {
+            diagnosticsChannel.clear();
+            diagnosticsChannel.appendLine(diagnosticsService.formatEventHistory());
+            diagnosticsChannel.show();
         })
     );
 
@@ -214,7 +226,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Register "Launch Supervisor" command (detached process)
     context.subscriptions.push(
-        vscode.commands.registerCommand('project-memory.launchSupervisor', async () => {
+        vscode.commands.registerCommand('project-memory-dev.launchSupervisor', async () => {
             try {
                 const settings = readSupervisorSettings();
                 launchSupervisorDetached(settings);
@@ -257,7 +269,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Register "Launch Supervisor in Terminal" command (visible terminal)
     context.subscriptions.push(
-        vscode.commands.registerCommand('project-memory.launchSupervisorInTerminal', async () => {
+        vscode.commands.registerCommand('project-memory-dev.launchSupervisorInTerminal', async () => {
             try {
                 const settings = readSupervisorSettings();
                 launchSupervisorInTerminal(settings);
@@ -288,7 +300,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Register "Open Supervisor Directory" command
     context.subscriptions.push(
-        vscode.commands.registerCommand('project-memory.openSupervisorDirectory', async () => {
+        vscode.commands.registerCommand('project-memory-dev.openSupervisorDirectory', async () => {
             const settings = readSupervisorSettings();
             const dir = getSupervisorDirectory(settings);
             
@@ -316,7 +328,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Register "Reconnect/Detect" command (replaces startSupervisor)
     context.subscriptions.push(
-        vscode.commands.registerCommand('project-memory.detectConnection', async () => {
+        vscode.commands.registerCommand('project-memory-dev.detectConnection', async () => {
             const connected = await connectionManager.detectAndConnect();
             if (connected) {
                 exitDegradedMode();
@@ -334,9 +346,9 @@ export function activate(context: vscode.ExtensionContext) {
                     'Launch Supervisor', 'Open Directory'
                 ).then(choice => {
                     if (choice === 'Launch Supervisor') {
-                        vscode.commands.executeCommand('project-memory.launchSupervisor');
+                        vscode.commands.executeCommand('project-memory-dev.launchSupervisor');
                     } else if (choice === 'Open Directory') {
-                        vscode.commands.executeCommand('project-memory.openSupervisorDirectory');
+                        vscode.commands.executeCommand('project-memory-dev.openSupervisorDirectory');
                     }
                 });
             }
@@ -376,7 +388,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // --- Pool management commands ---
     context.subscriptions.push(
-        vscode.commands.registerCommand('projectMemory.showMcpSessions', async () => {
+        vscode.commands.registerCommand('projectMemoryDev.showMcpSessions', async () => {
             if (!supervisorClient?.isConnected) {
                 vscode.window.showWarningMessage('Not connected to Supervisor. Launch it first.');
                 return;
@@ -405,7 +417,7 @@ export function activate(context: vscode.ExtensionContext) {
             channel.show();
         }),
 
-        vscode.commands.registerCommand('projectMemory.showMcpInstances', async () => {
+        vscode.commands.registerCommand('projectMemoryDev.showMcpInstances', async () => {
             if (!supervisorClient?.isConnected) {
                 vscode.window.showWarningMessage('Not connected to Supervisor. Launch it first.');
                 return;
@@ -424,7 +436,7 @@ export function activate(context: vscode.ExtensionContext) {
             );
         }),
 
-        vscode.commands.registerCommand('projectMemory.scaleUpMcp', async () => {
+        vscode.commands.registerCommand('projectMemoryDev.scaleUpMcp', async () => {
             if (!supervisorClient?.isConnected) {
                 vscode.window.showWarningMessage('Not connected to Supervisor. Launch it first.');
                 return;
@@ -455,8 +467,8 @@ export function activate(context: vscode.ExtensionContext) {
     // --- Configuration change listener ---
     context.subscriptions.push(
         vscode.workspace.onDidChangeConfiguration(e => {
-            if (e.affectsConfiguration('projectMemory')) {
-                const newConfig = vscode.workspace.getConfiguration('projectMemory');
+            if (e.affectsConfiguration('projectMemoryDev')) {
+                const newConfig = vscode.workspace.getConfiguration('projectMemoryDev');
                 dashboardProvider.updateConfig(
                     newConfig.get<string>('dataRoot') || getDefaultDataRoot(),
                     newConfig.get<string>('agentsRoot') || getDefaultAgentsRoot()
@@ -476,13 +488,13 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    console.log('Project Memory Dashboard extension activated');
+    console.log('Project Memory Dashboard (Dev) extension activated');
 }
 
 // --- Deactivation ---
 
 export async function deactivate() {
-    console.log('Project Memory Dashboard extension deactivating...');
+    console.log('Project Memory Dashboard (Dev) extension deactivating...');
 
     // Unregister this window from the Supervisor pool manager.
     if (supervisorClient) {
@@ -523,7 +535,7 @@ export async function deactivate() {
         copilotFileWatcher.stop();
     }
 
-    console.log('Project Memory Dashboard extension deactivated');
+    console.log('Project Memory Dashboard (Dev) extension deactivated');
 }
 
 // --- Private initialization helpers ---
@@ -561,9 +573,9 @@ async function detectAndPromptIfNeeded(): Promise<void> {
     ).then(c => c);
 
     if (choice === 'Launch Supervisor' && canLaunch) {
-        vscode.commands.executeCommand('project-memory.launchSupervisor');
+        vscode.commands.executeCommand('project-memory-dev.launchSupervisor');
     } else if (choice === 'Open Directory' && canLaunch) {
-        vscode.commands.executeCommand('project-memory.openSupervisorDirectory');
+        vscode.commands.executeCommand('project-memory-dev.openSupervisorDirectory');
     }
 }
 
@@ -655,7 +667,7 @@ function initializeChatIntegration(
 
     // Reconnect command
     context.subscriptions.push(
-        vscode.commands.registerCommand('projectMemory.chat.reconnect', async () => {
+        vscode.commands.registerCommand('projectMemoryDev.chat.reconnect', async () => {
             if (!mcpBridge) {
                 vscode.window.showErrorMessage('MCP Bridge not initialized');
                 return;
@@ -772,7 +784,7 @@ function initializeChatIntegration(
             );
 
             notify(`Step ${parsedStepIndex + 1} marked ${status}.`);
-            await vscode.commands.executeCommand('projectMemory.showPlanInChat', planId);
+            await vscode.commands.executeCommand('projectMemoryDev.showPlanInChat', planId);
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             vscode.window.showErrorMessage(`Failed to update step status: ${message}`);
@@ -1144,7 +1156,7 @@ function initializeChatIntegration(
             );
 
             notify(`Added step to ${resolvedPlanId}.`);
-            await vscode.commands.executeCommand('projectMemory.showPlanInChat', resolvedPlanId);
+            await vscode.commands.executeCommand('projectMemoryDev.showPlanInChat', resolvedPlanId);
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             vscode.window.showErrorMessage(`Failed to add step: ${message}`);
@@ -1179,7 +1191,7 @@ function initializeChatIntegration(
             ? `${baseUrl}/workspace/${effectiveWorkspaceId}/plan/${resolvedPlanId}`
             : `${baseUrl}/workspace/${effectiveWorkspaceId}`;
 
-        await vscode.commands.executeCommand('projectMemory.openDashboardPanel', targetUrl);
+        await vscode.commands.executeCommand('projectMemoryDev.openDashboardPanel', targetUrl);
     };
 
     const archivePlanFromChatAction = async (workspaceIdOrPlanId?: string, maybePlanId?: string): Promise<void> => {
@@ -1351,7 +1363,7 @@ function initializeChatIntegration(
             );
 
             notify(`Approved step ${parsedStepIndex + 1} in ${resolvedPlanId}.`);
-            await vscode.commands.executeCommand('projectMemory.showPlanInChat', resolvedPlanId);
+            await vscode.commands.executeCommand('projectMemoryDev.showPlanInChat', resolvedPlanId);
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             vscode.window.showErrorMessage(`Failed to approve step: ${message}`);
@@ -1410,7 +1422,7 @@ function initializeChatIntegration(
             );
 
             notify(`Approved phase ${resolvedPhase} in ${resolvedPlanId}.`);
-            await vscode.commands.executeCommand('projectMemory.showPlanInChat', resolvedPlanId);
+            await vscode.commands.executeCommand('projectMemoryDev.showPlanInChat', resolvedPlanId);
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             vscode.window.showErrorMessage(`Failed to approve phase: ${message}`);
@@ -1451,7 +1463,7 @@ function initializeChatIntegration(
     };
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('projectMemory.showPlanInChat', async (planId?: string, researchNote?: string) => {
+        vscode.commands.registerCommand('projectMemoryDev.showPlanInChat', async (planId?: string, researchNote?: string) => {
             const resolvedPlanId = planId || await vscode.window.showInputBox({
                 prompt: 'Enter a plan ID',
                 placeHolder: 'plan_xxxxxxxx'
@@ -1469,45 +1481,45 @@ function initializeChatIntegration(
                 query: `@memory /plan show ${resolvedPlanId}${researchNoteArg}`,
             });
         }),
-        vscode.commands.registerCommand('projectMemory.markStepActive', (planId?: string, stepIndex?: number) =>
+        vscode.commands.registerCommand('projectMemoryDev.markStepActive', (planId?: string, stepIndex?: number) =>
             updateStepStatusFromChatAction('active', planId, stepIndex)
         ),
-        vscode.commands.registerCommand('projectMemory.markStepDone', (planId?: string, stepIndex?: number) =>
+        vscode.commands.registerCommand('projectMemoryDev.markStepDone', (planId?: string, stepIndex?: number) =>
             updateStepStatusFromChatAction('done', planId, stepIndex)
         ),
-        vscode.commands.registerCommand('projectMemory.runBuildScript', (scriptIdOrPlanId?: string, planId?: string) =>
+        vscode.commands.registerCommand('projectMemoryDev.runBuildScript', (scriptIdOrPlanId?: string, planId?: string) =>
             runBuildScriptFromChatAction(scriptIdOrPlanId, planId)
         ),
-        vscode.commands.registerCommand('projectMemory.launchAgentChat', (
+        vscode.commands.registerCommand('projectMemoryDev.launchAgentChat', (
             agentName?: string,
             prompt?: string,
             launchContext?: { workspace_id?: string; plan_id?: string }
         ) => launchAgentChatFromAction(agentName, prompt, launchContext)),
-        vscode.commands.registerCommand('projectMemory.addStepToPlan', (planId?: string) =>
+        vscode.commands.registerCommand('projectMemoryDev.addStepToPlan', (planId?: string) =>
             addStepToPlanFromChatAction(planId)
         ),
-        vscode.commands.registerCommand('projectMemory.openPlanInDashboard', (workspaceId?: string, planId?: string) =>
+        vscode.commands.registerCommand('projectMemoryDev.openPlanInDashboard', (workspaceId?: string, planId?: string) =>
             openPlanInDashboardFromChatAction(workspaceId, planId)
         ),
-        vscode.commands.registerCommand('projectMemory.createDedicatedPlan', (planId?: string, stepIndex?: number) =>
+        vscode.commands.registerCommand('projectMemoryDev.createDedicatedPlan', (planId?: string, stepIndex?: number) =>
             createDedicatedPlanFromBlockedStep(planId, stepIndex)
         ),
-        vscode.commands.registerCommand('projectMemory.archivePlan', (workspaceIdOrPlanId?: string, maybePlanId?: string) =>
+        vscode.commands.registerCommand('projectMemoryDev.archivePlan', (workspaceIdOrPlanId?: string, maybePlanId?: string) =>
             archivePlanFromChatAction(workspaceIdOrPlanId, maybePlanId)
         ),
-        vscode.commands.registerCommand('projectMemory.resumePausedPlan', (workspaceIdOrPlanId?: string, maybePlanId?: string) =>
+        vscode.commands.registerCommand('projectMemoryDev.resumePausedPlan', (workspaceIdOrPlanId?: string, maybePlanId?: string) =>
             resumePausedPlanFromChatAction(workspaceIdOrPlanId, maybePlanId)
         ),
-        vscode.commands.registerCommand('projectMemory.confirmPlanStep', (planId?: string, stepIndex?: number) =>
+        vscode.commands.registerCommand('projectMemoryDev.confirmPlanStep', (planId?: string, stepIndex?: number) =>
             confirmPlanStepFromChatAction(planId, stepIndex)
         ),
-        vscode.commands.registerCommand('projectMemory.confirmPlanPhase', (planId?: string, phase?: string) =>
+        vscode.commands.registerCommand('projectMemoryDev.confirmPlanPhase', (planId?: string, phase?: string) =>
             confirmPlanPhaseFromChatAction(planId, phase)
         ),
-        vscode.commands.registerCommand('projectMemory.confirmAction', (actionId?: string) =>
+        vscode.commands.registerCommand('projectMemoryDev.confirmAction', (actionId?: string) =>
             confirmActionFromChat(actionId)
         ),
-        vscode.commands.registerCommand('projectMemory.cancelAction', (actionId?: string) =>
+        vscode.commands.registerCommand('projectMemoryDev.cancelAction', (actionId?: string) =>
             cancelActionFromChat(actionId)
         )
     );
@@ -1524,13 +1536,13 @@ function initializeChatIntegration(
     // Listen for chat config changes
     context.subscriptions.push(
         vscode.workspace.onDidChangeConfiguration(e => {
-            if (e.affectsConfiguration('projectMemory.chat')) {
+            if (e.affectsConfiguration('projectMemoryDev.chat')) {
                 notify(
                     'Chat configuration changed. Some changes may require reconnecting.',
                     'Reconnect'
                 ).then(selection => {
                     if (selection === 'Reconnect') {
-                        vscode.commands.executeCommand('projectMemory.chat.reconnect');
+                        vscode.commands.executeCommand('projectMemoryDev.chat.reconnect');
                     }
                 });
             }

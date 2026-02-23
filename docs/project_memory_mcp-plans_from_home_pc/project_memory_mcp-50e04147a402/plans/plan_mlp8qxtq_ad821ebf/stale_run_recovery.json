@@ -1,0 +1,9 @@
+{
+  "type": "stale_run_recovery",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "plan_id": "plan_mlp8qxtq_ad821ebf",
+  "recovered_at": "2026-02-16T20:39:41.125Z",
+  "stale_session_count": 0,
+  "stale_step_count": 1,
+  "note": "[STALE_RECOVERY 2026-02-16T20:39:41.125Z] Reset stale active run/session state before continuing orchestration."
+}

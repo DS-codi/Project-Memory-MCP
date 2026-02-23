@@ -1,0 +1,18 @@
+# supervisor-dev.toml — Dev-build port overrides for Project Memory MCP.
+#
+# Runs the dashboard on ports 3011/3012 (HTTP/WS) so it doesn't conflict
+# with the stable system running in the Podman container on 3001/3002.
+# Pass this file to the supervisor via: supervisor --config supervisor-dev.toml
+
+[dashboard]
+# Port the supervisor uses for health-probes against the dashboard process.
+# Must match the PORT env var injected below.
+port = 3011
+# The dashboard server is TypeScript — run it via npx tsx from the dashboard/ dir.
+command = "npx"
+args = ["tsx", "server/src/index.ts"]
+working_dir = "./dashboard"
+
+[dashboard.env]
+PORT    = "3011"   # Dashboard node server HTTP port  (stable: 3001)
+WS_PORT = "3012"   # Dashboard node server WebSocket  (stable: 3002)

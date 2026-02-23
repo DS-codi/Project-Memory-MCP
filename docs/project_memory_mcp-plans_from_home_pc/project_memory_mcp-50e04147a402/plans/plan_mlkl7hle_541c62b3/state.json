@@ -1,0 +1,358 @@
+{
+  "id": "plan_mlkl7hle_541c62b3",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Instructions to Skills Rewrite",
+  "description": "Rewrite project-memory-system.instructions.md (2248 lines) into modular, agent-specific skill files. Create proper skill files following existing skills/ pattern (with SKILL.md). Make skills callable/accessible via MCP tools. Instructions that remain should be deployable hard-rules only. Depends on Plan 2 (Agent Consolidation) completing first.",
+  "priority": "high",
+  "category": "refactor",
+  "status": "archived",
+  "current_phase": "complete",
+  "current_agent": null,
+  "confirmation_state": {
+    "phases": {
+      "Research": {
+        "confirmed": true,
+        "confirmed_by": "Researcher",
+        "confirmed_at": "2026-02-13T18:09:13.764Z"
+      },
+      "Split Monolith": {
+        "confirmed": true,
+        "confirmed_by": "Executor",
+        "confirmed_at": "2026-02-13T18:36:48.368Z"
+      },
+      "Reclassify": {
+        "confirmed": true,
+        "confirmed_by": "Coordinator",
+        "confirmed_at": "2026-02-13T18:39:32.768Z"
+      },
+      "Cleanup": {
+        "confirmed": true,
+        "confirmed_by": "Coordinator",
+        "confirmed_at": "2026-02-13T19:00:31.117Z"
+      },
+      "Validation": {
+        "confirmed": true,
+        "confirmed_by": "Coordinator",
+        "confirmed_at": "2026-02-13T19:00:43.459Z"
+      }
+    },
+    "steps": {
+      "12": {
+        "confirmed": true,
+        "confirmed_by": "Coordinator",
+        "confirmed_at": "2026-02-13T19:00:19.893Z"
+      }
+    }
+  },
+  "created_at": "2026-02-13T07:49:44.021Z",
+  "updated_at": "2026-02-14T22:31:11.168Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mll6ybt8_b993a99d",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-13T17:58:28.172Z",
+      "context": {
+        "resuming": false,
+        "starting_plan": "plan_mlkl7hle_541c62b3",
+        "related_completed_plan": "plan_mlkl6yw3_7e0a1787"
+      }
+    },
+    {
+      "session_id": "sess_mll75t4k_d88559b0",
+      "agent_type": "Researcher",
+      "started_at": "2026-02-13T18:04:17.204Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Research phase for Instructions to Skills Rewrite plan - audit instruction files and map skill patterns",
+        "research_targets": [
+          "project-memory-system.instructions.md sections",
+          "SKILL.md template structure",
+          "skills.tools.ts loading mechanism",
+          "secondary instruction files"
+        ],
+        "questions_to_answer": [
+          "Which sections of project-memory-system.instructions.md are 'skill' vs 'instruction'?",
+          "What is the SKILL.md template structure?",
+          "How does skills.tools.ts discover and serve skills?",
+          "What skill content exists in secondary instruction files?"
+        ],
+        "known_resources": [
+          "instructions/project-memory-system.instructions.md",
+          "skills/",
+          "server/src/tools/skills.tools.ts"
+        ]
+      }
+    },
+    {
+      "session_id": "sess_mll7gdu3_d2de668c",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-13T18:12:30.603Z",
+      "context": {
+        "resuming": true,
+        "user_question": "Should the 6 proposed PM-specific skills remain as instructions instead?"
+      }
+    },
+    {
+      "session_id": "sess_mll7z5c3_74d63a71",
+      "agent_type": "Executor",
+      "started_at": "2026-02-13T18:27:06.051Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Implement Reclassify (steps 2-3) and Split Monolith (steps 4-9) phases",
+        "current_step_index": 2,
+        "steps_to_complete": [
+          "Step 2: Move coordinator-categorization from skill to instruction",
+          "Step 3: Move analyst-methodology from skill to instruction",
+          "Step 4: Create mcp-tool-workspace.instructions.md",
+          "Step 5: Create mcp-tool-plan.instructions.md",
+          "Step 6: Create mcp-tool-steps.instructions.md",
+          "Step 7: Create mcp-tool-agent.instructions.md",
+          "Step 8: Create mcp-tool-context.instructions.md",
+          "Step 9: Reduce project-memory-system.instructions.md to slim index"
+        ],
+        "environment": {
+          "working_directory": "c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP",
+          "build_command": "npm run build"
+        }
+      },
+      "completed_at": "2026-02-13T18:37:23.849Z",
+      "summary": "Completed 8 steps (2-9) across Reclassify and Split Monolith phases. Reclassified 2 skill files to instruction format (coordinator-categorization, analyst-methodology). Split the 2244-line project-memory-system.instructions.md monolith into 6 focused files: 5 per-tool references (workspace, plan, steps, agent, context) and 1 best-practices file. Reduced the original to a 173-line slim index with cross-references. All files stayed within scope boundaries.",
+      "artifacts": [
+        "instructions/coordinator-categorization.instructions.md",
+        "instructions/analyst-methodology.instructions.md",
+        "instructions/mcp-tool-workspace.instructions.md",
+        "instructions/mcp-tool-plan.instructions.md",
+        "instructions/mcp-tool-steps.instructions.md",
+        "instructions/mcp-tool-agent.instructions.md",
+        "instructions/mcp-tool-context.instructions.md",
+        "instructions/mcp-best-practices.instructions.md",
+        "instructions/project-memory-system.instructions.md"
+      ]
+    },
+    {
+      "session_id": "sess_mll8fzc6_b040e2d5",
+      "agent_type": "Executor",
+      "started_at": "2026-02-13T18:40:11.43Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Implementing Cleanup phase (steps 10-11): Update agent files to reference instruction files instead of skills, then remove empty skill directories",
+        "current_step_index": 10,
+        "steps_to_complete": [
+          "Step 10: Update agent files to reference instruction files instead of skills",
+          "Step 11: Remove empty skill directories"
+        ],
+        "environment": {
+          "working_directory": "c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP",
+          "build_command": "npm run build"
+        }
+      },
+      "completed_at": "2026-02-13T18:44:45.545Z",
+      "summary": "Cleanup phase (steps 10-11) complete. Step 10: Updated 2 references in coordinator.agent.md and 1 in analyst.agent.md from skills/ paths to instructions/ paths. Checked instruction files and .github/instructions/ — no additional cross-references found. Trimmed mcp-tool-plan.instructions.md from 530 to 304 lines (removed redundant JSON examples from self-explanatory actions). Step 11: Verified content was migrated to instructions/, then deleted skills/coordinator-categorization/ and skills/analyst-methodology/ directories. Recommending Reviewer for verification.",
+      "artifacts": [
+        "agents/coordinator.agent.md",
+        "agents/analyst.agent.md",
+        "instructions/mcp-tool-plan.instructions.md"
+      ]
+    },
+    {
+      "session_id": "sess_mll8slfs_5ee66921",
+      "agent_type": "Executor",
+      "started_at": "2026-02-13T18:49:59.944Z",
+      "context": {}
+    },
+    {
+      "session_id": "sess_mll9761g_85e7b3ac",
+      "agent_type": "Archivist",
+      "started_at": "2026-02-13T19:01:19.828Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "All steps completed, ready for commit and archive",
+        "files_to_commit": [
+          "instructions/coordinator-categorization.instructions.md",
+          "instructions/analyst-methodology.instructions.md",
+          "instructions/mcp-tool-workspace.instructions.md",
+          "instructions/mcp-tool-plan.instructions.md",
+          "instructions/mcp-tool-steps.instructions.md",
+          "instructions/mcp-tool-agent.instructions.md",
+          "instructions/mcp-tool-context.instructions.md",
+          "instructions/mcp-best-practices.instructions.md",
+          "instructions/mcp-workflow-examples.instructions.md",
+          "instructions/project-memory-system.instructions.md",
+          ".github/instructions/project-memory-system.instructions.md",
+          "agents/coordinator.agent.md",
+          "agents/analyst.agent.md"
+        ],
+        "commit_message_draft": "refactor: reorganize instruction files - split monolith, reclassify PM-internal skills",
+        "target_branch": "main",
+        "pr_required": false
+      },
+      "completed_at": "2026-02-13T19:06:49.804Z",
+      "summary": "Plan 'Instructions Reorganization' (plan_mlkl7hle_541c62b3) archived. Committed 12 files as 6a8ee48 on main. Created plan-summary and convention knowledge files. No PR required. All 13/13 steps completed across 7 agent sessions.\"",
+      "artifacts": [
+        "commit:6a8ee4808f0df8343affe4dd1462c70dde876968",
+        "knowledge:plan-summary-instructions-reorganization",
+        "knowledge:convention-skills-vs-instructions"
+      ]
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-13T18:09:42.84Z",
+      "from_agent": "Researcher",
+      "to_agent": "Coordinator",
+      "reason": "Research phase complete (steps 0-1). Classified all sections of project-memory-system.instructions.md, mapped SKILL.md template structure, assessed 5 secondary instruction files. Produced 3 research notes + structured research.json. Recommend Architect to design the 6 new skills and instruction reductions."
+    },
+    {
+      "timestamp": "2026-02-13T18:37:15.127Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Reclassify (steps 2-3) and Split Monolith (steps 4-9) phases complete. Created 8 new instruction files, reduced project-memory-system.instructions.md from 2244 to 173 lines. Ready for build verification.\""
+    },
+    {
+      "timestamp": "2026-02-13T18:44:38.594Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Cleanup phase (steps 10-11) complete. All skill references updated to instruction file paths, old skill directories deleted, mcp-tool-plan.instructions.md trimmed to 304 lines. Ready for build verification."
+    }
+  ],
+  "steps": [
+    {
+      "phase": "Research",
+      "task": "Audit instructions/project-memory-system.instructions.md (2248 lines) — categorize each section as 'skill' (knowledge/guidance) or 'instruction' (mandatory rule). Produce a section-by-section classification",
+      "type": "research",
+      "status": "done",
+      "notes": "Classified all 15 sections. ~431 lines extractable as skill, ~1694 lines remain as instruction (tool schemas + mandatory rules). Main skill destinations: project-memory-overview (~52 lines) and mcp-tools-usage (~377 lines).",
+      "assignee": "Researcher",
+      "index": 0
+    },
+    {
+      "phase": "Research",
+      "task": "Map existing skills/ pattern (pyside6-* skills with SKILL.md) to establish template for new PM-specific skills",
+      "type": "research",
+      "status": "done",
+      "notes": "Mapped SKILL.md template. User decided: PM-internal topics stay as instructions, NOT skills. Skills are for external frameworks only.",
+      "assignee": "Researcher",
+      "index": 1
+    },
+    {
+      "phase": "Reclassify",
+      "task": "Move skills/coordinator-categorization/SKILL.md to instructions/coordinator-categorization.instructions.md — convert from skill format to instruction format",
+      "type": "refactor",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 2,
+      "notes": "Converted coordinator-categorization from skill to instruction format (66 lines)",
+      "completed_at": "2026-02-13T18:39:38.847Z"
+    },
+    {
+      "phase": "Reclassify",
+      "task": "Move skills/analyst-methodology/SKILL.md to instructions/analyst-methodology.instructions.md — convert from skill format to instruction format, or merge into analyst-operations.instructions.md if combined stays under 400 lines",
+      "type": "refactor",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 3,
+      "notes": "Converted analyst-methodology from skill to instruction format (235 lines)",
+      "completed_at": "2026-02-13T18:39:38.847Z"
+    },
+    {
+      "phase": "Split Monolith",
+      "task": "Create instructions/mcp-tool-workspace.instructions.md — extract memory_workspace tool reference (all actions, parameters, examples) from project-memory-system.instructions.md",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 4,
+      "notes": "Created mcp-tool-workspace.instructions.md",
+      "completed_at": "2026-02-13T18:31:13.612Z"
+    },
+    {
+      "phase": "Split Monolith",
+      "task": "Create instructions/mcp-tool-plan.instructions.md — extract memory_plan tool reference (all actions, parameters, examples) from project-memory-system.instructions.md",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 5,
+      "notes": "Created mcp-tool-plan.instructions.md",
+      "completed_at": "2026-02-13T18:31:13.612Z"
+    },
+    {
+      "phase": "Split Monolith",
+      "task": "Create instructions/mcp-tool-steps.instructions.md — extract memory_steps tool reference (all actions, parameters, examples) from project-memory-system.instructions.md",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 6,
+      "notes": "Created mcp-tool-steps.instructions.md",
+      "completed_at": "2026-02-13T18:32:38.945Z"
+    },
+    {
+      "phase": "Split Monolith",
+      "task": "Create instructions/mcp-tool-agent.instructions.md — extract memory_agent tool reference (all actions, parameters, examples) from project-memory-system.instructions.md",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 7,
+      "notes": "Created mcp-tool-agent.instructions.md",
+      "completed_at": "2026-02-13T18:32:38.945Z"
+    },
+    {
+      "phase": "Split Monolith",
+      "task": "Create instructions/mcp-tool-context.instructions.md — extract memory_context tool reference (all actions, parameters, examples) from project-memory-system.instructions.md",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 8,
+      "notes": "Created mcp-tool-context.instructions.md",
+      "completed_at": "2026-02-13T18:33:34.428Z"
+    },
+    {
+      "phase": "Split Monolith",
+      "task": "Reduce project-memory-system.instructions.md to a slim overview/index (~50-100 lines) — keep core concepts, agent types table, quick start, and references to per-tool instruction files",
+      "type": "refactor",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 9,
+      "notes": "Reduced project-memory-system.instructions.md from 2244 to 173 lines. Created mcp-best-practices.instructions.md with workflow examples, best practices, anti-patterns, tips, and type reference appendix.",
+      "completed_at": "2026-02-13T18:36:56.827Z"
+    },
+    {
+      "phase": "Cleanup",
+      "task": "Update agent files to reference instruction files instead of skills where PM-internal content was moved — coordinator, analyst, and any others referencing coordinator-categorization or analyst-methodology skills",
+      "type": "refactor",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 10,
+      "notes": "Updated coordinator.agent.md: 2 references from skills/coordinator-categorization/SKILL.md → instructions/coordinator-categorization.instructions.md. Updated analyst.agent.md: 1 reference from skills/analyst-methodology/SKILL.md → instructions/analyst-methodology.instructions.md. No cross-references found in instruction files or .github/instructions/. Trimmed mcp-tool-plan.instructions.md from 530 to 304 lines by removing redundant JSON examples from self-explanatory actions.",
+      "completed_at": "2026-02-13T18:43:29.52Z"
+    },
+    {
+      "phase": "Cleanup",
+      "task": "Remove empty skills/coordinator-categorization/ and skills/analyst-methodology/ directories after content has been moved to instructions/",
+      "type": "refactor",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 11,
+      "notes": "Deleted skills/coordinator-categorization/ and skills/analyst-methodology/ directories. Content already migrated to instructions/.",
+      "completed_at": "2026-02-13T18:44:21.729Z"
+    },
+    {
+      "phase": "Validation",
+      "task": "Verify all instruction files are under 400 lines, no broken cross-references, and build still passes",
+      "type": "validation",
+      "status": "done",
+      "assignee": "Reviewer",
+      "index": 12,
+      "notes": "All checks pass: all 25 instruction files under 400 lines, no broken references, old skill directories removed, .github copy synced to slim index.",
+      "completed_at": "2026-02-13T19:00:49.314Z"
+    }
+  ],
+  "pending_notes": [
+    {
+      "note": "Plan revised: User decided PM-internal topics should remain as instructions, NOT skills. Skills are reserved for external frameworks/architectures. Revised scope: (1) Reclassify coordinator-categorization & analyst-methodology from skills/ to instructions/, (2) Split project-memory-system.instructions.md monolith into per-tool instruction files, (3) Cleanup references. 13 total steps, down from original 15.",
+      "type": "instruction",
+      "added_at": "2026-02-13T18:21:58.76Z",
+      "added_by": "user"
+    }
+  ],
+  "recommended_next_agent": "Coordinator",
+  "parent_program_id": "plan_mlkjmemm_f04cebfc"
+}

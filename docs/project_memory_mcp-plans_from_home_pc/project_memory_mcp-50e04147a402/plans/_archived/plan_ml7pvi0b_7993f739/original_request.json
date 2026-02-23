@@ -1,0 +1,20 @@
+{
+  "type": "original_request",
+  "plan_id": "plan_ml7pvi0b_7993f739",
+  "workspace_id": "Project-Memory-MCP-652c624f8f59",
+  "captured_at": "2026-02-06T22:10:41.011Z",
+  "user_request": "Test initial context from VS Code",
+  "context": {
+    "files_mentioned": [
+      "README.md"
+    ],
+    "file_contents": {},
+    "requirements": [
+      "Verify context endpoints"
+    ],
+    "constraints": [],
+    "examples": [],
+    "conversation_context": null,
+    "additional_notes": null
+  }
+}

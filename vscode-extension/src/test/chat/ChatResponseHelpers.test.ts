@@ -42,9 +42,9 @@ suite('ChatResponseHelpers Test Suite', () => {
 
         const commands = stream.buttonCalls.map((button) => button.command);
         assert.deepStrictEqual(commands, [
-            'projectMemory.archivePlan',
-            'projectMemory.runBuildScript',
-            'projectMemory.addStepToPlan',
+            'projectMemoryDev.archivePlan',
+            'projectMemoryDev.runBuildScript',
+            'projectMemoryDev.addStepToPlan',
         ]);
     });
 
@@ -66,13 +66,13 @@ suite('ChatResponseHelpers Test Suite', () => {
         const markdown = stream.markdownCalls[0] as vscode.MarkdownString;
 
         assert.ok(markdown instanceof vscode.MarkdownString);
-        assert.ok(markdown.value.includes(`[Start](${createCommandLink('projectMemory.markStepActive', ['plan_1', 0])})`));
-        assert.ok(markdown.value.includes(`[Done](${createCommandLink('projectMemory.markStepDone', ['plan_1', 1])})`));
-        assert.ok(markdown.value.includes(`[Create Dedicated Plan](${createCommandLink('projectMemory.createDedicatedPlan', ['plan_1', 3])})`));
+        assert.ok(markdown.value.includes(`[Start](${createCommandLink('projectMemoryDev.markStepActive', ['plan_1', 0])})`));
+        assert.ok(markdown.value.includes(`[Done](${createCommandLink('projectMemoryDev.markStepDone', ['plan_1', 1])})`));
+        assert.ok(markdown.value.includes(`[Create Dedicated Plan](${createCommandLink('projectMemoryDev.createDedicatedPlan', ['plan_1', 3])})`));
         assert.deepStrictEqual((markdown.isTrusted as { enabledCommands: string[] }).enabledCommands, [
-            'projectMemory.markStepActive',
-            'projectMemory.markStepDone',
-            'projectMemory.createDedicatedPlan'
+            'projectMemoryDev.markStepActive',
+            'projectMemoryDev.markStepDone',
+            'projectMemoryDev.createDedicatedPlan'
         ]);
     });
 
@@ -86,7 +86,7 @@ suite('ChatResponseHelpers Test Suite', () => {
 
     test('showConfirmation + confirmPendingAction executes pending command', async () => {
         let captured: unknown[] = [];
-        const commandId = `projectMemory.testConfirm.${Date.now()}`;
+        const commandId = `projectMemoryDev.testConfirm.${Date.now()}`;
         const disposable = vscode.commands.registerCommand(commandId, (...args: unknown[]) => {
             captured = args;
         });
@@ -105,8 +105,8 @@ suite('ChatResponseHelpers Test Suite', () => {
 
             assert.strictEqual(result.executed, true);
             assert.deepStrictEqual(captured, ['plan_42']);
-            assert.ok(stream.buttonCalls.some((button) => button.command === 'projectMemory.confirmAction'));
-            assert.ok(stream.buttonCalls.some((button) => button.command === 'projectMemory.cancelAction'));
+            assert.ok(stream.buttonCalls.some((button) => button.command === 'projectMemoryDev.confirmAction'));
+            assert.ok(stream.buttonCalls.some((button) => button.command === 'projectMemoryDev.cancelAction'));
         } finally {
             disposable.dispose();
         }
@@ -114,7 +114,7 @@ suite('ChatResponseHelpers Test Suite', () => {
 
     test('cancelPendingAction prevents later confirmation execution', async () => {
         let executed = false;
-        const commandId = `projectMemory.testCancel.${Date.now()}`;
+        const commandId = `projectMemoryDev.testCancel.${Date.now()}`;
         const disposable = vscode.commands.registerCommand(commandId, () => {
             executed = true;
         });

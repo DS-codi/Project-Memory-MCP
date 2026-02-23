@@ -1,0 +1,40 @@
+{
+  "timestamp": "2026-02-13T20:10:00.060Z",
+  "from_agent": "Reviewer",
+  "to_agent": "Coordinator",
+  "reason": "Validation review complete. Steps 8-9 done. Found 2 actionable naming inconsistencies in coordinator-subagent-templates.instructions.md (convert_to_skill should be convert; protected missing from classification list). Recommend Revisionist for quick fixes.\"",
+  "data": {
+    "recommendation": "Revisionist",
+    "issues_found": 2,
+    "issues_cosmetic": 2,
+    "findings_summary": "NAMING-1 [medium]: coordinator-subagent-templates.instructions.md uses 'convert_to_skill' (lines 171, 200, 206) but agent file and instruction file both use 'convert'. Fix: change to 'convert' in 3 places. NAMING-2 [low]: coordinator template classification list (lines 170-174) omits 'protected'. Fix: add one line. NAMING-3 [low]: consolidate/delete combined vs separate — cosmetic, no fix needed. SCOPE-1 [low]: template scope narrower than instruction scan paths — cosmetic, no fix needed.",
+    "files_to_fix": [
+      "instructions/coordinator-subagent-templates.instructions.md"
+    ],
+    "specific_fixes": [
+      {
+        "file": "instructions/coordinator-subagent-templates.instructions.md",
+        "line": 171,
+        "old": "convert_to_skill",
+        "new": "convert"
+      },
+      {
+        "file": "instructions/coordinator-subagent-templates.instructions.md",
+        "line": 200,
+        "old": "convert_to_skill",
+        "new": "convert"
+      },
+      {
+        "file": "instructions/coordinator-subagent-templates.instructions.md",
+        "line": 206,
+        "old": "convert_to_skill",
+        "new": "convert"
+      },
+      {
+        "file": "instructions/coordinator-subagent-templates.instructions.md",
+        "after_line": 174,
+        "add": "- protected — agent definitions, security files — never touched"
+      }
+    ]
+  }
+}

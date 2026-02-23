@@ -1,0 +1,33 @@
+{
+  "type": "original_request",
+  "plan_id": "plan_mllaot7r_2964d5f0",
+  "workspace_id": "project-memory-mcp-40f6678f5a9b",
+  "captured_at": "2026-02-13T19:43:14.504Z",
+  "user_request": {
+    "sanitized": "Implement full parent-child workspace hierarchy. When opening a parent directory that contains a child workspace (or vice versa), detect the relationship and link them. Dashboard should show the hierarchy. Prevent ghost workspace entries when overlapping paths are registered. Triggered by the ghost workspace 'project_memory_mcp-50e04147a402' that was accidentally created when the user opened the parent directory of the actual Project-Memory-MCP workspace.",
+    "wasModified": false,
+    "injectionAttempts": [],
+    "warnings": []
+  },
+  "context": {
+    "files_mentioned": [],
+    "file_contents": {},
+    "requirements": [
+      "Detect parent-child directory relationships during workspace registration",
+      "Bidirectional linking: parent stores child_workspace_ids, child stores parent_workspace_id",
+      "Registration guard: scan up/down directory tree for existing identity.json before creating new workspace",
+      "Dashboard hierarchy: API returns parent-child data for UI rendering",
+      "Monorepo support: independent child workspaces can operate standalone but link to parent"
+    ],
+    "constraints": [
+      "Must be backward compatible — existing workspaces must not break",
+      "identity.json is the canonical source of workspace identity",
+      "workspace-registry.json is the path→ID lookup table",
+      "Registration currently hashes the folder name to generate workspace IDs",
+      "Data folders live under data/{workspace_id}/"
+    ],
+    "examples": [],
+    "conversation_context": null,
+    "additional_notes": null
+  }
+}

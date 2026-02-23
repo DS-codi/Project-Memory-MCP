@@ -64,7 +64,7 @@ export class ChatParticipant implements vscode.Disposable {
 
         if (registerWithVscode) {
             this.participant = vscode.chat.createChatParticipant(
-                'project-memory.memory',
+                'project-memory-dev.memory',
                 this.handleRequest.bind(this)
             );
             this.participant.iconPath = new vscode.ThemeIcon('book');

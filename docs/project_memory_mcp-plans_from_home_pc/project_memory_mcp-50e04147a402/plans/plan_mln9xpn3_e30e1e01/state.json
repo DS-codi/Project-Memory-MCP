@@ -1,0 +1,52 @@
+{
+  "id": "plan_mln9xpn3_e30e1e01",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Approval Flow Smoke Plan",
+  "description": "Temporary plan to validate Approve Step / Approve Phase chat buttons and confirmation handling.",
+  "priority": "medium",
+  "category": "investigation",
+  "goals": [
+    "Exercise confirmation-gated step and phase actions from chat UI"
+  ],
+  "success_criteria": [
+    "Approve Step button appears and confirms step",
+    "Approve Phase button appears and confirms phase"
+  ],
+  "status": "archived",
+  "current_phase": "initialization",
+  "current_agent": null,
+  "confirmation_state": {
+    "phases": {},
+    "steps": {}
+  },
+  "created_at": "2026-02-15T04:57:30.645Z",
+  "updated_at": "2026-02-15T05:24:29.139Z",
+  "agent_sessions": [],
+  "lineage": [],
+  "steps": [
+    {
+      "index": 0,
+      "phase": "Approval Phase",
+      "task": "User approves this step",
+      "type": "user_validation",
+      "status": "done",
+      "requires_user_confirmation": true
+    },
+    {
+      "index": 1,
+      "phase": "Approval Phase",
+      "task": "Confirm this phase after step approval",
+      "type": "validation",
+      "status": "done",
+      "requires_confirmation": true
+    },
+    {
+      "index": 2,
+      "phase": "Phase: Follow-up",
+      "task": "Added step to test step creation",
+      "status": "pending",
+      "type": "code"
+    }
+  ],
+  "archived_at": "2026-02-15T05:24:29.139Z"
+}

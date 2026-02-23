@@ -129,7 +129,7 @@ suite('ChatPlanCommands Test Suite', () => {
             'ws_1'
         );
 
-        const viewButtons = response.buttonCalls.filter((button) => button.command === 'projectMemory.showPlanInChat');
+        const viewButtons = response.buttonCalls.filter((button) => button.command === 'projectMemoryDev.showPlanInChat');
         assert.strictEqual(viewButtons.length, 2);
         assert.strictEqual(viewButtons[0].title, 'View Details');
         assert.deepStrictEqual(viewButtons[0].arguments, ['plan_one']);
@@ -140,7 +140,7 @@ suite('ChatPlanCommands Test Suite', () => {
         assert.strictEqual(refreshButton?.title, 'Refresh');
         assert.deepStrictEqual(refreshButton?.arguments, [{ query: '@memory /plan list' }]);
 
-        const openDashboardButton = response.buttonCalls.find((button) => button.command === 'projectMemory.openPlanInDashboard');
+        const openDashboardButton = response.buttonCalls.find((button) => button.command === 'projectMemoryDev.openPlanInDashboard');
         assert.ok(openDashboardButton);
         assert.deepStrictEqual(openDashboardButton?.arguments, ['ws_1', undefined]);
     });
@@ -159,12 +159,12 @@ suite('ChatPlanCommands Test Suite', () => {
             'ws_1'
         );
 
-        const viewButton = response.buttonCalls.find((button) => button.command === 'projectMemory.showPlanInChat');
+        const viewButton = response.buttonCalls.find((button) => button.command === 'projectMemoryDev.showPlanInChat');
         assert.ok(viewButton);
         assert.strictEqual(viewButton?.title, 'View Plan Details');
         assert.deepStrictEqual(viewButton?.arguments, ['plan_created']);
 
-        const openDashboardButton = response.buttonCalls.find((button) => button.command === 'projectMemory.openPlanInDashboard');
+        const openDashboardButton = response.buttonCalls.find((button) => button.command === 'projectMemoryDev.openPlanInDashboard');
         assert.ok(openDashboardButton);
         assert.deepStrictEqual(openDashboardButton?.arguments, ['ws_1', 'plan_created']);
     });
@@ -185,15 +185,15 @@ suite('ChatPlanCommands Test Suite', () => {
         );
 
         const commands = response.buttonCalls.map((button) => button.command);
-        assert.ok(commands.includes('projectMemory.archivePlan'));
-        assert.ok(commands.includes('projectMemory.runBuildScript'));
-        assert.ok(commands.includes('projectMemory.addStepToPlan'));
-        assert.ok(commands.includes('projectMemory.openPlanInDashboard'));
+        assert.ok(commands.includes('projectMemoryDev.archivePlan'));
+        assert.ok(commands.includes('projectMemoryDev.runBuildScript'));
+        assert.ok(commands.includes('projectMemoryDev.addStepToPlan'));
+        assert.ok(commands.includes('projectMemoryDev.openPlanInDashboard'));
 
-        const buildButton = response.buttonCalls.find((button) => button.command === 'projectMemory.runBuildScript');
+        const buildButton = response.buttonCalls.find((button) => button.command === 'projectMemoryDev.runBuildScript');
         assert.deepStrictEqual(buildButton?.arguments, ['plan_abc']);
 
-        const openDashboardButton = response.buttonCalls.find((button) => button.command === 'projectMemory.openPlanInDashboard');
+        const openDashboardButton = response.buttonCalls.find((button) => button.command === 'projectMemoryDev.openPlanInDashboard');
         assert.deepStrictEqual(openDashboardButton?.arguments, [undefined, 'plan_abc']);
     });
 
@@ -213,9 +213,9 @@ suite('ChatPlanCommands Test Suite', () => {
         );
 
         const commands = response.buttonCalls.map((button) => button.command);
-        assert.ok(commands.includes('projectMemory.archivePlan'));
-        assert.ok(commands.includes('projectMemory.addStepToPlan'));
-        assert.ok(!commands.includes('projectMemory.runBuildScript'));
+        assert.ok(commands.includes('projectMemoryDev.archivePlan'));
+        assert.ok(commands.includes('projectMemoryDev.addStepToPlan'));
+        assert.ok(!commands.includes('projectMemoryDev.runBuildScript'));
     });
 
     test('scripts subcommand lists registered scripts and renders per-script Run buttons', async function () {
@@ -249,12 +249,12 @@ suite('ChatPlanCommands Test Suite', () => {
 
         assert.ok(response.fullMarkdown.includes('Registered Build Scripts'));
 
-        const runButtons = response.buttonCalls.filter((button) => button.command === 'projectMemory.runBuildScript');
+        const runButtons = response.buttonCalls.filter((button) => button.command === 'projectMemoryDev.runBuildScript');
         assert.strictEqual(runButtons.length, 2);
         assert.deepStrictEqual(runButtons[0].arguments, ['script_a', undefined]);
         assert.deepStrictEqual(runButtons[1].arguments, ['script_b', undefined]);
 
-        const openDashboardButton = response.buttonCalls.find((button) => button.command === 'projectMemory.openPlanInDashboard');
+        const openDashboardButton = response.buttonCalls.find((button) => button.command === 'projectMemoryDev.openPlanInDashboard');
         assert.ok(openDashboardButton);
         assert.deepStrictEqual(openDashboardButton?.arguments, ['ws_1', undefined]);
     });
@@ -288,11 +288,11 @@ suite('ChatPlanCommands Test Suite', () => {
         assert.ok(listScriptsCall);
         assert.strictEqual(listScriptsCall?.args.plan_id, 'plan_abc');
 
-        const runButton = response.buttonCalls.find((button) => button.command === 'projectMemory.runBuildScript');
+        const runButton = response.buttonCalls.find((button) => button.command === 'projectMemoryDev.runBuildScript');
         assert.ok(runButton);
         assert.deepStrictEqual(runButton?.arguments, ['script_plan', 'plan_abc']);
 
-        const openDashboardButton = response.buttonCalls.find((button) => button.command === 'projectMemory.openPlanInDashboard');
+        const openDashboardButton = response.buttonCalls.find((button) => button.command === 'projectMemoryDev.openPlanInDashboard');
         assert.ok(openDashboardButton);
         assert.deepStrictEqual(openDashboardButton?.arguments, ['ws_1', 'plan_abc']);
     });
@@ -311,7 +311,7 @@ suite('ChatPlanCommands Test Suite', () => {
             'ws_1'
         );
 
-        const openDashboardButton = response.buttonCalls.find((button) => button.command === 'projectMemory.openPlanInDashboard');
+        const openDashboardButton = response.buttonCalls.find((button) => button.command === 'projectMemoryDev.openPlanInDashboard');
         assert.ok(openDashboardButton);
         assert.deepStrictEqual(openDashboardButton?.arguments, ['ws_1', undefined]);
     });
@@ -338,7 +338,7 @@ suite('ChatPlanCommands Test Suite', () => {
         );
 
         const dedicatedButton = response.buttonCalls.find((button) =>
-            button.command === 'projectMemory.createDedicatedPlan'
+            button.command === 'projectMemoryDev.createDedicatedPlan'
                 && Array.isArray(button.arguments)
                 && button.arguments[0] === 'plan_abc'
                 && button.arguments[1] === 2
@@ -376,7 +376,7 @@ suite('ChatPlanCommands Test Suite', () => {
         );
 
         const scopeEscalationButton = response.buttonCalls.find((button) =>
-            button.command === 'projectMemory.createDedicatedPlan'
+            button.command === 'projectMemoryDev.createDedicatedPlan'
                 && button.title === 'Create Dedicated Plan (Scope Escalation)'
         );
 
@@ -413,7 +413,7 @@ suite('ChatPlanCommands Test Suite', () => {
         );
 
         const scopeEscalationButton = response.buttonCalls.find((button) =>
-            button.command === 'projectMemory.createDedicatedPlan'
+            button.command === 'projectMemoryDev.createDedicatedPlan'
                 && button.title === 'Create Dedicated Plan (Scope Escalation)'
         );
 
@@ -441,7 +441,7 @@ suite('ChatPlanCommands Test Suite', () => {
         );
 
         const launchButton = response.buttonCalls.find((button) =>
-            button.command === 'projectMemory.launchAgentChat'
+            button.command === 'projectMemoryDev.launchAgentChat'
                 && Array.isArray(button.arguments)
                 && button.arguments[0] === 'Reviewer'
         );
@@ -472,12 +472,12 @@ suite('ChatPlanCommands Test Suite', () => {
             'ws_1'
         );
 
-        const approveStepButtons = response.buttonCalls.filter((button) => button.command === 'projectMemory.confirmPlanStep');
+        const approveStepButtons = response.buttonCalls.filter((button) => button.command === 'projectMemoryDev.confirmPlanStep');
         assert.strictEqual(approveStepButtons.length, 2);
         assert.deepStrictEqual(approveStepButtons[0].arguments, ['plan_abc', 0]);
         assert.deepStrictEqual(approveStepButtons[1].arguments, ['plan_abc', 1]);
 
-        const approvePhaseButton = response.buttonCalls.find((button) => button.command === 'projectMemory.confirmPlanPhase');
+        const approvePhaseButton = response.buttonCalls.find((button) => button.command === 'projectMemoryDev.confirmPlanPhase');
         assert.ok(approvePhaseButton);
         assert.deepStrictEqual(approvePhaseButton?.arguments, ['plan_abc', 'Validation']);
     });
@@ -508,7 +508,7 @@ suite('ChatPlanCommands Test Suite', () => {
         );
 
         const approveButtons = response.buttonCalls.filter((button) =>
-            button.command === 'projectMemory.confirmPlanStep' || button.command === 'projectMemory.confirmPlanPhase'
+            button.command === 'projectMemoryDev.confirmPlanStep' || button.command === 'projectMemoryDev.confirmPlanPhase'
         );
 
         assert.strictEqual(approveButtons.length, 0);
@@ -540,7 +540,7 @@ suite('ChatPlanCommands Test Suite', () => {
         );
 
         const researchFurtherButton = response.buttonCalls.find((button) =>
-            button.command === 'projectMemory.launchAgentChat'
+            button.command === 'projectMemoryDev.launchAgentChat'
                 && button.title === 'Research Further'
         );
 
@@ -554,7 +554,7 @@ suite('ChatPlanCommands Test Suite', () => {
         });
 
         const addStepSuggestion = response.buttonCalls.find((button) =>
-            button.command === 'projectMemory.addStepToPlan'
+            button.command === 'projectMemoryDev.addStepToPlan'
                 && button.title === 'Add Step'
                 && Array.isArray(button.arguments)
                 && button.arguments[0] === 'plan_abc'
@@ -724,7 +724,7 @@ suite('ChatPlanCommands Test Suite', () => {
         );
 
         const launchButton = response.buttonCalls.find((button) =>
-            button.command === 'projectMemory.launchAgentChat'
+            button.command === 'projectMemoryDev.launchAgentChat'
                 && Array.isArray(button.arguments)
                 && button.arguments[0] === 'Reviewer'
         );
@@ -774,7 +774,7 @@ suite('ChatPlanCommands Test Suite', () => {
         assert.ok(response.fullMarkdown.includes('### Child Plan Actions'));
 
         const openChildButtons = response.buttonCalls.filter((button) =>
-            button.command === 'projectMemory.showPlanInChat'
+            button.command === 'projectMemoryDev.showPlanInChat'
                 && typeof button.title === 'string'
                 && button.title.includes('Child A')
         );
@@ -782,7 +782,7 @@ suite('ChatPlanCommands Test Suite', () => {
         assert.deepStrictEqual(openChildButtons[0]?.arguments, ['child_a']);
 
         const childLaunchButtons = response.buttonCalls.filter((button) =>
-            button.command === 'projectMemory.launchAgentChat'
+            button.command === 'projectMemoryDev.launchAgentChat'
                 && typeof button.title === 'string'
                 && button.title.includes('(Child A)')
         );
@@ -790,7 +790,7 @@ suite('ChatPlanCommands Test Suite', () => {
         assert.strictEqual(childLaunchButtons.length, 1);
 
         const dependentChildButton = response.buttonCalls.find((button) =>
-            button.command === 'projectMemory.launchAgentChat'
+            button.command === 'projectMemoryDev.launchAgentChat'
                 && typeof button.title === 'string'
                 && button.title.includes('(Child B)')
         );
@@ -827,13 +827,13 @@ suite('ChatPlanCommands Test Suite', () => {
         );
 
         const childLaunchButton = response.buttonCalls.find((button) =>
-            button.command === 'projectMemory.launchAgentChat'
+            button.command === 'projectMemoryDev.launchAgentChat'
                 && typeof button.title === 'string'
                 && button.title.includes('(Child A)')
         );
 
         const openChildButton = response.buttonCalls.find((button) =>
-            button.command === 'projectMemory.showPlanInChat'
+            button.command === 'projectMemoryDev.showPlanInChat'
                 && typeof button.title === 'string'
                 && button.title.includes('Child A')
         );

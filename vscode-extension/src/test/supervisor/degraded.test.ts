@@ -100,7 +100,7 @@ suite('degraded mode', () => {
             `Expected text to contain "Supervisor Unavailable"; got: "${item.text}"`
         );
         assert.strictEqual(item.tooltip, 'Supervisor startup timed out');
-        assert.strictEqual(item.command, 'project-memory.startSupervisor');
+        assert.strictEqual(item.command, 'project-memory-dev.startSupervisor');
         assert.ok(item.backgroundColor !== undefined, 'backgroundColor should be set');
         assert.ok(
             subscriptions.length > 0,

@@ -54,7 +54,7 @@ export class McpBridge implements vscode.Disposable, McpHttpClient {
         this.outputChannel = vscode.window.createOutputChannel('Project Memory MCP Bridge');
 
         // Get port from settings if available
-        const vsConfig = vscode.workspace.getConfiguration('projectMemory');
+        const vsConfig = vscode.workspace.getConfiguration('projectMemoryDev');
         this.serverPort = vsConfig.get<number>('serverPort') || 3001;
     }
 

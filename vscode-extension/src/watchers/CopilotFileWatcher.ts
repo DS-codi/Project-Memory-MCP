@@ -10,7 +10,7 @@ import * as chokidar from 'chokidar';
 import * as path from 'path';
 
 function notify(message: string, ...items: string[]): Thenable<string | undefined> {
-    const config = vscode.workspace.getConfiguration('projectMemory');
+    const config = vscode.workspace.getConfiguration('projectMemoryDev');
     if (config.get<boolean>('showNotifications', true)) {
         return vscode.window.showInformationMessage(message, ...items);
     }
@@ -146,9 +146,9 @@ export class CopilotFileWatcher {
 
     private triggerDeploy(type: CopilotFileType): void {
         const commands = {
-            agent: 'projectMemory.deployAgents',
-            prompt: 'projectMemory.deploySkills',
-            instruction: 'projectMemory.deployInstructions'
+            agent: 'projectMemoryDev.deployAgents',
+            prompt: 'projectMemoryDev.deploySkills',
+            instruction: 'projectMemoryDev.deployInstructions'
         };
         vscode.commands.executeCommand(commands[type]);
     }

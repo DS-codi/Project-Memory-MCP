@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { scanWorkspaces, getWorkspacePlans, getPlanState } from '../services/fileScanner.js';
+import { dataCache } from '../services/cache.js';
 
 export const metricsRouter = Router();
 
@@ -80,9 +81,16 @@ function getWeekNumber(date: Date): string {
   return `${date.getFullYear()}-W${week.toString().padStart(2, '0')}`;
 }
 
-// GET /api/metrics - Get comprehensive metrics dashboard
+// GET /api/metrics - Get comprehensive metrics dashboard (cached for 60s)
 metricsRouter.get('/', async (req, res) => {
   try {
+    // Return cached response if available (invalidated by file watcher)
+    const cached = dataCache.get<object>('metrics');
+    if (cached) {
+      res.json(cached);
+      return;
+    }
+
     const workspaces = await scanWorkspaces(globalThis.MBS_DATA_ROOT);
     
     // Initialize counters
@@ -290,6 +298,7 @@ metricsRouter.get('/', async (req, res) => {
     
     metrics.handoffs.most_common_transitions = transitions;
     
+    dataCache.set('metrics', metrics, 60_000); // Cache for 60s
     res.json(metrics);
   } catch (error) {
     console.error('Error generating metrics:', error);
@@ -297,9 +306,15 @@ metricsRouter.get('/', async (req, res) => {
   }
 });
 
-// GET /api/metrics/agents - Get agent-specific metrics
+// GET /api/metrics/agents - Get agent-specific metrics (cached for 60s)
 metricsRouter.get('/agents', async (req, res) => {
   try {
+    const cached = dataCache.get<object>('metrics:agents');
+    if (cached) {
+      res.json(cached);
+      return;
+    }
+
     const workspaces = await scanWorkspaces(globalThis.MBS_DATA_ROOT);
     
     const agentDetails = new Map<string, {
@@ -366,6 +381,7 @@ metricsRouter.get('/agents', async (req, res) => {
       };
     }
     
+    dataCache.set('metrics:agents', result, 60_000);
     res.json(result);
   } catch (error) {
     console.error('Error getting agent metrics:', error);

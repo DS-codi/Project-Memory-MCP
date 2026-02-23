@@ -447,7 +447,7 @@ function renderOpenInDashboardButton(
     planId?: string
 ): void {
     response.button({
-        command: 'projectMemory.openPlanInDashboard',
+        command: 'projectMemoryDev.openPlanInDashboard',
         title: 'Open in Dashboard',
         arguments: [workspaceId ?? undefined, planId]
     });
@@ -544,14 +544,14 @@ async function listPlans(
         response.markdown(
             createTrustedMarkdown(
                 `${statusEmoji} **${plan.title}** (${linkedPlanId})\n`,
-                ['projectMemory.showPlanInChat']
+                ['projectMemoryDev.showPlanInChat']
             )
         );
         if (plan.category) {
             response.markdown(`   Category: ${plan.category}\n`);
         }
         response.button({
-            command: 'projectMemory.showPlanInChat',
+            command: 'projectMemoryDev.showPlanInChat',
             title: 'View Details',
             arguments: [planId]
         });
@@ -601,7 +601,7 @@ async function createPlan(
     response.markdown(`- **Title**: ${result.title}\n`);
     response.markdown(`\nUse \`/plan show ${planId}\` to see details.`);
     response.button({
-        command: 'projectMemory.showPlanInChat',
+        command: 'projectMemoryDev.showPlanInChat',
         title: 'View Plan Details',
         arguments: [planId]
     });
@@ -677,7 +677,7 @@ async function listBuildScripts(
 
         if (scriptId.length > 0) {
             response.button({
-                command: 'projectMemory.runBuildScript',
+                command: 'projectMemoryDev.runBuildScript',
                 title: `Run ${scriptName}`,
                 arguments: [scriptId, planId]
             });
@@ -819,13 +819,13 @@ async function showPlan(
 
     if (researchNotes.length > 0) {
         const noteLinks = researchNotes
-            .map((note) => `- [${note}](${createCommandLink('projectMemory.showPlanInChat', [resolvedPlanId, note])})`)
+            .map((note) => `- [${note}](${createCommandLink('projectMemoryDev.showPlanInChat', [resolvedPlanId, note])})`)
             .join('\n');
 
         response.markdown(
             createTrustedMarkdown(
                 `\n## Research Notes\n\n${noteLinks}\n`,
-                ['projectMemory.showPlanInChat']
+                ['projectMemoryDev.showPlanInChat']
             )
         );
     }
@@ -882,7 +882,7 @@ async function showPlan(
         if (hasArchitectOutput) {
             response.markdown('\n### Architect Suggestions\n\n');
             response.button({
-                command: 'projectMemory.launchAgentChat',
+                command: 'projectMemoryDev.launchAgentChat',
                 title: 'Research Further',
                 arguments: [
                     'Researcher',
@@ -894,7 +894,7 @@ async function showPlan(
                 ]
             });
             response.button({
-                command: 'projectMemory.addStepToPlan',
+                command: 'projectMemoryDev.addStepToPlan',
                 title: 'Add Step',
                 arguments: [resolvedPlanId]
             });
@@ -943,7 +943,7 @@ async function showPlan(
         response.markdown('\n### Blocked Step Actions\n\n');
         for (const step of blockedSteps) {
             response.button({
-                command: 'projectMemory.createDedicatedPlan',
+                command: 'projectMemoryDev.createDedicatedPlan',
                 title: `Create Dedicated Plan (Step ${step.index + 1})`,
                 arguments: [resolvedPlanId, step.index]
             });
@@ -953,7 +953,7 @@ async function showPlan(
     if (hasScopeEscalationHandoff(result.lineage)) {
         const fallbackStepIndex = blockedSteps[0]?.index;
         response.button({
-            command: 'projectMemory.createDedicatedPlan',
+            command: 'projectMemoryDev.createDedicatedPlan',
             title: 'Create Dedicated Plan (Scope Escalation)',
             arguments: typeof fallbackStepIndex === 'number'
                 ? [resolvedPlanId, fallbackStepIndex]
@@ -989,7 +989,7 @@ async function showPlan(
 
         for (const step of pendingStepApprovals) {
             response.button({
-                command: 'projectMemory.confirmPlanStep',
+                command: 'projectMemoryDev.confirmPlanStep',
                 title: `Approve Step ${step.index + 1}`,
                 arguments: [resolvedPlanId, step.index]
             });
@@ -997,7 +997,7 @@ async function showPlan(
 
         for (const phase of pendingPhaseApprovals) {
             response.button({
-                command: 'projectMemory.confirmPlanPhase',
+                command: 'projectMemoryDev.confirmPlanPhase',
                 title: `Approve Phase: ${phase}`,
                 arguments: [resolvedPlanId, phase]
             });
@@ -1006,7 +1006,7 @@ async function showPlan(
 
     if (result.recommended_next_agent) {
         response.button({
-            command: 'projectMemory.launchAgentChat',
+            command: 'projectMemoryDev.launchAgentChat',
             title: `Launch ${result.recommended_next_agent}`,
             arguments: [
                 result.recommended_next_agent,
@@ -1062,7 +1062,7 @@ async function showPlan(
 
                 for (const child of childActions) {
                     response.button({
-                        command: 'projectMemory.showPlanInChat',
+                        command: 'projectMemoryDev.showPlanInChat',
                         title: `Open ${child.title}`,
                         arguments: [child.planId]
                     });
@@ -1072,7 +1072,7 @@ async function showPlan(
                     }
 
                     response.button({
-                        command: 'projectMemory.launchAgentChat',
+                        command: 'projectMemoryDev.launchAgentChat',
                         title: `Launch ${child.agent} (${child.title})`,
                         arguments: [
                             child.agent,

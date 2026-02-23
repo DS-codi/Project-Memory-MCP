@@ -1,0 +1,277 @@
+{
+  "id": "plan_mlmx6bns_4f8352c2",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Migrate action restores workspace context",
+  "description": "Ensure memory_workspace migrate action preserves and repopulates workspace.context.json sections so context does not appear empty after parent/child workspace consolidation and ghost merges.",
+  "priority": "high",
+  "category": "change",
+  "goals": [
+    "Migrate should preserve existing workspace context sections during consolidation",
+    "Migrate should repopulate minimal context sections when merged workspace has empty sections but plan/research data exists",
+    "Post-migration workspace context should be discoverable consistently from canonical workspace_id"
+  ],
+  "success_criteria": [
+    "After migrate, workspace_context.sections is not unintentionally empty for migrated workspaces with existing plan/research artifacts",
+    "No loss of existing research_notes or plan-scoped context files during migration",
+    "Migration response or logs clearly indicate whether context was preserved, merged, or repopulated"
+  ],
+  "status": "archived",
+  "current_phase": "complete",
+  "current_agent": null,
+  "confirmation_state": {
+    "phases": {
+      "Phase 1: Audit": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T23:38:14.785Z"
+      },
+      "Phase 2: Design": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T23:42:32.101Z"
+      },
+      "Phase 3: Implement": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T23:53:35.005Z"
+      },
+      "Phase 4: Verify": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T00:26:52.758Z"
+      },
+      "Phase 5: Test": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T00:28:07.058Z"
+      },
+      "Phase 6: Closeout": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T00:30:26.389Z"
+      }
+    },
+    "steps": {
+      "0": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T23:34:35.795Z"
+      },
+      "2": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T23:44:22.916Z"
+      },
+      "3": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T23:53:55.305Z"
+      },
+      "4": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T00:27:27.177Z"
+      }
+    }
+  },
+  "created_at": "2026-02-14T23:00:17.507Z",
+  "updated_at": "2026-02-15T00:31:20.364Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mlmydu2j_0d11a75c",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T23:34:07.483Z",
+      "context": {
+        "run_id": "run_sess_mlmydu2j_0d11a75c"
+      },
+      "completed_at": "2026-02-14T23:54:11.680Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T23:54:11.680Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmyexqf_eb6c2359",
+      "agent_type": "Researcher",
+      "started_at": "2026-02-14T23:34:58.918Z",
+      "context": {
+        "run_id": "run_sess_mlmyexqf_eb6c2359"
+      },
+      "completed_at": "2026-02-14T23:38:53.427Z",
+      "summary": "Completed migrate/context audit. Identified high-confidence root cause: migrate/merge workflows do not merge source workspace.context.json sections, and empty sections can be created when context is bootstrapped for audit/update logs. Confirmed no post-merge repopulation hook from plan/research artifacts. Saved detailed findings to plan research notes and structured research context; step 0 marked done.",
+      "artifacts": [
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlmx6bns_4f8352c2/research_notes/migrate-workspace-context-audit.md",
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlmx6bns_4f8352c2/research.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmylcp5_151fa7c9",
+      "agent_type": "Architect",
+      "started_at": "2026-02-14T23:39:58.253Z",
+      "context": {
+        "run_id": "run_sess_mlmylcp5_151fa7c9"
+      },
+      "completed_at": "2026-02-14T23:42:58.327Z",
+      "summary": "Completed Phase 2 design for migrate workspace-context preservation. Stored architecture artifact defining canonical-first merge precedence, section conflict strategy, fallback repopulation from plan/research/profile, source deletion safety guards, concrete implementation touchpoints, Reviewer/Tester matrix, and Definition of Done. Marked design step done and handed off to Coordinator recommending Executor.",
+      "artifacts": [
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlmx6bns_4f8352c2/architecture.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmyrwgf_eeedf262",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T23:45:03.788Z",
+      "context": {
+        "run_id": "run_sess_mlmyrwgf_eeedf262"
+      },
+      "completed_at": "2026-02-14T23:52:51.099Z",
+      "summary": "Implemented deterministic workspace context preservation/merge/repopulation logic for migrate/merge workflows in server workspace identity tooling, added deletion guard ordering before source deletion, reused profile seeding helper, added targeted tests, and validated with focused vitest run.",
+      "artifacts": [
+        "Project-Memory-MCP/server/src/storage/workspace-identity.ts",
+        "Project-Memory-MCP/server/src/tools/workspace.tools.ts",
+        "Project-Memory-MCP/server/src/utils/workspace-context-seed.ts",
+        "Project-Memory-MCP/server/src/__tests__/storage/workspace-identity.test.ts"
+      ]
+    },
+    {
+      "session_id": "sess_mlmz3n8p_fb3d3ce3",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T23:54:11.711Z",
+      "context": {
+        "run_id": "run_sess_mlmz3n8p_fb3d3ce3"
+      },
+      "completed_at": "2026-02-15T00:26:15.292Z",
+      "summary": "Reviewer validation completed with PASS verdict for migration context preservation/repopulation changes. Verified scoped files, no diagnostics in scope, and targeted server tests passed (53/53). Stored review artifact, reindexed workspace, and handed off to Coordinator recommending Tester. Step transition to done is pending phase confirmation gate.",
+      "artifacts": [
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlmx6bns_4f8352c2/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mln0a61l_6bdc1d94",
+      "agent_type": "Tester",
+      "started_at": "2026-02-15T00:27:15.622Z",
+      "context": {
+        "run_id": "run_sess_mln0a61l_6bdc1d94"
+      },
+      "completed_at": "2026-02-15T00:28:31.832Z",
+      "summary": "Validated migrate context behavior with targeted server tests; no additional test edits needed. Ran 53 tests across workspace-identity and workspace-context-seed suites, all passing.",
+      "artifacts": [
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlmx6bns_4f8352c2/test_results.json"
+      ]
+    },
+    {
+      "session_id": "sess_mln0cwh5_03c81ae1",
+      "agent_type": "Archivist",
+      "started_at": "2026-02-15T00:29:23.202Z",
+      "context": {
+        "run_id": "run_sess_mln0cwh5_03c81ae1"
+      },
+      "completed_at": "2026-02-15T00:31:20.351Z",
+      "summary": "Completed Phase 6 closeout and archived plan. Added final closeout note summarizing implementation and validation outcomes for migrate workspace-context preservation/repopulation behavior, stored completion artifact, confirmed phase gate, archived plan, reindexed workspace, and created required plan-summary knowledge file. Residual risk recorded regarding absence of a dedicated single-call migrate artifact-repopulation assertion when both canonical and source sections start empty.",
+      "artifacts": [
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlmx6bns_4f8352c2/completion.json",
+        "knowledge://project_memory_mcp-50e04147a402/plan-summary-plan-mlmx6bns-4f8352c2"
+      ]
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-14T23:38:46.497Z",
+      "from_agent": "Researcher",
+      "to_agent": "Coordinator",
+      "reason": "Phase 1 audit complete; researched migrate workflow and context-loss decision points. Recommend Architect to define preserve/merge/fallback policy."
+    },
+    {
+      "timestamp": "2026-02-14T23:42:49.750Z",
+      "from_agent": "Architect",
+      "to_agent": "Coordinator",
+      "reason": "Phase 2 design complete: merge policy, deletion guards, touchpoints, test matrix, and DoD defined for implementation."
+    },
+    {
+      "timestamp": "2026-02-14T23:52:43.983Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Implementation complete and tests passing; phase confirmation gate must be satisfied before transition."
+    },
+    {
+      "timestamp": "2026-02-15T00:25:45.676Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Review/build-check passed for migration context behavior; recommend Tester for Phase 5 targeted tests."
+    },
+    {
+      "timestamp": "2026-02-15T00:28:24.099Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Phase 5 tests completed; targeted migrate/context suite passed with no test changes required. Recommend Archivist."
+    }
+  ],
+  "steps": [
+    {
+      "phase": "Phase 1: Audit",
+      "task": "Research current migrate workflow and identify where workspace.context.json can be dropped, overwritten, or left empty",
+      "type": "analysis",
+      "status": "done",
+      "assignee": "Researcher",
+      "index": 0,
+      "notes": "Audit complete: migrate/merge flow moves plans/logs but does not merge source workspace.context.json sections. Context can be lost when ghost/source folders are deleted, and empty sections can be introduced when target context is bootstrapped for audit/update logs. No automatic repopulation hook from plan/research artifacts found. Research note saved (migrate-workspace-context-audit.md) and structured findings stored (research.json).",
+      "completed_at": "2026-02-14T23:38:35.475Z"
+    },
+    {
+      "phase": "Phase 2: Design",
+      "task": "Define merge policy for workspace context (preserve existing sections, merge when both exist, repopulate from plan/research when empty)",
+      "type": "planning",
+      "status": "done",
+      "assignee": "Architect",
+      "index": 1,
+      "notes": "Architecture design complete and stored in architecture context: precedence/conflict merge policy, fallback repopulation, source deletion guards, implementation touchpoints, test matrix, and DoD.",
+      "completed_at": "2026-02-14T23:42:40.642Z"
+    },
+    {
+      "phase": "Phase 3: Implement",
+      "task": "Implement migrate-path context preservation/merge/repopulation logic in server workspace identity/workspace tooling",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 2,
+      "notes": "Implementation completed by Executor; phase confirmed and ready for review.",
+      "completed_at": "2026-02-14T23:53:49.301Z"
+    },
+    {
+      "phase": "Phase 4: Verify",
+      "task": "Validate with migration scenarios (parent/child overlap, ghost merge) that context remains visible and research files remain intact",
+      "type": "validation",
+      "status": "done",
+      "assignee": "Reviewer",
+      "index": 3,
+      "notes": "Reviewer PASS: migration context behavior validated and targeted tests passed.",
+      "completed_at": "2026-02-15T00:26:52.844Z"
+    },
+    {
+      "phase": "Phase 5: Test",
+      "task": "Add or update tests for migrate context behavior and run targeted test suite",
+      "type": "test",
+      "status": "done",
+      "assignee": "Tester",
+      "index": 4,
+      "notes": "Reviewed coverage; no test file changes required. Ran targeted vitest suite and passed 53/53.",
+      "completed_at": "2026-02-15T00:28:16.583Z"
+    },
+    {
+      "phase": "Phase 6: Closeout",
+      "task": "Archive completed plan after validation and document migration behavior",
+      "type": "documentation",
+      "status": "done",
+      "assignee": "Archivist",
+      "index": 5,
+      "notes": "Phase 6 confirmed; closeout note and completion artifact recorded. Ready for and proceeding with archival.",
+      "completed_at": "2026-02-15T00:30:34.169Z"
+    }
+  ],
+  "recommended_next_agent": "Coordinator",
+  "pending_notes": [
+    {
+      "note": "Closeout summary (Archivist, 2026-02-15): Implemented deterministic workspace-context preservation and repopulation in migrate/merge flows: canonical sections are preserved, source-only sections merged, overlapping sections resolved with canonical-first summary + stable item union, and fallback repopulation restores minimal sections from plan/research artifacts when merged context is empty. Deletion guard ordering now ensures source folders are not deleted before context persistence and reference checks succeed. Validation completed with Reviewer PASS and targeted server tests passing (53/53) across workspace identity/context suites. Migration behavior is now documented through architecture/review/test artifacts and merge/migrate notes. Residual risk: no dedicated migrateWorkspace assertion yet for single-call artifact-based repopulation when both canonical and source context sections are empty, though merge repopulation and migrate context merge paths are covered.",
+      "type": "info",
+      "added_at": "2026-02-15T00:30:04.536Z",
+      "added_by": "user"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    // Dev dashboard ports — must match supervisor-dev.toml to avoid
+    // conflicting with the stable container on 3001/3002.
+    "projectMemoryDev.serverPort": 3011,
+    "projectMemoryDev.mcpPort": 3457
+  }
+}

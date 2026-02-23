@@ -1,0 +1,273 @@
+{
+  "id": "plan_mlmuoaaa_7d72246e",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Replay Execution Surfaces",
+  "description": "Integrate replay harness execution into interactive terminal and other launch surfaces.",
+  "priority": "medium",
+  "category": "feature",
+  "status": "archived",
+  "current_phase": "complete",
+  "current_agent": null,
+  "confirmation_state": {
+    "phases": {
+      "Phase 1: Research": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T07:52:40.723Z"
+      },
+      "Phase 2: Planning": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T07:55:54.469Z"
+      },
+      "Phase 4: Review": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T08:14:15.913Z"
+      },
+      "Phase 3: Implementation": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T08:21:05.360Z"
+      },
+      "Phase 5: Testing (Write)": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T08:21:18.331Z"
+      },
+      "Phase 6: Testing (Run)": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T08:21:22.214Z"
+      }
+    },
+    "steps": {
+      "6": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T08:13:39.537Z"
+      }
+    }
+  },
+  "created_at": "2026-02-14T21:50:16.596Z",
+  "updated_at": "2026-02-15T08:21:39.261Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mlng1goi_6db63000",
+      "agent_type": "Researcher",
+      "started_at": "2026-02-15T07:48:23.359Z",
+      "context": {
+        "run_id": "run_sess_mlng1goi_6db63000"
+      },
+      "completed_at": "2026-02-15T07:52:23.704Z",
+      "summary": "Completed Step 0 replay execution surface research and stored architect-ready findings. Coverage gap identified (scenarios memory_terminal-only), synthetic runner gap identified, and prioritized expansion path documented. Step currently blocked with explicit confirmation gate note.",
+      "artifacts": [
+        "research_notes/replay-execution-surfaces-research.md",
+        "research.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlng7jng_1f3a550f",
+      "agent_type": "Architect",
+      "started_at": "2026-02-15T07:53:07.217Z",
+      "context": {
+        "run_id": "run_sess_mlng7jng_1f3a550f"
+      },
+      "completed_at": "2026-02-15T07:56:41.369Z",
+      "summary": "Expanded the starter 2-step plan into a scoped phased roadmap for replay execution surfaces integration (implementation, review, testing write/run), set explicit goals and success criteria, stored architecture decisions/risks/dependencies, confirmed Phase 2 planning gate, and marked planning step done. Recommended Executor for next execution phase.",
+      "artifacts": [
+        "Project-Memory-MCP/data/project_memory_mcp-50e04147a402/plans/plan_mlmuoaaa_7d72246e/architecture.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlngd39o_c0b7f040",
+      "agent_type": "Executor",
+      "started_at": "2026-02-15T07:57:25.877Z",
+      "context": {
+        "run_id": "run_sess_mlngd39o_c0b7f040"
+      },
+      "completed_at": "2026-02-15T08:08:40.090Z",
+      "summary": "Completed Phase 3 Executor implementation steps (2-5) for replay execution surfaces. Implemented deterministic synthetic-default replay surface routing with optional adapter mode, extended flow comparison for selected surface assertions without introducing new check types, added P0/P1 scenarios for auto routing and build-script interactive surface behavior, and expanded harness tests. Validation passed via compile and replay test runs (199 passing). Handoff submitted to Coordinator recommending Reviewer.",
+      "artifacts": [
+        "vscode-extension/src/test/replay/core/ReplayOrchestrator.ts",
+        "vscode-extension/src/test/replay/core/Comparator.ts",
+        "vscode-extension/src/test/replay/scenarios/baseline-scenarios.v1.json",
+        "vscode-extension/src/test/suite/replay-harness-core.test.ts"
+      ]
+    },
+    {
+      "session_id": "sess_mlngs910_8b4372be",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-15T08:09:13.178Z",
+      "context": {
+        "run_id": "run_sess_mlngs910_8b4372be"
+      },
+      "completed_at": "2026-02-15T08:16:02.435Z",
+      "summary": "Review PASS for plan Replay Execution Surfaces. Verified Executor implementation aligns with architecture/goals/success criteria (canonical surfaces, explicit memory_terminal_vscode mapping policy, auto-routing flow assertions using existing checks, synthetic default + optional adapter mode, build-script resolve->launch coverage). Build-check scripts passed: compile, replay tests (199 passing, exit 0), interactive-terminal build (warnings only). Stored review and build_report context; recommended Tester.",
+      "artifacts": [
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlmuoaaa_7d72246e/review.json",
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlmuoaaa_7d72246e/build_report.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlnh1uky_78e5e9ea",
+      "agent_type": "Tester",
+      "started_at": "2026-02-15T08:16:41.002Z",
+      "context": {
+        "run_id": "run_sess_mlnh1uky_78e5e9ea"
+      },
+      "completed_at": "2026-02-15T08:20:19.456Z",
+      "summary": "Executed Tester validation for Replay Execution Surfaces. Verified targeted test coverage areas are present in replay suite/scenarios, ran registered scripts (npm run compile and npm test -- --grep \"Replay\") with PASS result (199 passing, exit 0). Stored test_results context. Could not transition testing steps to done due required phase confirmation gates; recorded Tester steps as blocked and handed off to Coordinator with recommendation Revisionist.",
+      "artifacts": [
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlmuoaaa_7d72246e/test_results.json"
+      ]
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-15T07:51:43.958Z",
+      "from_agent": "Researcher",
+      "to_agent": "Coordinator",
+      "reason": "Step 0 research complete with architect-ready replay execution surface findings; recommend Architect for Phase 2 planning."
+    },
+    {
+      "timestamp": "2026-02-15T07:52:00.129Z",
+      "from_agent": "Researcher",
+      "to_agent": "Coordinator",
+      "reason": "Research complete. Recommend Architect as next agent."
+    },
+    {
+      "timestamp": "2026-02-15T07:56:18.385Z",
+      "from_agent": "Architect",
+      "to_agent": "Coordinator",
+      "reason": "Phase 2 planning complete with detailed phased roadmap, goals, and success criteria for replay execution surfaces integration."
+    },
+    {
+      "timestamp": "2026-02-15T08:08:26.621Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Phase 3 implementation complete and validated; ready for build-check/review."
+    },
+    {
+      "timestamp": "2026-02-15T08:15:50.284Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Review and build-check passed for Replay Execution Surfaces; ready for Testing phase."
+    },
+    {
+      "timestamp": "2026-02-15T08:20:11.494Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Tester validation run passed (compile + replay tests), but plan is blocked by required phase confirmations and stale pending implementation step; recommend Revisionist for plan-state reconciliation."
+    }
+  ],
+  "steps": [
+    {
+      "phase": "Phase 1: Research",
+      "task": "Research launch-surface requirements for replay harness across interactive terminal and extension commands.",
+      "type": "research",
+      "status": "done",
+      "notes": "Phase 1 confirmed by user; research complete and accepted.",
+      "assignee": "Researcher",
+      "index": 0
+    },
+    {
+      "phase": "Phase 2: Planning",
+      "task": "Define replay execution-surface contract boundaries (memory_terminal, memory_terminal_interactive, auto) and explicitly resolve memory_terminal_vscode taxonomy inclusion/exclusion policy for this integration.",
+      "type": "planning",
+      "status": "done",
+      "assignee": "Architect",
+      "index": 1,
+      "notes": "Planning complete: expanded roadmap to phased implementation/review/testing flow, set goals and success criteria, and stored architecture risks/dependencies.",
+      "completed_at": "2026-02-15T07:56:05.499Z"
+    },
+    {
+      "phase": "Phase 3: Implementation",
+      "task": "Expand replay matrix execution_surfaces coverage for P0/P1 slices to include memory_terminal_interactive and auto alongside memory_terminal.",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 2,
+      "notes": "Completed in prior Executor run; matrix execution_surfaces coverage expanded for P0/P1 with memory_terminal, memory_terminal_interactive, and auto.",
+      "completed_at": "2026-02-15T08:21:11.466Z"
+    },
+    {
+      "phase": "Phase 3: Implementation",
+      "task": "Add auto-routing behavioral assertions using existing comparator check types (tool_order, auth_outcome, flow, success_signature) without introducing new contract semantics.",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 3,
+      "notes": "Added flow-based selected-surface assertions using existing comparator semantics (no new check types) plus targeted comparator test coverage.",
+      "completed_at": "2026-02-15T08:05:52.606Z"
+    },
+    {
+      "phase": "Phase 3: Implementation",
+      "task": "Introduce optional adapter-backed ReplayOrchestrator runner mode for real execution-surface invocation while preserving synthetic runner as deterministic default.",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 4,
+      "notes": "Implemented ReplayOrchestrator runner_mode toggle (synthetic default, adapter optional) and added focused tests for default deterministic behavior + adapter mode execution.",
+      "completed_at": "2026-02-15T08:06:00.356Z"
+    },
+    {
+      "phase": "Phase 3: Implementation",
+      "task": "Model and align build-script replay flow from memory_plan.run_build_script resolve to selected execution surface launch path(s), preserving canonical terminal-surface contracts.",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 5,
+      "notes": "Modeled run_build_script resolve->launch with explicit selected surface payload/events and launch tool_call synthesis; added additive P1 scenario coverage for build-script interactive path; validated via compile + replay tests.",
+      "completed_at": "2026-02-15T08:06:10.648Z"
+    },
+    {
+      "phase": "Phase 4: Review",
+      "task": "Review replay-surface contract alignment across replay core, extension launch entrypoints, and interactive-terminal routing gateway to prevent surface-contract collision.",
+      "type": "validation",
+      "status": "done",
+      "assignee": "Reviewer",
+      "index": 6,
+      "notes": "Review PASS. Verified replay-surface contract alignment and build-check scripts. Results: npm run compile PASS; npm test -- --grep \"Replay\" PASS (199 passing, exit 0); interactive-terminal build script PASS (warnings only). No must-fix defects found.",
+      "completed_at": "2026-02-15T08:14:30.158Z"
+    },
+    {
+      "phase": "Phase 5: Testing (Write)",
+      "task": "Write/update targeted tests covering execution-surface matrix parity, auto-routing expectations, adapter-mode behavior gating, and build-script launch-surface traces.",
+      "type": "test",
+      "status": "done",
+      "assignee": "Tester",
+      "index": 7,
+      "notes": "Phase 5 confirmed; tester write/validation coverage completed.",
+      "completed_at": "2026-02-15T08:21:30.105Z"
+    },
+    {
+      "phase": "Phase 6: Testing (Run)",
+      "task": "Run targeted replay and contract validation test suites, verify deterministic behavior by default mode, and record pass/fail evidence with blockers if any.",
+      "type": "test",
+      "status": "done",
+      "assignee": "Tester",
+      "index": 8,
+      "notes": "Phase 6 confirmed; compile and replay run validation passed (199 passing).",
+      "completed_at": "2026-02-15T08:21:30.105Z"
+    }
+  ],
+  "program_id": "plan_mlmuny9s_04a511eb",
+  "depends_on_plans": [
+    "plan_mlmuo39q_155aeb95"
+  ],
+  "recommended_next_agent": "Coordinator",
+  "goals": [
+    "Align replay execution-surface contracts with canonical terminal surface model (memory_terminal, memory_terminal_interactive, auto).",
+    "Expand replay coverage so execution-surface behavior and auto-routing are validated in representative P0/P1 paths.",
+    "Integrate build-script resolve-to-launch flows into replay-surface validation without introducing contract collisions.",
+    "Preserve deterministic replay baseline while enabling optional adapter-backed realism for integration validation."
+  ],
+  "success_criteria": [
+    "Replay matrix includes and validates memory_terminal, memory_terminal_interactive, and auto execution surfaces for scoped P0/P1 slices.",
+    "Auto-routing expectations are asserted via existing comparator checks with no new incompatible check type required.",
+    "Replay orchestration supports optional adapter-backed execution mode while synthetic mode remains default and deterministic.",
+    "Build-script resolve->execute flow is represented in replay validations with explicit selected-surface expectations.",
+    "Review confirms memory_terminal_vscode taxonomy decision is explicit and contract-aligned (included with mapping or excluded by policy)."
+  ]
+}

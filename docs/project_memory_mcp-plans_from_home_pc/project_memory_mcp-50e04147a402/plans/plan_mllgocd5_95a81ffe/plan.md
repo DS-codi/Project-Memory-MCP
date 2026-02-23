@@ -1,0 +1,105 @@
+# MCP/Extension/Container Integration
+
+**Plan ID:** plan_mllgocd5_95a81ffe
+**Status:** archived
+**Priority:** high
+**Current Phase:** complete
+**Current Agent:** None
+
+## Description
+
+Integrate the interactive terminal GUI app with the Project Memory ecosystem: (1) Update memory_terminal_interactive MCP tool to spawn the GUI app and communicate via TCP loopback, (2) Update the VS Code extension to handle the tool invocation flow, (3) Update container configuration (Containerfile, run-container.ps1) to expose GUI binary path and TCP port, (4) Handle local/bundled vs container modes, (5) JSON protocol design for request/response between MCP server and GUI app.
+
+## Progress
+
+- [x] **Phase 1: Contract Unification Design:** [planning] Produce a contract matrix comparing current server and extension `memory_terminal_interactive` action schemas (`run/read_output/kill/list` vs `create/send/close/list`) and document the target canonical contract plus compatibility alias strategy.
+  - _Completed contract matrix and compatibility alias strategy in docs/interactive-terminal-contract-unification-design.md (Section 1)._
+- [x] **Phase 1: Contract Unification Design:** [planning] Define canonical interactive-terminal tool request/response schema including invocation mode (`interactive` vs `headless`), correlation identifiers, and validation rules for mutually exclusive fields.
+  - _Completed canonical request/response schema and validation rules in docs/interactive-terminal-contract-unification-design.md (Section 2)._
+- [x] **Phase 1: Contract Unification Design:** [planning] Define canonical error taxonomy and fallback contract for decline, timeout, disconnect, unavailable GUI binary, and invalid runtime mode inputs.
+  - _Status reconciled with completed Phase 1 design artifact; canonical error taxonomy and fallback contract are documented in Section 3._
+- [x] **Phase 2: Runtime Adapter Architecture:** [planning] Design runtime adapter interface that selects local, bundled, or container bridge transport at runtime using mode detection and explicit overrides.
+  - _Defined runtime adapter interface contract for local/bundled/container_bridge plus deterministic mode detection and explicit override precedence._
+- [x] **Phase 2: Runtime Adapter Architecture:** [planning] Specify local/bundled adapter binary discovery and launch order (configured path, bundled binary, PATH lookup) with readiness handshake and spawn timeout policy.
+  - _Specified local/bundled adapter discovery order, launch/readiness handshake, spawn timeout bounds, and safe retry/non-destructive failure policy._
+- [x] **Phase 2: Runtime Adapter Architecture:** [planning] Specify container bridge adapter network contract (host alias, port, env vars, and connect policy) for container MCP to host GUI TCP server communication.
+  - _Phase confirmation granted by Coordinator. Step content was already completed by Executor in docs/interactive-terminal-contract-unification-design.md; status finalized._
+- [x] **Phase 3: Server Tool Implementation:** [code] Implement canonical `memory_terminal_interactive` server contract parser and request validator based on approved schema, including strict mode/action compatibility checks.
+  - _Implemented canonical request parser/validator with strict action/mode/intent/target compatibility checks and explicit legacy alias mapping._
+- [x] **Phase 3: Server Tool Implementation:** [code] Implement adapter orchestration in server interactive-terminal flow (`spawn -> ready -> request_sent -> user_decision -> response_returned`) with timeout and reconnect handling.
+  - _Reconciled coherence gate based on explicit evidence. Timeout/disconnect lifecycle recovery expectations satisfied via targeted tests in `interactive lifecycle recovery` suite and successful server build validation (`npx vitest run src/__tests__/tools/interactive-terminal.test.ts`, `npm run build`)._
+- [x] **Phase 3: Server Tool Implementation:** [code] Implement headless execution path under canonical contract so callers can bypass GUI when approval UI is not required.
+  - _Implemented canonical headless execution path routed through execute action with structured output/authorization metadata._
+- [x] **Phase 3: Server Tool Implementation:** [code] Implement protocol serialization layer that maps canonical schema to GUI NDJSON (`command_request`, `command_response`, `heartbeat`) and back.
+  - _Implemented protocol serialization/parsing layer for NDJSON command_request/command_response/heartbeat mapping._
+- [x] **Phase 3: Server Tool Implementation:** [test] Add targeted server interactive-terminal tests for timeout/disconnect lifecycle recovery paths covering `spawn -> ready -> request_sent -> timeout/disconnect -> structured recovery output`.
+  - _Added targeted timeout/disconnect lifecycle recovery coverage in server/src/__tests__/tools/interactive-terminal.test.ts (`interactive lifecycle recovery` suite). Evidence: `npx vitest run src/__tests__/tools/interactive-terminal.test.ts` => 28/28 passing._
+- [x] **Phase 3: Server Tool Implementation:** [validation] Run targeted interactive-terminal test slice and server build validation, store evidence, then reconcile step 7 to done only if timeout/disconnect recovery expectations are satisfied.
+  - _Validation evidence captured: targeted interactive-terminal test slice passed (28/28) and `npm run build` passed in server workspace._
+- [x] **Phase 4: Extension Invocation Path Updates:** [code] Update extension tool registration/invocation so canonical interactive approval requests route through MCP bridge while VS Code terminal management uses a non-colliding tool contract.
+  - _Updated extension tool registration and invocation split: canonical memory_terminal_interactive now routes through MCP bridge handler, while VS Code terminal lifecycle moved to non-colliding memory_terminal_vscode contract (ToolProvider + terminal handlers + package tool schema updates)._
+- [x] **Phase 4: Extension Invocation Path Updates:** [code] Update extension runtime-mode routing to pass required adapter hints and runtime metadata into MCP interactive calls for local and container modes.
+  - _Added runtime-mode routing metadata for canonical interactive invocations: workspace/cwd/timeout and adapter_override hints (local/bundled/container_bridge) are injected using container mode detection and bridge server mode before MCP calls._
+- [x] **Phase 4: Extension Invocation Path Updates:** [code] Add explicit invocation hook contract for chat-button and dashboard initiated headless command execution so cross-plan integrations can call a stable interface.
+  - _Phase confirmation granted by Coordinator. Step implementation already completed by Executor; status finalized._
+- [x] **Phase 5: Container Configuration & Networking:** [code] Update container runtime configuration (`Containerfile`, container entrypoint, compose/run scripts, and env docs) to support host GUI bridge connectivity requirements.
+  - _Updated container runtime bridge wiring: added default/override envs in Containerfile + compose, normalized/exported bridge config in entrypoint, added run-container preflight warning and env pass-through, documented bridge env contract in README._
+- [x] **Phase 5: Container Configuration & Networking:** [code] Implement bridge connectivity diagnostics (preflight checks and actionable error reporting) for container-to-host interactive-terminal connections.
+  - _Phase 5 confirmation granted by Coordinator. Step implementation and validations were already completed by Executor; status finalized._
+- [x] **Phase 6: Protocol/Schema Hardening:** [test] Add schema-level validation tests for canonical request/response payloads, backward-compat aliases, and error payload structure.
+  - _Phase confirmation granted. Step implementation/tests completed by Tester with passing targeted suite evidence._
+- [x] **Phase 6: Protocol/Schema Hardening:** [test] Add runtime adapter selection tests for local, bundled, and container modes including forced-mode overrides and unavailable adapter paths.
+  - _Phase confirmation granted. Runtime adapter selection tests completed with passing targeted suite evidence._
+- [x] **Phase 6: Protocol/Schema Hardening:** [test] Add integration-style tests for interactive approval lifecycle and headless execution path with simulated GUI server responses and timeout/disconnect scenarios.
+  - _Phase confirmation granted. Integration lifecycle + parity tests completed with passing targeted suite evidence._
+- [x] **Phase 7: Documentation & Migration:** [documentation] Update docs/instructions to publish canonical tool contract, runtime adapter behavior, container bridge setup, and compatibility/deprecation guidance.
+  - _Updated canonical contract and migration documentation: instructions/mcp-usage.instructions.md now documents memory_terminal_interactive canonical actions, runtime adapter precedence, container bridge preflight behavior, and deprecation/compatibility guidance. Added README migration pointers and references._
+- [x] **Phase 7: Documentation & Migration:** [documentation] Add operator troubleshooting guide for common failure modes (GUI missing, bridge unavailable, protocol timeout, decline flow) with expected tool outputs.
+  - _Added docs/interactive-terminal-operator-troubleshooting.md with expected canonical error/fallback outputs for PM_TERM_GUI_UNAVAILABLE (GUI missing + container bridge unreachable), PM_TERM_TIMEOUT, and PM_TERM_DECLINED. Linked from interactive-terminal-contract-unification-design.md and README._
+- [x] **Phase 8: Review & Quality Gates:** [validation] Run build-check validation for touched server/extension/container areas and verify no contract drift remains between code and docs.
+  - _Re-ran Step 22 after Revisionist doc-drift pivot. Scoped contract drift resolved in five patched agent docs and canonical policy source; build-check passed for server, vscode-extension, and container scripts._
+- [x] **Phase 8: Review & Quality Gates:** [fix] Apply minimal compile fix for interactive-terminal E0277 in `interactive-terminal/src/cxxqt_bridge.rs` so `UseSavedCommandResult` used by `expect_err` satisfies `Debug` bounds, then run targeted compile check for affected cargo test groups.
+  - _Step 23 complete. Minimal root-cause condition verified in interactive-terminal/src/cxxqt_bridge.rs where UseSavedCommandResult has #[derive(Debug)] for expect_err Debug bound. Targeted command run in interactive-terminal with Qt env: cargo test protocol::tests:: *> $null; cargo test command_executor::tests:: *> $null; cargo test tcp_server::tests:: *> $null. Result: protocol=0 command_executor=0 tcp_server=0; no E0277 compile failure._
+- [x] **Phase 8: Review & Quality Gates:** [fix] Resolve vscode-extension ChatPlanCommands Plan Artifacts filetree assertion drift by aligning expected filetree output to current artifact rendering contract (or vice versa), then run targeted ChatPlanCommands test slice and capture evidence.
+  - _Fixed Plan Artifacts filetree assertion drift by hardening artifact/session shape handling and workspace-root inference in ChatPlanCommands runtime path used by tests. Targeted evidence: vscode-extension/test-results/chatplan.step24.log now reports 122 passing with both Plan Artifacts tests passing._
+- [x] **Phase 8: Review & Quality Gates:** [fix] Resolve interactive-terminal Rust duplicate module-path blocker (E0761) by applying monolith-cleanup module layout for cxxqt_bridge (single canonical module path only), then rerun targeted cargo groups and capture logs.
+  - _Resolved E0761 blocker via monolith-cleanup canonical layout verification: interactive-terminal/src/cxxqt_bridge.rs absent; interactive-terminal/src/cxxqt_bridge/mod.rs present; interactive-terminal/src/_archive/cxxqt_bridge.rs.bak present. Reran targeted cargo groups in interactive-terminal with Qt env (QMAKE+PATH): `cargo test protocol::tests::*`, `cargo test command_executor::tests::*`, `cargo test tcp_server::tests::*`. Fresh logs show `test result: ok` and no E0761 in target/protocol_tests.latest.log, target/command_executor_tests.latest.log, target/tcp_server_tests.latest.log._
+- [x] **Phase 8: Review & Quality Gates:** [test] Re-run final targeted test matrix for server, vscode-extension, and interactive-terminal (including previously blocked cargo groups) and record pass/fail results across local and container-mode scenarios after corrective fixes.
+  - _Step 26 final gate matrix rerun complete. Server targeted suite passed in local and container-mode env simulation (`PM_RUNNING_IN_CONTAINER=true`, `PM_INTERACTIVE_TERMINAL_RUNTIME_MODE=container_bridge`) with 37/37 pass each. VS Code extension targeted chat matrix passed (9 passing, 21 pending), and official `npm test` harness passed (122 passing) including container-related suites (ContainerHealthService, ContainerStatusBar, build-script CWD container-relative sanitization). Interactive-terminal previously blocked cargo groups rerun with Qt env (`QMAKE`, `PATH`) passed (`cargo test protocol::tests::*`, `cargo test command_executor::tests::*`, `cargo test tcp_server::tests::*`), plus full `cargo test` passed (60 passed). Evidence logs: server/test-results/vitest.step26.rerun.local.log, server/test-results/vitest.step26.rerun.container.log, vscode-extension/test-results/mocha.step26.rerun.local.log, vscode-extension/test-results/npm-test.step26.rerun.log, interactive-terminal/target/protocol_tests.step26.rerun.local.log, interactive-terminal/target/command_executor_tests.step26.rerun.local.log, interactive-terminal/target/tcp_server_tests.step26.rerun.local.log, interactive-terminal/target/cargo_test_all.step26.rerun.local.log._
+
+## Agent Lineage
+
+- **2026-02-14T17:30:11.634Z**: Researcher → Coordinator — _Research complete for MCP/Extension/Container Integration; recommend Architect for step design using documented contract collision, runtime constraints, and integration options._
+- **2026-02-14T17:32:51.969Z**: Architect → Coordinator — _Implementation roadmap is complete with phased, atomic, dependency-aware steps, refined goals/success criteria, and architecture context/file map ready for execution._
+- **2026-02-14T17:45:00.158Z**: Executor → Coordinator — _Phase 1 design steps 0-2 completed and recorded; ready for review._
+- **2026-02-14T17:46:58.317Z**: Reviewer → Coordinator — _Phase 1 review completed with blockers. Recommend Revisionist: (1) fix step-status inconsistency (steps 0/1 not done while 2 done), (2) address MD060 markdown table-style violations in docs/interactive-terminal-contract-unification-design.md, (3) optionally add missing audit context baseline._
+- **2026-02-14T17:49:36.453Z**: Revisionist → Coordinator — _Requested corrective fixes applied for Phase 1: steps 0-2 reconciled to done, MD060 table-column-style issue corrected, and audit baseline stored. Recommend Reviewer re-check._
+- **2026-02-14T17:55:49.238Z**: Reviewer → Coordinator — _Recheck passed: Phase 1 steps 0-2 are done, MD060 issue is resolved in docs/interactive-terminal-contract-unification-design.md, and Phase 1 output is acceptable for progression. Recommendation: Executor for Phase 2 (or Tester in WRITE mode if the process prefers planned test scaffolding first)._
+- **2026-02-14T17:58:55.078Z**: Executor → Coordinator — _Phase 2 steps 3-5 design outputs completed and documented; ready for review with confirmation-gate follow-up._
+- **2026-02-14T18:01:11.287Z**: Reviewer → Coordinator — _Phase 2 review gate (steps 3-5) approved. Runtime adapter architecture is coherent with Phase 1 contracts, covers selection/discovery/launch/container-bridge policies, and remains aligned with security defaults and trace observability goals. Recommend Executor for Phase 3 implementation._
+- **2026-02-14T18:11:36.763Z**: Executor → Coordinator — _Phase 3 steps 6-9 complete and validated; ready for review._
+- **2026-02-14T18:18:48.358Z**: Reviewer → Coordinator — _Phase 3 review gate (steps 6-9) BLOCKED. Core implementation and build/test checks pass, but plan-state coherence and lifecycle failure-path coverage are insufficient for approval._
+- **2026-02-14T18:21:13.549Z**: Revisionist → Coordinator — _Phase 3 corrective pivot applied for reviewer blockers: step 7 coherence gate enforced and explicit timeout/disconnect test+validation steps inserted._
+- **2026-02-14T18:27:15.935Z**: Executor → Coordinator — _Corrective Phase 3 steps 10-11 completed with passing evidence; step 7 reconciled to done. Ready for Reviewer re-check._
+- **2026-02-14T18:31:56.231Z**: Reviewer → Coordinator — _Phase 3 recheck passed after corrective steps 10-11; coherence, lifecycle recovery coverage, and validation evidence are sufficient for progression._
+- **2026-02-14T18:48:34.274Z**: Executor → Coordinator — _Phase 4 steps 12-14 implementation completed in code and validated; step 14 status transition is blocked by required phase confirmation gate._
+- **2026-02-14T18:53:33.375Z**: Reviewer → Coordinator — _Phase 4 review gate (steps 12-14) passed; canonical routing/runtime metadata/headless invocation hook verified and build-check signals passed. Recommend proceeding to Phase 5 execution._
+- **2026-02-14T19:17:16.720Z**: Executor → Coordinator — _Phase 5 steps 15-16 implementation complete with targeted validation; ready for review after confirmation gate handling._
+- **2026-02-14T19:21:44.482Z**: Reviewer → Coordinator — _Phase 5 review gate (steps 15-16) approved; recommend Tester for Phase 6._
+- **2026-02-14T19:35:39.764Z**: Tester → Coordinator — _Executed Phase 6 steps 17-19 test implementation and targeted validation; recommend Reviewer for gate verification and confirmation handling._
+- **2026-02-14T19:39:04.565Z**: Reviewer → Coordinator — _Phase 6 review gate (steps 17-19) approved. Coverage and validation evidence are sufficient; step-state coherence confirmed after phase confirmation. Recommend Executor for Phase 7 documentation/migration._
+- **2026-02-14T19:45:29.140Z**: Executor → Coordinator — _Phase 7 steps 20-21 complete (documentation and migration updates finished). Recommend Reviewer for build-check/doc-contract verification._
+- **2026-02-14T19:49:19.070Z**: Reviewer → Coordinator — _Phase 7 review gate (steps 20-21) approved. Documentation/migration guidance is aligned with implementation and troubleshooting coverage is complete. Recommend next agent flow for Phase 8 final quality gates: Reviewer for step 22 build-check/doc-code drift validation, then Tester for step 23 targeted test matrix._
+- **2026-02-14T19:58:47.601Z**: Reviewer → Coordinator — _Step 22 blocked: build-check passes but doc-contract drift remains in agent docs; recommend Revisionist to align agent instructions with canonical terminal surface split._
+- **2026-02-14T20:02:48.542Z**: Revisionist → Coordinator — _Step 22 blocker pivot applied with targeted agent-doc contract alignment; recommend Reviewer recheck._
+- **2026-02-14T20:14:46.960Z**: Reviewer → Coordinator — _Phase 8 step 22 re-run passed after Revisionist doc-drift fixes; recommend Tester for step 23 targeted test matrix._
+- **2026-02-14T20:23:31.294Z**: Tester → Coordinator — _Phase 8 step 23 targeted test matrix completed with failures; recommend Revisionist._
+- **2026-02-14T20:26:36.150Z**: Revisionist → Coordinator — _Plan pivot applied for blocked compile issue; recommend Executor to implement minimal E0277 fix then return to Tester matrix rerun._
+- **2026-02-14T20:35:01.122Z**: Executor → Coordinator — _Step 23 complete: minimal E0277 Debug-bound compile fix validated with targeted interactive-terminal cargo groups; recommend Tester for step 24 matrix rerun._
+- **2026-02-14T21:20:09.542Z**: Tester → Coordinator — _Step 24 matrix rerun complete with failing slices; recommend Revisionist._
+- **2026-02-14T21:22:40.061Z**: Revisionist → Coordinator — _Step 24 pivot complete with minimal corrective steps added for the two blockers; recommend Executor for focused implementation._
+- **2026-02-14T22:00:55.804Z**: Executor → Coordinator — _Step 25 complete: cxxqt_bridge module-path blocker E0761 resolved/verified and targeted cargo groups pass; ready for review._
+- **2026-02-14T22:03:04.675Z**: Reviewer → Coordinator — _Step 25 review gate approved: monolith-cleanup layout compliant, targeted cargo evidence valid, no E0761, and step-state coherence confirmed._
+- **2026-02-14T22:33:59.745Z**: Executor → Coordinator — _Targeted chat bootstrap fix implemented and validated; ready for review. Step status transition blocked by phase confirmation gate._
+- **2026-02-14T22:37:52.931Z**: Reviewer → Coordinator — _Review complete for chat workspace registration fallback fix; targeted tests and diagnostics pass._
+- **2026-02-14T23:17:49.662Z**: Tester → Coordinator — _Step 26 final gate matrix passed across required surfaces and local/container-mode scenarios; recommend Archivist for closure._

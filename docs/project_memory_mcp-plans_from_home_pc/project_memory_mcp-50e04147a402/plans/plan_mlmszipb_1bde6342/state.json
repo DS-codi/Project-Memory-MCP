@@ -1,0 +1,95 @@
+{
+  "id": "plan_mlmszipb_1bde6342",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Reclassify monolith docs as skills",
+  "description": "Keep avoid-monolithic-files in instructions and convert monolith-cleanup and monolith-refactor docs into skill files under .github/skills, updating any references as needed.",
+  "priority": "medium",
+  "category": "documentation",
+  "goals": [
+    "Keep avoid-monolithic-files in instructions",
+    "Move monolith-cleanup and monolith-refactor content into skill files",
+    "Preserve discoverability and consistency of instruction references"
+  ],
+  "success_criteria": [
+    "avoid-monolithic-files remains in instructions",
+    "Two monolith docs exist as skill files under .github/skills",
+    "No broken references in instruction listings for moved docs"
+  ],
+  "status": "archived",
+  "current_phase": "initialization",
+  "current_agent": "Coordinator",
+  "confirmation_state": {
+    "phases": {},
+    "steps": {}
+  },
+  "created_at": "2026-02-14T21:03:01.501Z",
+  "updated_at": "2026-02-14T22:31:11.924Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mlmszlx0_2b04fd6d",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T21:03:05.652Z",
+      "context": {
+        "run_id": "run_sess_mlmszlx0_2b04fd6d"
+      },
+      "completed_at": "2026-02-14T21:16:34.172Z",
+      "summary": "Archived plan after completing instruction-to-skill reclassification and adding skill references to avoid-monolithic guidance.",
+      "artifacts": [
+        "Project-Memory-MCP/.github/skills/monolith-cleanup/SKILL.md",
+        "Project-Memory-MCP/.github/skills/monolith-refactor/SKILL.md",
+        "Project-Memory-MCP/instructions/avoid-monolithic-files.instructions.md"
+      ]
+    },
+    {
+      "session_id": "sess_mlmt4gyy_99b9a4fa",
+      "agent_type": "Worker",
+      "started_at": "2026-02-14T21:06:52.554Z",
+      "context": {
+        "run_id": "run_sess_mlmt4gyy_99b9a4fa"
+      },
+      "completed_at": "2026-02-14T21:11:05.274Z",
+      "summary": "Created monolith-cleanup and monolith-refactor skill files under Project-Memory-MCP/.github/skills, removed corresponding instruction files from Project-Memory-MCP/instructions, verified avoid-monolithic-file instruction remains in instructions paths, and found no in-scope references requiring updates.",
+      "artifacts": [
+        "Project-Memory-MCP/.github/skills/monolith-cleanup/SKILL.md",
+        "Project-Memory-MCP/.github/skills/monolith-refactor/SKILL.md",
+        "Project-Memory-MCP/instructions/monolith-cleanup.instructions.md (deleted)",
+        "Project-Memory-MCP/instructions/monolith-refactor.instructions.md (deleted)"
+      ]
+    },
+    {
+      "session_id": "sess_mlmtb62s_458ba0d3",
+      "agent_type": "Worker",
+      "started_at": "2026-02-14T21:12:05.032Z",
+      "context": {
+        "run_id": "run_sess_mlmtb62s_458ba0d3"
+      },
+      "completed_at": "2026-02-14T21:13:04.862Z",
+      "summary": "Updated avoid-monolithic instruction file to add a concise Related Skills section referencing monolith-refactor and monolith-cleanup SKILL paths and usage context while preserving existing guidance.",
+      "artifacts": [
+        "Project-Memory-MCP/instructions/avoid-monolithic-files.instructions.md"
+      ]
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-14T21:10:58.985Z",
+      "from_agent": "Worker",
+      "to_agent": "Coordinator",
+      "reason": "Reclassified monolith instruction docs as skills in the primary workspace and removed old instruction files within scoped paths."
+    },
+    {
+      "timestamp": "2026-02-14T21:12:56.263Z",
+      "from_agent": "Worker",
+      "to_agent": "Coordinator",
+      "reason": "Scoped instruction update completed: added references to monolith-refactor and monolith-cleanup skill files in avoid-monolithic guidance."
+    },
+    {
+      "timestamp": "2026-02-14T21:16:29.070Z",
+      "from_agent": "Coordinator",
+      "to_agent": "Coordinator",
+      "reason": "Plan archived and finalized; recommendation: Architect (no further action needed)."
+    }
+  ],
+  "steps": [],
+  "recommended_next_agent": "Coordinator"
+}

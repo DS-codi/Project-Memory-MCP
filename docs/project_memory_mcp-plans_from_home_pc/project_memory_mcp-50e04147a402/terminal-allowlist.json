@@ -1,0 +1,32 @@
+{
+  "patterns": [
+    "git status",
+    "git log",
+    "git diff",
+    "git branch",
+    "git show",
+    "npm test",
+    "npm run build",
+    "npm run lint",
+    "npx tsc",
+    "npx vitest",
+    "npx jest",
+    "ls",
+    "dir",
+    "cat",
+    "type",
+    "echo",
+    "pwd",
+    "Get-ChildItem",
+    "Get-Content",
+    "Get-Location",
+    "node --version",
+    "npm --version",
+    "git --version",
+    "cargo *",
+    "cargo",
+    "cargo test*",
+    "powershell *"
+  ],
+  "updated_at": "2026-02-15T07:42:36.572Z"
+}

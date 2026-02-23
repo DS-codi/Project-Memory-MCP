@@ -1,0 +1,10 @@
+{
+  "timestamp": "2026-02-15T07:52:00.129Z",
+  "from_agent": "Researcher",
+  "to_agent": "Coordinator",
+  "reason": "Research complete. Recommend Architect as next agent.",
+  "data": {
+    "recommendation": "Architect",
+    "recommended_next_agent": "Architect"
+  }
+}

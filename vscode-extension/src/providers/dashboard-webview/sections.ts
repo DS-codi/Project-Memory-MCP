@@ -75,7 +75,7 @@ export function getConnectedDashboardHtml(
                                                     <button class="icon-btn" data-action="refresh" title="Refresh Status">
                                                         ${iconSvgs.syncHistory}
                                                     </button>
-                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemory.createPlan" title="Create New Plan">
+                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemoryDev.createPlan" title="Create New Plan">
                                                         ${iconSvgs.createNewPlan}
                                                     </button>
                                                     <button class="icon-btn" data-action="open-resume-plan" title="Resume Plan">
@@ -89,16 +89,16 @@ export function getConnectedDashboardHtml(
                                             <div class="action-group">
                                                 <div class="icon-row-title">Deploy &#x2014; Hub Agents</div>
                                                 <div class="icon-grid">
-                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemory.deployAgents" title="Deploy Agents">
+                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemoryDev.deployAgents" title="Deploy Agents">
                                                         ${iconSvgs.deployAgents}
                                                     </button>
-                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemory.deployInstructions" title="Deploy Instructions">
+                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemoryDev.deployInstructions" title="Deploy Instructions">
                                                         ${iconSvgs.deployInstructions}
                                                     </button>
-                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemory.deploySkills" title="Deploy Skills">
+                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemoryDev.deploySkills" title="Deploy Skills">
                                                         ${iconSvgs.deploySkills}
                                                     </button>
-                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemory.deployDefaults" title="Deploy All Defaults">
+                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemoryDev.deployDefaults" title="Deploy All Defaults">
                                                         ${iconSvgs.deployAllDefaults}
                                                     </button>
                                                 </div>
@@ -106,13 +106,13 @@ export function getConnectedDashboardHtml(
                                             <div class="action-group">
                                                 <div class="icon-row-title">Supervisor</div>
                                                 <div class="icon-grid">
-                                                    <button class="icon-btn" data-action="run-command" data-command="project-memory.launchSupervisor" title="Launch Supervisor (background)">
+                                                    <button class="icon-btn" data-action="run-command" data-command="project-memory-dev.launchSupervisor" title="Launch Supervisor (background)">
                                                         ${iconSvgs.runButton}
                                                     </button>
-                                                    <button class="icon-btn" data-action="run-command" data-command="project-memory.launchSupervisorInTerminal" title="Launch Supervisor in Terminal">
+                                                    <button class="icon-btn" data-action="run-command" data-command="project-memory-dev.launchSupervisorInTerminal" title="Launch Supervisor in Terminal">
                                                         ${iconSvgs.terminalIcon}
                                                     </button>
-                                                    <button class="icon-btn" data-action="run-command" data-command="project-memory.openSupervisorDirectory" title="Open Supervisor Directory">
+                                                    <button class="icon-btn" data-action="run-command" data-command="project-memory-dev.openSupervisorDirectory" title="Open Supervisor Directory">
                                                         ${iconSvgs.folderOpen}
                                                     </button>
                                                     <button class="icon-btn" data-action="configure-supervisor-path" title="Configure Supervisor Path">
@@ -150,10 +150,10 @@ export function getConnectedDashboardHtml(
                                             <div class="stacked-section">
                                                 <div class="icon-row-title">Configuration</div>
                                                 <div class="icon-grid">
-                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemory.openSettings" title="Configure Defaults">
+                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemoryDev.openSettings" title="Configure Defaults">
                                                         ${iconSvgs.configureDefaults}
                                                     </button>
-                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemory.deployDefaults" title="Deploy All Defaults">
+                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemoryDev.deployDefaults" title="Deploy All Defaults">
                                                         ${iconSvgs.deployAllDefaults}
                                                     </button>
                                                 </div>
@@ -254,9 +254,9 @@ export function getDisconnectedFallbackHtml(): string {
                     <p>Supervisor is not running</p>
                     <p style="margin-top: 8px; color: var(--vscode-descriptionForeground); font-size: 11px;">Health check: \${errorText}</p>
                     <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px;">
-                        <button class="btn" data-action="run-command" data-command="project-memory.launchSupervisor">&#9654; Launch</button>
-                        <button class="btn btn-secondary" data-action="run-command" data-command="project-memory.launchSupervisorInTerminal">&gt;_ Terminal</button>
-                        <button class="btn btn-secondary" data-action="run-command" data-command="project-memory.openSupervisorDirectory">&#128194; Directory</button>
+                        <button class="btn" data-action="run-command" data-command="project-memory-dev.launchSupervisor">&#9654; Launch</button>
+                        <button class="btn btn-secondary" data-action="run-command" data-command="project-memory-dev.launchSupervisorInTerminal">&gt;_ Terminal</button>
+                        <button class="btn btn-secondary" data-action="run-command" data-command="project-memory-dev.openSupervisorDirectory">&#128194; Directory</button>
                     </div>
                     <button class="btn btn-secondary" style="margin-top: 6px; width: 100%;" data-action="configure-supervisor-path">&#9881; Configure Supervisor Path</button>
                     <button class="btn btn-secondary" style="margin-top: 6px; width: 100%;" data-action="refresh">&#8635; Retry Connection</button>
@@ -267,7 +267,7 @@ export function getDisconnectedFallbackHtml(): string {
                             <li>Check if port \${apiPort} is available</li>
                             <li>View server logs for errors</li>
                         </ul>
-                        <button class="btn btn-secondary" style="margin-top: 12px" data-action="run-command" data-command="projectMemory.showServerLogs">Show Logs</button>
+                        <button class="btn btn-secondary" style="margin-top: 12px" data-action="run-command" data-command="projectMemoryDev.showServerLogs">Show Logs</button>
                     </div>
                 `;
 }

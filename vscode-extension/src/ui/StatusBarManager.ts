@@ -16,7 +16,7 @@ export class StatusBarManager implements vscode.Disposable {
             vscode.StatusBarAlignment.Left,
             100
         );
-        this.statusBarItem.command = 'projectMemory.showDashboard';
+        this.statusBarItem.command = 'projectMemoryDev.showDashboard';
         this.updateDisplay();
         this.statusBarItem.show();
     }
@@ -40,7 +40,7 @@ export class StatusBarManager implements vscode.Disposable {
             this.statusBarItem.tooltip = `Project Memory: ${this.currentAgent} active`;
         } else {
             this.statusBarItem.text = '$(robot) Project Memory';
-            this.statusBarItem.tooltip = 'Click to open Project Memory Dashboard';
+            this.statusBarItem.tooltip = 'Click to open Project Memory Dashboard (Dev)';
         }
     }
 

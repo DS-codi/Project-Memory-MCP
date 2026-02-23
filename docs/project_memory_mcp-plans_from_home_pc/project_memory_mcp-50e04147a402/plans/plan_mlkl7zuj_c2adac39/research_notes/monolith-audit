@@ -1,0 +1,9 @@
+---
+plan_id: plan_mlkl7zuj_c2adac39
+created_at: 2026-02-13T18:25:56.862Z
+sanitized: false
+injection_attempts: 0
+warnings: 0
+---
+
+## Coordinator Notes After Research\n\nActual line counts verified:\n- DashboardViewProvider.ts: 1340 lines\n- ChatParticipant.ts: 796 lines\n- McpBridge.ts: 703 lines\n\nKey findings from Researcher:\n1. McpBridge.ts is at chat/McpBridge.ts NOT server/McpBridge.ts - plan step 4 path is WRONG\n2. DashboardViewProvider's main issue is a 1073-line _getHtmlForWebview() method with inline HTML/CSS/JS/SVG\n3. Split should create dashboard-webview/ subdirectory, not separate Panel classes\n4. ChatParticipant already has KnowledgeCommandHandler.ts as an extraction pattern to follow\n5. Recommended order: McpBridge → ChatParticipant → DashboardViewProvider\n\nPlan steps need updating to match actual code structure."

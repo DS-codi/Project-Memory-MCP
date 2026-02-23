@@ -1,0 +1,33 @@
+{
+  "type": "original_request",
+  "plan_id": "plan_mlln0dl1_bdde9d9d",
+  "workspace_id": "project-memory-mcp-40f6678f5a9b",
+  "captured_at": "2026-02-14T01:28:10.273Z",
+  "user_request": {
+    "sanitized": "Create a new plan connected to Platform Evolution Program to update the plan view in the dashboard to show relationships and also to separate archived and active plans into different sections.",
+    "wasModified": false,
+    "injectionAttempts": [],
+    "warnings": []
+  },
+  "context": {
+    "files_mentioned": [],
+    "file_contents": {},
+    "requirements": [
+      "Connect new plan to Platform Evolution Program",
+      "Update dashboard plan view to show relationships",
+      "Separate archived and active plans into distinct sections"
+    ],
+    "constraints": [
+      "Implement within existing dashboard architecture",
+      "Keep focus on requested UI behavior"
+    ],
+    "examples": [],
+    "conversation_context": {
+      "sanitized": "User requested creation of a new child plan under Platform Evolution Program with two specific dashboard improvements.",
+      "wasModified": false,
+      "injectionAttempts": [],
+      "warnings": []
+    },
+    "additional_notes": null
+  }
+}

@@ -95,7 +95,7 @@ export async function probeContainer(mcpPort = 3000, dashboardPort = 3001): Prom
  * Read the container mode from VS Code settings.
  */
 export function getContainerMode(): ContainerMode {
-    const config = vscode.workspace.getConfiguration('projectMemory');
+    const config = vscode.workspace.getConfiguration('projectMemoryDev');
     return config.get<ContainerMode>('containerMode', 'auto');
 }
 
@@ -103,7 +103,7 @@ export function getContainerMode(): ContainerMode {
  * Read the container MCP port from VS Code settings.
  */
 export function getContainerMcpPort(): number {
-    const config = vscode.workspace.getConfiguration('projectMemory');
+    const config = vscode.workspace.getConfiguration('projectMemoryDev');
     return config.get<number>('containerMcpPort', 3000);
 }
 
@@ -113,7 +113,7 @@ export function getContainerMcpPort(): number {
  * In local mode, the Vite dev server is used.
  */
 export function getDashboardFrontendUrl(): string {
-    const config = vscode.workspace.getConfiguration('projectMemory');
+    const config = vscode.workspace.getConfiguration('projectMemoryDev');
     const mode = config.get<ContainerMode>('containerMode', 'auto');
     const dashboardPort = config.get<number>('serverPort', 3001);
 
@@ -143,7 +143,7 @@ export async function shouldUseContainer(): Promise<{ useContainer: boolean; sta
     }
 
     const mcpPort = getContainerMcpPort();
-    const config = vscode.workspace.getConfiguration('projectMemory');
+    const config = vscode.workspace.getConfiguration('projectMemoryDev');
     const dashboardPort = config.get<number>('serverPort', 3001);
 
     const status = await probeContainer(mcpPort, dashboardPort);

@@ -75,7 +75,7 @@ export class SupervisorControlClient implements vscode.Disposable {
   async connect(): Promise<boolean> {
     if (this._connected) { return true; }
 
-    const cfg = vscode.workspace.getConfiguration('projectMemory');
+    const cfg = vscode.workspace.getConfiguration('projectMemoryDev');
     const containerMode = cfg.get<'auto' | 'local' | 'container'>('containerMode', 'auto');
 
     const tcpOpts: net.TcpNetConnectOpts = { host: SUPERVISOR_TCP_HOST, port: SUPERVISOR_TCP_PORT };

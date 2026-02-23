@@ -32,7 +32,7 @@ import {
 import { ContainerHealthService } from '../services/ContainerHealthService';
 
 function notify(message: string, ...items: string[]): Thenable<string | undefined> {
-    const config = vscode.workspace.getConfiguration('projectMemory');
+    const config = vscode.workspace.getConfiguration('projectMemoryDev');
     if (config.get<boolean>('showNotifications', true)) {
         return vscode.window.showInformationMessage(message, ...items);
     }
@@ -71,7 +71,7 @@ export class ServerManager implements vscode.Disposable {
         this.config = config;
         this.outputChannel = vscode.window.createOutputChannel('Project Memory Server');
         this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-        this.statusBarItem.command = 'projectMemory.toggleServer';
+        this.statusBarItem.command = 'projectMemoryDev.toggleServer';
         this.lockfile = new PidLockfile(config.dataRoot);
         this.frontendManager = new FrontendManager(
             { serverPort: config.serverPort || 3001 },

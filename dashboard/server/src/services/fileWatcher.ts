@@ -1,5 +1,6 @@
 import chokidar from 'chokidar';
 import * as path from 'path';
+import { dataCache } from './cache.js';
 
 interface FileWatchEvent {
   type: 'plan_updated' | 'workspace_updated' | 'handoff' | 'step_update';
@@ -31,6 +32,19 @@ export function setupFileWatcher(
     
     const workspaceId = parts[0];
     const fileName = parts[parts.length - 1];
+
+    // Invalidate cache entries for the affected workspace/plan
+    if (fileName === 'workspace.meta.json') {
+      dataCache.delete('workspaces');
+      dataCache.invalidatePrefix(`plans:${workspaceId}`);
+    } else if (fileName === 'state.json' && parts[1] === 'plans') {
+      const planId = parts[2];
+      dataCache.delete(`planState:${workspaceId}:${planId}`);
+      dataCache.delete(`plans:${workspaceId}`);
+      dataCache.delete('workspaces'); // health may change
+      dataCache.delete('metrics');
+      dataCache.delete('metrics:agents');
+    }
     
     let event: FileWatchEvent;
     

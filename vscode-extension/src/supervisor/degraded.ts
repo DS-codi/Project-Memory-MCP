@@ -30,11 +30,11 @@ export function enterDegradedMode(
   if (canLaunch) {
     item.text = '$(play) Launch Supervisor';
     item.tooltip = `${reason}\n\nClick to launch Project Memory Supervisor`;
-    item.command = 'project-memory.launchSupervisor';
+    item.command = 'project-memory-dev.launchSupervisor';
   } else {
     item.text = '$(folder-opened) Open Supervisor Directory';
     item.tooltip = `${reason}\n\nClick to open the supervisor directory`;
-    item.command = 'project-memory.openSupervisorDirectory';
+    item.command = 'project-memory-dev.openSupervisorDirectory';
   }
   
   item.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');

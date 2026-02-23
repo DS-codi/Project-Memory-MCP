@@ -1,0 +1,151 @@
+{
+  "id": "plan_mlnfxh4x_bbb4035f",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Align skills source behavior with agents/instructions",
+  "description": "Fix skills deployment/listing so source resolution does not use workspace target .github/skills as implicit source, preventing picker from only showing already deployed workspace skills.",
+  "priority": "high",
+  "category": "bug",
+  "goals": [
+    "Skills source is taken from configured/default source roots, not deployment target folders",
+    "Deploy/list behaviors are consistent with agents/instructions patterns",
+    "Clear warning is shown when source root is missing"
+  ],
+  "success_criteria": [
+    "Deploy Skills picker no longer uses .github/skills as source fallback",
+    "Dashboard skills list uses same source resolution semantics",
+    "Targeted tests pass"
+  ],
+  "status": "archived",
+  "current_phase": "Phase 1: Source Resolution",
+  "current_agent": null,
+  "confirmation_state": {
+    "phases": {},
+    "steps": {}
+  },
+  "created_at": "2026-02-15T07:45:17.318Z",
+  "updated_at": "2026-02-15T08:02:55.775Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mlnfy4gn_e5b64316",
+      "agent_type": "Executor",
+      "started_at": "2026-02-15T07:45:47.570Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Implement skills source resolution alignment across extension command and dashboard handlers",
+        "current_step_index": 0,
+        "steps_to_complete": [
+          "Update skills source fallback semantics",
+          "Align deploy-skills command warnings",
+          "Align dashboard get/deploy skills handlers",
+          "Update tests and run targeted test suite"
+        ],
+        "environment": {
+          "working_directory": "c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\vscode-extension",
+          "active_branch": "unknown",
+          "build_command": "npm test -- --grep skillsSourceRoot"
+        },
+        "blockers_to_avoid": [
+          "Do not use .github/skills as implicit source fallback"
+        ],
+        "run_id": "run_sess_mlnfy4gn_e5b64316"
+      },
+      "completed_at": "2026-02-15T07:51:38.953Z",
+      "summary": "Implemented scoped fix for skills source resolution alignment: removed implicit .github/skills fallback from resolver, aligned deploy-skills command behavior, aligned dashboard get/deploy skill handlers to resolver semantics, updated skills source tests, and ran targeted test command successfully (exit 0).",
+      "artifacts": [
+        "Project-Memory-MCP/vscode-extension/src/utils/skillsSourceRoot.ts",
+        "Project-Memory-MCP/vscode-extension/src/commands/deploy-commands.ts",
+        "Project-Memory-MCP/vscode-extension/src/providers/dashboard-webview/dashboard-message-handlers.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/suite/skillsSourceRoot.test.ts"
+      ]
+    },
+    {
+      "session_id": "sess_mlng6uni_0ee5c63b",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-15T07:52:34.758Z",
+      "context": {
+        "run_id": "run_sess_mlng6uni_0ee5c63b"
+      },
+      "completed_at": "2026-02-15T08:01:28.735Z",
+      "summary": "Completed code review for plan_mlnfxh4x_bbb4035f: APPROVED. Verified skills source resolver removes target-folder fallback semantics, deploy command and dashboard handlers align on source resolution behavior, and missing-source warning UX is clear/non-crashing. Stored review findings in review context, reindexed workspace, and handed off to Coordinator with recommendation Archivist.",
+      "artifacts": [
+        "Project-Memory-MCP/vscode-extension/src/utils/skillsSourceRoot.ts",
+        "Project-Memory-MCP/vscode-extension/src/commands/deploy-commands.ts",
+        "Project-Memory-MCP/vscode-extension/src/providers/dashboard-webview/dashboard-message-handlers.ts",
+        "Project-Memory-MCP/vscode-extension/src/test/suite/skillsSourceRoot.test.ts",
+        "/data/project_memory_mcp-50e04147a402/plans/plan_mlnfxh4x_bbb4035f/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlngjgjz_0880668c",
+      "agent_type": "Archivist",
+      "started_at": "2026-02-15T08:02:23.026Z",
+      "context": {
+        "run_id": "run_sess_mlngjgjz_0880668c"
+      },
+      "completed_at": "2026-02-15T08:02:55.732Z",
+      "summary": "Executed Archivist closeout per user request: init+validate passed with action=continue and no confirmation gates; archived plan plan_mlnfxh4x_bbb4035f; reindexed workspace project_memory_mcp-50e04147a402 as standard closeout.",
+      "artifacts": [
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlnfxh4x_bbb4035f/state.json",
+        "data/project_memory_mcp-50e04147a402/workspace.meta.json"
+      ]
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-15T07:51:23.941Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Implementation and targeted validation complete for scoped skills-source bugfix; ready for review pending phase confirmations."
+    },
+    {
+      "timestamp": "2026-02-15T08:01:10.517Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Review passed for skills source resolution, command/dashboard alignment, warning UX, and test validation scope."
+    }
+  ],
+  "steps": [
+    {
+      "phase": "Phase 1: Source Resolution",
+      "task": "Update skills source resolver to avoid using workspace deployment target as implicit source fallback",
+      "type": "code",
+      "status": "pending",
+      "assignee": "Executor",
+      "index": 0,
+      "notes": "Starting resolver fallback behavior update for skills source root.\n[STALE_RECOVERY 2026-02-15T07:52:34.711Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "phase": "Phase 2: Command Alignment",
+      "task": "Update deploy command and dashboard skills listing/deploy handlers to use aligned resolver behavior",
+      "type": "code",
+      "status": "pending",
+      "assignee": "Executor",
+      "index": 1
+    },
+    {
+      "phase": "Phase 3: Validation",
+      "task": "Adjust/add tests and run targeted test suite for skills source behavior",
+      "type": "test",
+      "status": "pending",
+      "assignee": "Executor",
+      "index": 2
+    },
+    {
+      "phase": "Phase 4: Review",
+      "task": "Review correctness and consistency with agents/instructions behavior",
+      "type": "validation",
+      "status": "pending",
+      "assignee": "Reviewer",
+      "index": 3
+    },
+    {
+      "phase": "Phase 5: Archive",
+      "task": "Archive completed plan",
+      "type": "documentation",
+      "status": "pending",
+      "assignee": "Archivist",
+      "index": 4
+    }
+  ],
+  "recommended_next_agent": "Coordinator"
+}

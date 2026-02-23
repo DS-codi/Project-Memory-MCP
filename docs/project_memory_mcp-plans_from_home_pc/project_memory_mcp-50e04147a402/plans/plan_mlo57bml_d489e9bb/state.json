@@ -1,0 +1,318 @@
+{
+  "id": "plan_mlo57bml_d489e9bb",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Host-only Interactive Terminal + MCP Integration Contract",
+  "description": "Update interactive terminal and MCP integration so GUI terminal always runs on host, always appears visibly for non-headless command sends, enforces approval except allowlist, behaves identically in local/container app modes, and reuses existing terminal instances for command dispatch.",
+  "priority": "critical",
+  "category": "change",
+  "goals": [
+    "Interactive terminal GUI process is host-only and never container-executed",
+    "Non-headless command sends always surface a visible terminal window",
+    "Command execution requires approval unless command matches allowlist",
+    "Behavior is identical in local and container app modes",
+    "MCP tools can target and send to an existing interactive terminal instance when one exists"
+  ],
+  "success_criteria": [
+    "Container mode reliably routes interactive operations to host bridge and never falls back to container GUI execution",
+    "Visible-window behavior is verified for non-headless sends and bypassed only with explicit headless flag",
+    "Approval/allowlist policy is consistently enforced end-to-end",
+    "Parity tests pass for local mode and container mode against the same behavioral contract",
+    "Existing-instance discovery/attach path works and is covered by tests"
+  ],
+  "status": "active",
+  "current_phase": "Phase 5: Verification",
+  "current_agent": "Coordinator",
+  "confirmation_state": {
+    "phases": {
+      "Phase 1: Contract Audit": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T19:40:26.468Z"
+      },
+      "Phase 2: Host Routing Enforcement": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T20:16:57.945Z"
+      },
+      "Phase 4: Approval Policy": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T20:18:03.478Z"
+      },
+      "Phase 3: Visibility + Session Reuse": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T20:18:03.330Z"
+      }
+    },
+    "steps": {
+      "7": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-15T20:18:03.372Z"
+      }
+    }
+  },
+  "created_at": "2026-02-15T19:32:47.138Z",
+  "updated_at": "2026-02-15T20:25:08.436Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mlo57ga4_dd265b19",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-15T19:32:53.165Z",
+      "context": {
+        "run_id": "run_sess_mlo57ga4_dd265b19"
+      },
+      "completed_at": "2026-02-15T20:18:24.983Z",
+      "summary": "[STALE_RECOVERY 2026-02-15T20:18:24.983Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlo594v1_2c0d1a5d",
+      "agent_type": "Researcher",
+      "started_at": "2026-02-15T19:34:11.701Z",
+      "context": {
+        "run_id": "run_sess_mlo594v1_2c0d1a5d"
+      },
+      "completed_at": "2026-02-15T19:37:56.818Z",
+      "summary": "Completed Step 0 contract audit for interactive terminal routing. Produced file-level behavior map across server MCP tools, extension terminal surfaces, container bridge configuration, and Rust GUI bridge app. Gap analysis shows all five stated requirements currently fail in canonical server interactive path due to in-process execution fallback and lack of enforced host-visible/approval semantics. Delivered implementation-ready contract proposal (decision table + state-machine) and exact target files for Architect/Executor.",
+      "artifacts": [
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlo57bml_d489e9bb/research_notes/interactive-terminal-routing-contract-audit.md",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlo57bml_d489e9bb/research.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlo5eztq_6814347f",
+      "agent_type": "Architect",
+      "started_at": "2026-02-15T19:38:45.107Z",
+      "context": {
+        "run_id": "run_sess_mlo5eztq_6814347f"
+      },
+      "completed_at": "2026-02-15T19:40:43.574Z",
+      "summary": "Completed Step 1 architecture deliverables: ADR-IT-001 with explicit mode-resolution state machine and decision table, file-by-file implementation blueprint for Executor, compatibility/migration notes, risk register, and test strategy mapping for steps 8-10. Confirmed Phase 1 and marked Step 1 done. Handoff recommends Executor for implementation.",
+      "artifacts": [
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlo57bml_d489e9bb/research_notes/interactive-terminal-routing-architecture-spec.md",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlo57bml_d489e9bb/architecture.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlo5ic6v_072e4128",
+      "agent_type": "Executor",
+      "started_at": "2026-02-15T19:41:21.099Z",
+      "context": {
+        "run_id": "run_sess_mlo5ic6v_072e4128"
+      },
+      "completed_at": "2026-02-15T19:51:46.919Z",
+      "summary": "Implemented ADR-IT-001 step 2-6 contract changes in interactive terminal server modules and targeted tests; validation test suite passes. Status transitions for steps 3/4/6 are currently blocked by plan confirmation gate, noted in handoff.",
+      "artifacts": [
+        "Project-Memory-MCP/server/src/tools/interactive-terminal-protocol.ts",
+        "Project-Memory-MCP/server/src/tools/interactive-terminal-orchestration.ts",
+        "Project-Memory-MCP/server/src/__tests__/tools/interactive-terminal.test.ts",
+        "Project-Memory-MCP/data/project_memory_mcp-50e04147a402/plans/plan_mlo57bml_d489e9bb/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlo6u06l_82506b08",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-15T20:18:25.028Z",
+      "context": {
+        "run_id": "run_sess_mlo6u06l_82506b08"
+      },
+      "completed_at": "2026-02-15T20:20:07.995Z",
+      "summary": "Completed step 7 contract/regression review. Reviewed targeted files and contract semantics, executed focused vitest suite (41/41 pass), stored findings in review context, marked step 7 done, and reindexed workspace profile. Recommended Tester for step 8/9 execution.",
+      "artifacts": [
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlo57bml_d489e9bb/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlo6wuqi_2c8963b9",
+      "agent_type": "Tester",
+      "started_at": "2026-02-15T20:20:37.928Z",
+      "context": {
+        "run_id": "run_sess_mlo6wuqi_2c8963b9"
+      },
+      "completed_at": "2026-02-15T20:22:17.127Z",
+      "summary": "Executed focused verification for steps 8/9: full interactive-terminal suite passed (41/41), local parity assertion passed (1/1), and container-mode contract assertions passed (3/3). Stored test_results context. Step 8 marked done; step 9 marked blocked only due required phase confirmation gate, not due feature/test failures.",
+      "artifacts": [
+        "Project-Memory-MCP/server/src/__tests__/tools/interactive-terminal.test.ts",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlo57bml_d489e9bb/test_results.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlo704kz_ce75e388",
+      "agent_type": "Tester",
+      "started_at": "2026-02-15T20:23:10.666Z",
+      "context": {
+        "run_id": "run_sess_mlo704kz_ce75e388"
+      },
+      "completed_at": "2026-02-15T20:25:08.406Z",
+      "summary": "Implemented minimal test-only MCP interactive-tool integration tests, ran targeted suite with 43/43 passing, and updated step evidence. Recommending Archivist.",
+      "artifacts": [
+        "Project-Memory-MCP/server/src/__tests__/tools/interactive-terminal.test.ts",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mlo57bml_d489e9bb/test_results.json"
+      ]
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-15T19:37:49.541Z",
+      "from_agent": "Researcher",
+      "to_agent": "Coordinator",
+      "reason": "Step 0 research complete: routing map + requirement gap analysis + canonical contract proposal delivered; recommend Architect for Step 1 architecture spec."
+    },
+    {
+      "timestamp": "2026-02-15T19:40:39.496Z",
+      "from_agent": "Architect",
+      "to_agent": "Coordinator",
+      "reason": "Step 1 architecture spec complete; implementation blueprint and contract are ready for execution."
+    },
+    {
+      "timestamp": "2026-02-15T19:51:34.391Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Implementation for steps 2–6 completed with targeted tests passing, but plan transitions for steps 3/4/6 are blocked by required phase confirmation gates."
+    },
+    {
+      "timestamp": "2026-02-15T19:51:46.856Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Implementation and targeted checks are complete; recommend Reviewer to validate contract changes and coordinate phase confirmation-gated statuses."
+    },
+    {
+      "timestamp": "2026-02-15T20:20:03.042Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Step 7 review passed: behavioral contract validated and no regressions detected in interactive/headless surfaces."
+    },
+    {
+      "timestamp": "2026-02-15T20:22:10.774Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Step 8 targeted verification passed and Step 9 parity matrix passed at feature scope; recommend Archivist after confirmation gate handling."
+    },
+    {
+      "timestamp": "2026-02-15T20:25:00.987Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Added and validated MCP interactive-terminal tool-path integration tests for viewer/session flow; verification complete."
+    }
+  ],
+  "steps": [
+    {
+      "phase": "Phase 1: Contract Audit",
+      "task": "Analyze interactive terminal MCP routing paths and define canonical host-only execution contract (interactive vs headless)",
+      "type": "analysis",
+      "status": "done",
+      "assignee": "Researcher",
+      "index": 0,
+      "notes": "Research completed: current routing/visibility/approval/session-reuse gaps mapped; canonical host-only interactive contract proposed with target files.",
+      "completed_at": "2026-02-15T19:38:24.555Z"
+    },
+    {
+      "phase": "Phase 1: Contract Audit",
+      "task": "Produce architecture spec for bridge/runtime selection so GUI commands always route to host in both local and container modes",
+      "type": "planning",
+      "status": "done",
+      "assignee": "Architect",
+      "index": 1,
+      "notes": "Architecture spec completed (ADR-IT-001) with state machine, file blueprint, migration and test mapping.",
+      "completed_at": "2026-02-15T19:41:02.861Z"
+    },
+    {
+      "phase": "Phase 2: Host Routing Enforcement",
+      "task": "Implement guardrails preventing GUI interactive execution in container runtime and forcing host bridge routing",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 2,
+      "notes": "Enforced host-routed interactive execution with fail-closed container bridge preflight and no local fallback; narrowed runtime adapter semantics to local/container bridge only.",
+      "completed_at": "2026-02-15T19:49:02.625Z"
+    },
+    {
+      "phase": "Phase 2: Host Routing Enforcement",
+      "task": "Implement deterministic adapter selection so non-headless sends use visible interactive terminal and headless sends use dedicated headless path",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 3,
+      "notes": "Deterministic adapter selection enforced for interactive host-routing vs dedicated headless path per ADR-IT-001.",
+      "completed_at": "2026-02-15T20:18:07.543Z"
+    },
+    {
+      "phase": "Phase 3: Visibility + Session Reuse",
+      "task": "Implement/adjust existing-instance discovery and attach flow so MCP sends commands to existing interactive instance when available",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 4,
+      "notes": "Existing-instance attach/dispatch metadata ordering implemented and covered by targeted tests.",
+      "completed_at": "2026-02-15T20:18:07.544Z"
+    },
+    {
+      "phase": "Phase 3: Visibility + Session Reuse",
+      "task": "Ensure non-headless sends bring terminal window into visible state and only bypass visibility when explicit headless flag is set",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 5,
+      "notes": "Interactive command requests/responses now explicitly carry visibility=visible semantics for non-headless execution.",
+      "completed_at": "2026-02-15T19:49:19.690Z"
+    },
+    {
+      "phase": "Phase 4: Approval Policy",
+      "task": "Implement unified approval gate: require approval unless command matches allowlist, with identical behavior in local and container modes",
+      "type": "code",
+      "status": "done",
+      "assignee": "Executor",
+      "index": 6,
+      "notes": "Approval metadata/policy path updated so non-allowlisted interactive commands require approval semantics.",
+      "completed_at": "2026-02-15T20:18:07.544Z"
+    },
+    {
+      "phase": "Phase 5: Verification",
+      "task": "Review implementation against behavioral contract and verify no regression in interactive/headless command surfaces",
+      "type": "validation",
+      "status": "done",
+      "assignee": "Reviewer",
+      "index": 7,
+      "notes": "Review pass: contract checks 1-5 satisfied; targeted server vitest suite passed (41/41) for interactive/headless surfaces.",
+      "completed_at": "2026-02-15T20:19:53.344Z"
+    },
+    {
+      "phase": "Phase 5: Verification",
+      "task": "Add and run targeted tests for host-only routing, visibility semantics, approval/allowlist behavior, and existing-instance command dispatch",
+      "type": "test",
+      "status": "done",
+      "assignee": "Tester",
+      "index": 8,
+      "notes": "Augmented targeted integration coverage in `server/src/__tests__/tools/interactive-terminal.test.ts` to explicitly verify MCP `memory_terminal_interactive` interactive execute path carries viewer/session lifecycle semantics and to assert no unintended headless fallback when container-bridge interactive path is unavailable. Validation: `npx vitest run src/__tests__/tools/interactive-terminal.test.ts --reporter=verbose` => 43/43 passed.",
+      "completed_at": "2026-02-15T20:24:38.340Z"
+    },
+    {
+      "phase": "Phase 5: Verification",
+      "task": "Run parity validation matrix in local mode and container mode to confirm identical externally observable behavior",
+      "type": "test",
+      "status": "blocked",
+      "assignee": "Tester",
+      "index": 9,
+      "notes": "Execution evidence is PASS but status transition is blocked by required Phase 5 confirmation gate. Test results: local parity assertion 1/1 pass; container-mode contract assertions 3/3 pass; no feature-scope failures. Unblock by confirming Phase 5, then set step to done."
+    },
+    {
+      "phase": "Phase 6: Closeout",
+      "task": "Archive completed plan with summary of enforced contract and validation evidence",
+      "type": "documentation",
+      "status": "pending",
+      "assignee": "Archivist",
+      "index": 10,
+      "notes": "Starting user-requested MCP-interactive-viewer integration test coverage.\n[STALE_RECOVERY 2026-02-15T20:23:10.635Z] Reset stale active run/session state before continuing orchestration."
+    }
+  ],
+  "recommended_next_agent": "Coordinator",
+  "pending_notes": [
+    {
+      "note": "User requested additional tests that explicitly require MCP tools to call/use the interactive viewer path.",
+      "type": "instruction",
+      "added_at": "2026-02-15T20:22:52.568Z",
+      "added_by": "user"
+    }
+  ]
+}

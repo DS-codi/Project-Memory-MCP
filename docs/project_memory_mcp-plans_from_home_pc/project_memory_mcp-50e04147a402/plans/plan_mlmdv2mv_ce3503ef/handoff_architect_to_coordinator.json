@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-02-14T14:02:29.839Z",
+  "from_agent": "Architect",
+  "to_agent": "Coordinator",
+  "reason": "Architecture complete: 12-step phased implementation plan with single-flight guard, duplicate suppression, lifecycle lock release, stale recovery, reason-coded observability, and regression-safe validation path.",
+  "data": {
+    "recommendation": "Executor",
+    "steps_completed": 12,
+    "next_steps": [
+      "Execute Phase 1-3 implementation in extension/server orchestration paths",
+      "Add stale recovery + compatibility guardrails",
+      "Run targeted extension/server tests and regression checks"
+    ],
+    "files_planned": [
+      "vscode-extension/src/chat/tools/spawn-agent-tool.ts",
+      "vscode-extension/src/chat/orchestration/active-run-registry.ts",
+      "vscode-extension/src/chat/orchestration/spawn-reason-codes.ts",
+      "vscode-extension/src/chat/orchestration/spawn-fingerprint.ts",
+      "server/src/tools/handoff.tools.ts",
+      "server/src/tools/orchestration/stale-run-recovery.ts",
+      "server/src/tools/orchestration/active-run-store.ts",
+      "vscode-extension/src/test/chat/SpawnAgentTool.test.ts",
+      "server/src/__tests__/tools/active-run-lifecycle.test.ts"
+    ]
+  }
+}

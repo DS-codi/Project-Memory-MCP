@@ -81,7 +81,7 @@ export class ContainerStatusBar implements vscode.Disposable {
             vscode.StatusBarAlignment.Right,
             99 // Just left of the existing PM Server status bar (priority 100)
         );
-        this._statusBarItem.command = 'projectMemory.showContainerStatus';
+        this._statusBarItem.command = 'projectMemoryDev.showContainerStatus';
         this.update('local');
     }
 

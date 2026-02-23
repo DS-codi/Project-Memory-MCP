@@ -1,0 +1,662 @@
+{
+  "id": "plan_mlmlx7k2_c9356d82",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "Agent/Instructions/Skills Integration for Interactive Terminal GUI App (Rust+QML) - Continuation",
+  "description": "Update all agent files, instruction files, and skills to reflect the new interactive terminal GUI system. Update memory_terminal_interactive documentation across agent docs, mcp-usage.instructions.md, and the vscode-custom-tool-cloning skill. Create or update skills for the interactive terminal patterns. Ensure agents know when to use memory_terminal (headless/allowlist) vs memory_terminal_interactive (GUI approval).",
+  "priority": "medium",
+  "category": "documentation",
+  "goals": [
+    "Close agent documentation coverage gaps by adding canonical terminal-surface guidance across the missing 10 of 15 agent files and normalizing the existing 5 files.",
+    "Establish one canonical terminal decision policy across instructions for memory_terminal (headless) vs memory_terminal_interactive (visible VS Code terminal) and Rust+QML interactive gateway usage.",
+    "Integrate Rust+QML interactive-terminal architecture guidance into relevant skills and product docs so tool decisions and GUI approval flow are consistently linked.",
+    "Remove stale or conflicting terminal references and verify cross-file semantic consistency across agents, instructions, skills, and interactive-terminal docs."
+  ],
+  "success_criteria": [
+    "All 15 agent docs contain role-appropriate terminal surface guidance with consistent terminology and no contradictory behavior claims.",
+    "instructions/mcp-usage.instructions.md contains a canonical decision matrix plus explicit cross-surface contract-collision warning and routing guidance.",
+    "instructions/coordinator-operations.instructions.md, instructions/analyst-operations.instructions.md, and instructions/runner-operations.instructions.md each reference and align with canonical policy.",
+    "skills/vscode-custom-tool-cloning/SKILL.md and skills/cxxqt-rust-gui/SKILL.md include explicit Rust+QML interactive-terminal linkage and integration guidance.",
+    "interactive-terminal/README.md documents MCP integration topology and links to contract-unification design guidance.",
+    "Reviewer and Tester validation gates confirm no stale/conflicting terminal references remain in targeted scope files."
+  ],
+  "status": "archived",
+  "current_phase": "complete",
+  "current_agent": null,
+  "confirmation_state": {
+    "phases": {
+      "Phase 1: Research Audit": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T17:53:55.904Z"
+      },
+      "Phase 2: Architecture Planning": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T17:57:49.715Z"
+      },
+      "Phase 3: Canonical Terminal Policy": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T18:10:29.784Z"
+      },
+      "Phase 4: Agent Coverage - Missing 10 Files": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T18:15:15.371Z"
+      },
+      "Phase 4: Agent Coverage - Existing 5 Normalization": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T18:17:10.395Z"
+      },
+      "Phase 4: Agent Coverage - Validation": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T18:26:50.748Z"
+      },
+      "Phase 5: Operations Instruction Alignment": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T18:29:42.297Z"
+      },
+      "Phase 5: Skills + Rust/QML Integration": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T18:30:43.162Z"
+      },
+      "Phase 5: Product Doc Linkage": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T18:31:12.234Z"
+      },
+      "Phase 6: Consistency + Stale Reference Cleanup": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T18:32:56.335Z"
+      },
+      "Phase 6: Verification Gate": {
+        "confirmed": true,
+        "confirmed_by": "Tester",
+        "confirmed_at": "2026-02-14T18:42:05.988Z"
+      },
+      "Phase 6: Final Review Gate": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T18:44:21.502Z"
+      }
+    },
+    "steps": {
+      "5": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T18:09:11.559Z"
+      },
+      "9": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T18:20:28.546Z"
+      },
+      "16": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T18:43:06.518Z"
+      }
+    }
+  },
+  "created_at": "2026-02-14T17:45:16.423Z",
+  "updated_at": "2026-02-14T22:31:11.800Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mlmly5rs_f5e736a6",
+      "agent_type": "Researcher",
+      "started_at": "2026-02-14T17:46:00.796Z",
+      "context": {
+        "run_id": "run_sess_mlmly5rs_f5e736a6"
+      },
+      "completed_at": "2026-02-14T17:54:17.037Z",
+      "summary": "Completed Phase 1 Research Audit mission. Step 0 and Step 1 are done. Audited agent docs, instruction files, skills, and interactive-terminal docs for memory_terminal vs memory_terminal_interactive behavior, approval model usage policy, and Rust+QML workflow readiness. Produced a concrete gap matrix and exact file-level update targets; documented priority updates and cross-surface contract clarity needs for Architect planning.",
+      "artifacts": [
+        "research_notes/phase1-research-audit-interactive-terminal-rust-qml.md"
+      ]
+    },
+    {
+      "session_id": "sess_mlmm9peg_50cd8559",
+      "agent_type": "Architect",
+      "started_at": "2026-02-14T17:54:59.444Z",
+      "context": {
+        "run_id": "run_sess_mlmm9peg_50cd8559"
+      },
+      "completed_at": "2026-02-14T17:58:34.058Z",
+      "summary": "Completed Phase 2 Architecture Planning (Step 2 and Step 3). Replaced plan steps with a phased, atomic execution roadmap covering missing 10/15 agent coverage, canonical terminal decision guidance, Rust+QML linkage, and stale-reference cleanup with Reviewer/Tester validation gates. Refined goals/success criteria to exact scope and stored architecture rationale/order decisions.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmlx7k2_c9356d82/state.json",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmlx7k2_c9356d82/architecture.json",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmlx7k2_c9356d82/research_notes/phase1-research-audit-interactive-terminal-rust-qml.md"
+      ]
+    },
+    {
+      "session_id": "sess_mlmmoiwk_d4ba09e0",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T18:06:30.859Z",
+      "context": {
+        "run_id": "run_sess_mlmmoiwk_d4ba09e0"
+      },
+      "completed_at": "2026-02-14T18:08:32.419Z",
+      "summary": "Executed Step 4 only. Updated instructions/mcp-usage.instructions.md with canonical terminal surface selection matrix, Rust+QML gateway routing rule, and contract-collision warnings. Ran targeted markdown lint on the updated file; existing baseline lint issues remain in this legacy document style profile.",
+      "artifacts": [
+        "instructions/mcp-usage.instructions.md"
+      ]
+    },
+    {
+      "session_id": "sess_mlmmrpkv_271064e5",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T18:08:59.479Z",
+      "context": {
+        "run_id": "run_sess_mlmmrpkv_271064e5"
+      },
+      "completed_at": "2026-02-14T18:10:56.454Z",
+      "summary": "Executed Step 5 only. Reviewed canonical policy updates in instructions/mcp-usage.instructions.md and validated semantic consistency for: (1) headless allowlist behavior, (2) interactive visible-terminal behavior, and (3) Rust+QML gateway routing language. Result: accepted; no corrective edits required.",
+      "artifacts": [
+        "instructions/mcp-usage.instructions.md",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmlx7k2_c9356d82/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmmv5h5_2d973852",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T18:11:40.056Z",
+      "context": {
+        "run_id": "run_sess_mlmmv5h5_2d973852"
+      },
+      "completed_at": "2026-02-14T18:34:15.100Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T18:34:15.100Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmn54an_e4ac48e7",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T18:19:25.077Z",
+      "context": {
+        "run_id": "run_sess_mlmn54an_e4ac48e7"
+      },
+      "completed_at": "2026-02-14T18:19:46.897Z",
+      "summary": "Completed requested Phase 4 implementation steps 6-8 end-to-end: added missing canonical terminal-surface guidance to 10 agent docs, normalized existing 5 agent docs, handled required phase confirmations, ran lightweight consistency checks, and stored execution log successfully.",
+      "artifacts": [
+        "agents/analyst.agent.md",
+        "agents/architect.agent.md",
+        "agents/archivist.agent.md",
+        "agents/brainstorm.agent.md",
+        "agents/cognition.agent.md",
+        "agents/coordinator.agent.md",
+        "agents/researcher.agent.md",
+        "agents/revisionist.agent.md",
+        "agents/skill-writer.agent.md",
+        "agents/tdd-driver.agent.md",
+        "agents/executor.agent.md",
+        "agents/reviewer.agent.md",
+        "agents/runner.agent.md",
+        "agents/tester.agent.md",
+        "agents/worker.agent.md",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmlx7k2_c9356d82/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmn68ud_8e7b3fdd",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T18:20:17.658Z",
+      "context": {
+        "run_id": "run_sess_mlmn68ud_8e7b3fdd"
+      },
+      "completed_at": "2026-02-14T18:22:06.383Z",
+      "summary": "Executed Step 9 review only. Validated 15/15 agent docs against instructions/mcp-usage.instructions.md terminal policy. Terminal-surface vocabulary and Rust+QML gateway semantics are consistent. Found blocking role-boundary inconsistency in 10 spoke docs: anti-spawn text omits TDDDriver from hub list. Stored findings in review context and handed off to Coordinator recommending Revisionist.",
+      "artifacts": [
+        "instructions/mcp-usage.instructions.md",
+        "agents/analyst.agent.md",
+        "agents/architect.agent.md",
+        "agents/archivist.agent.md",
+        "agents/brainstorm.agent.md",
+        "agents/cognition.agent.md",
+        "agents/coordinator.agent.md",
+        "agents/executor.agent.md",
+        "agents/researcher.agent.md",
+        "agents/reviewer.agent.md",
+        "agents/revisionist.agent.md",
+        "agents/runner.agent.md",
+        "agents/skill-writer.agent.md",
+        "agents/tdd-driver.agent.md",
+        "agents/tester.agent.md",
+        "agents/worker.agent.md",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmlx7k2_c9356d82/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmn995p_4aade7ec",
+      "agent_type": "Revisionist",
+      "started_at": "2026-02-14T18:22:38.004Z",
+      "context": {
+        "run_id": "run_sess_mlmn995p_4aade7ec"
+      },
+      "completed_at": "2026-02-14T18:25:05.835Z",
+      "summary": "Resolved Step 9 blocker by applying a targeted consistency correction in 10 scoped spoke agent docs: updated hub-agent list references to include TDDDriver. Performed lightweight grep verification confirming the updated wording is present across all scoped files and stale wording is absent. Pivot context stored and plan updated to re-open Step 9 validation as pending for Reviewer re-check.",
+      "artifacts": [
+        "agents/architect.agent.md",
+        "agents/archivist.agent.md",
+        "agents/brainstorm.agent.md",
+        "agents/cognition.agent.md",
+        "agents/executor.agent.md",
+        "agents/researcher.agent.md",
+        "agents/reviewer.agent.md",
+        "agents/skill-writer.agent.md",
+        "agents/tester.agent.md",
+        "agents/worker.agent.md",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmlx7k2_c9356d82/pivot.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmnd39q_2ee81144",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T18:25:37.002Z",
+      "context": {
+        "run_id": "run_sess_mlmnd39q_2ee81144"
+      },
+      "completed_at": "2026-02-14T18:27:15.937Z",
+      "summary": "Re-ran Step 9 after Revisionist fix and completed cross-agent validation over all 15 agent docs. Confirmed terminal decision vocabulary is consistent, Rust+QML gateway semantics remain approval/routing-only, and role constraints are aligned. Prior blocker is resolved: spoke anti-spawn hub list now consistently includes TDDDriver with no stale omissions found. Stored review context, reindexed workspace, marked step done, and handed off to Coordinator recommending Executor.",
+      "artifacts": [
+        "agents/analyst.agent.md",
+        "agents/architect.agent.md",
+        "agents/archivist.agent.md",
+        "agents/brainstorm.agent.md",
+        "agents/cognition.agent.md",
+        "agents/coordinator.agent.md",
+        "agents/executor.agent.md",
+        "agents/researcher.agent.md",
+        "agents/reviewer.agent.md",
+        "agents/revisionist.agent.md",
+        "agents/runner.agent.md",
+        "agents/skill-writer.agent.md",
+        "agents/tdd-driver.agent.md",
+        "agents/tester.agent.md",
+        "agents/worker.agent.md",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmlx7k2_c9356d82/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmnfpwp_a5d75627",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T18:27:39.647Z",
+      "context": {
+        "run_id": "run_sess_mlmnfpwp_a5d75627"
+      },
+      "completed_at": "2026-02-14T18:33:45.763Z",
+      "summary": "Executed plan steps 10-14 in one pass. Added canonical mcp-usage cross-links in coordinator/analyst/runner operations docs; updated vscode-custom-tool-cloning and cxxqt-rust-gui skills with Rust+QML gateway/interactive-terminal integration guidance; updated interactive-terminal README with MCP topology and design-doc link; performed scoped stale-reference/source-of-truth cleanup and alignment checks with targeted grep and diagnostics.",
+      "artifacts": [
+        "instructions/coordinator-operations.instructions.md",
+        "instructions/analyst-operations.instructions.md",
+        "instructions/runner-operations.instructions.md",
+        "skills/cxxqt-rust-gui/SKILL.md",
+        "interactive-terminal/README.md",
+        "docs/interactive-terminal-contract-unification-design.md",
+        "../.github/skills/vscode-custom-tool-cloning/SKILL.md",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmlx7k2_c9356d82/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmno72s_96e80b23",
+      "agent_type": "Tester",
+      "started_at": "2026-02-14T18:34:15.150Z",
+      "context": {
+        "run_id": "run_sess_mlmno72s_96e80b23"
+      },
+      "completed_at": "2026-02-14T18:38:02.162Z",
+      "summary": "Executed Step 15 targeted verification grep/search pass on scoped files. Result: BLOCKED due one failure — mirrored file .github/skills/cxxqt-rust-gui/SKILL.md lacks canonical terminal decision guidance tokens. All 15 agent files and other required instruction/doc files showed canonical decision guidance patterns; no explicit conflicting legacy phrases detected in scoped files.",
+      "artifacts": [
+        "Project-Memory-MCP/agents/*.agent.md",
+        "Project-Memory-MCP/instructions/mcp-usage.instructions.md",
+        "Project-Memory-MCP/instructions/coordinator-operations.instructions.md",
+        "Project-Memory-MCP/instructions/analyst-operations.instructions.md",
+        "Project-Memory-MCP/instructions/runner-operations.instructions.md",
+        ".github/skills/vscode-custom-tool-cloning/SKILL.md",
+        "Project-Memory-MCP/skills/cxxqt-rust-gui/SKILL.md",
+        ".github/skills/cxxqt-rust-gui/SKILL.md",
+        "Project-Memory-MCP/interactive-terminal/README.md",
+        "Project-Memory-MCP/docs/interactive-terminal-contract-unification-design.md",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmlx7k2_c9356d82/test_results.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmntt5b_1a5a9b79",
+      "agent_type": "Revisionist",
+      "started_at": "2026-02-14T18:38:37.033Z",
+      "context": {
+        "run_id": "run_sess_mlmntt5b_1a5a9b79"
+      },
+      "completed_at": "2026-02-14T18:40:14.032Z",
+      "summary": "Resolved Step 15 blocker with a minimal scoped fix: synced canonical terminal decision guidance/policy linkage into mirrored .github/skills/cxxqt-rust-gui/SKILL.md and verified required guidance terms are present. Handoff sent to Coordinator recommending Tester re-run Step 15 verification.",
+      "artifacts": [
+        ".github/skills/cxxqt-rust-gui/SKILL.md",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmlx7k2_c9356d82/pivot.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmnwfbp_3da8e000",
+      "agent_type": "Tester",
+      "started_at": "2026-02-14T18:40:39.086Z",
+      "context": {
+        "run_id": "run_sess_mlmnwfbp_3da8e000"
+      },
+      "completed_at": "2026-02-14T18:42:22.816Z",
+      "summary": "Re-ran Step 15 verification after Revisionist fix. Marked step index 15 active -> done, executed targeted grep/search checks across required scope including mirrored .github/skills/cxxqt-rust-gui/SKILL.md, confirmed prior mirror-gap blocker resolved, and handed off to Coordinator recommending Reviewer.",
+      "artifacts": [
+        "Project-Memory-MCP/agents/*.agent.md",
+        "Project-Memory-MCP/instructions/mcp-usage.instructions.md",
+        "Project-Memory-MCP/instructions/coordinator-operations.instructions.md",
+        "Project-Memory-MCP/instructions/analyst-operations.instructions.md",
+        "Project-Memory-MCP/instructions/runner-operations.instructions.md",
+        "Project-Memory-MCP/skills/cxxqt-rust-gui/SKILL.md",
+        ".github/skills/cxxqt-rust-gui/SKILL.md",
+        ".github/skills/vscode-custom-tool-cloning/SKILL.md",
+        "Project-Memory-MCP/interactive-terminal/README.md",
+        "Project-Memory-MCP/docs/interactive-terminal-contract-unification-design.md"
+      ]
+    },
+    {
+      "session_id": "sess_mlmnz91g_9387dc8a",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T18:42:50.911Z",
+      "context": {
+        "run_id": "run_sess_mlmnz91g_9387dc8a"
+      },
+      "completed_at": "2026-02-14T18:44:42.229Z",
+      "summary": "Completed Step 16 final acceptance. Validated completed work against all 4 goals and all 6 success criteria; result PASS/APPROVE. Stored final review findings, reindexed workspace profile, confirmed required step/phase gates, and updated step 16 to done. Handoff sent to Coordinator recommending Archivist.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmlx7k2_c9356d82/review.json",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmlx7k2_c9356d82/state.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmo29bz_2412aced",
+      "agent_type": "Archivist",
+      "started_at": "2026-02-14T18:45:11.258Z",
+      "context": {
+        "run_id": "run_sess_mlmo29bz_2412aced"
+      },
+      "completed_at": "2026-02-14T18:46:02.198Z",
+      "summary": "Archivist finalization complete. Ran init+validate, verified plan state shows 17/17 steps done with 0 blocked, reindexed workspace, archived plan plan_mlmlx7k2_c9356d82 successfully, and closed session per requested no-git constraints (no commit/push).",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmlx7k2_c9356d82/state.json",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mlmlx7k2_c9356d82/review.json",
+        "instructions/mcp-usage.instructions.md",
+        "instructions/coordinator-operations.instructions.md",
+        "instructions/analyst-operations.instructions.md",
+        "instructions/runner-operations.instructions.md",
+        "agents/analyst.agent.md",
+        "agents/architect.agent.md",
+        "agents/archivist.agent.md",
+        "agents/brainstorm.agent.md",
+        "agents/cognition.agent.md",
+        "agents/coordinator.agent.md",
+        "agents/executor.agent.md",
+        "agents/researcher.agent.md",
+        "agents/reviewer.agent.md",
+        "agents/revisionist.agent.md",
+        "agents/runner.agent.md",
+        "agents/skill-writer.agent.md",
+        "agents/tdd-driver.agent.md",
+        "agents/tester.agent.md",
+        "agents/worker.agent.md",
+        "skills/cxxqt-rust-gui/SKILL.md",
+        ".github/skills/cxxqt-rust-gui/SKILL.md",
+        ".github/skills/vscode-custom-tool-cloning/SKILL.md",
+        "interactive-terminal/README.md",
+        "docs/interactive-terminal-contract-unification-design.md"
+      ]
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-14T17:54:11.569Z",
+      "from_agent": "Researcher",
+      "to_agent": "Coordinator",
+      "reason": "Phase 1 Research Audit complete (Steps 0 and 1). Gap matrix and file-level update map are ready for implementation planning."
+    },
+    {
+      "timestamp": "2026-02-14T17:58:26.345Z",
+      "from_agent": "Architect",
+      "to_agent": "Coordinator",
+      "reason": "Phase 2 Architecture Planning complete; phased implementation roadmap, refined goals/success criteria, and architecture rationale are ready."
+    },
+    {
+      "timestamp": "2026-02-14T18:08:26.814Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Step 4 complete. Recommend Reviewer for validation of canonical terminal policy wording and semantics in instructions/mcp-usage.instructions.md."
+    },
+    {
+      "timestamp": "2026-02-14T18:10:49.870Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Step 5 review passed. Canonical terminal policy section accepted for semantic accuracy, role neutrality, and consistency with authorization/routing semantics."
+    },
+    {
+      "timestamp": "2026-02-14T18:19:40.165Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Phase 4 implementation steps 6-8 completed and verified; canonical terminal-surface guidance aligned across targeted agent docs."
+    },
+    {
+      "timestamp": "2026-02-14T18:21:59.029Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Step 9 blocked: cross-agent role-constraint inconsistency found; recommend Revisionist for targeted doc fixes."
+    },
+    {
+      "timestamp": "2026-02-14T18:24:59.987Z",
+      "from_agent": "Revisionist",
+      "to_agent": "Coordinator",
+      "reason": "Step 9 blocker fixed via targeted spoke-doc consistency correction. Recommend Reviewer to re-run Step 9 validation."
+    },
+    {
+      "timestamp": "2026-02-14T18:27:10.123Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Step 9 re-review fully resolved. Terminal vocabulary and role constraints are consistent across all 15 agent docs; blocker fixed. Recommendation: Executor."
+    },
+    {
+      "timestamp": "2026-02-14T18:33:33.880Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Completed Steps 10-14 with scoped doc/skill updates and targeted verification; recommend Tester for verification gate step 15."
+    },
+    {
+      "timestamp": "2026-02-14T18:37:54.009Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Step 15 verification blocked due missing canonical guidance in mirrored skill file; recommend Revisionist."
+    },
+    {
+      "timestamp": "2026-02-14T18:40:05.128Z",
+      "from_agent": "Revisionist",
+      "to_agent": "Coordinator",
+      "reason": "Step 15 blocker resolved with scoped mirrored skill sync; recommend Tester re-run Step 15 targeted verification."
+    },
+    {
+      "timestamp": "2026-02-14T18:42:17.067Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Step 15 re-verification PASS after Revisionist fix; targeted grep/search checks across required scope including mirrored .github/skills path succeeded. Recommendation: Reviewer."
+    },
+    {
+      "timestamp": "2026-02-14T18:44:36.589Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Step 16 final acceptance PASS: all goals and success criteria satisfied; recommend Archivist."
+    }
+  ],
+  "steps": [
+    {
+      "phase": "Phase 1: Research Audit",
+      "task": "Audit current agent docs, instruction files, and skills for Interactive Terminal GUI App (Rust+QML) readiness and identify stale/missing guidance.",
+      "type": "research",
+      "status": "done",
+      "notes": "Completed in Phase 1 with coverage inventory and stale/missing guidance findings.",
+      "assignee": "Researcher",
+      "index": 0
+    },
+    {
+      "phase": "Phase 1: Research Audit",
+      "task": "Produce a gap matrix for memory_terminal vs memory_terminal_interactive usage guidance, approval model, and Rust+QML interactive-terminal workflows.",
+      "type": "analysis",
+      "status": "done",
+      "notes": "Completed with prioritized gap matrix and explicit file target list in research_notes/phase1-research-audit-interactive-terminal-rust-qml.md.",
+      "assignee": "Researcher",
+      "index": 1
+    },
+    {
+      "phase": "Phase 2: Architecture Planning",
+      "task": "Create a phased implementation roadmap with atomic file-level tasks, explicit assignees, and validation checkpoints derived from the gap matrix.",
+      "type": "planning",
+      "status": "done",
+      "notes": "Roadmap defined with phased execution, reviewer checkpoints, and tester verification gates.",
+      "assignee": "Architect",
+      "index": 2
+    },
+    {
+      "phase": "Phase 2: Architecture Planning",
+      "task": "Refine plan goals and success criteria so scope exactly covers agent coverage gaps, canonical terminal-surface decision guidance, Rust+QML linkage, and stale-reference cleanup.",
+      "type": "planning",
+      "status": "done",
+      "notes": "Refined goals/success criteria to exact scope: missing 10 agent files, canonical terminal decision guidance, Rust+QML linkage, and stale-reference cleanup with validation gates.",
+      "assignee": "Architect",
+      "index": 3
+    },
+    {
+      "phase": "Phase 3: Canonical Terminal Policy",
+      "task": "Update instructions/mcp-usage.instructions.md with a canonical terminal surface selection matrix (memory_terminal vs memory_terminal_interactive vs Rust+QML gateway) and contract-collision warning notes.",
+      "type": "documentation",
+      "status": "done",
+      "notes": "Updated instructions/mcp-usage.instructions.md with canonical terminal surface selection matrix (memory_terminal vs memory_terminal_interactive vs Rust+QML gateway), gateway routing rule, and contract-collision warnings.",
+      "assignee": "Executor",
+      "requires_validation": true,
+      "index": 4
+    },
+    {
+      "phase": "Phase 3: Canonical Terminal Policy",
+      "task": "Review and validate the canonical policy section for accuracy, role neutrality, and consistency with existing authorization semantics.",
+      "type": "validation",
+      "status": "done",
+      "notes": "Step 5 accepted. Canonical terminal policy section validated as accurate, role-neutral, and semantically consistent with headless allowlist behavior, interactive visible-terminal behavior, and Rust+QML gateway routing language.",
+      "assignee": "Reviewer",
+      "index": 5
+    },
+    {
+      "phase": "Phase 4: Agent Coverage - Missing 10 Files",
+      "task": "Add terminal-surface guidance to missing agent docs set A: agents/analyst.agent.md, agents/architect.agent.md, agents/archivist.agent.md, agents/brainstorm.agent.md, agents/cognition.agent.md.",
+      "type": "documentation",
+      "status": "done",
+      "notes": "Added canonical terminal-surface guidance to set A files: analyst, architect, archivist, brainstorm, cognition.",
+      "assignee": "Executor",
+      "requires_validation": true,
+      "index": 6
+    },
+    {
+      "phase": "Phase 4: Agent Coverage - Missing 10 Files",
+      "task": "Add terminal-surface guidance to missing agent docs set B: agents/coordinator.agent.md, agents/researcher.agent.md, agents/revisionist.agent.md, agents/skill-writer.agent.md, agents/tdd-driver.agent.md.",
+      "type": "documentation",
+      "status": "done",
+      "notes": "Added canonical terminal-surface guidance to set B files: coordinator, researcher, revisionist, skill-writer, and tdd-driver.",
+      "assignee": "Executor",
+      "requires_validation": true,
+      "index": 7
+    },
+    {
+      "phase": "Phase 4: Agent Coverage - Existing 5 Normalization",
+      "task": "Normalize existing coverage wording and matrix references in agents/executor.agent.md, agents/reviewer.agent.md, agents/runner.agent.md, agents/tester.agent.md, and agents/worker.agent.md.",
+      "type": "documentation",
+      "status": "done",
+      "notes": "Normalized wording/matrix references in existing 5 files (executor, reviewer, runner, tester, worker) to align with canonical terminal selection policy and Rust+QML gateway routing semantics.",
+      "assignee": "Executor",
+      "requires_validation": true,
+      "index": 8
+    },
+    {
+      "phase": "Phase 4: Agent Coverage - Validation",
+      "task": "Run cross-agent review to ensure all 15 agent docs use the same terminal decision vocabulary and role-appropriate constraints.",
+      "type": "validation",
+      "status": "done",
+      "notes": "Step 9 re-review passed. All 15 agent docs align on terminal decision vocabulary and role-appropriate constraints. Prior blocker resolved: spoke anti-spawn hub list now consistently includes TDDDriver; no stale omissions found. Recommended next agent: Executor.",
+      "assignee": "Reviewer",
+      "index": 9
+    },
+    {
+      "phase": "Phase 5: Operations Instruction Alignment",
+      "task": "Update instructions/coordinator-operations.instructions.md, instructions/analyst-operations.instructions.md, and instructions/runner-operations.instructions.md with concise policy cross-links to canonical mcp-usage guidance.",
+      "type": "documentation",
+      "status": "done",
+      "notes": "Added concise canonical-policy cross-link sections in coordinator/analyst/runner operations instructions, explicitly referencing instructions/mcp-usage.instructions.md for terminal surface selection and Rust+QML gateway semantics.",
+      "assignee": "Executor",
+      "requires_validation": true,
+      "index": 10
+    },
+    {
+      "phase": "Phase 5: Skills + Rust/QML Integration",
+      "task": "Update skills/vscode-custom-tool-cloning/SKILL.md with explicit integration guidance between extension interactive terminal tooling and Rust+QML approval gateway usage.",
+      "type": "documentation",
+      "status": "done",
+      "notes": "Updated .github/skills/vscode-custom-tool-cloning/SKILL.md with explicit Rust+QML approval-gateway integration topology, contract boundary rules, and canonical policy cross-reference to instructions/mcp-usage.instructions.md.",
+      "assignee": "Executor",
+      "requires_validation": true,
+      "index": 11
+    },
+    {
+      "phase": "Phase 5: Skills + Rust/QML Integration",
+      "task": "Update skills/cxxqt-rust-gui/SKILL.md with interactive-terminal app profile details (approval queue, event flow, bridge responsibilities) and policy cross-reference hooks.",
+      "type": "documentation",
+      "status": "done",
+      "notes": "Updated skills/cxxqt-rust-gui/SKILL.md with interactive-terminal profile details: approval queue model, event flow, bridge responsibilities, and canonical policy cross-references.",
+      "assignee": "Executor",
+      "requires_validation": true,
+      "index": 12
+    },
+    {
+      "phase": "Phase 5: Product Doc Linkage",
+      "task": "Update interactive-terminal/README.md with explicit MCP integration topology and add discoverability link path to docs/interactive-terminal-contract-unification-design.md.",
+      "type": "documentation",
+      "status": "done",
+      "notes": "Added MCP integration topology section to interactive-terminal/README.md and linked docs/interactive-terminal-contract-unification-design.md for canonical contract-unification guidance.",
+      "assignee": "Executor",
+      "requires_validation": true,
+      "index": 13
+    },
+    {
+      "phase": "Phase 6: Consistency + Stale Reference Cleanup",
+      "task": "Perform cross-file stale-reference cleanup and source-of-truth alignment checks across agents/, instructions/, skills/, interactive-terminal/, and docs/ for terminal-surface semantics.",
+      "type": "documentation",
+      "status": "done",
+      "notes": "Completed scoped stale-reference/source-of-truth alignment checks across instructions/, skills/, interactive-terminal/, and docs/. Added one cleanup note in docs/interactive-terminal-contract-unification-design.md to mark mcp-usage as canonical for active policy semantics; verified targeted cross-links/topology text via grep.",
+      "assignee": "Executor",
+      "requires_validation": true,
+      "index": 14
+    },
+    {
+      "phase": "Phase 6: Verification Gate",
+      "task": "Execute targeted verification pass (grep/search checks) confirming all required files contain canonical decision guidance and no conflicting legacy terminal instructions remain.",
+      "type": "test",
+      "status": "done",
+      "notes": "PASS: Re-ran Step 15 targeted grep/search checks across required scope including mirrored .github/skills/cxxqt-rust-gui/SKILL.md. Canonical terminal decision guidance is present across scoped files and prior mirror-gap blocker is resolved.",
+      "assignee": "Tester",
+      "index": 15,
+      "completed_at": "2026-02-14T18:42:09.323Z"
+    },
+    {
+      "phase": "Phase 6: Final Review Gate",
+      "task": "Run final reviewer acceptance against goals/success criteria and produce approve-or-revise recommendation for Coordinator.",
+      "type": "validation",
+      "status": "done",
+      "assignee": "Reviewer",
+      "index": 16,
+      "notes": "Final acceptance PASS. All 4 goals and all 6 success criteria satisfied based on completed step notes and latest lineage (including Step 15 re-verification pass after mirrored .github cxxqt skill fix). Recommendation: Archivist.",
+      "completed_at": "2026-02-14T18:44:25.553Z"
+    }
+  ],
+  "program_id": "plan_mllgnu1d_56838e50",
+  "recommended_next_agent": "Coordinator"
+}

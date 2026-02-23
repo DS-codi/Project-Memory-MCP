@@ -43,7 +43,7 @@ export class ConnectionManager implements vscode.Disposable {
         this.config = config;
         this.outputChannel = vscode.window.createOutputChannel('Project Memory Connection');
         this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-        this.statusBarItem.command = 'projectMemory.toggleConnection';
+        this.statusBarItem.command = 'projectMemoryDev.toggleConnection';
         this.updateStatusBar('disconnected');
         this.statusBarItem.show();
     }

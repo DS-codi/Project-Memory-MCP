@@ -18,7 +18,7 @@ export interface MessagePoster {
 }
 
 function notify(message: string, ...items: string[]): Thenable<string | undefined> {
-    const config = vscode.workspace.getConfiguration('projectMemory');
+    const config = vscode.workspace.getConfiguration('projectMemoryDev');
     if (config.get<boolean>('showNotifications', true)) {
         return vscode.window.showInformationMessage(message, ...items);
     }
@@ -30,7 +30,7 @@ function notify(message: string, ...items: string[]): Thenable<string | undefine
 /** List available skills and their deployment status */
 export function handleGetSkills(poster: MessagePoster): void {
     try {
-        const config = vscode.workspace.getConfiguration('projectMemory');
+        const config = vscode.workspace.getConfiguration('projectMemoryDev');
         const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         const configuredSkillsRoot = config.get<string>('skillsRoot') || getDefaultSkillsRoot();
         const globalSkillsRoot = config.get<string>('globalSkillsRoot');
@@ -84,7 +84,7 @@ export function handleDeploySkill(poster: MessagePoster, data: { skillName: stri
         return;
     }
 
-    const config = vscode.workspace.getConfiguration('projectMemory');
+    const config = vscode.workspace.getConfiguration('projectMemoryDev');
     const configuredSkillsRoot = config.get<string>('skillsRoot') || getDefaultSkillsRoot();
     const globalSkillsRoot = config.get<string>('globalSkillsRoot');
     const sourceResolution = resolveSkillsSourceRoot(
@@ -128,7 +128,7 @@ export function handleDeploySkill(poster: MessagePoster, data: { skillName: stri
 /** List available instructions and their deployment status */
 export function handleGetInstructions(poster: MessagePoster): void {
     try {
-        const config = vscode.workspace.getConfiguration('projectMemory');
+        const config = vscode.workspace.getConfiguration('projectMemoryDev');
         const instructionsRoot = config.get<string>('instructionsRoot') || getDefaultInstructionsRoot();
         if (!instructionsRoot || !fs.existsSync(instructionsRoot)) {
             poster.postMessage({ type: 'instructionsList', data: { instructions: [] } });
@@ -163,7 +163,7 @@ export function handleDeployInstruction(poster: MessagePoster, data: { instructi
         return;
     }
 
-    const config = vscode.workspace.getConfiguration('projectMemory');
+    const config = vscode.workspace.getConfiguration('projectMemoryDev');
     const instructionsRoot = config.get<string>('instructionsRoot') || getDefaultInstructionsRoot();
     if (!instructionsRoot) {
         vscode.window.showErrorMessage('Instructions root not configured');

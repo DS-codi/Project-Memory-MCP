@@ -13,7 +13,7 @@ type ProbeTarget =
   | { kind: 'tcp'; host: string; port: number };
 
 function getProbeTargets(): ProbeTarget[] {
-  const cfg = vscode.workspace.getConfiguration('projectMemory');
+  const cfg = vscode.workspace.getConfiguration('projectMemoryDev');
   const containerMode = cfg.get<'auto' | 'local' | 'container'>('containerMode', 'auto');
 
   if (containerMode === 'container') {

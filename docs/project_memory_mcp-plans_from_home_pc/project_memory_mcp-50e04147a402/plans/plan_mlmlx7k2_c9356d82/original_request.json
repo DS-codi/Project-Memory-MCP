@@ -1,0 +1,34 @@
+{
+  "type": "original_request",
+  "plan_id": "plan_mlmlx7k2_c9356d82",
+  "workspace_id": "project-memory-mcp-40f6678f5a9b",
+  "captured_at": "2026-02-14T17:45:39.116Z",
+  "user_request": {
+    "sanitized": "Begin planning and research phases for this effort; it should update Agents / Instructions / Skills to ready them for use with the Interactive Terminal GUI App (Rust+QML).",
+    "wasModified": false,
+    "injectionAttempts": [],
+    "warnings": []
+  },
+  "context": {
+    "files_mentioned": [],
+    "file_contents": {},
+    "requirements": [
+      "Begin with research and planning phases first",
+      "Target agents, instructions, and skills content",
+      "Align guidance for Interactive Terminal GUI app workflows",
+      "Differentiate memory_terminal (headless/allowlist) vs memory_terminal_interactive (GUI/approval)"
+    ],
+    "constraints": [
+      "Treat prior archived plan as not representing full intended scope",
+      "Keep work aligned to Project Memory MCP orchestration and instruction conventions"
+    ],
+    "examples": [],
+    "conversation_context": {
+      "sanitized": "User clarified original plan looked done but intent is broader readiness update for Interactive Terminal GUI App (Rust+QML).",
+      "wasModified": false,
+      "injectionAttempts": [],
+      "warnings": []
+    },
+    "additional_notes": null
+  }
+}

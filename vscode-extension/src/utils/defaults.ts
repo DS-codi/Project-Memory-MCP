@@ -43,7 +43,7 @@ export function getDefaultPromptsRoot(): string {
  * shared MCP project directory in every workspace — not the current workspace.
  */
 export function getDefaultSkillsRoot(): string {
-    const config = vscode.workspace.getConfiguration('projectMemory');
+    const config = vscode.workspace.getConfiguration('projectMemoryDev');
 
     // 1. Explicit skillsRoot setting
     const explicit = config.get<string>('skillsRoot');

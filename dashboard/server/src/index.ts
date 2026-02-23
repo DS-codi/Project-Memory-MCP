@@ -21,7 +21,9 @@ import { knowledgeRouter } from './routes/knowledge.js';
 import { programsRouter } from './routes/programs.js';
 import { setupFileWatcher } from './services/fileWatcher.js';
 import { getDataRoot } from './storage/workspace-utils.js';
+import { cleanupOldEvents } from './events/emitter.js';
 import * as fs from 'fs';
+import * as fsAsync from 'fs/promises';
 
 const PORT = process.env.PORT || 3001;
 const WS_PORT = process.env.WS_PORT || 3002;
@@ -108,12 +110,12 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
-// Dashboard error logging endpoint
-app.post('/api/errors', (req, res) => {
+// Dashboard error logging endpoint (async I/O)
+app.post('/api/errors', async (req, res) => {
   try {
     const { error, componentStack, url, timestamp: clientTimestamp } = req.body;
     const logsDir = path.join(MBS_DATA_ROOT, 'logs');
-    fs.mkdirSync(logsDir, { recursive: true });
+    await fsAsync.mkdir(logsDir, { recursive: true });
     const logPath = path.join(logsDir, 'dashboard-errors.log');
 
     const entry = JSON.stringify({
@@ -123,7 +125,7 @@ app.post('/api/errors', (req, res) => {
       url: url || null,
     });
 
-    fs.appendFileSync(logPath, entry + '\n');
+    await fsAsync.appendFile(logPath, entry + '\n');
     lastErrorTimestamp = new Date().toISOString();
     res.json({ logged: true });
   } catch (e) {
@@ -173,5 +175,22 @@ setupFileWatcher(MBS_DATA_ROOT, (event) => {
     }
   });
 });
+
+// Schedule event cleanup every 5 minutes (prevents unbounded event file growth)
+setInterval(async () => {
+  try {
+    const deleted = await cleanupOldEvents();
+    if (deleted > 0) {
+      console.log(`🧹 Cleaned up ${deleted} old event files`);
+    }
+  } catch (e) {
+    console.error('Event cleanup failed:', e);
+  }
+}, 5 * 60 * 1000);
+
+// Run cleanup once on startup
+cleanupOldEvents().then(deleted => {
+  if (deleted > 0) console.log(`🧹 Startup cleanup: removed ${deleted} old event files`);
+}).catch(() => { /* ignore */ });
 
 console.log(`📡 WebSocket server running at ws://localhost:${WS_PORT}`);

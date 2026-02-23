@@ -1,6 +1,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { eventBus } from './eventBus.js';
 
 export interface MCPEvent {
   id: string;
@@ -59,6 +60,10 @@ export async function emitEvent(
 
   const filePath = path.join(eventsDir, `${id}.json`);
   await fs.writeFile(filePath, JSON.stringify(event, null, 2));
+
+  // Push to in-memory bus so SSE clients get instant delivery
+  // without filesystem polling
+  eventBus.push(event);
 
   return event;
 }

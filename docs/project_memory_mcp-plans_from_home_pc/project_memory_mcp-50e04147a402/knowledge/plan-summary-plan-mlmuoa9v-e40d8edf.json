@@ -1,0 +1,15 @@
+{
+  "slug": "plan-summary-plan-mlmuoa9v-e40d8edf",
+  "title": "Plan Summary: Replay Diagnostics UX",
+  "category": "plan-summary",
+  "content": "## Replay Diagnostics UX\n\n**Plan ID:** plan_mlmuoa9v_e40d8edf\n**Completed:** 2026-02-15\n**Priority:** high\n\n### What Was Accomplished\n- Delivered additive explainability metadata and rollups across replay diagnostics outputs (JSON, markdown, gate summary, and annotations).\n- Preserved backward compatibility by keeping legacy output behavior unchanged when explainability data is absent.\n- Added and validated targeted replay test coverage for compatibility and explainability render behavior.\n- Completed final RUN-gate comparator regression fix and verified compile + replay tests green.\n\n### Key Decisions Made\n- Contract changes remained additive/optional only; no removals/renames of existing fields.\n- Markdown and annotation explainability content emitted conditionally to minimize noise.\n- Compatibility-first approach prioritized parse-stable legacy formats and optional suffix metadata.\n\n### Files Created or Modified\n- Project-Memory-MCP/vscode-extension/src/test/replay/core/types.ts — additive explainability types.\n- Project-Memory-MCP/vscode-extension/src/test/replay/core/Comparator.ts — explainability behavior and final regression fix.\n- Project-Memory-MCP/vscode-extension/src/test/replay/core/GateEvaluator.ts — additive rollups/annotation behavior.\n- Project-Memory-MCP/vscode-extension/src/test/replay/core/ReportWriter.ts — conditional markdown explainability rendering.\n- Project-Memory-MCP/vscode-extension/src/test/suite/replay-harness-core.test.ts — compatibility/explainability test coverage.\n\n### Lessons Learned\n- Scope-tight fixes and targeted replay gates reduced churn and accelerated final stabilization.\n- Optional explainability additions can improve triage quality without increasing default report noise.\n\n### Test Coverage\n- Replay-focused run reports 192 passing, 0 failing in final validation.\n- Coverage includes JSON compatibility, markdown conditional explainability sections, and annotation optional suffix behavior.",
+  "tags": [
+    "plan-summary",
+    "archived",
+    "replay-diagnostics"
+  ],
+  "created_at": "2026-02-15T06:36:50.911Z",
+  "updated_at": "2026-02-15T06:37:08.945Z",
+  "created_by_agent": "Archivist",
+  "created_by_plan": "plan_mlmuoa9v_e40d8edf"
+}

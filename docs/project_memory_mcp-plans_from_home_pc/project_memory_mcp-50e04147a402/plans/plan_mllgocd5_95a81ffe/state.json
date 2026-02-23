@@ -1,0 +1,1215 @@
+{
+  "id": "plan_mllgocd5_95a81ffe",
+  "workspace_id": "project_memory_mcp-50e04147a402",
+  "title": "MCP/Extension/Container Integration",
+  "description": "Integrate the interactive terminal GUI app with the Project Memory ecosystem: (1) Update memory_terminal_interactive MCP tool to spawn the GUI app and communicate via TCP loopback, (2) Update the VS Code extension to handle the tool invocation flow, (3) Update container configuration (Containerfile, run-container.ps1) to expose GUI binary path and TCP port, (4) Handle local/bundled vs container modes, (5) JSON protocol design for request/response between MCP server and GUI app.",
+  "priority": "high",
+  "category": "feature",
+  "goals": [
+    "Unify interactive terminal tool contract to remove server/extension action-schema collisions",
+    "Implement runtime adapter model that supports local, bundled, and container bridge transports",
+    "Deliver a stable invocation interface for extension, dashboard, and chat-button initiated terminal actions",
+    "Support both interactive approval and headless command execution modes with deterministic behavior",
+    "Provide container networking/configuration that enables container MCP to reach host GUI service safely",
+    "Document and validate protocol/error/fallback behavior for operational reliability",
+    "Establish end-to-end observability with trace identifiers across request lifecycle boundaries"
+  ],
+  "success_criteria": [
+    "`memory_terminal_interactive` exposes one canonical request/response contract with explicit compatibility handling for legacy callers",
+    "Interactive mode completes full lifecycle (`spawn -> ready -> request_sent -> user_decision -> response_returned`) in local and container runtime paths",
+    "Headless mode executes commands without GUI launch and returns structured output/exit metadata via the same contract family",
+    "Extension invocation path routes canonical interactive calls through MCP and provides a non-colliding terminal-management contract",
+    "Container configuration defines required host alias/port/env wiring and connection diagnostics for bridge failures",
+    "Decline, timeout, disconnect, invalid-schema, and GUI-unavailable cases return deterministic, documented error payloads",
+    "Targeted server/extension tests for contract validation, adapter selection, and lifecycle flows pass in CI-local checks",
+    "Documentation includes migration guidance, cross-plan chat-button integration hooks, and troubleshooting playbooks",
+    "Trace IDs are generated and propagated across lifecycle stages and surfaces (extension, MCP/server, adapter, GUI protocol), and appear in diagnostics for correlation"
+  ],
+  "status": "archived",
+  "current_phase": "complete",
+  "current_agent": null,
+  "confirmation_state": {
+    "phases": {
+      "Phase 1: Contract Unification Design": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T17:48:50.939Z"
+      },
+      "Phase 2: Runtime Adapter Architecture": {
+        "confirmed": true,
+        "confirmed_by": "Coordinator",
+        "confirmed_at": "2026-02-14T17:59:26.327Z"
+      },
+      "Phase 3: Server Tool Implementation": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T18:26:48.099Z"
+      },
+      "Phase 4: Extension Invocation Path Updates": {
+        "confirmed": true,
+        "confirmed_by": "Coordinator",
+        "confirmed_at": "2026-02-14T18:49:06.309Z"
+      },
+      "Phase 5: Container Configuration & Networking": {
+        "confirmed": true,
+        "confirmed_by": "Coordinator",
+        "confirmed_at": "2026-02-14T19:18:00.420Z"
+      },
+      "Phase 6: Protocol/Schema Hardening": {
+        "confirmed": true,
+        "confirmed_by": "Coordinator",
+        "confirmed_at": "2026-02-14T19:36:11.111Z"
+      },
+      "Phase 7: Documentation & Migration": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T19:44:54.755Z"
+      },
+      "Phase 8: Review & Quality Gates": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T23:17:10.614Z"
+      }
+    },
+    "steps": {
+      "11": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T18:24:28.997Z"
+      },
+      "22": {
+        "confirmed": true,
+        "confirmed_by": "user",
+        "confirmed_at": "2026-02-14T19:50:40.800Z"
+      }
+    }
+  },
+  "created_at": "2026-02-13T22:30:38.494Z",
+  "updated_at": "2026-02-14T23:37:11.025Z",
+  "agent_sessions": [
+    {
+      "session_id": "sess_mlml7cuc_84dde612",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T17:25:10.212Z",
+      "context": {
+        "run_id": "run_sess_mlml7cuc_84dde612"
+      },
+      "completed_at": "2026-02-14T17:45:54.324Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T17:45:54.324Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlml85o5_597770dd",
+      "agent_type": "Researcher",
+      "started_at": "2026-02-14T17:25:47.598Z",
+      "context": {
+        "run_id": "run_sess_mlml85o5_597770dd"
+      },
+      "completed_at": "2026-02-14T17:30:17.962Z",
+      "summary": "Completed integration research across server, extension, container, and interactive-terminal codepaths. Stored detailed findings and recommended architecture direction for contract unification and local/container runtime adapter design.",
+      "artifacts": [
+        "research_notes/mcp-extension-container-integration-audit.md",
+        "research.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmleti8_44d2e2e6",
+      "agent_type": "Architect",
+      "started_at": "2026-02-14T17:30:58.427Z",
+      "context": {
+        "run_id": "run_sess_mlmleti8_44d2e2e6"
+      },
+      "completed_at": "2026-02-14T17:32:56.903Z",
+      "summary": "Created full execution-ready plan for MCP/Extension/Container integration with 22 phased atomic steps covering contract unification, runtime adapters (local/bundled/container), extension invocation routing, container networking/config, protocol/error/fallback handling, docs, and quality gates. Refined goals/success criteria to include headless mode and chat-button integration hooks. Stored architecture context with file map and migration direction. Handed off to Coordinator recommending Executor.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/state.json",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/architecture.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmls26k_95bf0f0c",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T17:41:16.201Z",
+      "context": {
+        "run_id": "run_sess_mlmls26k_95bf0f0c"
+      },
+      "completed_at": "2026-02-14T17:45:05.752Z",
+      "summary": "Completed Phase 1 Contract Unification Design steps 0-2. Produced contract matrix (server vs extension), canonical action/schema/validation design, and canonical error taxonomy with deterministic fallback contract. Updated steps 0-2 to done, stored execution log, and handed off to Coordinator with Reviewer recommendation.",
+      "artifacts": [
+        "docs/interactive-terminal-contract-unification-design.md",
+        "/data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmly0tq_6b7408f9",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T17:45:54.375Z",
+      "context": {
+        "run_id": "run_sess_mlmly0tq_6b7408f9"
+      },
+      "completed_at": "2026-02-14T17:47:03.590Z",
+      "summary": "Completed Phase 1 build-check + review for steps 0-2 against plan goals/success criteria. Artifact content satisfies design requirements for steps 0-2, but review is not approved due to explicit plan step-status inconsistency (step 2 done while steps 0/1 not done) and markdown lint MD060 issues in the artifact. Stored findings in review context and handed off to Coordinator recommending Revisionist with fix list.",
+      "artifacts": [
+        "docs/interactive-terminal-contract-unification-design.md",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmm0nd0_d7aba015",
+      "agent_type": "Revisionist",
+      "started_at": "2026-02-14T17:47:56.894Z",
+      "context": {
+        "run_id": "run_sess_mlmm0nd0_d7aba015"
+      },
+      "completed_at": "2026-02-14T17:49:41.339Z",
+      "summary": "Applied requested Phase 1 corrective fixes: reconciled plan step statuses 0-2 to done, fixed markdown table-column style in docs/interactive-terminal-contract-unification-design.md, and stored pivot/audit context for future deltas. Handed off to Coordinator with recommendation for Reviewer.",
+      "artifacts": [
+        "docs/interactive-terminal-contract-unification-design.md",
+        "/data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/pivot.json",
+        "/data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/audit.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmm3gq3_aa375925",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T17:50:08.260Z",
+      "context": {
+        "run_id": "run_sess_mlmm3gq3_aa375925"
+      },
+      "completed_at": "2026-02-14T17:55:54.899Z",
+      "summary": "Completed post-Revisionist recheck. Verified plan steps 0-2 are all done, confirmed MD060 blocker resolved for docs/interactive-terminal-contract-unification-design.md, and assessed Phase 1 output as acceptable for progression. Stored review findings and reindexed workspace profile; handed off to Coordinator with recommendation for Executor (or Tester WRITE mode per process preference).",
+      "artifacts": [
+        "docs/interactive-terminal-contract-unification-design.md",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmmbr3u_9d0d8e09",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T17:56:34.971Z",
+      "context": {
+        "run_id": "run_sess_mlmmbr3u_9d0d8e09"
+      },
+      "completed_at": "2026-02-14T17:59:00.002Z",
+      "summary": "Executed Phase 2 Runtime Adapter Architecture design scope for steps 3-5. Updated docs/interactive-terminal-contract-unification-design.md with runtime adapter interface, mode detection/override policy, local/bundled discovery-launch-readiness policy, and container bridge network/config contract. Loaded required contexts (original_request/research/architecture/affected_files/constraints/test_expectations/audit/review), validated edited file diagnostics, stored execution_log, and handed off to Coordinator recommending Reviewer. Step 5 remained blocked due required phase confirmation gate despite completed design content.",
+      "artifacts": [
+        "docs/interactive-terminal-contract-unification-design.md",
+        "/data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmmg127_b93da980",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T17:59:54.485Z",
+      "context": {
+        "run_id": "run_sess_mlmmg127_b93da980"
+      },
+      "completed_at": "2026-02-14T18:01:17.371Z",
+      "summary": "Completed Phase 2 review gate for steps 3-5. Verified completion/status coherence with Phase 1 decisions, validated runtime adapter design coverage (mode selection, discovery/launch/readiness, container bridge contract), and checked alignment with security/default exposure and trace observability goals. Stored review findings, reindexed workspace, and handed off to Coordinator recommending Executor for Phase 3.",
+      "artifacts": [
+        "docs/interactive-terminal-contract-unification-design.md",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmminle_6cce6d50",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T18:01:57.002Z",
+      "context": {
+        "deployed_by": "Coordinator",
+        "reason": "Proceed with Phase 3: implement server tool contract parser/validator, orchestration lifecycle, headless path, and protocol serialization for steps 6-9",
+        "current_step_index": 5,
+        "steps_to_complete": [
+          "Step 6: canonical memory_terminal_interactive server contract parser/validator + mode/action compatibility checks",
+          "Step 7: adapter orchestration lifecycle with timeout/reconnect handling",
+          "Step 8: headless execution path under canonical contract",
+          "Step 9: protocol serialization layer between canonical schema and GUI NDJSON"
+        ],
+        "environment": {
+          "working_directory": "c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP",
+          "active_branch": "unknown",
+          "build_command": "npm run build"
+        },
+        "blockers_to_avoid": [
+          "Do not modify extension/container implementation for phases 4-5",
+          "Keep edits within server interactive-terminal tooling and related registrations/types"
+        ],
+        "run_id": "run_sess_mlmminle_6cce6d50"
+      },
+      "completed_at": "2026-02-14T18:11:50.561Z",
+      "summary": "Completed Phase 3 server implementation steps 6-9: canonical memory_terminal_interactive parser/validator, lifecycle orchestration with timeout/reconnect handling, canonical headless execution path, and NDJSON protocol serialization mapping. Updated consolidated router and server tool schema for canonical+legacy compatibility. Added targeted tests and validated with vitest and server build.",
+      "artifacts": [
+        "server/src/tools/consolidated/memory_terminal_interactive.ts",
+        "server/src/tools/interactive-terminal.tools.ts",
+        "server/src/tools/interactive-terminal-contract.ts",
+        "server/src/tools/interactive-terminal-orchestration.ts",
+        "server/src/tools/interactive-terminal-protocol.ts",
+        "server/src/index.ts",
+        "server/src/__tests__/tools/interactive-terminal.test.ts",
+        "/data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmmw5q3_9585d524",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T18:12:27.034Z",
+      "context": {
+        "run_id": "run_sess_mlmmw5q3_9585d524"
+      },
+      "completed_at": "2026-02-14T18:18:54.885Z",
+      "summary": "Phase 3 review gate for steps 6-9 completed with BLOCKED outcome. Verified canonical parser/validator, lifecycle orchestration wiring, headless route, and NDJSON mapping implementation; reran targeted tests (24/24 pass) and server build (pass). Blocked due to step 7 status inconsistency and missing explicit timeout/disconnect lifecycle recovery tests. Stored findings in review context and handed off to Coordinator recommending Revisionist.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmn5brg_dec7aef6",
+      "agent_type": "Revisionist",
+      "started_at": "2026-02-14T18:19:34.758Z",
+      "context": {
+        "run_id": "run_sess_mlmn5brg_dec7aef6"
+      },
+      "completed_at": "2026-02-14T18:21:18.004Z",
+      "summary": "Applied Phase 3 corrective plan pivot for reviewer blockers: enforced step 7 evidence gate (kept pending), inserted explicit timeout/disconnect lifecycle recovery test step and targeted validation/build step, and stored pivot context. Handed off to Coordinator recommending Executor for implementation and subsequent Reviewer re-check.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/state.json",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/pivot.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmn8xxm_275eae2d",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T18:22:23.445Z",
+      "context": {
+        "run_id": "run_sess_mlmn8xxm_275eae2d"
+      },
+      "completed_at": "2026-02-14T18:27:22.006Z",
+      "summary": "Completed corrective Phase 3 execution scope only: implemented targeted timeout/disconnect lifecycle recovery tests in server interactive-terminal suite, ran targeted test slice and server build validations, then reconciled steps 10 and 11 to done and closed step 7 to done with explicit evidence notes.",
+      "artifacts": [
+        "server/src/__tests__/tools/interactive-terminal.test.ts",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmnfuzc_9844cb24",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T18:27:46.225Z",
+      "context": {
+        "run_id": "run_sess_mlmnfuzc_9844cb24"
+      },
+      "completed_at": "2026-02-14T18:32:02.732Z",
+      "summary": "Completed requested Phase 3 recheck after corrective steps 10-11. Verified step-7 coherence/state consistency, confirmed timeout/disconnect lifecycle recovery tests are present and relevant, reran targeted interactive-terminal tests (28/28 pass) and server build (pass), stored review findings, reindexed workspace, and handed off to Coordinator recommending Executor for Phase 4.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/review.json",
+        "server/src/__tests__/tools/interactive-terminal.test.ts"
+      ]
+    },
+    {
+      "session_id": "sess_mlmnm9fh_b5913c41",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T18:32:44.893Z",
+      "context": {
+        "run_id": "run_sess_mlmnm9fh_b5913c41"
+      },
+      "completed_at": "2026-02-14T18:48:45.511Z",
+      "summary": "Implemented Phase 4 extension invocation path updates for steps 12-14 scope (terminal tool contract split/routing, runtime adapter metadata propagation, and explicit headless invocation hooks for chat-button/dashboard). Validation passed on edited files via diagnostics. Steps 12 and 13 are done. Step 14 is blocked from done transition by required phase confirmation gate, and this was handed off to Coordinator with Reviewer recommendation once confirmation is satisfied.",
+      "artifacts": [
+        "vscode-extension/src/chat/tools/terminal-tool.ts",
+        "vscode-extension/src/chat/ToolProvider.ts",
+        "vscode-extension/src/chat/tools/index.ts",
+        "vscode-extension/src/chat/McpBridge.ts",
+        "vscode-extension/package.json",
+        "vscode-extension/src/extension.ts",
+        "vscode-extension/src/providers/DashboardViewProvider.ts",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/research_notes/execution-log.md"
+      ]
+    },
+    {
+      "session_id": "sess_mlmo7zk7_48c412c2",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T18:49:38.536Z",
+      "context": {
+        "run_id": "run_sess_mlmo7zk7_48c412c2"
+      },
+      "completed_at": "2026-02-14T18:53:39.850Z",
+      "summary": "Completed Phase 4 review gate for steps 12-14 with APPROVED outcome. Verified canonical MCP interactive routing and non-colliding VS Code terminal contract, validated runtime adapter hint/metadata propagation, confirmed stable headless invocation hook for chat-button/dashboard execution, and confirmed step-state coherence for 12-14 plus phase confirmation. Ran extension compile build-check signal (pass), checked diagnostics on touched extension files (no errors), stored review findings, and reindexed workspace.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/review.json",
+        "vscode-extension/src/chat/tools/terminal-tool.ts",
+        "vscode-extension/src/chat/ToolProvider.ts",
+        "vscode-extension/src/extension.ts",
+        "vscode-extension/src/providers/DashboardViewProvider.ts",
+        "vscode-extension/package.json",
+        "server/src/tools/interactive-terminal-contract.ts",
+        "server/src/tools/interactive-terminal-orchestration.ts",
+        "server/src/tools/interactive-terminal-protocol.ts"
+      ]
+    },
+    {
+      "session_id": "sess_mlmoe2yw_585a0e43",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T18:54:22.877Z",
+      "context": {
+        "run_id": "run_sess_mlmoe2yw_585a0e43"
+      },
+      "completed_at": "2026-02-14T19:17:24.846Z",
+      "summary": "Executed only Phase 5 steps 15-16. Implemented container bridge runtime/env wiring and interactive-terminal bridge preflight diagnostics with actionable canonical errors. Added focused diagnostics tests and passed targeted validation (vitest test file + server tsc --noEmit). Step 15 marked done; step 16 implementation complete but status remains blocked pending required Phase 5 confirmation gate.",
+      "artifacts": [
+        "Containerfile",
+        "container/entrypoint.sh",
+        "run-container.ps1",
+        "podman-compose.yml",
+        "README.md",
+        "server/src/tools/interactive-terminal.tools.ts",
+        "server/src/__tests__/tools/interactive-terminal.test.ts",
+        "/data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmp8uzs_e23b584e",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T19:18:18.877Z",
+      "context": {
+        "run_id": "run_sess_mlmp8uzs_e23b584e"
+      },
+      "completed_at": "2026-02-14T19:21:54.005Z",
+      "summary": "Completed Phase 5 review gate for steps 15-16. Verified container/runtime configuration is coherent and safe-by-default for host GUI bridge exposure, confirmed bridge preflight diagnostics map to canonical actionable taxonomy (PM_TERM_INVALID_MODE and PM_TERM_GUI_UNAVAILABLE with structured guidance), reproduced Executor validation evidence (interactive-terminal tests + server tsc), and confirmed step/phase state coherence (steps 15-16 done, Phase 5 confirmed). Recommended Tester for Phase 6.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmpqgxj_0cfba727",
+      "agent_type": "Tester",
+      "started_at": "2026-02-14T19:32:00.462Z",
+      "context": {
+        "run_id": "run_sess_mlmpqgxj_0cfba727"
+      },
+      "completed_at": "2026-02-14T19:35:47.255Z",
+      "summary": "Executed only Phase 6 steps 17-19. Added schema-level canonical request/alias/error-payload tests, runtime adapter selection tests (local/bundled/container with overrides and unavailable paths), and integration-style lifecycle tests including interactive decline and interactive/headless parity checks. Ran targeted validation (`npx vitest run src/__tests__/tools/interactive-terminal.test.ts`) with 37/37 passing. Stored test_results and execution_log. Step done transition is gated by phase confirmation; steps 17-19 were marked blocked with completion notes for Coordinator/Reviewer confirmation handling.",
+      "artifacts": [
+        "server/src/__tests__/tools/interactive-terminal.test.ts",
+        "/data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/test_results.json",
+        "/data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmpwj9l_d1c013d8",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T19:36:43.424Z",
+      "context": {
+        "run_id": "run_sess_mlmpwj9l_d1c013d8"
+      },
+      "completed_at": "2026-02-14T19:39:15.786Z",
+      "summary": "Completed Phase 6 review gate for steps 17-19 with APPROVED outcome. Verified schema-level canonical/legacy alias/error payload tests, runtime adapter selection coverage (local/bundled/container + overrides + unavailable paths), and integration lifecycle tests (interactive/headless parity, timeout/disconnect, decline). Independently reran targeted suite: `npx vitest run src/__tests__/tools/interactive-terminal.test.ts` => 37/37 passing. Confirmed plan-state coherence after phase confirmation: Phase 6 confirmed and steps 17-19 are done with completion timestamps. Stored review findings and reindexed workspace profile. Recommended Executor for Phase 7 documentation/migration.",
+      "artifacts": [
+        "server/src/__tests__/tools/interactive-terminal.test.ts",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmq0rl1_4cb59724",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T19:40:00.942Z",
+      "context": {
+        "run_id": "run_sess_mlmq0rl1_4cb59724"
+      },
+      "completed_at": "2026-02-14T19:45:34.532Z",
+      "summary": "Executed only Phase 7 steps 20-21. Updated docs/instructions for canonical memory_terminal_interactive contract, runtime adapter resolution/preflight, container bridge setup, and compatibility/deprecation migration guidance. Added operator troubleshooting guide with expected outputs for GUI unavailable, bridge unavailable, timeout, and decline flows. Stored execution_log and handed off to Coordinator with recommendation for Reviewer.",
+      "artifacts": [
+        "instructions/mcp-usage.instructions.md",
+        "docs/interactive-terminal-contract-unification-design.md",
+        "docs/interactive-terminal-operator-troubleshooting.md",
+        "README.md",
+        "/data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmq8ixa_2ee67669",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T19:46:02.851Z",
+      "context": {
+        "run_id": "run_sess_mlmq8ixa_2ee67669"
+      },
+      "completed_at": "2026-02-14T19:49:28.480Z",
+      "summary": "Completed Phase 7 review gate for steps 20-21 with APPROVED outcome. Verified canonical contract + runtime adapter + container bridge migration guidance aligns with implemented behavior; compatibility/deprecation guidance for legacy aliases is explicit; operator troubleshooting covers GUI missing, bridge unavailable, timeout, and decline with expected deterministic outputs; and Phase 7 step-state/confirmation integrity is coherent (steps 20/21 done, phase confirmed). Stored review findings, reindexed workspace profile, and handed off to Coordinator with recommendation to begin Phase 8 final quality gates (Reviewer step 22, then Tester step 23).",
+      "artifacts": [
+        "instructions/mcp-usage.instructions.md",
+        "docs/interactive-terminal-contract-unification-design.md",
+        "docs/interactive-terminal-operator-troubleshooting.md",
+        "README.md",
+        "server/src/tools/interactive-terminal.tools.ts",
+        "server/src/tools/consolidated/memory_terminal_interactive.ts",
+        "server/src/tools/interactive-terminal-contract.ts",
+        "server/src/__tests__/tools/interactive-terminal.test.ts",
+        "vscode-extension/package.json",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmqdznh_88681ba7",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T19:50:17.807Z",
+      "context": {
+        "run_id": "run_sess_mlmqdznh_88681ba7"
+      },
+      "completed_at": "2026-02-14T20:15:35.963Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T20:15:35.963Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmqo4cs_2b096ee3",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T19:58:10.477Z",
+      "context": {
+        "run_id": "run_sess_mlmqo4cs_2b096ee3"
+      },
+      "completed_at": "2026-02-14T19:59:14.536Z",
+      "summary": "Step 22 review/build-check completed with BLOCKED result. Build validation remains green for server/extension/container, but contract drift persists in multiple agent docs that still map visible create/send/close/list lifecycle to memory_terminal_interactive instead of memory_terminal_vscode. Stored review findings and handed off to Coordinator recommending Revisionist for doc alignment.",
+      "artifacts": [
+        "instructions/mcp-usage.instructions.md",
+        "vscode-extension/src/chat/tools/terminal-tool.ts",
+        "vscode-extension/src/chat/ToolProvider.ts",
+        "vscode-extension/package.json",
+        "server/src/tools/interactive-terminal-contract.ts",
+        "agents/reviewer.agent.md",
+        "agents/executor.agent.md",
+        "agents/runner.agent.md",
+        "agents/tester.agent.md",
+        "agents/worker.agent.md",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmqq7vx_af7528e9",
+      "agent_type": "Revisionist",
+      "started_at": "2026-02-14T19:59:48.356Z",
+      "context": {
+        "run_id": "run_sess_mlmqq7vx_af7528e9"
+      },
+      "completed_at": "2026-02-14T20:02:54.338Z",
+      "summary": "Applied minimal Step 22 doc-contract pivot in the five scoped agent docs to align terminal surface wording with canonical split: memory_terminal_interactive now documents execute/read_output/terminate/list, and visible VS Code terminal lifecycle is documented under memory_terminal_vscode create/send/close/list. Updated plan step 22 to pending for Reviewer recheck and stored pivot context.",
+      "artifacts": [
+        "agents/reviewer.agent.md",
+        "agents/executor.agent.md",
+        "agents/runner.agent.md",
+        "agents/tester.agent.md",
+        "agents/worker.agent.md",
+        "/data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/pivot.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmqusf1_7d07dc95",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T20:03:21.582Z",
+      "context": {
+        "run_id": "run_sess_mlmqusf1_7d07dc95"
+      },
+      "completed_at": "2026-02-14T20:14:56.174Z",
+      "summary": "Re-ran Phase 8 step 22 review/build-check after Revisionist doc-drift fixes. Verified scoped contract drift resolution in the five patched agent docs and canonical terminal-surface policy alignment. Executed registered build scripts for server, VS Code extension, and container successfully. Stored review findings, marked step 22 done, reindexed workspace, and handed off recommending Tester for step 23.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmraj3m_e686a50b",
+      "agent_type": "Tester",
+      "started_at": "2026-02-14T20:15:36.009Z",
+      "context": {
+        "run_id": "run_sess_mlmraj3m_e686a50b"
+      },
+      "completed_at": "2026-02-14T20:23:41.826Z",
+      "summary": "Executed Phase 8 step 23 targeted test suites and produced local/container-mode matrix. Server targeted suites passed (96/96), VS Code extension tests passed (88 passing) and compile passed, but interactive-terminal Qt/Rust targeted cargo tests failed to compile with E0277 in cxxqt_bridge.rs. Step 23 set to blocked and test_results stored; handed off to Coordinator recommending Revisionist.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/test_results.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmrlxas_71964005",
+      "agent_type": "Revisionist",
+      "started_at": "2026-02-14T20:24:27.686Z",
+      "context": {
+        "run_id": "run_sess_mlmrlxas_71964005"
+      },
+      "completed_at": "2026-02-14T20:26:40.764Z",
+      "summary": "Completed minimal plan pivot for blocked Phase 8 compile failure (E0277: UseSavedCommandResult missing Debug). Updated plan to replace blocked tester matrix step with a pending Executor compile-fix step, added pending Tester matrix rerun step, stored pivot context, and handed off to Coordinator recommending Executor.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/state.json",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/pivot.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmrpyre_a89cc330",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T20:27:36.149Z",
+      "context": {
+        "run_id": "run_sess_mlmrpyre_a89cc330"
+      },
+      "completed_at": "2026-02-14T20:35:05.898Z",
+      "summary": "Executed step 23 only. Verified minimal E0277 root-cause condition in interactive-terminal/src/cxxqt_bridge.rs for UseSavedCommandResult Debug bound used by expect_err, and ran targeted cargo groups with Qt env. Command result: protocol=0, command_executor=0, tcp_server=0. Step 23 marked done; execution log stored; handed off to Coordinator recommending Tester.",
+      "artifacts": [
+        "interactive-terminal/src/cxxqt_bridge.rs",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlms0l6v_7938236d",
+      "agent_type": "Tester",
+      "started_at": "2026-02-14T20:35:51.786Z",
+      "context": {
+        "run_id": "run_sess_mlms0l6v_7938236d"
+      },
+      "completed_at": "2026-02-14T21:20:17.153Z",
+      "summary": "Executed step 24 final targeted matrix rerun. Stored test_results context and marked step 24 BLOCKED due local failures (vscode-extension assertions; interactive-terminal E0761 duplicate module path) and partial container-mode limitation (headless terminal timeout for containerized targeted test execution). Handoff recommends Revisionist.",
+      "artifacts": [
+        "server/test-results/vitest.latest.log",
+        "vscode-extension/test-results/compile.latest.log",
+        "vscode-extension/test-results/chatplan.latest.log",
+        "interactive-terminal/target/protocol_tests.latest.log",
+        "interactive-terminal/target/command_executor_tests.latest.log",
+        "interactive-terminal/target/tcp_server_tests.latest.log",
+        "interactive-terminal/target/cargo_test_all.latest.log",
+        "/data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/test_results.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmtmmxj_305f7c1c",
+      "agent_type": "Revisionist",
+      "started_at": "2026-02-14T21:21:00.092Z",
+      "context": {
+        "run_id": "run_sess_mlmtmmxj_305f7c1c"
+      },
+      "completed_at": "2026-02-14T21:22:45.095Z",
+      "summary": "Completed Revisionist pivot for blocked step 24 with minimal scope. Updated plan to preserve all done steps, inserted two focused remediation steps (vscode-extension ChatPlanCommands filetree assertion drift and interactive-terminal cxxqt_bridge E0761 duplicate module-path cleanup), and reset final matrix rerun from blocked to pending. Stored pivot context and handed off to Coordinator recommending Executor.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/state.json",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/pivot.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmtq1kc_c401848b",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T21:23:39.021Z",
+      "context": {
+        "run_id": "run_sess_mlmtq1kc_c401848b"
+      },
+      "completed_at": "2026-02-14T22:01:41.663Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T22:01:41.663Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmuc4nx_e9ec4ace",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T21:40:49.437Z",
+      "context": {
+        "run_id": "run_sess_mlmuc4nx_e9ec4ace"
+      },
+      "completed_at": "2026-02-14T22:01:41.663Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T22:01:41.663Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmucrkq_a64d7afd",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T21:41:19.134Z",
+      "context": {
+        "run_id": "run_sess_mlmucrkq_a64d7afd"
+      },
+      "completed_at": "2026-02-14T22:01:04.624Z",
+      "summary": "Completed Step 25 within scoped interactive-terminal cxxqt_bridge module-layout validation. Confirmed monolith-cleanup canonical path state (src/cxxqt_bridge.rs absent; src/cxxqt_bridge/mod.rs present; src/_archive/cxxqt_bridge.rs.bak present). Reran targeted cargo groups with Qt env and captured logs: protocol, command_executor, tcp_server all show test result ok with no E0761. Updated step 25 to done, stored execution_log context, and handed off to Coordinator recommending Reviewer.",
+      "artifacts": [
+        "interactive-terminal/target/protocol_tests.latest.log",
+        "interactive-terminal/target/command_executor_tests.latest.log",
+        "interactive-terminal/target/tcp_server_tests.latest.log",
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/execution_log.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmv2yw1_8c6e5d20",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T22:01:41.667Z",
+      "context": {
+        "run_id": "run_sess_mlmv2yw1_8c6e5d20"
+      },
+      "completed_at": "2026-02-14T22:03:14.094Z",
+      "summary": "Approved Step 25 review gate. Verified monolith-cleanup compliance for cxxqt_bridge layout (single canonical module path + archived .bak retained), validated targeted cargo evidence logs with no E0761, confirmed step-state coherence (step 25 done, step 26 pending Tester), stored review findings, reindexed workspace, and handed off to Coordinator recommending Tester.",
+      "artifacts": [
+        "data/project-memory-mcp-40f6678f5a9b/plans/plan_mllgocd5_95a81ffe/review.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmv5zx3_0463cf90",
+      "agent_type": "Tester",
+      "started_at": "2026-02-14T22:04:02.969Z",
+      "context": {
+        "run_id": "run_sess_mlmv5zx3_0463cf90"
+      },
+      "completed_at": "2026-02-14T22:24:11.092Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T22:24:11.092Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmvvw55_3fadcd07",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T22:24:11.162Z",
+      "context": {
+        "run_id": "run_sess_mlmvvw55_3fadcd07"
+      },
+      "completed_at": "2026-02-14T22:46:32.775Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T22:46:32.775Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmvw3pt_13c37535",
+      "agent_type": "Executor",
+      "started_at": "2026-02-14T22:24:20.974Z",
+      "context": {
+        "run_id": "run_sess_mlmvw3pt_13c37535"
+      },
+      "completed_at": "2026-02-14T22:34:05.576Z",
+      "summary": "Implemented robust workspace registration parsing and list fallback resolution in chat bootstrap. Added focused unit tests for register payload parsing and path overlap matching. Validation: npm run compile passed; npx mocha --ui tdd out/test/chat/workspaceRegistration.test.js passed (9 tests). Note: plan step completion update was blocked by Phase 8 confirmation gate.",
+      "artifacts": [
+        "vscode-extension/src/chat/ChatParticipant.ts",
+        "vscode-extension/src/chat/workspaceRegistration.ts",
+        "vscode-extension/src/test/chat/workspaceRegistration.test.ts"
+      ]
+    },
+    {
+      "session_id": "sess_mlmwa170_7820afbd",
+      "agent_type": "Reviewer",
+      "started_at": "2026-02-14T22:35:10.882Z",
+      "context": {
+        "run_id": "run_sess_mlmwa170_7820afbd"
+      },
+      "completed_at": "2026-02-14T22:37:59.977Z",
+      "summary": "Reviewed chat workspace registration fallback fix across ChatParticipant/workspaceRegistration/test file. Confirmed focused scope, robust multi-shape parsing, and sane non-destructive fallback path matching. Ran focused Mocha test (9 passing) and verified no TypeScript errors in reviewed files. Stored review context and recommended Tester.",
+      "artifacts": [
+        "vscode-extension/src/chat/ChatParticipant.ts",
+        "vscode-extension/src/chat/workspaceRegistration.ts",
+        "vscode-extension/src/test/chat/workspaceRegistration.test.ts"
+      ]
+    },
+    {
+      "session_id": "sess_mlmwondx_dba8d049",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T22:46:32.805Z",
+      "context": {
+        "run_id": "run_sess_mlmwondx_dba8d049"
+      },
+      "completed_at": "2026-02-14T23:35:48.021Z",
+      "summary": "[STALE_RECOVERY 2026-02-14T23:35:48.021Z] Reset stale active run/session state before continuing orchestration."
+    },
+    {
+      "session_id": "sess_mlmwpydv_44470678",
+      "agent_type": "Tester",
+      "started_at": "2026-02-14T22:47:33.750Z",
+      "context": {
+        "run_id": "run_sess_mlmwpydv_44470678"
+      },
+      "completed_at": "2026-02-14T23:17:55.911Z",
+      "summary": "Completed Step 26 final gate in RUN mode. Re-ran targeted server/vscode-extension/interactive-terminal test matrix with local and container-mode evidence. Server local/container targeted vitest both passed (37/37). VS Code extension targeted chat mocha passed (9 passing, 21 pending) and official npm test harness passed (122 passing) including container-related suites. Interactive-terminal previously blocked cargo groups passed and full cargo test passed (60/60). Stored test_results context, updated step status to done, and handed off to Coordinator recommending Archivist.",
+      "artifacts": [
+        "server/test-results/vitest.step26.rerun.local.log",
+        "server/test-results/vitest.step26.rerun.container.log",
+        "vscode-extension/test-results/mocha.step26.rerun.local.log",
+        "vscode-extension/test-results/npm-test.step26.rerun.log",
+        "interactive-terminal/target/protocol_tests.step26.rerun.local.log",
+        "interactive-terminal/target/command_executor_tests.step26.rerun.local.log",
+        "interactive-terminal/target/tcp_server_tests.step26.rerun.local.log",
+        "interactive-terminal/target/cargo_test_all.step26.rerun.local.log",
+        "data/project_memory_mcp-50e04147a402/plans/plan_mllgocd5_95a81ffe/test_results.json"
+      ]
+    },
+    {
+      "session_id": "sess_mlmyfzny_36a3d4f7",
+      "agent_type": "Coordinator",
+      "started_at": "2026-02-14T23:35:48.046Z",
+      "context": {
+        "run_id": "run_sess_mlmyfzny_36a3d4f7"
+      }
+    },
+    {
+      "session_id": "sess_mlmygr8m_6eea87ab",
+      "agent_type": "Archivist",
+      "started_at": "2026-02-14T23:36:23.815Z",
+      "context": {
+        "run_id": "run_sess_mlmygr8m_6eea87ab"
+      },
+      "completed_at": "2026-02-14T23:37:10.721Z",
+      "summary": "Validated Archivist role, confirmed closure readiness (current_phase complete, confirmations satisfied, all plan steps done), archived plan plan_mllgocd5_95a81ffe, and reindexed workspace project_memory_mcp-50e04147a402.",
+      "artifacts": [
+        "data/project_memory_mcp-50e04147a402/plans/plan_mllgocd5_95a81ffe/state.json",
+        "data/project_memory_mcp-50e04147a402/workspace.meta.json"
+      ]
+    }
+  ],
+  "lineage": [
+    {
+      "timestamp": "2026-02-14T17:30:11.634Z",
+      "from_agent": "Researcher",
+      "to_agent": "Coordinator",
+      "reason": "Research complete for MCP/Extension/Container Integration; recommend Architect for step design using documented contract collision, runtime constraints, and integration options."
+    },
+    {
+      "timestamp": "2026-02-14T17:32:51.969Z",
+      "from_agent": "Architect",
+      "to_agent": "Coordinator",
+      "reason": "Implementation roadmap is complete with phased, atomic, dependency-aware steps, refined goals/success criteria, and architecture context/file map ready for execution."
+    },
+    {
+      "timestamp": "2026-02-14T17:45:00.158Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Phase 1 design steps 0-2 completed and recorded; ready for review."
+    },
+    {
+      "timestamp": "2026-02-14T17:46:58.317Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Phase 1 review completed with blockers. Recommend Revisionist: (1) fix step-status inconsistency (steps 0/1 not done while 2 done), (2) address MD060 markdown table-style violations in docs/interactive-terminal-contract-unification-design.md, (3) optionally add missing audit context baseline."
+    },
+    {
+      "timestamp": "2026-02-14T17:49:36.453Z",
+      "from_agent": "Revisionist",
+      "to_agent": "Coordinator",
+      "reason": "Requested corrective fixes applied for Phase 1: steps 0-2 reconciled to done, MD060 table-column-style issue corrected, and audit baseline stored. Recommend Reviewer re-check."
+    },
+    {
+      "timestamp": "2026-02-14T17:55:49.238Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Recheck passed: Phase 1 steps 0-2 are done, MD060 issue is resolved in docs/interactive-terminal-contract-unification-design.md, and Phase 1 output is acceptable for progression. Recommendation: Executor for Phase 2 (or Tester in WRITE mode if the process prefers planned test scaffolding first)."
+    },
+    {
+      "timestamp": "2026-02-14T17:58:55.078Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Phase 2 steps 3-5 design outputs completed and documented; ready for review with confirmation-gate follow-up."
+    },
+    {
+      "timestamp": "2026-02-14T18:01:11.287Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Phase 2 review gate (steps 3-5) approved. Runtime adapter architecture is coherent with Phase 1 contracts, covers selection/discovery/launch/container-bridge policies, and remains aligned with security defaults and trace observability goals. Recommend Executor for Phase 3 implementation."
+    },
+    {
+      "timestamp": "2026-02-14T18:11:36.763Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Phase 3 steps 6-9 complete and validated; ready for review."
+    },
+    {
+      "timestamp": "2026-02-14T18:18:48.358Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Phase 3 review gate (steps 6-9) BLOCKED. Core implementation and build/test checks pass, but plan-state coherence and lifecycle failure-path coverage are insufficient for approval."
+    },
+    {
+      "timestamp": "2026-02-14T18:21:13.549Z",
+      "from_agent": "Revisionist",
+      "to_agent": "Coordinator",
+      "reason": "Phase 3 corrective pivot applied for reviewer blockers: step 7 coherence gate enforced and explicit timeout/disconnect test+validation steps inserted."
+    },
+    {
+      "timestamp": "2026-02-14T18:27:15.935Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Corrective Phase 3 steps 10-11 completed with passing evidence; step 7 reconciled to done. Ready for Reviewer re-check."
+    },
+    {
+      "timestamp": "2026-02-14T18:31:56.231Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Phase 3 recheck passed after corrective steps 10-11; coherence, lifecycle recovery coverage, and validation evidence are sufficient for progression."
+    },
+    {
+      "timestamp": "2026-02-14T18:48:34.274Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Phase 4 steps 12-14 implementation completed in code and validated; step 14 status transition is blocked by required phase confirmation gate."
+    },
+    {
+      "timestamp": "2026-02-14T18:53:33.375Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Phase 4 review gate (steps 12-14) passed; canonical routing/runtime metadata/headless invocation hook verified and build-check signals passed. Recommend proceeding to Phase 5 execution."
+    },
+    {
+      "timestamp": "2026-02-14T19:17:16.720Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Phase 5 steps 15-16 implementation complete with targeted validation; ready for review after confirmation gate handling."
+    },
+    {
+      "timestamp": "2026-02-14T19:21:44.482Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Phase 5 review gate (steps 15-16) approved; recommend Tester for Phase 6."
+    },
+    {
+      "timestamp": "2026-02-14T19:35:39.764Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Executed Phase 6 steps 17-19 test implementation and targeted validation; recommend Reviewer for gate verification and confirmation handling."
+    },
+    {
+      "timestamp": "2026-02-14T19:39:04.565Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Phase 6 review gate (steps 17-19) approved. Coverage and validation evidence are sufficient; step-state coherence confirmed after phase confirmation. Recommend Executor for Phase 7 documentation/migration."
+    },
+    {
+      "timestamp": "2026-02-14T19:45:29.140Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Phase 7 steps 20-21 complete (documentation and migration updates finished). Recommend Reviewer for build-check/doc-contract verification."
+    },
+    {
+      "timestamp": "2026-02-14T19:49:19.070Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Phase 7 review gate (steps 20-21) approved. Documentation/migration guidance is aligned with implementation and troubleshooting coverage is complete. Recommend next agent flow for Phase 8 final quality gates: Reviewer for step 22 build-check/doc-code drift validation, then Tester for step 23 targeted test matrix."
+    },
+    {
+      "timestamp": "2026-02-14T19:58:47.601Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Step 22 blocked: build-check passes but doc-contract drift remains in agent docs; recommend Revisionist to align agent instructions with canonical terminal surface split."
+    },
+    {
+      "timestamp": "2026-02-14T20:02:48.542Z",
+      "from_agent": "Revisionist",
+      "to_agent": "Coordinator",
+      "reason": "Step 22 blocker pivot applied with targeted agent-doc contract alignment; recommend Reviewer recheck."
+    },
+    {
+      "timestamp": "2026-02-14T20:14:46.960Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Phase 8 step 22 re-run passed after Revisionist doc-drift fixes; recommend Tester for step 23 targeted test matrix."
+    },
+    {
+      "timestamp": "2026-02-14T20:23:31.294Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Phase 8 step 23 targeted test matrix completed with failures; recommend Revisionist."
+    },
+    {
+      "timestamp": "2026-02-14T20:26:36.150Z",
+      "from_agent": "Revisionist",
+      "to_agent": "Coordinator",
+      "reason": "Plan pivot applied for blocked compile issue; recommend Executor to implement minimal E0277 fix then return to Tester matrix rerun."
+    },
+    {
+      "timestamp": "2026-02-14T20:35:01.122Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Step 23 complete: minimal E0277 Debug-bound compile fix validated with targeted interactive-terminal cargo groups; recommend Tester for step 24 matrix rerun."
+    },
+    {
+      "timestamp": "2026-02-14T21:20:09.542Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Step 24 matrix rerun complete with failing slices; recommend Revisionist."
+    },
+    {
+      "timestamp": "2026-02-14T21:22:40.061Z",
+      "from_agent": "Revisionist",
+      "to_agent": "Coordinator",
+      "reason": "Step 24 pivot complete with minimal corrective steps added for the two blockers; recommend Executor for focused implementation."
+    },
+    {
+      "timestamp": "2026-02-14T22:00:55.804Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Step 25 complete: cxxqt_bridge module-path blocker E0761 resolved/verified and targeted cargo groups pass; ready for review."
+    },
+    {
+      "timestamp": "2026-02-14T22:03:04.675Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Step 25 review gate approved: monolith-cleanup layout compliant, targeted cargo evidence valid, no E0761, and step-state coherence confirmed."
+    },
+    {
+      "timestamp": "2026-02-14T22:33:59.745Z",
+      "from_agent": "Executor",
+      "to_agent": "Coordinator",
+      "reason": "Targeted chat bootstrap fix implemented and validated; ready for review. Step status transition blocked by phase confirmation gate."
+    },
+    {
+      "timestamp": "2026-02-14T22:37:52.931Z",
+      "from_agent": "Reviewer",
+      "to_agent": "Coordinator",
+      "reason": "Review complete for chat workspace registration fallback fix; targeted tests and diagnostics pass."
+    },
+    {
+      "timestamp": "2026-02-14T23:17:49.662Z",
+      "from_agent": "Tester",
+      "to_agent": "Coordinator",
+      "reason": "Step 26 final gate matrix passed across required surfaces and local/container-mode scenarios; recommend Archivist for closure."
+    }
+  ],
+  "steps": [
+    {
+      "phase": "Phase 1: Contract Unification Design",
+      "task": "Produce a contract matrix comparing current server and extension `memory_terminal_interactive` action schemas (`run/read_output/kill/list` vs `create/send/close/list`) and document the target canonical contract plus compatibility alias strategy.",
+      "type": "planning",
+      "status": "done",
+      "notes": "Completed contract matrix and compatibility alias strategy in docs/interactive-terminal-contract-unification-design.md (Section 1).",
+      "assignee": "Executor",
+      "index": 0
+    },
+    {
+      "phase": "Phase 1: Contract Unification Design",
+      "task": "Define canonical interactive-terminal tool request/response schema including invocation mode (`interactive` vs `headless`), correlation identifiers, and validation rules for mutually exclusive fields.",
+      "type": "planning",
+      "status": "done",
+      "notes": "Completed canonical request/response schema and validation rules in docs/interactive-terminal-contract-unification-design.md (Section 2).",
+      "assignee": "Executor",
+      "index": 1
+    },
+    {
+      "phase": "Phase 1: Contract Unification Design",
+      "task": "Define canonical error taxonomy and fallback contract for decline, timeout, disconnect, unavailable GUI binary, and invalid runtime mode inputs.",
+      "type": "planning",
+      "status": "done",
+      "notes": "Status reconciled with completed Phase 1 design artifact; canonical error taxonomy and fallback contract are documented in Section 3.",
+      "assignee": "Executor",
+      "index": 2
+    },
+    {
+      "phase": "Phase 2: Runtime Adapter Architecture",
+      "task": "Design runtime adapter interface that selects local, bundled, or container bridge transport at runtime using mode detection and explicit overrides.",
+      "type": "planning",
+      "status": "done",
+      "notes": "Defined runtime adapter interface contract for local/bundled/container_bridge plus deterministic mode detection and explicit override precedence.",
+      "assignee": "Executor",
+      "index": 3
+    },
+    {
+      "phase": "Phase 2: Runtime Adapter Architecture",
+      "task": "Specify local/bundled adapter binary discovery and launch order (configured path, bundled binary, PATH lookup) with readiness handshake and spawn timeout policy.",
+      "type": "planning",
+      "status": "done",
+      "notes": "Specified local/bundled adapter discovery order, launch/readiness handshake, spawn timeout bounds, and safe retry/non-destructive failure policy.",
+      "assignee": "Executor",
+      "index": 4
+    },
+    {
+      "phase": "Phase 2: Runtime Adapter Architecture",
+      "task": "Specify container bridge adapter network contract (host alias, port, env vars, and connect policy) for container MCP to host GUI TCP server communication.",
+      "type": "planning",
+      "status": "done",
+      "notes": "Phase confirmation granted by Coordinator. Step content was already completed by Executor in docs/interactive-terminal-contract-unification-design.md; status finalized.",
+      "assignee": "Executor",
+      "index": 5
+    },
+    {
+      "phase": "Phase 3: Server Tool Implementation",
+      "task": "Implement canonical `memory_terminal_interactive` server contract parser and request validator based on approved schema, including strict mode/action compatibility checks.",
+      "type": "code",
+      "status": "done",
+      "notes": "Implemented canonical request parser/validator with strict action/mode/intent/target compatibility checks and explicit legacy alias mapping.",
+      "assignee": "Executor",
+      "index": 6
+    },
+    {
+      "phase": "Phase 3: Server Tool Implementation",
+      "task": "Implement adapter orchestration in server interactive-terminal flow (`spawn -> ready -> request_sent -> user_decision -> response_returned`) with timeout and reconnect handling.",
+      "type": "code",
+      "status": "done",
+      "notes": "Reconciled coherence gate based on explicit evidence. Timeout/disconnect lifecycle recovery expectations satisfied via targeted tests in `interactive lifecycle recovery` suite and successful server build validation (`npx vitest run src/__tests__/tools/interactive-terminal.test.ts`, `npm run build`).",
+      "assignee": "Executor",
+      "index": 7
+    },
+    {
+      "phase": "Phase 3: Server Tool Implementation",
+      "task": "Implement headless execution path under canonical contract so callers can bypass GUI when approval UI is not required.",
+      "type": "code",
+      "status": "done",
+      "notes": "Implemented canonical headless execution path routed through execute action with structured output/authorization metadata.",
+      "assignee": "Executor",
+      "index": 8
+    },
+    {
+      "phase": "Phase 3: Server Tool Implementation",
+      "task": "Implement protocol serialization layer that maps canonical schema to GUI NDJSON (`command_request`, `command_response`, `heartbeat`) and back.",
+      "type": "code",
+      "status": "done",
+      "notes": "Implemented protocol serialization/parsing layer for NDJSON command_request/command_response/heartbeat mapping.",
+      "assignee": "Executor",
+      "index": 9
+    },
+    {
+      "phase": "Phase 3: Server Tool Implementation",
+      "task": "Add targeted server interactive-terminal tests for timeout/disconnect lifecycle recovery paths covering `spawn -> ready -> request_sent -> timeout/disconnect -> structured recovery output`.",
+      "type": "test",
+      "status": "done",
+      "notes": "Added targeted timeout/disconnect lifecycle recovery coverage in server/src/__tests__/tools/interactive-terminal.test.ts (`interactive lifecycle recovery` suite). Evidence: `npx vitest run src/__tests__/tools/interactive-terminal.test.ts` => 28/28 passing.",
+      "assignee": "Executor",
+      "index": 10
+    },
+    {
+      "phase": "Phase 3: Server Tool Implementation",
+      "task": "Run targeted interactive-terminal test slice and server build validation, store evidence, then reconcile step 7 to done only if timeout/disconnect recovery expectations are satisfied.",
+      "type": "validation",
+      "status": "done",
+      "notes": "Validation evidence captured: targeted interactive-terminal test slice passed (28/28) and `npm run build` passed in server workspace.",
+      "assignee": "Executor",
+      "requires_validation": true,
+      "index": 11
+    },
+    {
+      "phase": "Phase 4: Extension Invocation Path Updates",
+      "task": "Update extension tool registration/invocation so canonical interactive approval requests route through MCP bridge while VS Code terminal management uses a non-colliding tool contract.",
+      "type": "code",
+      "status": "done",
+      "notes": "Updated extension tool registration and invocation split: canonical memory_terminal_interactive now routes through MCP bridge handler, while VS Code terminal lifecycle moved to non-colliding memory_terminal_vscode contract (ToolProvider + terminal handlers + package tool schema updates).",
+      "assignee": "Executor",
+      "index": 12
+    },
+    {
+      "phase": "Phase 4: Extension Invocation Path Updates",
+      "task": "Update extension runtime-mode routing to pass required adapter hints and runtime metadata into MCP interactive calls for local and container modes.",
+      "type": "code",
+      "status": "done",
+      "notes": "Added runtime-mode routing metadata for canonical interactive invocations: workspace/cwd/timeout and adapter_override hints (local/bundled/container_bridge) are injected using container mode detection and bridge server mode before MCP calls.",
+      "assignee": "Executor",
+      "index": 13
+    },
+    {
+      "phase": "Phase 4: Extension Invocation Path Updates",
+      "task": "Add explicit invocation hook contract for chat-button and dashboard initiated headless command execution so cross-plan integrations can call a stable interface.",
+      "type": "code",
+      "status": "done",
+      "notes": "Phase confirmation granted by Coordinator. Step implementation already completed by Executor; status finalized.",
+      "assignee": "Executor",
+      "index": 14
+    },
+    {
+      "phase": "Phase 5: Container Configuration & Networking",
+      "task": "Update container runtime configuration (`Containerfile`, container entrypoint, compose/run scripts, and env docs) to support host GUI bridge connectivity requirements.",
+      "type": "code",
+      "status": "done",
+      "notes": "Updated container runtime bridge wiring: added default/override envs in Containerfile + compose, normalized/exported bridge config in entrypoint, added run-container preflight warning and env pass-through, documented bridge env contract in README.",
+      "assignee": "Executor",
+      "index": 15
+    },
+    {
+      "phase": "Phase 5: Container Configuration & Networking",
+      "task": "Implement bridge connectivity diagnostics (preflight checks and actionable error reporting) for container-to-host interactive-terminal connections.",
+      "type": "code",
+      "status": "done",
+      "notes": "Phase 5 confirmation granted by Coordinator. Step implementation and validations were already completed by Executor; status finalized.",
+      "assignee": "Executor",
+      "index": 16
+    },
+    {
+      "phase": "Phase 6: Protocol/Schema Hardening",
+      "task": "Add schema-level validation tests for canonical request/response payloads, backward-compat aliases, and error payload structure.",
+      "type": "test",
+      "status": "done",
+      "notes": "Phase confirmation granted. Step implementation/tests completed by Tester with passing targeted suite evidence.",
+      "assignee": "Tester",
+      "index": 17
+    },
+    {
+      "phase": "Phase 6: Protocol/Schema Hardening",
+      "task": "Add runtime adapter selection tests for local, bundled, and container modes including forced-mode overrides and unavailable adapter paths.",
+      "type": "test",
+      "status": "done",
+      "notes": "Phase confirmation granted. Runtime adapter selection tests completed with passing targeted suite evidence.",
+      "assignee": "Tester",
+      "index": 18
+    },
+    {
+      "phase": "Phase 6: Protocol/Schema Hardening",
+      "task": "Add integration-style tests for interactive approval lifecycle and headless execution path with simulated GUI server responses and timeout/disconnect scenarios.",
+      "type": "test",
+      "status": "done",
+      "notes": "Phase confirmation granted. Integration lifecycle + parity tests completed with passing targeted suite evidence.",
+      "assignee": "Tester",
+      "index": 19
+    },
+    {
+      "phase": "Phase 7: Documentation & Migration",
+      "task": "Update docs/instructions to publish canonical tool contract, runtime adapter behavior, container bridge setup, and compatibility/deprecation guidance.",
+      "type": "documentation",
+      "status": "done",
+      "notes": "Updated canonical contract and migration documentation: instructions/mcp-usage.instructions.md now documents memory_terminal_interactive canonical actions, runtime adapter precedence, container bridge preflight behavior, and deprecation/compatibility guidance. Added README migration pointers and references.",
+      "assignee": "Executor",
+      "index": 20
+    },
+    {
+      "phase": "Phase 7: Documentation & Migration",
+      "task": "Add operator troubleshooting guide for common failure modes (GUI missing, bridge unavailable, protocol timeout, decline flow) with expected tool outputs.",
+      "type": "documentation",
+      "status": "done",
+      "notes": "Added docs/interactive-terminal-operator-troubleshooting.md with expected canonical error/fallback outputs for PM_TERM_GUI_UNAVAILABLE (GUI missing + container bridge unreachable), PM_TERM_TIMEOUT, and PM_TERM_DECLINED. Linked from interactive-terminal-contract-unification-design.md and README.",
+      "assignee": "Executor",
+      "index": 21
+    },
+    {
+      "phase": "Phase 8: Review & Quality Gates",
+      "task": "Run build-check validation for touched server/extension/container areas and verify no contract drift remains between code and docs.",
+      "type": "validation",
+      "status": "done",
+      "notes": "Re-ran Step 22 after Revisionist doc-drift pivot. Scoped contract drift resolved in five patched agent docs and canonical policy source; build-check passed for server, vscode-extension, and container scripts.",
+      "assignee": "Reviewer",
+      "requires_validation": true,
+      "index": 22
+    },
+    {
+      "phase": "Phase 8: Review & Quality Gates",
+      "task": "Apply minimal compile fix for interactive-terminal E0277 in `interactive-terminal/src/cxxqt_bridge.rs` so `UseSavedCommandResult` used by `expect_err` satisfies `Debug` bounds, then run targeted compile check for affected cargo test groups.",
+      "type": "fix",
+      "status": "done",
+      "notes": "Step 23 complete. Minimal root-cause condition verified in interactive-terminal/src/cxxqt_bridge.rs where UseSavedCommandResult has #[derive(Debug)] for expect_err Debug bound. Targeted command run in interactive-terminal with Qt env: cargo test protocol::tests:: *> $null; cargo test command_executor::tests:: *> $null; cargo test tcp_server::tests:: *> $null. Result: protocol=0 command_executor=0 tcp_server=0; no E0277 compile failure.",
+      "assignee": "Executor",
+      "requires_validation": true,
+      "index": 23
+    },
+    {
+      "phase": "Phase 8: Review & Quality Gates",
+      "task": "Resolve vscode-extension ChatPlanCommands Plan Artifacts filetree assertion drift by aligning expected filetree output to current artifact rendering contract (or vice versa), then run targeted ChatPlanCommands test slice and capture evidence.",
+      "type": "fix",
+      "status": "done",
+      "notes": "Fixed Plan Artifacts filetree assertion drift by hardening artifact/session shape handling and workspace-root inference in ChatPlanCommands runtime path used by tests. Targeted evidence: vscode-extension/test-results/chatplan.step24.log now reports 122 passing with both Plan Artifacts tests passing.",
+      "assignee": "Executor",
+      "requires_validation": true,
+      "index": 24,
+      "completed_at": "2026-02-14T21:35:41.971Z"
+    },
+    {
+      "phase": "Phase 8: Review & Quality Gates",
+      "task": "Resolve interactive-terminal Rust duplicate module-path blocker (E0761) by applying monolith-cleanup module layout for cxxqt_bridge (single canonical module path only), then rerun targeted cargo groups and capture logs.",
+      "type": "fix",
+      "status": "done",
+      "notes": "Resolved E0761 blocker via monolith-cleanup canonical layout verification: interactive-terminal/src/cxxqt_bridge.rs absent; interactive-terminal/src/cxxqt_bridge/mod.rs present; interactive-terminal/src/_archive/cxxqt_bridge.rs.bak present. Reran targeted cargo groups in interactive-terminal with Qt env (QMAKE+PATH): `cargo test protocol::tests::*`, `cargo test command_executor::tests::*`, `cargo test tcp_server::tests::*`. Fresh logs show `test result: ok` and no E0761 in target/protocol_tests.latest.log, target/command_executor_tests.latest.log, target/tcp_server_tests.latest.log.",
+      "assignee": "Executor",
+      "requires_validation": true,
+      "index": 25,
+      "completed_at": "2026-02-14T22:00:26.059Z"
+    },
+    {
+      "phase": "Phase 8: Review & Quality Gates",
+      "task": "Re-run final targeted test matrix for server, vscode-extension, and interactive-terminal (including previously blocked cargo groups) and record pass/fail results across local and container-mode scenarios after corrective fixes.",
+      "type": "test",
+      "status": "done",
+      "notes": "Step 26 final gate matrix rerun complete. Server targeted suite passed in local and container-mode env simulation (`PM_RUNNING_IN_CONTAINER=true`, `PM_INTERACTIVE_TERMINAL_RUNTIME_MODE=container_bridge`) with 37/37 pass each. VS Code extension targeted chat matrix passed (9 passing, 21 pending), and official `npm test` harness passed (122 passing) including container-related suites (ContainerHealthService, ContainerStatusBar, build-script CWD container-relative sanitization). Interactive-terminal previously blocked cargo groups rerun with Qt env (`QMAKE`, `PATH`) passed (`cargo test protocol::tests::*`, `cargo test command_executor::tests::*`, `cargo test tcp_server::tests::*`), plus full `cargo test` passed (60 passed). Evidence logs: server/test-results/vitest.step26.rerun.local.log, server/test-results/vitest.step26.rerun.container.log, vscode-extension/test-results/mocha.step26.rerun.local.log, vscode-extension/test-results/npm-test.step26.rerun.log, interactive-terminal/target/protocol_tests.step26.rerun.local.log, interactive-terminal/target/command_executor_tests.step26.rerun.local.log, interactive-terminal/target/tcp_server_tests.step26.rerun.local.log, interactive-terminal/target/cargo_test_all.step26.rerun.local.log.",
+      "assignee": "Tester",
+      "requires_validation": true,
+      "index": 26,
+      "completed_at": "2026-02-14T23:17:22.086Z"
+    }
+  ],
+  "program_id": "plan_mllgnu1d_56838e50",
+  "pending_notes": [
+    {
+      "note": "CROSS-PLAN CONTEXT (from Chat Enhancements brainstorm, plan_mllk399r_69d8f32a):\n\n## Headless Command Execution Mode\nThe interactive terminal GUI app should support a HEADLESS mode where commands are executed without launching the GUI. This allows the MCP tool to run build scripts, tests, and other commands directly when user's explicit interactive approval isn't needed. The chat participant and dashboard can trigger headless execution via buttons.\n\n## Chat Button Integration Hook Points\nThe Chat Response Enhancements plan (plan_mllk399r_69d8f32a) will implement buttons in VS Code chat responses that need to invoke terminal commands. This plan should expose an interface contract that chat buttons can call into:\n\n1. **\"Run in Terminal\" button** on build script listings — executes a registered build script via the terminal tool, headlessly or with GUI depending on user preference\n2. **\"Approve Command\" / \"Decline Command\" buttons** — when the GUI app is showing a command awaiting approval, these buttons in the chat response should call the terminal tool's approve/decline invokables directly\n3. **Unified control surface** — the same command execution capability should be accessible from chat buttons, dashboard actions, and the terminal GUI app itself\n\n## Architecture Consideration\nThe MCP tool (`memory_terminal_interactive`) should support two invocation modes:\n- **Interactive mode**: Spawns GUI app, shows command for approval, waits for user response (existing plan)\n- **Headless mode**: Executes command directly without GUI, returns output to caller (new requirement)\n\nThe VS Code extension chat buttons and dashboard both need a command that calls the MCP tool in headless mode. The chat participant registers VS Code commands (e.g., `projectMemory.runBuildScript`) that resolve the script via MCP and execute via terminal — either headlessly through the MCP tool or via VS Code's built-in terminal API.\n\n## Related Plans\n- Chat Response Enhancements: plan_mllk399r_69d8f32a (buttons, command links, follow-ups)\n- Platform Evolution Program: plan_mlkjmemm_f04cebfc (parent program)",
+      "type": "info",
+      "added_at": "2026-02-14T00:41:10.269Z",
+      "added_by": "user"
+    },
+    {
+      "note": "User approved execution start on 2026-02-15. Begin Phase 1 (Contract Unification Design), steps 0-2.",
+      "type": "info",
+      "added_at": "2026-02-14T17:40:47.638Z",
+      "added_by": "user"
+    }
+  ]
+}

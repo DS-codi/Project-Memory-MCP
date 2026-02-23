@@ -1,0 +1,32 @@
+{
+  "timestamp": "2026-02-13T18:01:54.272Z",
+  "from_agent": "Researcher",
+  "to_agent": "Coordinator",
+  "reason": "Research complete — extracted spawn tool spec from docs/add2planpls.md and audited all relevant server code files. Recommend Executor for implementation (plan steps are already well-specified).",
+  "data": {
+    "research_artifacts": [
+      "research_notes/spawn-tool-spec-from-add2planpls.md",
+      "research_notes/code-audit-memory-agent-patterns.md",
+      "research_findings.json"
+    ],
+    "recommended_next_agent": "Executor",
+    "recommendation_reason": "Research is complete. The spec is clear and well-defined. The codebase patterns are well-understood. The Architect phase can be skipped as the plan steps are already well-specified with exact file paths and implementation details. Recommend going directly to Executor for implementation of steps 2-9.",
+    "key_findings": {
+      "spawn_action_note": "The spec envisions server-side agent execution via an AgentRunner class, but current MCP architecture has agents as LLM chat modes (VS Code Copilot chat participants). The practical implementation should validate the agent + return its instructions/context for the Coordinator to use in runSubagent, rather than executing the agent server-side.",
+      "files_to_create": [
+        "agents/cognition.agent.md",
+        "server/src/utils/agent-loader.ts"
+      ],
+      "files_to_modify": [
+        "server/src/types/agent.types.ts",
+        "server/src/tools/consolidated/memory_agent.ts",
+        "server/src/index.ts",
+        "server/src/tools/agent.tools.ts",
+        "server/src/tools/agent-validation.tools.ts",
+        "vscode-extension/package.json",
+        "agents/coordinator.agent.md",
+        "instructions/handoff-protocol.instructions.md"
+      ]
+    }
+  }
+}
