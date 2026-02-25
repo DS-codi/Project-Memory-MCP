@@ -25,13 +25,13 @@ import * as agentTools from '../agent.tools.js';
 import * as validationTools from '../agent-validation.tools.js';
 import { deployForTask, cleanupAgent } from '../agent-deploy.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
-import { getPlanState, getWorkspace } from '../../storage/file-store.js';
+import { getPlanState, getWorkspace } from '../../storage/db-store.js';
 import {
   getAgentDeployDir,
   getContextBundlePath,
   getInitContextPath,
   getManifestPath,
-} from '../../storage/projectmemory-paths.js';
+} from '../../storage/db-store.js';
 import { preflightValidate } from '../preflight/index.js';
 import { incrementStat } from '../session-stats.js';
 import { events } from '../../events/event-emitter.js';
@@ -301,7 +301,7 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
 
       // Cleanup deployed agent files (non-fatal)
       try {
-        const { getWorkspace } = await import('../../storage/file-store.js');
+        const { getWorkspace } = await import('../../storage/db-store.js');
         const wsMeta = await getWorkspace(params.workspace_id);
         if (wsMeta) {
           const wsPath = wsMeta.workspace_path || wsMeta.path;
@@ -348,7 +348,7 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
 
       // Cleanup deployed agent files (non-fatal)
       try {
-        const { getWorkspace } = await import('../../storage/file-store.js');
+        const { getWorkspace } = await import('../../storage/db-store.js');
         const wsMeta = await getWorkspace(params.workspace_id);
         if (wsMeta) {
           const wsPath = wsMeta.workspace_path || wsMeta.path;
@@ -508,7 +508,7 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
       }
 
       const { CATEGORY_ROUTING } = await import('../../types/category-routing.js');
-      const { getPlanState, savePlanState } = await import('../../storage/file-store.js');
+      const { getPlanState, savePlanState } = await import('../../storage/db-store.js');
 
       // Resolve routing from the category decision
       const category = params.categorization_result.intent?.category;
@@ -552,7 +552,7 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
           error: 'workspace_id, agent_type, and plan_id are required for action: deploy_for_task'
         };
       }
-      const { getWorkspace } = await import('../../storage/file-store.js');
+      const { getWorkspace } = await import('../../storage/db-store.js');
       const wsMeta = await getWorkspace(params.workspace_id);
       if (!wsMeta) {
         return { success: false, error: `Workspace not found: ${params.workspace_id}` };

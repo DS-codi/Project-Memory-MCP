@@ -1,9 +1,9 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import type { ToolResponse } from '../types/index.js';
-import * as store from '../storage/file-store.js';
+import * as store from '../storage/db-store.js';
 import * as knowledgeTools from './knowledge.tools.js';
-import { listProgramSearchArtifacts } from '../storage/program-store.js';
+import { listProgramSearchArtifacts } from '../storage/db-store.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -200,26 +200,24 @@ async function collectPlanContext(
 }
 
 async function collectWorkspaceContext(workspaceId: string): Promise<SearchItem[]> {
-  const filePath = store.getWorkspaceContextPath(workspaceId);
   try {
-    const [data, stat] = await Promise.all([
-      store.readJson<Record<string, unknown>>(filePath),
-      fs.stat(filePath),
-    ]);
+    const data = await store.getWorkspaceContextFromDb(workspaceId);
     if (!data) {
       return [];
     }
     const content = asText(data);
+    const sizeBytes = Buffer.byteLength(content, 'utf-8');
+    const updatedAt = data.updated_at || new Date().toISOString();
     return [{
       id: `workspace:${workspaceId}:context`,
       scope: 'workspace',
       type: 'workspace_context',
       title: 'workspace.context',
       source: `workspace:${workspaceId}`,
-      path: toPosixRelative(filePath),
+      path: `${workspaceId}/workspace.context`,
       preview: toPreview(content),
-      size_bytes: stat.size,
-      updated_at: stat.mtime.toISOString(),
+      size_bytes: sizeBytes,
+      updated_at: updatedAt,
       searchable_text: toSearchable(content),
     }];
   } catch {

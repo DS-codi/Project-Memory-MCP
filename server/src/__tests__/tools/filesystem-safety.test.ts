@@ -13,11 +13,11 @@ import {
 import path from 'node:path';
 
 // Mock file-store for resolveWorkspaceRoot
-vi.mock('../../storage/file-store.js', () => ({
+vi.mock('../../storage/db-store.js', () => ({
   getWorkspace: vi.fn(),
 }));
 
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 
 // ---------------------------------------------------------------------------
 // Constants

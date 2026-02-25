@@ -1,5 +1,5 @@
 import type { PlanState, AgentSession } from '../../types/index.js';
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 
 const ACTIVE_RUN_CONTEXT_TYPE = 'active_run_lane';
 const STALE_RUN_CONTEXT_TYPE = 'stale_run_recovery';

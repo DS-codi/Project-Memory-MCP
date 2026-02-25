@@ -9,12 +9,10 @@ interface SettingsModalProps {
 
 interface Settings {
   apiUrl: string;
-  wsUrl: string;
   dataRoot: string;
   agentsRoot: string;
   theme: 'dark' | 'light' | 'system';
   autoRefresh: boolean;
-  refreshInterval: number;
   defaultAgents: string[];
   defaultInstructions: string[];
   autoDeployOnWorkspaceOpen: boolean;
@@ -43,12 +41,10 @@ const ALL_AGENTS = [
 
 const defaultSettings: Settings = {
   apiUrl: 'http://localhost:3001',
-  wsUrl: 'ws://localhost:3002',
   dataRoot: '',
   agentsRoot: '',
   theme: 'dark',
   autoRefresh: true,
-  refreshInterval: 5000,
   defaultAgents: ['coordinator', 'analyst', 'researcher', 'architect', 'executor', 'reviewer', 'tester', 'archivist', 'revisionist', 'brainstorm'],
   defaultInstructions: [],
   autoDeployOnWorkspaceOpen: false,
@@ -190,18 +186,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   onChange={(e) => setSettings({ ...settings, apiUrl: e.target.value })}
                   className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-violet-500"
                   placeholder="http://localhost:3001"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  WebSocket URL
-                </label>
-                <input
-                  type="text"
-                  value={settings.wsUrl}
-                  onChange={(e) => setSettings({ ...settings, wsUrl: e.target.value })}
-                  className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-violet-500"
-                  placeholder="ws://localhost:3002"
                 />
               </div>
             </div>
@@ -381,19 +365,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     )}
                   />
                 </button>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Refresh Interval (ms)
-                </label>
-                <input
-                  type="number"
-                  value={settings.refreshInterval}
-                  onChange={(e) => setSettings({ ...settings, refreshInterval: parseInt(e.target.value) || 5000 })}
-                  className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-violet-500"
-                  min={1000}
-                  step={1000}
-                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">

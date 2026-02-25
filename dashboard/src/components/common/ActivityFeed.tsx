@@ -103,29 +103,8 @@ export function LiveActivityFeed({ className }: { className?: string }) {
       setIsConnected(false);
     };
 
-    // Also connect to WebSocket for file watcher updates
-    const ws = new WebSocket('ws://localhost:3002');
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        const update: LiveUpdate = {
-          timestamp: data.timestamp || new Date().toISOString(),
-          type: mapEventType(data.type),
-          workspace_id: data.workspace_id,
-          plan_id: data.plan_id || '',
-          message: formatEventMessage(data),
-        };
-        
-        setActivities((prev) => [update, ...prev].slice(0, 100));
-      } catch (e) {
-        console.error('Failed to parse activity:', e);
-      }
-    };
-
     return () => {
       eventSource.close();
-      ws.close();
     };
   }, []);
 
@@ -142,15 +121,6 @@ export function LiveActivityFeed({ className }: { className?: string }) {
   );
 }
 
-function mapEventType(type: string): LiveUpdate['type'] {
-  switch (type) {
-    case 'handoff': return 'handoff';
-    case 'plan_created': return 'plan_created';
-    case 'plan_archived': return 'plan_archived';
-    default: return 'step_update';
-  }
-}
-
 function mapMCPEventType(type: string): LiveUpdate['type'] {
   switch (type) {
     case 'handoff': return 'handoff';
@@ -161,21 +131,6 @@ function mapMCPEventType(type: string): LiveUpdate['type'] {
     case 'agent_session_started':
     case 'agent_session_completed': return 'handoff';
     default: return 'step_update';
-  }
-}
-
-function formatEventMessage(data: { type: string; file?: string; plan_id?: string; workspace_id?: string }): string {
-  switch (data.type) {
-    case 'handoff':
-      return `Agent handoff recorded`;
-    case 'plan_updated':
-      return `Plan state updated`;
-    case 'workspace_updated':
-      return `Workspace configuration changed`;
-    case 'step_update':
-      return `Step status changed`;
-    default:
-      return `Activity detected: ${data.file || data.type}`;
   }
 }
 

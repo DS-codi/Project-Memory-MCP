@@ -7,9 +7,9 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as workspaceContextTools from '../../tools/workspace-context.tools.js';
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 
-vi.mock('../../storage/file-store.js');
+vi.mock('../../storage/db-store.js');
 vi.mock('../../logging/workspace-update-log.js', () => ({
   appendWorkspaceFileUpdate: vi.fn().mockResolvedValue(undefined)
 }));
@@ -28,11 +28,10 @@ describe('Workspace context auto-wrapping', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(store.getWorkspace).mockResolvedValue(mockWorkspaceMeta as never);
-    vi.mocked(store.getWorkspaceContextPath).mockReturnValue('/tmp/workspace.context.json');
     vi.mocked(store.getWorkspaceIdentityPath).mockReturnValue(`${WORKSPACE_PATH}/.projectmemory/identity.json`);
     vi.mocked(store.nowISO).mockReturnValue('2026-02-11T00:00:00.000Z');
-    vi.mocked(store.writeJsonLocked).mockResolvedValue(undefined);
-    vi.mocked(store.readJson).mockResolvedValue(null);
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue(null);
+    vi.mocked(store.saveWorkspaceContextToDb).mockResolvedValue(undefined);
   });
 
   describe('setWorkspaceContext with flat data', () => {
@@ -196,7 +195,7 @@ describe('Workspace context auto-wrapping', () => {
     };
 
     it('should auto-wrap flat data and merge with existing sections', async () => {
-      vi.mocked(store.readJson).mockResolvedValue(existingContext);
+      vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue(existingContext as never);
 
       const result = await workspaceContextTools.updateWorkspaceContext({
         workspace_id: WORKSPACE_ID,

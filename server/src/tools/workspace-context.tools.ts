@@ -2,7 +2,6 @@
  * Workspace Context Tools - CRUD for workspace-level context storage
  */
 
-import { promises as fs } from 'fs';
 import type {
   ToolResponse,
   WorkspaceContext,
@@ -10,7 +9,7 @@ import type {
   WorkspaceContextSectionItem,
   WorkspaceMeta
 } from '../types/index.js';
-import * as store from '../storage/file-store.js';
+import * as store from '../storage/db-store.js';
 import { sanitizeJsonData } from '../security/sanitize.js';
 import { appendWorkspaceFileUpdate } from '../logging/workspace-update-log.js';
 
@@ -229,8 +228,7 @@ export async function getWorkspaceContext(
       };
     }
 
-    const contextPath = store.getWorkspaceContextPath(workspace_id);
-    const context = await store.readJson<WorkspaceContext>(contextPath);
+    const context = await store.getWorkspaceContextFromDb(workspace_id);
 
     if (!context) {
       return {
@@ -243,7 +241,7 @@ export async function getWorkspaceContext(
       success: true,
       data: {
         context,
-        path: contextPath
+        path: `db:workspace/${workspace_id}/workspace_context`
       }
     };
   } catch (error) {
@@ -276,8 +274,7 @@ export async function setWorkspaceContext(
     }
 
     const workspace = workspaceResult.data;
-    const contextPath = store.getWorkspaceContextPath(workspace_id);
-    const existing = await store.readJson<WorkspaceContext>(contextPath);
+    const existing = await store.getWorkspaceContextFromDb(workspace_id);
 
     if (data.workspace_id && data.workspace_id !== workspace_id) {
       return {
@@ -326,10 +323,10 @@ export async function setWorkspaceContext(
       return sizeCheck as ToolResponse<WorkspaceContextResult>;
     }
 
-    await store.writeJsonLocked(contextPath, context);
+    await store.saveWorkspaceContextToDb(workspace_id, context);
     await appendWorkspaceFileUpdate({
       workspace_id,
-      file_path: contextPath,
+      file_path: `db:workspace/${workspace_id}/workspace_context`,
       summary: 'Set workspace context',
       action: 'set_workspace_context'
     });
@@ -338,7 +335,7 @@ export async function setWorkspaceContext(
       success: true,
       data: {
         context,
-        path: contextPath
+        path: `db:workspace/${workspace_id}/workspace_context`
       }
     };
   } catch (error) {
@@ -371,8 +368,7 @@ export async function updateWorkspaceContext(
     }
 
     const workspace = workspaceResult.data;
-    const contextPath = store.getWorkspaceContextPath(workspace_id);
-    const existing = await store.readJson<WorkspaceContext>(contextPath);
+    const existing = await store.getWorkspaceContextFromDb(workspace_id);
 
     if (!existing) {
       return {
@@ -426,10 +422,10 @@ export async function updateWorkspaceContext(
       return sizeCheck as ToolResponse<WorkspaceContextResult>;
     }
 
-    await store.writeJsonLocked(contextPath, updated);
+    await store.saveWorkspaceContextToDb(workspace_id, updated);
     await appendWorkspaceFileUpdate({
       workspace_id,
-      file_path: contextPath,
+      file_path: `db:workspace/${workspace_id}/workspace_context`,
       summary: 'Updated workspace context',
       action: 'update_workspace_context'
     });
@@ -438,7 +434,7 @@ export async function updateWorkspaceContext(
       success: true,
       data: {
         context: updated,
-        path: contextPath
+        path: `db:workspace/${workspace_id}/workspace_context`
       }
     };
   } catch (error) {
@@ -470,20 +466,18 @@ export async function deleteWorkspaceContext(
       };
     }
 
-    const contextPath = store.getWorkspaceContextPath(workspace_id);
-    const exists = await store.exists(contextPath);
+    const deleted = await store.deleteWorkspaceContextFromDb(workspace_id);
 
-    if (!exists) {
+    if (!deleted) {
       return {
         success: false,
         error: `Workspace context not found for ${workspace_id}`
       };
     }
 
-    await fs.unlink(contextPath);
     await appendWorkspaceFileUpdate({
       workspace_id,
-      file_path: contextPath,
+      file_path: `db:workspace/${workspace_id}/workspace_context`,
       summary: 'Deleted workspace context',
       action: 'delete_workspace_context'
     });
@@ -492,7 +486,7 @@ export async function deleteWorkspaceContext(
       success: true,
       data: {
         deleted: true,
-        path: contextPath
+        path: `db:workspace/${workspace_id}/workspace_context`
       }
     };
   } catch (error) {

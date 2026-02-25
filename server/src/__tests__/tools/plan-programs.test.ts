@@ -5,7 +5,7 @@ import {
   upgradeToProgram,
   listProgramPlans,
 } from '../../tools/plan/plan-programs.js';
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 import { events } from '../../events/event-emitter.js';
 import type { PlanState } from '../../types/index.js';
 
@@ -16,7 +16,7 @@ import type { PlanState } from '../../types/index.js';
  * createProgram, addPlanToProgram, upgradeToProgram, listProgramPlans.
  */
 
-vi.mock('../../storage/file-store.js');
+vi.mock('../../storage/db-store.js');
 vi.mock('../../events/event-emitter.js', () => ({
   events: { planCreated: vi.fn() },
 }));

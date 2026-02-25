@@ -418,4 +418,16 @@ export const STEPS_PARAMS: Record<string, ActionParamDef> = {
     ],
     optional: [],
   },
+
+  next: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+      { name: 'plan_id', type: 'string', description: 'Plan ID' },
+      { name: 'step_index', type: 'number', description: 'Index of the step to mark done (0-based)' },
+    ],
+    optional: [
+      { name: 'notes', type: 'string', description: 'Completion notes for the step' },
+      { name: 'agent_type', type: 'string', description: 'Agent completing the step' },
+    ],
+  },
 };

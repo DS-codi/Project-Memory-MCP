@@ -33,7 +33,7 @@ function enrichStepsWithDisplayNumber(result: PlanOperationResult): PlanOperatio
   };
 }
 
-export type StepsAction = 'add' | 'update' | 'batch_update' | 'insert' | 'delete' | 'reorder' | 'move' | 'sort' | 'set_order' | 'replace';
+export type StepsAction = 'add' | 'update' | 'batch_update' | 'insert' | 'delete' | 'reorder' | 'move' | 'sort' | 'set_order' | 'replace' | 'next';
 
 export interface MemoryStepsParams {
   action: StepsAction;
@@ -77,6 +77,9 @@ export interface MemoryStepsParams {
   
   // For 'replace' action - replace all steps with new array
   replacement_steps?: Omit<PlanStep, 'index'>[];
+
+  // For 'next' action - mark current step done and return next pending
+  // (reuses step_index, notes, agent_type from existing fields)
 }
 
 type StepsResult = 
@@ -89,7 +92,8 @@ type StepsResult =
   | { action: 'move'; data: PlanOperationResult }
   | { action: 'sort'; data: PlanOperationResult }
   | { action: 'set_order'; data: PlanOperationResult }
-  | { action: 'replace'; data: PlanOperationResult };
+  | { action: 'replace'; data: PlanOperationResult }
+  | { action: 'next'; data: PlanOperationResult & { next_step: (PlanStep & { display_number: number }) | null } };
 
 export async function memorySteps(params: MemoryStepsParams): Promise<ToolResponse<StepsResult>> {
   const { action, workspace_id, plan_id } = params;
@@ -97,7 +101,7 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
   if (!action) {
     return {
       success: false,
-      error: 'action is required. Valid actions: add, update, batch_update, insert, delete, reorder, move, sort, set_order, replace'
+      error: 'action is required. Valid actions: add, update, batch_update, insert, delete, reorder, move, sort, set_order, replace, next'
     };
   }
 
@@ -346,10 +350,43 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
       };
     }
 
+    case 'next': {
+      // Atomically mark the current step as done and return the next pending step.
+      if (params.step_index === undefined) {
+        return {
+          success: false,
+          error: 'step_index is required for action: next'
+        };
+      }
+      const result = await planTools.updateStep({
+        workspace_id,
+        plan_id,
+        step_index: params.step_index,
+        status: 'done',
+        notes: params.notes
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      recordStepChange(params._session_id, 'done');
+      const enriched = enrichStepsWithDisplayNumber(result.data!);
+      const rawNext = enriched.plan_state.steps.find(s => s.status === 'pending');
+      const nextStep = rawNext
+        ? { ...rawNext, display_number: rawNext.index + 1 }
+        : null;
+      return {
+        success: true,
+        data: {
+          action: 'next' as const,
+          data: { ...enriched, next_step: nextStep }
+        }
+      };
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: add, update, batch_update, insert, delete, reorder, move, sort, set_order, replace`
+        error: `Unknown action: ${action}. Valid actions: add, update, batch_update, insert, delete, reorder, move, sort, set_order, replace, next`
       };
   }
 }

@@ -21,8 +21,8 @@ import {
   createProgramDir,
   saveDependencies,
   saveRisks,
-} from '../../storage/program-store.js';
-import * as fileStore from '../../storage/file-store.js';
+} from '../../storage/db-store.js';
+import * as fileStore from '../../storage/db-store.js';
 import { generateProgramId } from './program-lifecycle.js';
 
 // =============================================================================

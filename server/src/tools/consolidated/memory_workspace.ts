@@ -7,14 +7,14 @@
 
 import type { ToolResponse, WorkspaceMeta, WorkspaceProfile, PlanState, WorkspaceOverlapInfo } from '../../types/index.js';
 import * as workspaceTools from '../workspace.tools.js';
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
 import { preflightValidate } from '../preflight/index.js';
-import { scanGhostFolders, mergeWorkspace, validateWorkspaceId, migrateWorkspace, ensureIdentityFile } from '../../storage/workspace-identity.js';
-import type { GhostFolderInfo, MergeResult, MigrateWorkspaceResult } from '../../storage/workspace-identity.js';
-import { linkWorkspaces, unlinkWorkspaces, getWorkspaceHierarchy, checkRegistryForOverlaps } from '../../storage/workspace-hierarchy.js';
-import type { WorkspaceHierarchyInfo } from '../../storage/workspace-hierarchy.js';
-import { normalizeWorkspacePath } from '../../storage/workspace-utils.js';
+import { scanGhostFolders, mergeWorkspace, validateWorkspaceId, migrateWorkspace, ensureIdentityFile } from '../../storage/db-store.js';
+import type { GhostFolderInfo, MergeResult, MigrateWorkspaceResult } from '../../storage/db-store.js';
+import { linkWorkspaces, unlinkWorkspaces, getWorkspaceHierarchy, checkRegistryForOverlaps } from '../../storage/db-store.js';
+import type { WorkspaceHierarchyInfo } from '../../storage/db-store.js';
+import { normalizeWorkspacePath } from '../../storage/db-store.js';
 import { detectMigrationAdvisories } from '../program/index.js';
 import type { MigrationAdvisory } from '../program/index.js';
 

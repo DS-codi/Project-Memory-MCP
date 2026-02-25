@@ -23,7 +23,7 @@ import type {
   MergePlansResult,
   SkillCreationRecommendation,
 } from '../../types/index.js';
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 import { archivePlanPrompts } from '../prompt-storage.js';
 import { buildPhasesFromSteps } from './plan-version.js';
 import { buildSkillRegistry } from '../skill-registry.js';

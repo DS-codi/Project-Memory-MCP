@@ -35,10 +35,10 @@ import {
   deleteKnowledgeFile,
 } from '../../tools/knowledge.tools.js';
 import type { KnowledgeFile } from '../../tools/knowledge.tools.js';
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 import { promises as fs } from 'fs';
 
-vi.mock('../../storage/file-store.js');
+vi.mock('../../storage/db-store.js');
 vi.mock('fs', async () => {
   const actual = await vi.importActual<typeof import('fs')>('fs');
   return {
@@ -692,11 +692,10 @@ describe('enrichWithKnowledgeFiles edge cases', () => {
 
     // Workspace context is recent
     const recentDate = new Date().toISOString();
-    vi.mocked(store.readJson)
-      .mockResolvedValueOnce({
-        sections: { project_details: { summary: 'Test', items: [] } },
-        updated_at: recentDate,
-      });
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue({
+      sections: { project_details: { summary: 'Test', items: [] } },
+      updated_at: recentDate,
+    } as never);
 
     // Knowledge files: one fresh, one stale (90 days), one stale (65 days)
     const freshDate = new Date().toISOString();
@@ -710,7 +709,7 @@ describe('enrichWithKnowledgeFiles edge cases', () => {
     ] as any);
 
     vi.mocked(store.readJson)
-      // First call already consumed above for workspace.context.json
+      // knowledge files
       .mockResolvedValueOnce({
         slug: 'fresh-doc',
         title: 'Fresh Doc',
@@ -766,11 +765,11 @@ describe('enrichWithKnowledgeFiles edge cases', () => {
 
     const freshDate = new Date().toISOString();
 
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue({
+      sections: { details: { summary: 'Test', items: [] } },
+      updated_at: freshDate,
+    } as never);
     vi.mocked(store.readJson)
-      .mockResolvedValueOnce({
-        sections: { details: { summary: 'Test', items: [] } },
-        updated_at: freshDate,
-      })
       .mockResolvedValueOnce({
         slug: 'fresh-1',
         title: 'Fresh 1',
@@ -806,10 +805,10 @@ describe('enrichWithKnowledgeFiles edge cases', () => {
       `/data/${WORKSPACE_ID}/workspace.context.json`
     );
 
-    vi.mocked(store.readJson).mockResolvedValueOnce({
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue({
       sections: { details: { summary: 'Test', items: [] } },
       updated_at: new Date().toISOString(),
-    });
+    } as never);
 
     // Knowledge dir doesn't exist
     vi.mocked(fs.readdir).mockRejectedValue(
@@ -835,11 +834,11 @@ describe('enrichWithKnowledgeFiles edge cases', () => {
 
     const oldDate = new Date(Date.now() - 100 * 24 * 60 * 60 * 1000).toISOString();
 
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue({
+      sections: { info: { summary: 'Test', items: [] } },
+      updated_at: new Date().toISOString(),
+    } as never);
     vi.mocked(store.readJson)
-      .mockResolvedValueOnce({
-        sections: { info: { summary: 'Test', items: [] } },
-        updated_at: new Date().toISOString(),
-      })
       .mockResolvedValueOnce({
         slug: 'old-1',
         title: 'Old 1',

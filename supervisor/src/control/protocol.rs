@@ -94,6 +94,16 @@ pub enum ControlRequest {
     /// The supervisor will reject this if `max_instances` is already reached.
     ScaleUpMcp,
 
+    /// Return the URL of the `/supervisor/events` SSE endpoint.
+    SubscribeEvents,
+
+    /// Return broadcast-channel statistics for the events channel.
+    EventStats,
+
+    /// Emit a synthetic `Test` event on the events broadcast channel.
+    /// Useful for integration-testing the SSE pipeline end-to-end.
+    EmitTestEvent { message: String },
+
     /// Launch an on-demand form-app GUI process, pipe a payload on stdin,
     /// and return the response from stdout.
     ///
@@ -183,6 +193,19 @@ pub struct WhoAmIResponse {
 // ---------------------------------------------------------------------------
 // FormApp response types
 // ---------------------------------------------------------------------------
+
+/// Payload returned inside `ControlResponse.data` for a successful `EventStats`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EventStatsData {
+    /// Whether the events broadcast channel is enabled.
+    pub enabled: bool,
+    /// Current number of live SSE subscribers.
+    pub subscriber_count: usize,
+    /// Total events emitted since the supervisor started.
+    pub events_emitted: u64,
+    /// URL clients should connect to for the SSE event stream.
+    pub events_url: Option<String>,
+}
 
 /// Result of a `LaunchApp` or `ContinueApp` request, returned inside `ControlResponse.data`.
 #[derive(Debug, Clone, Serialize, Deserialize)]

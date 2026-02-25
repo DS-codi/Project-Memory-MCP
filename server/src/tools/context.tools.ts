@@ -14,7 +14,7 @@ import type {
   GenerateAgentInstructionsParams,
   AgentInstructionFile
 } from '../types/index.js';
-import * as store from '../storage/file-store.js';
+import * as store from '../storage/db-store.js';
 import { sanitizeJsonData, sanitizeContent, addSecurityMetadata } from '../security/sanitize.js';
 import { appendWorkspaceFileUpdate } from '../logging/workspace-update-log.js';
 
@@ -1042,10 +1042,8 @@ export async function handleDumpContext(
     // 4. Load workspace context
     let workspaceContext: unknown = null;
     try {
-      const wcPath = store.getWorkspaceContextPath(workspace_id);
-      const wcRaw = await store.readText(wcPath);
-      if (wcRaw) {
-        workspaceContext = JSON.parse(wcRaw);
+      workspaceContext = await store.getWorkspaceContextFromDb(workspace_id);
+      if (workspaceContext) {
         sectionsIncluded.push('workspace_context');
       }
     } catch { /* no workspace context */ }

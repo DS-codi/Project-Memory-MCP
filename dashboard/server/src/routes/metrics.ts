@@ -1,7 +1,9 @@
 import { Router } from 'express';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import { scanWorkspaces, getWorkspacePlans, getPlanState } from '../services/fileScanner.js';
+import {
+  listWorkspaces, getAllPlans, getPlansByWorkspace,
+  getPlanSteps, getPlanSessions, getPlanLineage,
+  getWorkspaceMetrics,
+} from '../db/queries.js';
 
 export const metricsRouter = Router();
 
@@ -81,187 +83,131 @@ function getWeekNumber(date: Date): string {
 }
 
 // GET /api/metrics - Get comprehensive metrics dashboard
-metricsRouter.get('/', async (req, res) => {
+metricsRouter.get('/', (req, res) => {
   try {
-    const workspaces = await scanWorkspaces(globalThis.MBS_DATA_ROOT);
-    
-    // Initialize counters
+    const workspaces = listWorkspaces();
+    const allPlans = getAllPlans(true); // include archived
+
     const metrics: DashboardMetrics = {
       generated_at: new Date().toISOString(),
-      workspaces: {
-        total: workspaces.length,
-        with_active_plans: 0,
-      },
+      workspaces: { total: workspaces.length, with_active_plans: 0 },
       plans: {
-        total_plans: 0,
-        active: 0,
-        completed: 0,
-        archived: 0,
-        failed: 0,
-        by_category: {},
-        by_priority: {},
-        average_steps_per_plan: 0,
-        average_sessions_per_plan: 0,
+        total_plans: 0, active: 0, completed: 0, archived: 0, failed: 0,
+        by_category: {}, by_priority: {},
+        average_steps_per_plan: 0, average_sessions_per_plan: 0,
       },
-      steps: {
-        total_steps: 0,
-        done: 0,
-        active: 0,
-        pending: 0,
-        blocked: 0,
-        completion_rate: 0,
-      },
+      steps: { total_steps: 0, done: 0, active: 0, pending: 0, blocked: 0, completion_rate: 0 },
       agents: [],
-      handoffs: {
-        total_handoffs: 0,
-        by_transition: {},
-        most_common_transitions: [],
-      },
+      handoffs: { total_handoffs: 0, by_transition: {}, most_common_transitions: [] },
       time: {
-        average_plan_duration_ms: 0,
-        average_plan_duration_human: '0m',
-        fastest_completion_ms: Infinity,
-        slowest_completion_ms: 0,
-        plans_by_day: {},
-        plans_by_week: {},
+        average_plan_duration_ms: 0, average_plan_duration_human: '0m',
+        fastest_completion_ms: Infinity, slowest_completion_ms: 0,
+        plans_by_day: {}, plans_by_week: {},
       },
     };
-    
+
     const agentStats = new Map<string, {
       total_sessions: number;
       completed_sessions: number;
       total_duration_ms: number;
       plans: Set<string>;
     }>();
-    
+
+    const workspacesWithActivePlans = new Set<string>();
     const planDurations: number[] = [];
     let totalSteps = 0;
     let totalSessions = 0;
-    
-    // Process each workspace
-    for (const workspace of workspaces) {
-      const planSummaries = await getWorkspacePlans(globalThis.MBS_DATA_ROOT, workspace.workspace_id);
-      
-      if (planSummaries.some(p => p.status === 'active')) {
-        metrics.workspaces.with_active_plans++;
+
+    for (const plan of allPlans) {
+      metrics.plans.total_plans++;
+
+      // Status counts
+      if (plan.status === 'active') {
+        metrics.plans.active++;
+        workspacesWithActivePlans.add(plan.workspace_id);
+      } else if (plan.status === 'completed') metrics.plans.completed++;
+      else if (plan.status === 'archived') metrics.plans.archived++;
+      else if (plan.status === 'failed') metrics.plans.failed++;
+
+      // Category / priority
+      const category = plan.category || 'unknown';
+      metrics.plans.by_category[category] = (metrics.plans.by_category[category] || 0) + 1;
+      const priority = plan.priority || 'medium';
+      metrics.plans.by_priority[priority] = (metrics.plans.by_priority[priority] || 0) + 1;
+
+      // Steps
+      const steps = getPlanSteps(plan.id);
+      totalSteps += steps.length;
+      metrics.steps.total_steps += steps.length;
+      for (const step of steps) {
+        if (step.status === 'done') metrics.steps.done++;
+        else if (step.status === 'active') metrics.steps.active++;
+        else if (step.status === 'pending') metrics.steps.pending++;
+        else if (step.status === 'blocked') metrics.steps.blocked++;
       }
-      
-      // Get full plan states for detailed metrics
-      for (const planSummary of planSummaries) {
-        const plan = await getPlanState(globalThis.MBS_DATA_ROOT, workspace.workspace_id, planSummary.id);
-        if (!plan) continue;
-        
-        metrics.plans.total_plans++;
-        
-        // Status counts
-        if (plan.status === 'active') metrics.plans.active++;
-        else if (plan.status === 'completed') metrics.plans.completed++;
-        else if (plan.status === 'archived') metrics.plans.archived++;
-        else if (plan.status === 'failed') metrics.plans.failed++;
-        
-        // Category counts
-        const category = plan.category || 'unknown';
-        metrics.plans.by_category[category] = (metrics.plans.by_category[category] || 0) + 1;
-        
-        // Priority counts
-        const priority = plan.priority || 'medium';
-        metrics.plans.by_priority[priority] = (metrics.plans.by_priority[priority] || 0) + 1;
-        
-        // Step counts
-        const planSteps = plan.steps as Array<{ status: string }> | undefined;
-        if (planSteps) {
-          totalSteps += planSteps.length;
-          metrics.steps.total_steps += planSteps.length;
-          for (const step of planSteps) {
-            if (step.status === 'done') metrics.steps.done++;
-            else if (step.status === 'active') metrics.steps.active++;
-            else if (step.status === 'pending') metrics.steps.pending++;
-            else if (step.status === 'blocked') metrics.steps.blocked++;
-          }
+
+      // Sessions / agent stats
+      const sessions = getPlanSessions(plan.id);
+      totalSessions += sessions.length;
+      for (const session of sessions) {
+        const agentType = session.agent_type;
+        if (!agentStats.has(agentType)) {
+          agentStats.set(agentType, { total_sessions: 0, completed_sessions: 0, total_duration_ms: 0, plans: new Set() });
         }
-        
-        // Agent session stats
-        const planSessions = plan.agent_sessions as Array<{ agent_type: string; started_at: string; completed_at?: string }> | undefined;
-        if (planSessions) {
-          totalSessions += planSessions.length;
-          for (const session of planSessions) {
-            const agentType = session.agent_type;
-            if (!agentStats.has(agentType)) {
-              agentStats.set(agentType, {
-                total_sessions: 0,
-                completed_sessions: 0,
-                total_duration_ms: 0,
-                plans: new Set(),
-              });
-            }
-            
-            const stats = agentStats.get(agentType)!;
-            stats.total_sessions++;
-            stats.plans.add(plan.id);
-            
-            if (session.completed_at) {
-              stats.completed_sessions++;
-              const duration = new Date(session.completed_at).getTime() - new Date(session.started_at).getTime();
-              stats.total_duration_ms += duration;
-            }
-          }
+        const stats = agentStats.get(agentType)!;
+        stats.total_sessions++;
+        stats.plans.add(plan.id);
+        if (session.completed_at) {
+          stats.completed_sessions++;
+          stats.total_duration_ms += new Date(session.completed_at).getTime() - new Date(session.started_at).getTime();
         }
-        
-        // Handoff stats
-        const planLineage = plan.lineage as Array<{ from_agent: string; to_agent: string }> | undefined;
-        if (planLineage) {
-          for (const entry of planLineage) {
-            metrics.handoffs.total_handoffs++;
-            const transition = `${entry.from_agent} → ${entry.to_agent}`;
-            metrics.handoffs.by_transition[transition] = (metrics.handoffs.by_transition[transition] || 0) + 1;
-          }
-        }
-        
-        // Time stats
-        if (plan.created_at) {
-          const createdDate = new Date(plan.created_at);
-          const dayKey = createdDate.toISOString().split('T')[0];
-          const weekKey = getWeekNumber(createdDate);
-          
-          metrics.time.plans_by_day[dayKey] = (metrics.time.plans_by_day[dayKey] || 0) + 1;
-          metrics.time.plans_by_week[weekKey] = (metrics.time.plans_by_week[weekKey] || 0) + 1;
-        }
-        
-        // Plan duration for completed plans
-        if (plan.status === 'completed' && plan.created_at && plan.updated_at) {
-          const duration = new Date(plan.updated_at).getTime() - new Date(plan.created_at).getTime();
-          planDurations.push(duration);
-          
-          if (duration < metrics.time.fastest_completion_ms) {
-            metrics.time.fastest_completion_ms = duration;
-          }
-          if (duration > metrics.time.slowest_completion_ms) {
-            metrics.time.slowest_completion_ms = duration;
-          }
-        }
+      }
+
+      // Handoffs
+      const lineage = getPlanLineage(plan.id);
+      for (const entry of lineage) {
+        metrics.handoffs.total_handoffs++;
+        const transition = `${entry.from_agent} → ${entry.to_agent}`;
+        metrics.handoffs.by_transition[transition] = (metrics.handoffs.by_transition[transition] || 0) + 1;
+      }
+
+      // Time stats
+      if (plan.created_at) {
+        const createdDate = new Date(plan.created_at);
+        const dayKey = createdDate.toISOString().split('T')[0];
+        const weekKey = getWeekNumber(createdDate);
+        metrics.time.plans_by_day[dayKey] = (metrics.time.plans_by_day[dayKey] || 0) + 1;
+        metrics.time.plans_by_week[weekKey] = (metrics.time.plans_by_week[weekKey] || 0) + 1;
+      }
+
+      // Plan duration for completed/archived plans
+      if ((plan.status === 'completed' || plan.status === 'archived') && plan.created_at && plan.updated_at) {
+        const duration = new Date(plan.updated_at).getTime() - new Date(plan.created_at).getTime();
+        planDurations.push(duration);
+        if (duration < metrics.time.fastest_completion_ms) metrics.time.fastest_completion_ms = duration;
+        if (duration > metrics.time.slowest_completion_ms) metrics.time.slowest_completion_ms = duration;
       }
     }
-    
+
+    metrics.workspaces.with_active_plans = workspacesWithActivePlans.size;
+
     // Calculate averages
     if (metrics.plans.total_plans > 0) {
       metrics.plans.average_steps_per_plan = Math.round(totalSteps / metrics.plans.total_plans * 10) / 10;
       metrics.plans.average_sessions_per_plan = Math.round(totalSessions / metrics.plans.total_plans * 10) / 10;
     }
-    
     if (metrics.steps.total_steps > 0) {
       metrics.steps.completion_rate = Math.round((metrics.steps.done / metrics.steps.total_steps) * 100);
     }
-    
     if (planDurations.length > 0) {
       const avgDuration = planDurations.reduce((a, b) => a + b, 0) / planDurations.length;
       metrics.time.average_plan_duration_ms = Math.round(avgDuration);
       metrics.time.average_plan_duration_human = formatDuration(avgDuration);
     }
-    
     if (metrics.time.fastest_completion_ms === Infinity) {
       metrics.time.fastest_completion_ms = 0;
     }
-    
+
     // Convert agent stats to array
     for (const [agentType, stats] of agentStats) {
       metrics.agents.push({
@@ -269,27 +215,23 @@ metricsRouter.get('/', async (req, res) => {
         total_sessions: stats.total_sessions,
         completed_sessions: stats.completed_sessions,
         total_duration_ms: stats.total_duration_ms,
-        average_duration_ms: stats.completed_sessions > 0 
-          ? Math.round(stats.total_duration_ms / stats.completed_sessions) 
+        average_duration_ms: stats.completed_sessions > 0
+          ? Math.round(stats.total_duration_ms / stats.completed_sessions)
           : 0,
         plans_worked: stats.plans.size,
       });
     }
-    
-    // Sort agents by total sessions
     metrics.agents.sort((a, b) => b.total_sessions - a.total_sessions);
-    
-    // Get most common transitions
-    const transitions = Object.entries(metrics.handoffs.by_transition)
+
+    // Most common transitions
+    metrics.handoffs.most_common_transitions = Object.entries(metrics.handoffs.by_transition)
       .map(([key, count]) => {
         const [from, to] = key.split(' → ');
         return { from, to, count };
       })
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
-    
-    metrics.handoffs.most_common_transitions = transitions;
-    
+
     res.json(metrics);
   } catch (error) {
     console.error('Error generating metrics:', error);
@@ -298,10 +240,10 @@ metricsRouter.get('/', async (req, res) => {
 });
 
 // GET /api/metrics/agents - Get agent-specific metrics
-metricsRouter.get('/agents', async (req, res) => {
+metricsRouter.get('/agents', (req, res) => {
   try {
-    const workspaces = await scanWorkspaces(globalThis.MBS_DATA_ROOT);
-    
+    const allPlans = getAllPlans(true);
+
     const agentDetails = new Map<string, {
       sessions: Array<{
         plan_id: string;
@@ -313,50 +255,32 @@ metricsRouter.get('/agents', async (req, res) => {
         summary?: string;
       }>;
     }>();
-    
-    for (const workspace of workspaces) {
-      const planSummaries = await getWorkspacePlans(globalThis.MBS_DATA_ROOT, workspace.workspace_id);
-      
-      for (const planSummary of planSummaries) {
-        const plan = await getPlanState(globalThis.MBS_DATA_ROOT, workspace.workspace_id, planSummary.id);
-        if (!plan) continue;
-        
-        const planSessions = plan.agent_sessions as Array<{ 
-          agent_type: string; 
-          started_at: string; 
-          completed_at?: string;
-          summary?: string;
-        }> | undefined;
-        
-        if (planSessions) {
-          for (const session of planSessions) {
-            if (!agentDetails.has(session.agent_type)) {
-              agentDetails.set(session.agent_type, { sessions: [] });
-            }
-            
-            const duration = session.completed_at 
-              ? new Date(session.completed_at).getTime() - new Date(session.started_at).getTime()
-              : undefined;
-            
-            agentDetails.get(session.agent_type)!.sessions.push({
-              plan_id: plan.id,
-              plan_title: plan.title,
-              workspace_id: workspace.workspace_id,
-              started_at: session.started_at,
-              completed_at: session.completed_at,
-              duration_ms: duration,
-              summary: session.summary,
-            });
-          }
+
+    for (const plan of allPlans) {
+      const sessions = getPlanSessions(plan.id);
+      for (const session of sessions) {
+        if (!agentDetails.has(session.agent_type)) {
+          agentDetails.set(session.agent_type, { sessions: [] });
         }
+        const duration = session.completed_at
+          ? new Date(session.completed_at).getTime() - new Date(session.started_at).getTime()
+          : undefined;
+        agentDetails.get(session.agent_type)!.sessions.push({
+          plan_id: plan.id,
+          plan_title: plan.title,
+          workspace_id: plan.workspace_id,
+          started_at: session.started_at,
+          completed_at: session.completed_at ?? undefined,
+          duration_ms: duration,
+          summary: session.summary ?? undefined,
+        });
       }
     }
-    
+
     const result: Record<string, unknown> = {};
     for (const [agentType, data] of agentDetails) {
       const completedSessions = data.sessions.filter(s => s.duration_ms !== undefined);
       const totalDuration = completedSessions.reduce((sum, s) => sum + (s.duration_ms || 0), 0);
-      
       result[agentType] = {
         total_sessions: data.sessions.length,
         completed_sessions: completedSessions.length,
@@ -365,7 +289,7 @@ metricsRouter.get('/agents', async (req, res) => {
         recent_sessions: data.sessions.slice(-10).reverse(),
       };
     }
-    
+
     res.json(result);
   } catch (error) {
     console.error('Error getting agent metrics:', error);
@@ -374,14 +298,14 @@ metricsRouter.get('/agents', async (req, res) => {
 });
 
 // GET /api/metrics/workspace/:workspaceId - Get workspace-specific metrics
-metricsRouter.get('/workspace/:workspaceId', async (req, res) => {
+metricsRouter.get('/workspace/:workspaceId', (req, res) => {
   try {
     const { workspaceId } = req.params;
-    const planSummaries = await getWorkspacePlans(globalThis.MBS_DATA_ROOT, workspaceId);
-    
+    const plans = getPlansByWorkspace(workspaceId, true); // include archived
+
     const metrics = {
       workspace_id: workspaceId,
-      total_plans: planSummaries.length,
+      total_plans: plans.length,
       plans_by_status: {} as Record<string, number>,
       plans_by_category: {} as Record<string, number>,
       total_steps: 0,
@@ -390,44 +314,29 @@ metricsRouter.get('/workspace/:workspaceId', async (req, res) => {
       total_handoffs: 0,
       agent_activity: {} as Record<string, number>,
     };
-    
-    for (const planSummary of planSummaries) {
-      const plan = await getPlanState(globalThis.MBS_DATA_ROOT, workspaceId, planSummary.id);
-      if (!plan) continue;
-      
-      // Status
+
+    for (const plan of plans) {
       metrics.plans_by_status[plan.status] = (metrics.plans_by_status[plan.status] || 0) + 1;
-      
-      // Category
       const category = plan.category || 'unknown';
       metrics.plans_by_category[category] = (metrics.plans_by_category[category] || 0) + 1;
-      
-      // Steps
-      const planSteps = plan.steps as Array<{ status: string }> | undefined;
-      if (planSteps) {
-        metrics.total_steps += planSteps.length;
-        metrics.completed_steps += planSteps.filter((s: { status: string }) => s.status === 'done').length;
-      }
-      
-      // Handoffs
-      const planLineage = plan.lineage as Array<unknown> | undefined;
-      if (planLineage) {
-        metrics.total_handoffs += planLineage.length;
-      }
-      
-      // Agent activity
-      const planSessions = plan.agent_sessions as Array<{ agent_type: string }> | undefined;
-      if (planSessions) {
-        for (const session of planSessions) {
-          metrics.agent_activity[session.agent_type] = (metrics.agent_activity[session.agent_type] || 0) + 1;
-        }
+
+      const steps = getPlanSteps(plan.id);
+      metrics.total_steps += steps.length;
+      metrics.completed_steps += steps.filter(s => s.status === 'done').length;
+
+      const lineage = getPlanLineage(plan.id);
+      metrics.total_handoffs += lineage.length;
+
+      const sessions = getPlanSessions(plan.id);
+      for (const session of sessions) {
+        metrics.agent_activity[session.agent_type] = (metrics.agent_activity[session.agent_type] || 0) + 1;
       }
     }
-    
+
     if (metrics.total_steps > 0) {
       metrics.completion_rate = Math.round((metrics.completed_steps / metrics.total_steps) * 100);
     }
-    
+
     res.json(metrics);
   } catch (error) {
     console.error('Error getting workspace metrics:', error);

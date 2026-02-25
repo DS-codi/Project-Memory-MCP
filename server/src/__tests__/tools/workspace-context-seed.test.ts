@@ -7,14 +7,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { registerWorkspace } from '../../tools/workspace.tools.js';
 
 // Mock dependencies
-vi.mock('../../storage/file-store.js', () => ({
+vi.mock('../../storage/db-store.js', () => ({
   resolveWorkspaceIdForPath: vi.fn(),
   getWorkspace: vi.fn(),
   createWorkspace: vi.fn(),
   writeWorkspaceIdentityFile: vi.fn(),
-  getWorkspaceContextPath: vi.fn(),
-  readJson: vi.fn(),
-  writeJsonLocked: vi.fn(),
+  getWorkspaceContextFromDb: vi.fn(),
+  saveWorkspaceContextToDb: vi.fn(),
   nowISO: vi.fn().mockReturnValue('2026-02-10T00:00:00.000Z'),
 }));
 
@@ -23,7 +22,7 @@ vi.mock('../../indexing/workspace-indexer.js', () => ({
   needsIndexing: vi.fn(),
 }));
 
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 import { indexWorkspace } from '../../indexing/workspace-indexer.js';
 import type { WorkspaceProfile, WorkspaceContext } from '../../types/index.js';
 
@@ -67,9 +66,8 @@ describe('workspace context auto-seeding', () => {
       migration: { action: 'none', canonical_workspace_id: WORKSPACE_ID, legacy_workspace_ids: [], notes: [] },
     });
     vi.mocked(store.writeWorkspaceIdentityFile).mockResolvedValue(undefined as any);
-    vi.mocked(store.getWorkspaceContextPath).mockReturnValue(`/data/${WORKSPACE_ID}/workspace.context.json`);
-    vi.mocked(store.readJson).mockResolvedValue(null);
-    vi.mocked(store.writeJsonLocked).mockResolvedValue(undefined);
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue(null);
+    vi.mocked(store.saveWorkspaceContextToDb).mockResolvedValue(undefined);
     vi.mocked(indexWorkspace).mockResolvedValue(mockProfile);
   });
 
@@ -78,10 +76,10 @@ describe('workspace context auto-seeding', () => {
     expect(result.success).toBe(true);
     expect(result.data?.first_time).toBe(true);
 
-    // writeJsonLocked should have been called with the context
-    expect(store.writeJsonLocked).toHaveBeenCalledTimes(1);
-    const [path, context] = vi.mocked(store.writeJsonLocked).mock.calls[0];
-    expect(path).toBe(`/data/${WORKSPACE_ID}/workspace.context.json`);
+    // saveWorkspaceContextToDb should have been called with the context
+    expect(store.saveWorkspaceContextToDb).toHaveBeenCalledTimes(1);
+    const [wsId, context] = vi.mocked(store.saveWorkspaceContextToDb).mock.calls[0];
+    expect(wsId).toBe(WORKSPACE_ID);
 
     const ctx = context as WorkspaceContext;
     expect(ctx.schema_version).toBe('1.0');
@@ -96,7 +94,7 @@ describe('workspace context auto-seeding', () => {
   it('includes build system and test framework in project_details items', async () => {
     await registerWorkspace({ workspace_path: WORKSPACE_PATH });
 
-    const [, context] = vi.mocked(store.writeJsonLocked).mock.calls[0];
+    const [, context] = vi.mocked(store.saveWorkspaceContextToDb).mock.calls[0];
     const ctx = context as WorkspaceContext;
     const items = ctx.sections.project_details.items!;
 
@@ -110,16 +108,16 @@ describe('workspace context auto-seeding', () => {
 
   it('does not overwrite existing context', async () => {
     // Simulate existing context
-    vi.mocked(store.readJson).mockResolvedValue({
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue({
       schema_version: '1.0',
       workspace_id: WORKSPACE_ID,
       sections: { project_details: { summary: 'Existing' } },
-    });
+    } as never);
 
     await registerWorkspace({ workspace_path: WORKSPACE_PATH });
 
-    // writeJsonLocked should NOT have been called (context already exists)
-    expect(store.writeJsonLocked).not.toHaveBeenCalled();
+    // saveWorkspaceContextToDb should NOT have been called (context already exists)
+    expect(store.saveWorkspaceContextToDb).not.toHaveBeenCalled();
   });
 
   it('does not seed context for re-registrations (not first time)', async () => {
@@ -137,7 +135,7 @@ describe('workspace context auto-seeding', () => {
     await registerWorkspace({ workspace_path: WORKSPACE_PATH });
 
     // Should not seed because isFirstTime is false
-    expect(store.writeJsonLocked).not.toHaveBeenCalled();
+    expect(store.saveWorkspaceContextToDb).not.toHaveBeenCalled();
   });
 
   it('does not seed context when indexing fails (no profile)', async () => {
@@ -146,11 +144,11 @@ describe('workspace context auto-seeding', () => {
     await registerWorkspace({ workspace_path: WORKSPACE_PATH });
 
     // No profile means no seeding
-    expect(store.writeJsonLocked).not.toHaveBeenCalled();
+    expect(store.saveWorkspaceContextToDb).not.toHaveBeenCalled();
   });
 
   it('handles seeding failure gracefully (non-fatal)', async () => {
-    vi.mocked(store.writeJsonLocked).mockRejectedValue(new Error('disk full'));
+    vi.mocked(store.saveWorkspaceContextToDb).mockRejectedValue(new Error('disk full'));
 
     const result = await registerWorkspace({ workspace_path: WORKSPACE_PATH });
 
@@ -165,7 +163,7 @@ describe('workspace context auto-seeding', () => {
 
     await registerWorkspace({ workspace_path: WORKSPACE_PATH });
 
-    const [, context] = vi.mocked(store.writeJsonLocked).mock.calls[0];
+    const [, context] = vi.mocked(store.saveWorkspaceContextToDb).mock.calls[0];
     const ctx = context as WorkspaceContext;
     expect(ctx.sections.dependencies).toBeUndefined();
   });
@@ -183,7 +181,7 @@ describe('workspace context auto-seeding', () => {
 
     await registerWorkspace({ workspace_path: WORKSPACE_PATH });
 
-    const [, context] = vi.mocked(store.writeJsonLocked).mock.calls[0];
+    const [, context] = vi.mocked(store.saveWorkspaceContextToDb).mock.calls[0];
     const ctx = context as WorkspaceContext;
     expect(ctx.sections.project_details.summary).toContain('Python');
     // Only language items, no build/test/package manager items
@@ -206,7 +204,7 @@ describe('workspace context auto-seeding', () => {
 
     await registerWorkspace({ workspace_path: WORKSPACE_PATH });
 
-    const [, context] = vi.mocked(store.writeJsonLocked).mock.calls[0];
+    const [, context] = vi.mocked(store.saveWorkspaceContextToDb).mock.calls[0];
     const ctx = context as WorkspaceContext;
     // Summary should still mention Docker framework
     expect(ctx.sections.project_details.summary).toContain('Docker');
@@ -230,7 +228,7 @@ describe('workspace context auto-seeding', () => {
 
     await registerWorkspace({ workspace_path: WORKSPACE_PATH });
 
-    const [, context] = vi.mocked(store.writeJsonLocked).mock.calls[0];
+    const [, context] = vi.mocked(store.saveWorkspaceContextToDb).mock.calls[0];
     const ctx = context as WorkspaceContext;
     expect(ctx.sections.project_details.summary).toContain('no specific stack detected');
     expect(ctx.sections.project_details.items).toHaveLength(0);

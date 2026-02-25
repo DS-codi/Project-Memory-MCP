@@ -30,7 +30,7 @@ vi.mock('fs', async () => {
   };
 });
 
-vi.mock('../../storage/file-store.js', () => ({
+vi.mock('../../storage/db-store.js', () => ({
   getPlanState: vi.fn(),
   getPlanPath: vi.fn(
     (wsId: string, planId: string) => `/data/${wsId}/plans/${planId}`
@@ -55,7 +55,7 @@ vi.mock('../prompt-storage.js', () => ({
   archivePlanPrompts: vi.fn(),
 }));
 
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 import { exportPlan } from '../../tools/plan/plan-lifecycle.js';
 
 const mockWorkspaceId = 'ws_export_test_123';

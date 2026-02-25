@@ -8,7 +8,7 @@
 
 import { join } from 'node:path';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import * as store from '../storage/file-store.js';
+import * as store from '../storage/db-store.js';
 
 // ---------------------------------------------------------------------------
 // Types

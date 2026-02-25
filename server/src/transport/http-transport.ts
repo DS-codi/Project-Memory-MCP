@@ -21,9 +21,10 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { InMemoryEventStore } from '@modelcontextprotocol/sdk/examples/shared/inMemoryEventStore.js';
-import { getDataRoot, listDirs } from '../storage/file-store.js';
+import { getDataRoot, listDirs } from '../storage/db-store.js';
 import { isDataRootAccessible } from './data-root-liveness.js';
 import { getAllLiveSessions, getLiveSessionCount, getLiveSessionEntry } from '../tools/session-live-store.js';
+import { runMigrations, migrationStatus } from '../db/index.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -266,6 +267,39 @@ export function createHttpApp(getServer: () => McpServer): Express {
     } catch (error) {
       console.error(`[http] Error closing session ${sessionId}:`, error);
       res.status(500).json({ error: 'Failed to close session' });
+    }
+  });
+
+  // ---- Admin: migration status (for supervisor health checks) ----
+  app.get('/admin/migrations', (_req: Request, res: Response) => {
+    try {
+      const status = migrationStatus();
+      const pending = status.filter(m => !m.applied).map(m => m.filename);
+      res.json({
+        migrations: status,
+        pending_count: pending.length,
+        pending,
+        healthy: pending.length === 0,
+      });
+    } catch (error) {
+      console.error('[http] Error fetching migration status:', error);
+      res.status(500).json({ error: 'Failed to fetch migration status' });
+    }
+  });
+
+  // ---- Admin: run pending migrations ----
+  app.post('/admin/migrations/run', async (_req: Request, res: Response) => {
+    try {
+      const result = await Promise.resolve(runMigrations());
+      res.json({
+        applied: result.applied,
+        skipped: result.skipped,
+        success: true,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[http] Error running migrations:', error);
+      res.status(500).json({ error: message });
     }
   });
 

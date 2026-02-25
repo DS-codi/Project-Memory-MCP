@@ -25,7 +25,7 @@ vi.mock('../../tools/orchestration/supervisor-client.js', () => ({
 
 // ── Mock file-store ────────────────────────────────────────────
 
-vi.mock('../../storage/file-store.js', () => ({
+vi.mock('../../storage/db-store.js', () => ({
   getPlanState: vi.fn(),
   savePlanState: vi.fn(),
   generatePlanMd: vi.fn(),
@@ -48,7 +48,7 @@ vi.mock('../../utils/gui-forms.utils.js', () => ({
 }));
 
 import { checkGuiAvailability, launchFormApp } from '../../tools/orchestration/supervisor-client.js';
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 
 import {
   routeApprovalGate,

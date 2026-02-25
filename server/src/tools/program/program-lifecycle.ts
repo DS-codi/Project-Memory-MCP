@@ -24,7 +24,7 @@ import {
   saveDependencies,
   saveRisks,
   listPrograms as listProgramDirs,
-} from '../../storage/program-store.js';
+} from '../../storage/db-store.js';
 import { events } from '../../events/event-emitter.js';
 
 // =============================================================================

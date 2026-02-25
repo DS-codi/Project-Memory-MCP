@@ -23,12 +23,13 @@ ApplicationWindow {
     }
 
     // Bring the window to the front once Qt has actually made it visible.
-    // (Calling raise()/requestActivate() before the native window handle exists
-    //  causes an access violation in Qt6Core — so we defer until here.)
+    // We use Qt.callLater() to defer until after the current binding
+    // evaluation completes and Qt has a chance to create the native handle.
+    // Calling raise()/requestActivate() synchronously inside onVisibleChanged
+    // can fire before the HWND exists, causing an access violation in Qt6Core.
     onVisibleChanged: {
         if (visible) {
-            raise()
-            requestActivate()
+            Qt.callLater(function() { raise(); requestActivate() })
         }
     }
 
@@ -47,9 +48,12 @@ ApplicationWindow {
     // ── System tray icon (Qt.labs.platform) ─────────────────────────────────
     Platform.SystemTrayIcon {
         id: trayIcon
-        visible: true
+        visible: !supervisorGuiBridge.quitting
         icon.source: supervisorGuiBridge.trayIconUrl
         tooltip: "Project Memory Supervisor\n" + supervisorGuiBridge.statusText
+            + (supervisorGuiBridge.eventBroadcastEnabled
+                ? "\nEvents: [on] " + supervisorGuiBridge.eventSubscriberCount + " subscriber(s)"
+                : "\nEvents: [off]")
 
         onActivated: function(reason) {
             if (reason === Platform.SystemTrayIcon.Trigger ||
@@ -227,6 +231,54 @@ ApplicationWindow {
             }
         }
 
+        // ── Event broadcast channel status ──────────────────────────────────
+        Rectangle {
+            Layout.fillWidth: true
+            color: "transparent"
+            border.color: "#3a3a3a"
+            radius: 6
+            implicitHeight: eventsMonitorLayout.implicitHeight + 16
+
+            ColumnLayout {
+                id: eventsMonitorLayout
+                anchors.fill: parent
+                anchors.margins: 8
+                spacing: 4
+
+                Label {
+                    text: "Event Broadcast Channel"
+                    font.bold: true
+                }
+
+                RowLayout {
+                    spacing: 8
+
+                    Rectangle {
+                        width: 10
+                        height: 10
+                        radius: 5
+                        color: supervisorGuiBridge.eventBroadcastEnabled ? "#4caf50" : "#9e9e9e"
+                    }
+
+                    Label {
+                        text: supervisorGuiBridge.eventBroadcastEnabled
+                            ? "Active - " + supervisorGuiBridge.eventSubscriberCount + " subscriber(s) | "
+                              + supervisorGuiBridge.eventsTotalEmitted + " event(s) emitted"
+                            : "Disabled"
+                        color: supervisorGuiBridge.eventBroadcastEnabled ? "#cccccc" : "#9e9e9e"
+                    }
+                }
+            }
+        }
+
+        Label {
+            Layout.fillWidth: true
+            visible: supervisorGuiBridge.actionFeedback !== ""
+            text: supervisorGuiBridge.actionFeedback
+            color: "#b0bec5"
+            wrapMode: Text.Wrap
+        }
+
         Item { Layout.fillHeight: true }
 
         // ── Footer ────────────────────────────────────────────────────────────
@@ -235,12 +287,110 @@ ApplicationWindow {
             Layout.alignment: Qt.AlignRight
 
             Button {
-                text: "Open Config"
-                onClicked: supervisorGuiBridge.openConfig()
+                text: "Edit Config"
+                onClicked: {
+                    configSaveError.text = ""
+                    configTextArea.text = supervisorGuiBridge.loadConfigToml()
+                    configEditorOverlay.visible = true
+                }
             }
             Button {
                 text: "Hide to Tray"
                 onClicked: supervisorGuiBridge.hideWindow()
+            }
+        }
+    }
+
+    // ── In-app config editor overlay ─────────────────────────────────────────
+    Rectangle {
+        id: configEditorOverlay
+        visible: false
+        anchors.fill: parent
+        color: "#212121"
+        z: 10
+
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 20
+            spacing: 12
+
+            // Header
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                Label {
+                    text: "Edit supervisor.toml"
+                    font.pixelSize: 18
+                    font.bold: true
+                    Layout.fillWidth: true
+                }
+                Button {
+                    text: "Open in Editor"
+                    flat: true
+                    onClicked: supervisorGuiBridge.openConfig()
+                }
+            }
+
+            // TOML text area
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                color: "#1a1a1a"
+                border.color: "#444444"
+                radius: 4
+                clip: true
+
+                ScrollView {
+                    id: configScrollView
+                    anchors.fill: parent
+                    anchors.margins: 2
+                    ScrollBar.horizontal.policy: ScrollBar.AsNeeded
+                    ScrollBar.vertical.policy: ScrollBar.AsNeeded
+
+                    TextArea {
+                        id: configTextArea
+                        font.family: "Consolas"
+                        font.pixelSize: 13
+                        wrapMode: TextEdit.NoWrap
+                        color: "#e0e0e0"
+                        selectByMouse: true
+                        background: Item {}
+                        padding: 8
+                    }
+                }
+            }
+
+            // Validation error label
+            Label {
+                id: configSaveError
+                visible: text !== ""
+                color: "#f44336"
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+
+            // Action buttons
+            RowLayout {
+                Layout.alignment: Qt.AlignRight
+                spacing: 8
+
+                Button {
+                    text: "Save"
+                    highlighted: true
+                    onClicked: {
+                        configSaveError.text = ""
+                        if (supervisorGuiBridge.saveConfigToml(configTextArea.text)) {
+                            configEditorOverlay.visible = false
+                        } else {
+                            configSaveError.text = supervisorGuiBridge.configEditorError
+                        }
+                    }
+                }
+                Button {
+                    text: "Cancel"
+                    onClicked: configEditorOverlay.visible = false
+                }
             }
         }
     }

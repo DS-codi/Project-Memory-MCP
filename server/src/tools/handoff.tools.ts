@@ -34,7 +34,7 @@ import type {
 import type { HandoffStats, StatsValidationResult } from '../types/index.js';
 import { promises as fs } from 'fs';
 import { AGENT_BOUNDARIES } from '../types/index.js';
-import * as store from '../storage/file-store.js';
+import * as store from '../storage/db-store.js';
 import { verifyLineageIntegrity, sanitizeJsonData } from '../security/sanitize.js';
 import { events } from '../events/event-emitter.js';
 import * as contextTools from './context.tools.js';
@@ -57,7 +57,7 @@ import {
   getManifestPath,
   getInitContextPath,
   getAgentDeployDir,
-} from '../storage/projectmemory-paths.js';
+} from '../storage/db-store.js';
 
 /**
  * Initialize an agent session - MUST be called first by every agent

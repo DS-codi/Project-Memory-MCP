@@ -29,7 +29,7 @@ import type {
 } from '../../types/index.js';
 import * as planTools from '../plan/index.js';
 import * as programTools from '../program/index.js';
-import * as fileStore from '../../storage/file-store.js';
+import * as fileStore from '../../storage/db-store.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
 import { preflightValidate } from '../preflight/index.js';
 import type {

@@ -32,7 +32,7 @@ vi.mock('fs', async () => {
   };
 });
 
-vi.mock('../../storage/file-store.js', () => ({
+vi.mock('../../storage/db-store.js', () => ({
   getPlanPath: vi.fn(
     (wsId: string, planId: string) => `/data/${wsId}/plans/${planId}`,
   ),
@@ -62,7 +62,7 @@ import {
   checkAllPromptsStaleness,
 } from '../../tools/prompt-storage.js';
 
-import { exists } from '../../storage/file-store.js';
+import { exists } from '../../storage/db-store.js';
 
 const WORKSPACE_ID = 'ws_test';
 const PLAN_ID = 'plan_abc';

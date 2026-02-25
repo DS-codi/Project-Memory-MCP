@@ -29,7 +29,7 @@ vi.mock('../../tools/preflight/index.js', () => ({
 }));
 
 // Mock file-store (getWorkspacePlans, savePlanState, etc.)
-vi.mock('../../storage/file-store.js', () => ({
+vi.mock('../../storage/db-store.js', () => ({
   getWorkspacePlans: vi.fn().mockResolvedValue([]),
   savePlanState: vi.fn().mockResolvedValue(undefined),
   parseCommandTokens: vi.fn((cmd: string) => cmd.split(' ')),

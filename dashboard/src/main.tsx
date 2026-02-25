@@ -8,8 +8,8 @@ import './styles/globals.css';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5000,
-      refetchInterval: 30000,
+      staleTime: 30_000,       // 30s — data stays fresh; SSE handles live updates
+      refetchInterval: false,  // Disable polling; React Query invalidation via SSE is sufficient
     },
   },
 });

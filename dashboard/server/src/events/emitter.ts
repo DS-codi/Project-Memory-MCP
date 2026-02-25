@@ -1,6 +1,5 @@
-import * as fs from 'fs/promises';
-import * as path from 'path';
 import * as crypto from 'crypto';
+import { eventBus } from './eventBus.js';
 
 export interface MCPEvent {
   id: string;
@@ -29,10 +28,6 @@ export type EventType =
   | 'workspace_registered'
   | 'workspace_indexed';
 
-function getEventsDir(): string {
-  return process.env.MBS_EVENTS_DIR || path.join(globalThis.MBS_DATA_ROOT, 'events');
-}
-
 export async function emitEvent(
   type: EventType,
   data: Record<string, unknown>,
@@ -43,9 +38,6 @@ export async function emitEvent(
     tool_name?: string;
   }
 ): Promise<MCPEvent> {
-  const eventsDir = getEventsDir();
-  await fs.mkdir(eventsDir, { recursive: true });
-
   const timestamp = new Date().toISOString();
   const id = `evt_${Date.now().toString(36)}_${crypto.randomUUID().slice(0, 8)}`;
 
@@ -57,37 +49,8 @@ export async function emitEvent(
     data,
   };
 
-  const filePath = path.join(eventsDir, `${id}.json`);
-  await fs.writeFile(filePath, JSON.stringify(event, null, 2));
+  // Push to in-memory bus so SSE clients get instant delivery
+  eventBus.push(event);
 
   return event;
-}
-
-// Clean up old events (keep last 7 days)
-export async function cleanupOldEvents(): Promise<number> {
-  const eventsDir = getEventsDir();
-  const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000; // 7 days
-  let deleted = 0;
-
-  try {
-    const files = await fs.readdir(eventsDir);
-    for (const file of files) {
-      if (!file.startsWith('evt_') || !file.endsWith('.json')) continue;
-      
-      try {
-        const filePath = path.join(eventsDir, file);
-        const stat = await fs.stat(filePath);
-        if (stat.mtimeMs < cutoff) {
-          await fs.unlink(filePath);
-          deleted++;
-        }
-      } catch (e) {
-        // Skip
-      }
-    }
-  } catch (e) {
-    // Events dir doesn't exist
-  }
-
-  return deleted;
 }

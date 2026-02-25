@@ -10,6 +10,8 @@
  * Idempotent: skips plans whose program_id already has a ProgramState.
  */
 
+import { promises as fs } from 'fs';
+import path from 'path';
 import type { PlanState } from '../../types/plan.types.js';
 import type {
   ProgramState,
@@ -17,10 +19,7 @@ import type {
   ProgramDependency,
   DependencyType,
 } from '../../types/program-v2.types.js';
-import {
-  getWorkspacePlans,
-  savePlanState,
-} from '../../storage/file-store.js';
+import { readJson, writeJson, getDataRoot } from '../../storage/db-store.js';
 import {
   createProgramDir,
   readProgramState,
@@ -28,8 +27,35 @@ import {
   saveManifest,
   saveDependencies,
   saveRisks,
-} from '../../storage/program-store.js';
+} from '../../storage/db-store.js';
 import { generateProgramId } from './program-lifecycle.js';
+
+// =============================================================================
+// File-based helpers (this is a one-time legacy migration tool that reads
+// pre-DB plan JSON files directly — not from the SQLite database)
+// =============================================================================
+
+async function loadAllPlans(workspaceId: string): Promise<PlanState[]> {
+  const plansDir = path.join(getDataRoot(), workspaceId, 'plans');
+  let entries: string[];
+  try {
+    entries = await fs.readdir(plansDir);
+  } catch {
+    return [];
+  }
+  const plans: PlanState[] = [];
+  for (const planId of entries) {
+    const statePath = path.join(plansDir, planId, 'state.json');
+    const plan = await readJson<PlanState>(statePath);
+    if (plan) plans.push(plan);
+  }
+  return plans;
+}
+
+async function savePlan(workspaceId: string, plan: PlanState): Promise<void> {
+  const statePath = path.join(getDataRoot(), workspaceId, 'plans', plan.id, 'state.json');
+  await writeJson(statePath, plan);
+}
 
 // =============================================================================
 // Types
@@ -131,7 +157,7 @@ function convertDependenciesToGraph(
 export async function migratePrograms(
   workspaceId: string,
 ): Promise<MigrationReport> {
-  const allPlans = await getWorkspacePlans(workspaceId);
+  const allPlans = await loadAllPlans(workspaceId);
 
   const legacyPrograms = allPlans.filter(
     (p: PlanState) => p.is_program === true,
@@ -217,14 +243,14 @@ export async function migratePrograms(
     legacyPlan.child_plan_ids = undefined;
     legacyPlan.depends_on_plans = undefined;
     legacyPlan.program_id = programId;
-    await savePlanState(legacyPlan);
+    await savePlan(workspaceId, legacyPlan);
 
     // 2h. Update child plans' program_id
     for (const childId of childIds) {
       const child = planById.get(childId);
       if (child) {
         child.program_id = programId;
-        await savePlanState(child);
+        await savePlan(workspaceId, child);
       }
     }
 

@@ -8,7 +8,7 @@
 
 import path from 'path';
 import { promises as fs } from 'fs';
-import * as store from '../storage/file-store.js';
+import * as store from '../storage/db-store.js';
 import type { ToolResponse } from '../types/index.js';
 
 // =============================================================================

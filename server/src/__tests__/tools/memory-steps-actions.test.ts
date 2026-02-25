@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { memorySteps } from '../../tools/consolidated/memory_steps.js';
 import type { MemoryStepsParams } from '../../tools/consolidated/memory_steps.js';
-import * as fileStore from '../../storage/file-store.js';
+import * as fileStore from '../../storage/db-store.js';
 import * as validation from '../../tools/consolidated/workspace-validation.js';
 
-vi.mock('../../storage/file-store.js');
+vi.mock('../../storage/db-store.js');
 vi.mock('../../tools/consolidated/workspace-validation.js');
 vi.mock('../../storage/workspace-identity.js');
 
@@ -143,8 +143,8 @@ describe('MCP Tool: memory_steps Add/Update/Batch/Insert/Delete/Replace Actions'
       const mockPlanState = createMockPlanState(0);
       mockPlanState.steps = [
         { index: 0, phase: 'Phase 1', task: 'Task A', status: 'pending', type: 'standard' },
-        { index: 2, phase: 'Phase 1', task: 'Task B', status: 'pending', type: 'standard', depends_on: [0] },
-        { index: 4, phase: 'Phase 1', task: 'Task C', status: 'pending', type: 'standard', depends_on: [2] },
+        { index: 2, phase: 'Phase 1', task: 'Task B', status: 'pending', type: 'standard', depends_on: ['0'] },
+        { index: 4, phase: 'Phase 1', task: 'Task C', status: 'pending', type: 'standard', depends_on: ['2'] },
       ];
 
       vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(mockPlanState);
@@ -162,7 +162,7 @@ describe('MCP Tool: memory_steps Add/Update/Batch/Insert/Delete/Replace Actions'
           task: 'Inserted Task',
           status: 'pending',
           type: 'standard',
-          depends_on: [4]
+          depends_on: ['4']
         }
       };
 
@@ -174,8 +174,8 @@ describe('MCP Tool: memory_steps Add/Update/Batch/Insert/Delete/Replace Actions'
         expect(steps.map(s => s.index)).toEqual([0, 1, 2, 3]);
         const inserted = steps.find(s => s.task === 'Inserted Task');
         const taskC = steps.find(s => s.task === 'Task C');
-        expect(inserted?.depends_on).toEqual([3]);
-        expect(taskC?.depends_on).toEqual([2]);
+        expect(inserted?.depends_on).toEqual(['3']);
+        expect(taskC?.depends_on).toEqual(['2']);
       }
     });
   });

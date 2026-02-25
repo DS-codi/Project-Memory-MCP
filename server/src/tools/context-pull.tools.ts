@@ -1,11 +1,11 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import type { ToolResponse } from '../types/index.js';
-import * as store from '../storage/file-store.js';
+import * as store from '../storage/db-store.js';
 import {
   getAgentPullManifestPath,
   getAgentPullSessionDir,
-} from '../storage/projectmemory-paths.js';
+} from '../storage/db-store.js';
 import { searchContext } from './context-search.tools.js';
 
 type PullScope = 'plan' | 'workspace' | 'program' | 'all';

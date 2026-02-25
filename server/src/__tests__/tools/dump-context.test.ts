@@ -14,10 +14,10 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-vi.mock('../../storage/file-store.js');
+vi.mock('../../storage/db-store.js');
 vi.mock('../../logging/workspace-update-log.js');
 
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 import { handleDumpContext } from '../../tools/context.tools.js';
 
 const mockWorkspaceId = 'ws_dump_test_123';
@@ -50,9 +50,7 @@ describe('handleDumpContext', () => {
     vi.mocked(store.getResearchNotesPath).mockReturnValue(
       `/data/${mockWorkspaceId}/plans/${mockPlanId}/research_notes`
     );
-    vi.mocked(store.getWorkspaceContextPath).mockReturnValue(
-      `/data/${mockWorkspaceId}/workspace-context.json`
-    );
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue(null);
     vi.mocked(store.ensureDir).mockResolvedValue(undefined);
     vi.mocked(store.writeText).mockResolvedValue(undefined);
     vi.mocked(store.nowISO).mockReturnValue('2026-02-13T12:00:00.000Z');
@@ -182,10 +180,8 @@ describe('handleDumpContext', () => {
     vi.spyOn(fsModule.promises, 'readdir').mockRejectedValue(new Error('no dir'));
 
     const workspaceCtx = { sections: { tools: { summary: 'test' } } };
-    vi.mocked(store.readText).mockImplementation(async (path: string) => {
-      if (path.includes('workspace-context')) return JSON.stringify(workspaceCtx);
-      return null;
-    });
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue(workspaceCtx as never);
+    vi.mocked(store.readText).mockResolvedValue(null);
 
     const result = await handleDumpContext({
       workspace_id: mockWorkspaceId,

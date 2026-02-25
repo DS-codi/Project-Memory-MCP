@@ -1,32 +1,46 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import path from 'path';
 import { promises as fs } from 'fs';
-
-// We use dynamic imports so we can control env/mocks per test
-let mod: typeof import('../../storage/workspace-identity.js');
+import { _resetConnectionForTesting, getDb } from '../../db/connection.js';
+import { runMigrations } from '../../db/migration-runner.js';
+import { createWorkspace as dbCreateWorkspace } from '../../db/workspace-db.js';
+import { getWorkspaceContextFromDb } from '../../storage/db-store.js';
+import * as mod from '../../storage/workspace-identity.js';
+import * as ops from '../../storage/workspace-operations.js';
 
 const TEST_DATA_ROOT = path.join(process.cwd(), '__test_data_identity__');
 const TEST_WORKSPACE_PATH = path.join(process.cwd(), '__test_ws__');
 
-beforeEach(async () => {
-  // Ensure clean directories
-  await fs.rm(TEST_DATA_ROOT, { recursive: true, force: true });
-  await fs.rm(TEST_WORKSPACE_PATH, { recursive: true, force: true });
+beforeAll(async () => {
   await fs.mkdir(TEST_DATA_ROOT, { recursive: true });
   await fs.mkdir(TEST_WORKSPACE_PATH, { recursive: true });
-
-  // Point workspace-utils at our test data root
   process.env.MBS_DATA_ROOT = TEST_DATA_ROOT;
-
-  vi.resetModules();
-  mod = await import('../../storage/workspace-identity.js');
+  process.env.PM_DATA_ROOT = TEST_DATA_ROOT;
+  _resetConnectionForTesting();
+  runMigrations();
 });
 
-afterEach(async () => {
+beforeEach(async () => {
+  // Clean workspace subdirectories only — skip the DB files (project-memory.db*) at the root
+  const entries = await fs.readdir(TEST_DATA_ROOT, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      await fs.rm(path.join(TEST_DATA_ROOT, entry.name), { recursive: true, force: true });
+    }
+  }
+  await fs.rm(TEST_WORKSPACE_PATH, { recursive: true, force: true });
+  await fs.mkdir(TEST_WORKSPACE_PATH, { recursive: true });
+  // Clear all workspace and context DB rows for test isolation
+  getDb().exec('DELETE FROM workspaces');
+  getDb().exec('DELETE FROM context_items');
+});
+
+afterAll(async () => {
   delete process.env.MBS_DATA_ROOT;
+  delete process.env.PM_DATA_ROOT;
+  _resetConnectionForTesting();
   await fs.rm(TEST_DATA_ROOT, { recursive: true, force: true });
   await fs.rm(TEST_WORKSPACE_PATH, { recursive: true, force: true });
-  vi.resetModules();
 });
 
 // ---------------------------------------------------------------------------
@@ -53,6 +67,9 @@ async function createFakeWorkspace(
     JSON.stringify(meta, null, 2),
     'utf-8'
   );
+  // Also register in DB so DB-based lookup functions (validateWorkspaceId, resolveOrReject) work
+  // Use a per-workspace path to satisfy the UNIQUE constraint on workspaces.path
+  dbCreateWorkspace({ id: workspaceId, path: path.join(TEST_WORKSPACE_PATH, workspaceId), name: 'Test' });
   return meta;
 }
 
@@ -137,24 +154,18 @@ describe('resolveCanonicalWorkspaceId', () => {
 describe('validateWorkspaceId', () => {
   it('returns true for registered workspaces', async () => {
     await createFakeWorkspace('myproject-aabbccddeeff');
-    const result = await mod.validateWorkspaceId('myproject-aabbccddeeff');
+    const result = await ops.validateWorkspaceId('myproject-aabbccddeeff');
     expect(result).toBe(true);
   });
 
   it('returns false for unregistered IDs', async () => {
-    const result = await mod.validateWorkspaceId('nonexistent-000000000000');
+    const result = await ops.validateWorkspaceId('nonexistent-000000000000');
     expect(result).toBe(false);
   });
 
-  it('returns false when workspace.meta.json is missing workspace_id', async () => {
-    const wsDir = path.join(TEST_DATA_ROOT, 'bad-meta-aabbccddeeff');
-    await fs.mkdir(wsDir, { recursive: true });
-    await fs.writeFile(
-      path.join(wsDir, 'workspace.meta.json'),
-      JSON.stringify({ name: 'no id' }),
-      'utf-8'
-    );
-    const result = await mod.validateWorkspaceId('bad-meta-aabbccddeeff');
+  it('returns false when workspace has no DB entry', async () => {
+    // No DB row registered for this ID
+    const result = await ops.validateWorkspaceId('bad-meta-aabbccddeeff');
     expect(result).toBe(false);
   });
 });
@@ -164,19 +175,19 @@ describe('validateWorkspaceId', () => {
 // ===========================================================================
 describe('isCanonicalIdFormat', () => {
   it('accepts valid canonical IDs', () => {
-    expect(mod.isCanonicalIdFormat('myproject-aabbccddeeff')).toBe(true);
-    expect(mod.isCanonicalIdFormat('my-project-aabbccddeeff')).toBe(true);
-    expect(mod.isCanonicalIdFormat('project_name-123456789abc')).toBe(true);
+    expect(ops.isCanonicalIdFormat('myproject-aabbccddeeff')).toBe(true);
+    expect(ops.isCanonicalIdFormat('my-project-aabbccddeeff')).toBe(true);
+    expect(ops.isCanonicalIdFormat('project_name-123456789abc')).toBe(true);
   });
 
   it('rejects IDs without the 12-hex suffix', () => {
-    expect(mod.isCanonicalIdFormat('myproject')).toBe(false);
-    expect(mod.isCanonicalIdFormat('myproject-short')).toBe(false);
-    expect(mod.isCanonicalIdFormat('')).toBe(false);
+    expect(ops.isCanonicalIdFormat('myproject')).toBe(false);
+    expect(ops.isCanonicalIdFormat('myproject-short')).toBe(false);
+    expect(ops.isCanonicalIdFormat('')).toBe(false);
   });
 
   it('rejects IDs with uppercase hex', () => {
-    expect(mod.isCanonicalIdFormat('myproject-AABBCCDDEEFF')).toBe(false);
+    expect(ops.isCanonicalIdFormat('myproject-AABBCCDDEEFF')).toBe(false);
   });
 });
 
@@ -189,21 +200,21 @@ describe('findCanonicalForLegacyId', () => {
       legacy_workspace_ids: ['old-name', 'another-old-name'],
     });
 
-    const result = await mod.findCanonicalForLegacyId('old-name');
+    const result = await ops.findCanonicalForLegacyId('old-name');
     expect(result).toBe('canonical-aabbccddeeff');
   });
 
   it('returns the ID itself when it IS canonical', async () => {
     await createFakeWorkspace('canonical-aabbccddeeff');
 
-    const result = await mod.findCanonicalForLegacyId('canonical-aabbccddeeff');
+    const result = await ops.findCanonicalForLegacyId('canonical-aabbccddeeff');
     expect(result).toBe('canonical-aabbccddeeff');
   });
 
   it('returns null when no workspace claims the legacy ID', async () => {
     await createFakeWorkspace('canonical-aabbccddeeff');
 
-    const result = await mod.findCanonicalForLegacyId('completely-unknown');
+    const result = await ops.findCanonicalForLegacyId('completely-unknown');
     expect(result).toBeNull();
   });
 });
@@ -215,7 +226,7 @@ describe('resolveOrReject', () => {
   it('returns meta for directly registered workspace', async () => {
     await createFakeWorkspace('direct-aabbccddeeff');
 
-    const result = await mod.resolveOrReject('direct-aabbccddeeff');
+    const result = await ops.resolveOrReject('direct-aabbccddeeff');
     expect(result.meta.workspace_id).toBe('direct-aabbccddeeff');
     expect(result.redirected_from).toBeUndefined();
   });
@@ -225,15 +236,15 @@ describe('resolveOrReject', () => {
       legacy_workspace_ids: ['legacy-name'],
     });
 
-    const result = await mod.resolveOrReject('legacy-name');
+    const result = await ops.resolveOrReject('legacy-name');
     expect(result.meta.workspace_id).toBe('canonical-aabbccddeeff');
     expect(result.redirected_from).toBe('legacy-name');
   });
 
   it('throws WorkspaceNotRegisteredError for unknown IDs', async () => {
     await expect(
-      mod.resolveOrReject('unknown-000000000000')
-    ).rejects.toThrow(mod.WorkspaceNotRegisteredError);
+      ops.resolveOrReject('unknown-000000000000')
+    ).rejects.toThrow(ops.WorkspaceNotRegisteredError);
   });
 });
 
@@ -245,7 +256,7 @@ describe('scanGhostFolders', () => {
     await createFakeWorkspace('ws1-aabbccddeeff');
     await createFakeWorkspace('ws2-112233445566');
 
-    const ghosts = await mod.scanGhostFolders();
+    const ghosts = await ops.scanGhostFolders();
     expect(ghosts).toHaveLength(0);
   });
 
@@ -255,7 +266,7 @@ describe('scanGhostFolders', () => {
     const ghostDir = path.join(TEST_DATA_ROOT, 'ghost-folder');
     await fs.mkdir(ghostDir, { recursive: true });
 
-    const ghosts = await mod.scanGhostFolders();
+    const ghosts = await ops.scanGhostFolders();
     expect(ghosts).toHaveLength(1);
     expect(ghosts[0].folder_name).toBe('ghost-folder');
   });
@@ -264,7 +275,7 @@ describe('scanGhostFolders', () => {
     await fs.mkdir(path.join(TEST_DATA_ROOT, 'events'), { recursive: true });
     await fs.mkdir(path.join(TEST_DATA_ROOT, 'logs'), { recursive: true });
 
-    const ghosts = await mod.scanGhostFolders();
+    const ghosts = await ops.scanGhostFolders();
     expect(ghosts).toHaveLength(0);
   });
 
@@ -275,7 +286,7 @@ describe('scanGhostFolders', () => {
     const ghostDir = path.join(TEST_DATA_ROOT, 'old-ghost');
     await fs.mkdir(ghostDir, { recursive: true });
 
-    const ghosts = await mod.scanGhostFolders();
+    const ghosts = await ops.scanGhostFolders();
     expect(ghosts).toHaveLength(1);
     expect(ghosts[0].likely_canonical_match).toBe('canonical-aabbccddeeff');
     expect(ghosts[0].match_reason).toContain('legacy_workspace_ids');
@@ -296,7 +307,7 @@ describe('scanGhostFolders', () => {
     const ghostDir = path.join(TEST_DATA_ROOT, 'some-ghost');
     await fs.mkdir(path.join(ghostDir, 'plans', sharedPlanId), { recursive: true });
 
-    const ghosts = await mod.scanGhostFolders();
+    const ghosts = await ops.scanGhostFolders();
     expect(ghosts).toHaveLength(1);
     expect(ghosts[0].likely_canonical_match).toBe('canonical-aabbccddeeff');
     expect(ghosts[0].match_reason).toContain('Plan overlap');
@@ -319,7 +330,7 @@ describe('mergeWorkspace', () => {
       'utf-8'
     );
 
-    const result = await mod.mergeWorkspace('source-ghost', 'target-aabbccddeeff', true);
+    const result = await ops.mergeWorkspace('source-ghost', 'target-aabbccddeeff', true);
 
     expect(result.merged_plans).toContain('plan_test_1');
     expect(result.source_deleted).toBe(false);
@@ -342,7 +353,7 @@ describe('mergeWorkspace', () => {
       'utf-8'
     );
 
-    const result = await mod.mergeWorkspace('source-ghost', 'target-aabbccddeeff', false);
+    const result = await ops.mergeWorkspace('source-ghost', 'target-aabbccddeeff', false);
 
     expect(result.merged_plans).toContain('plan_merge_1');
     expect(result.source_deleted).toBe(true);
@@ -375,7 +386,7 @@ describe('mergeWorkspace', () => {
     await fs.mkdir(path.join(TEST_DATA_ROOT, 'bad-target'), { recursive: true });
     await fs.mkdir(path.join(TEST_DATA_ROOT, 'source'), { recursive: true });
 
-    const result = await mod.mergeWorkspace('source', 'bad-target', false);
+    const result = await ops.mergeWorkspace('source', 'bad-target', false);
 
     expect(result.notes.some(n => n.includes('ERROR'))).toBe(true);
     expect(result.merged_plans).toHaveLength(0);
@@ -405,7 +416,7 @@ describe('mergeWorkspace', () => {
       'utf-8'
     );
 
-    const result = await mod.mergeWorkspace('dup-source', 'target-aabbccddeeff', false);
+    const result = await ops.mergeWorkspace('dup-source', 'target-aabbccddeeff', false);
 
     expect(result.notes.some(n => n.includes('Skipped plan'))).toBe(true);
     // Original should remain unchanged
@@ -436,7 +447,7 @@ describe('mergeWorkspace', () => {
     // Source is empty (no plans to move)
     await fs.mkdir(path.join(TEST_DATA_ROOT, 'ref-source'), { recursive: true });
 
-    const result = await mod.mergeWorkspace('ref-source', 'target-aabbccddeeff', false);
+    const result = await ops.mergeWorkspace('ref-source', 'target-aabbccddeeff', false);
 
     // Should warn about remaining references and NOT delete
     expect(result.notes.some(n => n.includes('WARNING') && n.includes('still reference'))).toBe(true);
@@ -493,16 +504,16 @@ describe('mergeWorkspace', () => {
       'utf-8'
     );
 
-    const result = await mod.mergeWorkspace('ctx-source', 'target-aabbccddeeff', false);
+    const result = await ops.mergeWorkspace('ctx-source', 'target-aabbccddeeff', false);
     expect(result.source_deleted).toBe(true);
 
-    const mergedContext = JSON.parse(await fs.readFile(targetContextPath, 'utf-8'));
-    expect(mergedContext.sections.project_details.summary).toBe('Canonical summary');
-    expect(mergedContext.sections.project_details.items.map((item: { title: string }) => item.title)).toEqual([
+    const mergedContext = await getWorkspaceContextFromDb('target-aabbccddeeff');
+    expect(mergedContext?.sections?.project_details?.summary).toBe('Canonical summary');
+    expect(mergedContext?.sections?.project_details?.items?.map((item: { title: string }) => item.title)).toEqual([
       'Core',
       'Extra',
     ]);
-    expect(mergedContext.sections.research_artifacts.summary).toBe('Source-only section');
+    expect(mergedContext?.sections?.research_artifacts?.summary).toBe('Source-only section');
   });
 
   it('repopulates minimal context sections from plan/research artifacts when merged sections are empty', async () => {
@@ -539,15 +550,13 @@ describe('mergeWorkspace', () => {
       'utf-8'
     );
 
-    const result = await mod.mergeWorkspace('empty-context-source', 'target-aabbccddeeff', false);
+    const result = await ops.mergeWorkspace('empty-context-source', 'target-aabbccddeeff', false);
     expect(result.source_deleted).toBe(true);
     expect(result.notes.some((note: string) => note.includes('Repopulated'))).toBe(true);
 
-    const mergedContext = JSON.parse(
-      await fs.readFile(path.join(TEST_DATA_ROOT, 'target-aabbccddeeff', 'workspace.context.json'), 'utf-8')
-    );
-    expect(Object.keys(mergedContext.sections).length).toBeGreaterThan(0);
-    expect(mergedContext.sections.project_details?.summary || '').toContain('Recovered context');
+    const mergedContext = await getWorkspaceContextFromDb('target-aabbccddeeff');
+    expect(Object.keys(mergedContext?.sections ?? {}).length).toBeGreaterThan(0);
+    expect(mergedContext?.sections?.project_details?.summary || '').toContain('Recovered context');
   });
 });
 
@@ -556,7 +565,7 @@ describe('mergeWorkspace', () => {
 // ===========================================================================
 describe('WorkspaceNotRegisteredError', () => {
   it('includes candidate ID and suggestions in message', () => {
-    const err = new mod.WorkspaceNotRegisteredError('bad-id', ['good-id-1', 'good-id-2']);
+    const err = new ops.WorkspaceNotRegisteredError('bad-id', ['good-id-1', 'good-id-2']);
     expect(err.message).toContain('bad-id');
     expect(err.message).toContain('good-id-1');
     expect(err.message).toContain('good-id-2');
@@ -565,7 +574,7 @@ describe('WorkspaceNotRegisteredError', () => {
   });
 
   it('works without suggestions', () => {
-    const err = new mod.WorkspaceNotRegisteredError('bad-id');
+    const err = new ops.WorkspaceNotRegisteredError('bad-id');
     expect(err.message).toContain('bad-id');
     expect(err.message).not.toContain('Did you mean');
   });
@@ -629,7 +638,7 @@ describe('Regression: no ghost folders after lifecycle', () => {
     await fs.mkdir(path.join(TEST_DATA_ROOT, 'logs'), { recursive: true });
 
     // Verify: zero ghost folders
-    const ghosts = await mod.scanGhostFolders();
+    const ghosts = await ops.scanGhostFolders();
     expect(ghosts).toHaveLength(0);
   });
 
@@ -656,7 +665,7 @@ describe('Regression: no ghost folders after lifecycle', () => {
       );
     }
 
-    const ghosts = await mod.scanGhostFolders();
+    const ghosts = await ops.scanGhostFolders();
     expect(ghosts).toHaveLength(0);
   });
 
@@ -675,7 +684,7 @@ describe('Regression: no ghost folders after lifecycle', () => {
       'utf-8'
     );
 
-    const ghosts = await mod.scanGhostFolders();
+    const ghosts = await ops.scanGhostFolders();
     expect(ghosts).toHaveLength(1);
     expect(ghosts[0].folder_name).toBe('rogue-ws-ffeeddccbbaa');
   });
@@ -808,13 +817,11 @@ describe('migrateWorkspace context merge behavior', () => {
       'utf-8'
     );
 
-    const migration = await mod.migrateWorkspace(TEST_WORKSPACE_PATH);
+    const migration = await ops.migrateWorkspace(TEST_WORKSPACE_PATH);
     expect(migration.workspace_id).toBe(canonicalId);
     expect(migration.folders_deleted).toContain(ghostFolderName);
 
-    const canonicalContext = JSON.parse(
-      await fs.readFile(path.join(TEST_DATA_ROOT, canonicalId, 'workspace.context.json'), 'utf-8')
-    );
-    expect(canonicalContext.sections.research_artifacts.summary).toBe('Ghost section');
+    const canonicalContext = await getWorkspaceContextFromDb(canonicalId);
+    expect(canonicalContext?.sections?.research_artifacts?.summary).toBe('Ghost section');
   });
 });

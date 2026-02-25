@@ -44,6 +44,13 @@ export interface McpInstanceInfo {
   connection_count: number;
 }
 
+export interface EventStatsInfo {
+  enabled: boolean;
+  subscriber_count: number;
+  events_emitted: number;
+  events_url: string | null;
+}
+
 interface ControlResponse {
   ok: boolean;
   error?: string;
@@ -109,6 +116,7 @@ export class SupervisorControlClient implements vscode.Disposable {
 
       s.on('error', () => {
         clearTimeout(timer);
+        s.destroy();
         resolve(false);
       });
     });
@@ -253,6 +261,39 @@ export class SupervisorControlClient implements vscode.Disposable {
       console.warn('[SupervisorClient] ScaleUpMcp failed:', e);
     }
     return false;
+  }
+
+  /**
+   * Return the URL of the supervisor SSE events endpoint, or `null` when the
+   * events channel is disabled.
+   */
+  async getEventsUrl(): Promise<string | null> {
+    try {
+      const resp = await this.sendRequest({ type: 'SubscribeEvents' });
+      if (resp.ok && resp.data && typeof resp.data === 'object') {
+        const d = resp.data as { events_url?: string };
+        return d.events_url ?? null;
+      }
+    } catch (e) {
+      console.warn('[SupervisorClient] SubscribeEvents failed:', e);
+    }
+    return null;
+  }
+
+  /**
+   * Return live statistics about the supervisor's event broadcast channel.
+   * Returns `null` on any communication error.
+   */
+  async getEventStats(): Promise<EventStatsInfo | null> {
+    try {
+      const resp = await this.sendRequest({ type: 'EventStats' });
+      if (resp.ok && resp.data && typeof resp.data === 'object') {
+        return resp.data as EventStatsInfo;
+      }
+    } catch (e) {
+      console.warn('[SupervisorClient] EventStats failed:', e);
+    }
+    return null;
   }
 
   // -------------------------------------------------------------------------

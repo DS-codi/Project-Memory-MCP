@@ -4,9 +4,9 @@ import type {
   TDDPhase,
   TDDCycleIteration,
 } from '../../types/index.js';
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 
-vi.mock('../../storage/file-store.js');
+vi.mock('../../storage/db-store.js');
 
 describe('TDD cycle types', () => {
   describe('TDDPhase', () => {

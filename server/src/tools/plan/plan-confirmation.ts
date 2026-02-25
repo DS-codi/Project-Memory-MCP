@@ -9,7 +9,7 @@ import type {
   PlanState,
   ConfirmationState
 } from '../../types/index.js';
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 import { ensureConfirmationState } from './plan-utils.js';
 
 // =============================================================================

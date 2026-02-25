@@ -6,14 +6,14 @@ import * as agentTools from '../../tools/agent.tools.js';
 import * as validationTools from '../../tools/agent-validation.tools.js';
 import * as validation from '../../tools/consolidated/workspace-validation.js';
 import * as agentDeploy from '../../tools/agent-deploy.js';
-import * as fileStore from '../../storage/file-store.js';
+import * as fileStore from '../../storage/db-store.js';
 
 vi.mock('../../tools/handoff.tools.js');
 vi.mock('../../tools/agent.tools.js');
 vi.mock('../../tools/agent-validation.tools.js');
 vi.mock('../../tools/consolidated/workspace-validation.js');
 vi.mock('../../tools/agent-deploy.js');
-vi.mock('../../storage/file-store.js');
+vi.mock('../../storage/db-store.js');
 vi.mock('../../storage/workspace-identity.js');
 
 const mockWorkspaceId = 'ws_agent_test_123';

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { clonePlan, mergePlans } from '../../tools/plan/plan-lifecycle.js';
 import { setPlanPriority } from '../../tools/plan/plan-goals.js';
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 import { events } from '../../events/event-emitter.js';
 import type { PlanState, PlanStep } from '../../types/index.js';
 
@@ -13,7 +13,7 @@ import type { PlanState, PlanStep } from '../../types/index.js';
  * Step 13 of plan_mlld2y2l_78778d06.
  */
 
-vi.mock('../../storage/file-store.js');
+vi.mock('../../storage/db-store.js');
 vi.mock('../../logging/workspace-update-log.js', () => ({
   appendWorkspaceFileUpdate: vi.fn().mockResolvedValue(undefined),
 }));

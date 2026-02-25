@@ -6,11 +6,10 @@
  */
 
 import type {
-  WorkspaceContext,
   WorkspaceContextSummary,
   WorkspaceContextSectionSummary,
 } from '../types/index.js';
-import * as store from '../storage/file-store.js';
+import * as store from '../storage/db-store.js';
 import { listKnowledgeFiles } from '../tools/knowledge.tools.js';
 
 /** Threshold in days before workspace context is flagged as stale */
@@ -36,8 +35,7 @@ export function daysOld(isoDate: string): number {
 export async function buildWorkspaceContextSummary(
   workspaceId: string
 ): Promise<WorkspaceContextSummary | undefined> {
-  const contextPath = store.getWorkspaceContextPath(workspaceId);
-  const context = await store.readJson<WorkspaceContext>(contextPath);
+  const context = await store.getWorkspaceContextFromDb(workspaceId);
 
   if (!context || !context.sections) {
     return undefined;

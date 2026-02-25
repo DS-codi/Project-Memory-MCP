@@ -30,6 +30,8 @@ use axum::Router;
 use bytes::Bytes;
 use tokio::sync::{broadcast, RwLock};
 
+use crate::events::{sse::events_sse_handler, EventsHandle};
+
 // ---------------------------------------------------------------------------
 // Heartbeat event
 // ---------------------------------------------------------------------------
@@ -64,6 +66,8 @@ pub struct ProxyState {
     pub base_port: u16,
     /// Broadcast sender for heartbeat SSE events.
     pub heartbeat_tx: broadcast::Sender<HeartbeatEvent>,
+    /// Optional events broadcast handle.  Present when `events.enabled = true`.
+    pub events_handle: Option<EventsHandle>,
 }
 
 // ---------------------------------------------------------------------------
@@ -287,7 +291,7 @@ async fn proxy_health_handler() -> axum::Json<serde_json::Value> {
 
 /// Build the axum `Router` for the proxy.
 pub fn build_router(state: ProxyState) -> Router {
-    Router::new()
+    let mut router = Router::new()
         .route("/mcp", any(mcp_handler))
         // Proxy-local health endpoints — answered immediately without touching the
         // Node backend.  The VS Code extension's ConnectionManager checks these every
@@ -296,8 +300,17 @@ pub fn build_router(state: ProxyState) -> Router {
         .route("/health", get(proxy_health_handler))
         .route("/api/health", get(proxy_health_handler))
         .route("/supervisor/heartbeat", get(heartbeat_handler))
-        .fallback(passthrough_handler)
-        .with_state(state)
+        .fallback(passthrough_handler);
+
+    // Mount the data-change events SSE endpoint when an events handle is present.
+    if let Some(ref events_handle) = state.events_handle {
+        router = router.route(
+            "/supervisor/events",
+            get(events_sse_handler).with_state(events_handle.clone()),
+        );
+    }
+
+    router.with_state(state)
 }
 
 // ---------------------------------------------------------------------------
@@ -353,6 +366,7 @@ pub async fn start_proxy(
     base_port: u16,
     least_loaded_port: Arc<dyn Fn() -> u16 + Send + Sync>,
     heartbeat_tx: broadcast::Sender<HeartbeatEvent>,
+    events_handle: Option<EventsHandle>,
 ) -> anyhow::Result<()> {
     let client = reqwest::Client::builder()
         // Short TCP connect timeout only — MCP tool calls and SSE streams are
@@ -368,6 +382,7 @@ pub async fn start_proxy(
         client,
         base_port,
         heartbeat_tx,
+        events_handle,
     };
 
     let app = build_router(state);

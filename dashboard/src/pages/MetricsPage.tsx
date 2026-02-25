@@ -176,7 +176,6 @@ export function MetricsPage() {
   const { data: metrics, isLoading, error } = useQuery({
     queryKey: ['metrics'],
     queryFn: fetchMetrics,
-    refetchInterval: 60000, // Refresh every minute
   });
 
   if (isLoading) {

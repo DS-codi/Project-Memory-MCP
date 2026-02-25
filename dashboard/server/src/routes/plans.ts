@@ -3,7 +3,10 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { promisify } from 'util';
-import { getWorkspaceDetails, getWorkspacePlans, getPlanState, getPlanLineage, getPlanAudit, getResearchNotes } from '../services/fileScanner.js';
+import {
+  getWorkspace, getPlansByWorkspace, getPlan, getPlanPhases, getPlanSteps,
+  getPlanSessions, getPlanLineage, getPlanNotes, getBuildScripts,
+} from '../db/queries.js';
 import { emitEvent } from '../events/emitter.js';
 
 export const plansRouter = Router();
@@ -12,8 +15,12 @@ const WORKSPACE_REGISTRATION_ERROR =
   'Workspace not registered. Register the workspace first via POST /api/workspaces/register.';
 
 async function requireWorkspaceMeta(workspaceId: string): Promise<boolean> {
-  const workspace = await getWorkspaceDetails(globalThis.MBS_DATA_ROOT, workspaceId);
-  return Boolean(workspace);
+  return Boolean(getWorkspace(workspaceId));
+}
+
+function safeParseJson<T>(json: string | null | undefined, fallback: T): T {
+  if (!json) return fallback;
+  try { return JSON.parse(json) as T; } catch { return fallback; }
 }
 
 type PlanTemplateId = 'feature' | 'bugfix' | 'refactor' | 'documentation' | 'analysis' | 'investigation';
@@ -125,13 +132,24 @@ const PLAN_TEMPLATES: Record<PlanTemplateId, {
 };
 
 // GET /api/plans/workspace/:workspaceId - Get all plans for a workspace
-plansRouter.get('/workspace/:workspaceId', async (req, res) => {
+plansRouter.get('/workspace/:workspaceId', (req, res) => {
   try {
-    const plans = await getWorkspacePlans(globalThis.MBS_DATA_ROOT, req.params.workspaceId);
-    res.json({
-      plans,
-      total: plans.length,
-    });
+    const plans = getPlansByWorkspace(req.params.workspaceId, true);
+    const summaries = plans.map(plan => ({
+      id: plan.id,
+      workspace_id: plan.workspace_id,
+      title: plan.title,
+      description: plan.description,
+      status: plan.status,
+      category: plan.category,
+      priority: plan.priority,
+      is_program: plan.is_program === 1,
+      parent_program_id: plan.parent_program_id,
+      created_at: plan.created_at,
+      updated_at: plan.updated_at,
+      archived_at: plan.archived_at,
+    }));
+    res.json({ plans: summaries, total: summaries.length });
   } catch (error) {
     console.error('Error getting plans:', error);
     res.status(500).json({ error: 'Failed to get plans' });
@@ -139,17 +157,70 @@ plansRouter.get('/workspace/:workspaceId', async (req, res) => {
 });
 
 // GET /api/plans/:workspaceId/:planId - Get full plan state
-plansRouter.get('/:workspaceId/:planId', async (req, res) => {
+plansRouter.get('/:workspaceId/:planId', (req, res) => {
   try {
-    const plan = await getPlanState(
-      globalThis.MBS_DATA_ROOT, 
-      req.params.workspaceId, 
-      req.params.planId
-    );
+    const { planId } = req.params;
+    const plan = getPlan(planId);
     if (!plan) {
       return res.status(404).json({ error: 'Plan not found' });
     }
-    res.json(plan);
+    const phases = getPlanPhases(planId);
+    const phaseMap = new Map(phases.map(p => [p.id, p.name]));
+    const steps = getPlanSteps(planId);
+    const lineage = getPlanLineage(planId);
+    const sessions = getPlanSessions(planId);
+    const notes = getPlanNotes(planId);
+    res.json({
+      id: plan.id,
+      workspace_id: plan.workspace_id,
+      title: plan.title,
+      description: plan.description,
+      status: plan.status,
+      category: plan.category || '',
+      priority: plan.priority || 'medium',
+      is_program: plan.is_program === 1,
+      parent_program_id: plan.parent_program_id,
+      goals: safeParseJson(plan.goals, []),
+      success_criteria: safeParseJson(plan.success_criteria, []),
+      schema_version: plan.schema_version,
+      recommended_next_agent: plan.recommended_next_agent,
+      current_phase: plan.current_phase,
+      created_at: plan.created_at,
+      updated_at: plan.updated_at,
+      archived_at: plan.archived_at,
+      steps: steps.map(s => ({
+        index: s.order_index,
+        phase: phaseMap.get(s.phase_id) || '',
+        task: s.task,
+        type: s.type,
+        status: s.status,
+        assignee: s.assignee,
+        notes: s.notes,
+        requires_confirmation: Boolean(s.requires_confirmation),
+        requires_user_confirmation: Boolean(s.requires_user_confirmation),
+        requires_validation: Boolean(s.requires_validation),
+      })),
+      lineage: lineage.map(l => ({
+        timestamp: l.timestamp,
+        from_agent: l.from_agent,
+        to_agent: l.to_agent,
+        reason: l.reason,
+        ...safeParseJson<Record<string, unknown>>(l.data, {}),
+      })),
+      agent_sessions: sessions.map(s => ({
+        agent_type: s.agent_type,
+        started_at: s.started_at,
+        completed_at: s.completed_at,
+        summary: s.summary,
+        artifacts: safeParseJson(s.artifacts, []),
+        is_orphaned: Boolean(s.is_orphaned),
+      })),
+      pending_notes: notes.map(n => ({
+        note: n.content,
+        type: n.note_type,
+        added_at: n.created_at,
+      })),
+    });
   } catch (error) {
     console.error('Error getting plan:', error);
     res.status(500).json({ error: 'Failed to get plan' });
@@ -157,13 +228,9 @@ plansRouter.get('/:workspaceId/:planId', async (req, res) => {
 });
 
 // GET /api/plans/:workspaceId/:planId/lineage - Get handoff history
-plansRouter.get('/:workspaceId/:planId/lineage', async (req, res) => {
+plansRouter.get('/:workspaceId/:planId/lineage', (req, res) => {
   try {
-    const lineage = await getPlanLineage(
-      globalThis.MBS_DATA_ROOT,
-      req.params.workspaceId,
-      req.params.planId
-    );
+    const lineage = getPlanLineage(req.params.planId);
     res.json({ lineage });
   } catch (error) {
     console.error('Error getting lineage:', error);
@@ -385,15 +452,18 @@ plansRouter.post('/:workspaceId/:planId/research', async (req, res) => {
   }
 });
 
-// GET /api/plans/:workspaceId/:planId/audit - Get audit log
-plansRouter.get('/:workspaceId/:planId/audit', async (req, res) => {
+// GET /api/plans/:workspaceId/:planId/audit - Get audit log (sessions approximation)
+plansRouter.get('/:workspaceId/:planId/audit', (req, res) => {
   try {
-    const audit = await getPlanAudit(
-      globalThis.MBS_DATA_ROOT,
-      req.params.workspaceId,
-      req.params.planId
-    );
-    res.json(audit);
+    const sessions = getPlanSessions(req.params.planId);
+    const audit = sessions.map(s => ({
+      timestamp: s.started_at,
+      agent_type: s.agent_type,
+      completed_at: s.completed_at,
+      summary: s.summary,
+      artifacts: safeParseJson(s.artifacts, []),
+    }));
+    res.json({ audit });
   } catch (error) {
     console.error('Error getting audit:', error);
     res.status(500).json({ error: 'Failed to get audit log' });
@@ -403,11 +473,10 @@ plansRouter.get('/:workspaceId/:planId/audit', async (req, res) => {
 // GET /api/plans/:workspaceId/:planId/research - Get research notes
 plansRouter.get('/:workspaceId/:planId/research', async (req, res) => {
   try {
-    const notes = await getResearchNotes(
-      globalThis.MBS_DATA_ROOT,
-      req.params.workspaceId,
-      req.params.planId
-    );
+    const { workspaceId, planId } = req.params;
+    const researchDir = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'plans', planId, 'research_notes');
+    let notes: string[] = [];
+    try { notes = await fs.readdir(researchDir); } catch {}
     res.json({ notes });
   } catch (error) {
     console.error('Error getting research notes:', error);
@@ -1021,37 +1090,14 @@ plansRouter.patch('/:workspaceId/:planId/goals', async (req, res) => {
 // ============================================================================
 
 // GET /api/plans/:planId/build-scripts - Get all build scripts for a plan
-plansRouter.get('/:planId/build-scripts', async (req, res) => {
+plansRouter.get('/:planId/build-scripts', (req, res) => {
   try {
     const { planId } = req.params;
-    
-    // Find workspace ID by scanning
-    const workspacesDir = globalThis.MBS_DATA_ROOT;
-    const workspaces = await fs.readdir(workspacesDir);
-    let workspaceId = '';
-    
-    for (const ws of workspaces) {
-      const wsPath = path.join(workspacesDir, ws);
-      const stat = await fs.stat(wsPath).catch(() => null);
-      if (stat?.isDirectory()) {
-        const planPath = path.join(wsPath, 'plans', planId, 'state.json');
-        try {
-          await fs.access(planPath);
-          workspaceId = ws;
-          break;
-        } catch {}
-      }
-    }
-    
-    if (!workspaceId) {
+    const plan = getPlan(planId);
+    if (!plan) {
       return res.status(404).json({ error: 'Plan not found' });
     }
-    
-    const statePath = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'plans', planId, 'state.json');
-    const content = await fs.readFile(statePath, 'utf-8');
-    const state = JSON.parse(content);
-    
-    const scripts = state.build_scripts || [];
+    const scripts = getBuildScripts(plan.workspace_id).filter(s => s.plan_id === planId);
     res.json({ scripts });
   } catch (error) {
     console.error('Error getting build scripts:', error);

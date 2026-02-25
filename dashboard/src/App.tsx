@@ -13,16 +13,12 @@ import { DataRootPage } from './pages/DataRootPage';
 import { WorkspaceStatusPage } from './pages/WorkspaceStatusPage';
 import { PlanBuildScriptsPage } from './pages/PlanBuildScriptsPage';
 import { ProgramDetailPage } from './pages/ProgramDetailPage';
-import { useLiveUpdates } from './hooks/useLiveUpdates';
 import { useMCPEvents } from './hooks/useMCPEvents';
 import { ToastContainer } from './components/common/Toast';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 function App() {
-  // Enable live updates via WebSocket
-  useLiveUpdates();
-  
-  // Enable MCP event handling with toasts
+  // Enable MCP event handling with toasts and live query invalidation
   useMCPEvents();
 
   return (

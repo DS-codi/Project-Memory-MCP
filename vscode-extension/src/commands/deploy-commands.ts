@@ -540,6 +540,117 @@ export function registerDeployCommands(
             } else {
                 notify('All files are up to date');
             }
+        }),
+
+        // ── One-click deploy with profile selection ───────────────────────────
+
+        vscode.commands.registerCommand('projectMemory.deployWithProfile', async () => {
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (!workspaceFolders) {
+                vscode.window.showErrorMessage('No workspace folder open');
+                return;
+            }
+
+            const config = vscode.workspace.getConfiguration('projectMemory');
+            type DeployProfile = { name: string; agents?: string[]; instructions?: string[]; skills?: string[] };
+            const profiles = config.get<DeployProfile[]>('deployProfiles') ?? [];
+
+            if (profiles.length === 0) {
+                // Fall back to deploying defaults when no profiles are configured
+                vscode.window.showInformationMessage(
+                    'No deploy profiles configured. Deploying defaults. ' +
+                    'Add profiles with projectMemory.deployProfiles.',
+                    'Open Settings',
+                ).then(choice => {
+                    if (choice === 'Open Settings') {
+                        vscode.commands.executeCommand('workbench.action.openSettings', 'projectMemory.deployProfiles');
+                    }
+                });
+                vscode.commands.executeCommand('projectMemory.deployDefaults');
+                return;
+            }
+
+            const items: vscode.QuickPickItem[] = profiles.map(p => ({
+                label: p.name,
+                description: [
+                    p.agents?.length ? `${p.agents.length} agents` : '',
+                    p.instructions?.length ? `${p.instructions.length} instructions` : '',
+                    p.skills?.length ? `${p.skills.length} skills` : '',
+                ].filter(Boolean).join(', ') || 'no items configured',
+            }));
+
+            const selected = await vscode.window.showQuickPick(items, {
+                placeHolder: 'Select a deploy profile',
+                title: 'Deploy with Profile',
+            });
+            if (!selected) return;
+
+            const profile = profiles.find(p => p.name === selected.label)!;
+            const workspacePath = workspaceFolders[0].uri.fsPath;
+
+            // Temporarily swap defaultDeployer config to the profile's items, run, restore
+            const savedConfig = Object.assign({}, (defaultDeployer as unknown as { config: Record<string, unknown> }).config);
+            defaultDeployer.updateConfig({
+                defaultAgents: profile.agents ?? [],
+                defaultInstructions: profile.instructions ?? [],
+                defaultSkills: profile.skills ?? [],
+            });
+
+            let result: { agents: string[]; instructions: string[]; skills: string[] };
+            try {
+                result = await defaultDeployer.deployToWorkspace(workspacePath);
+            } finally {
+                // Restore original config
+                defaultDeployer.updateConfig({
+                    defaultAgents: savedConfig['defaultAgents'] as string[],
+                    defaultInstructions: savedConfig['defaultInstructions'] as string[],
+                    defaultSkills: savedConfig['defaultSkills'] as string[],
+                });
+            }
+
+            notify(
+                `Profile "${profile.name}" deployed: ` +
+                `${result.agents.length} agents, ` +
+                `${result.instructions.length} instructions, ` +
+                `${result.skills.length} skills`,
+            );
+        }),
+
+        // ── Deploy single agent file from explorer context menu ───────────────
+
+        vscode.commands.registerCommand('projectMemory.deployAgentFileToWorkspace', async (uri?: vscode.Uri) => {
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (!workspaceFolders) {
+                vscode.window.showErrorMessage('No workspace folder open');
+                return;
+            }
+
+            // If called without URI (command palette), prompt for a file
+            let sourceUri = uri;
+            if (!sourceUri) {
+                const picked = await vscode.window.showOpenDialog({
+                    canSelectMany: false,
+                    filters: { 'Agent Files': ['md'] },
+                    title: 'Select agent file to deploy',
+                });
+                if (!picked || picked.length === 0) return;
+                sourceUri = picked[0];
+            }
+
+            const sourceFile = sourceUri.fsPath;
+            const fileName = path.basename(sourceFile);
+
+            if (!fileName.endsWith('.agent.md')) {
+                vscode.window.showWarningMessage(`Not an agent file: ${fileName}`);
+                return;
+            }
+
+            const targetDir = path.join(workspaceFolders[0].uri.fsPath, '.github', 'agents');
+            fs.mkdirSync(targetDir, { recursive: true });
+            const targetFile = path.join(targetDir, fileName);
+            fs.copyFileSync(sourceFile, targetFile);
+
+            notify(`Deployed ${fileName} to ${path.relative(workspaceFolders[0].uri.fsPath, targetFile)}`);
         })
     );
 }

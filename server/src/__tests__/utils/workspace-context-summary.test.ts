@@ -16,9 +16,9 @@ import {
   daysOld,
   KNOWLEDGE_STALE_DAYS,
 } from '../../utils/workspace-context-summary.js';
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 
-vi.mock('../../storage/file-store.js');
+vi.mock('../../storage/db-store.js');
 
 const WORKSPACE_ID = 'test-workspace-abc123';
 
@@ -65,8 +65,7 @@ describe('buildWorkspaceContextSummary', () => {
   });
 
   it('returns summary with correct section names and item counts', async () => {
-    vi.mocked(store.getWorkspaceContextPath).mockReturnValue('/data/test/workspace.context.json');
-    vi.mocked(store.readJson).mockResolvedValue(mockContextWithSections);
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue(mockContextWithSections as never);
 
     const result = await buildWorkspaceContextSummary(WORKSPACE_ID);
 
@@ -95,8 +94,7 @@ describe('buildWorkspaceContextSummary', () => {
   });
 
   it('includes updated_at from the context', async () => {
-    vi.mocked(store.getWorkspaceContextPath).mockReturnValue('/data/test/workspace.context.json');
-    vi.mocked(store.readJson).mockResolvedValue(mockContextWithSections);
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue(mockContextWithSections as never);
 
     const result = await buildWorkspaceContextSummary(WORKSPACE_ID);
 
@@ -105,8 +103,7 @@ describe('buildWorkspaceContextSummary', () => {
   });
 
   it('returns undefined when context file does not exist', async () => {
-    vi.mocked(store.getWorkspaceContextPath).mockReturnValue('/data/test/workspace.context.json');
-    vi.mocked(store.readJson).mockResolvedValue(null);
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue(null);
 
     const result = await buildWorkspaceContextSummary(WORKSPACE_ID);
 
@@ -114,11 +111,10 @@ describe('buildWorkspaceContextSummary', () => {
   });
 
   it('returns undefined when context has no sections', async () => {
-    vi.mocked(store.getWorkspaceContextPath).mockReturnValue('/data/test/workspace.context.json');
-    vi.mocked(store.readJson).mockResolvedValue({
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue({
       ...mockContextWithSections,
       sections: undefined,
-    });
+    } as never);
 
     const result = await buildWorkspaceContextSummary(WORKSPACE_ID);
 
@@ -126,8 +122,7 @@ describe('buildWorkspaceContextSummary', () => {
   });
 
   it('does NOT include stale_context_warning for recent context', async () => {
-    vi.mocked(store.getWorkspaceContextPath).mockReturnValue('/data/test/workspace.context.json');
-    vi.mocked(store.readJson).mockResolvedValue(mockContextWithSections);
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue(mockContextWithSections as never);
 
     const result = await buildWorkspaceContextSummary(WORKSPACE_ID);
 
@@ -136,8 +131,7 @@ describe('buildWorkspaceContextSummary', () => {
   });
 
   it('includes stale_context_warning when context is older than 30 days', async () => {
-    vi.mocked(store.getWorkspaceContextPath).mockReturnValue('/data/test/workspace.context.json');
-    vi.mocked(store.readJson).mockResolvedValue(mockStaleContext);
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue(mockStaleContext as never);
 
     const result = await buildWorkspaceContextSummary(WORKSPACE_ID);
 
@@ -148,11 +142,10 @@ describe('buildWorkspaceContextSummary', () => {
   });
 
   it('handles context with empty sections record', async () => {
-    vi.mocked(store.getWorkspaceContextPath).mockReturnValue('/data/test/workspace.context.json');
-    vi.mocked(store.readJson).mockResolvedValue({
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue({
       ...mockContextWithSections,
       sections: {},
-    });
+    } as never);
 
     const result = await buildWorkspaceContextSummary(WORKSPACE_ID);
 
@@ -161,11 +154,10 @@ describe('buildWorkspaceContextSummary', () => {
   });
 
   it('handles missing updated_at gracefully (no staleness warning)', async () => {
-    vi.mocked(store.getWorkspaceContextPath).mockReturnValue('/data/test/workspace.context.json');
-    vi.mocked(store.readJson).mockResolvedValue({
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue({
       ...mockContextWithSections,
       updated_at: undefined,
-    });
+    } as never);
 
     const result = await buildWorkspaceContextSummary(WORKSPACE_ID);
 
@@ -175,14 +167,13 @@ describe('buildWorkspaceContextSummary', () => {
   });
 
   it('skips null section entries', async () => {
-    vi.mocked(store.getWorkspaceContextPath).mockReturnValue('/data/test/workspace.context.json');
-    vi.mocked(store.readJson).mockResolvedValue({
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue({
       ...mockContextWithSections,
       sections: {
         valid: { summary: 'Valid', items: [{ title: 'A' }] },
         null_section: null,
       },
-    });
+    } as never);
 
     const result = await buildWorkspaceContextSummary(WORKSPACE_ID);
 
@@ -192,12 +183,11 @@ describe('buildWorkspaceContextSummary', () => {
   });
 
   it('triggers staleness warning at exactly 30 days (boundary)', async () => {
-    vi.mocked(store.getWorkspaceContextPath).mockReturnValue('/data/test/workspace.context.json');
     const exactly30DaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    vi.mocked(store.readJson).mockResolvedValue({
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue({
       ...mockContextWithSections,
       updated_at: exactly30DaysAgo,
-    });
+    } as never);
 
     const result = await buildWorkspaceContextSummary(WORKSPACE_ID);
 
@@ -207,12 +197,11 @@ describe('buildWorkspaceContextSummary', () => {
   });
 
   it('does NOT trigger staleness at 29 days (just under threshold)', async () => {
-    vi.mocked(store.getWorkspaceContextPath).mockReturnValue('/data/test/workspace.context.json');
     const twentyNineDaysAgo = new Date(Date.now() - 29 * 24 * 60 * 60 * 1000).toISOString();
-    vi.mocked(store.readJson).mockResolvedValue({
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue({
       ...mockContextWithSections,
       updated_at: twentyNineDaysAgo,
-    });
+    } as never);
 
     const result = await buildWorkspaceContextSummary(WORKSPACE_ID);
 
@@ -221,11 +210,10 @@ describe('buildWorkspaceContextSummary', () => {
   });
 
   it('handles invalid updated_at string without producing a false warning', async () => {
-    vi.mocked(store.getWorkspaceContextPath).mockReturnValue('/data/test/workspace.context.json');
-    vi.mocked(store.readJson).mockResolvedValue({
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue({
       ...mockContextWithSections,
       updated_at: 'not-a-valid-date',
-    });
+    } as never);
 
     const result = await buildWorkspaceContextSummary(WORKSPACE_ID);
 

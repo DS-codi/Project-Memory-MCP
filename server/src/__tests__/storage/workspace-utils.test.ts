@@ -6,7 +6,7 @@ const originalWorkspaceRoot = process.env.MBS_WORKSPACE_ROOT;
 
 async function loadWorkspaceUtils() {
   vi.resetModules();
-  return import('../../storage/workspace-utils.js');
+  return import('../../storage/db-store.js');
 }
 
 afterEach(() => {
@@ -50,10 +50,15 @@ describe('workspace utils', () => {
     expect(getDataRoot()).toBe(path.resolve(process.env.MBS_DATA_ROOT));
   });
 
-  it('defaults data root to workspace root data directory', async () => {
+  it('defaults data root to platform app-data directory', async () => {
     delete process.env.MBS_DATA_ROOT;
-    const { getDataRoot, resolveWorkspaceRoot } = await loadWorkspaceUtils();
+    delete process.env.PM_DATA_ROOT;
+    const { getDataRoot } = await loadWorkspaceUtils();
 
-    expect(getDataRoot()).toBe(path.resolve(resolveWorkspaceRoot(), 'data'));
+    const result = getDataRoot();
+    // Should be under the platform app-data dir ending in ProjectMemory
+    expect(result).toMatch(/ProjectMemory$/);
+    // Should be an absolute path
+    expect(path.isAbsolute(result)).toBe(true);
   });
 });

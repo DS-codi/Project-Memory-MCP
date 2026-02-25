@@ -9,28 +9,16 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import * as workspaceContextTools from '../../tools/workspace-context.tools.js';
-import * as store from '../../storage/file-store.js';
-import { promises as fs } from 'fs';
+import * as store from '../../storage/db-store.js';
 
 // Mock the storage layer so we can simulate cross-machine scenarios
-vi.mock('../../storage/file-store.js');
+vi.mock('../../storage/db-store.js');
 vi.mock('../../security/sanitize.js', () => ({
   sanitizeJsonData: (data: unknown) => data,
 }));
 vi.mock('../../logging/workspace-update-log.js', () => ({
   appendWorkspaceFileUpdate: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock('fs', async () => {
-  const actual = await vi.importActual<typeof import('fs')>('fs');
-  return {
-    ...actual,
-    promises: {
-      ...actual.promises,
-      unlink: vi.fn().mockResolvedValue(undefined),
-    },
-  };
-});
-
 const WORKSPACE_ID = 'project-memory-mcp-ed224621605f';
 const DIFFERENT_MACHINE_PATH = '/mnt/remote/my-project';
 const ORIGINAL_PATH = 'c:\\Users\\User\\my-project';
@@ -67,17 +55,15 @@ describe('Cross-machine workspace context validation', () => {
 
     // Simulate: path resolves to a DIFFERENT ID (different machine)
     vi.mocked(store.resolveWorkspaceIdForPath).mockResolvedValue('different-machine-id');
-
-    vi.mocked(store.getWorkspaceContextPath).mockReturnValue(
-      `/data/${WORKSPACE_ID}/workspace.context.json`
-    );
-
     vi.mocked(store.nowISO).mockReturnValue('2026-02-10T00:00:00Z');
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue(null);
+    vi.mocked(store.saveWorkspaceContextToDb).mockResolvedValue(undefined);
+    vi.mocked(store.deleteWorkspaceContextFromDb).mockResolvedValue(false);
   });
 
   describe('getWorkspaceContext', () => {
     it('should succeed when workspace exists by ID even if path resolves to different ID', async () => {
-      vi.mocked(store.readJson).mockResolvedValue(mockContext);
+      vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue(mockContext as never);
 
       const result = await workspaceContextTools.getWorkspaceContext({
         workspace_id: WORKSPACE_ID,
@@ -103,8 +89,7 @@ describe('Cross-machine workspace context validation', () => {
 
   describe('setWorkspaceContext', () => {
     it('should succeed with cross-machine path mismatch', async () => {
-      vi.mocked(store.readJson).mockResolvedValue(null); // No existing context
-      vi.mocked(store.writeJsonLocked).mockResolvedValue(undefined);
+      // getWorkspaceContextFromDb returns null (no existing context) — already set in beforeEach
       vi.mocked(store.getWorkspaceIdentityPath).mockReturnValue(
         `${DIFFERENT_MACHINE_PATH}/.projectmemory/identity.json`
       );
@@ -130,8 +115,7 @@ describe('Cross-machine workspace context validation', () => {
 
   describe('updateWorkspaceContext', () => {
     it('should succeed with cross-machine path mismatch', async () => {
-      vi.mocked(store.readJson).mockResolvedValue(mockContext);
-      vi.mocked(store.writeJsonLocked).mockResolvedValue(undefined);
+      vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue(mockContext as never);
       vi.mocked(store.getWorkspaceIdentityPath).mockReturnValue(
         `${DIFFERENT_MACHINE_PATH}/.projectmemory/identity.json`
       );
@@ -156,7 +140,7 @@ describe('Cross-machine workspace context validation', () => {
 
   describe('deleteWorkspaceContext', () => {
     it('should succeed with cross-machine path mismatch', async () => {
-      vi.mocked(store.exists).mockResolvedValue(true);
+      vi.mocked(store.deleteWorkspaceContextFromDb).mockResolvedValue(true);
 
       const result = await workspaceContextTools.deleteWorkspaceContext({
         workspace_id: WORKSPACE_ID,
@@ -183,10 +167,9 @@ describe('loadWorkspace edge cases', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(store.getWorkspace).mockResolvedValue(mockWorkspace as any);
-    vi.mocked(store.getWorkspaceContextPath).mockReturnValue(
-      `/data/${WORKSPACE_ID}/workspace.context.json`
-    );
     vi.mocked(store.nowISO).mockReturnValue('2026-02-10T00:00:00Z');
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue(mockContext as never);
+    vi.mocked(store.saveWorkspaceContextToDb).mockResolvedValue(undefined);
   });
 
   it('should succeed even when resolveWorkspaceIdForPath throws (unreachable path)', async () => {
@@ -194,7 +177,7 @@ describe('loadWorkspace edge cases', () => {
     vi.mocked(store.resolveWorkspaceIdForPath).mockRejectedValue(
       new Error('ENOENT: path not found')
     );
-    vi.mocked(store.readJson).mockResolvedValue(mockContext);
+    // getWorkspaceContextFromDb already returns mockContext from beforeEach
 
     const result = await workspaceContextTools.getWorkspaceContext({
       workspace_id: WORKSPACE_ID,
@@ -224,7 +207,7 @@ describe('loadWorkspace edge cases', () => {
     };
     vi.mocked(store.getWorkspace).mockResolvedValue(legacyWorkspace as any);
     vi.mocked(store.resolveWorkspaceIdForPath).mockResolvedValue(WORKSPACE_ID);
-    vi.mocked(store.readJson).mockResolvedValue(mockContext);
+    // getWorkspaceContextFromDb already returns mockContext from beforeEach
 
     const result = await workspaceContextTools.getWorkspaceContext({
       workspace_id: WORKSPACE_ID,
@@ -235,7 +218,7 @@ describe('loadWorkspace edge cases', () => {
 
   it('should return context not found when context file does not exist', async () => {
     vi.mocked(store.resolveWorkspaceIdForPath).mockResolvedValue(WORKSPACE_ID);
-    vi.mocked(store.readJson).mockResolvedValue(null);
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue(null);
 
     const result = await workspaceContextTools.getWorkspaceContext({
       workspace_id: WORKSPACE_ID,

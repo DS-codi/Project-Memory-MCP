@@ -187,7 +187,11 @@ export interface PlanStep {
   context_priority?: 'high' | 'normal';  // 'high' = always included in compact output regardless of phase filtering
   notes?: string;
   completed_at?: string;
-  depends_on?: number[];          // Indices of steps that must complete before this one can start
+  /**
+   * IDs of steps that must complete before this one can start.
+   * Populated from the `dependencies` table; replaces legacy index-based array.
+   */
+  depends_on?: string[];
 }
 
 // =============================================================================
@@ -286,6 +290,7 @@ export interface PlanState {
   depends_on_plans?: string[];   // Cross-program dependency tracking for child plans
   // Approval gate pause context
   paused_at_snapshot?: PausedAtSnapshot;  // Written when approval gate pauses a plan
+  completed_at?: string;  // ISO timestamp set when the plan reaches a terminal status
   created_at: string;
   updated_at: string;
   agent_sessions: AgentSession[];

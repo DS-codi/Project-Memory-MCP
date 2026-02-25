@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
-import { WebSocketServer } from 'ws';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -19,12 +18,13 @@ import { instructionsRouter } from './routes/instructions.js';
 import { deployRouter } from './routes/deploy.js';
 import { knowledgeRouter } from './routes/knowledge.js';
 import { programsRouter } from './routes/programs.js';
-import { setupFileWatcher } from './services/fileWatcher.js';
 import { getDataRoot } from './storage/workspace-utils.js';
+import { eventBus } from './events/eventBus.js';
+import { getDb } from './db/connection.js';
 import * as fs from 'fs';
+import * as fsAsync from 'fs/promises';
 
 const PORT = process.env.PORT || 3001;
-const WS_PORT = process.env.WS_PORT || 3002;
 
 // Get data root from environment or use canonical default
 const MBS_DATA_ROOT = getDataRoot();
@@ -84,7 +84,6 @@ app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok',
     uptime: Math.floor((Date.now() - serverStartTime) / 1000),
-    connectedClients: wss ? wss.clients.size : 0,
     memory: {
       heapUsedMB: Math.round(memUsage.heapUsed / 1024 / 1024 * 100) / 100,
       heapTotalMB: Math.round(memUsage.heapTotal / 1024 / 1024 * 100) / 100,
@@ -99,21 +98,21 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Serve Vite frontend build in production (container mode)
-if (process.env.NODE_ENV === 'production') {
-  const distDir = path.resolve(__dirname, '../../dist');
-  if (fs.existsSync(distDir)) {
-    app.use(express.static(distDir));
-    console.log(`📦 Serving static frontend from ${distDir}`);
-  }
+const distDir = path.resolve(__dirname, '../../dist');
+const indexHtml = path.join(distDir, 'index.html');
+const hasFrontendBuild = fs.existsSync(indexHtml);
+
+if (hasFrontendBuild) {
+  app.use(express.static(distDir));
+  console.log(`📦 Serving static frontend from ${distDir}`);
 }
 
-// Dashboard error logging endpoint
-app.post('/api/errors', (req, res) => {
+// Dashboard error logging endpoint (async I/O)
+app.post('/api/errors', async (req, res) => {
   try {
     const { error, componentStack, url, timestamp: clientTimestamp } = req.body;
     const logsDir = path.join(MBS_DATA_ROOT, 'logs');
-    fs.mkdirSync(logsDir, { recursive: true });
+    await fsAsync.mkdir(logsDir, { recursive: true });
     const logPath = path.join(logsDir, 'dashboard-errors.log');
 
     const entry = JSON.stringify({
@@ -123,7 +122,7 @@ app.post('/api/errors', (req, res) => {
       url: url || null,
     });
 
-    fs.appendFileSync(logPath, entry + '\n');
+    await fsAsync.appendFile(logPath, entry + '\n');
     lastErrorTimestamp = new Date().toISOString();
     res.json({ logged: true });
   } catch (e) {
@@ -133,14 +132,10 @@ app.post('/api/errors', (req, res) => {
 });
 
 // SPA fallback — serve index.html for non-API routes (client-side routing)
-if (process.env.NODE_ENV === 'production') {
-  const distDir = path.resolve(__dirname, '../../dist');
-  const indexHtml = path.join(distDir, 'index.html');
-  if (fs.existsSync(indexHtml)) {
-    app.get('*', (_req, res) => {
-      res.sendFile(indexHtml);
-    });
-  }
+if (hasFrontendBuild) {
+  app.get('*', (_req, res) => {
+    res.sendFile(indexHtml);
+  });
 }
 
 // Start HTTP server
@@ -151,27 +146,20 @@ httpServer.listen(PORT, () => {
   console.log(`   Agents root: ${MBS_AGENTS_ROOT}`);
   console.log(`   Prompts root: ${MBS_PROMPTS_ROOT}`);
   console.log(`   Instructions root: ${MBS_INSTRUCTIONS_ROOT}`);
+
+  // Open DB connection eagerly so first request is fast
+  try {
+    getDb();
+  } catch (err) {
+    console.warn('[db] Could not open project-memory.db on startup (will retry on first request):', err);
+  }
+
+  // Connect to supervisor SSE if configured
+  const supervisorUrl = process.env.SUPERVISOR_EVENTS_URL;
+  if (supervisorUrl) {
+    console.log(`[eventBus] Connecting to supervisor SSE: ${supervisorUrl}`);
+    eventBus.connectToSupervisor(supervisorUrl);
+  } else {
+    console.log('[eventBus] SUPERVISOR_EVENTS_URL not set — supervisor SSE disabled');
+  }
 });
-
-// Start WebSocket server
-const wss = new WebSocketServer({ port: Number(WS_PORT) });
-
-wss.on('connection', (ws) => {
-  console.log('WebSocket client connected');
-  
-  ws.on('close', () => {
-    console.log('WebSocket client disconnected');
-  });
-});
-
-// Setup file watcher for live updates
-setupFileWatcher(MBS_DATA_ROOT, (event) => {
-  const message = JSON.stringify(event);
-  wss.clients.forEach((client) => {
-    if (client.readyState === 1) { // OPEN
-      client.send(message);
-    }
-  });
-});
-
-console.log(`📡 WebSocket server running at ws://localhost:${WS_PORT}`);

@@ -107,3 +107,14 @@ max_delay_ms     = 30000
 multiplier       = 2.0
 max_attempts     = 0        # 0 = unlimited retries
 jitter_ratio     = 0.2
+
+# ── Data-change event broadcast ───────────────────────────────────────────────
+# The supervisor maintains an in-process SSE broadcast channel so clients
+# (VS Code extension, dashboard, scripts) can subscribe to plan/step changes
+# without polling.  Subscribe at GET /supervisor/events.
+
+[events]
+enabled            = true   # set false to disable the channel entirely
+buffer_size        = 256    # tokio broadcast channel capacity
+heartbeat_interval = 30     # seconds between keep-alive pings to SSE clients
+replay_buffer_size = 100    # number of past events held for Last-Event-Id replay

@@ -2,8 +2,19 @@ import { Router } from 'express';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import {
+  listPrograms,
+  getPlan,
+  getProgramChildPlans,
+  getPlanSteps,
+} from '../db/queries.js';
+import type { PlanRow, StepRow } from '../db/queries.js';
 
 export const programsRouter = Router();
+
+// ---------------------------------------------------------------------------
+// Types (kept for write-path compatibility)
+// ---------------------------------------------------------------------------
 
 interface PlanState {
   id: string;
@@ -63,60 +74,40 @@ interface ProgramDetail extends ProgramSummary {
   notes?: Array<{ type: string; note: string; added_at: string }>;
 }
 
-/**
- * Read a plan's state.json from disk.
- */
-async function readPlanState(dataRoot: string, workspaceId: string, planId: string): Promise<PlanState | null> {
-  const statePath = path.join(dataRoot, workspaceId, 'plans', planId, 'state.json');
-  try {
-    const content = await fs.readFile(statePath, 'utf-8');
-    return JSON.parse(content);
-  } catch {
-    return null;
-  }
-}
+// ---------------------------------------------------------------------------
+// DB-row helpers
+// ---------------------------------------------------------------------------
 
-/**
- * Build a ProgramPlanRef from a child plan state.
- */
-function toPlanRef(state: PlanState): ProgramPlanRef {
-  const done = state.steps?.filter(s => s.status === 'done').length || 0;
-  const total = state.steps?.length || 0;
+function planRowToRef(row: PlanRow, steps: StepRow[]): ProgramPlanRef {
+  const done = steps.filter(s => s.status === 'done').length;
   return {
-    plan_id: state.id,
-    title: state.title,
-    status: state.status,
-    priority: state.priority || 'medium',
-    current_phase: (state as any).current_phase ?? '',
-    progress: { done, total },
-    depends_on_plans: (state as any).depends_on_plans ?? [],
+    plan_id: row.id,
+    title: row.title,
+    status: row.status,
+    priority: row.priority ?? 'medium',
+    current_phase: row.current_phase ?? '',
+    progress: { done, total: steps.length },
+    depends_on_plans: [],
   };
 }
 
-/**
- * Compute full aggregate progress across child plans.
- */
-function computeAggregate(childPlans: PlanState[]): AggregateProgress {
-  let totalSteps = 0;
-  let doneSteps = 0;
-  let activeSteps = 0;
-  let pendingSteps = 0;
-  let blockedSteps = 0;
-  let activePlans = 0;
-  let completedPlans = 0;
-  let archivedPlans = 0;
-  let failedPlans = 0;
+function computeAggregateFromRows(
+  rows: PlanRow[],
+  stepsByPlan: Map<string, StepRow[]>
+): AggregateProgress {
+  let totalSteps = 0, doneSteps = 0, activeSteps = 0, pendingSteps = 0, blockedSteps = 0;
+  let activePlans = 0, completedPlans = 0, archivedPlans = 0, failedPlans = 0;
 
-  for (const plan of childPlans) {
-    switch (plan.status) {
-      case 'active': activePlans++; break;
-      case 'completed': completedPlans++; break;
-      case 'archived': archivedPlans++; break;
-      case 'failed': failedPlans++; break;
-    }
-    for (const step of (plan.steps || [])) {
+  for (const row of rows) {
+    if (row.status === 'archived') archivedPlans++;
+    else if (row.status === 'completed') completedPlans++;
+    else if (row.status === 'failed') failedPlans++;
+    else activePlans++;
+
+    const steps = stepsByPlan.get(row.id) ?? [];
+    for (const s of steps) {
       totalSteps++;
-      switch (step.status) {
+      switch (s.status) {
         case 'done': doneSteps++; break;
         case 'active': activeSteps++; break;
         case 'pending': pendingSteps++; break;
@@ -126,7 +117,7 @@ function computeAggregate(childPlans: PlanState[]): AggregateProgress {
   }
 
   return {
-    total_plans: childPlans.length,
+    total_plans: rows.length,
     active_plans: activePlans,
     completed_plans: completedPlans,
     archived_plans: archivedPlans,
@@ -140,73 +131,64 @@ function computeAggregate(childPlans: PlanState[]): AggregateProgress {
   };
 }
 
-/**
- * Build a ProgramSummary from a program plan state and its children.
- */
-function buildProgramSummary(state: PlanState, childPlans: PlanState[], workspaceId: string): ProgramSummary {
-  const plans = childPlans.map(toPlanRef);
-  const aggregate = computeAggregate(childPlans);
+function buildProgramSummaryFromDb(
+  program: PlanRow,
+  childRows: PlanRow[],
+  stepsByPlan: Map<string, StepRow[]>
+): ProgramSummary {
+  const plans = childRows.map(row => planRowToRef(row, stepsByPlan.get(row.id) ?? []));
+  const aggregate = computeAggregateFromRows(childRows, stepsByPlan);
 
   return {
-    program_id: state.id,
-    name: state.title,
-    description: state.description || '',
-    created_at: state.created_at,
-    updated_at: state.updated_at,
-    workspace_id: workspaceId,
+    program_id: program.id,
+    name: program.title,
+    description: program.description ?? '',
+    created_at: program.created_at,
+    updated_at: program.updated_at,
+    workspace_id: program.workspace_id,
     plans,
     aggregate_progress: aggregate,
   };
 }
 
+// ---------------------------------------------------------------------------
+// Legacy file helper — still needed for write routes
+// ---------------------------------------------------------------------------
+
+async function readPlanState(dataRoot: string, workspaceId: string, planId: string): Promise<PlanState | null> {
+  const statePath = path.join(dataRoot, workspaceId, 'plans', planId, 'state.json');
+  try {
+    const content = await fs.readFile(statePath, 'utf-8');
+    return JSON.parse(content);
+  } catch {
+    return null;
+  }
+}
+
 // =============================================================================
 // GET /api/programs/:workspaceId - List all programs for a workspace
 // =============================================================================
-programsRouter.get('/:workspaceId', async (req, res) => {
+programsRouter.get('/:workspaceId', (req, res) => {
   try {
     const { workspaceId } = req.params;
-    const dataRoot = globalThis.MBS_DATA_ROOT;
-    const plansDir = path.join(dataRoot, workspaceId, 'plans');
 
-    const programs: ProgramSummary[] = [];
+    const programRows = listPrograms(workspaceId);
+    const result: ProgramSummary[] = [];
 
-    let entries: string[];
-    try {
-      entries = await fs.readdir(plansDir);
-    } catch {
-      // Workspace has no plans directory at all
-      return res.json({ programs: [] });
-    }
-
-    for (const entryName of entries) {
-      // Check if it's a directory
-      const entryPath = path.join(plansDir, entryName);
-      let stat;
-      try {
-        stat = await fs.stat(entryPath);
-      } catch { continue; }
-      if (!stat.isDirectory()) continue;
-
-      const state = await readPlanState(dataRoot, workspaceId, entryName);
-      if (!state || !state.is_program) continue;
-
-      // Load child plans
-      const childIds = state.child_plan_ids || [];
-      const childPlans: PlanState[] = [];
-      for (const childId of childIds) {
-        const child = await readPlanState(dataRoot, workspaceId, childId);
-        if (child) childPlans.push(child);
+    for (const program of programRows) {
+      const childRows = getProgramChildPlans(program.id);
+      const stepsByPlan = new Map<string, StepRow[]>();
+      for (const child of childRows) {
+        stepsByPlan.set(child.id, getPlanSteps(child.id));
       }
-
-      programs.push(buildProgramSummary(state, childPlans, workspaceId));
+      result.push(buildProgramSummaryFromDb(program, childRows, stepsByPlan));
     }
 
-    // Sort by updated_at descending
-    programs.sort((a, b) =>
+    result.sort((a, b) =>
       new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
     );
 
-    res.json({ programs });
+    res.json({ programs: result });
   } catch (error) {
     console.error('Error getting programs:', error);
     res.status(500).json({ error: 'Failed to get programs' });
@@ -216,33 +198,35 @@ programsRouter.get('/:workspaceId', async (req, res) => {
 // =============================================================================
 // GET /api/programs/:workspaceId/:programId - Get program detail
 // =============================================================================
-programsRouter.get('/:workspaceId/:programId', async (req, res) => {
+programsRouter.get('/:workspaceId/:programId', (req, res) => {
   try {
     const { workspaceId, programId } = req.params;
-    const dataRoot = globalThis.MBS_DATA_ROOT;
 
-    const state = await readPlanState(dataRoot, workspaceId, programId);
-    if (!state) {
+    const program = getPlan(programId);
+    if (!program) {
       return res.status(404).json({ error: 'Program not found' });
     }
-    if (!state.is_program) {
+    if (!program.is_program) {
       return res.status(400).json({ error: `${programId} is not a program` });
     }
 
-    // Load child plans
-    const childIds = state.child_plan_ids || [];
-    const childPlans: PlanState[] = [];
-    for (const childId of childIds) {
-      const child = await readPlanState(dataRoot, workspaceId, childId);
-      if (child) childPlans.push(child);
+    const childRows = getProgramChildPlans(programId);
+    const stepsByPlan = new Map<string, StepRow[]>();
+    for (const child of childRows) {
+      stepsByPlan.set(child.id, getPlanSteps(child.id));
     }
 
-    const summary = buildProgramSummary(state, childPlans, workspaceId);
+    const summary = buildProgramSummaryFromDb(program, childRows, stepsByPlan);
+
+    let goals: string[] | undefined;
+    let successCriteria: string[] | undefined;
+    try { goals = program.goals ? JSON.parse(program.goals) : undefined; } catch { /* ignored */ }
+    try { successCriteria = program.success_criteria ? JSON.parse(program.success_criteria) : undefined; } catch { /* ignored */ }
+
     const detail: ProgramDetail = {
       ...summary,
-      goals: state.goals,
-      success_criteria: (state as any).success_criteria as string[] | undefined,
-      notes: state.notes,
+      goals,
+      success_criteria: successCriteria,
     };
 
     res.json(detail);
@@ -339,11 +323,8 @@ programsRouter.post('/:workspaceId', async (req, res) => {
       if (child) childPlans.push(child);
     }
 
-    const summary = buildProgramSummary(
-      programState as unknown as PlanState,
-      childPlans,
-      workspaceId
-    );
+    // Return the created program state directly (GET endpoint provides full DB-backed summary)
+    const summary = programState;
 
     res.status(201).json(summary);
   } catch (error) {

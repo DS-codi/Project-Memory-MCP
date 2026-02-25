@@ -22,8 +22,8 @@ import {
   nowISO,
   getResearchNotesPath,
   getContextPath,
-} from '../storage/file-store.js';
-import { readJson, writeJson } from '../storage/file-lock.js';
+} from '../storage/db-store.js';
+import { readJson, writeJson } from '../storage/db-store.js';
 import {
   getActiveAgentsDir,
   getAgentDeployDir,
@@ -37,7 +37,7 @@ import {
   getAgentToolResponsesDir,
   getAgentPullStagingDir,
   getReviewedAgentDir,
-} from '../storage/projectmemory-paths.js';
+} from '../storage/db-store.js';
 import { AGENTS_ROOT, INSTRUCTIONS_ROOT } from './agent.tools.js';
 import { AGENT_BOUNDARIES } from '../types/index.js';
 import { buildToolContracts } from './preflight/index.js';

@@ -12,13 +12,13 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { initialiseAgent, handoff } from '../../tools/handoff.tools.js';
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 import * as contextTools from '../../tools/context.tools.js';
 import * as skillsTools from '../../tools/skills.tools.js';
 import { events } from '../../events/event-emitter.js';
 import type { PlanState, AgentInstructionFile } from '../../types/index.js';
 
-vi.mock('../../storage/file-store.js');
+vi.mock('../../storage/db-store.js');
 vi.mock('../../tools/context.tools.js');
 vi.mock('../../tools/skills.tools.js');
 vi.mock('../../events/event-emitter.js', () => ({

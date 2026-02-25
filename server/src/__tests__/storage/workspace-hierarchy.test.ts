@@ -1,8 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import path from 'path';
 import os from 'os';
 import { promises as fs } from 'fs';
-import { normalizeWorkspacePath } from '../../storage/workspace-utils.js';
+import { normalizeWorkspacePath, getWorkspace } from '../../storage/db-store.js';
+import * as mod from '../../storage/workspace-hierarchy.js';
+import { _resetConnectionForTesting, getDb } from '../../db/connection.js';
+import { runMigrations } from '../../db/migration-runner.js';
+import { createWorkspace as dbCreateWorkspace } from '../../db/workspace-db.js';
 
 // ---------------------------------------------------------------------------
 // Test-data root & workspace paths — isolated per test run
@@ -13,26 +17,39 @@ const TEST_BASE = path.join(os.tmpdir(), '__pm_hierarchy_test__');
 const TEST_DATA_ROOT = path.join(TEST_BASE, 'data');
 const TEST_WORKSPACE_PATH = path.join(TEST_BASE, 'ws');
 
-// Dynamic import holder — re-imported after env/mock reset each test
-let mod: typeof import('../../storage/workspace-hierarchy.js');
-
 // ---------------------------------------------------------------------------
 // Lifecycle
 // ---------------------------------------------------------------------------
-beforeEach(async () => {
-  await fs.rm(TEST_BASE, { recursive: true, force: true });
+beforeAll(async () => {
   await fs.mkdir(TEST_DATA_ROOT, { recursive: true });
   await fs.mkdir(TEST_WORKSPACE_PATH, { recursive: true });
-
   process.env.MBS_DATA_ROOT = TEST_DATA_ROOT;
-  vi.resetModules();
-  mod = await import('../../storage/workspace-hierarchy.js');
+  process.env.PM_DATA_ROOT = TEST_DATA_ROOT;
+  _resetConnectionForTesting();
+  await runMigrations();
 });
 
-afterEach(async () => {
+afterAll(async () => {
   delete process.env.MBS_DATA_ROOT;
-  await fs.rm(TEST_BASE, { recursive: true, force: true });
-  vi.resetModules();
+  delete process.env.PM_DATA_ROOT;
+  _resetConnectionForTesting();
+  await fs.rm(TEST_BASE, { recursive: true, force: true }).catch(() => {});
+});
+
+beforeEach(async () => {
+  // Delete subdirs inside TEST_DATA_ROOT but skip SQLite DB files
+  try {
+    const entries = await fs.readdir(TEST_DATA_ROOT, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.name.startsWith('project-memory.db')) continue;
+      await fs.rm(path.join(TEST_DATA_ROOT, entry.name), { recursive: true, force: true });
+    }
+  } catch { /* directory may not exist yet */ }
+  // Reset workspace directory
+  await fs.rm(TEST_WORKSPACE_PATH, { recursive: true, force: true }).catch(() => {});
+  await fs.mkdir(TEST_WORKSPACE_PATH, { recursive: true });
+  // Clear all workspace rows for test isolation
+  getDb().exec('DELETE FROM workspaces');
 });
 
 // ---------------------------------------------------------------------------
@@ -64,7 +81,7 @@ async function createIdentityFile(
   return identity;
 }
 
-/** Create a fake workspace.meta.json in the test data root */
+/** Create a fake workspace.meta.json in the test data root and register in DB */
 async function createFakeWorkspaceMeta(
   workspaceId: string,
   workspacePath: string,
@@ -89,6 +106,7 @@ async function createFakeWorkspaceMeta(
     JSON.stringify(meta, null, 2),
     'utf-8'
   );
+  await dbCreateWorkspace({ id: workspaceId, path: workspacePath, name: path.basename(workspacePath) });
   return meta;
 }
 
@@ -361,78 +379,50 @@ describe('checkRegistryForOverlaps', () => {
     expect(childOverlap!.existing_workspace_id).toBe('api-ddeeff445566');
   });
 });
-
 // ===========================================================================
 // linkWorkspaces
 // ===========================================================================
 describe('linkWorkspaces', () => {
   it('creates bidirectional references in workspace metas', async () => {
-    const parentId = 'parent-ws-aabbcc112233';
-    const childId = 'child-ws-ddeeff445566';
+    const parentId   = 'parent-ws-aabbcc112233';
+    const childId    = 'child-ws-ddeeff445566';
     const parentPath = path.join(TEST_WORKSPACE_PATH, 'parent');
-    const childPath = path.join(TEST_WORKSPACE_PATH, 'parent', 'child');
-
+    const childPath  = path.join(TEST_WORKSPACE_PATH, 'parent', 'child');
     await fs.mkdir(parentPath, { recursive: true });
-    await fs.mkdir(childPath, { recursive: true });
-
-    // Create workspace metas
-    await createFakeWorkspaceMeta(parentId, parentPath);
-    await createFakeWorkspaceMeta(childId, childPath);
-
-    // Create identity file for the child so linkWorkspaces can update it
+    await fs.mkdir(childPath,  { recursive: true });
     await createIdentityFile(childPath, childId);
-
-    // Re-import to pick up the test data root
-    vi.resetModules();
-    mod = await import('../../storage/workspace-hierarchy.js');
+    await dbCreateWorkspace({ id: parentId, path: parentPath, name: 'parent' });
+    await dbCreateWorkspace({ id: childId,  path: childPath,  name: 'child' });
 
     await mod.linkWorkspaces(parentId, childId);
 
-    // Verify parent meta has child in child_workspace_ids
-    const parentMetaRaw = JSON.parse(
-      await fs.readFile(path.join(TEST_DATA_ROOT, parentId, 'workspace.meta.json'), 'utf-8')
-    );
-    expect(parentMetaRaw.child_workspace_ids).toContain(childId);
-    expect(parentMetaRaw.hierarchy_linked_at).toBeDefined();
-
-    // Verify child meta has parent_workspace_id set
-    const childMetaRaw = JSON.parse(
-      await fs.readFile(path.join(TEST_DATA_ROOT, childId, 'workspace.meta.json'), 'utf-8')
-    );
-    expect(childMetaRaw.parent_workspace_id).toBe(parentId);
-    expect(childMetaRaw.hierarchy_linked_at).toBeDefined();
+    const parentMeta = await getWorkspace(parentId);
+    const childMeta  = await getWorkspace(childId);
+    expect(parentMeta!.child_workspace_ids).toContain(childId);
+    expect(parentMeta!.hierarchy_linked_at).toBeDefined();
+    expect(childMeta!.parent_workspace_id).toBe(parentId);
+    expect(childMeta!.hierarchy_linked_at).toBeDefined();
   });
 
   it('deduplicates child IDs on repeated link calls', async () => {
-    const parentId = 'parent-dedup-aabbcc112233';
-    const childId = 'child-dedup-ddeeff445566';
+    const parentId   = 'parent-dedup-aabbcc112233';
+    const childId    = 'child-dedup-ddeeff445566';
     const parentPath = path.join(TEST_WORKSPACE_PATH, 'parent-dd');
-    const childPath = path.join(TEST_WORKSPACE_PATH, 'parent-dd', 'child-dd');
-
+    const childPath  = path.join(TEST_WORKSPACE_PATH, 'parent-dd', 'child-dd');
     await fs.mkdir(parentPath, { recursive: true });
-    await fs.mkdir(childPath, { recursive: true });
-    await createFakeWorkspaceMeta(parentId, parentPath);
-    await createFakeWorkspaceMeta(childId, childPath);
+    await fs.mkdir(childPath,  { recursive: true });
     await createIdentityFile(childPath, childId);
+    await dbCreateWorkspace({ id: parentId, path: parentPath, name: 'parent-dd' });
+    await dbCreateWorkspace({ id: childId,  path: childPath,  name: 'child-dd' });
 
-    vi.resetModules();
-    mod = await import('../../storage/workspace-hierarchy.js');
-
-    // Link twice
     await mod.linkWorkspaces(parentId, childId);
     await mod.linkWorkspaces(parentId, childId);
 
-    const parentMeta = JSON.parse(
-      await fs.readFile(path.join(TEST_DATA_ROOT, parentId, 'workspace.meta.json'), 'utf-8')
-    );
-    // Should only appear once
-    expect(parentMeta.child_workspace_ids.filter((id: string) => id === childId)).toHaveLength(1);
+    const parentMeta = await getWorkspace(parentId);
+    expect((parentMeta!.child_workspace_ids ?? []).filter((id: string) => id === childId)).toHaveLength(1);
   });
 
   it('throws when parent workspace not found', async () => {
-    vi.resetModules();
-    mod = await import('../../storage/workspace-hierarchy.js');
-
     await expect(
       mod.linkWorkspaces('nonexistent-parent-000', 'some-child-111')
     ).rejects.toThrow(/Parent workspace not found/);
@@ -440,10 +430,7 @@ describe('linkWorkspaces', () => {
 
   it('throws when child workspace not found', async () => {
     const parentId = 'existing-parent-aabbcc112233';
-    await createFakeWorkspaceMeta(parentId, path.join(TEST_WORKSPACE_PATH, 'p'));
-
-    vi.resetModules();
-    mod = await import('../../storage/workspace-hierarchy.js');
+    await dbCreateWorkspace({ id: parentId, path: path.join(TEST_WORKSPACE_PATH, 'p'), name: 'p' });
 
     await expect(
       mod.linkWorkspaces(parentId, 'nonexistent-child-000')
@@ -456,66 +443,43 @@ describe('linkWorkspaces', () => {
 // ===========================================================================
 describe('unlinkWorkspaces', () => {
   it('removes references cleanly', async () => {
-    const parentId = 'unlink-parent-aabbcc112233';
-    const childId = 'unlink-child-ddeeff445566';
+    const parentId   = 'unlink-parent-aabbcc112233';
+    const childId    = 'unlink-child-ddeeff445566';
     const parentPath = path.join(TEST_WORKSPACE_PATH, 'unlink-parent');
-    const childPath = path.join(TEST_WORKSPACE_PATH, 'unlink-parent', 'unlink-child');
-
+    const childPath  = path.join(TEST_WORKSPACE_PATH, 'unlink-parent', 'unlink-child');
     await fs.mkdir(parentPath, { recursive: true });
-    await fs.mkdir(childPath, { recursive: true });
-    await createFakeWorkspaceMeta(parentId, parentPath);
-    await createFakeWorkspaceMeta(childId, childPath);
+    await fs.mkdir(childPath,  { recursive: true });
     await createIdentityFile(childPath, childId);
+    await dbCreateWorkspace({ id: parentId, path: parentPath, name: 'unlink-parent' });
+    await dbCreateWorkspace({ id: childId,  path: childPath,  name: 'unlink-child' });
 
-    vi.resetModules();
-    mod = await import('../../storage/workspace-hierarchy.js');
-
-    // Link first
     await mod.linkWorkspaces(parentId, childId);
-
-    // Now unlink
     await mod.unlinkWorkspaces(parentId, childId);
 
-    // Verify parent meta no longer has the child
-    const parentMeta = JSON.parse(
-      await fs.readFile(path.join(TEST_DATA_ROOT, parentId, 'workspace.meta.json'), 'utf-8')
-    );
-    expect(parentMeta.child_workspace_ids ?? []).not.toContain(childId);
-
-    // Verify child meta has no parent
-    const childMeta = JSON.parse(
-      await fs.readFile(path.join(TEST_DATA_ROOT, childId, 'workspace.meta.json'), 'utf-8')
-    );
-    expect(childMeta.parent_workspace_id).toBeUndefined();
+    const parentMeta = await getWorkspace(parentId);
+    const childMeta  = await getWorkspace(childId);
+    expect(parentMeta!.child_workspace_ids ?? []).not.toContain(childId);
+    expect(childMeta!.parent_workspace_id).toBeUndefined();
   });
 
   it('clears hierarchy_linked_at when no links remain', async () => {
-    const parentId = 'unlink-clr-parent-aabb11';
-    const childId = 'unlink-clr-child-ddee22';
+    const parentId   = 'unlink-clr-parent-aabb11';
+    const childId    = 'unlink-clr-child-ddee22';
     const parentPath = path.join(TEST_WORKSPACE_PATH, 'unlink-clr-p');
-    const childPath = path.join(TEST_WORKSPACE_PATH, 'unlink-clr-p', 'unlink-clr-c');
-
+    const childPath  = path.join(TEST_WORKSPACE_PATH, 'unlink-clr-p', 'unlink-clr-c');
     await fs.mkdir(parentPath, { recursive: true });
-    await fs.mkdir(childPath, { recursive: true });
-    await createFakeWorkspaceMeta(parentId, parentPath);
-    await createFakeWorkspaceMeta(childId, childPath);
+    await fs.mkdir(childPath,  { recursive: true });
     await createIdentityFile(childPath, childId);
-
-    vi.resetModules();
-    mod = await import('../../storage/workspace-hierarchy.js');
+    await dbCreateWorkspace({ id: parentId, path: parentPath, name: 'unlink-clr-p' });
+    await dbCreateWorkspace({ id: childId,  path: childPath,  name: 'unlink-clr-c' });
 
     await mod.linkWorkspaces(parentId, childId);
     await mod.unlinkWorkspaces(parentId, childId);
 
-    const parentMeta = JSON.parse(
-      await fs.readFile(path.join(TEST_DATA_ROOT, parentId, 'workspace.meta.json'), 'utf-8')
-    );
-    expect(parentMeta.hierarchy_linked_at).toBeUndefined();
-
-    const childMeta = JSON.parse(
-      await fs.readFile(path.join(TEST_DATA_ROOT, childId, 'workspace.meta.json'), 'utf-8')
-    );
-    expect(childMeta.hierarchy_linked_at).toBeUndefined();
+    const parentMeta = await getWorkspace(parentId);
+    const childMeta  = await getWorkspace(childId);
+    expect(parentMeta!.hierarchy_linked_at).toBeUndefined();
+    expect(childMeta!.hierarchy_linked_at).toBeUndefined();
   });
 });
 
@@ -530,57 +494,44 @@ describe('getWorkspaceHierarchy', () => {
     const parentPath = path.join(TEST_WORKSPACE_PATH, 'hier-parent');
     const child1Path = path.join(TEST_WORKSPACE_PATH, 'hier-parent', 'child1');
     const child2Path = path.join(TEST_WORKSPACE_PATH, 'hier-parent', 'child2');
-
     await fs.mkdir(parentPath, { recursive: true });
     await fs.mkdir(child1Path, { recursive: true });
     await fs.mkdir(child2Path, { recursive: true });
-
-    await createFakeWorkspaceMeta(parentId, parentPath);
-    await createFakeWorkspaceMeta(child1Id, child1Path);
-    await createFakeWorkspaceMeta(child2Id, child2Path);
     await createIdentityFile(child1Path, child1Id);
     await createIdentityFile(child2Path, child2Id);
-
-    vi.resetModules();
-    mod = await import('../../storage/workspace-hierarchy.js');
+    await dbCreateWorkspace({ id: parentId, path: parentPath, name: 'hier-parent' });
+    await dbCreateWorkspace({ id: child1Id, path: child1Path, name: 'child1' });
+    await dbCreateWorkspace({ id: child2Id, path: child2Path, name: 'child2' });
 
     await mod.linkWorkspaces(parentId, child1Id);
     await mod.linkWorkspaces(parentId, child2Id);
 
-    // Get hierarchy from parent perspective
     const parentHierarchy = await mod.getWorkspaceHierarchy(parentId);
-
     expect(parentHierarchy.parent).toBeUndefined();
     expect(parentHierarchy.children).toHaveLength(2);
-    const childIds = parentHierarchy.children.map(c => c.id).sort();
+    const childIds = parentHierarchy.children.map((c: { id: string }) => c.id).sort();
     expect(childIds).toEqual([child1Id, child2Id].sort());
 
-    // Get hierarchy from child perspective
     const childHierarchy = await mod.getWorkspaceHierarchy(child1Id);
-
     expect(childHierarchy.parent).toBeDefined();
     expect(childHierarchy.parent!.id).toBe(parentId);
     expect(childHierarchy.children).toHaveLength(0);
   });
 
   it('returns empty children array when workspace not found', async () => {
-    vi.resetModules();
-    mod = await import('../../storage/workspace-hierarchy.js');
-
     const hierarchy = await mod.getWorkspaceHierarchy('nonexistent-ws-000');
     expect(hierarchy.children).toEqual([]);
     expect(hierarchy.parent).toBeUndefined();
   });
 
   it('returns empty hierarchy for standalone workspace', async () => {
-    const standaloneId = 'standalone-ws-aabbcc112233';
-    await createFakeWorkspaceMeta(standaloneId, path.join(TEST_WORKSPACE_PATH, 'solo'));
-
-    vi.resetModules();
-    mod = await import('../../storage/workspace-hierarchy.js');
+    const standaloneId   = 'standalone-ws-aabbcc112233';
+    const standalonePath = path.join(TEST_WORKSPACE_PATH, 'solo');
+    await fs.mkdir(standalonePath, { recursive: true });
+    await dbCreateWorkspace({ id: standaloneId, path: standalonePath, name: 'solo' });
 
     const hierarchy = await mod.getWorkspaceHierarchy(standaloneId);
     expect(hierarchy.parent).toBeUndefined();
-    expect(hierarchy.children).toEqual([]);
+    expect(hierarchy.children).toHaveLength(0);
   });
 });

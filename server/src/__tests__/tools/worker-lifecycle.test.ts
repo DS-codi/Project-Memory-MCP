@@ -18,14 +18,14 @@ import { AGENT_BOUNDARIES } from '../../types/index.js';
 import type { PlanState, LineageEntry } from '../../types/index.js';
 
 // Mock the file store and events
-vi.mock('../../storage/file-store.js');
+vi.mock('../../storage/db-store.js');
 vi.mock('../../tools/event.tools.js', () => ({
   handoff: vi.fn().mockResolvedValue(undefined),
   agentInit: vi.fn().mockResolvedValue(undefined),
   agentComplete: vi.fn().mockResolvedValue(undefined),
 }));
 
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 
 // =============================================================================
 // Test Helpers

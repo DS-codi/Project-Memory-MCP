@@ -48,6 +48,14 @@
 .EXAMPLE
     # Full build but do not install extension (package only)
     .\install.ps1 -Component Extension -SkipInstall
+
+.EXAMPLE
+    # Rebuild with a fresh database (archives the existing one)
+    .\install.ps1 -NewDatabase
+
+.EXAMPLE
+    # Fresh database + server only
+    .\install.ps1 -Component Server -NewDatabase
 #>
 
 [CmdletBinding()]
@@ -58,7 +66,8 @@ param(
     [switch]$InstallOnly,
     [switch]$SkipInstall,
     [switch]$Force,
-    [switch]$NoBuild  # alias for InstallOnly
+    [switch]$NoBuild,  # alias for InstallOnly
+    [switch]$NewDatabase  # archive old DB and create a fresh one
 )
 
 Set-StrictMode -Version Latest
@@ -540,6 +549,100 @@ function Install-GuiForms {
 # Server
 # ──────────────────────────────────────────────────────────────
 
+function Archive-Database {
+    <#
+    .SYNOPSIS
+        Renames the existing project-memory.db (and WAL/SHM files) so the
+        system no longer recognises them. A fresh DB will be created on
+        next server startup / seed.
+
+        If the file is locked (e.g. by the MCP server), the function will
+        attempt to stop the locking process(es) and retry.
+    #>
+    $DataRoot = if ($env:PM_DATA_ROOT) { $env:PM_DATA_ROOT }
+                else { Join-Path $env:APPDATA 'ProjectMemory' }
+
+    $DbPath = Join-Path $DataRoot 'project-memory.db'
+    if (-not (Test-Path $DbPath)) {
+        Write-Host "   (no existing database found — nothing to archive)" -ForegroundColor DarkGray
+        return
+    }
+
+    $Timestamp = Get-Date -Format 'yyyy-MM-dd_HHmmss'
+    $ArchiveName = "project-memory_archived_${Timestamp}.db"
+
+    Write-Host "   › Archiving existing database" -ForegroundColor Gray
+    Write-Host "     From: $DbPath" -ForegroundColor DarkGray
+
+    # --- Helper: attempt to rename the DB, returns $true on success ----------
+    function Try-RenameDb {
+        try {
+            Rename-Item -Path $DbPath -NewName $ArchiveName -ErrorAction Stop
+            return $true
+        } catch {
+            return $false
+        }
+    }
+
+    # --- First attempt -------------------------------------------------------
+    if (Try-RenameDb) {
+        Write-Ok "Database archived → $ArchiveName"
+    } else {
+        # File is locked — try to release it by stopping known consumers
+        Write-Host "   ⚠ Database file is locked — attempting to release..." -ForegroundColor Yellow
+
+        # Stop node processes that may hold the SQLite connection open
+        # (MCP server, dashboard server, seed runners, etc.)
+        $nodeProcs = @(Get-Process -Name 'node' -ErrorAction SilentlyContinue)
+        if ($nodeProcs.Count -gt 0) {
+            Write-Host "     Stopping $($nodeProcs.Count) node process(es)..." -ForegroundColor Yellow
+            $nodeProcs | Stop-Process -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Milliseconds 1500
+        }
+
+        # Retry up to 3 times with a short delay
+        $Renamed = $false
+        for ($attempt = 1; $attempt -le 3; $attempt++) {
+            if (Try-RenameDb) {
+                $Renamed = $true
+                break
+            }
+            Write-Host "     Retry $attempt/3..." -ForegroundColor DarkGray
+            Start-Sleep -Milliseconds 1000
+        }
+
+        if ($Renamed) {
+            Write-Ok "Database archived → $ArchiveName"
+        } else {
+            # Last resort: copy instead of rename, then truncate the original
+            Write-Host "   ⚠ Could not rename — falling back to copy + truncate" -ForegroundColor Yellow
+            $ArchivePath = Join-Path $DataRoot $ArchiveName
+            Copy-Item -Path $DbPath -Destination $ArchivePath -Force
+            # Truncate the original so migrations/seed will recreate schema
+            [System.IO.File]::WriteAllBytes($DbPath, [byte[]]::new(0))
+            Write-Ok "Database copied to $ArchiveName (original truncated)"
+        }
+    }
+
+    # Also rename/copy WAL and SHM sidecar files if they exist
+    $WalPath = "${DbPath}-wal"
+    $ShmPath = "${DbPath}-shm"
+    foreach ($sidecar in @($WalPath, $ShmPath)) {
+        if (Test-Path $sidecar) {
+            $suffix = if ($sidecar -eq $WalPath) { '-wal' } else { '-shm' }
+            try {
+                Rename-Item -Path $sidecar -NewName "${ArchiveName}${suffix}" -ErrorAction Stop
+                Write-Host "     ($($suffix.TrimStart('-')) file archived)" -ForegroundColor DarkGray
+            } catch {
+                # If rename fails, just delete the sidecar — it's only useful
+                # alongside the main DB file which we've already archived.
+                Remove-Item -Path $sidecar -Force -ErrorAction SilentlyContinue
+                Write-Host "     ($($suffix.TrimStart('-')) file removed)" -ForegroundColor DarkGray
+            }
+        }
+    }
+}
+
 function Install-Server {
     Write-Step "Server"
     $ServerDir = Join-Path $Root "server"
@@ -548,6 +651,24 @@ function Install-Server {
     try {
         Invoke-Checked "npm run build" { npm run build 2>&1 | Write-Host }
         Write-Ok "Server built → $ServerDir\dist"
+
+        # Archive old DB if -NewDatabase was requested (before seed creates a new one)
+        if ($NewDatabase) {
+            Archive-Database
+        }
+
+        # Initialise the SQLite database and seed static data (tools, agents,
+        # instructions, skills). Idempotent — safe to run on every install.
+        # When -NewDatabase is used, this creates the schema from scratch.
+        Invoke-Checked "node dist/db/seed.js (DB init + seed)" {
+            node (Join-Path $ServerDir "dist\db\seed.js") 2>&1 | Write-Host
+        }
+
+        if ($NewDatabase) {
+            Write-Ok "Fresh database created at %APPDATA%\ProjectMemory\project-memory.db"
+        } else {
+            Write-Ok "Database initialised at %APPDATA%\ProjectMemory\project-memory.db"
+        }
     } finally {
         Pop-Location
     }
@@ -658,6 +779,7 @@ Write-Host "  Components : $($Components -join ', ')" -ForegroundColor DarkGray
 Write-Host "  InstallOnly: $EffectiveInstallOnly" -ForegroundColor DarkGray
 Write-Host "  SkipInstall: $SkipInstall" -ForegroundColor DarkGray
 Write-Host "  Force      : $Force" -ForegroundColor DarkGray
+Write-Host "  NewDatabase: $NewDatabase" -ForegroundColor DarkGray
 
 foreach ($comp in $Components) {
     switch ($comp) {
@@ -674,3 +796,24 @@ foreach ($comp in $Components) {
 $Elapsed = (Get-Date) - $StartTime
 Write-Host ""
 Write-Host "Done in $([math]::Round($Elapsed.TotalSeconds, 1))s" -ForegroundColor Magenta
+
+# ── Relaunch supervisor if it was (re)built ────────────────────────────────
+if ($Components -contains "Supervisor") {
+    $supervisorExe = Join-Path $Root 'target\release\supervisor.exe'
+    if (Test-Path $supervisorExe) {
+        # Kill any stale instance left over (e.g. if the build step was skipped
+        # due to -InstallOnly or the process somehow survived).
+        $stale = Get-Process -Name 'supervisor' -ErrorAction SilentlyContinue
+        if ($stale) {
+            Write-Host "   Stopping stale supervisor process(es)..." -ForegroundColor Yellow
+            $stale | Stop-Process -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Milliseconds 600
+        }
+        Write-Host ""
+        Write-Host "── Launching Supervisor" -ForegroundColor Cyan
+        Start-Process -FilePath $supervisorExe -WorkingDirectory (Split-Path $supervisorExe)
+        Write-Host "   ✓ supervisor launched" -ForegroundColor Green
+    } else {
+        Write-Host "   [warn] supervisor.exe not found — skipping launch" -ForegroundColor Yellow
+    }
+}

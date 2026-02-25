@@ -10,7 +10,7 @@ import {
 } from '../../tools/terminal-auth.js';
 
 // Mock file-store so disk operations do not touch real filesystem
-vi.mock('../../storage/file-store.js', () => ({
+vi.mock('../../storage/db-store.js', () => ({
   getWorkspacePath: (wsId: string) => `/tmp/test-data/${wsId}`,
   getWorkspace: vi.fn().mockResolvedValue(null),
 }));

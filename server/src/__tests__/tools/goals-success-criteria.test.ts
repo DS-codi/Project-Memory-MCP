@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { memoryPlan } from '../../tools/consolidated/memory_plan.js';
 import type { MemoryPlanParams } from '../../tools/consolidated/memory_plan.js';
-import * as fileStore from '../../storage/file-store.js';
+import * as fileStore from '../../storage/db-store.js';
 import * as planTools from '../../tools/plan/index.js';
 import * as validation from '../../tools/consolidated/workspace-validation.js';
 
@@ -16,7 +16,7 @@ import * as validation from '../../tools/consolidated/workspace-validation.js';
  */
 
 // Mock file store
-vi.mock('../../storage/file-store.js');
+vi.mock('../../storage/db-store.js');
 vi.mock('../../tools/consolidated/workspace-validation.js');
 vi.mock('../../storage/workspace-identity.js');
 

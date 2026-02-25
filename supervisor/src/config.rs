@@ -75,6 +75,9 @@ pub struct SupervisorConfig {
     #[serde(default)]
     pub approval_gui: ApprovalGuiSection,
 
+    #[serde(default)]
+    pub events: EventsSection,
+
     /// Zero or more managed server definitions.
     #[serde(default)]
     pub servers: Vec<ServerDefinition>,
@@ -534,6 +537,31 @@ impl Default for ApprovalGuiSection {
 impl std::ops::Deref for ApprovalGuiSection {
     type Target = FormAppConfig;
     fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+/// Configuration for the data-change event broadcast channel (`[events]` section).
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct EventsSection {
+    /// Master switch.  When `false` the `/supervisor/events` endpoint returns 503.
+    pub enabled: bool,
+    /// `tokio::sync::broadcast` buffer capacity.  Slow consumers lag and skip forward.
+    pub buffer_size: usize,
+    /// SSE keep-alive ping interval in seconds.
+    pub heartbeat_interval: u64,
+    /// Ring-buffer size for `Last-Event-Id` replay on reconnect.
+    pub replay_buffer_size: usize,
+}
+
+impl Default for EventsSection {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            buffer_size: 256,
+            heartbeat_interval: 30,
+            replay_buffer_size: 100,
+        }
+    }
 }
 
 /// A single externally-managed server definition.

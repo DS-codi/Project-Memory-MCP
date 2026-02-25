@@ -1,0 +1,455 @@
+/**
+ * Tests for program-manifest.ts — Manages child plan membership in programs.
+ *
+ * Uses a temp directory per test. Mocks getDataRoot and file-lock.
+ * For addPlanToProgram and removePlanFromProgram, we also need to mock
+ * file-store (getPlanState / savePlanState) since they update PlanState.program_id.
+ */
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { promises as fs } from 'fs';
+import path from 'path';
+import os from 'os';
+import type { PlanState } from '../../types/plan.types.js';
+import type { ProgramState, ProgramManifest } from '../../types/program-v2.types.js';
+
+// =============================================================================
+// Mock setup
+// =============================================================================
+
+vi.mock('../../storage/db-store.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../storage/db-store.js')>();
+  return { ...actual, getDataRoot: vi.fn() };
+});
+
+vi.mock('../../storage/file-lock.js', async () => {
+  const fsPromises = (await import('fs')).promises;
+  const pathMod = await import('path');
+
+  async function readJson<T>(filePath: string): Promise<T | null> {
+    try {
+      const content = await fsPromises.readFile(filePath, 'utf-8');
+      return JSON.parse(content) as T;
+    } catch { return null; }
+  }
+
+  async function writeJson<T>(filePath: string, data: T): Promise<void> {
+    await fsPromises.mkdir(pathMod.dirname(filePath), { recursive: true });
+    await fsPromises.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
+  }
+
+  async function modifyJsonLocked<T>(
+    filePath: string,
+    modifier: (data: T | null) => T | Promise<T>,
+  ): Promise<T> {
+    const data = await readJson<T>(filePath);
+    const modified = await modifier(data);
+    await writeJson(filePath, modified);
+    return modified;
+  }
+
+  return {
+    readJson, writeJson, modifyJsonLocked, writeJsonLocked: writeJson,
+    fileLockManager: { withLock: (_: string, op: () => Promise<unknown>) => op() },
+  };
+});
+
+// Mock event emitter (lifecycle depends on it)
+vi.mock('../../events/event-emitter.js', () => ({
+  events: {
+    programCreated: vi.fn().mockResolvedValue(undefined),
+    programUpdated: vi.fn().mockResolvedValue(undefined),
+    programArchived: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
+// In-memory PlanState store for file-store mock
+const planStore = new Map<string, PlanState>();
+
+vi.mock('../../storage/db-store.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../storage/db-store.js')>();
+  return {
+    ...actual,
+    getPlanState: vi.fn(async (_wsId: string, planId: string) => {
+      return planStore.get(planId) ?? null;
+    }),
+    savePlanState: vi.fn(async (state: PlanState) => {
+      planStore.set(state.id, { ...state, updated_at: new Date().toISOString() });
+    }),
+  };
+});
+
+import { getDataRoot } from '../../storage/db-store.js';
+import * as fileStore from '../../storage/db-store.js';
+import {
+  addPlanToProgram,
+  removePlanFromProgram,
+  listProgramPlans,
+  upgradeToProgram,
+} from '../../tools/program/program-manifest.js';
+import {
+  createProgramDir,
+  saveProgramState,
+  readProgramState,
+  saveManifest,
+  readManifest,
+  readDependencies,
+  readRisks,
+} from '../../storage/db-store.js';
+
+// =============================================================================
+// Helpers
+// =============================================================================
+
+const WORKSPACE_ID = 'test-workspace-manifest';
+const PROGRAM_ID = 'prog_manifest_001';
+
+let tmpDir: string;
+
+function makePlanState(overrides: Partial<PlanState> = {}): PlanState {
+  return {
+    id: 'plan_test_001',
+    workspace_id: WORKSPACE_ID,
+    title: 'Test Plan',
+    description: 'A test plan',
+    priority: 'medium',
+    status: 'active',
+    category: 'feature',
+    current_phase: 'Phase 1',
+    current_agent: null,
+    created_at: '2026-02-18T12:00:00.000Z',
+    updated_at: '2026-02-18T12:00:00.000Z',
+    agent_sessions: [],
+    lineage: [],
+    steps: [
+      { phase: 'Phase 1', task: 'Step 1', status: 'done', type: 'code', assignee: 'Executor' },
+      { phase: 'Phase 1', task: 'Step 2', status: 'pending', type: 'code', assignee: 'Executor' },
+    ],
+    ...overrides,
+  } as PlanState;
+}
+
+function makeProgramState(overrides: Partial<ProgramState> = {}): ProgramState {
+  return {
+    id: PROGRAM_ID,
+    workspace_id: WORKSPACE_ID,
+    title: 'Test Program',
+    description: 'A test program',
+    priority: 'medium',
+    category: 'feature',
+    status: 'active',
+    created_at: '2026-02-18T12:00:00.000Z',
+    updated_at: '2026-02-18T12:00:00.000Z',
+    ...overrides,
+  };
+}
+
+async function seedProgram(programId = PROGRAM_ID, overrides: Partial<ProgramState> = {}): Promise<void> {
+  const state = makeProgramState({ id: programId, ...overrides });
+  await createProgramDir(WORKSPACE_ID, programId);
+  await saveProgramState(WORKSPACE_ID, programId, state);
+  const manifest: ProgramManifest = { program_id: programId, plan_ids: [], updated_at: state.updated_at };
+  await saveManifest(WORKSPACE_ID, programId, manifest);
+}
+
+beforeEach(async () => {
+  tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pm-prog-manifest-'));
+  vi.mocked(getDataRoot).mockReturnValue(tmpDir);
+  planStore.clear();
+  vi.clearAllMocks();
+});
+
+afterEach(async () => {
+  await fs.rm(tmpDir, { recursive: true, force: true });
+  vi.restoreAllMocks();
+});
+
+// =============================================================================
+// addPlanToProgram
+// =============================================================================
+
+describe('addPlanToProgram', () => {
+  it('adds a plan to the manifest and sets program_id on PlanState', async () => {
+    await seedProgram();
+    const plan = makePlanState({ id: 'plan_a' });
+    planStore.set('plan_a', plan);
+
+    const result = await addPlanToProgram(WORKSPACE_ID, PROGRAM_ID, 'plan_a');
+
+    expect(result.success).toBe(true);
+    expect(result.data!.plan_ids).toContain('plan_a');
+
+    // Verify manifest persisted on disk
+    const manifest = await readManifest(WORKSPACE_ID, PROGRAM_ID);
+    expect(manifest!.plan_ids).toContain('plan_a');
+
+    // Verify PlanState.program_id was set
+    expect(fileStore.savePlanState).toHaveBeenCalled();
+    const savedPlan = planStore.get('plan_a');
+    expect(savedPlan!.program_id).toBe(PROGRAM_ID);
+  });
+
+  it('is idempotent — does not duplicate plan_id', async () => {
+    await seedProgram();
+    planStore.set('plan_a', makePlanState({ id: 'plan_a', program_id: PROGRAM_ID }));
+
+    await addPlanToProgram(WORKSPACE_ID, PROGRAM_ID, 'plan_a');
+    const result = await addPlanToProgram(WORKSPACE_ID, PROGRAM_ID, 'plan_a');
+
+    expect(result.success).toBe(true);
+    expect(result.data!.plan_ids.filter(id => id === 'plan_a').length).toBe(1);
+  });
+
+  it('rejects plan already in another program', async () => {
+    await seedProgram();
+    planStore.set('plan_a', makePlanState({ id: 'plan_a', program_id: 'prog_other' }));
+
+    const result = await addPlanToProgram(WORKSPACE_ID, PROGRAM_ID, 'plan_a');
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('already in program');
+  });
+
+  it('rejects when program is archived', async () => {
+    await seedProgram(PROGRAM_ID, { status: 'archived' });
+    planStore.set('plan_a', makePlanState({ id: 'plan_a' }));
+
+    const result = await addPlanToProgram(WORKSPACE_ID, PROGRAM_ID, 'plan_a');
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('archived');
+  });
+
+  it('rejects when program does not exist', async () => {
+    planStore.set('plan_a', makePlanState({ id: 'plan_a' }));
+    const result = await addPlanToProgram(WORKSPACE_ID, 'prog_nonexistent', 'plan_a');
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('not found');
+  });
+
+  it('rejects when plan does not exist', async () => {
+    await seedProgram();
+    const result = await addPlanToProgram(WORKSPACE_ID, PROGRAM_ID, 'plan_ghost');
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('Plan not found');
+  });
+});
+
+// =============================================================================
+// removePlanFromProgram
+// =============================================================================
+
+describe('removePlanFromProgram', () => {
+  it('removes a plan from the manifest and clears program_id', async () => {
+    await seedProgram();
+    // Pre-populate manifest with the plan
+    const manifest: ProgramManifest = { program_id: PROGRAM_ID, plan_ids: ['plan_a', 'plan_b'], updated_at: '' };
+    await saveManifest(WORKSPACE_ID, PROGRAM_ID, manifest);
+    planStore.set('plan_a', makePlanState({ id: 'plan_a', program_id: PROGRAM_ID }));
+
+    const result = await removePlanFromProgram(WORKSPACE_ID, PROGRAM_ID, 'plan_a');
+
+    expect(result.success).toBe(true);
+    expect(result.data!.plan_ids).toEqual(['plan_b']);
+
+    // Verify program_id cleared
+    const saved = planStore.get('plan_a');
+    expect(saved!.program_id).toBeUndefined();
+  });
+
+  it('returns error when plan is not in the manifest', async () => {
+    await seedProgram();
+    const result = await removePlanFromProgram(WORKSPACE_ID, PROGRAM_ID, 'plan_missing');
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('not in program');
+  });
+
+  it('returns error when program does not exist', async () => {
+    const result = await removePlanFromProgram(WORKSPACE_ID, 'prog_nope', 'plan_a');
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('not found');
+  });
+});
+
+// =============================================================================
+// listProgramPlans
+// =============================================================================
+
+describe('listProgramPlans', () => {
+  it('returns enriched summaries for all child plans', async () => {
+    await seedProgram();
+    const manifest: ProgramManifest = { program_id: PROGRAM_ID, plan_ids: ['plan_a', 'plan_b'], updated_at: '' };
+    await saveManifest(WORKSPACE_ID, PROGRAM_ID, manifest);
+
+    planStore.set('plan_a', makePlanState({
+      id: 'plan_a',
+      title: 'Plan A',
+      steps: [
+        { phase: 'P1', task: 'S1', status: 'done', type: 'code', assignee: 'Executor' },
+        { phase: 'P1', task: 'S2', status: 'pending', type: 'code', assignee: 'Executor' },
+      ],
+    }));
+    planStore.set('plan_b', makePlanState({
+      id: 'plan_b',
+      title: 'Plan B',
+      steps: [
+        { phase: 'P1', task: 'S1', status: 'done', type: 'code', assignee: 'Executor' },
+      ],
+    }));
+
+    const result = await listProgramPlans(WORKSPACE_ID, PROGRAM_ID);
+
+    expect(result.success).toBe(true);
+    expect(result.data!.length).toBe(2);
+
+    const planA = result.data!.find(s => s.plan_id === 'plan_a')!;
+    expect(planA.title).toBe('Plan A');
+    expect(planA.steps_done).toBe(1);
+    expect(planA.steps_total).toBe(2);
+
+    const planB = result.data!.find(s => s.plan_id === 'plan_b')!;
+    expect(planB.steps_done).toBe(1);
+    expect(planB.steps_total).toBe(1);
+  });
+
+  it('returns empty array when no manifest exists', async () => {
+    // Create program but without a manifest file
+    const state = makeProgramState();
+    await createProgramDir(WORKSPACE_ID, PROGRAM_ID);
+    await saveProgramState(WORKSPACE_ID, PROGRAM_ID, state);
+
+    const result = await listProgramPlans(WORKSPACE_ID, PROGRAM_ID);
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual([]);
+  });
+
+  it('skips plans that no longer exist', async () => {
+    await seedProgram();
+    const manifest: ProgramManifest = { program_id: PROGRAM_ID, plan_ids: ['plan_a', 'plan_gone'], updated_at: '' };
+    await saveManifest(WORKSPACE_ID, PROGRAM_ID, manifest);
+    planStore.set('plan_a', makePlanState({ id: 'plan_a', title: 'Exists' }));
+    // plan_gone is not in planStore
+
+    const result = await listProgramPlans(WORKSPACE_ID, PROGRAM_ID);
+    expect(result.success).toBe(true);
+    expect(result.data!.length).toBe(1);
+    expect(result.data![0].plan_id).toBe('plan_a');
+  });
+
+  it('returns error for non-existent program', async () => {
+    const result = await listProgramPlans(WORKSPACE_ID, 'prog_missing');
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('not found');
+  });
+});
+
+// =============================================================================
+// upgradeToProgram
+// =============================================================================
+
+describe('upgradeToProgram', () => {
+  it('converts a legacy is_program PlanState into a new ProgramState', async () => {
+    const legacyPlan = makePlanState({
+      id: 'plan_legacy',
+      title: 'Legacy Program',
+      description: 'Old program style',
+      is_program: true,
+      child_plan_ids: ['plan_child_1', 'plan_child_2'],
+    });
+    planStore.set('plan_legacy', legacyPlan);
+
+    // Add child plans so they can be updated
+    planStore.set('plan_child_1', makePlanState({ id: 'plan_child_1', title: 'Child 1' }));
+    planStore.set('plan_child_2', makePlanState({ id: 'plan_child_2', title: 'Child 2' }));
+
+    const result = await upgradeToProgram(WORKSPACE_ID, 'plan_legacy');
+
+    expect(result.success).toBe(true);
+    const { program, manifest } = result.data!;
+
+    // ProgramState created
+    expect(program.id).toMatch(/^prog_/);
+    expect(program.title).toBe('Legacy Program');
+    expect(program.description).toBe('Old program style');
+    expect(program.status).toBe('active');
+
+    // Manifest has the child plan IDs
+    expect(manifest.plan_ids).toEqual(['plan_child_1', 'plan_child_2']);
+
+    // Verify files on disk
+    const persisted = await readProgramState(WORKSPACE_ID, program.id);
+    expect(persisted).toBeDefined();
+    expect(persisted!.title).toBe('Legacy Program');
+
+    const persistedManifest = await readManifest(WORKSPACE_ID, program.id);
+    expect(persistedManifest!.plan_ids).toEqual(['plan_child_1', 'plan_child_2']);
+
+    // Dependencies and risks initialised empty
+    const deps = await readDependencies(WORKSPACE_ID, program.id);
+    expect(deps).toEqual([]);
+    const risks = await readRisks(WORKSPACE_ID, program.id);
+    expect(risks).toEqual([]);
+
+    // Child plans updated with program_id
+    const child1 = planStore.get('plan_child_1');
+    expect(child1!.program_id).toBe(program.id);
+    const child2 = planStore.get('plan_child_2');
+    expect(child2!.program_id).toBe(program.id);
+
+    // Original PlanState cleaned up
+    const original = planStore.get('plan_legacy');
+    expect(original!.is_program).toBeUndefined();
+    expect(original!.child_plan_ids).toBeUndefined();
+    expect(original!.program_id).toBe(program.id);
+  });
+
+  it('handles archived legacy program', async () => {
+    planStore.set('plan_archived_prog', makePlanState({
+      id: 'plan_archived_prog',
+      title: 'Archived Legacy',
+      status: 'archived',
+      is_program: true,
+      child_plan_ids: [],
+    }));
+
+    const result = await upgradeToProgram(WORKSPACE_ID, 'plan_archived_prog');
+    expect(result.success).toBe(true);
+    expect(result.data!.program.status).toBe('archived');
+    expect(result.data!.program.archived_at).toBeDefined();
+  });
+
+  it('rejects plan without is_program flag', async () => {
+    planStore.set('plan_normal', makePlanState({ id: 'plan_normal' }));
+
+    const result = await upgradeToProgram(WORKSPACE_ID, 'plan_normal');
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('not a legacy program');
+  });
+
+  it('rejects non-existent plan', async () => {
+    const result = await upgradeToProgram(WORKSPACE_ID, 'plan_ghost');
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('Plan not found');
+  });
+
+  it('handles empty child_plan_ids gracefully', async () => {
+    planStore.set('plan_empty', makePlanState({
+      id: 'plan_empty',
+      is_program: true,
+      child_plan_ids: [],
+    }));
+
+    const result = await upgradeToProgram(WORKSPACE_ID, 'plan_empty');
+    expect(result.success).toBe(true);
+    expect(result.data!.manifest.plan_ids).toEqual([]);
+  });
+
+  it('handles undefined child_plan_ids gracefully', async () => {
+    planStore.set('plan_undef', makePlanState({
+      id: 'plan_undef',
+      is_program: true,
+    }));
+
+    const result = await upgradeToProgram(WORKSPACE_ID, 'plan_undef');
+    expect(result.success).toBe(true);
+    expect(result.data!.manifest.plan_ids).toEqual([]);
+  });
+});

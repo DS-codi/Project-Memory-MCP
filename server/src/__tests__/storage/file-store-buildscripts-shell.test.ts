@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   parseCommandTokens,
-} from '../../storage/file-store.js';
+} from '../../storage/db-store.js';
 
 describe('parseCommandTokens()', () => {
   it('splits command strings while respecting quotes', () => {

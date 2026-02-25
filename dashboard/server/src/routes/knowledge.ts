@@ -1,13 +1,15 @@
 /**
  * Knowledge Files REST API routes
- * 
- * CRUD endpoints for workspace knowledge files.
- * Reads/writes directly from {MBS_DATA_ROOT}/{workspaceId}/knowledge/{slug}.json
+ *
+ * GET endpoints read from SQLite DB (read-only dashboard access).
+ * PUT/DELETE endpoints continue to write to the filesystem
+ * (write path deferred to Phase 5 — gated on MCP server write proxy).
  */
 
 import { Router, type Request } from 'express';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { listKnowledge, getKnowledgeItem } from '../db/queries.js';
 
 export const knowledgeRouter = Router({ mergeParams: true });
 
@@ -79,37 +81,29 @@ function validateSlug(slug: string): string | null {
 knowledgeRouter.get('/', async (req: Request<KnowledgeParams>, res) => {
   try {
     const workspaceId = req.params.id;
-    const dir = getKnowledgeDir(workspaceId);
-    const { category } = req.query;
+    const category = req.query.category as string | undefined;
 
-    let fileNames: string[];
-    try {
-      fileNames = await fs.readdir(dir);
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        return res.json({ files: [], total: 0 });
-      }
-      throw err;
-    }
+    const rows = listKnowledge(workspaceId, category);
 
-    const files: KnowledgeFileMeta[] = [];
-
-    for (const name of fileNames) {
-      if (!name.endsWith('.json')) continue;
+    const files = rows.map((row) => {
+      // Parse tags from JSON string
+      let tags: string[] = [];
       try {
-        const raw = await fs.readFile(path.join(dir, name), 'utf-8');
-        const data = JSON.parse(raw) as KnowledgeFile;
-        if (category && data.category !== category) continue;
-        // Return metadata only — no content
-        const { content: _, ...meta } = data;
-        files.push(meta);
+        tags = row.tags ? JSON.parse(row.tags) : [];
       } catch {
-        // Skip corrupt files
+        tags = [];
       }
-    }
-
-    // Sort by updated_at descending
-    files.sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+      return {
+        slug: row.slug,
+        title: row.title,
+        category: row.category ?? 'reference',
+        tags,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        created_by_agent: row.created_by_agent ?? undefined,
+        created_by_plan: row.created_by_plan ?? undefined,
+      };
+    });
 
     res.json({ files, total: files.length });
   } catch (error) {
@@ -128,14 +122,41 @@ knowledgeRouter.get('/:slug', async (req: Request<KnowledgeParams>, res) => {
     const slugError = validateSlug(slug);
     if (slugError) return res.status(400).json({ error: slugError });
 
-    const filePath = getKnowledgeFilePath(workspaceId, slug);
-    const raw = await fs.readFile(filePath, 'utf-8');
-    const file = JSON.parse(raw) as KnowledgeFile;
-    res.json({ file });
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+    const row = getKnowledgeItem(workspaceId, slug);
+    if (!row) {
       return res.status(404).json({ error: 'Knowledge file not found' });
     }
+
+    // Parse data JSON to extract content; fall back to empty string
+    let content = '';
+    try {
+      const parsed = JSON.parse(row.data) as Record<string, unknown>;
+      content = typeof parsed.content === 'string' ? parsed.content : JSON.stringify(parsed);
+    } catch {
+      content = row.data;
+    }
+
+    let tags: string[] = [];
+    try {
+      tags = row.tags ? JSON.parse(row.tags) : [];
+    } catch {
+      tags = [];
+    }
+
+    const file = {
+      slug: row.slug,
+      title: row.title,
+      category: row.category ?? 'reference',
+      content,
+      tags,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      created_by_agent: row.created_by_agent ?? undefined,
+      created_by_plan: row.created_by_plan ?? undefined,
+    };
+
+    res.json({ file });
+  } catch (error) {
     console.error('Error getting knowledge file:', error);
     res.status(500).json({ error: 'Failed to get knowledge file' });
   }

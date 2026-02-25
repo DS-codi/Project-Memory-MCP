@@ -15,7 +15,7 @@
 
 import { randomBytes } from 'crypto';
 import * as net from 'node:net';
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 import { deployForTask } from '../agent-deploy.js';
 
 // ---------------------------------------------------------------------------

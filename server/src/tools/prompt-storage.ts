@@ -6,7 +6,7 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import { getPlanPath, ensureDir, exists } from '../storage/file-store.js';
+import { getPlanPath, ensureDir, exists } from '../storage/db-store.js';
 import type { PromptFrontmatter } from './prompt-writer.js';
 
 // =============================================================================

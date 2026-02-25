@@ -12,11 +12,11 @@
  */
 
 import type { ProgramDependency } from '../../types/program-v2.types.js';
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 import {
   readDependencies,
   saveDependencies,
-} from '../../storage/program-store.js';
+} from '../../storage/db-store.js';
 import { events } from '../../events/event-emitter.js';
 
 // =============================================================================

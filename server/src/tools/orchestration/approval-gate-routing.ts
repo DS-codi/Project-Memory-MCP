@@ -34,7 +34,7 @@ import {
   type SupervisorClientOptions,
 } from './supervisor-client.js';
 
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 
 // =========================================================================
 // Result types

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { memoryWorkspace } from '../../tools/consolidated/memory_workspace.js';
 import * as workspaceTools from '../../tools/workspace.tools.js';
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 import * as validation from '../../tools/consolidated/workspace-validation.js';
 
 /**
@@ -13,7 +13,7 @@ import * as validation from '../../tools/consolidated/workspace-validation.js';
  */
 
 vi.mock('../../tools/workspace.tools.js');
-vi.mock('../../storage/file-store.js');
+vi.mock('../../storage/db-store.js');
 vi.mock('../../tools/consolidated/workspace-validation.js');
 vi.mock('../../storage/workspace-identity.js');
 vi.mock('../../storage/workspace-hierarchy.js');

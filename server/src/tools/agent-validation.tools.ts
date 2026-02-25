@@ -20,7 +20,7 @@ import type {
   PlanStep
 } from '../types/index.js';
 import { AGENT_BOUNDARIES } from '../types/index.js';
-import * as store from '../storage/file-store.js';
+import * as store from '../storage/db-store.js';
 
 // =============================================================================
 // Phase to Agent Mapping - Which agents handle which phases

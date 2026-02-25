@@ -8,7 +8,6 @@ export interface DashboardSettings {
   
   // Data refresh
   autoRefreshEnabled: boolean;
-  autoRefreshInterval: number; // seconds
   
   // Notifications
   showNotifications: boolean;
@@ -36,7 +35,6 @@ const defaultSettings: DashboardSettings = {
   sidebarCollapsed: false,
   defaultView: 'grid',
   autoRefreshEnabled: true,
-  autoRefreshInterval: 30,
   showNotifications: true,
   showToastNotifications: true,
   notifyOnHandoff: true,

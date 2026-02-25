@@ -83,3 +83,89 @@ pub async fn close_mcp_connection(
         other => anyhow::bail!("DELETE {url} returned HTTP {other}"),
     }
 }
+
+// ---------------------------------------------------------------------------
+// Migration health
+// ---------------------------------------------------------------------------
+
+/// Migration status entry as returned by `GET /admin/migrations`.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MigrationStatusEntry {
+    pub filename:   String,
+    pub applied:    bool,
+    pub applied_at: Option<String>,
+}
+
+/// Full response from `GET /admin/migrations`.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MigrationStatusResponse {
+    pub migrations:    Vec<MigrationStatusEntry>,
+    pub pending_count: u64,
+    pub pending:       Vec<String>,
+    pub healthy:       bool,
+}
+
+/// Fetch migration status from a running MCP instance.
+///
+/// Returns `Ok(response)` when the endpoint replies, `Err` on network/parse failures.
+pub async fn fetch_migration_status(
+    base_url:   &str,
+    timeout_ms: u64,
+) -> anyhow::Result<MigrationStatusResponse> {
+    let url    = format!("{base_url}/admin/migrations");
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_millis(timeout_ms))
+        .build()
+        .context("failed to build reqwest client")?;
+
+    let resp = client
+        .get(&url)
+        .send()
+        .await
+        .with_context(|| format!("GET {url} failed"))?;
+
+    if !resp.status().is_success() {
+        anyhow::bail!("GET {url} returned HTTP {}", resp.status());
+    }
+
+    resp.json::<MigrationStatusResponse>()
+        .await
+        .with_context(|| format!("failed to deserialise response from {url}"))
+}
+
+/// Ask the MCP server to run any pending migrations.
+///
+/// Returns `Ok(true)` when the server reports success (no errors), `Ok(false)`
+/// when the run completed with errors, and `Err` for network failures.
+pub async fn run_migrations(
+    base_url:   &str,
+    timeout_ms: u64,
+) -> anyhow::Result<bool> {
+    let url    = format!("{base_url}/admin/migrations/run");
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_millis(timeout_ms))
+        .build()
+        .context("failed to build reqwest client")?;
+
+    let resp = client
+        .post(&url)
+        .header("content-length", "0")
+        .send()
+        .await
+        .with_context(|| format!("POST {url} failed"))?;
+
+    if !resp.status().is_success() {
+        anyhow::bail!("POST {url} returned HTTP {}", resp.status());
+    }
+
+    #[derive(Deserialize)]
+    struct RunResult { success: bool }
+    let result: RunResult = resp
+        .json()
+        .await
+        .with_context(|| format!("failed to deserialise response from {url}"))?;
+
+    Ok(result.success)
+}

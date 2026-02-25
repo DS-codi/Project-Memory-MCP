@@ -23,7 +23,7 @@ import type {
   GetPlanDependenciesParams,
   GetPlanDependenciesResult,
 } from '../../types/index.js';
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 import { events } from '../../events/event-emitter.js';
 import { computeAggregateProgress } from './plan-utils.js';
 

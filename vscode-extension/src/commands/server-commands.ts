@@ -75,73 +75,8 @@ export function registerServerCommands(
             }
         }),
 
-        // DEPRECATED: These commands now show guidance instead of performing actions
-        vscode.commands.registerCommand('projectMemory.startServer', async () => {
-            vscode.window.showInformationMessage(
-                'The extension no longer starts servers. Launch the Supervisor instead.',
-                'Launch Supervisor', 'Open Directory'
-            ).then(choice => {
-                if (choice === 'Launch Supervisor') {
-                    vscode.commands.executeCommand('project-memory.launchSupervisor');
-                } else if (choice === 'Open Directory') {
-                    vscode.commands.executeCommand('project-memory.openSupervisorDirectory');
-                }
-            });
-        }),
-
-        vscode.commands.registerCommand('projectMemory.stopServer', async () => {
-            vscode.window.showInformationMessage(
-                'The extension no longer controls servers. Stop the Supervisor using:\n' +
-                '• stop-supervisor.ps1 script\n' +
-                '• Close the supervisor terminal\n' +
-                '• Use system task manager',
-                'Open Directory'
-            ).then(choice => {
-                if (choice === 'Open Directory') {
-                    vscode.commands.executeCommand('project-memory.openSupervisorDirectory');
-                }
-            });
-        }),
-
-        vscode.commands.registerCommand('projectMemory.restartServer', async () => {
-            vscode.window.showInformationMessage(
-                'The extension no longer restarts servers. To restart:\n' +
-                '1. Stop the Supervisor (stop-supervisor.ps1 or Ctrl+C)\n' +
-                '2. Launch it again (start-supervisor.ps1)',
-                'Open Directory'
-            ).then(choice => {
-                if (choice === 'Open Directory') {
-                    vscode.commands.executeCommand('project-memory.openSupervisorDirectory');
-                }
-            });
-        }),
-
         vscode.commands.registerCommand('projectMemory.showServerLogs', () => {
             connectionManager.showLogs();
-        }),
-
-        // This command is potentially dangerous and no longer needed
-        vscode.commands.registerCommand('projectMemory.forceStopExternalServer', async () => {
-            vscode.window.showWarningMessage(
-                'Force-stopping external processes is no longer supported. ' +
-                'Use stop-supervisor.ps1 or system task manager instead.'
-            );
-        }),
-
-        vscode.commands.registerCommand('projectMemory.isolateServer', async () => {
-            vscode.window.showInformationMessage(
-                'Isolation mode has been simplified. To use a different port:\n' +
-                '1. Configure projectMemory.serverPort in workspace settings\n' +
-                '2. Launch a second Supervisor instance with a custom config pointing to that port\n' +
-                '3. Reload VS Code window',
-                'Learn More'
-            ).then(choice => {
-                if (choice === 'Learn More') {
-                    vscode.env.openExternal(vscode.Uri.parse(
-                        'https://github.com/project-memory/project-memory-mcp#isolation-mode'
-                    ));
-                }
-            });
         }),
 
         vscode.commands.registerCommand('projectMemory.refreshData', () => {

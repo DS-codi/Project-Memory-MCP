@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { validatePlanDependencies } from '../../tools/plan/plan-programs.js';
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 import type { PlanState } from '../../types/index.js';
 
 /**
@@ -10,7 +10,7 @@ import type { PlanState } from '../../types/index.js';
  * DFS cycle-detection logic used in depends_on_plans validation.
  */
 
-vi.mock('../../storage/file-store.js');
+vi.mock('../../storage/db-store.js');
 
 // ===========================================================================
 // Fixtures

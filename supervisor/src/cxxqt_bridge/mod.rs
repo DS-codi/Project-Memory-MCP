@@ -27,6 +27,12 @@ pub mod ffi {
         #[qproperty(i32, total_mcp_connections, cxx_name = "totalMcpConnections")]
         #[qproperty(i32, active_mcp_instances, cxx_name = "activeMcpInstances")]
         #[qproperty(QString, mcp_instance_distribution, cxx_name = "mcpInstanceDistribution")]
+        #[qproperty(i32, event_subscriber_count, cxx_name = "eventSubscriberCount")]
+        #[qproperty(bool, event_broadcast_enabled, cxx_name = "eventBroadcastEnabled")]
+        #[qproperty(i32, events_total_emitted, cxx_name = "eventsTotalEmitted")]
+        #[qproperty(QString, action_feedback, cxx_name = "actionFeedback")]
+        #[qproperty(QString, config_editor_error, cxx_name = "configEditorError")]
+        #[qproperty(bool, quitting)]
         type SupervisorGuiBridge = super::SupervisorGuiBridgeRust;
 
         #[qinvokable]
@@ -63,6 +69,18 @@ pub mod ffi {
         #[qinvokable]
         #[cxx_name = "openConfig"]
         fn open_config(self: Pin<&mut SupervisorGuiBridge>);
+
+        /// Load the raw TOML text of the config file into the in-app editor.
+        /// Sets `configEditorError` on failure; returns the raw TOML on success.
+        #[qinvokable]
+        #[cxx_name = "loadConfigToml"]
+        fn load_config_toml(self: Pin<&mut SupervisorGuiBridge>) -> QString;
+
+        /// Validate and save new TOML content back to the config file.
+        /// Returns `true` on success; sets `configEditorError` and returns `false` on failure.
+        #[qinvokable]
+        #[cxx_name = "saveConfigToml"]
+        fn save_config_toml(self: Pin<&mut SupervisorGuiBridge>, content: &QString) -> bool;
     }
 
     impl cxx_qt::Initialize for SupervisorGuiBridge {}
@@ -84,12 +102,23 @@ pub struct SupervisorGuiBridgeRust {
     pub total_mcp_connections: i32,
     pub active_mcp_instances: i32,
     pub mcp_instance_distribution: QString,
+    /// Event broadcast channel stats pushed from runtime.
+    pub event_subscriber_count: i32,
+    pub event_broadcast_enabled: bool,
+    pub events_total_emitted: i32,
+    /// Last user-action result from QML invokables (restart/open errors, etc.).
+    pub action_feedback: QString,
     /// Channel for requesting a service restart from QML.
     /// Set by main.rs after the Tokio runtime and service channels are ready.
     pub restart_tx: Option<tokio::sync::mpsc::Sender<String>>,
     /// Absolute path to the supervisor config file.
     /// Set by main.rs after config is loaded so `openConfig` can open it.
     pub config_path: Option<String>,
+    /// Error message from the last `loadConfigToml` / `saveConfigToml` call.
+    pub config_editor_error: QString,
+    /// Set to `true` just before the process exits so QML can hide the system
+    /// tray icon (calling NIM_DELETE) before `std::process::exit` is reached.
+    pub quitting: bool,
 }
 
 impl Default for SupervisorGuiBridgeRust {
@@ -106,8 +135,14 @@ impl Default for SupervisorGuiBridgeRust {
             total_mcp_connections: 0,
             active_mcp_instances: 0,
             mcp_instance_distribution: QString::default(),
+            event_subscriber_count: 0,
+            event_broadcast_enabled: false,
+            events_total_emitted: 0,
+            action_feedback: QString::default(),
             restart_tx: None,
             config_path: None,
+            config_editor_error: QString::default(),
+            quitting: false,
         }
     }
 }
@@ -151,10 +186,30 @@ impl ffi::SupervisorGuiBridge {
         }
     }
 
-    pub fn restart_service(self: Pin<&mut Self>, service: &QString) {
+    pub fn restart_service(mut self: Pin<&mut Self>, service: &QString) {
         let service_name = service.to_string();
         if let Some(tx) = self.rust().restart_tx.as_ref() {
-            let _ = tx.try_send(service_name);
+            match tx.try_send(service_name.clone()) {
+                Ok(()) => {
+                    self.as_mut().set_action_feedback(QString::from(
+                        &format!("Restart requested: {service_name}"),
+                    ));
+                }
+                Err(tokio::sync::mpsc::error::TrySendError::Full(_)) => {
+                    self.as_mut().set_action_feedback(QString::from(
+                        "Restart request queue is busy. Please try again.",
+                    ));
+                }
+                Err(tokio::sync::mpsc::error::TrySendError::Closed(_)) => {
+                    self.as_mut().set_action_feedback(QString::from(
+                        "Restart channel is unavailable. Supervisor may be shutting down.",
+                    ));
+                }
+            }
+        } else {
+            self.as_mut().set_action_feedback(QString::from(
+                "Restart channel is not initialized yet.",
+            ));
         }
     }
 
@@ -163,6 +218,60 @@ impl ffi::SupervisorGuiBridge {
             let _ = std::process::Command::new("cmd")
                 .args(["/C", "start", "", path])
                 .spawn();
+        }
+    }
+
+    pub fn load_config_toml(mut self: Pin<&mut Self>) -> QString {
+        let path = self.rust().config_path.clone();
+        match path {
+            None => {
+                self.as_mut()
+                    .set_config_editor_error(QString::from("Config path not set"));
+                QString::default()
+            }
+            Some(p) => match std::fs::read_to_string(&p) {
+                Ok(content) => {
+                    self.as_mut().set_config_editor_error(QString::default());
+                    QString::from(&content)
+                }
+                Err(e) => {
+                    self.as_mut().set_config_editor_error(QString::from(
+                        &format!("Failed to read config: {e}"),
+                    ));
+                    QString::default()
+                }
+            },
+        }
+    }
+
+    pub fn save_config_toml(mut self: Pin<&mut Self>, content: &QString) -> bool {
+        let text = content.to_string();
+        // Validate the TOML is parseable before touching the file.
+        if let Err(e) = toml::from_str::<crate::config::SupervisorConfig>(&text) {
+            self.as_mut().set_config_editor_error(QString::from(
+                &format!("Parse error: {e}"),
+            ));
+            return false;
+        }
+        let path = self.rust().config_path.clone();
+        match path {
+            None => {
+                self.as_mut()
+                    .set_config_editor_error(QString::from("Config path not set"));
+                false
+            }
+            Some(p) => match std::fs::write(&p, &text) {
+                Ok(()) => {
+                    self.as_mut().set_config_editor_error(QString::default());
+                    true
+                }
+                Err(e) => {
+                    self.as_mut().set_config_editor_error(QString::from(
+                        &format!("Failed to save config: {e}"),
+                    ));
+                    false
+                }
+            },
         }
     }
 }

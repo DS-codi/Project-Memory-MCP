@@ -8,7 +8,7 @@ import type {
   WorkspaceUpdateLogEntry,
   WorkspaceAuditEntry
 } from '../types/index.js';
-import * as store from '../storage/file-store.js';
+import * as store from '../storage/db-store.js';
 import { getCurrentAgent, getToolContext } from './tool-logger.js';
 import { sanitizeJsonData } from '../security/sanitize.js';
 
@@ -143,33 +143,30 @@ export async function appendWorkspaceFileUpdate(input: WorkspaceFileUpdateInput)
   }
 
   const auditEntry = buildAuditEntry(entry, entry.warning);
-  const contextPath = store.getWorkspaceContextPath(workspaceId);
+  const now = store.nowISO();
+  const existing = await store.getWorkspaceContextFromDb(workspaceId);
+  const base: WorkspaceContext = existing || {
+    schema_version: '1.0.0',
+    workspace_id: workspaceId,
+    workspace_path: workspace.workspace_path || workspace.path,
+    name: workspace.name,
+    created_at: now,
+    updated_at: now,
+    sections: {}
+  };
 
-  await store.modifyJsonLocked<WorkspaceContext>(contextPath, (existing) => {
-    const now = store.nowISO();
-    const base: WorkspaceContext = existing || {
-      schema_version: '1.0.0',
-      workspace_id: workspaceId,
-      workspace_path: workspace.workspace_path || workspace.path,
-      name: workspace.name,
-      created_at: now,
-      updated_at: now,
-      sections: {}
-    };
+  const updateLog = base.update_log || { entries: [], last_updated: now };
+  updateLog.entries = [...updateLog.entries, entry].slice(-MAX_UPDATE_LOG_ENTRIES);
+  updateLog.last_updated = now;
+  base.update_log = updateLog;
 
-    const updateLog = base.update_log || { entries: [], last_updated: now };
-    updateLog.entries = [...updateLog.entries, entry].slice(-MAX_UPDATE_LOG_ENTRIES);
-    updateLog.last_updated = now;
-    base.update_log = updateLog;
+  if (auditEntry) {
+    const auditLog = base.audit_log || { entries: [], last_updated: now };
+    auditLog.entries = [...auditLog.entries, auditEntry].slice(-MAX_UPDATE_LOG_ENTRIES);
+    auditLog.last_updated = now;
+    base.audit_log = auditLog;
+  }
 
-    if (auditEntry) {
-      const auditLog = base.audit_log || { entries: [], last_updated: now };
-      auditLog.entries = [...auditLog.entries, auditEntry].slice(-MAX_UPDATE_LOG_ENTRIES);
-      auditLog.last_updated = now;
-      base.audit_log = auditLog;
-    }
-
-    base.updated_at = now;
-    return base;
-  });
+  base.updated_at = now;
+  await store.saveWorkspaceContextToDb(workspaceId, base);
 }

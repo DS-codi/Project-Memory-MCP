@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { updateStep } from '../../tools/plan/index.js';
-import * as fileStore from '../../storage/file-store.js';
+import * as fileStore from '../../storage/db-store.js';
 
-vi.mock('../../storage/file-store.js');
+vi.mock('../../storage/db-store.js');
 vi.mock('../../events/event-emitter.js', () => ({
   events: {
     stepUpdated: vi.fn(),

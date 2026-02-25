@@ -15,7 +15,6 @@
 
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../server/ConnectionManager';
-import { McpBridge } from '../chat';
 import { SupervisorHeartbeat, HeartbeatEvent } from '../supervisor/SupervisorHeartbeat';
 
 export interface DiagnosticsReport {
@@ -27,7 +26,6 @@ export interface DiagnosticsReport {
         mcpPort: number;
     };
     mcp: {
-        bridgeConnected: boolean;
         supervisorHeartbeat: boolean;
         lastHeartbeatMs: number | null;
         poolInstances: number;
@@ -52,7 +50,6 @@ export class DiagnosticsService implements vscode.Disposable {
 
     constructor(
         private connectionManager: ConnectionManager,
-        private getMcpBridge: () => McpBridge | null,
         private dashboardPort: number
     ) {}
 
@@ -66,13 +63,11 @@ export class DiagnosticsService implements vscode.Disposable {
             heartbeat.onBeat(evt => {
                 this.lastHeartbeat = evt;
                 this.heartbeatAlive = true;
-                // If the ConnectionManager state is stale (services were down last poll),
-                // trigger an immediate re-check so we don't wait 30 s for the poll timer.
-                if (!this.connectionManager.isDashboardConnected || !this.connectionManager.isMcpConnected) {
-                    this.connectionManager.detectAndConnect().then(() => this.runCheck());
-                } else {
-                    this.runCheck();
-                }
+                // Just update the diagnostic report. Re-detection is handled by
+                // ConnectionManager's own polling (circuit reset happens in extension.ts
+                // onBeat wiring). Calling detectAndConnect() on every 10 s beat caused
+                // status-bar churn ("PM Detecting...") that made Copilot chat unresponsive.
+                this.runCheck();
             }),
             heartbeat.onLost(() => {
                 this.heartbeatAlive = false;
@@ -80,8 +75,8 @@ export class DiagnosticsService implements vscode.Disposable {
             }),
             heartbeat.onRestored(() => {
                 this.heartbeatAlive = true;
-                // Trigger an immediate ConnectionManager re-check so we don't
-                // wait up to 30 s for the poll timer to notice services came back.
+                // Heartbeat came back — trigger an immediate re-check so we don't
+                // wait up to 30 s for the poll timer to notice services are back.
                 this.connectionManager.detectAndConnect().then(() => this.runCheck());
             }),
         );
@@ -105,13 +100,6 @@ export class DiagnosticsService implements vscode.Disposable {
         // Supervisor heartbeat.
         if (!this.heartbeatAlive) {
             issues.push('Supervisor heartbeat lost — supervisor may be down');
-        }
-
-        // Bridge connected flag (no probe — just reads the cached state).
-        const bridge = this.getMcpBridge();
-        const bridgeConnected = bridge?.isConnected() ?? false;
-        if (!bridgeConnected) {
-            issues.push('MCP bridge is not connected');
         }
 
         // Memory — use 1000MB threshold; extension host routinely exceeds 500MB
@@ -142,7 +130,6 @@ export class DiagnosticsService implements vscode.Disposable {
                 mcpPort: this.connectionManager['config'].mcpPort,
             },
             mcp: {
-                bridgeConnected,
                 supervisorHeartbeat: this.heartbeatAlive,
                 lastHeartbeatMs: this.lastHeartbeat?.timestamp_ms ?? null,
                 poolInstances: this.lastHeartbeat?.pool_instances ?? 0,
@@ -176,7 +163,6 @@ export class DiagnosticsService implements vscode.Disposable {
             '--- Supervisor ---',
             `  Heartbeat: ${report.mcp.supervisorHeartbeat ? '✓ alive' : '✗ lost'}`,
             `  Pool instances: ${report.mcp.poolInstances}`,
-            `  Bridge connected: ${report.mcp.bridgeConnected}`,
             '',
             '--- Extension ---',
             `  Memory: ${report.extension.memoryMB} MB`,

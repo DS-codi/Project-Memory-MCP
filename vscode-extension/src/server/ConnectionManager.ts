@@ -29,7 +29,7 @@ export class ConnectionManager implements vscode.Disposable {
     private _isDashboardConnected = false;
     private _isMcpConnected = false;
     private config: ConnectionConfig;
-    private detectionTimer: ReturnType<typeof setInterval> | null = null;
+    private detectionTimer: ReturnType<typeof setTimeout> | null = null;
     /** Prevents concurrent `detectAndConnect` calls from racing each other. */
     private _detectInProgress = false;
 
@@ -38,6 +38,12 @@ export class ConnectionManager implements vscode.Disposable {
      * after a server blip). Use this to reconnect the MCP bridge.
      */
     public onConnected?: () => void;
+
+    // ── Polling state ──────────────────────────────────────────────────────
+    /** Consecutive failed `detectAndConnect` calls. Resets on success. */
+    private _consecutiveFailures = 0;
+    /** When true, polling is suspended until `resetCircuit()` is called. */
+    private _circuitOpen = false;
 
     constructor(config: ConnectionConfig) {
         this.config = config;
@@ -105,40 +111,97 @@ export class ConnectionManager implements vscode.Disposable {
         this.log('Disconnected from external services');
     }
 
-    // --- Auto-Detection Polling ---
+    // --- Auto-Detection Polling (exponential backoff + circuit breaker) ---
 
     /**
-     * Start periodic health polling. Runs continuously so that:
-     * - If services are initially down, the extension connects when they start.
-     * - If services blip and come back, the MCP bridge is re-connected.
+     * Start periodic health polling with exponential backoff.
      *
-     * Uses a 30s interval when disconnected (fast reconnect), 60s when
-     * connected (lightweight keepalive / stale-flag detection).
+     * - First poll fires after 5 s (or immediately if already failing).
+     * - On each failure the delay doubles: 5 s → 10 s → 20 s → 30 s (cap).
+     * - Delay resets to 30 s whenever the dashboard is reachable (keepalive).
+     * - After **3 consecutive failures** the circuit breaker opens and polling
+     *   stops entirely. Call `resetCircuit()` to resume.
      */
     startAutoDetection(): void {
-        if (this.detectionTimer) { return; }
-
-        this.log('Starting connection health polling');
-        const tick = async () => {
-            const wasConnected = this._isDashboardConnected;
-            const connected = await this.detectAndConnect();
-
-            if (connected && (!wasConnected)) {
-                // Server came (back) up — fire onConnected so the bridge reconnects.
-                this.onConnected?.();
-            }
-        };
-
-        // Poll at 30s — cheap HTTP hit, keeps the bridge healthy.
-        this.detectionTimer = setInterval(tick, 30_000);
+        if (this.detectionTimer || this._circuitOpen) { return; }
+        this.log('Starting connection health polling (exponential backoff enabled)');
+        this._scheduleNextPoll();
     }
 
+    /** Stop polling. Clears any pending timeout but does not reset the circuit. */
     stopAutoDetection(): void {
         if (this.detectionTimer) {
-            clearInterval(this.detectionTimer);
+            clearTimeout(this.detectionTimer);
             this.detectionTimer = null;
             this.log('Stopped auto-detection polling');
         }
+    }
+
+    /**
+     * Reset the circuit breaker and resume polling.
+     *
+     * Call this after the user manually confirms the services are available
+     * (e.g. via a "Reconnect" command) or after a successful `detectAndConnect`.
+     */
+    resetCircuit(): void {
+        const wasOpen = this._circuitOpen;
+        this._circuitOpen = false;
+        this._consecutiveFailures = 0;
+        if (wasOpen) {
+            this.log('Circuit breaker reset — resuming polling');
+            this._scheduleNextPoll();
+        }
+    }
+
+    // ── Backoff internals ──────────────────────────────────────────────────
+
+    /**
+     * Calculate the next poll delay.
+     *
+     * Connected → fixed 30 s keepalive.
+     * Disconnected → exponential: 5 s × 2^failures, capped at 30 s.
+     */
+    private _getBackoffDelay(): number {
+        if (this._isDashboardConnected) {
+            return 30_000;                                     // keepalive
+        }
+        return Math.min(5_000 * Math.pow(2, this._consecutiveFailures), 30_000);
+    }
+
+    private _scheduleNextPoll(): void {
+        if (this._circuitOpen) { return; }
+        const delay = this._getBackoffDelay();
+        this.log(`Next health poll in ${Math.round(delay / 1000)} s`);
+        this.detectionTimer = setTimeout(() => this._pollTick(), delay);
+    }
+
+    private async _pollTick(): Promise<void> {
+        this.detectionTimer = null;
+
+        const wasConnected = this._isDashboardConnected;
+        const connected    = await this.detectAndConnect();
+
+        if (connected) {
+            this._consecutiveFailures = 0;
+            if (!wasConnected) {
+                // Server came (back) up — fire onConnected so the bridge reconnects.
+                this.onConnected?.();
+            }
+        } else {
+            this._consecutiveFailures++;
+
+            if (this._consecutiveFailures >= 3) {
+                this._circuitOpen = true;
+                this.log(
+                    `Circuit breaker opened after ${this._consecutiveFailures} consecutive ` +
+                    'failures. Polling suspended. Call resetCircuit() to resume.'
+                );
+                this.updateStatusBar('disconnected');
+                return; // do NOT schedule next poll
+            }
+        }
+
+        this._scheduleNextPoll();
     }
 
     // --- Getters ---
@@ -212,5 +275,4 @@ export class ConnectionManager implements vscode.Disposable {
         this.stopAutoDetection();
         this.outputChannel.dispose();
         this.statusBarItem.dispose();
-    }
-}
+    }}

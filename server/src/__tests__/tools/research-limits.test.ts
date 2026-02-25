@@ -8,9 +8,9 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { appendResearch } from '../../tools/context.tools.js';
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 
-vi.mock('../../storage/file-store.js');
+vi.mock('../../storage/db-store.js');
 vi.mock('../../logging/workspace-update-log.js', () => ({
   appendWorkspaceFileUpdate: vi.fn().mockResolvedValue(undefined)
 }));

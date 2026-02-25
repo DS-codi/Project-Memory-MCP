@@ -22,8 +22,8 @@ import {
   readManifest,
   readRisks,
   saveRisks,
-} from '../../storage/program-store.js';
-import { getPlanState } from '../../storage/file-store.js';
+} from '../../storage/db-store.js';
+import { getPlanState } from '../../storage/db-store.js';
 import { addRisk } from './program-risks.js';
 
 // =============================================================================

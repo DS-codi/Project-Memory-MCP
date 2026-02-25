@@ -15,10 +15,10 @@ import {
   type ActiveRunLifecycleRecord,
   type ActiveRunAcquireResult
 } from '../../tools/orchestration/stale-run-recovery.js';
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 import type { PlanState, AgentSession } from '../../types/index.js';
 
-vi.mock('../../storage/file-store.js');
+vi.mock('../../storage/db-store.js');
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                           */

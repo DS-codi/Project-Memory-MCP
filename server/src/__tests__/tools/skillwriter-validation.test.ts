@@ -13,9 +13,9 @@ import { AGENT_BOUNDARIES } from '../../types/index.js';
 import type { PlanState } from '../../types/index.js';
 
 // Mock the file store
-vi.mock('../../storage/file-store.js');
+vi.mock('../../storage/db-store.js');
 
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 
 // =============================================================================
 // Test Helpers

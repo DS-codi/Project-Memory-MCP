@@ -24,10 +24,10 @@ import {
   getKnowledgeFilePath,
 } from '../../tools/knowledge.tools.js';
 import type { KnowledgeFile } from '../../tools/knowledge.tools.js';
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 import { promises as fs } from 'fs';
 
-vi.mock('../../storage/file-store.js');
+vi.mock('../../storage/db-store.js');
 vi.mock('fs', async () => {
   const actual = await vi.importActual<typeof import('fs')>('fs');
   return {
@@ -564,8 +564,8 @@ describe('Knowledge files in workspace context summary', () => {
       '../../utils/workspace-context-summary.js'
     );
 
-    // Mock workspace context
-    vi.mocked(store.readJson).mockResolvedValue({
+    // Mock workspace context via DB
+    vi.mocked(store.getWorkspaceContextFromDb).mockResolvedValue({
       sections: {
         project_details: {
           summary: 'A project',
@@ -573,7 +573,7 @@ describe('Knowledge files in workspace context summary', () => {
         },
       },
       updated_at: NOW,
-    });
+    } as never);
 
     // Mock listKnowledgeFiles via fs.readdir returning knowledge files
     vi.mocked(fs.readdir).mockResolvedValue([
@@ -583,18 +583,6 @@ describe('Knowledge files in workspace context summary', () => {
 
     // The list function reads each file from store
     vi.mocked(store.readJson)
-      // First call: workspace.context.json (already set above)
-      // Second and third calls: knowledge files
-      .mockResolvedValueOnce({
-        // workspace.context.json
-        sections: {
-          project_details: {
-            summary: 'A project',
-            items: [{ title: 'Lang', description: 'TS' }],
-          },
-        },
-        updated_at: NOW,
-      })
       .mockResolvedValueOnce({
         slug: 'db-schema',
         title: 'DB Schema',
@@ -611,11 +599,6 @@ describe('Knowledge files in workspace context summary', () => {
         created_at: NOW,
         updated_at: NOW,
       });
-
-    // Mock getWorkspaceContextPath
-    vi.mocked(store.getWorkspaceContextPath).mockReturnValue(
-      `/data/${WORKSPACE_ID}/workspace.context.json`
-    );
 
     const summary = await buildWorkspaceContextSummary(WORKSPACE_ID);
 

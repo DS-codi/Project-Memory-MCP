@@ -1,63 +1,39 @@
 import { Router } from 'express';
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import { eventBus } from '../events/eventBus.js';
+import type { MCPEvent } from '../events/emitter.js';
+import { getRecentEvents, getEventsSince } from '../db/queries.js';
+import type { EventLogRow } from '../db/queries.js';
 
 export const eventsRouter = Router();
 
-interface MCPEvent {
-  id: string;
-  type: string;
-  timestamp: string;
-  workspace_id?: string;
-  plan_id?: string;
-  agent_type?: string;
-  tool_name?: string;
-  data: Record<string, unknown>;
+/** Map a DB event_log row to the MCPEvent shape expected by clients. */
+function rowToEvent(row: EventLogRow): MCPEvent {
+  const rawData = row.data ? JSON.parse(row.data) as Record<string, unknown> : {};
+  return {
+    id: `evt_${row.id}`,
+    type: row.event_type,
+    timestamp: row.timestamp,
+    workspace_id: rawData.workspace_id as string | undefined,
+    plan_id:      rawData.plan_id      as string | undefined,
+    agent_type:   rawData.agent_type   as string | undefined,
+    tool_name:    rawData.tool_name    as string | undefined,
+    data: rawData,
+  };
 }
 
-// Get events directory
-function getEventsDir(): string {
-  return process.env.MBS_EVENTS_DIR || path.join(globalThis.MBS_DATA_ROOT, 'events');
-}
-
-// GET /api/events - Get recent events
-eventsRouter.get('/', async (req, res) => {
+// GET /api/events - Get recent events from DB
+eventsRouter.get('/', (req, res) => {
   try {
     const limit = parseInt(req.query.limit as string) || 50;
-    const since = req.query.since as string;
-    const dir = getEventsDir();
+    const since = req.query.since as string | undefined;
 
-    const events: MCPEvent[] = [];
-
-    try {
-      const files = await fs.readdir(dir);
-      const eventFiles = files
-        .filter(f => f.startsWith('evt_') && f.endsWith('.json'))
-        .sort()
-        .reverse()
-        .slice(0, limit);
-
-      for (const file of eventFiles) {
-        try {
-          const content = await fs.readFile(path.join(dir, file), 'utf-8');
-          const event = JSON.parse(content) as MCPEvent;
-
-          // Filter by since if provided
-          if (since && event.timestamp <= since) break;
-
-          events.push(event);
-        } catch (e) {
-          // Skip invalid files
-        }
-      }
-    } catch (e) {
-      // Events directory doesn't exist yet
-    }
+    const rows = since ? getEventsSince(since, limit) : getRecentEvents(limit);
+    const events = rows.map(rowToEvent);
 
     res.json({
       events,
       total: events.length,
-      latest_timestamp: events[0]?.timestamp || null,
+      latest_timestamp: events[0]?.timestamp ?? null,
     });
   } catch (error) {
     console.error('Error getting events:', error);
@@ -75,41 +51,23 @@ eventsRouter.get('/stream', async (req, res) => {
   // Send initial connection event
   res.write(`event: connected\ndata: ${JSON.stringify({ connected: true })}\n\n`);
 
-  let lastEventTime = new Date().toISOString();
-  const dir = getEventsDir();
+  // Subscribe to in-memory event bus instead of polling filesystem
+  const onEvent = (event: MCPEvent) => {
+    res.write(`event: mcp_event\ndata: ${JSON.stringify(event)}\n\n`);
+  };
 
-  // Poll for new events every second
-  const interval = setInterval(async () => {
-    try {
-      const files = await fs.readdir(dir);
-      const eventFiles = files
-        .filter(f => f.startsWith('evt_') && f.endsWith('.json'))
-        .sort()
-        .reverse()
-        .slice(0, 10);
+  eventBus.on('event', onEvent);
 
-      for (const file of eventFiles) {
-        try {
-          const content = await fs.readFile(path.join(dir, file), 'utf-8');
-          const event = JSON.parse(content) as MCPEvent;
-
-          // Only send new events
-          if (event.timestamp > lastEventTime) {
-            res.write(`event: mcp_event\ndata: ${JSON.stringify(event)}\n\n`);
-            lastEventTime = event.timestamp;
-          }
-        } catch (e) {
-          // Skip
-        }
-      }
-    } catch (e) {
-      // Events dir doesn't exist
-    }
-  }, 1000);
+  // Send a heartbeat every 30s to keep the connection alive
+  const heartbeat = setInterval(() => {
+    res.write(`:heartbeat\n\n`);
+  }, 30000);
 
   // Cleanup on close
   req.on('close', () => {
-    clearInterval(interval);
+    eventBus.off('event', onEvent);
+    clearInterval(heartbeat);
     res.end();
   });
 });
+

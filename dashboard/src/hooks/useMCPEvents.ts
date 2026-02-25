@@ -145,6 +145,25 @@ export function useMCPEvents() {
         queryClient.invalidateQueries({ queryKey: ['workspaces'] });
         break;
 
+      case 'plan_updated':
+      case 'plan_goals_updated':
+        // Generic plan update — refresh the plan list and the specific plan
+        if (event.workspace_id) {
+          queryClient.invalidateQueries({ queryKey: ['plans', event.workspace_id] });
+        }
+        if (event.workspace_id && event.plan_id) {
+          queryClient.invalidateQueries({ queryKey: ['plan', event.workspace_id, event.plan_id] });
+        }
+        break;
+
+      case 'workspace_updated':
+        // Workspace metadata changed
+        queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+        if (event.workspace_id) {
+          queryClient.invalidateQueries({ queryKey: ['workspace', event.workspace_id] });
+        }
+        break;
+
       default:
         // For unknown events, just log them
         console.log('Unhandled MCP event:', event.type, event);

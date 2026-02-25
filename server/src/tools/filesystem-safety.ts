@@ -8,7 +8,7 @@
 
 import { resolve, relative, basename, join, sep } from 'node:path';
 import { readdir, stat, lstat, realpath } from 'node:fs/promises';
-import * as store from '../storage/file-store.js';
+import * as store from '../storage/db-store.js';
 import { resolveToContainerPath, isContainerEnvironment } from '../storage/workspace-mounts.js';
 
 // ---------------------------------------------------------------------------

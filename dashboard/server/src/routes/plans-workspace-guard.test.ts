@@ -11,13 +11,16 @@ vi.mock('fs/promises', () => ({
   access: vi.fn(),
 }));
 
-vi.mock('../services/fileScanner.js', () => ({
-  getWorkspaceDetails: vi.fn(),
-  getWorkspacePlans: vi.fn(),
-  getPlanState: vi.fn(),
+vi.mock('../db/queries.js', () => ({
+  getWorkspace: vi.fn(),
+  getPlansByWorkspace: vi.fn(),
+  getPlan: vi.fn(),
+  getPlanPhases: vi.fn(),
+  getPlanSteps: vi.fn(),
+  getPlanSessions: vi.fn(),
   getPlanLineage: vi.fn(),
-  getPlanAudit: vi.fn(),
-  getResearchNotes: vi.fn(),
+  getPlanNotes: vi.fn(),
+  getBuildScripts: vi.fn(),
 }));
 
 vi.mock('../events/emitter.js', () => ({
@@ -25,7 +28,7 @@ vi.mock('../events/emitter.js', () => ({
 }));
 
 import * as fs from 'fs/promises';
-import { getWorkspaceDetails } from '../services/fileScanner.js';
+import { getWorkspace } from '../db/queries.js';
 import { plansRouter } from './plans.js';
 
 const WORKSPACE_REGISTRATION_ERROR =
@@ -47,7 +50,7 @@ describe('Plan creation workspace guard', () => {
   });
 
   it('should block plan creation when workspace meta is missing', async () => {
-    vi.mocked(getWorkspaceDetails).mockResolvedValue(null);
+    vi.mocked(getWorkspace).mockReturnValue(null as any);
 
     const handler = getPostHandler('/:workspaceId');
     const req = {

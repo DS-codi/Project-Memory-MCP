@@ -1,18 +1,23 @@
 /**
  * Event Emitter for Project Memory MCP Server
  * 
- * Broadcasts events to the Memory Observer Dashboard via:
- * 1. File-based event queue (for polling)
- * 2. Named pipe / IPC (future)
- * 
- * Events are written to a JSON file that the dashboard backend watches.
+ * Broadcasts events via:
+ * 1. SQLite event_log table (primary — queryable, no file I/O)
+ * 2. In-process consumers (future: SSE push)
+ *
+ * All file-based event queue logic has been removed. The event_log table
+ * replaces per-event JSON files and events.log.
  */
 
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import {
+  addEventLog,
+  getRecentEvents as dbGetRecent,
+  getEventsSince as dbGetSince,
+} from '../db/event-log-db.js';
+import type { EventLogRow } from '../db/types.js';
 
 // Event types
-export type EventType = 
+export type EventType =
   | 'tool_call'
   | 'plan_created'
   | 'plan_updated'
@@ -42,21 +47,6 @@ export interface MCPEvent {
   data: Record<string, unknown>;
 }
 
-// Get events directory - defaults to data/events
-function getEventsDir(): string {
-  return process.env.MBS_EVENTS_DIR || path.join(process.env.MBS_DATA_ROOT || './data', 'events');
-}
-
-// Initialize events directory
-async function ensureEventsDir(): Promise<void> {
-  const dir = getEventsDir();
-  try {
-    await fs.mkdir(dir, { recursive: true });
-  } catch (e) {
-    // Ignore if exists
-  }
-}
-
 // Generate event ID
 function generateEventId(): string {
   const timestamp = Date.now().toString(36);
@@ -64,81 +54,55 @@ function generateEventId(): string {
   return `evt_${timestamp}_${random}`;
 }
 
-// Write event to file
+// Map a DB row back to an MCPEvent
+function rowToEvent(row: EventLogRow): MCPEvent {
+  let parsed: Partial<MCPEvent> = {};
+  try {
+    parsed = row.data ? (JSON.parse(row.data) as Partial<MCPEvent>) : {};
+  } catch {
+    // malformed data — tolerate
+  }
+  return {
+    id:           String(parsed.id ?? row.id),
+    type:         row.event_type as EventType,
+    timestamp:    row.timestamp,
+    workspace_id: parsed.workspace_id,
+    plan_id:      parsed.plan_id,
+    agent_type:   parsed.agent_type,
+    tool_name:    parsed.tool_name,
+    data:         (parsed.data as Record<string, unknown>) ?? {},
+  };
+}
+
+// Write event to DB (fire-and-forget; never throws)
 export async function emitEvent(event: Omit<MCPEvent, 'id' | 'timestamp'>): Promise<void> {
-  await ensureEventsDir();
-  
   const fullEvent: MCPEvent = {
-    id: generateEventId(),
+    id:        generateEventId(),
     timestamp: new Date().toISOString(),
     ...event,
   };
-  
-  // Write to individual event file (for reliability)
-  const eventFile = path.join(getEventsDir(), `${fullEvent.id}.json`);
-  await fs.writeFile(eventFile, JSON.stringify(fullEvent, null, 2));
-  
-  // Also append to events log for easy reading
-  const logFile = path.join(getEventsDir(), 'events.log');
-  await fs.appendFile(logFile, JSON.stringify(fullEvent) + '\n');
-  
-  // Trim old event files (keep last 1000)
-  await pruneOldEvents();
-}
-
-// Prune old event files to prevent unbounded growth
-async function pruneOldEvents(): Promise<void> {
-  const dir = getEventsDir();
-  const maxEvents = 1000;
-  
   try {
-    const files = await fs.readdir(dir);
-    const eventFiles = files
-      .filter(f => f.startsWith('evt_') && f.endsWith('.json'))
-      .sort();
-    
-    if (eventFiles.length > maxEvents) {
-      const toDelete = eventFiles.slice(0, eventFiles.length - maxEvents);
-      await Promise.all(
-        toDelete.map(f => fs.unlink(path.join(dir, f)).catch(() => {}))
-      );
-    }
-  } catch (e) {
-    // Ignore errors
+    addEventLog(fullEvent.type, {
+      id:           fullEvent.id,
+      workspace_id: fullEvent.workspace_id,
+      plan_id:      fullEvent.plan_id,
+      agent_type:   fullEvent.agent_type,
+      tool_name:    fullEvent.tool_name,
+      data:         fullEvent.data,
+    });
+  } catch {
+    // Non-fatal — event logging must never break tool handlers
   }
 }
 
 // Read recent events (for dashboard polling)
-export async function getRecentEvents(limit: number = 50, since?: string): Promise<MCPEvent[]> {
-  await ensureEventsDir();
-  const dir = getEventsDir();
-  
+export async function getRecentEvents(limit = 50, since?: string): Promise<MCPEvent[]> {
   try {
-    const files = await fs.readdir(dir);
-    const eventFiles = files
-      .filter(f => f.startsWith('evt_') && f.endsWith('.json'))
-      .sort()
-      .reverse()
-      .slice(0, limit);
-    
-    const events: MCPEvent[] = [];
-    
-    for (const file of eventFiles) {
-      try {
-        const content = await fs.readFile(path.join(dir, file), 'utf-8');
-        const event = JSON.parse(content) as MCPEvent;
-        
-        // Filter by since if provided
-        if (since && event.timestamp <= since) break;
-        
-        events.push(event);
-      } catch (e) {
-        // Skip invalid files
-      }
-    }
-    
-    return events;
-  } catch (e) {
+    const rows: EventLogRow[] = since
+      ? dbGetSince(since).slice(0, limit).reverse()
+      : dbGetRecent(limit);
+    return rows.map(rowToEvent);
+  } catch {
     return [];
   }
 }
@@ -154,7 +118,7 @@ export const events = {
       data: { params, result },
     });
   },
-  
+
   planCreated: async (workspaceId: string, planId: string, title: string, category: string) => {
     await emitEvent({
       type: 'plan_created',
@@ -163,7 +127,7 @@ export const events = {
       data: { title, category },
     });
   },
-  
+
   planUpdated: async (workspaceId: string, planId: string, changes: Record<string, unknown>) => {
     await emitEvent({
       type: 'plan_updated',
@@ -172,7 +136,7 @@ export const events = {
       data: { changes },
     });
   },
-  
+
   stepUpdated: async (workspaceId: string, planId: string, stepIndex: number, newStatus: string) => {
     await emitEvent({
       type: 'step_updated',
@@ -181,7 +145,7 @@ export const events = {
       data: { stepIndex, newStatus },
     });
   },
-  
+
   handoff: async (workspaceId: string, planId: string, fromAgent: string, toAgent: string, reason: string) => {
     await emitEvent({
       type: 'handoff',
@@ -191,7 +155,7 @@ export const events = {
       data: { fromAgent, toAgent, reason },
     });
   },
-  
+
   agentSessionStarted: async (workspaceId: string, planId: string, agentType: string, sessionId: string, extraData?: Record<string, unknown>) => {
     await emitEvent({
       type: 'agent_session_started',
@@ -201,7 +165,7 @@ export const events = {
       data: { sessionId, ...extraData },
     });
   },
-  
+
   agentSessionCompleted: async (workspaceId: string, planId: string, agentType: string, summary: string, artifacts: string[]) => {
     await emitEvent({
       type: 'agent_session_completed',
@@ -211,7 +175,7 @@ export const events = {
       data: { summary, artifacts },
     });
   },
-  
+
   noteAdded: async (workspaceId: string, planId: string, note: string, type: string) => {
     await emitEvent({
       type: 'note_added',

@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { validateTDDDriver } from '../../tools/agent-validation.tools.js';
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 import type { PlanState } from '../../types/index.js';
 
-vi.mock('../../storage/file-store.js');
+vi.mock('../../storage/db-store.js');
 
 const mockWorkspaceId = 'ws_tdddriver_test';
 const mockPlanId = 'plan_tdddriver_456';

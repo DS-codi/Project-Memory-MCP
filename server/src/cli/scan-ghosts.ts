@@ -6,7 +6,7 @@
  *   node dist/cli/scan-ghosts.js
  */
 
-import { scanGhostFolders } from '../storage/workspace-identity.js';
+import { scanGhostFolders } from '../storage/db-store.js';
 
 async function main(): Promise<void> {
   console.log('Scanning data root for ghost folders...\n');

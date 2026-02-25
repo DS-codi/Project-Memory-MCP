@@ -35,7 +35,7 @@ vi.mock('../../tools/terminal-tcp-adapter.js', () => ({
 }));
 
 // Mock file-store to avoid disk operations
-vi.mock('../../storage/file-store.js', () => ({
+vi.mock('../../storage/db-store.js', () => ({
   getWorkspacePath: (wsId: string) => `/tmp/test-data/${wsId}`,
   getWorkspace: vi.fn().mockResolvedValue(null),
 }));

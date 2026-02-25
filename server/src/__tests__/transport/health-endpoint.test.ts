@@ -17,7 +17,7 @@ import { createHttpApp } from '../../transport/http-transport.js';
 // Mocks
 // ---------------------------------------------------------------------------
 
-vi.mock('../../storage/file-store.js', () => ({
+vi.mock('../../storage/db-store.js', () => ({
   getDataRoot: () => '/mock/data',
   listDirs: vi.fn().mockResolvedValue(['ws_alpha', 'ws_beta']),
 }));

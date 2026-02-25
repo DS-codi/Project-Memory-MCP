@@ -20,7 +20,7 @@ import type {
 import {
   readRisks,
   saveRisks,
-} from '../../storage/program-store.js';
+} from '../../storage/db-store.js';
 
 // =============================================================================
 // ID Generation

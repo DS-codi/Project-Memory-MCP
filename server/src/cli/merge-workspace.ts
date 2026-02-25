@@ -8,7 +8,7 @@
  * Default is dry-run mode (no changes). Pass --execute to apply.
  */
 
-import { mergeWorkspace } from '../storage/workspace-identity.js';
+import { mergeWorkspace } from '../storage/db-store.js';
 
 function parseArgs(argv: string[]): { source: string; target: string; dryRun: boolean } {
   let source = '';

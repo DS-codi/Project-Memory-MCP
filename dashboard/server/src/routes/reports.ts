@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { getPlanState, getPlanLineage, getPlanAudit } from '../services/fileScanner.js';
+import { getPlan, getPlanPhases, getPlanSteps, getPlanSessions, getPlanLineage } from '../db/queries.js';
 
 export const reportsRouter = Router();
 
@@ -288,32 +288,44 @@ function generateMarkdownReport(
 }
 
 // GET /api/reports/:workspaceId/:planId/markdown - Export plan as Markdown
-reportsRouter.get('/:workspaceId/:planId/markdown', async (req, res) => {
+reportsRouter.get('/:workspaceId/:planId/markdown', (req, res) => {
   try {
-    const { workspaceId, planId } = req.params;
-    
-    const plan = await getPlanState(globalThis.MBS_DATA_ROOT, workspaceId, planId) as PlanState | null;
-    if (!plan) {
+    const { planId } = req.params;
+    const planRow = getPlan(planId);
+    if (!planRow) {
       return res.status(404).json({ error: 'Plan not found' });
     }
-    
-    const lineage = await getPlanLineage(globalThis.MBS_DATA_ROOT, workspaceId, planId);
-    const audit = await getPlanAudit(globalThis.MBS_DATA_ROOT, workspaceId, planId) as { entries?: Array<{ timestamp: string; action: string; details?: unknown }> } | null;
-    
-    const markdown = generateMarkdownReport(plan, lineage, audit);
-    
-    // Return as downloadable file or JSON with content
+    const phases = getPlanPhases(planId);
+    const phaseMap = new Map(phases.map(p => [p.id, p.name]));
+    const steps = getPlanSteps(planId);
+    const sessions = getPlanSessions(planId);
+    const lineage = getPlanLineage(planId);
+    function safeJson<T>(v: string | null | undefined, fb: T): T {
+      if (!v) return fb; try { return JSON.parse(v) as T; } catch { return fb; }
+    }
+    const plan: PlanState = {
+      id: planRow.id, workspace_id: planRow.workspace_id, title: planRow.title,
+      description: planRow.description ?? undefined, priority: planRow.priority || 'medium',
+      status: planRow.status, category: planRow.category || '',
+      current_agent: null, created_at: planRow.created_at, updated_at: planRow.updated_at,
+      agent_sessions: sessions.map(s => ({
+        agent_type: s.agent_type, started_at: s.started_at,
+        completed_at: s.completed_at ?? undefined, summary: s.summary ?? undefined,
+        artifacts: safeJson(s.artifacts, []),
+      })),
+      lineage: lineage.map(l => ({ timestamp: l.timestamp, from_agent: l.from_agent, to_agent: l.to_agent, reason: l.reason })),
+      steps: steps.map(s => ({
+        phase: phaseMap.get(s.phase_id) || '', task: s.task, status: s.status,
+        notes: s.notes ?? undefined,
+      })),
+    };
+    const markdown = generateMarkdownReport(plan, lineage, null);
     if (req.query.download === 'true') {
       res.setHeader('Content-Type', 'text/markdown');
       res.setHeader('Content-Disposition', `attachment; filename="${plan.title.replace(/[^a-z0-9]/gi, '_')}_report.md"`);
       res.send(markdown);
     } else {
-      res.json({ 
-        content: markdown,
-        filename: `${plan.title.replace(/[^a-z0-9]/gi, '_')}_report.md`,
-        plan_id: planId,
-        generated_at: new Date().toISOString()
-      });
+      res.json({ content: markdown, filename: `${plan.title.replace(/[^a-z0-9]/gi, '_')}_report.md`, plan_id: planId, generated_at: new Date().toISOString() });
     }
   } catch (error) {
     console.error('Error generating markdown report:', error);
@@ -322,40 +334,53 @@ reportsRouter.get('/:workspaceId/:planId/markdown', async (req, res) => {
 });
 
 // GET /api/reports/:workspaceId/:planId/json - Export plan as JSON
-reportsRouter.get('/:workspaceId/:planId/json', async (req, res) => {
+reportsRouter.get('/:workspaceId/:planId/json', (req, res) => {
   try {
-    const { workspaceId, planId } = req.params;
-    
-    const plan = await getPlanState(globalThis.MBS_DATA_ROOT, workspaceId, planId) as PlanState | null;
-    if (!plan) {
+    const { planId } = req.params;
+    const planRow = getPlan(planId);
+    if (!planRow) {
       return res.status(404).json({ error: 'Plan not found' });
     }
-    
-    const lineage = await getPlanLineage(globalThis.MBS_DATA_ROOT, workspaceId, planId);
-    const audit = await getPlanAudit(globalThis.MBS_DATA_ROOT, workspaceId, planId);
-    
-    const planSteps = (plan.steps || []) as PlanStep[];
-    const planSessions = (plan.agent_sessions || []) as AgentSession[];
-    
+    const phases = getPlanPhases(planId);
+    const phaseMap = new Map(phases.map(p => [p.id, p.name]));
+    const steps = getPlanSteps(planId);
+    const sessions = getPlanSessions(planId);
+    const lineage = getPlanLineage(planId);
+    function safeJson<T>(v: string | null | undefined, fb: T): T {
+      if (!v) return fb; try { return JSON.parse(v) as T; } catch { return fb; }
+    }
+    const plan: PlanState = {
+      id: planRow.id, workspace_id: planRow.workspace_id, title: planRow.title,
+      description: planRow.description ?? undefined, priority: planRow.priority || 'medium',
+      status: planRow.status, category: planRow.category || '',
+      current_agent: null, created_at: planRow.created_at, updated_at: planRow.updated_at,
+      agent_sessions: sessions.map(s => ({
+        agent_type: s.agent_type, started_at: s.started_at,
+        completed_at: s.completed_at ?? undefined, summary: s.summary ?? undefined,
+        artifacts: safeJson(s.artifacts, []),
+      })),
+      lineage: lineage.map(l => ({ timestamp: l.timestamp, from_agent: l.from_agent, to_agent: l.to_agent, reason: l.reason })),
+      steps: steps.map(s => ({
+        phase: phaseMap.get(s.phase_id) || '', task: s.task, status: s.status,
+        notes: s.notes ?? undefined,
+      })),
+    };
+    const planSteps = plan.steps || [];
+    const planSessions = plan.agent_sessions || [];
     const report = {
-      generated_at: new Date().toISOString(),
-      plan,
-      lineage,
-      audit,
+      generated_at: new Date().toISOString(), plan, lineage, audit: null,
       summary: {
         total_steps: planSteps.length,
         completed_steps: planSteps.filter((s: PlanStep) => s.status === 'done').length,
         total_sessions: planSessions.length,
         total_handoffs: lineage.length,
         duration_ms: new Date(plan.updated_at).getTime() - new Date(plan.created_at).getTime(),
-      }
+      },
     };
-    
     if (req.query.download === 'true') {
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Content-Disposition', `attachment; filename="${plan.title.replace(/[^a-z0-9]/gi, '_')}_report.json"`);
     }
-    
     res.json(report);
   } catch (error) {
     console.error('Error generating JSON report:', error);

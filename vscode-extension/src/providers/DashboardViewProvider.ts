@@ -9,13 +9,9 @@ import * as vscode from 'vscode';
 import { resolveWorkspaceIdentity, computeFallbackWorkspaceId } from '../utils/workspace-identity';
 import { getDashboardFrontendUrl } from '../server/ContainerDetection';
 import { getWebviewHtml } from './dashboard-webview';
-import type { SessionInterceptRegistry } from '../chat/orchestration/session-intercept-registry';
 import {
     handleGetSkills, handleDeploySkill,
     handleGetInstructions, handleDeployInstruction, handleUndeployInstruction,
-    handleGetSessions, handleStopSession, handleInjectSession,
-    handleClearAllSessions, handleForceCloseSession,
-    syncServerSessions
 } from './dashboard-webview/dashboard-message-handlers';
 
 function notify(message: string, ...items: string[]): Thenable<string | undefined> {
@@ -46,7 +42,6 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
     private _agentsRoot: string;
     private _disposables: vscode.Disposable[] = [];
     private _onResolveCallback?: () => void;
-    private _sessionRegistry?: SessionInterceptRegistry;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
@@ -55,29 +50,6 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
     ) {
         this._dataRoot = dataRoot;
         this._agentsRoot = agentsRoot;
-    }
-
-    /**
-     * Set the session registry for tracking active sessions
-     */
-    public setSessionRegistry(registry: SessionInterceptRegistry): void {
-        this._sessionRegistry = registry;
-    }
-
-    /**
-     * Sync sessions from the MCP server into the local registry.
-     * Called by the prune timer so sessions completed via direct stdio calls
-     * (bypassing agent-tool.ts) are still reconciled.
-     */
-    public async syncSessions(): Promise<void> {
-        if (!this._sessionRegistry) return;
-        const ctx = this.getSessionDiscoveryCtx();
-        if (!ctx) return;
-        try {
-            await syncServerSessions(this._sessionRegistry, ctx);
-        } catch {
-            // Swallow — prune timer must not throw
-        }
     }
 
     /**
@@ -167,14 +139,6 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
         };
 
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
-
-        // Subscribe to session registry changes for real-time updates
-        if (this._sessionRegistry) {
-            const changeDisposable = this._sessionRegistry.onDidChange(() => {
-                handleGetSessions(this, this._sessionRegistry, this.getSessionDiscoveryCtx());
-            });
-            this._disposables.push(changeDisposable);
-        }
 
         // Handle view disposal
         this._disposables.push(
@@ -308,26 +272,13 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                     break;
 
                 case 'getSessions':
-                    handleGetSessions(this, this._sessionRegistry, this.getSessionDiscoveryCtx());
-                    break;
-
                 case 'stopSession':
-                    handleStopSession(this, this._sessionRegistry, message.data as { sessionKey: string });
-                    break;
-
                 case 'injectSession':
-                    handleInjectSession(this, this._sessionRegistry, message.data as { sessionKey: string; text: string });
-                    break;
-
                 case 'clearAllSessions':
-                    await handleClearAllSessions(this, this._sessionRegistry);
-                    // Refresh session list after clearing
-                    await handleGetSessions(this, this._sessionRegistry, this.getSessionDiscoveryCtx());
-                    break;
-
                 case 'forceCloseSession':
-                    await handleForceCloseSession(this, this._sessionRegistry, message.data as { sessionKey: string });
-                    await handleGetSessions(this, this._sessionRegistry, this.getSessionDiscoveryCtx());
+                    // Session management has been archived (Plan 01: Extension Strip-Down).
+                    // The dashboard may still send these messages — respond with empty data.
+                    this.postMessage({ type: 'sessionsList', data: { sessions: [] } });
                     break;
 
                 case 'openWorkspaceFolder': {
@@ -393,13 +344,6 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
     private getApiPort(): number {
         const config = vscode.workspace.getConfiguration('projectMemory');
         return config.get<number>('serverPort') || config.get<number>('apiPort') || 3001;
-    }
-
-    /** Build session discovery context for server-side sync */
-    private getSessionDiscoveryCtx(): import('./dashboard-webview/dashboard-message-handlers').SessionDiscoveryContext | undefined {
-        const workspaceId = this.getWorkspaceId();
-        if (!workspaceId) return undefined;
-        return { apiPort: this.getApiPort(), workspaceId };
     }
 
     private getDashboardUrl(): string {

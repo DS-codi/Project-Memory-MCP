@@ -9,7 +9,7 @@ import {
 } from '../../tools/consolidated/memory_terminal.js';
 
 // Mock file-store so disk operations don't touch real filesystem
-vi.mock('../../storage/file-store.js', () => ({
+vi.mock('../../storage/db-store.js', () => ({
   getWorkspacePath: (wsId: string) => `/tmp/test-data/${wsId}`,
   getWorkspace: vi.fn().mockResolvedValue(null),
 }));

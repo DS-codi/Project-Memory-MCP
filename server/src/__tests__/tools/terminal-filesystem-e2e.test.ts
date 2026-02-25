@@ -19,12 +19,12 @@ import {
 // ---------------------------------------------------------------------------
 
 // Mock file-store
-vi.mock('../../storage/file-store.js', () => ({
+vi.mock('../../storage/db-store.js', () => ({
   getWorkspacePath: (wsId: string) => `/tmp/test-data/${wsId}`,
   getWorkspace: vi.fn(),
 }));
 
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 
 // Mock fs/promises for terminal-auth disk operations (avoid real disk I/O)
 vi.mock('node:fs/promises', async (importOriginal) => {

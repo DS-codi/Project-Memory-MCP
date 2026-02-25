@@ -187,7 +187,7 @@ impl ServiceRunner for DashboardRunner {
             return HealthStatus::Unhealthy("not running".into());
         }
 
-        let url = format!("http://127.0.0.1:{}/health", self.config.port);
+        let url = format!("http://127.0.0.1:{}/api/health", self.config.port);
         let timeout = Duration::from_millis(self.health_timeout_ms);
 
         let client = match reqwest::Client::builder().timeout(timeout).build() {

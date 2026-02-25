@@ -5,7 +5,7 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import { ensureDir } from '../storage/file-store.js';
+import { ensureDir } from '../storage/db-store.js';
 
 // =============================================================================
 // Types

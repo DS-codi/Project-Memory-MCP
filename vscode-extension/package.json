@@ -28,859 +28,6 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "chatParticipants": [
-      {
-        "id": "project-memory.memory",
-        "name": "memory",
-        "description": "Access project plans, context, and agent workflows from Project Memory",
-        "isSticky": true,
-        "commands": [
-          {
-            "name": "plan",
-            "description": "View, create, or manage plans"
-          },
-          {
-            "name": "context",
-            "description": "Get workspace context and codebase profile"
-          },
-          {
-            "name": "handoff",
-            "description": "Execute an agent handoff"
-          },
-          {
-            "name": "status",
-            "description": "Show current plan progress"
-          },
-          {
-            "name": "deploy",
-            "description": "Deploy agents, skills, or instructions to a workspace"
-          },
-          {
-            "name": "diagnostics",
-            "description": "Run system diagnostics and show health report"
-          },
-          {
-            "name": "knowledge",
-            "description": "Manage workspace knowledge files (list, show, add, delete)"
-          }
-        ]
-      }
-    ],
-    "languageModelTools": [
-      {
-        "name": "memory_workspace",
-        "displayName": "Project Memory Workspace",
-        "description": "Manage workspaces - register, list, get info, reindex, link/unlink hierarchy, migrate, merge, scan ghosts",
-        "modelDescription": "Manage Project Memory workspaces. Actions: 'register' to register a workspace (optional workspacePath), 'list' to list all workspaces (optional hierarchical=true for nested view), 'info' to get workspace details (optional workspaceId), 'reindex' to refresh the codebase profile (optional workspaceId), 'link' to link/unlink parent-child workspace hierarchy (requires workspaceId as parent, childWorkspaceId, optional mode='link'|'unlink'), 'migrate' to migrate an old workspace (requires workspacePath), 'merge' to merge two workspaces (requires sourceWorkspaceId, targetWorkspaceId), 'scan_ghosts' to detect unregistered ghost directories.",
-        "parametersSchema": {
-          "type": "object",
-          "properties": {
-            "action": {
-              "type": "string",
-              "enum": [
-                "register",
-                "list",
-                "info",
-                "reindex",
-                "link",
-                "migrate",
-                "merge",
-                "scan_ghosts"
-              ],
-              "description": "The action to perform"
-            },
-            "workspacePath": {
-              "type": "string",
-              "description": "Workspace path (for register)"
-            },
-            "force": {
-              "type": "boolean",
-              "description": "Force registration even if directory overlaps with existing workspace (for register)"
-            },
-            "workspaceId": {
-              "type": "string",
-              "description": "Workspace ID (for info/reindex/link)"
-            },
-            "childWorkspaceId": {
-              "type": "string",
-              "description": "Child workspace ID (for link action)"
-            },
-            "mode": {
-              "type": "string",
-              "enum": [
-                "link",
-                "unlink"
-              ],
-              "description": "Link or unlink mode (for link action, defaults to link)"
-            },
-            "hierarchical": {
-              "type": "boolean",
-              "description": "When true, group child workspaces under parents in list results (for list action)"
-            },
-            "sourceWorkspaceId": {
-              "type": "string",
-              "description": "Source workspace ID to merge from (for merge action)"
-            },
-            "targetWorkspaceId": {
-              "type": "string",
-              "description": "Target workspace ID to merge into (for merge action)"
-            },
-            "dryRun": {
-              "type": "boolean",
-              "description": "Preview merge without making changes (for merge action, default true)"
-            }
-          },
-          "required": [
-            "action"
-          ]
-        },
-        "canBeInvokedManually": true
-      },
-      {
-        "name": "memory_agent",
-        "displayName": "Project Memory Agent",
-        "description": "Agent lifecycle - init sessions, complete, handoff, validate, list agents, get instructions",
-        "modelDescription": "Manage Project Memory agent lifecycle. Actions: 'init' to start an agent session (requires planId, agentType), 'complete' to finish a session (requires planId, agentType), 'handoff' to transfer to another agent (requires planId, toAgent), 'validate' to check agent validity (requires agentType), 'list' to list agent sessions, 'get_instructions' to get agent instruction file (requires agentType).",
-        "parametersSchema": {
-          "type": "object",
-          "properties": {
-            "action": {
-              "type": "string",
-              "enum": [
-                "init",
-                "complete",
-                "handoff",
-                "validate",
-                "list",
-                "get_instructions",
-                "deploy",
-                "get_briefing",
-                "get_lineage"
-              ],
-              "description": "The action to perform"
-            },
-            "planId": {
-              "type": "string",
-              "description": "Plan ID"
-            },
-            "agentType": {
-              "type": "string",
-              "description": "Agent type (e.g. Coordinator, Executor)"
-            },
-            "toAgent": {
-              "type": "string",
-              "description": "Target agent (for handoff)"
-            },
-            "fromAgent": {
-              "type": "string",
-              "description": "Source agent (for handoff)"
-            },
-            "reason": {
-              "type": "string",
-              "description": "Handoff reason"
-            },
-            "summary": {
-              "type": "string",
-              "description": "Session summary or handoff summary"
-            },
-            "taskDescription": {
-              "type": "string",
-              "description": "Task description (for init/validate)"
-            },
-            "workspace_path": {
-              "type": "string",
-              "description": "Workspace path (for deploy)"
-            },
-            "include_instructions": {
-              "type": "boolean",
-              "description": "Include instructions in deployment"
-            },
-            "include_skills": {
-              "type": "boolean",
-              "description": "Include skills in deployment"
-            }
-          },
-          "required": [
-            "action"
-          ]
-        },
-        "canBeInvokedManually": true
-      },
-      {
-        "name": "memory_plan",
-        "displayName": "Project Memory Plan",
-        "description": "Manage plans - list, get, create, archive, update, find, set goals, manage build scripts, add notes, program management",
-        "modelDescription": "Manage Project Memory plans. Actions: 'list' to see all plans, 'get' to retrieve a plan by planId, 'create' to start a new plan (requires title, description), 'archive' to archive a plan, 'update' to update plan steps, 'find' to find a plan by ID, 'set_goals' to set goals and success criteria, 'add_build_script' to add a build script (requires scriptName, scriptCommand), 'delete_build_script' to remove a build script (requires scriptId), 'add_note' to add a note (requires note). Program management: 'create_program', 'add_plan_to_program', 'upgrade_to_program', 'list_program_plans', 'clone_plan', 'merge_plans', 'set_plan_dependencies', 'get_plan_dependencies', 'set_plan_priority', 'export_plan'.",
-        "parametersSchema": {
-          "type": "object",
-          "properties": {
-            "action": {
-              "type": "string",
-              "enum": [
-                "list",
-                "get",
-                "create",
-                "archive",
-                "update",
-                "find",
-                "set_goals",
-                "add_build_script",
-                "delete_build_script",
-                "add_note",
-                "create_program",
-                "add_plan_to_program",
-                "upgrade_to_program",
-                "list_program_plans",
-                "clone_plan",
-                "merge_plans",
-                "set_plan_dependencies",
-                "get_plan_dependencies",
-                "set_plan_priority",
-                "export_plan"
-              ],
-              "description": "The action to perform"
-            },
-            "planId": {
-              "type": "string",
-              "description": "Plan ID"
-            },
-            "title": {
-              "type": "string",
-              "description": "Plan title (for create)"
-            },
-            "description": {
-              "type": "string",
-              "description": "Plan description (for create)"
-            },
-            "category": {
-              "type": "string",
-              "enum": [
-                "feature",
-                "bug",
-                "change",
-                "analysis",
-                "investigation",
-                "debug",
-                "refactor",
-                "documentation"
-              ],
-              "description": "Plan category"
-            },
-            "priority": {
-              "type": "string",
-              "enum": [
-                "low",
-                "medium",
-                "high",
-                "critical"
-              ],
-              "description": "Plan priority"
-            },
-            "template": {
-              "type": "string",
-              "description": "Plan template (for create)"
-            },
-            "goals": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "description": "Plan goals"
-            },
-            "success_criteria": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "description": "Success criteria"
-            },
-            "includeArchived": {
-              "type": "boolean",
-              "description": "Include archived plans (for list)"
-            },
-            "note": {
-              "type": "string",
-              "description": "Note content (for add_note)"
-            },
-            "noteType": {
-              "type": "string",
-              "enum": [
-                "info",
-                "warning",
-                "instruction"
-              ],
-              "description": "Note type"
-            },
-            "scriptName": {
-              "type": "string",
-              "description": "Build script name"
-            },
-            "scriptCommand": {
-              "type": "string",
-              "description": "Build script command"
-            },
-            "scriptDescription": {
-              "type": "string",
-              "description": "Build script description"
-            },
-            "scriptDirectory": {
-              "type": "string",
-              "description": "Build script working directory"
-            },
-            "scriptId": {
-              "type": "string",
-              "description": "Build script ID (for delete)"
-            },
-            "program_id": {
-              "type": "string",
-              "description": "Program ID (for program actions)"
-            },
-            "programId": {
-              "type": "string",
-              "description": "Program ID in camelCase (for program actions — add_plan_to_program, list_program_plans)"
-            },
-            "move_steps_to_child": {
-              "type": "boolean",
-              "description": "Move existing steps to a child plan when upgrading to program"
-            },
-            "child_plan_title": {
-              "type": "string",
-              "description": "Title for child plan when upgrading with move_steps_to_child"
-            },
-            "new_title": {
-              "type": "string",
-              "description": "New title for cloned plan (for clone_plan)"
-            },
-            "sourcePlanIds": {
-              "type": "array",
-              "items": { "type": "string" },
-              "description": "Source plan IDs to merge from (for merge_plans)"
-            },
-            "depends_on_plans": {
-              "type": "array",
-              "items": { "type": "string" },
-              "description": "Array of plan IDs this plan depends on (for set_plan_dependencies)"
-            },
-            "archive_sources": {
-              "type": "boolean",
-              "description": "Archive source plans after merge (for merge_plans)"
-            }
-          },
-          "required": [
-            "action"
-          ]
-        },
-        "canBeInvokedManually": true
-      },
-      {
-        "name": "memory_steps",
-        "displayName": "Project Memory Steps",
-        "description": "Manage plan steps - update, batch update, add, insert, delete, reorder, move, replace",
-        "modelDescription": "Manage Project Memory plan steps. Actions: 'update' to change a step status (requires planId, stepIndex, status), 'batch_update' to update multiple steps (requires planId, updates array), 'add' to append new steps (requires planId, newSteps array), 'insert' to insert a step at a position (requires planId, atIndex, step), 'delete' to remove a step (requires planId, stepIndex), 'reorder' to swap a step up or down (requires planId, stepIndex, direction), 'move' to move a step from one index to another (requires planId, fromIndex, toIndex), 'replace' to replace all steps (requires planId, replacementSteps).",
-        "parametersSchema": {
-          "type": "object",
-          "properties": {
-            "action": {
-              "type": "string",
-              "enum": [
-                "update",
-                "batch_update",
-                "add",
-                "insert",
-                "delete",
-                "reorder",
-                "move",
-                "replace"
-              ],
-              "description": "The action to perform"
-            },
-            "planId": {
-              "type": "string",
-              "description": "Plan ID"
-            },
-            "stepIndex": {
-              "type": "number",
-              "description": "Step index (0-based)"
-            },
-            "status": {
-              "type": "string",
-              "enum": [
-                "pending",
-                "active",
-                "done",
-                "blocked"
-              ],
-              "description": "Step status"
-            },
-            "notes": {
-              "type": "string",
-              "description": "Notes"
-            },
-            "updates": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "step_index": {
-                    "type": "number"
-                  },
-                  "status": {
-                    "type": "string"
-                  },
-                  "notes": {
-                    "type": "string"
-                  }
-                }
-              },
-              "description": "Batch updates array"
-            },
-            "newSteps": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "phase": {
-                    "type": "string"
-                  },
-                  "task": {
-                    "type": "string"
-                  },
-                  "status": {
-                    "type": "string"
-                  }
-                }
-              },
-              "description": "New steps to add"
-            },
-            "atIndex": {
-              "type": "number",
-              "description": "Insert position (for insert)"
-            },
-            "step": {
-              "type": "object",
-              "properties": {
-                "phase": {
-                  "type": "string"
-                },
-                "task": {
-                  "type": "string"
-                },
-                "status": {
-                  "type": "string"
-                }
-              },
-              "description": "Step to insert"
-            },
-            "direction": {
-              "type": "string",
-              "enum": [
-                "up",
-                "down"
-              ],
-              "description": "Reorder direction"
-            },
-            "fromIndex": {
-              "type": "number",
-              "description": "Source index (for move)"
-            },
-            "toIndex": {
-              "type": "number",
-              "description": "Target index (for move)"
-            },
-            "replacementSteps": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "phase": {
-                    "type": "string"
-                  },
-                  "task": {
-                    "type": "string"
-                  },
-                  "status": {
-                    "type": "string"
-                  }
-                }
-              },
-              "description": "Replacement steps array (for replace)"
-            }
-          },
-          "required": [
-            "action",
-            "planId"
-          ]
-        }
-      },
-      {
-        "name": "memory_context",
-        "displayName": "Project Memory Context",
-        "description": "Manage context - notes, briefings, handoffs, store/get context, research, batch operations, workspace-scoped CRUD",
-        "modelDescription": "Manage Project Memory context. Actions: 'add_note' to add a note (requires planId, note), 'briefing' to get mission briefing (requires planId), 'handoff' to transfer to another agent (requires planId, targetAgent, reason), 'workspace' to get workspace info. 'store' to save context data (requires planId, type, data), 'get' to retrieve context (requires planId, type). 'store_initial' to store initial user request (requires planId, userRequest). 'list' to list context files (requires planId). 'list_research' to list research notes (requires planId). 'append_research' to add a research note (requires planId, filename, content). 'batch_store' to store multiple items (requires planId, items array). 'search' to query context across scopes (optional query, scope, types, limit). 'pull' to stage selected context using optional query/scope/types/selectors/limit filters. 'workspace_get/workspace_set/workspace_update/workspace_delete' for workspace-scoped context (requires type).",
-        "parametersSchema": {
-          "type": "object",
-          "properties": {
-            "action": {
-              "type": "string",
-              "enum": [
-                "add_note",
-                "briefing",
-                "handoff",
-                "workspace",
-                "store",
-                "get",
-                "store_initial",
-                "list",
-                "list_research",
-                "append_research",
-                "batch_store",
-                "workspace_get",
-                "workspace_set",
-                "workspace_update",
-                "workspace_delete",
-                "search",
-                "pull",
-                "write_prompt",
-                "dump_context"
-              ],
-              "description": "The action to perform"
-            },
-            "planId": {
-              "type": "string",
-              "description": "Plan ID"
-            },
-            "note": {
-              "type": "string",
-              "description": "Note content (for add_note)"
-            },
-            "noteType": {
-              "type": "string",
-              "enum": [
-                "info",
-                "warning",
-                "instruction"
-              ],
-              "description": "Note type"
-            },
-            "targetAgent": {
-              "type": "string",
-              "enum": [
-                "Coordinator",
-                "Researcher",
-                "Architect",
-                "Executor",
-                "Reviewer",
-                "Tester",
-                "Archivist",
-                "Analyst",
-                "Brainstorm",
-                "Runner"
-              ],
-              "description": "Target agent (for handoff)"
-            },
-            "reason": {
-              "type": "string",
-              "description": "Handoff reason"
-            },
-            "type": {
-              "type": "string",
-              "description": "Context type key (for store/get/workspace_*)"
-            },
-            "data": {
-              "type": "object",
-              "description": "Context data (for store/workspace_set/workspace_update)"
-            },
-            "userRequest": {
-              "type": "string",
-              "description": "User request text (for store_initial)"
-            },
-            "filesMentioned": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "description": "Files referenced (for store_initial)"
-            },
-            "requirements": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "description": "Requirements (for store_initial)"
-            },
-            "constraints": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "description": "Constraints (for store_initial)"
-            },
-            "filename": {
-              "type": "string",
-              "description": "Research note filename (for append_research)"
-            },
-            "content": {
-              "type": "string",
-              "description": "Research note content (for append_research)"
-            },
-            "items": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "type": {
-                    "type": "string"
-                  },
-                  "data": {
-                    "type": "object"
-                  }
-                }
-              },
-              "description": "Batch items (for batch_store)"
-            },
-            "query": {
-              "type": "string",
-              "description": "Search query text (for search)"
-            },
-            "scope": {
-              "type": "string",
-              "enum": [
-                "plan",
-                "workspace",
-                "program",
-                "all"
-              ],
-              "description": "Search/pull scope (default: plan)"
-            },
-            "types": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "description": "Optional context type filters (for search/pull)"
-            },
-            "selectors": {
-              "type": "array",
-              "items": {
-                "type": "object"
-              },
-              "description": "Selected context item selectors (for pull)"
-            },
-            "limit": {
-              "type": "number",
-              "description": "Max search results (default: 20)"
-            }
-          },
-          "required": [
-            "action"
-          ]
-        },
-        "canBeInvokedManually": true
-      },
-      {
-        "name": "memory_filesystem",
-        "displayName": "Project Memory Filesystem",
-        "description": "Workspace-scoped filesystem operations with safety boundaries",
-        "modelDescription": "Workspace-scoped filesystem operations. Actions: 'read' to read a file (requires workspace_id, path), 'write' to write/create a file (requires workspace_id, path, content), 'search' to find files by glob or regex (requires workspace_id, pattern or regex), 'list' to list directory contents (requires workspace_id), 'tree' to get a recursive directory tree (requires workspace_id).",
-        "parametersSchema": {
-          "type": "object",
-          "properties": {
-            "action": {
-              "type": "string",
-              "enum": [
-                "read",
-                "write",
-                "search",
-                "list",
-                "tree"
-              ],
-              "description": "The action to perform"
-            },
-            "workspace_id": {
-              "type": "string",
-              "description": "Workspace ID — paths are relative to workspace root"
-            },
-            "path": {
-              "type": "string",
-              "description": "File or directory path relative to workspace root"
-            },
-            "content": {
-              "type": "string",
-              "description": "File content (for write)"
-            },
-            "create_dirs": {
-              "type": "boolean",
-              "description": "Auto-create parent directories (for write). Default true"
-            },
-            "pattern": {
-              "type": "string",
-              "description": "Glob pattern (for search)"
-            },
-            "regex": {
-              "type": "string",
-              "description": "Regex pattern (for search)"
-            },
-            "include": {
-              "type": "string",
-              "description": "File include filter, e.g. '*.ts' (for search)"
-            },
-            "recursive": {
-              "type": "boolean",
-              "description": "Recurse into subdirectories (for list)"
-            },
-            "max_depth": {
-              "type": "number",
-              "description": "Maximum tree depth (for tree). Default 3, max 10"
-            }
-          },
-          "required": [
-            "action",
-            "workspace_id"
-          ]
-        },
-        "canBeInvokedManually": true
-      },
-      {
-        "name": "memory_session",
-        "displayName": "Project Memory Session",
-        "description": "Agent session management. Actions: prep (context enrichment + session minting for spawn), list_sessions (query active sessions), get_session (find session by ID).",
-        "modelDescription": "Agent session management. Actions: prep (mint session ID, enrich prompt with context/scope/anti-spawning blocks — does NOT execute spawn, call runSubagent next), list_sessions (query sessions from plan state), get_session (find a specific session by ID). For prep: provide agent_name + prompt. For queries: provide workspace_id.",
-        "parametersSchema": {
-          "type": "object",
-          "properties": {
-            "action": {
-              "type": "string",
-              "enum": [
-                "prep",
-                "list_sessions",
-                "get_session"
-              ],
-              "description": "The action to perform. Defaults to 'prep' when omitted for backwards compatibility."
-            },
-            "agent_name": {
-              "type": "string",
-              "description": "Name of the target agent for prompt preparation (for prep action)"
-            },
-            "prompt": {
-              "type": "string",
-              "description": "Task description used to build prep_config.enriched_prompt (for prep action)"
-            },
-            "workspace_id": {
-              "type": "string",
-              "description": "Workspace ID"
-            },
-            "plan_id": {
-              "type": "string",
-              "description": "Plan ID"
-            },
-            "compat_mode": {
-              "type": "string",
-              "enum": [
-                "legacy",
-                "strict"
-              ],
-              "description": "Compatibility response mode (for prep). legacy returns prep_config + deprecated spawn_config alias; strict returns canonical prep_config only."
-            },
-            "parent_session_id": {
-              "type": "string",
-              "description": "Parent session ID for lineage tracking (for prep)"
-            },
-            "session_id": {
-              "type": "string",
-              "description": "Session ID to look up (for get_session)"
-            },
-            "status_filter": {
-              "type": "string",
-              "enum": [
-                "active",
-                "stopping",
-                "completed",
-                "all"
-              ],
-              "description": "Filter sessions by status (for list_sessions)"
-            },
-            "prep_config": {
-              "type": "object",
-              "properties": {
-                "scope_boundaries": {
-                  "type": "object",
-                  "properties": {
-                    "files_allowed": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      },
-                      "description": "List of files the agent is allowed to modify"
-                    },
-                    "directories_allowed": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      },
-                      "description": "List of directories where the agent can create files"
-                    },
-                    "scope_escalation_instruction": {
-                      "type": "string",
-                      "description": "Custom instruction for what to do if agent needs out-of-scope changes"
-                    }
-                  }
-                }
-              },
-              "description": "Canonical context preparation config."
-            },
-            "spawn_config": {
-              "type": "object",
-              "description": "Deprecated input alias for prep_config. Use prep_config instead.",
-              "properties": {
-                "scope_boundaries": {
-                  "type": "object",
-                  "properties": {
-                    "files_allowed": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    "directories_allowed": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    "scope_escalation_instruction": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            },
-            "scope_boundaries": {
-              "type": "object",
-              "description": "Deprecated top-level alias. Prefer prep_config.scope_boundaries.",
-              "properties": {
-                "files_allowed": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "directories_allowed": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "scope_escalation_instruction": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "required": []
-        },
-        "canBeInvokedManually": true
-      }
-    ],
     "commands": [
       {
         "command": "projectMemory.showDashboard",
@@ -958,66 +105,6 @@
         "category": "Project Memory"
       },
       {
-        "command": "projectMemory.showPlanInChat",
-        "title": "Show Plan In Chat",
-        "category": "Project Memory"
-      },
-      {
-        "command": "projectMemory.archivePlan",
-        "title": "Archive Plan",
-        "category": "Project Memory"
-      },
-      {
-        "command": "projectMemory.resumePausedPlan",
-        "title": "Resume Paused Plan",
-        "category": "Project Memory"
-      },
-      {
-        "command": "projectMemory.markStepActive",
-        "title": "Mark Step Active",
-        "category": "Project Memory"
-      },
-      {
-        "command": "projectMemory.markStepDone",
-        "title": "Mark Step Done",
-        "category": "Project Memory"
-      },
-      {
-        "command": "projectMemory.runBuildScript",
-        "title": "Run Build Script",
-        "category": "Project Memory"
-      },
-      {
-        "command": "projectMemory.addStepToPlan",
-        "title": "Add Step To Plan",
-        "category": "Project Memory"
-      },
-      {
-        "command": "projectMemory.confirmAction",
-        "title": "Confirm Action",
-        "category": "Project Memory"
-      },
-      {
-        "command": "projectMemory.cancelAction",
-        "title": "Cancel Action",
-        "category": "Project Memory"
-      },
-      {
-        "command": "projectMemory.launchAgentChat",
-        "title": "Launch Agent Chat",
-        "category": "Project Memory"
-      },
-      {
-        "command": "projectMemory.openPlanInDashboard",
-        "title": "Open Plan In Dashboard",
-        "category": "Project Memory"
-      },
-      {
-        "command": "projectMemory.createDedicatedPlan",
-        "title": "Create Dedicated Plan",
-        "category": "Project Memory"
-      },
-      {
         "command": "projectMemory.openAgentFile",
         "title": "Open Agent File",
         "category": "Project Memory"
@@ -1033,33 +120,8 @@
         "category": "Project Memory"
       },
       {
-        "command": "projectMemory.toggleServer",
-        "title": "Toggle Server",
-        "category": "Project Memory"
-      },
-      {
-        "command": "projectMemory.startServer",
-        "title": "Start Server",
-        "category": "Project Memory"
-      },
-      {
-        "command": "projectMemory.stopServer",
-        "title": "Stop Server",
-        "category": "Project Memory"
-      },
-      {
         "command": "projectMemory.migrateWorkspace",
         "title": "Migrate Workspace to New Identity System",
-        "category": "Project Memory"
-      },
-      {
-        "command": "projectMemory.forceStopExternalServer",
-        "title": "Force Stop External Server",
-        "category": "Project Memory"
-      },
-      {
-        "command": "projectMemory.restartServer",
-        "title": "Restart Server",
         "category": "Project Memory"
       },
       {
@@ -1072,19 +134,10 @@
         "title": "Show Diagnostics",
         "category": "Project Memory"
       },
-      {
-        "command": "projectMemory.isolateServer",
-        "title": "Toggle Isolated Server Mode",
-        "category": "Project Memory"
-      },
+
       {
         "command": "projectMemory.openSettings",
         "title": "Open Settings",
-        "category": "Project Memory"
-      },
-      {
-        "command": "projectMemory.chat.reconnect",
-        "title": "Reconnect Chat to MCP Server",
         "category": "Project Memory"
       },
       {
@@ -1106,6 +159,52 @@
         "command": "projectMemory.scaleUpMcp",
         "title": "Scale Up MCP Pool",
         "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.planExplorer.refresh",
+        "title": "Refresh Plans",
+        "icon": "$(refresh)",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.planExplorer.toggleArchived",
+        "title": "Toggle Archived Plans",
+        "icon": "$(archive)",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.openPlanInDashboard",
+        "title": "Open in Dashboard",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.deployWithProfile",
+        "title": "Deploy with Profile…",
+        "icon": "$(cloud-upload)",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.deployAgentFileToWorkspace",
+        "title": "Deploy to Current Workspace",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.runFullDiagnostic",
+        "title": "Run Full Diagnostic",
+        "icon": "$(run)",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.diagnostics.copyValue",
+        "title": "Copy Value",
+        "icon": "$(clippy)",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.goToStepFile",
+        "title": "Go to File",
+        "icon": "$(go-to-file)",
+        "category": "Project Memory"
       }
     ],
     "viewsContainers": {
@@ -1123,6 +222,16 @@
           "type": "webview",
           "id": "projectMemory.dashboardView",
           "name": "Dashboard"
+        },
+        {
+          "type": "tree",
+          "id": "projectMemory.planExplorer",
+          "name": "Plans"
+        },
+        {
+          "type": "tree",
+          "id": "projectMemory.diagnosticsView",
+          "name": "Diagnostics"
         }
       ]
     },
@@ -1166,25 +275,7 @@
           "default": 3457,
           "description": "Port for the MCP server"
         },
-        "projectMemory.wsPort": {
-          "type": "number",
-          "default": 3002,
-          "description": "Port for the WebSocket server (live updates) - DEPRECATED, managed by Supervisor",
-          "deprecationMessage": "WebSocket port is now managed by the Supervisor. This setting is ignored."
-        },
-        "projectMemory.autoStartServer": {
-          "type": "boolean",
-          "default": false,
-          "description": "DEPRECATED: Extension no longer starts servers. Launch the Supervisor externally via start-supervisor.ps1",
-          "deprecationMessage": "Server spawning has been removed. Launch the Supervisor externally using start-supervisor.ps1 or the Launch Supervisor command."
-        },
-        "projectMemory.idleServerTimeoutMinutes": {
-          "type": "number",
-          "default": 0,
-          "minimum": 0,
-          "description": "DEPRECATED: Idle timeout is now managed by the Supervisor.",
-          "deprecationMessage": "Idle server timeout is now configured in the Supervisor's supervisor.toml file."
-        },
+
         "projectMemory.skillsRoot": {
           "type": "string",
           "default": "",
@@ -1242,40 +333,50 @@
           "default": false,
           "description": "Automatically deploy skills to workspace on open (even if full auto-deploy is off)"
         },
+        "projectMemory.deployProfiles": {
+          "type": "array",
+          "default": [],
+          "description": "Named deploy profiles. Each profile specifies which agents, instructions, and skills to deploy. Used by the 'Deploy with Profile' command.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "description": "Profile display name" },
+              "agents": { "type": "array", "items": { "type": "string" }, "description": "Agent names to deploy" },
+              "instructions": { "type": "array", "items": { "type": "string" }, "description": "Instruction file names to deploy" },
+              "skills": { "type": "array", "items": { "type": "string" }, "description": "Skill directory names to deploy" }
+            },
+            "required": ["name"]
+          }
+        },
         "projectMemory.showNotifications": {
           "type": "boolean",
           "default": true,
           "description": "Show toast notifications for deployment and server events"
         },
-        "projectMemory.chat.serverMode": {
-          "type": "string",
-          "enum": [
-            "bundled",
-            "podman",
-            "external"
-          ],
-          "default": "bundled",
-          "description": "How to run the MCP server for chat integration",
-          "enumDescriptions": [
-            "Spawn bundled server automatically",
-            "Run in Podman container",
-            "Connect to external server"
-          ]
-        },
-        "projectMemory.chat.podmanImage": {
-          "type": "string",
-          "default": "project-memory-mcp:latest",
-          "description": "Podman/Docker image name for MCP server (when serverMode is 'podman')"
-        },
-        "projectMemory.chat.externalServerPath": {
-          "type": "string",
-          "default": "",
-          "description": "Path to external MCP server executable (when serverMode is 'external')"
-        },
-        "projectMemory.chat.autoConnect": {
+        "projectMemory.notifications.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically connect to MCP server when extension activates"
+          "description": "Master switch for plan/agent lifecycle notifications."
+        },
+        "projectMemory.notifications.agentHandoffs": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a notification when an agent hands off to the next agent."
+        },
+        "projectMemory.notifications.planComplete": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a notification when a plan is completed (archived)."
+        },
+        "projectMemory.notifications.stepBlocked": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a notification when a plan step becomes blocked."
+        },
+        "projectMemory.dashboard.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable the Project Memory dashboard connection. Set to false to prevent the extension from automatically connecting to the dashboard server on startup. Manual connection via command is still available."
         },
         "projectMemory.containerMode": {
           "type": "string",
@@ -1333,6 +434,40 @@
       }
     },
     "menus": {
+      "view/title": [
+        {
+          "command": "projectMemory.planExplorer.refresh",
+          "when": "view == projectMemory.planExplorer",
+          "group": "navigation"
+        },
+        {
+          "command": "projectMemory.planExplorer.toggleArchived",
+          "when": "view == projectMemory.planExplorer",
+          "group": "navigation"
+        },
+        {
+          "command": "projectMemory.runFullDiagnostic",
+          "when": "view == projectMemory.diagnosticsView",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "projectMemory.openPlanInDashboard",
+          "when": "viewItem =~ /planItem/",
+          "group": "inline"
+        },
+        {
+          "command": "projectMemory.diagnostics.copyValue",
+          "when": "viewItem == diagnosticsDetail",
+          "group": "inline"
+        },
+        {
+          "command": "projectMemory.goToStepFile",
+          "when": "viewItem =~ /hasFileRef/",
+          "group": "inline"
+        }
+      ],
       "explorer/context": [
         {
           "command": "projectMemory.createPlan",
@@ -1343,6 +478,11 @@
           "command": "projectMemory.addToPlan",
           "group": "projectMemory@2",
           "when": "!explorerResourceIsFolder"
+        },
+        {
+          "command": "projectMemory.deployAgentFileToWorkspace",
+          "group": "projectMemory@3",
+          "when": "resourceFilename =~ /\\.agent\\.md$/"
         }
       ],
       "editor/context": [
@@ -1384,8 +524,6 @@
     "vitest": "^4.0.18"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "chokidar": "^3.5.3",
     "glob": "^13.0.1"
   },
   "overrides": {

@@ -9,7 +9,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
 
 import type { WorkspaceSummary, ProgramSummary, AggregateProgress } from '../../types';
@@ -65,6 +64,7 @@ function makeWorkspace(overrides: Partial<WorkspaceSummary> = {}): WorkspaceSumm
     workspace_id: 'ws_stat',
     name: 'Test Workspace',
     path: '/test/ws',
+    health: 'active',
     active_plan_count: 5,
     archived_plan_count: 1,
     last_activity: '2026-02-01T00:00:00Z',

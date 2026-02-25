@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { checkProgramUpgradeSuggestion } from '../../tools/plan/plan-step-mutations.js';
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 import type { PlanState, PlanStep } from '../../types/index.js';
 
 /**
@@ -10,7 +10,7 @@ import type { PlanState, PlanStep } from '../../types/index.js';
  * note when a plan grows past the PROGRAM_UPGRADE_THRESHOLD (100 steps).
  */
 
-vi.mock('../../storage/file-store.js');
+vi.mock('../../storage/db-store.js');
 
 // ===========================================================================
 // Fixtures

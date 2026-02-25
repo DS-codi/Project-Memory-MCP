@@ -6,14 +6,22 @@
 //! supervisor.
 
 use std::process::Stdio;
+use std::time::{Duration, Instant};
 
 use anyhow::Context as _;
 use async_trait::async_trait;
+#[cfg(windows)]
+use sysinfo::{PidExt, ProcessExt, System, SystemExt};
 use tokio::process::Child;
 
 use crate::config::InteractiveTerminalSection;
 use crate::control::registry::ServiceStatus;
 use crate::runner::{HealthStatus, ServiceRunner};
+
+/// How long after `start()` we skip TCP health probes.  The Qt/QML binary can
+/// take 20-40 s to open its TCP port on a cold start, so we give it a generous
+/// window before the crash-recovery monitor is allowed to declare it dead.
+const STARTUP_GRACE_SECS: u64 = 60;
 
 // ---------------------------------------------------------------------------
 // Internal state
@@ -32,6 +40,10 @@ enum RunnerState {
 pub struct InteractiveTerminalRunner {
     config: InteractiveTerminalSection,
     state: RunnerState,
+    /// Time at which the process was most recently spawned.  Used to implement
+    /// a startup grace period in `health_probe` so slow Qt initialisation does
+    /// not trigger a spurious restart loop.
+    started_at: Option<Instant>,
 }
 
 impl InteractiveTerminalRunner {
@@ -40,6 +52,7 @@ impl InteractiveTerminalRunner {
         Self {
             config,
             state: RunnerState::Stopped,
+            started_at: None,
         }
     }
 
@@ -48,6 +61,43 @@ impl InteractiveTerminalRunner {
         match self.state {
             RunnerState::Running { pid, .. } => Some(pid),
             RunnerState::Stopped => None,
+        }
+    }
+
+    #[cfg(windows)]
+    fn kill_stale_matching_instances(&self) {
+        let exe_path = match std::path::Path::new(&self.config.command).canonicalize() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        let mut system = System::new_all();
+        system.refresh_processes();
+
+        for (pid, process) in system.processes() {
+            let process_path = match process.exe().canonicalize() {
+                Ok(p) => p,
+                Err(_) => continue,
+            };
+            if process_path != exe_path {
+                continue;
+            }
+
+            let cmdline = process
+                .cmd()
+                .iter()
+                .map(|segment| segment.to_string())
+                .collect::<Vec<_>>()
+                .join(" ");
+            let port_arg = format!("--port {}", self.config.port);
+            if !cmdline.contains(&port_arg) {
+                continue;
+            }
+
+            let stale_pid = pid.as_u32().to_string();
+            let _ = std::process::Command::new("taskkill")
+                .args(["/PID", &stale_pid, "/T", "/F"])
+                .status();
         }
     }
 }
@@ -66,6 +116,9 @@ impl ServiceRunner for InteractiveTerminalRunner {
         if matches!(self.state, RunnerState::Running { .. }) {
             return Ok(()); // already running — idempotent
         }
+
+        #[cfg(windows)]
+        self.kill_stale_matching_instances();
 
         let mut cmd = tokio::process::Command::new(&self.config.command);
 
@@ -102,6 +155,7 @@ impl ServiceRunner for InteractiveTerminalRunner {
         crate::runner::job_object::adopt(pid);
 
         self.state = RunnerState::Running { child, pid };
+        self.started_at = Some(Instant::now());
         Ok(())
     }
 
@@ -114,6 +168,7 @@ impl ServiceRunner for InteractiveTerminalRunner {
                     .await
                     .context("failed to kill interactive-terminal process")?;
                 self.state = RunnerState::Stopped;
+                self.started_at = None;
             }
             RunnerState::Stopped => {}
         }
@@ -132,9 +187,21 @@ impl ServiceRunner for InteractiveTerminalRunner {
     ///
     /// Returns [`HealthStatus::Healthy`] on a successful TCP connect,
     /// [`HealthStatus::Unhealthy`] with a reason string otherwise.
+    ///
+    /// The first [`STARTUP_GRACE_SECS`] after a `start()` call the probe
+    /// always returns `Healthy` to allow the Qt/QML binary time to initialise
+    /// before the crash-recovery monitor can trigger a spurious restart.
     async fn health_probe(&self) -> HealthStatus {
         if matches!(self.state, RunnerState::Stopped) {
             return HealthStatus::Unhealthy("not running".into());
+        }
+
+        // Within the startup grace window, assume healthy so the crash-recovery
+        // monitor does not restart a still-initialising Qt process.
+        if let Some(started) = self.started_at {
+            if started.elapsed() < Duration::from_secs(STARTUP_GRACE_SECS) {
+                return HealthStatus::Healthy;
+            }
         }
 
         let addr = format!("127.0.0.1:{}", self.config.port);

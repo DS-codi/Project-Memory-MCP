@@ -2,9 +2,9 @@ import { Router } from 'express';
 import * as crypto from 'crypto';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { scanWorkspaces, getWorkspaceDetails, buildWorkspaceHierarchy } from '../services/fileScanner.js';
+import { listWorkspaces, getWorkspace, getWorkspaceMetrics, getBuildScripts } from '../db/queries.js';
 import { emitEvent } from '../events/emitter.js';
-import { getDataRoot, getWorkspaceDisplayName, getWorkspaceIdFromPath, resolveCanonicalWorkspaceId, writeWorkspaceIdentityFile, safeResolvePath } from '../storage/workspace-utils.js';
+import { getDataRoot, getWorkspaceDisplayName, resolveCanonicalWorkspaceId, writeWorkspaceIdentityFile, safeResolvePath } from '../storage/workspace-utils.js';
 
 export const workspacesRouter = Router();
 
@@ -128,22 +128,43 @@ function normalizeWorkspaceSections(input: unknown): Record<string, WorkspaceCon
 }
 
 // GET /api/workspaces - List all workspaces
-workspacesRouter.get('/', async (req, res) => {
+workspacesRouter.get('/', (req, res) => {
   try {
-    let workspaces = await scanWorkspaces(globalThis.MBS_DATA_ROOT);
-
-    // When ?hierarchical=true, nest children under parents
-    if (req.query.hierarchical === 'true') {
-      workspaces = buildWorkspaceHierarchy(workspaces);
-    }
-
-    res.json({
-      workspaces,
-      total: workspaces.length,
+    const rows = listWorkspaces();
+    const workspaces = rows.map(row => {
+      const metrics = getWorkspaceMetrics(row.id);
+      let languages: string[] = [];
+      if (row.profile) {
+        try { languages = JSON.parse(row.profile).languages || []; } catch {}
+      }
+      let lastActivity = row.registered_at;
+      let parentWorkspaceId: string | undefined;
+      let childWorkspaceIds: string[] = [];
+      if (row.meta) {
+        try {
+          const meta = JSON.parse(row.meta);
+          if (meta.last_accessed) lastActivity = meta.last_accessed;
+          if (meta.parent_workspace_id) parentWorkspaceId = meta.parent_workspace_id;
+          if (Array.isArray(meta.child_workspace_ids)) childWorkspaceIds = meta.child_workspace_ids;
+        } catch {}
+      }
+      return {
+        workspace_id: row.id,
+        name: row.name,
+        path: row.path,
+        health: metrics.activePlans > 0 ? 'active' : 'idle',
+        active_plan_count: metrics.activePlans,
+        archived_plan_count: metrics.archivedPlans,
+        last_activity: lastActivity,
+        languages,
+        ...(parentWorkspaceId ? { parent_workspace_id: parentWorkspaceId } : {}),
+        ...(childWorkspaceIds.length > 0 ? { child_workspace_ids: childWorkspaceIds } : {}),
+      };
     });
+    res.json({ workspaces, total: workspaces.length });
   } catch (error) {
-    console.error('Error scanning workspaces:', error);
-    res.status(500).json({ error: 'Failed to scan workspaces' });
+    console.error('Error listing workspaces:', error);
+    res.status(500).json({ error: 'Failed to list workspaces' });
   }
 });
 
@@ -183,13 +204,35 @@ workspacesRouter.post('/register', async (req, res) => {
 });
 
 // GET /api/workspaces/:id - Get workspace details
-workspacesRouter.get('/:id', async (req, res) => {
+workspacesRouter.get('/:id', (req, res) => {
   try {
-    const workspace = await getWorkspaceDetails(globalThis.MBS_DATA_ROOT, req.params.id);
-    if (!workspace) {
+    const row = getWorkspace(req.params.id);
+    if (!row) {
       return res.status(404).json({ error: 'Workspace not found' });
     }
-    res.json(workspace);
+    const metrics = getWorkspaceMetrics(row.id);
+    let profile: Record<string, unknown> = {};
+    if (row.profile) { try { profile = JSON.parse(row.profile); } catch {} }
+    let metaExtra: Record<string, unknown> = {};
+    if (row.meta) { try { metaExtra = JSON.parse(row.meta); } catch {} }
+    res.json({
+      workspace_id: row.id,
+      name: row.name,
+      path: row.path,
+      registered_at: row.registered_at,
+      languages: (profile.languages as string[]) || [],
+      frameworks: (profile.frameworks as string[]) || [],
+      package_manager: (profile.package_manager as string) || null,
+      health: metrics.activePlans > 0 ? 'active' : 'idle',
+      active_plan_count: metrics.activePlans,
+      archived_plan_count: metrics.archivedPlans,
+      total_plans: metrics.totalPlans,
+      total_steps: metrics.totalSteps,
+      completed_steps: metrics.completedSteps,
+      total_sessions: metrics.totalSessions,
+      total_knowledge: metrics.totalKnowledge,
+      last_activity: (metaExtra.last_accessed as string) || row.registered_at,
+    });
   } catch (error) {
     console.error('Error getting workspace:', error);
     res.status(500).json({ error: 'Failed to get workspace details' });
@@ -363,15 +406,10 @@ workspacesRouter.put('/:id/context', async (req, res) => {
 // ============================================================================
 
 // GET /api/workspaces/:workspaceId/build-scripts - Get workspace-level build scripts
-workspacesRouter.get('/:workspaceId/build-scripts', async (req, res) => {
+workspacesRouter.get('/:workspaceId/build-scripts', (req, res) => {
   try {
     const { workspaceId } = req.params;
-    
-    const metaPath = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'workspace.meta.json');
-    const content = await fs.readFile(metaPath, 'utf-8');
-    const meta = JSON.parse(content);
-    
-    const scripts = meta.build_scripts || [];
+    const scripts = getBuildScripts(workspaceId);
     res.json({ scripts });
   } catch (error) {
     console.error('Error getting workspace build scripts:', error);

@@ -7,7 +7,6 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { ConnectionManager } from '../server/ConnectionManager';
 import { DashboardViewProvider } from '../providers/DashboardViewProvider';
-import { McpBridge } from '../chat';
 import { notify } from '../utils/helpers';
 import { getDefaultAgentsRoot, getDefaultInstructionsRoot, getDefaultSkillsRoot } from '../utils/defaults';
 import { resolveSkillsSourceRoot, buildMissingSkillsSourceWarning } from '../utils/skillsSourceRoot';
@@ -15,97 +14,15 @@ import { resolveSkillsSourceRoot, buildMissingSkillsSourceWarning } from '../uti
 export function registerWorkspaceCommands(
     context: vscode.ExtensionContext,
     connectionManager: ConnectionManager,
-    dashboardProvider: DashboardViewProvider,
-    getMcpBridge: () => McpBridge | null
+    dashboardProvider: DashboardViewProvider
 ): void {
     context.subscriptions.push(
         vscode.commands.registerCommand('projectMemory.migrateWorkspace', async () => {
-            const folderUri = await vscode.window.showOpenDialog({
-                canSelectFiles: false,
-                canSelectFolders: true,
-                canSelectMany: false,
-                openLabel: 'Select Workspace to Migrate',
-                title: 'Select a workspace directory to migrate to the new identity system'
-            });
-
-            if (!folderUri || folderUri.length === 0) return;
-
-            const workspacePath = folderUri[0].fsPath;
-            const mcpBridge = getMcpBridge();
-
-            if (!mcpBridge) {
-                vscode.window.showErrorMessage('MCP Bridge not initialized. Please wait for the extension to fully load.');
-                return;
-            }
-
-            if (!mcpBridge.isConnected()) {
-                try {
-                    await mcpBridge.connect();
-                } catch {
-                    vscode.window.showErrorMessage('Failed to connect to MCP server. Please check the server is configured correctly.');
-                    return;
-                }
-            }
-
-            await vscode.window.withProgress({
-                location: vscode.ProgressLocation.Notification,
-                title: 'Migrating workspace...',
-                cancellable: false
-            }, async (progress) => {
-                try {
-                    progress.report({ message: 'Stopping dashboard server...' });
-                    const wasRunning = serverManager.isRunning;
-                    if (wasRunning) {
-                        await serverManager.stopFrontend();
-                        await serverManager.stop();
-                    }
-
-                    await new Promise(resolve => setTimeout(resolve, 500));
-
-                    progress.report({ message: 'Running migration...' });
-                    const result = await mcpBridge!.callTool<{
-                        workspace_id: string;
-                        workspace_path: string;
-                        identity_written: boolean;
-                        ghost_folders_found: Array<{ folder_name: string; plan_ids: string[] }>;
-                        ghost_folders_merged: string[];
-                        plans_recovered: string[];
-                        folders_deleted: string[];
-                        notes: string[];
-                    }>('memory_workspace', {
-                        action: 'migrate',
-                        workspace_path: workspacePath
-                    });
-
-                    if (wasRunning) {
-                        progress.report({ message: 'Restarting dashboard server...' });
-                        await serverManager.start();
-                    }
-
-                    const ghostCount = result.ghost_folders_found?.length || 0;
-                    const mergedCount = result.ghost_folders_merged?.length || 0;
-                    const recoveredCount = result.plans_recovered?.length || 0;
-
-                    let message = `Migration complete for ${path.basename(workspacePath)}.\n`;
-                    message += `Workspace ID: ${result.workspace_id}\n`;
-                    if (ghostCount > 0) {
-                        message += `Found ${ghostCount} ghost folders, merged ${mergedCount}.\n`;
-                    }
-                    if (recoveredCount > 0) {
-                        message += `Recovered ${recoveredCount} plans.\n`;
-                    }
-                    if (result.notes && result.notes.length > 0) {
-                        message += `Notes: ${result.notes.slice(0, 3).join('; ')}`;
-                    }
-
-                    vscode.window.showInformationMessage(message, { modal: true });
-                } catch (error) {
-                    if (!serverManager.isRunning) {
-                        await serverManager.start();
-                    }
-                    vscode.window.showErrorMessage(`Migration failed: ${(error as Error).message}`);
-                }
-            });
+            vscode.window.showInformationMessage(
+                'Workspace migration is now handled via the MCP server directly. ' +
+                'Use the memory_workspace(action: "migrate") tool through a Copilot chat or MCP client.',
+                'OK'
+            );
         }),
 
         vscode.commands.registerCommand('projectMemory.openSettings', async () => {

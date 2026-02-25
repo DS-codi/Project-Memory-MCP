@@ -12,7 +12,7 @@ import type {
   PlanNote,
 } from '../../types/index.js';
 import { AGENT_BOUNDARIES } from '../../types/index.js';
-import * as store from '../../storage/file-store.js';
+import * as store from '../../storage/db-store.js';
 import { events } from '../../events/event-emitter.js';
 
 // =============================================================================
@@ -47,15 +47,29 @@ export async function insertStep(
     const currentAgent = state.current_agent || 'Coordinator';
     const boundaries = AGENT_BOUNDARIES[currentAgent];
 
+    // mapDependsOn handles both legacy numeric-index strings (e.g. "2") and
+    // new string step IDs. Numeric strings are remapped via indexMap; opaque
+    // string IDs are passed through unchanged.
     const mapDependsOn = (
-      dependsOn: number[] | undefined,
+      dependsOn: string[] | undefined,
       indexMap: Map<number, number>
-    ): number[] | undefined => {
-      if (!dependsOn || dependsOn.length === 0) {
-        return dependsOn;
-      }
+    ): string[] | undefined => {
+      if (!dependsOn || dependsOn.length === 0) return dependsOn;
+      return dependsOn.map(dep => {
+        const n = Number(dep);
+        if (Number.isInteger(n) && String(n) === dep) {
+          return String(indexMap.has(n) ? indexMap.get(n)! : n);
+        }
+        return dep;  // step ID — pass through
+      });
+    };
 
-      return dependsOn.map(depIndex => (indexMap.has(depIndex) ? indexMap.get(depIndex)! : depIndex));
+    const shiftDep = (dep: string, threshold: number, delta: number): string => {
+      const n = Number(dep);
+      if (Number.isInteger(n) && String(n) === dep) {
+        return String(n >= threshold ? n + delta : n);
+      }
+      return dep;  // step ID — pass through
     };
 
     // Normalize steps by index order and reindex sequentially
@@ -84,14 +98,14 @@ export async function insertStep(
     const updatedSteps = normalizedSteps.map(s => {
       const shiftedIndex = s.index >= at_index ? s.index + 1 : s.index;
       const shiftedDepends = s.depends_on
-        ? s.depends_on.map(depIndex => (depIndex >= at_index ? depIndex + 1 : depIndex))
+        ? s.depends_on.map(dep => shiftDep(dep, at_index, 1))
         : s.depends_on;
       return { ...s, index: shiftedIndex, depends_on: shiftedDepends };
     });
 
     const normalizedNewDepends = mapDependsOn(step.depends_on, indexMap);
     const shiftedNewDepends = normalizedNewDepends
-      ? normalizedNewDepends.map(depIndex => (depIndex >= at_index ? depIndex + 1 : depIndex))
+      ? normalizedNewDepends.map(dep => shiftDep(dep, at_index, 1))
       : normalizedNewDepends;
 
     // Insert new step with the target index

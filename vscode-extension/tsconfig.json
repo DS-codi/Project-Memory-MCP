@@ -13,6 +13,17 @@
     "resolveJsonModule": true,
     "moduleResolution": "node"
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/*.ts",
+    "src/chat/**/*.ts",
+    "src/commands/**/*.ts",
+    "src/deployer/**/*.ts",
+    "src/providers/**/*.ts",
+    "src/server/**/*.ts",
+    "src/services/**/*.ts",
+    "src/supervisor/**/*.ts",
+    "src/ui/**/*.ts",
+    "src/utils/**/*.ts"
+  ],
   "exclude": ["node_modules", "webview"]
 }

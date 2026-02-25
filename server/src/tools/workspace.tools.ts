@@ -12,9 +12,9 @@ import type {
   PlanState,
   WorkspaceOverlapInfo
 } from '../types/index.js';
-import * as store from '../storage/file-store.js';
+import * as store from '../storage/db-store.js';
 import { indexWorkspace, needsIndexing } from '../indexing/workspace-indexer.js';
-import type { WorkspaceMigrationReport } from '../storage/file-store.js';
+import type { WorkspaceMigrationReport } from '../storage/db-store.js';
 import { buildWorkspaceContextSectionsFromProfile } from '../utils/workspace-context-seed.js';
 
 interface RegisterWorkspaceResult {
@@ -257,7 +257,7 @@ export async function reindexWorkspace(
 }
 
 /**
- * Auto-seed workspace.context.json with data from the codebase profile.
+ * Auto-seed workspace context in DB with data from the codebase profile.
  * Only called on first-time registration when a profile is available.
  * Does not overwrite existing context.
  */
@@ -268,8 +268,7 @@ async function seedWorkspaceContext(
   profile: WorkspaceProfile
 ): Promise<void> {
   try {
-    const contextPath = store.getWorkspaceContextPath(workspaceId);
-    const existing = await store.readJson<WorkspaceContext>(contextPath);
+    const existing = await store.getWorkspaceContextFromDb(workspaceId);
     if (existing) {
       // Context already exists — don't overwrite
       return;
@@ -289,7 +288,7 @@ async function seedWorkspaceContext(
       sections
     };
 
-    await store.writeJsonLocked(contextPath, context);
+    await store.saveWorkspaceContextToDb(workspaceId, context);
     const projectItemsCount = sections.project_details?.items?.length ?? 0;
     const dependencyItemsCount = sections.dependencies?.items?.length ?? 0;
     console.log(`Auto-seeded workspace context for ${workspaceId} with ${projectItemsCount} project details and ${dependencyItemsCount} dependencies`);

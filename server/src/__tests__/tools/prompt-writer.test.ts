@@ -28,7 +28,7 @@ vi.mock('fs', async () => {
   };
 });
 
-vi.mock('../../storage/file-store.js', () => ({
+vi.mock('../../storage/db-store.js', () => ({
   ensureDir: vi.fn().mockResolvedValue(undefined),
 }));
 

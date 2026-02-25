@@ -12,7 +12,7 @@ import {
   findCanonicalForLegacyId,
   validateWorkspaceId,
   WorkspaceNotRegisteredError,
-} from '../../storage/workspace-identity.js';
+} from '../../storage/db-store.js';
 
 export interface ValidatedWorkspaceId {
   /** The canonical workspace ID to use (may differ from input if redirected) */

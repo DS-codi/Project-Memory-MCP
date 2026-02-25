@@ -37,6 +37,8 @@ pub async fn handle_request(
     form_apps: Arc<FormAppConfigs>,
     shutdown_tx: tokio::sync::watch::Sender<bool>,
     mcp_base_url: Option<String>,
+    events_handle: Option<crate::events::EventsHandle>,
+    events_url: Option<String>,
 ) -> ControlResponse {
     match req {
         // ---------------------------------------------------------------
@@ -328,6 +330,35 @@ pub async fn handle_request(
                 Err(e) => ControlResponse::err(format!("serialisation error: {e}")),
             }
         }
+
+        // ---------------------------------------------------------------
+        // Events — broadcast channel commands
+        // ---------------------------------------------------------------
+        ControlRequest::SubscribeEvents => ControlResponse::ok(json!({
+            "events_url": events_url,
+            "note": "Connect to the events_url for an SSE stream."
+        })),
+
+        ControlRequest::EventStats => {
+            let (enabled, subscriber_count, events_emitted) = match &events_handle {
+                Some(h) => (true, h.subscriber_count(), h.events_emitted()),
+                None => (false, 0, 0),
+            };
+            ControlResponse::ok(json!({
+                "enabled": enabled,
+                "subscriber_count": subscriber_count,
+                "events_emitted": events_emitted,
+                "events_url": events_url
+            }))
+        }
+
+        ControlRequest::EmitTestEvent { message } => match &events_handle {
+            Some(h) => {
+                h.emit(crate::events::DataChangeEvent::Test { message }).await;
+                ControlResponse::ok(json!({ "emitted": true }))
+            }
+            None => ControlResponse::err("events channel is not initialised".to_string()),
+        },
     }
 }
 
@@ -357,7 +388,7 @@ mod tests {
     #[tokio::test]
     async fn status_returns_three_services() {
         let reg = make_registry();
-        let resp = handle_request(ControlRequest::Status, reg, empty_form_apps(), shutdown_channel(), None).await;
+        let resp = handle_request(ControlRequest::Status, reg, empty_form_apps(), shutdown_channel(), None, None, None).await;
         assert!(resp.ok);
         let arr = resp.data.as_array().expect("data should be array");
         assert_eq!(arr.len(), 3);
@@ -371,6 +402,8 @@ mod tests {
             Arc::clone(&reg),
             empty_form_apps(),
             shutdown_channel(),
+            None,
+            None,
             None,
         )
         .await;
@@ -391,6 +424,8 @@ mod tests {
             empty_form_apps(),
             shutdown_channel(),
             None,
+            None,
+            None,
         )
         .await;
         assert!(resp.ok);
@@ -406,6 +441,8 @@ mod tests {
             empty_form_apps(),
             shutdown_channel(),
             None,
+            None,
+            None,
         )
         .await;
         assert!(resp.ok);
@@ -420,6 +457,8 @@ mod tests {
             Arc::clone(&reg),
             empty_form_apps(),
             shutdown_channel(),
+            None,
+            None,
             None,
         )
         .await;
@@ -437,12 +476,14 @@ mod tests {
             Arc::clone(&fa),
             shutdown_channel(),
             None,
+            None,
+            None,
         )
         .await;
         assert!(attach_resp.ok);
         let client_id = attach_resp.data["client_id"].as_str().unwrap().to_string();
 
-        let list_resp = handle_request(ControlRequest::ListClients, Arc::clone(&reg), fa, shutdown_channel(), None).await;
+        let list_resp = handle_request(ControlRequest::ListClients, Arc::clone(&reg), fa, shutdown_channel(), None, None, None).await;
         assert!(list_resp.ok);
         let arr = list_resp.data.as_array().unwrap();
         assert_eq!(arr.len(), 1);
@@ -459,6 +500,8 @@ mod tests {
             Arc::clone(&fa),
             shutdown_channel(),
             None,
+            None,
+            None,
         )
         .await;
         let resp = handle_request(
@@ -466,6 +509,8 @@ mod tests {
             Arc::clone(&reg),
             fa,
             shutdown_channel(),
+            None,
+            None,
             None,
         )
         .await;
@@ -480,6 +525,8 @@ mod tests {
             reg,
             empty_form_apps(),
             shutdown_channel(),
+            None,
+            None,
             None,
         )
         .await;
@@ -501,6 +548,8 @@ mod tests {
             empty_form_apps(),
             shutdown_channel(),
             None,
+            None,
+            None,
         )
         .await;
         assert!(resp.ok);
@@ -512,7 +561,7 @@ mod tests {
     #[tokio::test]
     async fn upgrade_mcp_returns_ok_with_upgrade_field() {
         let reg = make_registry();
-        let resp = handle_request(ControlRequest::UpgradeMcp, Arc::clone(&reg), empty_form_apps(), shutdown_channel(), None).await;
+        let resp = handle_request(ControlRequest::UpgradeMcp, Arc::clone(&reg), empty_form_apps(), shutdown_channel(), None, None, None).await;
         assert!(resp.ok, "upgrade_mcp should return ok");
         assert_eq!(resp.data["upgrade"], "initiated");
         assert_eq!(resp.data["service"], "mcp");
@@ -521,7 +570,7 @@ mod tests {
     #[tokio::test]
     async fn upgrade_mcp_sets_upgrade_pending_and_mcp_starting() {
         let reg = make_registry();
-        handle_request(ControlRequest::UpgradeMcp, Arc::clone(&reg), empty_form_apps(), shutdown_channel(), None).await;
+        handle_request(ControlRequest::UpgradeMcp, Arc::clone(&reg), empty_form_apps(), shutdown_channel(), None, None, None).await;
         let locked = reg.lock().await;
         assert!(locked.is_upgrade_pending(), "upgrade_pending should be true after UpgradeMcp");
         let mcp_state = locked.service_states().into_iter().find(|s| s.name == "mcp").unwrap();
@@ -543,6 +592,8 @@ mod tests {
             reg,
             empty_form_apps(),
             shutdown_channel(),
+            None,
+            None,
             None,
         )
         .await;
@@ -568,6 +619,8 @@ mod tests {
             reg,
             Arc::new(apps),
             shutdown_channel(),
+            None,
+            None,
             None,
         )
         .await;

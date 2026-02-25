@@ -236,23 +236,6 @@ function RefreshSettings({ settings }: { settings: SettingsStore }) {
           onChange={(v) => settings.setSetting('autoRefreshEnabled', v)}
         />
       </SettingRow>
-      
-      <SettingRow 
-        label="Refresh Interval" 
-        description="How often to refresh data (in seconds)"
-      >
-        <Select
-          value={settings.autoRefreshInterval}
-          options={[
-            { value: 10, label: '10 seconds' },
-            { value: 30, label: '30 seconds' },
-            { value: 60, label: '1 minute' },
-            { value: 120, label: '2 minutes' },
-            { value: 300, label: '5 minutes' },
-          ]}
-          onChange={(v) => settings.setSetting('autoRefreshInterval', Number(v))}
-        />
-      </SettingRow>
     </div>
   );
 }
