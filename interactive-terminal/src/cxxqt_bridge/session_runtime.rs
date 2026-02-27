@@ -19,6 +19,7 @@ pub struct TerminalAppRust {
     pub(crate) current_request_id: QString,
     pub(crate) current_session_id: QString,
     pub(crate) current_terminal_profile: QString,
+    pub(crate) current_default_terminal_profile: QString,
     pub(crate) current_workspace_path: QString,
     pub(crate) current_venv_path: QString,
     pub(crate) current_activate_venv: bool,
@@ -36,6 +37,7 @@ pub struct AppState {
     pub pending_commands_by_session: HashMap<String, Vec<CommandRequest>>,
     pub session_display_names: HashMap<String, String>,
     pub session_context_by_id: HashMap<String, SessionRuntimeContext>,
+    pub default_terminal_profile: TerminalProfile,
     pub selected_session_id: String,
     pub saved_commands_ui_workspace_id: String,
     pub saved_commands_by_workspace: HashMap<String, WorkspaceSavedCommands>,
@@ -75,10 +77,19 @@ pub(crate) struct UseSavedCommandResult {
 
 impl Default for TerminalAppRust {
     fn default() -> Self {
+        let default_terminal_profile = default_terminal_profile_from_env();
+
         let state = Arc::new(Mutex::new(AppState {
             pending_commands_by_session: HashMap::from([("default".to_string(), Vec::new())]),
             session_display_names: HashMap::from([("default".to_string(), "default".to_string())]),
-            session_context_by_id: HashMap::new(),
+            session_context_by_id: HashMap::from([(
+                "default".to_string(),
+                SessionRuntimeContext {
+                    selected_terminal_profile: default_terminal_profile.clone(),
+                    ..SessionRuntimeContext::default()
+                },
+            )]),
+            default_terminal_profile: default_terminal_profile.clone(),
             selected_session_id: "default".to_string(),
             saved_commands_ui_workspace_id: String::new(),
             saved_commands_by_workspace: HashMap::new(),
@@ -103,7 +114,20 @@ impl Default for TerminalAppRust {
             pending_count: 0,
             current_request_id: QString::default(),
             current_session_id: QString::from("default"),
-            current_terminal_profile: QString::from("system"),
+            current_terminal_profile: QString::from(match default_terminal_profile {
+                TerminalProfile::PowerShell => "powershell",
+                TerminalProfile::Pwsh => "pwsh",
+                TerminalProfile::Cmd => "cmd",
+                TerminalProfile::Bash => "bash",
+                TerminalProfile::System => "system",
+            }),
+            current_default_terminal_profile: QString::from(match default_terminal_profile {
+                TerminalProfile::PowerShell => "powershell",
+                TerminalProfile::Pwsh => "pwsh",
+                TerminalProfile::Cmd => "cmd",
+                TerminalProfile::Bash => "bash",
+                TerminalProfile::System => "system",
+            }),
             current_workspace_path: QString::default(),
             current_venv_path: QString::default(),
             current_activate_venv: false,
@@ -116,6 +140,20 @@ impl Default for TerminalAppRust {
             tray_icon_url: resolve_tray_icon_url(),
             state,
         }
+    }
+}
+
+fn default_terminal_profile_from_env() -> TerminalProfile {
+    let Some(value) = std::env::var("PM_DEFAULT_TERMINAL_PROFILE").ok() else {
+        return TerminalProfile::System;
+    };
+
+    match value.trim().to_ascii_lowercase().as_str() {
+        "powershell" => TerminalProfile::PowerShell,
+        "pwsh" => TerminalProfile::Pwsh,
+        "cmd" => TerminalProfile::Cmd,
+        "bash" => TerminalProfile::Bash,
+        _ => TerminalProfile::System,
     }
 }
 

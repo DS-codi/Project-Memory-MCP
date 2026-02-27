@@ -8,7 +8,10 @@ interface DeployDefaultsCardProps {
 }
 
 export function DeployDefaultsCard({ defaults, onConfigure }: DeployDefaultsCardProps) {
-  const total = (defaults?.agents.length || 0) + (defaults?.prompts.length || 0) + (defaults?.instructions.length || 0);
+  const defaultAgents = Array.isArray(defaults?.agents) ? defaults.agents : [];
+  const defaultPrompts = Array.isArray(defaults?.prompts) ? defaults.prompts : [];
+  const defaultInstructions = Array.isArray(defaults?.instructions) ? defaults.instructions : [];
+  const total = defaultAgents.length + defaultPrompts.length + defaultInstructions.length;
 
   return (
     <div className="bg-slate-800 border border-slate-700 rounded-lg p-5">
@@ -39,15 +42,15 @@ export function DeployDefaultsCard({ defaults, onConfigure }: DeployDefaultsCard
       <div className="mt-4 grid grid-cols-3 gap-3 text-xs text-slate-300">
         <div className="bg-slate-900/60 rounded-lg p-3">
           <div className="text-slate-500">Agents</div>
-          <div className="text-base font-semibold text-slate-200">{defaults?.agents.length || 0}</div>
+          <div className="text-base font-semibold text-slate-200">{defaultAgents.length}</div>
         </div>
         <div className="bg-slate-900/60 rounded-lg p-3">
           <div className="text-slate-500">Prompts</div>
-          <div className="text-base font-semibold text-slate-200">{defaults?.prompts.length || 0}</div>
+          <div className="text-base font-semibold text-slate-200">{defaultPrompts.length}</div>
         </div>
         <div className="bg-slate-900/60 rounded-lg p-3">
           <div className="text-slate-500">Instructions</div>
-          <div className="text-base font-semibold text-slate-200">{defaults?.instructions.length || 0}</div>
+          <div className="text-base font-semibold text-slate-200">{defaultInstructions.length}</div>
         </div>
       </div>
 

@@ -235,6 +235,12 @@ export interface ToolResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
+  important_context?: {
+    section_key: string;
+    summary?: string;
+    items?: import('./workspace.types.js').WorkspaceContextSectionItem[];
+    updated_at?: string;
+  };
 }
 
 // =============================================================================

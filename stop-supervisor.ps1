@@ -25,6 +25,10 @@
     How long to wait after a graceful shutdown request before force-killing.
     Default: 5
 
+.PARAMETER PipeName
+    Control-pipe name (without \\.\pipe\ prefix) to target for graceful
+    shutdown checks/requests. Default: project-memory-supervisor
+
 .PARAMETER Force
     Skip the graceful shutdown request and go straight to force-kill. Useful
     when the supervisor is hung and not responding to the control pipe.
@@ -47,6 +51,7 @@
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [int]   $GraceSeconds = 5,
+    [string]$PipeName = 'project-memory-supervisor',
     [switch]$Force
 )
 
@@ -55,8 +60,9 @@ $ErrorActionPreference = 'Stop'
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
-$PipeName = 'project-memory-supervisor'
 $PipePath = "\\.\pipe\$PipeName"
+$DefaultPipeName = 'project-memory-supervisor'
+$canForceKillAll = $Force -or ($PipeName -eq $DefaultPipeName)
 
 # Well-known names spawned by the supervisor's managed runners.
 # These are matched as process Name (no .exe suffix, case-insensitive).
@@ -214,6 +220,19 @@ if ($requestedGraceful) {
         }
         Start-Sleep -Milliseconds 200
     }
+}
+
+if (-not $canForceKillAll) {
+    if (-not (Test-Path $PipePath)) {
+        Write-Ok "Target supervisor pipe is closed: $PipePath"
+        Write-Info 'Leaving other supervisor instances untouched.'
+        exit 0
+    }
+
+    Write-Err "Target pipe is still present: $PipePath"
+    Write-Warn 'Safe force-kill is disabled for non-default pipes to avoid terminating shared instances.'
+    Write-Info "If you intentionally want to kill all supervisor instances, rerun with -Force."
+    exit 1
 }
 
 # ── 4. Force-kill: PID-tree walk ──────────────────────────────────────────────

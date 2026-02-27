@@ -10,13 +10,15 @@ ApplicationWindow {
     visible: false
     width: 1100
     height: 760
-    minimumWidth: 900
-    minimumHeight: 620
+    minimumWidth: 480
+    minimumHeight: 400
     title: "Interactive Terminal"
     icon: terminalApp.trayIconUrl
     color: "#1e1e1e"
     Material.theme: Material.Dark
     Material.accent: Material.Blue
+    property int uiControlFontPx: 11
+    property int uiInputFontPx: 11
 
     property var sessionTabs: []
     property var savedCommands: []
@@ -149,6 +151,12 @@ ApplicationWindow {
         function onCurrentTerminalProfileChanged() {
             if (terminalProfileSelector) {
                 terminalProfileSelector.syncFromBridge()
+            }
+        }
+
+        function onCurrentDefaultTerminalProfileChanged() {
+            if (defaultTerminalProfileSelector) {
+                defaultTerminalProfileSelector.syncFromBridge()
             }
         }
 
@@ -341,6 +349,7 @@ ApplicationWindow {
                         id: terminalProfileSelector
                         model: ["system", "powershell", "pwsh", "cmd", "bash"]
                         implicitWidth: 140
+                        font.pixelSize: root.uiControlFontPx
 
                         function syncFromBridge() {
                             const profile = terminalApp.currentTerminalProfile || "system"
@@ -349,6 +358,28 @@ ApplicationWindow {
                         }
 
                         onActivated: terminalApp.setSessionTerminalProfile(currentText)
+                        Component.onCompleted: syncFromBridge()
+                    }
+
+                    Text {
+                        text: "Default (new sessions)"
+                        color: "#808080"
+                        font.pixelSize: 11
+                    }
+
+                    ComboBox {
+                        id: defaultTerminalProfileSelector
+                        model: ["system", "powershell", "pwsh", "cmd", "bash"]
+                        implicitWidth: 170
+                        font.pixelSize: root.uiControlFontPx
+
+                        function syncFromBridge() {
+                            const profile = terminalApp.currentDefaultTerminalProfile || "system"
+                            const idx = model.indexOf(profile)
+                            currentIndex = idx >= 0 ? idx : 0
+                        }
+
+                        onActivated: terminalApp.setDefaultTerminalProfile(currentText)
                         Component.onCompleted: syncFromBridge()
                     }
                 }
@@ -361,6 +392,7 @@ ApplicationWindow {
                         id: workspacePathField
                         Layout.fillWidth: true
                         placeholderText: "Workspace path (per session)"
+                        font.pixelSize: root.uiInputFontPx
                         text: terminalApp.currentWorkspacePath
                         onEditingFinished: terminalApp.setSessionWorkspacePath(text)
                     }
@@ -369,6 +401,7 @@ ApplicationWindow {
                         id: venvPathField
                         Layout.fillWidth: true
                         placeholderText: "Venv path (optional)"
+                        font.pixelSize: root.uiInputFontPx
                         text: terminalApp.currentVenvPath
                         onEditingFinished: terminalApp.setSessionVenvPath(text)
                     }
@@ -376,6 +409,7 @@ ApplicationWindow {
                     CheckBox {
                         id: activateVenvCheck
                         text: "Activate venv"
+                        font.pixelSize: root.uiControlFontPx
                         checked: terminalApp.currentActivateVenv
                         onClicked: terminalApp.setSessionActivateVenv(checked)
                     }
@@ -399,6 +433,7 @@ ApplicationWindow {
 
                 Button {
                     text: "+"
+                    font.pixelSize: root.uiControlFontPx
                     Layout.preferredWidth: 56
                     Layout.preferredHeight: 34
                     onClicked: {
@@ -412,6 +447,7 @@ ApplicationWindow {
 
                 Button {
                     text: "Saved Commands"
+                    font.pixelSize: root.uiControlFontPx
                     Layout.preferredWidth: 164
                     Layout.preferredHeight: 34
                     onClicked: {
@@ -425,6 +461,7 @@ ApplicationWindow {
 
                 Button {
                     text: "Reopen"
+                    font.pixelSize: root.uiControlFontPx
                     Layout.preferredWidth: 104
                     Layout.preferredHeight: 34
                     onClicked: {
@@ -458,7 +495,7 @@ ApplicationWindow {
                                 id: tabLabel
                                 flat: true
                                 anchors.verticalCenter: parent.verticalCenter
-                                font.pixelSize: 13
+                                font.pixelSize: root.uiControlFontPx
                                 padding: 0
                                 leftPadding: 0
                                 rightPadding: 0
@@ -481,7 +518,7 @@ ApplicationWindow {
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: 18
                                 height: 18
-                                font.pixelSize: 14
+                                font.pixelSize: root.uiControlFontPx
                                 padding: 0
                                 leftPadding: 0
                                 rightPadding: 0
@@ -499,6 +536,7 @@ ApplicationWindow {
                     Layout.preferredWidth: 160
                     Layout.preferredHeight: 30
                     placeholderText: "Session name"
+                    font.pixelSize: root.uiInputFontPx
                     text: root.pendingSessionDisplayName
                     onTextChanged: root.pendingSessionDisplayName = text
                     onAccepted: {
@@ -512,6 +550,7 @@ ApplicationWindow {
                     text: "Rename"
                     Layout.preferredWidth: 86
                     Layout.preferredHeight: 30
+                    font.pixelSize: root.uiControlFontPx
                     onClicked: {
                         if (terminalApp.renameSession(terminalApp.currentSessionId || "default", sessionNameInput.text)) {
                             root.refreshSessionTabs()
@@ -536,6 +575,8 @@ ApplicationWindow {
                 outputText: terminalApp.outputText
                 terminalApp: terminalApp
                 hasActiveTerminalSession: root.hasActiveTerminalSession
+                controlFontPx: root.uiControlFontPx
+                inputFontPx: root.uiInputFontPx
             }
         }
     }
@@ -641,6 +682,7 @@ ApplicationWindow {
 
                 Button {
                     text: "Deny"
+                    font.pixelSize: root.uiControlFontPx
                     onClicked: {
                         terminalApp.declineCommand(terminalApp.currentRequestId, "")
                         approvalDialog.close()
@@ -649,6 +691,7 @@ ApplicationWindow {
 
                 Button {
                     text: "Approve"
+                    font.pixelSize: root.uiControlFontPx
                     onClicked: {
                         terminalApp.approveCommand(terminalApp.currentRequestId)
                         approvalDialog.close()
@@ -690,6 +733,7 @@ ApplicationWindow {
                 id: savedCommandsWorkspaceField
                 Layout.fillWidth: true
                 placeholderText: "Workspace ID"
+                font.pixelSize: root.uiInputFontPx
                 text: terminalApp.savedCommandsWorkspaceId()
                 onEditingFinished: {
                     terminalApp.openSavedCommands(text)
@@ -703,6 +747,7 @@ ApplicationWindow {
 
                 Button {
                     text: "Open"
+                    font.pixelSize: root.uiControlFontPx
                     onClicked: {
                         terminalApp.openSavedCommands(savedCommandsWorkspaceField.text)
                         savedCommandsWorkspaceField.text = terminalApp.savedCommandsWorkspaceId()
@@ -712,6 +757,7 @@ ApplicationWindow {
 
                 Button {
                     text: "Reopen"
+                    font.pixelSize: root.uiControlFontPx
                     onClicked: {
                         terminalApp.reopenSavedCommands()
                         savedCommandsWorkspaceField.text = terminalApp.savedCommandsWorkspaceId()
@@ -771,6 +817,7 @@ ApplicationWindow {
 
                 Button {
                     text: "Run In Selected Session"
+                    font.pixelSize: root.uiControlFontPx
                     enabled: root.selectedSavedCommandId !== ""
                     onClicked: {
                         if (terminalApp.executeSavedCommand(root.selectedSavedCommandId)) {

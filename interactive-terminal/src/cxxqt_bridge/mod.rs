@@ -29,6 +29,7 @@ pub mod ffi {
         #[qproperty(QString, current_request_id, cxx_name = "currentRequestId")]
         #[qproperty(QString, current_session_id, cxx_name = "currentSessionId")]
         #[qproperty(QString, current_terminal_profile, cxx_name = "currentTerminalProfile")]
+        #[qproperty(QString, current_default_terminal_profile, cxx_name = "currentDefaultTerminalProfile")]
         #[qproperty(QString, current_workspace_path, cxx_name = "currentWorkspacePath")]
         #[qproperty(QString, current_venv_path, cxx_name = "currentVenvPath")]
         #[qproperty(bool, current_activate_venv, cxx_name = "currentActivateVenv")]
@@ -92,6 +93,10 @@ pub mod ffi {
         #[qinvokable]
         #[cxx_name = "setSessionTerminalProfile"]
         fn set_session_terminal_profile(self: Pin<&mut TerminalApp>, profile: QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "setDefaultTerminalProfile"]
+        fn set_default_terminal_profile(self: Pin<&mut TerminalApp>, profile: QString) -> bool;
 
         #[qinvokable]
         #[cxx_name = "setSessionWorkspacePath"]

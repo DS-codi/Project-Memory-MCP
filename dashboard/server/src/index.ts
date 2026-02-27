@@ -98,13 +98,34 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-const distDir = path.resolve(__dirname, '../../dist');
-const indexHtml = path.join(distDir, 'index.html');
-const hasFrontendBuild = fs.existsSync(indexHtml);
+type FrontendBuild = {
+  distDir: string;
+  indexHtml: string;
+};
 
-if (hasFrontendBuild) {
-  app.use(express.static(distDir));
-  console.log(`📦 Serving static frontend from ${distDir}`);
+const frontendBuildCandidates = [
+  path.resolve(__dirname, '../../dist'),
+  path.resolve(__dirname, '../../dist-webview'),
+];
+
+function resolveFrontendBuild(): FrontendBuild | null {
+  for (const distDir of frontendBuildCandidates) {
+    const indexHtml = path.join(distDir, 'index.html');
+    if (fs.existsSync(indexHtml)) {
+      return { distDir, indexHtml };
+    }
+  }
+
+  return null;
+}
+
+const initialFrontendBuild = resolveFrontendBuild();
+
+if (initialFrontendBuild) {
+  app.use(express.static(initialFrontendBuild.distDir));
+  console.log(`📦 Serving static frontend from ${initialFrontendBuild.distDir}`);
+} else {
+  console.warn('⚠️ No dashboard frontend build found (checked dist and dist-webview).');
 }
 
 // Dashboard error logging endpoint (async I/O)
@@ -132,11 +153,18 @@ app.post('/api/errors', async (req, res) => {
 });
 
 // SPA fallback — serve index.html for non-API routes (client-side routing)
-if (hasFrontendBuild) {
-  app.get('*', (_req, res) => {
-    res.sendFile(indexHtml);
-  });
-}
+app.get('*', (_req, res) => {
+  const frontendBuild = resolveFrontendBuild();
+
+  if (frontendBuild) {
+    res.sendFile(frontendBuild.indexHtml);
+    return;
+  }
+
+  res.status(503).send(
+    'Dashboard frontend is not built yet. Run `npm run build` in the dashboard directory, then refresh.'
+  );
+});
 
 // Start HTTP server
 const httpServer = createServer(app);

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import * as crypto from 'crypto';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { listWorkspaces, getWorkspace, getWorkspaceMetrics, getBuildScripts } from '../db/queries.js';
+import { listWorkspaces, getWorkspace, getWorkspaceMetrics, getBuildScripts, getWorkspaceContext } from '../db/queries.js';
 import { emitEvent } from '../events/emitter.js';
 import { getDataRoot, getWorkspaceDisplayName, resolveCanonicalWorkspaceId, writeWorkspaceIdentityFile, safeResolvePath } from '../storage/workspace-utils.js';
 
@@ -125,6 +125,91 @@ function normalizeWorkspaceSections(input: unknown): Record<string, WorkspaceCon
   }
 
   return sections;
+}
+
+function parseContextItemData(data: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(data);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+    return {};
+  } catch {
+    return {};
+  }
+}
+
+function materializeWorkspaceContextFromDb(
+  workspaceId: string,
+  meta: Record<string, any>,
+  rows: Array<{ type: string; data: string; created_at: string; updated_at: string }>
+): WorkspaceContext {
+  const now = new Date().toISOString();
+
+  for (const row of rows) {
+    const parsed = parseContextItemData(row.data);
+    const candidate =
+      parsed && typeof parsed.sections === 'object'
+        ? parsed
+        : (parsed.data && typeof parsed.data === 'object' ? parsed.data as Record<string, unknown> : null);
+
+    if (candidate && typeof candidate.sections === 'object') {
+      return {
+        schema_version:
+          typeof candidate.schema_version === 'string'
+            ? candidate.schema_version
+            : WORKSPACE_CONTEXT_SCHEMA_VERSION,
+        workspace_id: workspaceId,
+        workspace_path:
+          typeof candidate.workspace_path === 'string'
+            ? candidate.workspace_path
+            : (meta.path as string),
+        name: typeof candidate.name === 'string' ? candidate.name : (meta.name as string),
+        created_at:
+          typeof candidate.created_at === 'string'
+            ? candidate.created_at
+            : row.created_at || now,
+        updated_at:
+          typeof candidate.updated_at === 'string'
+            ? candidate.updated_at
+            : row.updated_at || row.created_at || now,
+        sections: normalizeWorkspaceSections(candidate.sections),
+      };
+    }
+  }
+
+  const aggregatedSections: Record<string, WorkspaceContextSection> = {};
+  for (const row of rows) {
+    const parsed = parseContextItemData(row.data);
+    const key = row.type || 'general';
+
+    if (aggregatedSections[key]) {
+      continue;
+    }
+
+    const summary = typeof parsed.summary === 'string' ? parsed.summary : undefined;
+    const items = Array.isArray(parsed.items)
+      ? parsed.items
+          .filter((item) => item && typeof item === 'object' && !Array.isArray(item))
+          .map((item) => item as WorkspaceContextSectionItem)
+          .filter((item) => typeof item.title === 'string')
+      : undefined;
+
+    aggregatedSections[key] = {
+      ...(summary ? { summary } : {}),
+      ...(items && items.length > 0 ? { items } : {}),
+    };
+  }
+
+  return {
+    schema_version: WORKSPACE_CONTEXT_SCHEMA_VERSION,
+    workspace_id: workspaceId,
+    workspace_path: meta.path,
+    name: meta.name,
+    created_at: now,
+    updated_at: rows[0]?.updated_at || now,
+    sections: aggregatedSections,
+  };
 }
 
 // GET /api/workspaces - List all workspaces
@@ -332,33 +417,18 @@ workspacesRouter.get('/:id/context', async (req, res) => {
   try {
     const workspaceId = req.params.id;
     const meta = await readWorkspaceMeta(workspaceId);
-    const contextPath = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'workspace.context.json');
+    const rows = getWorkspaceContext(workspaceId);
+    const context = materializeWorkspaceContextFromDb(workspaceId, meta, rows);
 
-    try {
-      const content = await fs.readFile(contextPath, 'utf-8');
-      const context = JSON.parse(content) as WorkspaceContext;
-      return res.json({ exists: true, context, path: contextPath });
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-        throw error;
-      }
-    }
-
-    const now = new Date().toISOString();
-    const context: WorkspaceContext = {
-      schema_version: WORKSPACE_CONTEXT_SCHEMA_VERSION,
-      workspace_id: workspaceId,
-      workspace_path: meta.path,
-      name: meta.name,
-      created_at: now,
-      updated_at: now,
-      sections: {},
-    };
-
-    res.json({ exists: false, context, path: contextPath });
+    res.json({
+      exists: rows.length > 0,
+      context,
+      path: `db://context_items/workspace/${workspaceId}`,
+      source: 'db',
+    });
   } catch (error) {
     console.error('Error getting workspace context:', error);
-    res.status(500).json({ error: 'Failed to get workspace context' });
+    res.status(500).json({ error: 'Failed to get workspace context from DB' });
   }
 });
 

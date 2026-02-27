@@ -32,6 +32,10 @@ export type EventType =
   | 'session_interrupted'
   | 'session_injected'
   | 'session_stop_escalated'
+  | 'hub_routing_decision'
+  | 'hub_policy_blocked'
+  | 'prompt_analyst_enrichment'
+  | 'session_scope_conflict'
   | 'program_created'
   | 'program_updated'
   | 'program_archived';
@@ -209,6 +213,58 @@ export const events = {
       workspace_id: workspaceId,
       plan_id: planId,
       data: { session_id: sessionId, from_level: fromLevel, to_level: toLevel },
+    });
+  },
+
+  hubRoutingDecision: async (
+    workspaceId: string,
+    planId: string,
+    data: Record<string, unknown>,
+  ) => {
+    await emitEvent({
+      type: 'hub_routing_decision',
+      workspace_id: workspaceId,
+      plan_id: planId,
+      data,
+    });
+  },
+
+  hubPolicyBlocked: async (
+    workspaceId: string,
+    planId: string,
+    data: Record<string, unknown>,
+  ) => {
+    await emitEvent({
+      type: 'hub_policy_blocked',
+      workspace_id: workspaceId,
+      plan_id: planId,
+      data,
+    });
+  },
+
+  promptAnalystEnrichment: async (
+    workspaceId: string,
+    planId: string,
+    data: Record<string, unknown>,
+  ) => {
+    await emitEvent({
+      type: 'prompt_analyst_enrichment',
+      workspace_id: workspaceId,
+      plan_id: planId,
+      data,
+    });
+  },
+
+  sessionScopeConflict: async (
+    workspaceId: string,
+    planId: string,
+    data: Record<string, unknown>,
+  ) => {
+    await emitEvent({
+      type: 'session_scope_conflict',
+      workspace_id: workspaceId,
+      plan_id: planId,
+      data,
     });
   },
 

@@ -1,6 +1,5 @@
 pub mod config;
 pub mod control;
-#[cfg(feature = "supervisor_qml_gui")]
 pub mod cxxqt_bridge;
 pub mod events;
 pub mod lock;

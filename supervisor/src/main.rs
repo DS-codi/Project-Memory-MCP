@@ -3,9 +3,8 @@
 //! Usage:
 //!   supervisor [--config <path>] [--debug]
 //!
-//! When built with `supervisor_qml_gui` (the default) the binary runs as a
-//! normal console-subsystem executable so stdout/stderr always work—but the
-//! console window is hidden at startup unless `--debug` is passed.
+//! The binary always runs with the Qt QML GUI — Qt owns the main thread and
+//! the entire async supervisor logic runs on a background Tokio thread.
 
 use clap::Parser;
 use cxx_qt::CxxQtType;
@@ -40,13 +39,22 @@ struct Cli {
     debug: bool,
 }
 
+fn supervisor_instance_name() -> String {
+    std::env::var("PM_SUPERVISOR_INSTANCE_NAME")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| "default".to_string())
+}
+
+fn supervisor_mutex_name() -> String {
+    format!("Local\\ProjectMemorySupervisor_{}", supervisor_instance_name())
+}
+
 // ── Entry points ────────────────────────────────────────────────────────────
 
-/// QML-enabled entry point.  Qt **must** own the main thread, so the entire
-/// async supervisor logic is pushed onto a background Tokio thread that
-/// spin-waits for the QML bridge to finish its `Initialize::initialize()`
-/// before starting services.
-#[cfg(feature = "supervisor_qml_gui")]
+/// Supervisor entry point.  Qt owns the main thread; the entire async
+/// supervisor logic runs on a background Tokio thread.
 fn main() {
     // Detect --debug from raw args *before* any Qt or Tokio initialisation.
     let debug_mode = std::env::args().any(|a| a == "--debug");
@@ -84,10 +92,10 @@ fn main() {
             fn GetLastError() -> u32;
         }
         const ERROR_ALREADY_EXISTS: u32 = 183;
-        let mutex_name: Vec<u16> =
-            "Local\\ProjectMemorySupervisor_SingleInstance\0"
-                .encode_utf16()
-                .collect();
+        let mutex_name: Vec<u16> = supervisor_mutex_name()
+            .encode_utf16()
+            .chain(std::iter::once(0))
+            .collect();
         // SAFETY: pure Win32 call; name is null-terminated UTF-16.
         let handle = unsafe { CreateMutexW(std::ptr::null_mut(), 1, mutex_name.as_ptr()) };
         if handle.is_null() || unsafe { GetLastError() } == ERROR_ALREADY_EXISTS {
@@ -184,14 +192,6 @@ fn main() {
     }
 }
 
-/// Plain (no-GUI) entry point.  Runs the async supervisor loop directly on
-/// the main thread inside a Tokio runtime.
-#[cfg(not(feature = "supervisor_qml_gui"))]
-fn main() {
-    let rt = tokio::runtime::Runtime::new()
-        .expect("failed to create tokio runtime");
-    rt.block_on(supervisor_main());
-}
 
 // ── Async supervisor logic ────────────────────────────────────────────────────
 
@@ -248,6 +248,68 @@ async fn supervisor_main() {
                     cfg.dashboard.port, cfg.dashboard.enabled);
             }
 
+            let subprocess_runtime_enabled = parse_env_flag(
+                "PM_SUPERVISOR_MCP_SUBPROCESS_RUNTIME",
+                false,
+            );
+            let subprocess_runtime_max_concurrency =
+                parse_env_usize("PM_SUPERVISOR_MCP_SUBPROCESS_MAX_CONCURRENCY", 4).max(1);
+            let subprocess_runtime_queue_limit =
+                parse_env_usize("PM_SUPERVISOR_MCP_SUBPROCESS_QUEUE_LIMIT", 128).max(1);
+            let subprocess_runtime_queue_wait_timeout_ms =
+                parse_env_u64("PM_SUPERVISOR_MCP_SUBPROCESS_QUEUE_WAIT_TIMEOUT_MS", 5_000);
+            let subprocess_runtime_per_session_limit =
+                parse_env_usize("PM_SUPERVISOR_MCP_SUBPROCESS_PER_SESSION_LIMIT", 2).max(1);
+            let subprocess_runtime_timeout_ms =
+                parse_env_u64("PM_SUPERVISOR_MCP_SUBPROCESS_TIMEOUT_MS", 30_000);
+            let subprocess_runtime_wave_cohorts = parse_env_csv(
+                "PM_SUPERVISOR_MCP_SUBPROCESS_WAVE_COHORTS",
+                &["wave1", "wave2", "wave3", "wave4"],
+            );
+            let subprocess_runtime_hard_stop_gate =
+                parse_env_flag("PM_SUPERVISOR_MCP_SUBPROCESS_HARD_STOP_GATE", false);
+
+            let mcp_subprocess_runtime = if cfg.mcp.enabled
+                && matches!(cfg.mcp.backend, McpBackend::Node)
+            {
+                if subprocess_runtime_enabled {
+                    println!(
+                        "[supervisor] MCP subprocess runtime mode enabled (max_concurrency={}, queue_limit={}, queue_wait_timeout_ms={}, per_session_limit={}, timeout_ms={}, wave_cohorts={:?}, hard_stop_gate={})",
+                        subprocess_runtime_max_concurrency,
+                        subprocess_runtime_queue_limit,
+                        subprocess_runtime_queue_wait_timeout_ms,
+                        subprocess_runtime_per_session_limit,
+                        subprocess_runtime_timeout_ms,
+                        subprocess_runtime_wave_cohorts,
+                        subprocess_runtime_hard_stop_gate
+                    );
+                } else {
+                    println!(
+                        "[supervisor] MCP subprocess runtime control available (disabled by policy; use SetMcpRuntimePolicy to enable in-process)"
+                    );
+                }
+                Some(Arc::new(
+                    supervisor::control::mcp_runtime::McpSubprocessRuntime::new(
+                        supervisor::control::mcp_runtime::McpSubprocessRuntimeConfig {
+                            command: cfg.mcp.node.command.clone(),
+                            args: cfg.mcp.node.args.clone(),
+                            working_dir: cfg.mcp.node.working_dir.clone(),
+                            env: cfg.mcp.node.env.clone(),
+                            runtime_enabled: subprocess_runtime_enabled,
+                            max_concurrency: subprocess_runtime_max_concurrency,
+                            queue_limit: subprocess_runtime_queue_limit,
+                            queue_wait_timeout_ms: subprocess_runtime_queue_wait_timeout_ms,
+                            per_session_inflight_limit: subprocess_runtime_per_session_limit,
+                            default_timeout_ms: subprocess_runtime_timeout_ms,
+                            enabled_wave_cohorts: subprocess_runtime_wave_cohorts.clone(),
+                            hard_stop_gate: subprocess_runtime_hard_stop_gate,
+                        },
+                    ),
+                ))
+            } else {
+                None
+            };
+
             // ── Orphan cleanup ───────────────────────────────────────────────
             // Kill any processes from a previous supervisor run that are still
             // holding our ports.  This covers:
@@ -295,6 +357,11 @@ async fn supervisor_main() {
                 cfg.dashboard.clone(),
                 cfg.mcp.health_timeout_ms,
             );
+
+            // Start-time tracking for per-service uptime reporting.
+            let mut mcp_started_at: Option<std::time::Instant> = None;
+            let mut terminal_started_at: Option<std::time::Instant> = None;
+            let mut dashboard_started_at: Option<std::time::Instant> = None;
 
             // ── Control-plane channel + transport ────────────────────────────
 
@@ -345,12 +412,12 @@ async fn supervisor_main() {
 
             // Register the sender so the QML quitSupervisor() invokable can
             // trigger a graceful Tokio shutdown without calling Qt.quit() directly.
-            #[cfg(feature = "supervisor_qml_gui")]
             let _ = supervisor::cxxqt_bridge::SHUTDOWN_TX.set(shutdown_tx.clone());
 
             let (restart_tx, mut restart_rx) = tokio::sync::mpsc::channel::<String>(32);
+            let (mcp_health_tx, mut mcp_health_rx) =
+                tokio::sync::mpsc::channel::<McpHealthSignal>(16);
 
-            #[cfg(feature = "supervisor_qml_gui")]
             if let Some(qt) = supervisor::cxxqt_bridge::SUPERVISOR_QT.get() {
                 let restart_tx_for_qt = restart_tx.clone();
                 let dashboard_url = format!("http://127.0.0.1:{}", cfg.dashboard.port);
@@ -421,7 +488,6 @@ async fn supervisor_main() {
 
             // Push initial events-channel state to the Qt bridge so the GUI
             // reflects the configured value even before any subscriber connects.
-            #[cfg(feature = "supervisor_qml_gui")]
             {
                 let enabled = cfg.events.enabled;
                 if let Some(qt) = supervisor::cxxqt_bridge::SUPERVISOR_QT.get() {
@@ -434,20 +500,28 @@ async fn supervisor_main() {
             let reg2 = Arc::clone(&registry);
             let fa2 = Arc::clone(&form_apps);
             let shutdown_tx2 = shutdown_tx.clone();
-            let mcp_base_url_for_handler = format!("http://127.0.0.1:{}", cfg.mcp.pool.base_port);
+            let mcp_base_url_for_handler = if subprocess_runtime_enabled {
+                None
+            } else {
+                Some(format!("http://127.0.0.1:{}", cfg.mcp.pool.base_port))
+            };
             let events_handle2 = events_handle.clone();
             let events_url2 = events_url.clone();
+            let restart_tx_for_handler = restart_tx.clone();
+            let mcp_runtime_for_handler = mcp_subprocess_runtime.clone();
             tokio::spawn(async move {
                 while let Some((req, resp_tx)) = rx.recv().await {
                     eprintln!("[supervisor] control request: {:?}", req);
-                    let resp = supervisor::control::handler::handle_request(
+                    let resp = supervisor::control::handler::handle_request_with_runtime(
                         req,
                         Arc::clone(&reg2),
                         Arc::clone(&fa2),
                         shutdown_tx2.clone(),
-                        Some(mcp_base_url_for_handler.clone()),
+                        mcp_base_url_for_handler.clone(),
                         Some(events_handle2.clone()),
                         events_url2.clone(),
+                        Some(restart_tx_for_handler.clone()),
+                        mcp_runtime_for_handler.clone(),
                     )
                     .await;
                     let _ = resp_tx.send(resp);
@@ -457,6 +531,9 @@ async fn supervisor_main() {
             println!("Supervisor control API started.");
 
             // ── Start managed services ────────────────────────────────────────
+            let mut mcp_pool_runtime: Option<
+                Arc<tokio::sync::RwLock<supervisor::runner::mcp_pool::ManagedPool>>,
+            > = None;
 
             if cfg.mcp.enabled {
                 match cfg.mcp.backend {
@@ -466,7 +543,11 @@ async fn supervisor_main() {
                     // the reverse proxy binds to cfg.mcp.port (3457) so VS Code
                     // sees a single endpoint.
                     McpBackend::Node => {
-                        use supervisor::runner::mcp_pool::ManagedPool;
+                        {
+                            if mcp_subprocess_runtime.is_some() {
+                                println!("[supervisor] MCP subprocess runtime control available (use McpRuntimeExec / SetMcpRuntimePolicy).");
+                            }
+                            use supervisor::runner::mcp_pool::ManagedPool;
 
                         println!("[supervisor] starting MCP pool + proxy (Node backend)...");
                         set_service_status(&registry, &mut tray, "mcp", ServiceStatus::Starting).await;
@@ -480,9 +561,19 @@ async fn supervisor_main() {
                             ManagedPool::new(pool_cfg.clone(), cfg.mcp.node.clone(), cfg.mcp.health_timeout_ms),
                         ));
                         pool.write().await.init().await;
+                        mcp_pool_runtime = Some(Arc::clone(&pool));
                         println!("[supervisor] MCP pool initialised ({} instance(s) on port(s) {}+)", pool_cfg.min_instances, base_port);
                         set_service_status(&registry, &mut tray, "mcp", ServiceStatus::Running).await;
                         set_service_health_ok(&registry, &mut tray, "mcp").await;
+                        mcp_started_at = Some(std::time::Instant::now());
+                        {
+                            let mcp_port_val = cfg.mcp.port as i32;
+                            if let Some(qt) = supervisor::cxxqt_bridge::SUPERVISOR_QT.get() {
+                                let _ = qt.queue(move |mut obj| {
+                                    obj.as_mut().push_service_info("mcp", mcp_port_val, "Node", 0, 0);
+                                });
+                            }
+                        }
 
                         // ── Migration health check (one-shot, best-effort) ────
                         // The MCP server runs migrations automatically at startup; we verify
@@ -532,18 +623,11 @@ async fn supervisor_main() {
                         );
 
                         // Start the reverse proxy on the primary MCP port.
-                        let pool_for_proxy = Arc::clone(&pool);
                         let proxy_bind = format!("127.0.0.1:{proxy_port}");
                         let events_for_proxy = events_handle.clone();
                         tokio::spawn(async move {
-                            let llp_fn: Arc<dyn Fn() -> u16 + Send + Sync> = Arc::new(move || {
-                                // try_read() is non-blocking and safe to call from async context.
-                                // If the pool is being written (rare, brief), fall back to base_port.
-                                pool_for_proxy.try_read()
-                                    .map(|guard| guard.least_loaded_port())
-                                    .unwrap_or(base_port)
-                            });
-                            if let Err(e) = supervisor::proxy::start_proxy(proxy_bind, base_port, llp_fn, heartbeat_tx, Some(events_for_proxy)).await {
+                            let dispatch_port_fn: Arc<dyn Fn() -> u16 + Send + Sync> = Arc::new(move || base_port);
+                            if let Err(e) = supervisor::proxy::start_proxy(proxy_bind, base_port, dispatch_port_fn, heartbeat_tx, Some(events_for_proxy)).await {
                                 eprintln!("[supervisor] proxy error: {e}");
                             }
                         });
@@ -559,8 +643,10 @@ async fn supervisor_main() {
                         let reg_for_poll = Arc::clone(&registry);
                         let health_timeout = cfg.mcp.health_timeout_ms;
                         let events_handle_for_poll = events_handle.clone();
+                        let mcp_health_tx_for_poll = mcp_health_tx.clone();
                         tokio::spawn(async move {
                             let mut tick = tokio::time::interval(Duration::from_secs(5));
+                            let mut mcp_degraded = false;
                             loop {
                                 tick.tick().await;
 
@@ -570,10 +656,13 @@ async fn supervisor_main() {
                                 // Collect connections from every instance.
                                 let ports = pool_for_poll.read().await.ports();
                                 let mut all_connections: Vec<supervisor::control::registry::McpConnectionEntry> = Vec::new();
+                                let mut successful_fetches = 0usize;
+                                let mut first_fetch_error: Option<String> = None;
                                 for port in &ports {
                                     let base_url = format!("http://127.0.0.1:{port}");
                                     match supervisor::control::mcp_admin::fetch_mcp_connections(&base_url, health_timeout).await {
                                         Ok(remote) => {
+                                            successful_fetches += 1;
                                             for rc in remote {
                                                 all_connections.push(supervisor::control::registry::McpConnectionEntry {
                                                     session_id: rc.session_id,
@@ -588,7 +677,27 @@ async fn supervisor_main() {
                                         }
                                         Err(e) => {
                                             eprintln!("[poll] failed to fetch connections from :{port}: {e}");
+                                            if first_fetch_error.is_none() {
+                                                first_fetch_error = Some(e.to_string());
+                                            }
                                         }
+                                    }
+                                }
+
+                                if !ports.is_empty() {
+                                    let any_instance_reachable = successful_fetches > 0;
+                                    if !any_instance_reachable && !mcp_degraded {
+                                        let message = first_fetch_error
+                                            .unwrap_or_else(|| "all MCP instances unreachable".to_string());
+                                        let _ = mcp_health_tx_for_poll
+                                            .send(McpHealthSignal::Degraded(message))
+                                            .await;
+                                        mcp_degraded = true;
+                                    } else if any_instance_reachable && mcp_degraded {
+                                        let _ = mcp_health_tx_for_poll
+                                            .send(McpHealthSignal::Recovered)
+                                            .await;
+                                        mcp_degraded = false;
                                     }
                                 }
 
@@ -605,7 +714,6 @@ async fn supervisor_main() {
                                 }
 
                                 // ── Push MCP monitoring + event stats to the Qt GUI ────
-                                #[cfg(feature = "supervisor_qml_gui")]
                                 {
                                     let total_conns = all_connections.len() as i32;
                                     let active_instances = ports.len() as i32;
@@ -637,6 +745,7 @@ async fn supervisor_main() {
                                 }
                             }
                         });
+                        }
                     }
 
                     // ── Container backend: standalone runner as before ─────────
@@ -664,64 +773,16 @@ async fn supervisor_main() {
                 set_service_status(&registry, &mut tray, "mcp", ServiceStatus::Stopped).await;
             }
 
+            // Interactive terminal starts on demand (via the `Start` control
+            // command) rather than automatically at supervisor startup.  The
+            // crash-recovery monitor is spawned by `handle_restart_command`
+            // each time the terminal is (re)started.
             if cfg.interactive_terminal.enabled {
-                println!("[supervisor] starting interactive terminal...");
-                if cli.debug { eprintln!("[debug] calling terminal_runner.start() (port={})...", cfg.interactive_terminal.port); }
-                set_service_status(&registry, &mut tray, "interactive_terminal", ServiceStatus::Starting).await;
-                match terminal_runner.start().await {
-                    Ok(()) => {
-                        set_service_status(&registry, &mut tray, "interactive_terminal", ServiceStatus::Running).await;
-                        set_service_health_ok(&registry, &mut tray, "interactive_terminal").await;
-                        println!("[supervisor] interactive terminal started on port {}.", cfg.interactive_terminal.port);
-                        if cli.debug { eprintln!("[debug] terminal_runner.start() returned Ok"); }
-                    }
-                    Err(e) => {
-                        set_service_status(&registry, &mut tray, "interactive_terminal", ServiceStatus::Error(e.to_string())).await;
-                        set_service_error(&registry, &mut tray, "interactive_terminal", e.to_string()).await;
-                        eprintln!("[supervisor] failed to start interactive terminal: {e}");
-                    }
-                }
-
-                // ── Terminal crash-recovery monitor ───────────────────────────
-                // Polls TCP connectivity every 5 s; restarts after 2 consecutive
-                // failures so the supervisor owns every terminal process it manages.
-                {
-                    let restart_tx_term = restart_tx.clone();
-                    let term_port = cfg.interactive_terminal.port;
-                    tokio::spawn(async move {
-                        // Initial delay: give the Qt/QML binary ample time to
-                        // start before the first health probe fires.  The runner
-                        // also has a per-start grace period (STARTUP_GRACE_SECS)
-                        // but this delay reduces noise in the early log output.
-                        tokio::time::sleep(Duration::from_secs(30)).await;
-                        let mut failures = 0u32;
-                        let mut interval = tokio::time::interval(Duration::from_secs(5));
-                        loop {
-                            interval.tick().await;
-                            if probe_tcp(term_port).await {
-                                failures = 0;
-                            } else {
-                                failures += 1;
-                                eprintln!("[supervisor] terminal health probe failed ({failures})");
-                                if failures >= 2 {
-                                    eprintln!("[supervisor] terminal appears dead — requesting restart");
-                                    failures = 0;
-                                    let _ = restart_tx_term.send("terminal".to_string()).await;
-                                    // Long cooldown: let the restarted terminal's
-                                    // STARTUP_GRACE_SECS window expire before we
-                                    // resume probing so we never fire two restarts
-                                    // for a single slow-start event.
-                                    tokio::time::sleep(Duration::from_secs(90)).await;
-                                    interval.reset();
-                                }
-                            }
-                        }
-                    });
-                }
+                println!("[supervisor] interactive terminal configured — waiting for on-demand launch.");
             } else {
                 println!("[supervisor] interactive terminal disabled — skipping.");
-                set_service_status(&registry, &mut tray, "interactive_terminal", ServiceStatus::Stopped).await;
             }
+            set_service_status(&registry, &mut tray, "interactive_terminal", ServiceStatus::Stopped).await;
 
             if cfg.dashboard.enabled {
                 println!("[supervisor] starting dashboard...");
@@ -733,6 +794,16 @@ async fn supervisor_main() {
                         set_service_health_ok(&registry, &mut tray, "dashboard").await;
                         println!("[supervisor] dashboard started.");
                         if cli.debug { eprintln!("[debug] dashboard_runner.start() returned Ok"); }
+                        dashboard_started_at = Some(std::time::Instant::now());
+                        {
+                            let dash_port_val = cfg.dashboard.port as i32;
+                            let dash_pid_val = dashboard_runner.pid().unwrap_or(0) as i32;
+                            if let Some(qt) = supervisor::cxxqt_bridge::SUPERVISOR_QT.get() {
+                                let _ = qt.queue(move |mut obj| {
+                                    obj.as_mut().push_service_info("dashboard", dash_port_val, "Node", dash_pid_val, 0);
+                                });
+                            }
+                        }
                     }
                     Err(e) => {
                         set_service_status(&registry, &mut tray, "dashboard", ServiceStatus::Error(e.to_string())).await;
@@ -780,6 +851,7 @@ async fn supervisor_main() {
 
             println!("[supervisor] all services started. Press Ctrl-C to stop.");
             let mut tray_poll_tick = tokio::time::interval(Duration::from_millis(150));
+            let mut uptime_interval = tokio::time::interval(Duration::from_secs(30));
             loop {
                 tokio::select! {
                     _ = tokio::signal::ctrl_c() => {
@@ -807,6 +879,7 @@ async fn supervisor_main() {
                     }
                     restart_command = restart_dispatch_rx.recv() => {
                         if let Some(service_name) = restart_command {
+                            let mcp_pool_for_restart = mcp_pool_runtime.as_ref().map(Arc::clone);
                             handle_restart_command(
                                 &service_name,
                                 &registry,
@@ -814,7 +887,89 @@ async fn supervisor_main() {
                                 &mut *mcp_runner,
                                 &mut terminal_runner,
                                 &mut dashboard_runner,
+                                cfg.mcp.backend.clone(),
+                                mcp_subprocess_runtime.is_some(),
+                                mcp_pool_for_restart,
+                                restart_tx.clone(),
+                                cfg.interactive_terminal.port,
                             ).await;
+                            // Update start-time tracking and push service info after restarts.
+                            match service_name.trim().to_ascii_lowercase().as_str() {
+                                "terminal" | "interactive_terminal" => {
+                                    if terminal_runner.pid().is_some() {
+                                        terminal_started_at = Some(std::time::Instant::now());
+                                        {
+                                            let term_port_val = cfg.interactive_terminal.port as i32;
+                                            let term_pid_val = terminal_runner.pid().unwrap_or(0) as i32;
+                                            if let Some(qt) = supervisor::cxxqt_bridge::SUPERVISOR_QT.get() {
+                                                let _ = qt.queue(move |mut obj| {
+                                                    obj.as_mut().push_service_info("terminal", term_port_val, "Rust", term_pid_val, 0);
+                                                });
+                                            }
+                                        }
+                                    }
+                                }
+                                "dashboard" => {
+                                    if dashboard_runner.pid().is_some() {
+                                        dashboard_started_at = Some(std::time::Instant::now());
+                                        {
+                                            let dash_port_val = cfg.dashboard.port as i32;
+                                            let dash_pid_val = dashboard_runner.pid().unwrap_or(0) as i32;
+                                            if let Some(qt) = supervisor::cxxqt_bridge::SUPERVISOR_QT.get() {
+                                                let _ = qt.queue(move |mut obj| {
+                                                    obj.as_mut().push_service_info("dashboard", dash_port_val, "Node", dash_pid_val, 0);
+                                                });
+                                            }
+                                        }
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    mcp_health_signal = mcp_health_rx.recv() => {
+                        if let Some(signal) = mcp_health_signal {
+                            match signal {
+                                McpHealthSignal::Degraded(error) => {
+                                    set_service_status(&registry, &mut tray, "mcp", ServiceStatus::Error(error.clone())).await;
+                                    set_service_error(&registry, &mut tray, "mcp", error).await;
+                                }
+                                McpHealthSignal::Recovered => {
+                                    set_service_status(&registry, &mut tray, "mcp", ServiceStatus::Running).await;
+                                    set_service_health_ok(&registry, &mut tray, "mcp").await;
+                                }
+                            }
+                        }
+                    }
+                    _ = uptime_interval.tick() => {
+                        {
+                            let term_pid = terminal_runner.pid().unwrap_or(0) as i32;
+                            let term_uptime = terminal_started_at
+                                .map(|t| t.elapsed().as_secs() as i32)
+                                .unwrap_or(0);
+                            let dash_pid = dashboard_runner.pid().unwrap_or(0) as i32;
+                            let dash_uptime = dashboard_started_at
+                                .map(|t| t.elapsed().as_secs() as i32)
+                                .unwrap_or(0);
+                            let mcp_uptime = mcp_started_at
+                                .map(|t| t.elapsed().as_secs() as i32)
+                                .unwrap_or(0);
+                            let term_port_val = cfg.interactive_terminal.port as i32;
+                            let dash_port_val = cfg.dashboard.port as i32;
+                            let mcp_port_val = cfg.mcp.port as i32;
+                            if let Some(qt) = supervisor::cxxqt_bridge::SUPERVISOR_QT.get() {
+                                let _ = qt.queue(move |mut obj| {
+                                    if mcp_uptime > 0 {
+                                        obj.as_mut().push_service_info("mcp", mcp_port_val, "Node", 0, mcp_uptime);
+                                    }
+                                    if term_pid != 0 {
+                                        obj.as_mut().push_service_info("terminal", term_port_val, "Rust", term_pid, term_uptime);
+                                    }
+                                    if dash_pid != 0 {
+                                        obj.as_mut().push_service_info("dashboard", dash_port_val, "Node", dash_pid, dash_uptime);
+                                    }
+                                });
+                            }
                         }
                     }
                 }
@@ -864,7 +1019,6 @@ async fn supervisor_main() {
             // Signal Qt to hide the tray icon before the process exits.  This
             // allows Qt to call NIM_DELETE so the icon disappears immediately
             // rather than lingering until the user hovers over the tray area.
-            #[cfg(feature = "supervisor_qml_gui")]
             {
                 if let Some(qt) = supervisor::cxxqt_bridge::SUPERVISOR_QT.get() {
                     let _ = qt.queue(|mut obj| {
@@ -888,10 +1042,9 @@ async fn supervisor_main() {
     }
 }
 
-/// Push a status-text update to the QML bridge (QML builds only).  The text
-/// is built from the current registry snapshot so the GUI label always
-/// reflects what the tray tooltip would show.
-#[cfg(feature = "supervisor_qml_gui")]
+/// Push a status-text update to the QML bridge.  The text is built from
+/// the current registry snapshot so the GUI label always reflects what the
+/// tray tooltip would show.
 fn push_qt_status(snapshot: &supervisor::control::protocol::HealthSnapshot) {
     let lines: Vec<String> = snapshot
         .children
@@ -933,8 +1086,6 @@ fn push_qt_status(snapshot: &supervisor::control::protocol::HealthSnapshot) {
     }
 }
 
-#[cfg(not(feature = "supervisor_qml_gui"))]
-fn push_qt_status(_snapshot: &supervisor::control::protocol::HealthSnapshot) {}
 
 async fn set_service_status(
     registry: &Arc<tokio::sync::Mutex<supervisor::control::registry::Registry>>,
@@ -1040,7 +1191,6 @@ async fn handle_tray_action(
 ) {
     match action {
         TrayAction::ShowSupervisorGui => {
-            #[cfg(feature = "supervisor_qml_gui")]
             if let Some(qt) = supervisor::cxxqt_bridge::SUPERVISOR_QT.get() {
                 let _ = qt.queue(|mut obj| {
                     obj.as_mut().set_window_visible(true);
@@ -1056,7 +1206,6 @@ async fn handle_tray_action(
             println!("[supervisor] tray action: show supervisor GUI");
         }
         TrayAction::HideSupervisorGui => {
-            #[cfg(feature = "supervisor_qml_gui")]
             if let Some(qt) = supervisor::cxxqt_bridge::SUPERVISOR_QT.get() {
                 let _ = qt.queue(|mut obj| {
                     obj.as_mut().set_window_visible(false);
@@ -1217,9 +1366,58 @@ async fn handle_restart_command(
     mcp_runner: &mut dyn ServiceRunner,
     terminal_runner: &mut InteractiveTerminalRunner,
     dashboard_runner: &mut DashboardRunner,
+    mcp_backend: McpBackend,
+    mcp_subprocess_runtime_enabled: bool,
+    mcp_pool_runtime: Option<Arc<tokio::sync::RwLock<supervisor::runner::mcp_pool::ManagedPool>>>,
+    restart_tx: tokio::sync::mpsc::Sender<String>,
+    term_port: u16,
 ) {
     match service_name.trim().to_ascii_lowercase().as_str() {
         "mcp" => {
+            if matches!(mcp_backend, McpBackend::Node) {
+                if let Some(pool) = mcp_pool_runtime {
+                    set_service_status(
+                        registry,
+                        tray,
+                        "mcp",
+                        ServiceStatus::Stopping,
+                    )
+                    .await;
+                    pool.write().await.stop_all().await;
+                    set_service_status(
+                        registry,
+                        tray,
+                        "mcp",
+                        ServiceStatus::Starting,
+                    )
+                    .await;
+                    pool.write().await.init().await;
+
+                    if pool.read().await.ports().is_empty() {
+                        let error = "MCP restart failed: pool did not start any instances".to_string();
+                        set_service_status(
+                            registry,
+                            tray,
+                            "mcp",
+                            ServiceStatus::Error(error.clone()),
+                        )
+                        .await;
+                        set_service_error(registry, tray, "mcp", error).await;
+                    } else {
+                        set_service_status(registry, tray, "mcp", ServiceStatus::Running).await;
+                        set_service_health_ok(registry, tray, "mcp").await;
+                    }
+                    return;
+                }
+
+                if mcp_subprocess_runtime_enabled {
+                    set_service_status(registry, tray, "mcp", ServiceStatus::Starting).await;
+                    set_service_status(registry, tray, "mcp", ServiceStatus::Running).await;
+                    set_service_health_ok(registry, tray, "mcp").await;
+                    return;
+                }
+            }
+
             handle_component_action(
                 TrayComponent::Mcp,
                 TrayComponentAction::Restart,
@@ -1242,6 +1440,45 @@ async fn handle_restart_command(
                 dashboard_runner,
             )
             .await;
+            // Spawn crash-recovery monitor after every (re)start so the
+            // supervisor detects crashes regardless of whether the terminal
+            // was started automatically or on demand.
+            {
+                let is_running = {
+                    let reg = registry.lock().await;
+                    reg.service_states()
+                        .iter()
+                        .find(|s| s.name == "interactive_terminal")
+                        .map(|s| matches!(s.status, supervisor::control::registry::ServiceStatus::Running))
+                        .unwrap_or(false)
+                };
+                if is_running {
+                    let restart_tx_term = restart_tx.clone();
+                    tokio::spawn(async move {
+                        // Give the Qt/QML binary ample time to start before
+                        // the first health probe fires.
+                        tokio::time::sleep(Duration::from_secs(30)).await;
+                        let mut failures = 0u32;
+                        let mut interval = tokio::time::interval(Duration::from_secs(5));
+                        loop {
+                            interval.tick().await;
+                            if probe_tcp(term_port).await {
+                                failures = 0;
+                            } else {
+                                failures += 1;
+                                eprintln!("[supervisor] terminal health probe failed ({failures})");
+                                if failures >= 2 {
+                                    eprintln!("[supervisor] terminal appears dead — requesting restart");
+                                    failures = 0;
+                                    let _ = restart_tx_term.send("terminal".to_string()).await;
+                                    tokio::time::sleep(Duration::from_secs(90)).await;
+                                    interval.reset();
+                                }
+                            }
+                        }
+                    });
+                }
+            }
         }
         "dashboard" => {
             handle_component_action(
@@ -1259,6 +1496,53 @@ async fn handle_restart_command(
             eprintln!("[supervisor] unknown restart service requested: {other}");
         }
     }
+}
+
+fn parse_env_flag(name: &str, default: bool) -> bool {
+    match std::env::var(name) {
+        Ok(v) => {
+            let normalized = v.trim().to_ascii_lowercase();
+            matches!(normalized.as_str(), "1" | "true" | "yes" | "on")
+        }
+        Err(_) => default,
+    }
+}
+
+fn parse_env_usize(name: &str, default: usize) -> usize {
+    std::env::var(name)
+        .ok()
+        .and_then(|v| v.trim().parse::<usize>().ok())
+        .unwrap_or(default)
+}
+
+fn parse_env_u64(name: &str, default: u64) -> u64 {
+    std::env::var(name)
+        .ok()
+        .and_then(|v| v.trim().parse::<u64>().ok())
+        .unwrap_or(default)
+}
+
+fn parse_env_csv(name: &str, default: &[&str]) -> Vec<String> {
+    match std::env::var(name) {
+        Ok(v) => {
+            let parsed: Vec<String> = v
+                .split(',')
+                .map(|s| s.trim().to_ascii_lowercase())
+                .filter(|s| !s.is_empty())
+                .collect();
+            if parsed.is_empty() {
+                default.iter().map(|s| s.to_string()).collect()
+            } else {
+                parsed
+            }
+        }
+        Err(_) => default.iter().map(|s| s.to_string()).collect(),
+    }
+}
+
+enum McpHealthSignal {
+    Degraded(String),
+    Recovered,
 }
 
 // ── Orphan process cleanup ────────────────────────────────────────────────────

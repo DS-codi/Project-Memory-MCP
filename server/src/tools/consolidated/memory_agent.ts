@@ -1,9 +1,14 @@
 /**
  * Consolidated Agent Tool - memory_agent
  * 
- * Actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage, categorize, deploy_for_task
+ * Actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage, categorize, deploy_for_task, deploy_agent_to_workspace
  * Replaces: initialise_agent, complete_agent, handoff, validate_*, list_agents, 
  *           get_agent_instructions, deploy_agents_to_workspace, get_mission_briefing, get_lineage
+ *
+ * deploy_agent_to_workspace — new action (Phase 0 / Phase 3 of the Dynamic Hub Agent Model).
+ * Materialises a session-scoped agent file to
+ *   .github/agents/sessions/{session_id}/{agent_type}.agent.md
+ * and registers the session in workspace_session_registry so peers are visible.
  */
 
 import type { 
@@ -24,6 +29,29 @@ import * as handoffTools from '../handoff.tools.js';
 import * as agentTools from '../agent.tools.js';
 import * as validationTools from '../agent-validation.tools.js';
 import { deployForTask, cleanupAgent } from '../agent-deploy.js';
+import { materialiseAgent } from '../agent-materialise.js';
+import {
+  completeRegistrySession,
+  getRegistryRow,
+  getActivePeerSessions,
+} from '../../db/workspace-session-registry-db.js';
+import {
+  resolveHubAliasRouting,
+  type CanonicalHubMode,
+  type LegacyHubLabel,
+} from '../orchestration/hub-alias-routing.js';
+import {
+  hasHubPolicyContext,
+  validateHubPolicy,
+} from '../orchestration/hub-policy-enforcement.js';
+import {
+  resolveHubRolloutDecision,
+  restoreLegacyStaticAgentsFromBackup,
+} from '../orchestration/hub-rollout-controls.js';
+import {
+  buildHubTelemetrySnapshot,
+  evaluateHubPromotionGates,
+} from '../orchestration/hub-telemetry-dashboard.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
 import { getPlanState, getWorkspace } from '../../storage/db-store.js';
 import {
@@ -48,7 +76,8 @@ export type AgentAction =
   | 'get_briefing'
   | 'get_lineage'
   | 'categorize'
-  | 'deploy_for_task';
+  | 'deploy_for_task'
+  | 'deploy_agent_to_workspace';
 
 export interface MemoryAgentParams {
   action: AgentAction;
@@ -96,6 +125,42 @@ export interface MemoryAgentParams {
   // For categorize
   categorization_result?: CategoryDecision;
 
+  // For deploy_agent_to_workspace
+  /** The minted session ID to scope the materialised file under */
+  session_id?: string;
+  /** Free-form context payload built from Prompt Analyst enrichment */
+  context_payload?: Record<string, unknown>;
+  /** Per-call overrides for allowed/blocked tool surfaces */
+  tool_overrides?: { allowedTools?: string[]; blockedTools?: string[] };
+  /** Files this session is claiming (for peer-session conflict avoidance) */
+  files_in_scope?: string[];
+  /** Current phase string for the registry row */
+  current_phase?: string;
+  requested_hub_label?: LegacyHubLabel | 'Hub';
+  current_hub_mode?: CanonicalHubMode;
+  previous_hub_mode?: CanonicalHubMode;
+  requested_hub_mode?: CanonicalHubMode;
+  transition_event?: string;
+  transition_reason_code?: string;
+  prompt_analyst_enrichment_applied?: boolean;
+  bypass_prompt_analyst_policy?: boolean;
+  rollout_feature_flag_enabled?: boolean;
+  rollout_canary_percent?: number;
+  force_legacy_fallback?: boolean;
+  deprecation_window_active?: boolean;
+  rollback_backup_dir?: string;
+  include_hub_telemetry_snapshot?: boolean;
+  include_hub_promotion_gates?: boolean;
+  scenario_parity_passed?: boolean;
+  promotion_gate_baseline?: {
+    blocked_step_rate_percent: number;
+    average_handoffs_per_plan: number;
+  };
+  promotion_gate_thresholds?: {
+    min_prompt_analyst_hit_rate_percent?: number;
+    max_cross_session_conflict_rate_percent?: number;
+  };
+
   // For deploy_for_task
   phase_context?: Record<string, unknown>;
   context_markers?: Record<string, ContextPersistence>;
@@ -116,7 +181,56 @@ type AgentResult =
   | { action: 'get_briefing'; data: MissionBriefing & { deprecation_notice?: string } }
   | { action: 'get_lineage'; data: LineageEntry[] }
   | { action: 'categorize'; data: { categorization: RequestCategorization; category_decision: CategoryDecision; routing_resolved: boolean } }
-  | { action: 'deploy_for_task'; data: DeployForTaskResult & { deprecation_notice?: string } };
+  | { action: 'deploy_for_task'; data: DeployForTaskResult & { deprecation_notice?: string } }
+  | { action: 'deploy_agent_to_workspace'; data: {
+      file_path: string;
+      session_id: string;
+      peer_sessions_count: number;
+      agent_type: string;
+      workspace_id: string;
+      plan_id: string;
+      warnings: string[];
+      policy_enforcement?: {
+        requested_hub_label: LegacyHubLabel | 'Hub' | null;
+        resolved_mode: CanonicalHubMode | null;
+        alias_resolution_applied: boolean;
+        deprecation_phase: string;
+        transition_event?: string;
+        transition_reason_code?: string;
+        prompt_analyst_enrichment_applied: boolean;
+      };
+      session_registry?: {
+        id: string;
+        status: string;
+        current_phase: string | null;
+        step_indices_claimed: number[];
+        files_in_scope: string[];
+        materialised_path: string | null;
+      };
+      active_peer_sessions?: Array<{
+        session_id: string;
+        agent_type: string;
+        plan_id: string | null;
+        current_phase: string | null;
+        status: string;
+      }>;
+      rollback_controls?: {
+        routing: 'dynamic_session_scoped' | 'legacy_static_fallback';
+        reason_code:
+          | 'dynamic_enabled'
+          | 'feature_flag_disabled'
+          | 'forced_legacy_fallback'
+          | 'deprecation_window_canary_holdback';
+        feature_flag_enabled: boolean;
+        canary_percent: number;
+        canary_bucket: number;
+        deprecation_window_active: boolean;
+        backup_directory: string;
+        restored_static_agents: string[];
+      };
+      hub_telemetry_snapshot?: import('../orchestration/hub-telemetry-dashboard.js').HubTelemetrySnapshot;
+      hub_promotion_gates?: import('../orchestration/hub-telemetry-dashboard.js').HubPromotionGatesReport;
+    } };
 
 export async function memoryAgent(params: MemoryAgentParams): Promise<ToolResponse<AgentResult>> {
   const { action } = params;
@@ -124,7 +238,7 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
   if (!action) {
     return {
       success: false,
-      error: 'action is required. Valid actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage, categorize, deploy_for_task'
+      error: 'action is required. Valid actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage, categorize, deploy_for_task, deploy_agent_to_workspace'
     };
   }
 
@@ -296,7 +410,14 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
       // Clear from live store — session is done
       if (params._session_id) {
         const serverSid = serverSessionIdForPrepId(params._session_id);
-        if (serverSid) clearLiveSession(serverSid);
+        if (serverSid) {
+          clearLiveSession(serverSid);
+          try {
+            completeRegistrySession(serverSid);
+          } catch {
+            // non-fatal: registry cleanup best effort
+          }
+        }
       }
 
       // Cleanup deployed agent files (non-fatal)
@@ -332,6 +453,15 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
         if (d.scope_escalation === true || d.scope_exceeded === true) {
           incrementStat(sessionId, 'scope_escalations');
         }
+        if (d.scope_conflict === true && params.workspace_id && params.plan_id) {
+          await events.sessionScopeConflict(params.workspace_id, params.plan_id, {
+            session_id: sessionId,
+            from_agent: params.from_agent,
+            to_agent: params.to_agent,
+            reason: params.reason,
+            conflict_files: Array.isArray(d.conflict_files) ? d.conflict_files : [],
+          });
+        }
       }
 
       const result = await handoffTools.handoff({
@@ -356,6 +486,18 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
         }
       } catch (err) {
         console.warn('[memory_agent/handoff] cleanupAgent failed (non-fatal):', err);
+      }
+
+      // Mark workspace session registry row completed (best effort)
+      if (params._session_id) {
+        const serverSid = serverSessionIdForPrepId(params._session_id);
+        if (serverSid) {
+          try {
+            completeRegistrySession(serverSid);
+          } catch {
+            // non-fatal: registry cleanup best effort
+          }
+        }
       }
 
       return {
@@ -579,10 +721,249 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
       };
     }
 
+    case 'deploy_agent_to_workspace': {
+      if (!params.workspace_id || !params.agent_type || !params.plan_id || !params.session_id) {
+        return {
+          success: false,
+          error: 'workspace_id, agent_type, plan_id, and session_id are required for action: deploy_agent_to_workspace'
+        };
+      }
+
+      const aliasRouting = resolveHubAliasRouting(
+        params.requested_hub_label ?? 'Hub',
+        params.requested_hub_mode
+      );
+
+      if (hasHubPolicyContext({
+        target_agent_type: params.agent_type,
+        current_hub_mode: params.current_hub_mode,
+        previous_hub_mode: params.previous_hub_mode,
+        requested_hub_mode: params.requested_hub_mode,
+        requested_hub_label: params.requested_hub_label,
+        transition_event: params.transition_event,
+        transition_reason_code: params.transition_reason_code,
+        prompt_analyst_enrichment_applied: params.prompt_analyst_enrichment_applied,
+        bypass_prompt_analyst_policy: params.bypass_prompt_analyst_policy,
+      })) {
+        const policy = validateHubPolicy(
+          {
+            target_agent_type: params.agent_type,
+            current_hub_mode: params.current_hub_mode,
+            previous_hub_mode: params.previous_hub_mode,
+            requested_hub_mode: params.requested_hub_mode,
+            requested_hub_label: params.requested_hub_label,
+            transition_event: params.transition_event,
+            transition_reason_code: params.transition_reason_code,
+            prompt_analyst_enrichment_applied: params.prompt_analyst_enrichment_applied,
+            bypass_prompt_analyst_policy: params.bypass_prompt_analyst_policy,
+          },
+          aliasRouting,
+        );
+
+        if (!policy.valid) {
+          await events.hubPolicyBlocked(params.workspace_id, params.plan_id, {
+            code: policy.code,
+            reason: policy.reason,
+            details: policy.details,
+            requested_hub_label: aliasRouting.requested_hub_label,
+            resolved_mode: aliasRouting.resolved_mode,
+            deprecation_phase: aliasRouting.deprecation_phase,
+          });
+          return {
+            success: false,
+            error: `${policy.code}: ${policy.reason}`,
+          };
+        }
+      }
+
+      const wsMeta = await getWorkspace(params.workspace_id);
+      if (!wsMeta) {
+        return { success: false, error: `Workspace not found: ${params.workspace_id}` };
+      }
+      const workspacePath = wsMeta.workspace_path || wsMeta.path;
+      if (!workspacePath) {
+        return { success: false, error: `Workspace path could not be resolved for workspace: ${params.workspace_id}` };
+      }
+      try {
+        const rollout = resolveHubRolloutDecision(workspacePath, {
+          session_id: params.session_id,
+          feature_flag_enabled: params.rollout_feature_flag_enabled,
+          canary_percent: params.rollout_canary_percent,
+          force_legacy_fallback: params.force_legacy_fallback,
+          deprecation_window_active: params.deprecation_window_active,
+          backup_directory_override: params.rollback_backup_dir,
+        });
+
+        await events.hubRoutingDecision(params.workspace_id, params.plan_id, {
+          session_id: params.session_id,
+          target_agent_type: params.agent_type,
+          requested_hub_label: aliasRouting.requested_hub_label,
+          resolved_mode: aliasRouting.resolved_mode,
+          alias_resolution_applied: aliasRouting.alias_resolution_applied,
+          deprecation_phase: aliasRouting.deprecation_phase,
+          transition_event: params.transition_event,
+          transition_reason_code: params.transition_reason_code,
+          prompt_analyst_enrichment_applied: params.prompt_analyst_enrichment_applied === true,
+          routing: rollout.routing,
+          routing_reason_code: rollout.reason_code,
+          feature_flag_enabled: rollout.feature_flag_enabled,
+          canary_percent: rollout.canary_percent,
+          canary_bucket: rollout.canary_bucket,
+          deprecation_window_active: rollout.deprecation_window_active,
+        });
+
+        const shouldIncludeTelemetry =
+          params.include_hub_telemetry_snapshot || params.include_hub_promotion_gates;
+
+        const telemetrySnapshot = shouldIncludeTelemetry
+          ? await buildHubTelemetrySnapshot(params.workspace_id)
+          : undefined;
+
+        const promotionGates = params.include_hub_promotion_gates && telemetrySnapshot
+          ? evaluateHubPromotionGates(telemetrySnapshot, {
+            baseline: params.promotion_gate_baseline,
+            thresholds: params.promotion_gate_thresholds,
+            scenario_parity_passed: params.scenario_parity_passed,
+          })
+          : undefined;
+
+        if (rollout.routing === 'legacy_static_fallback') {
+          const restoreResult = await restoreLegacyStaticAgentsFromBackup(
+            workspacePath,
+            params.agent_type,
+            rollout.backup_directory,
+          );
+          const peerSessions = getActivePeerSessions(params.workspace_id, params.session_id);
+          const requestedSlug = params.agent_type.toLowerCase().replace(/\s+/g, '-');
+          const fallbackPath =
+            restoreResult.target_agent_path ??
+            path.join(workspacePath, '.github', 'agents', `${requestedSlug}.agent.md`);
+
+          return {
+            success: true,
+            data: {
+              action: 'deploy_agent_to_workspace',
+              data: {
+                file_path: fallbackPath,
+                session_id: params.session_id,
+                peer_sessions_count: peerSessions.length,
+                agent_type: params.agent_type,
+                workspace_id: params.workspace_id,
+                plan_id: params.plan_id,
+                warnings: restoreResult.warnings,
+                policy_enforcement: {
+                  requested_hub_label: aliasRouting.requested_hub_label,
+                  resolved_mode: aliasRouting.resolved_mode,
+                  alias_resolution_applied: aliasRouting.alias_resolution_applied,
+                  deprecation_phase: aliasRouting.deprecation_phase,
+                  transition_event: params.transition_event,
+                  transition_reason_code: params.transition_reason_code,
+                  prompt_analyst_enrichment_applied: params.prompt_analyst_enrichment_applied === true,
+                },
+                active_peer_sessions: peerSessions.map((peer) => ({
+                  session_id: peer.sessionId,
+                  agent_type: peer.agentType,
+                  plan_id: peer.planId,
+                  current_phase: peer.currentPhase,
+                  status: peer.status,
+                })),
+                rollback_controls: {
+                  routing: rollout.routing,
+                  reason_code: rollout.reason_code,
+                  feature_flag_enabled: rollout.feature_flag_enabled,
+                  canary_percent: rollout.canary_percent,
+                  canary_bucket: rollout.canary_bucket,
+                  deprecation_window_active: rollout.deprecation_window_active,
+                  backup_directory: rollout.backup_directory,
+                  restored_static_agents: restoreResult.restored_files,
+                },
+                hub_telemetry_snapshot: telemetrySnapshot,
+                hub_promotion_gates: promotionGates,
+              },
+            },
+          };
+        }
+
+        const result = await materialiseAgent({
+          workspaceId:    params.workspace_id,
+          workspacePath,
+          planId:         params.plan_id,
+          agentType:      params.agent_type,
+          sessionId:      params.session_id,
+          phaseName:      params.phase_name,
+          stepIndices:    params.step_indices,
+          contextPayload: params.context_payload,
+          toolOverrides:  params.tool_overrides,
+          filesInScope:   params.files_in_scope,
+          currentPhase:   params.current_phase ?? params.phase_name,
+        });
+
+        const registryRow = getRegistryRow(result.sessionId);
+        const peerSessions = getActivePeerSessions(params.workspace_id, result.sessionId);
+
+        return {
+          success: true,
+          data: {
+            action: 'deploy_agent_to_workspace',
+            data: {
+              file_path:           result.filePath,
+              session_id:          result.sessionId,
+              peer_sessions_count: result.peerSessionsCount,
+              agent_type:          params.agent_type,
+              workspace_id:        params.workspace_id,
+              plan_id:             params.plan_id,
+              warnings:            result.warnings,
+              policy_enforcement: {
+                requested_hub_label: aliasRouting.requested_hub_label,
+                resolved_mode: aliasRouting.resolved_mode,
+                alias_resolution_applied: aliasRouting.alias_resolution_applied,
+                deprecation_phase: aliasRouting.deprecation_phase,
+                transition_event: params.transition_event,
+                transition_reason_code: params.transition_reason_code,
+                prompt_analyst_enrichment_applied: params.prompt_analyst_enrichment_applied === true,
+              },
+              session_registry: registryRow ? {
+                id: registryRow.id,
+                status: registryRow.status,
+                current_phase: registryRow.current_phase,
+                step_indices_claimed: safeParseJsonArray<number>(registryRow.step_indices_claimed),
+                files_in_scope: safeParseJsonArray<string>(registryRow.files_in_scope),
+                materialised_path: registryRow.materialised_path,
+              } : undefined,
+              active_peer_sessions: peerSessions.map((peer) => ({
+                session_id: peer.sessionId,
+                agent_type: peer.agentType,
+                plan_id: peer.planId,
+                current_phase: peer.currentPhase,
+                status: peer.status,
+              })),
+              rollback_controls: {
+                routing: rollout.routing,
+                reason_code: rollout.reason_code,
+                feature_flag_enabled: rollout.feature_flag_enabled,
+                canary_percent: rollout.canary_percent,
+                canary_bucket: rollout.canary_bucket,
+                deprecation_window_active: rollout.deprecation_window_active,
+                backup_directory: rollout.backup_directory,
+                restored_static_agents: [],
+              },
+              hub_telemetry_snapshot: telemetrySnapshot,
+              hub_promotion_gates: promotionGates,
+            },
+          },
+        };
+      } catch (err) {
+        return {
+          success: false,
+          error: `deploy_agent_to_workspace failed: ${(err as Error).message}`,
+        };
+      }
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage, categorize, deploy_for_task`
+        error: `Unknown action: ${action}. Valid actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage, categorize, deploy_for_task, deploy_agent_to_workspace`
       };
   }
 }
@@ -592,6 +973,16 @@ function safeJsonSize(value: unknown): number {
     return Buffer.byteLength(JSON.stringify(value), 'utf-8');
   } catch {
     return 0;
+  }
+}
+
+function safeParseJsonArray<T>(value: string | null | undefined): T[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed as T[] : [];
+  } catch {
+    return [];
   }
 }
 

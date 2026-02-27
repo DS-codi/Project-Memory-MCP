@@ -29,6 +29,7 @@ interface SearchItem {
   source?: string;
   path?: string;
   preview?: string;
+  content?: string;
   size_bytes?: number;
   updated_at?: string;
 }
@@ -180,8 +181,8 @@ export async function pullContext(
     const fileBase = `${String(index + 1).padStart(3, '0')}-${safeSlug(`${sourceType}-${sourceTitle}`)}`;
     const stagedFilePath = path.join(stagedDir, `${fileBase}.json`);
 
-    let content = item.preview ?? '';
-    if (sourcePath) {
+    let content = item.content ?? item.preview ?? '';
+    if (!item.content && sourcePath && !sourcePath.startsWith('db://')) {
       try {
         content = await fs.readFile(toAbsolutePath(sourcePath), 'utf-8');
       } catch {

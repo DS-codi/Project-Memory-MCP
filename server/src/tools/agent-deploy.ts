@@ -20,8 +20,8 @@ import {
   ensureDir,
   exists,
   nowISO,
-  getResearchNotesPath,
   getContextPath,
+  listPlanResearchNoteNamesFromDb,
 } from '../storage/db-store.js';
 import { readJson, writeJson } from '../storage/db-store.js';
 import {
@@ -65,9 +65,7 @@ export async function buildContextBundle(
   // 1. Research notes (filenames only)
   if (params.include_research !== false) {
     try {
-      const notesDir = getResearchNotesPath(workspaceId, planId);
-      const entries = await fs.readdir(notesDir);
-      bundle.research_notes = entries.filter(f => f.endsWith('.md') || f.endsWith('.json'));
+      bundle.research_notes = await listPlanResearchNoteNamesFromDb(workspaceId, planId);
     } catch {
       // research_notes/ doesn't exist or is empty — skip
     }

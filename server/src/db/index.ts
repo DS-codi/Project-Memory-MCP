@@ -55,6 +55,8 @@ export type {
   UpdateLogRow,
   EventLogRow,
   MigrationRow,
+  WorkspaceSessionRegistryRow,
+  GuiRoutingContractRow,
   // Archive variants
   PlanArchiveRow,
   PhaseArchiveRow,
@@ -237,10 +239,15 @@ export type { CatalogTool, CatalogAction, CatalogParam } from './tool-catalog-db
 // ── Agent definitions ────────────────────────────────────────────────────────
 export {
   storeAgent,
+  setAgentSurfaceConfig,
   getAgent,
   listAgents,
+  listPermanentAgents,
+  getBlockedTools,
+  getRequiredContextKeys,
   deleteAgent,
 } from './agent-definition-db.js';
+export type { StoreAgentInput, AgentSurfaceConfig } from './agent-definition-db.js';
 
 // ── Agent deployments ────────────────────────────────────────────────────────
 export {
@@ -253,6 +260,37 @@ export {
   deleteDeploymentsByWorkspace,
 } from './agent-deployment-db.js';
 export type { SyncStatus, UpsertDeploymentInput } from './agent-deployment-db.js';
+
+// ── Workspace session registry ────────────────────────────────────────────────
+export {
+  upsertSessionRegistry,
+  updateSessionRegistry,
+  completeRegistrySession,
+  getRegistryRow,
+  getActivePeerSessions,
+  getAllWorkspaceSessions,
+  pruneCompletedSessions,
+} from './workspace-session-registry-db.js';
+export type {
+  UpsertRegistryInput,
+  UpdateRegistryInput,
+  PeerSessionSummary,
+} from './workspace-session-registry-db.js';
+
+// ── GUI routing contracts ─────────────────────────────────────────────────────
+export {
+  seedGuiContract,
+  getGuiContract,
+  listGuiContracts,
+  getActiveContract,
+  setContractEnabled,
+} from './gui-routing-contracts-db.js';
+export type {
+  GuiContractSeedInput,
+  TriggerCriteria,
+  FeedbackPath,
+  FeedbackPaths,
+} from './gui-routing-contracts-db.js';
 
 // ── Instruction deployments ───────────────────────────────────────────────────
 export {

@@ -1,0 +1,375 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { resolveHubAliasRouting, type CanonicalHubMode, type LegacyHubLabel } from '../../tools/orchestration/hub-alias-routing.js';
+import { validateHubPolicy } from '../../tools/orchestration/hub-policy-enforcement.js';
+import {
+  buildHubTelemetrySnapshot,
+  evaluateHubPromotionGates,
+} from '../../tools/orchestration/hub-telemetry-dashboard.js';
+
+vi.mock('../../events/event-emitter.js', () => ({
+  getRecentEvents: vi.fn(),
+}));
+
+vi.mock('../../db/workspace-session-registry-db.js', () => ({
+  getAllWorkspaceSessions: vi.fn(),
+}));
+
+import { getRecentEvents } from '../../events/event-emitter.js';
+import { getAllWorkspaceSessions } from '../../db/workspace-session-registry-db.js';
+
+const mockGetRecentEvents = vi.mocked(getRecentEvents);
+const mockGetAllWorkspaceSessions = vi.mocked(getAllWorkspaceSessions);
+
+describe('Dynamic Hub scenario parity suite', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('resolves legacy labels to canonical modes with strict parity', () => {
+    const cases: Array<{ label: LegacyHubLabel; mode: CanonicalHubMode; allowedTarget: string }> = [
+      { label: 'Coordinator', mode: 'standard_orchestration', allowedTarget: 'Executor' },
+      { label: 'Analyst', mode: 'investigation', allowedTarget: 'Researcher' },
+      { label: 'Runner', mode: 'adhoc_runner', allowedTarget: 'Worker' },
+      { label: 'TDDDriver', mode: 'tdd_cycle', allowedTarget: 'Tester' },
+    ];
+
+    for (const testCase of cases) {
+      const legacyAlias = resolveHubAliasRouting(testCase.label);
+      const canonicalAlias = resolveHubAliasRouting('Hub', testCase.mode);
+
+      const legacyPolicy = validateHubPolicy(
+        {
+          target_agent_type: testCase.allowedTarget,
+          requested_hub_label: testCase.label,
+          requested_hub_mode: testCase.mode,
+          prompt_analyst_enrichment_applied: true,
+        },
+        legacyAlias,
+      );
+
+      const canonicalPolicy = validateHubPolicy(
+        {
+          target_agent_type: testCase.allowedTarget,
+          requested_hub_label: 'Hub',
+          requested_hub_mode: testCase.mode,
+          prompt_analyst_enrichment_applied: true,
+        },
+        canonicalAlias,
+      );
+
+      expect(legacyAlias.resolved_mode).toBe(testCase.mode);
+      expect(canonicalAlias.resolved_mode).toBe(testCase.mode);
+      expect(legacyPolicy.valid).toBe(canonicalPolicy.valid);
+      expect(legacyPolicy.code).toBe(canonicalPolicy.code);
+    }
+  });
+
+  it('enforces transition parity for legacy and canonical routing paths', () => {
+    const legacyAlias = resolveHubAliasRouting('Coordinator');
+    const canonicalAlias = resolveHubAliasRouting('Hub', 'standard_orchestration');
+
+    const legacyPolicy = validateHubPolicy(
+      {
+        target_agent_type: 'Executor',
+        previous_hub_mode: 'investigation',
+        requested_hub_label: 'Coordinator',
+        requested_hub_mode: 'standard_orchestration',
+        prompt_analyst_enrichment_applied: true,
+      },
+      legacyAlias,
+    );
+
+    const canonicalPolicy = validateHubPolicy(
+      {
+        target_agent_type: 'Executor',
+        previous_hub_mode: 'investigation',
+        requested_hub_label: 'Hub',
+        requested_hub_mode: 'standard_orchestration',
+        prompt_analyst_enrichment_applied: true,
+      },
+      canonicalAlias,
+    );
+
+    expect(legacyPolicy.valid).toBe(false);
+    expect(canonicalPolicy.valid).toBe(false);
+    expect(legacyPolicy.code).toBe('POLICY_TRANSITION_EVENT_REQUIRED');
+    expect(canonicalPolicy.code).toBe('POLICY_TRANSITION_EVENT_REQUIRED');
+  });
+
+  it('supports Prompt Analyst unavailable fallback when explicit bypass is set', () => {
+    const alias = resolveHubAliasRouting('Coordinator');
+
+    const blockedWithoutBypass = validateHubPolicy(
+      {
+        target_agent_type: 'Executor',
+        requested_hub_mode: 'standard_orchestration',
+        prompt_analyst_enrichment_applied: false,
+      },
+      alias,
+    );
+
+    const allowedWithBypass = validateHubPolicy(
+      {
+        target_agent_type: 'Executor',
+        requested_hub_mode: 'standard_orchestration',
+        prompt_analyst_enrichment_applied: false,
+        bypass_prompt_analyst_policy: true,
+      },
+      alias,
+    );
+
+    expect(blockedWithoutBypass.valid).toBe(false);
+    expect(blockedWithoutBypass.code).toBe('POLICY_PROMPT_ANALYST_REQUIRED');
+    expect(allowedWithBypass.valid).toBe(true);
+  });
+
+  it('aggregates telemetry for concurrent sessions, stale registry rows, and conflict triggers', async () => {
+    const now = new Date();
+    const staleUpdatedAt = new Date(now.getTime() - 90 * 60 * 1000).toISOString();
+    const freshUpdatedAt = new Date(now.getTime() - 3 * 60 * 1000).toISOString();
+
+    mockGetRecentEvents.mockResolvedValue([
+      {
+        id: 'evt1',
+        type: 'hub_routing_decision',
+        timestamp: now.toISOString(),
+        workspace_id: 'ws1',
+        plan_id: 'planA',
+        data: {
+          requested_hub_label: 'Coordinator',
+          alias_resolution_applied: true,
+          transition_event: 'manual_switch',
+          target_agent_type: 'Executor',
+          prompt_analyst_enrichment_applied: true,
+          prompt_analyst_latency_ms: 120,
+        },
+      },
+      {
+        id: 'evt2',
+        type: 'hub_routing_decision',
+        timestamp: now.toISOString(),
+        workspace_id: 'ws1',
+        plan_id: 'planB',
+        data: {
+          requested_hub_label: 'Hub',
+          alias_resolution_applied: false,
+          target_agent_type: 'Reviewer',
+          prompt_analyst_enrichment_applied: false,
+        },
+      },
+      {
+        id: 'evt3',
+        type: 'hub_policy_blocked',
+        timestamp: now.toISOString(),
+        workspace_id: 'ws1',
+        plan_id: 'planA',
+        data: { code: 'POLICY_MODE_BOUNDARY_VIOLATION' },
+      },
+      {
+        id: 'evt4',
+        type: 'step_updated',
+        timestamp: now.toISOString(),
+        workspace_id: 'ws1',
+        plan_id: 'planA',
+        data: { newStatus: 'blocked' },
+      },
+      {
+        id: 'evt5',
+        type: 'handoff',
+        timestamp: now.toISOString(),
+        workspace_id: 'ws1',
+        plan_id: 'planA',
+        data: { reason: 'loop' },
+      },
+      {
+        id: 'evt6',
+        type: 'handoff',
+        timestamp: now.toISOString(),
+        workspace_id: 'ws1',
+        plan_id: 'planB',
+        data: { reason: 'loop' },
+      },
+      {
+        id: 'evt7',
+        type: 'session_scope_conflict',
+        timestamp: now.toISOString(),
+        workspace_id: 'ws1',
+        plan_id: 'planA',
+        data: { session_id: 'sessConflict' },
+      },
+      {
+        id: 'evt8',
+        type: 'prompt_analyst_enrichment',
+        timestamp: now.toISOString(),
+        workspace_id: 'ws1',
+        plan_id: 'planA',
+        data: { latency_ms: 200 },
+      },
+    ] as any);
+
+    mockGetAllWorkspaceSessions.mockReturnValue([
+      {
+        id: 'sess_fresh',
+        workspace_id: 'ws1',
+        plan_id: 'planA',
+        agent_type: 'Executor',
+        current_phase: 'p1',
+        step_indices_claimed: '[]',
+        files_in_scope: '[]',
+        materialised_path: '/a',
+        status: 'active',
+        started_at: now.toISOString(),
+        updated_at: freshUpdatedAt,
+      },
+      {
+        id: 'sess_stale',
+        workspace_id: 'ws1',
+        plan_id: 'planB',
+        agent_type: 'Reviewer',
+        current_phase: 'p2',
+        step_indices_claimed: '[]',
+        files_in_scope: '[]',
+        materialised_path: '/b',
+        status: 'active',
+        started_at: now.toISOString(),
+        updated_at: staleUpdatedAt,
+      },
+      {
+        id: 'sess_done',
+        workspace_id: 'ws1',
+        plan_id: 'planA',
+        agent_type: 'Tester',
+        current_phase: 'p3',
+        step_indices_claimed: '[]',
+        files_in_scope: '[]',
+        materialised_path: '/c',
+        status: 'completed',
+        started_at: now.toISOString(),
+        updated_at: freshUpdatedAt,
+      },
+    ] as any);
+
+    const snapshot = await buildHubTelemetrySnapshot('ws1', {
+      window_hours: 24,
+      stale_threshold_minutes: 30,
+      event_limit: 200,
+    });
+
+    expect(snapshot.mode_selection_accuracy.total_decisions).toBe(2);
+    expect(snapshot.mode_selection_accuracy.blocked_decisions).toBe(1);
+    expect(snapshot.mode_selection_accuracy.accuracy_percent).toBe(50);
+
+    expect(snapshot.alias_usage_decay.legacy_alias_count).toBe(1);
+    expect(snapshot.alias_usage_decay.alias_usage_percent).toBe(50);
+    expect(snapshot.alias_usage_decay.by_label.Coordinator).toBe(1);
+
+    expect(snapshot.blocked_step_rate.blocked_steps).toBe(1);
+    expect(snapshot.blocked_step_rate.rate_percent).toBe(100);
+
+    expect(snapshot.handoff_churn.handoff_events).toBe(2);
+    expect(snapshot.handoff_churn.distinct_plans).toBe(2);
+    expect(snapshot.handoff_churn.average_handoffs_per_plan).toBe(1);
+
+    expect(snapshot.prompt_analyst.applied_count).toBe(1);
+    expect(snapshot.prompt_analyst.expected_count).toBe(2);
+    expect(snapshot.prompt_analyst.enrichment_hit_rate_percent).toBe(50);
+    expect(snapshot.prompt_analyst.avg_latency_ms).toBe(160);
+    expect(snapshot.prompt_analyst.p95_latency_ms).toBe(200);
+
+    expect(snapshot.cross_session_conflict_detection.conflict_events).toBe(1);
+    expect(snapshot.cross_session_conflict_detection.rate_percent).toBe(50);
+
+    expect(snapshot.session_registry_accuracy.active_count).toBe(2);
+    expect(snapshot.session_registry_accuracy.completed_count).toBe(1);
+    expect(snapshot.session_registry_accuracy.stale_active_count).toBe(1);
+    expect(snapshot.session_registry_accuracy.stale_active_rate_percent).toBe(50);
+  });
+
+  it('passes hard promotion gates when non-regression and thresholds are satisfied', () => {
+    const report = evaluateHubPromotionGates(
+      {
+        generated_at: '2026-02-27T00:00:00.000Z',
+        window_since: '2026-02-26T00:00:00.000Z',
+        window_hours: 24,
+        mode_selection_accuracy: { total_decisions: 100, blocked_decisions: 1, accuracy_percent: 99 },
+        transition_frequency: { transitions: 4, per_100_decisions: 4 },
+        alias_usage_decay: { legacy_alias_count: 20, canonical_mode_count: 80, alias_usage_percent: 20, by_label: {} },
+        blocked_step_rate: { blocked_steps: 2, total_step_updates: 100, rate_percent: 2 },
+        handoff_churn: { handoff_events: 20, distinct_plans: 20, average_handoffs_per_plan: 1 },
+        prompt_analyst: {
+          applied_count: 90,
+          expected_count: 100,
+          enrichment_hit_rate_percent: 90,
+          avg_latency_ms: 120,
+          p95_latency_ms: 220,
+        },
+        cross_session_conflict_detection: { conflict_events: 1, total_routes: 100, rate_percent: 1 },
+        session_registry_accuracy: {
+          active_count: 10,
+          completed_count: 50,
+          stale_active_count: 0,
+          stale_active_rate_percent: 0,
+          stale_threshold_minutes: 30,
+        },
+      },
+      {
+        baseline: {
+          blocked_step_rate_percent: 3,
+          average_handoffs_per_plan: 1.2,
+        },
+        scenario_parity_passed: true,
+      },
+    );
+
+    expect(report.passed).toBe(true);
+    expect(report.blockers).toHaveLength(0);
+    expect(report.gates.blocker_rate_non_regression.passed).toBe(true);
+    expect(report.gates.handoff_churn_reduction.passed).toBe(true);
+    expect(report.gates.prompt_analyst_hit_rate.passed).toBe(true);
+    expect(report.gates.cross_session_conflict_rate.passed).toBe(true);
+  });
+
+  it('fails hard promotion gates when parity/baseline/threshold conditions are not met', () => {
+    const report = evaluateHubPromotionGates(
+      {
+        generated_at: '2026-02-27T00:00:00.000Z',
+        window_since: '2026-02-26T00:00:00.000Z',
+        window_hours: 24,
+        mode_selection_accuracy: { total_decisions: 10, blocked_decisions: 5, accuracy_percent: 50 },
+        transition_frequency: { transitions: 8, per_100_decisions: 80 },
+        alias_usage_decay: { legacy_alias_count: 9, canonical_mode_count: 1, alias_usage_percent: 90, by_label: {} },
+        blocked_step_rate: { blocked_steps: 4, total_step_updates: 10, rate_percent: 40 },
+        handoff_churn: { handoff_events: 20, distinct_plans: 5, average_handoffs_per_plan: 4 },
+        prompt_analyst: {
+          applied_count: 10,
+          expected_count: 100,
+          enrichment_hit_rate_percent: 10,
+          avg_latency_ms: 300,
+          p95_latency_ms: 500,
+        },
+        cross_session_conflict_detection: { conflict_events: 3, total_routes: 10, rate_percent: 30 },
+        session_registry_accuracy: {
+          active_count: 3,
+          completed_count: 1,
+          stale_active_count: 2,
+          stale_active_rate_percent: 66.67,
+          stale_threshold_minutes: 30,
+        },
+      },
+      {
+        baseline: {
+          blocked_step_rate_percent: 5,
+          average_handoffs_per_plan: 2,
+        },
+        scenario_parity_passed: false,
+      },
+    );
+
+    expect(report.passed).toBe(false);
+    expect(report.blockers).toContain('scenario_parity_failed');
+    expect(report.blockers).toContain('blocker_rate_non_regression_failed');
+    expect(report.blockers).toContain('handoff_churn_reduction_failed');
+    expect(report.blockers).toContain('prompt_analyst_hit_rate_failed');
+    expect(report.blockers).toContain('cross_session_conflict_rate_failed');
+  });
+});

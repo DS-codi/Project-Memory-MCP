@@ -102,6 +102,13 @@ export function WorkspacePage() {
     );
   }
 
+  const activePlanCount = Array.isArray(workspace.active_plans)
+    ? workspace.active_plans.length
+    : (typeof workspace.active_plan_count === 'number' ? workspace.active_plan_count : 0);
+  const archivedPlanCount = Array.isArray(workspace.archived_plans)
+    ? workspace.archived_plans.length
+    : (typeof workspace.archived_plan_count === 'number' ? workspace.archived_plan_count : 0);
+
   const currentDisplayName = workspace.name;
   const trimmedDraftDisplayName = draftDisplayName.trim();
   const hasDisplayNameChanged = trimmedDraftDisplayName.length > 0 && trimmedDraftDisplayName !== currentDisplayName;
@@ -236,11 +243,11 @@ export function WorkspacePage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="flex items-center gap-2">
                 <FileText size={16} className="text-slate-500" />
-                <span className="text-slate-300">{workspace.active_plans.length} active</span>
+                <span className="text-slate-300">{activePlanCount} active</span>
               </div>
               <div className="flex items-center gap-2">
                 <FileText size={16} className="text-slate-500" />
-                <span className="text-slate-400">{workspace.archived_plans.length} archived</span>
+                <span className="text-slate-400">{archivedPlanCount} archived</span>
               </div>
               <div className="flex items-center gap-2">
                 <Calendar size={16} className="text-slate-500" />

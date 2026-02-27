@@ -101,11 +101,12 @@ Rectangle {
                 text: "Approve"
                 Layout.fillWidth: true
                 implicitHeight: 36
+                font.pixelSize: 11
 
                 contentItem: Text {
                     text: approveBtn.text
                     color: "white"
-                    font.pixelSize: 13
+                    font.pixelSize: 11
                     font.bold: true
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
@@ -124,11 +125,12 @@ Rectangle {
                 text: "Decline"
                 Layout.fillWidth: true
                 implicitHeight: 36
+                font.pixelSize: 11
 
                 contentItem: Text {
                     text: declineBtn.text
                     color: "white"
-                    font.pixelSize: 13
+                    font.pixelSize: 11
                     font.bold: true
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter

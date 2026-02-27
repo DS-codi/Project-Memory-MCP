@@ -17,6 +17,19 @@ Rectangle {
     property string outputText: ""
     property var terminalApp: null
     property bool hasActiveTerminalSession: true
+    property int controlFontPx: 11
+    property int inputFontPx: 11
+    property string activePath: {
+        if (!terminalApp) {
+            return "~"
+        }
+        const working = (terminalApp.workingDirectory || "").trim()
+        if (working.length > 0) {
+            return working
+        }
+        const workspace = (terminalApp.currentWorkspacePath || "").trim()
+        return workspace.length > 0 ? workspace : "~"
+    }
 
     color: "#1a1a1a"
 
@@ -55,6 +68,7 @@ Rectangle {
                         text: "Copy"
                         implicitWidth: 58
                         implicitHeight: 26
+                        font.pixelSize: outputRoot.controlFontPx
 
                     contentItem: Text {
                         text: copyBtn.text
@@ -83,6 +97,7 @@ Rectangle {
                         text: "Save TXT"
                         implicitWidth: 78
                         implicitHeight: 26
+                        font.pixelSize: outputRoot.controlFontPx
 
                     contentItem: Text {
                         text: saveTxtBtn.text
@@ -111,6 +126,7 @@ Rectangle {
                         text: "Save JSON"
                         implicitWidth: 82
                         implicitHeight: 26
+                        font.pixelSize: outputRoot.controlFontPx
 
                     contentItem: Text {
                         text: saveJsonBtn.text
@@ -139,6 +155,7 @@ Rectangle {
                         text: "Clear"
                         implicitWidth: 56
                         implicitHeight: 26
+                        font.pixelSize: outputRoot.controlFontPx
 
                     contentItem: Text {
                         text: clearBtn.text
@@ -191,7 +208,7 @@ Rectangle {
                 readOnly: true
                 color: "#d4d4d4"
                 font.family: "Consolas"
-                font.pixelSize: 12
+                font.pixelSize: Math.max(11, Math.floor(outputRoot.width / 60))
                 wrapMode: TextEdit.Wrap
                 selectByMouse: true
 
@@ -218,37 +235,46 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 56
-            color: "#252526"
+            color: "#1a1a1a"
 
             RowLayout {
                 anchors.fill: parent
-                anchors.margins: 8
-                spacing: 8
+                anchors.leftMargin: 10
+                anchors.rightMargin: 10
+                anchors.topMargin: 8
+                anchors.bottomMargin: 8
+                spacing: 6
+
+                Text {
+                    Layout.maximumWidth: Math.max(180, outputRoot.width * 0.45)
+                    text: outputRoot.activePath + " >"
+                    color: "#9da0a6"
+                    elide: Text.ElideLeft
+                    font.family: "Consolas"
+                    font.pixelSize: outputRoot.inputFontPx
+                    verticalAlignment: Text.AlignVCenter
+                }
 
                 TextField {
                     id: manualCommandInput
                     Layout.fillWidth: true
-                    Layout.minimumWidth: 280
+                    Layout.minimumWidth: 100
                     enabled: outputRoot.hasActiveTerminalSession
                     opacity: enabled ? 1.0 : 0.55
                     placeholderText: enabled
-                        ? "Enter command for current session"
+                        ? "Type command and press Enter"
                         : "No active terminal session"
+                    font.family: "Consolas"
+                    font.pixelSize: outputRoot.inputFontPx
                     onAccepted: {
                         if (terminalApp && terminalApp.runCommand(text)) {
                             text = ""
                         }
                     }
-                }
 
-                Button {
-                    text: "Run"
-                    Layout.preferredWidth: 92
-                    enabled: outputRoot.hasActiveTerminalSession
-                    onClicked: {
-                        if (terminalApp && terminalApp.runCommand(manualCommandInput.text)) {
-                            manualCommandInput.text = ""
-                        }
+                    background: Rectangle {
+                        color: "transparent"
+                        border.color: "transparent"
                     }
                 }
             }

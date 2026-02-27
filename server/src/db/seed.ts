@@ -21,6 +21,7 @@ import { seedToolCatalog, type CatalogTool } from './tool-catalog-db.js';
 import { storeAgent } from './agent-definition-db.js';
 import { storeInstruction } from './instruction-db.js';
 import { storeSkill } from './skill-db.js';
+import { seedGuiContract } from './gui-routing-contracts-db.js';
 
 // ── Path resolution ───────────────────────────────────────────────────────────
 
@@ -216,10 +217,12 @@ async function seedAgentDefinitions(projectRoot: string): Promise<number> {
       parsed.name,
       content,
       {
-        slug:        file.replace('.agent.md', ''),
-        description: parsed.description,
-        version:     parsed.version ?? '1.0.0',
-        tags:        parsed.tags ?? [],
+        metadata: {
+          slug:        file.replace('.agent.md', ''),
+          description: parsed.description,
+          version:     parsed.version ?? '1.0.0',
+          tags:        parsed.tags ?? [],
+        },
       }
     );
     count++;
@@ -348,6 +351,113 @@ async function seedSkills(projectRoot: string): Promise<number> {
   return count;
 }
 
+// ── GUI routing contracts ─────────────────────────────────────────────────────
+
+/**
+ * Seed both GUI routing contracts (approval + brainstorm).
+ * Idempotent — updates existing rows, inserts if missing.
+ */
+function seedGuiRoutingContracts(): void {
+  // ── Approval contract ────────────────────────────────────────────────────
+  seedGuiContract({
+    contractType: 'approval',
+    version:      '1.0',
+    triggerCriteria: {
+      riskLevels:          ['high', 'critical'],
+      irreversibleOnly:    false,
+      confirmationScopes:  ['multi-step', 'plan-level'],
+    },
+    invocationParamsSchema: {
+      type:       'object',
+      required:   ['action_description', 'risk_level', 'confirmation_scope'],
+      properties: {
+        action_description: { type: 'string', description: 'Human-readable description of the action requiring approval.' },
+        risk_level:         { type: 'string', enum: ['low', 'medium', 'high', 'critical'] },
+        confirmation_scope: { type: 'string', enum: ['single-step', 'multi-step', 'plan-level'] },
+        reversible:         { type: 'boolean', default: true },
+        context_notes:      { type: 'string' },
+        plan_id:            { type: 'string' },
+        step_index:         { type: 'number' },
+      },
+    },
+    responseSchema: {
+      type:       'object',
+      required:   ['outcome'],
+      properties: {
+        outcome: { type: 'string', enum: ['approve', 'reject', 'timeout'] },
+        notes:   { type: 'string' },
+      },
+    },
+    feedbackPaths: {
+      approve: [
+        { tool: 'memory_plan', action: 'confirm',
+          params: { confirmed_by: 'user', confirmation_scope: 'step' } },
+      ],
+      reject: [
+        { tool: 'memory_steps', action: 'update',
+          params: { status: 'blocked', notes: 'Rejected via approval GUI.' } },
+        { tool: 'memory_plan', action: 'add_note',
+          params: { note_type: 'warning' } },
+      ],
+      timeout: [
+        // Same as reject
+        { tool: 'memory_steps', action: 'update',
+          params: { status: 'blocked', notes: 'Approval GUI timed out — treated as reject.' } },
+        { tool: 'memory_plan', action: 'add_note',
+          params: { note_type: 'warning' } },
+      ],
+    },
+    fallbackBehavior: 'block',
+    enabled:          true,
+  });
+
+  // ── Brainstorm contract ──────────────────────────────────────────────────
+  seedGuiContract({
+    contractType: 'brainstorm',
+    version:      '1.0',
+    triggerCriteria: {
+      planCategories:    ['orchestration', 'analysis'],
+      optionalitySignal: true,
+    },
+    invocationParamsSchema: {
+      type:       'object',
+      required:   ['question', 'options'],
+      properties: {
+        question:     { type: 'string', description: 'The open question or decision to explore.' },
+        options:      { type: 'array', items: { type: 'string' },
+                        description: 'Candidate approaches or options for the user to evaluate.' },
+        recommended:  { type: 'string', description: 'The option Hub recommends (pre-selected as default).' },
+        context_notes: { type: 'string' },
+        plan_id:      { type: 'string' },
+      },
+    },
+    responseSchema: {
+      type:       'object',
+      required:   ['outcome', 'selected_option'],
+      properties: {
+        outcome:         { type: 'string', enum: ['select', 'timeout'] },
+        selected_option: { type: 'string' },
+        notes:           { type: 'string' },
+      },
+    },
+    feedbackPaths: {
+      select: [
+        { tool: 'memory_context', action: 'append_research',
+          params: { filename: 'brainstorm-decisions.md' } },
+        { tool: 'memory_steps', action: 'add' },
+      ],
+      timeout: [
+        // Auto-select recommended option and proceed
+        { tool: 'memory_context', action: 'append_research',
+          params: { filename: 'brainstorm-decisions.md' } },
+        { tool: 'memory_steps', action: 'add' },
+      ],
+    },
+    fallbackBehavior: 'auto-select-recommended',
+    enabled:          true,
+  });
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export interface SeedResult {
@@ -355,6 +465,7 @@ export interface SeedResult {
   agents:       number;
   instructions: number;
   skills:       number;
+  guiContracts: number;
 }
 
 /**
@@ -386,6 +497,10 @@ export async function runSeed(projectRoot?: string): Promise<SeedResult> {
   const skillCount = await seedSkills(root);
   console.log(`[seed]   ${skillCount} skills`);
 
+  console.log('[seed] Seeding GUI routing contracts...');
+  seedGuiRoutingContracts();
+  console.log('[seed]   2 contracts (approval, brainstorm)');
+
   console.log('[seed] Done.');
 
   return {
@@ -393,6 +508,7 @@ export async function runSeed(projectRoot?: string): Promise<SeedResult> {
     agents:       agentCount,
     instructions: instrCount,
     skills:       skillCount,
+    guiContracts: 2,
   };
 }
 

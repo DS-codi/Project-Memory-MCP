@@ -5,7 +5,8 @@ import * as crypto from 'crypto';
 import { promisify } from 'util';
 import {
   getWorkspace, getPlansByWorkspace, getPlan, getPlanPhases, getPlanSteps,
-  getPlanSessions, getPlanLineage, getPlanNotes, getBuildScripts,
+  getPlanSessions, getPlanLineage, getPlanNotes, getBuildScripts, getPlanContext,
+  getProgramChildPlans,
 } from '../db/queries.js';
 import { emitEvent } from '../events/emitter.js';
 
@@ -21,6 +22,56 @@ async function requireWorkspaceMeta(workspaceId: string): Promise<boolean> {
 function safeParseJson<T>(json: string | null | undefined, fallback: T): T {
   if (!json) return fallback;
   try { return JSON.parse(json) as T; } catch { return fallback; }
+}
+
+function normalizeContextType(type: string): string {
+  return String(type || '').replace(/\.json$/i, '');
+}
+
+function contextTypeToFilename(type: string): string {
+  const normalized = normalizeContextType(type);
+  return normalized.endsWith('.json') ? normalized : `${normalized}.json`;
+}
+
+function parseContextRowData(data: string): Record<string, unknown> {
+  return safeParseJson<Record<string, unknown>>(data, {});
+}
+
+function isResearchContextType(type: string): boolean {
+  const normalized = normalizeContextType(type).toLowerCase();
+  return normalized.includes('research');
+}
+
+function asResearchNote(row: { type: string; data: string; updated_at: string; created_at: string }): {
+  filename: string;
+  content: string;
+  modified_at: string;
+} {
+  const parsed = parseContextRowData(row.data);
+  const candidateFilename =
+    (typeof parsed.filename === 'string' && parsed.filename) ||
+    (typeof parsed.title === 'string' && parsed.title) ||
+    `${normalizeContextType(row.type)}.md`;
+  const contentFromData =
+    (typeof parsed.content === 'string' && parsed.content) ||
+    (typeof parsed.note === 'string' && parsed.note) ||
+    (typeof parsed.markdown === 'string' && parsed.markdown) ||
+    null;
+
+  return {
+    filename: candidateFilename,
+    content: contentFromData ?? JSON.stringify(parsed, null, 2),
+    modified_at: row.updated_at || row.created_at,
+  };
+}
+
+function deprecatedFileReadResponse(resource: string) {
+  return {
+    error: `Legacy file-based ${resource} read is deprecated.`,
+    code: 'LEGACY_FILE_READ_DEPRECATED',
+    message: 'This dashboard endpoint is DB-only for planning/tracking data. Use DB-backed context/research endpoints.',
+    action: 'Use /api/plans/:workspaceId/:planId/context and /api/plans/:workspaceId/:planId/research for DB-backed reads.',
+  };
 }
 
 type PlanTemplateId = 'feature' | 'bugfix' | 'refactor' | 'documentation' | 'analysis' | 'investigation';
@@ -135,20 +186,31 @@ const PLAN_TEMPLATES: Record<PlanTemplateId, {
 plansRouter.get('/workspace/:workspaceId', (req, res) => {
   try {
     const plans = getPlansByWorkspace(req.params.workspaceId, true);
-    const summaries = plans.map(plan => ({
-      id: plan.id,
-      workspace_id: plan.workspace_id,
-      title: plan.title,
-      description: plan.description,
-      status: plan.status,
-      category: plan.category,
-      priority: plan.priority,
-      is_program: plan.is_program === 1,
-      parent_program_id: plan.parent_program_id,
-      created_at: plan.created_at,
-      updated_at: plan.updated_at,
-      archived_at: plan.archived_at,
-    }));
+    const summaries = plans.map(plan => {
+      const steps = getPlanSteps(plan.id);
+      const doneSteps = steps.filter(step => step.status === 'done').length;
+      const childPlansCount = plan.is_program === 1 ? getProgramChildPlans(plan.id).length : 0;
+
+      return {
+        id: plan.id,
+        workspace_id: plan.workspace_id,
+        title: plan.title,
+        description: plan.description,
+        status: plan.status,
+        category: plan.category,
+        priority: plan.priority,
+        is_program: plan.is_program === 1,
+        parent_program_id: plan.parent_program_id,
+        progress: {
+          done: doneSteps,
+          total: steps.length,
+        },
+        child_plans_count: childPlansCount,
+        created_at: plan.created_at,
+        updated_at: plan.updated_at,
+        archived_at: plan.archived_at,
+      };
+    });
     res.json({ plans: summaries, total: summaries.length });
   } catch (error) {
     console.error('Error getting plans:', error);
@@ -384,10 +446,9 @@ plansRouter.post('/:workspaceId/:planId/context', async (req, res) => {
 // GET /api/plans/:workspaceId/:planId/context - List context files
 plansRouter.get('/:workspaceId/:planId/context', async (req, res) => {
   try {
-    const { workspaceId, planId } = req.params;
-    const planDir = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'plans', planId);
-    const files = await fs.readdir(planDir);
-    const contextFiles = files.filter(file => file.endsWith('.json') && file !== 'state.json' && file !== 'audit.json');
+    const { planId } = req.params;
+    const contextItems = getPlanContext(planId);
+    const contextFiles = Array.from(new Set(contextItems.map((item) => contextTypeToFilename(item.type))));
     res.json({ context: contextFiles });
   } catch (error) {
     console.error('Error listing context files:', error);
@@ -397,31 +458,35 @@ plansRouter.get('/:workspaceId/:planId/context', async (req, res) => {
 
 // GET /api/plans/:workspaceId/:planId/context/research - List research note files
 plansRouter.get('/:workspaceId/:planId/context/research', async (req, res) => {
-  try {
-    const { workspaceId, planId } = req.params;
-    const researchDir = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'plans', planId, 'research_notes');
-    try {
-      const files = await fs.readdir(researchDir);
-      res.json({ notes: files });
-    } catch {
-      res.json({ notes: [] });
-    }
-  } catch (error) {
-    console.error('Error listing research notes:', error);
-    res.status(500).json({ error: 'Failed to list research notes' });
-  }
+  return res.status(410).json(deprecatedFileReadResponse('research_notes directory'));
 });
 
 // GET /api/plans/:workspaceId/:planId/context/:type - Get context data by type
 plansRouter.get('/:workspaceId/:planId/context/:type', async (req, res) => {
   try {
     const { workspaceId, planId, type } = req.params;
-    const contextPath = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'plans', planId, `${type}.json`);
-    const content = await fs.readFile(contextPath, 'utf-8');
-    res.json(JSON.parse(content));
+    const normalizedType = normalizeContextType(type);
+    const contextItems = getPlanContext(planId, normalizedType);
+    const item = contextItems[0];
+
+    if (!item) {
+      return res.status(404).json({
+        error: 'Context not found in DB',
+        code: 'CONTEXT_NOT_FOUND_DB',
+        message: 'File-based fallback is deprecated; context must be available in dashboard DB context_items.',
+      });
+    }
+
+    res.json({
+      type: item.type,
+      plan_id: planId,
+      workspace_id: workspaceId,
+      stored_at: item.updated_at || item.created_at,
+      data: parseContextRowData(item.data),
+    });
   } catch (error) {
     console.error('Error getting context:', error);
-    res.status(404).json({ error: 'Context not found' });
+    res.status(500).json({ error: 'Failed to get context from DB' });
   }
 });
 
@@ -473,14 +538,14 @@ plansRouter.get('/:workspaceId/:planId/audit', (req, res) => {
 // GET /api/plans/:workspaceId/:planId/research - Get research notes
 plansRouter.get('/:workspaceId/:planId/research', async (req, res) => {
   try {
-    const { workspaceId, planId } = req.params;
-    const researchDir = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'plans', planId, 'research_notes');
-    let notes: string[] = [];
-    try { notes = await fs.readdir(researchDir); } catch {}
+    const { planId } = req.params;
+    const notes = getPlanContext(planId)
+      .filter((item) => isResearchContextType(item.type))
+      .map((item) => asResearchNote(item));
     res.json({ notes });
   } catch (error) {
     console.error('Error getting research notes:', error);
-    res.status(500).json({ error: 'Failed to get research notes' });
+    res.status(500).json({ error: 'Failed to get research notes from DB' });
   }
 });
 

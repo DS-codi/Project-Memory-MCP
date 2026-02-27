@@ -8,9 +8,8 @@
  * 3. Wait for FormResponse (up to 5 min timeout).
  * 4. Return the structured answers for the Architect to consume.
  *
- * If the GUI is unavailable, `routeBrainstormWithFallback()` transparently
- * falls back to a plain-text extraction path so the Architect always
- * receives usable data regardless of GUI availability.
+ * Under the specialized_host-only policy, no non-GUI fallback path is used.
+ * GUI unavailability is surfaced as a routing error.
  *
  * Created in Phase 4 (Hub Integration) of the Brainstorm GUI plan.
  */
@@ -49,8 +48,8 @@ export interface BrainstormRoutingResult {
   /** Whether the routing succeeded end-to-end. */
   success: boolean;
   /** Which path was used. */
-  path: 'gui' | 'fallback';
-  /** The structured answers from the user (or auto-filled defaults). */
+  path: 'gui';
+  /** The structured answers from the user. */
   answers: Answer[];
   /** Full FormResponse when GUI was used. */
   gui_response?: FormResponse;
@@ -290,107 +289,6 @@ export async function routeBrainstormToGui(
   return launchFormApp('brainstorm_gui', formRequest, guiTimeout, opts);
 }
 
-// =========================================================================
-// Fallback path (Step 22)
-// =========================================================================
-
-/**
- * Extract a plain-text summary from a FormRequest by reading the
- * recommended options and question labels.
- *
- * Used when the GUI is unavailable — the Architect receives a text summary
- * derived from the Brainstorm agent's recommendations instead of user
- * selections.
- *
- * This is the "chat fallback" path.
- */
-export function extractFallbackTextFromRequest(
-  formRequest: FormRequest,
-): { answers: Answer[]; text_summary: string } {
-  const answers: Answer[] = [];
-  const lines: string[] = [];
-
-  lines.push(`# Brainstorm Decisions (auto-filled — GUI unavailable)`);
-  lines.push('');
-
-  for (const question of formRequest.questions) {
-    switch (question.type) {
-      case 'radio_select': {
-        const recommended = question.options.find(o => o.recommended);
-        const selected = recommended ?? question.options[0];
-        if (selected) {
-          answers.push({
-            question_id: question.id,
-            value: {
-              type: 'radio_select_answer',
-              selected: selected.id,
-            } as RadioSelectAnswer,
-            auto_filled: true,
-          });
-          lines.push(`## ${question.label}`);
-          if (question.description) lines.push(question.description);
-          lines.push(`**Selected:** ${selected.label}`);
-          if (selected.description) lines.push(selected.description);
-          if (selected.pros?.length) lines.push(`Pros: ${selected.pros.join(', ')}`);
-          if (selected.cons?.length) lines.push(`Cons: ${selected.cons.join(', ')}`);
-          lines.push('');
-        }
-        break;
-      }
-      case 'free_text': {
-        const defaultValue = question.default_value ?? '';
-        answers.push({
-          question_id: question.id,
-          value: {
-            type: 'free_text_answer',
-            value: defaultValue,
-          } as FreeTextAnswer,
-          auto_filled: true,
-        });
-        if (defaultValue) {
-          lines.push(`## ${question.label}`);
-          lines.push(defaultValue);
-          lines.push('');
-        }
-        break;
-      }
-      case 'confirm_reject': {
-        // Auto-approve by default
-        answers.push({
-          question_id: question.id,
-          value: {
-            type: 'confirm_reject_answer',
-            action: 'approve',
-          },
-          auto_filled: true,
-        });
-        lines.push(`## ${question.label}`);
-        lines.push('**Auto-approved** (GUI unavailable)');
-        lines.push('');
-        break;
-      }
-      case 'countdown_timer': {
-        // Timer doesn't produce user input — skip
-        answers.push({
-          question_id: question.id,
-          value: {
-            type: 'countdown_timer_answer',
-            result: 'completed',
-            elapsed_seconds: 0,
-          },
-          auto_filled: true,
-        });
-        break;
-      }
-    }
-  }
-
-  return {
-    answers,
-    text_summary: lines.join('\n'),
-  };
-}
-
 /**
  * Extract a plain-text summary from a completed FormResponse.
  *
@@ -455,15 +353,13 @@ export function extractTextFromResponse(
 }
 
 // =========================================================================
-// Combined routing with automatic fallback
+// Combined routing (specialized_host-only; no fallback)
 // =========================================================================
 
 /**
- * Route a brainstorm FormRequest through the GUI if available,
- * or fall back to a text extraction if the GUI is unavailable.
+ * Route a brainstorm FormRequest through the GUI only.
  *
- * This is the primary entry point for the Coordinator. The Architect
- * always receives a usable result regardless of GUI availability.
+ * This is the primary entry point for the Coordinator.
  *
  * @param formRequest - The brainstorm FormRequest from the Brainstorm agent
  * @param opts - Supervisor connection options
@@ -479,13 +375,12 @@ export async function routeBrainstormWithFallback(
   const availability = await checkGuiAvailability(opts);
 
   if (!availability.supervisor_running || !availability.brainstorm_gui) {
-    // Fallback: extract recommendations as text
-    const fallback = extractFallbackTextFromRequest(formRequest);
     return {
-      success: true,
-      path: 'fallback',
-      answers: fallback.answers,
-      text_summary: fallback.text_summary,
+      success: false,
+      path: 'gui',
+      answers: [],
+      text_summary: '',
+      error: 'Brainstorm GUI unavailable in specialized_host-only mode',
       elapsed_ms: Date.now() - startTime,
     };
   }
@@ -508,25 +403,21 @@ export async function routeBrainstormWithFallback(
       };
     }
 
-    // GUI launched but failed — fall back to text extraction
-    const fallback = extractFallbackTextFromRequest(formRequest);
     return {
-      success: true,
-      path: 'fallback',
-      answers: fallback.answers,
-      text_summary: fallback.text_summary,
-      error: `GUI failed: ${result.error ?? 'unknown error'}; used fallback`,
+      success: false,
+      path: 'gui',
+      answers: [],
+      text_summary: '',
+      error: `GUI failed: ${result.error ?? 'unknown error'}`,
       elapsed_ms: Date.now() - startTime,
     };
   } catch (err) {
-    // Connection/timeout error — fall back
-    const fallback = extractFallbackTextFromRequest(formRequest);
     return {
-      success: true,
-      path: 'fallback',
-      answers: fallback.answers,
-      text_summary: fallback.text_summary,
-      error: `GUI error: ${err instanceof Error ? err.message : String(err)}; used fallback`,
+      success: false,
+      path: 'gui',
+      answers: [],
+      text_summary: '',
+      error: `GUI error: ${err instanceof Error ? err.message : String(err)}`,
       elapsed_ms: Date.now() - startTime,
     };
   }

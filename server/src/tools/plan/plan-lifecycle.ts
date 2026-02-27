@@ -333,7 +333,7 @@ export async function deletePlan(
       };
     }
 
-    // Get workspace and verify plan exists
+    // Verify workspace and plan exist
     const workspace = await store.getWorkspace(workspace_id);
     if (!workspace) {
       return {
@@ -342,25 +342,29 @@ export async function deletePlan(
       };
     }
 
-    if (!workspace.active_plans.includes(plan_id)) {
+    const existingPlan = await store.getPlanState(workspace_id, plan_id);
+    if (!existingPlan) {
       return {
         success: false,
         error: `Plan ${plan_id} not found in workspace ${workspace_id}`
       };
     }
 
-    // Remove from workspace active_plans
-    workspace.active_plans = workspace.active_plans.filter(p => p !== plan_id);
-    await store.saveWorkspace(workspace);
+    // Delete plan from DB (cascade removes phases/steps/sessions/lineage/context)
+    const deleted = await store.deletePlan(workspace_id, plan_id);
+    if (!deleted) {
+      return {
+        success: false,
+        error: `Failed to delete plan: ${plan_id}`
+      };
+    }
 
-    // Delete plan directory
     const planPath = store.getPlanPath(workspace_id, plan_id);
-    await fs.rm(planPath, { recursive: true, force: true });
     await appendWorkspaceFileUpdate({
       workspace_id,
       plan_id,
       file_path: planPath,
-      summary: 'Deleted plan directory',
+      summary: 'Deleted plan from DB',
       action: 'delete_plan'
     });
 
@@ -672,37 +676,36 @@ export async function exportPlan(params: {
     await fs.writeFile(planJsonPath, JSON.stringify(planState, null, 2), 'utf-8');
     filesExported.push('plan.json');
 
-    // 4. Copy context files
-    const planDir = store.getPlanPath(workspace_id, plan_id);
+    // 4. Export context files from DB
     const contextDir = path.join(exportRoot, 'context');
     await store.ensureDir(contextDir);
     try {
-      const entries = await fs.readdir(planDir);
-      for (const f of entries) {
-        if (f.endsWith('.json') && f !== 'state.json') {
-          const src = path.join(planDir, f);
-          const dest = path.join(contextDir, f);
-          await fs.copyFile(src, dest);
-          filesExported.push(`context/${f}`);
-        }
+      const contextTypes = await store.listPlanContextTypesFromDb(workspace_id, plan_id);
+      for (const type of contextTypes) {
+        const payload = await store.getPlanContextFromDb(workspace_id, plan_id, type);
+        if (payload === null) continue;
+        const fileName = `${type}.json`;
+        const dest = path.join(contextDir, fileName);
+        await fs.writeFile(dest, JSON.stringify(payload, null, 2), 'utf-8');
+        filesExported.push(`context/${fileName}`);
       }
     } catch { /* no extra context files */ }
 
-    // 5. Copy research notes
-    const researchSrc = store.getResearchNotesPath(workspace_id, plan_id);
+    // 5. Export research notes from DB
     const researchDest = path.join(exportRoot, 'research_notes');
     try {
-      const rFiles = await fs.readdir(researchSrc);
-      if (rFiles.length > 0) {
+      const notes = await store.listPlanResearchNotesFromDb(workspace_id, plan_id);
+      if (notes.length > 0) {
         await store.ensureDir(researchDest);
-        for (const rf of rFiles) {
-          await fs.copyFile(path.join(researchSrc, rf), path.join(researchDest, rf));
-          filesExported.push(`research_notes/${rf}`);
+        for (const note of notes) {
+          await fs.writeFile(path.join(researchDest, note.filename), note.content, 'utf-8');
+          filesExported.push(`research_notes/${note.filename}`);
         }
       }
     } catch { /* no research notes */ }
 
     // 6. Copy prompts
+    const planDir = store.getPlanPath(workspace_id, plan_id);
     const promptsSrc = path.join(planDir, 'prompts');
     const promptsDest = path.join(exportRoot, 'prompts');
     try {

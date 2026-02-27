@@ -100,6 +100,7 @@ export const TERMINAL_PARAMS: Record<string, ActionParamDef> = {
       { name: 'cwd', type: 'string', description: 'Working directory' },
       { name: 'timeout_ms', type: 'number', description: 'Execution timeout in milliseconds' },
       { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+      { name: 'env', type: 'object', description: 'Per-request environment variables for the spawned process (for run). Supports Gemini/Google API key alias auto-expansion.' },
     ],
   },
 

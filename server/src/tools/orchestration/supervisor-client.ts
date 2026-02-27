@@ -44,13 +44,102 @@ export interface ContinueAppRequest {
   timeout_seconds?: number;
 }
 
-export type ControlRequest = StatusRequest | WhoAmIRequestPayload | LaunchAppRequest | ContinueAppRequest;
+export interface ListMcpConnectionsRequest {
+  type: 'ListMcpConnections';
+}
+
+export interface CloseMcpConnectionRequest {
+  type: 'CloseMcpConnection';
+  session_id: string;
+}
+
+export interface ListMcpInstancesRequest {
+  type: 'ListMcpInstances';
+}
+
+export interface ScaleUpMcpRequest {
+  type: 'ScaleUpMcp';
+}
+
+export interface McpRuntimeExecRequest {
+  type: 'McpRuntimeExec';
+  payload: McpRuntimeExecPayload;
+  timeout_ms?: number;
+}
+
+export interface SetMcpRuntimePolicyRequest {
+  type: 'SetMcpRuntimePolicy';
+  enabled?: boolean;
+  wave_cohorts?: string[];
+  hard_stop_gate?: boolean;
+}
+
+export interface McpRuntimeExecPayload {
+  runtime?: {
+    op?: 'init' | 'execute' | 'cancel' | 'complete';
+    session_id?: string;
+    wave_cohort?: string;
+    cohort?: string;
+  };
+  wave_cohort?: string;
+  cohort?: string;
+  [key: string]: unknown;
+}
+
+export type ControlRequest =
+  | StatusRequest
+  | WhoAmIRequestPayload
+  | LaunchAppRequest
+  | ContinueAppRequest
+  | ListMcpConnectionsRequest
+  | CloseMcpConnectionRequest
+  | ListMcpInstancesRequest
+  | ScaleUpMcpRequest
+  | McpRuntimeExecRequest
+  | SetMcpRuntimePolicyRequest;
 
 /** Generic response envelope from the Supervisor. */
 export interface ControlResponse {
   ok: boolean;
   error?: string;
   data: unknown;
+}
+
+export interface DeprecatedPoolCommandEnvelope {
+  supported: false;
+  deprecated: true;
+  reason: 'instance_pool_removed';
+  command: string;
+  runtime_mode: 'native_supervisor';
+}
+
+export interface RuntimeHardStopEnvelope {
+  error_class: 'hard_stop';
+  reason: 'cohort_not_enabled' | string;
+  requested_cohort: string;
+  allowed_cohorts: string[];
+}
+
+export interface RuntimePreconditionEnvelope {
+  error_class: 'runtime_precondition';
+  reason: 'runtime_disabled' | string;
+  required_env: Record<string, string>;
+  required_control?: {
+    type: 'SetMcpRuntimePolicy';
+    enabled: boolean;
+    wave_cohorts: string[];
+    hard_stop_gate: boolean;
+  };
+  wave1_validation?: {
+    cohort: string;
+    hard_stop_gate_required: boolean;
+  };
+}
+
+export interface RuntimePolicyState {
+  runtime_enabled: boolean;
+  wave_cohorts: string[];
+  hard_stop_gate: boolean;
 }
 
 /** WhoAmI response data. */
@@ -102,6 +191,9 @@ export interface GuiAvailability {
 
 /** Default named pipe path on Windows. */
 const DEFAULT_PIPE_PATH = '\\\\.\\pipe\\project-memory-supervisor';
+
+/** Optional override used by isolated validation shells. */
+const ENV_PIPE_PATH = process.env.PM_ORCHESTRATION_SUPERVISOR_PIPE_PATH?.trim();
 
 /** Default TCP port when using TCP transport. */
 const DEFAULT_TCP_PORT = 45470;
@@ -170,7 +262,7 @@ function connectToSupervisor(
     });
 
     if (usePipe) {
-      const pipePath = opts.pipePath ?? DEFAULT_PIPE_PATH;
+      const pipePath = opts.pipePath ?? ENV_PIPE_PATH ?? DEFAULT_PIPE_PATH;
       socket.connect({ path: pipePath });
     } else {
       const host = opts.tcpHost ?? '127.0.0.1';
@@ -242,6 +334,63 @@ export async function supervisorRequest(
   } finally {
     socket.destroy();
   }
+}
+
+/**
+ * Update runtime execution policy in the currently-running Supervisor process.
+ * This is single-instance safe and avoids restart/multi-instance flows.
+ */
+export async function setMcpRuntimePolicy(
+  policy: {
+    enabled?: boolean;
+    wave_cohorts?: string[];
+    hard_stop_gate?: boolean;
+  },
+  opts: SupervisorClientOptions = {},
+): Promise<{ ok: boolean; policy?: RuntimePolicyState; error?: string; data?: unknown }> {
+  const resp = await supervisorRequest(
+    {
+      type: 'SetMcpRuntimePolicy',
+      enabled: policy.enabled,
+      wave_cohorts: policy.wave_cohorts,
+      hard_stop_gate: policy.hard_stop_gate,
+    },
+    {
+      ...opts,
+      connectTimeoutMs: opts.connectTimeoutMs ?? 3000,
+      requestTimeoutMs: opts.requestTimeoutMs ?? 10_000,
+    },
+  );
+
+  const envelope = (resp.data ?? {}) as { policy?: RuntimePolicyState };
+  return {
+    ok: resp.ok === true,
+    policy: envelope.policy,
+    error: resp.error,
+    data: resp.data,
+  };
+}
+
+/**
+ * Execute one MCP runtime payload through the Supervisor-native runtime.
+ */
+export async function executeMcpRuntime(
+  payload: McpRuntimeExecPayload,
+  timeoutMs?: number,
+  opts: SupervisorClientOptions = {},
+): Promise<ControlResponse> {
+  return supervisorRequest(
+    {
+      type: 'McpRuntimeExec',
+      payload,
+      ...(timeoutMs != null ? { timeout_ms: timeoutMs } : {}),
+    },
+    {
+      ...opts,
+      connectTimeoutMs: opts.connectTimeoutMs ?? 3000,
+      requestTimeoutMs: opts.requestTimeoutMs ?? Math.max((timeoutMs ?? 10_000) + 3_000, 10_000),
+    },
+  );
 }
 
 /**

@@ -3,11 +3,8 @@
 //! VS Code (and any other client) connects to this proxy on the primary MCP
 //! port (e.g. 3457).  The proxy:
 //!
-//! 1. On a new `POST /mcp` initialize request — assigns the session to the
-//!    least-loaded pool instance, forwards the request, captures the
-//!    `mcp-session-id` response header, and records `session → instance port`.
-//! 2. On subsequent requests carrying `mcp-session-id` — looks up the
-//!    assigned instance and forwards there.
+//! 1. Routes `POST /mcp` requests to the current supervisor dispatch target.
+//! 2. Preserves MCP transport headers/body and streams chunked/SSE responses.
 //! 3. Proxies `/sse`, `/messages`, `/health`, `/sessions/*`, and
 //!    `/admin/*` to the primary instance (port `base_port`).
 //! 4. Serves a pub/sub Server-Sent Events heartbeat on
@@ -16,7 +13,6 @@
 //!
 //! The proxy runs as a plain `axum` HTTP server inside a `tokio::spawn`.
 
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -28,7 +24,7 @@ use axum::response::sse::Event;
 use axum::routing::{any, get};
 use axum::Router;
 use bytes::Bytes;
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::broadcast;
 
 use crate::events::{sse::events_sse_handler, EventsHandle};
 
@@ -56,10 +52,8 @@ const HEARTBEAT_CAPACITY: usize = 4;
 /// Shared state injected into every axum handler.
 #[derive(Clone)]
 pub struct ProxyState {
-    /// `session_id → backend port` routing table.
-    pub sessions: Arc<RwLock<HashMap<String, u16>>>,
-    /// Callback that returns the least-loaded backend port for new sessions.
-    pub least_loaded_port: Arc<dyn Fn() -> u16 + Send + Sync>,
+    /// Callback that returns the current supervisor-native dispatch port.
+    pub dispatch_port: Arc<dyn Fn() -> u16 + Send + Sync>,
     /// HTTP client used to forward requests to backends.
     pub client: reqwest::Client,
     /// Base port — used for endpoints that are not session-specific.
@@ -156,65 +150,14 @@ async fn mcp_handler(
     let method = req.method().clone();
     let headers = req.headers().clone();
 
-    // Determine which backend port to use.
-    let session_id = headers
-        .get("mcp-session-id")
-        .and_then(|v| v.to_str().ok())
-        .map(str::to_string);
-
-    let backend_port = if let Some(ref sid) = session_id {
-        // Existing session — look up routing table.
-        state.sessions.read().await.get(sid).copied()
-    } else {
-        None
-    };
-
-    let backend_port = match backend_port {
-        Some(p) => p,
-        None => (state.least_loaded_port)(),
-    };
+    let backend_port = (state.dispatch_port)();
 
     let target_url = format!("http://127.0.0.1:{backend_port}/mcp");
     let body = axum::body::to_bytes(req.into_body(), 16 * 1024 * 1024)
         .await
         .map_err(|_| StatusCode::BAD_REQUEST)?;
 
-    let resp = forward(&state.client, method.clone(), target_url, &headers, body).await?;
-
-    // DELETE /mcp — client is terminating the session; remove from routing table.
-    if method == Method::DELETE {
-        if let Some(ref sid) = session_id {
-            state.sessions.write().await.remove(sid);
-            eprintln!("[proxy] session {sid} deleted — routing entry removed");
-        }
-        return Ok(resp);
-    }
-
-    // 404 from backend means the session expired on the backend side.
-    // Per MCP spec the client will reinitialize — remove the stale routing entry
-    // so the next initialize (without session ID) routes correctly.
-    if resp.status() == StatusCode::NOT_FOUND {
-        if let Some(ref sid) = session_id {
-            state.sessions.write().await.remove(sid);
-            eprintln!("[proxy] session {sid} expired on backend (404) — routing entry removed");
-        }
-        return Ok(resp);
-    }
-
-    // If the response carries a new mcp-session-id, record the mapping.
-    if session_id.is_none() {
-        if let Some(new_sid) = resp
-            .headers()
-            .get("mcp-session-id")
-            .and_then(|v| v.to_str().ok())
-            .map(str::to_string)
-        {
-            eprintln!("[proxy] new session {new_sid} → port {backend_port}");
-            state.sessions.write().await.insert(new_sid, backend_port);
-        }
-    }
-
-    Ok(resp)
+    forward(&state.client, method, target_url, &headers, body).await
 }
 
 // ---------------------------------------------------------------------------
@@ -359,12 +302,12 @@ pub fn start_heartbeat_ticker(
 
 /// Bind the proxy on `bind_addr` (e.g. `"127.0.0.1:3457"`).
 ///
-/// `least_loaded_port` is a closure returning the port of the least-loaded
-/// MCP pool instance at call time; typically wraps `Arc<RwLock<ManagedPool>>`.
+/// `dispatch_port` is a closure returning the active supervisor-native MCP
+/// dispatch port at call time.
 pub async fn start_proxy(
     bind_addr: String,
     base_port: u16,
-    least_loaded_port: Arc<dyn Fn() -> u16 + Send + Sync>,
+    dispatch_port: Arc<dyn Fn() -> u16 + Send + Sync>,
     heartbeat_tx: broadcast::Sender<HeartbeatEvent>,
     events_handle: Option<EventsHandle>,
 ) -> anyhow::Result<()> {
@@ -377,8 +320,7 @@ pub async fn start_proxy(
         .build()?;
 
     let state = ProxyState {
-        sessions: Arc::new(RwLock::new(HashMap::new())),
-        least_loaded_port,
+        dispatch_port,
         client,
         base_port,
         heartbeat_tx,
@@ -387,7 +329,7 @@ pub async fn start_proxy(
 
     let app = build_router(state);
     let listener = tokio::net::TcpListener::bind(&bind_addr).await?;
-    eprintln!("[proxy] MCP proxy listening on {bind_addr} → pool base_port={base_port}");
+    eprintln!("[proxy] MCP proxy listening on {bind_addr} → dispatch base_port={base_port}");
     axum::serve(listener, app).await?;
     Ok(())
 }

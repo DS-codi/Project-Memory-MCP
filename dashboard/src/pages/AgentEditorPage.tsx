@@ -369,7 +369,7 @@ export function AgentEditorPage() {
         )}
         {syncMutation.isSuccess && (
           <div className="mt-2 text-sm text-green-400">
-            ✓ Sync complete: {syncMutation.data?.synced.length || 0} updated, {syncMutation.data?.skipped.length || 0} skipped
+            ✓ Sync complete: {syncMutation.data?.synced?.length || 0} updated, {syncMutation.data?.skipped?.length || 0} skipped
           </div>
         )}
       </div>

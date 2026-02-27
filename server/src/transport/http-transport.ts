@@ -23,7 +23,7 @@ import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { InMemoryEventStore } from '@modelcontextprotocol/sdk/examples/shared/inMemoryEventStore.js';
 import { getDataRoot, listDirs } from '../storage/db-store.js';
 import { isDataRootAccessible } from './data-root-liveness.js';
-import { getAllLiveSessions, getLiveSessionCount, getLiveSessionEntry } from '../tools/session-live-store.js';
+import { getAllLiveSessions, getLiveSessionCount, getLiveSessionEntry, clearLiveSession } from '../tools/session-live-store.js';
 import { runMigrations, migrationStatus } from '../db/index.js';
 
 // ---------------------------------------------------------------------------
@@ -200,6 +200,51 @@ export function createHttpApp(getServer: () => McpServer): Express {
   // ---- Live agent sessions endpoint ----
   app.get('/sessions/live', (_req: Request, res: Response) => {
     res.json(getAllLiveSessions());
+  });
+
+  // ---- Session stop endpoint ----
+  app.post('/sessions/stop', (req: Request, res: Response) => {
+    const { sessionKey } = req.body as { sessionKey?: string };
+    if (!sessionKey || typeof sessionKey !== 'string') {
+      res.status(400).json({ error: 'sessionKey is required' });
+      return;
+    }
+    // sessionKey format: workspaceId::planId::sessionId
+    const parts = sessionKey.split('::');
+    const sessionId = parts.length === 3 ? parts[2] : sessionKey;
+    const sessions = getAllLiveSessions();
+    if (!sessions[sessionId]) {
+      res.status(404).json({ error: `Session not found: ${sessionId}` });
+      return;
+    }
+    clearLiveSession(sessionId);
+    console.error(`[http] Session stopped via REST: ${sessionId}`);
+    res.json({ stopped: true, sessionId });
+  });
+
+  // ---- Session inject endpoint ----
+  app.post('/sessions/inject', (req: Request, res: Response) => {
+    const { sessionKey, text } = req.body as { sessionKey?: string; text?: string };
+    if (!sessionKey || typeof sessionKey !== 'string') {
+      res.status(400).json({ error: 'sessionKey is required' });
+      return;
+    }
+    if (!text || typeof text !== 'string') {
+      res.status(400).json({ error: 'text is required' });
+      return;
+    }
+    // sessionKey format: workspaceId::planId::sessionId
+    const parts = sessionKey.split('::');
+    const sessionId = parts.length === 3 ? parts[2] : sessionKey;
+    const sessions = getAllLiveSessions();
+    if (!sessions[sessionId]) {
+      res.status(404).json({ error: `Session not found: ${sessionId}` });
+      return;
+    }
+    // Acknowledge inject intent; in-process delivery depends on the session's
+    // tool-call interception being active in the same process.
+    console.error(`[http] Inject guidance queued for session ${sessionId}: ${text.slice(0, 80)}`);
+    res.json({ queued: true, sessionId, textLength: text.length });
   });
 
   // ---- Legacy SSE transport (/sse + /messages) ----

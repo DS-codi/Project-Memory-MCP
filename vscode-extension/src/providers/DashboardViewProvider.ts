@@ -365,7 +365,22 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                 return null;
             }
             const data: any = await response.json();
-            const plans = Array.isArray(data.plans) ? data.plans : [];
+            const nested = data?.data && !Array.isArray(data.data) ? data.data : undefined;
+            const plans = Array.isArray(data)
+                ? data
+                : Array.isArray(data?.plans)
+                    ? data.plans
+                    : Array.isArray(data?.active_plans)
+                        ? data.active_plans
+                        : Array.isArray(data?.data)
+                            ? data.data
+                            : Array.isArray(nested?.plans)
+                                ? nested.plans
+                                : Array.isArray(nested?.active_plans)
+                                    ? nested.active_plans
+                                    : Array.isArray(nested?.data)
+                                        ? nested.data
+                                        : [];
             if (plans.length === 0) {
                 vscode.window.showInformationMessage('No plans found for this workspace.');
                 return null;

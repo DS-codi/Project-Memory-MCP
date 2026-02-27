@@ -8,8 +8,8 @@
  * 4. On approve → returns success; plan continues
  * 5. On reject/timeout → writes PausedAtSnapshot; returns pause signal
  *
- * When GUI is unavailable, falls back to chat-based confirmation
- * (returns a result indicating fallback so Coordinator can handle it).
+ * Under the specialized_host-only policy, no chat fallback is performed.
+ * GUI unavailability is returned as a routing error.
  *
  * Created in Phase 4 (Hub Integration) of the Brainstorm GUI plan.
  */
@@ -41,14 +41,14 @@ import * as store from '../../storage/db-store.js';
 // =========================================================================
 
 /** Possible outcomes of an approval gate. */
-export type ApprovalOutcome = 'approved' | 'rejected' | 'timeout' | 'deferred' | 'fallback_to_chat';
+export type ApprovalOutcome = 'approved' | 'rejected' | 'timeout' | 'deferred' | 'error';
 
 /** Result of an approval gate routing attempt. */
 export interface ApprovalGateResult {
   /** Whether the approval gate resolved successfully (approved). */
   approved: boolean;
   /** Which path was used. */
-  path: 'gui' | 'fallback';
+  path: 'gui';
   /** Detailed outcome. */
   outcome: ApprovalOutcome;
   /** User's notes (if rejection with notes). */
@@ -156,8 +156,7 @@ function buildApprovalFormRequest(
 // =========================================================================
 
 /**
- * Route an approval gate decision through the GUI if available,
- * or signal that chat-based confirmation should be used.
+ * Route an approval gate decision through the GUI.
  *
  * @param planState - Current plan state
  * @param stepIndex - 0-based index of the gated step
@@ -178,11 +177,11 @@ export async function routeApprovalGate(
   const availability = await checkGuiAvailability(opts);
 
   if (!availability.supervisor_running || !availability.approval_gui) {
-    // No GUI — signal fallback to chat-based confirmation
     return {
       approved: false,
-      path: 'fallback',
-      outcome: 'fallback_to_chat',
+      path: 'gui',
+      outcome: 'error',
+      error: 'Approval GUI unavailable in specialized_host-only mode',
       elapsed_ms: Date.now() - startTime,
     };
   }
@@ -199,11 +198,10 @@ export async function routeApprovalGate(
     );
 
     if (!result.success) {
-      // GUI launch failed — fall back to chat
       return {
         approved: false,
-        path: 'fallback',
-        outcome: 'fallback_to_chat',
+        path: 'gui',
+        outcome: 'error',
         error: `Approval GUI failed: ${result.error}`,
         elapsed_ms: Date.now() - startTime,
       };
@@ -213,8 +211,8 @@ export async function routeApprovalGate(
     if (!guiResponse) {
       return {
         approved: false,
-        path: 'fallback',
-        outcome: 'fallback_to_chat',
+        path: 'gui',
+        outcome: 'error',
         error: 'Approval GUI returned no response payload',
         elapsed_ms: Date.now() - startTime,
       };
@@ -345,11 +343,10 @@ export async function routeApprovalGate(
       }
 
       default: {
-        // Unknown status — fall back to chat
         return {
           approved: false,
-          path: 'fallback',
-          outcome: 'fallback_to_chat',
+          path: 'gui',
+          outcome: 'error',
           error: `Unexpected approval response status: ${guiResponse.status}`,
           gui_response: guiResponse,
           elapsed_ms: elapsed,
@@ -359,8 +356,8 @@ export async function routeApprovalGate(
   } catch (err) {
     return {
       approved: false,
-      path: 'fallback',
-      outcome: 'fallback_to_chat',
+      path: 'gui',
+      outcome: 'error',
       error: `Approval gate error: ${err instanceof Error ? err.message : String(err)}`,
       elapsed_ms: Date.now() - startTime,
     };

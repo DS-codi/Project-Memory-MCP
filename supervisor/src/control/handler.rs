@@ -10,9 +10,20 @@ use tokio::sync::Mutex;
 
 use crate::config::FormAppConfig;
 use crate::control::mcp_admin;
+use crate::control::mcp_runtime::McpSubprocessRuntime;
 use crate::control::protocol::{ControlRequest, ControlResponse};
 use crate::control::registry::{Registry, ServiceStatus};
 use crate::runner::form_app::{continue_form_app, launch_form_app};
+
+fn deprecated_pool_response(command: &str) -> ControlResponse {
+    ControlResponse::ok(json!({
+        "supported": false,
+        "deprecated": true,
+        "reason": "instance_pool_removed",
+        "command": command,
+        "runtime_mode": "native_supervisor",
+    }))
+}
 
 /// Resolved form-app configuration map, keyed by app name.
 ///
@@ -36,9 +47,54 @@ pub async fn handle_request(
     registry: Arc<Mutex<Registry>>,
     form_apps: Arc<FormAppConfigs>,
     shutdown_tx: tokio::sync::watch::Sender<bool>,
+) -> ControlResponse {
+    handle_request_with_options(
+        req,
+        registry,
+        form_apps,
+        shutdown_tx,
+        None,
+        None,
+        None,
+        None,
+    )
+    .await
+}
+
+pub async fn handle_request_with_options(
+    req: ControlRequest,
+    registry: Arc<Mutex<Registry>>,
+    form_apps: Arc<FormAppConfigs>,
+    shutdown_tx: tokio::sync::watch::Sender<bool>,
     mcp_base_url: Option<String>,
     events_handle: Option<crate::events::EventsHandle>,
     events_url: Option<String>,
+    restart_tx: Option<tokio::sync::mpsc::Sender<String>>,
+) -> ControlResponse {
+    handle_request_with_runtime(
+        req,
+        registry,
+        form_apps,
+        shutdown_tx,
+        mcp_base_url,
+        events_handle,
+        events_url,
+        restart_tx,
+        None,
+    )
+    .await
+}
+
+pub async fn handle_request_with_runtime(
+    req: ControlRequest,
+    registry: Arc<Mutex<Registry>>,
+    form_apps: Arc<FormAppConfigs>,
+    shutdown_tx: tokio::sync::watch::Sender<bool>,
+    mcp_base_url: Option<String>,
+    events_handle: Option<crate::events::EventsHandle>,
+    events_url: Option<String>,
+    restart_tx: Option<tokio::sync::mpsc::Sender<String>>,
+    mcp_runtime: Option<Arc<McpSubprocessRuntime>>,
 ) -> ControlResponse {
     match req {
         // ---------------------------------------------------------------
@@ -54,12 +110,58 @@ pub async fn handle_request(
         }
 
         // ---------------------------------------------------------------
-        // Start
+        // Start — for interactive_terminal: on-demand launch with
+        // idempotency guard (Running/Starting → return success immediately).
+        // For other services: update registry status only (legacy behaviour).
         // ---------------------------------------------------------------
         ControlRequest::Start { service } => {
-            let mut reg = registry.lock().await;
-            reg.set_service_status(&service, ServiceStatus::Starting);
-            ControlResponse::ok(json!({ "service": service, "status": "starting" }))
+            if service == "interactive_terminal" {
+                // Check current status — avoid spawning a duplicate process.
+                let current_status = {
+                    let reg = registry.lock().await;
+                    reg.service_states()
+                        .into_iter()
+                        .find(|s| s.name == service)
+                        .map(|s| s.status)
+                };
+                match current_status {
+                    Some(ServiceStatus::Running) | Some(ServiceStatus::Starting) => {
+                        // Already running or in the process of starting — idempotent.
+                        return ControlResponse::ok(
+                            json!({ "service": service, "status": "already_running" }),
+                        );
+                    }
+                    _ => {
+                        // Not running — dispatch via restart channel so the main
+                        // loop calls terminal_runner.start() on the correct task.
+                        if let Some(ref tx) = restart_tx {
+                            match tx.send(service.clone()).await {
+                                Ok(()) => {
+                                    let mut reg = registry.lock().await;
+                                    reg.set_service_status(&service, ServiceStatus::Starting);
+                                    return ControlResponse::ok(
+                                        json!({ "service": service, "status": "starting" }),
+                                    );
+                                }
+                                Err(e) => {
+                                    return ControlResponse::err(format!(
+                                        "on-demand launch dispatch failed: {e}"
+                                    ));
+                                }
+                            }
+                        }
+                        // No restart channel (e.g. unit-test context) — fall through
+                        // to the legacy registry-only update.
+                        let mut reg = registry.lock().await;
+                        reg.set_service_status(&service, ServiceStatus::Starting);
+                        ControlResponse::ok(json!({ "service": service, "status": "starting" }))
+                    }
+                }
+            } else {
+                let mut reg = registry.lock().await;
+                reg.set_service_status(&service, ServiceStatus::Starting);
+                ControlResponse::ok(json!({ "service": service, "status": "starting" }))
+            }
         }
 
         // ---------------------------------------------------------------
@@ -72,13 +174,22 @@ pub async fn handle_request(
         }
 
         // ---------------------------------------------------------------
-        // Restart — transition through Stopping → Starting
+        // Restart — dispatch to the main loop so stop()+start() are called
+        // on the actual runner.  Falls back to a registry-only update when
+        // no restart channel is available (e.g. unit tests).
         // ---------------------------------------------------------------
         ControlRequest::Restart { service } => {
-            let mut reg = registry.lock().await;
-            reg.set_service_status(&service, ServiceStatus::Stopping);
-            reg.set_service_status(&service, ServiceStatus::Starting);
-            ControlResponse::ok(json!({ "service": service, "status": "starting" }))
+            if let Some(ref tx) = restart_tx {
+                match tx.send(service.clone()).await {
+                    Ok(()) => ControlResponse::ok(json!({ "service": service, "status": "starting" })),
+                    Err(e) => ControlResponse::err(format!("restart dispatch failed: {e}")),
+                }
+            } else {
+                let mut reg = registry.lock().await;
+                reg.set_service_status(&service, ServiceStatus::Stopping);
+                reg.set_service_status(&service, ServiceStatus::Starting);
+                ControlResponse::ok(json!({ "service": service, "status": "starting" }))
+            }
         }
 
         // ---------------------------------------------------------------
@@ -199,6 +310,14 @@ pub async fn handle_request(
         // UpgradeMcp — zero-downtime MCP upgrade: drain → stop → start
         // ---------------------------------------------------------------
         ControlRequest::UpgradeMcp => {
+            if mcp_runtime.is_some() {
+                return ControlResponse::ok(json!({
+                    "upgrade": "noop",
+                    "service": "mcp",
+                    "runtime_mode": "native_supervisor",
+                    "note": "instance pool removed; runtime remains supervisor-native",
+                }));
+            }
             let mut reg = registry.lock().await;
             reg.set_upgrade_pending(true);
             reg.set_service_status("mcp", ServiceStatus::Stopping);
@@ -210,6 +329,21 @@ pub async fn handle_request(
         // ListMcpConnections — all tracked VS Code ↔ MCP sessions
         // ---------------------------------------------------------------
         ControlRequest::ListMcpConnections => {
+            if let Some(runtime) = &mcp_runtime {
+                if !runtime.is_enabled() {
+                    let reg = registry.lock().await;
+                    let conns = reg.list_mcp_connections();
+                    return match serde_json::to_value(&conns) {
+                        Ok(data) => ControlResponse::ok(data),
+                        Err(e) => ControlResponse::err(format!("serialisation error: {e}")),
+                    };
+                }
+                let sessions = runtime.list_sessions().await;
+                return ControlResponse::ok(json!({
+                    "runtime_mode": "native_supervisor",
+                    "sessions": sessions,
+                }));
+            }
             let reg = registry.lock().await;
             let conns = reg.list_mcp_connections();
             match serde_json::to_value(&conns) {
@@ -222,6 +356,22 @@ pub async fn handle_request(
         // CloseMcpConnection — close one VS Code session
         // ---------------------------------------------------------------
         ControlRequest::CloseMcpConnection { session_id } => {
+            if let Some(runtime) = &mcp_runtime {
+                if runtime.is_enabled() {
+                    return match runtime.cancel_session(&session_id).await {
+                        Ok(data) => ControlResponse::ok(json!({
+                            "runtime_mode": "native_supervisor",
+                            "cancelled": true,
+                            "session_id": session_id,
+                            "result": data,
+                        })),
+                        Err(e) => {
+                            ControlResponse::err(format!("failed to cancel runtime session: {e}"))
+                        }
+                    };
+                }
+            }
+
             let base_url = match &mcp_base_url {
                 Some(u) => u.clone(),
                 None => return ControlResponse::err("mcp_base_url not configured"),
@@ -241,8 +391,10 @@ pub async fn handle_request(
         // ListMcpInstances — list instance ports known to the pool
         // ---------------------------------------------------------------
         ControlRequest::ListMcpInstances => {
-            // The pool state is not in the registry; return the connections
-            // grouped by instance_port as a proxy for instance visibility.
+            if mcp_runtime.is_some() {
+                return deprecated_pool_response("ListMcpInstances");
+            }
+
             let reg = registry.lock().await;
             let conns = reg.list_mcp_connections();
             let mut by_port: std::collections::HashMap<u16, usize> = std::collections::HashMap::new();
@@ -260,9 +412,103 @@ pub async fn handle_request(
         // ScaleUpMcp — manual pool scale-up trigger
         // ---------------------------------------------------------------
         ControlRequest::ScaleUpMcp => {
-            // Actual spawning is handled by the pool manager in main.rs.
-            // We signal intent here; the poll loop acts on it.
+            if mcp_runtime.is_some() {
+                return deprecated_pool_response("ScaleUpMcp");
+            }
+
             ControlResponse::ok(json!({ "scale_up": "requested" }))
+        }
+
+        ControlRequest::SetMcpRuntimePolicy {
+            enabled,
+            wave_cohorts,
+            hard_stop_gate,
+        } => {
+            let Some(runtime) = &mcp_runtime else {
+                return ControlResponse::err(
+                    "mcp runtime policy unavailable (MCP node runtime not configured)",
+                );
+            };
+
+            let policy = runtime
+                .set_policy(enabled, wave_cohorts, hard_stop_gate)
+                .await;
+
+            ControlResponse::ok(json!({
+                "runtime_mode": "native_supervisor",
+                "policy": policy,
+            }))
+        }
+
+        // ---------------------------------------------------------------
+        // McpRuntimeExec — execute payload through supervisor subprocess runtime
+        // ---------------------------------------------------------------
+        ControlRequest::McpRuntimeExec { payload, timeout_ms } => {
+            let Some(runtime) = mcp_runtime else {
+                return ControlResponse {
+                    ok: false,
+                    error: Some(
+                        "mcp runtime mode is disabled (set PM_SUPERVISOR_MCP_SUBPROCESS_RUNTIME=1)"
+                            .to_string(),
+                    ),
+                    data: json!({
+                        "runtime_mode": "native_supervisor",
+                        "error_envelope": {
+                            "error_class": "runtime_precondition",
+                            "reason": "runtime_disabled",
+                            "required_env": {
+                                "PM_SUPERVISOR_MCP_SUBPROCESS_RUNTIME": "1",
+                                "PM_SUPERVISOR_MCP_SUBPROCESS_WAVE_COHORTS": "wave1",
+                                "PM_SUPERVISOR_MCP_SUBPROCESS_HARD_STOP_GATE": "1"
+                            },
+                            "wave1_validation": {
+                                "cohort": "wave1",
+                                "hard_stop_gate_required": true
+                            }
+                        }
+                    }),
+                };
+            };
+
+            if !runtime.is_enabled() {
+                return ControlResponse {
+                    ok: false,
+                    error: Some(
+                        "mcp runtime mode is disabled (enable with SetMcpRuntimePolicy)"
+                            .to_string(),
+                    ),
+                    data: json!({
+                        "runtime_mode": "native_supervisor",
+                        "error_envelope": {
+                            "error_class": "runtime_precondition",
+                            "reason": "runtime_disabled",
+                            "required_control": {
+                                "type": "SetMcpRuntimePolicy",
+                                "enabled": true,
+                                "wave_cohorts": ["wave1"],
+                                "hard_stop_gate": true
+                            },
+                        }
+                    }),
+                };
+            }
+
+            match runtime.execute(&payload, timeout_ms).await {
+                Ok(data) => ControlResponse::ok(json!({
+                    "runtime_mode": "native_supervisor",
+                    "execution": data,
+                    "telemetry": runtime.telemetry_snapshot(),
+                })),
+                Err(e) => ControlResponse {
+                    ok: false,
+                    error: Some(format!("mcp runtime execution failed: {e}")),
+                    data: json!({
+                        "runtime_mode": "native_supervisor",
+                        "error_envelope": e.envelope(),
+                        "telemetry": runtime.telemetry_snapshot(),
+                    }),
+                },
+            }
         }
 
         // ---------------------------------------------------------------
@@ -344,11 +590,16 @@ pub async fn handle_request(
                 Some(h) => (true, h.subscriber_count(), h.events_emitted()),
                 None => (false, 0, 0),
             };
+            let runtime_telemetry = mcp_runtime
+                .as_ref()
+                .map(|runtime| runtime.telemetry_snapshot())
+                .unwrap_or(serde_json::Value::Null);
             ControlResponse::ok(json!({
                 "enabled": enabled,
                 "subscriber_count": subscriber_count,
                 "events_emitted": events_emitted,
-                "events_url": events_url
+                "events_url": events_url,
+                "runtime_telemetry": runtime_telemetry,
             }))
         }
 
@@ -370,7 +621,31 @@ pub async fn handle_request(
 mod tests {
     use super::*;
     use crate::control::protocol::BackendKind;
+    use crate::control::mcp_runtime::{McpSubprocessRuntime, McpSubprocessRuntimeConfig};
     use crate::control::registry::Registry;
+
+    async fn handle_request(
+        req: ControlRequest,
+        registry: Arc<Mutex<Registry>>,
+        form_apps: Arc<FormAppConfigs>,
+        shutdown_tx: tokio::sync::watch::Sender<bool>,
+        mcp_base_url: Option<String>,
+        events_handle: Option<crate::events::EventsHandle>,
+        events_url: Option<String>,
+        restart_tx: Option<tokio::sync::mpsc::Sender<String>>,
+    ) -> ControlResponse {
+        super::handle_request_with_options(
+            req,
+            registry,
+            form_apps,
+            shutdown_tx,
+            mcp_base_url,
+            events_handle,
+            events_url,
+            restart_tx,
+        )
+        .await
+    }
 
     fn make_registry() -> Arc<Mutex<Registry>> {
         Arc::new(Mutex::new(Registry::new()))
@@ -385,10 +660,27 @@ mod tests {
         tx
     }
 
+    fn make_runtime() -> Arc<McpSubprocessRuntime> {
+        Arc::new(McpSubprocessRuntime::new(McpSubprocessRuntimeConfig {
+            command: "noop".to_string(),
+            args: Vec::new(),
+            working_dir: None,
+            env: std::collections::HashMap::new(),
+            runtime_enabled: true,
+            max_concurrency: 2,
+            queue_limit: 8,
+            queue_wait_timeout_ms: 100,
+            per_session_inflight_limit: 2,
+            default_timeout_ms: 500,
+            enabled_wave_cohorts: vec!["wave1".to_string()],
+            hard_stop_gate: true,
+        }))
+    }
+
     #[tokio::test]
     async fn status_returns_three_services() {
         let reg = make_registry();
-        let resp = handle_request(ControlRequest::Status, reg, empty_form_apps(), shutdown_channel(), None, None, None).await;
+        let resp = handle_request(ControlRequest::Status, reg, empty_form_apps(), shutdown_channel(), None, None, None, None).await;
         assert!(resp.ok);
         let arr = resp.data.as_array().expect("data should be array");
         assert_eq!(arr.len(), 3);
@@ -402,6 +694,7 @@ mod tests {
             Arc::clone(&reg),
             empty_form_apps(),
             shutdown_channel(),
+            None,
             None,
             None,
             None,
@@ -426,6 +719,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .await;
         assert!(resp.ok);
@@ -443,6 +737,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .await;
         assert!(resp.ok);
@@ -457,6 +752,7 @@ mod tests {
             Arc::clone(&reg),
             empty_form_apps(),
             shutdown_channel(),
+            None,
             None,
             None,
             None,
@@ -478,12 +774,13 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .await;
         assert!(attach_resp.ok);
         let client_id = attach_resp.data["client_id"].as_str().unwrap().to_string();
 
-        let list_resp = handle_request(ControlRequest::ListClients, Arc::clone(&reg), fa, shutdown_channel(), None, None, None).await;
+        let list_resp = handle_request(ControlRequest::ListClients, Arc::clone(&reg), fa, shutdown_channel(), None, None, None, None).await;
         assert!(list_resp.ok);
         let arr = list_resp.data.as_array().unwrap();
         assert_eq!(arr.len(), 1);
@@ -502,6 +799,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .await;
         let resp = handle_request(
@@ -509,6 +807,7 @@ mod tests {
             Arc::clone(&reg),
             fa,
             shutdown_channel(),
+            None,
             None,
             None,
             None,
@@ -525,6 +824,7 @@ mod tests {
             reg,
             empty_form_apps(),
             shutdown_channel(),
+            None,
             None,
             None,
             None,
@@ -550,6 +850,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .await;
         assert!(resp.ok);
@@ -561,7 +862,7 @@ mod tests {
     #[tokio::test]
     async fn upgrade_mcp_returns_ok_with_upgrade_field() {
         let reg = make_registry();
-        let resp = handle_request(ControlRequest::UpgradeMcp, Arc::clone(&reg), empty_form_apps(), shutdown_channel(), None, None, None).await;
+        let resp = handle_request(ControlRequest::UpgradeMcp, Arc::clone(&reg), empty_form_apps(), shutdown_channel(), None, None, None, None).await;
         assert!(resp.ok, "upgrade_mcp should return ok");
         assert_eq!(resp.data["upgrade"], "initiated");
         assert_eq!(resp.data["service"], "mcp");
@@ -570,7 +871,7 @@ mod tests {
     #[tokio::test]
     async fn upgrade_mcp_sets_upgrade_pending_and_mcp_starting() {
         let reg = make_registry();
-        handle_request(ControlRequest::UpgradeMcp, Arc::clone(&reg), empty_form_apps(), shutdown_channel(), None, None, None).await;
+        handle_request(ControlRequest::UpgradeMcp, Arc::clone(&reg), empty_form_apps(), shutdown_channel(), None, None, None, None).await;
         let locked = reg.lock().await;
         assert!(locked.is_upgrade_pending(), "upgrade_pending should be true after UpgradeMcp");
         let mcp_state = locked.service_states().into_iter().find(|s| s.name == "mcp").unwrap();
@@ -592,6 +893,7 @@ mod tests {
             reg,
             empty_form_apps(),
             shutdown_channel(),
+            None,
             None,
             None,
             None,
@@ -622,10 +924,351 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .await;
         assert!(!resp.ok);
         assert!(resp.error.unwrap().contains("disabled"));
+    }
+
+    #[tokio::test]
+    async fn mcp_runtime_exec_returns_error_when_runtime_not_enabled() {
+        let reg = make_registry();
+        let resp = handle_request(
+            ControlRequest::McpRuntimeExec {
+                payload: serde_json::json!({ "method": "ping" }),
+                timeout_ms: Some(1000),
+            },
+            reg,
+            empty_form_apps(),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+
+        assert!(!resp.ok);
+        assert!(resp.error.unwrap().contains("disabled"));
+        assert_eq!(resp.data["runtime_mode"], "native_supervisor");
+        assert_eq!(resp.data["error_envelope"]["error_class"], "runtime_precondition");
+        assert_eq!(resp.data["error_envelope"]["reason"], "runtime_disabled");
+        assert_eq!(resp.data["error_envelope"]["required_env"]["PM_SUPERVISOR_MCP_SUBPROCESS_RUNTIME"], "1");
+        assert_eq!(resp.data["error_envelope"]["required_env"]["PM_SUPERVISOR_MCP_SUBPROCESS_WAVE_COHORTS"], "wave1");
+        assert_eq!(resp.data["error_envelope"]["required_env"]["PM_SUPERVISOR_MCP_SUBPROCESS_HARD_STOP_GATE"], "1");
+    }
+
+    #[tokio::test]
+    async fn list_mcp_instances_returns_deprecated_response_in_native_runtime_mode() {
+        let reg = make_registry();
+        let runtime = make_runtime();
+
+        let resp = super::handle_request_with_runtime(
+            ControlRequest::ListMcpInstances,
+            reg,
+            empty_form_apps(),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            None,
+            Some(runtime),
+        )
+        .await;
+
+        assert!(resp.ok);
+        assert_eq!(resp.data["deprecated"], true);
+        assert_eq!(resp.data["reason"], "instance_pool_removed");
+    }
+
+    #[tokio::test]
+    async fn scale_up_mcp_returns_deprecated_response_in_native_runtime_mode() {
+        let reg = make_registry();
+        let runtime = make_runtime();
+
+        let resp = super::handle_request_with_runtime(
+            ControlRequest::ScaleUpMcp,
+            reg,
+            empty_form_apps(),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            None,
+            Some(runtime),
+        )
+        .await;
+
+        assert!(resp.ok);
+        assert_eq!(resp.data["deprecated"], true);
+        assert_eq!(resp.data["command"], "ScaleUpMcp");
+    }
+
+    #[tokio::test]
+    async fn list_mcp_connections_returns_runtime_sessions_in_native_runtime_mode() {
+        let reg = make_registry();
+        let runtime = make_runtime();
+
+        let _ = runtime
+            .execute(&serde_json::json!({ "runtime": { "op": "init" } }), Some(50))
+            .await
+            .expect("init runtime session");
+
+        let resp = super::handle_request_with_runtime(
+            ControlRequest::ListMcpConnections,
+            reg,
+            empty_form_apps(),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            None,
+            Some(runtime),
+        )
+        .await;
+
+        assert!(resp.ok);
+        assert_eq!(resp.data["runtime_mode"], "native_supervisor");
+        assert!(resp.data["sessions"].is_array());
+    }
+
+    #[tokio::test]
+    async fn set_runtime_policy_updates_runtime_enabled_state() {
+        let reg = make_registry();
+        let runtime = make_runtime();
+
+        let disable = super::handle_request_with_runtime(
+            ControlRequest::SetMcpRuntimePolicy {
+                enabled: Some(false),
+                wave_cohorts: Some(vec!["wave2".to_string()]),
+                hard_stop_gate: Some(false),
+            },
+            Arc::clone(&reg),
+            empty_form_apps(),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            None,
+            Some(Arc::clone(&runtime)),
+        )
+        .await;
+
+        assert!(disable.ok);
+        assert_eq!(disable.data["runtime_mode"], "native_supervisor");
+        assert_eq!(disable.data["policy"]["runtime_enabled"], false);
+        assert_eq!(disable.data["policy"]["wave_cohorts"][0], "wave2");
+        assert_eq!(disable.data["policy"]["hard_stop_gate"], false);
+
+        let exec_when_disabled = super::handle_request_with_runtime(
+            ControlRequest::McpRuntimeExec {
+                payload: serde_json::json!({ "runtime": { "op": "execute", "wave_cohort": "wave2" } }),
+                timeout_ms: Some(100),
+            },
+            reg,
+            empty_form_apps(),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            None,
+            Some(runtime),
+        )
+        .await;
+
+        assert!(!exec_when_disabled.ok);
+        assert_eq!(exec_when_disabled.data["error_envelope"]["error_class"], "runtime_precondition");
+        assert_eq!(exec_when_disabled.data["error_envelope"]["reason"], "runtime_disabled");
+        assert_eq!(exec_when_disabled.data["error_envelope"]["required_control"]["type"], "SetMcpRuntimePolicy");
+    }
+
+    #[tokio::test]
+    async fn deprecated_pool_commands_stay_deprecated_even_when_runtime_policy_disabled() {
+        let reg = make_registry();
+        let runtime = make_runtime();
+
+        let _ = super::handle_request_with_runtime(
+            ControlRequest::SetMcpRuntimePolicy {
+                enabled: Some(false),
+                wave_cohorts: None,
+                hard_stop_gate: None,
+            },
+            Arc::clone(&reg),
+            empty_form_apps(),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            None,
+            Some(Arc::clone(&runtime)),
+        )
+        .await;
+
+        let list_instances = super::handle_request_with_runtime(
+            ControlRequest::ListMcpInstances,
+            Arc::clone(&reg),
+            empty_form_apps(),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            None,
+            Some(Arc::clone(&runtime)),
+        )
+        .await;
+
+        let scale_up = super::handle_request_with_runtime(
+            ControlRequest::ScaleUpMcp,
+            reg,
+            empty_form_apps(),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            None,
+            Some(runtime),
+        )
+        .await;
+
+        assert!(list_instances.ok);
+        assert_eq!(list_instances.data["deprecated"], true);
+        assert_eq!(list_instances.data["runtime_mode"], "native_supervisor");
+
+        assert!(scale_up.ok);
+        assert_eq!(scale_up.data["deprecated"], true);
+        assert_eq!(scale_up.data["runtime_mode"], "native_supervisor");
+    }
+
+    #[tokio::test]
+    async fn event_stats_includes_runtime_telemetry() {
+        let reg = make_registry();
+        let runtime = make_runtime();
+
+        let _ = runtime
+            .execute(&serde_json::json!({ "runtime": { "op": "init" } }), Some(50))
+            .await
+            .expect("init runtime session");
+
+        let resp = super::handle_request_with_runtime(
+            ControlRequest::EventStats,
+            reg,
+            empty_form_apps(),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            None,
+            Some(runtime),
+        )
+        .await;
+
+        assert!(resp.ok);
+        assert!(resp.data["runtime_telemetry"].is_object());
+        assert!(resp.data["runtime_telemetry"]["started_total"].is_number());
+    }
+
+    #[tokio::test]
+    async fn deprecated_pool_commands_return_deterministic_native_supervisor_envelopes() {
+        let reg = make_registry();
+        let runtime = make_runtime();
+
+        let list_instances = super::handle_request_with_runtime(
+            ControlRequest::ListMcpInstances,
+            Arc::clone(&reg),
+            empty_form_apps(),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            None,
+            Some(Arc::clone(&runtime)),
+        )
+        .await;
+
+        let scale_up = super::handle_request_with_runtime(
+            ControlRequest::ScaleUpMcp,
+            reg,
+            empty_form_apps(),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            None,
+            Some(runtime),
+        )
+        .await;
+
+        for (response, expected_command) in [
+            (list_instances, "ListMcpInstances"),
+            (scale_up, "ScaleUpMcp"),
+        ] {
+            assert!(response.ok);
+            assert_eq!(response.data["supported"], false);
+            assert_eq!(response.data["deprecated"], true);
+            assert_eq!(response.data["reason"], "instance_pool_removed");
+            assert_eq!(response.data["runtime_mode"], "native_supervisor");
+            assert_eq!(response.data["command"], expected_command);
+        }
+    }
+
+    #[tokio::test]
+    async fn retained_control_commands_keep_stable_response_envelope_shape() {
+        let reg = make_registry();
+
+        let status = handle_request(
+            ControlRequest::Status,
+            Arc::clone(&reg),
+            empty_form_apps(),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+
+        let whoami = handle_request(
+            ControlRequest::WhoAmI(crate::control::protocol::WhoAmIRequest {
+                request_id: "req-contract".to_string(),
+                client: "mcp-server".to_string(),
+                client_version: "1.2.3".to_string(),
+            }),
+            Arc::clone(&reg),
+            empty_form_apps(),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+
+        let service_health = handle_request(
+            ControlRequest::ServiceHealth {
+                service: "mcp".to_string(),
+            },
+            reg,
+            empty_form_apps(),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+
+        for response in [&status, &whoami, &service_health] {
+            assert!(response.ok);
+            assert!(response.error.is_none());
+        }
+
+        assert!(status.data.is_array());
+        assert_eq!(whoami.data["message"], "WhoAmI received");
+        assert_eq!(whoami.data["client"], "mcp-server");
+        assert_eq!(whoami.data["client_version"], "1.2.3");
+        assert!(service_health.data.is_object());
+        assert_eq!(service_health.data["name"], "mcp");
     }
 }
 

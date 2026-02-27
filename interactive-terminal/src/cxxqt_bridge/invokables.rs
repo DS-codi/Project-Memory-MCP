@@ -125,11 +125,12 @@ impl ffi::TerminalApp {
 
     fn sync_selected_session_context(this: &mut Pin<&mut Self>) {
         let state_arc = this.rust().state.clone();
-        let (selected_session_id, context) = {
+        let (selected_session_id, context, default_profile) = {
             let state = state_arc.lock().unwrap();
             (
                 state.selected_session_id.clone(),
                 state.selected_session_context(),
+                state.default_terminal_profile.clone(),
             )
         };
 
@@ -138,6 +139,10 @@ impl ffi::TerminalApp {
         this.as_mut()
             .set_current_terminal_profile(QString::from(terminal_profile_to_key(
                 &context.selected_terminal_profile,
+            )));
+        this.as_mut()
+            .set_current_default_terminal_profile(QString::from(terminal_profile_to_key(
+                &default_profile,
             )));
         this.as_mut()
             .set_current_workspace_path(QString::from(&context.workspace_path));
@@ -451,6 +456,28 @@ impl ffi::TerminalApp {
         Self::sync_selected_session_context(&mut self);
         self.as_mut()
             .set_status_text(QString::from("Session terminal profile updated"));
+        true
+    }
+
+    pub fn set_default_terminal_profile(mut self: Pin<&mut Self>, profile: QString) -> bool {
+        let profile_str = profile.to_string();
+        let Some(parsed) = terminal_profile_from_key(&profile_str) else {
+            self.as_mut().set_status_text(QString::from(&format!(
+                "Invalid default terminal profile: {}",
+                profile_str.trim()
+            )));
+            return false;
+        };
+
+        let state_arc = self.rust().state.clone();
+        {
+            let mut state = state_arc.lock().unwrap();
+            state.set_default_terminal_profile(parsed);
+        }
+
+        Self::sync_selected_session_context(&mut self);
+        self.as_mut()
+            .set_status_text(QString::from("Default terminal profile updated"));
         true
     }
 

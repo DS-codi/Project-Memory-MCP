@@ -2,6 +2,8 @@
 # Copy this file to %APPDATA%\ProjectMemory\supervisor.toml and
 # adjust paths for your machine, or run .\start-supervisor.ps1 to
 # have a working config written automatically.
+# For isolated Wave validation (alternate control pipe + runtime env),
+# use .\start-supervisor-wave-validation.ps1 at workspace root.
 #
 # All sections and keys are OPTIONAL — omit anything and the default
 # value documented here will be used.
@@ -38,6 +40,39 @@ args        = ["dist/server.js"]
 # Absolute path to the compiled server directory
 working_dir = "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\server"
 
+# Optional supervisor-hosted MCP runtime mode (feature-flagged via env vars):
+#   PM_SUPERVISOR_MCP_SUBPROCESS_RUNTIME=1
+#   PM_SUPERVISOR_MCP_SUBPROCESS_MAX_CONCURRENCY=4
+#   PM_SUPERVISOR_MCP_SUBPROCESS_TIMEOUT_MS=30000
+#   PM_SUPERVISOR_MCP_SUBPROCESS_WAVE_COHORTS=wave1,wave2,wave3,wave4
+#   PM_SUPERVISOR_MCP_SUBPROCESS_HARD_STOP_GATE=1
+#
+# Wave 1 validation minimum preconditions:
+#   PM_SUPERVISOR_MCP_SUBPROCESS_RUNTIME=1
+#   PM_SUPERVISOR_MCP_SUBPROCESS_WAVE_COHORTS=wave1
+#   PM_SUPERVISOR_MCP_SUBPROCESS_HARD_STOP_GATE=1
+#
+# When enabled, the supervisor serves MCP execution via control request
+# `McpRuntimeExec` using async subprocess workers instead of starting the
+# pool+proxy MCP service.
+#
+# Wave cohorts + hard-stop gate:
+# - `PM_SUPERVISOR_MCP_SUBPROCESS_WAVE_COHORTS` controls which cohorts may
+#   execute when hard-stop gating is enabled.
+# - `PM_SUPERVISOR_MCP_SUBPROCESS_HARD_STOP_GATE=1` rejects out-of-cohort
+#   execution with deterministic `error_class: "hard_stop"` envelopes.
+#
+# Reviewer isolated-validation shell setup:
+#   $env:PM_ORCHESTRATION_SUPERVISOR_PIPE_PATH="\\.\pipe\project-memory-supervisor-wave-validation"
+#   # run reviewer validation commands
+#   .\stop-supervisor.ps1 -PipeName "project-memory-supervisor-wave-validation"   # isolated teardown; avoids default-instance force-kill
+#
+# Isolated launcher behavior:
+# - .\start-supervisor-wave-validation.ps1 passes PM_SUPERVISOR_* flags using
+#   explicit child-process environment overrides (no reliance on parent-shell
+#   env inheritance semantics).
+# - Its default validation cohort is `wave1` (overridable via -WaveCohorts).
+
 # Environment variables injected into the MCP server process
 # [mcp.node.env]
 # SOME_VAR = "value"
@@ -57,6 +92,21 @@ port    = 3458
 
 # Full path to the interactive-terminal executable
 command = "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\interactive-terminal\\target\\release\\interactive-terminal.exe"
+
+# Optional environment variables injected into interactive-terminal.
+# Use this when running coding-subagent sessions against Gemini.
+#
+# Provider contract (recommended):
+#   GEMINI_API_KEY = <your key>
+#   GOOGLE_API_KEY = <same key>     # compatibility alias for SDKs/tools
+#
+# If you launch Supervisor via install.ps1 and your secrets file contains
+# PMTA-key=<key>, install.ps1 maps that value to both GEMINI_API_KEY and
+# GOOGLE_API_KEY at process launch time (without writing the key to this file).
+#
+# [interactive_terminal.env]
+# GEMINI_API_KEY = "set-in-local-env-not-in-repo"
+# GOOGLE_API_KEY = "set-in-local-env-not-in-repo"
 
 # ── Dashboard ────────────────────────────────────────────────────────────────
 

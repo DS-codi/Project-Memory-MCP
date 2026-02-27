@@ -94,6 +94,30 @@ pub enum ControlRequest {
     /// The supervisor will reject this if `max_instances` is already reached.
     ScaleUpMcp,
 
+    /// Execute one MCP payload through the supervisor-hosted async subprocess
+    /// runtime when enabled via feature flag/environment.
+    ///
+    /// The payload is forwarded to the configured subprocess on stdin as JSON
+    /// (single line), and stdout is parsed as JSON when possible.
+    McpRuntimeExec {
+        payload: serde_json::Value,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        timeout_ms: Option<u64>,
+    },
+
+    /// Update MCP runtime execution policy in-process (single-instance safe).
+    ///
+    /// This allows wave validation to enable/disable runtime execution and
+    /// adjust cohort/hard-stop policy without restarting the supervisor.
+    SetMcpRuntimePolicy {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        enabled: Option<bool>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        wave_cohorts: Option<Vec<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        hard_stop_gate: Option<bool>,
+    },
+
     /// Return the URL of the `/supervisor/events` SSE endpoint.
     SubscribeEvents,
 

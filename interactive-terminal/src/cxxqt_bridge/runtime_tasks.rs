@@ -497,6 +497,7 @@ pub(crate) fn spawn_runtime_tasks(
                 let state = state_for_exec;
                 async move {
                     let mut cmd_rx = command_rx;
+                    let mut shell_manager = command_executor::PersistentShellManager::default();
                     while let Some(req) = cmd_rx.recv().await {
                         // (A) Create kill channel and register with OutputTracker
                         let (kill_tx, kill_rx) = tokio::sync::oneshot::channel::<()>();
@@ -559,7 +560,7 @@ pub(crate) fn spawn_runtime_tasks(
 
                         // (B) Race command execution against kill signal
                         tokio::select! {
-                            result = command_executor::execute_command_with_timeout(&req, output_tx) => {
+                            result = shell_manager.execute_command_with_timeout(&req, output_tx) => {
                                 let _ = output_forward.await;
                                 let completed_at_ms = crate::output_persistence::now_epoch_millis();
                                 let captured_lines = persisted_lines.lock().unwrap().clone();
@@ -673,6 +674,7 @@ pub(crate) fn spawn_runtime_tasks(
                                 // (D) Kill signal received — execution future is dropped,
                                 // which drops output_tx and terminates output_forward.
                                 let _ = output_forward.await;
+                                shell_manager.terminate_session_shell(&req.session_id).await;
                                 let completed_at_ms = crate::output_persistence::now_epoch_millis();
                                 let captured_lines = persisted_lines.lock().unwrap().clone();
 

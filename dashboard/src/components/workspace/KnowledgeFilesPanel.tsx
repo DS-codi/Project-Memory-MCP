@@ -18,7 +18,7 @@ async function fetchKnowledgeFiles(workspaceId: string): Promise<KnowledgeFileMe
   const res = await fetch(`/api/workspaces/${workspaceId}/knowledge`);
   if (!res.ok) throw new Error('Failed to fetch knowledge files');
   const data = await res.json();
-  return data.files;
+  return Array.isArray(data.files) ? data.files : [];
 }
 
 async function saveKnowledgeFile(
@@ -58,11 +58,12 @@ export function KnowledgeFilesPanel({ workspaceId }: KnowledgeFilesPanelProps) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // ── Query: list files ─────────────────────────────────────────────────────
-  const { data: files = [], isLoading, error, refetch } = useQuery({
+  const { data: filesData, isLoading, error, refetch } = useQuery({
     queryKey: ['knowledge-files', workspaceId],
     queryFn: () => fetchKnowledgeFiles(workspaceId),
     staleTime: 30_000,
   });
+  const files = Array.isArray(filesData) ? filesData : [];
 
   // ── Mutation: save (create/update) ────────────────────────────────────────
   const saveMutation = useMutation({

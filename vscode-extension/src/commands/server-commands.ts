@@ -7,6 +7,7 @@
 
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../server/ConnectionManager';
+import { getDashboardFrontendUrl } from '../server/ContainerDetection';
 import { DashboardViewProvider } from '../providers/DashboardViewProvider';
 import { DashboardPanel } from '../ui/DashboardPanel';
 import { notify } from '../utils/helpers';
@@ -22,7 +23,7 @@ export function registerServerCommands(
             vscode.commands.executeCommand('workbench.view.extension.projectMemory');
         }),
 
-        vscode.commands.registerCommand('projectMemory.openDashboardPanel', async () => {
+        vscode.commands.registerCommand('projectMemory.openDashboardPanel', async (targetUrl?: string) => {
             // Check if dashboard is connected
             if (!connectionManager.isDashboardConnected) {
                 const choice = await vscode.window.showWarningMessage(
@@ -44,7 +45,9 @@ export function registerServerCommands(
             }
 
             if (connectionManager.isDashboardConnected) {
-                const dashboardUrl = `http://localhost:${getDashboardPort()}`;
+                const dashboardUrl = targetUrl && targetUrl.trim().length > 0
+                    ? targetUrl
+                    : (getDashboardFrontendUrl() || `http://localhost:${getDashboardPort()}`);
                 DashboardPanel.createOrShow(context.extensionUri, dashboardUrl);
             } else {
                 vscode.window.showErrorMessage(

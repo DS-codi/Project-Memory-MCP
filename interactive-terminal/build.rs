@@ -14,6 +14,6 @@ fn main() {
         "qml/CommandCard.qml",
         "qml/OutputView.qml",
     ]))
-    .file("src/cxxqt_bridge/ffi.rs")
+    .file("src/cxxqt_bridge/mod.rs")
     .build();
 }

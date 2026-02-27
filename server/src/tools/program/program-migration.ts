@@ -1,17 +1,14 @@
 /**
  * Program Migration — Converts legacy PlanState programs to dedicated ProgramState.
  *
- * Scans all PlanState objects in data/{workspace_id}/plans/ for those with
- * is_program: true, creates corresponding ProgramState entries in
- * data/{workspace_id}/programs/{program_id}/, copies child_plan_ids into
- * manifest.json, copies depends_on_plans into dependencies.json, and clears
- * legacy fields from the old PlanState.
+ * Scans DB-backed PlanState objects for those with is_program: true,
+ * creates corresponding ProgramState entries, copies child_plan_ids into
+ * manifest.json, converts depends_on_plans into dependencies.json, and clears
+ * legacy fields from the old PlanState record.
  *
  * Idempotent: skips plans whose program_id already has a ProgramState.
  */
 
-import { promises as fs } from 'fs';
-import path from 'path';
 import type { PlanState } from '../../types/plan.types.js';
 import type {
   ProgramState,
@@ -19,7 +16,7 @@ import type {
   ProgramDependency,
   DependencyType,
 } from '../../types/program-v2.types.js';
-import { readJson, writeJson, getDataRoot } from '../../storage/db-store.js';
+import { getWorkspacePlans, savePlanState } from '../../storage/db-store.js';
 import {
   createProgramDir,
   readProgramState,
@@ -29,33 +26,6 @@ import {
   saveRisks,
 } from '../../storage/db-store.js';
 import { generateProgramId } from './program-lifecycle.js';
-
-// =============================================================================
-// File-based helpers (this is a one-time legacy migration tool that reads
-// pre-DB plan JSON files directly — not from the SQLite database)
-// =============================================================================
-
-async function loadAllPlans(workspaceId: string): Promise<PlanState[]> {
-  const plansDir = path.join(getDataRoot(), workspaceId, 'plans');
-  let entries: string[];
-  try {
-    entries = await fs.readdir(plansDir);
-  } catch {
-    return [];
-  }
-  const plans: PlanState[] = [];
-  for (const planId of entries) {
-    const statePath = path.join(plansDir, planId, 'state.json');
-    const plan = await readJson<PlanState>(statePath);
-    if (plan) plans.push(plan);
-  }
-  return plans;
-}
-
-async function savePlan(workspaceId: string, plan: PlanState): Promise<void> {
-  const statePath = path.join(getDataRoot(), workspaceId, 'plans', plan.id, 'state.json');
-  await writeJson(statePath, plan);
-}
 
 // =============================================================================
 // Types
@@ -143,7 +113,7 @@ function convertDependenciesToGraph(
  * 1. Scan all PlanState objects for is_program: true
  * 2. For each legacy program plan:
  *    a. Skip if a ProgramState already exists for this plan's program_id (or the plan_id itself)
- *    b. Create ProgramState in data/{workspace_id}/programs/{program_id}/
+ *    b. Create ProgramState for {program_id}
  *    c. Copy child_plan_ids into manifest.json
  *    d. Convert depends_on_plans into dependencies.json entries
  *    e. Initialise empty risks.json
@@ -157,7 +127,7 @@ function convertDependenciesToGraph(
 export async function migratePrograms(
   workspaceId: string,
 ): Promise<MigrationReport> {
-  const allPlans = await loadAllPlans(workspaceId);
+  const allPlans = await getWorkspacePlans(workspaceId);
 
   const legacyPrograms = allPlans.filter(
     (p: PlanState) => p.is_program === true,
@@ -243,14 +213,14 @@ export async function migratePrograms(
     legacyPlan.child_plan_ids = undefined;
     legacyPlan.depends_on_plans = undefined;
     legacyPlan.program_id = programId;
-    await savePlan(workspaceId, legacyPlan);
+    await savePlanState(legacyPlan);
 
     // 2h. Update child plans' program_id
     for (const childId of childIds) {
       const child = planById.get(childId);
       if (child) {
         child.program_id = programId;
-        await savePlan(workspaceId, child);
+        await savePlanState(child);
       }
     }
 

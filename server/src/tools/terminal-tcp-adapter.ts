@@ -57,6 +57,77 @@ function resolveGuiHost(): { host: string; port: number } {
   return { host: '127.0.0.1', port: 9100 };
 }
 
+/**
+ * Return the supervisor control TCP port used for on-demand launch.
+ * Reads PM_SUPERVISOR_CONTROL_PORT; defaults to 9200.
+ */
+function resolveControlPort(): number {
+  const raw = process.env.PM_SUPERVISOR_CONTROL_PORT?.trim();
+  if (raw) {
+    const parsed = parseInt(raw, 10);
+    if (!isNaN(parsed) && parsed > 0) return parsed;
+  }
+  return 9200;
+}
+
+/**
+ * Send a `Start { service: "interactive_terminal" }` control command to the
+ * supervisor over a short-lived TCP connection on `controlPort`.
+ *
+ * Resolves (without throwing) whether or not the send succeeds — failures are
+ * logged but must not crash the caller because the adapter should fall back
+ * to the original error path gracefully.
+ */
+async function triggerSupervisorLaunch(controlPort: number): Promise<void> {
+  return new Promise<void>((resolve) => {
+    const payload =
+      JSON.stringify({ type: 'Start', service: 'interactive_terminal' }) + '\n';
+    const socket = new net.Socket();
+    let done = false;
+
+    const cleanup = (): void => {
+      if (!done) {
+        done = true;
+        socket.destroy();
+      }
+      resolve();
+    };
+
+    const timer = setTimeout(() => {
+      if (!done) {
+        console.warn(
+          `[terminal-tcp-adapter] supervisor control connect timeout on port ${controlPort}`,
+        );
+        cleanup();
+      }
+    }, 3_000);
+
+    socket.once('error', (err: NodeJS.ErrnoException) => {
+      clearTimeout(timer);
+      if (!done) {
+        console.warn(
+          `[terminal-tcp-adapter] supervisor control error on port ${controlPort}: ${err.message}`,
+        );
+        cleanup();
+      }
+    });
+
+    socket.once('connect', () => {
+      socket.write(payload, (err) => {
+        clearTimeout(timer);
+        if (err) {
+          console.warn(
+            `[terminal-tcp-adapter] supervisor control write error: ${err.message}`,
+          );
+        }
+        cleanup();
+      });
+    });
+
+    socket.connect(controlPort, '127.0.0.1');
+  });
+}
+
 function buildContainerHostCandidates(primaryHost: string): string[] {
   const gateway = process.env.PM_INTERACTIVE_TERMINAL_HOST_GATEWAY?.trim();
   const raw = [
@@ -82,6 +153,12 @@ function buildContainerHostCandidates(primaryHost: string): string[] {
 
 /** Timeout for the initial TCP connection attempt (ms). */
 const CONNECT_TIMEOUT_MS = 5_000;
+/**
+ * Shorter timeout used for the very first probe connect attempt (before
+ * on-demand supervisor launch).  500 ms is enough to get a fast ECONNREFUSED
+ * from the OS while avoiding a long wait when the port is merely filtered.
+ */
+const PROBE_CONNECT_TIMEOUT_MS = 500;
 /** Timeout waiting for a CommandResponse after sending a request (ms). */
 const RESPONSE_TIMEOUT_MS = 60_000;
 
@@ -110,6 +187,11 @@ export class TcpTerminalAdapter {
   /**
    * Open a TCP connection to the GUI app.
    * Throws on connection failure or timeout.
+   *
+   * In host mode, if the first attempt gets ECONNREFUSED the adapter sends an
+   * on-demand launch command to the supervisor and retries up to 3 times with
+   * 1.5 s / 3 s / 5 s backoff.  Container mode uses the original multi-host
+   * candidate logic and does not attempt on-demand launch.
    */
   async connect(): Promise<void> {
     if (this.connected && this.socket && !this.socket.destroyed) {
@@ -117,7 +199,42 @@ export class TcpTerminalAdapter {
     }
 
     if (!this.inContainerMode) {
-      return this.connectOnce(this.host, this.port);
+      // ── First attempt (fast probe to detect ECONNREFUSED quickly) ────
+      try {
+        return await this.connectOnce(this.host, this.port, PROBE_CONNECT_TIMEOUT_MS);
+      } catch (firstErr) {
+        const isRefused = this.isEconnrefused(firstErr);
+        if (!isRefused) throw firstErr;
+      }
+
+      // ── ECONNREFUSED — trigger on-demand launch via supervisor ────────
+      const controlPort = resolveControlPort();
+      try {
+        await triggerSupervisorLaunch(controlPort);
+      } catch {
+        // triggerSupervisorLaunch never throws but guard here to be safe.
+      }
+
+      // ── Retry loop (1.5 s / 3 s / 5 s backoff) ───────────────────────
+      const retryDelaysMs = [1_500, 3_000, 5_000];
+      let lastError: unknown;
+      for (const delayMs of retryDelaysMs) {
+        await new Promise<void>((r) => setTimeout(r, delayMs));
+        try {
+          return await this.connectOnce(this.host, this.port);
+        } catch (retryErr) {
+          lastError = retryErr;
+          if (!this.isEconnrefused(retryErr)) throw retryErr;
+          // ECONNREFUSED again — keep retrying.
+        }
+      }
+
+      // ── All retries exhausted ─────────────────────────────────────────
+      const detail =
+        lastError instanceof Error ? lastError.message : String(lastError);
+      throw new Error(
+        `TCP connect to ${this.host}:${this.port} failed after on-demand launch: ${detail}`,
+      );
     }
 
     const attempts: string[] = [];
@@ -138,7 +255,23 @@ export class TcpTerminalAdapter {
     );
   }
 
-  private connectOnce(host: string, port: number): Promise<void> {
+  /** Return true if the error represents ECONNREFUSED (port not yet listening).
+   *  Handles both raw Node.js socket errors and the wrapped Error produced by
+   *  connectOnce(), which embeds the original message in the string. */
+  private isEconnrefused(err: unknown): boolean {
+    if (!(err instanceof Error)) return false;
+    const node = err as NodeJS.ErrnoException;
+    if (node.code === 'ECONNREFUSED') return true;
+    // connectOnce wraps the raw socket error in a new Error — fall back to a
+    // message-string check.
+    return err.message.includes('ECONNREFUSED');
+  }
+
+  private connectOnce(
+    host: string,
+    port: number,
+    timeoutMs: number = CONNECT_TIMEOUT_MS,
+  ): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       const socket = new net.Socket();
       let settled = false;
@@ -149,11 +282,11 @@ export class TcpTerminalAdapter {
           socket.destroy();
           reject(
             new Error(
-              `TCP connect timeout after ${CONNECT_TIMEOUT_MS}ms to ${host}:${port}`,
+              `TCP connect timeout after ${timeoutMs}ms to ${host}:${port}`,
             ),
           );
         }
-      }, CONNECT_TIMEOUT_MS);
+      }, timeoutMs);
 
       socket.once('connect', () => {
         if (settled) return;

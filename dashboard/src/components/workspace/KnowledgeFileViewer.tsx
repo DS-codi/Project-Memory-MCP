@@ -56,6 +56,7 @@ export function KnowledgeFileViewer({ workspaceId, file, onEdit, onDelete }: Kno
   });
 
   const categoryColor = CATEGORY_COLORS[file.category] || CATEGORY_COLORS.reference;
+  const fileTags = Array.isArray(fullFile?.tags) ? fullFile.tags : [];
 
   return (
     <div className="border border-slate-700 rounded-lg overflow-hidden">
@@ -133,9 +134,9 @@ export function KnowledgeFileViewer({ workspaceId, file, onEdit, onDelete }: Kno
           ) : fullFile ? (
             <div className="space-y-2">
               {/* Tags */}
-              {fullFile.tags.length > 0 && (
+              {fileTags.length > 0 && (
                 <div className="flex gap-1 flex-wrap mb-2">
-                  {fullFile.tags.map((tag) => (
+                  {fileTags.map((tag) => (
                     <span key={tag} className="px-1.5 py-0.5 text-[10px] bg-slate-700/50 text-slate-400 rounded">
                       {tag}
                     </span>

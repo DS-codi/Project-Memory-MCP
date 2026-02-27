@@ -1,9 +1,12 @@
 use crate::protocol::{CommandRequest, TerminalProfile};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 use tokio::io::AsyncBufReadExt;
+use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
+use tokio::process::{Child, ChildStdin};
 use tokio::sync::mpsc;
 
 // ---------------------------------------------------------------------------
@@ -29,6 +32,25 @@ pub struct ExecutionResult {
     pub output: String,
 }
 
+pub struct PersistentShellManager {
+    shells: HashMap<String, PersistentShell>,
+}
+
+struct PersistentShell {
+    profile: TerminalProfile,
+    stdin: ChildStdin,
+    output_rx: mpsc::Receiver<OutputLine>,
+    child: Child,
+}
+
+impl Default for PersistentShellManager {
+    fn default() -> Self {
+        Self {
+            shells: HashMap::new(),
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Core executor
 // ---------------------------------------------------------------------------
@@ -50,6 +72,7 @@ pub async fn execute_command(
 
     cmd.current_dir(resolve_working_directory(request));
     apply_venv_environment(&mut cmd, request);
+    apply_request_environment(&mut cmd, request);
     cmd.stdout(std::process::Stdio::piped());
     cmd.stderr(std::process::Stdio::piped());
 
@@ -179,6 +202,129 @@ pub async fn execute_command_with_timeout(
     }
 }
 
+impl PersistentShellManager {
+    pub async fn execute_command_with_timeout(
+        &mut self,
+        request: &CommandRequest,
+        output_tx: mpsc::Sender<OutputLine>,
+    ) -> Result<ExecutionResult, String> {
+        let timeout_dur = Duration::from_secs(request.timeout_seconds);
+
+        match tokio::time::timeout(timeout_dur, self.execute_command(request, output_tx.clone()))
+            .await
+        {
+            Ok(result) => result,
+            Err(_) => {
+                self.terminate_session_shell(&request.session_id).await;
+
+                let timeout_msg = format!(
+                    "Command timed out after {} seconds",
+                    request.timeout_seconds,
+                );
+                let _ = output_tx
+                    .send(OutputLine::Stderr(timeout_msg.clone()))
+                    .await;
+
+                Ok(ExecutionResult {
+                    request_id: request.id.clone(),
+                    exit_code: Some(-1),
+                    output: timeout_msg,
+                })
+            }
+        }
+    }
+
+    pub async fn terminate_session_shell(&mut self, session_id: &str) {
+        if let Some(mut shell) = self.shells.remove(session_id) {
+            let _ = shell.child.kill().await;
+        }
+    }
+
+    async fn execute_command(
+        &mut self,
+        request: &CommandRequest,
+        output_tx: mpsc::Sender<OutputLine>,
+    ) -> Result<ExecutionResult, String> {
+        self.ensure_shell(request).await?;
+
+        let marker = format!("__PM_DONE_{}__", request.id.replace('-', "_"));
+        let wrapped_command = build_wrapped_shell_command(request, &marker);
+
+        let shell = self
+            .shells
+            .get_mut(&request.session_id)
+            .ok_or_else(|| "Failed to resolve session shell".to_string())?;
+
+        shell
+            .stdin
+            .write_all(wrapped_command.as_bytes())
+            .await
+            .map_err(|e| format!("Failed to write command to shell: {e}"))?;
+        shell
+            .stdin
+            .write_all(b"\n")
+            .await
+            .map_err(|e| format!("Failed to write newline to shell: {e}"))?;
+        shell
+            .stdin
+            .flush()
+            .await
+            .map_err(|e| format!("Failed to flush shell input: {e}"))?;
+
+        let accumulated = Arc::new(StdMutex::new(String::new()));
+        let exit_code = loop {
+            let line = shell
+                .output_rx
+                .recv()
+                .await
+                .ok_or_else(|| "Shell process terminated unexpectedly".to_string())?;
+
+            match line {
+                OutputLine::Stdout(text) => {
+                    if let Some(code) = parse_marker_exit_code(&text, &marker) {
+                        break Some(code);
+                    }
+
+                    push_line(&accumulated, &text, false);
+                    let _ = output_tx.send(OutputLine::Stdout(text)).await;
+                }
+                OutputLine::Stderr(text) => {
+                    if let Some(code) = parse_marker_exit_code(&text, &marker) {
+                        break Some(code);
+                    }
+
+                    push_line(&accumulated, &text, true);
+                    let _ = output_tx.send(OutputLine::Stderr(text)).await;
+                }
+            }
+        };
+
+        let output = accumulated.lock().unwrap().clone();
+
+        Ok(ExecutionResult {
+            request_id: request.id.clone(),
+            exit_code,
+            output,
+        })
+    }
+
+    async fn ensure_shell(&mut self, request: &CommandRequest) -> Result<(), String> {
+        let needs_new_shell = match self.shells.get(&request.session_id) {
+            Some(shell) => shell.profile != request.terminal_profile,
+            None => true,
+        };
+
+        if !needs_new_shell {
+            return Ok(());
+        }
+
+        self.terminate_session_shell(&request.session_id).await;
+        let shell = spawn_persistent_shell(request).await?;
+        self.shells.insert(request.session_id.clone(), shell);
+        Ok(())
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -215,6 +361,240 @@ fn shell_invocation(request: &CommandRequest) -> (String, Vec<String>) {
             _ => ("sh".to_string(), vec!["-c".to_string(), command]),
         }
     }
+}
+
+fn persistent_shell_invocation(profile: &TerminalProfile) -> (String, Vec<String>) {
+    if cfg!(target_os = "windows") {
+        match profile {
+            TerminalProfile::PowerShell => (
+                "powershell".to_string(),
+                vec!["-NoLogo".to_string(), "-NoProfile".to_string()],
+            ),
+            TerminalProfile::Pwsh => (
+                "pwsh".to_string(),
+                vec!["-NoLogo".to_string(), "-NoProfile".to_string()],
+            ),
+            TerminalProfile::Bash => ("bash".to_string(), Vec::new()),
+            TerminalProfile::Cmd | TerminalProfile::System => (
+                "cmd".to_string(),
+                vec!["/Q".to_string()],
+            ),
+        }
+    } else {
+        match profile {
+            TerminalProfile::Bash => ("bash".to_string(), Vec::new()),
+            _ => ("sh".to_string(), Vec::new()),
+        }
+    }
+}
+
+async fn spawn_persistent_shell(request: &CommandRequest) -> Result<PersistentShell, String> {
+    let profile = request.terminal_profile.clone();
+    let (program, args) = persistent_shell_invocation(&profile);
+    let mut cmd = Command::new(program);
+    cmd.args(args);
+    cmd.current_dir(resolve_working_directory(request));
+    apply_venv_environment(&mut cmd, request);
+    apply_request_environment(&mut cmd, request);
+    cmd.stdin(std::process::Stdio::piped());
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+
+    #[cfg(windows)]
+    {
+        cmd.creation_flags(0x08000000);
+    }
+
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("Failed to spawn persistent shell: {e}"))?;
+
+    let stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| "Failed to capture shell stdin".to_string())?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "Failed to capture shell stdout".to_string())?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| "Failed to capture shell stderr".to_string())?;
+
+    let (output_tx, output_rx) = mpsc::channel::<OutputLine>(256);
+
+    let out_tx = output_tx.clone();
+    tokio::spawn(async move {
+        let mut lines = tokio::io::BufReader::new(stdout).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            if out_tx.send(OutputLine::Stdout(line)).await.is_err() {
+                break;
+            }
+        }
+    });
+
+    tokio::spawn(async move {
+        let mut lines = tokio::io::BufReader::new(stderr).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            if output_tx.send(OutputLine::Stderr(line)).await.is_err() {
+                break;
+            }
+        }
+    });
+
+    Ok(PersistentShell {
+        profile,
+        stdin,
+        output_rx,
+        child,
+    })
+}
+
+fn build_wrapped_shell_command(request: &CommandRequest, marker: &str) -> String {
+    let cwd = resolve_working_directory(request).to_string_lossy().to_string();
+    let env_prefix = build_shell_env_prefix(request);
+
+    if cfg!(target_os = "windows") {
+        match request.terminal_profile {
+            TerminalProfile::PowerShell | TerminalProfile::Pwsh => {
+                let escaped_cwd = escape_powershell_single_quoted(&cwd);
+                format!(
+                    "{env_prefix}Set-Location -LiteralPath '{escaped_cwd}'; & {{ {}; $code=$LASTEXITCODE; if ($null -eq $code) {{ $code=0 }}; Write-Output '{}'+$code }}",
+                    request.command,
+                    marker
+                )
+            }
+            TerminalProfile::Bash => {
+                let escaped_cwd = escape_single_quoted_shell(&cwd);
+                format!(
+                    "{env_prefix}cd '{escaped_cwd}' 2>/dev/null; {}; printf '{}%s\\n' \"$?\"",
+                    request.command, marker
+                )
+            }
+            TerminalProfile::Cmd | TerminalProfile::System => {
+                let escaped_cwd = cwd.replace('"', "\"\"");
+                format!(
+                    "{env_prefix}cd /d \"{escaped_cwd}\" >nul 2>nul & {} & echo {}%ERRORLEVEL%",
+                    request.command, marker
+                )
+            }
+        }
+    } else {
+        let escaped_cwd = escape_single_quoted_shell(&cwd);
+        format!(
+            "{env_prefix}cd '{escaped_cwd}' 2>/dev/null; {}; printf '{}%s\\n' \"$?\"",
+            request.command, marker
+        )
+    }
+}
+
+fn apply_request_environment(cmd: &mut Command, request: &CommandRequest) {
+    let normalized = normalized_request_env(request);
+    if normalized.is_empty() {
+        return;
+    }
+
+    for (key, value) in normalized {
+        cmd.env(key, value);
+    }
+}
+
+fn build_shell_env_prefix(request: &CommandRequest) -> String {
+    let normalized = normalized_request_env(request);
+    if normalized.is_empty() {
+        return String::new();
+    }
+
+    if cfg!(target_os = "windows") {
+        match request.terminal_profile {
+            TerminalProfile::PowerShell | TerminalProfile::Pwsh => normalized
+                .iter()
+                .filter(|(k, _)| is_safe_env_key(k))
+                .map(|(k, v)| {
+                    format!(
+                        "$env:{} = '{}'; ",
+                        k,
+                        escape_powershell_single_quoted(v)
+                    )
+                })
+                .collect(),
+            TerminalProfile::Bash => normalized
+                .iter()
+                .filter(|(k, _)| is_safe_env_key(k))
+                .map(|(k, v)| format!("export {}='{}'; ", k, escape_single_quoted_shell(v)))
+                .collect(),
+            TerminalProfile::Cmd | TerminalProfile::System => normalized
+                .iter()
+                .filter(|(k, _)| is_safe_env_key(k))
+                .map(|(k, v)| {
+                    let escaped_value = v.replace('"', "\"\"");
+                    format!("set \"{}={}\" & ", k, escaped_value)
+                })
+                .collect(),
+        }
+    } else {
+        normalized
+            .iter()
+            .filter(|(k, _)| is_safe_env_key(k))
+            .map(|(k, v)| format!("export {}='{}'; ", k, escape_single_quoted_shell(v)))
+            .collect()
+    }
+}
+
+fn normalized_request_env(request: &CommandRequest) -> Vec<(String, String)> {
+    let mut env_pairs: Vec<(String, String)> = request
+        .env
+        .iter()
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
+
+    let gemini_value = request
+        .env
+        .get("GEMINI_API_KEY")
+        .or_else(|| request.env.get("GOOGLE_API_KEY"))
+        .cloned();
+
+    if let Some(value) = gemini_value {
+        if !request.env.contains_key("GEMINI_API_KEY") {
+            env_pairs.push(("GEMINI_API_KEY".to_string(), value.clone()));
+        }
+        if !request.env.contains_key("GOOGLE_API_KEY") {
+            env_pairs.push(("GOOGLE_API_KEY".to_string(), value));
+        }
+    }
+
+    env_pairs
+}
+
+fn is_safe_env_key(key: &str) -> bool {
+    let mut chars = key.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+
+    if !(first.is_ascii_alphabetic() || first == '_') {
+        return false;
+    }
+
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+fn parse_marker_exit_code(line: &str, marker: &str) -> Option<i32> {
+    let trimmed = line.trim();
+    if !trimmed.starts_with(marker) {
+        return None;
+    }
+    let value = trimmed[marker.len()..].trim();
+    value.parse::<i32>().ok()
+}
+
+fn escape_single_quoted_shell(input: &str) -> String {
+    input.replace('"', "\\\"").replace('\'', "'\\''")
+}
+
+fn escape_powershell_single_quoted(input: &str) -> String {
+    input.replace('\'', "''")
 }
 
 fn resolve_working_directory(request: &CommandRequest) -> PathBuf {
@@ -489,6 +869,62 @@ mod tests {
         assert_eq!(result.request_id, "test-fast");
         assert_eq!(result.exit_code, Some(0));
         assert!(result.output.contains("fast"));
+    }
+
+    #[test]
+    fn wraps_with_env_prefix_for_powershell_profile() {
+        let mut env = std::collections::HashMap::new();
+        env.insert("FOO".to_string(), "bar".to_string());
+        env.insert("GOOGLE_API_KEY".to_string(), "test-key".to_string());
+
+        let request = CommandRequest {
+            id: "env-wrap-ps".into(),
+            command: "Write-Output ok".into(),
+            working_directory: std::env::current_dir().unwrap().to_string_lossy().into(),
+            context: String::new(),
+            session_id: "default".into(),
+            terminal_profile: TerminalProfile::PowerShell,
+            workspace_path: String::new(),
+            venv_path: String::new(),
+            activate_venv: false,
+            timeout_seconds: 10,
+            args: Vec::new(),
+            env,
+            workspace_id: String::new(),
+            allowlisted: false,
+        };
+
+        let wrapped = build_wrapped_shell_command(&request, "__PM_DONE__");
+        assert!(wrapped.contains("$env:FOO = 'bar';"));
+        assert!(wrapped.contains("$env:GOOGLE_API_KEY = 'test-key';"));
+        assert!(wrapped.contains("$env:GEMINI_API_KEY = 'test-key';"));
+    }
+
+    #[test]
+    fn normalizes_gemini_and_google_aliases() {
+        let mut env = std::collections::HashMap::new();
+        env.insert("GOOGLE_API_KEY".to_string(), "alias-value".to_string());
+
+        let request = CommandRequest {
+            id: "env-normalize".into(),
+            command: "echo ok".into(),
+            working_directory: std::env::current_dir().unwrap().to_string_lossy().into(),
+            context: String::new(),
+            session_id: "default".into(),
+            terminal_profile: TerminalProfile::System,
+            workspace_path: String::new(),
+            venv_path: String::new(),
+            activate_venv: false,
+            timeout_seconds: 10,
+            args: Vec::new(),
+            env,
+            workspace_id: String::new(),
+            allowlisted: false,
+        };
+
+        let normalized = normalized_request_env(&request);
+        assert!(normalized.iter().any(|(k, v)| k == "GOOGLE_API_KEY" && v == "alias-value"));
+        assert!(normalized.iter().any(|(k, v)| k == "GEMINI_API_KEY" && v == "alias-value"));
     }
 
     #[test]

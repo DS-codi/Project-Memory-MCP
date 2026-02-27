@@ -43,7 +43,7 @@ export function migrateAgents(projectRoot: string, report: ReportBuilder, dryRun
 
     if (!dryRun) {
       try {
-        storeAgent(agentName, content, metadata);
+        storeAgent(agentName, content, { metadata });
       } catch (err) {
         report.error(filePath, `DB insert failed: ${(err as Error).message}`);
         continue;

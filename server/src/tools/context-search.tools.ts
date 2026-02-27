@@ -1,4 +1,3 @@
-import { promises as fs } from 'fs';
 import path from 'path';
 import type { ToolResponse } from '../types/index.js';
 import * as store from '../storage/db-store.js';
@@ -42,6 +41,7 @@ interface SearchItem {
   size_bytes: number;
   updated_at: string;
   searchable_text: string;
+  content?: string;
 }
 
 function normalizeLimit(limit?: number): number {
@@ -133,67 +133,45 @@ async function collectPlanContext(
   workspaceId: string,
   planId: string
 ): Promise<SearchItem[]> {
-  const planPath = store.getPlanPath(workspaceId, planId);
-  const researchPath = store.getResearchNotesPath(workspaceId, planId);
   const items: SearchItem[] = [];
 
-  try {
-    const entries = await fs.readdir(planPath, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isFile() || !entry.name.endsWith('.json') || entry.name === 'state.json') {
-        continue;
-      }
-      const filePath = path.join(planPath, entry.name);
-      const [content, stat] = await Promise.all([
-        fs.readFile(filePath, 'utf-8'),
-        fs.stat(filePath),
-      ]);
-      const title = entry.name.replace(/\.json$/i, '');
-      const preview = toPreview(content);
-      items.push({
-        id: `plan:${planId}:${title}`,
-        scope: 'plan',
-        type: 'plan_context',
-        title,
-        source: `plan:${planId}`,
-        path: toPosixRelative(filePath),
-        preview,
-        size_bytes: stat.size,
-        updated_at: stat.mtime.toISOString(),
-        searchable_text: toSearchable(`${title} ${content}`),
-      });
-    }
-  } catch {
-    return items;
+  const contextTypes = await store.listPlanContextTypesFromDb(workspaceId, planId);
+  for (const contextType of contextTypes) {
+    const payload = await store.getPlanContextFromDb(workspaceId, planId, contextType);
+    if (payload === null) continue;
+
+    const content = asText(payload);
+    items.push({
+      id: `plan:${planId}:${contextType}`,
+      scope: 'plan',
+      type: 'plan_context',
+      title: contextType,
+      source: `plan:${planId}`,
+      path: `db://plan/${planId}/context/${contextType}`,
+      preview: toPreview(content),
+      size_bytes: Buffer.byteLength(content, 'utf-8'),
+      updated_at: new Date().toISOString(),
+      searchable_text: toSearchable(`${contextType} ${content}`),
+      content,
+    });
   }
 
-  try {
-    const entries = await fs.readdir(researchPath, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isFile()) {
-        continue;
-      }
-      const filePath = path.join(researchPath, entry.name);
-      const [content, stat] = await Promise.all([
-        fs.readFile(filePath, 'utf-8'),
-        fs.stat(filePath),
-      ]);
-      const preview = toPreview(content);
-      items.push({
-        id: `research:${planId}:${entry.name}`,
-        scope: 'plan',
-        type: 'research_note',
-        title: entry.name,
-        source: `plan:${planId}`,
-        path: toPosixRelative(filePath),
-        preview,
-        size_bytes: stat.size,
-        updated_at: stat.mtime.toISOString(),
-        searchable_text: toSearchable(`${entry.name} ${content}`),
-      });
-    }
-  } catch {
-    return items;
+  const notes = await store.listPlanResearchNotesFromDb(workspaceId, planId);
+  for (const note of notes) {
+    const content = note.content;
+    items.push({
+      id: `research:${planId}:${note.filename}`,
+      scope: 'plan',
+      type: 'research_note',
+      title: note.filename,
+      source: `plan:${planId}`,
+      path: `db://plan/${planId}/research_notes/${note.filename}`,
+      preview: toPreview(content),
+      size_bytes: note.size_bytes,
+      updated_at: note.updated_at,
+      searchable_text: toSearchable(`${note.filename} ${content}`),
+      content,
+    });
   }
 
   return items;
@@ -219,6 +197,7 @@ async function collectWorkspaceContext(workspaceId: string): Promise<SearchItem[
       size_bytes: sizeBytes,
       updated_at: updatedAt,
       searchable_text: toSearchable(content),
+      content,
     }];
   } catch {
     return [];
@@ -252,6 +231,7 @@ async function collectKnowledgeFiles(workspaceId: string): Promise<SearchItem[]>
       size_bytes: sizeBytes,
       updated_at: knowledgeFile.updated_at,
       searchable_text: toSearchable(content),
+      content,
     });
   }
 
@@ -276,6 +256,7 @@ async function collectProgramFiles(workspaceId: string): Promise<SearchItem[]> {
       size_bytes: Buffer.byteLength(content, 'utf-8'),
       updated_at: artifact.updated_at,
       searchable_text: toSearchable(`${artifact.program_id} ${content}`),
+      content,
     });
   }
 
@@ -293,6 +274,7 @@ function stripSearchOnlyFields(item: SearchItem): Record<string, unknown> {
     preview: item.preview,
     size_bytes: item.size_bytes,
     updated_at: item.updated_at,
+    ...(item.content ? { content: item.content } : {}),
   };
 }
 

@@ -58,6 +58,7 @@ import {
   getPlansByWorkspace,
   findPlanById as dbFindPlanById,
   updatePlan as dbUpdatePlan,
+  deletePlan as dbDeletePlan,
 } from '../db/plan-db.js';
 import { createPhase, getOrCreatePhase, getPhases } from '../db/phase-db.js';
 import {
@@ -147,10 +148,95 @@ class FileLockManager {
 
 export const fileLockManager = new FileLockManager();
 
+const RESEARCH_NOTE_TYPE_PREFIX = 'research_note:';
+
+type VirtualPlanPath =
+  | { kind: 'context'; workspaceId: string; planId: string; contextType: string }
+  | { kind: 'research_note'; workspaceId: string; planId: string; filename: string };
+
+function normalizePathForCompare(inputPath: string): string {
+  return path.resolve(inputPath).replace(/\\/g, '/').replace(/\/+$/, '');
+}
+
+function tryParseVirtualPlanPath(filePath: string): VirtualPlanPath | null {
+  const normalized = normalizePathForCompare(filePath);
+  const dataRoot = normalizePathForCompare(getDataRoot());
+  if (!normalized.startsWith(`${dataRoot}/`)) return null;
+
+  const rel = normalized.slice(dataRoot.length + 1);
+  const parts = rel.split('/');
+  if (parts.length < 4) return null;
+  const [workspaceId, maybePlans, planId, ...rest] = parts;
+  if (maybePlans !== 'plans' || !workspaceId || !planId || rest.length === 0) return null;
+
+  if (rest.length === 1 && rest[0].endsWith('.json') && rest[0] !== 'state.json') {
+    return {
+      kind: 'context',
+      workspaceId,
+      planId,
+      contextType: rest[0].replace(/\.json$/i, ''),
+    };
+  }
+
+  if (rest[0] === 'research_notes' && rest.length >= 2) {
+    return {
+      kind: 'research_note',
+      workspaceId,
+      planId,
+      filename: rest.slice(1).join('/'),
+    };
+  }
+
+  return null;
+}
+
+function wrapContextValue(value: unknown): object {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as object;
+  }
+  return { __pm_value: value };
+}
+
+function unwrapContextValue<T>(value: unknown): T {
+  if (
+    value &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    Object.prototype.hasOwnProperty.call(value, '__pm_value')
+  ) {
+    return (value as { __pm_value: T }).__pm_value;
+  }
+  return value as T;
+}
+
+function researchNoteType(filename: string): string {
+  return `${RESEARCH_NOTE_TYPE_PREFIX}${filename}`;
+}
+
+function isResearchNoteType(type: string): boolean {
+  return type.startsWith(RESEARCH_NOTE_TYPE_PREFIX);
+}
+
+function rowData(row: { data: string }): unknown {
+  return JSON.parse(row.data);
+}
+
 /**
  * Read a JSON file (unlocked — use modifyJsonLocked for concurrent access).
  */
 export async function readJson<T>(filePath: string): Promise<T | null> {
+  const virtual = tryParseVirtualPlanPath(filePath);
+  if (virtual?.kind === 'context') {
+    const rows = dbGetContext('plan', virtual.planId, virtual.contextType);
+    if (!rows.length) return null;
+    return unwrapContextValue<T>(rowData(rows[0]));
+  }
+  if (virtual?.kind === 'research_note') {
+    const rows = dbGetContext('plan', virtual.planId, researchNoteType(virtual.filename));
+    if (!rows.length) return null;
+    return rowData(rows[0]) as T;
+  }
+
   if (shouldProxyFilePath(filePath)) {
     try { return await readJsonViaHostProxy<T>(filePath); } catch { return null; }
   }
@@ -165,6 +251,16 @@ export async function readJson<T>(filePath: string): Promise<T | null> {
  * Prefer writeJsonLocked() or modifyJsonLocked() for concurrent access.
  */
 export async function writeJson<T>(filePath: string, data: T): Promise<void> {
+  const virtual = tryParseVirtualPlanPath(filePath);
+  if (virtual?.kind === 'context') {
+    dbStoreContext('plan', virtual.planId, virtual.contextType, wrapContextValue(data));
+    return;
+  }
+  if (virtual?.kind === 'research_note') {
+    dbStoreContext('plan', virtual.planId, researchNoteType(virtual.filename), wrapContextValue(data));
+    return;
+  }
+
   if (shouldProxyFilePath(filePath)) {
     await writeJsonViaHostProxy(filePath, JSON.stringify(data, null, 2));
     return;
@@ -1021,6 +1117,16 @@ export async function ensureDir(dirPath: string): Promise<void> {
 }
 
 export async function exists(filePath: string): Promise<boolean> {
+  const virtual = tryParseVirtualPlanPath(filePath);
+  if (virtual?.kind === 'context') {
+    const rows = dbGetContext('plan', virtual.planId, virtual.contextType);
+    return rows.length > 0;
+  }
+  if (virtual?.kind === 'research_note') {
+    const rows = dbGetContext('plan', virtual.planId, researchNoteType(virtual.filename));
+    return rows.length > 0;
+  }
+
   try {
     await fs.access(filePath);
     return true;
@@ -1039,11 +1145,46 @@ export async function listDirs(dirPath: string): Promise<string[]> {
 }
 
 export async function writeText(filePath: string, content: string): Promise<void> {
+  const virtual = tryParseVirtualPlanPath(filePath);
+  if (virtual?.kind === 'research_note') {
+    dbStoreContext('plan', virtual.planId, researchNoteType(virtual.filename), {
+      filename: virtual.filename,
+      content,
+      updated_at: nowIso(),
+    });
+    return;
+  }
+  if (virtual?.kind === 'context') {
+    try {
+      const parsed = JSON.parse(content);
+      dbStoreContext('plan', virtual.planId, virtual.contextType, wrapContextValue(parsed));
+    } catch {
+      dbStoreContext('plan', virtual.planId, virtual.contextType, { __pm_text: content });
+    }
+    return;
+  }
+
   await ensureDir(path.dirname(filePath));
   await fs.writeFile(filePath, content, 'utf-8');
 }
 
 export async function readText(filePath: string): Promise<string | null> {
+  const virtual = tryParseVirtualPlanPath(filePath);
+  if (virtual?.kind === 'research_note') {
+    const rows = dbGetContext('plan', virtual.planId, researchNoteType(virtual.filename));
+    if (!rows.length) return null;
+    const payload = rowData(rows[0]) as { content?: string; __pm_text?: string };
+    if (typeof payload.content === 'string') return payload.content;
+    if (typeof payload.__pm_text === 'string') return payload.__pm_text;
+    return JSON.stringify(payload, null, 2);
+  }
+  if (virtual?.kind === 'context') {
+    const rows = dbGetContext('plan', virtual.planId, virtual.contextType);
+    if (!rows.length) return null;
+    const payload = unwrapContextValue<unknown>(rowData(rows[0]));
+    return typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+  }
+
   try {
     return await fs.readFile(filePath, 'utf-8');
   } catch {
@@ -1408,6 +1549,16 @@ export async function createPlan(
   return buildPlanState(planId)!;
 }
 
+export async function deletePlan(
+  workspaceId: string,
+  planId: string,
+): Promise<boolean> {
+  const row = dbGetPlan(planId);
+  if (!row || row.workspace_id !== workspaceId) return false;
+  dbDeletePlan(planId);
+  return true;
+}
+
 /** No-op: plan.md is no longer generated from plan state. */
 export async function generatePlanMd(_state: PlanState): Promise<void> {
   // plan.md is a legacy artifact; DB-backed plans don't use it.
@@ -1680,4 +1831,61 @@ export async function deleteWorkspaceContextFromDb(
   if (!rows.length) return false;
   dbDeleteContext(rows[0].id);
   return true;
+}
+
+export async function getPlanContextFromDb(
+  workspaceId: string,
+  planId: string,
+  contextType: string,
+): Promise<unknown | null> {
+  const plan = dbGetPlan(planId);
+  if (!plan || plan.workspace_id !== workspaceId) return null;
+  const rows = dbGetContext('plan', planId, contextType);
+  if (!rows.length) return null;
+  return unwrapContextValue(rowData(rows[0]));
+}
+
+export async function listPlanContextTypesFromDb(
+  workspaceId: string,
+  planId: string,
+): Promise<string[]> {
+  const plan = dbGetPlan(planId);
+  if (!plan || plan.workspace_id !== workspaceId) return [];
+  const rows = dbGetContext('plan', planId);
+  return rows
+    .map(row => row.type)
+    .filter(type => !isResearchNoteType(type))
+    .sort((a, b) => a.localeCompare(b));
+}
+
+export async function listPlanResearchNotesFromDb(
+  workspaceId: string,
+  planId: string,
+): Promise<Array<{ filename: string; content: string; updated_at: string; size_bytes: number }>> {
+  const plan = dbGetPlan(planId);
+  if (!plan || plan.workspace_id !== workspaceId) return [];
+  const rows = dbGetContext('plan', planId)
+    .filter(row => isResearchNoteType(row.type));
+
+  return rows.map(row => {
+    const payload = rowData(row) as { filename?: string; content?: string; __pm_text?: string };
+    const filename = payload.filename || row.type.slice(RESEARCH_NOTE_TYPE_PREFIX.length);
+    const content = typeof payload.content === 'string'
+      ? payload.content
+      : (typeof payload.__pm_text === 'string' ? payload.__pm_text : JSON.stringify(payload, null, 2));
+    return {
+      filename,
+      content,
+      updated_at: row.updated_at,
+      size_bytes: Buffer.byteLength(content, 'utf-8'),
+    };
+  }).sort((a, b) => a.filename.localeCompare(b.filename));
+}
+
+export async function listPlanResearchNoteNamesFromDb(
+  workspaceId: string,
+  planId: string,
+): Promise<string[]> {
+  const notes = await listPlanResearchNotesFromDb(workspaceId, planId);
+  return notes.map(note => note.filename);
 }

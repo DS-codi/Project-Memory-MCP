@@ -78,7 +78,10 @@ impl AppState {
                     .insert(candidate.clone(), candidate.clone());
                 self.session_context_by_id
                     .entry(candidate.clone())
-                    .or_default();
+                    .or_insert_with(|| SessionRuntimeContext {
+                        selected_terminal_profile: self.default_terminal_profile.clone(),
+                        ..SessionRuntimeContext::default()
+                    });
                 self.selected_session_id = candidate.clone();
                 return candidate;
             }
@@ -177,7 +180,10 @@ impl AppState {
         self.session_context_by_id
             .get(&self.selected_session_id)
             .cloned()
-            .unwrap_or_default()
+            .unwrap_or(SessionRuntimeContext {
+                selected_terminal_profile: self.default_terminal_profile.clone(),
+                ..SessionRuntimeContext::default()
+            })
     }
 
     pub(crate) fn set_selected_terminal_profile(
@@ -188,6 +194,13 @@ impl AppState {
             .entry(self.selected_session_id.clone())
             .or_default()
             .selected_terminal_profile = profile;
+    }
+
+    pub(crate) fn set_default_terminal_profile(
+        &mut self,
+        profile: crate::protocol::TerminalProfile,
+    ) {
+        self.default_terminal_profile = profile;
     }
 
     pub(crate) fn set_selected_workspace_path(&mut self, workspace_path: String) {

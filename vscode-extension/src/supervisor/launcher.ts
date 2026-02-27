@@ -149,15 +149,7 @@ function resolveLaunchTarget(settings: SupervisorSettings): string {
     }
   }
 
-  // 3. Look for _deprecated_start-supervisor.ps1 as fallback
-  for (const folder of workspaceFolders) {
-    const candidate = path.join(folder.uri.fsPath, '_deprecated_start-supervisor.ps1');
-    if (fs.existsSync(candidate)) {
-      return candidate;
-    }
-  }
-
-  // 4. Nothing found — tell the user how to fix it.
+  // 3. Nothing found — tell the user how to fix it.
   throw new Error(
     '[Supervisor] Could not locate start-supervisor.ps1 in any workspace folder, ' +
       'and supervisor.launcherPath is not configured. ' +

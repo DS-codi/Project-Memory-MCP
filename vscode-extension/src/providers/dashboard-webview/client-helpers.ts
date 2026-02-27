@@ -19,14 +19,33 @@ export function getClientHelpers(): string {
             const title = plan.title || '(untitled)';
             const status = (plan.status || 'unknown').toLowerCase();
             const category = plan.category || 'general';
-            const isProgram = Boolean(plan.is_program);
+            const explicitIsProgram =
+                plan.is_program === true ||
+                plan.is_program === 1 ||
+                plan.is_program === '1';
+            const inferredIsProgram =
+                Array.isArray(plan.child_plan_ids) ||
+                typeof plan.child_plans_count === 'number' ||
+                Array.isArray(plan.plans) ||
+                typeof plan.program_id === 'string';
+            const isProgram = explicitIsProgram || inferredIsProgram;
             const schemaVersion = plan.schema_version || null;
             const currentPhase = plan.current_phase || plan.phase || null;
-            const progressDone = plan.progress?.done || 0;
-            const progressTotal = plan.progress?.total || 0;
+            const progressDone =
+                (typeof plan.progress?.done === 'number' && plan.progress.done) ||
+                (typeof plan.done_steps === 'number' && plan.done_steps) ||
+                (typeof plan.completed_steps === 'number' && plan.completed_steps) ||
+                0;
+            const progressTotal =
+                (typeof plan.progress?.total === 'number' && plan.progress.total) ||
+                (typeof plan.total_steps === 'number' && plan.total_steps) ||
+                (typeof plan.step_count === 'number' && plan.step_count) ||
+                (Array.isArray(plan.steps) ? plan.steps.length : 0);
             const childPlanCount = Array.isArray(plan.child_plan_ids)
                 ? plan.child_plan_ids.length
-                : (typeof plan.child_plans_count === 'number' ? plan.child_plans_count : null);
+                : (typeof plan.child_plans_count === 'number'
+                    ? plan.child_plans_count
+                    : (Array.isArray(plan.plans) ? plan.plans.length : null));
             return {
                 ...plan,
                 id: planId,
@@ -42,6 +61,14 @@ export function getClientHelpers(): string {
                 },
                 child_plans_count: childPlanCount,
             };
+        }
+
+        function extractProgramList(data) {
+            const nested = data && data.data && !Array.isArray(data.data) ? data.data : null;
+            if (data && Array.isArray(data.programs)) return data.programs;
+            if (nested && Array.isArray(nested.programs)) return nested.programs;
+            if (Array.isArray(data)) return data;
+            return [];
         }
 
         function renderPlanList(plans, type) {
@@ -137,6 +164,18 @@ export function getClientHelpers(): string {
             }).join('|');
         }
 
+        function extractPlanList(data) {
+            const nested = data && data.data && !Array.isArray(data.data) ? data.data : null;
+            if (Array.isArray(data)) return data;
+            if (data && Array.isArray(data.plans)) return data.plans;
+            if (data && Array.isArray(data.active_plans)) return data.active_plans;
+            if (data && Array.isArray(data.data)) return data.data;
+            if (nested && Array.isArray(nested.plans)) return nested.plans;
+            if (nested && Array.isArray(nested.active_plans)) return nested.active_plans;
+            if (nested && Array.isArray(nested.data)) return nested.data;
+            return [];
+        }
+
         async function fetchPlans() {
             if (!workspaceId) {
                 console.log('No workspaceId, skipping plan fetch');
@@ -149,18 +188,45 @@ export function getClientHelpers(): string {
                 if (response.ok) {
                     const data = await response.json();
                     console.log('Plans data:', data);
-                    const allPlans = Array.isArray(data.plans) ? data.plans : [];
+                    const allPlans = extractPlanList(data);
                     const normalized = allPlans.map(normalizePlanEntity);
                     const nextPrograms = normalized.filter(p => p.is_program);
                     const nonProgramPlans = normalized.filter(p => !p.is_program);
                     const nextActive = nonProgramPlans.filter(p => p.status !== 'archived');
                     const nextArchived = nonProgramPlans.filter(p => p.status === 'archived');
-                    const signature = getPlanSignature(nextActive) + '||' + getPlanSignature(nextArchived) + '||' + getPlanSignature(nextPrograms);
+
+                    let finalPrograms = nextPrograms;
+                    if (finalPrograms.length === 0) {
+                        try {
+                            const programsResponse = await fetch('http://localhost:' + apiPort + '/api/programs/' + workspaceId);
+                            if (programsResponse.ok) {
+                                const programsData = await programsResponse.json();
+                                const programItems = extractProgramList(programsData);
+                                finalPrograms = programItems.map(program => normalizePlanEntity({
+                                    ...program,
+                                    id: program.program_id || program.id,
+                                    title: program.name || program.title,
+                                    status: program.status || 'active',
+                                    category: program.category || 'program',
+                                    is_program: true,
+                                    child_plans_count: Array.isArray(program.plans) ? program.plans.length : 0,
+                                    progress: {
+                                        done: program.aggregate_progress?.done_steps || 0,
+                                        total: program.aggregate_progress?.total_steps || 0,
+                                    },
+                                }));
+                            }
+                        } catch (programError) {
+                            console.log('Failed to fetch programs fallback:', programError);
+                        }
+                    }
+
+                    const signature = getPlanSignature(nextActive) + '||' + getPlanSignature(nextArchived) + '||' + getPlanSignature(finalPrograms);
                     if (signature !== lastPlanSignature) {
                         lastPlanSignature = signature;
                         activePlans = nextActive;
                         archivedPlans = nextArchived;
-                        programPlans = nextPrograms;
+                        programPlans = finalPrograms;
                         updatePlanLists();
                     }
                 }

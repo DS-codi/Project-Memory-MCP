@@ -92,6 +92,37 @@ describe('usePlans relationship mapping', () => {
     expect(result.plans[0].relationships?.linked_plan_ids).toEqual(['plan_3']);
   });
 
+  it('fetchPlans handles DB-style nested payload wrappers', async () => {
+    server.use(
+      http.get('/api/plans/workspace/ws_nested', () =>
+        HttpResponse.json({
+          success: true,
+          data: {
+            plans: [
+              {
+                id: 'plan_nested_1',
+                title: 'Nested Plan',
+                category: 'feature',
+                priority: 'medium',
+                status: 'active',
+                current_agent: null,
+                progress: { done: 2, total: 4 },
+                created_at: '2026-01-01T00:00:00.000Z',
+                updated_at: '2026-01-02T00:00:00.000Z',
+              },
+            ],
+            total: 1,
+          },
+        }),
+      ),
+    );
+
+    const result = await fetchPlans('ws_nested');
+    expect(result.total).toBe(1);
+    expect(result.plans).toHaveLength(1);
+    expect(result.plans[0].id).toBe('plan_nested_1');
+  });
+
   it('maps relationship payload fields when top-level fields are missing', () => {
     const [normalizedPlan] = normalizePlanSummaries([
       {

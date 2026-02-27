@@ -115,7 +115,7 @@ export function getContainerMcpPort(): number {
 export function getDashboardFrontendUrl(): string {
     const config = vscode.workspace.getConfiguration('projectMemory');
     const mode = config.get<ContainerMode>('containerMode', 'auto');
-    const dashboardPort = config.get<number>('serverPort', 3001);
+    const dashboardPort = config.get<number>('serverPort') || config.get<number>('apiPort') || 3001;
 
     // In local-only mode, always use Vite dev server
     if (mode === 'local') {

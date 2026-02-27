@@ -67,6 +67,13 @@ export interface MemoryTerminalParams {
   patterns?: string[];
   /** How to modify the allowlist (for update_allowlist). */
   operation?: 'add' | 'remove' | 'set';
+  /**
+   * Per-request environment variables injected into the spawned process
+   * (for run). Supports Gemini/Google alias auto-expansion on the
+   * executor side: supplying either GEMINI_API_KEY or GOOGLE_API_KEY
+   * causes both to be set.
+   */
+  env?: Record<string, string>;
 }
 
 /**
@@ -314,6 +321,7 @@ async function handleRun(
       ? Math.ceil(params.timeout_ms / 1000)
       : undefined,
     allowlisted: auth.decision === 'allowed',
+    env: params.env && Object.keys(params.env).length > 0 ? params.env : undefined,
   };
 
   // Create a fresh TCP adapter for this request.

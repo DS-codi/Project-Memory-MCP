@@ -315,22 +315,16 @@ export async function listContext(
       };
     }
     
-    const planPath = store.getPlanPath(workspace_id, plan_id);
-    const exists = await store.exists(planPath);
-    
-    if (!exists) {
+    const state = await store.getPlanState(workspace_id, plan_id);
+    if (!state) {
       return {
         success: false,
         error: `Plan not found: ${plan_id}`
       };
     }
-    
-    // List all .json files except state.json
-    const { promises: fs } = await import('fs');
-    const files = await fs.readdir(planPath);
-    const contextFiles = files.filter(f => 
-      f.endsWith('.json') && f !== 'state.json'
-    );
+
+    const contextTypes = await store.listPlanContextTypesFromDb(workspace_id, plan_id);
+    const contextFiles = contextTypes.map(type => `${type}.json`);
     
     return {
       success: true,
@@ -360,18 +354,15 @@ export async function listResearchNotes(
       };
     }
     
-    const researchPath = store.getResearchNotesPath(workspace_id, plan_id);
-    const exists = await store.exists(researchPath);
-    
-    if (!exists) {
+    const state = await store.getPlanState(workspace_id, plan_id);
+    if (!state) {
       return {
-        success: true,
-        data: []
+        success: false,
+        error: `Plan not found: ${plan_id}`,
       };
     }
-    
-    const { promises: fs } = await import('fs');
-    const files = await fs.readdir(researchPath);
+
+    const files = await store.listPlanResearchNoteNamesFromDb(workspace_id, plan_id);
     
     return {
       success: true,
@@ -1009,35 +1000,25 @@ export async function handleDumpContext(
     }
 
     const sectionsIncluded: string[] = ['plan_state'];
-    const { promises: fsP } = await import('fs');
 
-    // 2. Collect context files (*.json except state.json)
-    const planDir = store.getPlanPath(workspace_id, plan_id);
+    // 2. Collect context files from DB
     const contextFiles: Record<string, unknown> = {};
-    try {
-      const entries = await fsP.readdir(planDir);
-      for (const f of entries) {
-        if (f.endsWith('.json') && f !== 'state.json') {
-          const raw = await store.readText(store.getContextPath(workspace_id, plan_id, f.replace('.json', '')));
-          if (raw) {
-            try { contextFiles[f] = JSON.parse(raw); } catch { contextFiles[f] = raw; }
-          }
-        }
+    const contextTypes = await store.listPlanContextTypesFromDb(workspace_id, plan_id);
+    for (const type of contextTypes) {
+      const payload = await store.getPlanContextFromDb(workspace_id, plan_id, type);
+      if (payload !== null) {
+        contextFiles[`${type}.json`] = payload;
       }
-      if (Object.keys(contextFiles).length > 0) sectionsIncluded.push('context_files');
-    } catch { /* plan dir may have no extra files */ }
+    }
+    if (Object.keys(contextFiles).length > 0) sectionsIncluded.push('context_files');
 
-    // 3. Collect research notes
+    // 3. Collect research notes from DB
     const researchNotes: Record<string, string> = {};
-    const researchDir = store.getResearchNotesPath(workspace_id, plan_id);
-    try {
-      const rFiles = await fsP.readdir(researchDir);
-      for (const rf of rFiles) {
-        const content = await store.readText(`${researchDir}/${rf}`);
-        if (content) researchNotes[rf] = content;
-      }
-      if (Object.keys(researchNotes).length > 0) sectionsIncluded.push('research_notes');
-    } catch { /* no research notes dir */ }
+    const research = await store.listPlanResearchNotesFromDb(workspace_id, plan_id);
+    for (const note of research) {
+      researchNotes[note.filename] = note.content;
+    }
+    if (Object.keys(researchNotes).length > 0) sectionsIncluded.push('research_notes');
 
     // 4. Load workspace context
     let workspaceContext: unknown = null;
@@ -1063,8 +1044,13 @@ export async function handleDumpContext(
       workspace_context: workspaceContext,
     };
 
-    // 6. Write to dumps directory
-    const dumpsDir = `${planDir}/dumps`;
+    // 6. Write to dumps directory under .projectmemory (not plan data root)
+    const workspace = await store.getWorkspace(workspace_id);
+    const workspacePath = workspace?.workspace_path || workspace?.path;
+    if (!workspacePath) {
+      return { success: false, error: `Workspace not found: ${workspace_id}` };
+    }
+    const dumpsDir = `${store.getProjectMemoryDir(workspacePath)}/dumps/${plan_id}`;
     await store.ensureDir(dumpsDir);
     const dumpPath = `${dumpsDir}/${timestamp}-context-dump.json`;
     await store.writeText(dumpPath, JSON.stringify(dump, null, 2));

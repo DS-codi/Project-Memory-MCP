@@ -89,13 +89,17 @@ export interface WorkspaceInfo {
 
 export interface PlanSummary {
     plan_id: string;
+    /** Raw 'id' field returned by the workspace-list endpoint (normalised to plan_id). */
+    id?: string;
     title: string;
     description?: string;
     status?: string;       // 'active' | 'archived' | undefined
     archived?: boolean;
+    archived_at?: string | null;
     category?: string;
     priority?: string;
     steps?: PlanStep[];
+    agent_sessions?: AgentSessionSummary[];
 }
 
 export interface PlanStep {
@@ -104,6 +108,15 @@ export interface PlanStep {
     status: 'pending' | 'active' | 'done' | 'blocked';
     notes?: string;
     assignee?: string;
+}
+
+export interface AgentSessionSummary {
+    session_id: string;
+    agent_type: string;
+    started_at?: string;
+    completed_at?: string;
+    status?: string;
+    context?: Record<string, unknown>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -170,6 +183,53 @@ export class PhaseItem extends vscode.TreeItem {
     }
 }
 
+export class SessionGroupItem extends vscode.TreeItem {
+    readonly kind = 'session-group' as const;
+    constructor(
+        public readonly sessions: AgentSessionSummary[],
+        public readonly workspaceId: string,
+        public readonly planId: string,
+    ) {
+        const activeCount = sessions.length;
+        super('Active Sessions', vscode.TreeItemCollapsibleState.Expanded);
+        this.id = `sessions:${workspaceId}:${planId}`;
+        this.description = String(activeCount);
+        this.iconPath = new vscode.ThemeIcon('server-process', new vscode.ThemeColor('charts.blue'));
+        this.contextValue = 'sessionGroupItem';
+        this.tooltip = `${activeCount} active session${activeCount === 1 ? '' : 's'}`;
+    }
+}
+
+export class SessionItem extends vscode.TreeItem {
+    readonly kind = 'session' as const;
+    constructor(
+        public readonly session: AgentSessionSummary,
+        public readonly workspaceId: string,
+        public readonly planId: string,
+    ) {
+        const classification = classifySessionType(session.agent_type);
+        const sessionPath = classification === 'dynamic'
+            ? `.github/agents/sessions/${session.session_id}/`
+            : `.github/agents/`;
+        super(`${session.agent_type} (${session.session_id})`, vscode.TreeItemCollapsibleState.None);
+        this.id = `session:${workspaceId}:${planId}:${session.session_id}`;
+        this.description = classification;
+        this.iconPath = new vscode.ThemeIcon(
+            classification === 'permanent' ? 'shield' : 'vm-active',
+            classification === 'permanent'
+                ? new vscode.ThemeColor('charts.green')
+                : new vscode.ThemeColor('charts.blue'),
+        );
+        this.contextValue = `sessionItem:${classification}`;
+        this.tooltip = new vscode.MarkdownString(
+            `**Agent:** ${session.agent_type}\n\n` +
+            `**Session ID:** ${session.session_id}\n\n` +
+            `**Type:** ${classification}\n\n` +
+            `**Path:** ${sessionPath}`,
+        );
+    }
+}
+
 export class StepItem extends vscode.TreeItem {
     readonly kind = 'step' as const;
     /** First file-path reference detected in the step's task or notes. */
@@ -214,7 +274,7 @@ export class StepItem extends vscode.TreeItem {
     }
 }
 
-export type TreeNode = WorkspaceItem | PlanItem | PhaseItem | StepItem;
+export type TreeNode = WorkspaceItem | PlanItem | PhaseItem | StepItem | SessionGroupItem | SessionItem;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Provider
@@ -233,6 +293,7 @@ export class WorkspacePlanTreeProvider
     private _workspaceCache: WorkspaceInfo[] | undefined;
     private _planCache = new Map<string, PlanSummary[]>();
     private _stepCache = new Map<string, PlanStep[]>();
+    private _sessionCache = new Map<string, AgentSessionSummary[]>();
 
     constructor(public dashboardPort: number) {}
 
@@ -242,12 +303,14 @@ export class WorkspacePlanTreeProvider
         this._workspaceCache = undefined;
         this._planCache.clear();
         this._stepCache.clear();
+        this._sessionCache.clear();
         this._onDidChangeTreeData.fire();
     }
 
     toggleArchived(): void {
         this._showArchived = !this._showArchived;
         this._planCache.clear();
+        this._sessionCache.clear();
         this._onDidChangeTreeData.fire();
     }
 
@@ -269,7 +332,13 @@ export class WorkspacePlanTreeProvider
             return this._getPlans(element.workspace.id);
         }
         if (element.kind === 'plan') {
-            return this._getPhases(element.workspaceId, element.plan.plan_id);
+            const [sessions, phases] = await Promise.all([
+                this._getSessions(element.workspaceId, element.plan.plan_id),
+                this._getPhases(element.workspaceId, element.plan.plan_id),
+            ]);
+            return sessions.length > 0
+                ? [new SessionGroupItem(sessions, element.workspaceId, element.plan.plan_id), ...phases]
+                : phases;
         }
         if (element.kind === 'phase') {
             return element.steps.map((step, i) => {
@@ -279,6 +348,11 @@ export class WorkspacePlanTreeProvider
                 const globalIdx = allSteps.indexOf(step);
                 return new StepItem(step, globalIdx >= 0 ? globalIdx : i, element.workspaceId, element.planId);
             });
+        }
+        if (element.kind === 'session-group') {
+            return element.sessions.map(session =>
+                new SessionItem(session, element.workspaceId, element.planId),
+            );
         }
         return [];
     }
@@ -307,9 +381,40 @@ export class WorkspacePlanTreeProvider
             const data = await this._get<{ plans?: PlanSummary[] } | PlanSummary[]>(
                 `/api/plans/workspace/${workspaceId}`,
             );
-            const plans: PlanSummary[] = Array.isArray(data)
+            const payload = data as {
+                plans?: PlanSummary[];
+                active_plans?: PlanSummary[];
+                data?: PlanSummary[] | {
+                    plans?: PlanSummary[];
+                    active_plans?: PlanSummary[];
+                    data?: PlanSummary[];
+                };
+            };
+            const nested = payload?.data && !Array.isArray(payload.data)
+                ? payload.data
+                : undefined;
+            const raw: PlanSummary[] = Array.isArray(data)
                 ? data
-                : (data as { plans?: PlanSummary[] }).plans ?? [];
+                : Array.isArray(payload?.plans)
+                    ? payload.plans
+                    : Array.isArray(payload?.active_plans)
+                        ? payload.active_plans
+                        : Array.isArray(payload?.data)
+                            ? payload.data
+                            : Array.isArray(nested?.plans)
+                                ? nested.plans
+                                : Array.isArray(nested?.active_plans)
+                                    ? nested.active_plans
+                                    : Array.isArray(nested?.data)
+                                        ? nested.data
+                                        : [];
+            // Normalise: the workspace-list endpoint returns `id` (not `plan_id`).
+            // Also derive `archived` from `status` / `archived_at` when missing.
+            const plans: PlanSummary[] = raw.map(p => ({
+                ...p,
+                plan_id: p.plan_id ?? p.id ?? '',
+                archived: p.archived ?? (p.status === 'archived' || Boolean(p.archived_at)),
+            }));
             this._planCache.set(workspaceId, plans);
             return this._buildPlanItems(workspaceId, plans);
         } catch {
@@ -332,6 +437,7 @@ export class WorkspacePlanTreeProvider
                 const plan = await this._get<PlanSummary>(`/api/plans/${workspaceId}/${planId}`);
                 steps = plan.steps ?? [];
                 this._stepCache.set(key, steps);
+                this._sessionCache.set(key, getActiveSessions(plan.agent_sessions ?? []));
             } catch {
                 return [];
             }
@@ -349,6 +455,24 @@ export class WorkspacePlanTreeProvider
             ([phaseName, phaseSteps]) =>
                 new PhaseItem(phaseName, phaseSteps, workspaceId, planId),
         );
+    }
+
+    private async _getSessions(workspaceId: string, planId: string): Promise<AgentSessionSummary[]> {
+        const key = `${workspaceId}:${planId}`;
+        const cached = this._sessionCache.get(key);
+        if (cached) return cached;
+
+        try {
+            const plan = await this._get<PlanSummary>(`/api/plans/${workspaceId}/${planId}`);
+            const sessions = getActiveSessions(plan.agent_sessions ?? []);
+            this._sessionCache.set(key, sessions);
+            if (!this._stepCache.has(key)) {
+                this._stepCache.set(key, plan.steps ?? []);
+            }
+            return sessions;
+        } catch {
+            return [];
+        }
     }
 
     // ── HTTP helper ───────────────────────────────────────────────────────────
@@ -389,4 +513,14 @@ export class WorkspacePlanTreeProvider
     dispose(): void {
         this._onDidChangeTreeData.dispose();
     }
+}
+
+const PERMANENT_AGENT_TYPES = new Set(['Hub', 'PromptAnalyst', 'prompt-analyst', 'prompt_analyst']);
+
+function classifySessionType(agentType: string): 'permanent' | 'dynamic' {
+    return PERMANENT_AGENT_TYPES.has(agentType) ? 'permanent' : 'dynamic';
+}
+
+function getActiveSessions(sessions: AgentSessionSummary[]): AgentSessionSummary[] {
+    return sessions.filter(session => !session.completed_at && session.status !== 'completed');
 }

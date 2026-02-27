@@ -6,6 +6,8 @@
 pub mod handshake;
 pub mod handler;
 pub mod mcp_admin;
+pub mod mcp_runtime;
+pub mod runtime;
 pub mod pipe;
 pub mod protocol;
 pub mod registry;

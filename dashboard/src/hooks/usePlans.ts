@@ -15,6 +15,22 @@ function comparePlansByUpdatedAt(a: PlanSummary, b: PlanSummary): number {
   return a.id.localeCompare(b.id);
 }
 
+function extractPlanList(payload: unknown): PlanSummary[] {
+  const data = payload as Record<string, unknown> | null | undefined;
+  const nested = data?.data && typeof data.data === 'object' && !Array.isArray(data.data)
+    ? data.data as Record<string, unknown>
+    : undefined;
+
+  if (Array.isArray(payload)) return payload as PlanSummary[];
+  if (Array.isArray(data?.plans)) return data.plans as PlanSummary[];
+  if (Array.isArray(data?.active_plans)) return data.active_plans as PlanSummary[];
+  if (Array.isArray(data?.data)) return data.data as PlanSummary[];
+  if (Array.isArray(nested?.plans)) return nested.plans as PlanSummary[];
+  if (Array.isArray(nested?.active_plans)) return nested.active_plans as PlanSummary[];
+  if (Array.isArray(nested?.data)) return nested.data as PlanSummary[];
+  return [];
+}
+
 export function partitionPlanSummaries(plans: PlanSummary[]): { activePlans: PlanSummary[]; archivedPlans: PlanSummary[] } {
   const sortedPlans = [...plans].sort(comparePlansByUpdatedAt);
   const activePlans: PlanSummary[] = [];
@@ -91,11 +107,16 @@ export function normalizePlanSummaries(plans: PlanSummary[]): PlanSummary[] {
 export async function fetchPlans(workspaceId: string): Promise<{ plans: PlanSummary[]; total: number }> {
   const res = await fetch(`${API_BASE}/plans/workspace/${workspaceId}`);
   if (!res.ok) throw new Error('Failed to fetch plans');
-  const data = await res.json() as { plans?: PlanSummary[]; total?: number };
-  const plans = normalizePlanSummaries(Array.isArray(data.plans) ? data.plans : []);
+  const data = await res.json() as Record<string, unknown>;
+  const nested = data?.data && typeof data.data === 'object' && !Array.isArray(data.data)
+    ? data.data as Record<string, unknown>
+    : undefined;
+  const plans = normalizePlanSummaries(extractPlanList(data));
+  const totalFromTopLevel = typeof data.total === 'number' ? data.total : undefined;
+  const totalFromNested = typeof nested?.total === 'number' ? nested.total as number : undefined;
   return {
     plans,
-    total: typeof data.total === 'number' ? data.total : plans.length,
+    total: totalFromTopLevel ?? totalFromNested ?? plans.length,
   };
 }
 

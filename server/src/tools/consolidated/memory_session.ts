@@ -14,9 +14,15 @@
  */
 
 import { randomBytes } from 'crypto';
-import * as net from 'node:net';
 import * as store from '../../storage/db-store.js';
 import { deployForTask } from '../agent-deploy.js';
+import { isSupervisorRunning } from '../orchestration/supervisor-client.js';
+import {
+    type CanonicalHubMode,
+    type HubAliasResolution,
+    resolveHubAliasRouting,
+} from '../orchestration/hub-alias-routing.js';
+import { events } from '../../events/event-emitter.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -48,6 +54,10 @@ export interface MemorySessionParams {
     include_skills?: boolean;
     include_research?: boolean;
     include_architecture?: boolean;
+    requested_hub_mode?: CanonicalHubMode;
+    prompt_analyst_enrichment_applied?: boolean;
+    prompt_analyst_latency_ms?: number;
+    peer_sessions_count?: number;
 
     // For get_session
     session_id?: string;
@@ -81,6 +91,16 @@ interface PrepResult {
         agent_type: string;
         parent_session_id?: string;
         started_at: string;
+    };
+    hub_alias_routing: HubAliasResolution;
+    compatibility_metadata: {
+        requested_hub_label: HubAliasResolution['requested_hub_label'];
+        resolved_mode: HubAliasResolution['resolved_mode'];
+        alias_resolution_applied: boolean;
+        deprecation_phase: string;
+        prompt_analyst_enrichment_applied: boolean;
+        session_id: string;
+        peer_sessions_count: number;
     };
     launch_routing: LaunchRoutingDecision;
     orchestration_routing: LaunchRoutingDecision;
@@ -200,26 +220,27 @@ function envPort(name: string, defaultValue: number): number {
 }
 
 async function checkHostAvailability(timeoutMs = 600): Promise<boolean> {
-    const host = process.env.PM_SPECIALIZED_HOST_PROBE_HOST?.trim() || '127.0.0.1';
-    const port = envPort('PM_SPECIALIZED_HOST_PROBE_PORT', 9100);
+    const host = process.env.PM_SPECIALIZED_HOST_PROBE_HOST?.trim();
+    const portRaw = process.env.PM_SPECIALIZED_HOST_PROBE_PORT?.trim();
+    const hasPortOverride = Boolean(portRaw);
+    const forceTcp = Boolean(host || hasPortOverride);
+    const minConnectTimeout = Math.max(timeoutMs, 1000);
+    const requestTimeout = Math.max(timeoutMs * 2, 1500);
 
-    return new Promise<boolean>((resolve) => {
-        const socket = new net.Socket();
-        let settled = false;
+    if (forceTcp) {
+        const port = envPort('PM_SPECIALIZED_HOST_PROBE_PORT', 45470);
+        return isSupervisorRunning({
+            forceTcp: true,
+            tcpHost: host || '127.0.0.1',
+            tcpPort: port,
+            connectTimeoutMs: minConnectTimeout,
+            requestTimeoutMs: requestTimeout,
+        });
+    }
 
-        const finish = (value: boolean) => {
-            if (settled) return;
-            settled = true;
-            socket.destroy();
-            resolve(value);
-        };
-
-        socket.setTimeout(timeoutMs);
-        socket.once('connect', () => finish(true));
-        socket.once('timeout', () => finish(false));
-        socket.once('error', () => finish(false));
-        socket.once('close', () => finish(false));
-        socket.connect(port, host);
+    return isSupervisorRunning({
+        connectTimeoutMs: minConnectTimeout,
+        requestTimeoutMs: requestTimeout,
     });
 }
 
@@ -257,9 +278,6 @@ async function selectLaunchRouting(params: MemorySessionParams): Promise<LaunchR
     if (!featureGateEnabled) {
         return {
             ...baseDecision,
-            selected_mode: 'legacy_runsubagent',
-            fallback_used: true,
-            fallback_reason: 'feature_gate_disabled',
             decision_points: {
                 ...baseDecision.decision_points,
                 d0_feature_gate: 'legacy_fallback',
@@ -271,9 +289,6 @@ async function selectLaunchRouting(params: MemorySessionParams): Promise<LaunchR
     if (!hostAvailable) {
         return {
             ...baseDecision,
-            selected_mode: 'legacy_runsubagent',
-            fallback_used: true,
-            fallback_reason: 'host_unavailable',
             decision_points: {
                 ...baseDecision.decision_points,
                 d1_host_availability: 'legacy_fallback'
@@ -284,9 +299,6 @@ async function selectLaunchRouting(params: MemorySessionParams): Promise<LaunchR
     if (!hasContractMetadata) {
         return {
             ...baseDecision,
-            selected_mode: 'legacy_runsubagent',
-            fallback_used: true,
-            fallback_reason: 'contract_invalid',
             decision_points: {
                 ...baseDecision.decision_points,
                 d2_contract_validation: 'legacy_fallback'
@@ -297,9 +309,6 @@ async function selectLaunchRouting(params: MemorySessionParams): Promise<LaunchR
     if (!controlPlaneParityOk) {
         return {
             ...baseDecision,
-            selected_mode: 'legacy_runsubagent',
-            fallback_used: true,
-            fallback_reason: 'control_plane_parity_gap',
             decision_points: {
                 ...baseDecision.decision_points,
                 d4_control_plane_parity: 'legacy_fallback'
@@ -323,6 +332,14 @@ async function handlePrep(params: MemorySessionParams) {
 
     const compatMode = params.compat_mode === 'strict' ? 'strict' : 'legacy';
     const launchRouting = await selectLaunchRouting(params);
+    const hubAliasRouting = resolveHubAliasRouting(agent_name, params.requested_hub_mode);
+    const promptAnalystEnrichmentApplied = params.prompt_analyst_enrichment_applied === true;
+    const promptAnalystLatencyMs = Number.isFinite(params.prompt_analyst_latency_ms)
+        ? Math.max(0, Number(params.prompt_analyst_latency_ms))
+        : undefined;
+    const peerSessionsCount = Number.isFinite(params.peer_sessions_count)
+        ? Math.max(0, Math.floor(params.peer_sessions_count as number))
+        : 0;
 
     // Fetch workspace context
     let workspaceContext: PrepResult['workspace_context'];
@@ -367,6 +384,17 @@ async function handlePrep(params: MemorySessionParams) {
     const sessionId = mintSessionId();
     const startedAt = new Date().toISOString();
 
+    if (workspace_id && plan_id && (promptAnalystEnrichmentApplied || promptAnalystLatencyMs !== undefined)) {
+        await events.promptAnalystEnrichment(workspace_id, plan_id, {
+            session_id: sessionId,
+            target_agent_type: agent_name,
+            applied: promptAnalystEnrichmentApplied,
+            latency_ms: promptAnalystLatencyMs,
+            requested_hub_label: hubAliasRouting.requested_hub_label,
+            resolved_mode: hubAliasRouting.resolved_mode,
+        });
+    }
+
     // Build enriched prompt
     const promptParts: string[] = [];
 
@@ -392,6 +420,12 @@ async function handlePrep(params: MemorySessionParams) {
         `selected_mode: ${launchRouting.selected_mode}`,
         `fallback_used: ${String(launchRouting.fallback_used)}`,
         `fallback_reason: ${launchRouting.fallback_reason}`,
+        `requested_hub_label: ${hubAliasRouting.requested_hub_label ?? 'none'}`,
+        `resolved_mode: ${hubAliasRouting.resolved_mode ?? 'none'}`,
+        `alias_resolution_applied: ${String(hubAliasRouting.alias_resolution_applied)}`,
+        `deprecation_phase: ${hubAliasRouting.deprecation_phase}`,
+        `prompt_analyst_enrichment_applied: ${String(promptAnalystEnrichmentApplied)}`,
+        `peer_sessions_count: ${String(peerSessionsCount)}`,
         'Section16_decision_points: D0,D1,D2,D3,D4',
         '--- END ORCHESTRATION ROUTING ---\n'
     );
@@ -447,6 +481,16 @@ async function handlePrep(params: MemorySessionParams) {
         scope_boundaries_injected: scopeBoundariesInjected,
         anti_spawning_injected: antiSpawningInjected,
         session_registration: sessionRegistration,
+        hub_alias_routing: hubAliasRouting,
+        compatibility_metadata: {
+            requested_hub_label: hubAliasRouting.requested_hub_label,
+            resolved_mode: hubAliasRouting.resolved_mode,
+            alias_resolution_applied: hubAliasRouting.alias_resolution_applied,
+            deprecation_phase: hubAliasRouting.deprecation_phase,
+            prompt_analyst_enrichment_applied: promptAnalystEnrichmentApplied,
+            session_id: sessionId,
+            peer_sessions_count: peerSessionsCount,
+        },
         launch_routing: launchRouting,
         orchestration_routing: launchRouting
     };
@@ -456,6 +500,8 @@ async function handlePrep(params: MemorySessionParams) {
         mode: 'context-prep-only',
         message: 'Spawn context prepared. Call runSubagent next using prep_config.enriched_prompt.',
         prep_config: prepResult,
+        hub_alias_routing: hubAliasRouting,
+        compatibility_metadata: prepResult.compatibility_metadata,
         launch_routing: launchRouting,
         orchestration_routing: launchRouting,
         warnings,
@@ -527,6 +573,7 @@ async function handleDeployAndPrep(params: MemorySessionParams) {
         deploy_result: deployResult,
         prep_config: prepData.prep_config,
         prep_result: prepData.prep_config,
+        compatibility_metadata: prepData.compatibility_metadata,
         launch_routing: prepData.launch_routing,
         orchestration_routing: prepData.orchestration_routing,
         warnings: prepData.warnings ?? [],

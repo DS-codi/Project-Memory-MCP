@@ -1,8 +1,11 @@
 /**
- * Tool Logger - Logs all tool invocations to plan-specific daily log files
+ * Tool Logger - Logs tool invocations with DB-backed plan logs.
  * 
- * Log files are stored at:
- * data/{workspace_id}/plans/{plan_id}/logs/{YYYY-MM-DD}.log
+ * Logs are stored in SQLite context_items as session records:
+ * - plan scope:      parent_type='plan', parent_id={plan_id}, type='tool_log_session:{session_id}'
+ * - runtime scope:   parent_type='workspace', parent_id={workspace_id|global_runtime}, type='runtime_log_session:{session_id}'
+ * 
+ * Retention policy: keep only the 3 most recent session records per scope.
  * 
  * Each log entry contains:
  * - Timestamp (ISO format)
@@ -12,16 +15,18 @@
  * - Result status (success/error)
  */
 
-import { promises as fs } from 'fs';
-import path from 'path';
 import { AsyncLocalStorage } from 'async_hooks';
 import type { AgentType } from '../types/index.js';
+import { deleteContext as dbDeleteContext, getContext as dbGetContext, storeContext as dbStoreContext } from '../db/context-db.js';
+import type { ContextParentType, ContextItemRow } from '../db/types.js';
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
-const DATA_ROOT = process.env.MBS_DATA_ROOT || path.join(process.cwd(), '..', 'data');
+const SESSION_LOG_MAX_LINES = 2000;
+const SESSION_RETENTION_COUNT = 3;
+const GLOBAL_RUNTIME_PARENT_ID = 'global_runtime';
 
 // =============================================================================
 // Types
@@ -37,32 +42,46 @@ export interface LogEntry {
   result: 'success' | 'error';
   error_message?: string;
   duration_ms?: number;
+  session_id?: string;
 }
 
 // Track current agent per plan (set during initialise_agent)
 const currentAgentByPlan: Map<string, AgentType> = new Map();
 const toolContextStorage = new AsyncLocalStorage<{ tool: string; params: Record<string, unknown> }>();
 
-// =============================================================================
-// Path Helpers
-// =============================================================================
+type LogScope =
+  | { parentType: 'plan'; parentId: string; typePrefix: 'tool_log_session' }
+  | { parentType: 'workspace'; parentId: string; typePrefix: 'runtime_log_session' };
 
-function getLogsPath(workspaceId: string, planId: string): string {
-  return path.join(DATA_ROOT, workspaceId, 'plans', planId, 'logs');
+function normalizeSessionId(input?: string): string {
+  const fallback = 'session-unknown';
+  const value = (input ?? '').trim();
+  if (!value) return fallback;
+  return value.replace(/[^a-zA-Z0-9._-]/g, '_');
 }
 
-function getLogFilePath(workspaceId: string, planId: string, date: Date): string {
-  const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
-  return path.join(getLogsPath(workspaceId, planId), `${dateStr}.log`);
+function getLogScope(entry: LogEntry): LogScope {
+  if (entry.plan_id) {
+    return {
+      parentType: 'plan',
+      parentId: entry.plan_id,
+      typePrefix: 'tool_log_session',
+    };
+  }
+
+  return {
+    parentType: 'workspace',
+    parentId: entry.workspace_id || GLOBAL_RUNTIME_PARENT_ID,
+    typePrefix: 'runtime_log_session',
+  };
 }
 
-function getGlobalLogPath(): string {
-  return path.join(DATA_ROOT, 'logs');
+function sessionLogType(scope: LogScope, sessionId: string): string {
+  return `${scope.typePrefix}:${sessionId}`;
 }
 
-function getGlobalLogFilePath(date: Date): string {
-  const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
-  return path.join(getGlobalLogPath(), `${dateStr}.log`);
+function isSessionType(rowType: string, prefix: LogScope['typePrefix']): boolean {
+  return rowType.startsWith(`${prefix}:`);
 }
 
 // =============================================================================
@@ -111,19 +130,6 @@ export function getToolContext(): { tool: string; params: Record<string, unknown
 // =============================================================================
 // Logging Functions
 // =============================================================================
-
-/**
- * Ensure a directory exists
- */
-async function ensureDir(dirPath: string): Promise<void> {
-  try {
-    await fs.mkdir(dirPath, { recursive: true });
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
-      throw error;
-    }
-  }
-}
 
 /**
  * Format a log entry as a single line
@@ -193,28 +199,90 @@ function summarizeParams(params: Record<string, unknown>): string {
  * Write a log entry to the appropriate log file
  */
 async function writeLogEntry(entry: LogEntry): Promise<void> {
-  const now = new Date();
-  const line = formatLogEntry(entry) + '\n';
+  const line = formatLogEntry(entry);
   
   try {
-    // If we have workspace and plan, write to plan-specific log
-    if (entry.workspace_id && entry.plan_id) {
-      const logDir = getLogsPath(entry.workspace_id, entry.plan_id);
-      await ensureDir(logDir);
-      
-      const logFile = getLogFilePath(entry.workspace_id, entry.plan_id, now);
-      await fs.appendFile(logFile, line, 'utf-8');
+    const scope = getLogScope(entry);
+    const sessionId = normalizeSessionId(entry.session_id);
+    const logType = sessionLogType(scope, sessionId);
+
+    const rows = dbGetContext(scope.parentType as ContextParentType, scope.parentId, logType);
+    const existing = rows[0]
+      ? (() => {
+          try {
+            return JSON.parse(rows[0].data) as {
+              session_id: string;
+              scope: string;
+              workspace_id?: string;
+              plan_id?: string;
+              first_logged_at?: string;
+              last_logged_at?: string;
+              lines?: string[];
+            };
+          } catch {
+            return {
+              session_id: sessionId,
+              scope: scope.typePrefix,
+              lines: [] as string[],
+            };
+          }
+        })()
+      : {
+          session_id: sessionId,
+          scope: scope.typePrefix,
+          lines: [] as string[],
+        };
+
+    const nowIso = new Date().toISOString();
+    const nextLines = [...(existing.lines || []), line].slice(-SESSION_LOG_MAX_LINES);
+
+    dbStoreContext(scope.parentType as ContextParentType, scope.parentId, logType, {
+      session_id: sessionId,
+      scope: scope.typePrefix,
+      workspace_id: entry.workspace_id,
+      plan_id: entry.plan_id,
+      first_logged_at: existing.first_logged_at || nowIso,
+      last_logged_at: nowIso,
+      lines: nextLines,
+    });
+
+    const allRows = dbGetContext(scope.parentType as ContextParentType, scope.parentId)
+      .filter(row => isSessionType(row.type, scope.typePrefix));
+
+    const staleCount = Math.max(0, allRows.length - SESSION_RETENTION_COUNT);
+    if (staleCount > 0) {
+      const oldestRows = allRows
+        .map(row => {
+          let lastLoggedAt = row.updated_at || row.created_at || '';
+          try {
+            const parsed = JSON.parse(row.data) as { last_logged_at?: string };
+            if (parsed.last_logged_at) {
+              lastLoggedAt = parsed.last_logged_at;
+            }
+          } catch {
+            // keep fallback timestamp values
+          }
+
+          return { row, lastLoggedAt };
+        })
+        .sort((a, b) => {
+          const byLastLogged = a.lastLoggedAt.localeCompare(b.lastLoggedAt);
+          if (byLastLogged !== 0) return byLastLogged;
+
+          const aCreated = a.row.created_at || '';
+          const bCreated = b.row.created_at || '';
+          const byCreated = aCreated.localeCompare(bCreated);
+          if (byCreated !== 0) return byCreated;
+
+          return a.row.id.localeCompare(b.row.id);
+        })
+        .slice(0, staleCount)
+        .map(item => item.row);
+
+      for (const stale of oldestRows) {
+        dbDeleteContext(stale.id);
+      }
     }
-    
-    // Always write to global log as well
-    const globalLogDir = getGlobalLogPath();
-    await ensureDir(globalLogDir);
-    
-    const globalLogFile = getGlobalLogFilePath(now);
-    const globalLine = entry.workspace_id && entry.plan_id 
-      ? `[${entry.workspace_id}/${entry.plan_id}] ${line}`
-      : `[global] ${line}`;
-    await fs.appendFile(globalLogFile, globalLine, 'utf-8');
     
   } catch (error) {
     // Don't throw on logging errors - just log to console
@@ -246,6 +314,7 @@ export async function logToolCall(
     agent: agent || (params.agent_type as string | undefined),
     workspace_id: workspaceId,
     plan_id: planId,
+    session_id: params._session_id as string | undefined,
     params,
     result,
     error_message: errorMessage,

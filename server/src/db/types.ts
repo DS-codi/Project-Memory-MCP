@@ -313,8 +313,55 @@ export interface AgentDefinitionRow {
   content:    string;
   /** JSON */
   metadata:   string | null;
+  /** JSON: string[] of "tool:action" or "tool:*" patterns permitted for this role */
+  allowed_tools:         string | null;
+  /** JSON: string[] of "tool:action" patterns explicitly blocked for this role */
+  blocked_tools:         string | null;
+  /** JSON: string[] — keys that must be present in context_payload before deploy */
+  required_context_keys: string | null;
+  /** JSON: CheckpointTriggerConfig — conditions that embed checkpoint rules into materialised files */
+  checkpoint_triggers:   string | null;
+  /** 1 = permanent on-disk file (hub, prompt-analyst); 0 = ephemeral session-scoped */
+  is_permanent:          number;
   created_at: string;
   updated_at: string;
+}
+
+/** Live registry of active agent sessions, used to build ##PEER_SESSIONS blocks. */
+export interface WorkspaceSessionRegistryRow {
+  id:                   string;  // mirrors sessions.id
+  workspace_id:         string;
+  plan_id:              string | null;
+  agent_type:           string;
+  current_phase:        string | null;
+  /** JSON: number[] */
+  step_indices_claimed: string;
+  /** JSON: string[] of absolute file paths */
+  files_in_scope:       string;
+  /** Absolute path to materialised .agent.md written by deploy_agent_to_workspace */
+  materialised_path:    string | null;
+  status:               'active' | 'stopping' | 'completed';
+  started_at:           string;
+  updated_at:           string;
+}
+
+/** DB-owned GUI routing contract.  Hub queries by contract_type key at spawn time. */
+export interface GuiRoutingContractRow {
+  id:                       string;
+  contract_type:            'approval' | 'brainstorm';
+  version:                  string;
+  /** JSON: TriggerCriteria */
+  trigger_criteria:         string;
+  /** JSON: JSONSchema for the FormRequest payload sent to the GUI */
+  invocation_params_schema: string;
+  /** JSON: expected response envelope shape */
+  response_schema:          string;
+  /** JSON: keyed by outcome ('approve'|'reject'|'timeout'|'select'), value = MCP call array */
+  feedback_paths:           string;
+  fallback_behavior:        'auto-select-recommended' | 'block' | 'skip';
+  enabled:                  number; // 1 | 0
+  created_at:               string;
+  updated_at:               string;
 }
 
 export interface InstructionFileRow {

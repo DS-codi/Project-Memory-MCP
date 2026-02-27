@@ -39,6 +39,7 @@ import { ContainerAlertListener } from './transport/container-alert-listener.js'
 import { sendStartupAlert } from './transport/container-startup-alert.js';
 import { setDataRoot, startLivenessPolling, stopLivenessPolling } from './transport/data-root-liveness.js';
 import { getDb } from './db/connection.js';
+import { getImportantResponseContextForRequest } from './utils/important-response-context.js';
 
 // =============================================================================
 // Logging Helper
@@ -63,6 +64,17 @@ async function withLogging<T>(
 
     try {
       const result = await fn();
+
+      if (result && typeof result === 'object' && 'success' in result) {
+        const importantContext = await getImportantResponseContextForRequest({
+          workspace_id: params.workspace_id,
+          workspace_path: params.workspace_path,
+        });
+        if (importantContext) {
+          (result as Record<string, unknown>).important_context = importantContext;
+        }
+      }
+
       const durationMs = Date.now() - startTime;
       
       // Extract success/error from result if it has that shape
@@ -402,7 +414,7 @@ server.tool(
     workspace_id: z.string().describe('Workspace ID'),
     plan_id: z.string().optional().describe('Plan ID (required for plan-scoped actions)'),
     type: z.string().optional().describe('Context type (for store/get)'),
-    data: z.record(z.unknown()).optional().describe('Context data. For workspace_set/workspace_update: pass either { sections: { sectionName: { summary?, items? } } } or flat key-value pairs that get auto-wrapped as sections (string→summary, array→items, object→JSON summary).'),
+    data: z.record(z.unknown()).optional().describe('Context data. For workspace_set/workspace_update: pass either { sections: { sectionName: { summary?, items? } } } or flat key-value pairs that get auto-wrapped as sections (string→summary, array→items, object→JSON summary). Use section key important_context (or important_notes) to have notes automatically included in subsequent tool responses for that workspace.'),
     query: z.string().optional().describe('Search query text (for search action)'),
     scope: z.enum(['plan', 'workspace', 'program', 'all']).optional().describe('Search/pull scope. Default: plan'),
     types: z.array(z.string()).optional().describe('Optional context type filters (for search action)'),
@@ -469,6 +481,7 @@ server.tool(
     session_id: z.string().optional().describe('Session ID (for read_output, kill)'),
     patterns: z.array(z.string()).optional().describe('Allowlist patterns (for update_allowlist)'),
     operation: z.enum(['add', 'remove', 'set']).optional().describe('How to modify the allowlist (for update_allowlist)'),
+    env: z.record(z.string()).optional().describe('Per-request environment variables injected into the spawned process (for run). Supports Gemini/Google API key alias auto-expansion.'),
   },
   async (params, extra) => {
     const result = await withLogging('memory_terminal', params, () =>

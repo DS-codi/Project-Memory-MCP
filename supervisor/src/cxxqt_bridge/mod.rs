@@ -33,6 +33,19 @@ pub mod ffi {
         #[qproperty(QString, action_feedback, cxx_name = "actionFeedback")]
         #[qproperty(QString, config_editor_error, cxx_name = "configEditorError")]
         #[qproperty(bool, quitting)]
+        // Per-service enrichment: port, runtime label, OS PID, uptime seconds
+        #[qproperty(i32, mcp_port, cxx_name = "mcpPort")]
+        #[qproperty(QString, mcp_runtime, cxx_name = "mcpRuntime")]
+        #[qproperty(i32, mcp_pid, cxx_name = "mcpPid")]
+        #[qproperty(i32, mcp_uptime_secs, cxx_name = "mcpUptimeSecs")]
+        #[qproperty(i32, terminal_port, cxx_name = "terminalPort")]
+        #[qproperty(QString, terminal_runtime, cxx_name = "terminalRuntime")]
+        #[qproperty(i32, terminal_pid, cxx_name = "terminalPid")]
+        #[qproperty(i32, terminal_uptime_secs, cxx_name = "terminalUptimeSecs")]
+        #[qproperty(i32, dashboard_port, cxx_name = "dashboardPort")]
+        #[qproperty(QString, dashboard_runtime, cxx_name = "dashboardRuntime")]
+        #[qproperty(i32, dashboard_pid, cxx_name = "dashboardPid")]
+        #[qproperty(i32, dashboard_uptime_secs, cxx_name = "dashboardUptimeSecs")]
         type SupervisorGuiBridge = super::SupervisorGuiBridgeRust;
 
         #[qinvokable]
@@ -119,6 +132,19 @@ pub struct SupervisorGuiBridgeRust {
     /// Set to `true` just before the process exits so QML can hide the system
     /// tray icon (calling NIM_DELETE) before `std::process::exit` is reached.
     pub quitting: bool,
+    // Per-service enrichment
+    pub mcp_port: i32,
+    pub mcp_runtime: QString,
+    pub mcp_pid: i32,
+    pub mcp_uptime_secs: i32,
+    pub terminal_port: i32,
+    pub terminal_runtime: QString,
+    pub terminal_pid: i32,
+    pub terminal_uptime_secs: i32,
+    pub dashboard_port: i32,
+    pub dashboard_runtime: QString,
+    pub dashboard_pid: i32,
+    pub dashboard_uptime_secs: i32,
 }
 
 impl Default for SupervisorGuiBridgeRust {
@@ -143,6 +169,18 @@ impl Default for SupervisorGuiBridgeRust {
             config_path: None,
             config_editor_error: QString::default(),
             quitting: false,
+            mcp_port: 0,
+            mcp_runtime: QString::from("Node"),
+            mcp_pid: 0,
+            mcp_uptime_secs: 0,
+            terminal_port: 0,
+            terminal_runtime: QString::from("Rust"),
+            terminal_pid: 0,
+            terminal_uptime_secs: 0,
+            dashboard_port: 0,
+            dashboard_runtime: QString::from("Node"),
+            dashboard_pid: 0,
+            dashboard_uptime_secs: 0,
         }
     }
 }
@@ -272,6 +310,39 @@ impl ffi::SupervisorGuiBridge {
                     false
                 }
             },
+        }
+    }
+
+    /// Push port/runtime/pid/uptime for a named service.
+    /// `service` must be "mcp", "terminal", or "dashboard".
+    pub fn push_service_info(
+        mut self: Pin<&mut Self>,
+        service: &str,
+        port: i32,
+        runtime: &str,
+        pid: i32,
+        uptime_secs: i32,
+    ) {
+        match service {
+            "mcp" => {
+                self.as_mut().set_mcp_port(port);
+                self.as_mut().set_mcp_runtime(QString::from(runtime));
+                self.as_mut().set_mcp_pid(pid);
+                self.as_mut().set_mcp_uptime_secs(uptime_secs);
+            }
+            "terminal" => {
+                self.as_mut().set_terminal_port(port);
+                self.as_mut().set_terminal_runtime(QString::from(runtime));
+                self.as_mut().set_terminal_pid(pid);
+                self.as_mut().set_terminal_uptime_secs(uptime_secs);
+            }
+            "dashboard" => {
+                self.as_mut().set_dashboard_port(port);
+                self.as_mut().set_dashboard_runtime(QString::from(runtime));
+                self.as_mut().set_dashboard_pid(pid);
+                self.as_mut().set_dashboard_uptime_secs(uptime_secs);
+            }
+            _ => {}
         }
     }
 }
