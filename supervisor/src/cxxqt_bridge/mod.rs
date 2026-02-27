@@ -78,6 +78,11 @@ pub mod ffi {
         #[cxx_name = "restartService"]
         fn restart_service(self: Pin<&mut SupervisorGuiBridge>, service: &QString);
 
+        /// Send a stop request for the named service into the restart channel.
+        #[qinvokable]
+        #[cxx_name = "stopService"]
+        fn stop_service(self: Pin<&mut SupervisorGuiBridge>, service: &QString);
+
         /// Open the supervisor config file in the system default editor.
         #[qinvokable]
         #[cxx_name = "openConfig"]
@@ -216,11 +221,34 @@ impl ffi::SupervisorGuiBridge {
     }
 
     pub fn open_terminal(self: Pin<&mut Self>) {
-        let url = self.terminal_url().to_string();
-        if !url.is_empty() {
-            let _ = std::process::Command::new("cmd")
-                .args(["/C", "start", "", &url])
-                .spawn();
+        // Launch the interactive-terminal GUI — it lives next to this executable.
+        if let Ok(mut path) = std::env::current_exe() {
+            path.pop();
+            #[cfg(windows)]
+            path.push("interactive-terminal.exe");
+            #[cfg(not(windows))]
+            path.push("interactive-terminal");
+            if path.exists() {
+                let _ = std::process::Command::new(&path).spawn();
+            }
+        }
+    }
+
+    pub fn stop_service(mut self: Pin<&mut Self>, service: &QString) {
+        let service_name = format!("stop:{}", service.to_string());
+        if let Some(tx) = self.rust().restart_tx.as_ref() {
+            match tx.try_send(service_name.clone()) {
+                Ok(()) => {
+                    self.as_mut().set_action_feedback(QString::from(
+                        &format!("Stop requested: {}", &service_name[5..]),
+                    ));
+                }
+                Err(_) => {
+                    self.as_mut().set_action_feedback(QString::from(
+                        "Stop request failed. Please try again.",
+                    ));
+                }
+            }
         }
     }
 

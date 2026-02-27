@@ -879,6 +879,28 @@ async fn supervisor_main() {
                     }
                     restart_command = restart_dispatch_rx.recv() => {
                         if let Some(service_name) = restart_command {
+                            // "stop:<service>" prefix — shut down without restarting
+                            if let Some(svc) = service_name.strip_prefix("stop:") {
+                                let svc = svc.to_string();
+                                let component = match svc.trim().to_ascii_lowercase().as_str() {
+                                    "terminal" | "interactive_terminal" => Some(TrayComponent::InteractiveTerminal),
+                                    "dashboard" => Some(TrayComponent::Dashboard),
+                                    "mcp" => Some(TrayComponent::Mcp),
+                                    _ => None,
+                                };
+                                if let Some(comp) = component {
+                                    handle_component_action(
+                                        comp,
+                                        TrayComponentAction::Shutdown,
+                                        &registry,
+                                        &mut tray,
+                                        &mut *mcp_runner,
+                                        &mut terminal_runner,
+                                        &mut dashboard_runner,
+                                    ).await;
+                                }
+                                continue;
+                            }
                             let mcp_pool_for_restart = mcp_pool_runtime.as_ref().map(Arc::clone);
                             handle_restart_command(
                                 &service_name,

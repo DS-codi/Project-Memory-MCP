@@ -268,6 +268,11 @@ ApplicationWindow {
                 onClicked: supervisorGuiBridge.openTerminal()
             }
             Button {
+                text: "Stop"
+                enabled: supervisorGuiBridge.terminalStatus === "Running"
+                onClicked: supervisorGuiBridge.stopService("terminal")
+            }
+            Button {
                 text: "Restart"
                 onClicked: supervisorGuiBridge.restartService("terminal")
             }
