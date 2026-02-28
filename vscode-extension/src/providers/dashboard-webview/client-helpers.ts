@@ -24,9 +24,9 @@ export function getClientHelpers(): string {
                 plan.is_program === 1 ||
                 plan.is_program === '1';
             const inferredIsProgram =
-                Array.isArray(plan.child_plan_ids) ||
-                typeof plan.child_plans_count === 'number' ||
-                Array.isArray(plan.plans) ||
+                (Array.isArray(plan.child_plan_ids) && plan.child_plan_ids.length > 0) ||
+                (typeof plan.child_plans_count === 'number' && plan.child_plans_count > 0) ||
+                (Array.isArray(plan.plans) && plan.plans.length > 0) ||
                 typeof plan.program_id === 'string';
             const isProgram = explicitIsProgram || inferredIsProgram;
             const schemaVersion = plan.schema_version || null;

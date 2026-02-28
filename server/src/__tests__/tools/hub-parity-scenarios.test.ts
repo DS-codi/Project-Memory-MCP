@@ -5,6 +5,14 @@ import {
   buildHubTelemetrySnapshot,
   evaluateHubPromotionGates,
 } from '../../tools/orchestration/hub-telemetry-dashboard.js';
+import {
+  evaluateDirectOptionAProgress,
+  getDirectOptionAMigrationPlan,
+} from '../../tools/orchestration/hub-migration-plan.js';
+import { buildLegacyDeprecationWorkflowReport } from '../../tools/orchestration/hub-deprecation-workflow.js';
+import { promises as fs } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 vi.mock('../../events/event-emitter.js', () => ({
   getRecentEvents: vi.fn(),
@@ -371,5 +379,83 @@ describe('Dynamic Hub scenario parity suite', () => {
     expect(report.blockers).toContain('handoff_churn_reduction_failed');
     expect(report.blockers).toContain('prompt_analyst_hit_rate_failed');
     expect(report.blockers).toContain('cross_session_conflict_rate_failed');
+  });
+
+  it('defines Direct Option A migration milestones with strict gate and rollback checkpoints', () => {
+    const plan = getDirectOptionAMigrationPlan();
+
+    expect(plan.strategy).toBe('direct_option_a');
+    expect(plan.session_scoped_from_day_one).toBe(true);
+    expect(plan.milestones).toHaveLength(5);
+    expect(plan.milestones.map((milestone) => milestone.order)).toEqual([1, 2, 3, 4, 5]);
+    for (const milestone of plan.milestones) {
+      expect(milestone.strict_gate_checkpoint).toContain('gate_');
+      expect(milestone.rollback_checkpoint).toContain('rollback_');
+    }
+  });
+
+  it('evaluates Direct Option A migration progress with hard blockers when checkpoints are unmet', () => {
+    const blocked = evaluateDirectOptionAProgress({
+      permanent_files_ready: false,
+      session_registry_active: true,
+      deprecated_legacy_labels: ['Coordinator'],
+      dynamic_spoke_materialisation_active: false,
+      legacy_static_files_remaining: 5,
+      promotion_gates_passed: false,
+      rollback_ready: false,
+    });
+
+    expect(blocked.ready_for_full_cutover).toBe(false);
+    expect(blocked.milestones.filter((milestone) => milestone.status === 'blocked').length).toBeGreaterThan(0);
+    expect(blocked.blockers).toContain('Permanent file pair (hub + prompt-analyst) is not ready.');
+    expect(blocked.blockers).toContain('Promotion gates must pass before dynamic cutover.');
+
+    const ready = evaluateDirectOptionAProgress({
+      permanent_files_ready: true,
+      session_registry_active: true,
+      deprecated_legacy_labels: ['Coordinator', 'Analyst', 'Runner', 'TDDDriver'],
+      dynamic_spoke_materialisation_active: true,
+      legacy_static_files_remaining: 0,
+      promotion_gates_passed: true,
+      rollback_ready: true,
+    });
+
+    expect(ready.ready_for_full_cutover).toBe(true);
+    expect(ready.blockers).toHaveLength(0);
+    expect(ready.milestones.every((milestone) => milestone.status === 'complete')).toBe(true);
+  });
+
+  it('builds fixed-window alias deprecation workflow and removes deprecated static files', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'hub-deprecation-'));
+    const agentsDir = path.join(tempRoot, '.github', 'agents');
+    await fs.mkdir(agentsDir, { recursive: true });
+
+    await fs.writeFile(path.join(agentsDir, 'hub.agent.md'), 'hub', 'utf-8');
+    await fs.writeFile(path.join(agentsDir, 'prompt-analyst.agent.md'), 'pa', 'utf-8');
+    await fs.writeFile(path.join(agentsDir, 'coordinator.agent.md'), 'coord', 'utf-8');
+    await fs.writeFile(path.join(agentsDir, 'analyst.agent.md'), 'analyst', 'utf-8');
+    await fs.writeFile(path.join(agentsDir, 'executor.agent.md'), 'exec', 'utf-8');
+
+    const report = await buildLegacyDeprecationWorkflowReport(tempRoot, {
+      current_window_index: 2,
+      apply_legacy_static_removal: true,
+    });
+
+    const coordinatorWindow = report.alias_windows.find((window) => window.label === 'Coordinator');
+    const analystWindow = report.alias_windows.find((window) => window.label === 'Analyst');
+
+    expect(coordinatorWindow?.status).toBe('deprecated_removed');
+    expect(coordinatorWindow?.alias_allowed).toBe(false);
+    expect(analystWindow?.status).toBe('deprecating_active');
+    expect(analystWindow?.alias_allowed).toBe(true);
+
+    expect(report.removed_files).toContain('coordinator.agent.md');
+    expect(report.legacy_static_files_after).not.toContain('coordinator.agent.md');
+    expect(report.legacy_static_files_after).toContain('analyst.agent.md');
+    expect(report.legacy_static_files_after).toContain('executor.agent.md');
+
+    const remaining = await fs.readdir(agentsDir);
+    expect(remaining).toContain('hub.agent.md');
+    expect(remaining).toContain('prompt-analyst.agent.md');
   });
 });

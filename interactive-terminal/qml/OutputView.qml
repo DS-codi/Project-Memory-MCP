@@ -19,16 +19,25 @@ Rectangle {
     property bool hasActiveTerminalSession: true
     property int controlFontPx: 11
     property int inputFontPx: 11
+
+    // Local command history (QML-side, per session)
+    property var cmdHistory: []
+    property int cmdHistoryIndex: -1
     property string activePath: {
-        if (!terminalApp) {
-            return "~"
-        }
+        if (!terminalApp) return "~"
         const working = (terminalApp.workingDirectory || "").trim()
-        if (working.length > 0) {
-            return working
-        }
+        if (working.length > 0) return working
         const workspace = (terminalApp.currentWorkspacePath || "").trim()
         return workspace.length > 0 ? workspace : "~"
+    }
+
+    // Prompt prefix matching the active shell style
+    property string promptPrefix: {
+        if (!terminalApp) return "PS"
+        const p = (terminalApp.currentTerminalProfile || "system").toLowerCase()
+        if (p === "cmd") return ""
+        if (p === "bash") return "$"
+        return "PS"  // powershell / pwsh / system all show PS
     }
 
     color: "#1a1a1a"
@@ -204,77 +213,127 @@ Rectangle {
 
             TextArea {
                 id: outputArea
+                width: scrollView.width
                 text: outputRoot.outputText
                 readOnly: true
                 color: "#d4d4d4"
                 font.family: "Consolas"
-                font.pixelSize: Math.max(11, Math.floor(outputRoot.width / 60))
+                font.pixelSize: Math.max(11, Math.floor(outputRoot.width / 80))
                 wrapMode: TextEdit.Wrap
                 selectByMouse: true
 
-                placeholderText: "No output yet"
+                background: Rectangle { color: "transparent" }
 
-                background: Rectangle {
-                    color: "transparent"
-                }
-
-                // Auto-scroll to bottom when new content arrives
                 onTextChanged: {
-                    cursorPosition = text.length
+                    Qt.callLater(function() {
+                        const vb = scrollView.ScrollBar.vertical
+                        if (vb && scrollView.visibleArea && scrollView.visibleArea.heightRatio < 1.0) {
+                            vb.position = Math.max(0, 1.0 - scrollView.visibleArea.heightRatio)
+                        }
+                    })
                 }
 
                 leftPadding: 10
                 rightPadding: 10
                 topPadding: 8
-                bottomPadding: 8
+                bottomPadding: 4
             }
         }
 
-        Rectangle { Layout.fillWidth: true; height: 1; color: "#3c3c3c" }
+        // Separator between output and prompt
+        Rectangle { Layout.fillWidth: true; height: 1; color: "#2a2a2a" }
 
+        // Fixed prompt bar — always visible at the bottom, outside the ScrollView
+        // so mouse clicks are never intercepted by scroll handling
         Rectangle {
+            id: promptBar
             Layout.fillWidth: true
-            Layout.preferredHeight: 56
-            color: "#1a1a1a"
+            height: terminalFontSize + 16
+            color: "#111111"
 
-            RowLayout {
+            property int terminalFontSize: Math.max(11, Math.floor(outputRoot.width / 80))
+
+            // Clicking anywhere in the bar focuses the input
+            MouseArea {
                 anchors.fill: parent
+                onClicked: manualCommandInput.forceActiveFocus()
+            }
+
+            Row {
+                id: promptRow
+                anchors.left: parent.left
+                anchors.right: parent.right
                 anchors.leftMargin: 10
                 anchors.rightMargin: 10
-                anchors.topMargin: 8
-                anchors.bottomMargin: 8
-                spacing: 6
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 0
 
                 Text {
-                    Layout.maximumWidth: Math.max(180, outputRoot.width * 0.45)
-                    text: outputRoot.activePath + " >"
-                    color: "#9da0a6"
-                    elide: Text.ElideLeft
+                    id: promptLabel
+                    // Format: "PS C:\path> " or "C:\path> " (cmd) or "$ ~/path> " (bash)
+                    // Uses only ASCII so Consolas renders it cleanly on Windows
+                    text: {
+                        const prefix = outputRoot.promptPrefix
+                        const path = outputRoot.activePath
+                        if (prefix.length > 0)
+                            return prefix + " " + path + "> "
+                        return path + "> "
+                    }
+                    color: outputRoot.hasActiveTerminalSession ? "#569cd6" : "#555555"
                     font.family: "Consolas"
-                    font.pixelSize: outputRoot.inputFontPx
+                    font.pixelSize: promptBar.terminalFontSize
+                    height: promptBar.terminalFontSize + 4
                     verticalAlignment: Text.AlignVCenter
                 }
 
-                TextField {
+                TextInput {
                     id: manualCommandInput
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 100
+                    width: promptRow.width - promptLabel.width
+                    height: promptLabel.height
                     enabled: outputRoot.hasActiveTerminalSession
-                    opacity: enabled ? 1.0 : 0.55
-                    placeholderText: enabled
-                        ? "Type command and press Enter"
-                        : "No active terminal session"
+                    color: outputRoot.hasActiveTerminalSession ? "#d4d4d4" : "#555555"
                     font.family: "Consolas"
-                    font.pixelSize: outputRoot.inputFontPx
-                    onAccepted: {
-                        if (terminalApp && terminalApp.runCommand(text)) {
-                            text = ""
+                    font.pixelSize: promptBar.terminalFontSize
+                    verticalAlignment: TextInput.AlignVCenter
+                    padding: 0
+                    leftPadding: 0
+                    selectByMouse: true
+                    cursorVisible: activeFocus && outputRoot.hasActiveTerminalSession
+
+                    // Give focus on load so the user can type immediately
+                    Component.onCompleted: forceActiveFocus()
+
+                    Keys.onReturnPressed: {
+                        if (terminalApp && manualCommandInput.text.trim().length > 0) {
+                            const cmd = manualCommandInput.text
+                            if (terminalApp.runCommand(cmd)) {
+                                if (outputRoot.cmdHistory[outputRoot.cmdHistory.length - 1] !== cmd) {
+                                    outputRoot.cmdHistory = outputRoot.cmdHistory.concat([cmd])
+                                }
+                                outputRoot.cmdHistoryIndex = outputRoot.cmdHistory.length
+                                manualCommandInput.text = ""
+                            }
                         }
                     }
+                    Keys.onEnterPressed: Keys.returnPressed(event)
 
-                    background: Rectangle {
-                        color: "transparent"
-                        border.color: "transparent"
+                    Keys.onUpPressed: {
+                        if (outputRoot.cmdHistory.length === 0) return
+                        const newIdx = Math.max(0, outputRoot.cmdHistoryIndex - 1)
+                        outputRoot.cmdHistoryIndex = newIdx
+                        manualCommandInput.text = outputRoot.cmdHistory[newIdx] || ""
+                        manualCommandInput.cursorPosition = manualCommandInput.text.length
+                    }
+                    Keys.onDownPressed: {
+                        const newIdx = outputRoot.cmdHistoryIndex + 1
+                        if (newIdx >= outputRoot.cmdHistory.length) {
+                            outputRoot.cmdHistoryIndex = outputRoot.cmdHistory.length
+                            manualCommandInput.text = ""
+                        } else {
+                            outputRoot.cmdHistoryIndex = newIdx
+                            manualCommandInput.text = outputRoot.cmdHistory[newIdx] || ""
+                        }
+                        manualCommandInput.cursorPosition = manualCommandInput.text.length
                     }
                 }
             }

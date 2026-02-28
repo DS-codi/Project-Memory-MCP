@@ -213,15 +213,20 @@ async function seedAgentDefinitions(projectRoot: string): Promise<number> {
     if (!parsed) continue;
 
     const content = fs.readFileSync(filePath, 'utf-8');
+    const slug = file.replace('.agent.md', '');
+    const isPermanent = slug === 'hub' || slug === 'prompt-analyst';
     storeAgent(
       parsed.name,
       content,
       {
         metadata: {
-          slug:        file.replace('.agent.md', ''),
+          slug,
           description: parsed.description,
           version:     parsed.version ?? '1.0.0',
           tags:        parsed.tags ?? [],
+        },
+        surfaceConfig: {
+          isPermanent,
         },
       }
     );

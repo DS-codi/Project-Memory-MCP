@@ -37,6 +37,19 @@ export interface StoreAgentInput {
   surfaceConfig?: AgentSurfaceConfig;
 }
 
+const PERMANENT_AGENT_NAME_KEYS = new Set(['hub', 'promptanalyst']);
+
+function normalizeAgentNameKey(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+export function isPermanentAgentDefinitionName(name: string): boolean {
+  return PERMANENT_AGENT_NAME_KEYS.has(normalizeAgentNameKey(name));
+}
+
 // ---------------------------------------------------------------------------
 // Write
 // ---------------------------------------------------------------------------
@@ -53,9 +66,12 @@ export function storeAgent(
   const blockedTools        = surfaceConfig.blockedTools        ? JSON.stringify(surfaceConfig.blockedTools)        : null;
   const requiredContextKeys = surfaceConfig.requiredContextKeys ? JSON.stringify(surfaceConfig.requiredContextKeys) : null;
   const checkpointTriggers  = surfaceConfig.checkpointTriggers  ? JSON.stringify(surfaceConfig.checkpointTriggers)  : null;
-  const isPermanent         = surfaceConfig.isPermanent ? 1 : 0;
-
   const existing = getAgent(name);
+  const inferredPermanent = isPermanentAgentDefinitionName(name);
+  const isPermanent =
+    surfaceConfig.isPermanent !== undefined
+      ? (surfaceConfig.isPermanent ? 1 : 0)
+      : (existing ? existing.is_permanent : (inferredPermanent ? 1 : 0));
 
   if (existing) {
     run(

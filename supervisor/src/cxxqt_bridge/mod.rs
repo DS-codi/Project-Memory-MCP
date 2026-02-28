@@ -6,6 +6,28 @@ use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use std::pin::Pin;
 
+#[cfg(windows)]
+use windows_sys::Win32::UI::WindowsAndMessaging::{
+    FindWindowW, SetForegroundWindow, ShowWindow, SW_RESTORE,
+};
+
+#[cfg(windows)]
+fn show_existing_interactive_terminal_window() -> bool {
+    let mut title: Vec<u16> = "Interactive Terminal".encode_utf16().collect();
+    title.push(0);
+
+    let hwnd = unsafe { FindWindowW(std::ptr::null(), title.as_ptr()) };
+    if hwnd.is_null() {
+        return false;
+    }
+
+    unsafe {
+        ShowWindow(hwnd, SW_RESTORE);
+        SetForegroundWindow(hwnd);
+    }
+    true
+}
+
 #[cxx_qt::bridge]
 pub mod ffi {
     unsafe extern "C++" {
@@ -82,6 +104,11 @@ pub mod ffi {
         #[qinvokable]
         #[cxx_name = "stopService"]
         fn stop_service(self: Pin<&mut SupervisorGuiBridge>, service: &QString);
+
+        /// Send a start request for the named service into the restart channel.
+        #[qinvokable]
+        #[cxx_name = "startService"]
+        fn start_service(self: Pin<&mut SupervisorGuiBridge>, service: &QString);
 
         /// Open the supervisor config file in the system default editor.
         #[qinvokable]
@@ -221,6 +248,11 @@ impl ffi::SupervisorGuiBridge {
     }
 
     pub fn open_terminal(self: Pin<&mut Self>) {
+        #[cfg(windows)]
+        if show_existing_interactive_terminal_window() {
+            return;
+        }
+
         // Launch the interactive-terminal GUI — it lives next to this executable.
         if let Ok(mut path) = std::env::current_exe() {
             path.pop();
@@ -229,7 +261,9 @@ impl ffi::SupervisorGuiBridge {
             #[cfg(not(windows))]
             path.push("interactive-terminal");
             if path.exists() {
-                let _ = std::process::Command::new(&path).spawn();
+                let _ = std::process::Command::new(&path)
+                    .arg("--show")
+                    .spawn();
             }
         }
     }
@@ -246,6 +280,24 @@ impl ffi::SupervisorGuiBridge {
                 Err(_) => {
                     self.as_mut().set_action_feedback(QString::from(
                         "Stop request failed. Please try again.",
+                    ));
+                }
+            }
+        }
+    }
+
+    pub fn start_service(mut self: Pin<&mut Self>, service: &QString) {
+        let service_name = format!("start:{}", service.to_string());
+        if let Some(tx) = self.rust().restart_tx.as_ref() {
+            match tx.try_send(service_name.clone()) {
+                Ok(()) => {
+                    self.as_mut().set_action_feedback(QString::from(
+                        &format!("Start requested: {}", &service_name[6..]),
+                    ));
+                }
+                Err(_) => {
+                    self.as_mut().set_action_feedback(QString::from(
+                        "Start request failed. Please try again.",
                     ));
                 }
             }

@@ -91,8 +91,17 @@ async function upsertWorkspaceMeta(workspacePath: string): Promise<{ meta: Recor
 
 async function readWorkspaceMeta(workspaceId: string): Promise<Record<string, any>> {
   const metaPath = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'workspace.meta.json');
-  const metaContent = await fs.readFile(metaPath, 'utf-8');
-  return JSON.parse(metaContent);
+  try {
+    const metaContent = await fs.readFile(metaPath, 'utf-8');
+    return JSON.parse(metaContent);
+  } catch {
+    // meta file missing — fall back to DB row
+    const row = getWorkspace(workspaceId);
+    if (row) {
+      return { workspace_id: row.id, path: row.path, name: row.name };
+    }
+    return { workspace_id: workspaceId, path: '', name: workspaceId };
+  }
 }
 
 function normalizeWorkspaceSections(input: unknown): Record<string, WorkspaceContextSection> {

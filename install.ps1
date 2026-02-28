@@ -67,11 +67,38 @@ param(
     [switch]$SkipInstall,
     [switch]$Force,
     [switch]$NoBuild,  # alias for InstallOnly
-    [switch]$NewDatabase  # archive old DB and create a fresh one
+    [switch]$NewDatabase,  # archive old DB and create a fresh one
+    [Alias('h')]
+    [switch]$Help,
+    [string[]]$RemainingArgs
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+function Show-InstallHelp {
+    Write-Host "Project Memory MCP — Install" -ForegroundColor Magenta
+    Write-Host ""
+    Write-Host "Usage:" -ForegroundColor Cyan
+    Write-Host "  .\install.ps1 [-Component <list>] [-InstallOnly] [-SkipInstall] [-Force] [-NoBuild] [-NewDatabase] [-h|-Help|--help]"
+    Write-Host ""
+    Write-Host "Components:" -ForegroundColor Cyan
+    Write-Host "  Supervisor, GuiForms, InteractiveTerminal, Server, Dashboard, Extension, Container, All"
+    Write-Host ""
+    Write-Host "Flags:" -ForegroundColor Cyan
+    Write-Host "  -InstallOnly   Extension only: install latest .vsix without rebuilding"
+    Write-Host "  -SkipInstall   Extension only: build/package but skip code --install-extension"
+    Write-Host "  -Force         Pass --force for extension install; use --no-cache for container build"
+    Write-Host "  -NoBuild       Alias for -InstallOnly"
+    Write-Host "  -NewDatabase   Archive existing SQLite DB and create a fresh one during server setup"
+    Write-Host "  -h, -Help      Show this help message"
+    Write-Host "  --help         Also accepted"
+}
+
+if ($Help -or ($RemainingArgs -contains '--help')) {
+    Show-InstallHelp
+    exit 0
+}
 
 # Resolve root relative to this script's location
 $Root = $PSScriptRoot
@@ -99,6 +126,59 @@ function Write-Ok([string]$msg) {
 
 function Write-Fail([string]$msg) {
     Write-Host "   ✗ $msg" -ForegroundColor Red
+}
+
+function Stop-SupervisorRuntimeProcesses {
+    param(
+        [string]$WorkspaceRoot
+    )
+
+    Write-Host "   Stopping Supervisor runtime processes (full teardown)..." -ForegroundColor Yellow
+
+    $workspaceNeedle = $WorkspaceRoot.ToLowerInvariant() -replace '/', '\\'
+    $targets = [System.Collections.Generic.List[object]]::new()
+
+    $all = @(Get-CimInstance -ClassName Win32_Process -ErrorAction SilentlyContinue)
+    foreach ($proc in $all) {
+        $name = [string]$proc.Name
+        $processId = [int]$proc.ProcessId
+        $cmd = [string]$proc.CommandLine
+
+        if (-not $name) { continue }
+
+        $nameLower = $name.ToLowerInvariant()
+        $cmdLower  = if ($cmd) { $cmd.ToLowerInvariant() -replace '/', '\\' } else { '' }
+        $isMatch   = $false
+
+        if ($nameLower -in @('supervisor.exe', 'supervisor', 'interactive-terminal.exe', 'interactive-terminal', 'pm-approval-gui.exe', 'pm-approval-gui', 'pm-brainstorm-gui.exe', 'pm-brainstorm-gui')) {
+            $isMatch = $true
+        } elseif ($nameLower -in @('node.exe', 'node', 'npx.exe', 'npx', 'vite.exe', 'vite')) {
+            if ($cmdLower -and $cmdLower.Contains($workspaceNeedle)) {
+                $isMatch = $true
+            }
+        }
+
+        if ($isMatch) {
+            $targets.Add([pscustomobject]@{ Name = $name; PID = $processId; CommandLine = $cmd })
+        }
+    }
+
+    $uniqueTargets = @($targets | Sort-Object PID -Unique)
+    if ($uniqueTargets.Count -eq 0) {
+        Write-Host "   (no matching runtime processes found)" -ForegroundColor DarkGray
+        return
+    }
+
+    foreach ($t in $uniqueTargets) {
+        try {
+            Stop-Process -Id $t.PID -Force -ErrorAction Stop
+            Write-Host "   ✓ Stopped $($t.Name) (PID $($t.PID))" -ForegroundColor Green
+        } catch {
+            Write-Host "   ⚠ Could not stop $($t.Name) (PID $($t.PID)): $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    }
+
+    Start-Sleep -Milliseconds 900
 }
 
 function Resolve-QtToolchain {
@@ -425,13 +505,9 @@ function Install-Supervisor {
     Write-Step "Supervisor (Rust + Qt QML)"
     Set-CargoNetworkEnv
 
-    # Kill any running supervisor process so the linker can overwrite the exe.
-    $running = Get-Process -Name 'supervisor' -ErrorAction SilentlyContinue
-    if ($running) {
-        Write-Host "   Stopping running supervisor process(es)..." -ForegroundColor Yellow
-        $running | Stop-Process -Force -ErrorAction SilentlyContinue
-        Start-Sleep -Milliseconds 800
-    }
+    # Rebuilding supervisor must tear down all managed runtime components,
+    # not just supervisor.exe, to avoid orphan processes.
+    Stop-SupervisorRuntimeProcesses -WorkspaceRoot $Root
 
     try {
         $Qt = Resolve-QtToolchain
@@ -499,7 +575,7 @@ function Install-InteractiveTerminal {
         exit $LASTEXITCODE
     }
 
-    Write-Ok "interactive-terminal built + Qt runtime deployed → interactive-terminal\target\release\"
+    Write-Ok "interactive-terminal built + Qt runtime deployed → target\release\  (workspace output)"
 }
 
 # ──────────────────────────────────────────────────────────────
@@ -808,23 +884,21 @@ $Elapsed = (Get-Date) - $StartTime
 Write-Host ""
 Write-Host "Done in $([math]::Round($Elapsed.TotalSeconds, 1))s" -ForegroundColor Magenta
 
-# ── Relaunch supervisor if it was (re)built ────────────────────────────────
+# ── Optional supervisor launch prompt (no automatic launch) ─────────────────
 if ($Components -contains "Supervisor") {
-    $supervisorExe = Join-Path $Root 'target\release\supervisor.exe'
-    if (Test-Path $supervisorExe) {
-        # Kill any stale instance left over (e.g. if the build step was skipped
-        # due to -InstallOnly or the process somehow survived).
-        $stale = Get-Process -Name 'supervisor' -ErrorAction SilentlyContinue
-        if ($stale) {
-            Write-Host "   Stopping stale supervisor process(es)..." -ForegroundColor Yellow
-            $stale | Stop-Process -Force -ErrorAction SilentlyContinue
-            Start-Sleep -Milliseconds 600
+    $launchScript = Join-Path $Root 'launch-supervisor.ps1'
+    Write-Host ""
+    if (Test-Path $launchScript) {
+        $launchNow = Read-Host 'Build complete. Launch supervisor now? (Y/N)'
+        if ($launchNow -match '^(?i)y(?:es)?$') {
+            Write-Host "── Launching Supervisor via launch script" -ForegroundColor Cyan
+            & $launchScript
+        } else {
+            Write-Host "   Supervisor was not launched." -ForegroundColor Yellow
+            Write-Host "   Launch command:" -ForegroundColor DarkGray
+            Write-Host "   & '$launchScript'" -ForegroundColor DarkGray
         }
-        Write-Host ""
-        Write-Host "── Launching Supervisor" -ForegroundColor Cyan
-        Start-Process -FilePath $supervisorExe -WorkingDirectory (Split-Path $supervisorExe)
-        Write-Host "   ✓ supervisor launched" -ForegroundColor Green
     } else {
-        Write-Host "   [warn] supervisor.exe not found — skipping launch" -ForegroundColor Yellow
+        Write-Host "   [warn] launch script not found: $launchScript" -ForegroundColor Yellow
     }
 }

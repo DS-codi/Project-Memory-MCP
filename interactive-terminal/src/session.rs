@@ -10,6 +10,7 @@ use std::time::{Duration, Instant};
 ///
 /// Used by the bridge layer to manage the lifecycle of pending commands
 /// and to decide when the application should exit due to inactivity.
+#[allow(dead_code)]
 pub struct SessionManager {
     /// Active requests indexed by their unique request ID.
     requests: HashMap<String, CommandRequest>,
@@ -22,6 +23,7 @@ pub struct SessionManager {
     last_activity_at: Instant,
 }
 
+#[allow(dead_code)]
 impl SessionManager {
     /// Create a new `SessionManager`.
     ///

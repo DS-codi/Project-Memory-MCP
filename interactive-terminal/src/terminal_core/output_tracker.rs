@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use tokio::time::Instant;
 
 /// Maximum age before a completed output entry is evicted (30 minutes).
+#[allow(dead_code)]
 const EVICTION_AGE_SECS: u64 = 30 * 60;
 
 #[derive(Debug, Clone)]
@@ -117,6 +118,7 @@ impl CoreOutputTracker {
         }
     }
 
+    #[allow(dead_code)]
     pub fn evict_stale(&mut self) {
         let cutoff = std::time::Duration::from_secs(EVICTION_AGE_SECS);
         self.completed

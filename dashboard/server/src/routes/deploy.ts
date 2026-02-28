@@ -13,6 +13,98 @@ interface DeployRequest {
   instructions: string[];
 }
 
+interface ArchiveMetadata {
+  archive_path: string | null;
+  moved_files_count: number;
+  moved_files: string[];
+  warnings: string[];
+  conflicts: string[];
+}
+
+async function listFilesRecursive(dir: string, root = dir): Promise<string[]> {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const files: string[] = [];
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...await listFilesRecursive(fullPath, root));
+      continue;
+    }
+    if (entry.isFile()) {
+      files.push(path.relative(root, fullPath).replace(/\\/g, '/'));
+    }
+  }
+
+  return files;
+}
+
+async function resolveUniqueArchivePath(baseArchivePath: string): Promise<{ archivePath: string; hadConflict: boolean }> {
+  if (!existsSync(baseArchivePath)) {
+    return { archivePath: baseArchivePath, hadConflict: false };
+  }
+
+  let suffix = 1;
+  while (existsSync(`${baseArchivePath}-${suffix}`)) {
+    suffix++;
+  }
+
+  return { archivePath: `${baseArchivePath}-${suffix}`, hadConflict: true };
+}
+
+async function moveDirectory(sourceDir: string, destinationDir: string): Promise<void> {
+  try {
+    await fs.rename(sourceDir, destinationDir);
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code !== 'EXDEV') {
+      throw error;
+    }
+
+    await fs.cp(sourceDir, destinationDir, { recursive: true });
+    await fs.rm(sourceDir, { recursive: true, force: true });
+  }
+}
+
+export async function archiveWorkspaceAgents(workspacePath: string): Promise<ArchiveMetadata> {
+  const sourceAgentsDir = path.join(workspacePath, '.github', 'agents');
+  const metadata: ArchiveMetadata = {
+    archive_path: null,
+    moved_files_count: 0,
+    moved_files: [],
+    warnings: [],
+    conflicts: [],
+  };
+
+  if (!existsSync(sourceAgentsDir)) {
+    metadata.warnings.push('No existing .github/agents directory found; archive step skipped.');
+    return metadata;
+  }
+
+  const existingFiles = await listFilesRecursive(sourceAgentsDir);
+  if (existingFiles.length === 0) {
+    metadata.warnings.push('Existing .github/agents directory was empty; archive step skipped.');
+    return metadata;
+  }
+
+  const timestamp = new Date().toISOString().replace(/[.:]/g, '-');
+  const archiveRoot = path.join(workspacePath, '.archived_github', 'agents');
+  const preferredArchivePath = path.join(archiveRoot, timestamp);
+  const { archivePath, hadConflict } = await resolveUniqueArchivePath(preferredArchivePath);
+
+  if (hadConflict) {
+    metadata.conflicts.push(`Archive folder already existed; used ${archivePath} instead.`);
+  }
+
+  await fs.mkdir(path.dirname(archivePath), { recursive: true });
+  await moveDirectory(sourceAgentsDir, archivePath);
+
+  metadata.archive_path = archivePath;
+  metadata.moved_files = existingFiles;
+  metadata.moved_files_count = existingFiles.length;
+  return metadata;
+}
+
 // POST /api/deploy - Deploy selected items to a workspace
 deployRouter.post('/', async (req, res) => {
   try {
@@ -27,7 +119,24 @@ deployRouter.post('/', async (req, res) => {
       prompts: 0,
       instructions: 0,
       errors: [] as string[],
+      archive: {
+        archive_path: null as string | null,
+        moved_files_count: 0,
+        moved_files: [] as string[],
+        warnings: [] as string[],
+        conflicts: [] as string[],
+      },
     };
+
+    // Archive existing agent deployment before writing fresh files
+    if (agents && agents.length > 0) {
+      try {
+        const archive = await archiveWorkspaceAgents(workspace_path);
+        results.archive = archive;
+      } catch (error) {
+        results.archive.warnings.push(`Failed to archive existing agents: ${error}`);
+      }
+    }
 
     // Deploy agents
     if (agents && agents.length > 0) {

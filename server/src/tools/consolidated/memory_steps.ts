@@ -15,6 +15,8 @@ import * as planTools from '../plan/index.js';
 import { recordStepChange } from '../stats-hooks.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
 import { preflightValidate } from '../preflight/index.js';
+import { updateSessionRegistry } from '../../db/workspace-session-registry-db.js';
+import { serverSessionIdForPrepId } from '../session-live-store.js';
 
 /**
  * Enrich step objects with display_number (1-based) for agent/UI consumption.
@@ -31,6 +33,25 @@ function enrichStepsWithDisplayNumber(result: PlanOperationResult): PlanOperatio
       }))
     }
   };
+}
+
+function syncRegistryFromPlanState(
+  prepSessionId: string | undefined,
+  planResult: PlanOperationResult,
+): void {
+  if (!prepSessionId) return;
+  const serverSessionId = serverSessionIdForPrepId(prepSessionId);
+  if (!serverSessionId) return;
+
+  const activeStepIndices = planResult.plan_state.steps
+    .filter(step => step.status === 'active')
+    .map(step => step.index);
+
+  updateSessionRegistry(serverSessionId, {
+    currentPhase: planResult.plan_state.current_phase ?? null,
+    stepIndicesClaimed: activeStepIndices,
+    status: 'active',
+  });
 }
 
 export type StepsAction = 'add' | 'update' | 'batch_update' | 'insert' | 'delete' | 'reorder' | 'move' | 'sort' | 'set_order' | 'replace' | 'next';
@@ -162,6 +183,7 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
       if (!result.success) {
         return { success: false, error: result.error };
       }
+      syncRegistryFromPlanState(params._session_id, result.data!);
       // Track step status change for session instrumentation
       if (params.status === 'active' || params.status === 'done' || params.status === 'blocked') {
         recordStepChange(params._session_id, params.status);
@@ -193,6 +215,7 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
       if (!result.success) {
         return { success: false, error: result.error };
       }
+      syncRegistryFromPlanState(params._session_id, result.data!);
       // Track step status changes for session instrumentation
       for (const u of params.updates!) {
         if (u.status === 'active' || u.status === 'done' || u.status === 'blocked') {
@@ -368,6 +391,7 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
       if (!result.success) {
         return { success: false, error: result.error };
       }
+      syncRegistryFromPlanState(params._session_id, result.data!);
       recordStepChange(params._session_id, 'done');
       const enriched = enrichStepsWithDisplayNumber(result.data!);
       const rawNext = enriched.plan_state.steps.find(s => s.status === 'pending');

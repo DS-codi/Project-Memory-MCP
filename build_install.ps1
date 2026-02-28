@@ -86,10 +86,6 @@ param(
     [switch]$NoBuild,  # alias for InstallOnly
     [switch]$NewDatabase,  # archive old DB and create a fresh one
 
-    # Optional path to a local Gemini secrets file (key=value lines).
-    # If omitted, defaults to ./secrets/gemini.pmtsa.env when present.
-    [string]$GeminiEnvFile,
-
     # Optional transcript log file path
     [string]$LogFile
 )
@@ -192,98 +188,6 @@ function Invoke-Checked([string]$description, [scriptblock]$block) {
     if ($LASTEXITCODE -ne 0) {
         Write-Fail "$description failed (exit $LASTEXITCODE)"
         exit $LASTEXITCODE
-    }
-}
-
-function Parse-DotEnvFile {
-    param(
-        [Parameter(Mandatory)][string]$Path
-    )
-
-    $result = @{}
-    if (-not (Test-Path $Path)) {
-        return $result
-    }
-
-    $lines = Get-Content -Path $Path -Encoding UTF8 -ErrorAction Stop
-    foreach ($raw in $lines) {
-        if ($null -eq $raw) { continue }
-        $line = $raw.Trim()
-        if ([string]::IsNullOrWhiteSpace($line)) { continue }
-        if ($line.StartsWith('#')) { continue }
-
-        $idx = $line.IndexOf('=')
-        if ($idx -lt 1) { continue }
-
-        $key = $line.Substring(0, $idx).Trim()
-        $value = $line.Substring($idx + 1).Trim()
-
-        if ([string]::IsNullOrWhiteSpace($key)) { continue }
-
-        if (($value.StartsWith('"') -and $value.EndsWith('"')) -or ($value.StartsWith("'") -and $value.EndsWith("'"))) {
-            if ($value.Length -ge 2) {
-                $value = $value.Substring(1, $value.Length - 2)
-            }
-        }
-
-        $result[$key] = $value
-    }
-
-    return $result
-}
-
-function Resolve-GeminiSupervisorEnv {
-    param(
-        [string]$RequestedPath,
-        [string]$WorkspaceRoot
-    )
-
-    $resolvedPath = $null
-    if ($RequestedPath) {
-        $resolvedPath = $RequestedPath
-        if (-not [System.IO.Path]::IsPathRooted($resolvedPath)) {
-            $resolvedPath = Join-Path $WorkspaceRoot $resolvedPath
-        }
-    } else {
-        $defaultPath = Join-Path $WorkspaceRoot 'secrets\gemini.pmtsa.env'
-        if (Test-Path $defaultPath) {
-            $resolvedPath = $defaultPath
-        }
-    }
-
-    if (-not $resolvedPath -or -not (Test-Path $resolvedPath)) {
-        return [pscustomobject]@{
-            Path = $resolvedPath
-            Env  = @{}
-        }
-    }
-
-    $parsed = Parse-DotEnvFile -Path $resolvedPath
-
-    $candidateKey = $null
-    foreach ($name in @('GEMINI_API_KEY', 'GOOGLE_API_KEY', 'PMTA-key', 'PMTA_KEY')) {
-        if ($parsed.ContainsKey($name) -and -not [string]::IsNullOrWhiteSpace($parsed[$name])) {
-            $candidateKey = $parsed[$name]
-            break
-        }
-    }
-
-    if (-not $candidateKey) {
-        return [pscustomobject]@{
-            Path = $resolvedPath
-            Env  = @{}
-        }
-    }
-
-    # Publish canonical names for downstream runtime/tool compatibility.
-    $envMap = @{
-        'GEMINI_API_KEY' = $candidateKey
-        'GOOGLE_API_KEY' = $candidateKey
-    }
-
-    return [pscustomobject]@{
-        Path = $resolvedPath
-        Env  = $envMap
     }
 }
 
@@ -984,21 +888,7 @@ function Install-SupervisorRuntime {
 
         Write-Host ""
         Write-Host "── Launching Supervisor" -ForegroundColor Cyan
-        $geminiRuntimeEnv = Resolve-GeminiSupervisorEnv -RequestedPath $GeminiEnvFile -WorkspaceRoot $Root
-        if ($geminiRuntimeEnv.Env.Count -gt 0) {
-            Write-Host "   › Injecting Gemini API credentials into Supervisor process environment" -ForegroundColor Gray
-            if ($geminiRuntimeEnv.Path) {
-                Write-Host "     source: $($geminiRuntimeEnv.Path)" -ForegroundColor DarkGray
-            }
-            Start-Process -FilePath $supervisorExe -WorkingDirectory (Split-Path $supervisorExe) -Environment $geminiRuntimeEnv.Env
-        } else {
-            if ($geminiRuntimeEnv.Path) {
-                Write-Host "   [warn] Gemini env file found but no recognized key names (expected GEMINI_API_KEY / GOOGLE_API_KEY / PMTA-key)" -ForegroundColor Yellow
-            } else {
-                Write-Host "   › No Gemini env file detected; launching Supervisor without Gemini API env overrides" -ForegroundColor Gray
-            }
-            Start-Process -FilePath $supervisorExe -WorkingDirectory (Split-Path $supervisorExe)
-        }
+        Start-Process -FilePath $supervisorExe -WorkingDirectory (Split-Path $supervisorExe)
         Write-Host "   ✓ supervisor launched" -ForegroundColor Green
     } else {
         Write-Host "   [warn] supervisor.exe not found — skipping launch" -ForegroundColor Yellow
@@ -1014,9 +904,6 @@ try {
     Write-Host "  SkipInstall: $SkipInstall" -ForegroundColor DarkGray
     Write-Host "  Force      : $Force" -ForegroundColor DarkGray
     Write-Host "  NewDatabase: $NewDatabase" -ForegroundColor DarkGray
-    if ($GeminiEnvFile) {
-        Write-Host "  GeminiEnv : $GeminiEnvFile" -ForegroundColor DarkGray
-    }
     if ($LogFile) {
         Write-Host "  LogFile   : $LogFile" -ForegroundColor DarkGray
     }

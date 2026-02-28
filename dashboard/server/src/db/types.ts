@@ -38,6 +38,23 @@ export interface PlanRow {
   archived_at:      string | null;
 }
 
+export interface ProgramRow {
+  id:               string;
+  workspace_id:     string;
+  title:            string;
+  description:      string | null;
+  category:         string | null;
+  priority:         string | null;
+  status:           string;
+  schema_version:   string | null;
+  goals:            string | null;
+  success_criteria: string | null;
+  source:           string | null;
+  created_at:       string;
+  updated_at:       string;
+  archived_at:      string | null;
+}
+
 export interface PhaseRow {
   id:          string;
   plan_id:     string;

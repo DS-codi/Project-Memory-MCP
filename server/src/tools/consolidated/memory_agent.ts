@@ -52,6 +52,11 @@ import {
   buildHubTelemetrySnapshot,
   evaluateHubPromotionGates,
 } from '../orchestration/hub-telemetry-dashboard.js';
+import {
+  evaluateDirectOptionAProgress,
+  getDirectOptionAMigrationPlan,
+} from '../orchestration/hub-migration-plan.js';
+import { buildLegacyDeprecationWorkflowReport } from '../orchestration/hub-deprecation-workflow.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
 import { getPlanState, getWorkspace } from '../../storage/db-store.js';
 import {
@@ -64,6 +69,7 @@ import { preflightValidate } from '../preflight/index.js';
 import { incrementStat } from '../session-stats.js';
 import { events } from '../../events/event-emitter.js';
 import { registerLiveSession, clearLiveSession, serverSessionIdForPrepId } from '../session-live-store.js';
+import { getRequiredContextKeys } from '../../db/agent-definition-db.js';
 
 export type AgentAction = 
   | 'init' 
@@ -130,6 +136,8 @@ export interface MemoryAgentParams {
   session_id?: string;
   /** Free-form context payload built from Prompt Analyst enrichment */
   context_payload?: Record<string, unknown>;
+  /** Optional Prompt Analyst enrichment payload merged into context_payload before deploy */
+  prompt_analyst_payload?: Record<string, unknown>;
   /** Per-call overrides for allowed/blocked tool surfaces */
   tool_overrides?: { allowedTools?: string[]; blockedTools?: string[] };
   /** Files this session is claiming (for peer-session conflict avoidance) */
@@ -160,6 +168,20 @@ export interface MemoryAgentParams {
     min_prompt_analyst_hit_rate_percent?: number;
     max_cross_session_conflict_rate_percent?: number;
   };
+  include_direct_option_a_migration_plan?: boolean;
+  direct_option_a_progress_input?: {
+    permanent_files_ready: boolean;
+    session_registry_active: boolean;
+    deprecated_legacy_labels: string[];
+    dynamic_spoke_materialisation_active: boolean;
+    legacy_static_files_remaining: number;
+    promotion_gates_passed: boolean;
+    rollback_ready: boolean;
+  };
+  include_legacy_deprecation_workflow?: boolean;
+  current_deprecation_window_index?: number;
+  apply_legacy_static_removal?: boolean;
+  legacy_static_removal_archive_dir?: string;
 
   // For deploy_for_task
   phase_context?: Record<string, unknown>;
@@ -190,6 +212,25 @@ type AgentResult =
       workspace_id: string;
       plan_id: string;
       warnings: string[];
+      injected_sections?: {
+        source: 'session_materialised' | 'legacy_static_fallback';
+        tool_surface_restrictions: {
+          included: boolean;
+          source: 'tool_overrides' | 'agent_definition' | null;
+        };
+        step_context: {
+          included: boolean;
+          source: 'runtime_context_payload' | null;
+        };
+        peer_sessions: {
+          included: boolean;
+          source: 'workspace_session_registry' | null;
+        };
+        hub_customisation_zone: {
+          included: boolean;
+          source: 'deploy_template' | null;
+        };
+      };
       policy_enforcement?: {
         requested_hub_label: LegacyHubLabel | 'Hub' | null;
         resolved_mode: CanonicalHubMode | null;
@@ -230,6 +271,9 @@ type AgentResult =
       };
       hub_telemetry_snapshot?: import('../orchestration/hub-telemetry-dashboard.js').HubTelemetrySnapshot;
       hub_promotion_gates?: import('../orchestration/hub-telemetry-dashboard.js').HubPromotionGatesReport;
+      direct_option_a_migration_plan?: import('../orchestration/hub-migration-plan.js').DirectOptionAMigrationPlan;
+      direct_option_a_progress?: import('../orchestration/hub-migration-plan.js').DirectOptionAProgressReport;
+      legacy_deprecation_workflow?: import('../orchestration/hub-deprecation-workflow.js').LegacyDeprecationWorkflowReport;
     } };
 
 export async function memoryAgent(params: MemoryAgentParams): Promise<ToolResponse<AgentResult>> {
@@ -827,6 +871,23 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
           })
           : undefined;
 
+        const directOptionAPlan = params.include_direct_option_a_migration_plan
+          ? getDirectOptionAMigrationPlan()
+          : undefined;
+
+        const directOptionAProgress =
+          params.include_direct_option_a_migration_plan && params.direct_option_a_progress_input
+            ? evaluateDirectOptionAProgress(params.direct_option_a_progress_input)
+            : undefined;
+
+        const legacyDeprecationWorkflow = params.include_legacy_deprecation_workflow
+          ? await buildLegacyDeprecationWorkflowReport(workspacePath, {
+            current_window_index: params.current_deprecation_window_index,
+            apply_legacy_static_removal: params.apply_legacy_static_removal,
+            archive_dir: params.legacy_static_removal_archive_dir,
+          })
+          : undefined;
+
         if (rollout.routing === 'legacy_static_fallback') {
           const restoreResult = await restoreLegacyStaticAgentsFromBackup(
             workspacePath,
@@ -851,6 +912,25 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
                 workspace_id: params.workspace_id,
                 plan_id: params.plan_id,
                 warnings: restoreResult.warnings,
+                injected_sections: {
+                  tool_surface_restrictions: {
+                    included: false,
+                    source: null,
+                  },
+                  step_context: {
+                    included: false,
+                    source: null,
+                  },
+                  peer_sessions: {
+                    included: false,
+                    source: null,
+                  },
+                  hub_customisation_zone: {
+                    included: false,
+                    source: null,
+                  },
+                  source: 'legacy_static_fallback',
+                },
                 policy_enforcement: {
                   requested_hub_label: aliasRouting.requested_hub_label,
                   resolved_mode: aliasRouting.resolved_mode,
@@ -879,8 +959,31 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
                 },
                 hub_telemetry_snapshot: telemetrySnapshot,
                 hub_promotion_gates: promotionGates,
+                direct_option_a_migration_plan: directOptionAPlan,
+                direct_option_a_progress: directOptionAProgress,
+                legacy_deprecation_workflow: legacyDeprecationWorkflow,
               },
             },
+          };
+        }
+
+        const mergedContextPayload = mergeDeployContextPayload(
+          params.context_payload,
+          params.prompt_analyst_payload,
+        );
+        const requiredContextKeys = getRequiredContextKeys(
+          params.agent_type.toLowerCase().replace(/\s+/g, '-'),
+        );
+        const unresolvedRequiredKeys = requiredContextKeys.filter(
+          (key) => !hasResolvedContextKey(mergedContextPayload, key),
+        );
+
+        if (unresolvedRequiredKeys.length > 0) {
+          return {
+            success: false,
+            error:
+              `CONTEXT_KEYS_UNRESOLVED: missing required context keys for ${params.agent_type}: ` +
+              unresolvedRequiredKeys.join(', '),
           };
         }
 
@@ -892,7 +995,7 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
           sessionId:      params.session_id,
           phaseName:      params.phase_name,
           stepIndices:    params.step_indices,
-          contextPayload: params.context_payload,
+          contextPayload: mergedContextPayload,
           toolOverrides:  params.tool_overrides,
           filesInScope:   params.files_in_scope,
           currentPhase:   params.current_phase ?? params.phase_name,
@@ -913,6 +1016,10 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
               workspace_id:        params.workspace_id,
               plan_id:             params.plan_id,
               warnings:            result.warnings,
+              injected_sections:  {
+                ...result.injectedSections,
+                source: 'session_materialised',
+              },
               policy_enforcement: {
                 requested_hub_label: aliasRouting.requested_hub_label,
                 resolved_mode: aliasRouting.resolved_mode,
@@ -949,6 +1056,9 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
               },
               hub_telemetry_snapshot: telemetrySnapshot,
               hub_promotion_gates: promotionGates,
+              direct_option_a_migration_plan: directOptionAPlan,
+              direct_option_a_progress: directOptionAProgress,
+              legacy_deprecation_workflow: legacyDeprecationWorkflow,
             },
           },
         };
@@ -984,6 +1094,40 @@ function safeParseJsonArray<T>(value: string | null | undefined): T[] {
   } catch {
     return [];
   }
+}
+
+function mergeDeployContextPayload(
+  contextPayload: Record<string, unknown> | undefined,
+  promptAnalystPayload: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  if (!contextPayload && !promptAnalystPayload) return undefined;
+  return {
+    ...(contextPayload ?? {}),
+    ...(promptAnalystPayload ?? {}),
+  };
+}
+
+function hasResolvedContextKey(
+  payload: Record<string, unknown> | undefined,
+  keyPath: string,
+): boolean {
+  if (!payload || !keyPath.trim()) return false;
+
+  const segments = keyPath.split('.').map((segment) => segment.trim()).filter(Boolean);
+  let cursor: unknown = payload;
+
+  for (const segment of segments) {
+    if (!cursor || typeof cursor !== 'object' || !(segment in (cursor as Record<string, unknown>))) {
+      return false;
+    }
+    cursor = (cursor as Record<string, unknown>)[segment];
+  }
+
+  if (cursor === null || cursor === undefined) return false;
+  if (typeof cursor === 'string') return cursor.trim().length > 0;
+  if (Array.isArray(cursor)) return cursor.length > 0;
+  if (typeof cursor === 'object') return Object.keys(cursor as Record<string, unknown>).length > 0;
+  return true;
 }
 
 function buildSlimPlanStateSummary(planId: string | undefined, planState: unknown): unknown {

@@ -20,10 +20,20 @@ export function getSessionsSectionHtml(_iconSvgs: IconSvgs): string {
 
 /**
  * Client-side JavaScript helpers for the sessions section.
- * @deprecated Migrated to Supervisor GUI. Returns empty string.
+ * @deprecated Migrated to Supervisor GUI.
+ *
+ * The dashboard script still references legacy session helper functions.
+ * Return no-op implementations to avoid runtime ReferenceError exceptions
+ * that can incorrectly force the dashboard into "Disconnected" state.
  */
 export function getSessionsClientHelpers(): string {
-    return '';
+    return `
+        function updateSessionsList(_sessions) { }
+        function requestSessionsList() { }
+        function handleSessionSelect(_sessionKey) { }
+        function handleStopSession(_sessionKey) { }
+        function handleInjectSession() { }
+    `;
 }
 
 // ---------------------------------------------------------------------------

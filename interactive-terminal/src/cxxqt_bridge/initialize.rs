@@ -11,6 +11,7 @@ impl cxx_qt::Initialize for ffi::TerminalApp {
 
         let port = *crate::SERVER_PORT.get().unwrap_or(&9100);
         let heartbeat_secs = *crate::HEARTBEAT_INTERVAL.get().unwrap_or(&5);
+        let start_visible = *crate::START_VISIBLE.get().unwrap_or(&false);
         let mut server = TcpServer::new(port, Duration::from_secs(heartbeat_secs));
 
         let outgoing_tx = server.outgoing_tx.clone();
@@ -43,8 +44,16 @@ impl cxx_qt::Initialize for ffi::TerminalApp {
             Ok(settings) => {
                 self.as_mut()
                     .set_start_with_windows(settings.start_with_windows);
+                self.as_mut().set_start_visible(start_visible);
+                self.as_mut().set_gemini_key_present(
+                    settings
+                        .gemini_api_key
+                        .map(|value| !value.trim().is_empty())
+                        .unwrap_or(false),
+                );
             }
             Err(error) => {
+                self.as_mut().set_start_visible(start_visible);
                 self.as_mut().set_status_text(QString::from(&format!(
                     "Listening on port {port} (startup setting warning: {error})"
                 )));

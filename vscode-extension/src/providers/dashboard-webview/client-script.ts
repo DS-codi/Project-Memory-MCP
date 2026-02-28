@@ -279,6 +279,15 @@ export function getClientScript(params: ClientScriptParams): string {
         ${instructionsHelpers}
         ${sessionsHelpers}
 
+        // Defensive shims for migrated sessions UI.
+        // Prevent runtime ReferenceError if legacy session helpers are absent
+        // in stale/partial extension builds.
+        var updateSessionsList = typeof updateSessionsList === 'function' ? updateSessionsList : function(_sessions) { };
+        var requestSessionsList = typeof requestSessionsList === 'function' ? requestSessionsList : function() { };
+        var handleSessionSelect = typeof handleSessionSelect === 'function' ? handleSessionSelect : function(_sessionKey) { };
+        var handleStopSession = typeof handleStopSession === 'function' ? handleStopSession : function(_sessionKey) { };
+        var handleInjectSession = typeof handleInjectSession === 'function' ? handleInjectSession : function() { };
+
         var sizeObserver = new ResizeObserver(function(entries) {
             for (var i = 0; i < entries.length; i++) {
                 setLayoutSize(entries[i].contentRect.width);

@@ -6,7 +6,7 @@ import { promisify } from 'util';
 import {
   getWorkspace, getPlansByWorkspace, getPlan, getPlanPhases, getPlanSteps,
   getPlanSessions, getPlanLineage, getPlanNotes, getBuildScripts, getPlanContext,
-  getProgramChildPlans,
+  getProgramChildPlans, listPrograms,
 } from '../db/queries.js';
 import { emitEvent } from '../events/emitter.js';
 
@@ -186,7 +186,7 @@ const PLAN_TEMPLATES: Record<PlanTemplateId, {
 plansRouter.get('/workspace/:workspaceId', (req, res) => {
   try {
     const plans = getPlansByWorkspace(req.params.workspaceId, true);
-    const summaries = plans.map(plan => {
+    const planSummaries = plans.map(plan => {
       const steps = getPlanSteps(plan.id);
       const doneSteps = steps.filter(step => step.status === 'done').length;
       const childPlansCount = plan.is_program === 1 ? getProgramChildPlans(plan.id).length : 0;
@@ -211,6 +211,30 @@ plansRouter.get('/workspace/:workspaceId', (req, res) => {
         archived_at: plan.archived_at,
       };
     });
+
+    // Also include programs from the dedicated programs table
+    const programs = listPrograms(req.params.workspaceId);
+    const programSummaries = programs.map(prog => {
+      const childPlansCount = getProgramChildPlans(prog.id).length;
+      return {
+        id: prog.id,
+        workspace_id: prog.workspace_id,
+        title: prog.title,
+        description: prog.description,
+        status: prog.status,
+        category: prog.category,
+        priority: prog.priority,
+        is_program: true,
+        parent_program_id: null,
+        progress: { done: 0, total: 0 },
+        child_plans_count: childPlansCount,
+        created_at: prog.created_at,
+        updated_at: prog.updated_at,
+        archived_at: prog.archived_at,
+      };
+    });
+
+    const summaries = [...planSummaries, ...programSummaries];
     res.json({ plans: summaries, total: summaries.length });
   } catch (error) {
     console.error('Error getting plans:', error);

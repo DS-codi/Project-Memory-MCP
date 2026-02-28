@@ -102,12 +102,16 @@ export function WorkspacePage() {
     );
   }
 
+  const workspaceCounts = workspace as WorkspaceMeta & {
+    active_plan_count?: number;
+    archived_plan_count?: number;
+  };
   const activePlanCount = Array.isArray(workspace.active_plans)
     ? workspace.active_plans.length
-    : (typeof workspace.active_plan_count === 'number' ? workspace.active_plan_count : 0);
+    : (typeof workspaceCounts.active_plan_count === 'number' ? workspaceCounts.active_plan_count : 0);
   const archivedPlanCount = Array.isArray(workspace.archived_plans)
     ? workspace.archived_plans.length
-    : (typeof workspace.archived_plan_count === 'number' ? workspace.archived_plan_count : 0);
+    : (typeof workspaceCounts.archived_plan_count === 'number' ? workspaceCounts.archived_plan_count : 0);
 
   const currentDisplayName = workspace.name;
   const trimmedDraftDisplayName = draftDisplayName.trim();
@@ -255,7 +259,7 @@ export function WorkspacePage() {
               </div>
               <div className="flex items-center gap-2">
                 <Calendar size={16} className="text-slate-500" />
-                <span className="text-slate-400">Updated {formatRelative(workspace.last_accessed)}</span>
+                <span className="text-slate-400">Updated {formatRelative(workspace.last_activity)}</span>
               </div>
             </div>
           </div>

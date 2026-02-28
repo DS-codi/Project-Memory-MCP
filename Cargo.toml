@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
-members = ["interactive-terminal", "supervisor", "pm-gui-forms", "pm-brainstorm-gui", "pm-approval-gui"]
+members = ["supervisor", "pm-gui-forms", "pm-brainstorm-gui", "pm-approval-gui"]
+exclude = ["interactive-terminal"]
 
 [workspace.dependencies]
 async-trait = "0.1"

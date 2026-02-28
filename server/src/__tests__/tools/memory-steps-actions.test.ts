@@ -3,10 +3,14 @@ import { memorySteps } from '../../tools/consolidated/memory_steps.js';
 import type { MemoryStepsParams } from '../../tools/consolidated/memory_steps.js';
 import * as fileStore from '../../storage/db-store.js';
 import * as validation from '../../tools/consolidated/workspace-validation.js';
+import * as sessionRegistryDb from '../../db/workspace-session-registry-db.js';
+import * as sessionLiveStore from '../../tools/session-live-store.js';
 
 vi.mock('../../storage/db-store.js');
 vi.mock('../../tools/consolidated/workspace-validation.js');
 vi.mock('../../storage/workspace-identity.js');
+vi.mock('../../db/workspace-session-registry-db.js');
+vi.mock('../../tools/session-live-store.js');
 
 const mockWorkspaceId = 'ws_steps_actions_123';
 const mockPlanId = 'plan_steps_actions_456';
@@ -44,6 +48,8 @@ describe('MCP Tool: memory_steps Add/Update/Batch/Insert/Delete/Replace Actions'
       success: true,
       workspace_id: mockWorkspaceId,
     } as any);
+    vi.spyOn(sessionLiveStore, 'serverSessionIdForPrepId').mockReturnValue(undefined);
+    vi.spyOn(sessionRegistryDb, 'updateSessionRegistry').mockImplementation(() => {});
   });
 
   describe('add action', () => {
@@ -103,6 +109,31 @@ describe('MCP Tool: memory_steps Add/Update/Batch/Insert/Delete/Replace Actions'
         expect(step?.completed_at).toBe('2026-02-08T00:00:00Z');
       }
     });
+
+    it('should sync workspace session registry when prep session maps to server session', async () => {
+      const mockPlanState = createMockPlanState(3);
+      vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(mockPlanState);
+      vi.spyOn(fileStore, 'savePlanState').mockResolvedValue();
+      vi.spyOn(fileStore, 'generatePlanMd').mockResolvedValue('/path/to/plan.md');
+      vi.spyOn(sessionLiveStore, 'serverSessionIdForPrepId').mockReturnValue('sess_server_123');
+
+      const params: MemoryStepsParams = {
+        action: 'update',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        _session_id: 'sess_prep_abc',
+        step_index: 1,
+        status: 'active',
+      };
+
+      const result = await memorySteps(params);
+      expect(result.success).toBe(true);
+      expect(sessionRegistryDb.updateSessionRegistry).toHaveBeenCalledWith('sess_server_123', {
+        currentPhase: 'Phase 1',
+        stepIndicesClaimed: [1],
+        status: 'active',
+      });
+    });
   });
 
   describe('batch_update action', () => {
@@ -135,6 +166,33 @@ describe('MCP Tool: memory_steps Add/Update/Batch/Insert/Delete/Replace Actions'
         expect(step0?.status).toBe('done');
         expect(step2?.notes).toBe('Wrapped up');
       }
+    });
+
+    it('should sync registry active step claims after batch update', async () => {
+      const mockPlanState = createMockPlanState(2);
+      vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(mockPlanState);
+      vi.spyOn(fileStore, 'savePlanState').mockResolvedValue();
+      vi.spyOn(fileStore, 'generatePlanMd').mockResolvedValue('/path/to/plan.md');
+      vi.spyOn(sessionLiveStore, 'serverSessionIdForPrepId').mockReturnValue('sess_server_456');
+
+      const params: MemoryStepsParams = {
+        action: 'batch_update',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        _session_id: 'sess_prep_xyz',
+        updates: [
+          { index: 0, status: 'active' },
+          { index: 1, status: 'pending' },
+        ],
+      };
+
+      const result = await memorySteps(params);
+      expect(result.success).toBe(true);
+      expect(sessionRegistryDb.updateSessionRegistry).toHaveBeenCalledWith('sess_server_456', {
+        currentPhase: 'Phase 1',
+        stepIndicesClaimed: [0],
+        status: 'active',
+      });
     });
   });
 

@@ -10,10 +10,19 @@ vi.mock('fs/promises', () => ({
   rm: vi.fn(),
   access: vi.fn(),
   copyFile: vi.fn(),
+  rename: vi.fn(),
+  cp: vi.fn(),
 }));
 
 vi.mock('fs', () => ({
   existsSync: vi.fn(),
+  mkdirSync: vi.fn(),
+  copyFileSync: vi.fn(),
+  default: {
+    existsSync: vi.fn(),
+    mkdirSync: vi.fn(),
+    copyFileSync: vi.fn(),
+  },
 }));
 
 import * as fs from 'fs/promises';

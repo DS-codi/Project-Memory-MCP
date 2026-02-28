@@ -201,6 +201,12 @@ impl ServiceRunner for InteractiveTerminalRunner {
             cmd.arg("--port").arg(self.config.port.to_string());
         }
 
+        // Ensure the GUI is visible when started from Supervisor service controls.
+        let has_show_flag = self.config.args.iter().any(|arg| arg == "--show");
+        if !has_show_flag {
+            cmd.arg("--show");
+        }
+
         cmd.args(&self.config.args);
         cmd.stdin(Stdio::null());
         cmd.stdout(Stdio::piped());
@@ -256,6 +262,10 @@ impl ServiceRunner for InteractiveTerminalRunner {
                         tracing::warn!("failed to remove PID lock file on stop: {e}");
                     }
                 }
+                // Sweep any orphaned instances not tracked by this runner
+                // (e.g. windows opened via the "Open" button from the GUI).
+                #[cfg(windows)]
+                self.kill_stale_matching_instances();
             }
             RunnerState::Stopped => {}
         }

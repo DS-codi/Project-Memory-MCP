@@ -1,172 +1,1310 @@
-PS C:\Users\codi.f> ssh root@localhost -p 2222
-ssh: connect to host localhost port 2222: Connection refused
-PS C:\Users\codi.f> ssh root@10.0.0.253 -p 2222
-The authenticity of host '[10.0.0.253]:2222 ([10.0.0.253]:2222)' can't be established.
-ED25519 key fingerprint is SHA256:+wMhUzWn11TEiQtZdelOQ7Ts3LWE40lJEGs8RDxoY/M.
-This key is not known by any other names.
-Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
-Warning: Permanently added '[10.0.0.253]:2222' (ED25519) to the list of known hosts.
-root@10.0.0.253's password:
-Last login: Mon Feb  9 11:13:32 2026 from 172.20.224.1
-[root@DS-APP01 ~]# systemctl enable --now podman.socket
-[root@DS-APP01 ~]# exit
-logout
-Connection to 10.0.0.253 closed.
-PS C:\Users\codi.f> podman system connection add production ssh://root@10.0.0.253:2222/run/podman/podman.sock
-PS C:\Users\codi.f> podman --connection production info
-root's login password:
-Client:
-  APIVersion: 5.7.1
-  Built: 1765378491
-  BuiltTime: Thu Dec 11 01:54:51 2025
-  GitCommit: f845d14e941889ba4c071f35233d09b29d363c75
-  GoVersion: go1.25.5
-  Os: windows
-  OsArch: windows/amd64
-  Version: 5.7.1
-host:
-  arch: amd64
-  buildahVersion: 1.42.2
-  cgroupControllers:
-  - cpuset
-  - cpu
-  - io
-  - memory
-  - hugetlb
-  - pids
-  - rdma
-  cgroupManager: cgroupfs
-  cgroupVersion: v2
-  conmon:
-    package: conmon-2.1.13-2.fc43.x86_64
-    path: /usr/bin/conmon
-    version: 'conmon version 2.1.13, commit: '
-  cpuUtilization:
-    idlePercent: 99.29
-    systemPercent: 0.47
-    userPercent: 0.24
-  cpus: 6
-  databaseBackend: sqlite
-  distribution:
-    distribution: fedora
-    variant: container
-    version: "43"
-  eventLogger: journald
-  freeLocks: 2048
-  hostname: DS-APP01
-  idMappings:
-    gidmap: null
-    uidmap: null
-  kernel: 6.6.87.2-microsoft-standard-WSL2
-  linkmode: dynamic
-  logDriver: journald
-  memFree: 7789346816
-  memTotal: 8326451200
-  networkBackend: netavark
-  networkBackendInfo:
-    backend: netavark
-    dns:
-      package: aardvark-dns-1.17.0-1.fc43.x86_64
-      path: /usr/libexec/podman/aardvark-dns
-      version: aardvark-dns 1.17.0
-    package: netavark-1.17.0-1.fc43.x86_64
-    path: /usr/libexec/podman/netavark
-    version: netavark 1.17.0
-  ociRuntime:
-    name: crun
-    package: crun-1.25.1-1.fc43.x86_64
-    path: /usr/bin/crun
-    version: |-
-      crun version 1.25.1
-      commit: 156ae065d4a322d149c7307034f98d9637aa92a2
-      rundir: /run/crun
-      spec: 1.0.0
-      +SYSTEMD +SELINUX +APPARMOR +CAP +SECCOMP +EBPF +CRIU +LIBKRUN +WASM:wasmedge +YAJL
-  os: linux
-  pasta:
-    executable: /usr/bin/pasta
-    package: passt-0^20250919.g623dbf6-1.fc43.x86_64
-    version: |
-      pasta 0^20250919.g623dbf6-1.fc43.x86_64
-      Copyright Red Hat
-      GNU General Public License, version 2 or later
-        <https://www.gnu.org/licenses/old-licenses/gpl-2.0.html>
-      This is free software: you are free to change and redistribute it.
-      There is NO WARRANTY, to the extent permitted by law.
-  remoteSocket:
-    exists: true
-    path: unix:///run/podman/podman.sock
-  rootlessNetworkCmd: pasta
-  security:
-    apparmorEnabled: false
-    capabilities: CAP_CHOWN,CAP_DAC_OVERRIDE,CAP_FOWNER,CAP_FSETID,CAP_KILL,CAP_NET_BIND_SERVICE,CAP_SETFCAP,CAP_SETGID,CAP_SETPCAP,CAP_SETUID,CAP_SYS_CHROOT
-    rootless: false
-    seccompEnabled: true
-    seccompProfilePath: /usr/share/containers/seccomp.json
-    selinuxEnabled: false
-  serviceIsRemote: true
-  slirp4netns:
-    executable: ""
-    package: ""
-    version: ""
-  swapFree: 2147483648
-  swapTotal: 2147483648
-  uptime: 0h 32m 43.00s
-  variant: ""
-plugins:
-  authorization: null
-  log:
-  - k8s-file
-  - none
-  - passthrough
-  - journald
-  network:
-  - bridge
-  - macvlan
-  - ipvlan
-  volume:
-  - local
-registries:
-  search:
-  - docker.io
-store:
-  configFile: /usr/share/containers/storage.conf
-  containerStore:
-    number: 0
-    paused: 0
-    running: 0
-    stopped: 0
-  graphDriverName: overlay
-  graphOptions:
-    overlay.additionalImageStores:
-    - /usr/lib/containers/storage
-    overlay.imagestore: /usr/lib/containers/storage
-    overlay.mountopt: nodev,metacopy=on
-  graphRoot: /var/lib/containers/storage
-  graphRootAllocated: 1081101176832
-  graphRootUsed: 3295727616
-  graphStatus:
-    Backing Filesystem: extfs
-    Native Overlay Diff: "false"
-    Supports d_type: "true"
-    Supports shifting: "true"
-    Supports volatile: "true"
-    Using metacopy: "true"
-  imageCopyTmpDir: /var/tmp
-  imageStore:
-    number: 9
-  runRoot: /run/containers/storage
-  transientStore: false
-  volumePath: /var/lib/containers/storage/volumes
-version:
-  APIVersion: 5.7.1
-  BuildOrigin: 'Copr: packit/containers-podman-27732'
-  Built: 1765238400
-  BuiltTime: Tue Dec  9 11:00:00 2025
-  GitCommit: f845d14e941889ba4c071f35233d09b29d363c75
-  GoVersion: go1.25.4 X:nodwarf5
-  Os: linux
-  OsArch: linux/amd64
-  Version: 5.7.1
+PS C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\interactive-terminal> cd ..
+PS C:\Users\User\Project_Memory_MCP\Project-Memory-MCP> .\install
+Project Memory MCP — Install
+  Components : Supervisor, GuiForms, InteractiveTerminal, Server, Dashboard, Extension
+  InstallOnly: False
+  SkipInstall: False
+  Force      : False
+  NewDatabase: False
 
-PS C:\Users\codi.f>
+── Supervisor (Rust + Qt QML)
+   Stopping running supervisor process(es)...
+   Qt:    C:\Qt\6.10.2\msvc2022_64
+   QMAKE: C:\Qt\6.10.2\msvc2022_64\bin\qmake6.exe
+   › cargo build --release -p supervisor
+   cargo build in progress...  warnings so far: 0
+175 |     let mut rx = state.heartbeat_tx.subscribe();
+    |         ----^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+123 | async fn kill_orphans_on_ports(ports: &[u16]) {
+    |          ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+134 | async fn find_pid_for_port(port: u16) -> Option<u32> {
+    |          ^^^^^^^^^^^^^^^^^
+178 | fn kill_pid(pid: u32, port: u16) {
+    |    ^^^^^^^^
+1683 | async fn probe_http_health(port: u16, timeout_ms: u64) -> bool {
+     |          ^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+108 |         std::mem::forget(handle);
+    |         ^^^^^^^^^^^^^^^^^------^
+    |                          |
+    |                          argument has type `*mut std::ffi::c_void`
+    |
+    = note: `#[warn(forgetting_copy_types)]` on by default
+help: use `let _ = ...` to ignore the expression or result
+    |
+108 -         std::mem::forget(handle);
+108 +         let _ = handle;
+    |
+   ⚠ 8 warning(s) suppressed — set RUST_LOG=warn to see details
+   › windeployqt supervisor
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Warning: Cannot find any version of the dxcompiler.dll and dxil.dll.
+Warning: Cannot find Visual Studio installation directory, VCINSTALLDIR is not set.
+   windeployqt up-to-date: 1331
+   windeployqt translations: 32
+   windeployqt deps: binary=1 scanPaths=1 localDeps=1 pluginTypes=16 resolved=2 skipped=2 passes=1
+   Qt dependency sets: direct=4 all=30 deploy=32
+   QML imports discovered: 29
+   Copied 4 tray icon(s) → target/release/
+   ✓ supervisor built → target/release/supervisor.exe
+
+── PM GUI Binaries (pm-approval-gui, pm-brainstorm-gui)
+   Qt:    C:\Qt\6.10.2\msvc2022_64
+   QMAKE: C:\Qt\6.10.2\msvc2022_64\bin\qmake6.exe
+   › cargo build --release -p pm-approval-gui
+   cargo build in progress...  warnings so far: 0
+6 | use std::time::{Duration, Instant};
+  |                           ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+11 |     Answer, AnswerValue, FormRequest, FormResponse, FormResponseTag,
+   |             ^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+9 | use cxx_qt_lib::QString;
+  |     ^^^^^^^^^^^^^^^^^^^
+10 | use std::pin::Pin;
+   |     ^^^^^^^^^^^^^
+11 | use std::sync::{Arc, Mutex};
+   |                 ^^^  ^^^^^
+14 |     fn initialize(mut self: Pin<&mut Self>) {
+   |                   ----^^^^
+   |                   |
+   |                   help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` on by default
+16 | pub(crate) struct AppState {
+   |                   -------- field in this struct
+...
+20 |     pub decision_answer: Option<String>,
+   |         ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+   ⚠ 9 warning(s) suppressed — set RUST_LOG=warn to see details
+   › windeployqt pm-approval-gui
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Warning: Cannot find any version of the dxcompiler.dll and dxil.dll.
+Warning: Cannot find Visual Studio installation directory, VCINSTALLDIR is not set.
+   windeployqt up-to-date: 1325
+   windeployqt translations: 32
+   windeployqt deps: binary=1 scanPaths=1 localDeps=1 pluginTypes=14 resolved=2 skipped=2 passes=1
+   Qt dependency sets: direct=4 all=28 deploy=30
+   QML imports discovered: 28
+   ✓ pm-approval-gui built → target/release/pm-approval-gui.exe
+   › cargo build --release -p pm-brainstorm-gui
+   cargo build in progress...  warnings so far: 0
+6 | use std::time::{Duration, Instant};
+  |                           ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+9 | use cxx_qt_lib::QString;
+  |     ^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+11 | use std::pin::Pin;
+   |     ^^^^^^^^^^^^^
+12 | use std::sync::{Arc, Mutex};
+   |                 ^^^  ^^^^^
+11 |     fn initialize(mut self: Pin<&mut Self>) {
+   |                   ----^^^^
+   |                   |
+   |                   help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` on by default
+17 | pub(crate) struct AppState {
+   |                   -------- field in this struct
+...
+31 |     pub timer_cancel: Option<tokio::sync::oneshot::Sender<()>>,
+   |         ^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+   ⚠ 8 warning(s) suppressed — set RUST_LOG=warn to see details
+   › windeployqt pm-brainstorm-gui
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Warning: Cannot find any version of the dxcompiler.dll and dxil.dll.
+Warning: Cannot find Visual Studio installation directory, VCINSTALLDIR is not set.
+   windeployqt up-to-date: 1325
+   windeployqt translations: 32
+   windeployqt deps: binary=1 scanPaths=1 localDeps=1 pluginTypes=14 resolved=2 skipped=2 passes=1
+   Qt dependency sets: direct=4 all=28 deploy=30
+   QML imports discovered: 28
+   ✓ pm-brainstorm-gui built → target/release/pm-brainstorm-gui.exe
+
+── Interactive Terminal (Rust + Qt)
+   › Delegating to build-interactive-terminal.ps1 (QtDir=C:\Qt\6.10.2\msvc2022_64)
+=== Interactive Terminal Build ===
+QtDir:   C:\Qt\6.10.2\msvc2022_64
+QMAKE:   C:\Qt\6.10.2\msvc2022_64\bin\qmake6.exe
+Profile: release
+Cargo SSL revoke check: false
+Cargo registry protocol: sparse
+Cargo git fetch via CLI: true
+Deploy:  True
+QMake version 3.1
+Using Qt version 6.10.2 in C:/Qt/6.10.2/msvc2022_64/lib
+Running: cargo build --release
+cargo build in progress... warnings so far: 0
+cargo build in progress... warnings so far: 0
+cargo build in progress... warnings so far: 2
+cargo build in progress... warnings so far: 15
+cargo build in progress... warnings so far: 15
+cargo build in progress... warnings so far: 15
+cargo build in progress... warnings so far: 15
+cargo build in progress... warnings so far: 15
+cargo build in progress... warnings so far: 15
+   Compiling interactive-terminal v0.1.0 (C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\interactive-terminal)
+warning: unused import: `std::pin::Pin`
+ --> interactive-terminal\src\cxxqt_bridge\mod.rs:1:5
+  |
+1 | use std::pin::Pin;
+  |     ^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+warning: unused import: `TerminalProfile`
+  --> interactive-terminal\src\cxxqt_bridge\runtime_tasks.rs:10:28
+   |
+10 |     SavedCommandsResponse, TerminalProfile,
+   |                            ^^^^^^^^^^^^^^^
+warning: function `execute_command` is never used
+  --> interactive-terminal\src\command_executor.rs:69:14
+   |
+69 | pub async fn execute_command(
+   |              ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+warning: function `execute_command_with_timeout` is never used
+   --> interactive-terminal\src\command_executor.rs:168:14
+    |
+168 | pub async fn execute_command_with_timeout(
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+warning: function `build_shell_command` is never used
+   --> interactive-terminal\src\command_executor.rs:336:4
+    |
+336 | fn build_shell_command(request: &CommandRequest) -> Command {
+    |    ^^^^^^^^^^^^^^^^^^^
+warning: function `shell_invocation` is never used
+   --> interactive-terminal\src\command_executor.rs:343:4
+    |
+343 | fn shell_invocation(request: &CommandRequest) -> (String, Vec<String>) {
+    |    ^^^^^^^^^^^^^^^^
+warning: function `drain_stdout` is never used
+   --> interactive-terminal\src\command_executor.rs:746:10
+    |
+746 | async fn drain_stdout(
+    |          ^^^^^^^^^^^^
+warning: function `drain_stderr` is never used
+   --> interactive-terminal\src\command_executor.rs:758:10
+    |
+758 | async fn drain_stderr(
+    |          ^^^^^^^^^^^^
+warning: method `evict_stale` is never used
+   --> interactive-terminal\src\cxxqt_bridge\completed_outputs.rs:341:12
+    |
+36  | impl OutputTracker {
+    | ------------------ method in this implementation
+...
+341 |     pub fn evict_stale(&mut self) {
+    |            ^^^^^^^^^^^
+warning: associated items `new` and `data_root` are never used
+  --> interactive-terminal\src\saved_commands_repository.rs:52:12
+   |
+19 | impl SavedCommandsRepository {
+   | ---------------------------- associated items in this implementation
+...
+52 |     pub fn new(data_root: PathBuf) -> Self {
+   |            ^^^
+...
+56 |     pub fn data_root(&self) -> &Path {
+   |            ^^^^^^^^^
+warning: struct `SessionManager` is never constructed
+  --> interactive-terminal\src\session.rs:13:12
+   |
+13 | pub struct SessionManager {
+   |            ^^^^^^^^^^^^^^
+warning: multiple associated items are never used
+  --> interactive-terminal\src\session.rs:30:12
+   |
+25 | impl SessionManager {
+   | ------------------- associated items in this implementation
+...
+30 |     pub fn new(_idle_timeout: Duration) -> Self {
+   |            ^^^
+...
+39 |     pub fn add_request(&mut self, request: CommandRequest) {
+   |            ^^^^^^^^^^^
+...
+45 |     pub fn remove_request(&mut self, id: &str) -> Option<CommandRequest> {
+   |            ^^^^^^^^^^^^^^
+...
+54 |     pub fn get_request(&self, id: &str) -> Option<&CommandRequest> {
+   |            ^^^^^^^^^^^
+...
+59 |     pub fn active_count(&self) -> usize {
+   |            ^^^^^^^^^^^^
+...
+64 |     pub fn is_idle(&self) -> bool {
+   |            ^^^^^^^
+...
+69 |     pub fn last_activity(&self) -> Instant {
+   |            ^^^^^^^^^^^^^
+...
+77 |     pub fn should_exit(&self, idle_timeout: Duration) -> bool {
+   |            ^^^^^^^^^^^
+...
+82 |     pub fn clear_all(&mut self) -> Vec<CommandRequest> {
+   |            ^^^^^^^^^
+...
+88 |     pub fn set_connected(&mut self, connected: bool) {
+   |            ^^^^^^^^^^^^^
+...
+94 |     pub fn is_connected(&self) -> bool {
+   |            ^^^^^^^^^^^^
+warning: function `has_gemini_api_key` is never used
+  --> interactive-terminal\src\system_tray.rs:62:8
+   |
+62 | pub fn has_gemini_api_key() -> bool {
+   |        ^^^^^^^^^^^^^^^^^^
+warning: constant `EVICTION_AGE_SECS` is never used
+ --> interactive-terminal\src\terminal_core\output_tracker.rs:6:7
+  |
+6 | const EVICTION_AGE_SECS: u64 = 30 * 60;
+  |       ^^^^^^^^^^^^^^^^^
+warning: method `evict_stale` is never used
+   --> interactive-terminal\src\terminal_core\output_tracker.rs:120:12
+    |
+24  | impl CoreOutputTracker {
+    | ---------------------- method in this implementation
+...
+120 |     pub fn evict_stale(&mut self) {
+    |            ^^^^^^^^^^^
+warning: `interactive-terminal` (bin "interactive-terminal") generated 15 warnings (run `cargo fix --bin "interactive-terminal"` to apply 2 suggestions)
+    Finished `release` profile [optimized] target(s) in 48.12s
+Build output (workspace): C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\target\release\interactive-terminal.exe
+Deploying Qt runtime with: C:\Qt\6.10.2\msvc2022_64\bin\windeployqt.exe
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Warning: Cannot find any version of the dxcompiler.dll and dxil.dll.
+Warning: Cannot find Visual Studio installation directory, VCINSTALLDIR is not set.
+windeployqt up-to-date items: 1331
+windeployqt translation files created: 32
+windeployqt dependency summary: binary=1, scanPaths=1, localDeps=1, pluginTypes=16, resolvedDeps=2, skippedPlugins=2, additionalPasses=1
+Qt dependency sets: direct=4, all=30, deploy=32
+QML imports discovered: 29
+QML import scan progress: 10% (3/29)
+QML import scan progress: 20% (6/29)
+QML import scan progress: 30% (9/29)
+QML import scan progress: 40% (12/29)
+QML import scan progress: 50% (15/29)
+QML import scan progress: 60% (18/29)
+QML import scan progress: 70% (21/29)
+QML import scan progress: 80% (24/29)
+QML import scan progress: 90% (27/29)
+QML import scan progress: 100% (29/29)
+Qt runtime deployment verified.
+Done.
+   ✓ interactive-terminal built + Qt runtime deployed → interactive-terminal\target\release\
+
+── Server
+   › npm run build
+
+> project-memory-mcp@1.0.0 build
+> tsc && node -e "require('fs').cpSync('src/db/migrations','dist/db/migrations',{recursive:true})"
+
+   ✓ Server built → C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\server\dist
+   › node dist/db/seed.js (DB init + seed)
+[seed] Seeding tool catalog...
+[seed]   8 tools, 100 actions
+[seed] Seeding agent definitions...
+  [seed] agents-v2 directory not found at C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\agents-v2, skipping agent defs
+[seed]   0 agents
+[seed] Seeding instruction files...
+[seed]   7 instruction files
+[seed] Seeding skill definitions...
+  [seed] skills directory not found at C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\skills, skipping
+[seed]   0 skills
+[seed] Seeding GUI routing contracts...
+[seed]   2 contracts (approval, brainstorm)
+[seed] Done.
+
+[seed] Summary: { tools: 8, agents: 0, instructions: 7, skills: 0, guiContracts: 2 }
+   ✓ Database initialised at %APPDATA%\ProjectMemory\project-memory.db
+
+── Dashboard
+   › npx vite build
+←[36mvite v6.4.1 ←[32mbuilding for production...←[36m←[39m
+transforming...
+←[32mÔ£ô←[39m 1938 modules transformed.
+rendering chunks...
+computing gzip size...
+←[2mdist/←[22m←[32mindex.html                 ←[39m←[1m←[2m  0.51 kB←[22m←[1m←[22m←[2m Ôöé gzip:   0.34 kB←[22m
+←[2mdist/←[22m←[35massets/index-BOrsym6L.css  ←[39m←[1m←[2m 52.53 kB←[22m←[1m←[22m←[2m Ôöé gzip:   9.37 kB←[22m
+←[2mdist/←[22m←[36massets/index-CGkCmSlp.js   ←[39m←[1m←[33m668.25 kB←[39m←[22m←[2m Ôöé gzip: 177.70 kB←[22m
+←[33m
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.←[39m
+←[32mÔ£ô built in 5.57s←[39m
+   ✓ Dashboard frontend built → C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\dashboard\dist
+   › npm run build (dashboard server)
+
+> memory-observer-server@0.1.0 build
+> tsc
+
+   ✓ Dashboard server built → C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\dashboard\server\dist
+
+── VS Code Extension
+   › npm install
+
+up to date, audited 246 packages in 2s
+
+82 packages are looking for funding
+  run `npm fund` for details
+
+3 vulnerabilities (1 moderate, 2 high)
+
+To address all issues, run:
+  npm audit fix
+
+Run `npm audit` for details.
+   › npm run compile
+
+> project-memory-dashboard@0.2.0 compile
+> npm run esbuild
+
+
+> project-memory-dashboard@0.2.0 esbuild
+> npm run esbuild-base -- --sourcemap
+
+
+> project-memory-dashboard@0.2.0 esbuild-base
+> node esbuild.js --sourcemap
+
+   › npm run package (vsce)
+Executing prepublish script 'npm run vscode:prepublish'...
+
+> project-memory-dashboard@0.2.0 vscode:prepublish
+> npm run esbuild-base -- --production
+
+
+> project-memory-dashboard@0.2.0 esbuild-base
+> node esbuild.js --production
+
+ WARNING  This extension consists of 679 files, out of which 129 are JavaScript files. For performance reasons, you should bundle your extension: https://aka.ms/vscode-bundle-extension. You should also exclude unnecessary files by adding them to your .vscodeignore: https://aka.ms/vscode-vscodeignore.
+System.Management.Automation.RemoteException
+ INFO  Files included in the VSIX:
+project-memory-dashboard-0.2.0.vsix
+Ôö£ÔöÇ [Content_Types].xml
+Ôö£ÔöÇ extension.vsixmanifest
+ÔööÔöÇ extension/
+   Ôö£ÔöÇ LICENSE.txt [1.07 KB]
+   Ôö£ÔöÇ changelog.md [4.71 KB]
+   Ôö£ÔöÇ package.json [17.69 KB]
+   Ôö£ÔöÇ readme.md [6.73 KB]
+   Ôö£ÔöÇ .replay-bin/ (1 file) [90.06 KB]
+   Ôö£ÔöÇ .replay-runs/ (379 files) [1.68 MB]
+   Ôö£ÔöÇ goldens/ (2 files) [9.99 KB]
+   Ôö£ÔöÇ out/ (250 files) [2.05 MB]
+   Ôö£ÔöÇ resources/ (30 files) [7.86 KB]
+   Ôö£ÔöÇ test-results/ (10 files) [76.76 KB]
+   ÔööÔöÇ tools/ (1 file) [1.9 KB]
+
+=> Run vsce ls --tree to see all included files.
+
+ DONE  Packaged: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\vscode-extension\project-memory-dashboard-0.2.0.vsix (679 files, 838.74 KB)
+   ✓ Extension compiled and packaged
+   › Installing project-memory-dashboard-0.2.0.vsix
+Installing extensions...
+Extension 'project-memory-dashboard-0.2.0.vsix' was successfully installed.
+   ✓ Extension installed: project-memory-dashboard-0.2.0.vsix
+
+   Reload VS Code to activate the updated extension:
+   Ctrl+Shift+P → Developer: Reload Window
+
+Done in 94.2s
+
+── Launching Supervisor
+   ✓ supervisor launched
+PS C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\interactive-terminal> cd ..
+PS C:\Users\User\Project_Memory_MCP\Project-Memory-MCP> .\install
+Project Memory MCP — Install
+  Components : Supervisor, GuiForms, InteractiveTerminal, Server, Dashboard, Extension
+  InstallOnly: False
+  SkipInstall: False
+  Force      : False
+  NewDatabase: False
+
+── Supervisor (Rust + Qt QML)
+   Qt:    C:\Qt\6.10.2\msvc2022_64
+   QMAKE: C:\Qt\6.10.2\msvc2022_64\bin\qmake6.exe
+   › cargo build --release -p supervisor
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 4
+   cargo build in progress...  warnings so far: 5
+   cargo build in progress...  warnings so far: 7
+   cargo build in progress...  warnings so far: 7
+   cargo build in progress...  warnings so far: 7
+   cargo build in progress...  warnings so far: 7
+   cargo build in progress...  warnings so far: 7
+   cargo build in progress...  warnings so far: 7
+   cargo build in progress...  warnings so far: 7
+   cargo build in progress...  warnings so far: 7
+   cargo build in progress...  warnings so far: 7
+   cargo build in progress...  warnings so far: 7
+   cargo build in progress...  warnings so far: 7
+   cargo build in progress...  warnings so far: 7
+   cargo build in progress...  warnings so far: 7
+   cargo build in progress...  warnings so far: 7
+   cargo build in progress...  warnings so far: 7
+   cargo build in progress...  warnings so far: 7
+   cargo build in progress...  warnings so far: 7
+   cargo build in progress...  warnings so far: 7
+   cargo build in progress...  warnings so far: 7
+   cargo build in progress...  warnings so far: 7
+   Compiling proc-macro2 v1.0.106
+   Compiling quote v1.0.44
+   Compiling unicode-ident v1.0.24
+   Compiling getrandom v0.3.4
+   Compiling cfg-if v1.0.4
+   Compiling shlex v1.3.0
+   Compiling find-msvc-tools v0.1.9
+   Compiling windows-link v0.2.1
+   Compiling serde v1.0.228
+   Compiling smallvec v1.15.1
+   Compiling zmij v1.0.21
+   Compiling windows-sys v0.61.2
+   Compiling once_cell v1.21.3
+   Compiling thiserror v1.0.69
+   Compiling windows_x86_64_msvc v0.53.1
+   Compiling pin-project-lite v0.2.16
+   Compiling equivalent v1.0.2
+   Compiling bytes v1.11.1
+   Compiling serde_core v1.0.228
+   Compiling hashbrown v0.16.1
+   Compiling itoa v1.0.17
+   Compiling parking_lot_core v0.9.12
+   Compiling futures-core v0.3.32
+   Compiling stable_deref_trait v1.2.1
+   Compiling jobserver v0.1.34
+   Compiling anyhow v1.0.101
+   Compiling windows-targets v0.53.5
+   Compiling tracing-core v0.1.36
+   Compiling cc v1.2.56
+   Compiling unicode-width v0.2.2
+   Compiling scopeguard v1.2.0
+   Compiling indexmap v2.13.0
+   Compiling winapi-util v0.1.11
+   Compiling syn v2.0.116
+   Compiling lock_api v0.4.14
+   Compiling termcolor v1.4.1
+   Compiling windows-sys v0.60.2
+   Compiling unicode-segmentation v1.12.0
+   Compiling log v0.4.29
+   Compiling codespan-reporting v0.13.1
+   Compiling parking_lot v0.12.5
+   Compiling convert_case v0.6.0
+   Compiling indoc v2.0.7
+   Compiling serde_json v1.0.149
+   Compiling http v1.4.0
+   Compiling mio v1.1.1
+   Compiling unicode-width v0.1.14
+   Compiling socket2 v0.6.2
+   Compiling memchr v2.8.0
+   Compiling slab v0.4.12
+   Compiling semver v1.0.27
+   Compiling codespan-reporting v0.11.1
+   Compiling link-cplusplus v1.0.12
+   Compiling getrandom v0.2.17
+   Compiling ring v0.17.14
+   Compiling litemap v0.8.1
+   Compiling cxxbridge-flags v1.0.194
+   Compiling futures-task v0.3.32
+   Compiling writeable v0.6.2
+   Compiling futures-util v0.3.32
+   Compiling cxx v1.0.194
+   Compiling libc v0.2.182
+   Compiling percent-encoding v2.3.2
+   Compiling http-body v1.0.1
+   Compiling tower-layer v0.3.3
+   Compiling tower-service v0.3.3
+   Compiling icu_properties_data v2.1.2
+   Compiling crossbeam-utils v0.8.21
+   Compiling httparse v1.10.1
+   Compiling icu_normalizer_data v2.1.1
+   Compiling futures-sink v0.3.32
+   Compiling zeroize v1.8.2
+   Compiling rustls-pki-types v1.14.0
+   Compiling untrusted v0.9.0
+   Compiling atomic-waker v1.1.2
+   Compiling try-lock v0.2.5
+   Compiling fnv v1.0.7
+   Compiling want v0.3.1
+   Compiling sync_wrapper v1.0.2
+   Compiling futures-channel v0.3.32
+   Compiling windows-strings v0.5.1
+   Compiling windows-result v0.4.1
+   Compiling httpdate v1.0.3
+   Compiling rustls v0.23.36
+   Compiling zerocopy v0.8.39
+   Compiling pin-utils v0.1.0
+   Compiling windows-registry v0.6.1
+   Compiling crossbeam-epoch v0.9.18
+   Compiling form_urlencoded v1.2.2
+   Compiling anstyle v1.0.13
+   Compiling ipnet v2.11.0
+   Compiling synstructure v0.13.2
+   Compiling cxx-gen v0.7.194
+   Compiling base64 v0.22.1
+   Compiling once_cell_polyfill v1.70.2
+   Compiling rayon-core v1.13.0
+   Compiling subtle v2.6.1
+   Compiling utf8parse v0.2.2
+   Compiling winapi v0.3.9
+   Compiling rustversion v1.0.22
+   Compiling windows_x86_64_msvc v0.52.6
+   Compiling anstyle-parse v0.2.7
+   Compiling anstyle-wincon v3.0.11
+   Compiling crossbeam-deque v0.8.6
+   Compiling http-body-util v0.1.3
+   Compiling anstyle-query v1.1.5
+   Compiling foldhash v0.2.0
+   Compiling utf8_iter v1.0.4
+   Compiling getrandom v0.4.1
+   Compiling ryu v1.0.23
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling ntapi v0.4.3
+   Compiling colorchoice v1.0.4
+   Compiling regex-syntax v0.8.9
+   Compiling anstream v0.6.21
+   Compiling webpki-roots v1.0.6
+   Compiling rand_core v0.6.4
+   Compiling static_assertions v1.1.0
+   Compiling toml_write v0.1.2
+   Compiling serde_derive v1.0.228
+   Compiling thiserror-impl v1.0.69
+   Compiling zerofrom-derive v0.1.6
+   Compiling yoke-derive v0.8.1
+   Compiling zerovec-derive v0.11.2
+   Compiling tokio-macros v2.6.0
+   Compiling tracing-attributes v0.1.31
+   Compiling displaydoc v0.2.5
+   Compiling tokio v1.49.0
+   Compiling cxxbridge-macro v1.0.194
+   Compiling clang-format v0.3.0
+   Compiling rustls-webpki v0.103.9
+   Compiling zerofrom v0.1.6
+   Compiling regex-automata v0.4.14
+   Compiling cxx-qt-gen v0.8.1
+   Compiling yoke v0.8.1
+   Compiling zerovec v0.11.5
+   Compiling tracing v0.1.44
+   Compiling zerotrie v0.2.3
+   Compiling ppv-lite86 v0.2.21
+   Compiling tinystr v0.8.2
+   Compiling potential_utf v0.1.4
+   Compiling async-trait v0.1.89
+   Compiling icu_collections v2.1.1
+   Compiling icu_locale_core v2.1.1
+   Compiling winnow v0.7.14
+   Compiling clap_lex v1.0.0
+   Compiling iri-string v0.7.10
+   Compiling strsim v0.11.1
+   Compiling qt-build-utils v0.8.1
+   Compiling serde_urlencoded v0.7.1
+   Compiling toml_datetime v0.6.11
+   Compiling serde_spanned v0.6.9
+   Compiling either v1.15.0
+   Compiling heck v0.5.0
+   Compiling cxx-qt-build v0.8.1
+   Compiling bitflags v2.11.0
+   Compiling mime v0.3.17
+   Compiling lazy_static v1.5.0
+   Compiling tokio-util v0.7.18
+   Compiling icu_provider v2.1.1
+   Compiling tower v0.5.3
+   Compiling sharded-slab v0.1.7
+   Compiling icu_normalizer v2.1.1
+   Compiling h2 v0.4.13
+   Compiling icu_properties v2.1.2
+   Compiling cxx-qt-macro v0.8.1
+   Compiling cxx-qt v0.8.1
+   Compiling cxx-qt-lib v0.8.1
+   Compiling supervisor v0.1.0 (C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\supervisor)
+   Compiling tower-http v0.6.8
+   Compiling axum-core v0.4.5
+   Compiling clap_derive v4.5.55
+   Compiling toml_edit v0.22.27
+   Compiling rayon v1.11.0
+   Compiling tracing-serde v0.2.0
+   Compiling idna_adapter v1.2.1
+   Compiling tokio-rustls v0.26.4
+   Compiling idna v1.1.0
+   Compiling clap_builder v4.5.60
+   Compiling matchers v0.2.0
+   Compiling rand_chacha v0.3.1
+   Compiling url v2.5.8
+   Compiling windows-targets v0.52.6
+   Compiling serde_path_to_error v0.1.20
+   Compiling nu-ansi-term v0.50.3
+   Compiling tracing-log v0.2.0
+   Compiling thread_local v1.1.9
+   Compiling matchit v0.7.3
+   Compiling toml v0.8.23
+   Compiling tracing-subscriber v0.3.22
+   Compiling sysinfo v0.29.11
+   Compiling uuid v1.21.0
+   Compiling clap v4.5.60
+   Compiling windows-sys v0.59.0
+   Compiling rand v0.8.5
+   Compiling hyper v1.8.1
+   Compiling hyper-util v0.1.20
+   Compiling hyper-rustls v0.27.7
+   Compiling axum v0.7.9
+   Compiling reqwest v0.12.28
+175 |     let mut rx = state.heartbeat_tx.subscribe();
+    |         ----^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+123 | async fn kill_orphans_on_ports(ports: &[u16]) {
+    |          ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+134 | async fn find_pid_for_port(port: u16) -> Option<u32> {
+    |          ^^^^^^^^^^^^^^^^^
+178 | fn kill_pid(pid: u32, port: u16) {
+    |    ^^^^^^^^
+1683 | async fn probe_http_health(port: u16, timeout_ms: u64) -> bool {
+     |          ^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+108 |         std::mem::forget(handle);
+    |         ^^^^^^^^^^^^^^^^^------^
+    |                          |
+    |                          argument has type `*mut std::ffi::c_void`
+    |
+    = note: `#[warn(forgetting_copy_types)]` on by default
+help: use `let _ = ...` to ignore the expression or result
+    |
+108 -         std::mem::forget(handle);
+108 +         let _ = handle;
+    |
+   ⚠ 8 warning(s) suppressed — set RUST_LOG=warn to see details
+   › windeployqt supervisor
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Warning: Cannot find any version of the dxcompiler.dll and dxil.dll.
+Warning: Cannot find Visual Studio installation directory, VCINSTALLDIR is not set.
+   windeployqt up-to-date: 1331
+   windeployqt translations: 32
+   windeployqt deps: binary=1 scanPaths=1 localDeps=1 pluginTypes=16 resolved=2 skipped=2 passes=1
+   Qt dependency sets: direct=4 all=30 deploy=32
+   QML imports discovered: 29
+   Copied 4 tray icon(s) → target/release/
+   ✓ supervisor built → target/release/supervisor.exe
+
+── PM GUI Binaries (pm-approval-gui, pm-brainstorm-gui)
+   Qt:    C:\Qt\6.10.2\msvc2022_64
+   QMAKE: C:\Qt\6.10.2\msvc2022_64\bin\qmake6.exe
+   › cargo build --release -p pm-approval-gui
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 2
+   cargo build in progress...  warnings so far: 2
+   cargo build in progress...  warnings so far: 2
+   cargo build in progress...  warnings so far: 2
+   cargo build in progress...  warnings so far: 2
+   cargo build in progress...  warnings so far: 2
+   cargo build in progress...  warnings so far: 2
+   cargo build in progress...  warnings so far: 2
+   cargo build in progress...  warnings so far: 2
+   cargo build in progress...  warnings so far: 2
+   cargo build in progress...  warnings so far: 2
+   cargo build in progress...  warnings so far: 2
+   cargo build in progress...  warnings so far: 2
+   cargo build in progress...  warnings so far: 2
+   cargo build in progress...  warnings so far: 2
+   cargo build in progress...  warnings so far: 2
+   cargo build in progress...  warnings so far: 2
+   cargo build in progress...  warnings so far: 2
+   cargo build in progress...  warnings so far: 2
+   cargo build in progress...  warnings so far: 8
+   cargo build in progress...  warnings so far: 8
+   cargo build in progress...  warnings so far: 8
+   Compiling syn v2.0.116
+   Compiling serde_core v1.0.228
+   Compiling autocfg v1.5.0
+   Compiling smallvec v1.15.1
+   Compiling thiserror v2.0.18
+   Compiling serde_json v1.0.149
+   Compiling memchr v2.8.0
+   Compiling parking_lot_core v0.9.12
+   Compiling num-traits v0.2.19
+   Compiling parking_lot v0.12.5
+   Compiling uuid v1.21.0
+   Compiling cxx-gen v0.7.194
+   Compiling thiserror-impl v1.0.69
+   Compiling serde_derive v1.0.228
+   Compiling cxxbridge-macro v1.0.194
+   Compiling tokio-macros v2.6.0
+   Compiling thiserror-impl v2.0.18
+   Compiling async-trait v0.1.89
+   Compiling tokio v1.49.0
+   Compiling thiserror v1.0.69
+   Compiling clang-format v0.3.0
+   Compiling cxx-qt-gen v0.8.1
+   Compiling serde v1.0.228
+   Compiling qt-build-utils v0.8.1
+   Compiling chrono v0.4.43
+   Compiling cxx-qt-build v0.8.1
+   Compiling cxx v1.0.194
+   Compiling cxx-qt-macro v0.8.1
+   Compiling cxx-qt v0.8.1
+   Compiling cxx-qt-lib v0.8.1
+   Compiling pm-approval-gui v0.1.0 (C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-approval-gui)
+   Compiling pm-gui-forms v0.1.0 (C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-gui-forms)
+6 | use std::time::{Duration, Instant};
+  |                           ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+11 |     Answer, AnswerValue, FormRequest, FormResponse, FormResponseTag,
+   |             ^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+9 | use cxx_qt_lib::QString;
+  |     ^^^^^^^^^^^^^^^^^^^
+10 | use std::pin::Pin;
+   |     ^^^^^^^^^^^^^
+11 | use std::sync::{Arc, Mutex};
+   |                 ^^^  ^^^^^
+14 |     fn initialize(mut self: Pin<&mut Self>) {
+   |                   ----^^^^
+   |                   |
+   |                   help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` on by default
+16 | pub(crate) struct AppState {
+   |                   -------- field in this struct
+...
+20 |     pub decision_answer: Option<String>,
+   |         ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+   ⚠ 9 warning(s) suppressed — set RUST_LOG=warn to see details
+   › windeployqt pm-approval-gui
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Warning: Cannot find any version of the dxcompiler.dll and dxil.dll.
+Warning: Cannot find Visual Studio installation directory, VCINSTALLDIR is not set.
+   windeployqt up-to-date: 1325
+   windeployqt translations: 32
+   windeployqt deps: binary=1 scanPaths=1 localDeps=1 pluginTypes=14 resolved=2 skipped=2 passes=1
+   Qt dependency sets: direct=4 all=28 deploy=30
+   QML imports discovered: 28
+   ✓ pm-approval-gui built → target/release/pm-approval-gui.exe
+   › cargo build --release -p pm-brainstorm-gui
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 2
+   cargo build in progress...  warnings so far: 2
+   cargo build in progress...  warnings so far: 2
+   cargo build in progress...  warnings so far: 7
+   cargo build in progress...  warnings so far: 7
+   cargo build in progress...  warnings so far: 7
+   Compiling pm-brainstorm-gui v0.1.0 (C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\pm-brainstorm-gui)
+6 | use std::time::{Duration, Instant};
+  |                           ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+9 | use cxx_qt_lib::QString;
+  |     ^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+11 | use std::pin::Pin;
+   |     ^^^^^^^^^^^^^
+12 | use std::sync::{Arc, Mutex};
+   |                 ^^^  ^^^^^
+11 |     fn initialize(mut self: Pin<&mut Self>) {
+   |                   ----^^^^
+   |                   |
+   |                   help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` on by default
+17 | pub(crate) struct AppState {
+   |                   -------- field in this struct
+...
+31 |     pub timer_cancel: Option<tokio::sync::oneshot::Sender<()>>,
+   |         ^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+   ⚠ 8 warning(s) suppressed — set RUST_LOG=warn to see details
+   › windeployqt pm-brainstorm-gui
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Warning: Cannot find any version of the dxcompiler.dll and dxil.dll.
+Warning: Cannot find Visual Studio installation directory, VCINSTALLDIR is not set.
+   windeployqt up-to-date: 1325
+   windeployqt translations: 32
+   windeployqt deps: binary=1 scanPaths=1 localDeps=1 pluginTypes=14 resolved=2 skipped=2 passes=1
+   Qt dependency sets: direct=4 all=28 deploy=30
+   QML imports discovered: 28
+   ✓ pm-brainstorm-gui built → target/release/pm-brainstorm-gui.exe
+
+── Interactive Terminal (Rust + Qt)
+   › Delegating to build-interactive-terminal.ps1 (QtDir=C:\Qt\6.10.2\msvc2022_64)
+=== Interactive Terminal Build ===
+QtDir:   C:\Qt\6.10.2\msvc2022_64
+QMAKE:   C:\Qt\6.10.2\msvc2022_64\bin\qmake6.exe
+Profile: release
+Cargo SSL revoke check: false
+Cargo registry protocol: sparse
+Cargo git fetch via CLI: true
+Deploy:  True
+QMake version 3.1
+Using Qt version 6.10.2 in C:/Qt/6.10.2/msvc2022_64/lib
+Running: cargo build --release
+cargo build in progress... warnings so far: 0
+cargo build in progress... warnings so far: 0
+cargo build in progress... warnings so far: 0
+cargo build in progress... warnings so far: 0
+cargo build in progress... warnings so far: 26
+cargo build in progress... warnings so far: 26
+cargo build in progress... warnings so far: 26
+   Compiling interactive-terminal v0.1.0 (C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\interactive-terminal)
+warning: unused import: `TerminalProfile`
+  --> src\cxxqt_bridge\runtime_tasks.rs:10:28
+   |
+10 |     SavedCommandsResponse, TerminalProfile,
+   |                            ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+warning: function `execute_command` is never used
+  --> src\command_executor.rs:69:14
+   |
+69 | pub async fn execute_command(
+   |              ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+warning: function `execute_command_with_timeout` is never used
+   --> src\command_executor.rs:168:14
+    |
+168 | pub async fn execute_command_with_timeout(
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+warning: function `build_shell_command` is never used
+   --> src\command_executor.rs:336:4
+    |
+336 | fn build_shell_command(request: &CommandRequest) -> Command {
+    |    ^^^^^^^^^^^^^^^^^^^
+warning: function `shell_invocation` is never used
+   --> src\command_executor.rs:343:4
+    |
+343 | fn shell_invocation(request: &CommandRequest) -> (String, Vec<String>) {
+    |    ^^^^^^^^^^^^^^^^
+warning: function `drain_stdout` is never used
+   --> src\command_executor.rs:746:10
+    |
+746 | async fn drain_stdout(
+    |          ^^^^^^^^^^^^
+warning: function `drain_stderr` is never used
+   --> src\command_executor.rs:758:10
+    |
+758 | async fn drain_stderr(
+    |          ^^^^^^^^^^^^
+warning: method `connect_command_received` is never used
+  --> src\cxxqt_bridge\mod.rs:49:12
+   |
+47 |         #[qsignal]
+   |         - method in this implementation
+48 |         #[cxx_name = "commandReceived"]
+49 |         fn command_received(self: Pin<&mut TerminalApp>, id: QString);
+   |            ^^^^^^^^^^^^^^^^
+warning: method `on_command_received` is never used
+  --> src\cxxqt_bridge\mod.rs:12:1
+   |
+12 | #[cxx_qt::bridge]
+   | ^^^^^^^^^^^^^^^^^
+...
+47 |         #[qsignal]
+   |         - method in this implementation
+warning: method `connect_command_completed` is never used
+  --> src\cxxqt_bridge\mod.rs:53:12
+   |
+51 |         #[qsignal]
+   |         - method in this implementation
+52 |         #[cxx_name = "commandCompleted"]
+53 |         fn command_completed(self: Pin<&mut TerminalApp>, id: QString, success: bool);
+   |            ^^^^^^^^^^^^^^^^^
+warning: method `on_command_completed` is never used
+  --> src\cxxqt_bridge\mod.rs:12:1
+   |
+12 | #[cxx_qt::bridge]
+   | ^^^^^^^^^^^^^^^^^
+...
+51 |         #[qsignal]
+   |         - method in this implementation
+warning: method `connect_output_line_received` is never used
+  --> src\cxxqt_bridge\mod.rs:57:12
+   |
+55 |         #[qsignal]
+   |         - method in this implementation
+56 |         #[cxx_name = "outputLineReceived"]
+57 |         fn output_line_received(self: Pin<&mut TerminalApp>, line: QString);
+   |            ^^^^^^^^^^^^^^^^^^^^
+warning: method `on_output_line_received` is never used
+  --> src\cxxqt_bridge\mod.rs:12:1
+   |
+12 | #[cxx_qt::bridge]
+   | ^^^^^^^^^^^^^^^^^
+...
+55 |         #[qsignal]
+   |         - method in this implementation
+warning: method `connect_connection_status_changed` is never used
+  --> src\cxxqt_bridge\mod.rs:61:12
+   |
+59 |         #[qsignal]
+   |         - method in this implementation
+60 |         #[cxx_name = "connectionStatusChanged"]
+61 |         fn connection_status_changed(self: Pin<&mut TerminalApp>, connected: bool);
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+warning: method `on_connection_status_changed` is never used
+  --> src\cxxqt_bridge\mod.rs:12:1
+   |
+12 | #[cxx_qt::bridge]
+   | ^^^^^^^^^^^^^^^^^
+...
+59 |         #[qsignal]
+   |         - method in this implementation
+warning: method `evict_stale` is never used
+   --> src\cxxqt_bridge\completed_outputs.rs:341:12
+    |
+36  | impl OutputTracker {
+    | ------------------ method in this implementation
+...
+341 |     pub fn evict_stale(&mut self) {
+    |            ^^^^^^^^^^^
+warning: function `TerminalApp_connect_command_received` is never used
+  --> src\cxxqt_bridge\mod.rs:45:14
+   |
+45 |         type TerminalApp = super::TerminalAppRust;
+   |              ^^^^^^^^^^^
+warning: function `TerminalApp_connect_command_completed` is never used
+  --> src\cxxqt_bridge\mod.rs:45:14
+   |
+45 |         type TerminalApp = super::TerminalAppRust;
+   |              ^^^^^^^^^^^
+warning: function `TerminalApp_connect_output_line_received` is never used
+  --> src\cxxqt_bridge\mod.rs:45:14
+   |
+45 |         type TerminalApp = super::TerminalAppRust;
+   |              ^^^^^^^^^^^
+warning: function `TerminalApp_connect_connection_status_changed` is never used
+  --> src\cxxqt_bridge\mod.rs:45:14
+   |
+45 |         type TerminalApp = super::TerminalAppRust;
+   |              ^^^^^^^^^^^
+warning: associated items `new` and `data_root` are never used
+  --> src\saved_commands_repository.rs:52:12
+   |
+19 | impl SavedCommandsRepository {
+   | ---------------------------- associated items in this implementation
+...
+52 |     pub fn new(data_root: PathBuf) -> Self {
+   |            ^^^
+...
+56 |     pub fn data_root(&self) -> &Path {
+   |            ^^^^^^^^^
+warning: struct `SessionManager` is never constructed
+  --> src\session.rs:13:12
+   |
+13 | pub struct SessionManager {
+   |            ^^^^^^^^^^^^^^
+warning: multiple associated items are never used
+  --> src\session.rs:30:12
+   |
+25 | impl SessionManager {
+   | ------------------- associated items in this implementation
+...
+30 |     pub fn new(_idle_timeout: Duration) -> Self {
+   |            ^^^
+...
+39 |     pub fn add_request(&mut self, request: CommandRequest) {
+   |            ^^^^^^^^^^^
+...
+45 |     pub fn remove_request(&mut self, id: &str) -> Option<CommandRequest> {
+   |            ^^^^^^^^^^^^^^
+...
+54 |     pub fn get_request(&self, id: &str) -> Option<&CommandRequest> {
+   |            ^^^^^^^^^^^
+...
+59 |     pub fn active_count(&self) -> usize {
+   |            ^^^^^^^^^^^^
+...
+64 |     pub fn is_idle(&self) -> bool {
+   |            ^^^^^^^
+...
+69 |     pub fn last_activity(&self) -> Instant {
+   |            ^^^^^^^^^^^^^
+...
+77 |     pub fn should_exit(&self, idle_timeout: Duration) -> bool {
+   |            ^^^^^^^^^^^
+...
+82 |     pub fn clear_all(&mut self) -> Vec<CommandRequest> {
+   |            ^^^^^^^^^
+...
+88 |     pub fn set_connected(&mut self, connected: bool) {
+   |            ^^^^^^^^^^^^^
+...
+94 |     pub fn is_connected(&self) -> bool {
+   |            ^^^^^^^^^^^^
+warning: function `has_gemini_api_key` is never used
+  --> src\system_tray.rs:62:8
+   |
+62 | pub fn has_gemini_api_key() -> bool {
+   |        ^^^^^^^^^^^^^^^^^^
+warning: constant `EVICTION_AGE_SECS` is never used
+ --> src\terminal_core\output_tracker.rs:6:7
+  |
+6 | const EVICTION_AGE_SECS: u64 = 30 * 60;
+  |       ^^^^^^^^^^^^^^^^^
+warning: method `evict_stale` is never used
+   --> src\terminal_core\output_tracker.rs:120:12
+    |
+24  | impl CoreOutputTracker {
+    | ---------------------- method in this implementation
+...
+120 |     pub fn evict_stale(&mut self) {
+    |            ^^^^^^^^^^^
+warning: `interactive-terminal` (bin "interactive-terminal") generated 26 warnings (run `cargo fix --bin "interactive-terminal"` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 31.55s
+Build output (local):     C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\interactive-terminal\target\release\interactive-terminal.exe
+Deploying Qt runtime with: C:\Qt\6.10.2\msvc2022_64\bin\windeployqt.exe
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Warning: Cannot find any version of the dxcompiler.dll and dxil.dll.
+Warning: Cannot find Visual Studio installation directory, VCINSTALLDIR is not set.
+windeployqt up-to-date items: 1331
+windeployqt translation files created: 32
+windeployqt dependency summary: binary=1, scanPaths=1, localDeps=1, pluginTypes=16, resolvedDeps=2, skippedPlugins=2, additionalPasses=1
+Qt dependency sets: direct=4, all=30, deploy=32
+QML imports discovered: 29
+QML import scan progress: 10% (3/29)
+QML import scan progress: 20% (6/29)
+QML import scan progress: 30% (9/29)
+QML import scan progress: 40% (12/29)
+QML import scan progress: 50% (15/29)
+QML import scan progress: 60% (18/29)
+QML import scan progress: 70% (21/29)
+QML import scan progress: 80% (24/29)
+QML import scan progress: 90% (27/29)
+QML import scan progress: 100% (29/29)
+Qt runtime deployment verified.
+Staging interactive-terminal artifacts to: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\target\release
+Staging complete: interactive-terminal artifacts copied next to supervisor output.
+Done.
+   ✓ interactive-terminal built + Qt runtime deployed → target\release\  (workspace output)
+
+── Server
+   › npm run build
+
+> project-memory-mcp@1.0.0 build
+> tsc && node -e "require('fs').cpSync('src/db/migrations','dist/db/migrations',{recursive:true})"
+
+   ✓ Server built → C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\server\dist
+   › node dist/db/seed.js (DB init + seed)
+[seed] Seeding tool catalog...
+[seed]   8 tools, 100 actions
+[seed] Seeding agent definitions...
+  [seed] agents-v2 directory not found at C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\agents-v2, skipping agent defs
+[seed]   0 agents
+[seed] Seeding instruction files...
+[seed]   7 instruction files
+[seed] Seeding skill definitions...
+  [seed] skills directory not found at C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\skills, skipping
+[seed]   0 skills
+[seed] Seeding GUI routing contracts...
+[seed]   2 contracts (approval, brainstorm)
+[seed] Done.
+
+[seed] Summary: { tools: 8, agents: 0, instructions: 7, skills: 0, guiContracts: 2 }
+   ✓ Database initialised at %APPDATA%\ProjectMemory\project-memory.db
+
+── Dashboard
+   › npx vite build
+←[36mvite v6.4.1 ←[32mbuilding for production...←[36m←[39m
+transforming...
+←[32mÔ£ô←[39m 1938 modules transformed.
+rendering chunks...
+computing gzip size...
+←[2mdist/←[22m←[32mindex.html                 ←[39m←[1m←[2m  0.51 kB←[22m←[1m←[22m←[2m Ôöé gzip:   0.34 kB←[22m
+←[2mdist/←[22m←[35massets/index-BOrsym6L.css  ←[39m←[1m←[2m 52.53 kB←[22m←[1m←[22m←[2m Ôöé gzip:   9.37 kB←[22m
+←[2mdist/←[22m←[36massets/index-CGkCmSlp.js   ←[39m←[1m←[33m668.25 kB←[39m←[22m←[2m Ôöé gzip: 177.70 kB←[22m
+←[33m
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.←[39m
+←[32mÔ£ô built in 6.86s←[39m
+   ✓ Dashboard frontend built → C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\dashboard\dist
+   › npm run build (dashboard server)
+
+> memory-observer-server@0.1.0 build
+> tsc
+
+   ✓ Dashboard server built → C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\dashboard\server\dist
+
+── VS Code Extension
+   › npm install
+
+up to date, audited 246 packages in 2s
+
+82 packages are looking for funding
+  run `npm fund` for details
+
+3 vulnerabilities (1 moderate, 2 high)
+
+To address all issues, run:
+  npm audit fix
+
+Run `npm audit` for details.
+   › npm run compile
+
+> project-memory-dashboard@0.2.0 compile
+> npm run esbuild
+
+
+> project-memory-dashboard@0.2.0 esbuild
+> npm run esbuild-base -- --sourcemap
+
+
+> project-memory-dashboard@0.2.0 esbuild-base
+> node esbuild.js --sourcemap
+
+   › npm run package (vsce)
+Executing prepublish script 'npm run vscode:prepublish'...
+
+> project-memory-dashboard@0.2.0 vscode:prepublish
+> npm run esbuild-base -- --production
+
+
+> project-memory-dashboard@0.2.0 esbuild-base
+> node esbuild.js --production
+
+ WARNING  This extension consists of 679 files, out of which 129 are JavaScript files. For performance reasons, you should bundle your extension: https://aka.ms/vscode-bundle-extension. You should also exclude unnecessary files by adding them to your .vscodeignore: https://aka.ms/vscode-vscodeignore.
+System.Management.Automation.RemoteException
+ INFO  Files included in the VSIX:
+project-memory-dashboard-0.2.0.vsix
+Ôö£ÔöÇ [Content_Types].xml
+Ôö£ÔöÇ extension.vsixmanifest
+ÔööÔöÇ extension/
+   Ôö£ÔöÇ LICENSE.txt [1.07 KB]
+   Ôö£ÔöÇ changelog.md [4.71 KB]
+   Ôö£ÔöÇ package.json [17.69 KB]
+   Ôö£ÔöÇ readme.md [6.73 KB]
+   Ôö£ÔöÇ .replay-bin/ (1 file) [90.06 KB]
+   Ôö£ÔöÇ .replay-runs/ (379 files) [1.68 MB]
+   Ôö£ÔöÇ goldens/ (2 files) [9.99 KB]
+   Ôö£ÔöÇ out/ (250 files) [2.05 MB]
+   Ôö£ÔöÇ resources/ (30 files) [7.86 KB]
+   Ôö£ÔöÇ test-results/ (10 files) [76.76 KB]
+   ÔööÔöÇ tools/ (1 file) [1.9 KB]
+
+=> Run vsce ls --tree to see all included files.
+
+ DONE  Packaged: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\vscode-extension\project-memory-dashboard-0.2.0.vsix (679 files, 838.74 KB)
+   ✓ Extension compiled and packaged
+   › Installing project-memory-dashboard-0.2.0.vsix
+Installing extensions...
+Extension 'project-memory-dashboard-0.2.0.vsix' was successfully installed.
+   ✓ Extension installed: project-memory-dashboard-0.2.0.vsix
+
+   Reload VS Code to activate the updated extension:
+   Ctrl+Shift+P → Developer: Reload Window
+
+Done in 578.4s
+
+── Launching Supervisor
+   ✓ supervisor launched
+PS C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\interactive-terminal> cd ..
+PS C:\Users\User\Project_Memory_MCP\Project-Memory-MCP> .\install
+Project Memory MCP — Install
+  Components : Supervisor, GuiForms, InteractiveTerminal, Server, Dashboard, Extension
+  InstallOnly: False
+  SkipInstall: False
+  Force      : False
+  NewDatabase: False
+
+── Supervisor (Rust + Qt QML)
+   Stopping running supervisor process(es)...
+   Qt:    C:\Qt\6.10.2\msvc2022_64
+   QMAKE: C:\Qt\6.10.2\msvc2022_64\bin\qmake6.exe
+   › cargo build --release -p supervisor
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 0
+   Compiling supervisor v0.1.0 (C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\supervisor)
+175 |     let mut rx = state.heartbeat_tx.subscribe();
+    |         ----^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+error[E0308]: mismatched types
+  --> supervisor\src\cxxqt_bridge\mod.rs:20:16
+   |
+20 |     if hwnd == 0 {
+   |        ----    ^ expected `*mut c_void`, found `usize`
+   |        |
+   |        expected because this is `*mut std::ffi::c_void`
+   |
+   = note: expected raw pointer `*mut std::ffi::c_void`
+                     found type `usize`
+help: if you meant to create a null pointer, use `std::ptr::null_mut()`
+   |
+20 -     if hwnd == 0 {
+20 +     if hwnd == std::ptr::null_mut() {
+   |
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `supervisor` (lib) due to 1 previous error; 1 warning emitted
+   ⚠ 2 warning(s) suppressed — set RUST_LOG=warn to see details
+   ✗ cargo build --release -p supervisor failed (exit 101)

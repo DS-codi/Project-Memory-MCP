@@ -7,7 +7,7 @@ use crate::integration::hosted_session_adapter;
 use crate::perf_monitor::PerfMonitor;
 use crate::protocol::{
     CommandRequest, CommandResponse, Message, ResponseStatus, SavedCommandsAction,
-    SavedCommandsResponse, TerminalProfile,
+    SavedCommandsResponse,
 };
 use crate::tcp_server::{ConnectionEvent, TcpServer};
 use cxx_qt_lib::QString;

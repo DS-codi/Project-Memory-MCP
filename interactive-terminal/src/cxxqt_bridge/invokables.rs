@@ -10,6 +10,9 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
 use std::pin::Pin;
+use std::process::Command;
+
+const GEMINI_SENTINEL_TOKEN: &str = "{{stored}}";
 
 impl ffi::TerminalApp {
     fn sanitize_filename_component(value: &str) -> String {
@@ -108,7 +111,7 @@ impl ffi::TerminalApp {
             this,
             &format!("[session:{session_id}] ready | profile={profile} | workspace={workspace}"),
         );
-        Self::append_output_line(this, "Type a command below and press Enter to run it.");
+        Self::append_output_line(this, "Type a command in the shell panel and press Enter to run it.");
     }
 
     fn refresh_saved_commands_for_workspace(
@@ -265,6 +268,107 @@ impl ffi::TerminalApp {
             "Start with Windows disabled"
         }));
         true
+    }
+
+    pub fn set_gemini_api_key(mut self: Pin<&mut Self>, api_key: QString) -> bool {
+        let api_key = api_key.to_string();
+        match crate::system_tray::save_gemini_api_key(&api_key) {
+            Ok(()) => {
+                self.as_mut().set_gemini_key_present(true);
+                self.as_mut().set_status_text(QString::from(
+                    "Gemini API key saved to local settings",
+                ));
+                true
+            }
+            Err(error) => {
+                self.as_mut()
+                    .set_status_text(QString::from(&format!("Failed to save Gemini API key: {error}")));
+                false
+            }
+        }
+    }
+
+    pub fn clear_gemini_api_key(mut self: Pin<&mut Self>) -> bool {
+        match crate::system_tray::clear_gemini_api_key() {
+            Ok(()) => {
+                self.as_mut().set_gemini_key_present(false);
+                self.as_mut().set_gemini_injection_requested(false);
+                self.as_mut().set_status_text(QString::from(
+                    "Gemini API key removed from local settings",
+                ));
+                true
+            }
+            Err(error) => {
+                self.as_mut().set_status_text(QString::from(&format!(
+                    "Failed to clear Gemini API key: {error}"
+                )));
+                false
+            }
+        }
+    }
+
+    pub fn launch_gemini_session(mut self: Pin<&mut Self>) -> bool {
+        if !*self.as_ref().gemini_key_present() {
+            self.as_mut().set_status_text(QString::from(
+                "No stored Gemini API key. Save a key in settings first.",
+            ));
+            return false;
+        }
+
+        let Some(stored_key) = crate::system_tray::load_gemini_api_key() else {
+            self.as_mut().set_status_text(QString::from(
+                "Stored Gemini API key not found. Save the key again and retry.",
+            ));
+            return false;
+        };
+
+        let workspace_path = {
+            let state_arc = self.rust().state.clone();
+            let state = state_arc.lock().unwrap();
+            let selected = state.selected_session_context().workspace_path;
+            if selected.trim().is_empty() {
+                std::env::current_dir()
+                    .map(|path| path.to_string_lossy().to_string())
+                    .unwrap_or_default()
+            } else {
+                selected
+            }
+        };
+
+        #[cfg(windows)]
+        {
+            let mut launch = Command::new("pwsh");
+            launch
+                .arg("-NoExit")
+                .arg("-Command")
+                .arg("if (-not [string]::IsNullOrWhiteSpace($env:PM_GEMINI_CWD)) { Set-Location -LiteralPath $env:PM_GEMINI_CWD }; gemini")
+                .env("PM_GEMINI_CWD", &workspace_path)
+                .env("GEMINI_API_KEY", &stored_key)
+                .env("GOOGLE_API_KEY", &stored_key)
+                .env("NPM_CONFIG_UPDATE_NOTIFIER", "false");
+
+            match launch.spawn() {
+                Ok(_) => {
+                    self.as_mut().set_status_text(QString::from(
+                        "Launched Gemini in a dedicated PowerShell window",
+                    ));
+                    Self::append_output_line(
+                        &mut self,
+                        "[gemini] launched in dedicated PowerShell window with stored key",
+                    );
+                    return true;
+                }
+                Err(error) => {
+                    self.as_mut().set_status_text(QString::from(&format!(
+                        "Failed to launch Gemini session: {error}"
+                    )));
+                    return false;
+                }
+            }
+        }
+
+        self.as_mut().set_gemini_injection_requested(true);
+        self.as_mut().run_command(QString::from("gemini"))
     }
 
     pub fn clear_output(mut self: Pin<&mut Self>) {
@@ -675,6 +779,73 @@ impl ffi::TerminalApp {
             return false;
         }
 
+        let injection_requested = *self.as_ref().gemini_injection_requested();
+        if injection_requested && !*self.as_ref().gemini_key_present() {
+            self.as_mut().set_status_text(QString::from(
+                "Gemini injection was requested but no stored key is available.",
+            ));
+            self.as_mut().set_gemini_injection_requested(false);
+            return false;
+        }
+
+        if cfg!(windows) && *self.as_ref().run_commands_in_window() {
+            let workspace_path = {
+                let state_arc = self.rust().state.clone();
+                let state = state_arc.lock().unwrap();
+                let selected = state.selected_session_context().workspace_path;
+                if selected.trim().is_empty() {
+                    std::env::current_dir()
+                        .map(|path| path.to_string_lossy().to_string())
+                        .unwrap_or_default()
+                } else {
+                    selected
+                }
+            };
+
+            let mut launch = Command::new("pwsh");
+            launch
+                .arg("-NoExit")
+                .arg("-Command")
+                .arg("if (-not [string]::IsNullOrWhiteSpace($env:PM_IT_CWD)) { Set-Location -LiteralPath $env:PM_IT_CWD }; if (-not [string]::IsNullOrWhiteSpace($env:PM_IT_CMD)) { Invoke-Expression $env:PM_IT_CMD }")
+                .env("PM_IT_CWD", &workspace_path)
+                .env("PM_IT_CMD", command_text)
+                .env("NPM_CONFIG_UPDATE_NOTIFIER", "false");
+
+            if injection_requested {
+                if let Some(stored_key) = crate::system_tray::load_gemini_api_key() {
+                    launch
+                        .env("GEMINI_API_KEY", &stored_key)
+                        .env("GOOGLE_API_KEY", &stored_key);
+                }
+            }
+
+            match launch.spawn() {
+                Ok(_) => {
+                    self.as_mut().set_status_text(QString::from(
+                        "Command launched in dedicated PowerShell window",
+                    ));
+                    Self::append_output_line(
+                        &mut self,
+                        &format!("[window] launched: {command_text}"),
+                    );
+                    if injection_requested {
+                        self.as_mut().set_gemini_injection_requested(false);
+                        Self::append_output_line(
+                            &mut self,
+                            "[gemini] stored key injection requested for this command only",
+                        );
+                    }
+                    return true;
+                }
+                Err(error) => {
+                    self.as_mut().set_status_text(QString::from(&format!(
+                        "Failed to launch command window: {error}"
+                    )));
+                    return false;
+                }
+            }
+        }
+
         let state_arc = self.rust().state.clone();
         let (request, selected_session_id, profile_key, has_sender, has_session) = {
             let state = state_arc.lock().unwrap();
@@ -701,7 +872,17 @@ impl ffi::TerminalApp {
                 activate_venv: context.activate_venv,
                 timeout_seconds: 300,
                 args: Vec::new(),
-                env: std::collections::HashMap::new(),
+                env: {
+                    let mut env = std::collections::HashMap::new();
+                    if injection_requested {
+                        env.insert("PM_GEMINI_INJECT".to_string(), "1".to_string());
+                        env.insert(
+                            "GEMINI_API_KEY".to_string(),
+                            GEMINI_SENTINEL_TOKEN.to_string(),
+                        );
+                    }
+                    env
+                },
                 workspace_id: String::new(),
                 allowlisted: true,
             };
@@ -752,6 +933,13 @@ impl ffi::TerminalApp {
                     "Running command in session {selected_session_id}"
                 )));
                 Self::append_output_line(&mut self, &format!("> {}", request.command));
+                if injection_requested {
+                    self.as_mut().set_gemini_injection_requested(false);
+                    Self::append_output_line(
+                        &mut self,
+                        "[gemini] stored key injection requested for this command only",
+                    );
+                }
                 true
             }
             Some(Err(err)) => {

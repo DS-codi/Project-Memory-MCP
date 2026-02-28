@@ -5,10 +5,11 @@ import * as crypto from 'crypto';
 import {
   listPrograms,
   getPlan,
+  getProgram,
   getProgramChildPlans,
   getPlanSteps,
 } from '../db/queries.js';
-import type { PlanRow, StepRow } from '../db/queries.js';
+import type { PlanRow, ProgramRow, StepRow } from '../db/queries.js';
 
 export const programsRouter = Router();
 
@@ -132,7 +133,7 @@ function computeAggregateFromRows(
 }
 
 function buildProgramSummaryFromDb(
-  program: PlanRow,
+  program: PlanRow | ProgramRow,
   childRows: PlanRow[],
   stepsByPlan: Map<string, StepRow[]>
 ): ProgramSummary {
@@ -202,11 +203,13 @@ programsRouter.get('/:workspaceId/:programId', (req, res) => {
   try {
     const { workspaceId, programId } = req.params;
 
-    const program = getPlan(programId);
+    // Look up in programs table first, then fall back to plans table
+    const program: PlanRow | ProgramRow | null = getProgram(programId) ?? getPlan(programId);
     if (!program) {
       return res.status(404).json({ error: 'Program not found' });
     }
-    if (!program.is_program) {
+    // For PlanRow entries, verify is_program flag
+    if ('is_program' in program && !program.is_program) {
       return res.status(400).json({ error: `${programId} is not a program` });
     }
 

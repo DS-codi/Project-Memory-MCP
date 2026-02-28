@@ -72,6 +72,25 @@ export interface MaterialiseResult {
   sessionId: string;
   /** Number of peer sessions injected into the PEER_SESSIONS block */
   peerSessionsCount: number;
+  /** Manifest of injected sections and where they were sourced from */
+  injectedSections: {
+    tool_surface_restrictions: {
+      included: boolean;
+      source: 'tool_overrides' | 'agent_definition' | null;
+    };
+    step_context: {
+      included: boolean;
+      source: 'runtime_context_payload' | null;
+    };
+    peer_sessions: {
+      included: true;
+      source: 'workspace_session_registry';
+    };
+    hub_customisation_zone: {
+      included: true;
+      source: 'deploy_template';
+    };
+  };
   /** Warning messages (non-fatal) */
   warnings: string[];
 }
@@ -119,7 +138,24 @@ function buildStepContextBlock(
   if (stepIndices && stepIndices.length > 0) {
     lines.push(`**Assigned step indices:** ${stepIndices.join(', ')}`, '');
   }
-  if (contextPayload && Object.keys(contextPayload).length > 0) {
+  if (stepIndices && stepIndices.length > 0) {
+    for (const stepIndex of stepIndices) {
+      lines.push(`### Step ${stepIndex}`);
+      lines.push('```json');
+      lines.push(
+        JSON.stringify(
+          {
+            step_index: stepIndex,
+            context_payload: contextPayload ?? {},
+          },
+          null,
+          2,
+        ),
+      );
+      lines.push('```');
+      lines.push('');
+    }
+  } else if (contextPayload && Object.keys(contextPayload).length > 0) {
     lines.push('**Context payload (from Hub enrichment):**', '');
     lines.push('```json');
     lines.push(JSON.stringify(contextPayload, null, 2));
@@ -132,18 +168,45 @@ function buildStepContextBlock(
 function buildPeerSessionsBlock(peers: PeerSessionSummary[]): string {
   if (peers.length === 0) {
     return [
-      '## PEER_SESSIONS',
+      '##PEER_SESSIONS',
       '',
       '_No other active sessions on this workspace._',
+      '',
+      '**Conflict-avoidance rules (always enforce):**',
+      '- File-lock advisory: if a peer session claims a file in `files_in_scope`, add a plan note before modifying that file.',
+      '- Plan-note conflict check: before adding a note to the same step, check if a peer note was added in the last 60 seconds; if yes, do not add a competing note.',
+      '- Step-index exclusivity: do NOT start a step index that is already `active` in a peer session.',
+      '- Escalation path: on conflict, call `memory_plan(action: add_note)` with conflict details, then halt and call `memory_agent(action: handoff)`.',
       '',
     ].join('\n');
   }
 
-  const lines: string[] = ['## PEER_SESSIONS', ''];
+  const lines: string[] = ['##PEER_SESSIONS', ''];
+  lines.push('```json');
   lines.push(
-    'The following sessions are concurrently active on this workspace.',
-    'Avoid modifying files listed under `files_in_scope` of peer sessions.',
-    'If a conflict is detected, stop and call `memory_agent(action: handoff)` with reason `scope_conflict`.',
+    JSON.stringify(
+      peers.map((peer) => ({
+        session_id: peer.sessionId,
+        agent_type: peer.agentType,
+        plan_id: peer.planId,
+        current_phase: peer.currentPhase,
+        step_indices_claimed: peer.stepIndicesClaimed,
+        files_in_scope: peer.filesInScope,
+        status: peer.status,
+        materialised_path: peer.materialisedPath,
+      })),
+      null,
+      2,
+    ),
+  );
+  lines.push('```');
+  lines.push('');
+  lines.push(
+    '**Conflict-avoidance rules (always enforce):**',
+    '- File-lock advisory: if a peer session claims a file in `files_in_scope`, add a plan note before modifying that file.',
+    '- Plan-note conflict check: before adding a note to the same step, check if a peer note was added in the last 60 seconds; if yes, do not add a competing note.',
+    '- Step-index exclusivity: do NOT start a step index that is already `active` in a peer session.',
+    '- Escalation path: on conflict, call `memory_plan(action: add_note)` with conflict details, then halt and call `memory_agent(action: handoff)`.',
     '',
   );
 
@@ -170,6 +233,53 @@ function buildPeerSessionsBlock(peers: PeerSessionSummary[]): string {
     lines.push('');
   }
   return lines.join('\n');
+}
+
+function buildPlanCheckpointRulesBlock(): string {
+  return [
+    '## Plan Update Checkpoint Rules',
+    '',
+    'These rules are injected by deploy tooling and are sealed.',
+    '- On each assigned step completion: call `memory_steps(action: update)` with status `done`.',
+    '- On blocker detection: call `memory_steps(action: update)` with status `blocked` and add details via `memory_plan(action: add_note)`.',
+    '- On scope escalation required: add a plan note and hand off immediately to Hub.',
+    '- On unrecoverable error: add note, set step blocked, and hand off.',
+    '- When all assigned steps are complete: call `memory_agent(action: handoff)` then `memory_agent(action: complete)`.',
+    '',
+  ].join('\n');
+}
+
+function buildCustomisationProtocolBlock(): string {
+  return [
+    '## Hub Customisation Protocol',
+    '',
+    '**Sealed sections (Hub MUST NOT modify):**',
+    '- Front-matter header metadata',
+    '- Tool surface restrictions',
+    '- Step context binding blocks',
+    '- `##PEER_SESSIONS` block',
+    '- Plan Update Checkpoint Rules',
+    '',
+    '**Open section (Hub MAY append):**',
+    '- Hub Customisation Zone only',
+    '- Allowed append content: task clarifications, additional context, scope notes, guidance updates',
+    '- Disallowed append content: rewrites of sealed sections, tool-surface policy overrides, peer-session mutation',
+    '',
+  ].join('\n');
+}
+
+function buildFrontMatterHeader(params: MaterialiseParams): string {
+  const stepIndices = params.stepIndices ?? [];
+  return [
+    '---',
+    `agent_type: ${params.agentType}`,
+    `session_id: ${params.sessionId}`,
+    `plan_id: ${params.planId}`,
+    `workspace_id: ${params.workspaceId}`,
+    `step_indices: [${stepIndices.join(', ')}]`,
+    '---',
+    '',
+  ].join('\n');
 }
 
 function buildHubCustomisationZone(): string {
@@ -269,7 +379,8 @@ export async function materialiseAgent(params: MaterialiseParams): Promise<Mater
   // 5. Build materialised content
   const sections: string[] = [];
 
-  //   5a. Base content (from DB)
+  //   5a. Front matter + base content (from DB)
+  sections.push(buildFrontMatterHeader(params));
   sections.push(baseContent.trimEnd());
   sections.push('');
   sections.push('---');
@@ -291,7 +402,13 @@ export async function materialiseAgent(params: MaterialiseParams): Promise<Mater
   //   5d. PEER_SESSIONS
   sections.push(buildPeerSessionsBlock(peers));
 
-  //   5e. Hub customisation zone
+  //   5e. Plan-update checkpoint rules
+  sections.push(buildPlanCheckpointRulesBlock());
+
+  //   5f. Customisation protocol
+  sections.push(buildCustomisationProtocolBlock());
+
+  //   5g. Hub customisation zone
   sections.push(buildHubCustomisationZone());
 
   // Add deploy metadata comment at very end
@@ -309,6 +426,26 @@ export async function materialiseAgent(params: MaterialiseParams): Promise<Mater
     filePath,
     sessionId: params.sessionId,
     peerSessionsCount: peers.length,
+    injectedSections: {
+      tool_surface_restrictions: {
+        included: Boolean(allowedTools || blockedTools),
+        source: params.toolOverrides ? 'tool_overrides' : agentDef ? 'agent_definition' : null,
+      },
+      step_context: {
+        included: Boolean(params.stepIndices?.length || params.phaseName || params.contextPayload),
+        source: params.stepIndices?.length || params.phaseName || params.contextPayload
+          ? 'runtime_context_payload'
+          : null,
+      },
+      peer_sessions: {
+        included: true,
+        source: 'workspace_session_registry',
+      },
+      hub_customisation_zone: {
+        included: true,
+        source: 'deploy_template',
+      },
+    },
     warnings,
   };
 }

@@ -230,7 +230,7 @@ export interface WorkspaceMeta {
   path: string;
   name: string;
   registered_at: string;
-  last_accessed: string;
+  last_activity: string;
   active_plans: string[];
   archived_plans: string[];
   indexed: boolean;

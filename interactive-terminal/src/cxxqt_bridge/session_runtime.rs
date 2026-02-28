@@ -25,6 +25,10 @@ pub struct TerminalAppRust {
     pub(crate) current_activate_venv: bool,
     pub(crate) current_allowlisted: bool,
     pub(crate) start_with_windows: bool,
+    pub(crate) start_visible: bool,
+    pub(crate) run_commands_in_window: bool,
+    pub(crate) gemini_key_present: bool,
+    pub(crate) gemini_injection_requested: bool,
     pub(crate) cpu_usage_percent: f64,
     pub(crate) memory_usage_mb: f64,
     pub(crate) pending_commands_json: QString,
@@ -78,6 +82,12 @@ pub(crate) struct UseSavedCommandResult {
 impl Default for TerminalAppRust {
     fn default() -> Self {
         let default_terminal_profile = default_terminal_profile_from_env();
+        let tray_settings = crate::system_tray::load_settings();
+        let gemini_key_present = tray_settings
+            .gemini_api_key
+            .as_ref()
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false);
 
         let state = Arc::new(Mutex::new(AppState {
             pending_commands_by_session: HashMap::from([("default".to_string(), Vec::new())]),
@@ -132,7 +142,11 @@ impl Default for TerminalAppRust {
             current_venv_path: QString::default(),
             current_activate_venv: false,
             current_allowlisted: false,
-            start_with_windows: false,
+            start_with_windows: tray_settings.start_with_windows,
+            start_visible: false,
+            run_commands_in_window: cfg!(target_os = "windows"),
+            gemini_key_present,
+            gemini_injection_requested: false,
             cpu_usage_percent: 0.0,
             memory_usage_mb: 0.0,
             pending_commands_json: QString::from("[]"),
@@ -145,6 +159,10 @@ impl Default for TerminalAppRust {
 
 fn default_terminal_profile_from_env() -> TerminalProfile {
     let Some(value) = std::env::var("PM_DEFAULT_TERMINAL_PROFILE").ok() else {
+        // On Windows default to PowerShell explicitly; other platforms use bash via System
+        #[cfg(target_os = "windows")]
+        return TerminalProfile::PowerShell;
+        #[cfg(not(target_os = "windows"))]
         return TerminalProfile::System;
     };
 

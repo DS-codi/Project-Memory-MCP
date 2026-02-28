@@ -338,6 +338,7 @@ impl OutputTracker {
     }
 
     /// Remove entries older than 30 minutes.
+    #[allow(dead_code)]
     pub fn evict_stale(&mut self) {
         self.core.evict_stale();
     }

@@ -44,6 +44,9 @@ pub static HEARTBEAT_INTERVAL: OnceLock<u64> = OnceLock::new();
 /// Idle timeout in seconds, set from CLI args at startup.
 pub static IDLE_TIMEOUT: OnceLock<u64> = OnceLock::new();
 
+/// Whether the GUI should be shown at startup instead of minimizing to tray.
+pub static START_VISIBLE: OnceLock<bool> = OnceLock::new();
+
 pub fn prebind_runtime_listener(port: u16) -> std::io::Result<()> {
     let listener = TcpListener::bind(("127.0.0.1", port))?;
     let storage = PREBOUND_RUNTIME_LISTENER.get_or_init(|| Mutex::new(None));
@@ -86,6 +89,10 @@ struct Args {
     /// Enable debug mode: allocates a console window (Windows) so stderr is visible
     #[arg(long)]
     debug: bool,
+
+    /// Show the main window on startup instead of hiding to tray.
+    #[arg(long)]
+    show: bool,
 }
 
 fn main() {
@@ -131,6 +138,9 @@ fn main() {
     IDLE_TIMEOUT
         .set(args.idle_timeout)
         .expect("IDLE_TIMEOUT already set");
+    START_VISIBLE
+        .set(args.show)
+        .expect("START_VISIBLE already set");
 
     prebind_runtime_listener(port)
         .unwrap_or_else(|error| panic!("Failed to prebind 127.0.0.1:{port}: {error}"));

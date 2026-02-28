@@ -7,13 +7,14 @@ import com.projectmemory.terminal 1.0
 
 ApplicationWindow {
     id: root
-    visible: false
+    visible: true
     width: 1100
     height: 760
+    x: 80
+    y: 80
     minimumWidth: 480
     minimumHeight: 400
     title: "Interactive Terminal"
-    icon: terminalApp.trayIconUrl
     color: "#1e1e1e"
     Material.theme: Material.Dark
     Material.accent: Material.Blue
@@ -25,6 +26,7 @@ ApplicationWindow {
     property string selectedSavedCommandId: ""
     property string pendingSessionDisplayName: ""
     property var approvalDialogRequest: ({})
+    property bool quitRequested: false
     property bool hasActiveTerminalSession: {
         const current = (terminalApp.currentSessionId || "").trim()
         if (!current) {
@@ -89,10 +91,19 @@ ApplicationWindow {
         root.showNormal()
         root.raise()
         root.requestActivate()
+        Qt.callLater(function() {
+            root.raise()
+            root.requestActivate()
+        })
     }
 
     function hideToTray() {
         root.visible = false
+    }
+
+    function requestQuit() {
+        quitRequested = true
+        Qt.quit()
     }
 
     function syncApprovalDialog() {
@@ -203,12 +214,21 @@ ApplicationWindow {
         refreshSavedCommands()
         terminalApp.showSessionStartup()
         root.syncApprovalDialog()
-        root.hideToTray()
+        root.showMainWindow()
     }
 
     onClosing: function(close) {
-        close.accepted = false
-        root.hideToTray()
+        if (quitRequested) {
+            close.accepted = true
+            return
+        }
+
+        if (trayIcon.available) {
+            close.accepted = false
+            root.hideToTray()
+        } else {
+            close.accepted = true
+        }
     }
 
     Platform.SystemTrayIcon {
@@ -243,7 +263,7 @@ ApplicationWindow {
             Platform.MenuSeparator {}
             Platform.MenuItem {
                 text: "Quit"
-                onTriggered: Qt.quit()
+                onTriggered: root.requestQuit()
             }
         }
     }
@@ -318,11 +338,15 @@ ApplicationWindow {
         // Session runtime controls
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 128
+            implicitHeight: sessionControlsCol.implicitHeight + 16
             color: "#252526"
 
             ColumnLayout {
-                anchors.fill: parent
+                id: sessionControlsCol
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.topMargin: 8
                 anchors.leftMargin: 12
                 anchors.rightMargin: 12
                 spacing: 6
@@ -388,6 +412,20 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     spacing: 8
 
+                    CheckBox {
+                        text: "Run commands in PowerShell window"
+                        font.pixelSize: root.uiControlFontPx
+                        checked: terminalApp.runCommandsInWindow
+                        onClicked: terminalApp.runCommandsInWindow = checked
+                    }
+
+                    Item { Layout.fillWidth: true }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
                     TextField {
                         id: workspacePathField
                         Layout.fillWidth: true
@@ -413,6 +451,64 @@ ApplicationWindow {
                         checked: terminalApp.currentActivateVenv
                         onClicked: terminalApp.setSessionActivateVenv(checked)
                     }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    TextField {
+                        id: geminiApiKeyField
+                        Layout.fillWidth: true
+                        placeholderText: "Gemini API key (stored locally)"
+                        echoMode: TextInput.Password
+                        font.pixelSize: root.uiInputFontPx
+                    }
+
+                    Button {
+                        text: "Save Key"
+                        font.pixelSize: root.uiControlFontPx
+                        onClicked: {
+                            if (terminalApp.setGeminiApiKey(geminiApiKeyField.text)) {
+                                geminiApiKeyField.text = ""
+                            }
+                        }
+                    }
+
+                    Button {
+                        text: "Remove Key"
+                        font.pixelSize: root.uiControlFontPx
+                        enabled: terminalApp.geminiKeyPresent
+                        onClicked: terminalApp.clearGeminiApiKey()
+                    }
+
+                    Text {
+                        text: terminalApp.geminiKeyPresent ? "Gemini key: stored" : "Gemini key: not set"
+                        color: terminalApp.geminiKeyPresent ? "#4caf50" : "#808080"
+                        font.pixelSize: 11
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    CheckBox {
+                        text: "Inject stored key (next run only)"
+                        font.pixelSize: root.uiControlFontPx
+                        enabled: terminalApp.geminiKeyPresent
+                        checked: terminalApp.geminiInjectionRequested
+                        onClicked: terminalApp.geminiInjectionRequested = checked
+                    }
+
+                    Button {
+                        text: "Launch Gemini (Window)"
+                        font.pixelSize: root.uiControlFontPx
+                        enabled: terminalApp.geminiKeyPresent
+                        onClicked: terminalApp.launchGeminiSession()
+                    }
+
+                    Item { Layout.fillWidth: true }
                 }
             }
         }
@@ -548,7 +644,7 @@ ApplicationWindow {
 
                 Button {
                     text: "Rename"
-                    Layout.preferredWidth: 86
+                    Layout.preferredWidth: 106
                     Layout.preferredHeight: 30
                     font.pixelSize: root.uiControlFontPx
                     onClicked: {

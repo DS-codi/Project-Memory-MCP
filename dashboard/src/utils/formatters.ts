@@ -1,18 +1,22 @@
 import { format, formatDistanceToNow, parseISO } from 'date-fns';
 
 export function formatDate(dateString: string): string {
+  if (!dateString) return '—';
   return format(parseISO(dateString), 'MMM d, yyyy');
 }
 
 export function formatDateTime(dateString: string): string {
+  if (!dateString) return '—';
   return format(parseISO(dateString), 'MMM d, yyyy h:mm a');
 }
 
 export function formatTime(dateString: string): string {
+  if (!dateString) return '—';
   return format(parseISO(dateString), 'h:mm:ss a');
 }
 
 export function formatRelative(dateString: string): string {
+  if (!dateString) return 'unknown';
   return formatDistanceToNow(parseISO(dateString), { addSuffix: true });
 }
 

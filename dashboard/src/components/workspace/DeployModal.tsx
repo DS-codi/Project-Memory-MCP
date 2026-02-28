@@ -111,9 +111,20 @@ export function DeployModal({
       const data = await response.json();
       
       if (response.ok) {
+        const archiveSummaryParts: string[] = [];
+        if (data.archive?.archive_path) {
+          archiveSummaryParts.push(`archived ${data.archive.moved_files_count || 0} existing agent file(s) to ${data.archive.archive_path}`);
+        }
+        if (Array.isArray(data.archive?.warnings) && data.archive.warnings.length > 0) {
+          archiveSummaryParts.push(`archive warnings: ${data.archive.warnings.join('; ')}`);
+        }
+        if (Array.isArray(data.archive?.conflicts) && data.archive.conflicts.length > 0) {
+          archiveSummaryParts.push(`archive conflicts: ${data.archive.conflicts.join('; ')}`);
+        }
+
         setDeployResult({
           success: true,
-          message: `Deployed ${data.agents || 0} agents, ${data.prompts || 0} prompts, ${data.instructions || 0} instructions`,
+          message: `Deployed ${data.agents || 0} agents, ${data.prompts || 0} prompts, ${data.instructions || 0} instructions${archiveSummaryParts.length > 0 ? `. ${archiveSummaryParts.join('. ')}` : ''}`,
         });
       } else {
         setDeployResult({

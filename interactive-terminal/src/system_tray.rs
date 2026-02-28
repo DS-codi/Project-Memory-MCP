@@ -8,12 +8,15 @@ const RUN_VALUE_NAME: &str = "InteractiveTerminal";
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TraySettings {
     pub start_with_windows: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gemini_api_key: Option<String>,
 }
 
 impl Default for TraySettings {
     fn default() -> Self {
         Self {
             start_with_windows: false,
+            gemini_api_key: None,
         }
     }
 }
@@ -54,6 +57,38 @@ pub fn save_settings(settings: &TraySettings) -> Result<(), String> {
         .map_err(|error| format!("failed to serialize tray settings: {error}"))?;
 
     fs::write(path, payload).map_err(|error| format!("failed to persist tray settings: {error}"))
+}
+
+#[allow(dead_code)]
+pub fn has_gemini_api_key() -> bool {
+    load_settings()
+        .gemini_api_key
+        .map(|value| !value.trim().is_empty())
+        .unwrap_or(false)
+}
+
+pub fn load_gemini_api_key() -> Option<String> {
+    let settings = load_settings();
+    settings
+        .gemini_api_key
+        .and_then(|value| if value.trim().is_empty() { None } else { Some(value) })
+}
+
+pub fn save_gemini_api_key(api_key: &str) -> Result<(), String> {
+    let trimmed = api_key.trim();
+    if trimmed.is_empty() {
+        return Err("Gemini API key cannot be empty".to_string());
+    }
+
+    let mut settings = load_settings();
+    settings.gemini_api_key = Some(trimmed.to_string());
+    save_settings(&settings)
+}
+
+pub fn clear_gemini_api_key() -> Result<(), String> {
+    let mut settings = load_settings();
+    settings.gemini_api_key = None;
+    save_settings(&settings)
 }
 
 fn startup_command(port: u16) -> Result<String, String> {

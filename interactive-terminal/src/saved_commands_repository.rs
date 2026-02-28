@@ -49,10 +49,12 @@ impl SavedCommandsRepository {
         }
     }
 
+    #[allow(dead_code)]
     pub fn new(data_root: PathBuf) -> Self {
         Self { data_root }
     }
 
+    #[allow(dead_code)]
     pub fn data_root(&self) -> &Path {
         &self.data_root
     }

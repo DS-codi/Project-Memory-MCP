@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::pin::Pin;
 
 pub(crate) mod completed_outputs;
@@ -35,6 +37,10 @@ pub mod ffi {
         #[qproperty(bool, current_activate_venv, cxx_name = "currentActivateVenv")]
         #[qproperty(bool, current_allowlisted, cxx_name = "currentAllowlisted")]
         #[qproperty(bool, start_with_windows, cxx_name = "startWithWindows")]
+        #[qproperty(bool, start_visible, cxx_name = "startVisible")]
+        #[qproperty(bool, run_commands_in_window, cxx_name = "runCommandsInWindow")]
+        #[qproperty(bool, gemini_key_present, cxx_name = "geminiKeyPresent")]
+        #[qproperty(bool, gemini_injection_requested, cxx_name = "geminiInjectionRequested")]
         #[qproperty(f64, cpu_usage_percent, cxx_name = "cpuUsagePercent")]
         #[qproperty(f64, memory_usage_mb, cxx_name = "memoryUsageMb")]
         #[qproperty(QString, pending_commands_json, cxx_name = "pendingCommandsJson")]
@@ -113,6 +119,18 @@ pub mod ffi {
         #[qinvokable]
         #[cxx_name = "setStartWithWindowsEnabled"]
         fn set_start_with_windows_enabled(self: Pin<&mut TerminalApp>, enabled: bool) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "setGeminiApiKey"]
+        fn set_gemini_api_key(self: Pin<&mut TerminalApp>, api_key: QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "clearGeminiApiKey"]
+        fn clear_gemini_api_key(self: Pin<&mut TerminalApp>) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "launchGeminiSession"]
+        fn launch_gemini_session(self: Pin<&mut TerminalApp>) -> bool;
 
         #[qinvokable]
         #[cxx_name = "openSavedCommands"]

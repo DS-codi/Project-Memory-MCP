@@ -12,6 +12,7 @@ import { getDb } from './connection.js';
 import type {
   WorkspaceRow,
   PlanRow,
+  ProgramRow,
   PhaseRow,
   StepRow,
   SessionRow,
@@ -28,6 +29,7 @@ import type {
 export type {
   WorkspaceRow,
   PlanRow,
+  ProgramRow,
   PhaseRow,
   StepRow,
   SessionRow,
@@ -200,20 +202,28 @@ export function getKnowledgeItem(workspaceId: string, slug: string): KnowledgeRo
 }
 
 // ============================================================
-// PROGRAMS  (plans with is_program = 1)
+// PROGRAMS  (dedicated programs table)
 // ============================================================
 
-export function listPrograms(workspaceId?: string): PlanRow[] {
+export function getProgram(programId: string): ProgramRow | null {
+  return (
+    (getDb()
+      .prepare('SELECT * FROM programs WHERE id = ?')
+      .get(programId) as ProgramRow) ?? null
+  );
+}
+
+export function listPrograms(workspaceId?: string): ProgramRow[] {
   if (workspaceId) {
     return getDb()
       .prepare(
-        'SELECT * FROM plans WHERE is_program = 1 AND workspace_id = ? ORDER BY created_at DESC'
+        'SELECT * FROM programs WHERE workspace_id = ? ORDER BY created_at DESC'
       )
-      .all(workspaceId) as PlanRow[];
+      .all(workspaceId) as ProgramRow[];
   }
   return getDb()
-    .prepare('SELECT * FROM plans WHERE is_program = 1 ORDER BY created_at DESC')
-    .all() as PlanRow[];
+    .prepare('SELECT * FROM programs ORDER BY created_at DESC')
+    .all() as ProgramRow[];
 }
 
 export function getProgramChildPlans(programId: string): PlanRow[] {
@@ -222,7 +232,7 @@ export function getProgramChildPlans(programId: string): PlanRow[] {
       `SELECT p.* FROM plans p
        JOIN program_plans pp ON pp.plan_id = p.id
        WHERE pp.program_id = ?
-       ORDER BY pp.created_at ASC`
+       ORDER BY p.created_at ASC`
     )
     .all(programId) as PlanRow[];
 }

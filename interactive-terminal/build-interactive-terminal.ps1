@@ -241,7 +241,10 @@ function Stop-InteractiveTerminalProcesses {
 function Invoke-CargoCleanWithLockRecovery {
     param(
         [int]$MaxAttempts = 3,
-        [string]$WorkingDirectory = $scriptDir
+        [string]$WorkingDirectory = $scriptDir,
+        # When non-empty, run 'cargo clean -p <Package>' instead of a full 'cargo clean'.
+        # This is faster and avoids discarding unrelated workspace build artifacts.
+        [string]$Package = ''
     )
 
     $preStopped = Stop-InteractiveTerminalProcesses
@@ -250,8 +253,10 @@ function Invoke-CargoCleanWithLockRecovery {
         Start-Sleep -Seconds 1
     }
 
+    $cleanArgs = if ($Package) { @('clean', '-p', $Package) } else { @('clean') }
+
     for ($attempt = 1; $attempt -le [Math]::Max(1, $MaxAttempts); $attempt++) {
-        $cleanResult = Invoke-NativeCommandCapture -FilePath 'cargo' -Arguments @('clean') -WorkingDirectory $WorkingDirectory
+        $cleanResult = Invoke-NativeCommandCapture -FilePath 'cargo' -Arguments $cleanArgs -WorkingDirectory $WorkingDirectory
         foreach ($line in $cleanResult.AllLines) {
             Write-Host $line
         }
@@ -381,6 +386,39 @@ if ($Test) {
     }
 }
 
+# ── QML freshness detection ──────────────────────────────────────────────────
+# CxxQtBuilder emits cargo:rerun-if-changed for QML files, but cargo's
+# incremental fingerprint cache can still skip build.rs in some configurations
+# (e.g. after a workspace binary path change or after manual edits to .qml
+# without a corresponding Rust source change).  When any .qml or build.rs is
+# newer than the current binary we run a package-scoped clean so that the next
+# build is guaranteed to re-embed the updated QML resources.
+if (-not $Clean) {
+    $earlyTargetDir = if ($Profile -eq 'release') { 'release' } else { 'debug' }
+    $earlyBinPath   = Join-Path $scriptDir "target\$earlyTargetDir\interactive-terminal.exe"
+    if (-not (Test-Path $earlyBinPath)) {
+        $earlyWsRoot = Split-Path -Parent $scriptDir
+        $earlyBinPath = Join-Path $earlyWsRoot "target\$earlyTargetDir\interactive-terminal.exe"
+    }
+    if (Test-Path $earlyBinPath) {
+        $binTime     = (Get-Item $earlyBinPath).LastWriteTime
+        $buildRsPath = Join-Path $scriptDir 'build.rs'
+        $qmlRoot     = Join-Path $scriptDir 'qml'
+        $changedSources = @()
+        $qmlFiles = Get-ChildItem -Path $qmlRoot -Recurse -Include '*.qml' -ErrorAction SilentlyContinue
+        foreach ($f in $qmlFiles) {
+            if ($f.LastWriteTime -gt $binTime) { $changedSources += $f.Name }
+        }
+        if ((Test-Path $buildRsPath) -and ((Get-Item $buildRsPath).LastWriteTime -gt $binTime)) {
+            $changedSources += 'build.rs'
+        }
+        if ($changedSources.Count -gt 0) {
+            Write-Host "QML source changes detected ($($changedSources -join ', ')) — running package-scoped clean to guarantee fresh embed..." -ForegroundColor Yellow
+            Invoke-CargoCleanWithLockRecovery -Package 'interactive-terminal'
+        }
+    }
+}
+
 $buildArgs = @('build')
 if ($Profile -eq 'release') {
     $buildArgs += '--release'
@@ -430,11 +468,21 @@ if ($cargoExitCode -ne 0 -and -not $cargoFinishedMarker) {
 
 $exeName = 'interactive-terminal.exe'
 $targetDir = if ($Profile -eq 'release') { 'release' } else { 'debug' }
-$exePath = Join-Path $scriptDir "target\$targetDir\$exeName"
 
-if (Test-Path $exePath) {
-    Write-Host "Build output: $exePath" -ForegroundColor Green
+# For standalone builds we expect the binary in crate-local target/.  Keep a
+# workspace-root fallback for environments with an explicit shared target dir.
+$workspaceRoot = Split-Path -Parent $scriptDir
+$exePathWorkspace = Join-Path $workspaceRoot "target\$targetDir\$exeName"
+$exePathLocal     = Join-Path $scriptDir     "target\$targetDir\$exeName"
+
+if (Test-Path $exePathLocal) {
+    $exePath = $exePathLocal
+    Write-Host "Build output (local):     $exePath" -ForegroundColor Green
+} elseif (Test-Path $exePathWorkspace) {
+    $exePath = $exePathWorkspace
+    Write-Host "Build output (workspace): $exePath" -ForegroundColor Green
 } else {
+    $exePath = $exePathLocal
     Write-Host "Warning: expected output not found at $exePath" -ForegroundColor Yellow
 }
 
@@ -663,6 +711,54 @@ if ($doDeploy) {
         }
 
         Write-Host 'Qt runtime deployment verified.' -ForegroundColor Green
+
+        if ($Profile -eq 'release') {
+            $workspaceReleaseDir = Join-Path $workspaceRoot 'target\release'
+            New-Item -ItemType Directory -Force -Path $workspaceReleaseDir | Out-Null
+
+            Write-Host "Staging interactive-terminal artifacts to: $workspaceReleaseDir" -ForegroundColor Cyan
+            Copy-Item $exePath -Destination (Join-Path $workspaceReleaseDir $exeName) -Force -ErrorAction Stop
+
+            $stagingSkipped = New-Object 'System.Collections.Generic.List[string]'
+            foreach ($dllFile in (Get-ChildItem -Path $outputDir -Filter '*.dll' -File -ErrorAction SilentlyContinue)) {
+                try {
+                    Copy-Item $dllFile.FullName -Destination $workspaceReleaseDir -Force -ErrorAction Stop
+                }
+                catch {
+                    if ($_.Exception.Message -match 'being used by another process') {
+                        [void]$stagingSkipped.Add($dllFile.Name)
+                        Write-Host "Staging warning: locked destination for $($dllFile.Name); keeping existing file." -ForegroundColor Yellow
+                    }
+                    else {
+                        throw
+                    }
+                }
+            }
+
+            foreach ($artifactDir in @('platforms', 'imageformats', 'iconengines', 'qml', 'QtQuick', 'Qt6Quick_layouts')) {
+                $sourcePath = Join-Path $outputDir $artifactDir
+                if (Test-Path $sourcePath) {
+                    try {
+                        Copy-Item $sourcePath -Destination (Join-Path $workspaceReleaseDir $artifactDir) -Recurse -Force -ErrorAction Stop
+                    }
+                    catch {
+                        if ($_.Exception.Message -match 'being used by another process') {
+                            [void]$stagingSkipped.Add($artifactDir)
+                            Write-Host "Staging warning: locked destination under $artifactDir; keeping existing files." -ForegroundColor Yellow
+                        }
+                        else {
+                            throw
+                        }
+                    }
+                }
+            }
+
+            if ($stagingSkipped.Count -gt 0) {
+                Write-Host "Staging completed with locked-file skips: $($stagingSkipped.Count) item(s)." -ForegroundColor Yellow
+            }
+
+            Write-Host 'Staging complete: interactive-terminal artifacts copied next to supervisor output.' -ForegroundColor Green
+        }
     } else {
         Write-Host 'Deploy requested, but non-Windows OS detected; skipping windeployqt.' -ForegroundColor Yellow
     }
