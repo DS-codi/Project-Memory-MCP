@@ -8,13 +8,143 @@ use cxx_qt_lib::QString;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::process::Command;
+use std::process::Stdio;
 
 const GEMINI_SENTINEL_TOKEN: &str = "{{stored}}";
 
 impl ffi::TerminalApp {
+    fn copy_text_to_clipboard(text: &str) -> Result<(), String> {
+        if text.trim().is_empty() {
+            return Err("Nothing to copy".to_string());
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            let mut child = Command::new("cmd")
+                .args(["/C", "clip"])
+                .stdin(Stdio::piped())
+                .stdout(Stdio::null())
+                .stderr(Stdio::piped())
+                .spawn()
+                .map_err(|error| format!("Failed to launch clip: {error}"))?;
+
+            if let Some(mut stdin) = child.stdin.take() {
+                stdin
+                    .write_all(text.as_bytes())
+                    .map_err(|error| format!("Failed writing to clipboard stdin: {error}"))?;
+            }
+
+            let output = child
+                .wait_with_output()
+                .map_err(|error| format!("Failed waiting for clip: {error}"))?;
+
+            if output.status.success() {
+                return Ok(());
+            }
+
+            return Err(format!(
+                "clip failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ));
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            let mut child = Command::new("pbcopy")
+                .stdin(Stdio::piped())
+                .stdout(Stdio::null())
+                .stderr(Stdio::piped())
+                .spawn()
+                .map_err(|error| format!("Failed to launch pbcopy: {error}"))?;
+
+            if let Some(mut stdin) = child.stdin.take() {
+                stdin
+                    .write_all(text.as_bytes())
+                    .map_err(|error| format!("Failed writing to pbcopy stdin: {error}"))?;
+            }
+
+            let output = child
+                .wait_with_output()
+                .map_err(|error| format!("Failed waiting for pbcopy: {error}"))?;
+
+            if output.status.success() {
+                return Ok(());
+            }
+
+            return Err(format!(
+                "pbcopy failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ));
+        }
+
+        #[cfg(all(unix, not(target_os = "macos")))]
+        {
+            let mut child = Command::new("sh")
+                .args(["-c", "xclip -selection clipboard || xsel --clipboard --input"])
+                .stdin(Stdio::piped())
+                .stdout(Stdio::null())
+                .stderr(Stdio::piped())
+                .spawn()
+                .map_err(|error| format!("Failed to launch xclip/xsel: {error}"))?;
+
+            if let Some(mut stdin) = child.stdin.take() {
+                stdin
+                    .write_all(text.as_bytes())
+                    .map_err(|error| format!("Failed writing clipboard stdin: {error}"))?;
+            }
+
+            let output = child
+                .wait_with_output()
+                .map_err(|error| format!("Failed waiting for xclip/xsel: {error}"))?;
+
+            if output.status.success() {
+                return Ok(());
+            }
+
+            return Err(format!(
+                "xclip/xsel failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ));
+        }
+
+        #[allow(unreachable_code)]
+        Err("Clipboard copy is not supported on this platform".to_string())
+    }
+
+    fn last_command_output_text(self_ref: &Self) -> String {
+        let request_id = self_ref.current_request_id().to_string();
+        if request_id.trim().is_empty() {
+            return String::new();
+        }
+
+        let state_arc = self_ref.rust().state.clone();
+        let state = state_arc.lock().unwrap();
+        state
+            .output_tracker
+            .core
+            .completed
+            .get(&request_id)
+            .map(|entry| {
+                let mut text = String::new();
+                if !entry.stdout.trim().is_empty() {
+                    text.push_str(&entry.stdout);
+                }
+                if !entry.stderr.trim().is_empty() {
+                    if !text.is_empty() {
+                        text.push('\n');
+                    }
+                    text.push_str("[stderr]\n");
+                    text.push_str(&entry.stderr);
+                }
+                text
+            })
+            .unwrap_or_default()
+    }
+
     fn sanitize_filename_component(value: &str) -> String {
         let sanitized: String = value
             .chars()
@@ -426,6 +556,36 @@ impl ffi::TerminalApp {
         self.as_mut().set_output_text(QString::default());
     }
 
+    pub fn copy_current_output(mut self: Pin<&mut Self>) -> bool {
+        let output = self.as_ref().output_text().to_string();
+        match Self::copy_text_to_clipboard(&output) {
+            Ok(()) => {
+                self.as_mut()
+                    .set_status_text(QString::from("Copied current terminal output"));
+                true
+            }
+            Err(error) => {
+                self.as_mut().set_status_text(QString::from(&error));
+                false
+            }
+        }
+    }
+
+    pub fn copy_last_command_output(mut self: Pin<&mut Self>) -> bool {
+        let output = Self::last_command_output_text(&self.as_ref());
+        match Self::copy_text_to_clipboard(&output) {
+            Ok(()) => {
+                self.as_mut()
+                    .set_status_text(QString::from("Copied last command output"));
+                true
+            }
+            Err(error) => {
+                self.as_mut().set_status_text(QString::from(&error));
+                false
+            }
+        }
+    }
+
     pub fn create_session(mut self: Pin<&mut Self>) -> QString {
         let state_arc = self.rust().state.clone();
         let (session_id, count, json, tabs_json, selected_cmd) = {
@@ -492,44 +652,6 @@ impl ffi::TerminalApp {
                 false
             }
         }
-    }
-
-    pub fn current_output_text_value(self: &Self) -> QString {
-        self.output_text().clone()
-    }
-
-    pub fn last_command_output_text_value(self: &Self) -> QString {
-        let request_id = self.current_request_id().to_string();
-        if request_id.trim().is_empty() {
-            return QString::default();
-        }
-
-        let state_arc = self.rust().state.clone();
-        let output = {
-            let state = state_arc.lock().unwrap();
-            state
-                .output_tracker
-                .core
-                .completed
-                .get(&request_id)
-                .map(|entry| {
-                    let mut text = String::new();
-                    if !entry.stdout.trim().is_empty() {
-                        text.push_str(&entry.stdout);
-                    }
-                    if !entry.stderr.trim().is_empty() {
-                        if !text.is_empty() {
-                            text.push('\n');
-                        }
-                        text.push_str("[stderr]\n");
-                        text.push_str(&entry.stderr);
-                    }
-                    text
-                })
-                .unwrap_or_default()
-        };
-
-        QString::from(&output)
     }
 
     pub fn close_session(mut self: Pin<&mut Self>, session_id: QString) -> bool {

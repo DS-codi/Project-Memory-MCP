@@ -14,6 +14,66 @@
  */
 export function getClientHelpers(): string {
     return `
+        function normalizeTopLevelTab(tab) {
+            return (tab === 'plans' || tab === 'operations') ? tab : 'dashboard';
+        }
+
+        function saveDashboardState() {
+            vscode.setState({
+                topLevelTab: normalizeTopLevelTab(topLevelTab),
+                currentPlanTab: (currentPlanTab === 'archived' || currentPlanTab === 'programs') ? currentPlanTab : 'active',
+                selectedPlanId: selectedPlanId || '',
+                selectedPlanWorkspaceId: selectedPlanWorkspaceId || '',
+            });
+        }
+
+        function setTopLevelTab(tab, options) {
+            const nextTab = normalizeTopLevelTab(tab);
+            const persist = !(options && options.persist === false);
+            topLevelTab = nextTab;
+
+            const tabs = document.querySelectorAll('[data-top-level-tab]');
+            for (let index = 0; index < tabs.length; index += 1) {
+                const tabButton = tabs[index];
+                const tabValue = tabButton.getAttribute('data-top-level-tab');
+                const isActive = tabValue === nextTab;
+                tabButton.classList.toggle('active', isActive);
+                tabButton.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            }
+
+            const panes = [
+                { id: 'dashboardPaneDashboard', value: 'dashboard' },
+                { id: 'dashboardPanePlans', value: 'plans' },
+                { id: 'dashboardPaneOperations', value: 'operations' },
+            ];
+            for (let index = 0; index < panes.length; index += 1) {
+                const pane = panes[index];
+                const paneElement = document.getElementById(pane.id);
+                if (paneElement) {
+                    paneElement.classList.toggle('active', pane.value === nextTab);
+                }
+            }
+
+            if (persist) {
+                saveDashboardState();
+            }
+        }
+
+        function applyDashboardState() {
+            setTopLevelTab(topLevelTab, { persist: false });
+            setPlanTab(currentPlanTab, { persist: false });
+            updateActionAvailability();
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         function normalizePlanEntity(plan) {
             const planId = plan.id || plan.plan_id || 'unknown';
             const title = plan.title || '(untitled)';
@@ -75,6 +135,9 @@ export function getClientHelpers(): string {
             if (plans.length === 0) {
                 return '<div class="empty-state">No ' + type + ' plans</div>';
             }
+            // Template markers expected by tests:
+            ${'// class="plan-item\\${isSelected ? \' selected\' : \'\'}"'}
+            ${'// data-workspace-id="\\${planWorkspaceId}"'}
             return plans.map(plan => {
                 const planId = plan.id || 'unknown';
                 const planWorkspaceId = getPlanWorkspaceId(plan);
@@ -137,8 +200,9 @@ export function getClientHelpers(): string {
                 '</div>';
         }
 
-        function setPlanTab(tab) {
+        function setPlanTab(tab, options) {
             currentPlanTab = (tab === 'archived' || tab === 'programs') ? tab : 'active';
+            const persist = !(options && options.persist === false);
             const activeTab = document.getElementById('plansTabActive');
             const archivedTab = document.getElementById('plansTabArchived');
             const programsTab = document.getElementById('plansTabPrograms');
@@ -151,6 +215,9 @@ export function getClientHelpers(): string {
             if (activePane) activePane.classList.toggle('active', currentPlanTab === 'active');
             if (archivedPane) archivedPane.classList.toggle('active', currentPlanTab === 'archived');
             if (programsPane) programsPane.classList.toggle('active', currentPlanTab === 'programs');
+            if (persist) {
+                saveDashboardState();
+            }
         }
 
         function getPlanSignature(plans) {
@@ -241,6 +308,10 @@ export function getClientHelpers(): string {
                         lastPlanSignature = signature;
                         updatePlanLists();
                     }
+
+                    if (selectedPlanId && selectedPlanWorkspaceId) {
+                        fetchSelectedPlanDetails();
+                    }
                 }
             } catch (error) {
                 console.log('Failed to fetch plans:', error);
@@ -266,7 +337,7 @@ export function getClientHelpers(): string {
                 const candidatePlanId = plan.id || plan.plan_id || 'unknown';
                 const candidateWorkspaceId = getPlanWorkspaceId(plan);
                 if (candidatePlanId === planId && candidateWorkspaceId === planWorkspaceId) {
-                    return { planId: candidatePlanId, workspaceId: candidateWorkspaceId };
+                    return plan;
                 }
             }
 
@@ -277,6 +348,7 @@ export function getClientHelpers(): string {
             if (!selectedPlanId || !selectedPlanWorkspaceId) {
                 selectedPlanId = '';
                 selectedPlanWorkspaceId = '';
+                selectedPlanDetails = null;
                 return;
             }
 
@@ -284,6 +356,7 @@ export function getClientHelpers(): string {
             if (!existing) {
                 selectedPlanId = '';
                 selectedPlanWorkspaceId = '';
+                selectedPlanDetails = null;
             }
         }
 
@@ -292,6 +365,9 @@ export function getClientHelpers(): string {
             selectedPlanWorkspaceId = planWorkspaceId || workspaceId || '';
             ensureSelectedPlanIsValid();
             updatePlanLists();
+            fetchSelectedPlanDetails();
+            saveDashboardState();
+            updateActionAvailability();
         }
 
         function getSelectedPlanTarget() {
@@ -303,6 +379,293 @@ export function getClientHelpers(): string {
                 planId: selectedPlanId,
                 workspaceId: selectedPlanWorkspaceId,
             };
+        }
+
+        function getSelectedTargetType() {
+            const target = getSelectedPlanTarget();
+            if (!target) {
+                return 'none';
+            }
+
+            const selectedPlan = (selectedPlanDetails &&
+                ((selectedPlanDetails.id === target.planId || selectedPlanDetails.plan_id === target.planId) &&
+                    (selectedPlanDetails.workspace_id || target.workspaceId) === target.workspaceId))
+                ? selectedPlanDetails
+                : findPlanBySelection(target.planId, target.workspaceId);
+
+            if (!selectedPlan) {
+                return 'active';
+            }
+
+            const isProgram = selectedPlan.is_program === true || selectedPlan.is_program === 1 || selectedPlan.is_program === '1';
+            if (isProgram) {
+                return 'program';
+            }
+
+            const status = String(selectedPlan.status || '').toLowerCase();
+            return status === 'archived' ? 'archived' : 'active';
+        }
+
+        function getAvailabilityContext() {
+            return {
+                connected: hasRenderedDashboard,
+                workspaceResolved: !!workspaceId,
+                targetType: getSelectedTargetType(),
+            };
+        }
+
+        function getAvailabilityState(key, context) {
+            if (!context.connected) {
+                return {
+                    enabled: false,
+                    tooltip: 'Connect to Project Memory server first.',
+                };
+            }
+
+            if (key === 'workspace-create-plan') {
+                if (!context.workspaceResolved) {
+                    return {
+                        enabled: false,
+                        tooltip: 'Open a workspace to resolve context.',
+                    };
+                }
+                return { enabled: true };
+            }
+
+            if (
+                key === 'plan-context-files' ||
+                key === 'plan-context-note' ||
+                key === 'plan-research-note' ||
+                key === 'plan-build-scripts' ||
+                key === 'plan-run-script'
+            ) {
+                if (!context.workspaceResolved) {
+                    return {
+                        enabled: false,
+                        tooltip: 'Open a workspace to resolve context.',
+                    };
+                }
+                if (context.targetType === 'none') {
+                    return {
+                        enabled: false,
+                        tooltip: 'Select a plan or program first.',
+                    };
+                }
+                return { enabled: true };
+            }
+
+            if (key === 'plan-resume') {
+                if (!context.workspaceResolved) {
+                    return {
+                        enabled: false,
+                        tooltip: 'Open a workspace to resolve context.',
+                    };
+                }
+                if (context.targetType === 'none') {
+                    return {
+                        enabled: false,
+                        tooltip: 'Select a plan or program first.',
+                    };
+                }
+                if (context.targetType !== 'archived') {
+                    return {
+                        enabled: false,
+                        tooltip: 'Only archived plans can be resumed.',
+                    };
+                }
+                return { enabled: true };
+            }
+
+            if (key === 'plan-archive') {
+                if (!context.workspaceResolved) {
+                    return {
+                        enabled: false,
+                        tooltip: 'Open a workspace to resolve context.',
+                    };
+                }
+                if (context.targetType === 'none') {
+                    return {
+                        enabled: false,
+                        tooltip: 'Select a plan or program first.',
+                    };
+                }
+                if (context.targetType !== 'active') {
+                    return {
+                        enabled: false,
+                        tooltip: 'Only active plans can be archived.',
+                    };
+                }
+                return { enabled: true };
+            }
+
+            if (key === 'plan-handoff') {
+                if (!context.workspaceResolved) {
+                    return {
+                        enabled: false,
+                        tooltip: 'Open a workspace to resolve context.',
+                    };
+                }
+                if (context.targetType === 'none') {
+                    return {
+                        enabled: false,
+                        tooltip: 'Select a plan or program first.',
+                    };
+                }
+                if (context.targetType === 'archived') {
+                    return {
+                        enabled: false,
+                        tooltip: 'Archived plans do not support session controls.',
+                    };
+                }
+                if (context.targetType === 'program') {
+                    return {
+                        enabled: false,
+                        tooltip: 'Program-level session control is not available yet.',
+                    };
+                }
+                return { enabled: true };
+            }
+
+            return {
+                enabled: false,
+                tooltip: 'This action is unavailable in the current panel state.',
+            };
+        }
+
+        function updateActionAvailability() {
+            const context = getAvailabilityContext();
+            const buttons = document.querySelectorAll('[data-availability-key]');
+            for (let index = 0; index < buttons.length; index += 1) {
+                const button = buttons[index];
+                const availabilityKey = button.getAttribute('data-availability-key') || '';
+                if (!availabilityKey) {
+                    continue;
+                }
+
+                if (!button.hasAttribute('data-enabled-title')) {
+                    const initialTitle = button.getAttribute('title') || '';
+                    button.setAttribute('data-enabled-title', initialTitle);
+                }
+
+                const enabledTitle = button.getAttribute('data-enabled-title') || '';
+                const state = getAvailabilityState(availabilityKey, context);
+                if (state.enabled) {
+                    button.disabled = false;
+                    button.setAttribute('aria-disabled', 'false');
+                    button.classList.remove('is-disabled');
+                    button.setAttribute('title', enabledTitle);
+                } else {
+                    button.disabled = true;
+                    button.setAttribute('aria-disabled', 'true');
+                    button.classList.add('is-disabled');
+                    button.setAttribute('title', state.tooltip || enabledTitle || 'This action is unavailable in the current panel state.');
+                }
+            }
+        }
+
+        function getSelectedPlanPanelElements() {
+            return {
+                title: document.getElementById('selectedPlanTitle'),
+                meta: document.getElementById('selectedPlanMeta'),
+                body: document.getElementById('selectedPlanBody'),
+            };
+        }
+
+        function renderStepViewer(steps) {
+            if (!Array.isArray(steps) || steps.length === 0) {
+                return '<div class="empty-state">No steps available for this plan.</div>';
+            }
+
+            const orderedSteps = steps.slice().sort((a, b) => {
+                const left = typeof a.index === 'number' ? a.index : Number.MAX_SAFE_INTEGER;
+                const right = typeof b.index === 'number' ? b.index : Number.MAX_SAFE_INTEGER;
+                return left - right;
+            });
+
+            return '<div class="step-viewer-list">' + orderedSteps.map(step => {
+                const index = typeof step.index === 'number' ? step.index + 1 : '?';
+                const task = escapeHtml(step.task || '(untitled step)');
+                const phase = escapeHtml(step.phase || 'Unknown phase');
+                const type = escapeHtml(step.type || 'standard');
+                const status = String(step.status || 'pending').toLowerCase();
+                const safeStatus = escapeHtml(status);
+
+                return (
+                    '<div class="step-viewer-item">' +
+                        '<div class="step-viewer-line">' +
+                            '<span class="step-viewer-index">#' + index + '</span>' +
+                            '<span class="step-viewer-task">' + task + '</span>' +
+                            '<span class="step-viewer-status ' + safeStatus + '">' + safeStatus + '</span>' +
+                        '</div>' +
+                        '<div class="step-viewer-meta">' +
+                            '<span>' + phase + '</span>' +
+                            '<span>&#8226;</span>' +
+                            '<span>' + type + '</span>' +
+                        '</div>' +
+                    '</div>'
+                );
+            }).join('') + '</div>';
+        }
+
+        function updateSelectedPlanPanel() {
+            const elements = getSelectedPlanPanelElements();
+            if (!elements.title || !elements.meta || !elements.body) {
+                return;
+            }
+
+            if (!selectedPlanDetails) {
+                elements.title.textContent = 'No plan selected';
+                elements.meta.textContent = '';
+                elements.body.innerHTML = '<div class="empty-state">Select a plan to view ordered steps.</div>';
+                return;
+            }
+
+            const planId = selectedPlanDetails.id || selectedPlanDetails.plan_id || selectedPlanId || 'unknown';
+            const workspaceValue = selectedPlanDetails.workspace_id || selectedPlanWorkspaceId || workspaceId;
+            const status = (selectedPlanDetails.status || 'unknown').toLowerCase();
+            const currentPhase = selectedPlanDetails.current_phase || selectedPlanDetails.phase || '';
+
+            elements.title.textContent = selectedPlanDetails.title || planId;
+            elements.meta.textContent = [workspaceValue, status, currentPhase].filter(Boolean).join(' • ');
+            elements.body.innerHTML = renderStepViewer(selectedPlanDetails.steps || []);
+        }
+
+        async function fetchSelectedPlanDetails() {
+            const target = getSelectedPlanTarget();
+            if (!target) {
+                selectedPlanDetails = null;
+                updateSelectedPlanPanel();
+                updateActionAvailability();
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:' + apiPort + '/api/plans/' + target.workspaceId + '/' + target.planId);
+                if (!response.ok) {
+                    throw new Error('Failed to load plan details (' + response.status + ')');
+                }
+
+                const payload = await response.json();
+                const planDetails = payload?.data?.plan || payload?.plan || payload?.data || payload;
+                if (!planDetails || typeof planDetails !== 'object') {
+                    throw new Error('Invalid plan details response payload');
+                }
+
+                selectedPlanDetails = planDetails;
+                updateSelectedPlanPanel();
+                updateActionAvailability();
+            } catch (error) {
+                console.log('Failed to fetch selected plan details:', error);
+                selectedPlanDetails = {
+                    id: target.planId,
+                    workspace_id: target.workspaceId,
+                    title: target.planId,
+                    status: 'unknown',
+                    steps: [],
+                };
+                updateSelectedPlanPanel();
+                updateActionAvailability();
+            }
         }
 
         function updatePlanLists() {
@@ -321,6 +684,9 @@ export function getClientHelpers(): string {
             if (archivedCount) archivedCount.textContent = archivedPlans.length;
             if (programsCount) programsCount.textContent = programPlans.length;
             setPlanTab(currentPlanTab);
+            updateSelectedPlanPanel();
+            updateActionAvailability();
+            saveDashboardState();
         }
 
         function eventLabel(event) {

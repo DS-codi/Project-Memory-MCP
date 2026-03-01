@@ -83,6 +83,10 @@ export function getStyles(): string {
             margin: 4px;
         }
         .btn:hover { background: var(--vscode-button-hoverBackground); }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
         .btn-secondary {
             background: var(--vscode-button-secondaryBackground);
             color: var(--vscode-button-secondaryForeground);
@@ -110,6 +114,16 @@ export function getStyles(): string {
         }
         .icon-btn:hover { background: var(--vscode-list-hoverBackground); }
         .icon-btn:focus { outline: 1px solid var(--vscode-focusBorder); }
+        .icon-btn:disabled,
+        .icon-btn.is-disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            background: transparent;
+        }
+        .icon-btn:disabled:hover,
+        .icon-btn.is-disabled:hover {
+            background: transparent;
+        }
         .icon-btn svg {
             width: 18px;
             height: 18px;
@@ -365,6 +379,48 @@ export function getStyles(): string {
             font-size: 12px;
             outline: none;
         }
+
+        .dashboard-top-tabs {
+            margin: 10px 16px 0;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 6px;
+            overflow: hidden;
+            background: var(--vscode-editor-inactiveSelectionBackground);
+        }
+
+        .dashboard-top-tab {
+            background: transparent;
+            border: none;
+            border-right: 1px solid var(--vscode-panel-border);
+            color: var(--vscode-editor-foreground);
+            cursor: pointer;
+            font-size: 12px;
+            padding: 8px 10px;
+        }
+
+        .dashboard-top-tab:last-child {
+            border-right: none;
+        }
+
+        .dashboard-top-tab:hover {
+            background: var(--vscode-list-hoverBackground);
+        }
+
+        .dashboard-top-tab.active {
+            background: var(--vscode-list-activeSelectionBackground);
+            color: var(--vscode-list-activeSelectionForeground);
+            font-weight: 600;
+        }
+
+        .dashboard-pane {
+            display: none;
+        }
+
+        .dashboard-pane.active {
+            display: block;
+        }
         
         /* Collapsible sections */
         .collapsible {
@@ -479,6 +535,92 @@ export function getStyles(): string {
             text-align: center;
             color: var(--vscode-descriptionForeground);
             font-size: 12px;
+        }
+
+        .selected-plan-panel {
+            margin-top: 10px;
+            border-top: 1px solid var(--vscode-panel-border);
+            padding-top: 10px;
+        }
+        .selected-plan-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .selected-plan-header h4 {
+            margin: 0;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--vscode-editor-foreground);
+        }
+        .selected-plan-meta {
+            font-size: 10px;
+            color: var(--vscode-descriptionForeground);
+            text-align: right;
+        }
+        .selected-plan-body {
+            max-height: 220px;
+            overflow-y: auto;
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 6px;
+            background: var(--vscode-editor-background);
+        }
+        .step-viewer-list {
+            display: flex;
+            flex-direction: column;
+        }
+        .step-viewer-item {
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--vscode-panel-border);
+        }
+        .step-viewer-item:last-child {
+            border-bottom: none;
+        }
+        .step-viewer-line {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .step-viewer-index {
+            font-size: 10px;
+            color: var(--vscode-descriptionForeground);
+            min-width: 28px;
+        }
+        .step-viewer-task {
+            flex: 1;
+            font-size: 12px;
+            color: var(--vscode-editor-foreground);
+        }
+        .step-viewer-status {
+            font-size: 10px;
+            text-transform: uppercase;
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 10px;
+            padding: 1px 6px;
+            color: var(--vscode-descriptionForeground);
+        }
+        .step-viewer-status.done {
+            color: var(--vscode-testing-iconPassed);
+            border-color: var(--vscode-testing-iconPassed);
+        }
+        .step-viewer-status.active {
+            color: var(--vscode-testing-iconQueued);
+            border-color: var(--vscode-testing-iconQueued);
+        }
+        .step-viewer-status.blocked {
+            color: var(--vscode-testing-iconFailed);
+            border-color: var(--vscode-testing-iconFailed);
+        }
+        .step-viewer-meta {
+            margin-top: 4px;
+            margin-left: 36px;
+            font-size: 10px;
+            color: var(--vscode-descriptionForeground);
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
         }
 
         /* Skills section */
@@ -683,6 +825,16 @@ export function getStyles(): string {
         }
         body.size-small .plans-tabs {
             grid-template-columns: 1fr;
+        }
+        body.size-small .dashboard-top-tabs {
+            grid-template-columns: 1fr;
+        }
+        body.size-small .dashboard-top-tab {
+            border-right: none;
+            border-bottom: 1px solid var(--vscode-panel-border);
+        }
+        body.size-small .dashboard-top-tab:last-child {
+            border-bottom: none;
         }
         body.size-small .session-item {
             flex-direction: column;

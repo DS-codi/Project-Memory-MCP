@@ -249,17 +249,11 @@
       return;
     }
 
-    if (suggestionItems.length && domEvent.key === 'ArrowDown') {
-      domEvent.preventDefault();
-      suggestionIndex = (suggestionIndex + 1) % suggestionItems.length;
-      renderSuggestions();
-      return;
-    }
-
-    if (suggestionItems.length && domEvent.key === 'ArrowUp') {
-      domEvent.preventDefault();
-      suggestionIndex = (suggestionIndex - 1 + suggestionItems.length) % suggestionItems.length;
-      renderSuggestions();
+    if (domEvent.key === 'ArrowDown' || domEvent.key === 'ArrowUp') {
+      if (suggestionItems.length) {
+        hideSuggestions();
+      }
+      // Allow shell history navigation to receive Arrow keys.
       return;
     }
 

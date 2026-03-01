@@ -253,15 +253,17 @@ pub(crate) fn spawn_runtime_tasks(
                     let s = state_for_msg.lock().unwrap();
                     s.selected_session_id.clone()
                 };
-                if let Err(error) = ensure_ws_terminal_session(
-                    &initial_session_id,
-                    &state_for_msg,
-                    &session_handles,
-                    &session_output_tx,
-                )
-                .await
-                {
-                    eprintln!("[WsTerminal] failed to initialize session {initial_session_id}: {error}");
+                if !initial_session_id.trim().is_empty() {
+                    if let Err(error) = ensure_ws_terminal_session(
+                        &initial_session_id,
+                        &state_for_msg,
+                        &session_handles,
+                        &session_output_tx,
+                    )
+                    .await
+                    {
+                        eprintln!("[WsTerminal] failed to initialize session {initial_session_id}: {error}");
+                    }
                 }
 
                 // Output fan-out: forward only active session output to the visible xterm client.
@@ -290,6 +292,12 @@ pub(crate) fn spawn_runtime_tasks(
                             let s = state_for_input.lock().unwrap();
                             s.selected_session_id.clone()
                         };
+
+                        if selected_session_id.trim().is_empty() {
+                            prune_closed_ws_terminal_sessions(&state_for_input, &handles_for_input)
+                                .await;
+                            continue;
+                        }
 
                         if let Err(error) = ensure_ws_terminal_session(
                             &selected_session_id,
@@ -344,18 +352,20 @@ pub(crate) fn spawn_runtime_tasks(
                             s.selected_session_id.clone()
                         };
 
-                        if let Err(error) = ensure_ws_terminal_session(
-                            &selected_session_id,
-                            &state_for_monitor,
-                            &handles_for_monitor,
-                            &output_tx_for_monitor,
-                        )
-                        .await
-                        {
-                            eprintln!(
-                                "[WsTerminal] failed to ensure selected session {}: {}",
-                                selected_session_id, error
-                            );
+                        if !selected_session_id.trim().is_empty() {
+                            if let Err(error) = ensure_ws_terminal_session(
+                                &selected_session_id,
+                                &state_for_monitor,
+                                &handles_for_monitor,
+                                &output_tx_for_monitor,
+                            )
+                            .await
+                            {
+                                eprintln!(
+                                    "[WsTerminal] failed to ensure selected session {}: {}",
+                                    selected_session_id, error
+                                );
+                            }
                         }
 
                         prune_closed_ws_terminal_sessions(&state_for_monitor, &handles_for_monitor)

@@ -1,0 +1,43 @@
+    ____             _           __     __  ___
+   / __ \_________  (_)__  _____/ /_   /  |/  /___  ____ ___  ____  _______  __
+  / /_/ / ___/ __ \/ / _ \/ ___/ __/  / /|_/ / _ \/ __ `__ \/ __ \/ ___/ / / /
+ / ____/ /  / /_/ / /  __/ /__/ /_   / /  / /  __/ / / / / / /_/ / /  / /_/ /
+/_/   /_/   \____/ /\___/\___/\__/  /_/  /_/\___/_/ /_/ /_/\____/_/   \__, /
+              /___/                                                  /____/
+=========================================================================
+ Initializing...
+
+Project Memory MCP — Install
+  Components : Supervisor, GuiForms, InteractiveTerminal, Server, Dashboard, Extension
+  InstallOnly: False
+  SkipInstall: False
+  Force      : False
+  NewDatabase: False
+
+── Supervisor (Rust + Qt QML)
+   Stopping Supervisor runtime processes (full teardown)...
+   (no matching runtime processes found)
+   ◝ [Supervisor] | qml imports: 0 | warnings: no | COMpiliNG...
+   ◝ [Supervisor] | qml imports: 29 | warnings: no | deployIng qml.
+   Copied 4 tray icon(s) → target/release/
+   ✓ supervisor built → target/release/supervisor.exe
+
+── PM GUI Binaries (pm-approval-gui, pm-brainstorm-gui)
+   ◟ [GuiForms] | qml imports: 0 | warnings: 7 | COMPilinG....
+   ◡ [GuiForms] | qml imports: 28 | warnings: no | deploying qmL.
+   ✓ pm-approval-gui built → target/release/pm-approval-gui.exe
+   ◜ [GuiForms] | qml imports: 0 | warnings: no | coMPILing...
+   ◟ [GuiForms] | qml imports: 28 | warnings: no | deplOying qml..
+   ✓ pm-brainstorm-gui built → target/release/pm-brainstorm-gui.exe
+
+── Interactive Terminal (Rust + Qt)
+   ◠ [InteractiveTerminal] | qml imports: 0 | warnings: 4 | instALLING..
+   ✓ interactive-terminal built via canonical install.ps1 path
+
+── Server
+Start-Process: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\install-animated.ps1:534
+Line |
+ 534 |          $process = Start-Process -FilePath $FilePath `
+     |                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | This command cannot be run due to the error: %1 is not a valid Win32 application.
+PS C:\Users\User\Project_Memory_MCP\Project-Memory-MCP>

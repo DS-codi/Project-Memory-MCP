@@ -25,10 +25,6 @@ impl AppState {
             }
         }
 
-        if !self.selected_session_id.trim().is_empty() && !ids.contains(&self.selected_session_id) {
-            ids.push(self.selected_session_id.clone());
-        }
-
         ids.sort_by(
             |left, right| match (left == "default", right == "default") {
                 (true, false) => std::cmp::Ordering::Less,
@@ -41,7 +37,6 @@ impl AppState {
     }
 
     pub(crate) fn session_tabs_to_json(&self) -> QString {
-        let total_sessions = self.session_ids_sorted().len();
         let tabs = self
             .session_ids_sorted()
             .into_iter()
@@ -53,12 +48,7 @@ impl AppState {
                     .map(|queue| queue.len() as i32)
                     .unwrap_or(0),
                 is_active: session_id == self.selected_session_id,
-                can_close: self
-                        .pending_commands_by_session
-                        .get(&session_id)
-                        .map(|queue| queue.is_empty())
-                        .unwrap_or(true)
-                    && (session_id != "default" || total_sessions > 1),
+                can_close: true,
                 session_id,
             })
             .collect::<Vec<_>>();
@@ -118,44 +108,17 @@ impl AppState {
             return Err(format!("session not found: {target}"));
         }
 
-        if target == "default" {
-            let has_alternate_session = self
-                .session_ids_sorted()
-                .into_iter()
-                .any(|id| id != "default");
-            if !has_alternate_session {
-                return Err("default session cannot be closed while it is the only session".to_string());
-            }
-        }
-
-        let has_pending = self
-            .pending_commands_by_session
-            .get(target)
-            .map(|queue| !queue.is_empty())
-            .unwrap_or(false);
-        if has_pending {
-            return Err("cannot close session with pending approvals".to_string());
-        }
-
         self.pending_commands_by_session.remove(target);
         self.session_display_names.remove(target);
         self.session_context_by_id.remove(target);
 
         if self.selected_session_id == target {
-            if self.pending_commands_by_session.contains_key("default") {
-                self.selected_session_id = "default".to_string();
-            } else if let Some(fallback) = self.session_ids_sorted().into_iter().next() {
+            if let Some(fallback) = self.session_ids_sorted().into_iter().next() {
                 self.selected_session_id = fallback;
             } else {
-                self.pending_commands_by_session
-                    .insert("default".to_string(), Vec::new());
-                self.selected_session_id = "default".to_string();
+                self.selected_session_id.clear();
             }
         }
-
-        self.pending_commands_by_session
-            .entry(self.selected_session_id.clone())
-            .or_default();
 
         Ok(())
     }
@@ -197,6 +160,10 @@ impl AppState {
         &mut self,
         profile: crate::protocol::TerminalProfile,
     ) {
+        if self.selected_session_id.trim().is_empty() {
+            return;
+        }
+
         self.session_context_by_id
             .entry(self.selected_session_id.clone())
             .or_default()
@@ -211,6 +178,10 @@ impl AppState {
     }
 
     pub(crate) fn set_selected_workspace_path(&mut self, workspace_path: String) {
+        if self.selected_session_id.trim().is_empty() {
+            return;
+        }
+
         let ctx = self
             .session_context_by_id
             .entry(self.selected_session_id.clone())
@@ -230,6 +201,10 @@ impl AppState {
     }
 
     pub(crate) fn set_selected_venv_path(&mut self, venv_path: String) {
+        if self.selected_session_id.trim().is_empty() {
+            return;
+        }
+
         self.session_context_by_id
             .entry(self.selected_session_id.clone())
             .or_default()
@@ -237,6 +212,10 @@ impl AppState {
     }
 
     pub(crate) fn set_selected_activate_venv(&mut self, activate: bool) {
+        if self.selected_session_id.trim().is_empty() {
+            return;
+        }
+
         let ctx = self
             .session_context_by_id
             .entry(self.selected_session_id.clone())

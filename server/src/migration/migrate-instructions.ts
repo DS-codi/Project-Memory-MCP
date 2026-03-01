@@ -11,6 +11,28 @@ import path from 'node:path';
 import { storeInstruction }   from '../db/instruction-db.js';
 import type { ReportBuilder } from './report.js';
 
+function resolveInstructionsDir(projectRoot: string): string | null {
+  const override = process.env.MBS_INSTRUCTIONS_ROOT;
+  if (override && fs.existsSync(override)) {
+    return override;
+  }
+
+  const roots = [
+    projectRoot,
+    path.resolve(projectRoot, '..'),
+    path.resolve(projectRoot, '..', '..'),
+  ];
+
+  for (const root of roots) {
+    const candidate = path.join(root, '.github', 'instructions');
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
@@ -18,9 +40,9 @@ import type { ReportBuilder } from './report.js';
 export function migrateInstructions(projectRoot: string, report: ReportBuilder, dryRun: boolean): void {
   report.beginPhase('Phase 9.2: Instruction File Seeding');
 
-  const instructionsDir = path.join(projectRoot, '.github', 'instructions');
-  if (!fs.existsSync(instructionsDir)) {
-    report.skip('.github/instructions/', 'directory not found');
+  const instructionsDir = resolveInstructionsDir(projectRoot);
+  if (!instructionsDir) {
+    report.skip('.github/instructions/', 'directory not found (including parent root fallback)');
     return;
   }
 

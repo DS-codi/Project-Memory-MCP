@@ -1043,7 +1043,7 @@ function Install-Server {
 
     Push-Location $ServerDir
     try {
-        Invoke-CheckedCommand -Description 'npm run build' -FilePath 'npm' -Arguments @('run', 'build') -WorkingDirectory $ServerDir -Stage 'installing' -Style 'Pulse'
+        Invoke-CheckedCommand -Description 'npm run build' -FilePath 'npm.cmd' -Arguments @('run', 'build') -WorkingDirectory $ServerDir -Stage 'installing' -Style 'Pulse'
         Write-Ok "Server built → $ServerDir\dist"
 
         # Archive old DB if -NewDatabase was requested (before seed creates a new one)
@@ -1055,7 +1055,7 @@ function Install-Server {
         # instructions, skills). Idempotent — safe to run on every install.
         # When -NewDatabase is used, this creates the schema from scratch.
         $seedScript = Join-Path $ServerDir 'dist\db\seed.js'
-        Invoke-CheckedCommand -Description 'node dist/db/seed.js (DB init + seed)' -FilePath 'node' -Arguments @($seedScript) -WorkingDirectory $ServerDir -Stage 'installing' -Style 'Pulse'
+        Invoke-CheckedCommand -Description 'node dist/db/seed.js (DB init + seed)' -FilePath 'node.exe' -Arguments @($seedScript) -WorkingDirectory $ServerDir -Stage 'installing' -Style 'Pulse'
 
         if ($NewDatabase) {
             Write-Ok "Fresh database created at %APPDATA%\ProjectMemory\project-memory.db"
@@ -1079,9 +1079,9 @@ function Install-Extension {
     Push-Location $ExtDir
     try {
         if (-not $EffectiveInstallOnly) {
-            Invoke-CheckedCommand -Description 'npm install' -FilePath 'npm' -Arguments @('install') -WorkingDirectory $ExtDir -Stage 'installing' -Style 'Pulse'
-            Invoke-CheckedCommand -Description 'npm run compile' -FilePath 'npm' -Arguments @('run', 'compile') -WorkingDirectory $ExtDir -Stage 'installing' -Style 'Pulse'
-            Invoke-CheckedCommand -Description 'npm run package (vsce)' -FilePath 'npx' -Arguments @('@vscode/vsce', 'package') -WorkingDirectory $ExtDir -Stage 'installing' -Style 'Pulse'
+            Invoke-CheckedCommand -Description 'npm install' -FilePath 'npm.cmd' -Arguments @('install') -WorkingDirectory $ExtDir -Stage 'installing' -Style 'Pulse'
+            Invoke-CheckedCommand -Description 'npm run compile' -FilePath 'npm.cmd' -Arguments @('run', 'compile') -WorkingDirectory $ExtDir -Stage 'installing' -Style 'Pulse'
+            Invoke-CheckedCommand -Description 'npm run package (vsce)' -FilePath 'npx.cmd' -Arguments @('@vscode/vsce', 'package') -WorkingDirectory $ExtDir -Stage 'installing' -Style 'Pulse'
             Write-Ok "Extension compiled and packaged"
         } else {
             Write-Host "   (skipping build — InstallOnly mode)" -ForegroundColor DarkGray
@@ -1099,7 +1099,7 @@ function Install-Extension {
 
             $InstallArgs = @("--install-extension", $Vsix.FullName)
             if ($Force) { $InstallArgs += "--force" }
-            Invoke-CheckedCommand -Description 'code --install-extension' -FilePath 'code' -Arguments $InstallArgs -WorkingDirectory $ExtDir -Stage 'installing' -Style 'Pulse'
+            Invoke-CheckedCommand -Description 'code --install-extension' -FilePath 'code.cmd' -Arguments $InstallArgs -WorkingDirectory $ExtDir -Stage 'installing' -Style 'Pulse'
 
             Write-Ok "Extension installed: $($Vsix.Name)"
             Write-Host ""
@@ -1125,7 +1125,7 @@ function Install-Dashboard {
     # Build React frontend
     Push-Location $DashDir
     try {
-        Invoke-CheckedCommand -Description 'npx vite build' -FilePath 'npx' -Arguments @('vite', 'build') -WorkingDirectory $DashDir -Stage 'installing' -Style 'Pulse'
+        Invoke-CheckedCommand -Description 'npx vite build' -FilePath 'npx.cmd' -Arguments @('vite', 'build') -WorkingDirectory $DashDir -Stage 'installing' -Style 'Pulse'
         Write-Ok "Dashboard frontend built → $DashDir\dist"
     } finally {
         Pop-Location
@@ -1135,7 +1135,7 @@ function Install-Dashboard {
     $ServerDir = Join-Path $DashDir "server"
     Push-Location $ServerDir
     try {
-        Invoke-CheckedCommand -Description 'npm run build (dashboard server)' -FilePath 'npm' -Arguments @('run', 'build') -WorkingDirectory $ServerDir -Stage 'installing' -Style 'Pulse'
+        Invoke-CheckedCommand -Description 'npm run build (dashboard server)' -FilePath 'npm.cmd' -Arguments @('run', 'build') -WorkingDirectory $ServerDir -Stage 'installing' -Style 'Pulse'
         Write-Ok "Dashboard server built → $ServerDir\dist"
     } finally {
         Pop-Location
@@ -1157,7 +1157,7 @@ function Install-Container {
         $BuildArgs = @("build", "-t", $Tag, ".")
         if ($Force) { $BuildArgs = @("build", "--no-cache", "-t", $Tag, ".") }
 
-        Invoke-CheckedCommand -Description 'podman build' -FilePath 'podman' -Arguments $BuildArgs -WorkingDirectory $Root -Stage 'installing' -Style 'Pulse'
+        Invoke-CheckedCommand -Description 'podman build' -FilePath 'podman.exe' -Arguments $BuildArgs -WorkingDirectory $Root -Stage 'installing' -Style 'Pulse'
         Write-Ok "Container image built: $Tag"
     } finally {
         Pop-Location
@@ -1206,18 +1206,60 @@ if ($script:WarningMessages.Count -eq 0) {
 # ── Optional supervisor launch prompt (no automatic launch) ─────────────────
 if ($Components -contains "Supervisor") {
     $launchScript = Join-Path $Root 'launch-supervisor.ps1'
+    $supervisorExe = Join-Path $Root 'target\release\supervisor.exe'
     Write-Host ""
-    if (Test-Path $launchScript) {
+    $canLaunchViaScript = Test-Path $launchScript
+    $canLaunchDirect = Test-Path $supervisorExe
+
+    if ($canLaunchViaScript -or $canLaunchDirect) {
         $launchNow = Read-Host 'Build complete. Launch supervisor now? (Y/N)'
         if ($launchNow -match '^(?i)y(?:es)?$') {
-            Write-Host "── Launching Supervisor via launch script" -ForegroundColor Cyan
-            & $launchScript
+            $launched = $false
+
+            if ($canLaunchViaScript) {
+                try {
+                    Write-Host "── Launching Supervisor via launch script" -ForegroundColor Cyan
+                    & $launchScript
+                    $launched = $true
+                } catch {
+                    Write-Host "   [warn] launch script failed: $($_.Exception.Message)" -ForegroundColor Yellow
+                }
+            }
+
+            if (-not $launched -and $canLaunchDirect) {
+                try {
+                    Write-Host "── Launching Supervisor directly from build output" -ForegroundColor Cyan
+                    Start-Process -FilePath $supervisorExe -WorkingDirectory (Split-Path -Parent $supervisorExe) | Out-Null
+                    Write-Ok "Supervisor launched: $supervisorExe"
+                    $launched = $true
+                } catch {
+                    Write-Host "   [warn] direct supervisor launch failed: $($_.Exception.Message)" -ForegroundColor Yellow
+                }
+            }
+
+            if (-not $launched) {
+                Write-Host "   [warn] Supervisor build succeeded, but no launch method worked." -ForegroundColor Yellow
+                if ($canLaunchViaScript) {
+                    Write-Host "   Try manually: & '$launchScript'" -ForegroundColor DarkGray
+                }
+                if ($canLaunchDirect) {
+                    Write-Host "   Or manually: & '$supervisorExe'" -ForegroundColor DarkGray
+                }
+            }
         } else {
             Write-Host "   Supervisor was not launched." -ForegroundColor Yellow
-            Write-Host "   Launch command:" -ForegroundColor DarkGray
-            Write-Host "   & '$launchScript'" -ForegroundColor DarkGray
+            if ($canLaunchViaScript) {
+                Write-Host "   Launch command (script):" -ForegroundColor DarkGray
+                Write-Host "   & '$launchScript'" -ForegroundColor DarkGray
+            }
+            if ($canLaunchDirect) {
+                Write-Host "   Launch command (direct):" -ForegroundColor DarkGray
+                Write-Host "   & '$supervisorExe'" -ForegroundColor DarkGray
+            }
         }
     } else {
-        Write-Host "   [warn] launch script not found: $launchScript" -ForegroundColor Yellow
+        Write-Host "   [warn] no supervisor launch target found." -ForegroundColor Yellow
+        Write-Host "   Missing script: $launchScript" -ForegroundColor DarkGray
+        Write-Host "   Missing executable: $supervisorExe" -ForegroundColor DarkGray
     }
 }

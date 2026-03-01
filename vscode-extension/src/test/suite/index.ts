@@ -7,7 +7,38 @@ import * as path from 'path';
 import Mocha from 'mocha';
 import { glob } from 'glob';
 
+function normalizeRequestedTestPath(testPath: string): string {
+    return testPath
+        .replace(/\\/g, '/')
+        .replace(/^src\/test\//, '')
+        .replace(/\.ts$/i, '.js')
+        .trim();
+}
+
+function getRequestedTests(): string[] {
+    const raw = process.env.PM_TEST_FILTER;
+    if (!raw) {
+        return [];
+    }
+
+    try {
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) {
+            return [];
+        }
+
+        return parsed
+            .filter((entry): entry is string => typeof entry === 'string')
+            .map(normalizeRequestedTestPath)
+            .filter((entry) => entry.length > 0);
+    } catch {
+        return [];
+    }
+}
+
 export async function run(): Promise<void> {
+    const requestedTests = getRequestedTests();
+
     // Create the mocha test
     const mocha = new Mocha({
         ui: 'tdd',
@@ -24,7 +55,20 @@ export async function run(): Promise<void> {
 
     for (const root of testRoots) {
         const files = await glob('**/*.test.js', { cwd: root });
-        files.forEach((filePath: string) => mocha.addFile(path.resolve(root, filePath)));
+        files.forEach((filePath: string) => {
+            if (requestedTests.length > 0) {
+                const normalizedFilePath = filePath.replace(/\\/g, '/');
+                const matches = requestedTests.some((requested) =>
+                    normalizedFilePath.endsWith(requested) || normalizedFilePath.endsWith(path.basename(requested)),
+                );
+
+                if (!matches) {
+                    return;
+                }
+            }
+
+            mocha.addFile(path.resolve(root, filePath));
+        });
     }
 
     // Run the mocha test

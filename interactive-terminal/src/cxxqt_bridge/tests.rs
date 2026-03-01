@@ -148,7 +148,7 @@ fn create_session_switch_session_and_close_session_follow_runtime_model() {
 }
 
 #[test]
-fn close_session_rejects_pending_approval_queue() {
+fn close_session_allows_pending_approval_queue() {
     let mut state = test_state();
     let session_id = state.create_session();
 
@@ -173,11 +173,27 @@ fn close_session_rejects_pending_approval_queue() {
             allowlisted: false,
         });
 
-    let err = state
+    state
         .close_session(&session_id)
-        .expect_err("close must be rejected for pending approvals");
-    assert!(err.contains("pending approvals"));
-    assert!(state.pending_commands_by_session.contains_key(&session_id));
+        .expect("close should be allowed even when approvals are pending");
+    assert!(!state.pending_commands_by_session.contains_key(&session_id));
+}
+
+#[test]
+fn close_last_default_session_leaves_no_active_session() {
+    let mut state = test_state();
+
+    state
+        .close_session("default")
+        .expect("closing the last default session should be allowed");
+
+    assert!(state.pending_commands_by_session.is_empty());
+    assert!(state.session_context_by_id.is_empty());
+    assert!(state.selected_session_id.is_empty());
+
+    let created = state.create_session();
+    assert!(created.starts_with("session-"));
+    assert_eq!(state.selected_session_id, created);
 }
 
 #[test]

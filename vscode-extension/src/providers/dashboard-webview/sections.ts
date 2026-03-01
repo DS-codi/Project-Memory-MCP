@@ -22,6 +22,14 @@ export function getConnectedDashboardHtml(
     workspaceName: string
 ): string {
     return `
+                        <div class="dashboard-top-tabs" role="tablist" aria-label="Dashboard Sections">
+                            <button class="dashboard-top-tab active" id="dashboardTopTabDashboard" data-top-level-tab="dashboard" role="tab" aria-selected="true" aria-controls="dashboardPaneDashboard">Dashboard</button>
+                            <button class="dashboard-top-tab" id="dashboardTopTabPlans" data-top-level-tab="plans" role="tab" aria-selected="false" aria-controls="dashboardPanePlans">Plans</button>
+                            <button class="dashboard-top-tab" id="dashboardTopTabOperations" data-top-level-tab="operations" role="tab" aria-selected="false" aria-controls="dashboardPaneOperations">Operations</button>
+                        </div>
+
+                        <div class="dashboard-top-panes">
+                            <div class="dashboard-pane active" id="dashboardPaneDashboard" role="tabpanel" aria-labelledby="dashboardTopTabDashboard">
                             <div class="search-widget">
                                 <div class="search-row">
                                     ${iconSvgs.searchBox}
@@ -75,13 +83,13 @@ export function getConnectedDashboardHtml(
                                                     <button class="icon-btn" data-action="refresh" title="Refresh Status">
                                                         ${iconSvgs.syncHistory}
                                                     </button>
-                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemory.createPlan" title="Create New Plan">
+                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemory.createPlan" data-availability-key="workspace-create-plan" title="Create New Plan">
                                                         ${iconSvgs.createNewPlan}
                                                     </button>
-                                                    <button class="icon-btn" data-action="open-resume-plan" title="Resume Plan">
+                                                    <button class="icon-btn" data-action="open-resume-plan" data-availability-key="plan-resume" title="Resume Plan">
                                                         ${iconSvgs.resumePlan}
                                                     </button>
-                                                    <button class="icon-btn" data-action="open-archive-plan" title="Archive Plan">
+                                                    <button class="icon-btn" data-action="open-archive-plan" data-availability-key="plan-archive" title="Archive Plan">
                                                         ${iconSvgs.archive}
                                                     </button>
                                                 </div>
@@ -123,13 +131,13 @@ export function getConnectedDashboardHtml(
                                             <div class="action-group">
                                                 <div class="icon-row-title">Build & System</div>
                                                 <div class="icon-grid">
-                                                    <button class="icon-btn" data-action="open-build-scripts" title="Build Scripts">
+                                                    <button class="icon-btn" data-action="open-build-scripts" data-availability-key="plan-build-scripts" title="Build Scripts">
                                                         ${iconSvgs.buildScript}
                                                     </button>
-                                                    <button class="icon-btn" data-action="open-run-script" title="Run Script">
+                                                    <button class="icon-btn" data-action="open-run-script" data-availability-key="plan-run-script" title="Run Script">
                                                         ${iconSvgs.runButton}
                                                     </button>
-                                                    <button class="icon-btn" data-action="open-handoff" title="Agent Handoff">
+                                                    <button class="icon-btn" data-action="open-handoff" data-availability-key="plan-handoff" title="Agent Handoff">
                                                         ${iconSvgs.agentHandoff}
                                                     </button>
                                                 </div>
@@ -161,13 +169,13 @@ export function getConnectedDashboardHtml(
                                             <div class="stacked-section">
                                                 <div class="icon-row-title">Context</div>
                                                 <div class="icon-grid">
-                                                    <button class="icon-btn" data-action="open-context-note" title="Add Context Note">
+                                                    <button class="icon-btn" data-action="open-context-note" data-availability-key="plan-context-note" title="Add Context Note">
                                                         ${iconSvgs.addContextNote}
                                                     </button>
-                                                    <button class="icon-btn" data-action="open-research-note" title="Add Research Note">
+                                                    <button class="icon-btn" data-action="open-research-note" data-availability-key="plan-research-note" title="Add Research Note">
                                                         ${iconSvgs.researchNote}
                                                     </button>
-                                                    <button class="icon-btn" data-action="open-context-files" title="View Context Files">
+                                                    <button class="icon-btn" data-action="open-context-files" data-availability-key="plan-context-files" title="View Context Files">
                                                         ${iconSvgs.contextFilesGrid}
                                                     </button>
                                                 </div>
@@ -177,11 +185,22 @@ export function getConnectedDashboardHtml(
                                 </div>
                             </section>
 
-${getSkillsSectionHtml(iconSvgs)}
+                            <section class="collapsible" id="widget-activity">
+                                <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-activity">
+                                    <span class="chevron">></span>
+                                    <h3>Recent Activity</h3>
+                                </button>
+                                <div class="collapsible-content">
+                                    <div class="widget-body">
+                                        <div class="activity-list" id="activityList">
+                                            <div class="empty-state">Loading activity...</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                            </div>
 
-${getInstructionsSectionHtml(iconSvgs)}
-
-${getSessionsSectionHtml(iconSvgs)}
+                            <div class="dashboard-pane" id="dashboardPanePlans" role="tabpanel" aria-labelledby="dashboardTopTabPlans">
 
                             <section class="collapsible" id="widget-plans">
                                 <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-plans">
@@ -222,23 +241,31 @@ ${getSessionsSectionHtml(iconSvgs)}
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-                            </section>
-
-                            <section class="collapsible" id="widget-activity">
-                                <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-activity">
-                                    <span class="chevron">></span>
-                                    <h3>Recent Activity</h3>
-                                </button>
-                                <div class="collapsible-content">
-                                    <div class="widget-body">
-                                        <div class="activity-list" id="activityList">
-                                            <div class="empty-state">Loading activity...</div>
+                                        <div class="selected-plan-panel" id="selectedPlanPanel">
+                                            <div class="selected-plan-header">
+                                                <h4 id="selectedPlanTitle">No plan selected</h4>
+                                                <span class="selected-plan-meta" id="selectedPlanMeta"></span>
+                                            </div>
+                                            <div class="selected-plan-body" id="selectedPlanBody">
+                                                <div class="empty-state">Select a plan to view ordered steps.</div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </section>
+                            </div>
+
+                            <div class="dashboard-pane" id="dashboardPaneOperations" role="tabpanel" aria-labelledby="dashboardTopTabOperations">
+
+${getSkillsSectionHtml(iconSvgs)}
+
+${getInstructionsSectionHtml(iconSvgs)}
+
+${getSessionsSectionHtml(iconSvgs)}
+
+                            </div>
+
+                        </div>
 
                         `;
 }

@@ -314,6 +314,7 @@ describe('memory_agent deploy required-context validation', () => {
       },
       hub_decision_payload: {
         bundle_decision_id: 'decision-1',
+        bundle_decision_version: 'v1',
         spoke_instruction_bundle: {
           bundle_id: 'instr-bundle',
           instruction_ids: ['executor-phase4-build-guidance-20260217'],
@@ -381,6 +382,59 @@ describe('memory_agent deploy required-context validation', () => {
       requested_scope: 'task',
       strict_bundle_resolution: true,
     }));
+  });
+
+  it('blocks deploy_for_task bypass fallback when PromptAnalyst is not explicitly unavailable', async () => {
+    mockEvaluateHubDispatchPolicy.mockReturnValueOnce({
+      alias_routing: {
+        requested_hub_label: 'Hub',
+        resolved_mode: 'standard_orchestration',
+        alias_resolution_applied: false,
+        deprecation_phase: 'active',
+      },
+      normalized_input: {
+        target_agent_type: 'Executor',
+        current_hub_mode: 'standard_orchestration',
+        requested_hub_mode: 'standard_orchestration',
+        requested_hub_label: 'Hub',
+        transition_reason_code: 'scope_change',
+        prompt_analyst_enrichment_applied: false,
+      },
+      fallback: {
+        requested: true,
+        used: false,
+      },
+      policy: {
+        valid: false,
+        code: 'POLICY_PROMPT_ANALYST_FALLBACK_REQUIRES_UNAVAILABLE',
+        reason: 'Prompt Analyst fallback is only allowed when transition_reason_code or transition_event is prompt_analyst_unavailable.',
+        details: {
+          target_agent_type: 'Executor',
+          current_hub_mode: 'standard_orchestration',
+          requested_hub_mode: 'standard_orchestration',
+          requested_hub_label: 'Hub',
+          transition_reason_code: 'scope_change',
+          prompt_analyst_enrichment_applied: false,
+        },
+      },
+      telemetry: {
+        prompt_analyst_outcome: 'reuse',
+      },
+    } as any);
+
+    const result = await memoryAgent({
+      action: 'deploy_for_task',
+      workspace_id: 'ws1',
+      plan_id: 'plan1',
+      agent_type: 'Executor',
+      bypass_prompt_analyst_policy: true,
+      transition_reason_code: 'scope_change',
+      prompt_analyst_enrichment_applied: false,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('POLICY_PROMPT_ANALYST_FALLBACK_REQUIRES_UNAVAILABLE');
+    expect(mockDeployForTask).not.toHaveBeenCalled();
   });
 
   it('blocks deploy_agent_to_workspace when centralized policy check fails', async () => {

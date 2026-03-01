@@ -887,18 +887,60 @@ Write-Host "Done in $([math]::Round($Elapsed.TotalSeconds, 1))s" -ForegroundColo
 # ── Optional supervisor launch prompt (no automatic launch) ─────────────────
 if ($Components -contains "Supervisor") {
     $launchScript = Join-Path $Root 'launch-supervisor.ps1'
+    $supervisorExe = Join-Path $Root 'target\release\supervisor.exe'
     Write-Host ""
-    if (Test-Path $launchScript) {
+    $canLaunchViaScript = Test-Path $launchScript
+    $canLaunchDirect = Test-Path $supervisorExe
+
+    if ($canLaunchViaScript -or $canLaunchDirect) {
         $launchNow = Read-Host 'Build complete. Launch supervisor now? (Y/N)'
         if ($launchNow -match '^(?i)y(?:es)?$') {
-            Write-Host "── Launching Supervisor via launch script" -ForegroundColor Cyan
-            & $launchScript
+            $launched = $false
+
+            if ($canLaunchViaScript) {
+                try {
+                    Write-Host "── Launching Supervisor via launch script" -ForegroundColor Cyan
+                    & $launchScript
+                    $launched = $true
+                } catch {
+                    Write-Host "   [warn] launch script failed: $($_.Exception.Message)" -ForegroundColor Yellow
+                }
+            }
+
+            if (-not $launched -and $canLaunchDirect) {
+                try {
+                    Write-Host "── Launching Supervisor directly from build output" -ForegroundColor Cyan
+                    Start-Process -FilePath $supervisorExe -WorkingDirectory (Split-Path -Parent $supervisorExe) | Out-Null
+                    Write-Ok "Supervisor launched: $supervisorExe"
+                    $launched = $true
+                } catch {
+                    Write-Host "   [warn] direct supervisor launch failed: $($_.Exception.Message)" -ForegroundColor Yellow
+                }
+            }
+
+            if (-not $launched) {
+                Write-Host "   [warn] Supervisor build succeeded, but no launch method worked." -ForegroundColor Yellow
+                if ($canLaunchViaScript) {
+                    Write-Host "   Try manually: & '$launchScript'" -ForegroundColor DarkGray
+                }
+                if ($canLaunchDirect) {
+                    Write-Host "   Or manually: & '$supervisorExe'" -ForegroundColor DarkGray
+                }
+            }
         } else {
             Write-Host "   Supervisor was not launched." -ForegroundColor Yellow
-            Write-Host "   Launch command:" -ForegroundColor DarkGray
-            Write-Host "   & '$launchScript'" -ForegroundColor DarkGray
+            if ($canLaunchViaScript) {
+                Write-Host "   Launch command (script):" -ForegroundColor DarkGray
+                Write-Host "   & '$launchScript'" -ForegroundColor DarkGray
+            }
+            if ($canLaunchDirect) {
+                Write-Host "   Launch command (direct):" -ForegroundColor DarkGray
+                Write-Host "   & '$supervisorExe'" -ForegroundColor DarkGray
+            }
         }
     } else {
-        Write-Host "   [warn] launch script not found: $launchScript" -ForegroundColor Yellow
+        Write-Host "   [warn] no supervisor launch target found." -ForegroundColor Yellow
+        Write-Host "   Missing script: $launchScript" -ForegroundColor DarkGray
+        Write-Host "   Missing executable: $supervisorExe" -ForegroundColor DarkGray
     }
 }

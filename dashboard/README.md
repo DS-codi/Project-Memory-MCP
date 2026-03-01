@@ -1,124 +1,125 @@
 # Memory Observer Dashboard
 
-A web-based dashboard for monitoring the Project Memory MCP Server. View agent workflows, track plan progress, and manage agent deployments across all registered workspaces.
+The dashboard is the web UI for Project Memory MCP observability and operations. It combines a React frontend with an Express API backend to display workspaces, plans, agents, diagnostics, and deployment actions.
 
-## Features
+## What It Includes
 
-- **Real-time Monitoring**: Watch agent handoffs and plan updates live
-- **Workspace Overview**: View all registered workspaces with health indicators
-- **Plan Management**: Browse, filter, and inspect plans with detailed timelines
-- **Agent Tracking**: Visualize handoff sequences and current agent sessions
-- **Agent Inventory**: Manage agent instruction file deployments
+- React + TypeScript frontend (`dashboard/src`)
+- Express + TypeScript API server (`dashboard/server/src`)
+- Live event stream integration for plan/step/workspace updates
+- Operational views for plans, programs, diagnostics, deploy flows, and reports
 
-## Release Notes (2026-02-15)
+## Prerequisites
 
-- **Plan list sectioning**: The plans view renders separate **Active Plans** and **Archived Plans** sections, each with its own count and empty-state message.
-- **Relationship indicators on plan cards**: Plan cards now surface relationship badges including **Program**, **Child of program**, **Children**, **Linked**, **Linked by**, and **Unresolved links**, with **No relationships** as a fallback.
+- Node.js 18+
+- npm
 
-### Release Handoff Summary
-
-- Updated dashboard docs to reflect shipped plan relationship visualization and active-vs-archived section behavior.
-- Scope was limited to documentation/changelog notes; no runtime code behavior was changed in this step.
-
-## Quick Start
-
-### Prerequisites
-
-- Node.js 18+ 
-- npm or pnpm
-
-### Installation
+## Install
 
 ```bash
-# From the dashboard directory
 cd dashboard
-
-# Install frontend dependencies
 npm install
-
-# Install server dependencies
 cd server
 npm install
 cd ..
 ```
 
-### Configuration
+## Development
 
-Set the environment variables to point to your MCP data:
-
-```bash
-# Windows PowerShell
-$env:MBS_DATA_ROOT = "C:\path\to\Project-Memory-MCP\data"
-$env:MBS_AGENTS_ROOT = "C:\path\to\Project-Memory-MCP\agents"
-
-# Or create a .env file in the server directory
-```
-
-### Running
-
-**Development mode (both frontend and API):**
+Run frontend + API together:
 
 ```bash
 npm run dev:all
 ```
 
-**Or run separately:**
+Run separately:
 
 ```bash
-# Terminal 1: API Server
-npm run server
-
-# Terminal 2: Frontend
+# Frontend
 npm run dev
+
+# API server
+npm run server
 ```
 
-The dashboard will be available at: **http://localhost:5173**
-The API server runs at: **http://localhost:3001**
+Default endpoints:
 
-## Project Structure
+- Frontend: `http://localhost:5173`
+- API: `http://localhost:3001`
 
-```
-dashboard/
-├── src/                    # React frontend
-│   ├── components/         # UI components
-│   │   ├── layout/         # App shell (Sidebar, Header)
-│   │   ├── workspace/      # Workspace cards and lists
-│   │   ├── plan/           # Plan cards, lists, steps
-│   │   ├── timeline/       # Handoff visualization
-│   │   ├── agents/         # Agent management UI
-│   │   └── common/         # Shared components
-│   ├── pages/              # Route pages
-│   ├── hooks/              # React Query hooks
-│   ├── store/              # Zustand state
-│   ├── types/              # TypeScript types
-│   └── utils/              # Helpers and formatters
-└── server/                 # Express API server
-    └── src/
-        ├── routes/         # API endpoints
-        └── services/       # File scanning and watching
+## Build
+
+```bash
+# Frontend production build
+npm run build
+
+# Webview-target build (for VS Code extension embedding)
+npm run build:webview
 ```
 
-## API Endpoints
+Backend-only build:
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/workspaces` | List all workspaces |
-| GET | `/api/workspaces/:id` | Get workspace details |
-| GET | `/api/plans/workspace/:id` | List plans for workspace |
-| GET | `/api/plans/:wsId/:planId` | Get full plan state |
-| GET | `/api/agents` | List agent templates |
+```bash
+cd server
+npm run build
+```
 
-## Technology Stack
+## Testing
 
-- **Frontend**: React 18, TypeScript, Tailwind CSS
-- **State**: TanStack Query, Zustand
-- **Backend**: Express, Chokidar (file watcher)
-- **Real-time**: WebSocket
+```bash
+# Unit/integration tests (watch)
+npm run test
 
-## Screenshots
+# Unit/integration tests (single run)
+npm run test:run
 
-*Coming soon*
+# Coverage
+npm run test:coverage
 
-## License
+# E2E
+npm run test:e2e
+```
 
-MIT
+## Environment
+
+The API server resolves roots from the Project Memory workspace context. You can override with environment variables:
+
+- `MBS_DATA_ROOT`
+- `MBS_AGENTS_ROOT`
+- `MBS_PROMPTS_ROOT`
+- `MBS_INSTRUCTIONS_ROOT`
+- `PORT` (defaults to `3001`)
+- `SUPERVISOR_EVENTS_URL` (optional SSE source)
+
+## API Surface
+
+Mounted API routes:
+
+- `/api/workspaces`
+- `/api/plans`
+- `/api/agents`
+- `/api/events`
+- `/api/search`
+- `/api/reports`
+- `/api/metrics`
+- `/api/prompts`
+- `/api/instructions`
+- `/api/deploy`
+- `/api/programs`
+- `/api/workspaces/:id/knowledge`
+- `/api/health`
+- `/api/errors`
+
+## Frontend Build Serving
+
+The server serves static frontend assets from:
+
+1. `dashboard/dist`
+2. `dashboard/dist-webview`
+
+If neither exists, non-API routes return a build reminder.
+
+## Notes
+
+- This dashboard is the canonical operational UI used by the VS Code extension’s webview.
+- Keep route and command docs aligned with `dashboard/server/src/index.ts` and `dashboard/package.json`.

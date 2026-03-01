@@ -597,10 +597,11 @@ function Test-Extension {
     Write-Step "Extension"
     $ExtDir = Join-Path $Root 'vscode-extension'
     $componentArgs = Get-ComponentTestArgs -ComponentName 'Extension' -Map $ComponentTestArgsMap
+    $componentArgsList = @($componentArgs)
     $testArgs = @('run', 'test')
-    if ($componentArgs.Count -gt 0) {
+    if ($componentArgsList.Count -gt 0) {
         $testArgs += '--'
-        $testArgs += $componentArgs
+        $testArgs += $componentArgsList
     }
 
     try {

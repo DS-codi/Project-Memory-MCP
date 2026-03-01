@@ -11,6 +11,32 @@ import path from 'node:path';
 import { storeSkill }         from '../db/skill-db.js';
 import type { ReportBuilder } from './report.js';
 
+function resolveSkillsDir(projectRoot: string): string | null {
+  const override = process.env.MBS_SKILLS_ROOT;
+  if (override && fs.existsSync(override)) {
+    return override;
+  }
+
+  const roots = [
+    projectRoot,
+    path.resolve(projectRoot, '..'),
+    path.resolve(projectRoot, '..', '..'),
+  ];
+
+  for (const root of roots) {
+    const githubSkills = path.join(root, '.github', 'skills');
+    if (fs.existsSync(githubSkills)) {
+      return githubSkills;
+    }
+    const legacySkills = path.join(root, 'skills');
+    if (fs.existsSync(legacySkills)) {
+      return legacySkills;
+    }
+  }
+
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
@@ -18,9 +44,9 @@ import type { ReportBuilder } from './report.js';
 export function migrateSkills(projectRoot: string, report: ReportBuilder, dryRun: boolean): void {
   report.beginPhase('Phase 9.3: Skill Definition Seeding');
 
-  const skillsDir = path.join(projectRoot, '.github', 'skills');
-  if (!fs.existsSync(skillsDir)) {
-    report.skip('.github/skills/', 'directory not found');
+  const skillsDir = resolveSkillsDir(projectRoot);
+  if (!skillsDir) {
+    report.skip('.github/skills/', 'directory not found (including parent root fallback)');
     return;
   }
 

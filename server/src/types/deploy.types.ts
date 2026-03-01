@@ -8,7 +8,7 @@ import type { PlanPhaseContextFile } from './plan.types.js';
 export type BundleScope = 'task' | 'phase' | 'plan';
 export type BundleResolutionMode = 'strict' | 'compat';
 export type ProvisioningMode = 'on_demand' | 'compat';
-export type FallbackMode = 'none' | 'compat_dynamic' | 'static_restore';
+export type DeployFallbackMode = 'none' | 'compat_dynamic' | 'static_restore';
 
 export interface PromptAnalystOutput {
   provisioning_contract_version?: string;
@@ -45,7 +45,7 @@ export interface HubDecisionPayload {
   };
   fallback_policy?: {
     fallback_allowed?: boolean;
-    fallback_mode?: FallbackMode;
+    fallback_mode?: DeployFallbackMode;
     fallback_reason_code?: string | null;
   };
   enforcement?: {
@@ -63,7 +63,7 @@ export interface HubDecisionPayload {
 
 export interface DeployFallbackPolicy {
   fallback_allowed?: boolean;
-  fallback_mode?: FallbackMode;
+  fallback_mode?: DeployFallbackMode;
   fallback_reason_code?: string | null;
 }
 

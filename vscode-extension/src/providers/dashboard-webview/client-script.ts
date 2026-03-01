@@ -45,19 +45,26 @@ export function getClientScript(params: ClientScriptParams): string {
 
     return `
         const vscode = acquireVsCodeApi();
+        const persistedState = vscode.getState() || {};
         const apiPort = ${apiPort};
         const dashboardUrl = '${dashboardUrl}';
         let workspaceId = '${workspaceId}';
         const workspaceName = '${workspaceName}';
         const dataRoot = ${dataRoot};
         const icons = ${iconsJson};
+        let topLevelTab = (persistedState.topLevelTab === 'plans' || persistedState.topLevelTab === 'operations')
+            ? persistedState.topLevelTab
+            : 'dashboard';
         
         let activePlans = [];
         let archivedPlans = [];
         let programPlans = [];
-        let currentPlanTab = 'active';
-        let selectedPlanId = '';
-        let selectedPlanWorkspaceId = '';
+        let currentPlanTab = (persistedState.currentPlanTab === 'archived' || persistedState.currentPlanTab === 'programs')
+            ? persistedState.currentPlanTab
+            : 'active';
+        let selectedPlanId = typeof persistedState.selectedPlanId === 'string' ? persistedState.selectedPlanId : '';
+        let selectedPlanWorkspaceId = typeof persistedState.selectedPlanWorkspaceId === 'string' ? persistedState.selectedPlanWorkspaceId : '';
+        let selectedPlanDetails = null;
         let recentEvents = [];
         let hasRenderedDashboard = false;
         let lastPlanSignature = '';
@@ -127,7 +134,9 @@ export function getClientScript(params: ClientScriptParams): string {
                     selectedPlanId = '';
                     selectedPlanWorkspaceId = '';
                     lastPlanSignature = '';
+                    saveDashboardState();
                     if (hasRenderedDashboard) {
+                        updateActionAvailability();
                         fetchPlans();
                     }
                 }
@@ -164,6 +173,13 @@ export function getClientScript(params: ClientScriptParams): string {
                 }
                 return;
             }
+
+            if (button.disabled) {
+                return;
+            }
+
+            var panelTab = button.getAttribute('data-top-level-tab');
+            if (panelTab) { setTopLevelTab(panelTab); return; }
 
             var tab = button.getAttribute('data-tab');
             if (tab) { setPlanTab(tab); return; }
@@ -403,6 +419,7 @@ export function getClientScript(params: ClientScriptParams): string {
                     if (!hasRenderedDashboard) {
                         fallback.innerHTML = \`${connectedHtml}\`;
                         hasRenderedDashboard = true;
+                        applyDashboardState();
                     }
                     updateStatusCards(data);
                     fetchPlans();
@@ -410,6 +427,7 @@ export function getClientScript(params: ClientScriptParams): string {
                     requestSkillsList();
                     requestInstructionsList();
                     requestSessionsList();
+                    updateActionAvailability();
                 } else {
                     throw new Error('Server returned ' + response.status);
                 }

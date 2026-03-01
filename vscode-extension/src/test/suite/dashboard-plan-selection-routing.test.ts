@@ -28,6 +28,18 @@ suite('Dashboard Plan Selection Routing', () => {
             script.includes("workspaceId: planWorkspaceId"),
             'Open-plan payloads should use explicit workspaceId when available'
         );
+        assert.ok(
+            script.includes('const persistedState = vscode.getState() || {};'),
+            'Client script should restore persisted webview session state'
+        );
+        assert.ok(
+            script.includes("var panelTab = button.getAttribute('data-top-level-tab');"),
+            'Top-level tab click routing should be handled explicitly'
+        );
+        assert.ok(
+            script.includes('if (button.disabled) {'),
+            'Disabled buttons should be short-circuited in delegated click handling'
+        );
     });
 
     test('provider resolves explicit plan selection without QuickPick fallback', async () => {

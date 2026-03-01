@@ -29,14 +29,7 @@ ApplicationWindow {
     property bool quitRequested: false
     property bool popupOverlayVisible: geminiSettingsDialog.visible
         || approvalDialog.visible
-        || terminalProfileSelector.pressed
-        || defaultTerminalProfileSelector.pressed
-        || workspacePathField.activeFocus
-        || venvPathField.activeFocus
-        || sessionNameInput.activeFocus
-        || savedCommandsWorkspaceField.activeFocus
-        || saveCommandNameField.activeFocus
-        || saveCommandTextField.activeFocus
+        || savedCommandsDrawer.visible
     property bool hasActiveTerminalSession: {
         const current = (terminalApp.currentSessionId || "").trim()
         if (!current) {
@@ -230,13 +223,7 @@ ApplicationWindow {
         terminalApp.showSessionStartup()
         root.syncApprovalDialog()
         root.showMainWindow()
-        Qt.callLater(function() {
-            if (terminalApp.startVisible) {
-                root.showMainWindow()
-            } else {
-                root.hideToTray()
-            }
-        })
+        Qt.callLater(function() { root.showMainWindow() })
     }
 
     onClosing: function(close) {
@@ -288,10 +275,6 @@ ApplicationWindow {
                 onTriggered: root.requestQuit()
             }
         }
-    }
-
-    Platform.Clipboard {
-        id: appClipboard
     }
 
     ColumnLayout {
@@ -382,9 +365,63 @@ ApplicationWindow {
                     spacing: 8
 
                     Text {
-                        text: "Session: " + (terminalApp.currentSessionId || "default")
+                        text: "Session: " + ((terminalApp.currentSessionId || "").length > 0 ? terminalApp.currentSessionId : "(none)")
                         color: "#d4d4d4"
                         font.pixelSize: 12
+                    }
+
+                    Text {
+                        text: "Profile"
+                        color: "#808080"
+                        font.pixelSize: 11
+                    }
+
+                    ComboBox {
+                        id: terminalProfileSelector
+                        model: ["system", "powershell", "pwsh", "cmd", "bash"]
+                        implicitWidth: 130
+                        implicitHeight: 28
+                        font.pixelSize: root.uiControlFontPx
+                        enabled: root.hasActiveTerminalSession
+
+                        function syncFromBridge() {
+                            const profile = terminalApp.currentTerminalProfile || "system"
+                            const idx = model.indexOf(profile)
+                            currentIndex = idx >= 0 ? idx : 0
+                        }
+
+                        onActivated: terminalApp.setSessionTerminalProfile(currentText)
+                        Component.onCompleted: {
+                            syncFromBridge()
+                            popup.z = 3000
+                        }
+                    }
+
+                    Text {
+                        text: "Default"
+                        color: "#808080"
+                        font.pixelSize: 11
+                    }
+
+                    ComboBox {
+                        id: defaultTerminalProfileSelector
+                        model: ["system", "powershell", "pwsh", "cmd", "bash"]
+                        implicitWidth: 130
+                        implicitHeight: 28
+                        font.pixelSize: root.uiControlFontPx
+                        enabled: root.hasActiveTerminalSession
+
+                        function syncFromBridge() {
+                            const profile = terminalApp.currentDefaultTerminalProfile || "system"
+                            const idx = model.indexOf(profile)
+                            currentIndex = idx >= 0 ? idx : 0
+                        }
+
+                        onActivated: terminalApp.setDefaultTerminalProfile(currentText)
+                        Component.onCompleted: {
+                            syncFromBridge()
+                            popup.z = 3000
+                        }
                     }
 
                     Item { Layout.fillWidth: true }
@@ -399,6 +436,7 @@ ApplicationWindow {
                         Layout.preferredWidth: 240
                         placeholderText: "Workspace path (per session)"
                         font.pixelSize: root.uiInputFontPx
+                        enabled: root.hasActiveTerminalSession
                         text: terminalApp.currentWorkspacePath
                         onEditingFinished: terminalApp.setSessionWorkspacePath(text)
                     }
@@ -408,6 +446,7 @@ ApplicationWindow {
                         Layout.preferredWidth: 220
                         placeholderText: "Venv path (optional)"
                         font.pixelSize: root.uiInputFontPx
+                        enabled: root.hasActiveTerminalSession
                         text: terminalApp.currentVenvPath
                         onEditingFinished: terminalApp.setSessionVenvPath(text)
                     }
@@ -416,6 +455,7 @@ ApplicationWindow {
                         id: activateVenvCheck
                         text: "Activate venv"
                         font.pixelSize: root.uiControlFontPx
+                        enabled: root.hasActiveTerminalSession
                         checked: terminalApp.currentActivateVenv
                         onClicked: terminalApp.setSessionActivateVenv(checked)
                     }
@@ -449,77 +489,101 @@ ApplicationWindow {
                     }
 
                     Item { Layout.fillWidth: true }
-                }
-            }
-        }
 
-        Rectangle { Layout.fillWidth: true; height: 1; color: "#3c3c3c" }
-
-        // Terminal profile toolbar
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 34
-            color: "#2d2d30"
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 8
-                anchors.rightMargin: 8
-                spacing: 6
-
-                Text {
-                    text: "Profile"
-                    color: "#808080"
-                    font.pixelSize: 11
-                }
-
-                ComboBox {
-                    id: terminalProfileSelector
-                    model: ["system", "powershell", "pwsh", "cmd", "bash"]
-                    implicitWidth: 130
-                    implicitHeight: 28
-                    font.pixelSize: root.uiControlFontPx
-
-                    function syncFromBridge() {
-                        const profile = terminalApp.currentTerminalProfile || "system"
-                        const idx = model.indexOf(profile)
-                        currentIndex = idx >= 0 ? idx : 0
+                    Button {
+                        text: "New Tab"
+                        font.pixelSize: root.uiControlFontPx
+                        Layout.preferredWidth: 92
+                        Layout.preferredHeight: 30
+                        onClicked: {
+                            terminalApp.createSession()
+                            root.refreshSessionTabs()
+                        }
                     }
 
-                    onActivated: terminalApp.setSessionTerminalProfile(currentText)
-                    Component.onCompleted: {
-                        syncFromBridge()
-                        popup.z = 3000
-                    }
-                }
+                    Button {
+                        text: "Saved Commands"
+                        font.pixelSize: root.uiControlFontPx
+                        Layout.preferredWidth: 148
+                        Layout.preferredHeight: 30
+                        onClicked: {
+                            if (savedCommandsDrawer.visible) {
+                                savedCommandsDrawer.close()
+                                return
+                            }
 
-                Text {
-                    text: "Default"
-                    color: "#808080"
-                    font.pixelSize: 11
-                }
-
-                ComboBox {
-                    id: defaultTerminalProfileSelector
-                    model: ["system", "powershell", "pwsh", "cmd", "bash"]
-                    implicitWidth: 130
-                    implicitHeight: 28
-                    font.pixelSize: root.uiControlFontPx
-
-                    function syncFromBridge() {
-                        const profile = terminalApp.currentDefaultTerminalProfile || "system"
-                        const idx = model.indexOf(profile)
-                        currentIndex = idx >= 0 ? idx : 0
+                            const workspaceId = root.savedCommandsWorkspaceOrDefault(savedCommandsWorkspaceField.text)
+                            if (terminalApp.openSavedCommands(workspaceId)) {
+                                savedCommandsWorkspaceField.text = terminalApp.savedCommandsWorkspaceId()
+                                root.refreshSavedCommands()
+                                savedCommandsDrawer.open()
+                                Qt.callLater(function() {
+                                    savedCommandsWorkspaceField.forceActiveFocus()
+                                    savedCommandsWorkspaceField.selectAll()
+                                })
+                            }
+                        }
                     }
 
-                    onActivated: terminalApp.setDefaultTerminalProfile(currentText)
-                    Component.onCompleted: {
-                        syncFromBridge()
-                        popup.z = 3000
+                    TextField {
+                        id: sessionNameInput
+                        Layout.preferredWidth: 150
+                        Layout.preferredHeight: 30
+                        placeholderText: "Session name"
+                        font.pixelSize: root.uiInputFontPx
+                        enabled: root.hasActiveTerminalSession
+                        text: root.pendingSessionDisplayName
+                        onTextChanged: root.pendingSessionDisplayName = text
+                        onAccepted: {
+                            if (root.hasActiveTerminalSession && terminalApp.renameSession(terminalApp.currentSessionId, text)) {
+                                root.refreshSessionTabs()
+                            }
+                        }
+                    }
+
+                    Button {
+                        text: "Rename"
+                        Layout.preferredWidth: 92
+                        Layout.preferredHeight: 30
+                        font.pixelSize: root.uiControlFontPx
+                        enabled: root.hasActiveTerminalSession
+                        onClicked: {
+                            if (root.hasActiveTerminalSession && terminalApp.renameSession(terminalApp.currentSessionId, sessionNameInput.text)) {
+                                root.refreshSessionTabs()
+                            }
+                        }
+                    }
+
+                    Button {
+                        text: "Restart"
+                        Layout.preferredWidth: 82
+                        Layout.preferredHeight: 30
+                        font.pixelSize: root.uiControlFontPx
+                        enabled: root.hasActiveTerminalSession
+                        onClicked: {
+                            if (root.hasActiveTerminalSession) {
+                                terminalApp.switchSession(terminalApp.currentSessionId)
+                            }
+                        }
+                    }
+
+                    Button {
+                        text: "Copy All"
+                        Layout.preferredWidth: 90
+                        Layout.preferredHeight: 30
+                        font.pixelSize: root.uiControlFontPx
+                        onClicked: terminalApp.copyCurrentOutput()
+                    }
+
+                    Button {
+                        text: "Copy Last"
+                        Layout.preferredWidth: 90
+                        Layout.preferredHeight: 30
+                        font.pixelSize: root.uiControlFontPx
+                        enabled: root.hasActiveTerminalSession
+                        onClicked: terminalApp.copyLastCommandOutput()
                     }
                 }
-
-                Item { Layout.fillWidth: true }
             }
         }
 
@@ -528,7 +592,7 @@ ApplicationWindow {
         // Session tabs
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 38
+            Layout.preferredHeight: 40
             color: "#2d2d30"
 
             RowLayout {
@@ -536,47 +600,6 @@ ApplicationWindow {
                 anchors.leftMargin: 12
                 anchors.rightMargin: 12
                 spacing: 8
-
-                Button {
-                    text: "+"
-                    font.pixelSize: root.uiControlFontPx
-                    Layout.preferredWidth: 56
-                    Layout.preferredHeight: 34
-                    onClicked: {
-                        terminalApp.createSession()
-                        root.refreshSessionTabs()
-                    }
-                }
-
-                Button {
-                    text: "Saved Commands"
-                    font.pixelSize: root.uiControlFontPx
-                    Layout.preferredWidth: 164
-                    Layout.preferredHeight: 34
-                    onClicked: {
-                        const workspaceId = root.savedCommandsWorkspaceOrDefault(savedCommandsWorkspaceField.text)
-                        if (terminalApp.openSavedCommands(workspaceId)) {
-                            savedCommandsWorkspaceField.text = terminalApp.savedCommandsWorkspaceId()
-                            root.refreshSavedCommands()
-                            savedCommandsDrawer.open()
-                        }
-                    }
-                }
-
-                Button {
-                    text: "Reopen"
-                    font.pixelSize: root.uiControlFontPx
-                    Layout.preferredWidth: 104
-                    Layout.preferredHeight: 34
-                    onClicked: {
-                        if (terminalApp.reopenSavedCommands()) {
-                            savedCommandsWorkspaceField.text = terminalApp.savedCommandsWorkspaceId()
-                            root.refreshSavedCommands()
-                            savedCommandsDrawer.open()
-                        }
-                    }
-                }
-
                 Item {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 34
@@ -613,15 +636,19 @@ ApplicationWindow {
 
                         delegate: Rectangle {
                             readonly property var tabData: modelData
+                            readonly property int tabCount: Math.max(root.sessionTabs.length, 1)
+                            readonly property real availablePerTab: (sessionTabsList.width - (sessionTabsList.spacing * Math.max(tabCount - 1, 0))) / tabCount
+                            readonly property real minPreferred: tabText.implicitWidth + (closeButton.visible ? 46 : 20)
                             radius: 6
                             color: tabData.isActive ? "#3a3d41" : "#252526"
                             border.color: tabData.isActive ? "#569cd6" : "#3c3c3c"
                             border.width: 1
                             height: 34
-                            width: Math.min(230, Math.max(132, tabText.implicitWidth + (closeButton.visible ? 46 : 18)))
+                            width: Math.max(118, Math.min(260, Math.max(minPreferred, availablePerTab)))
 
                             MouseArea {
                                 anchors.fill: parent
+                                anchors.rightMargin: closeButton.visible ? (closeButton.width + 10) : 0
                                 onClicked: {
                                     terminalApp.switchSession(tabData.sessionId)
                                     root.refreshSessionTabs()
@@ -643,7 +670,7 @@ ApplicationWindow {
                                     color: "#d4d4d4"
                                     font.pixelSize: root.uiControlFontPx
                                     elide: Text.ElideRight
-                                    width: closeButton.visible ? parent.width - closeButton.width - 22 : parent.width - 14
+                                    width: closeButton.visible ? parent.width - closeButton.width - 26 : parent.width - 14
                                     horizontalAlignment: Text.AlignLeft
                                     verticalAlignment: Text.AlignVCenter
                                 }
@@ -653,11 +680,27 @@ ApplicationWindow {
                                     visible: true
                                     enabled: tabData.canClose
                                     anchors.verticalCenter: parent.verticalCenter
-                                    width: 28
-                                    height: 28
-                                    text: "×"
-                                    font.pixelSize: Math.max(root.uiControlFontPx + 3, 14)
+                                    width: 24
+                                    height: 24
+                                    text: "✕"
+                                    font.pixelSize: 13
                                     opacity: enabled ? 1.0 : 0.45
+                                    background: Rectangle {
+                                        radius: 5
+                                        color: closeButton.enabled
+                                            ? (closeButton.pressed ? "#9f3434" : "#4a4a4a")
+                                            : "#4a4a4a"
+                                        border.color: "#707070"
+                                        border.width: 1
+                                    }
+                                    contentItem: Text {
+                                        text: closeButton.text
+                                        color: "#ffffff"
+                                        font.pixelSize: closeButton.font.pixelSize
+                                        font.bold: false
+                                        horizontalAlignment: Text.AlignHCenter
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
                                     onClicked: {
                                         terminalApp.closeSession(tabData.sessionId)
                                         root.refreshSessionTabs()
@@ -667,72 +710,6 @@ ApplicationWindow {
                         }
                     }
                 }
-
-                TextField {
-                    id: sessionNameInput
-                    Layout.preferredWidth: 160
-                    Layout.preferredHeight: 30
-                    placeholderText: "Session name"
-                    font.pixelSize: root.uiInputFontPx
-                    text: root.pendingSessionDisplayName
-                    onTextChanged: root.pendingSessionDisplayName = text
-                    onAccepted: {
-                        if (terminalApp.renameSession(terminalApp.currentSessionId || "default", text)) {
-                            root.refreshSessionTabs()
-                        }
-                    }
-                }
-
-                Button {
-                    text: "Rename"
-                    Layout.preferredWidth: 106
-                    Layout.preferredHeight: 30
-                    font.pixelSize: root.uiControlFontPx
-                    onClicked: {
-                        if (terminalApp.renameSession(terminalApp.currentSessionId || "default", sessionNameInput.text)) {
-                            root.refreshSessionTabs()
-                        }
-                    }
-                }
-
-                Button {
-                    text: "Restart"
-                    Layout.preferredWidth: 92
-                    Layout.preferredHeight: 30
-                    font.pixelSize: root.uiControlFontPx
-                    onClicked: {
-                        terminalApp.switchSession(terminalApp.currentSessionId || "default")
-                    }
-                }
-
-                Button {
-                    text: "Copy All"
-                    Layout.preferredWidth: 96
-                    Layout.preferredHeight: 30
-                    font.pixelSize: root.uiControlFontPx
-                    onClicked: {
-                        const text = terminalApp.currentOutputTextValue()
-                        if (text && text.length > 0) {
-                            appClipboard.text = text
-                            terminalApp.statusText = "Copied current terminal output"
-                        }
-                    }
-                }
-
-                Button {
-                    text: "Copy Last"
-                    Layout.preferredWidth: 96
-                    Layout.preferredHeight: 30
-                    font.pixelSize: root.uiControlFontPx
-                    onClicked: {
-                        const text = terminalApp.lastCommandOutputTextValue()
-                        if (text && text.length > 0) {
-                            appClipboard.text = text
-                            terminalApp.statusText = "Copied last command output"
-                        }
-                    }
-                }
-
             }
         }
 
@@ -744,10 +721,32 @@ ApplicationWindow {
             Layout.fillHeight: true
             color: "#1e1e1e"
 
-            TerminalView {
+            Loader {
                 anchors.fill: parent
-                terminalApp: terminalApp
-                suppressWebView: root.popupOverlayVisible
+                active: root.hasActiveTerminalSession
+
+                sourceComponent: TerminalView {
+                    anchors.fill: parent
+                    terminalApp: terminalApp
+                    suppressWebView: root.popupOverlayVisible
+                    hasActiveSession: root.hasActiveTerminalSession
+                }
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                color: "#1e1e1e"
+                visible: !root.hasActiveTerminalSession
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "No active terminal session. Create or select a tab to start a shell."
+                    color: "#808080"
+                    font.pixelSize: 13
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    width: Math.min(parent.width * 0.8, 540)
+                }
             }
         }
     }
@@ -995,12 +994,17 @@ ApplicationWindow {
     Drawer {
         id: savedCommandsDrawer
         edge: Qt.RightEdge
+        modal: true
         width: Math.max(320, root.width * 0.38)
         height: root.height
         onOpened: {
             savedCommandsWorkspaceField.text = root.savedCommandsWorkspaceOrDefault(terminalApp.savedCommandsWorkspaceId())
             terminalApp.openSavedCommands(savedCommandsWorkspaceField.text)
             root.refreshSavedCommands()
+            Qt.callLater(function() {
+                savedCommandsWorkspaceField.forceActiveFocus()
+                savedCommandsWorkspaceField.selectAll()
+            })
         }
 
         ColumnLayout {
@@ -1044,16 +1048,6 @@ ApplicationWindow {
                     onClicked: {
                         const workspaceId = root.savedCommandsWorkspaceOrDefault(savedCommandsWorkspaceField.text)
                         terminalApp.openSavedCommands(workspaceId)
-                        savedCommandsWorkspaceField.text = terminalApp.savedCommandsWorkspaceId()
-                        root.refreshSavedCommands()
-                    }
-                }
-
-                Button {
-                    text: "Reopen"
-                    font.pixelSize: root.uiControlFontPx
-                    onClicked: {
-                        terminalApp.reopenSavedCommands()
                         savedCommandsWorkspaceField.text = terminalApp.savedCommandsWorkspaceId()
                         root.refreshSavedCommands()
                     }

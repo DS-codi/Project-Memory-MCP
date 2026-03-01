@@ -29,7 +29,7 @@ export type FormStatus =
 export type TimeoutAction = 'auto_fill' | 'approve' | 'reject' | 'defer';
 
 /** Fallback mode when the GUI binary is unavailable. */
-export type FallbackMode = 'chat' | 'none';
+export type GuiFormsFallbackMode = 'chat' | 'none';
 
 /** Possible actions for a confirm/reject answer. */
 export type ConfirmRejectAction = 'approve' | 'reject';
@@ -46,7 +46,7 @@ export interface TimeoutConfig {
   /** What happens when the timer expires. */
   on_timeout: TimeoutAction;
   /** Fallback behaviour when the GUI process cannot be launched. */
-  fallback_mode: FallbackMode;
+  fallback_mode: GuiFormsFallbackMode;
 }
 
 /** Window configuration controlling size and flags of the GUI window. */

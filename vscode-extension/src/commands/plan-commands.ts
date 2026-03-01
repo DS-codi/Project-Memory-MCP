@@ -316,6 +316,84 @@ export function registerPlanCommands(
             } catch {
                 vscode.window.showInformationMessage('Programs feature requires the dashboard server to be running.');
             }
+        }),
+
+        vscode.commands.registerCommand('projectMemory.markStepActive', async (planId?: string, stepIndex?: number) => {
+            const safePlanId = typeof planId === 'string' ? planId : '';
+            const safeStepIndex = Number.isInteger(stepIndex) ? Number(stepIndex) : -1;
+
+            if (!safePlanId || safeStepIndex < 0) {
+                return;
+            }
+
+            dashboardProvider.postMessage({
+                type: 'markPlanStepStatus',
+                data: {
+                    planId: safePlanId,
+                    stepIndex: safeStepIndex,
+                    status: 'active',
+                }
+            });
+        }),
+
+        vscode.commands.registerCommand('projectMemory.markStepDone', async (planId?: string, stepIndex?: number) => {
+            const safePlanId = typeof planId === 'string' ? planId : '';
+            const safeStepIndex = Number.isInteger(stepIndex) ? Number(stepIndex) : -1;
+
+            if (!safePlanId || safeStepIndex < 0) {
+                return;
+            }
+
+            dashboardProvider.postMessage({
+                type: 'markPlanStepStatus',
+                data: {
+                    planId: safePlanId,
+                    stepIndex: safeStepIndex,
+                    status: 'done',
+                }
+            });
+        }),
+
+        vscode.commands.registerCommand('projectMemory.archivePlan', async (planId?: string, workspaceId?: string) => {
+            dashboardProvider.postMessage({
+                type: 'archivePlan',
+                data: {
+                    planId: typeof planId === 'string' ? planId : undefined,
+                    workspaceId: typeof workspaceId === 'string' ? workspaceId : undefined,
+                }
+            });
+        }),
+
+        vscode.commands.registerCommand('projectMemory.confirmPlanStep', async (planId?: string, stepIndex?: number) => {
+            dashboardProvider.postMessage({
+                type: 'confirmPlanStep',
+                data: {
+                    planId: typeof planId === 'string' ? planId : undefined,
+                    stepIndex: Number.isInteger(stepIndex) ? Number(stepIndex) : undefined,
+                }
+            });
+        }),
+
+        vscode.commands.registerCommand('projectMemory.confirmPlanPhase', async (planId?: string, phaseName?: string) => {
+            dashboardProvider.postMessage({
+                type: 'confirmPlanPhase',
+                data: {
+                    planId: typeof planId === 'string' ? planId : undefined,
+                    phaseName: typeof phaseName === 'string' ? phaseName : undefined,
+                }
+            });
+        }),
+
+        vscode.commands.registerCommand('projectMemory.confirmAction', async () => {
+            dashboardProvider.postMessage({
+                type: 'confirmAction',
+            });
+        }),
+
+        vscode.commands.registerCommand('projectMemory.cancelAction', async () => {
+            dashboardProvider.postMessage({
+                type: 'cancelAction',
+            });
         })
     );
 }

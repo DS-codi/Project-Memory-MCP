@@ -5,7 +5,7 @@
  * guidance to agents. Each skill lives in a subdirectory under the skills root.
  */
 
-import { promises as fs } from 'fs';
+import { promises as fs, existsSync } from 'fs';
 import path from 'path';
 import type { ToolResponse } from '../types/index.js';
 import type {
@@ -18,7 +18,28 @@ import { appendWorkspaceFileUpdate } from '../logging/workspace-update-log.js';
 import { invalidateSkillRegistryCache } from './skill-registry.js';
 
 // Path to the skills directory (relative to the server)
-const SKILLS_ROOT = process.env.MBS_SKILLS_ROOT || path.join(process.cwd(), '..', 'skills');
+function resolveSkillsRoot(): string {
+  if (process.env.MBS_SKILLS_ROOT) {
+    return process.env.MBS_SKILLS_ROOT;
+  }
+
+  let dir = process.cwd();
+  for (let i = 0; i < 6; i++) {
+    const githubSkills = path.join(dir, '.github', 'skills');
+    const legacySkills = path.join(dir, 'skills');
+
+    if (existsSync(githubSkills)) return githubSkills;
+    if (existsSync(legacySkills)) return legacySkills;
+
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+
+  return path.join(process.cwd(), '..', 'skills');
+}
+
+const SKILLS_ROOT = resolveSkillsRoot();
 
 // =============================================================================
 // Frontmatter Parser

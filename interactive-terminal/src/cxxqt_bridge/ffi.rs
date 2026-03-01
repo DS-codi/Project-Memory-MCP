@@ -163,12 +163,12 @@ pub mod ffi {
         fn export_output_json(self: Pin<&mut TerminalApp>, directory: QString) -> bool;
 
         #[qinvokable]
-        #[cxx_name = "currentOutputTextValue"]
-        fn current_output_text_value(self: &TerminalApp) -> QString;
+        #[cxx_name = "copyCurrentOutput"]
+        fn copy_current_output(self: Pin<&mut TerminalApp>) -> bool;
 
         #[qinvokable]
-        #[cxx_name = "lastCommandOutputTextValue"]
-        fn last_command_output_text_value(self: &TerminalApp) -> QString;
+        #[cxx_name = "copyLastCommandOutput"]
+        fn copy_last_command_output(self: Pin<&mut TerminalApp>) -> bool;
     }
 
     impl cxx_qt::Initialize for TerminalApp {}

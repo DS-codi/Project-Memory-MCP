@@ -46,5 +46,54 @@ suite('Dashboard Client Helpers', () => {
             script.includes('data-workspace-id="\\${planWorkspaceId}"'),
             'Plan rows should carry explicit workspace context'
         );
+        assert.ok(
+            script.includes('function fetchSelectedPlanDetails()'),
+            'Selected plan details fetcher should exist for step viewer data binding'
+        );
+        assert.ok(
+            script.includes("'/api/plans/' + target.workspaceId + '/' + target.planId"),
+            'Selected plan detail fetch should target workspace+plan detail endpoint'
+        );
+        assert.ok(
+            script.includes('function renderStepViewer(steps)'),
+            'Step viewer renderer should exist'
+        );
+        assert.ok(
+            script.includes('step-viewer-item'),
+            'Step viewer renderer should emit step row class names'
+        );
+    });
+
+    test('helpers include top-level tab persistence and deterministic availability matrix', () => {
+        const script = getClientHelpers();
+
+        assert.ok(
+            script.includes('function setTopLevelTab(tab, options)'),
+            'Top-level tab setter should exist for Dashboard/Plans/Operations switching'
+        );
+        assert.ok(
+            script.includes('function applyDashboardState()'),
+            'Dashboard state application should restore persisted tab state'
+        );
+        assert.ok(
+            script.includes('vscode.setState({'),
+            'Dashboard helpers should persist session state through vscode.setState'
+        );
+        assert.ok(
+            script.includes('function getAvailabilityState(key, context)'),
+            'Availability matrix evaluator should exist'
+        );
+        assert.ok(
+            script.includes("'Only archived plans can be resumed.'"),
+            'Resume tooltip state should be defined for non-archived selections'
+        );
+        assert.ok(
+            script.includes("'Program-level session control is not available yet.'"),
+            'Program session-control tooltip state should be defined'
+        );
+        assert.ok(
+            script.includes('function updateActionAvailability()'),
+            'Action availability applier should exist'
+        );
     });
 });

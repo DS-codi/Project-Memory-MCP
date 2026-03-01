@@ -196,6 +196,24 @@ describe('memory_session launch routing', () => {
     );
   });
 
+  it('blocks bypass fallback when PromptAnalyst is not explicitly unavailable', async () => {
+    mockIsSupervisorRunning.mockResolvedValue(true);
+
+    const result = await memorySession({
+      action: 'deploy_and_prep',
+      workspace_id: 'ws_test',
+      plan_id: 'plan_test',
+      agent_name: 'Executor',
+      prompt: 'hello',
+      bypass_prompt_analyst_policy: true,
+      transition_reason_code: 'scope_change',
+      prompt_analyst_enrichment_applied: false,
+    });
+
+    expect(result.success).toBe(false);
+    expect((result as any).error).toContain('POLICY_PROMPT_ANALYST_FALLBACK_REQUIRES_UNAVAILABLE');
+  });
+
   it('blocks deploy_and_prep when strict bundle resolution is requested without a hub decision payload', async () => {
     mockIsSupervisorRunning.mockResolvedValue(true);
 
@@ -207,6 +225,28 @@ describe('memory_session launch routing', () => {
       prompt: 'hello',
       prompt_analyst_enrichment_applied: true,
       strict_bundle_resolution: true,
+    });
+
+    expect(result.success).toBe(false);
+    expect((result as any).error).toContain('POLICY_BUNDLE_DECISION_REQUIRED');
+  });
+
+  it('does not allow legacy toggle to bypass strict bundle-decision requirements', async () => {
+    mockIsSupervisorRunning.mockResolvedValue(true);
+
+    const result = await memorySession({
+      action: 'deploy_and_prep',
+      workspace_id: 'ws_test',
+      plan_id: 'plan_test',
+      agent_name: 'Executor',
+      prompt: 'hello',
+      prompt_analyst_enrichment_applied: true,
+      strict_bundle_resolution: true,
+      allow_legacy_always_on: true,
+      fallback_policy: {
+        fallback_allowed: true,
+        fallback_mode: 'compat_dynamic',
+      },
     });
 
     expect(result.success).toBe(false);
@@ -233,6 +273,7 @@ describe('memory_session launch routing', () => {
       },
       hub_decision_payload: {
         bundle_decision_id: 'decision-1',
+        bundle_decision_version: 'v1',
         spoke_instruction_bundle: {
           bundle_id: 'instr-bundle',
           instruction_ids: ['executor-phase4-build-guidance-20260217'],

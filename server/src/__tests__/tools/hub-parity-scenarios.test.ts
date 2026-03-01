@@ -176,6 +176,36 @@ describe('Dynamic Hub scenario parity suite', () => {
     expect(allowed.policy.valid).toBe(true);
   });
 
+  it('prioritizes mode-boundary ownership checks over bundle-decision checks for Analyst dispatches', () => {
+    const analystDispatch = evaluateHubDispatchPolicy({
+      target_agent_type: 'Analyst',
+      requested_hub_mode: 'standard_orchestration',
+      prompt_analyst_enrichment_applied: false,
+      strict_bundle_resolution: true,
+      provisioning_mode: 'on_demand',
+      requested_scope: 'task',
+    });
+
+    expect(analystDispatch.policy.valid).toBe(false);
+    expect(analystDispatch.policy.code).toBe('POLICY_MODE_BOUNDARY_VIOLATION');
+  });
+
+  it('rejects invalid hub decision payloads when bundle contract is required', () => {
+    const invalid = evaluateHubDispatchPolicy({
+      target_agent_type: 'Executor',
+      requested_hub_mode: 'standard_orchestration',
+      prompt_analyst_enrichment_applied: true,
+      strict_bundle_resolution: true,
+      hub_decision_payload: {
+        bundle_decision_id: 'decision-1',
+        bundle_decision_version: 'v1',
+      },
+    });
+
+    expect(invalid.policy.valid).toBe(false);
+    expect(invalid.policy.code).toBe('POLICY_BUNDLE_DECISION_INVALID');
+  });
+
   it('aggregates telemetry for concurrent sessions, stale registry rows, and conflict triggers', async () => {
     const now = new Date();
     const staleUpdatedAt = new Date(now.getTime() - 90 * 60 * 1000).toISOString();

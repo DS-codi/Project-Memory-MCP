@@ -22,6 +22,7 @@
     "src/server/**/*.ts",
     "src/services/**/*.ts",
     "src/supervisor/**/*.ts",
+    "src/test/**/*.ts",
     "src/ui/**/*.ts",
     "src/utils/**/*.ts"
   ],

@@ -51,6 +51,33 @@ function findProjectRoot(): string {
   return path.resolve(__dirname, '..', '..', '..');
 }
 
+function resolveContentDir(
+  projectRoot: string,
+  candidates: string[][],
+  envOverride?: string,
+): string | null {
+  if (envOverride && fs.existsSync(envOverride)) {
+    return envOverride;
+  }
+
+  const roots = [
+    projectRoot,
+    path.resolve(projectRoot, '..'),
+    path.resolve(projectRoot, '..', '..'),
+  ];
+
+  for (const root of roots) {
+    for (const segments of candidates) {
+      const candidate = path.join(root, ...segments);
+      if (fs.existsSync(candidate)) {
+        return candidate;
+      }
+    }
+  }
+
+  return null;
+}
+
 // ── Tool catalog data ─────────────────────────────────────────────────────────
 
 /**
@@ -239,9 +266,13 @@ async function seedAgentDefinitions(projectRoot: string): Promise<number> {
 // ── Instruction files ─────────────────────────────────────────────────────────
 
 async function seedInstructionFiles(projectRoot: string): Promise<number> {
-  const instrDir = path.join(projectRoot, '.github', 'instructions');
-  if (!fs.existsSync(instrDir)) {
-    console.warn(`  [seed] instructions directory not found at ${instrDir}, skipping`);
+  const instrDir = resolveContentDir(
+    projectRoot,
+    [['.github', 'instructions']],
+    process.env.MBS_INSTRUCTIONS_ROOT,
+  );
+  if (!instrDir) {
+    console.warn('  [seed] instructions directory not found (.github/instructions), skipping');
     return 0;
   }
 
@@ -314,9 +345,13 @@ function parseSkillFrontmatter(content: string): SkillFrontmatter {
 }
 
 async function seedSkills(projectRoot: string): Promise<number> {
-  const skillsDir = path.join(projectRoot, 'skills');
-  if (!fs.existsSync(skillsDir)) {
-    console.warn(`  [seed] skills directory not found at ${skillsDir}, skipping`);
+  const skillsDir = resolveContentDir(
+    projectRoot,
+    [['.github', 'skills'], ['skills']],
+    process.env.MBS_SKILLS_ROOT,
+  );
+  if (!skillsDir) {
+    console.warn('  [seed] skills directory not found (.github/skills or skills), skipping');
     return 0;
   }
 

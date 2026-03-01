@@ -9,6 +9,10 @@ import { runTests } from '@vscode/test-electron';
 async function main() {
     try {
         process.env.PROJECT_MEMORY_TEST_MODE = '1';
+        const requestedTests = process.argv.slice(2).filter((arg) => /\.test\.(ts|js)$/i.test(arg));
+        if (requestedTests.length > 0) {
+            process.env.PM_TEST_FILTER = JSON.stringify(requestedTests);
+        }
 
         // The folder containing the Extension Manifest package.json
         const extensionDevelopmentPath = path.resolve(__dirname, '../../');

@@ -1,0 +1,341 @@
+PS C:\Users\User\Project_Memory_MCP\Project-Memory-MCP> .\install.ps1
+Project Memory MCP — Install
+  Components : Supervisor, GuiForms, InteractiveTerminal, Server, Dashboard, Extension
+  InstallOnly: False
+  SkipInstall: False
+  Force      : False
+  NewDatabase: False
+
+── Supervisor (Rust + Qt QML)
+   Stopping Supervisor runtime processes (full teardown)...
+   (no matching runtime processes found)
+   Qt:    C:\Qt\6.10.2\msvc2022_64
+   QMAKE: C:\Qt\6.10.2\msvc2022_64\bin\qmake6.exe
+   › cargo build --release -p supervisor
+   cargo build in progress...  warnings so far: 0
+175 |     let mut rx = state.heartbeat_tx.subscribe();
+    |         ----^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+123 | async fn kill_orphans_on_ports(ports: &[u16]) {
+    |          ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+134 | async fn find_pid_for_port(port: u16) -> Option<u32> {
+    |          ^^^^^^^^^^^^^^^^^
+178 | fn kill_pid(pid: u32, port: u16) {
+    |    ^^^^^^^^
+1683 | async fn probe_http_health(port: u16, timeout_ms: u64) -> bool {
+     |          ^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+108 |         std::mem::forget(handle);
+    |         ^^^^^^^^^^^^^^^^^------^
+    |                          |
+    |                          argument has type `*mut std::ffi::c_void`
+    |
+    = note: `#[warn(forgetting_copy_types)]` on by default
+help: use `let _ = ...` to ignore the expression or result
+    |
+108 -         std::mem::forget(handle);
+108 +         let _ = handle;
+    |
+   ⚠ 8 warning(s) suppressed — set RUST_LOG=warn to see details
+   › windeployqt supervisor
+Adding Qt6Lottie Qt6LottieVectorImageGenerator Qt6QuickVectorImageGenerator for qlottievectorimage.dll from plugin type: vectorimageformats
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Warning: Cannot find any version of the dxcompiler.dll and dxil.dll.
+Warning: Cannot find Visual Studio installation directory, VCINSTALLDIR is not set.
+   windeployqt up-to-date: 1342
+   windeployqt translations: 32
+   windeployqt deps: binary=1 scanPaths=1 localDeps=1 pluginTypes=20 resolved=3 skipped=2 passes=1
+   Qt dependency sets: direct=4 all=30 deploy=36
+   QML imports discovered: 29
+   Copied 4 tray icon(s) → target/release/
+   ✓ supervisor built → target/release/supervisor.exe
+
+── PM GUI Binaries (pm-approval-gui, pm-brainstorm-gui)
+   Qt:    C:\Qt\6.10.2\msvc2022_64
+   QMAKE: C:\Qt\6.10.2\msvc2022_64\bin\qmake6.exe
+   › cargo build --release -p pm-approval-gui
+   cargo build in progress...  warnings so far: 0
+6 | use std::time::{Duration, Instant};
+  |                           ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+11 |     Answer, AnswerValue, FormRequest, FormResponse, FormResponseTag,
+   |             ^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+9 | use cxx_qt_lib::QString;
+  |     ^^^^^^^^^^^^^^^^^^^
+10 | use std::pin::Pin;
+   |     ^^^^^^^^^^^^^
+11 | use std::sync::{Arc, Mutex};
+   |                 ^^^  ^^^^^
+14 |     fn initialize(mut self: Pin<&mut Self>) {
+   |                   ----^^^^
+   |                   |
+   |                   help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` on by default
+16 | pub(crate) struct AppState {
+   |                   -------- field in this struct
+...
+20 |     pub decision_answer: Option<String>,
+   |         ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+   ⚠ 9 warning(s) suppressed — set RUST_LOG=warn to see details
+   › windeployqt pm-approval-gui
+Adding Qt6Lottie Qt6LottieVectorImageGenerator Qt6QuickVectorImageGenerator for qlottievectorimage.dll from plugin type: vectorimageformats
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Warning: Cannot find any version of the dxcompiler.dll and dxil.dll.
+Warning: Cannot find Visual Studio installation directory, VCINSTALLDIR is not set.
+   windeployqt up-to-date: 1336
+   windeployqt translations: 32
+   windeployqt deps: binary=1 scanPaths=1 localDeps=1 pluginTypes=18 resolved=3 skipped=2 passes=1
+   Qt dependency sets: direct=4 all=28 deploy=34
+   QML imports discovered: 28
+   ✓ pm-approval-gui built → target/release/pm-approval-gui.exe
+   › cargo build --release -p pm-brainstorm-gui
+   cargo build in progress...  warnings so far: 0
+6 | use std::time::{Duration, Instant};
+  |                           ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+9 | use cxx_qt_lib::QString;
+  |     ^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+11 | use std::pin::Pin;
+   |     ^^^^^^^^^^^^^
+12 | use std::sync::{Arc, Mutex};
+   |                 ^^^  ^^^^^
+11 |     fn initialize(mut self: Pin<&mut Self>) {
+   |                   ----^^^^
+   |                   |
+   |                   help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` on by default
+17 | pub(crate) struct AppState {
+   |                   -------- field in this struct
+...
+31 |     pub timer_cancel: Option<tokio::sync::oneshot::Sender<()>>,
+   |         ^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+   ⚠ 8 warning(s) suppressed — set RUST_LOG=warn to see details
+   › windeployqt pm-brainstorm-gui
+Adding Qt6Lottie Qt6LottieVectorImageGenerator Qt6QuickVectorImageGenerator for qlottievectorimage.dll from plugin type: vectorimageformats
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Warning: Cannot find any version of the dxcompiler.dll and dxil.dll.
+Warning: Cannot find Visual Studio installation directory, VCINSTALLDIR is not set.
+   windeployqt up-to-date: 1336
+   windeployqt translations: 32
+   windeployqt deps: binary=1 scanPaths=1 localDeps=1 pluginTypes=18 resolved=3 skipped=2 passes=1
+   Qt dependency sets: direct=4 all=28 deploy=34
+   QML imports discovered: 28
+   ✓ pm-brainstorm-gui built → target/release/pm-brainstorm-gui.exe
+
+── Interactive Terminal (Rust + Qt)
+   › Delegating to build-interactive-terminal.ps1 (QtDir=C:\Qt\6.10.2\msvc2022_64)
+=== Interactive Terminal Build ===
+QtDir:   C:\Qt\6.10.2\msvc2022_64
+QMAKE:   C:\Qt\6.10.2\msvc2022_64\bin\qmake6.exe
+Profile: release
+Cargo SSL revoke check: false
+Cargo registry protocol: sparse
+Cargo git fetch via CLI: true
+Deploy:  True
+QMake version 3.1
+Using Qt version 6.10.2 in C:/Qt/6.10.2/msvc2022_64/lib
+Running: cargo build --release
+cargo build in progress... warnings so far: 0
+cargo build in progress... warnings so far: 0
+cargo build in progress... warnings so far: 0
+cargo build in progress... warnings so far: 0
+   Compiling interactive-terminal v0.1.0 (C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\interactive-terminal)
+    Finished `release` profile [optimized] target(s) in 22.71s
+Build output (local):     C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\interactive-terminal\target\release\interactive-terminal.exe
+Deploying Qt runtime with: C:\Qt\6.10.2\msvc2022_64\bin\windeployqt.exe
+Adding Qt6Lottie Qt6LottieVectorImageGenerator Qt6QuickVectorImageGenerator for qlottievectorimage.dll from plugin type: vectorimageformats
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Skipping C:\Qt\6.10.2\msvc2022_64\qml\QtQuick\Controls\designer.
+Warning: Cannot determine dependencies of C:\Qt\6.10.2\msvc2022_64\plugins\webview\qtwebview_webengine.dll: Unable to find dependent libraries of C:\Qt\6.10.2\msvc2022_64\bin\Qt6WebEngineQuick.dll :Cannot open 'C:/Qt/6.10.2/msvc2022_64/bin/Qt6WebEngineQuick.dll': The system cannot find the file specified.
+Warning: Cannot determine dependencies of C:\Qt\6.10.2\msvc2022_64\plugins\webview\qtwebview_webengine.dll: Unable to find dependent libraries of C:\Qt\6.10.2\msvc2022_64\bin\Qt6WebEngineQuick.dll :Cannot open 'C:/Qt/6.10.2/msvc2022_64/bin/Qt6WebEngineQuick.dll': The system cannot find the file specified.
+Warning: Cannot find any version of the dxcompiler.dll and dxil.dll.
+Warning: Cannot find Visual Studio installation directory, VCINSTALLDIR is not set.
+windeployqt up-to-date items: 1349
+windeployqt translation files created: 32
+windeployqt dependency summary: binary=1, scanPaths=1, localDeps=1, pluginTypes=22, resolvedDeps=3, skippedPlugins=2, additionalPasses=1
+Qt dependency sets: direct=4, all=32, deploy=38
+QML imports discovered: 30
+QML import scan progress: 10% (3/30)
+QML import scan progress: 20% (6/30)
+QML import scan progress: 30% (9/30)
+QML import scan progress: 40% (12/30)
+QML import scan progress: 50% (15/30)
+QML import scan progress: 60% (18/30)
+QML import scan progress: 70% (21/30)
+QML import scan progress: 80% (24/30)
+QML import scan progress: 90% (27/30)
+QML import scan progress: 100% (30/30)
+Qt runtime deployment verified.
+Staging interactive-terminal artifacts to: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\target\release
+Staging complete: interactive-terminal artifacts copied next to supervisor output.
+Done.
+   ✓ interactive-terminal built + Qt runtime deployed → target\release\  (workspace output)
+
+── Server
+   › npm run build
+
+> project-memory-mcp@1.0.0 build
+> tsc && node -e "require('fs').cpSync('src/db/migrations','dist/db/migrations',{recursive:true})"
+
+   ✓ Server built → C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\server\dist
+   › node dist/db/seed.js (DB init + seed)
+[seed] Seeding tool catalog...
+[seed]   8 tools, 102 actions
+[seed] Seeding agent definitions...
+  [seed] agents-v2 directory not found at C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\agents-v2, skipping agent defs
+[seed]   0 agents
+[seed] Seeding instruction files...
+[seed]   16 instruction files
+[seed] Seeding skill definitions...
+[seed]   12 skills
+[seed] Seeding GUI routing contracts...
+[seed]   2 contracts (approval, brainstorm)
+[seed] Done.
+
+[seed] Summary: { tools: 8, agents: 0, instructions: 16, skills: 12, guiContracts: 2 }
+   ✓ Database initialised at %APPDATA%\ProjectMemory\project-memory.db
+
+── Dashboard
+   › npx vite build
+←[36mvite v6.4.1 ←[32mbuilding for production...←[36m←[39m
+transforming...
+←[32mÔ£ô←[39m 1938 modules transformed.
+rendering chunks...
+computing gzip size...
+←[2mdist/←[22m←[32mindex.html                 ←[39m←[1m←[2m  0.51 kB←[22m←[1m←[22m←[2m Ôöé gzip:   0.34 kB←[22m
+←[2mdist/←[22m←[35massets/index-BOrsym6L.css  ←[39m←[1m←[2m 52.53 kB←[22m←[1m←[22m←[2m Ôöé gzip:   9.37 kB←[22m
+←[2mdist/←[22m←[36massets/index-DWoib4uo.js   ←[39m←[1m←[33m668.55 kB←[39m←[22m←[2m Ôöé gzip: 177.93 kB←[22m
+←[33m
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.←[39m
+←[32mÔ£ô built in 5.91s←[39m
+   ✓ Dashboard frontend built → C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\dashboard\dist
+   › npm run build (dashboard server)
+
+> memory-observer-server@0.1.0 build
+> tsc
+
+   ✓ Dashboard server built → C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\dashboard\server\dist
+
+── VS Code Extension
+   › npm install
+
+up to date, audited 246 packages in 2s
+
+82 packages are looking for funding
+  run `npm fund` for details
+
+5 vulnerabilities (1 moderate, 4 high)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+   › npm run compile
+
+> project-memory-dashboard@0.2.0 compile
+> npm run esbuild
+
+
+> project-memory-dashboard@0.2.0 esbuild
+> npm run esbuild-base -- --sourcemap
+
+
+> project-memory-dashboard@0.2.0 esbuild-base
+> node esbuild.js --sourcemap
+
+Ôû▓ [WARNING] "./reporters/parallel-buffered" should be marked as external for use with "require.resolve" [require-resolve-not-external]
+System.Management.Automation.RemoteException
+    node_modules/mocha/lib/nodejs/parallel-buffered-runner.js:26:2:
+      26 Ôöé   './reporters/parallel-buffered'
+         ÔòÁ   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+System.Management.Automation.RemoteException
+Ôû▓ [WARNING] "./worker.js" should be marked as external for use with "require.resolve" [require-resolve-not-external]
+System.Management.Automation.RemoteException
+    node_modules/mocha/lib/nodejs/buffered-worker-pool.js:22:36:
+      22 Ôöé const WORKER_PATH = require.resolve('./worker.js');
+         ÔòÁ                                     ~~~~~~~~~~~~~
+System.Management.Automation.RemoteException
+2 warnings
+   › npm run package (vsce)
+Executing prepublish script 'npm run vscode:prepublish'...
+
+> project-memory-dashboard@0.2.0 vscode:prepublish
+> npm run esbuild-base -- --production
+
+
+> project-memory-dashboard@0.2.0 esbuild-base
+> node esbuild.js --production
+
+Ôû▓ [WARNING] "./reporters/parallel-buffered" should be marked as external for use with "require.resolve" [require-resolve-not-external]
+System.Management.Automation.RemoteException
+    node_modules/mocha/lib/nodejs/parallel-buffered-runner.js:26:2:
+      26 Ôöé   './reporters/parallel-buffered'
+         ÔòÁ   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+System.Management.Automation.RemoteException
+Ôû▓ [WARNING] "./worker.js" should be marked as external for use with "require.resolve" [require-resolve-not-external]
+System.Management.Automation.RemoteException
+    node_modules/mocha/lib/nodejs/buffered-worker-pool.js:22:36:
+      22 Ôöé const WORKER_PATH = require.resolve('./worker.js');
+         ÔòÁ                                     ~~~~~~~~~~~~~
+System.Management.Automation.RemoteException
+2 warnings
+ INFO  Files included in the VSIX:
+project-memory-dashboard-0.2.0.vsix
+Ôö£ÔöÇ [Content_Types].xml
+Ôö£ÔöÇ extension.vsixmanifest
+ÔööÔöÇ extension/
+   Ôö£ÔöÇ LICENSE.txt [1.07 KB]
+   Ôö£ÔöÇ changelog.md [4.71 KB]
+   Ôö£ÔöÇ package.json [17.69 KB]
+   Ôö£ÔöÇ readme.md [6.73 KB]
+   Ôö£ÔöÇ .replay-bin/ (1 file) [90.06 KB]
+   Ôö£ÔöÇ .replay-runs/ (379 files) [1.68 MB]
+   Ôö£ÔöÇ goldens/ (2 files) [9.99 KB]
+   Ôö£ÔöÇ out/ (42 files) [2.19 MB]
+   Ôö£ÔöÇ resources/ (30 files) [7.86 KB]
+   Ôö£ÔöÇ test-results/ (10 files) [76.76 KB]
+   ÔööÔöÇ tools/ (1 file) [1.9 KB]
+
+=> Run vsce ls --tree to see all included files.
+
+ DONE  Packaged: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\vscode-extension\project-memory-dashboard-0.2.0.vsix (471 files, 862.25 KB)
+   ✓ Extension compiled and packaged
+   › Installing project-memory-dashboard-0.2.0.vsix
+Installing extensions...
+Extension 'project-memory-dashboard-0.2.0.vsix' was successfully installed.
+   ✓ Extension installed: project-memory-dashboard-0.2.0.vsix
+
+   Reload VS Code to activate the updated extension:
+   Ctrl+Shift+P → Developer: Reload Window
+
+Done in 74.4s
+
+   [warn] launch script not found: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\launch-supervisor.ps1
+PS C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\interactive-terminal>
