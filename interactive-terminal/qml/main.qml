@@ -30,13 +30,7 @@ ApplicationWindow {
     property bool popupOverlayVisible: geminiSettingsDialog.visible
         || approvalDialog.visible
         || savedCommandsDrawer.visible
-    property bool hasActiveTerminalSession: {
-        const current = (terminalApp.currentSessionId || "").trim()
-        if (!current) {
-            return false
-        }
-        return sessionTabs.some(function(tab) { return tab.sessionId === current })
-    }
+    property bool hasActiveTerminalSession: (terminalApp.currentSessionId || "").trim().length > 0
 
     function syncSessionDisplayName() {
         const current = (terminalApp.currentSessionId || "").trim()
@@ -721,32 +715,11 @@ ApplicationWindow {
             Layout.fillHeight: true
             color: "#1e1e1e"
 
-            Loader {
+            TerminalView {
                 anchors.fill: parent
-                active: root.hasActiveTerminalSession
-
-                sourceComponent: TerminalView {
-                    anchors.fill: parent
-                    terminalApp: terminalApp
-                    suppressWebView: root.popupOverlayVisible
-                    hasActiveSession: root.hasActiveTerminalSession
-                }
-            }
-
-            Rectangle {
-                anchors.fill: parent
-                color: "#1e1e1e"
-                visible: !root.hasActiveTerminalSession
-
-                Text {
-                    anchors.centerIn: parent
-                    text: "No active terminal session. Create or select a tab to start a shell."
-                    color: "#808080"
-                    font.pixelSize: 13
-                    horizontalAlignment: Text.AlignHCenter
-                    wrapMode: Text.WordWrap
-                    width: Math.min(parent.width * 0.8, 540)
-                }
+                terminalApp: terminalApp
+                suppressWebView: root.popupOverlayVisible
+                hasActiveSession: root.hasActiveTerminalSession
             }
         }
     }

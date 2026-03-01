@@ -37,6 +37,14 @@ suite('Dashboard Plan Selection Routing', () => {
             'Top-level tab click routing should be handled explicitly'
         );
         assert.ok(
+            script.includes('appendAlwaysProvidedNotesQuery'),
+            'Plan route actions should enrich query strings with always-provided notes'
+        );
+        assert.ok(
+            script.includes("vscode.postMessage({ type: 'saveAlwaysProvidedNotes'"),
+            'Always-provided notes should post save messages to the extension host'
+        );
+        assert.ok(
             script.includes('if (button.disabled) {'),
             'Disabled buttons should be short-circuited in delegated click handling'
         );

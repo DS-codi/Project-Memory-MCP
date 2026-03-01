@@ -42,6 +42,7 @@ pub struct AppState {
     pub pending_commands_by_session: HashMap<String, Vec<CommandRequest>>,
     pub session_display_names: HashMap<String, String>,
     pub session_context_by_id: HashMap<String, SessionRuntimeContext>,
+    pub session_lifecycle_by_id: HashMap<String, SessionLifecycleState>,
     pub default_terminal_profile: TerminalProfile,
     pub selected_session_id: String,
     pub saved_commands_ui_workspace_id: String,
@@ -50,11 +51,17 @@ pub struct AppState {
     pub response_tx: Option<tokio::sync::mpsc::Sender<crate::protocol::Message>>,
     pub command_tx: Option<tokio::sync::mpsc::Sender<CommandRequest>>,
     pub output_tracker: OutputTracker,
-    /// Broadcast sender shared by the WS terminal server.  When set, any text
-    /// written via `append_output_line` or exec_task output is forwarded to the
-    /// xterm.js front-end over WebSocket in addition to the legacy `output_text`
-    /// QProperty.
+    /// Broadcast sender shared by the WS terminal server for live shell traffic.
     pub ws_terminal_tx: Option<tokio::sync::broadcast::Sender<Vec<u8>>>,
+}
+
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SessionLifecycleState {
+    #[default]
+    Inactive,
+    Active,
+    Closed,
 }
 
 #[derive(Default, Clone)]
@@ -73,6 +80,7 @@ pub(crate) struct SessionTabView {
     pub pending_count: i32,
     pub is_active: bool,
     pub can_close: bool,
+    pub lifecycle_state: SessionLifecycleState,
 }
 
 #[derive(Debug)]
@@ -104,6 +112,10 @@ impl Default for TerminalAppRust {
                     selected_terminal_profile: default_terminal_profile.clone(),
                     ..SessionRuntimeContext::default()
                 },
+            )]),
+            session_lifecycle_by_id: HashMap::from([(
+                "default".to_string(),
+                SessionLifecycleState::Active,
             )]),
             default_terminal_profile: default_terminal_profile.clone(),
             selected_session_id: "default".to_string(),

@@ -248,3 +248,55 @@ Project Memory MCP addresses that by making work:
 - and **verifiable** (scripts + status tracking).
 
 In short: it turns AI coding sessions into an operational workflow that can be resumed, reviewed, and completed with less friction.
+
+---
+
+## 8) Current implementation notes (March 2026)
+
+### 8.1 Realtime invalidation and dashboard refresh behavior
+
+Realtime dashboard updates are driven by event emissions and invalidation, independent of optional notification channels.
+
+In practice:
+
+- event-log writes remain the authoritative source of state transitions,
+- dashboard clients refresh from those events,
+- and optional outbound delivery channels (for example, webhooks) do not gate local state updates.
+
+### 8.2 Webhook runtime and delivery model
+
+Webhook delivery is implemented as asynchronous best-effort dispatch after event persistence.
+
+Key runtime characteristics:
+
+- explicit enable/disable and endpoint URL validation,
+- optional request signing with `X-PM-Webhook-Signature`,
+- bounded payload size and timeout controls,
+- bounded retry behavior with jitter and retryable status-code filtering,
+- queue concurrency/inflight limits,
+- configurable fail-open behavior for queue-overflow scenarios.
+
+Primary environment controls are:
+
+- `PM_WEBHOOK_ENABLED`
+- `PM_WEBHOOK_URL`
+- `PM_WEBHOOK_SIGNING_ENABLED`
+- `PM_WEBHOOK_SECRET`
+- `PM_WEBHOOK_TIMEOUT_MS`
+- `PM_WEBHOOK_MAX_PAYLOAD_BYTES`
+- `PM_WEBHOOK_RETRY_MAX_ATTEMPTS`
+- `PM_WEBHOOK_RETRY_BASE_DELAY_MS`
+- `PM_WEBHOOK_RETRY_MAX_DELAY_MS`
+- `PM_WEBHOOK_RETRY_JITTER_RATIO`
+- `PM_WEBHOOK_RETRYABLE_STATUS_CODES`
+- `PM_WEBHOOK_QUEUE_CONCURRENCY`
+- `PM_WEBHOOK_QUEUE_MAX_INFLIGHT`
+- `PM_WEBHOOK_FAIL_OPEN_ON_QUEUE_OVERFLOW`
+
+### 8.3 VS Code extension plans UX notes
+
+The Plans view follows an explicit-selection model:
+
+- users select a specific plan before step details are rendered,
+- plan navigation context preserves selected workspace/plan identity,
+- step lists are rendered in deterministic order with phase, type, and status metadata.

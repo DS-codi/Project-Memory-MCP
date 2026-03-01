@@ -24,7 +24,47 @@ export function getClientHelpers(): string {
                 currentPlanTab: (currentPlanTab === 'archived' || currentPlanTab === 'programs') ? currentPlanTab : 'active',
                 selectedPlanId: selectedPlanId || '',
                 selectedPlanWorkspaceId: selectedPlanWorkspaceId || '',
+                alwaysProvidedNotes: typeof alwaysProvidedNotes === 'string' ? alwaysProvidedNotes : '',
             });
+        }
+
+        function normalizeAlwaysProvidedNotes(value) {
+            if (typeof value !== 'string') {
+                return '';
+            }
+            return value.replace(/\r\n/g, '\n').trim();
+        }
+
+        function setAlwaysProvidedNotes(notes, options) {
+            const persist = !(options && options.persist === false);
+            alwaysProvidedNotes = normalizeAlwaysProvidedNotes(notes);
+            const input = document.getElementById('alwaysNotesInput');
+            if (input && input.value !== alwaysProvidedNotes) {
+                input.value = alwaysProvidedNotes;
+            }
+            if (persist) {
+                saveDashboardState();
+            }
+        }
+
+        function getAlwaysProvidedNotesFromUi() {
+            const input = document.getElementById('alwaysNotesInput');
+            if (!input) {
+                return normalizeAlwaysProvidedNotes(alwaysProvidedNotes);
+            }
+            return normalizeAlwaysProvidedNotes(input.value);
+        }
+
+        function appendAlwaysProvidedNotesQuery(query) {
+            const noteValue = normalizeAlwaysProvidedNotes(alwaysProvidedNotes);
+            if (!noteValue) {
+                return query || '';
+            }
+            const encoded = 'always_notes=' + encodeURIComponent(noteValue);
+            if (!query) {
+                return encoded;
+            }
+            return query + '&' + encoded;
         }
 
         function setTopLevelTab(tab, options) {
@@ -62,6 +102,7 @@ export function getClientHelpers(): string {
         function applyDashboardState() {
             setTopLevelTab(topLevelTab, { persist: false });
             setPlanTab(currentPlanTab, { persist: false });
+            setAlwaysProvidedNotes(alwaysProvidedNotes, { persist: false });
             updateActionAvailability();
         }
 

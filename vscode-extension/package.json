@@ -323,6 +323,12 @@
           "default": [],
           "description": "List of skill directory names to pre-select when deploying skills"
         },
+        "projectMemory.alwaysProvidedNotes": {
+          "type": "string",
+          "default": "",
+          "description": "Workspace-scoped notes automatically attached to hub-driven plan route operations from the dashboard.",
+          "scope": "resource"
+        },
         "projectMemory.autoDeployOnWorkspaceOpen": {
           "type": "boolean",
           "default": false,

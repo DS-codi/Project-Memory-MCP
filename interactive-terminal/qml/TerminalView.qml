@@ -17,10 +17,11 @@ Item {
     Loader {
         id: webViewLoader
         anchors.fill: parent
-        active: !terminalView.suppressWebView && terminalView.hasActiveSession
+        active: terminalView.hasActiveSession
 
         sourceComponent: WebView {
             anchors.fill: parent
+            visible: !terminalView.suppressWebView
 
             // Load the terminal page from the local Rust WebSocket server.
             // Port 0 means the server has not started yet — show a blank page.

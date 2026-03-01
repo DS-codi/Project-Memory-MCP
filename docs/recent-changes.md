@@ -176,3 +176,25 @@ During the Build, Test & Install plan execution:
 | MCP tools | 5 consolidated + 4 extension-side |
 | Dashboard pages | 8+ |
 | Instruction files | 20+ |
+
+---
+
+## Post-February 2026 Updates (Plan execution follow-up)
+
+### Realtime and event delivery behavior
+- Clarified that dashboard refresh/invalidation is driven by persisted event flow and is not blocked by optional outbound notification channels.
+- Preserved non-blocking delivery semantics so local state progression remains authoritative even when outbound dispatch is degraded.
+
+### Webhook runtime configuration and safety controls
+- Documented runtime controls and validation for webhook dispatch, including enablement, URL validation, optional signing, retry bounds, timeout limits, and queue controls.
+- Configuration surface currently includes:
+  - `PM_WEBHOOK_ENABLED`, `PM_WEBHOOK_URL`
+  - `PM_WEBHOOK_SIGNING_ENABLED`, `PM_WEBHOOK_SECRET`
+  - `PM_WEBHOOK_TIMEOUT_MS`, `PM_WEBHOOK_MAX_PAYLOAD_BYTES`
+  - `PM_WEBHOOK_RETRY_MAX_ATTEMPTS`, `PM_WEBHOOK_RETRY_BASE_DELAY_MS`, `PM_WEBHOOK_RETRY_MAX_DELAY_MS`, `PM_WEBHOOK_RETRY_JITTER_RATIO`, `PM_WEBHOOK_RETRYABLE_STATUS_CODES`
+  - `PM_WEBHOOK_QUEUE_CONCURRENCY`, `PM_WEBHOOK_QUEUE_MAX_INFLIGHT`, `PM_WEBHOOK_FAIL_OPEN_ON_QUEUE_OVERFLOW`
+
+### VS Code extension plans workflow refinements
+- Plans tab behavior now emphasizes explicit plan selection before rendering step details.
+- Selected workspace/plan routing context is preserved to reduce accidental context drift when navigating between plans.
+- Step-viewer expectations were documented: ordered step rendering with phase/type/status metadata for operator clarity.

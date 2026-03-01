@@ -95,5 +95,17 @@ suite('Dashboard Client Helpers', () => {
             script.includes('function updateActionAvailability()'),
             'Action availability applier should exist'
         );
+        assert.ok(
+            script.includes('function normalizeAlwaysProvidedNotes(value)'),
+            'Always-provided notes normalizer should exist'
+        );
+        assert.ok(
+            script.includes('function appendAlwaysProvidedNotesQuery(query)'),
+            'Always-provided notes query composer should exist'
+        );
+        assert.ok(
+            script.includes('alwaysProvidedNotes: typeof alwaysProvidedNotes === \'string\' ? alwaysProvidedNotes : \'\''),
+            'Dashboard state should persist always-provided notes'
+        );
     });
 });

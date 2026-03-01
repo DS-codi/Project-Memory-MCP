@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Plans Tab Selection + Step Viewer**
+  - Explicit selected-plan workflow for rendering step details in the Plans tab
+  - Step-viewer presentation for selected plans with phase/type/status context
+  - Selected workspace/plan routing context retained across plan navigation
+
 - **Copilot Chat Integration**
   - New `@memory` chat participant for conversational access to Project Memory
   - Slash commands: `/plan`, `/status`, `/context`, `/handoff`
@@ -33,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `projectMemory.chat.externalServerPath` - External server path
 
 ### Changed
+- Extension test build now includes the test suite index entrypoint (`src/test/suite/index.ts`) to ensure generated `out/test/suite/index` is available to the test runner.
 - Updated VS Code engine requirement to 1.99.0 for Chat API support
 - Added `github.copilot-chat` as extension dependency
 - Added `@modelcontextprotocol/sdk` dependency

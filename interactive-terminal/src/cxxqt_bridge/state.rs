@@ -1,8 +1,23 @@
-use super::{monotonic_millis, AppState, SessionRuntimeContext, SessionTabView};
+use super::{
+    monotonic_millis, AppState, SessionLifecycleState, SessionRuntimeContext, SessionTabView,
+};
 use crate::protocol::{CommandRequest, Message};
 use cxx_qt_lib::QString;
 
 impl AppState {
+    fn set_selected_session_lifecycle(&mut self) {
+        for state in self.session_lifecycle_by_id.values_mut() {
+            if *state != SessionLifecycleState::Closed {
+                *state = SessionLifecycleState::Inactive;
+            }
+        }
+
+        if !self.selected_session_id.trim().is_empty() {
+            self.session_lifecycle_by_id
+                .insert(self.selected_session_id.clone(), SessionLifecycleState::Active);
+        }
+    }
+
     fn session_display_name_for(&self, session_id: &str) -> String {
         self.session_display_names
             .get(session_id)
@@ -49,6 +64,11 @@ impl AppState {
                     .unwrap_or(0),
                 is_active: session_id == self.selected_session_id,
                 can_close: true,
+                lifecycle_state: self
+                    .session_lifecycle_by_id
+                    .get(&session_id)
+                    .copied()
+                    .unwrap_or(SessionLifecycleState::Inactive),
                 session_id,
             })
             .collect::<Vec<_>>();
@@ -63,6 +83,13 @@ impl AppState {
         loop {
             let candidate = format!("session-{suffix}");
             if !self.has_session(&candidate) {
+                if !self.selected_session_id.trim().is_empty() {
+                    self.session_lifecycle_by_id.insert(
+                        self.selected_session_id.clone(),
+                        SessionLifecycleState::Inactive,
+                    );
+                }
+
                 self.pending_commands_by_session
                     .insert(candidate.clone(), Vec::new());
                 self.session_display_names
@@ -74,6 +101,7 @@ impl AppState {
                         ..SessionRuntimeContext::default()
                     });
                 self.selected_session_id = candidate.clone();
+                self.set_selected_session_lifecycle();
                 return candidate;
             }
 
@@ -95,6 +123,7 @@ impl AppState {
             .entry(selected.to_string())
             .or_default();
         self.selected_session_id = selected.to_string();
+        self.set_selected_session_lifecycle();
         Ok(())
     }
 
@@ -111,6 +140,9 @@ impl AppState {
         self.pending_commands_by_session.remove(target);
         self.session_display_names.remove(target);
         self.session_context_by_id.remove(target);
+        self.session_lifecycle_by_id
+            .insert(target.to_string(), SessionLifecycleState::Closed);
+        self.session_lifecycle_by_id.remove(target);
 
         if self.selected_session_id == target {
             if let Some(fallback) = self.session_ids_sorted().into_iter().next() {
@@ -119,6 +151,8 @@ impl AppState {
                 self.selected_session_id.clear();
             }
         }
+
+        self.set_selected_session_lifecycle();
 
         Ok(())
     }

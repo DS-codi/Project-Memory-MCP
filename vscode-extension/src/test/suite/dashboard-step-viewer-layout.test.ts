@@ -26,5 +26,13 @@ suite('Dashboard Step Viewer Layout', () => {
             html.includes('Select a plan to view ordered steps.'),
             'Selected plan panel should include empty-state copy'
         );
+        assert.ok(
+            html.includes('id="alwaysNotesInput"'),
+            'Operations section should include always-provided notes input'
+        );
+        assert.ok(
+            html.includes('data-action="save-always-notes"'),
+            'Always-provided notes section should include save action button'
+        );
     });
 });

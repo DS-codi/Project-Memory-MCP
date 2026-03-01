@@ -27,6 +27,10 @@ fn test_state() -> AppState {
         pending_commands_by_session: HashMap::from([("default".to_string(), Vec::new())]),
         session_display_names: HashMap::from([("default".to_string(), "default".to_string())]),
         session_context_by_id: HashMap::new(),
+        session_lifecycle_by_id: HashMap::from([(
+            "default".to_string(),
+            SessionLifecycleState::Active,
+        )]),
         default_terminal_profile: crate::protocol::TerminalProfile::default(),
         selected_session_id: "default".to_string(),
         saved_commands_ui_workspace_id: String::new(),
@@ -44,6 +48,10 @@ fn test_state_with_repo(repo_root: PathBuf) -> AppState {
         pending_commands_by_session: HashMap::from([("default".to_string(), Vec::new())]),
         session_display_names: HashMap::from([("default".to_string(), "default".to_string())]),
         session_context_by_id: HashMap::new(),
+        session_lifecycle_by_id: HashMap::from([(
+            "default".to_string(),
+            SessionLifecycleState::Active,
+        )]),
         default_terminal_profile: crate::protocol::TerminalProfile::default(),
         selected_session_id: "default".to_string(),
         saved_commands_ui_workspace_id: String::new(),
@@ -135,16 +143,33 @@ fn create_session_switch_session_and_close_session_follow_runtime_model() {
     assert!(created.starts_with("session-"));
     assert_eq!(state.selected_session_id, created);
     assert!(state.pending_commands_by_session.contains_key(&created));
+    assert_eq!(
+        state.session_lifecycle_by_id.get(&created),
+        Some(&SessionLifecycleState::Active)
+    );
+    assert_eq!(
+        state.session_lifecycle_by_id.get("default"),
+        Some(&SessionLifecycleState::Inactive)
+    );
 
     state
         .switch_session("default")
         .expect("switch to default should succeed");
     assert_eq!(state.selected_session_id, "default");
+    assert_eq!(
+        state.session_lifecycle_by_id.get("default"),
+        Some(&SessionLifecycleState::Active)
+    );
+    assert_eq!(
+        state.session_lifecycle_by_id.get(&created),
+        Some(&SessionLifecycleState::Inactive)
+    );
 
     state
         .close_session(&created)
         .expect("close created session should succeed");
     assert!(!state.pending_commands_by_session.contains_key(&created));
+    assert!(!state.session_lifecycle_by_id.contains_key(&created));
 }
 
 #[test]
@@ -189,6 +214,7 @@ fn close_last_default_session_leaves_no_active_session() {
 
     assert!(state.pending_commands_by_session.is_empty());
     assert!(state.session_context_by_id.is_empty());
+    assert!(state.session_lifecycle_by_id.is_empty());
     assert!(state.selected_session_id.is_empty());
 
     let created = state.create_session();

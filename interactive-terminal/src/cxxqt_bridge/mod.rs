@@ -199,7 +199,8 @@ pub(crate) use helpers::{
     timestamp_now,
 };
 pub(crate) use session_runtime::{
-    AppState, SessionRuntimeContext, SessionTabView, TerminalAppRust, UseSavedCommandResult,
+    AppState, SessionLifecycleState, SessionRuntimeContext, SessionTabView, TerminalAppRust,
+    UseSavedCommandResult,
 };
 
 #[cfg(test)]

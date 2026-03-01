@@ -214,19 +214,9 @@ impl ffi::TerminalApp {
     }
 
     fn append_output_line(this: &mut Pin<&mut Self>, line: &str) {
-        // Forward to xterm.js via WebSocket if the terminal WS server is running.
-        let ws_tx = this
-            .rust()
-            .state
-            .lock()
-            .ok()
-            .and_then(|s| s.ws_terminal_tx.clone());
-        if let Some(tx) = ws_tx {
-            let bytes = format!("{line}\r\n").into_bytes();
-            let _ = tx.send(bytes);
-        }
-
         // Keep output_text updated for the legacy MCP read_output path.
+        // Do not broadcast these bridge/status lines to the live shell WebSocket stream;
+        // shell output should flow only through session-scoped PTY pipes.
         let current = this.as_ref().output_text().to_string();
         let next = if current.trim().is_empty() {
             line.to_string()

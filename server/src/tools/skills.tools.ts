@@ -8,6 +8,7 @@
 import { promises as fs, existsSync } from 'fs';
 import path from 'path';
 import type { ToolResponse } from '../types/index.js';
+import { listSkills as listDbSkills } from '../db/skill-db.js';
 import type {
   SkillDefinition,
   SkillMatch,
@@ -40,6 +41,20 @@ function resolveSkillsRoot(): string {
 }
 
 const SKILLS_ROOT = resolveSkillsRoot();
+
+function parseJsonArray(raw: string | null): string[] | undefined {
+  if (!raw) return undefined;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.map(String) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function getSkillPathHint(skillName: string): string {
+  return path.join(SKILLS_ROOT, skillName, 'SKILL.md');
+}
 
 // =============================================================================
 // Frontmatter Parser
@@ -108,6 +123,22 @@ export function parseFrontmatter(content: string): {
  */
 export async function listSkills(): Promise<ToolResponse<SkillDefinition[]>> {
   try {
+    // DB-first source of truth (fallback to filesystem when DB has no skill rows)
+    const dbRows = listDbSkills();
+    if (dbRows.length > 0) {
+      const dbSkills: SkillDefinition[] = dbRows.map(row => ({
+        name: row.name,
+        description: row.description ?? '',
+        path: getSkillPathHint(row.name),
+        content: row.content,
+        category: (row.category as SkillCategory | null) ?? undefined,
+        tags: parseJsonArray(row.tags),
+        language_targets: parseJsonArray(row.language_targets),
+        framework_targets: parseJsonArray(row.framework_targets),
+      }));
+      return { success: true, data: dbSkills };
+    }
+
     let entries: string[];
     try {
       entries = await fs.readdir(SKILLS_ROOT);
@@ -180,45 +211,37 @@ export async function deploySkillsToWorkspace(
       errors: [],
     };
 
-    // Read source skills
-    let entries: string[];
-    try {
-      entries = await fs.readdir(SKILLS_ROOT);
-    } catch {
+    const sourceSkillsResult = await listSkills();
+    if (!sourceSkillsResult.success || !sourceSkillsResult.data) {
       return {
-        success: true,
-        data: { ...result, errors: ['Skills source directory not found'] },
+        success: false,
+        error: sourceSkillsResult.error ?? 'Failed to load source skills',
       };
     }
 
-    for (const entry of entries) {
-      const sourceDir = path.join(SKILLS_ROOT, entry);
-      const stat = await fs.stat(sourceDir);
-      if (!stat.isDirectory()) continue;
+    if (sourceSkillsResult.data.length === 0) {
+      return {
+        success: true,
+        data: { ...result, errors: ['No skills available in DB or filesystem source'] },
+      };
+    }
 
-      const sourceFile = path.join(sourceDir, 'SKILL.md');
-      try {
-        await fs.access(sourceFile);
-      } catch {
-        continue; // No SKILL.md, skip
-      }
-
-      const targetDir = path.join(targetRoot, entry);
+    for (const skill of sourceSkillsResult.data) {
+      const targetDir = path.join(targetRoot, skill.name);
       const targetFile = path.join(targetDir, 'SKILL.md');
 
       try {
         await fs.mkdir(targetDir, { recursive: true });
-        const content = await fs.readFile(sourceFile, 'utf-8');
-        await fs.writeFile(targetFile, content, 'utf-8');
+        await fs.writeFile(targetFile, skill.content, 'utf-8');
         await appendWorkspaceFileUpdate({
           workspace_path,
           file_path: targetFile,
-          summary: `Deployed skill ${entry}`,
+          summary: `Deployed skill ${skill.name}`,
           action: 'deploy_skill_file',
         });
-        result.deployed.push(entry);
+        result.deployed.push(skill.name);
       } catch (err) {
-        result.errors!.push(`Failed to deploy ${entry}: ${(err as Error).message}`);
+        result.errors!.push(`Failed to deploy ${skill.name}: ${(err as Error).message}`);
       }
     }
 

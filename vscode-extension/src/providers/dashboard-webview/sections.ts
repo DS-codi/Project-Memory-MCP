@@ -257,6 +257,28 @@ export function getConnectedDashboardHtml(
 
                             <div class="dashboard-pane" id="dashboardPaneOperations" role="tabpanel" aria-labelledby="dashboardTopTabOperations">
 
+                            <section class="collapsible" id="widget-always-notes">
+                                <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-always-notes">
+                                    <span class="chevron">></span>
+                                    <h3>Always-Provided Notes</h3>
+                                </button>
+                                <div class="collapsible-content">
+                                    <div class="widget-body always-notes-body">
+                                        <p class="always-notes-help">Notes here are attached to hub-driven plan route operations in this workspace.</p>
+                                        <textarea
+                                            id="alwaysNotesInput"
+                                            class="always-notes-input"
+                                            rows="5"
+                                            placeholder="Example: Prefer deterministic fallback policy. Avoid ambient scans unless explicitly approved."></textarea>
+                                        <div class="always-notes-actions">
+                                            <button class="btn btn-small" data-action="save-always-notes">Save Notes</button>
+                                            <button class="btn btn-small btn-secondary" data-action="clear-always-notes">Clear</button>
+                                        </div>
+                                        <p class="always-notes-scope" id="alwaysNotesScope">Scope: current workspace</p>
+                                    </div>
+                                </div>
+                            </section>
+
 ${getSkillsSectionHtml(iconSvgs)}
 
 ${getInstructionsSectionHtml(iconSvgs)}

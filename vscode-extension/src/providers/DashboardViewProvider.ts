@@ -249,7 +249,28 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                             workspaceId: this.resolveWorkspaceContext()?.workspaceId || '',
                         }
                     });
+                    this.postMessage({
+                        type: 'alwaysProvidedNotes',
+                        data: { notes: this.getAlwaysProvidedNotes() }
+                    });
                     break;
+
+                case 'getAlwaysProvidedNotes':
+                    this.postMessage({
+                        type: 'alwaysProvidedNotes',
+                        data: { notes: this.getAlwaysProvidedNotes() }
+                    });
+                    break;
+
+                case 'saveAlwaysProvidedNotes': {
+                    const notes = this.normalizeAlwaysProvidedNotes((message.data as { notes?: string } | undefined)?.notes);
+                    await this.saveAlwaysProvidedNotes(notes);
+                    this.postMessage({
+                        type: 'alwaysProvidedNotesSaved',
+                        data: { notes }
+                    });
+                    break;
+                }
 
                 case 'getSkills':
                     handleGetSkills(this);
@@ -496,6 +517,28 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
             workspaceName: workspaceResolution?.workspaceName || 'No workspace',
             dataRoot: JSON.stringify(this._dataRoot),
         });
+    }
+
+    private normalizeAlwaysProvidedNotes(value?: string): string {
+        if (typeof value !== 'string') {
+            return '';
+        }
+        return value.replace(/\r\n/g, '\n').trim();
+    }
+
+    private getAlwaysProvidedNotes(): string {
+        const config = vscode.workspace.getConfiguration('projectMemory');
+        return this.normalizeAlwaysProvidedNotes(config.get<string>('alwaysProvidedNotes', ''));
+    }
+
+    private async saveAlwaysProvidedNotes(notes: string): Promise<void> {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+        const config = vscode.workspace.getConfiguration('projectMemory', workspaceFolder?.uri);
+        if (workspaceFolder) {
+            await config.update('alwaysProvidedNotes', notes, vscode.ConfigurationTarget.WorkspaceFolder);
+            return;
+        }
+        await config.update('alwaysProvidedNotes', notes, vscode.ConfigurationTarget.Workspace);
     }
 }
 

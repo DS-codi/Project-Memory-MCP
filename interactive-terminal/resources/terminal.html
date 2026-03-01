@@ -95,6 +95,11 @@
   }
 
   function updateInputBuffer(data) {
+    if (!data || data.indexOf('\x1b') === 0) {
+      hideSuggestions();
+      return;
+    }
+
     if (data === '\r') {
       var trimmed = currentInput.trim();
       if (trimmed.length > 0) {
@@ -111,6 +116,15 @@
 
     if (data === '\u007f') {
       currentInput = currentInput.slice(0, -1);
+      if (!currentInput.length) {
+        hideSuggestions();
+      }
+      return;
+    }
+
+    if (data === '\u0003' || data === '\u0015') {
+      currentInput = '';
+      hideSuggestions();
       return;
     }
 
@@ -123,6 +137,8 @@
     suggestionItems = [];
     suggestionIndex = 0;
     suggestionsEl.style.display = 'none';
+    suggestionsEl.style.left = '0px';
+    suggestionsEl.style.top = '0px';
     suggestionsEl.innerHTML = '';
   }
 
@@ -250,11 +266,21 @@
     }
 
     if (domEvent.key === 'ArrowDown' || domEvent.key === 'ArrowUp') {
-      if (suggestionItems.length) {
-        hideSuggestions();
-      }
+      currentInput = '';
+      hideSuggestions();
       // Allow shell history navigation to receive Arrow keys.
       return;
+    }
+
+    if (domEvent.key === 'Backspace' || domEvent.key === 'Delete') {
+      if (!currentInput.length || suggestionItems.length) {
+        hideSuggestions();
+      }
+      return;
+    }
+
+    if (suggestionItems.length && domEvent.key !== 'Tab') {
+      hideSuggestions();
     }
 
     if (suggestionItems.length && domEvent.key === 'Enter') {

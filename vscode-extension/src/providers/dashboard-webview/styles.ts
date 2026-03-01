@@ -421,6 +421,131 @@ export function getStyles(): string {
         .dashboard-pane.active {
             display: block;
         }
+
+        .dashboard-top-panes {
+            min-height: calc(100vh - 140px);
+        }
+
+        #dashboardPanePlans.dashboard-pane.active {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        #dashboardPanePlans .collapsible {
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        #dashboardPanePlans .collapsible-content {
+            max-height: none;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        #dashboardPanePlans .plans-widget {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        #dashboardPanePlans .plans-content {
+            max-height: none;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        #dashboardPanePlans .plans-pane {
+            display: none;
+            min-height: 0;
+        }
+
+        #dashboardPanePlans .plans-pane.active {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        #dashboardPanePlans #plansListActive,
+        #dashboardPanePlans #plansListArchived,
+        #dashboardPanePlans #plansListPrograms {
+            overflow-y: auto;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        #dashboardPanePlans .programs-summary {
+            flex: 0 0 auto;
+        }
+
+        #dashboardPanePlans .selected-plan-panel {
+            display: flex;
+            flex-direction: column;
+            flex: 0 0 clamp(150px, 32vh, 320px);
+            min-height: 120px;
+        }
+
+        #dashboardPanePlans .selected-plan-body {
+            max-height: none;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        #dashboardPaneOperations.dashboard-pane.active {
+            display: block;
+            overflow-y: auto;
+            max-height: calc(100vh - 140px);
+        }
+
+        .always-notes-body {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .always-notes-help {
+            font-size: 11px;
+            color: var(--vscode-descriptionForeground);
+        }
+
+        .always-notes-input {
+            width: 100%;
+            min-height: 100px;
+            resize: vertical;
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 4px;
+            background: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            padding: 8px;
+            font-family: var(--vscode-editor-font-family, inherit);
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .always-notes-input:focus {
+            outline: 1px solid var(--vscode-focusBorder);
+            outline-offset: 0;
+        }
+
+        .always-notes-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .always-notes-scope {
+            font-size: 10px;
+            color: var(--vscode-descriptionForeground);
+        }
         
         /* Collapsible sections */
         .collapsible {

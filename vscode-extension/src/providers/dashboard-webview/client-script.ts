@@ -55,6 +55,9 @@ export function getClientScript(params: ClientScriptParams): string {
         let topLevelTab = (persistedState.topLevelTab === 'plans' || persistedState.topLevelTab === 'operations')
             ? persistedState.topLevelTab
             : 'dashboard';
+        let alwaysProvidedNotes = typeof persistedState.alwaysProvidedNotes === 'string'
+            ? persistedState.alwaysProvidedNotes
+            : '';
         
         let activePlans = [];
         let archivedPlans = [];
@@ -140,6 +143,11 @@ export function getClientScript(params: ClientScriptParams): string {
                         fetchPlans();
                     }
                 }
+            } else if (message.type === 'alwaysProvidedNotes') {
+                setAlwaysProvidedNotes(message.data && message.data.notes ? message.data.notes : '', { persist: false });
+            } else if (message.type === 'alwaysProvidedNotesSaved') {
+                setAlwaysProvidedNotes(message.data && message.data.notes ? message.data.notes : '', { persist: true });
+                showToast('\u2714 Always-provided notes saved', 'success');
             }
         });
         
@@ -205,6 +213,7 @@ export function getClientScript(params: ClientScriptParams): string {
                     type: 'openPlanRoute',
                     data: {
                         route: 'context',
+                        query: appendAlwaysProvidedNotesQuery(''),
                         planId: target ? target.planId : undefined,
                         workspaceId: target ? target.workspaceId : undefined,
                     }
@@ -215,7 +224,7 @@ export function getClientScript(params: ClientScriptParams): string {
                     type: 'openPlanRoute',
                     data: {
                         route: 'context',
-                        query: 'focus=context',
+                        query: appendAlwaysProvidedNotesQuery('focus=context'),
                         planId: target ? target.planId : undefined,
                         workspaceId: target ? target.workspaceId : undefined,
                     }
@@ -226,7 +235,7 @@ export function getClientScript(params: ClientScriptParams): string {
                     type: 'openPlanRoute',
                     data: {
                         route: 'context',
-                        query: 'focus=research',
+                        query: appendAlwaysProvidedNotesQuery('focus=research'),
                         planId: target ? target.planId : undefined,
                         workspaceId: target ? target.workspaceId : undefined,
                     }
@@ -237,6 +246,7 @@ export function getClientScript(params: ClientScriptParams): string {
                     type: 'openPlanRoute',
                     data: {
                         route: 'build-scripts',
+                        query: appendAlwaysProvidedNotesQuery(''),
                         planId: target ? target.planId : undefined,
                         workspaceId: target ? target.workspaceId : undefined,
                     }
@@ -247,7 +257,7 @@ export function getClientScript(params: ClientScriptParams): string {
                     type: 'openPlanRoute',
                     data: {
                         route: 'build-scripts',
-                        query: 'run=1',
+                        query: appendAlwaysProvidedNotesQuery('run=1'),
                         planId: target ? target.planId : undefined,
                         workspaceId: target ? target.workspaceId : undefined,
                     }
@@ -258,11 +268,18 @@ export function getClientScript(params: ClientScriptParams): string {
                     type: 'openPlanRoute',
                     data: {
                         route: 'plan',
-                        query: 'tab=timeline',
+                        query: appendAlwaysProvidedNotesQuery('tab=timeline'),
                         planId: target ? target.planId : undefined,
                         workspaceId: target ? target.workspaceId : undefined,
                     }
                 });
+            } else if (action === 'save-always-notes') {
+                const notes = getAlwaysProvidedNotesFromUi();
+                setAlwaysProvidedNotes(notes, { persist: true });
+                vscode.postMessage({ type: 'saveAlwaysProvidedNotes', data: { notes: notes } });
+            } else if (action === 'clear-always-notes') {
+                setAlwaysProvidedNotes('', { persist: true });
+                vscode.postMessage({ type: 'saveAlwaysProvidedNotes', data: { notes: '' } });
             } else if (action === 'open-resume-plan') {
                 const target = getSelectedPlanTarget();
                 vscode.postMessage({
@@ -427,6 +444,7 @@ export function getClientScript(params: ClientScriptParams): string {
                     requestSkillsList();
                     requestInstructionsList();
                     requestSessionsList();
+                    vscode.postMessage({ type: 'getAlwaysProvidedNotes' });
                     updateActionAvailability();
                 } else {
                     throw new Error('Server returned ' + response.status);
