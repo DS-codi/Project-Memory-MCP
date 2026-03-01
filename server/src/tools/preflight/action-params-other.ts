@@ -172,6 +172,17 @@ export const FILESYSTEM_PARAMS: Record<string, ActionParamDef> = {
     ],
   },
 
+  discover_codebase: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+      { name: 'prompt_text', type: 'string', description: 'Prompt text used to derive keywords for ranked codebase discovery' },
+    ],
+    optional: [
+      { name: 'task_text', type: 'string', description: 'Optional task text appended before keyword extraction' },
+      { name: 'limit', type: 'number', description: 'Maximum results to return (default 20, max 100)' },
+    ],
+  },
+
   list: {
     required: [
       { name: 'workspace_id', type: 'string', description: 'Workspace ID' },

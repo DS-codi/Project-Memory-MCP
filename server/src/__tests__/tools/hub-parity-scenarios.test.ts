@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { resolveHubAliasRouting, type CanonicalHubMode, type LegacyHubLabel } from '../../tools/orchestration/hub-alias-routing.js';
-import { validateHubPolicy } from '../../tools/orchestration/hub-policy-enforcement.js';
+import { evaluateHubDispatchPolicy, validateHubPolicy } from '../../tools/orchestration/hub-policy-enforcement.js';
 import {
   buildHubTelemetrySnapshot,
   evaluateHubPromotionGates,
@@ -111,6 +111,7 @@ describe('Dynamic Hub scenario parity suite', () => {
       {
         target_agent_type: 'Executor',
         requested_hub_mode: 'standard_orchestration',
+        transition_event: 'new_prompt',
         prompt_analyst_enrichment_applied: false,
       },
       alias,
@@ -131,6 +132,50 @@ describe('Dynamic Hub scenario parity suite', () => {
     expect(allowedWithBypass.valid).toBe(true);
   });
 
+  it('allows reuse of existing Prompt Analyst context for in-scope continuation', () => {
+    const alias = resolveHubAliasRouting('Coordinator');
+
+    const continuationPolicy = validateHubPolicy(
+      {
+        target_agent_type: 'Executor',
+        requested_hub_mode: 'standard_orchestration',
+        prompt_analyst_enrichment_applied: false,
+      },
+      alias,
+    );
+
+    expect(continuationPolicy.valid).toBe(true);
+  });
+
+  it('requires explicit bundle decision contract for strict non-Analyst dispatches', () => {
+    const blocked = evaluateHubDispatchPolicy({
+      target_agent_type: 'Executor',
+      requested_hub_mode: 'standard_orchestration',
+      prompt_analyst_enrichment_applied: true,
+      strict_bundle_resolution: true,
+    });
+
+    expect(blocked.policy.valid).toBe(false);
+    expect(blocked.policy.code).toBe('POLICY_BUNDLE_DECISION_REQUIRED');
+
+    const allowed = evaluateHubDispatchPolicy({
+      target_agent_type: 'Executor',
+      requested_hub_mode: 'standard_orchestration',
+      prompt_analyst_enrichment_applied: true,
+      strict_bundle_resolution: true,
+      hub_decision_payload: {
+        bundle_decision_id: 'decision-1',
+        bundle_decision_version: 'v1',
+        spoke_instruction_bundle: {
+          bundle_id: 'instr-bundle',
+          resolution_mode: 'strict',
+        },
+      },
+    });
+
+    expect(allowed.policy.valid).toBe(true);
+  });
+
   it('aggregates telemetry for concurrent sessions, stale registry rows, and conflict triggers', async () => {
     const now = new Date();
     const staleUpdatedAt = new Date(now.getTime() - 90 * 60 * 1000).toISOString();
@@ -149,6 +194,7 @@ describe('Dynamic Hub scenario parity suite', () => {
           transition_event: 'manual_switch',
           target_agent_type: 'Executor',
           prompt_analyst_enrichment_applied: true,
+          prompt_analyst_outcome: 'rerun',
           prompt_analyst_latency_ms: 120,
         },
       },
@@ -163,6 +209,7 @@ describe('Dynamic Hub scenario parity suite', () => {
           alias_resolution_applied: false,
           target_agent_type: 'Reviewer',
           prompt_analyst_enrichment_applied: false,
+          prompt_analyst_outcome: 'reuse',
         },
       },
       {
@@ -211,7 +258,7 @@ describe('Dynamic Hub scenario parity suite', () => {
         timestamp: now.toISOString(),
         workspace_id: 'ws1',
         plan_id: 'planA',
-        data: { latency_ms: 200 },
+        data: { latency_ms: 200, outcome_label: 'fallback' },
       },
     ] as any);
 
@@ -283,6 +330,9 @@ describe('Dynamic Hub scenario parity suite', () => {
     expect(snapshot.prompt_analyst.enrichment_hit_rate_percent).toBe(50);
     expect(snapshot.prompt_analyst.avg_latency_ms).toBe(160);
     expect(snapshot.prompt_analyst.p95_latency_ms).toBe(200);
+    expect(snapshot.prompt_analyst.outcomes.rerun).toBe(1);
+    expect(snapshot.prompt_analyst.outcomes.reuse).toBe(1);
+    expect(snapshot.prompt_analyst.outcomes.fallback).toBe(1);
 
     expect(snapshot.cross_session_conflict_detection.conflict_events).toBe(1);
     expect(snapshot.cross_session_conflict_detection.rate_percent).toBe(50);
@@ -310,6 +360,11 @@ describe('Dynamic Hub scenario parity suite', () => {
           enrichment_hit_rate_percent: 90,
           avg_latency_ms: 120,
           p95_latency_ms: 220,
+          outcomes: {
+            rerun: 90,
+            reuse: 10,
+            fallback: 0,
+          },
         },
         cross_session_conflict_detection: { conflict_events: 1, total_routes: 100, rate_percent: 1 },
         session_registry_accuracy: {
@@ -354,6 +409,11 @@ describe('Dynamic Hub scenario parity suite', () => {
           enrichment_hit_rate_percent: 10,
           avg_latency_ms: 300,
           p95_latency_ms: 500,
+          outcomes: {
+            rerun: 10,
+            reuse: 80,
+            fallback: 10,
+          },
         },
         cross_session_conflict_detection: { conflict_events: 3, total_routes: 10, rate_percent: 30 },
         session_registry_accuracy: {

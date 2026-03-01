@@ -14,6 +14,7 @@ vi.mock('fs/promises', () => ({
 vi.mock('../db/queries.js', () => ({
   getWorkspace: vi.fn(),
   getPlansByWorkspace: vi.fn(),
+  listPrograms: vi.fn(),
   getPlan: vi.fn(),
   getPlanPhases: vi.fn(),
   getPlanSteps: vi.fn(),
@@ -29,7 +30,7 @@ vi.mock('../events/emitter.js', () => ({
 }));
 
 import * as fs from 'fs/promises';
-import { getWorkspace, getPlansByWorkspace, getPlanSteps, getProgramChildPlans } from '../db/queries.js';
+import { getWorkspace, getPlansByWorkspace, listPrograms, getPlanSteps, getProgramChildPlans } from '../db/queries.js';
 import { plansRouter } from './plans.js';
 
 const WORKSPACE_REGISTRATION_ERROR =
@@ -83,6 +84,7 @@ describe('Plan creation workspace guard', () => {
 describe('Workspace plans summary payload', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(listPrograms).mockReturnValue([] as any);
   });
 
   it('should include progress counts and child plan counts for program rows', () => {

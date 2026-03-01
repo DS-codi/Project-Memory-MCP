@@ -60,7 +60,7 @@
 
 [CmdletBinding()]
 param(
-    [ValidateSet("Server", "Extension", "Container", "Supervisor", "InteractiveTerminal", "Dashboard", "GuiForms", "All")]
+    [ValidateSet("Server", "Extension", "Container", "Supervisor", "InteractiveTerminal", "Dashboard", "GuiForms", "All", "--help")]
     [string[]]$Component = @("All"),
 
     [switch]$InstallOnly,
@@ -95,7 +95,7 @@ function Show-InstallHelp {
     Write-Host "  --help         Also accepted"
 }
 
-if ($Help -or ($RemainingArgs -contains '--help')) {
+if ($Help -or ($RemainingArgs -contains '--help') -or ($Component -contains '--help')) {
     Show-InstallHelp
     exit 0
 }

@@ -18,8 +18,12 @@ vi.mock('../../tools/orchestration/hub-alias-routing.js', () => ({
 }));
 
 vi.mock('../../tools/orchestration/hub-policy-enforcement.js', () => ({
-  hasHubPolicyContext: vi.fn(),
-  validateHubPolicy: vi.fn(),
+  evaluateHubDispatchPolicy: vi.fn(),
+}));
+
+vi.mock('../../tools/agent-deploy.js', () => ({
+  deployForTask: vi.fn(),
+  cleanupAgent: vi.fn(),
 }));
 
 vi.mock('../../tools/orchestration/hub-rollout-controls.js', () => ({
@@ -41,6 +45,7 @@ vi.mock('../../events/event-emitter.js', () => ({
   events: {
     hubRoutingDecision: vi.fn().mockResolvedValue(undefined),
     hubPolicyBlocked: vi.fn().mockResolvedValue(undefined),
+    promptAnalystEnrichment: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -66,21 +71,23 @@ import { memoryAgent } from '../../tools/consolidated/memory_agent.js';
 import { validateAndResolveWorkspaceId } from '../../tools/consolidated/workspace-validation.js';
 import { getWorkspace } from '../../storage/db-store.js';
 import { resolveHubAliasRouting } from '../../tools/orchestration/hub-alias-routing.js';
-import { hasHubPolicyContext } from '../../tools/orchestration/hub-policy-enforcement.js';
+import { evaluateHubDispatchPolicy } from '../../tools/orchestration/hub-policy-enforcement.js';
 import { resolveHubRolloutDecision } from '../../tools/orchestration/hub-rollout-controls.js';
 import { materialiseAgent } from '../../tools/agent-materialise.js';
 import { getRegistryRow, getActivePeerSessions } from '../../db/workspace-session-registry-db.js';
 import { getRequiredContextKeys } from '../../db/agent-definition-db.js';
+import { deployForTask } from '../../tools/agent-deploy.js';
 
 const mockValidateWorkspace = vi.mocked(validateAndResolveWorkspaceId);
 const mockGetWorkspace = vi.mocked(getWorkspace);
 const mockResolveAlias = vi.mocked(resolveHubAliasRouting);
-const mockHasHubPolicyContext = vi.mocked(hasHubPolicyContext);
+const mockEvaluateHubDispatchPolicy = vi.mocked(evaluateHubDispatchPolicy);
 const mockResolveRollout = vi.mocked(resolveHubRolloutDecision);
 const mockMaterialiseAgent = vi.mocked(materialiseAgent);
 const mockGetRegistryRow = vi.mocked(getRegistryRow);
 const mockGetActivePeerSessions = vi.mocked(getActivePeerSessions);
 const mockGetRequiredContextKeys = vi.mocked(getRequiredContextKeys);
+const mockDeployForTask = vi.mocked(deployForTask);
 
 describe('memory_agent deploy required-context validation', () => {
   beforeEach(() => {
@@ -103,7 +110,38 @@ describe('memory_agent deploy required-context validation', () => {
       deprecation_phase: 'active',
     } as any);
 
-    mockHasHubPolicyContext.mockReturnValue(false);
+    mockEvaluateHubDispatchPolicy.mockReturnValue({
+      alias_routing: {
+        requested_hub_label: 'Hub',
+        resolved_mode: 'standard_orchestration',
+        alias_resolution_applied: false,
+        deprecation_phase: 'active',
+      },
+      normalized_input: {
+        target_agent_type: 'Executor',
+        current_hub_mode: 'standard_orchestration',
+        requested_hub_mode: 'standard_orchestration',
+        requested_hub_label: 'Hub',
+        prompt_analyst_enrichment_applied: true,
+      },
+      fallback: {
+        requested: false,
+        used: false,
+      },
+      policy: {
+        valid: true,
+        details: {
+          target_agent_type: 'Executor',
+          current_hub_mode: 'standard_orchestration',
+          requested_hub_mode: 'standard_orchestration',
+          requested_hub_label: 'Hub',
+          prompt_analyst_enrichment_applied: true,
+        },
+      },
+      telemetry: {
+        prompt_analyst_outcome: 'rerun',
+      },
+    } as any);
 
     mockResolveRollout.mockReturnValue({
       routing: 'dynamic_session_scoped',
@@ -117,6 +155,7 @@ describe('memory_agent deploy required-context validation', () => {
 
     mockGetRegistryRow.mockReturnValue(null as any);
     mockGetActivePeerSessions.mockReturnValue([]);
+    mockDeployForTask.mockResolvedValue({ deployed: ['Executor.agent.md'] } as any);
   });
 
   it('blocks deploy when required context keys are unresolved', async () => {
@@ -175,5 +214,251 @@ describe('memory_agent deploy required-context validation', () => {
         summary: 'Context present',
       },
     });
+  });
+
+  it('blocks deploy_for_task when centralized policy check fails', async () => {
+    mockEvaluateHubDispatchPolicy.mockReturnValueOnce({
+      alias_routing: {
+        requested_hub_label: 'Hub',
+        resolved_mode: 'standard_orchestration',
+        alias_resolution_applied: false,
+        deprecation_phase: 'active',
+      },
+      normalized_input: {
+        target_agent_type: 'Executor',
+        current_hub_mode: 'standard_orchestration',
+        requested_hub_mode: 'standard_orchestration',
+        requested_hub_label: 'Hub',
+        prompt_analyst_enrichment_applied: false,
+      },
+      fallback: {
+        requested: false,
+        used: false,
+      },
+      policy: {
+        valid: false,
+        code: 'POLICY_PROMPT_ANALYST_REQUIRED',
+        reason: 'Prompt Analyst pre-dispatch enrichment is required before deploying non-Analyst agents.',
+        details: {
+          target_agent_type: 'Executor',
+          current_hub_mode: 'standard_orchestration',
+          requested_hub_mode: 'standard_orchestration',
+          requested_hub_label: 'Hub',
+          prompt_analyst_enrichment_applied: false,
+        },
+      },
+      telemetry: {
+        prompt_analyst_outcome: 'reuse',
+      },
+    } as any);
+
+    const result = await memoryAgent({
+      action: 'deploy_for_task',
+      workspace_id: 'ws1',
+      plan_id: 'plan1',
+      agent_type: 'Executor',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('POLICY_PROMPT_ANALYST_REQUIRED');
+    expect(mockDeployForTask).not.toHaveBeenCalled();
+  });
+
+  it('allows deploy_for_task with explicit PromptAnalyst unavailable fallback', async () => {
+    mockEvaluateHubDispatchPolicy.mockReturnValueOnce({
+      alias_routing: {
+        requested_hub_label: 'Hub',
+        resolved_mode: 'standard_orchestration',
+        alias_resolution_applied: false,
+        deprecation_phase: 'active',
+      },
+      normalized_input: {
+        target_agent_type: 'Executor',
+        current_hub_mode: 'standard_orchestration',
+        requested_hub_mode: 'standard_orchestration',
+        requested_hub_label: 'Hub',
+        transition_reason_code: 'prompt_analyst_unavailable',
+        prompt_analyst_enrichment_applied: false,
+      },
+      fallback: {
+        requested: true,
+        used: true,
+        reason_code: 'prompt_analyst_unavailable',
+      },
+      policy: {
+        valid: true,
+        details: {
+          target_agent_type: 'Executor',
+          current_hub_mode: 'standard_orchestration',
+          requested_hub_mode: 'standard_orchestration',
+          requested_hub_label: 'Hub',
+          transition_reason_code: 'prompt_analyst_unavailable',
+          prompt_analyst_enrichment_applied: false,
+        },
+      },
+      telemetry: {
+        prompt_analyst_outcome: 'fallback',
+      },
+    } as any);
+
+    const result = await memoryAgent({
+      action: 'deploy_for_task',
+      workspace_id: 'ws1',
+      plan_id: 'plan1',
+      agent_type: 'Executor',
+      bypass_prompt_analyst_policy: true,
+      transition_reason_code: 'prompt_analyst_unavailable',
+      prompt_analyst_output: {
+        provisioning_contract_version: '1.0',
+        hub_skill_bundle_id: 'hub-bundle',
+      },
+      hub_decision_payload: {
+        bundle_decision_id: 'decision-1',
+        spoke_instruction_bundle: {
+          bundle_id: 'instr-bundle',
+          instruction_ids: ['executor-phase4-build-guidance-20260217'],
+          resolution_mode: 'strict',
+        },
+        spoke_skill_bundle: {
+          bundle_id: 'skill-bundle',
+          skill_ids: ['bugfix'],
+          resolution_mode: 'strict',
+        },
+      },
+      provisioning_mode: 'on_demand',
+      allow_ambient_instruction_scan: false,
+      allow_include_skills_all: false,
+      allow_legacy_always_on: false,
+      fallback_policy: {
+        fallback_allowed: true,
+        fallback_mode: 'compat_dynamic',
+        fallback_reason_code: 'PROMPTANALYST_UNAVAILABLE',
+      },
+      telemetry_context: {
+        trace_id: 'trace-1',
+      },
+      requested_scope: 'task',
+      strict_bundle_resolution: true,
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockDeployForTask).toHaveBeenCalledTimes(1);
+    expect(mockDeployForTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt_analyst_output: expect.objectContaining({
+          provisioning_contract_version: '1.0',
+          hub_skill_bundle_id: 'hub-bundle',
+        }),
+        hub_decision_payload: expect.objectContaining({
+          bundle_decision_id: 'decision-1',
+        }),
+        provisioning_mode: 'on_demand',
+        allow_ambient_instruction_scan: false,
+        allow_include_skills_all: false,
+        allow_legacy_always_on: false,
+        fallback_policy: expect.objectContaining({
+          fallback_mode: 'compat_dynamic',
+        }),
+        telemetry_context: expect.objectContaining({
+          trace_id: 'trace-1',
+        }),
+        requested_scope: 'task',
+        strict_bundle_resolution: true,
+      }),
+    );
+    expect(mockEvaluateHubDispatchPolicy).toHaveBeenCalledWith(expect.objectContaining({
+      target_agent_type: 'Executor',
+      prompt_analyst_output: expect.objectContaining({
+        provisioning_contract_version: '1.0',
+      }),
+      hub_decision_payload: expect.objectContaining({
+        bundle_decision_id: 'decision-1',
+      }),
+      provisioning_mode: 'on_demand',
+      fallback_policy: expect.objectContaining({
+        fallback_mode: 'compat_dynamic',
+      }),
+      requested_scope: 'task',
+      strict_bundle_resolution: true,
+    }));
+  });
+
+  it('blocks deploy_agent_to_workspace when centralized policy check fails', async () => {
+    mockEvaluateHubDispatchPolicy.mockReturnValueOnce({
+      alias_routing: {
+        requested_hub_label: 'Hub',
+        resolved_mode: 'standard_orchestration',
+        alias_resolution_applied: false,
+        deprecation_phase: 'active',
+      },
+      normalized_input: {
+        target_agent_type: 'Executor',
+        current_hub_mode: 'standard_orchestration',
+        requested_hub_mode: 'standard_orchestration',
+        requested_hub_label: 'Hub',
+        prompt_analyst_enrichment_applied: false,
+      },
+      fallback: {
+        requested: false,
+        used: false,
+      },
+      policy: {
+        valid: false,
+        code: 'POLICY_PROMPT_ANALYST_REQUIRED',
+        reason: 'Prompt Analyst pre-dispatch enrichment is required before deploying non-Analyst agents.',
+        details: {
+          target_agent_type: 'Executor',
+          current_hub_mode: 'standard_orchestration',
+          requested_hub_mode: 'standard_orchestration',
+          requested_hub_label: 'Hub',
+          prompt_analyst_enrichment_applied: false,
+        },
+      },
+      telemetry: {
+        prompt_analyst_outcome: 'reuse',
+      },
+    } as any);
+
+    const result = await memoryAgent({
+      action: 'deploy_agent_to_workspace',
+      workspace_id: 'ws1',
+      plan_id: 'plan1',
+      agent_type: 'Executor',
+      session_id: 'sess1',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('POLICY_PROMPT_ANALYST_REQUIRED');
+    expect(mockMaterialiseAgent).not.toHaveBeenCalled();
+  });
+
+  it('passes explicit compat fallback controls through deploy_for_task', async () => {
+    const result = await memoryAgent({
+      action: 'deploy_for_task',
+      workspace_id: 'ws1',
+      plan_id: 'plan1',
+      agent_type: 'Executor',
+      prompt_analyst_enrichment_applied: true,
+      provisioning_mode: 'compat',
+      allow_legacy_always_on: true,
+      allow_ambient_instruction_scan: true,
+      allow_include_skills_all: true,
+      fallback_policy: {
+        fallback_allowed: true,
+        fallback_mode: 'compat_dynamic',
+      },
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockDeployForTask).toHaveBeenCalledWith(expect.objectContaining({
+      provisioning_mode: 'compat',
+      allow_legacy_always_on: true,
+      allow_ambient_instruction_scan: true,
+      allow_include_skills_all: true,
+      fallback_policy: expect.objectContaining({
+        fallback_allowed: true,
+        fallback_mode: 'compat_dynamic',
+      }),
+    }));
   });
 });

@@ -402,8 +402,12 @@ mod tests {
         #[cfg(windows)]
         {
             (
-                "cmd".to_string(),
-                vec!["/C".to_string(), "echo {\"ok\":true}".to_string()],
+                "powershell".to_string(),
+                vec![
+                    "-NoProfile".to_string(),
+                    "-Command".to_string(),
+                    "Write-Output '{\"ok\":true}'".to_string(),
+                ],
             )
         }
 

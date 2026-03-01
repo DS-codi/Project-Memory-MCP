@@ -224,8 +224,11 @@ function materializeWorkspaceContextFromDb(
 // GET /api/workspaces - List all workspaces
 workspacesRouter.get('/', (req, res) => {
   try {
+    const hierarchical = String(req.query.hierarchical || '').toLowerCase() === 'true';
+    const includeChildren = String(req.query.include_children || '').toLowerCase() === 'true';
+
     const rows = listWorkspaces();
-    const workspaces = rows.map(row => {
+    const mappedWorkspaces = rows.map(row => {
       const metrics = getWorkspaceMetrics(row.id);
       let languages: string[] = [];
       if (row.profile) {
@@ -255,6 +258,11 @@ workspacesRouter.get('/', (req, res) => {
         ...(childWorkspaceIds.length > 0 ? { child_workspace_ids: childWorkspaceIds } : {}),
       };
     });
+
+    const workspaces = (hierarchical && !includeChildren)
+      ? mappedWorkspaces.filter((workspace) => !workspace.parent_workspace_id)
+      : mappedWorkspaces;
+
     res.json({ workspaces, total: workspaces.length });
   } catch (error) {
     console.error('Error listing workspaces:', error);

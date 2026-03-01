@@ -30,6 +30,12 @@ interface SearchContextParams {
   limit?: number;
 }
 
+interface PromptAnalystDiscoverParams {
+  workspace_id: string;
+  query: string;
+  limit?: number;
+}
+
 interface SearchItem {
   id: string;
   scope: 'plan' | 'workspace' | 'program';
@@ -87,6 +93,16 @@ function parseScopes(scope: SearchScope): Array<'plan' | 'workspace' | 'program'
 
 function normalizeTypes(types?: string[]): Set<string> {
   return new Set((types ?? []).map(type => type.trim().toLowerCase()).filter(Boolean));
+}
+
+function extractKeywords(text: string): string[] {
+  return [...new Set(
+    text
+      .toLowerCase()
+      .split(/[^a-z0-9_]+/)
+      .map(token => token.trim())
+      .filter(token => token.length >= 2)
+  )];
 }
 
 function matchesFilters(
@@ -343,6 +359,222 @@ export async function searchContext(
         total_before_limit: sorted.length,
       },
       results: limited.map(stripSearchOnlyFields),
+    },
+  };
+}
+
+interface PromptAnalystDiscoveryCandidate {
+  workspace_id: string;
+  workspace_relation: 'self' | 'linked';
+  plan_id: string;
+  plan_title: string;
+  context_title: string;
+  context_type: 'plan_context' | 'research_note';
+  snippet: string;
+  searchable_text: string;
+  updated_at: string;
+}
+
+async function collectLinkedWorkspaceIds(rootWorkspaceId: string): Promise<string[]> {
+  const visited = new Set<string>();
+  const queue: string[] = [rootWorkspaceId];
+
+  while (queue.length > 0) {
+    const workspaceId = queue.shift();
+    if (!workspaceId || visited.has(workspaceId)) {
+      continue;
+    }
+    visited.add(workspaceId);
+
+    const meta = await store.getWorkspace(workspaceId);
+    if (!meta) {
+      continue;
+    }
+
+    const neighbors = [meta.parent_workspace_id, ...(meta.child_workspace_ids ?? [])]
+      .filter((value): value is string => typeof value === 'string' && value.length > 0);
+
+    for (const neighborId of neighbors) {
+      if (!visited.has(neighborId)) {
+        queue.push(neighborId);
+      }
+    }
+  }
+
+  return Array.from(visited);
+}
+
+function buildRelevance(
+  candidate: PromptAnalystDiscoveryCandidate,
+  query: string,
+  keywords: string[],
+): {
+  score: number;
+  matched_terms: string[];
+  matched_fields: Array<'plan_title' | 'context_title' | 'snippet'>;
+} {
+  const planTitleLower = candidate.plan_title.toLowerCase();
+  const contextTitleLower = candidate.context_title.toLowerCase();
+  const snippetLower = candidate.snippet.toLowerCase();
+  const queryLower = query.toLowerCase();
+
+  const matchedTerms = keywords.filter((keyword) =>
+    planTitleLower.includes(keyword)
+    || contextTitleLower.includes(keyword)
+    || snippetLower.includes(keyword)
+  );
+
+  const matchedFields: Array<'plan_title' | 'context_title' | 'snippet'> = [];
+  if (matchedTerms.some(term => planTitleLower.includes(term)) || planTitleLower.includes(queryLower)) {
+    matchedFields.push('plan_title');
+  }
+  if (matchedTerms.some(term => contextTitleLower.includes(term)) || contextTitleLower.includes(queryLower)) {
+    matchedFields.push('context_title');
+  }
+  if (matchedTerms.some(term => snippetLower.includes(term)) || snippetLower.includes(queryLower)) {
+    matchedFields.push('snippet');
+  }
+
+  const coverage = keywords.length > 0 ? matchedTerms.length / keywords.length : 0;
+  const exactBoost = candidate.searchable_text.includes(queryLower) ? 0.25 : 0;
+  const titleBoost = matchedFields.includes('plan_title') || matchedFields.includes('context_title') ? 0.2 : 0;
+  const relationBoost = candidate.workspace_relation === 'self' ? 0.1 : 0;
+  const score = Math.min(1, Math.round((coverage + exactBoost + titleBoost + relationBoost) * 1000) / 1000);
+
+  return {
+    score,
+    matched_terms: matchedTerms,
+    matched_fields: matchedFields,
+  };
+}
+
+export async function promptAnalystDiscoverLinkedMemory(
+  params: PromptAnalystDiscoverParams,
+): Promise<ToolResponse<{
+  query: string;
+  limit: number;
+  total: number;
+  truncated: boolean;
+  linked_workspace_ids: string[];
+  related_plan_ids: string[];
+  results: Array<{
+    workspace_id: string;
+    workspace_relation: 'self' | 'linked';
+    plan_id: string;
+    plan_title: string;
+    context_title: string;
+    context_type: 'plan_context' | 'research_note';
+    snippet: string;
+    updated_at: string;
+    relevance: {
+      score: number;
+      matched_terms: string[];
+      matched_fields: Array<'plan_title' | 'context_title' | 'snippet'>;
+    };
+  }>;
+}>> {
+  const query = params.query.trim();
+  if (!query) {
+    return {
+      success: false,
+      error: 'query is required for action: promptanalyst_discover',
+    };
+  }
+
+  const limit = normalizeLimit(params.limit);
+  const linkedWorkspaceIds = await collectLinkedWorkspaceIds(params.workspace_id);
+  const keywords = extractKeywords(query);
+
+  const candidates: PromptAnalystDiscoveryCandidate[] = [];
+  for (const workspaceId of linkedWorkspaceIds) {
+    const workspaceRelation: 'self' | 'linked' = workspaceId === params.workspace_id ? 'self' : 'linked';
+    const plans = await store.getWorkspacePlans(workspaceId);
+    for (const plan of plans) {
+      const planTitle = plan.title;
+      const planUpdatedAt = plan.updated_at ?? new Date().toISOString();
+
+      const contextTypes = await store.listPlanContextTypesFromDb(workspaceId, plan.id);
+      for (const contextType of contextTypes) {
+        const payload = await store.getPlanContextFromDb(workspaceId, plan.id, contextType);
+        if (payload === null) continue;
+        const content = asText(payload);
+        const snippet = toPreview(content);
+        candidates.push({
+          workspace_id: workspaceId,
+          workspace_relation: workspaceRelation,
+          plan_id: plan.id,
+          plan_title: planTitle,
+          context_title: contextType,
+          context_type: 'plan_context',
+          snippet,
+          searchable_text: toSearchable(`${planTitle} ${contextType} ${snippet}`),
+          updated_at: planUpdatedAt,
+        });
+      }
+
+      const notes = await store.listPlanResearchNotesFromDb(workspaceId, plan.id);
+      for (const note of notes) {
+        const snippet = toPreview(note.content);
+        candidates.push({
+          workspace_id: workspaceId,
+          workspace_relation: workspaceRelation,
+          plan_id: plan.id,
+          plan_title: planTitle,
+          context_title: note.filename,
+          context_type: 'research_note',
+          snippet,
+          searchable_text: toSearchable(`${planTitle} ${note.filename} ${snippet}`),
+          updated_at: note.updated_at,
+        });
+      }
+    }
+  }
+
+  const queryLower = query.toLowerCase();
+  const filtered = candidates.filter((candidate) =>
+    candidate.searchable_text.includes(queryLower)
+    || (keywords.length > 0 && keywords.some(keyword => candidate.searchable_text.includes(keyword)))
+  );
+
+  const scored = filtered.map((candidate) => ({
+    candidate,
+    relevance: buildRelevance(candidate, query, keywords),
+  }));
+
+  scored.sort((a, b) => {
+    if (b.relevance.score !== a.relevance.score) {
+      return b.relevance.score - a.relevance.score;
+    }
+    const updatedCmp = b.candidate.updated_at.localeCompare(a.candidate.updated_at);
+    if (updatedCmp !== 0) {
+      return updatedCmp;
+    }
+    return a.candidate.context_title.localeCompare(b.candidate.context_title);
+  });
+
+  const limited = scored.slice(0, limit);
+  const relatedPlanIds = [...new Set(limited.map(item => item.candidate.plan_id))];
+
+  return {
+    success: true,
+    data: {
+      query,
+      limit,
+      total: scored.length,
+      truncated: scored.length > limit,
+      linked_workspace_ids: linkedWorkspaceIds,
+      related_plan_ids: relatedPlanIds,
+      results: limited.map(({ candidate, relevance }) => ({
+        workspace_id: candidate.workspace_id,
+        workspace_relation: candidate.workspace_relation,
+        plan_id: candidate.plan_id,
+        plan_title: candidate.plan_title,
+        context_title: candidate.context_title,
+        context_type: candidate.context_type,
+        snippet: candidate.snippet,
+        updated_at: candidate.updated_at,
+        relevance,
+      })),
     },
   };
 }

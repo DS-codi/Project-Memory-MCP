@@ -46,6 +46,7 @@ pub mod ffi {
         #[qproperty(QString, pending_commands_json, cxx_name = "pendingCommandsJson")]
         #[qproperty(QString, session_tabs_json, cxx_name = "sessionTabsJson")]
         #[qproperty(QString, tray_icon_url, cxx_name = "trayIconUrl")]
+        #[qproperty(i32, terminal_ws_port, cxx_name = "terminalWsPort")]
         type TerminalApp = super::TerminalAppRust;
 
         #[qsignal]
@@ -55,10 +56,6 @@ pub mod ffi {
         #[qsignal]
         #[cxx_name = "commandCompleted"]
         fn command_completed(self: Pin<&mut TerminalApp>, id: QString, success: bool);
-
-        #[qsignal]
-        #[cxx_name = "outputLineReceived"]
-        fn output_line_received(self: Pin<&mut TerminalApp>, line: QString);
 
         #[qsignal]
         #[cxx_name = "connectionStatusChanged"]
@@ -133,6 +130,10 @@ pub mod ffi {
         fn launch_gemini_session(self: Pin<&mut TerminalApp>) -> bool;
 
         #[qinvokable]
+        #[cxx_name = "launchGeminiInTab"]
+        fn launch_gemini_in_tab(self: Pin<&mut TerminalApp>) -> bool;
+
+        #[qinvokable]
         #[cxx_name = "openSavedCommands"]
         fn open_saved_commands(self: Pin<&mut TerminalApp>, workspace_id: QString) -> bool;
 
@@ -147,6 +148,18 @@ pub mod ffi {
         #[qinvokable]
         #[cxx_name = "reopenSavedCommands"]
         fn reopen_saved_commands(self: Pin<&mut TerminalApp>) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "saveSavedCommand"]
+        fn save_saved_command(
+            self: Pin<&mut TerminalApp>,
+            name: QString,
+            command: QString,
+        ) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "deleteSavedCommand"]
+        fn delete_saved_command(self: Pin<&mut TerminalApp>, command_id: QString) -> bool;
 
         #[qinvokable]
         #[cxx_name = "executeSavedCommand"]
@@ -167,6 +180,14 @@ pub mod ffi {
         #[qinvokable]
         #[cxx_name = "exportOutputJson"]
         fn export_output_json(self: Pin<&mut TerminalApp>, directory: QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "currentOutputTextValue"]
+        fn current_output_text_value(self: &TerminalApp) -> QString;
+
+        #[qinvokable]
+        #[cxx_name = "lastCommandOutputTextValue"]
+        fn last_command_output_text_value(self: &TerminalApp) -> QString;
     }
 
     impl cxx_qt::Initialize for TerminalApp {}

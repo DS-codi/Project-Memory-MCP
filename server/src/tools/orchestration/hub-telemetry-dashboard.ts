@@ -36,6 +36,11 @@ export interface HubTelemetrySnapshot {
     enrichment_hit_rate_percent: number;
     avg_latency_ms: number | null;
     p95_latency_ms: number | null;
+    outcomes: {
+      rerun: number;
+      reuse: number;
+      fallback: number;
+    };
   };
   cross_session_conflict_detection: {
     conflict_events: number;
@@ -143,6 +148,11 @@ export async function buildHubTelemetrySnapshot(
   const aliasByLabel: Record<string, number> = {};
   let promptAppliedCount = 0;
   let promptExpectedCount = 0;
+  const promptOutcomeCounts = {
+    rerun: 0,
+    reuse: 0,
+    fallback: 0,
+  };
   const latencies: number[] = [];
 
   for (const event of routingEvents) {
@@ -170,6 +180,13 @@ export async function buildHubTelemetrySnapshot(
     if (latency !== null && latency >= 0) {
       latencies.push(latency);
     }
+
+    const outcome = typeof data.prompt_analyst_outcome === 'string'
+      ? data.prompt_analyst_outcome
+      : undefined;
+    if (outcome === 'rerun' || outcome === 'reuse' || outcome === 'fallback') {
+      promptOutcomeCounts[outcome] += 1;
+    }
   }
 
   for (const event of promptAnalystEvents) {
@@ -177,6 +194,15 @@ export async function buildHubTelemetrySnapshot(
     const latency = safeNumber(data.latency_ms);
     if (latency !== null && latency >= 0) {
       latencies.push(latency);
+    }
+
+    const outcome = typeof data.outcome_label === 'string'
+      ? data.outcome_label
+      : typeof data.prompt_analyst_outcome === 'string'
+        ? data.prompt_analyst_outcome
+        : undefined;
+    if (outcome === 'rerun' || outcome === 'reuse' || outcome === 'fallback') {
+      promptOutcomeCounts[outcome] += 1;
     }
   }
 
@@ -241,6 +267,7 @@ export async function buildHubTelemetrySnapshot(
       enrichment_hit_rate_percent: pct(promptAppliedCount, promptExpectedCount),
       avg_latency_ms: average(latencies),
       p95_latency_ms: percentile(latencies, 95),
+      outcomes: promptOutcomeCounts,
     },
     cross_session_conflict_detection: {
       conflict_events: conflicts.length,

@@ -15,6 +15,7 @@ import {
   getEventsSince as dbGetSince,
 } from '../db/event-log-db.js';
 import type { EventLogRow } from '../db/types.js';
+import { dispatchEventToWebhook } from './webhook-dispatcher.js';
 
 // Event types
 export type EventType =
@@ -94,6 +95,7 @@ export async function emitEvent(event: Omit<MCPEvent, 'id' | 'timestamp'>): Prom
       tool_name:    fullEvent.tool_name,
       data:         fullEvent.data,
     });
+    dispatchEventToWebhook(fullEvent);
   } catch {
     // Non-fatal — event logging must never break tool handlers
   }

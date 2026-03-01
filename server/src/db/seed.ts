@@ -107,7 +107,7 @@ async function buildToolCatalog(): Promise<CatalogTool[]> {
     {
       name: 'memory_filesystem',
       description:
-        'Workspace-scoped file operations with safety boundaries: read, write, search, list, tree, delete, move, copy, append, exists.',
+        'Workspace-scoped file operations with safety boundaries: read, write, search, discover_codebase, list, tree, delete, move, copy, append, exists.',
       actions: buildActions(ACTION_PARAM_SPECS['memory_filesystem'] ?? {}),
     },
     {

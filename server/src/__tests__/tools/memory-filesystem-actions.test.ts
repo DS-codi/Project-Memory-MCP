@@ -35,16 +35,19 @@ describe('MCP Tool: memory_filesystem Actions', () => {
   it('routes write/search/list/tree actions and enforces required params', async () => {
     vi.mocked(fsTools.handleWrite).mockResolvedValue({ success: true, data: { path: 'a.txt', bytes_written: 3, created: true } } as any);
     vi.mocked(fsTools.handleSearch).mockResolvedValue({ success: true, data: { query: '*.ts', matches: [] } } as any);
+    vi.mocked(fsTools.handleDiscoverCodebase).mockResolvedValue({ success: true, data: { query_text: 'test', keywords: ['test'], matches: [] } } as any);
     vi.mocked(fsTools.handleList).mockResolvedValue({ success: true, data: { path: '.', entries: [] } } as any);
     vi.mocked(fsTools.handleTree).mockResolvedValue({ success: true, data: { path: '.', tree: '' } } as any);
 
     const writeMissingPath = await memoryFilesystem({ action: 'write', workspace_id: 'ws', content: 'abc' });
     const writeMissingContent = await memoryFilesystem({ action: 'write', workspace_id: 'ws', path: 'a.txt' });
     const searchMissingQuery = await memoryFilesystem({ action: 'search', workspace_id: 'ws' });
+    const discoverMissingPrompt = await memoryFilesystem({ action: 'discover_codebase', workspace_id: 'ws' });
 
     expect(writeMissingPath.success).toBe(false);
     expect(writeMissingContent.success).toBe(false);
     expect(searchMissingQuery.success).toBe(false);
+    expect(discoverMissingPrompt.success).toBe(false);
 
     const writeResult = await memoryFilesystem({ action: 'write', workspace_id: 'ws', path: 'a.txt', content: 'abc', create_dirs: false });
     expect(writeResult.success).toBe(true);
@@ -58,6 +61,15 @@ describe('MCP Tool: memory_filesystem Actions', () => {
     const searchResult = await memoryFilesystem({ action: 'search', workspace_id: 'ws', regex: 'test', include: '*.ts' });
     expect(searchResult.success).toBe(true);
     expect(fsTools.handleSearch).toHaveBeenCalledWith({ workspace_id: 'ws', pattern: undefined, regex: 'test', include: '*.ts' });
+
+    const discoverResult = await memoryFilesystem({ action: 'discover_codebase', workspace_id: 'ws', prompt_text: 'test prompt', task_text: 'rank files', limit: 5 });
+    expect(discoverResult.success).toBe(true);
+    expect(fsTools.handleDiscoverCodebase).toHaveBeenCalledWith({
+      workspace_id: 'ws',
+      prompt_text: 'test prompt',
+      task_text: 'rank files',
+      limit: 5,
+    });
 
     const listResult = await memoryFilesystem({ action: 'list', workspace_id: 'ws', path: 'src', recursive: true });
     expect(listResult.success).toBe(true);

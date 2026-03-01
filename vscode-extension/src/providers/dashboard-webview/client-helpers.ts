@@ -77,6 +77,8 @@ export function getClientHelpers(): string {
             }
             return plans.map(plan => {
                 const planId = plan.id || 'unknown';
+                const planWorkspaceId = getPlanWorkspaceId(plan);
+                const isSelected = selectedPlanId === planId && selectedPlanWorkspaceId === planWorkspaceId;
                 const entityType = plan.is_program ? 'Program' : 'Plan';
                 const entityClass = plan.is_program ? 'program' : 'plan';
                 const metaParts = [
@@ -93,7 +95,7 @@ export function getClientHelpers(): string {
                     metaParts.push(plan.child_plans_count + ' child plans');
                 }
                 return \`
-                    <div class="plan-item">
+                    <div class="plan-item\${isSelected ? ' selected' : ''}" data-plan-id="\${planId}" data-workspace-id="\${planWorkspaceId}" tabindex="0" role="button" title="Select \${entityType.toLowerCase()}">
                         <div class="plan-info">
                             <div class="plan-title" title="\${plan.title}">\${plan.title}</div>
                             <div class="plan-meta">
@@ -103,9 +105,10 @@ export function getClientHelpers(): string {
                         </div>
                         <span class="plan-status \${plan.status}">\${plan.status}</span>
                         <div class="plan-actions">
+                            <button class="btn btn-small btn-secondary" data-action="select-plan" data-plan-id="\${planId}" data-workspace-id="\${planWorkspaceId}" title="Select plan">Select</button>
                             <button class="btn btn-small btn-secondary" data-action="copy" data-copy="\${planId}" title="Copy plan ID">&#128203;</button>
-                            <button class="btn btn-small btn-secondary" data-action="open-plan-browser" data-plan-id="\${planId}" title="Open plan in default browser">&#8599;</button>
-                            <button class="btn btn-small" data-action="open-plan" data-plan-id="\${planId}" title="Open plan">&#8594;</button>
+                            <button class="btn btn-small btn-secondary" data-action="open-plan-browser" data-plan-id="\${planId}" data-workspace-id="\${planWorkspaceId}" title="Open plan in default browser">&#8599;</button>
+                            <button class="btn btn-small" data-action="open-plan" data-plan-id="\${planId}" data-workspace-id="\${planWorkspaceId}" title="Open plan">&#8594;</button>
                         </div>
                     </div>
                 \`;
@@ -222,17 +225,84 @@ export function getClientHelpers(): string {
                     }
 
                     const signature = getPlanSignature(nextActive) + '||' + getPlanSignature(nextArchived) + '||' + getPlanSignature(finalPrograms);
-                    if (signature !== lastPlanSignature) {
+                    const previousSelectedPlanId = selectedPlanId;
+                    const previousSelectedPlanWorkspaceId = selectedPlanWorkspaceId;
+
+                    activePlans = nextActive;
+                    archivedPlans = nextArchived;
+                    programPlans = finalPrograms;
+                    ensureSelectedPlanIsValid();
+
+                    const selectionChanged =
+                        previousSelectedPlanId !== selectedPlanId ||
+                        previousSelectedPlanWorkspaceId !== selectedPlanWorkspaceId;
+
+                    if (signature !== lastPlanSignature || selectionChanged) {
                         lastPlanSignature = signature;
-                        activePlans = nextActive;
-                        archivedPlans = nextArchived;
-                        programPlans = finalPrograms;
                         updatePlanLists();
                     }
                 }
             } catch (error) {
                 console.log('Failed to fetch plans:', error);
             }
+        }
+
+        function getPlanWorkspaceId(plan) {
+            return plan.workspace_id || plan.workspaceId || workspaceId;
+        }
+
+        function getKnownPlans() {
+            return [].concat(activePlans || [], archivedPlans || [], programPlans || []);
+        }
+
+        function findPlanBySelection(planId, planWorkspaceId) {
+            if (!planId || !planWorkspaceId) {
+                return null;
+            }
+
+            const knownPlans = getKnownPlans();
+            for (let index = 0; index < knownPlans.length; index += 1) {
+                const plan = knownPlans[index];
+                const candidatePlanId = plan.id || plan.plan_id || 'unknown';
+                const candidateWorkspaceId = getPlanWorkspaceId(plan);
+                if (candidatePlanId === planId && candidateWorkspaceId === planWorkspaceId) {
+                    return { planId: candidatePlanId, workspaceId: candidateWorkspaceId };
+                }
+            }
+
+            return null;
+        }
+
+        function ensureSelectedPlanIsValid() {
+            if (!selectedPlanId || !selectedPlanWorkspaceId) {
+                selectedPlanId = '';
+                selectedPlanWorkspaceId = '';
+                return;
+            }
+
+            const existing = findPlanBySelection(selectedPlanId, selectedPlanWorkspaceId);
+            if (!existing) {
+                selectedPlanId = '';
+                selectedPlanWorkspaceId = '';
+            }
+        }
+
+        function setSelectedPlan(planId, planWorkspaceId) {
+            selectedPlanId = planId || '';
+            selectedPlanWorkspaceId = planWorkspaceId || workspaceId || '';
+            ensureSelectedPlanIsValid();
+            updatePlanLists();
+        }
+
+        function getSelectedPlanTarget() {
+            ensureSelectedPlanIsValid();
+            if (!selectedPlanId || !selectedPlanWorkspaceId) {
+                return null;
+            }
+            return {
+                planId: selectedPlanId,
+                workspaceId: selectedPlanWorkspaceId,
+            };
         }
 
         function updatePlanLists() {

@@ -77,6 +77,7 @@ import {
   handleAppend,
   handleCopy,
   handleDelete,
+  handleDiscoverCodebase,
   handleExists,
   handleList,
   handleMove,
@@ -399,6 +400,58 @@ describe('filesystem.tools dedicated happy-path and hardening coverage', () => {
       expect(result.data.matches.length).toBe(3);
       expect(result.data.truncated).toBe(true);
       expect(result.data.limit).toBe(3);
+    }
+  });
+
+  it('discover_codebase returns ranked path-only matches with relevance metadata', async () => {
+    mockedWalkDir.mockImplementation(async (_root, _current, callback) => {
+      callback('src/memory/filesystem-handler.ts', false);
+      callback('src/tools/memory_agent.ts', false);
+      callback('src/path/path-safety.ts', false);
+      callback('docs/filesystem-guide.md', false);
+      callback('src/memory/path-utils.ts', false);
+    });
+
+    const result = await handleDiscoverCodebase({
+      workspace_id: 'ws',
+      prompt_text: 'Add filesystem path safety handler',
+      task_text: 'rank relevant code files',
+      limit: 2,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success && result.data) {
+      expect(result.data.matches.length).toBe(2);
+      expect(result.data.matches[0].relevance_score).toBeGreaterThanOrEqual(result.data.matches[1].relevance_score);
+      expect(result.data.matches[0].matched_keywords.length).toBeGreaterThan(0);
+      expect(result.data.matches[0]).toHaveProperty('path');
+      expect(result.data.matches[0]).toHaveProperty('relevance_score');
+      expect(result.data.matches[0]).toHaveProperty('matched_keywords');
+      expect((result.data.matches[0] as Record<string, unknown>).content).toBeUndefined();
+      expect(result.data.truncated).toBe(true);
+    }
+  });
+
+  it('discover_codebase enforces code-file filtering and ignores skipped directories', async () => {
+    mockedWalkDir.mockImplementation(async (_root, _current, callback) => {
+      callback('src/prompt-analyst.ts', false);
+      callback('node_modules/prompt-analyst/index.js', false);
+      callback('dist/prompt-analyst.js', false);
+      callback('docs/prompt-analyst.md', false);
+      callback('README.md', false);
+    });
+
+    const result = await handleDiscoverCodebase({
+      workspace_id: 'ws',
+      prompt_text: 'prompt analyst discovery',
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success && result.data) {
+      expect(result.data.matches.map((m) => m.path)).toEqual(['src/prompt-analyst.ts']);
+      expect(result.data.matches.some((m) => m.path.includes('node_modules'))).toBe(false);
+      expect(result.data.matches.some((m) => m.path.includes('dist'))).toBe(false);
+      expect(result.data.matches.some((m) => m.path.endsWith('.md'))).toBe(false);
     }
   });
 

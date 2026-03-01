@@ -19,8 +19,8 @@
  *    Actions: store, get, store_initial, list, list_research, append_research, generate_instructions, batch_store,
  *             workspace_get, workspace_set, workspace_update, workspace_delete
  * 
- * 6. memory_filesystem - Workspace-scoped filesystem operations (10 actions)
- *    Actions: read, write, search, list, tree, delete, move, copy, append, exists
+ * 6. memory_filesystem - Workspace-scoped filesystem operations (11 actions)
+ *    Actions: read, write, search, discover_codebase, list, tree, delete, move, copy, append, exists
  * 
  * 7. memory_terminal - Terminal tool with GUI approval flow (5 actions)
  *    Actions: run, read_output, kill, get_allowlist, update_allowlist

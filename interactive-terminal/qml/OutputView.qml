@@ -218,7 +218,7 @@ Rectangle {
                 readOnly: true
                 color: "#d4d4d4"
                 font.family: "Consolas"
-                font.pixelSize: Math.max(11, Math.floor(outputRoot.width / 80))
+                font.pixelSize: Math.max(10, Math.floor(outputRoot.width / 110))
                 wrapMode: TextEdit.Wrap
                 selectByMouse: true
 
@@ -251,7 +251,7 @@ Rectangle {
             height: terminalFontSize + 16
             color: "#111111"
 
-            property int terminalFontSize: Math.max(11, Math.floor(outputRoot.width / 80))
+            property int terminalFontSize: Math.max(10, Math.floor(outputRoot.width / 110))
 
             // Clicking anywhere in the bar focuses the input
             MouseArea {

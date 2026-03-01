@@ -41,14 +41,14 @@ import * as store from '../../storage/db-store.js';
 // =========================================================================
 
 /** Possible outcomes of an approval gate. */
-export type ApprovalOutcome = 'approved' | 'rejected' | 'timeout' | 'deferred' | 'error';
+export type ApprovalOutcome = 'approved' | 'rejected' | 'timeout' | 'deferred' | 'fallback_to_chat' | 'error';
 
 /** Result of an approval gate routing attempt. */
 export interface ApprovalGateResult {
   /** Whether the approval gate resolved successfully (approved). */
   approved: boolean;
   /** Which path was used. */
-  path: 'gui';
+  path: 'gui' | 'fallback';
   /** Detailed outcome. */
   outcome: ApprovalOutcome;
   /** User's notes (if rejection with notes). */
@@ -179,9 +179,9 @@ export async function routeApprovalGate(
   if (!availability.supervisor_running || !availability.approval_gui) {
     return {
       approved: false,
-      path: 'gui',
-      outcome: 'error',
-      error: 'Approval GUI unavailable in specialized_host-only mode',
+      path: 'fallback',
+      outcome: 'fallback_to_chat',
+      error: 'Approval GUI unavailable; fallback_to_chat',
       elapsed_ms: Date.now() - startTime,
     };
   }
@@ -200,8 +200,8 @@ export async function routeApprovalGate(
     if (!result.success) {
       return {
         approved: false,
-        path: 'gui',
-        outcome: 'error',
+        path: 'fallback',
+        outcome: 'fallback_to_chat',
         error: `Approval GUI failed: ${result.error}`,
         elapsed_ms: Date.now() - startTime,
       };
@@ -211,8 +211,8 @@ export async function routeApprovalGate(
     if (!guiResponse) {
       return {
         approved: false,
-        path: 'gui',
-        outcome: 'error',
+        path: 'fallback',
+        outcome: 'fallback_to_chat',
         error: 'Approval GUI returned no response payload',
         elapsed_ms: Date.now() - startTime,
       };
@@ -356,8 +356,8 @@ export async function routeApprovalGate(
   } catch (err) {
     return {
       approved: false,
-      path: 'gui',
-      outcome: 'error',
+      path: 'fallback',
+      outcome: 'fallback_to_chat',
       error: `Approval gate error: ${err instanceof Error ? err.message : String(err)}`,
       elapsed_ms: Date.now() - startTime,
     };

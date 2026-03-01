@@ -42,6 +42,84 @@ import { AGENTS_ROOT, INSTRUCTIONS_ROOT } from './agent.tools.js';
 import { AGENT_BOUNDARIES } from '../types/index.js';
 import { buildToolContracts } from './preflight/index.js';
 
+function normalizeBundleLookupToken(value: string): string {
+  return value.trim().toLowerCase().replace(/\\/g, '/');
+}
+
+function pathTokensForLookup(filePath: string): string[] {
+  const normalizedPath = normalizeBundleLookupToken(filePath);
+  const fileName = path.basename(filePath);
+  const fileNameToken = normalizeBundleLookupToken(fileName);
+  const baseNameToken = normalizeBundleLookupToken(path.basename(fileName, path.extname(fileName)));
+  const parentDirToken = normalizeBundleLookupToken(path.basename(path.dirname(filePath)));
+  const skillToken = fileNameToken === 'skill.md' ? parentDirToken : '';
+
+  return [normalizedPath, fileNameToken, baseNameToken, parentDirToken, skillToken].filter(Boolean);
+}
+
+function selectSubsetByIds(candidates: string[], ids: string[]): string[] {
+  const requested = ids.map(normalizeBundleLookupToken);
+  if (requested.length === 0 || candidates.length === 0) {
+    return [];
+  }
+
+  const selected = new Set<string>();
+  for (const candidate of candidates) {
+    const tokens = pathTokensForLookup(candidate);
+    const isMatch = requested.some((id) =>
+      tokens.some((token) => token === id || token.endsWith(`/${id}`) || token.includes(`/${id}.`)),
+    );
+    if (isMatch) {
+      selected.add(candidate);
+    }
+  }
+
+  return Array.from(selected);
+}
+
+async function discoverInstructionFiles(workspacePath: string, agentName: string): Promise<string[]> {
+  const agentLower = agentName.toLowerCase();
+  const searchDirs = [
+    path.join(workspacePath, '.memory', 'instructions'),
+    path.join(workspacePath, '.github', 'instructions'),
+    INSTRUCTIONS_ROOT,
+  ];
+
+  const discovered = new Set<string>();
+  for (const dir of searchDirs) {
+    try {
+      const files = await fs.readdir(dir);
+      const matching = files.filter(
+        file => file.toLowerCase().includes(agentLower) && file.endsWith('.md'),
+      );
+      for (const file of matching) {
+        discovered.add(path.join(dir, file));
+      }
+    } catch {
+      // Directory missing/unreadable — ignore
+    }
+  }
+
+  return Array.from(discovered);
+}
+
+async function discoverSkillFiles(workspacePath: string): Promise<string[]> {
+  const skillsDir = path.join(workspacePath, '.github', 'skills');
+  const discovered: string[] = [];
+  try {
+    const entries = await fs.readdir(skillsDir);
+    for (const entry of entries) {
+      const skillFile = path.join(skillsDir, entry, 'SKILL.md');
+      if (await exists(skillFile)) {
+        discovered.push(skillFile);
+      }
+    }
+  } catch {
+    // No skills directory — ignore
+  }
+  return discovered;
+}
+
 // ---------------------------------------------------------------------------
 // buildContextBundle
 // ---------------------------------------------------------------------------
@@ -61,6 +139,29 @@ export async function buildContextBundle(
     step_indices: params.step_indices,
     assembled_at: nowISO(),
   };
+
+  if (params.prompt_analyst_output) {
+    bundle.prompt_analyst_output = params.prompt_analyst_output;
+  }
+
+  if (params.hub_decision_payload) {
+    bundle.hub_decision_payload = params.hub_decision_payload;
+    bundle.resolved_bundle_ids = {
+      hub_skill_bundle_id:
+        params.hub_decision_payload.hub_selected_skill_bundle?.bundle_id
+        ?? params.prompt_analyst_output?.hub_skill_bundle_id,
+      hub_skill_bundle_version:
+        params.hub_decision_payload.hub_selected_skill_bundle?.version
+        ?? params.prompt_analyst_output?.hub_skill_bundle_version,
+      spoke_instruction_bundle_id: params.hub_decision_payload.spoke_instruction_bundle?.bundle_id,
+      spoke_instruction_bundle_version: params.hub_decision_payload.spoke_instruction_bundle?.version,
+      spoke_skill_bundle_id: params.hub_decision_payload.spoke_skill_bundle?.bundle_id,
+      spoke_skill_bundle_version: params.hub_decision_payload.spoke_skill_bundle?.version,
+    };
+    bundle.resolved_instruction_ids = params.hub_decision_payload.spoke_instruction_bundle?.instruction_ids;
+    bundle.resolved_skill_ids = params.hub_decision_payload.spoke_skill_bundle?.skill_ids;
+    bundle.bundle_resolution_source = 'explicit_hub_decision';
+  }
 
   // 1. Research notes (filenames only)
   if (params.include_research !== false) {
@@ -84,54 +185,74 @@ export async function buildContextBundle(
     }
   }
 
-  // 3. Instruction files (discover from workspace .memory/instructions/ or .github/instructions/)
-  try {
-    const agentLower = params.agent_name.toLowerCase();
-    const searchDirs = [
-      path.join(params.workspace_path, '.memory', 'instructions'),
-      path.join(params.workspace_path, '.github', 'instructions'),
-      INSTRUCTIONS_ROOT,
-    ];
+  const explicitInstructionIds = params.hub_decision_payload?.spoke_instruction_bundle?.instruction_ids ?? [];
+  const explicitSkillIds = params.hub_decision_payload?.spoke_skill_bundle?.skill_ids ?? [];
 
-    const foundInstructions: string[] = [];
-    for (const dir of searchDirs) {
-      try {
-        const files = await fs.readdir(dir);
-        const matching = files.filter(
-          f => f.toLowerCase().includes(agentLower) && f.endsWith('.md'),
-        );
-        for (const f of matching) {
-          foundInstructions.push(path.join(dir, f));
-        }
-      } catch {
-        // Directory doesn't exist — skip
+  const effectiveProvisioningMode = params.provisioning_mode ?? 'on_demand';
+  const effectiveFallbackPolicy = params.fallback_policy ?? params.hub_decision_payload?.fallback_policy;
+  const compatFallbackAllowed = effectiveFallbackPolicy?.fallback_allowed === true
+    && (effectiveFallbackPolicy.fallback_mode === 'compat_dynamic' || !effectiveFallbackPolicy.fallback_mode);
+
+  const legacyAlwaysOnAllowed = effectiveProvisioningMode === 'compat'
+    && params.allow_legacy_always_on === true
+    && compatFallbackAllowed;
+
+  const ambientInstructionFallbackAllowed = legacyAlwaysOnAllowed
+    || (params.allow_ambient_instruction_scan === true && compatFallbackAllowed);
+
+  const ambientSkillFallbackAllowed = legacyAlwaysOnAllowed
+    || (params.allow_include_skills_all === true && compatFallbackAllowed);
+
+  // 3. Instruction files (explicit subset first; ambient only via explicit compat fallback controls)
+  try {
+    const discoveredInstructions = await discoverInstructionFiles(params.workspace_path, params.agent_name);
+
+    if (explicitInstructionIds.length > 0) {
+      const explicitSubset = selectSubsetByIds(discoveredInstructions, explicitInstructionIds);
+      if (explicitSubset.length > 0) {
+        bundle.instruction_files = explicitSubset;
+      } else if (ambientInstructionFallbackAllowed && discoveredInstructions.length > 0) {
+        bundle.instruction_files = discoveredInstructions;
+        bundle.bundle_resolution_source = 'compat_fallback';
       }
-    }
-    if (foundInstructions.length > 0) {
-      bundle.instruction_files = foundInstructions;
+    } else if (ambientInstructionFallbackAllowed && discoveredInstructions.length > 0) {
+      bundle.instruction_files = discoveredInstructions;
+      if (!bundle.bundle_resolution_source) {
+        bundle.bundle_resolution_source = params.hub_decision_payload ? 'compat_fallback' : 'ambient_discovery';
+      }
     }
   } catch {
     // Instruction discovery failed — skip
   }
 
-  // 4. Matched skills (filenames only)
-  if (params.include_skills) {
+  // 4. Matched skills (explicit subset first; ambient only via explicit compat fallback controls)
+  if (params.include_skills || explicitSkillIds.length > 0) {
     try {
-      const skillsDir = path.join(params.workspace_path, '.github', 'skills');
-      const entries = await fs.readdir(skillsDir);
-      const skillPaths: string[] = [];
-      for (const entry of entries) {
-        const skillFile = path.join(skillsDir, entry, 'SKILL.md');
-        if (await exists(skillFile)) {
-          skillPaths.push(skillFile);
+      const discoveredSkills = await discoverSkillFiles(params.workspace_path);
+
+      if (explicitSkillIds.length > 0) {
+        const explicitSubset = selectSubsetByIds(discoveredSkills, explicitSkillIds);
+        if (explicitSubset.length > 0) {
+          bundle.matched_skills = explicitSubset;
+        } else if (ambientSkillFallbackAllowed && discoveredSkills.length > 0) {
+          bundle.matched_skills = discoveredSkills;
+          bundle.bundle_resolution_source = 'compat_fallback';
         }
-      }
-      if (skillPaths.length > 0) {
-        bundle.matched_skills = skillPaths;
+      } else if (params.include_skills && ambientSkillFallbackAllowed && discoveredSkills.length > 0) {
+        bundle.matched_skills = discoveredSkills;
+        if (!bundle.bundle_resolution_source) {
+          bundle.bundle_resolution_source = params.hub_decision_payload ? 'compat_fallback' : 'ambient_discovery';
+        }
       }
     } catch {
       // No skills directory — skip
     }
+  }
+
+  if (!bundle.bundle_resolution_source) {
+    bundle.bundle_resolution_source = params.hub_decision_payload
+      ? 'explicit_hub_decision'
+      : 'ambient_discovery';
   }
 
   return bundle;

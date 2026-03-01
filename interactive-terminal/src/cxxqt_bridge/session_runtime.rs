@@ -34,6 +34,7 @@ pub struct TerminalAppRust {
     pub(crate) pending_commands_json: QString,
     pub(crate) session_tabs_json: QString,
     pub(crate) tray_icon_url: QString,
+    pub(crate) terminal_ws_port: i32,
     pub(crate) state: Arc<Mutex<AppState>>,
 }
 
@@ -49,6 +50,11 @@ pub struct AppState {
     pub response_tx: Option<tokio::sync::mpsc::Sender<crate::protocol::Message>>,
     pub command_tx: Option<tokio::sync::mpsc::Sender<CommandRequest>>,
     pub output_tracker: OutputTracker,
+    /// Broadcast sender shared by the WS terminal server.  When set, any text
+    /// written via `append_output_line` or exec_task output is forwarded to the
+    /// xterm.js front-end over WebSocket in addition to the legacy `output_text`
+    /// QProperty.
+    pub ws_terminal_tx: Option<tokio::sync::broadcast::Sender<Vec<u8>>>,
 }
 
 #[derive(Default, Clone)]
@@ -107,6 +113,7 @@ impl Default for TerminalAppRust {
             response_tx: None,
             command_tx: None,
             output_tracker: OutputTracker::default(),
+            ws_terminal_tx: None,
         }));
 
         let session_tabs_json = {
@@ -143,8 +150,8 @@ impl Default for TerminalAppRust {
             current_activate_venv: false,
             current_allowlisted: false,
             start_with_windows: tray_settings.start_with_windows,
-            start_visible: false,
-            run_commands_in_window: cfg!(target_os = "windows"),
+            start_visible: true,
+            run_commands_in_window: false,
             gemini_key_present,
             gemini_injection_requested: false,
             cpu_usage_percent: 0.0,
@@ -152,6 +159,7 @@ impl Default for TerminalAppRust {
             pending_commands_json: QString::from("[]"),
             session_tabs_json,
             tray_icon_url: resolve_tray_icon_url(),
+            terminal_ws_port: 0,
             state,
         }
     }

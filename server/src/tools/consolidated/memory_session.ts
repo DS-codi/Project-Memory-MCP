@@ -20,9 +20,17 @@ import { isSupervisorRunning } from '../orchestration/supervisor-client.js';
 import {
     type CanonicalHubMode,
     type HubAliasResolution,
-    resolveHubAliasRouting,
 } from '../orchestration/hub-alias-routing.js';
+import { evaluateHubDispatchPolicy } from '../orchestration/hub-policy-enforcement.js';
 import { events } from '../../events/event-emitter.js';
+import type {
+    PromptAnalystOutput,
+    HubDecisionPayload,
+    ProvisioningMode,
+    DeployFallbackPolicy,
+    DeployTelemetryContext,
+    BundleScope,
+} from '../../types/index.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -54,8 +62,24 @@ export interface MemorySessionParams {
     include_skills?: boolean;
     include_research?: boolean;
     include_architecture?: boolean;
+    prompt_analyst_output?: PromptAnalystOutput;
+    hub_decision_payload?: HubDecisionPayload;
+    provisioning_mode?: ProvisioningMode;
+    allow_legacy_always_on?: boolean;
+    allow_ambient_instruction_scan?: boolean;
+    allow_include_skills_all?: boolean;
+    fallback_policy?: DeployFallbackPolicy;
+    telemetry_context?: DeployTelemetryContext;
+    requested_scope?: BundleScope;
+    strict_bundle_resolution?: boolean;
+    requested_hub_label?: 'Coordinator' | 'Analyst' | 'Runner' | 'TDDDriver' | 'Hub';
+    current_hub_mode?: CanonicalHubMode;
+    previous_hub_mode?: CanonicalHubMode;
     requested_hub_mode?: CanonicalHubMode;
+    transition_event?: string;
+    transition_reason_code?: string;
     prompt_analyst_enrichment_applied?: boolean;
+    bypass_prompt_analyst_policy?: boolean;
     prompt_analyst_latency_ms?: number;
     peer_sessions_count?: number;
 
@@ -319,11 +343,84 @@ async function selectLaunchRouting(params: MemorySessionParams): Promise<LaunchR
     return baseDecision;
 }
 
+async function enforceDispatchPolicy(
+    params: MemorySessionParams,
+    targetAgentType: string,
+    action: 'prep' | 'deploy_and_prep',
+): Promise<
+    | { ok: true; evaluation: ReturnType<typeof evaluateHubDispatchPolicy> }
+    | { ok: false; error: string }
+> {
+    const evaluation = evaluateHubDispatchPolicy({
+        target_agent_type: targetAgentType,
+        current_hub_mode: params.current_hub_mode,
+        previous_hub_mode: params.previous_hub_mode,
+        requested_hub_mode: params.requested_hub_mode,
+        requested_hub_label: params.requested_hub_label,
+        transition_event: params.transition_event,
+        transition_reason_code: params.transition_reason_code,
+        prompt_analyst_enrichment_applied: params.prompt_analyst_enrichment_applied,
+        bypass_prompt_analyst_policy: params.bypass_prompt_analyst_policy,
+        prompt_analyst_output: params.prompt_analyst_output,
+        hub_decision_payload: params.hub_decision_payload,
+        provisioning_mode: params.provisioning_mode,
+        fallback_policy: params.fallback_policy,
+        requested_scope: params.requested_scope,
+        strict_bundle_resolution: params.strict_bundle_resolution,
+    });
+
+    if (!evaluation.policy.valid) {
+        if (params.workspace_id && params.plan_id) {
+            await events.hubPolicyBlocked(params.workspace_id, params.plan_id, {
+                action,
+                code: evaluation.policy.code,
+                reason: evaluation.policy.reason,
+                details: evaluation.policy.details,
+                requested_hub_label: evaluation.alias_routing.requested_hub_label,
+                resolved_mode: evaluation.alias_routing.resolved_mode,
+                deprecation_phase: evaluation.alias_routing.deprecation_phase,
+                fallback_requested: evaluation.fallback.requested,
+                fallback_used: evaluation.fallback.used,
+                fallback_reason_code: evaluation.fallback.reason_code,
+                prompt_analyst_outcome: evaluation.telemetry.prompt_analyst_outcome,
+            });
+        }
+
+        return {
+            ok: false,
+            error: `${evaluation.policy.code}: ${evaluation.policy.reason}`,
+        };
+    }
+
+    if (evaluation.fallback.used && params.workspace_id && params.plan_id) {
+        await events.promptAnalystEnrichment(params.workspace_id, params.plan_id, {
+            action,
+            target_agent_type: targetAgentType,
+            applied: false,
+            fallback_used: true,
+            fallback_reason_code: evaluation.fallback.reason_code,
+            requested_hub_label: evaluation.alias_routing.requested_hub_label,
+            resolved_mode: evaluation.alias_routing.resolved_mode,
+            transition_event: evaluation.normalized_input.transition_event,
+            transition_reason_code: evaluation.normalized_input.transition_reason_code,
+            outcome_label: evaluation.telemetry.prompt_analyst_outcome,
+        });
+    }
+
+    return {
+        ok: true,
+        evaluation,
+    };
+}
+
 // ---------------------------------------------------------------------------
 // Action: prep
 // ---------------------------------------------------------------------------
 
-async function handlePrep(params: MemorySessionParams) {
+async function handlePrep(
+    params: MemorySessionParams,
+    enforcedPolicy?: ReturnType<typeof evaluateHubDispatchPolicy>,
+) {
     const { agent_name, prompt, workspace_id, plan_id, parent_session_id } = params;
     const warnings: PrepWarning[] = [];
 
@@ -332,7 +429,14 @@ async function handlePrep(params: MemorySessionParams) {
 
     const compatMode = params.compat_mode === 'strict' ? 'strict' : 'legacy';
     const launchRouting = await selectLaunchRouting(params);
-    const hubAliasRouting = resolveHubAliasRouting(agent_name, params.requested_hub_mode);
+    const dispatchPolicy = enforcedPolicy
+        ? { ok: true as const, evaluation: enforcedPolicy }
+        : await enforceDispatchPolicy(params, agent_name, 'prep');
+    if (!dispatchPolicy.ok) {
+        return err(dispatchPolicy.error);
+    }
+
+    const hubAliasRouting = dispatchPolicy.evaluation.alias_routing;
     const promptAnalystEnrichmentApplied = params.prompt_analyst_enrichment_applied === true;
     const promptAnalystLatencyMs = Number.isFinite(params.prompt_analyst_latency_ms)
         ? Math.max(0, Number(params.prompt_analyst_latency_ms))
@@ -384,7 +488,12 @@ async function handlePrep(params: MemorySessionParams) {
     const sessionId = mintSessionId();
     const startedAt = new Date().toISOString();
 
-    if (workspace_id && plan_id && (promptAnalystEnrichmentApplied || promptAnalystLatencyMs !== undefined)) {
+    if (
+        workspace_id
+        && plan_id
+        && dispatchPolicy.evaluation.normalized_input.target_agent_type !== 'Analyst'
+        && dispatchPolicy.evaluation.telemetry.prompt_analyst_outcome !== 'fallback'
+    ) {
         await events.promptAnalystEnrichment(workspace_id, plan_id, {
             session_id: sessionId,
             target_agent_type: agent_name,
@@ -392,6 +501,7 @@ async function handlePrep(params: MemorySessionParams) {
             latency_ms: promptAnalystLatencyMs,
             requested_hub_label: hubAliasRouting.requested_hub_label,
             resolved_mode: hubAliasRouting.resolved_mode,
+            outcome_label: dispatchPolicy.evaluation.telemetry.prompt_analyst_outcome,
         });
     }
 
@@ -540,11 +650,21 @@ async function handleDeployAndPrep(params: MemorySessionParams) {
     if (!agent_name) return err('agent_name is required');
     if (!params.prompt) return err('prompt is required');
 
+    const dispatchPolicy = await enforceDispatchPolicy(params, agent_name, 'deploy_and_prep');
+    if (!dispatchPolicy.ok) {
+        return err(dispatchPolicy.error);
+    }
+
     const ws = await store.getWorkspace(workspace_id);
     if (!ws) return err(`Workspace not found: ${workspace_id}`);
 
     const workspacePath = ws.workspace_path || ws.path;
     if (!workspacePath) return err(`Workspace path missing for workspace: ${workspace_id}`);
+
+    const prepResponse = await handlePrep(params, dispatchPolicy.evaluation);
+    if (!prepResponse.success || !prepResponse.data) {
+        return prepResponse;
+    }
 
     const deployResult = await deployForTask({
         workspace_id,
@@ -556,12 +676,17 @@ async function handleDeployAndPrep(params: MemorySessionParams) {
         include_skills: params.include_skills,
         include_research: params.include_research,
         include_architecture: params.include_architecture,
+        prompt_analyst_output: params.prompt_analyst_output,
+        hub_decision_payload: params.hub_decision_payload,
+        provisioning_mode: params.provisioning_mode,
+        allow_legacy_always_on: params.allow_legacy_always_on,
+        allow_ambient_instruction_scan: params.allow_ambient_instruction_scan,
+        allow_include_skills_all: params.allow_include_skills_all,
+        fallback_policy: params.fallback_policy,
+        telemetry_context: params.telemetry_context,
+        requested_scope: params.requested_scope,
+        strict_bundle_resolution: params.strict_bundle_resolution,
     });
-
-    const prepResponse = await handlePrep(params);
-    if (!prepResponse.success || !prepResponse.data) {
-        return prepResponse;
-    }
 
     const prepData = prepResponse.data.data as Record<string, unknown>;
 

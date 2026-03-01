@@ -305,6 +305,16 @@ export const CONTEXT_PARAMS: Record<string, ActionParamDef> = {
     ],
   },
 
+  promptanalyst_discover: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+      { name: 'query', type: 'string', description: 'PromptAnalyst discovery query text' },
+    ],
+    optional: [
+      { name: 'limit', type: 'number', description: 'Result limit (bounded and defaulted server-side)' },
+    ],
+  },
+
   pull: {
     required: [
       { name: 'workspace_id', type: 'string', description: 'Workspace ID' },

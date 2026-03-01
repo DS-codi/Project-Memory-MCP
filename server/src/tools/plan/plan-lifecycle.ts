@@ -676,33 +676,73 @@ export async function exportPlan(params: {
     await fs.writeFile(planJsonPath, JSON.stringify(planState, null, 2), 'utf-8');
     filesExported.push('plan.json');
 
-    // 4. Export context files from DB
+    // 4. Export context files (filesystem-first, DB fallback)
     const contextDir = path.join(exportRoot, 'context');
-    await store.ensureDir(contextDir);
+    let exportedContextFromFilesystem = false;
     try {
-      const contextTypes = await store.listPlanContextTypesFromDb(workspace_id, plan_id);
-      for (const type of contextTypes) {
-        const payload = await store.getPlanContextFromDb(workspace_id, plan_id, type);
-        if (payload === null) continue;
-        const fileName = `${type}.json`;
-        const dest = path.join(contextDir, fileName);
-        await fs.writeFile(dest, JSON.stringify(payload, null, 2), 'utf-8');
-        filesExported.push(`context/${fileName}`);
-      }
-    } catch { /* no extra context files */ }
-
-    // 5. Export research notes from DB
-    const researchDest = path.join(exportRoot, 'research_notes');
-    try {
-      const notes = await store.listPlanResearchNotesFromDb(workspace_id, plan_id);
-      if (notes.length > 0) {
-        await store.ensureDir(researchDest);
-        for (const note of notes) {
-          await fs.writeFile(path.join(researchDest, note.filename), note.content, 'utf-8');
-          filesExported.push(`research_notes/${note.filename}`);
+      const planDirFiles = await fs.readdir(store.getPlanPath(workspace_id, plan_id));
+      const contextFiles = planDirFiles.filter(fileName => fileName.endsWith('.json') && fileName !== 'state.json');
+      if (contextFiles.length > 0) {
+        await store.ensureDir(contextDir);
+        for (const fileName of contextFiles) {
+          const sourcePath = path.join(store.getPlanPath(workspace_id, plan_id), fileName);
+          const destPath = path.join(contextDir, fileName);
+          await fs.copyFile(sourcePath, destPath);
+          filesExported.push(`context/${fileName}`);
         }
+        exportedContextFromFilesystem = true;
       }
-    } catch { /* no research notes */ }
+    } catch {
+      exportedContextFromFilesystem = false;
+    }
+
+    if (!exportedContextFromFilesystem) {
+      try {
+        const contextTypes = await store.listPlanContextTypesFromDb(workspace_id, plan_id);
+        if (contextTypes.length > 0) {
+          await store.ensureDir(contextDir);
+        }
+        for (const type of contextTypes) {
+          const payload = await store.getPlanContextFromDb(workspace_id, plan_id, type);
+          if (payload === null) continue;
+          const fileName = `${type}.json`;
+          const dest = path.join(contextDir, fileName);
+          await fs.writeFile(dest, JSON.stringify(payload, null, 2), 'utf-8');
+          filesExported.push(`context/${fileName}`);
+        }
+      } catch { /* no extra context files */ }
+    }
+
+    // 5. Export research notes (filesystem-first, DB fallback)
+    const researchDest = path.join(exportRoot, 'research_notes');
+    let exportedResearchFromFilesystem = false;
+    try {
+      const researchSrc = store.getResearchNotesPath(workspace_id, plan_id);
+      const researchFiles = await fs.readdir(researchSrc);
+      if (researchFiles.length > 0) {
+        await store.ensureDir(researchDest);
+        for (const fileName of researchFiles) {
+          await fs.copyFile(path.join(researchSrc, fileName), path.join(researchDest, fileName));
+          filesExported.push(`research_notes/${fileName}`);
+        }
+        exportedResearchFromFilesystem = true;
+      }
+    } catch {
+      exportedResearchFromFilesystem = false;
+    }
+
+    if (!exportedResearchFromFilesystem) {
+      try {
+        const notes = await store.listPlanResearchNotesFromDb(workspace_id, plan_id);
+        if (notes.length > 0) {
+          await store.ensureDir(researchDest);
+          for (const note of notes) {
+            await fs.writeFile(path.join(researchDest, note.filename), note.content, 'utf-8');
+            filesExported.push(`research_notes/${note.filename}`);
+          }
+        }
+      } catch { /* no research notes */ }
+    }
 
     // 6. Copy prompts
     const planDir = store.getPlanPath(workspace_id, plan_id);

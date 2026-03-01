@@ -27,6 +27,7 @@ fn test_state() -> AppState {
         pending_commands_by_session: HashMap::from([("default".to_string(), Vec::new())]),
         session_display_names: HashMap::from([("default".to_string(), "default".to_string())]),
         session_context_by_id: HashMap::new(),
+        default_terminal_profile: crate::protocol::TerminalProfile::default(),
         selected_session_id: "default".to_string(),
         saved_commands_ui_workspace_id: String::new(),
         saved_commands_by_workspace: HashMap::new(),
@@ -34,6 +35,7 @@ fn test_state() -> AppState {
         response_tx: None,
         command_tx: None,
         output_tracker: OutputTracker::default(),
+        ws_terminal_tx: None,
     }
 }
 
@@ -42,6 +44,7 @@ fn test_state_with_repo(repo_root: PathBuf) -> AppState {
         pending_commands_by_session: HashMap::from([("default".to_string(), Vec::new())]),
         session_display_names: HashMap::from([("default".to_string(), "default".to_string())]),
         session_context_by_id: HashMap::new(),
+        default_terminal_profile: crate::protocol::TerminalProfile::default(),
         selected_session_id: "default".to_string(),
         saved_commands_ui_workspace_id: String::new(),
         saved_commands_by_workspace: HashMap::new(),
@@ -49,6 +52,7 @@ fn test_state_with_repo(repo_root: PathBuf) -> AppState {
         response_tx: None,
         command_tx: None,
         output_tracker: OutputTracker::default(),
+        ws_terminal_tx: None,
     }
 }
 

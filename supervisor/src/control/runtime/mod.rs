@@ -3,6 +3,7 @@ pub mod cancel;
 pub mod contracts;
 pub mod dispatcher;
 pub mod errors;
+pub mod failure_log;
 pub mod sessions;
 pub mod telemetry;
 

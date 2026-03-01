@@ -56,6 +56,8 @@ export function getClientScript(params: ClientScriptParams): string {
         let archivedPlans = [];
         let programPlans = [];
         let currentPlanTab = 'active';
+        let selectedPlanId = '';
+        let selectedPlanWorkspaceId = '';
         let recentEvents = [];
         let hasRenderedDashboard = false;
         let lastPlanSignature = '';
@@ -122,6 +124,8 @@ export function getClientScript(params: ClientScriptParams): string {
                 const newId = message.data && message.data.workspaceId;
                 if (newId && newId !== workspaceId) {
                     workspaceId = newId;
+                    selectedPlanId = '';
+                    selectedPlanWorkspaceId = '';
                     lastPlanSignature = '';
                     if (hasRenderedDashboard) {
                         fetchPlans();
@@ -149,7 +153,17 @@ export function getClientScript(params: ClientScriptParams): string {
         document.addEventListener('click', function(e) {
             var target = e.target;
             var button = target.closest('button');
-            if (!button) return;
+            if (!button) {
+                var planItem = target.closest('.plan-item');
+                if (planItem) {
+                    var clickedPlanId = planItem.getAttribute('data-plan-id');
+                    var clickedWorkspaceId = planItem.getAttribute('data-workspace-id') || workspaceId;
+                    if (clickedPlanId) {
+                        setSelectedPlan(clickedPlanId, clickedWorkspaceId);
+                    }
+                }
+                return;
+            }
 
             var tab = button.getAttribute('data-tab');
             if (tab) { setPlanTab(tab); return; }
@@ -157,6 +171,7 @@ export function getClientScript(params: ClientScriptParams): string {
             var action = button.getAttribute('data-action');
             var command = button.getAttribute('data-command');
             var planId = button.getAttribute('data-plan-id');
+            var planWorkspaceId = button.getAttribute('data-workspace-id') || workspaceId;
             var copyText = button.getAttribute('data-copy');
             
             if (action === 'toggle-collapse') {
@@ -169,21 +184,89 @@ export function getClientScript(params: ClientScriptParams): string {
             if (action === 'open-browser') {
                 vscode.postMessage({ type: 'openExternal', data: { url: dashboardUrl } });
             } else if (action === 'open-context-files') {
-                vscode.postMessage({ type: 'openPlanRoute', data: { route: 'context' } });
+                const target = getSelectedPlanTarget();
+                vscode.postMessage({
+                    type: 'openPlanRoute',
+                    data: {
+                        route: 'context',
+                        planId: target ? target.planId : undefined,
+                        workspaceId: target ? target.workspaceId : undefined,
+                    }
+                });
             } else if (action === 'open-context-note') {
-                vscode.postMessage({ type: 'openPlanRoute', data: { route: 'context', query: 'focus=context' } });
+                const target = getSelectedPlanTarget();
+                vscode.postMessage({
+                    type: 'openPlanRoute',
+                    data: {
+                        route: 'context',
+                        query: 'focus=context',
+                        planId: target ? target.planId : undefined,
+                        workspaceId: target ? target.workspaceId : undefined,
+                    }
+                });
             } else if (action === 'open-research-note') {
-                vscode.postMessage({ type: 'openPlanRoute', data: { route: 'context', query: 'focus=research' } });
+                const target = getSelectedPlanTarget();
+                vscode.postMessage({
+                    type: 'openPlanRoute',
+                    data: {
+                        route: 'context',
+                        query: 'focus=research',
+                        planId: target ? target.planId : undefined,
+                        workspaceId: target ? target.workspaceId : undefined,
+                    }
+                });
             } else if (action === 'open-build-scripts') {
-                vscode.postMessage({ type: 'openPlanRoute', data: { route: 'build-scripts' } });
+                const target = getSelectedPlanTarget();
+                vscode.postMessage({
+                    type: 'openPlanRoute',
+                    data: {
+                        route: 'build-scripts',
+                        planId: target ? target.planId : undefined,
+                        workspaceId: target ? target.workspaceId : undefined,
+                    }
+                });
             } else if (action === 'open-run-script') {
-                vscode.postMessage({ type: 'openPlanRoute', data: { route: 'build-scripts', query: 'run=1' } });
+                const target = getSelectedPlanTarget();
+                vscode.postMessage({
+                    type: 'openPlanRoute',
+                    data: {
+                        route: 'build-scripts',
+                        query: 'run=1',
+                        planId: target ? target.planId : undefined,
+                        workspaceId: target ? target.workspaceId : undefined,
+                    }
+                });
             } else if (action === 'open-handoff') {
-                vscode.postMessage({ type: 'openPlanRoute', data: { route: 'plan', query: 'tab=timeline' } });
+                const target = getSelectedPlanTarget();
+                vscode.postMessage({
+                    type: 'openPlanRoute',
+                    data: {
+                        route: 'plan',
+                        query: 'tab=timeline',
+                        planId: target ? target.planId : undefined,
+                        workspaceId: target ? target.workspaceId : undefined,
+                    }
+                });
             } else if (action === 'open-resume-plan') {
-                vscode.postMessage({ type: 'planAction', data: { action: 'resume' } });
+                const target = getSelectedPlanTarget();
+                vscode.postMessage({
+                    type: 'planAction',
+                    data: {
+                        action: 'resume',
+                        planId: target ? target.planId : undefined,
+                        workspaceId: target ? target.workspaceId : undefined,
+                    }
+                });
             } else if (action === 'open-archive-plan') {
-                vscode.postMessage({ type: 'planAction', data: { action: 'archive' } });
+                const target = getSelectedPlanTarget();
+                vscode.postMessage({
+                    type: 'planAction',
+                    data: {
+                        action: 'archive',
+                        planId: target ? target.planId : undefined,
+                        workspaceId: target ? target.workspaceId : undefined,
+                    }
+                });
             } else if (action === 'refresh') {
                 var statusDot = document.getElementById('statusDot');
                 statusDot.className = 'status-dot loading';
@@ -242,10 +325,14 @@ export function getClientScript(params: ClientScriptParams): string {
                 vscode.postMessage({ type: 'configureSupervisorPath' });
             } else if (action === 'run-command' && command) {
                 vscode.postMessage({ type: 'runCommand', data: { command: command } });
+            } else if (action === 'select-plan' && planId) {
+                setSelectedPlan(planId, planWorkspaceId);
             } else if (action === 'open-plan-browser' && planId) {
-                vscode.postMessage({ type: 'openPlanInBrowser', data: { planId: planId, workspaceId: workspaceId } });
+                setSelectedPlan(planId, planWorkspaceId);
+                vscode.postMessage({ type: 'openPlanInBrowser', data: { planId: planId, workspaceId: planWorkspaceId } });
             } else if (action === 'open-plan' && planId) {
-                vscode.postMessage({ type: 'openPlan', data: { planId: planId, workspaceId: workspaceId } });
+                setSelectedPlan(planId, planWorkspaceId);
+                vscode.postMessage({ type: 'openPlan', data: { planId: planId, workspaceId: planWorkspaceId } });
             } else if (action === 'copy' && copyText) {
                 vscode.postMessage({ type: 'copyToClipboard', data: { text: copyText } });
             } else if (action === 'open-search') {
@@ -263,6 +350,14 @@ export function getClientScript(params: ClientScriptParams): string {
             if (target && target.id === 'injectText' && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
                 handleInjectSession();
+            }
+            if ((e.key === 'Enter' || e.key === ' ') && target && target.classList && target.classList.contains('plan-item')) {
+                e.preventDefault();
+                var keyPlanId = target.getAttribute('data-plan-id');
+                var keyWorkspaceId = target.getAttribute('data-workspace-id') || workspaceId;
+                if (keyPlanId) {
+                    setSelectedPlan(keyPlanId, keyWorkspaceId);
+                }
             }
         });
 

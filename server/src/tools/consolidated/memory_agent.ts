@@ -23,6 +23,14 @@ import type {
 } from '../../types/index.js';
 import type { CategoryDecision } from '../../types/categorization.types.js';
 import type { ContextPersistence } from '../../types/plan.types.js';
+import type {
+  PromptAnalystOutput,
+  HubDecisionPayload,
+  ProvisioningMode,
+  DeployFallbackPolicy,
+  DeployTelemetryContext,
+  BundleScope,
+} from '../../types/index.js';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import * as handoffTools from '../handoff.tools.js';
@@ -41,8 +49,7 @@ import {
   type LegacyHubLabel,
 } from '../orchestration/hub-alias-routing.js';
 import {
-  hasHubPolicyContext,
-  validateHubPolicy,
+  evaluateHubDispatchPolicy,
 } from '../orchestration/hub-policy-enforcement.js';
 import {
   resolveHubRolloutDecision,
@@ -190,6 +197,16 @@ export interface MemoryAgentParams {
   step_indices?: number[];
   include_research?: boolean;
   include_architecture?: boolean;
+  prompt_analyst_output?: PromptAnalystOutput;
+  hub_decision_payload?: HubDecisionPayload;
+  provisioning_mode?: ProvisioningMode;
+  allow_legacy_always_on?: boolean;
+  allow_ambient_instruction_scan?: boolean;
+  allow_include_skills_all?: boolean;
+  fallback_policy?: DeployFallbackPolicy;
+  telemetry_context?: DeployTelemetryContext;
+  requested_scope?: BundleScope;
+  strict_bundle_resolution?: boolean;
 }
 
 type AgentResult = 
@@ -738,6 +755,19 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
           error: 'workspace_id, agent_type, and plan_id are required for action: deploy_for_task'
         };
       }
+
+      const deployTaskPolicy = await enforceAgentDispatchPolicy(
+        params,
+        params.agent_type,
+        'deploy_for_task',
+      );
+      if (!deployTaskPolicy.ok) {
+        return {
+          success: false,
+          error: deployTaskPolicy.error,
+        };
+      }
+
       const { getWorkspace } = await import('../../storage/db-store.js');
       const wsMeta = await getWorkspace(params.workspace_id);
       if (!wsMeta) {
@@ -754,6 +784,16 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
         include_skills: params.include_skills,
         include_research: params.include_research,
         include_architecture: params.include_architecture,
+        prompt_analyst_output: params.prompt_analyst_output,
+        hub_decision_payload: params.hub_decision_payload,
+        provisioning_mode: params.provisioning_mode,
+        allow_legacy_always_on: params.allow_legacy_always_on,
+        allow_ambient_instruction_scan: params.allow_ambient_instruction_scan,
+        allow_include_skills_all: params.allow_include_skills_all,
+        fallback_policy: params.fallback_policy,
+        telemetry_context: params.telemetry_context,
+        requested_scope: params.requested_scope,
+        strict_bundle_resolution: params.strict_bundle_resolution,
       });
       const deprecation_notice = 'Deprecated path: memory_agent(action: "deploy_for_task") remains supported for compatibility. Prefer memory_session(action: "deploy_and_prep") to combine deployment and prep in one call.';
       return {
@@ -778,46 +818,16 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
         params.requested_hub_mode
       );
 
-      if (hasHubPolicyContext({
-        target_agent_type: params.agent_type,
-        current_hub_mode: params.current_hub_mode,
-        previous_hub_mode: params.previous_hub_mode,
-        requested_hub_mode: params.requested_hub_mode,
-        requested_hub_label: params.requested_hub_label,
-        transition_event: params.transition_event,
-        transition_reason_code: params.transition_reason_code,
-        prompt_analyst_enrichment_applied: params.prompt_analyst_enrichment_applied,
-        bypass_prompt_analyst_policy: params.bypass_prompt_analyst_policy,
-      })) {
-        const policy = validateHubPolicy(
-          {
-            target_agent_type: params.agent_type,
-            current_hub_mode: params.current_hub_mode,
-            previous_hub_mode: params.previous_hub_mode,
-            requested_hub_mode: params.requested_hub_mode,
-            requested_hub_label: params.requested_hub_label,
-            transition_event: params.transition_event,
-            transition_reason_code: params.transition_reason_code,
-            prompt_analyst_enrichment_applied: params.prompt_analyst_enrichment_applied,
-            bypass_prompt_analyst_policy: params.bypass_prompt_analyst_policy,
-          },
-          aliasRouting,
-        );
-
-        if (!policy.valid) {
-          await events.hubPolicyBlocked(params.workspace_id, params.plan_id, {
-            code: policy.code,
-            reason: policy.reason,
-            details: policy.details,
-            requested_hub_label: aliasRouting.requested_hub_label,
-            resolved_mode: aliasRouting.resolved_mode,
-            deprecation_phase: aliasRouting.deprecation_phase,
-          });
-          return {
-            success: false,
-            error: `${policy.code}: ${policy.reason}`,
-          };
-        }
+      const deployPolicy = await enforceAgentDispatchPolicy(
+        params,
+        params.agent_type,
+        'deploy_agent_to_workspace',
+      );
+      if (!deployPolicy.ok) {
+        return {
+          success: false,
+          error: deployPolicy.error,
+        };
       }
 
       const wsMeta = await getWorkspace(params.workspace_id);
@@ -829,6 +839,24 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
         return { success: false, error: `Workspace path could not be resolved for workspace: ${params.workspace_id}` };
       }
       try {
+        const policyEvaluation = evaluateHubDispatchPolicy({
+          target_agent_type: params.agent_type,
+          current_hub_mode: params.current_hub_mode,
+          previous_hub_mode: params.previous_hub_mode,
+          requested_hub_mode: params.requested_hub_mode,
+          requested_hub_label: params.requested_hub_label,
+          transition_event: params.transition_event,
+          transition_reason_code: params.transition_reason_code,
+          prompt_analyst_enrichment_applied: params.prompt_analyst_enrichment_applied,
+          bypass_prompt_analyst_policy: params.bypass_prompt_analyst_policy,
+          prompt_analyst_output: params.prompt_analyst_output,
+          hub_decision_payload: params.hub_decision_payload,
+          provisioning_mode: params.provisioning_mode,
+          fallback_policy: params.fallback_policy,
+          requested_scope: params.requested_scope,
+          strict_bundle_resolution: params.strict_bundle_resolution,
+        });
+
         const rollout = resolveHubRolloutDecision(workspacePath, {
           session_id: params.session_id,
           feature_flag_enabled: params.rollout_feature_flag_enabled,
@@ -848,6 +876,7 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
           transition_event: params.transition_event,
           transition_reason_code: params.transition_reason_code,
           prompt_analyst_enrichment_applied: params.prompt_analyst_enrichment_applied === true,
+          prompt_analyst_outcome: policyEvaluation.telemetry.prompt_analyst_outcome,
           routing: rollout.routing,
           routing_reason_code: rollout.reason_code,
           feature_flag_enabled: rollout.feature_flag_enabled,
@@ -1084,6 +1113,71 @@ function safeJsonSize(value: unknown): number {
   } catch {
     return 0;
   }
+}
+
+async function enforceAgentDispatchPolicy(
+  params: MemoryAgentParams,
+  targetAgentType: string,
+  action: 'deploy_for_task' | 'deploy_agent_to_workspace',
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!params.workspace_id || !params.plan_id) {
+    return { ok: true };
+  }
+
+  const evaluation = evaluateHubDispatchPolicy({
+    target_agent_type: targetAgentType,
+    current_hub_mode: params.current_hub_mode,
+    previous_hub_mode: params.previous_hub_mode,
+    requested_hub_mode: params.requested_hub_mode,
+    requested_hub_label: params.requested_hub_label,
+    transition_event: params.transition_event,
+    transition_reason_code: params.transition_reason_code,
+    prompt_analyst_enrichment_applied: params.prompt_analyst_enrichment_applied,
+    bypass_prompt_analyst_policy: params.bypass_prompt_analyst_policy,
+    prompt_analyst_output: params.prompt_analyst_output,
+    hub_decision_payload: params.hub_decision_payload,
+    provisioning_mode: params.provisioning_mode,
+    fallback_policy: params.fallback_policy,
+    requested_scope: params.requested_scope,
+    strict_bundle_resolution: params.strict_bundle_resolution,
+  });
+
+  if (!evaluation.policy.valid) {
+    await events.hubPolicyBlocked(params.workspace_id, params.plan_id, {
+      action,
+      code: evaluation.policy.code,
+      reason: evaluation.policy.reason,
+      details: evaluation.policy.details,
+      requested_hub_label: evaluation.alias_routing.requested_hub_label,
+      resolved_mode: evaluation.alias_routing.resolved_mode,
+      deprecation_phase: evaluation.alias_routing.deprecation_phase,
+      fallback_requested: evaluation.fallback.requested,
+      fallback_used: evaluation.fallback.used,
+      fallback_reason_code: evaluation.fallback.reason_code,
+      prompt_analyst_outcome: evaluation.telemetry.prompt_analyst_outcome,
+    });
+    return {
+      ok: false,
+      error: `${evaluation.policy.code}: ${evaluation.policy.reason}`,
+    };
+  }
+
+  if (targetAgentType !== 'Analyst') {
+    await events.promptAnalystEnrichment(params.workspace_id, params.plan_id, {
+      action,
+      target_agent_type: targetAgentType,
+      applied: evaluation.telemetry.prompt_analyst_outcome === 'rerun',
+      fallback_used: evaluation.fallback.used,
+      fallback_reason_code: evaluation.fallback.reason_code,
+      requested_hub_label: evaluation.alias_routing.requested_hub_label,
+      resolved_mode: evaluation.alias_routing.resolved_mode,
+      transition_event: evaluation.normalized_input.transition_event,
+      transition_reason_code: evaluation.normalized_input.transition_reason_code,
+      outcome_label: evaluation.telemetry.prompt_analyst_outcome,
+    });
+  }
+
+  return { ok: true };
 }
 
 function safeParseJsonArray<T>(value: string | null | undefined): T[] {

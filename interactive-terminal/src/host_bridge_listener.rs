@@ -9,15 +9,28 @@ pub fn spawn(host_port: u16, runtime_port: u16) {
 
     thread::spawn(move || {
         let bind_addr = format!("0.0.0.0:{host_port}");
-        let listener = match TcpListener::bind(&bind_addr) {
-            Ok(listener) => listener,
-            Err(error) => {
-                eprintln!("Host GUI bridge listener failed to bind on {bind_addr}: {error}");
-                return;
+        let (listener, active_bind_addr) = match TcpListener::bind(&bind_addr) {
+            Ok(listener) => (listener, bind_addr),
+            Err(primary_error) => {
+                let localhost_addr = format!("127.0.0.1:{host_port}");
+                match TcpListener::bind(&localhost_addr) {
+                    Ok(listener) => {
+                        eprintln!(
+                            "Host GUI bridge listener failed to bind on 0.0.0.0:{host_port}: {primary_error}; using {localhost_addr}"
+                        );
+                        (listener, localhost_addr)
+                    }
+                    Err(fallback_error) => {
+                        eprintln!(
+                            "Host GUI bridge listener failed to bind on 0.0.0.0:{host_port} ({primary_error}) and {localhost_addr} ({fallback_error})"
+                        );
+                        return;
+                    }
+                }
             }
         };
 
-        eprintln!("Host GUI bridge listener active on {bind_addr} -> 127.0.0.1:{runtime_port}");
+        eprintln!("Host GUI bridge listener active on {active_bind_addr} -> 127.0.0.1:{runtime_port}");
 
         for incoming in listener.incoming() {
             let Ok(client_stream) = incoming else {

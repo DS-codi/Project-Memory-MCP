@@ -188,6 +188,70 @@ const RequestCategorizationSchema = z.object({
   skip_agents: z.array(AgentTypeSchema).optional().describe('Agents that can be skipped for this request type')
 });
 
+const PromptAnalystOutputSchema = z.object({
+  provisioning_contract_version: z.string().optional(),
+  hub_skill_bundle_id: z.string().optional(),
+  hub_skill_bundle_version: z.string().optional(),
+  hub_skill_scope: z.enum(['task', 'phase', 'plan']).optional(),
+  hub_skill_selection_reason: z.string().optional(),
+  confidence: z.number().optional(),
+  requires_fallback: z.boolean().optional(),
+  fallback_policy_hint: z.enum(['deny', 'allow_compat', 'allow_static_restore']).optional(),
+  trace_id: z.string().optional()
+}).optional();
+
+const HubDecisionPayloadSchema = z.object({
+  bundle_decision_id: z.string().optional(),
+  bundle_decision_version: z.string().optional(),
+  hub_selected_skill_bundle: z.object({
+    bundle_id: z.string().optional(),
+    version: z.string().optional(),
+    scope: z.enum(['task', 'phase', 'plan']).optional(),
+    source: z.enum(['promptanalyst', 'hub_override']).optional()
+  }).optional(),
+  spoke_instruction_bundle: z.object({
+    bundle_id: z.string().optional(),
+    version: z.string().optional(),
+    instruction_ids: z.array(z.string()).optional(),
+    resolution_mode: z.enum(['strict', 'compat']).optional()
+  }).optional(),
+  spoke_skill_bundle: z.object({
+    bundle_id: z.string().optional(),
+    version: z.string().optional(),
+    skill_ids: z.array(z.string()).optional(),
+    resolution_mode: z.enum(['strict', 'compat']).optional()
+  }).optional(),
+  fallback_policy: z.object({
+    fallback_allowed: z.boolean().optional(),
+    fallback_mode: z.enum(['none', 'compat_dynamic', 'static_restore']).optional(),
+    fallback_reason_code: z.string().nullable().optional()
+  }).optional(),
+  enforcement: z.object({
+    block_on_missing_promptanalyst: z.boolean().optional(),
+    block_on_ambient_scan: z.boolean().optional(),
+    block_on_include_skills_all: z.boolean().optional()
+  }).optional(),
+  telemetry: z.object({
+    trace_id: z.string().optional(),
+    session_id: z.string().optional(),
+    plan_id: z.string().optional(),
+    workspace_id: z.string().optional()
+  }).optional()
+}).optional();
+
+const DeployFallbackPolicySchema = z.object({
+  fallback_allowed: z.boolean().optional(),
+  fallback_mode: z.enum(['none', 'compat_dynamic', 'static_restore']).optional(),
+  fallback_reason_code: z.string().nullable().optional()
+}).optional();
+
+const DeployTelemetryContextSchema = z.object({
+  trace_id: z.string().optional(),
+  session_id: z.string().optional(),
+  plan_id: z.string().optional(),
+  workspace_id: z.string().optional()
+}).optional();
+
 // =============================================================================
 // MCP TOOLS - 5 consolidated tools for workspace, plan, steps, agent, context
 // =============================================================================
@@ -393,6 +457,16 @@ server.tool(
     context_markers: z.record(z.enum(['phase-persistent', 'single-agent'])).optional().describe('Context persistence markers (for deploy_for_task)'),
     include_research: z.boolean().optional().describe('Include research notes in context bundle (for deploy_for_task)'),
     include_architecture: z.boolean().optional().describe('Include architecture context in bundle (for deploy_for_task)'),
+    prompt_analyst_output: PromptAnalystOutputSchema.describe('PromptAnalyst output payload for deploy contract (for deploy_for_task)'),
+    hub_decision_payload: HubDecisionPayloadSchema.describe('Hub decision payload controlling spoke bundle resolution (for deploy_for_task)'),
+    provisioning_mode: z.enum(['on_demand', 'compat']).optional().describe('Provisioning mode for deploy contract (for deploy_for_task)'),
+    allow_legacy_always_on: z.boolean().optional().describe('Allow legacy always-on behavior for compatibility (for deploy_for_task)'),
+    allow_ambient_instruction_scan: z.boolean().optional().describe('Allow ambient instruction discovery fallback (for deploy_for_task)'),
+    allow_include_skills_all: z.boolean().optional().describe('Allow broad skill discovery fallback (for deploy_for_task)'),
+    fallback_policy: DeployFallbackPolicySchema.describe('Fallback policy metadata for deploy contract (for deploy_for_task)'),
+    telemetry_context: DeployTelemetryContextSchema.describe('Telemetry context for deploy contract (for deploy_for_task)'),
+    requested_scope: z.enum(['task', 'phase', 'plan']).optional().describe('Requested bundle scope (for deploy_for_task)'),
+    strict_bundle_resolution: z.boolean().optional().describe('When true, prefer explicit bundle IDs/subsets and minimize ambient discovery (for deploy_for_task)'),
     phase_name: z.string().optional().describe('Current phase name (for deploy_for_task)'),
     step_indices: z.array(z.number()).optional().describe('Step indices to work on (for deploy_for_task)')
   },
@@ -408,9 +482,9 @@ server.tool(
 
 server.tool(
   'memory_context',
-  'Consolidated context and research management tool. Actions: store (store plan context), get (retrieve plan context), store_initial (store initial user request), list (list plan context files), list_research (list research notes), append_research (add research note), generate_instructions (generate plan instructions file), batch_store (store multiple context items at once), workspace_get/workspace_set/workspace_update/workspace_delete (workspace-scoped context CRUD), knowledge_store/knowledge_get/knowledge_list/knowledge_delete (workspace knowledge file CRUD), search (search context across scopes), pull (stage selected context for use), write_prompt (create plan-specific .prompt.md files).',
+  'Consolidated context and research management tool. Actions: store (store plan context), get (retrieve plan context), store_initial (store initial user request), list (list plan context files), list_research (list research notes), append_research (add research note), generate_instructions (generate plan instructions file), batch_store (store multiple context items at once), workspace_get/workspace_set/workspace_update/workspace_delete (workspace-scoped context CRUD), knowledge_store/knowledge_get/knowledge_list/knowledge_delete (workspace knowledge file CRUD), search (search context across scopes), promptanalyst_discover (metadata-only linked-workspace memory discovery), pull (stage selected context for use), write_prompt (create plan-specific .prompt.md files).',
   {
-    action: z.enum(['store', 'get', 'store_initial', 'list', 'list_research', 'append_research', 'generate_instructions', 'batch_store', 'workspace_get', 'workspace_set', 'workspace_update', 'workspace_delete', 'knowledge_store', 'knowledge_get', 'knowledge_list', 'knowledge_delete', 'search', 'pull', 'write_prompt', 'dump_context']).describe('The action to perform'),
+    action: z.enum(['store', 'get', 'store_initial', 'list', 'list_research', 'append_research', 'generate_instructions', 'batch_store', 'workspace_get', 'workspace_set', 'workspace_update', 'workspace_delete', 'knowledge_store', 'knowledge_get', 'knowledge_list', 'knowledge_delete', 'search', 'promptanalyst_discover', 'pull', 'write_prompt', 'dump_context']).describe('The action to perform'),
     workspace_id: z.string().describe('Workspace ID'),
     plan_id: z.string().optional().describe('Plan ID (required for plan-scoped actions)'),
     type: z.string().optional().describe('Context type (for store/get)'),
@@ -499,9 +573,9 @@ server.tool(
 
 server.tool(
   'memory_filesystem',
-  'Workspace-scoped filesystem operations with safety boundaries. Actions: read (read file content), write (write/create a file), search (find files by glob/regex), list (directory listing), tree (recursive directory tree), delete (delete file/empty directory; requires confirm), move (move/rename path), copy (copy file), append (append to existing file), exists (check existence and type).',
+  'Workspace-scoped filesystem operations with safety boundaries. Actions: read (read file content), write (write/create a file), search (find files by glob/regex), discover_codebase (derive keywords from prompt/task text and return ranked related code file paths only), list (directory listing), tree (recursive directory tree), delete (delete file/empty directory; requires confirm), move (move/rename path), copy (copy file), append (append to existing file), exists (check existence and type).',
   {
-    action: z.enum(['read', 'write', 'search', 'list', 'tree', 'delete', 'move', 'copy', 'append', 'exists']).describe('The action to perform'),
+    action: z.enum(['read', 'write', 'search', 'discover_codebase', 'list', 'tree', 'delete', 'move', 'copy', 'append', 'exists']).describe('The action to perform'),
     workspace_id: z.string().describe('Workspace ID — all paths are resolved relative to the workspace root'),
     path: z.string().optional().describe('File or directory path relative to workspace root'),
     content: z.string().optional().describe('File content (for write/append)'),
@@ -509,6 +583,9 @@ server.tool(
     pattern: z.string().optional().describe('Glob pattern (for search)'),
     regex: z.string().optional().describe('Regex pattern (for search, alternative to glob)'),
     include: z.string().optional().describe('File include filter, e.g. "*.ts" (for search)'),
+    prompt_text: z.string().optional().describe('Prompt text used to derive discovery keywords (for discover_codebase)'),
+    task_text: z.string().optional().describe('Optional task text appended to prompt text before keyword derivation (for discover_codebase)'),
+    limit: z.number().optional().describe('Maximum number of ranked results for discover_codebase (default 20, max 100)'),
     recursive: z.boolean().optional().describe('Recurse into subdirectories (for list)'),
     max_depth: z.number().optional().describe('Maximum tree depth (for tree). Default 3, max 10'),
     confirm: z.boolean().optional().describe('Explicit confirmation for destructive operations (required for delete)'),
@@ -554,6 +631,26 @@ server.tool(
     include_skills: z.boolean().optional().describe('Include skills in deployment context (for deploy_and_prep)'),
     include_research: z.boolean().optional().describe('Include research notes in deployment context (for deploy_and_prep)'),
     include_architecture: z.boolean().optional().describe('Include architecture context in deployment context (for deploy_and_prep)'),
+    prompt_analyst_output: PromptAnalystOutputSchema.describe('PromptAnalyst output payload for deploy contract (for deploy_and_prep)'),
+    hub_decision_payload: HubDecisionPayloadSchema.describe('Hub decision payload controlling spoke bundle resolution (for deploy_and_prep)'),
+    provisioning_mode: z.enum(['on_demand', 'compat']).optional().describe('Provisioning mode for deploy contract (for deploy_and_prep)'),
+    allow_legacy_always_on: z.boolean().optional().describe('Allow legacy always-on behavior for compatibility (for deploy_and_prep)'),
+    allow_ambient_instruction_scan: z.boolean().optional().describe('Allow ambient instruction discovery fallback (for deploy_and_prep)'),
+    allow_include_skills_all: z.boolean().optional().describe('Allow broad skill discovery fallback (for deploy_and_prep)'),
+    fallback_policy: DeployFallbackPolicySchema.describe('Fallback policy metadata for deploy contract (for deploy_and_prep)'),
+    telemetry_context: DeployTelemetryContextSchema.describe('Telemetry context for deploy contract (for deploy_and_prep)'),
+    requested_scope: z.enum(['task', 'phase', 'plan']).optional().describe('Requested bundle scope (for deploy_and_prep)'),
+    strict_bundle_resolution: z.boolean().optional().describe('When true, prefer explicit bundle IDs/subsets and minimize ambient discovery (for deploy_and_prep)'),
+    requested_hub_label: z.enum(['Coordinator', 'Analyst', 'Runner', 'TDDDriver', 'Hub']).optional().describe('Requested hub label (for policy enforcement in prep/deploy_and_prep)'),
+    current_hub_mode: z.enum(['standard_orchestration', 'investigation', 'adhoc_runner', 'tdd_cycle']).optional().describe('Current canonical hub mode (for policy enforcement in prep/deploy_and_prep)'),
+    previous_hub_mode: z.enum(['standard_orchestration', 'investigation', 'adhoc_runner', 'tdd_cycle']).optional().describe('Previous canonical hub mode (for transition policy in prep/deploy_and_prep)'),
+    requested_hub_mode: z.enum(['standard_orchestration', 'investigation', 'adhoc_runner', 'tdd_cycle']).optional().describe('Requested canonical hub mode (for policy enforcement in prep/deploy_and_prep)'),
+    transition_event: z.string().optional().describe('Transition event tag when changing hub mode (for prep/deploy_and_prep)'),
+    transition_reason_code: z.string().optional().describe('Transition reason code (for prep/deploy_and_prep)'),
+    prompt_analyst_enrichment_applied: z.boolean().optional().describe('Whether PromptAnalyst pre-dispatch enrichment was applied (for prep/deploy_and_prep)'),
+    bypass_prompt_analyst_policy: z.boolean().optional().describe('Bypass PromptAnalyst requirement only for explicit unavailable fallback path (for prep/deploy_and_prep)'),
+    prompt_analyst_latency_ms: z.number().optional().describe('PromptAnalyst enrichment latency in ms (for prep/deploy_and_prep telemetry)'),
+    peer_sessions_count: z.number().int().nonnegative().optional().describe('Known peer session count at dispatch time (for prep/deploy_and_prep telemetry)'),
     session_id: z.string().optional().describe('Session ID to look up (for get_session)'),
     status_filter: z.enum(['active', 'stopping', 'completed', 'all']).optional().describe('Filter sessions by status (for list_sessions)')
   },

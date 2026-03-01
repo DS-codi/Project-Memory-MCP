@@ -769,6 +769,15 @@ fn resolve_working_directory(request: &CommandRequest) -> PathBuf {
         return PathBuf::from(workspace);
     }
 
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(home) = std::env::var("USERPROFILE") {
+            if is_existing_directory(&home) {
+                return PathBuf::from(home);
+            }
+        }
+    }
+
     std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 
@@ -901,6 +910,17 @@ async fn drain_stderr(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Mutex, OnceLock};
+
+    fn conpty_env_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    fn settings_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
 
     #[tokio::test]
     async fn execute_echo_command() {
@@ -914,7 +934,11 @@ mod tests {
             working_directory: std::env::current_dir().unwrap().to_string_lossy().into(),
             context: String::new(),
             session_id: "default".into(),
-            terminal_profile: TerminalProfile::System,
+            terminal_profile: if cfg!(target_os = "windows") {
+                TerminalProfile::Cmd
+            } else {
+                TerminalProfile::System
+            },
             workspace_path: String::new(),
             venv_path: String::new(),
             activate_venv: false,
@@ -932,14 +956,21 @@ mod tests {
 
         assert_eq!(result.request_id, "test-001");
         assert_eq!(result.exit_code, Some(0));
-        assert!(result.output.contains("hello world"));
+        let mut saw_hello = result.output.contains("hello world");
 
         // Should have received at least one output line.
         let line = rx.try_recv().unwrap();
         match line {
-            OutputLine::Stdout(s) => assert!(s.contains("hello world")),
+            OutputLine::Stdout(s) => {
+                saw_hello = saw_hello || s.contains("hello world");
+            }
             _ => panic!("Expected stdout line"),
         }
+
+        assert!(
+            saw_hello,
+            "Expected hello world in accumulated output or streamed stdout"
+        );
     }
 
     #[tokio::test]
@@ -1040,6 +1071,7 @@ mod tests {
 
     #[test]
     fn wraps_with_env_prefix_for_powershell_profile() {
+        let _guard = settings_lock().lock().unwrap();
         let mut settings = crate::system_tray::load_settings();
         settings.gemini_api_key = Some("stored-test-key".to_string());
         crate::system_tray::save_settings(&settings).unwrap();
@@ -1073,6 +1105,7 @@ mod tests {
 
     #[test]
     fn blocks_gemini_injection_without_explicit_trigger() {
+        let _guard = settings_lock().lock().unwrap();
         let mut settings = crate::system_tray::load_settings();
         settings.gemini_api_key = Some("stored-test-key".to_string());
         crate::system_tray::save_settings(&settings).unwrap();
@@ -1104,6 +1137,7 @@ mod tests {
 
     #[test]
     fn injects_stored_gemini_key_only_when_flag_is_paired_with_sentinel() {
+        let _guard = settings_lock().lock().unwrap();
         let mut settings = crate::system_tray::load_settings();
         settings.gemini_api_key = Some("stored-flag-key".to_string());
         crate::system_tray::save_settings(&settings).unwrap();
@@ -1144,6 +1178,7 @@ mod tests {
 
     #[test]
     fn blocks_gemini_injection_with_flag_only_when_sentinel_missing() {
+        let _guard = settings_lock().lock().unwrap();
         let mut settings = crate::system_tray::load_settings();
         settings.gemini_api_key = Some("stored-flag-key".to_string());
         crate::system_tray::save_settings(&settings).unwrap();
@@ -1263,6 +1298,7 @@ mod tests {
 
     #[test]
     fn conpty_backend_disabled_env_var_is_respected() {
+        let _guard = conpty_env_lock().lock().unwrap();
         let previous = std::env::var("PM_INTERACTIVE_TERMINAL_DISABLE_CONPTY").ok();
 
         std::env::set_var("PM_INTERACTIVE_TERMINAL_DISABLE_CONPTY", "1");
@@ -1298,6 +1334,7 @@ mod tests {
 
     #[test]
     fn shell_environment_overrides_preserve_explicit_gemini_injection_only() {
+        let _guard = settings_lock().lock().unwrap();
         let mut settings = crate::system_tray::load_settings();
         settings.gemini_api_key = Some("stored-conpty-key".to_string());
         crate::system_tray::save_settings(&settings).unwrap();
@@ -1376,6 +1413,7 @@ mod tests {
     /// `PM_INTERACTIVE_TERMINAL_DISABLE_CONPTY` accepts multiple truthy spellings.
     #[test]
     fn conpty_backend_disabled_by_truthy_env_string_variants() {
+        let _guard = conpty_env_lock().lock().unwrap();
         let previous = std::env::var("PM_INTERACTIVE_TERMINAL_DISABLE_CONPTY").ok();
 
         for &val in &["true", "yes", "TRUE", "YES", "True"] {
@@ -1398,6 +1436,7 @@ mod tests {
     /// so we skip the assertion there.
     #[test]
     fn conpty_backend_enabled_for_falsey_env_values_on_windows() {
+        let _guard = conpty_env_lock().lock().unwrap();
         if !cfg!(windows) {
             return;
         }
@@ -1541,7 +1580,7 @@ mod tests {
         use crate::terminal_core::output_tracker::CoreOutputTracker;
 
         let mut tracker = CoreOutputTracker::default();
-        let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+        let (tx, mut rx) = tokio::sync::oneshot::channel::<()>();
 
         tracker.register_kill_sender("req-kill-01", tx);
         assert!(

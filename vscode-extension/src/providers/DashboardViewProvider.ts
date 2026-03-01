@@ -191,11 +191,11 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                     break;
 
                 case 'openPlanRoute':
-                    await this.openPlanRoute(message.data as { route: string; query?: string });
+                    await this.openPlanRoute(message.data as { route: string; query?: string; planId?: string; workspaceId?: string });
                     break;
 
                 case 'planAction':
-                    await this.runPlanAction(message.data as { action: 'archive' | 'resume' });
+                    await this.runPlanAction(message.data as { action: 'archive' | 'resume'; planId?: string; workspaceId?: string });
                     break;
 
                 case 'isolateServer':
@@ -409,8 +409,21 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private async openPlanRoute(options: { route: string; query?: string }): Promise<void> {
-        const selection = await this.pickPlan();
+    private async resolvePlanSelection(options?: { planId?: string; workspaceId?: string }): Promise<{ workspaceId: string; planId: string } | null> {
+        const explicitPlanId = options?.planId?.trim();
+        const explicitWorkspaceId = options?.workspaceId?.trim();
+        if (explicitPlanId && explicitWorkspaceId) {
+            return {
+                workspaceId: explicitWorkspaceId,
+                planId: explicitPlanId,
+            };
+        }
+
+        return this.pickPlan();
+    }
+
+    private async openPlanRoute(options: { route: string; query?: string; planId?: string; workspaceId?: string }): Promise<void> {
+        const selection = await this.resolvePlanSelection(options);
         if (!selection) {
             return;
         }
@@ -430,8 +443,8 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
         vscode.commands.executeCommand('projectMemory.openDashboardPanel', url);
     }
 
-    private async runPlanAction(options: { action: 'archive' | 'resume' }): Promise<void> {
-        const selection = await this.pickPlan();
+    private async runPlanAction(options: { action: 'archive' | 'resume'; planId?: string; workspaceId?: string }): Promise<void> {
+        const selection = await this.resolvePlanSelection(options);
         if (!selection) {
             return;
         }

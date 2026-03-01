@@ -1001,22 +1001,72 @@ export async function handleDumpContext(
 
     const sectionsIncluded: string[] = ['plan_state'];
 
-    // 2. Collect context files from DB
+    // 2. Collect context files (DB-first, filesystem fallback)
     const contextFiles: Record<string, unknown> = {};
-    const contextTypes = await store.listPlanContextTypesFromDb(workspace_id, plan_id);
-    for (const type of contextTypes) {
-      const payload = await store.getPlanContextFromDb(workspace_id, plan_id, type);
-      if (payload !== null) {
-        contextFiles[`${type}.json`] = payload;
+    let contextLoadedFromDb = false;
+    try {
+      const contextTypes = await store.listPlanContextTypesFromDb(workspace_id, plan_id);
+      for (const type of contextTypes) {
+        const payload = await store.getPlanContextFromDb(workspace_id, plan_id, type);
+        if (payload !== null) {
+          contextFiles[`${type}.json`] = payload;
+        }
+      }
+      contextLoadedFromDb = Object.keys(contextFiles).length > 0;
+    } catch {
+      contextLoadedFromDb = false;
+    }
+
+    if (!contextLoadedFromDb) {
+      try {
+        const { promises: fs } = await import('fs');
+        const planPath = store.getPlanPath(workspace_id, plan_id);
+        const fileNames = await fs.readdir(planPath);
+        for (const fileName of fileNames) {
+          if (!fileName.endsWith('.json') || fileName === 'state.json') continue;
+          const filePath = `${planPath}/${fileName}`;
+          const content = await store.readText(filePath);
+          if (!content) continue;
+          try {
+            contextFiles[fileName] = JSON.parse(content);
+          } catch {
+            contextFiles[fileName] = content;
+          }
+        }
+      } catch {
+        // no filesystem context files
       }
     }
     if (Object.keys(contextFiles).length > 0) sectionsIncluded.push('context_files');
 
-    // 3. Collect research notes from DB
+    // 3. Collect research notes (DB-first, filesystem fallback)
     const researchNotes: Record<string, string> = {};
-    const research = await store.listPlanResearchNotesFromDb(workspace_id, plan_id);
-    for (const note of research) {
-      researchNotes[note.filename] = note.content;
+    let researchLoadedFromDb = false;
+    try {
+      const research = await store.listPlanResearchNotesFromDb(workspace_id, plan_id);
+      for (const note of research) {
+        researchNotes[note.filename] = note.content;
+      }
+      researchLoadedFromDb = Object.keys(researchNotes).length > 0;
+    } catch {
+      researchLoadedFromDb = false;
+    }
+
+    if (!researchLoadedFromDb) {
+      try {
+        const { promises: fs } = await import('fs');
+        const researchPath = store.getResearchNotesPath(workspace_id, plan_id);
+        const noteFiles = await fs.readdir(researchPath);
+        for (const noteFile of noteFiles) {
+          const notePath = `${researchPath}/${noteFile}`;
+          const content = await store.readText(notePath);
+          if (content !== null) {
+            researchNotes[noteFile] = content;
+          }
+        }
+      } catch {
+        // no filesystem research notes
+      }
     }
     if (Object.keys(researchNotes).length > 0) sectionsIncluded.push('research_notes');
 
@@ -1044,13 +1094,9 @@ export async function handleDumpContext(
       workspace_context: workspaceContext,
     };
 
-    // 6. Write to dumps directory under .projectmemory (not plan data root)
-    const workspace = await store.getWorkspace(workspace_id);
-    const workspacePath = workspace?.workspace_path || workspace?.path;
-    if (!workspacePath) {
-      return { success: false, error: `Workspace not found: ${workspace_id}` };
-    }
-    const dumpsDir = `${store.getProjectMemoryDir(workspacePath)}/dumps/${plan_id}`;
+    // 6. Write to dumps directory under plan path
+    const planPath = store.getPlanPath(workspace_id, plan_id);
+    const dumpsDir = `${planPath}/dumps`;
     await store.ensureDir(dumpsDir);
     const dumpPath = `${dumpsDir}/${timestamp}-context-dump.json`;
     await store.writeText(dumpPath, JSON.stringify(dump, null, 2));

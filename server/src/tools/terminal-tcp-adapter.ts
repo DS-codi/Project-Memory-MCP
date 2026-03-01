@@ -166,6 +166,7 @@ export class TcpTerminalAdapter {
   private readonly host: string;
   private readonly port: number;
   private readonly inContainerMode: boolean;
+  private readonly enableOnDemandLaunch: boolean;
   private readonly progressCallback?: (heartbeat: Heartbeat) => void;
 
   private socket: net.Socket | null = null;
@@ -177,6 +178,7 @@ export class TcpTerminalAdapter {
     this.host = options?.host ?? defaults.host;
     this.port = options?.port ?? defaults.port;
     this.inContainerMode = process.env.PM_RUNNING_IN_CONTAINER === 'true';
+    this.enableOnDemandLaunch = !this.inContainerMode && this.host === defaults.host && this.port === defaults.port;
     this.progressCallback = options?.progressCallback;
   }
 
@@ -199,6 +201,10 @@ export class TcpTerminalAdapter {
     }
 
     if (!this.inContainerMode) {
+      if (!this.enableOnDemandLaunch) {
+        return this.connectOnce(this.host, this.port, PROBE_CONNECT_TIMEOUT_MS);
+      }
+
       // ── First attempt (fast probe to detect ECONNREFUSED quickly) ────
       try {
         return await this.connectOnce(this.host, this.port, PROBE_CONNECT_TIMEOUT_MS);

@@ -41,6 +41,7 @@ impl AppState {
     }
 
     pub(crate) fn session_tabs_to_json(&self) -> QString {
+        let total_sessions = self.session_ids_sorted().len();
         let tabs = self
             .session_ids_sorted()
             .into_iter()
@@ -52,12 +53,12 @@ impl AppState {
                     .map(|queue| queue.len() as i32)
                     .unwrap_or(0),
                 is_active: session_id == self.selected_session_id,
-                can_close: session_id != "default"
-                    && self
+                can_close: self
                         .pending_commands_by_session
                         .get(&session_id)
                         .map(|queue| queue.is_empty())
-                        .unwrap_or(true),
+                        .unwrap_or(true)
+                    && (session_id != "default" || total_sessions > 1),
                 session_id,
             })
             .collect::<Vec<_>>();
@@ -113,12 +114,18 @@ impl AppState {
             return Err("session_id is required".to_string());
         }
 
-        if target == "default" {
-            return Err("default session cannot be closed".to_string());
-        }
-
         if !self.has_session(target) {
             return Err(format!("session not found: {target}"));
+        }
+
+        if target == "default" {
+            let has_alternate_session = self
+                .session_ids_sorted()
+                .into_iter()
+                .any(|id| id != "default");
+            if !has_alternate_session {
+                return Err("default session cannot be closed while it is the only session".to_string());
+            }
         }
 
         let has_pending = self

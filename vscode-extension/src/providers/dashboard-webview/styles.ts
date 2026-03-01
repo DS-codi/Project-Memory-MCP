@@ -418,9 +418,18 @@ export function getStyles(): string {
             padding: 10px 16px;
             gap: 10px;
             border-bottom: 1px solid var(--vscode-panel-border);
+            cursor: pointer;
         }
         .plan-item:last-child { border-bottom: none; }
         .plan-item:hover { background: var(--vscode-list-hoverBackground); }
+        .plan-item:focus-visible {
+            outline: 1px solid var(--vscode-focusBorder);
+            outline-offset: -1px;
+        }
+        .plan-item.selected {
+            background: var(--vscode-list-activeSelectionBackground);
+            color: var(--vscode-list-activeSelectionForeground);
+        }
         .plan-info { flex: 1; min-width: 0; }
         .plan-title { 
             font-size: 12px; 

@@ -716,10 +716,36 @@ if ($doDeploy) {
             $workspaceReleaseDir = Join-Path $workspaceRoot 'target\release'
             New-Item -ItemType Directory -Force -Path $workspaceReleaseDir | Out-Null
 
-            Write-Host "Staging interactive-terminal artifacts to: $workspaceReleaseDir" -ForegroundColor Cyan
-            Copy-Item $exePath -Destination (Join-Path $workspaceReleaseDir $exeName) -Force -ErrorAction Stop
+            $runningInteractiveTerminal = @(Get-Process -Name 'interactive-terminal' -ErrorAction SilentlyContinue)
+            if ($runningInteractiveTerminal.Count -gt 0) {
+                Write-Host "Stopping running interactive-terminal process(es) before staging..." -ForegroundColor Yellow
+                foreach ($proc in $runningInteractiveTerminal) {
+                    try {
+                        Stop-Process -Id $proc.Id -Force -ErrorAction Stop
+                        Write-Host "  Stopped interactive-terminal (PID $($proc.Id))" -ForegroundColor DarkGray
+                    }
+                    catch {
+                        Write-Host "  Could not stop interactive-terminal (PID $($proc.Id)): $($_.Exception.Message)" -ForegroundColor Yellow
+                    }
+                }
+                Start-Sleep -Milliseconds 500
+            }
 
+            Write-Host "Staging interactive-terminal artifacts to: $workspaceReleaseDir" -ForegroundColor Cyan
             $stagingSkipped = New-Object 'System.Collections.Generic.List[string]'
+            try {
+                Copy-Item $exePath -Destination (Join-Path $workspaceReleaseDir $exeName) -Force -ErrorAction Stop
+            }
+            catch {
+                if ($_.Exception.Message -match 'being used by another process') {
+                    [void]$stagingSkipped.Add($exeName)
+                    Write-Host "Staging warning: locked destination for $exeName; keeping existing file." -ForegroundColor Yellow
+                }
+                else {
+                    throw
+                }
+            }
+
             foreach ($dllFile in (Get-ChildItem -Path $outputDir -Filter '*.dll' -File -ErrorAction SilentlyContinue)) {
                 try {
                     Copy-Item $dllFile.FullName -Destination $workspaceReleaseDir -Force -ErrorAction Stop

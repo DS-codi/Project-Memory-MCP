@@ -259,7 +259,12 @@ pub async fn handle_request_with_runtime(
             let reg = registry.lock().await;
             match reg.service_health(&service) {
                 Some(health) => match serde_json::to_value(&health) {
-                    Ok(data) => ControlResponse::ok(data),
+                    Ok(mut data) => {
+                        if data.get("name").is_none() {
+                            data["name"] = json!(service);
+                        }
+                        ControlResponse::ok(data)
+                    }
                     Err(e) => ControlResponse::err(format!("serialisation error: {e}")),
                 },
                 None => ControlResponse::err(format!("unknown service: {service}")),
@@ -499,15 +504,37 @@ pub async fn handle_request_with_runtime(
                     "execution": data,
                     "telemetry": runtime.telemetry_snapshot(),
                 })),
-                Err(e) => ControlResponse {
-                    ok: false,
-                    error: Some(format!("mcp runtime execution failed: {e}")),
-                    data: json!({
+                Err(e) => {
+                    let error_message = format!("mcp runtime execution failed: {e}");
+                    let error_envelope = e.envelope();
+                    let failure_log_path = crate::control::runtime::failure_log::append_failed_tool_call(
+                        &payload,
+                        &error_message,
+                        &error_envelope,
+                    )
+                    .await;
+
+                    let mut response_data = json!({
                         "runtime_mode": "native_supervisor",
-                        "error_envelope": e.envelope(),
+                        "error_envelope": error_envelope,
                         "telemetry": runtime.telemetry_snapshot(),
-                    }),
-                },
+                    });
+
+                    match failure_log_path {
+                        Ok(path) => {
+                            response_data["failure_log_path"] = json!(path.to_string_lossy().to_string());
+                        }
+                        Err(err) => {
+                            tracing::warn!(error = %err, "failed to write runtime failure log");
+                        }
+                    }
+
+                    ControlResponse {
+                        ok: false,
+                        error: Some(error_message),
+                        data: response_data,
+                    }
+                }
             }
         }
 
@@ -619,6 +646,8 @@ pub async fn handle_request_with_runtime(
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::*;
     use crate::control::protocol::BackendKind;
     use crate::control::mcp_runtime::{McpSubprocessRuntime, McpSubprocessRuntimeConfig};
@@ -672,6 +701,23 @@ mod tests {
             queue_wait_timeout_ms: 100,
             per_session_inflight_limit: 2,
             default_timeout_ms: 500,
+            enabled_wave_cohorts: vec!["wave1".to_string()],
+            hard_stop_gate: true,
+        }))
+    }
+
+    fn make_failing_runtime(working_dir: Option<PathBuf>) -> Arc<McpSubprocessRuntime> {
+        Arc::new(McpSubprocessRuntime::new(McpSubprocessRuntimeConfig {
+            command: "__pm_missing_runtime_command__".to_string(),
+            args: Vec::new(),
+            working_dir,
+            env: std::collections::HashMap::new(),
+            runtime_enabled: true,
+            max_concurrency: 2,
+            queue_limit: 8,
+            queue_wait_timeout_ms: 100,
+            per_session_inflight_limit: 2,
+            default_timeout_ms: 200,
             enabled_wave_cohorts: vec!["wave1".to_string()],
             hard_stop_gate: true,
         }))
@@ -1081,6 +1127,65 @@ mod tests {
         assert_eq!(exec_when_disabled.data["error_envelope"]["error_class"], "runtime_precondition");
         assert_eq!(exec_when_disabled.data["error_envelope"]["reason"], "runtime_disabled");
         assert_eq!(exec_when_disabled.data["error_envelope"]["required_control"]["type"], "SetMcpRuntimePolicy");
+    }
+
+    #[tokio::test]
+    async fn mcp_runtime_exec_failure_is_persisted_to_projectmemory_file() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let workspace_root = temp.path().join("workspace");
+        let nested_cwd = workspace_root.join("server");
+        std::fs::create_dir_all(&nested_cwd).expect("create nested cwd");
+
+        let reg = make_registry();
+        let runtime = make_failing_runtime(Some(nested_cwd.clone()));
+
+        let response = super::handle_request_with_runtime(
+            ControlRequest::McpRuntimeExec {
+                payload: serde_json::json!({
+                    "action": "execute",
+                    "runtime": {
+                        "op": "execute",
+                        "wave_cohort": "wave1",
+                        "cwd": nested_cwd.to_string_lossy().to_string(),
+                        "workspace_id": "ws_test"
+                    },
+                    "correlation": {
+                        "request_id": "req_123"
+                    }
+                }),
+                timeout_ms: Some(200),
+            },
+            reg,
+            empty_form_apps(),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            None,
+            Some(runtime),
+        )
+        .await;
+
+        assert!(!response.ok);
+        let failure_log_path = response
+            .data
+            .get("failure_log_path")
+            .and_then(|v| v.as_str())
+            .expect("failure_log_path should be present");
+
+        let expected_path = workspace_root
+            .join(".projectmemory")
+            .join("tool-call-failures.ndjson");
+        assert_eq!(std::path::Path::new(failure_log_path), expected_path);
+
+        let content = std::fs::read_to_string(&expected_path).expect("read failure log");
+        let line = content.lines().last().expect("one logged line");
+        let entry: serde_json::Value = serde_json::from_str(line).expect("valid json line");
+
+        assert_eq!(entry["workspace_id"], "ws_test");
+        assert_eq!(entry["request_id"], "req_123");
+        assert_eq!(entry["runtime_op"], "execute");
+        assert_eq!(entry["error"]["envelope"]["error_class"], "subprocess_failure");
     }
 
     #[tokio::test]

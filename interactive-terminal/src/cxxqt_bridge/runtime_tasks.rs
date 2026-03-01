@@ -11,10 +11,120 @@ use crate::protocol::{
 };
 use crate::tcp_server::{ConnectionEvent, TcpServer};
 use cxx_qt_lib::QString;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast;
 use tokio::time::{sleep, Duration, Instant};
+
+#[cfg(windows)]
+#[derive(Clone)]
+struct WsTerminalSessionHandle {
+    writer: Arc<std::sync::Mutex<Box<dyn std::io::Write + Send>>>,
+    master: Arc<std::sync::Mutex<Box<dyn portable_pty::MasterPty + Send>>>,
+    child: Arc<std::sync::Mutex<Box<dyn portable_pty::Child + Send + Sync>>>,
+}
+
+#[cfg(windows)]
+async fn ensure_ws_terminal_session(
+    session_id: &str,
+    state: &Arc<Mutex<AppState>>,
+    session_handles: &Arc<tokio::sync::Mutex<HashMap<String, WsTerminalSessionHandle>>>,
+    session_output_tx: &tokio::sync::mpsc::Sender<(String, Vec<u8>)>,
+) -> Result<(), String> {
+    {
+        let map = session_handles.lock().await;
+        if map.contains_key(session_id) {
+            return Ok(());
+        }
+    }
+
+    use crate::terminal_core::conpty_backend::spawn_conpty_raw_session;
+
+    let workspace_path = {
+        let s = state.lock().unwrap();
+        s.session_context_by_id
+            .get(session_id)
+            .map(|ctx| ctx.workspace_path.clone())
+            .unwrap_or_default()
+    };
+    let cwd = if workspace_path.trim().is_empty() {
+        std::path::PathBuf::from(std::env::var("USERPROFILE").unwrap_or_else(|_| "C:\\".to_string()))
+    } else {
+        std::path::PathBuf::from(workspace_path)
+    };
+
+    let session = spawn_conpty_raw_session("powershell.exe", &[], &cwd, &[], 200, 50)?;
+    let (mut raw_rx, writer, master, child) = session.into_task_parts();
+
+    {
+        let mut map = session_handles.lock().await;
+        map.insert(
+            session_id.to_string(),
+            WsTerminalSessionHandle {
+                writer,
+                master,
+                child,
+            },
+        );
+    }
+
+    let session_id_for_pump = session_id.to_string();
+    let output_tx = session_output_tx.clone();
+    tokio::spawn(async move {
+        while let Some(chunk) = raw_rx.recv().await {
+            if output_tx
+                .send((session_id_for_pump.clone(), chunk))
+                .await
+                .is_err()
+            {
+                break;
+            }
+        }
+    });
+
+    Ok(())
+}
+
+#[cfg(windows)]
+async fn terminate_ws_terminal_session(handle: WsTerminalSessionHandle) {
+    let child = handle.child.clone();
+    let _ = tokio::task::spawn_blocking(move || {
+        if let Ok(mut lock) = child.lock() {
+            let _ = lock.kill();
+        }
+    })
+    .await;
+}
+
+#[cfg(windows)]
+async fn prune_closed_ws_terminal_sessions(
+    state: &Arc<Mutex<AppState>>,
+    session_handles: &Arc<tokio::sync::Mutex<HashMap<String, WsTerminalSessionHandle>>>,
+) {
+    let valid_ids = {
+        let s = state.lock().unwrap();
+        s.session_ids_sorted()
+    };
+
+    let stale_ids = {
+        let map = session_handles.lock().await;
+        map.keys()
+            .filter(|id| !valid_ids.iter().any(|valid| valid == *id))
+            .cloned()
+            .collect::<Vec<_>>()
+    };
+
+    for stale_id in stale_ids {
+        let removed = {
+            let mut map = session_handles.lock().await;
+            map.remove(&stale_id)
+        };
+        if let Some(handle) = removed {
+            terminate_ws_terminal_session(handle).await;
+        }
+    }
+}
 
 impl hosted_session_adapter::HostedSessionAdapter for AppState {
     fn hydrate_request_with_session_context(&mut self, request: &mut CommandRequest) {
@@ -113,9 +223,158 @@ pub(crate) fn spawn_runtime_tasks(
     qt_thread_exec: cxx_qt::CxxQtThread<ffi::TerminalApp>,
     qt_thread_perf: cxx_qt::CxxQtThread<ffi::TerminalApp>,
 ) {
+    // Clone a qt_thread handle for setting terminalWsPort on the QML object.
+    let qt_thread_terminal = qt_thread_perf.clone();
+
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
         rt.block_on(async move {
+            // ── Terminal WebSocket server + ConPTY bridge ─────────────────────────────
+            let terminal_ws_port: u16 = 9101;
+            let (input_tx, input_rx) = tokio::sync::mpsc::channel::<Vec<u8>>(64);
+            let (ws_server, ws_output_tx) =
+                crate::terminal_core::ws_server::TerminalWsServer::new(terminal_ws_port, input_tx.clone());
+            tokio::spawn(ws_server.serve());
+            let _ = qt_thread_terminal.queue(move |mut obj| {
+                obj.as_mut().set_terminal_ws_port(terminal_ws_port as i32);
+            });
+
+            // Wire ConPTY ↔ WebSocket (Windows only; no-op on other platforms).
+            #[cfg(windows)]
+            {
+                use crate::terminal_core::conpty_backend::{resize_conpty, try_parse_resize_json};
+
+                let session_handles: Arc<tokio::sync::Mutex<HashMap<String, WsTerminalSessionHandle>>> =
+                    Arc::new(tokio::sync::Mutex::new(HashMap::new()));
+                let (session_output_tx, mut session_output_rx) =
+                    tokio::sync::mpsc::channel::<(String, Vec<u8>)>(256);
+
+                let initial_session_id = {
+                    let s = state_for_msg.lock().unwrap();
+                    s.selected_session_id.clone()
+                };
+                if let Err(error) = ensure_ws_terminal_session(
+                    &initial_session_id,
+                    &state_for_msg,
+                    &session_handles,
+                    &session_output_tx,
+                )
+                .await
+                {
+                    eprintln!("[WsTerminal] failed to initialize session {initial_session_id}: {error}");
+                }
+
+                // Output fan-out: forward only active session output to the visible xterm client.
+                let state_for_output = state_for_msg.clone();
+                let ws_output_for_visible = ws_output_tx.clone();
+                tokio::spawn(async move {
+                    while let Some((session_id, chunk)) = session_output_rx.recv().await {
+                        let selected_session_id = {
+                            let s = state_for_output.lock().unwrap();
+                            s.selected_session_id.clone()
+                        };
+                        if selected_session_id == session_id {
+                            let _ = ws_output_for_visible.send(chunk);
+                        }
+                    }
+                });
+
+                // Input pump: route xterm input to currently selected session shell.
+                let mut inlet = input_rx;
+                let state_for_input = state_for_msg.clone();
+                let handles_for_input = session_handles.clone();
+                let output_tx_for_input = session_output_tx.clone();
+                tokio::spawn(async move {
+                    while let Some(data) = inlet.recv().await {
+                        let selected_session_id = {
+                            let s = state_for_input.lock().unwrap();
+                            s.selected_session_id.clone()
+                        };
+
+                        if let Err(error) = ensure_ws_terminal_session(
+                            &selected_session_id,
+                            &state_for_input,
+                            &handles_for_input,
+                            &output_tx_for_input,
+                        )
+                        .await
+                        {
+                            eprintln!(
+                                "[WsTerminal] failed to ensure session {}: {}",
+                                selected_session_id, error
+                            );
+                            continue;
+                        }
+
+                        prune_closed_ws_terminal_sessions(&state_for_input, &handles_for_input).await;
+
+                        let handle = {
+                            let map = handles_for_input.lock().await;
+                            map.get(&selected_session_id).cloned()
+                        };
+
+                        let Some(handle) = handle else {
+                            continue;
+                        };
+
+                        if let Some((cols, rows)) = try_parse_resize_json(&data) {
+                            resize_conpty(&handle.master, cols, rows);
+                        } else {
+                            let writer = handle.writer.clone();
+                            let _ = tokio::task::spawn_blocking(move || {
+                                if let Ok(mut lock) = writer.lock() {
+                                    let _ = std::io::Write::write_all(&mut *lock, &data);
+                                    let _ = std::io::Write::flush(&mut *lock);
+                                }
+                            })
+                            .await;
+                        }
+                    }
+                });
+
+                // Session monitor: proactively ensure selected session has a live shell,
+                // even before first keypress, and clean up closed sessions.
+                let state_for_monitor = state_for_msg.clone();
+                let handles_for_monitor = session_handles.clone();
+                let output_tx_for_monitor = session_output_tx.clone();
+                tokio::spawn(async move {
+                    loop {
+                        let selected_session_id = {
+                            let s = state_for_monitor.lock().unwrap();
+                            s.selected_session_id.clone()
+                        };
+
+                        if let Err(error) = ensure_ws_terminal_session(
+                            &selected_session_id,
+                            &state_for_monitor,
+                            &handles_for_monitor,
+                            &output_tx_for_monitor,
+                        )
+                        .await
+                        {
+                            eprintln!(
+                                "[WsTerminal] failed to ensure selected session {}: {}",
+                                selected_session_id, error
+                            );
+                        }
+
+                        prune_closed_ws_terminal_sessions(&state_for_monitor, &handles_for_monitor)
+                            .await;
+
+                        sleep(Duration::from_millis(250)).await;
+                    }
+                });
+            }
+            #[cfg(not(windows))]
+            drop(input_rx);
+
+            // Store the broadcast sender so exec_task (and append_output_line) can
+            // forward output lines to xterm.js over the WebSocket connection.
+            {
+                let mut s = state_for_msg.lock().unwrap();
+                s.ws_terminal_tx = Some(ws_output_tx.clone());
+            }
+
             // Clone state for the idle-timeout task before msg_task moves the original.
             let state_for_idle = state_for_msg.clone();
 
@@ -495,10 +754,19 @@ pub(crate) fn spawn_runtime_tasks(
             let exec_task = {
                 let qt = qt_thread_exec;
                 let state = state_for_exec;
+                let ws_input_for_exec = input_tx.clone();
+                let ws_output_for_exec = ws_output_tx.clone();
                 async move {
                     let mut cmd_rx = command_rx;
                     let mut shell_manager = command_executor::PersistentShellManager::default();
                     while let Some(req) = cmd_rx.recv().await {
+                        let selected_session_id = {
+                            let s = state.lock().unwrap();
+                            s.selected_session_id.clone()
+                        };
+                        let route_via_ws_terminal =
+                            should_route_via_ws_terminal(&req) && req.session_id == selected_session_id;
+
                         // (A) Create kill channel and register with OutputTracker
                         let (kill_tx, kill_rx) = tokio::sync::oneshot::channel::<()>();
                         {
@@ -520,7 +788,16 @@ pub(crate) fn spawn_runtime_tasks(
 
                         let qt_output = qt.clone();
                         let persisted_lines_for_task = persisted_lines.clone();
+                        let state_for_fwd = state.clone();
                         let output_forward = tokio::spawn(async move {
+                            // Grab the broadcast sender once before the loop.
+                            let ws_tx = {
+                                state_for_fwd
+                                    .lock()
+                                    .unwrap()
+                                    .ws_terminal_tx
+                                    .clone()
+                            };
                             while let Some(line) = output_rx.recv().await {
                                 let (stream, text, ui_line) = match &line {
                                     OutputLine::Stdout(l) => (
@@ -544,6 +821,14 @@ pub(crate) fn spawn_runtime_tasks(
                                     });
                                 }
 
+                                // Forward to xterm.js over WebSocket.
+                                if !route_via_ws_terminal {
+                                    if let Some(ref tx) = ws_tx {
+                                    let bytes = format!("{ui_line}\r\n").into_bytes();
+                                    let _ = tx.send(bytes);
+                                    }
+                                }
+
                                 let _ = qt_output.queue(move |mut obj| {
                                     let cur = obj.as_ref().output_text().to_string();
                                     let new_text = if cur.is_empty() {
@@ -552,15 +837,24 @@ pub(crate) fn spawn_runtime_tasks(
                                         format!("{cur}\n{ui_line}")
                                     };
                                     obj.as_mut().set_output_text(QString::from(&new_text));
-                                    let line_q = QString::from(&new_text);
-                                    obj.as_mut().output_line_received(line_q);
                                 });
                             }
                         });
 
                         // (B) Race command execution against kill signal
                         tokio::select! {
-                            result = shell_manager.execute_command_with_timeout(&req, output_tx) => {
+                            result = async {
+                                if route_via_ws_terminal {
+                                    execute_command_via_ws_terminal(
+                                        &req,
+                                        output_tx,
+                                        ws_input_for_exec.clone(),
+                                        ws_output_for_exec.clone(),
+                                    ).await
+                                } else {
+                                    shell_manager.execute_command_with_timeout(&req, output_tx).await
+                                }
+                            } => {
                                 let _ = output_forward.await;
                                 let completed_at_ms = crate::output_persistence::now_epoch_millis();
                                 let captured_lines = persisted_lines.lock().unwrap().clone();
@@ -829,6 +1123,183 @@ fn separate_stdout_stderr(
         target.push_str(&line.text);
     }
     (stdout, stderr)
+}
+
+fn should_route_via_ws_terminal(request: &CommandRequest) -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        matches!(
+            request.terminal_profile,
+            crate::protocol::TerminalProfile::PowerShell
+                | crate::protocol::TerminalProfile::Pwsh
+                | crate::protocol::TerminalProfile::System
+        )
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        false
+    }
+}
+
+fn is_safe_env_key(key: &str) -> bool {
+    let mut chars = key.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if !(first.is_ascii_alphabetic() || first == '_') {
+        return false;
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+fn escape_powershell_single_quoted(input: &str) -> String {
+    input.replace('\'', "''")
+}
+
+fn normalize_ws_request_env(request: &CommandRequest) -> Vec<(String, String)> {
+    const GEMINI_SENTINEL_TOKEN: &str = "{{stored}}";
+    const GEMINI_INJECT_FLAG_ENV: &str = "PM_GEMINI_INJECT";
+
+    let mut env_map: HashMap<String, String> = request.env.clone();
+
+    let has_sentinel_request = request
+        .env
+        .get("GEMINI_API_KEY")
+        .map(|value| value.trim() == GEMINI_SENTINEL_TOKEN)
+        .unwrap_or(false)
+        || request
+            .env
+            .get("GOOGLE_API_KEY")
+            .map(|value| value.trim() == GEMINI_SENTINEL_TOKEN)
+            .unwrap_or(false);
+
+    env_map.remove("GEMINI_API_KEY");
+    env_map.remove("GOOGLE_API_KEY");
+    env_map.remove(GEMINI_INJECT_FLAG_ENV);
+
+    if has_sentinel_request {
+        if let Some(stored_key) = crate::system_tray::load_gemini_api_key() {
+            env_map.insert("GEMINI_API_KEY".to_string(), stored_key.clone());
+            env_map.insert("GOOGLE_API_KEY".to_string(), stored_key);
+        }
+    }
+
+    env_map.into_iter().collect()
+}
+
+fn build_ws_env_prefix(request: &CommandRequest) -> String {
+    normalize_ws_request_env(request)
+        .iter()
+        .filter(|(k, _)| is_safe_env_key(k))
+        .map(|(k, v)| format!("$env:{} = '{}'; ", k, escape_powershell_single_quoted(v)))
+        .collect()
+}
+
+fn parse_marker_exit_code(line: &str, marker: &str) -> Option<i32> {
+    let idx = line.find(marker)?;
+    let value = line[idx + marker.len()..].trim();
+    value.parse::<i32>().ok()
+}
+
+fn build_ws_wrapped_command(request: &CommandRequest, marker: &str) -> String {
+    let cwd = if request.working_directory.trim().is_empty() {
+        request.workspace_path.clone()
+    } else {
+        request.working_directory.clone()
+    };
+    let escaped_cwd = escape_powershell_single_quoted(&cwd);
+    let env_prefix = build_ws_env_prefix(request);
+
+    format!(
+        "{env_prefix}Set-Location -LiteralPath '{escaped_cwd}'; & {{ {}; $code=$LASTEXITCODE; if ($null -eq $code) {{ $code=0 }}; Write-Output '{}'+$code }}",
+        request.command,
+        marker
+    )
+}
+
+async fn execute_command_via_ws_terminal(
+    request: &CommandRequest,
+    output_tx: tokio::sync::mpsc::Sender<OutputLine>,
+    ws_input_tx: tokio::sync::mpsc::Sender<Vec<u8>>,
+    ws_output_tx: tokio::sync::broadcast::Sender<Vec<u8>>,
+) -> Result<command_executor::ExecutionResult, String> {
+    let marker = format!("__PM_DONE_{}__", request.id.replace('-', "_"));
+    let wrapped = build_ws_wrapped_command(request, &marker);
+    let mut output_rx = ws_output_tx.subscribe();
+
+    ws_input_tx
+        .send(format!("{wrapped}\r\n").into_bytes())
+        .await
+        .map_err(|error| format!("Failed to write command to active terminal: {error}"))?;
+
+    let timeout = Duration::from_secs(request.timeout_seconds.max(1));
+    let deadline = Instant::now() + timeout;
+
+    let mut captured_output = String::new();
+    let mut line_buffer = String::new();
+
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            let timeout_msg = format!(
+                "Command timed out after {} seconds",
+                request.timeout_seconds
+            );
+            let _ = output_tx
+                .send(OutputLine::Stderr(timeout_msg.clone()))
+                .await;
+
+            if !captured_output.is_empty() {
+                captured_output.push('\n');
+            }
+            captured_output.push_str(&timeout_msg);
+
+            return Ok(command_executor::ExecutionResult {
+                request_id: request.id.clone(),
+                exit_code: Some(-1),
+                output: captured_output,
+            });
+        }
+
+        let recv_result = tokio::time::timeout(remaining, output_rx.recv()).await;
+        match recv_result {
+            Ok(Ok(bytes)) => {
+                if bytes.is_empty() {
+                    continue;
+                }
+
+                let chunk = String::from_utf8_lossy(&bytes).to_string();
+                captured_output.push_str(&chunk);
+                line_buffer.push_str(&chunk);
+
+                while let Some(newline_idx) = line_buffer.find('\n') {
+                    let line = line_buffer[..newline_idx].trim_end_matches('\r').to_string();
+                    line_buffer = line_buffer[newline_idx + 1..].to_string();
+
+                    if let Some(code) = parse_marker_exit_code(&line, &marker) {
+                        return Ok(command_executor::ExecutionResult {
+                            request_id: request.id.clone(),
+                            exit_code: Some(code),
+                            output: captured_output,
+                        });
+                    }
+
+                    if !line.is_empty() {
+                        let _ = output_tx.send(OutputLine::Stdout(line)).await;
+                    }
+                }
+            }
+            Ok(Err(tokio::sync::broadcast::error::RecvError::Lagged(_))) => {
+                continue;
+            }
+            Ok(Err(tokio::sync::broadcast::error::RecvError::Closed)) => {
+                return Err("Active terminal output stream is unavailable".to_string());
+            }
+            Err(_) => {
+                continue;
+            }
+        }
+    }
 }
 
 // =========================================================================

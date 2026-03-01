@@ -84,6 +84,19 @@ impl ffi::TerminalApp {
     }
 
     fn append_output_line(this: &mut Pin<&mut Self>, line: &str) {
+        // Forward to xterm.js via WebSocket if the terminal WS server is running.
+        let ws_tx = this
+            .rust()
+            .state
+            .lock()
+            .ok()
+            .and_then(|s| s.ws_terminal_tx.clone());
+        if let Some(tx) = ws_tx {
+            let bytes = format!("{line}\r\n").into_bytes();
+            let _ = tx.send(bytes);
+        }
+
+        // Keep output_text updated for the legacy MCP read_output path.
         let current = this.as_ref().output_text().to_string();
         let next = if current.trim().is_empty() {
             line.to_string()
@@ -367,8 +380,46 @@ impl ffi::TerminalApp {
             }
         }
 
+        // Non-Windows fallback: inject key and run gemini inline
+        #[allow(unreachable_code)]
+        {
+            self.as_mut().set_gemini_injection_requested(true);
+            self.as_mut().run_command(QString::from("gemini"))
+        }
+    }
+
+    pub fn launch_gemini_in_tab(mut self: Pin<&mut Self>) -> bool {
+        if !*self.as_ref().gemini_key_present() {
+            self.as_mut().set_status_text(QString::from(
+                "No stored Gemini API key. Save a key in settings first.",
+            ));
+            return false;
+        }
+
+        let Some(_) = crate::system_tray::load_gemini_api_key() else {
+            self.as_mut().set_status_text(QString::from(
+                "Stored Gemini API key not found. Save the key again and retry.",
+            ));
+            return false;
+        };
+
+        let previous_run_in_window = *self.as_ref().run_commands_in_window();
+        self.as_mut().set_run_commands_in_window(false);
         self.as_mut().set_gemini_injection_requested(true);
-        self.as_mut().run_command(QString::from("gemini"))
+
+        let launched = {
+            #[cfg(target_os = "windows")]
+            {
+                self.as_mut().run_command(QString::from("gemini.cmd"))
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                self.as_mut().run_command(QString::from("gemini"))
+            }
+        };
+        self.as_mut().set_run_commands_in_window(previous_run_in_window);
+
+        launched
     }
 
     pub fn clear_output(mut self: Pin<&mut Self>) {
@@ -441,6 +492,44 @@ impl ffi::TerminalApp {
                 false
             }
         }
+    }
+
+    pub fn current_output_text_value(self: &Self) -> QString {
+        self.output_text().clone()
+    }
+
+    pub fn last_command_output_text_value(self: &Self) -> QString {
+        let request_id = self.current_request_id().to_string();
+        if request_id.trim().is_empty() {
+            return QString::default();
+        }
+
+        let state_arc = self.rust().state.clone();
+        let output = {
+            let state = state_arc.lock().unwrap();
+            state
+                .output_tracker
+                .core
+                .completed
+                .get(&request_id)
+                .map(|entry| {
+                    let mut text = String::new();
+                    if !entry.stdout.trim().is_empty() {
+                        text.push_str(&entry.stdout);
+                    }
+                    if !entry.stderr.trim().is_empty() {
+                        if !text.is_empty() {
+                            text.push('\n');
+                        }
+                        text.push_str("[stderr]\n");
+                        text.push_str(&entry.stderr);
+                    }
+                    text
+                })
+                .unwrap_or_default()
+        };
+
+        QString::from(&output)
     }
 
     pub fn close_session(mut self: Pin<&mut Self>, session_id: QString) -> bool {
@@ -695,6 +784,95 @@ impl ffi::TerminalApp {
         }
     }
 
+    pub fn save_saved_command(mut self: Pin<&mut Self>, name: QString, command: QString) -> bool {
+        let name = name.to_string();
+        let command = command.to_string();
+        let name = name.trim();
+        let command = command.trim();
+
+        if name.is_empty() {
+            self.as_mut()
+                .set_status_text(QString::from("Saved command name is required"));
+            return false;
+        }
+
+        if command.is_empty() {
+            self.as_mut()
+                .set_status_text(QString::from("Saved command text is required"));
+            return false;
+        }
+
+        let workspace_id = self.as_ref().saved_commands_workspace_id().to_string();
+        let workspace = workspace_id.trim();
+        if workspace.is_empty() {
+            self.as_mut().set_status_text(QString::from(
+                "workspace_id is required before saving commands",
+            ));
+            return false;
+        }
+
+        let save_result = {
+            let state_arc = self.rust().state.clone();
+            let mut state = state_arc.lock().unwrap();
+            state.save_saved_command(workspace, name, command)
+        };
+
+        match save_result {
+            Ok(_) => {
+                let _ = Self::refresh_saved_commands_for_workspace(&mut self, workspace);
+                self.as_mut().set_status_text(QString::from(&format!(
+                    "Saved command added for workspace: {}",
+                    workspace
+                )));
+                true
+            }
+            Err(err) => {
+                self.as_mut().set_status_text(QString::from(&err));
+                false
+            }
+        }
+    }
+
+    pub fn delete_saved_command(mut self: Pin<&mut Self>, command_id: QString) -> bool {
+        let command_id = command_id.to_string();
+        let command_id = command_id.trim();
+        if command_id.is_empty() {
+            self.as_mut()
+                .set_status_text(QString::from("command_id is required"));
+            return false;
+        }
+
+        let workspace_id = self.as_ref().saved_commands_workspace_id().to_string();
+        let workspace = workspace_id.trim();
+        if workspace.is_empty() {
+            self.as_mut().set_status_text(QString::from(
+                "workspace_id is required before deleting commands",
+            ));
+            return false;
+        }
+
+        let delete_result = {
+            let state_arc = self.rust().state.clone();
+            let mut state = state_arc.lock().unwrap();
+            state.delete_saved_command(workspace, command_id)
+        };
+
+        match delete_result {
+            Ok(_) => {
+                let _ = Self::refresh_saved_commands_for_workspace(&mut self, workspace);
+                self.as_mut().set_status_text(QString::from(&format!(
+                    "Saved command removed from workspace: {}",
+                    workspace
+                )));
+                true
+            }
+            Err(err) => {
+                self.as_mut().set_status_text(QString::from(&err));
+                false
+            }
+        }
+    }
+
     pub fn execute_saved_command(mut self: Pin<&mut Self>, command_id: QString) -> bool {
         let command_id = command_id.to_string();
         let command_id = command_id.trim();
@@ -822,11 +1000,11 @@ impl ffi::TerminalApp {
             match launch.spawn() {
                 Ok(_) => {
                     self.as_mut().set_status_text(QString::from(
-                        "Command launched in dedicated PowerShell window",
+                        "Command launched in dedicated PowerShell window (legacy mode)",
                     ));
                     Self::append_output_line(
                         &mut self,
-                        &format!("[window] launched: {command_text}"),
+                        &format!("[window][legacy] launched: {command_text}"),
                     );
                     if injection_requested {
                         self.as_mut().set_gemini_injection_requested(false);
@@ -853,9 +1031,24 @@ impl ffi::TerminalApp {
             let context = state.selected_session_context();
 
             let working_directory = if context.workspace_path.trim().is_empty() {
-                std::env::current_dir()
-                    .map(|path| path.to_string_lossy().to_string())
-                    .unwrap_or_default()
+                #[cfg(target_os = "windows")]
+                {
+                    std::env::var("USERPROFILE")
+                        .ok()
+                        .filter(|path| std::path::Path::new(path).is_dir())
+                        .or_else(|| {
+                            std::env::current_dir()
+                                .ok()
+                                .map(|path| path.to_string_lossy().to_string())
+                        })
+                        .unwrap_or_default()
+                }
+                #[cfg(not(target_os = "windows"))]
+                {
+                    std::env::current_dir()
+                        .map(|path| path.to_string_lossy().to_string())
+                        .unwrap_or_default()
+                }
             } else {
                 context.workspace_path.clone()
             };
@@ -932,13 +1125,8 @@ impl ffi::TerminalApp {
                 self.as_mut().set_status_text(QString::from(&format!(
                     "Running command in session {selected_session_id}"
                 )));
-                Self::append_output_line(&mut self, &format!("> {}", request.command));
                 if injection_requested {
                     self.as_mut().set_gemini_injection_requested(false);
-                    Self::append_output_line(
-                        &mut self,
-                        "[gemini] stored key injection requested for this command only",
-                    );
                 }
                 true
             }

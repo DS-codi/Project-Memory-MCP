@@ -1,7 +1,7 @@
 /**
  * Consolidated Filesystem Tool - memory_filesystem
  * 
- * Actions: read, write, search, list, tree, delete, move, copy, append, exists
+ * Actions: read, write, search, discover_codebase, list, tree, delete, move, copy, append, exists
  * Provides workspace-scoped filesystem operations with safety boundaries.
  */
 
@@ -11,6 +11,7 @@ import {
   handleRead,
   handleWrite,
   handleSearch,
+  handleDiscoverCodebase,
   handleList,
   handleTree,
   handleDelete,
@@ -21,6 +22,7 @@ import {
   type FileReadResult,
   type FileWriteResult,
   type FileSearchResult,
+  type FileCodeDiscoveryResult,
   type FileListResult,
   type FileTreeResult,
   type FileDeleteResult,
@@ -32,7 +34,7 @@ import {
   type FileExistsResult,
 } from '../filesystem.tools.js';
 
-export type FilesystemAction = 'read' | 'write' | 'search' | 'list' | 'tree' | 'delete' | 'move' | 'copy' | 'append' | 'exists';
+export type FilesystemAction = 'read' | 'write' | 'search' | 'discover_codebase' | 'list' | 'tree' | 'delete' | 'move' | 'copy' | 'append' | 'exists';
 
 export interface MemoryFilesystemParams {
   action: FilesystemAction;
@@ -52,6 +54,11 @@ export interface MemoryFilesystemParams {
   regex?: string;        // regex pattern (alternative to glob)
   include?: string;      // file include pattern (e.g. "*.ts")
 
+  // For discover_codebase
+  prompt_text?: string;
+  task_text?: string;
+  limit?: number;
+
   // For delete
   confirm?: boolean;
   dry_run?: boolean;
@@ -70,6 +77,7 @@ type FilesystemResult =
   | { action: 'read'; data: FileReadResult }
   | { action: 'write'; data: FileWriteResult }
   | { action: 'search'; data: FileSearchResult }
+  | { action: 'discover_codebase'; data: FileCodeDiscoveryResult }
   | { action: 'list'; data: FileListResult }
   | { action: 'tree'; data: FileTreeResult }
   | { action: 'delete'; data: FileDeleteResult | FileDeletePreviewResult }
@@ -84,7 +92,7 @@ export async function memoryFilesystem(params: MemoryFilesystemParams): Promise<
   if (!action) {
     return {
       success: false,
-      error: 'action is required. Valid actions: read, write, search, list, tree, delete, move, copy, append, exists',
+      error: 'action is required. Valid actions: read, write, search, discover_codebase, list, tree, delete, move, copy, append, exists',
     };
   }
 
@@ -139,6 +147,20 @@ export async function memoryFilesystem(params: MemoryFilesystemParams): Promise<
       });
       if (!result.success) return { success: false, error: result.error };
       return { success: true, data: { action: 'search', data: result.data! } };
+    }
+
+    case 'discover_codebase': {
+      if (!params.prompt_text) {
+        return { success: false, error: 'prompt_text is required for action: discover_codebase' };
+      }
+      const result = await handleDiscoverCodebase({
+        workspace_id,
+        prompt_text: params.prompt_text,
+        task_text: params.task_text,
+        limit: params.limit,
+      });
+      if (!result.success) return { success: false, error: result.error };
+      return { success: true, data: { action: 'discover_codebase', data: result.data! } };
     }
 
     case 'list': {
@@ -245,7 +267,7 @@ export async function memoryFilesystem(params: MemoryFilesystemParams): Promise<
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: read, write, search, list, tree, delete, move, copy, append, exists`,
+        error: `Unknown action: ${action}. Valid actions: read, write, search, discover_codebase, list, tree, delete, move, copy, append, exists`,
       };
   }
 }

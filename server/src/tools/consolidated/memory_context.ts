@@ -2,7 +2,7 @@
  * Consolidated Context Tool - memory_context
  * 
  * Actions: store, get, store_initial, list, list_research, append_research, generate_instructions,
- *          batch_store, workspace_*, knowledge_*, search, pull, write_prompt
+ *          batch_store, workspace_*, knowledge_*, search, promptanalyst_discover, pull, write_prompt
  */
 
 import type { 
@@ -17,7 +17,7 @@ import * as workspaceContextTools from '../workspace-context.tools.js';
 import * as knowledgeTools from '../knowledge.tools.js';
 import * as promptWriter from '../prompt-writer.js';
 import * as promptStorage from '../prompt-storage.js';
-import { searchContext } from '../context-search.tools.js';
+import { searchContext, promptAnalystDiscoverLinkedMemory } from '../context-search.tools.js';
 import { pullContext } from '../context-pull.tools.js';
 import { recordFileOp } from '../stats-hooks.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
@@ -41,6 +41,7 @@ export type ContextAction =
   | 'knowledge_list'
   | 'knowledge_delete'
   | 'search'
+  | 'promptanalyst_discover'
   | 'pull'
   | 'write_prompt'
   | 'dump_context';
@@ -129,6 +130,7 @@ type ContextResult =
   | { action: 'knowledge_list'; data: { files: knowledgeTools.KnowledgeFileMeta[]; total: number } }
   | { action: 'knowledge_delete'; data: { deleted: boolean; slug: string } }
   | { action: 'search'; data: { scope: 'plan' | 'workspace' | 'program' | 'all'; query: string; types: string[]; limit: number; total: number; truncated: boolean; truncation: { requested_limit: number; applied_limit: number; returned: number; total_before_limit: number }; results: Array<Record<string, unknown>> } }
+  | { action: 'promptanalyst_discover'; data: { query: string; limit: number; total: number; truncated: boolean; linked_workspace_ids: string[]; related_plan_ids: string[]; results: Array<Record<string, unknown>> } }
   | { action: 'pull'; data: { scope: 'plan' | 'workspace' | 'program' | 'all'; selectors: Array<Record<string, unknown>>; total: number; staged: Array<Record<string, unknown>> } }
   | { action: 'write_prompt'; data: { filePath: string; slug: string; version: string } }
   | { action: 'dump_context'; data: contextTools.DumpContextResult };
@@ -139,7 +141,7 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
   if (!action) {
     return {
       success: false,
-      error: 'action is required. Valid actions: store, get, store_initial, list, list_research, append_research, generate_instructions, batch_store, search, pull, dump_context'
+      error: 'action is required. Valid actions: store, get, store_initial, list, list_research, append_research, generate_instructions, batch_store, search, promptanalyst_discover, pull, dump_context'
     };
   }
 
@@ -548,6 +550,25 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
       };
     }
 
+    case 'promptanalyst_discover': {
+      const result = await promptAnalystDiscoverLinkedMemory({
+        workspace_id: resolvedWorkspaceId,
+        query: params.query ?? '',
+        limit: params.limit,
+      });
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      recordFileOp(params._session_id, 'read', 'promptanalyst_discover');
+      return {
+        success: true,
+        data: {
+          action: 'promptanalyst_discover' as const,
+          data: result.data!,
+        }
+      };
+    }
+
     case 'pull': {
       const result = await pullContext({
         workspace_id: resolvedWorkspaceId,
@@ -652,7 +673,7 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: store, get, store_initial, list, list_research, append_research, generate_instructions, batch_store, workspace_*, knowledge_*, search, pull, write_prompt, dump_context`
+        error: `Unknown action: ${action}. Valid actions: store, get, store_initial, list, list_research, append_research, generate_instructions, batch_store, workspace_*, knowledge_*, search, promptanalyst_discover, pull, write_prompt, dump_context`
       };
   }
 }

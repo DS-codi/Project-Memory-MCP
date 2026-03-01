@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Terminal</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css"/>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; background: #1e1e1e; overflow: hidden; }
+  #terminal { width: 100%; height: 100%; }
+  #suggestions {
+    position: absolute;
+    display: none;
+    min-width: 220px;
+    max-width: 520px;
+    max-height: 220px;
+    overflow-y: auto;
+    background: #252526;
+    border: 1px solid #3c3c3c;
+    border-radius: 6px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+    z-index: 20;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 12px;
+    color: #d4d4d4;
+  }
+  .suggestion-item {
+    padding: 6px 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: default;
+  }
+  .suggestion-item.selected {
+    background: #094771;
+    color: #ffffff;
+  }
+</style>
+</head>
+<body>
+<div id="terminal"></div>
+<div id="suggestions"></div>
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+<script>
+(function() {
+  var term = new Terminal({
+    theme: {
+      background:     '#1e1e1e',
+      foreground:     '#d4d4d4',
+      cursor:         '#d4d4d4',
+      black:          '#1e1e1e',
+      red:            '#f44747',
+      green:          '#6a9955',
+      yellow:         '#dcdcaa',
+      blue:           '#569cd6',
+      magenta:        '#c586c0',
+      cyan:           '#4ec9b0',
+      white:          '#d4d4d4',
+      brightBlack:    '#808080',
+      brightRed:      '#f44747',
+      brightGreen:    '#6a9955',
+      brightYellow:   '#dcdcaa',
+      brightBlue:     '#569cd6',
+      brightMagenta:  '#c586c0',
+      brightCyan:     '#4ec9b0',
+      brightWhite:    '#ffffff',
+    },
+    cursorBlink: true,
+    fontFamily: "'Cascadia Code', 'Fira Code', 'Consolas', monospace",
+    fontSize: 14,
+    allowProposedApi: true,
+  });
+
+  var fitAddon = new FitAddon.FitAddon();
+  term.loadAddon(fitAddon);
+  term.open(document.getElementById('terminal'));
+  fitAddon.fit();
+
+  // Connect to the WebSocket on the same host:port that served this page.
+  var wsUrl = 'ws://' + window.location.host + '/ws';
+  var ws = null;
+  var reconnectTimer = null;
+  var suggestionsEl = document.getElementById('suggestions');
+  var commandHistory = [];
+  var currentInput = '';
+  var suggestionItems = [];
+  var suggestionIndex = 0;
+
+  function wsSend(data) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(data);
+    }
+  }
+
+  function updateInputBuffer(data) {
+    if (data === '\r') {
+      var trimmed = currentInput.trim();
+      if (trimmed.length > 0) {
+        commandHistory = commandHistory.filter(function(item) { return item !== trimmed; });
+        commandHistory.unshift(trimmed);
+        if (commandHistory.length > 100) {
+          commandHistory = commandHistory.slice(0, 100);
+        }
+      }
+      currentInput = '';
+      hideSuggestions();
+      return;
+    }
+
+    if (data === '\u007f') {
+      currentInput = currentInput.slice(0, -1);
+      return;
+    }
+
+    if (data.length === 1 && data >= ' ' && data !== '\u007f') {
+      currentInput += data;
+    }
+  }
+
+  function hideSuggestions() {
+    suggestionItems = [];
+    suggestionIndex = 0;
+    suggestionsEl.style.display = 'none';
+    suggestionsEl.innerHTML = '';
+  }
+
+  function positionSuggestions() {
+    if (!term.cols || !term.rows) {
+      return;
+    }
+
+    var viewport = document.getElementById('terminal');
+    var cellWidth = viewport.clientWidth / term.cols;
+    var cellHeight = viewport.clientHeight / term.rows;
+    var cursorX = term.buffer.active.cursorX;
+    var cursorY = term.buffer.active.cursorY;
+
+    var left = Math.max(6, Math.floor(cursorX * cellWidth));
+    var popupHeight = suggestionsEl.offsetHeight || 120;
+    var top = Math.floor((cursorY - 1) * cellHeight - popupHeight);
+    if (top < 4) {
+      top = Math.floor((cursorY + 1) * cellHeight + 4);
+    }
+
+    suggestionsEl.style.left = left + 'px';
+    suggestionsEl.style.top = Math.max(4, top) + 'px';
+  }
+
+  function renderSuggestions() {
+    if (!suggestionItems.length) {
+      hideSuggestions();
+      return;
+    }
+
+    suggestionsEl.innerHTML = '';
+    suggestionItems.forEach(function(item, index) {
+      var row = document.createElement('div');
+      row.className = 'suggestion-item' + (index === suggestionIndex ? ' selected' : '');
+      row.textContent = item;
+      suggestionsEl.appendChild(row);
+    });
+
+    suggestionsEl.style.display = 'block';
+    positionSuggestions();
+  }
+
+  function openSuggestions() {
+    var prefix = currentInput.trim();
+    if (!prefix.length) {
+      hideSuggestions();
+      return;
+    }
+
+    suggestionItems = commandHistory.filter(function(item) {
+      return item.toLowerCase().indexOf(prefix.toLowerCase()) === 0 && item !== prefix;
+    }).slice(0, 8);
+    suggestionIndex = 0;
+    renderSuggestions();
+  }
+
+  function acceptSuggestion() {
+    if (!suggestionItems.length) {
+      return false;
+    }
+
+    var selected = suggestionItems[suggestionIndex];
+    var suffix = selected.slice(currentInput.length);
+    if (suffix.length) {
+      wsSend(suffix);
+      currentInput = selected;
+    }
+    hideSuggestions();
+    return true;
+  }
+
+  function connect() {
+    ws = new WebSocket(wsUrl);
+    ws.binaryType = 'arraybuffer';
+
+    ws.onopen = function() {
+      term.write('\x1b[32mConnected to shell\x1b[0m\r\n');
+      sendResize();
+    };
+
+    ws.onmessage = function(evt) {
+      if (evt.data instanceof ArrayBuffer) {
+        term.write(new Uint8Array(evt.data));
+      } else {
+        term.write(evt.data);
+      }
+    };
+
+    ws.onclose = function() {
+      term.write('\r\n\x1b[31mDisconnected \u2014 reconnecting...\x1b[0m\r\n');
+      reconnectTimer = setTimeout(connect, 2000);
+    };
+
+    ws.onerror = function() {
+      // onclose fires after onerror and handles the reconnect.
+    };
+  }
+
+  function sendResize() {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+    }
+  }
+
+  // Keyboard input → WebSocket → PTY.
+  term.onKey(function(event) {
+    var domEvent = event.domEvent;
+
+    if (domEvent.key === 'Tab') {
+      domEvent.preventDefault();
+      if (suggestionItems.length) {
+        suggestionIndex = (suggestionIndex + 1) % suggestionItems.length;
+        renderSuggestions();
+      } else {
+        openSuggestions();
+      }
+      return;
+    }
+
+    if (domEvent.key === 'Escape' && suggestionItems.length) {
+      domEvent.preventDefault();
+      hideSuggestions();
+      return;
+    }
+
+    if (suggestionItems.length && domEvent.key === 'ArrowDown') {
+      domEvent.preventDefault();
+      suggestionIndex = (suggestionIndex + 1) % suggestionItems.length;
+      renderSuggestions();
+      return;
+    }
+
+    if (suggestionItems.length && domEvent.key === 'ArrowUp') {
+      domEvent.preventDefault();
+      suggestionIndex = (suggestionIndex - 1 + suggestionItems.length) % suggestionItems.length;
+      renderSuggestions();
+      return;
+    }
+
+    if (suggestionItems.length && domEvent.key === 'Enter') {
+      if (acceptSuggestion()) {
+        domEvent.preventDefault();
+        return;
+      }
+    }
+  });
+
+  term.onData(function(data) {
+    updateInputBuffer(data);
+    wsSend(data);
+  });
+
+  // Keep xterm sized to fill the container.
+  var resizeObserver = new ResizeObserver(function() {
+    fitAddon.fit();
+    sendResize();
+    if (suggestionItems.length) {
+      positionSuggestions();
+    }
+  });
+  resizeObserver.observe(document.getElementById('terminal'));
+
+  window.addEventListener('resize', function() {
+    fitAddon.fit();
+    sendResize();
+    if (suggestionItems.length) {
+      positionSuggestions();
+    }
+  });
+
+  connect();
+})();
+</script>
+</body>
+</html>

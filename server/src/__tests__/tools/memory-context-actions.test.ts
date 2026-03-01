@@ -445,6 +445,74 @@ describe('MCP Tool: memory_context Actions', () => {
     });
   });
 
+  describe('promptanalyst_discover action', () => {
+    it('should require query via preflight validation', async () => {
+      const result = await memoryContext({
+        action: 'promptanalyst_discover' as any,
+        workspace_id: mockWorkspaceId,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('missing required field');
+      expect(result.error).toContain('query');
+    });
+
+    it('should route to linked-memory discovery and return metadata-only payload', async () => {
+      const discoverSpy = vi
+        .spyOn(contextSearchTools, 'promptAnalystDiscoverLinkedMemory')
+        .mockResolvedValue({
+          success: true,
+          data: {
+            query: 'workspace guard',
+            limit: 3,
+            total: 1,
+            truncated: false,
+            linked_workspace_ids: ['ws_root', 'ws_child'],
+            related_plan_ids: ['plan_1'],
+            results: [
+              {
+                workspace_id: 'ws_root',
+                workspace_relation: 'self',
+                plan_id: 'plan_1',
+                plan_title: 'Workspace guard fixes',
+                context_title: 'architecture',
+                context_type: 'plan_context',
+                snippet: 'Guard logic tightened for linked workspaces',
+                updated_at: '2026-02-28T20:00:00.000Z',
+                relevance: {
+                  score: 0.92,
+                  matched_terms: ['workspace', 'guard'],
+                  matched_fields: ['plan_title', 'snippet'],
+                },
+              },
+            ],
+          },
+        } as any);
+
+      const result = await memoryContext({
+        action: 'promptanalyst_discover' as any,
+        workspace_id: mockWorkspaceId,
+        query: 'workspace guard',
+        limit: 3,
+      });
+
+      expect(result.success).toBe(true);
+      expect(discoverSpy).toHaveBeenCalledWith({
+        workspace_id: mockWorkspaceId,
+        query: 'workspace guard',
+        limit: 3,
+      });
+
+      if (result.data && result.data.action === 'promptanalyst_discover') {
+        expect(result.data.data.related_plan_ids).toEqual(['plan_1']);
+        expect(result.data.data.results).toHaveLength(1);
+        const firstResult = result.data.data.results[0] as Record<string, unknown>;
+        expect(firstResult).not.toHaveProperty('content');
+        expect(firstResult).not.toHaveProperty('payload');
+      }
+    });
+  });
+
   describe('pull action', () => {
     it('should forward selectors/session id and preserve staged output contract', async () => {
       const pullSpy = vi.spyOn(contextPullTools, 'pullContext').mockResolvedValue({

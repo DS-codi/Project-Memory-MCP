@@ -138,8 +138,13 @@ fn main() {
     IDLE_TIMEOUT
         .set(args.idle_timeout)
         .expect("IDLE_TIMEOUT already set");
+    let start_hidden = std::env::var("INTERACTIVE_TERMINAL_START_HIDDEN")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    let start_visible = args.show || !start_hidden;
+
     START_VISIBLE
-        .set(args.show)
+        .set(start_visible)
         .expect("START_VISIBLE already set");
 
     prebind_runtime_listener(port)

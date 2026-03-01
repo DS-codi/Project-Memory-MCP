@@ -20,6 +20,7 @@ import {
 } from 'node:fs/promises';
 import { relative, join, basename, dirname } from 'node:path';
 import type { ToolResponse } from '../types/index.js';
+import { extractKeywordsFromText } from './skill-phase-matcher.js';
 import {
   resolveWorkspaceRoot,
   validatePath,
@@ -58,6 +59,19 @@ export interface FileWriteResult {
 export interface FileSearchResult {
   pattern: string;
   matches: Array<{ path: string; type: 'file' | 'directory' }>;
+  total: number;
+  truncated: boolean;
+  limit: number;
+}
+
+export interface FileCodeDiscoveryResult {
+  query_text: string;
+  keywords: string[];
+  matches: Array<{
+    path: string;
+    relevance_score: number;
+    matched_keywords: string[];
+  }>;
   total: number;
   truncated: boolean;
   limit: number;
@@ -197,6 +211,15 @@ export interface FileExistsResult {
   exists: boolean;
   type: 'file' | 'directory' | null;
 }
+
+const CODE_FILE_EXTENSIONS = new Set<string>([
+  '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs',
+  '.py', '.rs', '.go', '.java', '.kt', '.swift',
+  '.c', '.cc', '.cpp', '.h', '.hpp', '.cs', '.php', '.rb',
+  '.sql', '.sh', '.ps1', '.psm1',
+  '.html', '.css', '.scss', '.sass', '.less',
+  '.json', '.yaml', '.yml', '.toml', '.ini', '.env',
+]);
 
 // ---------------------------------------------------------------------------
 // Handlers
@@ -393,6 +416,106 @@ export async function handleSearch(params: {
     };
   } catch (err) {
     return { success: false, error: `Search failed: ${(err as Error).message}` };
+  }
+}
+
+export async function handleDiscoverCodebase(params: {
+  workspace_id: string;
+  prompt_text: string;
+  task_text?: string;
+  limit?: number;
+}): Promise<ToolResponse<FileCodeDiscoveryResult>> {
+  const root = await resolveWorkspaceRoot(params.workspace_id);
+  if (!root) {
+    return { success: false, error: `Workspace not found: ${params.workspace_id}` };
+  }
+
+  const queryText = [params.prompt_text, params.task_text].filter(Boolean).join(' ').trim();
+  const extractedKeywords = extractKeywordsFromText(queryText)
+    .map((keyword) => keyword.toLowerCase())
+    .filter((keyword) => keyword.length >= 3);
+  const keywords = [...new Set(extractedKeywords)].slice(0, 20);
+
+  if (keywords.length === 0) {
+    return {
+      success: true,
+      data: {
+        query_text: queryText,
+        keywords: [],
+        matches: [],
+        total: 0,
+        truncated: false,
+        limit: Math.min(Math.max(params.limit ?? 20, 1), 100),
+      },
+    };
+  }
+
+  const maxResults = Math.min(Math.max(params.limit ?? 20, 1), 100);
+  const scoredMatches: Array<{
+    path: string;
+    relevance_score: number;
+    matched_keywords: string[];
+  }> = [];
+
+  try {
+    await walkDir(root, root, (relPath, isDir) => {
+      if (scoredMatches.length >= MAX_SEARCH_RESULTS) return false;
+
+      const normalizedPath = relPath.replace(/\\/g, '/');
+      const pathSegments = normalizedPath.split('/').filter(Boolean);
+      if (pathSegments.some((segment) => SKIP_DIRS.has(segment))) return false;
+
+      if (isDir) return true;
+
+      const lowerPath = normalizedPath.toLowerCase();
+      const filename = basename(normalizedPath).toLowerCase();
+      const extensionIndex = filename.lastIndexOf('.');
+      const extension = extensionIndex >= 0 ? filename.slice(extensionIndex) : '';
+      if (!CODE_FILE_EXTENSIONS.has(extension)) {
+        return true;
+      }
+
+      const matchedKeywords = keywords.filter((keyword) => lowerPath.includes(keyword));
+      if (matchedKeywords.length === 0) {
+        return true;
+      }
+
+      const filenameKeywordHits = matchedKeywords.filter((keyword) => filename.includes(keyword)).length;
+      const keywordCoverage = matchedKeywords.length / Math.max(keywords.length, 1);
+      const filenameCoverage = filenameKeywordHits / Math.max(matchedKeywords.length, 1);
+      const relevanceScore = Math.round(((keywordCoverage * 0.8) + (filenameCoverage * 0.2)) * 1000) / 1000;
+
+      scoredMatches.push({
+        path: normalizedPath,
+        relevance_score: relevanceScore,
+        matched_keywords: matchedKeywords,
+      });
+
+      return true;
+    });
+
+    scoredMatches.sort((a, b) => {
+      if (b.relevance_score !== a.relevance_score) {
+        return b.relevance_score - a.relevance_score;
+      }
+      return a.path.localeCompare(b.path);
+    });
+
+    const limitedMatches = scoredMatches.slice(0, maxResults);
+
+    return {
+      success: true,
+      data: {
+        query_text: queryText,
+        keywords,
+        matches: limitedMatches,
+        total: limitedMatches.length,
+        truncated: scoredMatches.length > maxResults,
+        limit: maxResults,
+      },
+    };
+  } catch (err) {
+    return { success: false, error: `Codebase discovery failed: ${(err as Error).message}` };
   }
 }
 

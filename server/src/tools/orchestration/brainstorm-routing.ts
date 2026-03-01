@@ -48,7 +48,7 @@ export interface BrainstormRoutingResult {
   /** Whether the routing succeeded end-to-end. */
   success: boolean;
   /** Which path was used. */
-  path: 'gui';
+  path: 'gui' | 'fallback';
   /** The structured answers from the user. */
   answers: Answer[];
   /** Full FormResponse when GUI was used. */
@@ -290,6 +290,84 @@ export async function routeBrainstormToGui(
 }
 
 /**
+ * Build deterministic fallback answers from a FormRequest when GUI is unavailable.
+ */
+export function extractFallbackTextFromRequest(
+  formRequest: FormRequest,
+): { answers: Answer[]; text_summary: string } {
+  const answers: Answer[] = [];
+  const lines: string[] = ['# Brainstorm Decisions', '', 'GUI unavailable; generated fallback answers.', ''];
+
+  for (const question of formRequest.questions) {
+    lines.push(`## ${question.label}`);
+
+    switch (question.type) {
+      case 'radio_select': {
+        const selected = question.options.find(option => option.recommended) ?? question.options[0];
+        if (selected) {
+          answers.push({
+            question_id: question.id,
+            value: {
+              type: 'radio_select_answer',
+              selected: selected.id,
+            },
+            auto_filled: true,
+          });
+          lines.push(`**Selected:** ${selected.label}`);
+          if (selected.pros?.length) lines.push(`Pros: ${selected.pros.join(', ')}`);
+          if (selected.cons?.length) lines.push(`Cons: ${selected.cons.join(', ')}`);
+        }
+        break;
+      }
+      case 'free_text': {
+        const value = question.default_value ?? '';
+        answers.push({
+          question_id: question.id,
+          value: {
+            type: 'free_text_answer',
+            value,
+          },
+          auto_filled: true,
+        });
+        if (value) lines.push(value);
+        break;
+      }
+      case 'confirm_reject': {
+        answers.push({
+          question_id: question.id,
+          value: {
+            type: 'confirm_reject_answer',
+            action: 'approve',
+          },
+          auto_filled: true,
+        });
+        lines.push('Auto-approved.');
+        break;
+      }
+      case 'countdown_timer': {
+        answers.push({
+          question_id: question.id,
+          value: {
+            type: 'countdown_timer_answer',
+            result: 'completed',
+            elapsed_seconds: 0,
+          },
+          auto_filled: true,
+        });
+        break;
+      }
+    }
+
+    lines.push('');
+  }
+
+  return {
+    answers,
+    text_summary: lines.join('\n'),
+  };
+}
+
+/**
  * Extract a plain-text summary from a completed FormResponse.
  *
  * Used after GUI interaction to produce a readable summary for the Architect.
@@ -375,12 +453,13 @@ export async function routeBrainstormWithFallback(
   const availability = await checkGuiAvailability(opts);
 
   if (!availability.supervisor_running || !availability.brainstorm_gui) {
+    const fallback = extractFallbackTextFromRequest(formRequest);
     return {
-      success: false,
-      path: 'gui',
-      answers: [],
-      text_summary: '',
-      error: 'Brainstorm GUI unavailable in specialized_host-only mode',
+      success: true,
+      path: 'fallback',
+      answers: fallback.answers,
+      text_summary: fallback.text_summary,
+      error: 'GUI unavailable; fallback answers generated',
       elapsed_ms: Date.now() - startTime,
     };
   }
@@ -404,19 +483,20 @@ export async function routeBrainstormWithFallback(
     }
 
     return {
-      success: false,
-      path: 'gui',
-      answers: [],
-      text_summary: '',
+      success: true,
+      path: 'fallback',
+      answers: extractFallbackTextFromRequest(formRequest).answers,
+      text_summary: extractFallbackTextFromRequest(formRequest).text_summary,
       error: `GUI failed: ${result.error ?? 'unknown error'}`,
       elapsed_ms: Date.now() - startTime,
     };
   } catch (err) {
+    const fallback = extractFallbackTextFromRequest(formRequest);
     return {
-      success: false,
-      path: 'gui',
-      answers: [],
-      text_summary: '',
+      success: true,
+      path: 'fallback',
+      answers: fallback.answers,
+      text_summary: fallback.text_summary,
       error: `GUI error: ${err instanceof Error ? err.message : String(err)}`,
       elapsed_ms: Date.now() - startTime,
     };

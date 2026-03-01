@@ -19,7 +19,7 @@ Canonical orchestration hub and one of exactly two permanent agent files.
 
 ## Mandatory Prompt Analyst Routing Contract
 
-Before deploying any dynamic spoke agent, Hub MUST execute this sequence:
+At the beginning of a new user prompt/session (or whenever scope changes, context is stale, or the user explicitly requests re-analysis), Hub MUST execute this sequence:
 
 1. Call Prompt Analyst with:
    - task description
@@ -30,6 +30,14 @@ Before deploying any dynamic spoke agent, Hub MUST execute this sequence:
 2. Receive `ContextEnrichmentPayload`.
 3. Pass that payload as `context_payload` into `memory_agent(action: deploy_agent_to_workspace)` for the target dynamic agent.
 4. Continue standard spawn flow (`memory_session(action: prep)` then `runSubagent`).
+
+For in-scope continuation inside the same plan/session, Hub may reuse the latest valid `ContextEnrichmentPayload` without re-running Prompt Analyst.
+
+Re-run triggers are mandatory when any of the following occurs:
+- new user prompt / new session start
+- prompt scope changed (plan/phase/task scope boundary changed)
+- stored Prompt Analyst context is stale
+- explicit user override requesting fresh analysis
 
 This rule is sealed and non-optional.
 
@@ -101,6 +109,6 @@ Before creating plans/programs, Hub MUST validate:
 
 ## Constraints
 
-- Do not bypass Prompt Analyst when available.
-- Do not spawn dynamic spokes before enrichment step.
+- Do not bypass Prompt Analyst for new-session/new-scope/stale/override trigger events when available.
+- Do not spawn dynamic spokes before initial enrichment for a fresh prompt/session.
 - Do not use shell execution surfaces outside `memory_terminal` / `memory_terminal_interactive` in dynamic files.

@@ -43,10 +43,6 @@ pub mod ffi {
         fn command_completed(self: Pin<&mut TerminalApp>, id: QString, success: bool);
 
         #[qsignal]
-        #[cxx_name = "outputLineReceived"]
-        fn output_line_received(self: Pin<&mut TerminalApp>, line: QString);
-
-        #[qsignal]
         #[cxx_name = "connectionStatusChanged"]
         fn connection_status_changed(self: Pin<&mut TerminalApp>, connected: bool);
 
@@ -83,6 +79,10 @@ pub mod ffi {
         fn set_session_terminal_profile(self: Pin<&mut TerminalApp>, profile: QString) -> bool;
 
         #[qinvokable]
+        #[cxx_name = "setDefaultTerminalProfile"]
+        fn set_default_terminal_profile(self: Pin<&mut TerminalApp>, profile: QString) -> bool;
+
+        #[qinvokable]
         #[cxx_name = "setSessionWorkspacePath"]
         fn set_session_workspace_path(self: Pin<&mut TerminalApp>, workspace_path: QString);
 
@@ -99,6 +99,22 @@ pub mod ffi {
         fn set_start_with_windows_enabled(self: Pin<&mut TerminalApp>, enabled: bool) -> bool;
 
         #[qinvokable]
+        #[cxx_name = "setGeminiApiKey"]
+        fn set_gemini_api_key(self: Pin<&mut TerminalApp>, api_key: QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "clearGeminiApiKey"]
+        fn clear_gemini_api_key(self: Pin<&mut TerminalApp>) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "launchGeminiSession"]
+        fn launch_gemini_session(self: Pin<&mut TerminalApp>) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "launchGeminiInTab"]
+        fn launch_gemini_in_tab(self: Pin<&mut TerminalApp>) -> bool;
+
+        #[qinvokable]
         #[cxx_name = "openSavedCommands"]
         fn open_saved_commands(self: Pin<&mut TerminalApp>, workspace_id: QString) -> bool;
 
@@ -113,6 +129,18 @@ pub mod ffi {
         #[qinvokable]
         #[cxx_name = "reopenSavedCommands"]
         fn reopen_saved_commands(self: Pin<&mut TerminalApp>) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "saveSavedCommand"]
+        fn save_saved_command(
+            self: Pin<&mut TerminalApp>,
+            name: QString,
+            command: QString,
+        ) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "deleteSavedCommand"]
+        fn delete_saved_command(self: Pin<&mut TerminalApp>, command_id: QString) -> bool;
 
         #[qinvokable]
         #[cxx_name = "executeSavedCommand"]
@@ -133,6 +161,14 @@ pub mod ffi {
         #[qinvokable]
         #[cxx_name = "exportOutputJson"]
         fn export_output_json(self: Pin<&mut TerminalApp>, directory: QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "currentOutputTextValue"]
+        fn current_output_text_value(self: &TerminalApp) -> QString;
+
+        #[qinvokable]
+        #[cxx_name = "lastCommandOutputTextValue"]
+        fn last_command_output_text_value(self: &TerminalApp) -> QString;
     }
 
     impl cxx_qt::Initialize for TerminalApp {}

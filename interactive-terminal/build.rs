@@ -13,6 +13,7 @@ fn main() {
         "qml/main.qml",
         "qml/CommandCard.qml",
         "qml/OutputView.qml",
+        "qml/TerminalView.qml",
     ]))
     .file("src/cxxqt_bridge/mod.rs")
     .build();
