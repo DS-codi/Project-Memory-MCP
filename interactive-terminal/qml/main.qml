@@ -23,6 +23,7 @@ ApplicationWindow {
 
     property var sessionTabs: []
     property var savedCommands: []
+    property var availableWorkspaces: []
     property string selectedSavedCommandId: ""
     property string pendingSessionDisplayName: ""
     property var approvalDialogRequest: ({})
@@ -63,6 +64,15 @@ ApplicationWindow {
 
         if (!savedCommands.some(function(entry) { return entry.id === selectedSavedCommandId })) {
             selectedSavedCommandId = ""
+        }
+    }
+
+    function refreshAvailableWorkspaces() {
+        try {
+            const parsed = JSON.parse(terminalApp.availableWorkspacesJson || "[]")
+            availableWorkspaces = Array.isArray(parsed) ? parsed : []
+        } catch (e) {
+            availableWorkspaces = []
         }
     }
 
@@ -152,6 +162,7 @@ ApplicationWindow {
         id: terminalApp
 
         onSessionTabsJsonChanged: root.refreshSessionTabs()
+        onAvailableWorkspacesJsonChanged: root.refreshAvailableWorkspaces()
     }
 
     Connections {
@@ -175,13 +186,13 @@ ApplicationWindow {
 
         function onCurrentWorkspacePathChanged() {
             if (workspacePathField && !workspacePathField.activeFocus) {
-                workspacePathField.text = terminalApp.currentWorkspacePath
+                workspacePathField.editText = terminalApp.currentWorkspacePath
             }
         }
 
         function onCurrentVenvPathChanged() {
             if (venvPathField && !venvPathField.activeFocus) {
-                venvPathField.text = terminalApp.currentVenvPath
+                venvPathField.editText = terminalApp.currentVenvPath
             }
         }
 
@@ -214,6 +225,7 @@ ApplicationWindow {
     Component.onCompleted: {
         refreshSessionTabs()
         refreshSavedCommands()
+        refreshAvailableWorkspaces()
         terminalApp.showSessionStartup()
         root.syncApprovalDialog()
         root.showMainWindow()
@@ -364,60 +376,6 @@ ApplicationWindow {
                         font.pixelSize: 12
                     }
 
-                    Text {
-                        text: "Profile"
-                        color: "#808080"
-                        font.pixelSize: 11
-                    }
-
-                    ComboBox {
-                        id: terminalProfileSelector
-                        model: ["system", "powershell", "pwsh", "cmd", "bash"]
-                        implicitWidth: 130
-                        implicitHeight: 28
-                        font.pixelSize: root.uiControlFontPx
-                        enabled: root.hasActiveTerminalSession
-
-                        function syncFromBridge() {
-                            const profile = terminalApp.currentTerminalProfile || "system"
-                            const idx = model.indexOf(profile)
-                            currentIndex = idx >= 0 ? idx : 0
-                        }
-
-                        onActivated: terminalApp.setSessionTerminalProfile(currentText)
-                        Component.onCompleted: {
-                            syncFromBridge()
-                            popup.z = 3000
-                        }
-                    }
-
-                    Text {
-                        text: "Default"
-                        color: "#808080"
-                        font.pixelSize: 11
-                    }
-
-                    ComboBox {
-                        id: defaultTerminalProfileSelector
-                        model: ["system", "powershell", "pwsh", "cmd", "bash"]
-                        implicitWidth: 130
-                        implicitHeight: 28
-                        font.pixelSize: root.uiControlFontPx
-                        enabled: root.hasActiveTerminalSession
-
-                        function syncFromBridge() {
-                            const profile = terminalApp.currentDefaultTerminalProfile || "system"
-                            const idx = model.indexOf(profile)
-                            currentIndex = idx >= 0 ? idx : 0
-                        }
-
-                        onActivated: terminalApp.setDefaultTerminalProfile(currentText)
-                        Component.onCompleted: {
-                            syncFromBridge()
-                            popup.z = 3000
-                        }
-                    }
-
                     Item { Layout.fillWidth: true }
                 }
 
@@ -425,24 +383,32 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     spacing: 8
 
-                    TextField {
+                    ComboBox {
                         id: workspacePathField
+                        editable: true
+                        model: root.availableWorkspaces
                         Layout.preferredWidth: 240
-                        placeholderText: "Workspace path (per session)"
+                        Layout.preferredHeight: 28
                         font.pixelSize: root.uiInputFontPx
                         enabled: root.hasActiveTerminalSession
-                        text: terminalApp.currentWorkspacePath
-                        onEditingFinished: terminalApp.setSessionWorkspacePath(text)
+                        editText: terminalApp.currentWorkspacePath
+                        onAccepted: terminalApp.setSessionWorkspacePath(editText)
+                        onActivated: terminalApp.setSessionWorkspacePath(currentText)
+                        Component.onCompleted: popup.z = 3000
                     }
 
-                    TextField {
+                    ComboBox {
                         id: venvPathField
+                        editable: true
+                        model: root.availableWorkspaces
                         Layout.preferredWidth: 220
-                        placeholderText: "Venv path (optional)"
+                        Layout.preferredHeight: 28
                         font.pixelSize: root.uiInputFontPx
                         enabled: root.hasActiveTerminalSession
-                        text: terminalApp.currentVenvPath
-                        onEditingFinished: terminalApp.setSessionVenvPath(text)
+                        editText: terminalApp.currentVenvPath
+                        onAccepted: terminalApp.setSessionVenvPath(editText)
+                        onActivated: terminalApp.setSessionVenvPath(currentText)
+                        Component.onCompleted: popup.z = 3000
                     }
 
                     CheckBox {
@@ -709,6 +675,75 @@ ApplicationWindow {
 
         Rectangle { Layout.fillWidth: true; height: 1; color: "#3c3c3c" }
 
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 36
+            color: "#252526"
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 12
+                anchors.rightMargin: 12
+                spacing: 8
+
+                Text {
+                    text: "Terminal Profile"
+                    color: "#808080"
+                    font.pixelSize: 11
+                }
+
+                ComboBox {
+                    id: terminalProfileSelector
+                    model: ["system", "powershell", "pwsh", "cmd", "bash"]
+                    implicitWidth: 130
+                    implicitHeight: 28
+                    font.pixelSize: root.uiControlFontPx
+                    enabled: root.hasActiveTerminalSession
+
+                    function syncFromBridge() {
+                        const profile = terminalApp.currentTerminalProfile || "system"
+                        const idx = model.indexOf(profile)
+                        currentIndex = idx >= 0 ? idx : 0
+                    }
+
+                    onActivated: terminalApp.setSessionTerminalProfile(currentText)
+                    Component.onCompleted: {
+                        syncFromBridge()
+                        popup.z = 3000
+                    }
+                }
+
+                Text {
+                    text: "Default"
+                    color: "#808080"
+                    font.pixelSize: 11
+                }
+
+                ComboBox {
+                    id: defaultTerminalProfileSelector
+                    model: ["system", "powershell", "pwsh", "cmd", "bash"]
+                    implicitWidth: 130
+                    implicitHeight: 28
+                    font.pixelSize: root.uiControlFontPx
+                    enabled: root.hasActiveTerminalSession
+
+                    function syncFromBridge() {
+                        const profile = terminalApp.currentDefaultTerminalProfile || "system"
+                        const idx = model.indexOf(profile)
+                        currentIndex = idx >= 0 ? idx : 0
+                    }
+
+                    onActivated: terminalApp.setDefaultTerminalProfile(currentText)
+                    Component.onCompleted: {
+                        syncFromBridge()
+                        popup.z = 3000
+                    }
+                }
+
+                Item { Layout.fillWidth: true }
+            }
+        }
+
         // Main content: single terminal panel
         Rectangle {
             Layout.fillWidth: true
@@ -878,6 +913,38 @@ ApplicationWindow {
                 color: "#d4d4d4"
                 font.pixelSize: 18
                 font.bold: true
+            }
+
+            Rectangle {
+                visible: (approvalDialogRequest.sessionId || "").trim().length > 0
+                Layout.fillWidth: false
+                Layout.preferredHeight: 24
+                radius: 12
+                color: "#1f4f7a"
+                border.color: "#569cd6"
+                border.width: 1
+
+                Row {
+                    anchors.fill: parent
+                    anchors.leftMargin: 10
+                    anchors.rightMargin: 10
+                    spacing: 6
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "From MCP agent"
+                        color: "#d4d4d4"
+                        font.pixelSize: 11
+                        font.bold: true
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: approvalDialogRequest.sessionId || ""
+                        color: "#9cdcfe"
+                        font.pixelSize: 11
+                    }
+                }
             }
 
             Rectangle {

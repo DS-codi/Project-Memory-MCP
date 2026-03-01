@@ -124,6 +124,15 @@ export interface KillSessionResponse {
   error?: string;
 }
 
+/** GUI → MCP server: streaming output chunk for an active command. */
+export interface OutputChunk {
+  type: 'output_chunk';
+  /** Correlates to the original CommandRequest.id. */
+  id: string;
+  /** Chunk of terminal output decoded as UTF-8 (lossy). */
+  chunk: string;
+}
+
 /** Union of all wire messages. */
 export type TerminalIpcMessage =
   | CommandRequest
@@ -132,7 +141,8 @@ export type TerminalIpcMessage =
   | ReadOutputRequest
   | ReadOutputResponse
   | KillSessionRequest
-  | KillSessionResponse;
+  | KillSessionResponse
+  | OutputChunk;
 
 // =========================================================================
 // Type Guards
@@ -163,6 +173,11 @@ export function isKillSessionResponse(msg: TerminalIpcMessage): msg is KillSessi
   return msg.type === 'kill_session_response';
 }
 
+/** Returns true if `msg` is an OutputChunk. */
+export function isOutputChunk(msg: TerminalIpcMessage): msg is OutputChunk {
+  return msg.type === 'output_chunk';
+}
+
 // =========================================================================
 // Encode / Decode
 // =========================================================================
@@ -187,6 +202,7 @@ const KNOWN_TYPES = new Set([
   'read_output_response',
   'kill_session_request',
   'kill_session_response',
+  'output_chunk',
 ]);
 
 export function decodeMessage(line: string): TerminalIpcMessage | null {

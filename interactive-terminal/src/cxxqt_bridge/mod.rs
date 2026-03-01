@@ -10,6 +10,7 @@ mod runtime_tasks;
 mod saved_commands_state;
 mod session_runtime;
 mod state;
+mod window_focus;
 
 #[cxx_qt::bridge]
 pub mod ffi {
@@ -44,6 +45,7 @@ pub mod ffi {
         #[qproperty(f64, cpu_usage_percent, cxx_name = "cpuUsagePercent")]
         #[qproperty(f64, memory_usage_mb, cxx_name = "memoryUsageMb")]
         #[qproperty(QString, pending_commands_json, cxx_name = "pendingCommandsJson")]
+        #[qproperty(QString, available_workspaces_json, cxx_name = "availableWorkspacesJson")]
         #[qproperty(QString, session_tabs_json, cxx_name = "sessionTabsJson")]
         #[qproperty(QString, tray_icon_url, cxx_name = "trayIconUrl")]
         #[qproperty(i32, terminal_ws_port, cxx_name = "terminalWsPort")]

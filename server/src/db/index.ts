@@ -47,6 +47,8 @@ export type {
   ToolActionParamRow,
   ToolHelp,
   AgentDefinitionRow,
+  DeployableAgentProfileRow,
+  CategoryWorkflowDefinitionRow,
   AgentDeploymentRow,
   InstructionDeploymentRow,
   SkillDeploymentRow,
@@ -249,6 +251,32 @@ export {
 } from './agent-definition-db.js';
 export type { StoreAgentInput, AgentSurfaceConfig } from './agent-definition-db.js';
 
+// ── Deployable agent profiles ───────────────────────────────────────────────
+export {
+  upsertDeployableAgentProfile,
+  getDeployableAgentProfileByName,
+  getDeployableAgentProfileByRole,
+  listDeployableAgentProfiles,
+  deleteDeployableAgentProfile,
+} from './deployable-agent-profile-db.js';
+export type {
+  DeployableAgentRole,
+  UpsertDeployableAgentProfileInput,
+} from './deployable-agent-profile-db.js';
+
+// ── Category workflow definitions ───────────────────────────────────────────
+export {
+  upsertCategoryWorkflowDefinition,
+  getCategoryWorkflowDefinition,
+  listCategoryWorkflowDefinitions,
+  listCategoryWorkflowDefinitionsByScope,
+  deleteCategoryWorkflowDefinition,
+} from './category-workflow-db.js';
+export type {
+  WorkflowScopeClassification,
+  UpsertCategoryWorkflowDefinitionInput,
+} from './category-workflow-db.js';
+
 // ── Agent deployments ────────────────────────────────────────────────────────
 export {
   upsertDeployment,
@@ -315,6 +343,22 @@ export {
   deleteSkillDeploymentsByWorkspace,
 } from './skill-deployment-db.js';
 export type { SkillSyncStatus, UpsertSkillDeploymentInput } from './skill-deployment-db.js';
+
+// ── Reproducibility package helpers ─────────────────────────────────────────
+export {
+  exportReproPackage,
+  importReproPackage,
+  compareReproPackages,
+} from './reproducibility-package.js';
+export type {
+  ReproPackage,
+  ReproPackageMeta,
+  ReproTableSnapshot,
+  ReproParityResult,
+  ReproParityDiff,
+  ExportReproPackageInput,
+  ImportReproPackageInput,
+} from './reproducibility-package.js';
 
 // ── Instruction files ────────────────────────────────────────────────────────
 export {

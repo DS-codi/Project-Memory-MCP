@@ -9,7 +9,9 @@
     "start": "node dist/index.js",
     "dev": "tsc --watch",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "repro:export": "node dist/db/reproducibility-package.js export --out ../database-seed-resources/reproducibility/db-repro-package.json",
+    "repro:import": "node dist/db/reproducibility-package.js import --in ../database-seed-resources/reproducibility/db-repro-package.json --clear"
   },
   "keywords": [
     "mcp",

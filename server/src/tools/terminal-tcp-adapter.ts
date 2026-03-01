@@ -16,11 +16,13 @@ import {
   type ReadOutputResponse,
   type KillSessionRequest,
   type KillSessionResponse,
+  type OutputChunk,
   type TerminalIpcMessage,
   encodeMessage,
   decodeMessage,
   isCommandResponse,
   isHeartbeat,
+  isOutputChunk,
   isReadOutputResponse,
   isKillSessionResponse,
 } from './terminal-ipc-protocol.js';
@@ -32,7 +34,7 @@ import {
 export interface TcpAdapterOptions {
   host?: string;
   port?: number;
-  progressCallback?: (heartbeat: Heartbeat) => void;
+  progressCallback?: (event: Heartbeat | OutputChunk) => void;
 }
 
 // =========================================================================
@@ -167,7 +169,7 @@ export class TcpTerminalAdapter {
   private readonly port: number;
   private readonly inContainerMode: boolean;
   private readonly enableOnDemandLaunch: boolean;
-  private readonly progressCallback?: (heartbeat: Heartbeat) => void;
+  private readonly progressCallback?: (event: Heartbeat | OutputChunk) => void;
 
   private socket: net.Socket | null = null;
   private connected = false;
@@ -371,6 +373,11 @@ export class TcpTerminalAdapter {
           if (!msg) continue;
 
           if (isHeartbeat(msg)) {
+            this.progressCallback?.(msg);
+            continue;
+          }
+
+          if (isOutputChunk(msg)) {
             this.progressCallback?.(msg);
             continue;
           }

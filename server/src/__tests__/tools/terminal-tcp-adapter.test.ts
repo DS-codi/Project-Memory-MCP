@@ -212,7 +212,11 @@ describe('TcpTerminalAdapter', () => {
     const adapter = new TcpTerminalAdapter({
       host: '127.0.0.1',
       port,
-      progressCallback: (hb) => heartbeats.push(hb),
+      progressCallback: (event) => {
+        if (event.type === 'heartbeat') {
+          heartbeats.push(event);
+        }
+      },
     });
     track(adapter, server);
 

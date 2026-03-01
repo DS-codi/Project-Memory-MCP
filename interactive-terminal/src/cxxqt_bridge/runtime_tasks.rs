@@ -6,15 +6,21 @@ use crate::cxxqt_bridge::terminal_profile_to_key;
 use crate::integration::hosted_session_adapter;
 use crate::perf_monitor::PerfMonitor;
 use crate::protocol::{
-    CommandRequest, CommandResponse, Message, ResponseStatus, SavedCommandsAction,
+    CommandRequest, CommandResponse, Message, OutputChunk, ResponseStatus, SavedCommandsAction,
     SavedCommandsResponse,
 };
 use crate::tcp_server::{ConnectionEvent, TcpServer};
 use cxx_qt_lib::QString;
 use std::collections::HashMap;
+#[cfg(windows)]
+use std::collections::VecDeque;
+#[cfg(windows)]
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast;
+#[cfg(windows)]
+use tokio::io::AsyncWriteExt;
 use tokio::time::{sleep, Duration, Instant};
 
 #[cfg(windows)]
@@ -23,6 +29,116 @@ struct WsTerminalSessionHandle {
     writer: Arc<std::sync::Mutex<Box<dyn std::io::Write + Send>>>,
     master: Arc<std::sync::Mutex<Box<dyn portable_pty::MasterPty + Send>>>,
     child: Arc<std::sync::Mutex<Box<dyn portable_pty::Child + Send + Sync>>>,
+}
+
+#[cfg(windows)]
+#[derive(Default)]
+struct SessionOutputBuffer {
+    chunks: VecDeque<Vec<u8>>,
+    total_bytes: usize,
+    spill_file_path: Option<PathBuf>,
+    spilled_bytes: usize,
+}
+
+#[cfg(windows)]
+impl SessionOutputBuffer {
+    fn push_chunk_and_collect_spill(
+        &mut self,
+        chunk: Vec<u8>,
+        max_chunks: usize,
+        max_bytes: usize,
+    ) -> Vec<Vec<u8>> {
+        let mut spilled_chunks = Vec::new();
+
+        self.total_bytes = self.total_bytes.saturating_add(chunk.len());
+        self.chunks.push_back(chunk);
+
+        while self.chunks.len() > max_chunks {
+            if let Some(removed) = self.chunks.pop_front() {
+                self.total_bytes = self.total_bytes.saturating_sub(removed.len());
+                spilled_chunks.push(removed);
+            }
+        }
+
+        while self.total_bytes > max_bytes {
+            if let Some(removed) = self.chunks.pop_front() {
+                self.total_bytes = self.total_bytes.saturating_sub(removed.len());
+                spilled_chunks.push(removed);
+            } else {
+                break;
+            }
+        }
+
+        spilled_chunks
+    }
+
+    fn snapshot_chunks(&self) -> Vec<Vec<u8>> {
+        self.chunks.iter().cloned().collect::<Vec<_>>()
+    }
+}
+
+#[cfg(windows)]
+fn env_truthy(name: &str, default: bool) -> bool {
+    match std::env::var(name) {
+        Ok(value) => !matches!(
+            value.trim().to_ascii_lowercase().as_str(),
+            "0" | "false" | "no" | "off"
+        ),
+        Err(_) => default,
+    }
+}
+
+#[cfg(windows)]
+fn sanitize_session_id_for_filename(value: &str) -> String {
+    let sanitized: String = value
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' {
+                ch
+            } else {
+                '_'
+            }
+        })
+        .collect();
+
+    if sanitized.trim_matches('_').is_empty() {
+        "session".to_string()
+    } else {
+        sanitized
+    }
+}
+
+#[cfg(windows)]
+fn default_session_spill_root() -> PathBuf {
+    std::env::temp_dir()
+        .join("project-memory-mcp")
+        .join("interactive-terminal")
+        .join("session-spill")
+}
+
+#[cfg(windows)]
+async fn append_chunks_to_spill(path: &PathBuf, chunks: &[Vec<u8>]) -> Result<usize, std::io::Error> {
+    if chunks.is_empty() {
+        return Ok(0);
+    }
+
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
+
+    let mut file = tokio::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .await?;
+
+    let mut written = 0usize;
+    for chunk in chunks {
+        file.write_all(chunk).await?;
+        written = written.saturating_add(chunk.len());
+    }
+    file.flush().await?;
+    Ok(written)
 }
 
 #[cfg(windows)]
@@ -248,6 +364,12 @@ pub(crate) fn spawn_runtime_tasks(
                     Arc::new(tokio::sync::Mutex::new(HashMap::new()));
                 let (session_output_tx, mut session_output_rx) =
                     tokio::sync::mpsc::channel::<(String, Vec<u8>)>(256);
+                let session_output_buffers: Arc<tokio::sync::Mutex<HashMap<String, SessionOutputBuffer>>> =
+                    Arc::new(tokio::sync::Mutex::new(HashMap::new()));
+                const MAX_BUFFERED_CHUNKS_PER_SESSION: usize = 1024;
+                const MAX_BUFFERED_BYTES_PER_SESSION: usize = 4 * 1024 * 1024;
+                let disk_spill_enabled = env_truthy("PM_TERMINAL_SESSION_SPILL", true);
+                let spill_root = default_session_spill_root();
 
                 let initial_session_id = {
                     let s = state_for_msg.lock().unwrap();
@@ -266,11 +388,61 @@ pub(crate) fn spawn_runtime_tasks(
                     }
                 }
 
-                // Output fan-out: forward only active session output to the visible xterm client.
+                // Output fan-out: append to session cache, spill overflow to disk,
+                // and forward only active session output to the visible xterm client.
                 let state_for_output = state_for_msg.clone();
                 let ws_output_for_visible = ws_output_tx.clone();
+                let buffers_for_output = session_output_buffers.clone();
+                let spill_root_for_output = spill_root.clone();
                 tokio::spawn(async move {
                     while let Some((session_id, chunk)) = session_output_rx.recv().await {
+                        let (spill_path, spilled_chunks) = {
+                            let mut buffers = buffers_for_output.lock().await;
+                            let buffer = buffers.entry(session_id.clone()).or_default();
+
+                            let spilled_chunks = buffer.push_chunk_and_collect_spill(
+                                chunk.clone(),
+                                MAX_BUFFERED_CHUNKS_PER_SESSION,
+                                MAX_BUFFERED_BYTES_PER_SESSION,
+                            );
+
+                            let spill_path = if disk_spill_enabled {
+                                let existing = buffer.spill_file_path.clone();
+                                let next_path = existing.unwrap_or_else(|| {
+                                    spill_root_for_output.join(format!(
+                                        "{}.log",
+                                        sanitize_session_id_for_filename(&session_id)
+                                    ))
+                                });
+                                buffer.spill_file_path = Some(next_path.clone());
+                                Some(next_path)
+                            } else {
+                                None
+                            };
+
+                            (spill_path, spilled_chunks)
+                        };
+
+                        if let Some(path) = spill_path {
+                            if !spilled_chunks.is_empty() {
+                                match append_chunks_to_spill(&path, &spilled_chunks).await {
+                                    Ok(written) => {
+                                        let mut buffers = buffers_for_output.lock().await;
+                                        if let Some(buffer) = buffers.get_mut(&session_id) {
+                                            buffer.spilled_bytes =
+                                                buffer.spilled_bytes.saturating_add(written);
+                                        }
+                                    }
+                                    Err(error) => {
+                                        eprintln!(
+                                            "[WsTerminal] failed to append session spill for {}: {}",
+                                            session_id, error
+                                        );
+                                    }
+                                }
+                            }
+                        }
+
                         let selected_session_id = {
                             let s = state_for_output.lock().unwrap();
                             s.selected_session_id.clone()
@@ -341,11 +513,14 @@ pub(crate) fn spawn_runtime_tasks(
                 });
 
                 // Session monitor: proactively ensure selected session has a live shell,
-                // even before first keypress, and clean up closed sessions.
+                // replay cached output on tab switch, and clean up closed sessions.
                 let state_for_monitor = state_for_msg.clone();
                 let handles_for_monitor = session_handles.clone();
                 let output_tx_for_monitor = session_output_tx.clone();
+                let buffers_for_monitor = session_output_buffers.clone();
+                let ws_output_for_monitor = ws_output_tx.clone();
                 tokio::spawn(async move {
+                    let mut previous_selected_session_id = String::new();
                     loop {
                         let selected_session_id = {
                             let s = state_for_monitor.lock().unwrap();
@@ -368,8 +543,73 @@ pub(crate) fn spawn_runtime_tasks(
                             }
                         }
 
+                        if selected_session_id != previous_selected_session_id {
+                            let _ = ws_output_for_monitor.send(b"\x1b[2J\x1b[H".to_vec());
+
+                            if !selected_session_id.trim().is_empty() {
+                                let (spill_path, replay_chunks) = {
+                                    let buffers = buffers_for_monitor.lock().await;
+                                    buffers
+                                        .get(&selected_session_id)
+                                        .map(|buffer| {
+                                            (buffer.spill_file_path.clone(), buffer.snapshot_chunks())
+                                        })
+                                        .unwrap_or((None, Vec::new()))
+                                };
+
+                                if let Some(spill_path) = spill_path {
+                                    match tokio::fs::read(&spill_path).await {
+                                        Ok(bytes) => {
+                                            if !bytes.is_empty() {
+                                                let _ = ws_output_for_monitor.send(bytes);
+                                            }
+                                        }
+                                        Err(error) => {
+                                            eprintln!(
+                                                "[WsTerminal] failed to read session spill for {}: {}",
+                                                selected_session_id, error
+                                            );
+                                        }
+                                    }
+                                }
+
+                                for chunk in replay_chunks {
+                                    let _ = ws_output_for_monitor.send(chunk);
+                                }
+                            }
+
+                            previous_selected_session_id = selected_session_id.clone();
+                        }
+
                         prune_closed_ws_terminal_sessions(&state_for_monitor, &handles_for_monitor)
                             .await;
+
+                        {
+                            let valid_ids = {
+                                let s = state_for_monitor.lock().unwrap();
+                                s.session_ids_sorted()
+                            };
+                            let mut buffers = buffers_for_monitor.lock().await;
+                            let stale_spill_paths = buffers
+                                .iter()
+                                .filter_map(|(session_id, buffer)| {
+                                    if valid_ids.iter().any(|valid| valid == session_id) {
+                                        None
+                                    } else {
+                                        buffer.spill_file_path.clone()
+                                    }
+                                })
+                                .collect::<Vec<_>>();
+
+                            buffers
+                                .retain(|session_id, _| valid_ids.iter().any(|valid| valid == session_id));
+
+                            drop(buffers);
+
+                            for path in stale_spill_paths {
+                                let _ = tokio::fs::remove_file(path).await;
+                            }
+                        }
 
                         sleep(Duration::from_millis(250)).await;
                     }
@@ -451,6 +691,8 @@ pub(crate) fn spawn_runtime_tasks(
                                         }
                                     });
                                 } else {
+                                    crate::cxxqt_bridge::window_focus::focus_window();
+
                                     let (is_first, count, json, selected_cmd, tabs_json, selected_session_id) = {
                                         let mut s = state.lock().unwrap();
                                         let (is_first, count, json, selected_cmd) =
@@ -860,6 +1102,7 @@ pub(crate) fn spawn_runtime_tasks(
                                         output_tx,
                                         ws_input_for_exec.clone(),
                                         ws_output_for_exec.clone(),
+                                        state.clone(),
                                     ).await
                                 } else {
                                     shell_manager.execute_command_with_timeout(&req, output_tx).await
@@ -1232,6 +1475,7 @@ async fn execute_command_via_ws_terminal(
     output_tx: tokio::sync::mpsc::Sender<OutputLine>,
     ws_input_tx: tokio::sync::mpsc::Sender<Vec<u8>>,
     ws_output_tx: tokio::sync::broadcast::Sender<Vec<u8>>,
+    state_for_chunks: Arc<Mutex<AppState>>,
 ) -> Result<command_executor::ExecutionResult, String> {
     let marker = format!("__PM_DONE_{}__", request.id.replace('-', "_"));
     let wrapped = build_ws_wrapped_command(request, &marker);
@@ -1279,6 +1523,16 @@ async fn execute_command_via_ws_terminal(
                 }
 
                 let chunk = String::from_utf8_lossy(&bytes).to_string();
+                let chunk_for_mcp = chunk.replace(&marker, "");
+                if !chunk_for_mcp.is_empty() {
+                    let response = Message::OutputChunk(OutputChunk {
+                        id: request.id.clone(),
+                        chunk: chunk_for_mcp,
+                    });
+                    let state = state_for_chunks.lock().unwrap();
+                    state.send_response(response);
+                }
+
                 captured_output.push_str(&chunk);
                 line_buffer.push_str(&chunk);
 

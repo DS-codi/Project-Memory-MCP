@@ -255,6 +255,9 @@ function mapCommandResponseToToolResponse(
           stderr_summary: stderrSummary.summary,
           output_summary_truncated:
             stdoutSummary.truncated || stderrSummary.truncated,
+          output_streamed: true,
+          output_stream_note:
+            'Live output chunks were streamed via notifications/progress during execution.',
           exit_code: response.exit_code ?? null,
           output_file_path: response.output_file_path,
         },
@@ -327,9 +330,27 @@ async function handleRun(
   // Create a fresh TCP adapter for this request.
   // Forward heartbeats from the GUI as MCP progress notifications.
   const adapter = new TcpTerminalAdapter({
-    progressCallback: (heartbeat) => {
+    progressCallback: (event) => {
       if (extra?.sendNotification) {
         try {
+          if ((event as { type?: string }).type === 'output_chunk') {
+            const chunk = (event as { chunk?: string }).chunk ?? '';
+            if (!chunk) {
+              return;
+            }
+            extra.sendNotification({
+              method: 'notifications/progress',
+              params: {
+                progressToken: `terminal-out-${Date.now()}`,
+                progress: 0,
+                total: 0,
+                message: chunk,
+              },
+            });
+            return;
+          }
+
+          const heartbeat = event as { id: string; timestamp_ms: number };
           extra.sendNotification({
             method: 'notifications/progress',
             params: {

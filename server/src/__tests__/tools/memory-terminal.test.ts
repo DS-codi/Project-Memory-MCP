@@ -21,16 +21,28 @@ vi.mock('node:fs/promises', () => ({
   mkdir: vi.fn().mockResolvedValue(undefined),
 }));
 
+const mockAdapterConnect = vi
+  .fn()
+  .mockRejectedValue(new Error('TCP connect failed: connect ECONNREFUSED 127.0.0.1:9100'));
+const mockAdapterSendAndAwait = vi.fn();
+const mockAdapterSendReadOutput = vi.fn();
+const mockAdapterSendKill = vi.fn();
+const mockAdapterClose = vi.fn();
+const adapterOptionsHistory: any[] = [];
+
 // Mock TcpTerminalAdapter so tests don't require a running GUI on port 9100.
 // This simulates the expected "no GUI running" environment so all TCP-dependent
 // tests get immediate ECONNREFUSED errors instead of live execution.
 vi.mock('../../tools/terminal-tcp-adapter.js', () => ({
-  TcpTerminalAdapter: vi.fn().mockImplementation(() => ({
-    connect: vi.fn().mockRejectedValue(new Error('TCP connect failed: connect ECONNREFUSED 127.0.0.1:9100')),
-    sendAndAwait: vi.fn(),
-    sendReadOutput: vi.fn(),
-    sendKill: vi.fn(),
-    close: vi.fn(),
+  TcpTerminalAdapter: vi.fn().mockImplementation((options?: unknown) => {
+    adapterOptionsHistory.push(options);
+    return {
+      connect: mockAdapterConnect,
+      sendAndAwait: mockAdapterSendAndAwait,
+      sendReadOutput: mockAdapterSendReadOutput,
+      sendKill: mockAdapterSendKill,
+      close: mockAdapterClose,
+    };
   })),
 }));
 
@@ -356,6 +368,19 @@ describe('heartbeat lifecycle', () => {
 // ---------------------------------------------------------------------------
 
 describe('memoryTerminal run action integration', () => {
+  beforeEach(() => {
+    mockAdapterConnect.mockReset();
+    mockAdapterSendAndAwait.mockReset();
+    mockAdapterSendReadOutput.mockReset();
+    mockAdapterSendKill.mockReset();
+    mockAdapterClose.mockReset();
+    adapterOptionsHistory.length = 0;
+
+    mockAdapterConnect.mockRejectedValue(
+      new Error('TCP connect failed: connect ECONNREFUSED 127.0.0.1:9100'),
+    );
+  });
+
   it('blocked command returns error and does NOT mention TCP adapter', async () => {
     const result = await memoryTerminal({
       action: 'run',
@@ -428,5 +453,55 @@ describe('memoryTerminal run action integration', () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain('Terminal run error');
+  });
+
+  it('streams OutputChunk messages via notifications/progress before final response', async () => {
+    mockAdapterConnect.mockResolvedValueOnce(undefined);
+    mockAdapterSendAndAwait.mockImplementationOnce(async (request: { id: string }) => {
+      const options = adapterOptionsHistory[adapterOptionsHistory.length - 1] as {
+        progressCallback?: (event: unknown) => void;
+      };
+      options?.progressCallback?.({
+        type: 'output_chunk',
+        id: request.id,
+        chunk: 'chunk-1',
+      });
+      options?.progressCallback?.({
+        type: 'output_chunk',
+        id: request.id,
+        chunk: 'chunk-2',
+      });
+      return {
+        type: 'command_response',
+        id: request.id,
+        status: 'approved',
+        output: 'chunk-1chunk-2',
+        exit_code: 0,
+      };
+    });
+
+    const sendNotification = vi.fn();
+    const result = await memoryTerminal(
+      {
+        action: 'run',
+        command: 'git',
+        args: ['status'],
+      },
+      { sendNotification },
+    );
+
+    expect(result.success).toBe(true);
+    expect(sendNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'notifications/progress',
+        params: expect.objectContaining({ message: 'chunk-1' }),
+      }),
+    );
+    expect(sendNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'notifications/progress',
+        params: expect.objectContaining({ message: 'chunk-2' }),
+      }),
+    );
   });
 });

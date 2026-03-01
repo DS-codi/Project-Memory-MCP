@@ -279,6 +279,126 @@ export function getConnectedDashboardHtml(
                                 </div>
                             </section>
 
+                            <section class="collapsible" id="widget-prompt-analyst">
+                                <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-prompt-analyst">
+                                    <span class="chevron">></span>
+                                    <h3>Prompt Analyst Visibility</h3>
+                                </button>
+                                <div class="collapsible-content">
+                                    <div class="widget-body">
+                                        <div class="ops-card-grid">
+                                            <div class="ops-card">
+                                                <div class="ops-card-title">Scope Classification</div>
+                                                <div class="ops-card-value" id="promptAnalystScope">Not available</div>
+                                                <div class="ops-card-meta" id="promptAnalystStrategy">No decomposition strategy captured.</div>
+                                            </div>
+                                            <div class="ops-card">
+                                                <div class="ops-card-title">Confidence</div>
+                                                <div class="ops-card-value" id="promptAnalystConfidence">Not available</div>
+                                                <div class="ops-card-meta" id="promptAnalystDecision">Awaiting Prompt Analyst telemetry.</div>
+                                            </div>
+                                        </div>
+                                        <div class="ops-inline-list" id="promptAnalystSummary"></div>
+                                        <div class="ops-list-block">
+                                            <div class="ops-list-title">Constraint Notes</div>
+                                            <ul class="ops-list" id="promptAnalystConstraints">
+                                                <li class="ops-list-empty">No constraint notes captured.</li>
+                                            </ul>
+                                        </div>
+                                        <div class="ops-list-block">
+                                            <div class="ops-list-title">Relevant Code References</div>
+                                            <ul class="ops-list" id="promptAnalystCodeRefs">
+                                                <li class="ops-list-empty">No code references captured.</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="collapsible" id="widget-build-gate">
+                                <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-build-gate">
+                                    <span class="chevron">></span>
+                                    <h3>Build Gate Center</h3>
+                                </button>
+                                <div class="collapsible-content">
+                                    <div class="widget-body">
+                                        <div class="ops-card-grid">
+                                            <div class="ops-card">
+                                                <div class="ops-card-title">Registered Scripts</div>
+                                                <div class="ops-card-value" id="buildGateCount">0</div>
+                                                <div class="ops-card-meta">Scope: selected plan</div>
+                                            </div>
+                                            <div class="ops-card">
+                                                <div class="ops-card-title">Latest Run</div>
+                                                <div class="ops-card-value" id="buildGateLastRun">No run recorded</div>
+                                                <div class="ops-card-meta">Derived from recent activity events</div>
+                                            </div>
+                                        </div>
+                                        <div class="always-notes-actions">
+                                            <button class="btn btn-small" data-action="open-build-scripts" data-availability-key="plan-build-scripts">Open Build Scripts</button>
+                                            <button class="btn btn-small btn-secondary" data-action="open-run-script" data-availability-key="plan-run-script">Run Selected Script</button>
+                                        </div>
+                                        <ul class="ops-list" id="buildGateScriptsList">
+                                            <li class="ops-list-empty">Select a plan to inspect registered build scripts.</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="collapsible" id="widget-operations-surface">
+                                <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-operations-surface">
+                                    <span class="chevron">></span>
+                                    <h3>Operations Surface</h3>
+                                </button>
+                                <div class="collapsible-content">
+                                    <div class="widget-body">
+                                        <div class="ops-card-grid">
+                                            <div class="ops-card">
+                                                <div class="ops-card-title">Session Surface</div>
+                                                <div class="ops-card-value" id="operationsSessionSurface">Supervisor GUI</div>
+                                                <div class="ops-card-meta">Extension sessions panel remains archived.</div>
+                                            </div>
+                                            <div class="ops-card">
+                                                <div class="ops-card-title">Terminal Surface</div>
+                                                <div class="ops-card-value" id="operationsTerminalSurface">Checking...</div>
+                                                <div class="ops-card-meta">Headless + interactive terminal paths.</div>
+                                            </div>
+                                            <div class="ops-card">
+                                                <div class="ops-card-title">Workspace Integrity</div>
+                                                <div class="ops-card-value" id="operationsIntegrity">Checking...</div>
+                                                <div class="ops-card-meta" id="operationsIntegrityMeta">Waiting for health snapshot.</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="collapsible" id="widget-plan-intelligence">
+                                <button class="collapsible-header" data-action="toggle-collapse" data-target="widget-plan-intelligence">
+                                    <span class="chevron">></span>
+                                    <h3>Plan Intelligence</h3>
+                                </button>
+                                <div class="collapsible-content">
+                                    <div class="widget-body">
+                                        <div class="ops-card-grid">
+                                            <div class="ops-card">
+                                                <div class="ops-card-title">Recommended Next Agent</div>
+                                                <div class="ops-card-value" id="planIntelRecommendedAgent">None</div>
+                                            </div>
+                                            <div class="ops-card">
+                                                <div class="ops-card-title">Dependencies</div>
+                                                <div class="ops-card-value" id="planIntelDependencies">None</div>
+                                            </div>
+                                            <div class="ops-card">
+                                                <div class="ops-card-title">Confirmations</div>
+                                                <div class="ops-card-value" id="planIntelConfirmations">None pending</div>
+                                            </div>
+                                        </div>
+                                        <div class="ops-card-meta" id="planIntelSummary">Select a plan to inspect orchestration metadata.</div>
+                                    </div>
+                                </div>
+                            </section>
+
 ${getSkillsSectionHtml(iconSvgs)}
 
 ${getInstructionsSectionHtml(iconSvgs)}

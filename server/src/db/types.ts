@@ -327,6 +327,42 @@ export interface AgentDefinitionRow {
   updated_at: string;
 }
 
+export interface DeployableAgentProfileRow {
+  id:         string;
+  agent_name: string;
+  role:       'hub' | 'prompt_analyst';
+  enabled:    number;
+  /** JSON */
+  metadata:   string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CategoryWorkflowDefinitionRow {
+  id:                            string;
+  category:                      'feature' | 'bugfix' | 'refactor' | 'orchestration' | 'program' | 'quick_task' | 'advisory';
+  scope_classification:          'quick_task' | 'single_plan' | 'multi_plan' | 'program';
+  planning_depth:                string;
+  /** JSON string[] */
+  workflow_path:                 string;
+  /** JSON string[] */
+  skip_agents:                   string;
+  requires_research:             number;
+  requires_brainstorm:           number;
+  recommends_integrated_program: number;
+  recommended_plan_count:        number;
+  recommended_program_count:     number;
+  /** JSON string[] */
+  candidate_plan_titles:         string;
+  decomposition_strategy:        string | null;
+  hub_agent_name:                string | null;
+  prompt_analyst_agent_name:     string | null;
+  /** JSON */
+  metadata:                      string | null;
+  created_at:                    string;
+  updated_at:                    string;
+}
+
 /** Live registry of active agent sessions, used to build ##PEER_SESSIONS blocks. */
 export interface WorkspaceSessionRegistryRow {
   id:                   string;  // mirrors sessions.id

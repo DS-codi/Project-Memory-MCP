@@ -27,6 +27,7 @@ For current behavior, treat `src/extension.ts` as the source of truth.
   - Diagnostics (`projectMemory.diagnosticsView`)
 - Commands for plan creation, deployment, diagnostics, workspace migration, and supervisor management
 - Status indicators for health and deploy actions
+- Operations tab cards for Prompt Analyst visibility, Build Gate script awareness, and plan intelligence summaries
 
 ## Install (Development)
 
@@ -93,6 +94,7 @@ High-use settings include:
 - `projectMemory.serverPort`
 - `projectMemory.mcpPort`
 - `projectMemory.dashboard.enabled`
+- `projectMemory.alwaysProvidedNotes`
 - `projectMemory.containerMode`
 - `projectMemory.notifications.enabled`
 - `supervisor.startupMode`

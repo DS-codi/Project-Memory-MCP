@@ -546,6 +546,112 @@ export function getStyles(): string {
             font-size: 10px;
             color: var(--vscode-descriptionForeground);
         }
+
+        .ops-card-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .ops-card {
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 6px;
+            background: var(--vscode-editor-background);
+            padding: 8px;
+            min-width: 0;
+        }
+
+        .ops-card-title {
+            font-size: 10px;
+            color: var(--vscode-descriptionForeground);
+            margin-bottom: 4px;
+        }
+
+        .ops-card-value {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--vscode-editor-foreground);
+            word-break: break-word;
+        }
+
+        .ops-card-meta {
+            margin-top: 4px;
+            font-size: 10px;
+            color: var(--vscode-descriptionForeground);
+            line-height: 1.3;
+            word-break: break-word;
+        }
+
+        .ops-inline-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .ops-inline-pill {
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 999px;
+            padding: 2px 8px;
+            font-size: 10px;
+            color: var(--vscode-descriptionForeground);
+            background: var(--vscode-editor-background);
+        }
+
+        .ops-list-block {
+            margin-top: 8px;
+        }
+
+        .ops-list-title {
+            font-size: 10px;
+            color: var(--vscode-descriptionForeground);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .ops-list {
+            list-style: none;
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 6px;
+            background: var(--vscode-editor-background);
+            overflow: hidden;
+        }
+
+        .ops-list li {
+            display: block;
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--vscode-panel-border);
+            font-size: 11px;
+            line-height: 1.35;
+            color: var(--vscode-editor-foreground);
+        }
+
+        .ops-list li:last-child {
+            border-bottom: none;
+        }
+
+        .ops-list-empty {
+            color: var(--vscode-descriptionForeground);
+        }
+
+        .ops-list-meta {
+            color: var(--vscode-descriptionForeground);
+            font-size: 10px;
+        }
+
+        .ops-status-ok {
+            color: var(--vscode-testing-iconPassed);
+        }
+
+        .ops-status-warn {
+            color: var(--vscode-testing-iconQueued);
+        }
+
+        .ops-status-bad {
+            color: var(--vscode-testing-iconFailed);
+        }
         
         /* Collapsible sections */
         .collapsible {
@@ -947,6 +1053,9 @@ export function getStyles(): string {
 
         body.size-small .action-group .icon-grid {
             grid-template-columns: repeat(3, 1fr);
+        }
+        body.size-small .ops-card-grid {
+            grid-template-columns: 1fr;
         }
         body.size-small .plans-tabs {
             grid-template-columns: 1fr;

@@ -107,5 +107,29 @@ suite('Dashboard Client Helpers', () => {
             script.includes('alwaysProvidedNotes: typeof alwaysProvidedNotes === \'string\' ? alwaysProvidedNotes : \'\''),
             'Dashboard state should persist always-provided notes'
         );
+        assert.ok(
+            script.includes('function updatePromptAnalystPanel()'),
+            'Prompt Analyst visibility updater should exist'
+        );
+        assert.ok(
+            script.includes('function updateBuildGatePanel()'),
+            'Build Gate center updater should exist'
+        );
+        assert.ok(
+            script.includes('function updateOperationsSurface(data)'),
+            'Operations surface updater should exist'
+        );
+        assert.ok(
+            script.includes('function updatePlanIntelligencePanel()'),
+            'Plan intelligence updater should exist'
+        );
+        assert.ok(
+            script.includes("'/api/plans/' + target.planId + '/build-scripts'"),
+            'Build Gate panel should fetch build scripts for selected plan'
+        );
+        assert.ok(
+            script.includes("'/api/events?limit=25'"),
+            'Event polling should attempt higher telemetry limit for Prompt Analyst visibility'
+        );
     });
 });

@@ -34,5 +34,21 @@ suite('Dashboard Step Viewer Layout', () => {
             html.includes('data-action="save-always-notes"'),
             'Always-provided notes section should include save action button'
         );
+        assert.ok(
+            html.includes('id="widget-prompt-analyst"'),
+            'Operations section should include Prompt Analyst visibility panel'
+        );
+        assert.ok(
+            html.includes('id="widget-build-gate"'),
+            'Operations section should include Build Gate center panel'
+        );
+        assert.ok(
+            html.includes('id="widget-operations-surface"'),
+            'Operations section should include operations surface panel'
+        );
+        assert.ok(
+            html.includes('id="widget-plan-intelligence"'),
+            'Operations section should include plan intelligence panel'
+        );
     });
 });

@@ -604,6 +604,268 @@ export function getClientHelpers(): string {
             }
         }
 
+        function getEventPayload(event) {
+            if (!event || typeof event !== 'object') {
+                return {};
+            }
+
+            if (event.payload && typeof event.payload === 'object') {
+                return event.payload;
+            }
+            if (event.data && typeof event.data === 'object') {
+                return event.data;
+            }
+            if (event.details && typeof event.details === 'object') {
+                return event.details;
+            }
+            return {};
+        }
+
+        function findPromptAnalystEvent(events) {
+            if (!Array.isArray(events)) {
+                return null;
+            }
+
+            for (let index = 0; index < events.length; index += 1) {
+                const event = events[index];
+                const type = String(event?.type || '').toLowerCase();
+                const payload = getEventPayload(event);
+                const looksLikePromptAnalyst =
+                    type.includes('prompt_analyst') ||
+                    type.includes('context_enrichment') ||
+                    typeof payload.scope_classification === 'string' ||
+                    typeof payload.decomposition_strategy === 'string' ||
+                    typeof payload.confidence_score === 'number';
+
+                if (looksLikePromptAnalyst) {
+                    return { event, payload };
+                }
+            }
+
+            return null;
+        }
+
+        function setListContent(elementId, items, emptyMessage) {
+            const listElement = document.getElementById(elementId);
+            if (!listElement) {
+                return;
+            }
+
+            if (!Array.isArray(items) || items.length === 0) {
+                listElement.innerHTML = '<li class="ops-list-empty">' + escapeHtml(emptyMessage) + '</li>';
+                return;
+            }
+
+            listElement.innerHTML = items.map(item => '<li>' + item + '</li>').join('');
+        }
+
+        function updatePromptAnalystPanel() {
+            const scopeElement = document.getElementById('promptAnalystScope');
+            const strategyElement = document.getElementById('promptAnalystStrategy');
+            const confidenceElement = document.getElementById('promptAnalystConfidence');
+            const decisionElement = document.getElementById('promptAnalystDecision');
+            const summaryElement = document.getElementById('promptAnalystSummary');
+
+            const record = findPromptAnalystEvent(recentEvents || []);
+            if (!record) {
+                if (scopeElement) scopeElement.textContent = 'Not available';
+                if (strategyElement) strategyElement.textContent = 'No decomposition strategy captured.';
+                if (confidenceElement) confidenceElement.textContent = 'Not available';
+                if (decisionElement) decisionElement.textContent = 'Awaiting Prompt Analyst telemetry.';
+                if (summaryElement) {
+                    summaryElement.innerHTML = '';
+                }
+                setListContent('promptAnalystConstraints', [], 'No constraint notes captured.');
+                setListContent('promptAnalystCodeRefs', [], 'No code references captured.');
+                return;
+            }
+
+            const payload = record.payload || {};
+            const scope = typeof payload.scope_classification === 'string' ? payload.scope_classification : 'Not provided';
+            const strategy = typeof payload.decomposition_strategy === 'string' ? payload.decomposition_strategy : 'No decomposition strategy captured.';
+            const confidence = typeof payload.confidence_score === 'number'
+                ? Math.round(payload.confidence_score * 100) + '%'
+                : 'Not provided';
+            const rationale = typeof payload.confidence_rationale === 'string'
+                ? payload.confidence_rationale
+                : 'No confidence rationale captured.';
+
+            if (scopeElement) scopeElement.textContent = scope;
+            if (strategyElement) strategyElement.textContent = strategy;
+            if (confidenceElement) confidenceElement.textContent = confidence;
+            if (decisionElement) decisionElement.textContent = rationale;
+
+            if (summaryElement) {
+                const recommendedPlanCount = typeof payload.recommended_plan_count === 'number' ? payload.recommended_plan_count : 0;
+                const recommendedProgramCount = typeof payload.recommended_program_count === 'number' ? payload.recommended_program_count : 0;
+                const integratedProgram = payload.recommends_integrated_program === true ? 'Integrated program required' : 'Integrated program optional';
+                summaryElement.innerHTML = [
+                    '<span class="ops-inline-pill">Plans: ' + recommendedPlanCount + '</span>',
+                    '<span class="ops-inline-pill">Programs: ' + recommendedProgramCount + '</span>',
+                    '<span class="ops-inline-pill">' + integratedProgram + '</span>'
+                ].join('');
+            }
+
+            const constraints = Array.isArray(payload.constraint_notes) ? payload.constraint_notes : [];
+            setListContent(
+                'promptAnalystConstraints',
+                constraints.map(note => escapeHtml(String(note))),
+                'No constraint notes captured.'
+            );
+
+            const references = Array.isArray(payload.relevant_code_references) ? payload.relevant_code_references : [];
+            const referenceItems = references.map(reference => {
+                const path = escapeHtml(reference && reference.path ? String(reference.path) : 'unknown');
+                const reason = escapeHtml(reference && reference.reason ? String(reference.reason) : 'No reason provided');
+                return '<strong>' + path + '</strong> — ' + reason;
+            });
+            setListContent('promptAnalystCodeRefs', referenceItems, 'No code references captured.');
+        }
+
+        function getLatestBuildRunEvent(events) {
+            if (!Array.isArray(events)) {
+                return null;
+            }
+            for (let index = 0; index < events.length; index += 1) {
+                const event = events[index];
+                const type = String(event?.type || '').toLowerCase();
+                const payload = getEventPayload(event);
+                const matches =
+                    type.includes('build') ||
+                    type.includes('script_run') ||
+                    type.includes('run_build_script') ||
+                    !!payload.script_id ||
+                    !!payload.script_name;
+                if (matches) {
+                    return { event, payload };
+                }
+            }
+            return null;
+        }
+
+        function updateBuildGatePanel() {
+            const countElement = document.getElementById('buildGateCount');
+            const runElement = document.getElementById('buildGateLastRun');
+            const scriptsElement = document.getElementById('buildGateScriptsList');
+
+            if (countElement) {
+                countElement.textContent = String(Array.isArray(selectedPlanBuildScripts) ? selectedPlanBuildScripts.length : 0);
+            }
+
+            const latestRun = getLatestBuildRunEvent(recentEvents || []);
+            if (runElement) {
+                if (!latestRun) {
+                    runElement.textContent = 'No run recorded';
+                } else {
+                    const payload = latestRun.payload || {};
+                    const scriptName = payload.script_name || payload.script_id || latestRun.event.type || 'Script run';
+                    const hasError = payload.error || payload.failed || payload.success === false;
+                    runElement.textContent = String(scriptName) + (hasError ? ' (failed)' : ' (ok)');
+                    runElement.classList.toggle('ops-status-bad', !!hasError);
+                    runElement.classList.toggle('ops-status-ok', !hasError);
+                }
+            }
+
+            if (!scriptsElement) {
+                return;
+            }
+
+            if (!Array.isArray(selectedPlanBuildScripts) || selectedPlanBuildScripts.length === 0) {
+                scriptsElement.innerHTML = '<li class="ops-list-empty">Select a plan to inspect registered build scripts.</li>';
+                return;
+            }
+
+            scriptsElement.innerHTML = selectedPlanBuildScripts.map(script => {
+                const name = escapeHtml(String(script.name || script.script_name || script.id || 'Unnamed script'));
+                const command = escapeHtml(String(script.command || script.script_command || ''));
+                const directory = escapeHtml(String(script.directory || script.directory_path || script.script_directory || '.'));
+                return '<li><strong>' + name + '</strong><br><span class="ops-list-meta">' + command + ' @ ' + directory + '</span></li>';
+            }).join('');
+        }
+
+        function updateOperationsSurface(data) {
+            const terminalElement = document.getElementById('operationsTerminalSurface');
+            const integrityElement = document.getElementById('operationsIntegrity');
+            const integrityMetaElement = document.getElementById('operationsIntegrityMeta');
+
+            const snapshot = data || latestHealthSnapshot || {};
+            const healthStatus = typeof snapshot.status === 'string'
+                ? snapshot.status
+                : (snapshot.ok === true ? 'ok' : (snapshot.ok === false ? 'degraded' : 'unknown'));
+            const staleCount = typeof snapshot.stale_count === 'number'
+                ? snapshot.stale_count
+                : (Array.isArray(snapshot.stale_processes) ? snapshot.stale_processes.length : 0);
+
+            if (terminalElement) {
+                if (snapshot.adapter_mode) {
+                    terminalElement.textContent = String(snapshot.adapter_mode);
+                } else if (snapshot.ok === false) {
+                    terminalElement.textContent = 'Degraded';
+                } else {
+                    terminalElement.textContent = 'Headless/Interactive';
+                }
+            }
+
+            if (integrityElement) {
+                integrityElement.textContent = healthStatus;
+                integrityElement.classList.toggle('ops-status-ok', healthStatus === 'ok' && staleCount === 0);
+                integrityElement.classList.toggle('ops-status-warn', staleCount > 0 && healthStatus !== 'degraded');
+                integrityElement.classList.toggle('ops-status-bad', healthStatus === 'degraded' || healthStatus === 'error');
+            }
+
+            if (integrityMetaElement) {
+                integrityMetaElement.textContent = staleCount > 0
+                    ? staleCount + ' stale process(es) detected.'
+                    : 'No stale processes reported.';
+            }
+        }
+
+        function updatePlanIntelligencePanel() {
+            const summaryElement = document.getElementById('planIntelSummary');
+            const depsElement = document.getElementById('planIntelDependencies');
+            const agentElement = document.getElementById('planIntelRecommendedAgent');
+            const confirmationElement = document.getElementById('planIntelConfirmations');
+
+            if (!selectedPlanDetails) {
+                if (summaryElement) summaryElement.textContent = 'Select a plan to inspect orchestration metadata.';
+                if (depsElement) depsElement.textContent = 'None';
+                if (agentElement) agentElement.textContent = 'None';
+                if (confirmationElement) confirmationElement.textContent = 'None pending';
+                return;
+            }
+
+            const dependencies = Array.isArray(selectedPlanDetails.depends_on_plans)
+                ? selectedPlanDetails.depends_on_plans
+                : (Array.isArray(selectedPlanDetails.linked_plan_ids) ? selectedPlanDetails.linked_plan_ids : []);
+
+            const recommendedAgent = selectedPlanDetails.recommended_next_agent || selectedPlanDetails.current_agent || 'None';
+            const steps = Array.isArray(selectedPlanDetails.steps) ? selectedPlanDetails.steps : [];
+            const pendingConfirmations = steps.filter(step => {
+                const requires = step && (step.requires_confirmation === true || step.requires_user_confirmation === true);
+                const status = String(step?.status || '').toLowerCase();
+                return requires && status !== 'done';
+            }).length;
+
+            if (depsElement) {
+                depsElement.textContent = dependencies.length > 0 ? String(dependencies.length) : 'None';
+            }
+            if (agentElement) {
+                agentElement.textContent = String(recommendedAgent);
+            }
+            if (confirmationElement) {
+                confirmationElement.textContent = pendingConfirmations > 0 ? (pendingConfirmations + ' pending') : 'None pending';
+            }
+
+            if (summaryElement) {
+                const phase = selectedPlanDetails.current_phase || selectedPlanDetails.phase || 'No phase';
+                const status = selectedPlanDetails.status || 'unknown';
+                const dependencyText = dependencies.length > 0
+                    ? ('Depends on: ' + dependencies.map(id => String(id).slice(-8)).join(', '))
+                    : 'No linked dependencies';
+                summaryElement.textContent = phase + ' • ' + status + ' • ' + dependencyText;
+            }
+        }
+
         function getSelectedPlanPanelElements() {
             return {
                 title: document.getElementById('selectedPlanTitle'),
@@ -675,7 +937,10 @@ export function getClientHelpers(): string {
             const target = getSelectedPlanTarget();
             if (!target) {
                 selectedPlanDetails = null;
+                selectedPlanBuildScripts = [];
                 updateSelectedPlanPanel();
+                updateBuildGatePanel();
+                updatePlanIntelligencePanel();
                 updateActionAvailability();
                 return;
             }
@@ -694,7 +959,28 @@ export function getClientHelpers(): string {
 
                 selectedPlanDetails = planDetails;
                 updateSelectedPlanPanel();
+                updatePlanIntelligencePanel();
                 updateActionAvailability();
+
+                try {
+                    const scriptsResponse = await fetch('http://localhost:' + apiPort + '/api/plans/' + target.planId + '/build-scripts');
+                    if (scriptsResponse.ok) {
+                        const scriptsPayload = await scriptsResponse.json();
+                        const scriptsData = scriptsPayload?.data && !Array.isArray(scriptsPayload.data)
+                            ? scriptsPayload.data
+                            : undefined;
+                        selectedPlanBuildScripts = Array.isArray(scriptsPayload?.scripts)
+                            ? scriptsPayload.scripts
+                            : (Array.isArray(scriptsData?.scripts) ? scriptsData.scripts : []);
+                    } else {
+                        selectedPlanBuildScripts = [];
+                    }
+                } catch (scriptError) {
+                    console.log('Failed to fetch build scripts for selected plan:', scriptError);
+                    selectedPlanBuildScripts = [];
+                }
+
+                updateBuildGatePanel();
             } catch (error) {
                 console.log('Failed to fetch selected plan details:', error);
                 selectedPlanDetails = {
@@ -704,7 +990,10 @@ export function getClientHelpers(): string {
                     status: 'unknown',
                     steps: [],
                 };
+                selectedPlanBuildScripts = [];
                 updateSelectedPlanPanel();
+                updatePlanIntelligencePanel();
+                updateBuildGatePanel();
                 updateActionAvailability();
             }
         }
@@ -726,6 +1015,8 @@ export function getClientHelpers(): string {
             if (programsCount) programsCount.textContent = programPlans.length;
             setPlanTab(currentPlanTab);
             updateSelectedPlanPanel();
+            updatePlanIntelligencePanel();
+            updateBuildGatePanel();
             updateActionAvailability();
             saveDashboardState();
         }
@@ -776,14 +1067,20 @@ export function getClientHelpers(): string {
 
         async function fetchEvents() {
             try {
-                const response = await fetch('http://localhost:' + apiPort + '/api/events');
+                let response = await fetch('http://localhost:' + apiPort + '/api/events?limit=25');
+                if (!response.ok) {
+                    response = await fetch('http://localhost:' + apiPort + '/api/events');
+                }
                 if (response.ok) {
                     const data = await response.json();
-                    recentEvents = (data.events || []).slice(0, 5);
+                    const events = Array.isArray(data.events) ? data.events : [];
+                    recentEvents = events.slice(0, 25);
                     const activityList = document.getElementById('activityList');
                     if (activityList) {
-                        activityList.innerHTML = renderActivityList(recentEvents);
+                        activityList.innerHTML = renderActivityList(recentEvents.slice(0, 5));
                     }
+                    updatePromptAnalystPanel();
+                    updateBuildGatePanel();
                 }
             } catch (error) {
                 console.log('Failed to fetch events:', error);
@@ -791,6 +1088,7 @@ export function getClientHelpers(): string {
         }
 
         function updateStatusCards(data) {
+            latestHealthSnapshot = data;
             const healthValue = document.getElementById('healthStatusValue');
             const staleValue = document.getElementById('staleStatusValue');
             const dataRootValue = document.getElementById('dataRootValue');
@@ -832,6 +1130,8 @@ export function getClientHelpers(): string {
             if (dataRootValue) {
                 dataRootValue.textContent = dataRoot || 'Unknown';
             }
+
+            updateOperationsSurface(data);
         }
 
         function setLayoutSize(width) {

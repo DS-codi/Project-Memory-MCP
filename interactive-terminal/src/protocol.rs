@@ -18,6 +18,7 @@ pub use crate::integration::agent_session_protocol::{
 pub enum Message {
     CommandRequest(CommandRequest),
     CommandResponse(CommandResponse),
+    OutputChunk(OutputChunk),
     StartAgentSessionRequest(StartAgentSessionRequest),
     StartAgentSessionResponse(StartAgentSessionResponse),
     ReadAgentSessionOutputRequest(ReadAgentSessionOutputRequest),
@@ -170,6 +171,13 @@ pub struct CommandResponse {
     /// Path to JSON output file (unified protocol addition).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub output_file_path: Option<String>,
+}
+
+/// GUI → MCP server: streaming output chunk for an active command.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct OutputChunk {
+    pub id: String,
+    pub chunk: String,
 }
 
 /// MCP server → GUI: request the captured output for a completed/running session.

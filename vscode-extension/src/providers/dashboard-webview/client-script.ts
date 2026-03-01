@@ -68,6 +68,8 @@ export function getClientScript(params: ClientScriptParams): string {
         let selectedPlanId = typeof persistedState.selectedPlanId === 'string' ? persistedState.selectedPlanId : '';
         let selectedPlanWorkspaceId = typeof persistedState.selectedPlanWorkspaceId === 'string' ? persistedState.selectedPlanWorkspaceId : '';
         let selectedPlanDetails = null;
+        let selectedPlanBuildScripts = [];
+        let latestHealthSnapshot = null;
         let recentEvents = [];
         let hasRenderedDashboard = false;
         let lastPlanSignature = '';

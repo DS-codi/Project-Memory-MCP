@@ -63,6 +63,7 @@ import {
   evaluateDirectOptionAProgress,
   getDirectOptionAMigrationPlan,
 } from '../orchestration/hub-migration-plan.js';
+import { resolveCategoryWorkflow } from '../orchestration/category-workflow-resolver.js';
 import { buildLegacyDeprecationWorkflowReport } from '../orchestration/hub-deprecation-workflow.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
 import { getPlanState, getWorkspace } from '../../storage/db-store.js';
@@ -219,7 +220,7 @@ type AgentResult =
   | { action: 'deploy'; data: { deployed: string[]; prompts_deployed: string[]; instructions_deployed: string[]; skills_deployed: string[]; target_path: string } }
   | { action: 'get_briefing'; data: MissionBriefing & { deprecation_notice?: string } }
   | { action: 'get_lineage'; data: LineageEntry[] }
-  | { action: 'categorize'; data: { categorization: RequestCategorization; category_decision: CategoryDecision; routing_resolved: boolean } }
+  | { action: 'categorize'; data: { categorization: RequestCategorization; category_decision: CategoryDecision; routing_resolved: boolean; routing_source?: 'categorization_result' | 'db_definition' | 'static_fallback' | 'none' } }
   | { action: 'deploy_for_task'; data: DeployForTaskResult & { deprecation_notice?: string } }
   | { action: 'deploy_agent_to_workspace'; data: {
       file_path: string;
@@ -710,12 +711,12 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
         };
       }
 
-      const { CATEGORY_ROUTING } = await import('../../types/category-routing.js');
       const { getPlanState, savePlanState } = await import('../../storage/db-store.js');
 
-      // Resolve routing from the category decision
       const category = params.categorization_result.intent?.category;
-      const routing = category ? CATEGORY_ROUTING[category] : undefined;
+      const resolvedRouting = resolveCategoryWorkflow(category, params.categorization_result.routing);
+      const routing = resolvedRouting.routing;
+      const routingSource = resolvedRouting.source;
 
       // Build the categorization record to store on the plan
       const categorization: RequestCategorization = {
@@ -742,7 +743,8 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
           data: {
             categorization,
             category_decision: params.categorization_result,
-            routing_resolved: !!routing
+            routing_resolved: !!routing,
+            routing_source: routingSource,
           }
         }
       };

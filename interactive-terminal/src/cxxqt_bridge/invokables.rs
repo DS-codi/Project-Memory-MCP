@@ -261,12 +261,30 @@ impl ffi::TerminalApp {
 
     fn sync_selected_session_context(this: &mut Pin<&mut Self>) {
         let state_arc = this.rust().state.clone();
-        let (selected_session_id, context, default_profile) = {
+        let (selected_session_id, context, default_profile, suggestions_json) = {
             let state = state_arc.lock().unwrap();
+            let mut suggestions: Vec<String> = state
+                .session_context_by_id
+                .values()
+                .flat_map(|ctx| [ctx.workspace_path.clone(), ctx.selected_venv_path.clone()])
+                .filter(|value| !value.trim().is_empty())
+                .collect();
+
+            if suggestions.is_empty() {
+                if let Ok(cwd) = std::env::current_dir() {
+                    suggestions.push(cwd.to_string_lossy().to_string());
+                }
+            }
+
+            suggestions.sort();
+            suggestions.dedup();
+            let suggestions_json = serde_json::to_string(&suggestions).unwrap_or_else(|_| "[]".to_string());
+
             (
                 state.selected_session_id.clone(),
                 state.selected_session_context(),
                 state.default_terminal_profile.clone(),
+                suggestions_json,
             )
         };
 
@@ -286,13 +304,15 @@ impl ffi::TerminalApp {
             .set_current_venv_path(QString::from(&context.selected_venv_path));
         this.as_mut()
             .set_current_activate_venv(context.activate_venv);
+        this.as_mut()
+            .set_available_workspaces_json(QString::from(&suggestions_json));
     }
 
     pub fn approve_command(mut self: Pin<&mut Self>, id: QString) {
         let id_str = id.to_string();
 
         let state_arc = self.rust().state.clone();
-        let (next_cmd, count, json, tabs_json, selected_session_id) = {
+        let (next_cmd, count, json, tabs_json, selected_session_id, approved_cmd_for_echo, ws_tx) = {
             let mut state = state_arc.lock().unwrap();
             let selected_session = state.selected_session_id.clone();
             let queue = state
@@ -303,8 +323,8 @@ impl ffi::TerminalApp {
             let cmd = queue.iter().find(|c| c.id == id_str).cloned();
             queue.retain(|c| c.id != id_str);
 
-            if let (Some(tx), Some(cmd)) = (&state.command_tx, cmd) {
-                let _ = tx.try_send(cmd);
+            if let (Some(tx), Some(cmd)) = (&state.command_tx, cmd.as_ref()) {
+                let _ = tx.try_send(cmd.clone());
             }
 
             let next = state.selected_first_command();
@@ -312,7 +332,8 @@ impl ffi::TerminalApp {
             let json = state.pending_commands_to_json();
             let tabs_json = state.session_tabs_to_json();
             let selected_session_id = state.selected_session_id.clone();
-            (next, count, json, tabs_json, selected_session_id)
+            let ws_tx = state.ws_terminal_tx.clone();
+            (next, count, json, tabs_json, selected_session_id, cmd, ws_tx)
         };
 
         self.as_mut().set_pending_count(count);
@@ -323,6 +344,10 @@ impl ffi::TerminalApp {
         self.as_mut()
             .set_status_text(QString::from("Executing command..."));
         self.as_mut().set_output_text(QString::default());
+
+        if let (Some(cmd), Some(tx)) = (approved_cmd_for_echo.as_ref(), ws_tx.as_ref()) {
+            let _ = tx.send(format!("{}\r\n", cmd.command).into_bytes());
+        }
 
         Self::show_command(&mut self, next_cmd.as_ref());
     }
@@ -370,6 +395,14 @@ impl ffi::TerminalApp {
             .set_current_session_id(QString::from(&selected_session_id));
         self.as_mut()
             .set_status_text(QString::from("Command declined"));
+
+        {
+            let state_arc = self.rust().state.clone();
+            let state = state_arc.lock().unwrap();
+            if let Some(tx) = state.ws_terminal_tx.as_ref() {
+                let _ = tx.send(b"(command declined)\r\n".to_vec());
+            }
+        }
 
         Self::show_command(&mut self, next_cmd.as_ref());
         self.as_mut().command_completed(id, false);

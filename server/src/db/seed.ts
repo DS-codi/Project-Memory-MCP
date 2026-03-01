@@ -18,10 +18,13 @@ import { fileURLToPath } from 'node:url';
 import { getDb } from './connection.js';
 import { runMigrations } from './migration-runner.js';
 import { seedToolCatalog, type CatalogTool } from './tool-catalog-db.js';
-import { storeAgent } from './agent-definition-db.js';
+import { storeAgent, getAgent } from './agent-definition-db.js';
+import { upsertDeployableAgentProfile } from './deployable-agent-profile-db.js';
+import { upsertCategoryWorkflowDefinition } from './category-workflow-db.js';
 import { storeInstruction } from './instruction-db.js';
 import { storeSkill } from './skill-db.js';
 import { seedGuiContract } from './gui-routing-contracts-db.js';
+import { CATEGORY_ROUTING } from '../types/category-routing.js';
 
 // ── Path resolution ───────────────────────────────────────────────────────────
 
@@ -225,9 +228,13 @@ function parseAgentMd(filePath: string): AgentFrontmatter | null {
 }
 
 async function seedAgentDefinitions(projectRoot: string): Promise<number> {
-  const agentsDir = path.join(projectRoot, 'agents-v2');
-  if (!fs.existsSync(agentsDir)) {
-    console.warn(`  [seed] agents-v2 directory not found at ${agentsDir}, skipping agent defs`);
+  const agentsDir = resolveContentDir(
+    projectRoot,
+    [['.github', 'agents'], ['agents-v2']],
+    process.env.MBS_AGENTS_ROOT,
+  );
+  if (!agentsDir || !fs.existsSync(agentsDir)) {
+    console.warn(`  [seed] agent definitions directory not found (.github/agents or agents-v2), skipping agent defs`);
     return 0;
   }
 
@@ -257,6 +264,80 @@ async function seedAgentDefinitions(projectRoot: string): Promise<number> {
         },
       }
     );
+    count++;
+  }
+
+  return count;
+}
+
+function seedDeployableAgentProfiles(): number {
+  const hub = getAgent('Hub');
+  const promptAnalyst = getAgent('PromptAnalyst');
+  let count = 0;
+
+  if (hub) {
+    upsertDeployableAgentProfile('Hub', {
+      role: 'hub',
+      enabled: true,
+      metadata: {
+        permanence: 'permanent',
+        dispatch_mode: 'canonical_hub',
+      },
+    });
+    count++;
+  } else {
+    console.warn('  [seed] Hub agent definition not found in DB; skipping hub deployable profile');
+  }
+
+  if (promptAnalyst) {
+    upsertDeployableAgentProfile('PromptAnalyst', {
+      role: 'prompt_analyst',
+      enabled: true,
+      metadata: {
+        permanence: 'permanent',
+        dispatch_mode: 'context_enrichment',
+      },
+    });
+    count++;
+  } else {
+    console.warn('  [seed] PromptAnalyst agent definition not found in DB; skipping prompt_analyst deployable profile');
+  }
+
+  return count;
+}
+
+function categoryToScopeClassification(category: string): 'quick_task' | 'single_plan' | 'multi_plan' | 'program' {
+  if (category === 'quick_task' || category === 'advisory') return 'quick_task';
+  if (category === 'program') return 'program';
+  return 'single_plan';
+}
+
+function seedCategoryWorkflowDefinitions(hasDeployableProfiles: boolean): number {
+  let count = 0;
+
+  for (const [category, routing] of Object.entries(CATEGORY_ROUTING)) {
+    const scopeClassification = categoryToScopeClassification(category);
+    const recommendsIntegratedProgram = category === 'program';
+
+    upsertCategoryWorkflowDefinition(category, {
+      scope_classification: scopeClassification,
+      planning_depth: routing.planning_depth,
+      workflow_path: routing.workflow_path,
+      skip_agents: routing.skip_agents,
+      requires_research: routing.requires_research,
+      requires_brainstorm: routing.requires_brainstorm,
+      recommends_integrated_program: recommendsIntegratedProgram,
+      recommended_plan_count: scopeClassification === 'quick_task' ? 0 : 1,
+      recommended_program_count: scopeClassification === 'program' ? 1 : 0,
+      candidate_plan_titles: [],
+      decomposition_strategy: `db_seeded_from_static:${category}`,
+      hub_agent_name: hasDeployableProfiles ? 'Hub' : null,
+      prompt_analyst_agent_name: hasDeployableProfiles ? 'PromptAnalyst' : null,
+      metadata: {
+        source: 'seed',
+        routing_version: '1.0',
+      },
+    });
     count++;
   }
 
@@ -503,8 +584,10 @@ function seedGuiRoutingContracts(): void {
 export interface SeedResult {
   tools:        number;
   agents:       number;
+  deployableAgents: number;
   instructions: number;
   skills:       number;
+  categoryWorkflows: number;
   guiContracts: number;
 }
 
@@ -529,6 +612,14 @@ export async function runSeed(projectRoot?: string): Promise<SeedResult> {
   const agentCount = await seedAgentDefinitions(root);
   console.log(`[seed]   ${agentCount} agents`);
 
+  console.log('[seed] Seeding deployable agent profiles...');
+  const deployableAgentCount = seedDeployableAgentProfiles();
+  console.log(`[seed]   ${deployableAgentCount} deployable profiles`);
+
+  console.log('[seed] Seeding category workflow definitions...');
+  const categoryWorkflowCount = seedCategoryWorkflowDefinitions(deployableAgentCount >= 2);
+  console.log(`[seed]   ${categoryWorkflowCount} category workflow definitions`);
+
   console.log('[seed] Seeding instruction files...');
   const instrCount = await seedInstructionFiles(root);
   console.log(`[seed]   ${instrCount} instruction files`);
@@ -546,8 +637,10 @@ export async function runSeed(projectRoot?: string): Promise<SeedResult> {
   return {
     tools:        catalog.length,
     agents:       agentCount,
+    deployableAgents: deployableAgentCount,
     instructions: instrCount,
     skills:       skillCount,
+    categoryWorkflows: categoryWorkflowCount,
     guiContracts: 2,
   };
 }
