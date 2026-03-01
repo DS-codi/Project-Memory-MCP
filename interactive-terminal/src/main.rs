@@ -8,6 +8,8 @@ mod integration;
 mod output_persistence;
 mod perf_monitor;
 mod protocol;
+mod pty_host_launcher;
+mod pty_host_protocol;
 mod saved_commands;
 mod saved_commands_repository;
 mod session;
@@ -152,6 +154,15 @@ fn main() {
 
     eprintln!("Interactive Terminal listening on 127.0.0.1:{port}");
     host_bridge_listener::spawn(host_bridge_port, port);
+
+    // Launch the out-of-process PTY host (pty-host feature only).
+    #[cfg(feature = "pty-host")]
+    {
+        use pty_host_launcher::launch_pty_host;
+        if let Err(e) = launch_pty_host() {
+            eprintln!("[startup] WARNING: pty-host launch failed: {e}");
+        }
+    }
 
     // Verify Qt DLLs are deployed before trying to initialize Qt.
     build_check::verify_qt_runtime();

@@ -6,6 +6,8 @@ pub(crate) mod completed_outputs;
 mod helpers;
 mod initialize;
 mod invokables;
+#[cfg(feature = "pty-host")]
+pub mod pty_host_client;
 mod runtime_tasks;
 mod saved_commands_state;
 mod session_runtime;

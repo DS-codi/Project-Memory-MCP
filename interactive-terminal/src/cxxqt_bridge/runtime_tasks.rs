@@ -425,6 +425,26 @@ pub(crate) fn spawn_runtime_tasks(
                 let disk_spill_enabled = env_truthy("PM_TERMINAL_SESSION_SPILL", true);
                 let spill_root = default_session_spill_root();
 
+                // pty-host feature: connect to the out-of-process PTY host.
+                #[cfg(feature = "pty-host")]
+                {
+                    use crate::cxxqt_bridge::pty_host_client::{PTY_HOST_CLIENT, PtyHostClient};
+                    // Must match PTY_HOST_IPC_PORT in pty_host_launcher.rs and pty-host/src/main.rs.
+                    const PTY_HOST_IPC_PORT: u16 = 9102;
+                    let app_state_for_client = state_for_msg.clone();
+                    let session_output_for_client = session_output_tx.clone();
+                    match PtyHostClient::connect(PTY_HOST_IPC_PORT, session_output_for_client, app_state_for_client).await {
+                        Ok(client) => {
+                            if PTY_HOST_CLIENT.set(client).is_err() {
+                                eprintln!("[WsTerminal] PtyHostClient already initialized");
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("[WsTerminal] Failed to connect to pty-host: {e}");
+                        }
+                    }
+                }
+
                 let initial_session_id = {
                     let s = state_for_msg.lock().unwrap();
                     s.selected_session_id.clone()
@@ -552,16 +572,24 @@ pub(crate) fn spawn_runtime_tasks(
                         };
 
                         if let Some((cols, rows)) = try_parse_resize_json(&data) {
+                            #[cfg(not(feature = "pty-host"))]
                             resize_conpty(&handle.master, cols, rows);
+                            #[cfg(feature = "pty-host")]
+                            handle.resize(cols, rows);
                         } else {
-                            let writer = handle.writer.clone();
-                            let _ = tokio::task::spawn_blocking(move || {
-                                if let Ok(mut lock) = writer.lock() {
-                                    let _ = std::io::Write::write_all(&mut *lock, &data);
-                                    let _ = std::io::Write::flush(&mut *lock);
-                                }
-                            })
-                            .await;
+                            #[cfg(not(feature = "pty-host"))]
+                            {
+                                let writer = handle.writer.clone();
+                                let _ = tokio::task::spawn_blocking(move || {
+                                    if let Ok(mut lock) = writer.lock() {
+                                        let _ = std::io::Write::write_all(&mut *lock, &data);
+                                        let _ = std::io::Write::flush(&mut *lock);
+                                    }
+                                })
+                                .await;
+                            }
+                            #[cfg(feature = "pty-host")]
+                            handle.write_raw(&data);
                         }
                     }
                 });

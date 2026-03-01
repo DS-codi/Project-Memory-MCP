@@ -24,7 +24,7 @@ import { DefaultDeployer } from './deployer/DefaultDeployer';
 import { DiagnosticsService } from './services/DiagnosticsService';
 import { SupervisorHeartbeat } from './supervisor/SupervisorHeartbeat';
 import { notify } from './utils/helpers';
-import { getDefaultDataRoot, getDefaultAgentsRoot, getDefaultInstructionsRoot, getDefaultSkillsRoot } from './utils/defaults';
+import { getDefaultAgentsRoot, getDefaultInstructionsRoot, getDefaultSkillsRoot } from './utils/defaults';
 import { clearIdentityCache } from './utils/workspace-identity';
 import { registerServerCommands, registerDeployCommands, registerPlanCommands, registerWorkspaceCommands } from './commands';
 import { readSupervisorSettings } from './supervisor/settings';
@@ -55,7 +55,6 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Read configuration
     const config = vscode.workspace.getConfiguration('projectMemory');
-    const dataRoot = config.get<string>('dataRoot') || getDefaultDataRoot();
     const agentsRoot = config.get<string>('agentsRoot') || getDefaultAgentsRoot();
     const promptsRoot = config.get<string>('promptsRoot');
     const instructionsRoot = config.get<string>('instructionsRoot');
@@ -86,7 +85,7 @@ export function activate(context: vscode.ExtensionContext) {
     };
     context.subscriptions.push(connectionManager);
 
-    dashboardProvider = new DashboardViewProvider(context.extensionUri, dataRoot, agentsRoot);
+    dashboardProvider = new DashboardViewProvider(context.extensionUri, agentsRoot);
 
     // When dashboard panel opens for the first time, try to detect services
     dashboardProvider.onFirstResolve(() => {
@@ -537,7 +536,6 @@ export function activate(context: vscode.ExtensionContext) {
             if (e.affectsConfiguration('projectMemory')) {
                 const newConfig = vscode.workspace.getConfiguration('projectMemory');
                 dashboardProvider.updateConfig(
-                    newConfig.get<string>('dataRoot') || getDefaultDataRoot(),
                     newConfig.get<string>('agentsRoot') || getDefaultAgentsRoot()
                 );
                 // Clear cached identity so stale paths are re-resolved

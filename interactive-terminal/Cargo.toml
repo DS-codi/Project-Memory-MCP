@@ -4,6 +4,13 @@ version = "0.1.0"
 edition = "2021"
 description = "Interactive terminal GUI for command approval/decline"
 
+[features]
+## Activate the out-of-process PTY host path.
+## When enabled, ConPTY sessions are delegated to the `pty-host` binary rather than
+## running directly in the UI process.  The `pty-host` feature gates all new code
+## paths; the legacy ConPTY path is preserved under `#[cfg(not(feature = "pty-host"))]`.
+pty-host = []
+
 [dependencies]
 cxx = "1.0.95"
 cxx-qt = "0.8"

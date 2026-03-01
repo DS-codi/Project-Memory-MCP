@@ -22,8 +22,6 @@ export interface DashboardHtmlOptions {
     workspaceId: string;
     /** Display name of the current workspace */
     workspaceName: string;
-    /** JSON-stringified data root path */
-    dataRoot: string;
 }
 
 /**
@@ -43,7 +41,6 @@ export function getWebviewHtml(options: DashboardHtmlOptions): string {
         dashboardUrl: options.dashboardUrl,
         workspaceId: options.workspaceId,
         workspaceName: options.workspaceName,
-        dataRoot: options.dataRoot,
         iconsJson,
         iconSvgs,
     });

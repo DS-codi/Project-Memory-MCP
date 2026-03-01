@@ -38,17 +38,14 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'projectMemory.dashboardView';
 
     private _view?: vscode.WebviewView;
-    private _dataRoot: string;
     private _agentsRoot: string;
     private _disposables: vscode.Disposable[] = [];
     private _onResolveCallback?: () => void;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
-        dataRoot: string,
         agentsRoot: string
     ) {
-        this._dataRoot = dataRoot;
         this._agentsRoot = agentsRoot;
     }
 
@@ -228,7 +225,6 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                     this.postMessage({
                         type: 'config',
                         data: {
-                            dataRoot: this._dataRoot,
                             agentsRoot: this._agentsRoot,
                             workspaceFolders: vscode.workspace.workspaceFolders?.map(f => ({
                                 name: f.name,
@@ -244,7 +240,6 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
                     this.postMessage({
                         type: 'init',
                         data: {
-                            dataRoot: this._dataRoot,
                             agentsRoot: this._agentsRoot,
                             workspaceId: this.resolveWorkspaceContext()?.workspaceId || '',
                         }
@@ -353,12 +348,11 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    public updateConfig(dataRoot: string, agentsRoot: string) {
-        this._dataRoot = dataRoot;
+    public updateConfig(agentsRoot: string) {
         this._agentsRoot = agentsRoot;
         this.postMessage({
             type: 'configUpdated',
-            data: { dataRoot, agentsRoot }
+            data: { agentsRoot }
         });
     }
 
@@ -515,7 +509,6 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
             dashboardUrl: getDashboardFrontendUrl(),
             workspaceId: workspaceResolution?.workspaceId || '',
             workspaceName: workspaceResolution?.workspaceName || 'No workspace',
-            dataRoot: JSON.stringify(this._dataRoot),
         });
     }
 

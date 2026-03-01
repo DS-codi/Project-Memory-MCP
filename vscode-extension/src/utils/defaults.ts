@@ -19,10 +19,6 @@ function resolveDefaultPath(subdir: string): string {
     return '';
 }
 
-export function getDefaultDataRoot(): string {
-    return resolveDefaultPath('data');
-}
-
 export function getDefaultAgentsRoot(): string {
     return resolveDefaultPath('agents');
 }

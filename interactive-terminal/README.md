@@ -21,6 +21,54 @@ MCP tool call
 
 More operations detail: `docs/runtime-ports-and-mcp-modes.md`.
 
+## Out-of-Process PTY Host (`pty-host` feature)
+
+The `pty-host` feature flag isolates ConPTY terminal sessions into a separate lightweight process, preventing native PTY crashes from affecting the Qt GUI process.
+
+### How it works
+
+When compiled with `--features pty-host`:
+
+1. On startup, `interactive-terminal` spawns `pty-host.exe` as a child process.
+2. The two processes communicate over a local TCP connection on port **9102** using newline-delimited JSON (NDJSON).
+3. PTY session lifecycle (create, input, resize, kill) is managed entirely by `pty-host`.
+4. Output bytes flow back through the same `session_output_tx` pipeline used by the legacy path — the rest of the runtime is unchanged.
+
+```
+interactive-terminal (UI)          pty-host (child)
+  pty_host_launcher.rs ─── spawn ──► main.rs
+  pty_host_client.rs   ─── TCP:9102 ─► ipc_server.rs
+                                         └─► pty_manager.rs
+                                               └─► pty_backend.rs (ConPTY)
+```
+
+### Ports
+
+| Port | Purpose |
+|------|---------|
+| 9100 | MCP TCP JSON (unchanged) |
+| 9101 | xterm.js WebSocket (unchanged) |
+| 9102 | pty-host IPC NDJSON |
+
+### Building with pty-host
+
+```powershell
+# Build both interactive-terminal and pty-host with the feature enabled
+cargo build --features pty-host -p interactive-terminal
+cargo build -p pty-host
+
+# Or via the combined workspace build
+cargo build --features interactive-terminal/pty-host
+```
+
+`pty-host.exe` must be co-located with `interactive-terminal.exe` at runtime.
+
+### Backwards compatibility
+
+The legacy in-process ConPTY path is fully preserved under `#[cfg(not(feature = "pty-host"))]`.  Omitting the feature flag produces an identical binary to the pre-feature build.
+
+Full implementation notes: [`PTY_HOST_IMPL.md`](./PTY_HOST_IMPL.md)
+
 ## Prerequisites (Windows)
 
 - Rust toolchain (`cargo`, `rustc`)

@@ -18,7 +18,6 @@ export interface ClientScriptParams {
     dashboardUrl: string;
     workspaceId: string;
     workspaceName: string;
-    dataRoot: string;
     iconsJson: string;
     iconSvgs: IconSvgs;
 }
@@ -33,7 +32,7 @@ export interface ClientScriptParams {
 export function getClientScript(params: ClientScriptParams): string {
     const {
         apiPort, dashboardUrl, workspaceId, workspaceName,
-        dataRoot, iconsJson, iconSvgs,
+        iconsJson, iconSvgs,
     } = params;
 
     const connectedHtml = getConnectedDashboardHtml(iconSvgs, apiPort, workspaceName);
@@ -50,7 +49,6 @@ export function getClientScript(params: ClientScriptParams): string {
         const dashboardUrl = '${dashboardUrl}';
         let workspaceId = '${workspaceId}';
         const workspaceName = '${workspaceName}';
-        const dataRoot = ${dataRoot};
         const icons = ${iconsJson};
         let topLevelTab = (persistedState.topLevelTab === 'plans' || persistedState.topLevelTab === 'operations')
             ? persistedState.topLevelTab

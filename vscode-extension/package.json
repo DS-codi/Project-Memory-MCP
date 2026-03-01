@@ -238,12 +238,6 @@
     "configuration": {
       "title": "Project Memory",
       "properties": {
-        "projectMemory.dataRoot": {
-          "type": "string",
-          "default": "",
-          "description": "Path to the Project Memory data directory (MBS_DATA_ROOT)",
-          "scope": "application"
-        },
         "projectMemory.agentsRoot": {
           "type": "string",
           "default": "",
