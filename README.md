@@ -58,6 +58,16 @@ Legacy helper scripts have been moved to:
 
 ## Quick start (current)
 
+### 0) Run machine preflight
+
+From repo root:
+
+```powershell
+.\scripts\preflight-machine.ps1
+```
+
+This checks required toolchains and required repository assets before a first-time build.
+
 ### 1) Prerequisites
 
 - Node.js 20+
@@ -80,6 +90,12 @@ Optional full build pass:
 
 ```powershell
 .\install.ps1 -Component All
+```
+
+For a clean-machine DB bootstrap during server install:
+
+```powershell
+.\install.ps1 -Component Server -NewDatabase
 ```
 
 ### 3) Run tests
@@ -153,6 +169,13 @@ Additional runtime/tooling surfaces in active use:
 - MCP server state is DB-backed (SQLite-based storage used by the server runtime).
 - Workspace identity and project-scoped artifacts also live under each repo in `.projectmemory/`.
 - Plan/workspace/session context is persisted and reused across agent sessions.
+
+## Cross-machine DB reproducibility
+
+- Reproducibility package root: `database-seed-resources/reproducibility/`
+- Export on source machine: `npm run repro:export` (from `server/`)
+- Import on target machine: `npm run repro:import` (from `server/`)
+- Runbook: `docs/db-rebuild-runbook.md`
 
 ## Repository layout
 

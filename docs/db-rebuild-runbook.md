@@ -1,62 +1,89 @@
-# DB Rebuild Runbook (Work Machine)
+# DB Rebuild Runbook (Cross-Machine)
 
-This runbook rebuilds Project Memory DB state from a reproducibility package.
+This runbook rebuilds Project Memory DB state on a different machine using a reproducibility package.
 
-## Prerequisites
+## 1) Preflight on target machine
 
-- Server dependencies installed (`npm install` in `server/`).
-- Server build completed (`npm run build` in `server/`).
-- Package file available at:
-  - `database-seed-resources/reproducibility/db-repro-package.json`
+From repository root:
 
-## Export on Source Machine
+```powershell
+.\scripts\preflight-machine.ps1
+```
 
-From `server/`:
+Resolve any blocking failures before proceeding.
 
-```bash
+## 2) Source machine export
+
+From repository root:
+
+```powershell
+cd server
+npm install
+npm run build
 npm run repro:export
 ```
 
-This writes:
+Expected output artifact:
 
 - `database-seed-resources/reproducibility/db-repro-package.json`
 
-## Import on Target Machine
+Transfer this file to the target machine at the same relative path.
+
+## 3) Target machine baseline setup
+
+From repository root:
+
+```powershell
+cd server
+npm install
+npm run build
+```
+
+If you need a fresh local DB before import:
+
+```powershell
+cd ..
+.\install.ps1 -Component Server -NewDatabase
+cd server
+```
+
+## 4) Target machine import
 
 From `server/`:
 
-```bash
+```powershell
 npm run repro:import
 ```
 
-This performs import with `--clear` and upserts package data into the target DB.
+This imports with `--clear` and upserts package contents into the target DB.
 
-## Optional Manual CLI
+## 5) Optional manual CLI
 
-Use the reproducibility module directly:
+From `server/` after build:
 
-```bash
+```powershell
 node dist/db/reproducibility-package.js export --out ../database-seed-resources/reproducibility/db-repro-package.json
 node dist/db/reproducibility-package.js import --in ../database-seed-resources/reproducibility/db-repro-package.json --clear
 ```
 
-## Round-Trip Validation Procedure
+## 6) Round-trip validation
 
 1. Export package from source DB.
 2. Import package into clean target DB.
 3. Re-export from target DB to a second package path.
-4. Compare table checksums and row counts using `compareReproPackages()`.
+4. Compare table checksums and row counts with `compareReproPackages()`.
 
 Expected result:
 
 - `match = true`
-- No table-level checksum/count differences.
+- No table checksum/count differences.
 
-## Failure Handling
+## 7) Failure handling
 
 If parity fails:
 
-- Verify both machines run the same migration set.
+- Verify both machines run the same migration set and server build version.
+- Confirm package path is exactly `database-seed-resources/reproducibility/db-repro-package.json`.
 - Re-run import with `--clear`.
 - Compare first mismatched table and inspect row-level differences.
-- Re-export package from the source machine and repeat.
+- Re-export from source machine and retry.

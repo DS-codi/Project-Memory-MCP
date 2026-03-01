@@ -8,6 +8,7 @@ This document lists the currently supported utility scripts for Project Memory M
 2. `install-animated.ps1`
 3. `run-tests.ps1`
 4. `interactive-terminal/build-interactive-terminal.ps1`
+5. `scripts/preflight-machine.ps1`
 
 Legacy helper scripts are archived and not part of the active workflow.
 
@@ -17,7 +18,7 @@ Legacy helper scripts are archived and not part of the active workflow.
 
 Builds and installs one or more components.
 
-### Parameters
+### Install parameters
 
 - `-Component <string[]>`
   - Valid: `Server`, `Extension`, `Container`, `Supervisor`, `InteractiveTerminal`, `Dashboard`, `GuiForms`, `All`, `--help`
@@ -35,7 +36,7 @@ Builds and installs one or more components.
 - `-Help`, `-h`, `--help`
   - Shows help.
 
-### Use cases
+### Install use cases
 
 - Normal build/install: `./install.ps1`
 - Build specific components: `./install.ps1 -Component Server,Extension`
@@ -48,7 +49,7 @@ Builds and installs one or more components.
 
 Functional equivalent of `install.ps1` with animated terminal UX and warning aggregation.
 
-### Parameters
+### Animated install parameters
 
 - `-Component <string[]>`
   - Valid: `Server`, `Extension`, `Container`, `Supervisor`, `InteractiveTerminal`, `Dashboard`, `GuiForms`, `All`, `--help`
@@ -60,7 +61,7 @@ Functional equivalent of `install.ps1` with animated terminal UX and warning agg
 - `-NewDatabase`
 - `-Help`, `-h`, `--help`
 
-### Use cases
+### Animated install use cases
 
 - Same jobs as `install.ps1` when you want progress animation and summarized warnings.
 - Good for long interactive local builds where visual progress is useful.
@@ -71,7 +72,7 @@ Functional equivalent of `install.ps1` with animated terminal UX and warning agg
 
 Runs tests for selected components with Qt environment bootstrapping for Rust/Qt crates.
 
-### Parameters
+### Test runner parameters
 
 - `-Component <string[]>`
   - Valid: `Supervisor`, `GuiForms`, `InteractiveTerminal`, `Server`, `Dashboard`, `Extension`, `All`, `--help`
@@ -93,7 +94,7 @@ Runs tests for selected components with Qt environment bootstrapping for Rust/Qt
   - Prevents JS/TS artifact cleanup (such as `.vitest`, extension `out/`).
 - `-Help`, `-h`, `--help`
 
-### Use cases
+### Test runner use cases
 
 - Run all tests: `./run-tests.ps1`
 - Run focused components: `./run-tests.ps1 -Component Supervisor,InteractiveTerminal`
@@ -106,7 +107,7 @@ Runs tests for selected components with Qt environment bootstrapping for Rust/Qt
 
 Builds the Rust interactive terminal, optionally tests/runs/deploys Qt runtime, and can emit warnings/import logs.
 
-### Parameters
+### Interactive terminal build parameters
 
 - `-Clean`
   - Cleans build artifacts first (with lock-recovery).
@@ -128,7 +129,7 @@ Builds the Rust interactive terminal, optionally tests/runs/deploys Qt runtime, 
   - Qt kit path.
   - Default: `$env:QT_DIR` or `C:\Qt\6.10.2\msvc2022_64`
 
-### Use cases
+### Interactive terminal build use cases
 
 - Standard release build/deploy: `./build-interactive-terminal.ps1`
 - Debug build and run: `./build-interactive-terminal.ps1 -Profile debug -Run -Port 9100`
@@ -147,3 +148,25 @@ cd "C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\target\release\"
 ```
 
 This is the preferred supervisor startup path instead of `launch-supervisor.ps1`.
+
+---
+
+## 5) `scripts/preflight-machine.ps1`
+
+Runs a fast clean-machine readiness check before first build/install.
+
+### What it checks
+
+- Required commands and major versions (`node`, `npm`, `rustc`, `cargo`)
+- Optional but recommended tools (`code`, Qt kit path)
+- Required repo files/lockfiles and reproducibility directory scaffolding
+
+### Use case
+
+- Before onboarding on a new machine, run:
+
+```powershell
+.\scripts\preflight-machine.ps1
+```
+
+Exit code is `1` when blocking requirements are missing.

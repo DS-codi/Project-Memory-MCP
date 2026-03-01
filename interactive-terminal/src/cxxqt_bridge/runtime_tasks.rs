@@ -23,13 +23,18 @@ use tokio::sync::broadcast;
 use tokio::io::AsyncWriteExt;
 use tokio::time::{sleep, Duration, Instant};
 
-#[cfg(windows)]
+/// Non-pty-host path: ConPTY handle held directly in the UI process.
+#[cfg(all(windows, not(feature = "pty-host")))]
 #[derive(Clone)]
 struct WsTerminalSessionHandle {
     writer: Arc<std::sync::Mutex<Box<dyn std::io::Write + Send>>>,
     master: Arc<std::sync::Mutex<Box<dyn portable_pty::MasterPty + Send>>>,
     child: Arc<std::sync::Mutex<Box<dyn portable_pty::Child + Send + Sync>>>,
 }
+
+/// pty-host path: lightweight handle forwarding to the out-of-process pty-host.
+#[cfg(feature = "pty-host")]
+use crate::cxxqt_bridge::pty_host_client::PtyHostSessionHandle as WsTerminalSessionHandle;
 
 #[cfg(windows)]
 #[derive(Default)]
@@ -141,7 +146,7 @@ async fn append_chunks_to_spill(path: &PathBuf, chunks: &[Vec<u8>]) -> Result<us
     Ok(written)
 }
 
-#[cfg(windows)]
+#[cfg(all(windows, not(feature = "pty-host")))]
 async fn ensure_ws_terminal_session(
     session_id: &str,
     state: &Arc<Mutex<AppState>>,
@@ -202,7 +207,49 @@ async fn ensure_ws_terminal_session(
     Ok(())
 }
 
-#[cfg(windows)]
+/// pty-host path: spawn a session in the external pty-host process.
+#[cfg(feature = "pty-host")]
+async fn ensure_ws_terminal_session(
+    session_id: &str,
+    state: &Arc<Mutex<AppState>>,
+    session_handles: &Arc<tokio::sync::Mutex<HashMap<String, WsTerminalSessionHandle>>>,
+    _session_output_tx: &tokio::sync::mpsc::Sender<(String, Vec<u8>)>,
+) -> Result<(), String> {
+    {
+        let map = session_handles.lock().await;
+        if map.contains_key(session_id) {
+            return Ok(());
+        }
+    }
+
+    use crate::cxxqt_bridge::pty_host_client::PTY_HOST_CLIENT;
+
+    let workspace_path = {
+        let s = state.lock().unwrap();
+        s.session_context_by_id
+            .get(session_id)
+            .map(|ctx| ctx.workspace_path.clone())
+            .unwrap_or_default()
+    };
+    let cwd = if workspace_path.trim().is_empty() {
+        "C:\\".to_string()
+    } else {
+        workspace_path
+    };
+
+    let client = PTY_HOST_CLIENT
+        .get()
+        .ok_or_else(|| "PtyHostClient not initialized".to_string())?;
+
+    let handle = client.create_session(session_id, cwd, 200, 50).await?;
+
+    let mut map = session_handles.lock().await;
+    map.insert(session_id.to_string(), handle);
+
+    Ok(())
+}
+
+#[cfg(all(windows, not(feature = "pty-host")))]
 async fn terminate_ws_terminal_session(handle: WsTerminalSessionHandle) {
     let child = handle.child.clone();
     let _ = tokio::task::spawn_blocking(move || {
@@ -213,7 +260,12 @@ async fn terminate_ws_terminal_session(handle: WsTerminalSessionHandle) {
     .await;
 }
 
-#[cfg(windows)]
+#[cfg(feature = "pty-host")]
+async fn terminate_ws_terminal_session(handle: WsTerminalSessionHandle) {
+    handle.terminate();
+}
+
+#[cfg(any(all(windows, not(feature = "pty-host")), feature = "pty-host"))]
 async fn prune_closed_ws_terminal_sessions(
     state: &Arc<Mutex<AppState>>,
     session_handles: &Arc<tokio::sync::Mutex<HashMap<String, WsTerminalSessionHandle>>>,
@@ -358,7 +410,9 @@ pub(crate) fn spawn_runtime_tasks(
             // Wire ConPTY ↔ WebSocket (Windows only; no-op on other platforms).
             #[cfg(windows)]
             {
-                use crate::terminal_core::conpty_backend::{resize_conpty, try_parse_resize_json};
+                #[cfg(not(feature = "pty-host"))]
+                use crate::terminal_core::conpty_backend::resize_conpty;
+                use crate::terminal_core::conpty_backend::try_parse_resize_json;
 
                 let session_handles: Arc<tokio::sync::Mutex<HashMap<String, WsTerminalSessionHandle>>> =
                     Arc::new(tokio::sync::Mutex::new(HashMap::new()));

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["supervisor", "pm-gui-forms", "pm-brainstorm-gui", "pm-approval-gui"]
+members = ["supervisor", "pm-gui-forms", "pm-brainstorm-gui", "pm-approval-gui", "interactive-terminal/pty-host"]
 exclude = ["interactive-terminal"]
 
 [workspace.dependencies]
