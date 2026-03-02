@@ -1536,12 +1536,67 @@ fn parse_marker_exit_code(line: &str, marker: &str) -> Option<i32> {
     value.parse::<i32>().ok()
 }
 
-fn build_ws_wrapped_command(request: &CommandRequest, marker: &str) -> String {
-    let cwd = if request.working_directory.trim().is_empty() {
-        request.workspace_path.clone()
+fn resolve_ws_working_directory(request: &CommandRequest) -> String {
+    let requested = request.working_directory.trim();
+    let workspace = request.workspace_path.trim();
+
+    let workspace_path = if workspace.is_empty() {
+        None
     } else {
-        request.working_directory.clone()
+        let path = std::path::PathBuf::from(workspace);
+        if path.is_dir() {
+            Some(path)
+        } else {
+            None
+        }
     };
+
+    if !requested.is_empty() {
+        let requested_path = std::path::PathBuf::from(requested);
+
+        if requested_path.is_dir() {
+            return requested_path.to_string_lossy().to_string();
+        }
+
+        if requested_path.is_relative() {
+            if let Some(workspace_path) = workspace_path.as_ref() {
+                let joined = workspace_path.join(&requested_path);
+                if joined.is_dir() {
+                    return joined.to_string_lossy().to_string();
+                }
+            }
+
+            if let Ok(current_dir) = std::env::current_dir() {
+                let joined = current_dir.join(&requested_path);
+                if joined.is_dir() {
+                    return joined.to_string_lossy().to_string();
+                }
+            }
+        }
+    }
+
+    if let Some(workspace_path) = workspace_path {
+        return workspace_path.to_string_lossy().to_string();
+    }
+
+    if let Ok(current_dir) = std::env::current_dir() {
+        return current_dir.to_string_lossy().to_string();
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(home) = std::env::var("USERPROFILE") {
+            if std::path::Path::new(&home).is_dir() {
+                return home;
+            }
+        }
+    }
+
+    ".".to_string()
+}
+
+fn build_ws_wrapped_command(request: &CommandRequest, marker: &str) -> String {
+    let cwd = resolve_ws_working_directory(request);
     let escaped_cwd = escape_powershell_single_quoted(&cwd);
     let env_prefix = build_ws_env_prefix(request);
 
@@ -1656,7 +1711,9 @@ async fn execute_command_via_ws_terminal(
 mod tests {
     use super::*;
     use crate::cxxqt_bridge::completed_outputs::{CompletedOutput, OutputTracker};
-    use crate::protocol::Message;
+    use crate::protocol::{CommandRequest, Message};
+    use std::collections::HashMap;
+    use std::path::PathBuf;
     use tokio::time::Instant;
 
     // ===================================================================
@@ -2073,5 +2130,71 @@ mod tests {
         let (stdout, stderr) = separate_stdout_stderr(&lines);
         assert!(stdout.is_empty());
         assert!(stderr.is_empty());
+    }
+
+    #[test]
+    fn ws_wrap_resolves_relative_cwd_against_workspace() {
+        let workspace = std::env::temp_dir().join(format!("pm-ws-cwd-{}", std::process::id()));
+        let project_dir = workspace.join("Project-Memory-MCP");
+        std::fs::create_dir_all(&project_dir).expect("workspace dirs");
+
+        let request = CommandRequest {
+            id: "r1".into(),
+            command: "pwd".into(),
+            working_directory: "./Project-Memory-MCP".into(),
+            context: String::new(),
+            session_id: "default".into(),
+            terminal_profile: Default::default(),
+            workspace_path: workspace.to_string_lossy().to_string(),
+            venv_path: String::new(),
+            activate_venv: false,
+            timeout_seconds: 30,
+            args: vec![],
+            env: HashMap::new(),
+            workspace_id: "ws".into(),
+            allowlisted: true,
+        };
+
+        let wrapped = build_ws_wrapped_command(&request, "__M__");
+        let expected = format!(
+            "Set-Location -LiteralPath '{}'",
+            escape_powershell_single_quoted(&project_dir.to_string_lossy())
+        );
+
+        assert!(wrapped.contains(&expected), "wrapped command: {wrapped}");
+        let _ = std::fs::remove_dir_all(PathBuf::from(&workspace));
+    }
+
+    #[test]
+    fn ws_wrap_falls_back_to_workspace_when_relative_target_missing() {
+        let workspace =
+            std::env::temp_dir().join(format!("pm-ws-cwd-fallback-{}", std::process::id()));
+        std::fs::create_dir_all(&workspace).expect("workspace dir");
+
+        let request = CommandRequest {
+            id: "r2".into(),
+            command: "pwd".into(),
+            working_directory: "./does-not-exist".into(),
+            context: String::new(),
+            session_id: "default".into(),
+            terminal_profile: Default::default(),
+            workspace_path: workspace.to_string_lossy().to_string(),
+            venv_path: String::new(),
+            activate_venv: false,
+            timeout_seconds: 30,
+            args: vec![],
+            env: HashMap::new(),
+            workspace_id: "ws".into(),
+            allowlisted: true,
+        };
+
+        let wrapped = build_ws_wrapped_command(&request, "__M__");
+        let expected = format!(
+            "Set-Location -LiteralPath '{}'",
+            escape_powershell_single_quoted(&workspace.to_string_lossy())
+        );
+
+        assert!(wrapped.contains(&expected), "wrapped command: {wrapped}");
+        let _ = std::fs::remove_dir_all(PathBuf::from(&workspace));
     }
 }

@@ -34,6 +34,22 @@ interface WorkspaceResolution {
     source: 'identity' | 'fallback';
 }
 
+interface WorkspaceContextSectionItem {
+    title: string;
+    description?: string;
+    links?: string[];
+}
+
+interface WorkspaceContextSection {
+    summary?: string;
+    items?: WorkspaceContextSectionItem[];
+}
+
+interface WorkspaceContextPayload {
+    name?: string;
+    sections?: Record<string, WorkspaceContextSection>;
+}
+
 export class DashboardViewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'projectMemory.dashboardView';
 
@@ -519,6 +535,70 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
         return value.replace(/\r\n/g, '\n').trim();
     }
 
+    private async syncAlwaysProvidedNotesToWorkspaceContext(notes: string): Promise<void> {
+        const workspace = this.resolveWorkspaceContext();
+        if (!workspace?.workspaceId) {
+            return;
+        }
+
+        const port = this.getApiPort();
+        const baseUrl = `http://localhost:${port}/api/workspaces/${workspace.workspaceId}/context`;
+
+        const readResponse = await fetch(baseUrl);
+        if (!readResponse.ok) {
+            return;
+        }
+
+        const existing = (await readResponse.json().catch(() => ({}))) as { context?: WorkspaceContextPayload };
+        const currentContext = existing.context || {};
+        const sectionsInput = currentContext.sections;
+        const sections: Record<string, WorkspaceContextSection> =
+            sectionsInput && typeof sectionsInput === 'object' ? { ...sectionsInput } : {};
+
+        const sectionKey = 'important_context';
+        const managedTitle = 'Always-Provided Notes (Dashboard)';
+        const currentSection = sections[sectionKey] && typeof sections[sectionKey] === 'object'
+            ? { ...sections[sectionKey] }
+            : {};
+
+        const rawItems = Array.isArray(currentSection.items) ? currentSection.items : [];
+        const preservedItems = rawItems.filter((item) => item && item.title !== managedTitle);
+
+        if (notes) {
+            preservedItems.unshift({
+                title: managedTitle,
+                description: notes,
+            });
+        }
+
+        if (preservedItems.length > 0) {
+            currentSection.items = preservedItems;
+        } else {
+            delete currentSection.items;
+        }
+
+        if (notes && (!currentSection.summary || !currentSection.summary.trim())) {
+            currentSection.summary = 'Workspace always-provided notes are stored in this section items.';
+        }
+
+        if ((currentSection.summary && currentSection.summary.trim()) || (currentSection.items && currentSection.items.length > 0)) {
+            sections[sectionKey] = currentSection;
+        } else {
+            delete sections[sectionKey];
+        }
+
+        const payload: WorkspaceContextPayload = {
+            name: typeof currentContext.name === 'string' ? currentContext.name : workspace.workspaceName,
+            sections,
+        };
+
+        await fetch(baseUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+    }
+
     private getAlwaysProvidedNotes(): string {
         const config = vscode.workspace.getConfiguration('projectMemory');
         return this.normalizeAlwaysProvidedNotes(config.get<string>('alwaysProvidedNotes', ''));
@@ -529,9 +609,15 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
         const config = vscode.workspace.getConfiguration('projectMemory', workspaceFolder?.uri);
         if (workspaceFolder) {
             await config.update('alwaysProvidedNotes', notes, vscode.ConfigurationTarget.WorkspaceFolder);
-            return;
+        } else {
+            await config.update('alwaysProvidedNotes', notes, vscode.ConfigurationTarget.Workspace);
         }
-        await config.update('alwaysProvidedNotes', notes, vscode.ConfigurationTarget.Workspace);
+
+        try {
+            await this.syncAlwaysProvidedNotesToWorkspaceContext(notes);
+        } catch (error) {
+            console.warn('[PM] Failed syncing always-provided notes to workspace context:', error);
+        }
     }
 }
 
