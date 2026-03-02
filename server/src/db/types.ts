@@ -425,6 +425,22 @@ export interface SkillDefinitionRow {
   updated_at:       string;
 }
 
+export interface WorkspaceInstructionAssignmentRow {
+  id:           string;
+  workspace_id: string;
+  filename:     string;
+  notes:        string | null;
+  assigned_at:  string;
+}
+
+export interface WorkspaceSkillAssignmentRow {
+  id:           string;
+  workspace_id: string;
+  skill_name:   string;
+  notes:        string | null;
+  assigned_at:  string;
+}
+
 // ============================================================
 // AUDIT
 // ============================================================

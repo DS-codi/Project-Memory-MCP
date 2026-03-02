@@ -1,7 +1,9 @@
 /**
  * Consolidated Agent Tool - memory_agent
  * 
- * Actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage, categorize, deploy_for_task, deploy_agent_to_workspace
+ * Actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage, categorize, deploy_for_task, deploy_agent_to_workspace,
+ *          list_skills, get_skill, create_skill, delete_skill, assign_skill, unassign_skill, list_workspace_skills,
+ *          list_instructions, get_instruction, create_instruction, delete_instruction, assign_instruction, unassign_instruction, list_workspace_instructions
  * Replaces: initialise_agent, complete_agent, handoff, validate_*, list_agents, 
  *           get_agent_instructions, deploy_agents_to_workspace, get_mission_briefing, get_lineage
  *
@@ -78,6 +80,26 @@ import { incrementStat } from '../session-stats.js';
 import { events } from '../../events/event-emitter.js';
 import { registerLiveSession, clearLiveSession, serverSessionIdForPrepId } from '../session-live-store.js';
 import { getRequiredContextKeys } from '../../db/agent-definition-db.js';
+import {
+  listSkills,
+  getSkill,
+  storeSkill,
+  deleteSkill,
+  assignSkillToWorkspace,
+  unassignSkillFromWorkspace,
+  listWorkspaceSkillAssignments,
+  getWorkspaceSkillsWithContent,
+} from '../../db/skill-db.js';
+import {
+  listInstructions,
+  getInstruction,
+  storeInstruction,
+  deleteInstruction,
+  assignInstructionToWorkspace,
+  unassignInstructionFromWorkspace,
+  listWorkspaceInstructionAssignments,
+  getWorkspaceInstructionsWithContent,
+} from '../../db/instruction-db.js';
 
 export type AgentAction = 
   | 'init' 
@@ -91,7 +113,21 @@ export type AgentAction =
   | 'get_lineage'
   | 'categorize'
   | 'deploy_for_task'
-  | 'deploy_agent_to_workspace';
+  | 'deploy_agent_to_workspace'
+  | 'list_skills'
+  | 'get_skill'
+  | 'list_instructions'
+  | 'get_instruction'
+  | 'assign_instruction'
+  | 'unassign_instruction'
+  | 'list_workspace_instructions'
+  | 'assign_skill'
+  | 'unassign_skill'
+  | 'list_workspace_skills'
+  | 'create_skill'
+  | 'delete_skill'
+  | 'create_instruction'
+  | 'delete_instruction';
 
 export interface MemoryAgentParams {
   action: AgentAction;
@@ -129,6 +165,25 @@ export interface MemoryAgentParams {
   // For get_instructions
   agent_name?: string;
   
+  // For list_skills, get_skill, create_skill, delete_skill, assign_skill, unassign_skill, list_workspace_skills
+  skill_name?: string;
+  skill_category?: string;
+  // For create_skill
+  skill_content?: string;
+  skill_description?: string;
+  skill_tags?: string[];
+  skill_language_targets?: string[];
+  skill_framework_targets?: string[];
+
+  // For list_instructions, get_instruction, create_instruction, delete_instruction, assign_instruction, unassign_instruction, list_workspace_instructions
+  instruction_filename?: string;
+  // For create_instruction
+  instruction_applies_to?: string;
+  instruction_content?: string;
+
+  // Shared optional notes for assign_skill / assign_instruction
+  notes?: string;
+
   // For deploy
   workspace_path?: string;
   agents?: string[];
@@ -292,7 +347,25 @@ type AgentResult =
       direct_option_a_migration_plan?: import('../orchestration/hub-migration-plan.js').DirectOptionAMigrationPlan;
       direct_option_a_progress?: import('../orchestration/hub-migration-plan.js').DirectOptionAProgressReport;
       legacy_deprecation_workflow?: import('../orchestration/hub-deprecation-workflow.js').LegacyDeprecationWorkflowReport;
-    } };
+    } }
+  // ── Skill discovery ──────────────────────────────────────────────────────
+  | { action: 'list_skills'; data: Array<{ name: string; category: string | null; description: string | null; tags: string[]; language_targets: string[]; framework_targets: string[]; updated_at: string }> }
+  | { action: 'get_skill'; data: { name: string; category: string | null; description: string | null; tags: string[]; language_targets: string[]; framework_targets: string[]; content: string; updated_at: string } }
+  | { action: 'assign_skill'; data: { workspace_id: string; skill_name: string } }
+  | { action: 'unassign_skill'; data: { workspace_id: string; skill_name: string } }
+  | { action: 'list_workspace_skills'; data: Array<{ name: string; category: string | null; description: string | null; tags: string[]; language_targets: string[]; framework_targets: string[]; assignment_notes: string | null; content: string }> }
+  // ── Instruction discovery ─────────────────────────────────────────────────
+  | { action: 'list_instructions'; data: Array<{ filename: string; applies_to: string; updated_at: string }> }
+  | { action: 'get_instruction'; data: { filename: string; applies_to: string; content: string; updated_at: string } }
+  | { action: 'assign_instruction'; data: { workspace_id: string; filename: string } }
+  | { action: 'unassign_instruction'; data: { workspace_id: string; filename: string } }
+  | { action: 'list_workspace_instructions'; data: Array<{ filename: string; applies_to: string; assignment_notes: string | null; content: string }> }
+  // ── Skill management ─────────────────────────────────────────────────────
+  | { action: 'create_skill'; data: { name: string; created: boolean; workspace_assigned: boolean; workspace_id?: string } }
+  | { action: 'delete_skill'; data: { name: string; deleted: boolean } }
+  // ── Instruction management ────────────────────────────────────────────────
+  | { action: 'create_instruction'; data: { filename: string; created: boolean; workspace_assigned: boolean; workspace_id?: string } }
+  | { action: 'delete_instruction'; data: { filename: string; deleted: boolean } };
 
 export async function memoryAgent(params: MemoryAgentParams): Promise<ToolResponse<AgentResult>> {
   const { action } = params;
@@ -300,7 +373,7 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
   if (!action) {
     return {
       success: false,
-      error: 'action is required. Valid actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage, categorize, deploy_for_task, deploy_agent_to_workspace'
+      error: 'action is required. Valid actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage, categorize, deploy_for_task, deploy_agent_to_workspace, list_skills, get_skill, assign_skill, unassign_skill, list_workspace_skills, list_instructions, get_instruction, assign_instruction, unassign_instruction, list_workspace_instructions'
     };
   }
 
@@ -1101,10 +1174,261 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
       }
     }
 
+    // ── Skill discovery ───────────────────────────────────────────────────
+
+    case 'list_skills': {
+      const rows = listSkills(params.skill_category);
+      return {
+        success: true,
+        data: {
+          action: 'list_skills',
+          data: rows.map(r => ({
+            name:              r.name,
+            category:          r.category,
+            description:       r.description,
+            tags:              r.tags    ? JSON.parse(r.tags)              : [],
+            language_targets:  r.language_targets  ? JSON.parse(r.language_targets)  : [],
+            framework_targets: r.framework_targets ? JSON.parse(r.framework_targets) : [],
+            updated_at:        r.updated_at,
+          }))
+        }
+      };
+    }
+
+    case 'get_skill': {
+      if (!params.skill_name) {
+        return { success: false, error: 'skill_name is required for action: get_skill' };
+      }
+      const row = getSkill(params.skill_name);
+      if (!row) {
+        return { success: false, error: `Skill not found: ${params.skill_name}` };
+      }
+      return {
+        success: true,
+        data: {
+          action: 'get_skill',
+          data: {
+            name:              row.name,
+            category:          row.category,
+            description:       row.description,
+            tags:              row.tags              ? JSON.parse(row.tags)              : [],
+            language_targets:  row.language_targets  ? JSON.parse(row.language_targets)  : [],
+            framework_targets: row.framework_targets ? JSON.parse(row.framework_targets) : [],
+            content:           row.content,
+            updated_at:        row.updated_at,
+          }
+        }
+      };
+    }
+
+    case 'assign_skill': {
+      if (!params.workspace_id || !params.skill_name) {
+        return { success: false, error: 'workspace_id and skill_name are required for action: assign_skill' };
+      }
+      assignSkillToWorkspace(params.workspace_id, params.skill_name, params.notes ?? null);
+      return {
+        success: true,
+        data: { action: 'assign_skill', data: { workspace_id: params.workspace_id, skill_name: params.skill_name } }
+      };
+    }
+
+    case 'unassign_skill': {
+      if (!params.workspace_id || !params.skill_name) {
+        return { success: false, error: 'workspace_id and skill_name are required for action: unassign_skill' };
+      }
+      unassignSkillFromWorkspace(params.workspace_id, params.skill_name);
+      return {
+        success: true,
+        data: { action: 'unassign_skill', data: { workspace_id: params.workspace_id, skill_name: params.skill_name } }
+      };
+    }
+
+    case 'list_workspace_skills': {
+      if (!params.workspace_id) {
+        return { success: false, error: 'workspace_id is required for action: list_workspace_skills' };
+      }
+      const skills = getWorkspaceSkillsWithContent(params.workspace_id);
+      return {
+        success: true,
+        data: {
+          action: 'list_workspace_skills',
+          data: skills.map(s => ({
+            name:             s.name,
+            category:         s.category,
+            description:      s.description,
+            tags:             s.tags              ? JSON.parse(s.tags)              : [],
+            language_targets: s.language_targets  ? JSON.parse(s.language_targets)  : [],
+            framework_targets:s.framework_targets ? JSON.parse(s.framework_targets) : [],
+            assignment_notes: s.assignment_notes,
+            content:          s.content,
+          }))
+        }
+      };
+    }
+
+    // ── Instruction discovery ─────────────────────────────────────────────
+
+    case 'list_instructions': {
+      const rows = listInstructions();
+      return {
+        success: true,
+        data: {
+          action: 'list_instructions',
+          data: rows.map(r => ({
+            filename:   r.filename,
+            applies_to: r.applies_to,
+            updated_at: r.updated_at,
+          }))
+        }
+      };
+    }
+
+    case 'get_instruction': {
+      if (!params.instruction_filename) {
+        return { success: false, error: 'instruction_filename is required for action: get_instruction' };
+      }
+      const row = getInstruction(params.instruction_filename);
+      if (!row) {
+        return { success: false, error: `Instruction not found: ${params.instruction_filename}` };
+      }
+      return {
+        success: true,
+        data: {
+          action: 'get_instruction',
+          data: {
+            filename:   row.filename,
+            applies_to: row.applies_to,
+            content:    row.content,
+            updated_at: row.updated_at,
+          }
+        }
+      };
+    }
+
+    case 'assign_instruction': {
+      if (!params.workspace_id || !params.instruction_filename) {
+        return { success: false, error: 'workspace_id and instruction_filename are required for action: assign_instruction' };
+      }
+      assignInstructionToWorkspace(params.workspace_id, params.instruction_filename, params.notes ?? null);
+      return {
+        success: true,
+        data: { action: 'assign_instruction', data: { workspace_id: params.workspace_id, filename: params.instruction_filename } }
+      };
+    }
+
+    case 'unassign_instruction': {
+      if (!params.workspace_id || !params.instruction_filename) {
+        return { success: false, error: 'workspace_id and instruction_filename are required for action: unassign_instruction' };
+      }
+      unassignInstructionFromWorkspace(params.workspace_id, params.instruction_filename);
+      return {
+        success: true,
+        data: { action: 'unassign_instruction', data: { workspace_id: params.workspace_id, filename: params.instruction_filename } }
+      };
+    }
+
+    case 'list_workspace_instructions': {
+      if (!params.workspace_id) {
+        return { success: false, error: 'workspace_id is required for action: list_workspace_instructions' };
+      }
+      const instructions = getWorkspaceInstructionsWithContent(params.workspace_id);
+      return {
+        success: true,
+        data: {
+          action: 'list_workspace_instructions',
+          data: instructions.map(i => ({
+            filename:         i.filename,
+            applies_to:       i.applies_to,
+            assignment_notes: i.assignment_notes,
+            content:          i.content,
+          }))
+        }
+      };
+    }
+
+    // ── Skill management ──────────────────────────────────────────────────
+
+    case 'create_skill': {
+      if (!params.skill_name || !params.skill_content) {
+        return { success: false, error: 'skill_name and skill_content are required for action: create_skill' };
+      }
+      storeSkill(params.skill_name, {
+        category:          params.skill_category ?? null,
+        content:           params.skill_content,
+        description:       params.skill_description ?? null,
+        tags:              params.skill_tags ?? null,
+        language_targets:  params.skill_language_targets ?? null,
+        framework_targets: params.skill_framework_targets ?? null,
+      });
+      const skillWorkspaceAssigned = !!params.workspace_id;
+      if (params.workspace_id) {
+        assignSkillToWorkspace(params.workspace_id, params.skill_name, params.notes ?? null);
+      }
+      return {
+        success: true,
+        data: {
+          action: 'create_skill',
+          data: {
+            name:               params.skill_name,
+            created:            true,
+            workspace_assigned: skillWorkspaceAssigned,
+            ...(skillWorkspaceAssigned && { workspace_id: params.workspace_id }),
+          }
+        }
+      };
+    }
+
+    case 'delete_skill': {
+      if (!params.skill_name) {
+        return { success: false, error: 'skill_name is required for action: delete_skill' };
+      }
+      deleteSkill(params.skill_name);
+      return {
+        success: true,
+        data: { action: 'delete_skill', data: { name: params.skill_name, deleted: true } }
+      };
+    }
+
+    // ── Instruction management ────────────────────────────────────────────
+
+    case 'create_instruction': {
+      if (!params.instruction_filename || !params.instruction_applies_to || !params.instruction_content) {
+        return { success: false, error: 'instruction_filename, instruction_applies_to, and instruction_content are required for action: create_instruction' };
+      }
+      storeInstruction(params.instruction_filename, params.instruction_applies_to, params.instruction_content);
+      const instrWorkspaceAssigned = !!params.workspace_id;
+      if (params.workspace_id) {
+        assignInstructionToWorkspace(params.workspace_id, params.instruction_filename, params.notes ?? null);
+      }
+      return {
+        success: true,
+        data: {
+          action: 'create_instruction',
+          data: {
+            filename:           params.instruction_filename,
+            created:            true,
+            workspace_assigned: instrWorkspaceAssigned,
+            ...(instrWorkspaceAssigned && { workspace_id: params.workspace_id }),
+          }
+        }
+      };
+    }
+
+    case 'delete_instruction': {
+      if (!params.instruction_filename) {
+        return { success: false, error: 'instruction_filename is required for action: delete_instruction' };
+      }
+      deleteInstruction(params.instruction_filename);
+      return {
+        success: true,
+        data: { action: 'delete_instruction', data: { filename: params.instruction_filename, deleted: true } }
+      };
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage, categorize, deploy_for_task, deploy_agent_to_workspace`
+        error: `Unknown action: ${action}. Valid actions: init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage, categorize, deploy_for_task, deploy_agent_to_workspace, list_skills, get_skill, create_skill, delete_skill, assign_skill, unassign_skill, list_workspace_skills, list_instructions, get_instruction, create_instruction, delete_instruction, assign_instruction, unassign_instruction, list_workspace_instructions`
       };
   }
 }

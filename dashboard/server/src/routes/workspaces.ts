@@ -2,7 +2,7 @@ import { Router } from 'express';
 import * as crypto from 'crypto';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { listWorkspaces, getWorkspace, getWorkspaceMetrics, getBuildScripts, getWorkspaceContext } from '../db/queries.js';
+import { listWorkspaces, getWorkspace, getWorkspaceMetrics, getBuildScripts, getWorkspaceContext, saveWorkspaceContext } from '../db/queries.js';
 import { emitEvent } from '../events/emitter.js';
 import { getDataRoot, getWorkspaceDisplayName, resolveCanonicalWorkspaceId, writeWorkspaceIdentityFile, safeResolvePath } from '../storage/workspace-utils.js';
 
@@ -479,6 +479,7 @@ workspacesRouter.put('/:id/context', async (req, res) => {
       sections,
     };
 
+    await saveWorkspaceContext(workspaceId, context);
     await fs.writeFile(contextPath, JSON.stringify(context, null, 2));
 
     res.json({ success: true, context, path: contextPath });

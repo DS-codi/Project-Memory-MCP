@@ -32,7 +32,7 @@ export function getClientHelpers(): string {
             if (typeof value !== 'string') {
                 return '';
             }
-            return value.replace(/\r\n/g, '\n').trim();
+            return value.replace(/\\r\\n/g, '\\n').trim();
         }
 
         function setAlwaysProvidedNotes(notes, options) {
@@ -198,6 +198,9 @@ export function getClientHelpers(): string {
                 if (plan.is_program && typeof plan.child_plans_count === 'number') {
                     metaParts.push(plan.child_plans_count + ' child plans');
                 }
+                const inlineSelectedDetails = isSelected
+                    ? renderInlineSelectedPlanDetails(planId, planWorkspaceId)
+                    : '';
                 return \`
                     <div class="plan-item\${isSelected ? ' selected' : ''}" data-plan-id="\${planId}" data-workspace-id="\${planWorkspaceId}" tabindex="0" role="button" title="Select \${entityType.toLowerCase()}">
                         <div class="plan-info">
@@ -206,6 +209,7 @@ export function getClientHelpers(): string {
                                 <span class="entity-badge \${entityClass}">\${entityType}</span>
                                 \${metaParts.map(part => \`<span>\${part}</span>\`).join('<span>&#8226;</span>')}
                             </div>
+                            \${inlineSelectedDetails}
                         </div>
                         <span class="plan-status \${plan.status}">\${plan.status}</span>
                         <div class="plan-actions">
@@ -217,6 +221,33 @@ export function getClientHelpers(): string {
                     </div>
                 \`;
             }).join('');
+        }
+
+        function renderInlineSelectedPlanDetails(planId, planWorkspaceId) {
+            const selectedDetailsId = selectedPlanDetails && (selectedPlanDetails.id || selectedPlanDetails.plan_id);
+            const selectedDetailsWorkspaceId = selectedPlanDetails && (selectedPlanDetails.workspace_id || selectedPlanWorkspaceId || workspaceId);
+            const hasMatchingDetails = !!selectedPlanDetails &&
+                selectedDetailsId === planId &&
+                selectedDetailsWorkspaceId === planWorkspaceId;
+
+            if (!hasMatchingDetails) {
+                return '<div class="plan-inline-panel"><div class="empty-state">Loading selected plan…</div></div>';
+            }
+
+            const status = (selectedPlanDetails.status || 'unknown').toLowerCase();
+            const currentPhase = selectedPlanDetails.current_phase || selectedPlanDetails.phase || '';
+            const workspaceValue = selectedPlanDetails.workspace_id || planWorkspaceId || workspaceId;
+            const inlineMeta = [workspaceValue, status, currentPhase].filter(Boolean).join(' • ');
+
+            return (
+                '<div class="plan-inline-panel">' +
+                    '<div class="selected-plan-header">' +
+                        '<h4>' + escapeHtml(selectedPlanDetails.title || planId) + '</h4>' +
+                        '<span class="selected-plan-meta">' + escapeHtml(inlineMeta) + '</span>' +
+                    '</div>' +
+                    '<div class="selected-plan-body">' + renderStepViewer(selectedPlanDetails.steps || []) + '</div>' +
+                '</div>'
+            );
         }
 
         function renderProgramsSummary(programs) {
@@ -959,6 +990,7 @@ export function getClientHelpers(): string {
 
                 selectedPlanDetails = planDetails;
                 updateSelectedPlanPanel();
+                updatePlanLists();
                 updatePlanIntelligencePanel();
                 updateActionAvailability();
 
@@ -992,6 +1024,7 @@ export function getClientHelpers(): string {
                 };
                 selectedPlanBuildScripts = [];
                 updateSelectedPlanPanel();
+                updatePlanLists();
                 updatePlanIntelligencePanel();
                 updateBuildGatePanel();
                 updateActionAvailability();

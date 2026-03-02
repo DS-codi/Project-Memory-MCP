@@ -213,17 +213,71 @@ function Show-InstallHelp {
 }
 
 function Show-Banner {
-    $banner = @'
-    ____             _           __     __  ___                              
-   / __ \_________  (_)__  _____/ /_   /  |/  /___  ____ ___  ____  _______  __
-  / /_/ / ___/ __ \/ / _ \/ ___/ __/  / /|_/ / _ \/ __ `__ \/ __ \/ ___/ / / /
- / ____/ /  / /_/ / /  __/ /__/ /_   / /  / /  __/ / / / / / /_/ / /  / /_/ / 
-/_/   /_/   \____/ /\___/\___/\__/  /_/  /_/\___/_/ /_/ /_/\____/_/   \__, /  
-              /___/                                                  /____/   
-'@
+    $banner = @(
+        "    ____             _           __     __  ___                              ",
+        "   / __ \_________  (_)__  _____/ /_   /  |/  /___  ____ ___  ____  _______  __",
+        "  / /_/ / ___/ __ \/ / _ \/ ___/ __/  / /|_/ / _ \/ __ `__ \/ __ \/ ___/ / / /",
+        " / ____/ /  / /_/ / /  __/ /__/ /_   / /  / /  __/ / / / / / /_/ / /  / /_/ / ",
+        "/_/   /_/   \____/ /\___/\___/\__/  /_/  /_/\___/_/ /_/ /_/\____/_/   \__, /  ",
+        "              /___/                                                  /____/   "
+    )
+
+    $baseColor = 'DarkCyan'
+    $highlight0 = 'White'
+    $highlight1 = 'Cyan'
+    $highlight2 = 'DarkCyan'
+    $maxWidth = ($banner | ForEach-Object { $_.Length } | Measure-Object -Maximum).Maximum
+    $bannerStartRow = 0
+    $lastScanPos = -1
 
     Clear-Host
-    Write-Host $banner -ForegroundColor Cyan
+    [console]::CursorVisible = $false
+    try {
+        for ($row = 0; $row -lt $banner.Count; $row++) {
+            [console]::SetCursorPosition(0, $bannerStartRow + $row)
+            $line = $banner[$row]
+            for ($col = 0; $col -lt $line.Length; $col++) {
+                Write-Host $line[$col] -NoNewline -ForegroundColor $baseColor
+            }
+        }
+
+        for ($scanPos = 0; $scanPos -lt $maxWidth; $scanPos++) {
+            if ($lastScanPos -ge 0) {
+                for ($row = 0; $row -lt $banner.Count; $row++) {
+                    $line = $banner[$row]
+                    if ($lastScanPos -lt $line.Length) {
+                        $ch = $line[$lastScanPos]
+                        if ($ch -ne ' ') {
+                            [console]::SetCursorPosition($lastScanPos, $bannerStartRow + $row)
+                            Write-Host $ch -NoNewline -ForegroundColor $baseColor
+                        }
+                    }
+                }
+            }
+
+            for ($row = 0; $row -lt $banner.Count; $row++) {
+                $line = $banner[$row]
+                for ($offset = -2; $offset -le 2; $offset++) {
+                    $col = $scanPos + $offset
+                    if ($col -lt 0 -or $col -ge $line.Length) { continue }
+
+                    $ch = $line[$col]
+                    if ($ch -eq ' ') { continue }
+
+                    $color = if ($offset -eq 0) { $highlight0 } elseif ([math]::Abs($offset) -eq 1) { $highlight1 } else { $highlight2 }
+                    [console]::SetCursorPosition($col, $bannerStartRow + $row)
+                    Write-Host $ch -NoNewline -ForegroundColor $color
+                }
+            }
+
+            $lastScanPos = $scanPos
+            Start-Sleep -Milliseconds 16
+        }
+    } finally {
+        [console]::CursorVisible = $true
+    }
+
+    [console]::SetCursorPosition(0, $bannerStartRow + $banner.Count)
     Write-Host "=========================================================================" -ForegroundColor DarkGray
     Write-Host " Initializing..." -ForegroundColor Green
     Write-Host ""

@@ -2,7 +2,7 @@
  * Skill definition storage with tag/category/framework matching.
  */
 
-import type { SkillDefinitionRow } from './types.js';
+import type { SkillDefinitionRow, WorkspaceSkillAssignmentRow } from './types.js';
 import { queryOne, queryAll, run, newId, nowIso } from './query-helpers.js';
 
 // ---------------------------------------------------------------------------
@@ -147,4 +147,68 @@ export function matchSkills(query: string, opts: MatchSkillsOptions = {}): Skill
 
 export function deleteSkill(name: string): void {
   run('DELETE FROM skill_definitions WHERE name = ?', [name]);
+}
+
+// ---------------------------------------------------------------------------
+// Workspace assignments
+// ---------------------------------------------------------------------------
+
+/**
+ * Assign a skill to a workspace so it is included in agent context bundles
+ * for that workspace, even if it would not be matched by automatic pattern
+ * matching in deploy_and_prep.
+ */
+export function assignSkillToWorkspace(
+  workspaceId: string,
+  skillName:   string,
+  notes?:      string | null
+): void {
+  const existing = queryOne<WorkspaceSkillAssignmentRow>(
+    'SELECT id FROM workspace_skill_assignments WHERE workspace_id = ? AND skill_name = ?',
+    [workspaceId, skillName]
+  );
+  if (existing) {
+    if (notes !== undefined) {
+      run(
+        'UPDATE workspace_skill_assignments SET notes = ? WHERE workspace_id = ? AND skill_name = ?',
+        [notes ?? null, workspaceId, skillName]
+      );
+    }
+    return;
+  }
+  run(
+    `INSERT INTO workspace_skill_assignments (id, workspace_id, skill_name, notes, assigned_at)
+     VALUES (?, ?, ?, ?, ?)`,
+    [newId(), workspaceId, skillName, notes ?? null, nowIso()]
+  );
+}
+
+export function unassignSkillFromWorkspace(workspaceId: string, skillName: string): void {
+  run(
+    'DELETE FROM workspace_skill_assignments WHERE workspace_id = ? AND skill_name = ?',
+    [workspaceId, skillName]
+  );
+}
+
+export function listWorkspaceSkillAssignments(
+  workspaceId: string
+): WorkspaceSkillAssignmentRow[] {
+  return queryAll<WorkspaceSkillAssignmentRow>(
+    'SELECT * FROM workspace_skill_assignments WHERE workspace_id = ? ORDER BY skill_name',
+    [workspaceId]
+  );
+}
+
+/** Returns full skill content for all skills explicitly assigned to a workspace. */
+export function getWorkspaceSkillsWithContent(
+  workspaceId: string
+): Array<SkillDefinitionRow & { assignment_notes: string | null }> {
+  return queryAll<SkillDefinitionRow & { assignment_notes: string | null }>(
+    `SELECT s.*, a.notes AS assignment_notes
+       FROM skill_definitions s
+       JOIN workspace_skill_assignments a ON s.name = a.skill_name
+      WHERE a.workspace_id = ?
+      ORDER BY s.name`,
+    [workspaceId]
+  );
 }

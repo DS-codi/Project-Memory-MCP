@@ -10,6 +10,9 @@
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import * as net from 'node:net';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { TcpTerminalAdapter } from '../../tools/terminal-tcp-adapter.js';
 import type {
   CommandRequest,
@@ -498,5 +501,66 @@ describe('TcpTerminalAdapter', () => {
     expect(message).toMatch(new RegExp(`host\\.docker\\.internal:${unavailablePort}`));
     expect(message).toMatch(new RegExp(`127\\.0\\.0\\.1:${unavailablePort}`));
     expect(message).toMatch(new RegExp(`localhost:${unavailablePort}`));
+  });
+
+  it('in host mode, resolves default runtime port from PM_INTERACTIVE_TERMINAL_PORT', async () => {
+    const { server, port } = await createMockGuiServer((req, respond) => {
+      respond({
+        type: 'command_response',
+        id: req.id,
+        status: 'approved',
+        output: 'env-port-ok',
+        exit_code: 0,
+      });
+    });
+
+    process.env.PM_RUNNING_IN_CONTAINER = 'false';
+    process.env.PM_INTERACTIVE_TERMINAL_PORT = String(port);
+    delete process.env.PM_SUPERVISOR_CONFIG_PATH;
+
+    const adapter = new TcpTerminalAdapter();
+    track(adapter, server);
+
+    await adapter.connect();
+    const response = await adapter.sendAndAwait(makeRequest('req-env-port'));
+
+    expect(response.status).toBe('approved');
+    expect(response.output).toBe('env-port-ok');
+  });
+
+  it('in host mode, resolves default runtime port from supervisor.toml interactive_terminal.port', async () => {
+    const { server, port } = await createMockGuiServer((req, respond) => {
+      respond({
+        type: 'command_response',
+        id: req.id,
+        status: 'approved',
+        output: 'config-port-ok',
+        exit_code: 0,
+      });
+    });
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pm-supervisor-config-'));
+    const configPath = path.join(tmpDir, 'supervisor.toml');
+    fs.writeFileSync(
+      configPath,
+      `[interactive_terminal]\nport = ${port}\n\n[dashboard]\nport = 3459\n`,
+      'utf8',
+    );
+
+    process.env.PM_RUNNING_IN_CONTAINER = 'false';
+    delete process.env.PM_INTERACTIVE_TERMINAL_PORT;
+    process.env.PM_SUPERVISOR_CONFIG_PATH = configPath;
+
+    const adapter = new TcpTerminalAdapter();
+    track(adapter, server);
+
+    try {
+      await adapter.connect();
+      const response = await adapter.sendAndAwait(makeRequest('req-config-port'));
+      expect(response.status).toBe('approved');
+      expect(response.output).toBe('config-port-ok');
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 });

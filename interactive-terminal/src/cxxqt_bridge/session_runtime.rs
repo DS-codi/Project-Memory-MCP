@@ -5,7 +5,7 @@ use crate::saved_commands::WorkspaceSavedCommands;
 use crate::saved_commands_repository::SavedCommandsRepository;
 use cxx_qt_lib::QString;
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
 pub struct TerminalAppRust {
@@ -29,6 +29,9 @@ pub struct TerminalAppRust {
     pub(crate) run_commands_in_window: bool,
     pub(crate) gemini_key_present: bool,
     pub(crate) gemini_injection_requested: bool,
+    pub(crate) preferred_cli_provider: QString,
+    pub(crate) approval_provider_chooser_enabled: bool,
+    pub(crate) autonomy_mode_selector_visible: bool,
     pub(crate) cpu_usage_percent: f64,
     pub(crate) memory_usage_mb: f64,
     pub(crate) pending_commands_json: QString,
@@ -56,6 +59,8 @@ pub struct AppState {
     pub output_tracker: OutputTracker,
     /// Broadcast sender shared by the WS terminal server for live shell traffic.
     pub ws_terminal_tx: Option<tokio::sync::broadcast::Sender<Vec<u8>>>,
+    /// Sessions that were started by the "Launch Gemini CLI" button.
+    pub gemini_session_ids: HashSet<String>,
 }
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -84,6 +89,7 @@ pub(crate) struct SessionTabView {
     pub is_active: bool,
     pub can_close: bool,
     pub lifecycle_state: SessionLifecycleState,
+    pub is_gemini: bool,
 }
 
 #[derive(Debug)]
@@ -129,6 +135,7 @@ impl Default for TerminalAppRust {
             command_tx: None,
             output_tracker: OutputTracker::default(),
             ws_terminal_tx: None,
+            gemini_session_ids: HashSet::new(),
         }));
 
         let session_tabs_json = {
@@ -169,6 +176,15 @@ impl Default for TerminalAppRust {
             run_commands_in_window: false,
             gemini_key_present,
             gemini_injection_requested: false,
+            preferred_cli_provider: QString::from(
+                tray_settings
+                    .preferred_cli_provider
+                    .as_ref()
+                    .map(|provider| provider.as_str())
+                    .unwrap_or(""),
+            ),
+            approval_provider_chooser_enabled: tray_settings.approval_provider_chooser_enabled,
+            autonomy_mode_selector_visible: tray_settings.autonomy_mode_selector_visible,
             cpu_usage_percent: 0.0,
             memory_usage_mb: 0.0,
             pending_commands_json: QString::from("[]"),

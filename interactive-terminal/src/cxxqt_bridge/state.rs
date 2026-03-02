@@ -56,6 +56,7 @@ impl AppState {
             .session_ids_sorted()
             .into_iter()
             .map(|session_id| SessionTabView {
+                is_gemini: self.gemini_session_ids.contains(&session_id),
                 label: self.session_display_name_for(&session_id),
                 pending_count: self
                     .pending_commands_by_session
@@ -140,6 +141,7 @@ impl AppState {
         self.pending_commands_by_session.remove(target);
         self.session_display_names.remove(target);
         self.session_context_by_id.remove(target);
+        self.gemini_session_ids.remove(target);
         self.session_lifecycle_by_id
             .insert(target.to_string(), SessionLifecycleState::Closed);
         self.session_lifecycle_by_id.remove(target);

@@ -416,12 +416,11 @@ export function getClientScript(params: ClientScriptParams): string {
         var handleStopSession = typeof handleStopSession === 'function' ? handleStopSession : function(_sessionKey) { };
         var handleInjectSession = typeof handleInjectSession === 'function' ? handleInjectSession : function() { };
 
-        var sizeObserver = new ResizeObserver(function(entries) {
-            for (var i = 0; i < entries.length; i++) {
-                setLayoutSize(entries[i].contentRect.width);
-            }
-        });
-        sizeObserver.observe(document.body);
+        function updateLayoutFromViewport() {
+            setLayoutSize(window.innerWidth || document.documentElement.clientWidth || 0);
+        }
+        window.addEventListener('resize', updateLayoutFromViewport);
+        updateLayoutFromViewport();
 
         async function checkServer() {
             var statusDot = document.getElementById('statusDot');

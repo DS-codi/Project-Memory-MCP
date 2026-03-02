@@ -27,6 +27,7 @@ ApplicationWindow {
     property string selectedSavedCommandId: ""
     property string pendingSessionDisplayName: ""
     property var approvalDialogRequest: ({})
+    property string approvalSelectedProvider: ""
     property bool quitRequested: false
     property bool popupOverlayVisible: geminiSettingsDialog.visible
         || approvalDialog.visible
@@ -93,6 +94,59 @@ ApplicationWindow {
         return ({})
     }
 
+    function normalizeProvider(value) {
+        const normalized = (value || "").trim().toLowerCase()
+        if (normalized === "gemini" || normalized === "gemini.cmd") {
+            return "gemini"
+        }
+        if (normalized === "copilot" || normalized === "copilot.cmd") {
+            return "copilot"
+        }
+        return ""
+    }
+
+    function providerFromRequest(parsedContext, commandText) {
+        const source = (parsedContext && parsedContext.source) || {}
+        const fromSource = normalizeProvider(source.provider || source.cli_provider || "")
+        if (fromSource.length > 0) {
+            return fromSource
+        }
+        return normalizeProvider(commandText)
+    }
+
+    function providerPolicyApplies(parsedContext, commandText) {
+        const source = (parsedContext && parsedContext.source) || {}
+        const approval = (parsedContext && parsedContext.approval) || {}
+        if (approval.provider_policy === "agent_cli_launch") {
+            return true
+        }
+
+        const launchKind = (source.launch_kind || source.launch_type || source.intent || "")
+            .toString()
+            .trim()
+            .toLowerCase()
+
+        if (launchKind.indexOf("agent") >= 0
+            || launchKind.indexOf("super_subagent") >= 0
+            || launchKind.indexOf("provider") >= 0) {
+            return true
+        }
+
+        return normalizeProvider(commandText).length > 0
+    }
+
+    function canSubmitApproval() {
+        if (!approvalDialog.visible) {
+            return false
+        }
+
+        if (!approvalDialogRequest.providerSelectionRequired) {
+            return true
+        }
+
+        return (approvalSelectedProvider || "").trim().length > 0
+    }
+
     function showMainWindow() {
         root.visible = true
         root.showNormal()
@@ -136,9 +190,19 @@ ApplicationWindow {
         }
 
         const requestId = correlation.request_id || terminalApp.currentRequestId
+        const commandText = source.command || terminalApp.commandText
+        const providerApplies = providerPolicyApplies(parsedContext, commandText)
+        const preferredProvider = normalizeProvider(terminalApp.preferredCliProvider || "")
+        const requestedProvider = providerFromRequest(parsedContext, commandText)
+        const providerDefaultConfigured = providerApplies && preferredProvider.length > 0
+        const providerSelectionRequired = providerApplies && !providerDefaultConfigured
+        const prefilledProvider = providerDefaultConfigured ? preferredProvider : ""
+        const providerPrefillSource = providerDefaultConfigured ? "default" : "none"
+
+        approvalSelectedProvider = prefilledProvider
 
         approvalDialogRequest = {
-            command: source.command || terminalApp.commandText,
+            command: commandText,
             args: Array.isArray(source.args) ? source.args : [],
             mode: source.mode || "interactive",
             workspaceId: source.workspace_id || "",
@@ -149,6 +213,15 @@ ApplicationWindow {
             traceId: correlation.trace_id || "",
             clientRequestId: correlation.client_request_id || "",
             contextId: (parsedContext.approval || {}).context_id || "",
+            providerPolicyApplies: providerApplies,
+            preferredProvider: preferredProvider,
+            requestedProvider: requestedProvider,
+            prefilledProvider: prefilledProvider,
+            providerPrefillSource: providerPrefillSource,
+            providerSelectionRequired: providerSelectionRequired,
+            providerChooserVisible: providerApplies
+                && (terminalApp.approvalProviderChooserEnabled || providerSelectionRequired),
+            autonomySelectorVisible: providerApplies && terminalApp.autonomyModeSelectorVisible,
         }
 
         root.showMainWindow()
@@ -412,7 +485,10 @@ ApplicationWindow {
                         editText: terminalApp.currentWorkspacePath
                         onAccepted: terminalApp.setSessionWorkspacePath(editText)
                         onActivated: terminalApp.setSessionWorkspacePath(currentText)
-                        Component.onCompleted: popup.z = 3000
+                        Component.onCompleted: {
+                            popup.popupType = Popup.Window
+                            popup.z = 3000
+                        }
                     }
 
                     ComboBox {
@@ -426,7 +502,10 @@ ApplicationWindow {
                         editText: terminalApp.currentVenvPath
                         onAccepted: terminalApp.setSessionVenvPath(editText)
                         onActivated: terminalApp.setSessionVenvPath(currentText)
-                        Component.onCompleted: popup.z = 3000
+                        Component.onCompleted: {
+                            popup.popupType = Popup.Window
+                            popup.z = 3000
+                        }
                     }
 
                     CheckBox {
@@ -446,7 +525,7 @@ ApplicationWindow {
                     Button {
                         text: "Launch Gemini CLI"
                         font.pixelSize: root.uiControlFontPx
-                        enabled: terminalApp.geminiKeyPresent
+                        enabled: true
                         onClicked: {
                             terminalApp.launchGeminiInTab()
                             geminiSettingsDialog.close()
@@ -461,8 +540,8 @@ ApplicationWindow {
                     }
 
                     Text {
-                        text: terminalApp.geminiKeyPresent ? "Key: stored" : "Key: not set"
-                        color: terminalApp.geminiKeyPresent ? "#4caf50" : "#808080"
+                        text: terminalApp.geminiKeyPresent ? "Key: stored" : "Key: free tier"
+                        color: terminalApp.geminiKeyPresent ? "#4caf50" : "#ff9800"
                         font.pixelSize: 11
                     }
 
@@ -616,69 +695,77 @@ ApplicationWindow {
                             readonly property var tabData: modelData
                             readonly property int tabCount: Math.max(root.sessionTabs.length, 1)
                             readonly property real availablePerTab: (sessionTabsList.width - (sessionTabsList.spacing * Math.max(tabCount - 1, 0))) / tabCount
-                            readonly property real minPreferred: tabText.implicitWidth + (closeButton.visible ? 46 : 20)
+                            readonly property real minPreferred: tabText.implicitWidth + 46
                             radius: 6
-                            color: tabData.isActive ? "#3a3d41" : "#252526"
-                            border.color: tabData.isActive ? "#569cd6" : "#3c3c3c"
+                            color: tabData.isGemini
+                                ? (tabData.isActive ? "#2a1b3d" : "#1c1526")
+                                : (tabData.isActive ? "#3a3d41" : "#252526")
+                            border.color: tabData.isGemini
+                                ? (tabData.isActive ? "#9c27b0" : "#6a1b9a")
+                                : (tabData.isActive ? "#569cd6" : "#3c3c3c")
                             border.width: 1
                             height: 34
                             width: Math.max(118, Math.min(260, Math.max(minPreferred, availablePerTab)))
 
                             MouseArea {
                                 anchors.fill: parent
-                                anchors.rightMargin: closeButton.visible ? (closeButton.width + 10) : 0
+                                anchors.rightMargin: closeArea.width + 10
                                 onClicked: {
                                     terminalApp.switchSession(tabData.sessionId)
                                     root.refreshSessionTabs()
                                 }
                             }
 
-                            Row {
-                                anchors.fill: parent
-                                anchors.leftMargin: 10
-                                anchors.rightMargin: 6
-                                spacing: 6
+                            Text {
+                                id: tabText
+                                anchors.left: parent.left
+                                anchors.leftMargin: tabData.isGemini ? 8 : 10
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.right: closeRect.left
+                                anchors.rightMargin: 4
+                                text: {
+                                    const base = tabData.isGemini ? "✦ " + tabData.label : tabData.label
+                                    return tabData.pendingCount > 0 ? base + " (" + tabData.pendingCount + ")" : base
+                                }
+                                color: tabData.isGemini
+                                    ? (tabData.isActive ? "#ce93d8" : "#ab47bc")
+                                    : "#d4d4d4"
+                                font.pixelSize: root.uiControlFontPx
+                                elide: Text.ElideRight
+                                horizontalAlignment: Text.AlignLeft
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            Rectangle {
+                                id: closeRect
+                                anchors.right: parent.right
+                                anchors.rightMargin: 5
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 20
+                                height: 20
+                                radius: 4
+                                opacity: tabData.canClose ? 1.0 : 0.3
+                                color: closeArea.pressed
+                                    ? "#9f3434"
+                                    : (closeArea.containsMouse ? "#5a3a3a" : "#3a3a3a")
+                                border.color: "#606060"
+                                border.width: 1
 
                                 Text {
-                                    id: tabText
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: tabData.pendingCount > 0
-                                        ? tabData.label + " (" + tabData.pendingCount + ")"
-                                        : tabData.label
-                                    color: "#d4d4d4"
-                                    font.pixelSize: root.uiControlFontPx
-                                    elide: Text.ElideRight
-                                    width: closeButton.visible ? parent.width - closeButton.width - 26 : parent.width - 14
-                                    horizontalAlignment: Text.AlignLeft
+                                    anchors.centerIn: parent
+                                    text: "\u00D7"
+                                    color: "#e0e0e0"
+                                    font.pixelSize: 13
+                                    font.bold: true
+                                    horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
                                 }
 
-                                Button {
-                                    id: closeButton
-                                    visible: true
+                                MouseArea {
+                                    id: closeArea
+                                    anchors.fill: parent
                                     enabled: tabData.canClose
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: 24
-                                    height: 24
-                                    text: "✕"
-                                    font.pixelSize: 13
-                                    opacity: enabled ? 1.0 : 0.45
-                                    background: Rectangle {
-                                        radius: 5
-                                        color: closeButton.enabled
-                                            ? (closeButton.pressed ? "#9f3434" : "#4a4a4a")
-                                            : "#4a4a4a"
-                                        border.color: "#707070"
-                                        border.width: 1
-                                    }
-                                    contentItem: Text {
-                                        text: closeButton.text
-                                        color: "#ffffff"
-                                        font.pixelSize: closeButton.font.pixelSize
-                                        font.bold: false
-                                        horizontalAlignment: Text.AlignHCenter
-                                        verticalAlignment: Text.AlignVCenter
-                                    }
+                                    hoverEnabled: true
                                     onClicked: {
                                         terminalApp.closeSession(tabData.sessionId)
                                         root.refreshSessionTabs()
@@ -727,6 +814,7 @@ ApplicationWindow {
                     onActivated: terminalApp.setSessionTerminalProfile(currentText)
                     Component.onCompleted: {
                         syncFromBridge()
+                        popup.popupType = Popup.Window
                         popup.z = 3000
                     }
                 }
@@ -754,6 +842,7 @@ ApplicationWindow {
                     onActivated: terminalApp.setDefaultTerminalProfile(currentText)
                     Component.onCompleted: {
                         syncFromBridge()
+                        popup.popupType = Popup.Window
                         popup.z = 3000
                     }
                 }
@@ -771,7 +860,7 @@ ApplicationWindow {
             TerminalView {
                 anchors.fill: parent
                 terminalApp: terminalApp
-                suppressWebView: root.popupOverlayVisible
+                suppressWebView: false
                 hasActiveSession: root.hasActiveTerminalSession
             }
         }
@@ -779,6 +868,7 @@ ApplicationWindow {
 
     Dialog {
         id: geminiSettingsDialog
+        popupType: Popup.Window
         modal: true
         anchors.centerIn: Overlay.overlay
         width: 480
@@ -894,6 +984,7 @@ ApplicationWindow {
 
     Dialog {
         id: approvalDialog
+        popupType: Popup.Window
         modal: true
         anchors.centerIn: Overlay.overlay
         width: Math.min(root.width * 0.8, 760)
@@ -1021,7 +1112,70 @@ ApplicationWindow {
 
                     Text { text: "Approval Context ID"; color: "#808080"; font.pixelSize: 12 }
                     Text { text: approvalDialogRequest.contextId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+
+                    Text {
+                        visible: approvalDialogRequest.providerPolicyApplies
+                        text: "CLI Provider"
+                        color: "#808080"
+                        font.pixelSize: 12
+                    }
+                    Text {
+                        visible: approvalDialogRequest.providerPolicyApplies
+                        text: approvalDialogRequest.prefilledProvider || "(manual selection required)"
+                        color: "#d4d4d4"
+                        font.pixelSize: 12
+                        wrapMode: Text.WrapAnywhere
+                    }
+
+                    Text {
+                        visible: approvalDialogRequest.providerPolicyApplies
+                        text: "Provider Source"
+                        color: "#808080"
+                        font.pixelSize: 12
+                    }
+                    Text {
+                        visible: approvalDialogRequest.providerPolicyApplies
+                        text: approvalDialogRequest.providerPrefillSource || "none"
+                        color: "#d4d4d4"
+                        font.pixelSize: 12
+                        wrapMode: Text.WrapAnywhere
+                    }
+
+                    Text {
+                        visible: approvalDialogRequest.providerPolicyApplies
+                        text: "Provider Chooser"
+                        color: "#808080"
+                        font.pixelSize: 12
+                    }
+                    Text {
+                        visible: approvalDialogRequest.providerPolicyApplies
+                        text: approvalDialogRequest.providerChooserVisible ? "visible" : "hidden"
+                        color: "#d4d4d4"
+                        font.pixelSize: 12
+                        wrapMode: Text.WrapAnywhere
+                    }
+
+                    Text {
+                        visible: approvalDialogRequest.providerPolicyApplies
+                        text: "Autonomy Selector"
+                        color: "#808080"
+                        font.pixelSize: 12
+                    }
+                    Text {
+                        visible: approvalDialogRequest.providerPolicyApplies
+                        text: approvalDialogRequest.autonomySelectorVisible ? "visible" : "hidden"
+                        color: "#d4d4d4"
+                        font.pixelSize: 12
+                        wrapMode: Text.WrapAnywhere
+                    }
                 }
+            }
+
+            Text {
+                visible: approvalDialogRequest.providerSelectionRequired
+                text: "Provider selection is required before approval."
+                color: "#f48771"
+                font.pixelSize: 12
             }
 
             RowLayout {
@@ -1040,6 +1194,7 @@ ApplicationWindow {
                 Button {
                     text: "Approve"
                     font.pixelSize: root.uiControlFontPx
+                    enabled: root.canSubmitApproval()
                     onClicked: {
                         terminalApp.approveCommand(terminalApp.currentRequestId)
                         approvalDialog.close()
@@ -1051,6 +1206,7 @@ ApplicationWindow {
 
     Drawer {
         id: savedCommandsDrawer
+        popupType: Popup.Window
         edge: Qt.RightEdge
         modal: true
         width: Math.max(320, root.width * 0.38)

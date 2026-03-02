@@ -5,11 +5,41 @@ use std::path::PathBuf;
 const RUN_KEY_PATH: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
 const RUN_VALUE_NAME: &str = "InteractiveTerminal";
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PreferredCliProvider {
+    Gemini,
+    Copilot,
+}
+
+impl PreferredCliProvider {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Gemini => "gemini",
+            Self::Copilot => "copilot",
+        }
+    }
+}
+
+pub fn parse_preferred_cli_provider(value: &str) -> Option<PreferredCliProvider> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "gemini" => Some(PreferredCliProvider::Gemini),
+        "copilot" => Some(PreferredCliProvider::Copilot),
+        _ => None,
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TraySettings {
     pub start_with_windows: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub gemini_api_key: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preferred_cli_provider: Option<PreferredCliProvider>,
+    #[serde(default)]
+    pub approval_provider_chooser_enabled: bool,
+    #[serde(default)]
+    pub autonomy_mode_selector_visible: bool,
 }
 
 impl Default for TraySettings {
@@ -17,6 +47,9 @@ impl Default for TraySettings {
         Self {
             start_with_windows: false,
             gemini_api_key: None,
+            preferred_cli_provider: None,
+            approval_provider_chooser_enabled: false,
+            autonomy_mode_selector_visible: false,
         }
     }
 }

@@ -60,6 +60,41 @@ ${styles}
     </div>
     
     <script nonce="${nonce}">
+        function isBenignResizeObserverError(value) {
+            var message = typeof value === 'string'
+                ? value
+                : (value && value.message ? value.message : String(value));
+            return message.indexOf('ResizeObserver loop completed with undelivered notifications') !== -1
+                || message.indexOf('ResizeObserver loop limit exceeded') !== -1;
+        }
+        window.onerror = function(msg, src, line, col, err) {
+            if (isBenignResizeObserverError(msg) || isBenignResizeObserverError(err)) {
+                return true;
+            }
+            var fb = document.getElementById('fallback');
+            var st = document.getElementById('statusText');
+            var sd = document.getElementById('statusDot');
+            if (fb) fb.innerHTML = '<p style="color:var(--vscode-errorForeground,#f44);padding:8px;word-break:break-all"><b>Script Error:</b> ' + msg + '<br><small>at ' + src + ':' + line + ':' + col + '</small></p>';
+            if (st) st.textContent = 'Script Error';
+            if (sd) sd.className = 'status-dot error';
+            return false;
+        };
+        window.addEventListener('unhandledrejection', function(event) {
+            var fb = document.getElementById('fallback');
+            var st = document.getElementById('statusText');
+            var sd = document.getElementById('statusDot');
+            var msg = event.reason && event.reason.message ? event.reason.message : String(event.reason);
+            if (isBenignResizeObserverError(msg)) {
+                return;
+            }
+            if (fb && fb.innerHTML.indexOf('Connecting') !== -1) {
+                fb.innerHTML = '<p style="color:var(--vscode-errorForeground,#f44);padding:8px;word-break:break-all"><b>Unhandled Error:</b> ' + msg + '</p>';
+            }
+            if (st && st.textContent === 'Checking...') st.textContent = 'Error';
+            if (sd && sd.className === 'status-dot loading') sd.className = 'status-dot error';
+        });
+    </script>
+    <script nonce="${nonce}">
 ${scriptContent}
     </script>
 </body>

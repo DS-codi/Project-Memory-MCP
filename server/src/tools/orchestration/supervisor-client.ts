@@ -37,6 +37,11 @@ export interface LaunchAppRequest {
   timeout_seconds?: number;
 }
 
+export interface StartServiceRequest {
+  type: 'Start';
+  service: string;
+}
+
 export interface ContinueAppRequest {
   type: 'ContinueApp';
   session_id: string;
@@ -87,6 +92,7 @@ export interface McpRuntimeExecPayload {
 }
 
 export type ControlRequest =
+  | StartServiceRequest
   | StatusRequest
   | WhoAmIRequestPayload
   | LaunchAppRequest
@@ -227,22 +233,14 @@ function encodeNdjson(msg: unknown): string {
   return JSON.stringify(msg) + '\n';
 }
 
-// =========================================================================
-// Low-level connection
-// =========================================================================
+function asErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
-/**
- * Open a connection to the supervisor via named pipe or TCP.
- *
- * On Windows, tries the named pipe first. Falls back to TCP if the pipe
- * is unavailable or `forceTcp` is set.
- */
-function connectToSupervisor(
-  opts: SupervisorClientOptions = {},
+function connectViaPipe(
+  pipePath: string,
+  connectTimeout: number,
 ): Promise<net.Socket> {
-  const connectTimeout = opts.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS;
-  const usePipe = process.platform === 'win32' && !opts.forceTcp;
-
   return new Promise((resolve, reject) => {
     const socket = new net.Socket();
     const timer = setTimeout(() => {
@@ -261,13 +259,68 @@ function connectToSupervisor(
       resolve(socket);
     });
 
-    if (usePipe) {
-      const pipePath = opts.pipePath ?? ENV_PIPE_PATH ?? DEFAULT_PIPE_PATH;
-      socket.connect({ path: pipePath });
-    } else {
-      const host = opts.tcpHost ?? '127.0.0.1';
-      const port = opts.tcpPort ?? DEFAULT_TCP_PORT;
-      socket.connect({ host, port });
+    socket.connect({ path: pipePath });
+  });
+}
+
+function connectViaTcp(
+  host: string,
+  port: number,
+  connectTimeout: number,
+): Promise<net.Socket> {
+  return new Promise((resolve, reject) => {
+    const socket = new net.Socket();
+    const timer = setTimeout(() => {
+      socket.destroy();
+      reject(new Error(`Supervisor connection timed out after ${connectTimeout}ms`));
+    }, connectTimeout);
+
+    socket.once('error', (err) => {
+      clearTimeout(timer);
+      socket.destroy();
+      reject(err);
+    });
+
+    socket.once('connect', () => {
+      clearTimeout(timer);
+      resolve(socket);
+    });
+
+    socket.connect({ host, port });
+  });
+}
+
+// =========================================================================
+// Low-level connection
+// =========================================================================
+
+/**
+ * Open a connection to the supervisor via named pipe or TCP.
+ *
+ * On Windows, tries the named pipe first. Falls back to TCP if the pipe
+ * is unavailable or `forceTcp` is set.
+ */
+function connectToSupervisor(
+  opts: SupervisorClientOptions = {},
+): Promise<net.Socket> {
+  const connectTimeout = opts.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS;
+  const host = opts.tcpHost ?? '127.0.0.1';
+  const port = opts.tcpPort ?? DEFAULT_TCP_PORT;
+  const usePipe = process.platform === 'win32' && !opts.forceTcp;
+
+  if (!usePipe) {
+    return connectViaTcp(host, port, connectTimeout);
+  }
+
+  const pipePath = opts.pipePath ?? ENV_PIPE_PATH ?? DEFAULT_PIPE_PATH;
+
+  return connectViaPipe(pipePath, connectTimeout).catch(async (pipeError) => {
+    try {
+      return await connectViaTcp(host, port, connectTimeout);
+    } catch (tcpError) {
+      throw new Error(
+        `Supervisor connection failed via named pipe (${pipePath}) and TCP (${host}:${port}): pipe=${asErrorMessage(pipeError)}; tcp=${asErrorMessage(tcpError)}`,
+      );
     }
   });
 }
@@ -334,6 +387,21 @@ export async function supervisorRequest(
   } finally {
     socket.destroy();
   }
+}
+
+export async function startSupervisorService(
+  service: string,
+  opts: SupervisorClientOptions = {},
+): Promise<{ ok: boolean; service: string; status?: string; error?: string; data?: unknown }> {
+  const response = await supervisorRequest({ type: 'Start', service }, opts);
+  const payload = (response.data ?? {}) as { status?: string };
+  return {
+    ok: response.ok === true,
+    service,
+    status: payload.status,
+    error: response.error,
+    data: response.data,
+  };
 }
 
 /**

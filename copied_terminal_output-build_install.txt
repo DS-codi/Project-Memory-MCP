@@ -1,5 +1,5 @@
-
-PS C:\Users\User\Project_Memory_MCP\Project-Memory-MCP> .\install.ps1
+PowerShell 7.5.4
+PS C:\Users\User> cd "C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\"; .\install.ps1
 Project Memory MCP — Install
   Components : Supervisor, GuiForms, InteractiveTerminal, Server, Dashboard, Extension
   InstallOnly: False
@@ -14,25 +14,6 @@ Project Memory MCP — Install
    QMAKE: C:\Qt\6.10.2\msvc2022_64\bin\qmake6.exe
    › cargo build --release -p supervisor
    cargo build in progress...  warnings so far: 0
-   cargo build in progress...  warnings so far: 0
-   cargo build in progress...  warnings so far: 0
-    Updating crates.io index
-     Locking 15 packages to latest compatible versions
-      Adding bitflags v1.3.2
-      Adding downcast-rs v1.2.1
-      Adding filedescriptor v0.8.3
-      Adding ioctl-rs v0.1.6
-      Adding memoffset v0.6.5
-      Adding nix v0.25.1
-      Adding portable-pty v0.8.1 (available: v0.9.0)
-      Adding serial v0.4.0
-      Adding serial-core v0.4.0
-      Adding serial-unix v0.4.0
-      Adding serial-windows v0.4.0
-      Adding shared_library v0.1.9
-      Adding shell-words v1.1.1
-      Adding termios v0.2.2
-      Adding winreg v0.10.1
 175 |     let mut rx = state.heartbeat_tx.subscribe();
     |         ----^^
     |         |
@@ -181,8 +162,6 @@ cargo build in progress... warnings so far: 0
 cargo build in progress... warnings so far: 0
 cargo build in progress... warnings so far: 0
 cargo build in progress... warnings so far: 0
-cargo build in progress... warnings so far: 0
-cargo build in progress... warnings so far: 0
    Compiling interactive-terminal v0.1.0 (C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\interactive-terminal)
 warning: constant `PTY_HOST_IPC_PORT` is never used
   --> src\pty_host_launcher.rs:11:11
@@ -192,7 +171,7 @@ warning: constant `PTY_HOST_IPC_PORT` is never used
    |
    = note: `#[warn(dead_code)]` on by default
 warning: `interactive-terminal` (bin "interactive-terminal") generated 1 warning
-    Finished `release` profile [optimized] target(s) in 36.71s
+    Finished `release` profile [optimized] target(s) in 25.37s
 Build output (local):     C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\interactive-terminal\target\release\interactive-terminal.exe
 Deploying Qt runtime with: C:\Qt\6.10.2\msvc2022_64\bin\windeployqt.exe
 Adding Qt6Lottie Qt6LottieVectorImageGenerator Qt6QuickVectorImageGenerator for qlottievectorimage.dll from plugin type: vectorimageformats
@@ -234,13 +213,13 @@ Done.
 [seed] Seeding tool catalog...
 [seed]   8 tools, 102 actions
 [seed] Seeding agent definitions...
-[seed]   2 agents
+[seed]   17 agents
 [seed] Seeding deployable agent profiles...
 [seed]   2 deployable profiles
 [seed] Seeding category workflow definitions...
 [seed]   7 category workflow definitions
 [seed] Seeding instruction files...
-[seed]   16 instruction files
+[seed]   19 instruction files
 [seed] Seeding skill definitions...
 [seed]   13 skills
 [seed] Seeding GUI routing contracts...
@@ -249,9 +228,9 @@ Done.
 
 [seed] Summary: {
   tools: 8,
-  agents: 2,
+  agents: 17,
   deployableAgents: 2,
-  instructions: 16,
+  instructions: 19,
   skills: 13,
   categoryWorkflows: 7,
   guiContracts: 2
@@ -273,7 +252,7 @@ computing gzip size...
 - Using dynamic import() to code-split the application
 - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
 - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.←[39m
-←[32mÔ£ô built in 5.89s←[39m
+←[32mÔ£ô built in 6.16s←[39m
    ✓ Dashboard frontend built → C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\dashboard\dist
    › npm run build (dashboard server)
 
@@ -285,20 +264,12 @@ computing gzip size...
 ── VS Code Extension
    › npm install
 
-up to date, audited 246 packages in 2s
+up to date, audited 245 packages in 1s
 
 82 packages are looking for funding
   run `npm fund` for details
 
-5 vulnerabilities (1 moderate, 4 high)
-
-To address issues that do not require attention, run:
-  npm audit fix
-
-To address all issues (including breaking changes), run:
-  npm audit fix --force
-
-Run `npm audit` for details.
+found 0 vulnerabilities
    › npm run compile
 
 > project-memory-dashboard@0.2.0 compile
@@ -356,19 +327,19 @@ project-memory-dashboard-0.2.0.vsix
    Ôö£ÔöÇ DASHBOARD_ROLLOUT_CHECKLIST.md [0.98 KB]
    Ôö£ÔöÇ LICENSE.txt [1.07 KB]
    Ôö£ÔöÇ changelog.md [5.16 KB]
-   Ôö£ÔöÇ package.json [17.74 KB]
+   Ôö£ÔöÇ package.json [17.78 KB]
    Ôö£ÔöÇ readme.md [3.57 KB]
    Ôö£ÔöÇ .replay-bin/ (1 file) [90.06 KB]
    Ôö£ÔöÇ .replay-runs/ (379 files) [1.68 MB]
    Ôö£ÔöÇ goldens/ (2 files) [9.99 KB]
-   Ôö£ÔöÇ out/ (42 files) [2.3 MB]
+   Ôö£ÔöÇ out/ (42 files) [2.32 MB]
    Ôö£ÔöÇ resources/ (30 files) [7.86 KB]
    Ôö£ÔöÇ test-results/ (10 files) [76.76 KB]
    ÔööÔöÇ tools/ (1 file) [1.9 KB]
 
 => Run vsce ls --tree to see all included files.
 
- DONE  Packaged: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\vscode-extension\project-memory-dashboard-0.2.0.vsix (472 files, 876.91 KB)
+ DONE  Packaged: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\vscode-extension\project-memory-dashboard-0.2.0.vsix (472 files, 880.88 KB)
    ✓ Extension compiled and packaged
    › Installing project-memory-dashboard-0.2.0.vsix
 Installing extensions...
@@ -378,7 +349,7 @@ Extension 'project-memory-dashboard-0.2.0.vsix' was successfully installed.
    Reload VS Code to activate the updated extension:
    Ctrl+Shift+P → Developer: Reload Window
 
-Done in 122.8s
+Done in 79s
 
 Build complete. Launch supervisor now? (Y/N): n
    Supervisor was not launched.

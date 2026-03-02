@@ -8,6 +8,10 @@
  */
 
 import * as net from 'node:net';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { startSupervisorService } from './orchestration/supervisor-client.js';
 import {
   type CommandRequest,
   type CommandResponse,
@@ -41,93 +45,105 @@ export interface TcpAdapterOptions {
 // Host / Port Resolution
 // =========================================================================
 
+const DEFAULT_HOST_RUNTIME_PORT = 3458;
+const DEFAULT_CONTAINER_BRIDGE_PORT = 45459;
+
+function parsePositivePort(raw: string | undefined): number | undefined {
+  if (!raw) return undefined;
+  const parsed = parseInt(raw.trim(), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 65535) {
+    return undefined;
+  }
+  return parsed;
+}
+
+function resolveSupervisorConfigPath(): string {
+  const fromEnv =
+    process.env.PM_SUPERVISOR_CONFIG_PATH?.trim()
+    || process.env.PM_SUPERVISOR_CONFIG_FILE?.trim()
+    || process.env.PM_SUPERVISOR_CONFIG?.trim();
+
+  if (fromEnv) {
+    return fromEnv;
+  }
+
+  if (process.platform === 'win32') {
+    const appData = process.env.APPDATA?.trim()
+      || path.join(os.homedir(), 'AppData', 'Roaming');
+    return path.join(appData, 'ProjectMemory', 'supervisor.toml');
+  }
+
+  return path.join(os.homedir(), '.config', 'ProjectMemory', 'supervisor.toml');
+}
+
+function readInteractiveTerminalPortFromSupervisorConfig(): number | undefined {
+  const configPath = resolveSupervisorConfigPath();
+  if (!fs.existsSync(configPath)) {
+    return undefined;
+  }
+
+  try {
+    const content = fs.readFileSync(configPath, 'utf8');
+    const sectionMatch = content.match(
+      /^\s*\[interactive_terminal\]\s*([\s\S]*?)(?=^\s*\[[^\]]+\]|\s*$)/m,
+    );
+    if (!sectionMatch) {
+      return undefined;
+    }
+    const section = sectionMatch[1];
+    const portMatch = section.match(/^\s*port\s*=\s*(\d+)\s*$/m);
+    return parsePositivePort(portMatch?.[1]);
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Determine the GUI host and port based on environment.
  *
  * - Container mode (PM_RUNNING_IN_CONTAINER=true): uses gateway host on port 45459
- * - Host mode (default): uses 127.0.0.1:9100
+ * - Host mode (default): resolves interactive_terminal.port from runtime/supervisor config
  */
-function resolveGuiHost(): { host: string; port: number } {
+export function resolveGuiHost(): { host: string; port: number } {
   if (process.env.PM_RUNNING_IN_CONTAINER === 'true') {
     const gateway =
       process.env.PM_INTERACTIVE_TERMINAL_HOST_GATEWAY?.trim();
+    const bridgePort =
+      parsePositivePort(process.env.PM_INTERACTIVE_TERMINAL_HOST_PORT)
+      ?? DEFAULT_CONTAINER_BRIDGE_PORT;
     return {
       host: gateway || 'host.containers.internal',
-      port: 45459,
+      port: bridgePort,
     };
   }
-  return { host: '127.0.0.1', port: 9100 };
+  const runtimeHost = process.env.PM_INTERACTIVE_TERMINAL_HOST?.trim() || '127.0.0.1';
+  const runtimePort =
+    parsePositivePort(process.env.PM_INTERACTIVE_TERMINAL_PORT)
+    ?? readInteractiveTerminalPortFromSupervisorConfig()
+    ?? DEFAULT_HOST_RUNTIME_PORT;
+
+  return { host: runtimeHost, port: runtimePort };
 }
 
 /**
- * Return the supervisor control TCP port used for on-demand launch.
- * Reads PM_SUPERVISOR_CONTROL_PORT; defaults to 9200.
- */
-function resolveControlPort(): number {
-  const raw = process.env.PM_SUPERVISOR_CONTROL_PORT?.trim();
-  if (raw) {
-    const parsed = parseInt(raw, 10);
-    if (!isNaN(parsed) && parsed > 0) return parsed;
-  }
-  return 9200;
-}
-
-/**
- * Send a `Start { service: "interactive_terminal" }` control command to the
- * supervisor over a short-lived TCP connection on `controlPort`.
+ * Ask supervisor to start interactive_terminal via the control client path.
  *
- * Resolves (without throwing) whether or not the send succeeds — failures are
- * logged but must not crash the caller because the adapter should fall back
- * to the original error path gracefully.
+ * Resolves (without throwing) so caller can preserve original error flow.
  */
-async function triggerSupervisorLaunch(controlPort: number): Promise<void> {
-  return new Promise<void>((resolve) => {
-    const payload =
-      JSON.stringify({ type: 'Start', service: 'interactive_terminal' }) + '\n';
-    const socket = new net.Socket();
-    let done = false;
-
-    const cleanup = (): void => {
-      if (!done) {
-        done = true;
-        socket.destroy();
-      }
-      resolve();
-    };
-
-    const timer = setTimeout(() => {
-      if (!done) {
-        console.warn(
-          `[terminal-tcp-adapter] supervisor control connect timeout on port ${controlPort}`,
-        );
-        cleanup();
-      }
-    }, 3_000);
-
-    socket.once('error', (err: NodeJS.ErrnoException) => {
-      clearTimeout(timer);
-      if (!done) {
-        console.warn(
-          `[terminal-tcp-adapter] supervisor control error on port ${controlPort}: ${err.message}`,
-        );
-        cleanup();
-      }
-    });
-
-    socket.once('connect', () => {
-      socket.write(payload, (err) => {
-        clearTimeout(timer);
-        if (err) {
-          console.warn(
-            `[terminal-tcp-adapter] supervisor control write error: ${err.message}`,
-          );
-        }
-        cleanup();
-      });
-    });
-
-    socket.connect(controlPort, '127.0.0.1');
-  });
+async function triggerSupervisorLaunch(): Promise<void> {
+  try {
+    const response = await startSupervisorService('interactive_terminal');
+    if (!response.ok) {
+      console.warn(
+        `[terminal-tcp-adapter] supervisor Start(interactive_terminal) returned not-ok: ${response.error ?? 'unknown error'}`,
+      );
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(
+      `[terminal-tcp-adapter] supervisor Start(interactive_terminal) failed: ${message}`,
+    );
+  }
 }
 
 function buildContainerHostCandidates(primaryHost: string): string[] {
@@ -216,12 +232,7 @@ export class TcpTerminalAdapter {
       }
 
       // ── ECONNREFUSED — trigger on-demand launch via supervisor ────────
-      const controlPort = resolveControlPort();
-      try {
-        await triggerSupervisorLaunch(controlPort);
-      } catch {
-        // triggerSupervisorLaunch never throws but guard here to be safe.
-      }
+      await triggerSupervisorLaunch();
 
       // ── Retry loop (1.5 s / 3 s / 5 s backoff) ───────────────────────
       const retryDelaysMs = [1_500, 3_000, 5_000];

@@ -82,6 +82,7 @@ let supervisorRequest: typeof import('../../tools/orchestration/supervisor-clien
 let isSupervisorRunning: typeof import('../../tools/orchestration/supervisor-client.js').isSupervisorRunning;
 let checkGuiAvailability: typeof import('../../tools/orchestration/supervisor-client.js').checkGuiAvailability;
 let launchFormApp: typeof import('../../tools/orchestration/supervisor-client.js').launchFormApp;
+let startSupervisorService: typeof import('../../tools/orchestration/supervisor-client.js').startSupervisorService;
 
 beforeEach(async () => {
   vi.clearAllMocks();
@@ -96,6 +97,7 @@ beforeEach(async () => {
   isSupervisorRunning = mod.isSupervisorRunning;
   checkGuiAvailability = mod.checkGuiAvailability;
   launchFormApp = mod.launchFormApp;
+  startSupervisorService = mod.startSupervisorService;
 });
 
 afterEach(() => {
@@ -239,6 +241,65 @@ describe('supervisorRequest', () => {
     await expect(
       supervisorRequest({ type: 'Status' }, { forceTcp: true }),
     ).rejects.toThrow('Failed to parse supervisor response');
+  });
+
+  it('falls back to TCP when named pipe connect fails on Windows', async () => {
+    const originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform');
+
+    const pipeSocket = createMockSocket();
+    const tcpSocket = createMockSocket();
+    (net.Socket as unknown as ReturnType<typeof vi.fn>)
+      .mockImplementationOnce(() => pipeSocket)
+      .mockImplementationOnce(() => tcpSocket);
+
+    pipeSocket.connect.mockImplementation(() => {
+      queueMicrotask(() => pipeSocket._emitError(new Error('ENOENT named pipe missing')));
+      return pipeSocket;
+    });
+
+    tcpSocket.connect.mockImplementation(() => {
+      queueMicrotask(() => tcpSocket._emitConnect());
+      return tcpSocket;
+    });
+    tcpSocket.write.mockImplementation(() => {
+      queueMicrotask(() => {
+        tcpSocket._emitData(JSON.stringify({ ok: true, data: [] }) + '\n');
+      });
+      return true;
+    });
+
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+
+    try {
+      const result = await supervisorRequest({ type: 'Status' });
+      expect(result.ok).toBe(true);
+      expect(pipeSocket.connect).toHaveBeenCalledWith({ path: '\\\\.\\pipe\\project-memory-supervisor' });
+      expect(tcpSocket.connect).toHaveBeenCalledWith({ host: '127.0.0.1', port: 45470 });
+    } finally {
+      if (originalPlatform) {
+        Object.defineProperty(process, 'platform', originalPlatform);
+      }
+    }
+  });
+});
+
+describe('startSupervisorService', () => {
+  it('sends Start request for interactive_terminal and maps response envelope', async () => {
+    setupHappyPath({
+      ok: true,
+      data: { service: 'interactive_terminal', status: 'starting' },
+    });
+
+    const result = await startSupervisorService('interactive_terminal', { forceTcp: true });
+
+    expect(result.ok).toBe(true);
+    expect(result.service).toBe('interactive_terminal');
+    expect(result.status).toBe('starting');
+
+    const written = mockSocket.write.mock.calls[0][0] as string;
+    const parsed = JSON.parse(written.trim());
+    expect(parsed.type).toBe('Start');
+    expect(parsed.service).toBe('interactive_terminal');
   });
 });
 

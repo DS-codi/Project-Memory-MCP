@@ -473,6 +473,95 @@ impl ffi::TerminalApp {
         }
     }
 
+    pub fn set_preferred_cli_provider_invokable(
+        mut self: Pin<&mut Self>,
+        provider: QString,
+    ) -> bool {
+        let provider_text = provider.to_string();
+        let trimmed = provider_text.trim();
+
+        let parsed = if trimmed.is_empty() {
+            None
+        } else {
+            match crate::system_tray::parse_preferred_cli_provider(trimmed) {
+                Some(value) => Some(value),
+                None => {
+                    self.as_mut().set_status_text(QString::from(
+                        "Invalid provider. Use 'gemini', 'copilot', or empty to clear.",
+                    ));
+                    return false;
+                }
+            }
+        };
+
+        let mut settings = crate::system_tray::load_settings();
+        settings.preferred_cli_provider = parsed;
+        if let Err(error) = crate::system_tray::save_settings(&settings) {
+            self.as_mut().set_status_text(QString::from(&format!(
+                "Failed to save preferred CLI provider: {error}"
+            )));
+            return false;
+        }
+
+        let provider_value = settings
+            .preferred_cli_provider
+            .as_ref()
+            .map(|value| value.as_str())
+            .unwrap_or("");
+        self.as_mut()
+            .set_preferred_cli_provider(QString::from(provider_value));
+        self.as_mut().set_status_text(QString::from(if provider_value.is_empty() {
+            "Preferred CLI provider cleared"
+        } else {
+            "Preferred CLI provider saved"
+        }));
+        true
+    }
+
+    pub fn set_approval_provider_chooser_enabled_invokable(
+        mut self: Pin<&mut Self>,
+        enabled: bool,
+    ) -> bool {
+        let mut settings = crate::system_tray::load_settings();
+        settings.approval_provider_chooser_enabled = enabled;
+        if let Err(error) = crate::system_tray::save_settings(&settings) {
+            self.as_mut().set_status_text(QString::from(&format!(
+                "Failed to save provider chooser setting: {error}"
+            )));
+            return false;
+        }
+
+        self.as_mut().set_approval_provider_chooser_enabled(enabled);
+        self.as_mut().set_status_text(QString::from(if enabled {
+            "Provider chooser override enabled"
+        } else {
+            "Provider chooser override disabled"
+        }));
+        true
+    }
+
+    pub fn set_autonomy_mode_selector_visible_invokable(
+        mut self: Pin<&mut Self>,
+        visible: bool,
+    ) -> bool {
+        let mut settings = crate::system_tray::load_settings();
+        settings.autonomy_mode_selector_visible = visible;
+        if let Err(error) = crate::system_tray::save_settings(&settings) {
+            self.as_mut().set_status_text(QString::from(&format!(
+                "Failed to save autonomy selector setting: {error}"
+            )));
+            return false;
+        }
+
+        self.as_mut().set_autonomy_mode_selector_visible(visible);
+        self.as_mut().set_status_text(QString::from(if visible {
+            "Autonomy mode selector enabled"
+        } else {
+            "Autonomy mode selector hidden"
+        }));
+        true
+    }
+
     pub fn launch_gemini_session(mut self: Pin<&mut Self>) -> bool {
         if !*self.as_ref().gemini_key_present() {
             self.as_mut().set_status_text(QString::from(
@@ -542,19 +631,25 @@ impl ffi::TerminalApp {
     }
 
     pub fn launch_gemini_in_tab(mut self: Pin<&mut Self>) -> bool {
-        if !*self.as_ref().gemini_key_present() {
-            self.as_mut().set_status_text(QString::from(
-                "No stored Gemini API key. Save a key in settings first.",
-            ));
-            return false;
-        }
-
-        let Some(_) = crate::system_tray::load_gemini_api_key() else {
-            self.as_mut().set_status_text(QString::from(
-                "Stored Gemini API key not found. Save the key again and retry.",
-            ));
-            return false;
+        // Always open Gemini in a brand-new dedicated session.
+        // Works with a stored API key (injected as GEMINI_API_KEY env var) or
+        // on the free tier without a key — gemini CLI will use browser OAuth.
+        let state_arc = self.rust().state.clone();
+        let (session_id, count, json, tabs_json) = {
+            let mut state = state_arc.lock().unwrap();
+            let session_id = state.create_session();
+            state.gemini_session_ids.insert(session_id.clone());
+            let count = state.selected_pending_count();
+            let json = state.pending_commands_to_json();
+            let tabs_json = state.session_tabs_to_json();
+            (session_id, count, json, tabs_json)
         };
+        self.as_mut()
+            .set_current_session_id(QString::from(&session_id));
+        self.as_mut().set_pending_count(count);
+        self.as_mut().set_pending_commands_json(json);
+        self.as_mut().set_session_tabs_json(tabs_json);
+        Self::append_startup_banner(&mut self, &session_id);
 
         let previous_run_in_window = *self.as_ref().run_commands_in_window();
         self.as_mut().set_run_commands_in_window(false);
@@ -1104,12 +1199,11 @@ impl ffi::TerminalApp {
 
         let injection_requested = *self.as_ref().gemini_injection_requested();
         if injection_requested && !*self.as_ref().gemini_key_present() {
-            self.as_mut().set_status_text(QString::from(
-                "Gemini injection was requested but no stored key is available.",
-            ));
+            // No stored key — clear the injection flag and let the command run without it.
+            // The gemini CLI handles auth itself (browser OAuth on free tier).
             self.as_mut().set_gemini_injection_requested(false);
-            return false;
         }
+        let injection_requested = *self.as_ref().gemini_injection_requested();
 
         if cfg!(windows) && *self.as_ref().run_commands_in_window() {
             let workspace_path = {

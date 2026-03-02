@@ -721,9 +721,9 @@ export function getStyles(): string {
         .plan-title { 
             font-size: 12px; 
             font-weight: 500;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            line-height: 1.35;
         }
         .plan-meta {
             font-size: 10px;
@@ -760,6 +760,12 @@ export function getStyles(): string {
         .plan-status.active { background: var(--vscode-testing-iconPassed); color: white; }
         .plan-status.archived { background: var(--vscode-descriptionForeground); color: white; }
         .plan-actions { display: flex; gap: 4px; }
+
+        .plan-inline-panel {
+            margin-top: 8px;
+            border-top: 1px solid var(--vscode-panel-border);
+            padding-top: 8px;
+        }
         
         .empty-state {
             padding: 20px;
@@ -769,9 +775,7 @@ export function getStyles(): string {
         }
 
         .selected-plan-panel {
-            margin-top: 10px;
-            border-top: 1px solid var(--vscode-panel-border);
-            padding-top: 10px;
+            display: none;
         }
         .selected-plan-header {
             display: flex;
@@ -852,6 +856,20 @@ export function getStyles(): string {
             display: flex;
             gap: 6px;
             flex-wrap: wrap;
+        }
+
+        @media (max-width: 520px) {
+            .plan-item {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto;
+                align-items: start;
+                gap: 8px;
+            }
+            .plan-actions {
+                grid-column: 1 / -1;
+                justify-content: flex-start;
+                flex-wrap: wrap;
+            }
         }
 
         /* Skills section */

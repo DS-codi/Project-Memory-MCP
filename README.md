@@ -22,6 +22,20 @@ High-level runtime model:
 4. Supervisor and GUI binaries (Rust/QML) support orchestration and UX flows.
 5. Interactive terminal (Rust/CxxQt/QML) provides host runtime bridge behavior.
 
+## Agent architecture
+
+Project Memory MCP uses a **dynamic hub-and-spoke agent model** with two permanent agents and one blank-slate spoke:
+
+- **Hub** — Permanent orchestration agent. Owns the full plan lifecycle: registers the workspace, routes through PromptAnalyst, pulls role definitions from the database, composes complete spawn prompts, deploys Shell spokes, and validates completion after every spoke returns. Hub never implements code directly.
+
+- **PromptAnalyst** — Permanent investigation and routing spoke. Reads code, plan state, and sessions to classify each incoming request. Returns a structured routing decision (hub mode, scope classification, pre-gathered code references, constraints) that Hub uses to select and provision the right Shell role.
+
+- **Shell** — Blank-slate execution spoke. Receives a self-contained prompt from Hub containing its role instructions (fetched from the DB), task, complete context, session identifiers (`workspace_id`, `plan_id`, `session_id`, `current_phase`, `step_indices`), scope boundaries, and step update protocol. Shell does not self-gather context.
+
+Role instructions for all spoke roles (Researcher, Architect, Executor, Reviewer, Tester, Revisionist, Archivist, Worker, Brainstorm) are stored in the MCP SQLite database and fetched at spawn time via `memory_agent(action: get_instructions)`. Only Hub and PromptAnalyst are retained as permanent `.github/agents/` files.
+
+See [`docs/design docs/dynamic-hub-architecture.md`](docs/design%20docs/dynamic-hub-architecture.md) for the complete architecture specification.
+
 ## Main components
 
 - `server/`  
@@ -44,6 +58,7 @@ High-level runtime model:
 The active script set is intentionally small and standardized:
 
 - `install.ps1`
+- `new-install.ps1`
 - `install-animated.ps1`
 - `run-tests.ps1`
 - `interactive-terminal/build-interactive-terminal.ps1`
@@ -67,6 +82,16 @@ From repo root:
 ```
 
 This checks required toolchains and required repository assets before a first-time build.
+
+### 0.5) First-time cross-machine install + migration
+
+From repo root:
+
+```powershell
+.\new-install.ps1
+```
+
+This flow prompts for a **data root directory** (`PM_DATA_ROOT` — the single canonical location for the database and all workspace data), builds and seeds via `install.ps1`, optionally migrates plans from an old data root, refreshes workspace `identity.json` files, imports distributed skills/instructions from other registered workspaces, and installs remaining components — all delegated through `install.ps1`.
 
 ### 1) Prerequisites
 

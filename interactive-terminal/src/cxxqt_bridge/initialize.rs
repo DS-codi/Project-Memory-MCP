@@ -51,6 +51,19 @@ impl cxx_qt::Initialize for ffi::TerminalApp {
                         .map(|value| !value.trim().is_empty())
                         .unwrap_or(false),
                 );
+                self.as_mut().set_preferred_cli_provider(QString::from(
+                    settings
+                        .preferred_cli_provider
+                        .as_ref()
+                        .map(|provider| provider.as_str())
+                        .unwrap_or(""),
+                ));
+                self.as_mut().set_approval_provider_chooser_enabled(
+                    settings.approval_provider_chooser_enabled,
+                );
+                self.as_mut().set_autonomy_mode_selector_visible(
+                    settings.autonomy_mode_selector_visible,
+                );
             }
             Err(error) => {
                 self.as_mut().set_start_visible(start_visible);

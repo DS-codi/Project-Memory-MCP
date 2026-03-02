@@ -8,7 +8,8 @@ This document lists the currently supported utility scripts for Project Memory M
 2. `install-animated.ps1`
 3. `run-tests.ps1`
 4. `interactive-terminal/build-interactive-terminal.ps1`
-5. `scripts/preflight-machine.ps1`
+5. `new-install.ps1`
+6. `scripts/preflight-machine.ps1`
 
 Legacy helper scripts are archived and not part of the active workflow.
 
@@ -151,7 +152,56 @@ This is the preferred supervisor startup path instead of `launch-supervisor.ps1`
 
 ---
 
-## 5) `scripts/preflight-machine.ps1`
+## 5) `new-install.ps1`
+
+Interactive first-time install + migration flow for a fresh or replacement machine.
+
+### What it does
+
+1. Prompts for the **data root directory** (default: `%APPDATA%\ProjectMemory`) — this is `PM_DATA_ROOT`, the single canonical location recognised by all components. The database is always `project-memory.db` inside this directory.
+2. Delegates server build + DB initialisation to `install.ps1 -Component Server`.
+3. Refreshes `.projectmemory/identity.json` for every workspace discovered in the data root.
+4. Optionally migrates plans/context from an old data root via `dist/migration/migrate.js`.
+5. Optionally discovers and imports distributed skills and instruction files from other workspaces (SHA256-deduplicated).
+6. Re-seeds the DB if new artifacts were imported.
+7. Delegates remaining component builds to `install.ps1 -Component Extension,Dashboard,Supervisor,InteractiveTerminal`.
+
+### Parameters
+
+- `-DataRoot <string>`
+  - Data root directory override (skips the prompt).
+- `-OldDataRoot <string>`
+  - Optional old data root path to migrate from.
+- `-SkipDistributedImport`
+  - Skip scanning/importing distributed skills/instructions.
+- `-SkipComponentInstall`
+  - Run data-setup steps only; do not call `install.ps1` for remaining components.
+- `-NonInteractive`
+  - Use defaults/provided parameters without prompts.
+
+### Use cases
+
+- Interactive first-time setup:
+
+```powershell
+.\new-install.ps1
+```
+
+- Non-interactive scripted migration:
+
+```powershell
+.\new-install.ps1 -DataRoot "$env:APPDATA\ProjectMemory" -OldDataRoot "D:\old-projectmemory-data" -NonInteractive
+```
+
+- Data-setup only (skip component builds):
+
+```powershell
+.\new-install.ps1 -SkipComponentInstall
+```
+
+---
+
+## 6) `scripts/preflight-machine.ps1`
 
 Runs a fast clean-machine readiness check before first build/install.
 

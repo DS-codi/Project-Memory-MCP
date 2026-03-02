@@ -3,9 +3,9 @@
  *
  * Populates static reference data on first run (idempotent):
  *   1. Tool catalog  — MCP tools, actions, and their parameter specs
- *   2. Agent defs    — agent type descriptions from agents-v2/*.agent.md
- *   3. Instructions  — instruction files from .github/instructions/
- *   4. Skills        — skill definitions from .github/skills/{name}/SKILL.md
+ *   2. Agent defs    — agent type descriptions from database-seed-resources/agents/
+ *   3. Instructions  — instruction files from database-seed-resources/instructions/
+ *   4. Skills        — skill definitions from database-seed-resources/skills/{name}/SKILL.md
  *
  * Can be called at server startup (via `runSeed()`) or directly as a CLI:
  *   npx tsx server/src/db/seed.ts
@@ -230,11 +230,15 @@ function parseAgentMd(filePath: string): AgentFrontmatter | null {
 async function seedAgentDefinitions(projectRoot: string): Promise<number> {
   const agentsDir = resolveContentDir(
     projectRoot,
-    [['.github', 'agents'], ['agents-v2']],
+    [
+      ['database-seed-resources', 'agents'],
+      ['.github', 'agents'],
+      ['agents'],
+    ],
     process.env.MBS_AGENTS_ROOT,
   );
   if (!agentsDir || !fs.existsSync(agentsDir)) {
-    console.warn(`  [seed] agent definitions directory not found (.github/agents or agents-v2), skipping agent defs`);
+    console.warn(`  [seed] agent definitions directory not found (database-seed-resources/agents or .github/agents), skipping agent defs`);
     return 0;
   }
 
@@ -349,20 +353,29 @@ function seedCategoryWorkflowDefinitions(hasDeployableProfiles: boolean): number
 async function seedInstructionFiles(projectRoot: string): Promise<number> {
   const instrDir = resolveContentDir(
     projectRoot,
-    [['.github', 'instructions']],
+    [
+      ['database-seed-resources', 'instructions'],
+      ['.github', 'instructions'],
+    ],
     process.env.MBS_INSTRUCTIONS_ROOT,
   );
   if (!instrDir) {
-    console.warn('  [seed] instructions directory not found (.github/instructions), skipping');
+    console.warn('  [seed] instructions directory not found (database-seed-resources/instructions or .github/instructions), skipping');
     return 0;
   }
 
-  const files = fs.readdirSync(instrDir).filter(f => f.endsWith('.md'));
+  // Collect .md files from the main dir and any archive/ subdir
+  const collectMd = (dir: string): string[] =>
+    fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith('.md')).map(f => path.join(dir, f)) : [];
+  const files = [
+    ...collectMd(instrDir),
+    ...collectMd(path.join(instrDir, 'archive')),
+  ];
   let count = 0;
 
-  for (const file of files) {
-    const filePath = path.join(instrDir, file);
+  for (const filePath of files) {
     const content  = fs.readFileSync(filePath, 'utf-8');
+    const filename = path.basename(filePath);
 
     // Parse applyTo from frontmatter if present (e.g. applyTo: "agents/*.agent.md")
     const applyToMatch = content.match(/^applyTo:\s*["']?([^"'\n]+)["']?\s*$/m);
@@ -370,9 +383,9 @@ async function seedInstructionFiles(projectRoot: string): Promise<number> {
 
     // Title from first heading or filename
     const titleMatch = content.match(/^#+\s+(.+)/m);
-    const title = titleMatch ? titleMatch[1].trim() : file.replace('.instructions.md', '');
+    const title = titleMatch ? titleMatch[1].trim() : filename.replace('.instructions.md', '');
 
-    storeInstruction(file, applyTo, content);
+    storeInstruction(filename, applyTo, content);
     count++;
   }
 
@@ -428,11 +441,14 @@ function parseSkillFrontmatter(content: string): SkillFrontmatter {
 async function seedSkills(projectRoot: string): Promise<number> {
   const skillsDir = resolveContentDir(
     projectRoot,
-    [['.github', 'skills'], ['skills']],
+    [
+      ['database-seed-resources', 'skills'],
+      ['.github', 'skills'],
+    ],
     process.env.MBS_SKILLS_ROOT,
   );
   if (!skillsDir) {
-    console.warn('  [seed] skills directory not found (.github/skills or skills), skipping');
+    console.warn('  [seed] skills directory not found (database-seed-resources/skills or .github/skills), skipping');
     return 0;
   }
 

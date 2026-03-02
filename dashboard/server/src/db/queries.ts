@@ -152,6 +152,31 @@ export function getWorkspaceContext(workspaceId: string, type?: string): Context
     .all(workspaceId) as ContextItemRow[];
 }
 
+export function saveWorkspaceContext(workspaceId: string, context: unknown): void {
+  const now = new Date().toISOString();
+  const serialized = JSON.stringify(context ?? {});
+  const existing = getDb()
+    .prepare(
+      "SELECT id FROM context_items WHERE parent_type = 'workspace' AND parent_id = ? AND type = ? LIMIT 1"
+    )
+    .get(workspaceId, 'workspace_context') as { id?: string } | undefined;
+
+  if (existing?.id) {
+    getDb()
+      .prepare('UPDATE context_items SET data = ?, updated_at = ? WHERE id = ?')
+      .run(serialized, now, existing.id);
+    return;
+  }
+
+  const id = `ctx_ws_${workspaceId}_${Math.random().toString(36).slice(2, 10)}`;
+  getDb()
+    .prepare(
+      `INSERT INTO context_items (id, parent_type, parent_id, type, data, created_at, updated_at)
+       VALUES (?, 'workspace', ?, 'workspace_context', ?, ?, ?)`
+    )
+    .run(id, workspaceId, serialized, now, now);
+}
+
 // ============================================================
 // EVENTS  (event_log table)
 // ============================================================
