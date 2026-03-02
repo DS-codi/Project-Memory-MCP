@@ -1,0 +1,45 @@
+
+The app runs fine — the window just isn't appearing. This is likely a startVisible/tray issue. Let me check the QML show logic and how the supervisor triggers the open action.
+
+The process runs but the window stays hidden. Most likely the QML engine is failing to load silently (a QML error would prevent Component.onCompleted from running, meaning showMainWindow() never fires - yet app.exec() still runs since Qt doesn't exit on QML errors alone when a window object exists). Let me check the QML for issues and look at how the --show flag interacts.
+
+Push-Location "C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\target\release"; $p = Start-Process -FilePath ".\interactive-terminal.exe" -ArgumentList "--debug","--show" -PassThru; Start-Sleep 5; if ($p.HasExited) { "EXITED with code $($p.ExitCode)" } else { "Still running (PID $($p.Id))"; $p.Kill() }; Pop-Location
+a console showed up briefly then dissappeared shortly after
+Interactive Terminal debug mode enabled
+Interactive Terminal listening on 127.0.0.1:9100
+Host GUI bridge listener active on 0.0.0.0:45459 -> 127.0.0.1:9100
+QML engine load() completed. If the window does not appear, check Qt deployment and bridge definition parity (ffi.rs vs mod.rs).
+
+The diff between pre/post changes is what matters. Let me read the backup's initialize.rs (the working version) alongside the current one to find the exact regression.
+
+The backup shows the working version clearly. Key difference: the current initialize.rs added set_start_visible(start_visible) and set_gemini_key_present AND set_terminal_mode_label. Let me check if startVisible is used in QML to control initial window visibility.
+
+the old backup file probably isnt a good reference because a lot of work has been done since then
+
+Good point. Let me diff exactly what changed between the last known-working commit (f8e50f9) and the current one (0ef02e3):
+
+Now I can see the full diff. The changes look correct from a Rust perspective. But wait — the issue might be in the QML. The modeLabel id is inside a RowLayout. Let me look more carefully at the QML around that area.
+
+The modeLabel text item has id: modeLabel inside the Rectangle. The width: modeLabel.implicitWidth + 12 references modeLabel from the parent Rectangle. This should be fine since the child modeLabel is in scope.
+
+Wait, but in QML, when you have an id defined on a child of a Rectangle that is itself inside a RowLayout, other items in the same RowLayout (or even outside) can reference that id.
+
+That shouldn't cause a crash though. Looking at the QML more carefully, the Rectangle inside the RowLayout is setting width directly instead of using Layout.preferredWidth, which could cause layout conflicts, but wouldn't prevent the window from rendering. I'm wondering if there's an ID collision happening — QML requires unique IDs within a component, so maybe modeLabel is defined elsewhere and causing a conflict.
+
+Actually, wait. QML errors wouldn't keep the process alive anyway — they'd just prevent the window from showing. But I'm noticing something else: the ApplicationWindow has visible: true set initially, then Component.onCompleted calls root.showMainWindow() which sets visible again. There's also this start_visible flag that gets set from Rust during initialization, and I'm wondering if that's somehow overriding the visibility state and hiding the window.
+
+Looking at the badge width calculation — it's binding to modeLabel.implicitWidth + 12, but implicitWidth starts at 0 before the text is laid out, which could trigger a binding loop or layout issue.
+
+But the real problem is that the window isn't showing at all despite the process running and QML loading. The Component.onCompleted should still be calling root.showMainWindow(), so either that's not executing or something in the badge code is throwing an error that prevents it from running.
+
+Actually, wait — I'm seeing a potential circular binding issue. The Rectangle's width depends on modeLabel.implicitWidth, but modeLabel.implicitWidth needs to know how much space it has available, which depends on the parent's width. This could create a binding loop that breaks the layout entirely. I'm wondering if modeLabel might be conflicting with something else defined in the file. The startup messages all logged successfully and the process is still running, so the QML engine did load, but the window never appeared. Could there be a silent binding error that's preventing the window from becoming visible, or is the QML component failing to instantiate properly even though the load completed?
+
+Actually, the key insight is that engine.load() returns immediately while QML initialization happens asynchronously—the log message appearing doesn't guarantee the window was created successfully. The eprintln fires right after load returns, then app.exec() starts the event loop, but by that point the QML might have already failed silently.
+
+Wait, but if QML object creation failed, the process would quit since there'd be no top-level windows. Yet the process is still running after 5 seconds, which means a window was created—unless there's a system tray icon keeping the process alive even without a visible window.
+
+So the real question is why the window isn't displaying. Looking at the QML side, Component.onCompleted calls showMainWindow() both immediately and via Qt.callLater(), which sets visibility to true and calls showNormal() and raise() to bring the window to the foreground.
+
+Still writing window display logic...
+
+Considering...

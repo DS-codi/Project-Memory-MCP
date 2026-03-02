@@ -324,13 +324,13 @@ ApplicationWindow {
                 Rectangle {
                     visible: (terminalApp.terminalModeLabel || "").length > 0
                     height: 18
-                    width: modeLabel.implicitWidth + 12
+                    implicitWidth: modeLabelText.implicitWidth + 12
                     radius: 3
                     color: (terminalApp.terminalModeLabel || "") === "pty-host" ? "#0e3a5e" : "#2d2d2d"
                     border.color: (terminalApp.terminalModeLabel || "") === "pty-host" ? "#1e88e5" : "#555555"
                     border.width: 1
                     Text {
-                        id: modeLabel
+                        id: modeLabelText
                         anchors.centerIn: parent
                         text: "PTY: " + (terminalApp.terminalModeLabel || "")
                         color: (terminalApp.terminalModeLabel || "") === "pty-host" ? "#64b5f6" : "#808080"
