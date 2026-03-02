@@ -54,7 +54,7 @@ export function getConnectedDashboardHtml(
                                         <ul class="status-list">
                                             <li><span class="label">Workspace Health</span> <span class="status-value" id="healthStatusValue">Checking...</span></li>
                                             <li><span class="label">Stale/Stop</span> <span class="status-value" id="staleStatusValue">Checking...</span></li>
-                                            <li><span class="label">Data Root</span> <span class="status-value" id="dataRootValue">Loading...</span></li>
+                                            <li><span class="label">Database</span> <span class="status-value" id="dataRootValue">Loading...</span></li>
                                         </ul>
                                         <div class="status-divider"></div>
                                         <div class="status-actions">

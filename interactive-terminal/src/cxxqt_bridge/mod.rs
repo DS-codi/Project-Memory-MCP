@@ -51,6 +51,9 @@ pub mod ffi {
         #[qproperty(QString, session_tabs_json, cxx_name = "sessionTabsJson")]
         #[qproperty(QString, tray_icon_url, cxx_name = "trayIconUrl")]
         #[qproperty(i32, terminal_ws_port, cxx_name = "terminalWsPort")]
+        /// Compile-time label: "pty-host" when the pty-host feature is active,
+        /// "in-process" otherwise. Read-only after init; displayed in the header bar.
+        #[qproperty(QString, terminal_mode_label, cxx_name = "terminalModeLabel")]
         type TerminalApp = super::TerminalAppRust;
 
         #[qsignal]

@@ -90,6 +90,7 @@ app.get('/api/health', (req, res) => {
       rssMB: Math.round(memUsage.rss / 1024 / 1024 * 100) / 100,
     },
     lastError: lastErrorTimestamp,
+    dbPath: path.join(MBS_DATA_ROOT, 'project-memory.db'),
     dataRoot: MBS_DATA_ROOT,
     agentsRoot: MBS_AGENTS_ROOT,
     promptsRoot: MBS_PROMPTS_ROOT,

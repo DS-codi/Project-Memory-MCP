@@ -18,6 +18,7 @@ import express, { type Express, type Request, type Response } from 'express';
 import { randomUUID } from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { getDbPath } from '../db/index.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { InMemoryEventStore } from '@modelcontextprotocol/sdk/examples/shared/inMemoryEventStore.js';
@@ -68,6 +69,7 @@ function buildHealthResponse(): Record<string, unknown> {
   return {
     status: 'ok',
     server: 'project-memory-mcp',
+    dbPath: getDbPath(),
     version: '1.0.0',
     transport: 'http',
     uptime: uptimeSeconds,

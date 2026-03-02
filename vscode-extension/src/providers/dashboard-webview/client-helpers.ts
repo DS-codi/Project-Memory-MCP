@@ -1128,7 +1128,7 @@ export function getClientHelpers(): string {
                 }
             }
             if (dataRootValue) {
-                dataRootValue.textContent = dataRoot || 'Unknown';
+                dataRootValue.textContent = (data && data.dbPath) || (data && data.dataRoot) || 'Unknown';
             }
 
             updateOperationsSurface(data);

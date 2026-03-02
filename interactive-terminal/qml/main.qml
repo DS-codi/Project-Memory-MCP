@@ -320,6 +320,24 @@ ApplicationWindow {
                     font.pixelSize: 12
                 }
 
+                // PTY mode badge — compile-time indicator (pty-host vs in-process)
+                Rectangle {
+                    visible: (terminalApp.terminalModeLabel || "").length > 0
+                    height: 18
+                    width: modeLabel.implicitWidth + 12
+                    radius: 3
+                    color: (terminalApp.terminalModeLabel || "") === "pty-host" ? "#0e3a5e" : "#2d2d2d"
+                    border.color: (terminalApp.terminalModeLabel || "") === "pty-host" ? "#1e88e5" : "#555555"
+                    border.width: 1
+                    Text {
+                        id: modeLabel
+                        anchors.centerIn: parent
+                        text: "PTY: " + (terminalApp.terminalModeLabel || "")
+                        color: (terminalApp.terminalModeLabel || "") === "pty-host" ? "#64b5f6" : "#808080"
+                        font.pixelSize: 11
+                    }
+                }
+
                 Item { Layout.fillWidth: true }
 
                 Text {

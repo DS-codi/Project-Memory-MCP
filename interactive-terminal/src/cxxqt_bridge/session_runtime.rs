@@ -36,6 +36,8 @@ pub struct TerminalAppRust {
     pub(crate) session_tabs_json: QString,
     pub(crate) tray_icon_url: QString,
     pub(crate) terminal_ws_port: i32,
+    /// Compile-time PTY mode label surfaced to QML ("pty-host" or "in-process").
+    pub(crate) terminal_mode_label: QString,
     pub(crate) state: Arc<Mutex<AppState>>,
 }
 
@@ -174,6 +176,7 @@ impl Default for TerminalAppRust {
             session_tabs_json,
             tray_icon_url: resolve_tray_icon_url(),
             terminal_ws_port: 0,
+            terminal_mode_label: QString::from(""),
             state,
         }
     }

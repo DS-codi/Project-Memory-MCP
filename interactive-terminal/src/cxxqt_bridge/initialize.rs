@@ -63,6 +63,14 @@ impl cxx_qt::Initialize for ffi::TerminalApp {
         self.as_mut()
             .set_status_text(QString::from(&format!("Listening on port {port}")));
 
+        // Show which PTY implementation is active in the header bar.
+        #[cfg(feature = "pty-host")]
+        self.as_mut()
+            .set_terminal_mode_label(QString::from("pty-host"));
+        #[cfg(not(feature = "pty-host"))]
+        self.as_mut()
+            .set_terminal_mode_label(QString::from("in-process"));
+
         let (command_tx, command_rx) =
             tokio::sync::mpsc::channel::<crate::protocol::CommandRequest>(16);
 
