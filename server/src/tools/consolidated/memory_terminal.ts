@@ -63,6 +63,13 @@ export interface MemoryTerminalParams {
   workspace_id?: string;
   /** Session ID (for read_output, kill). */
   session_id?: string;
+  /**
+   * Session routing behavior for run action:
+   * - selected (default): run in currently selected Interactive Terminal tab
+   * - default: force the default tab/session
+   * - specific: requires session_id
+   */
+  session_target?: 'selected' | 'default' | 'specific';
   /** Allowlist patterns (for update_allowlist). */
   patterns?: string[];
   /** How to modify the allowlist (for update_allowlist). */
@@ -311,6 +318,25 @@ async function handleRun(
     };
   }
 
+  const sessionTarget = params.session_target ?? 'selected';
+  let resolvedSessionId: string | undefined;
+
+  if (sessionTarget === 'specific') {
+    if (!params.session_id?.trim()) {
+      return {
+        success: false,
+        error: 'session_id is required when session_target is specific',
+      };
+    }
+    resolvedSessionId = params.session_id.trim();
+  } else if (sessionTarget === 'default') {
+    resolvedSessionId = 'default';
+  } else if (params.session_id?.trim()) {
+    resolvedSessionId = params.session_id.trim();
+  } else {
+    resolvedSessionId = '';
+  }
+
   // Build CommandRequest for the TCP wire protocol
   const request: CommandRequest = {
     type: 'command_request',
@@ -319,7 +345,7 @@ async function handleRun(
     working_directory: params.cwd ?? process.cwd(),
     args: args.length > 0 ? args : undefined,
     workspace_id: params.workspace_id,
-    session_id: params.session_id,
+    session_id: resolvedSessionId,
     timeout_seconds: params.timeout_ms
       ? Math.ceil(params.timeout_ms / 1000)
       : undefined,

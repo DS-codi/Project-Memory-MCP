@@ -1579,10 +1579,6 @@ fn resolve_ws_working_directory(request: &CommandRequest) -> String {
         return workspace_path.to_string_lossy().to_string();
     }
 
-    if let Ok(current_dir) = std::env::current_dir() {
-        return current_dir.to_string_lossy().to_string();
-    }
-
     #[cfg(target_os = "windows")]
     {
         if let Ok(home) = std::env::var("USERPROFILE") {
@@ -1592,6 +1588,10 @@ fn resolve_ws_working_directory(request: &CommandRequest) -> String {
         }
     }
 
+    if let Ok(current_dir) = std::env::current_dir() {
+        return current_dir.to_string_lossy().to_string();
+    }
+
     ".".to_string()
 }
 
@@ -1599,10 +1599,21 @@ fn build_ws_wrapped_command(request: &CommandRequest, marker: &str) -> String {
     let cwd = resolve_ws_working_directory(request);
     let escaped_cwd = escape_powershell_single_quoted(&cwd);
     let env_prefix = build_ws_env_prefix(request);
+    let command_with_args = if request.args.is_empty() {
+        request.command.clone()
+    } else {
+        let rendered_args = request
+            .args
+            .iter()
+            .map(|arg| format!("'{}'", escape_powershell_single_quoted(arg)))
+            .collect::<Vec<_>>()
+            .join(" ");
+        format!("{} {}", request.command, rendered_args)
+    };
 
     format!(
         "{env_prefix}Set-Location -LiteralPath '{escaped_cwd}'; & {{ {}; $code=$LASTEXITCODE; if ($null -eq $code) {{ $code=0 }}; Write-Output '{}'+$code }}",
-        request.command,
+        command_with_args,
         marker
     )
 }
@@ -2196,5 +2207,31 @@ mod tests {
 
         assert!(wrapped.contains(&expected), "wrapped command: {wrapped}");
         let _ = std::fs::remove_dir_all(PathBuf::from(&workspace));
+    }
+
+    #[test]
+    fn ws_wrap_includes_args_in_powershell_command() {
+        let request = CommandRequest {
+            id: "r3".into(),
+            command: "echo".into(),
+            working_directory: String::new(),
+            context: String::new(),
+            session_id: "default".into(),
+            terminal_profile: Default::default(),
+            workspace_path: String::new(),
+            venv_path: String::new(),
+            activate_venv: false,
+            timeout_seconds: 30,
+            args: vec!["quick-smoke-ok".into()],
+            env: HashMap::new(),
+            workspace_id: "ws".into(),
+            allowlisted: true,
+        };
+
+        let wrapped = build_ws_wrapped_command(&request, "__M__");
+        assert!(
+            wrapped.contains("& { echo 'quick-smoke-ok';"),
+            "wrapped command: {wrapped}"
+        );
     }
 }

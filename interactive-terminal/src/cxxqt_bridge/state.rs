@@ -268,6 +268,14 @@ impl AppState {
     }
 
     pub(crate) fn hydrate_request_with_session_context(&mut self, req: &mut CommandRequest) {
+        if req.session_id.trim().is_empty() {
+            if !self.selected_session_id.trim().is_empty() {
+                req.session_id = self.selected_session_id.clone();
+            } else {
+                req.session_id = "default".to_string();
+            }
+        }
+
         let session_id = req.session_id.clone();
         let ctx = self.session_context_by_id.entry(session_id).or_default();
 

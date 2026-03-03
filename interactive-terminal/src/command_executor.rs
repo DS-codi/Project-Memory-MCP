@@ -601,6 +601,7 @@ fn build_wrapped_shell_command(request: &CommandRequest, marker: &str) -> String
     } else {
         request.terminal_profile.clone()
     };
+    let command_with_args = render_command_with_args(request, &effective_profile);
 
     if cfg!(target_os = "windows") {
         match effective_profile {
@@ -608,7 +609,7 @@ fn build_wrapped_shell_command(request: &CommandRequest, marker: &str) -> String
                 let escaped_cwd = escape_powershell_single_quoted(&cwd);
                 format!(
                     "{env_prefix}Set-Location -LiteralPath '{escaped_cwd}'; & {{ {}; $code=$LASTEXITCODE; if ($null -eq $code) {{ $code=0 }}; Write-Output '{}'+$code }}",
-                    request.command,
+                    command_with_args,
                     marker
                 )
             }
@@ -616,14 +617,14 @@ fn build_wrapped_shell_command(request: &CommandRequest, marker: &str) -> String
                 let escaped_cwd = escape_single_quoted_shell(&cwd);
                 format!(
                     "{env_prefix}cd '{escaped_cwd}' 2>/dev/null; {}; printf '{}%s\\n' \"$?\"",
-                    request.command, marker
+                    command_with_args, marker
                 )
             }
             TerminalProfile::Cmd | TerminalProfile::System => {
                 let escaped_cwd = cwd.replace('"', "\"\"");
                 format!(
                     "{env_prefix}cd /d \"{escaped_cwd}\" >nul 2>nul & {} & echo {}%ERRORLEVEL%",
-                    request.command, marker
+                    command_with_args, marker
                 )
             }
         }
@@ -631,9 +632,35 @@ fn build_wrapped_shell_command(request: &CommandRequest, marker: &str) -> String
         let escaped_cwd = escape_single_quoted_shell(&cwd);
         format!(
             "{env_prefix}cd '{escaped_cwd}' 2>/dev/null; {}; printf '{}%s\\n' \"$?\"",
-            request.command, marker
+            command_with_args, marker
         )
     }
+}
+
+fn render_command_with_args(request: &CommandRequest, profile: &TerminalProfile) -> String {
+    if request.args.is_empty() {
+        return request.command.clone();
+    }
+
+    let rendered_args = match profile {
+        TerminalProfile::PowerShell | TerminalProfile::Pwsh | TerminalProfile::System => request
+            .args
+            .iter()
+            .map(|arg| format!("'{}'", escape_powershell_single_quoted(arg)))
+            .collect::<Vec<_>>(),
+        TerminalProfile::Bash => request
+            .args
+            .iter()
+            .map(|arg| format!("'{}'", escape_single_quoted_shell(arg)))
+            .collect::<Vec<_>>(),
+        TerminalProfile::Cmd => request
+            .args
+            .iter()
+            .map(|arg| format!("\"{}\"", arg.replace('"', "\"\"")))
+            .collect::<Vec<_>>(),
+    };
+
+    format!("{} {}", request.command, rendered_args.join(" "))
 }
 
 fn apply_request_environment(cmd: &mut Command, request: &CommandRequest) {
