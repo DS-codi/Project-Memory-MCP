@@ -18,10 +18,21 @@ export function getClientHelpers(): string {
             return (tab === 'plans' || tab === 'operations') ? tab : 'dashboard';
         }
 
+        function normalizePlanSort(sort) {
+            return (
+                sort === 'recent' ||
+                sort === 'title' ||
+                sort === 'status' ||
+                sort === 'oldest' ||
+                sort === 'progress'
+            ) ? sort : 'newest';
+        }
+
         function saveDashboardState() {
             vscode.setState({
                 topLevelTab: normalizeTopLevelTab(topLevelTab),
                 currentPlanTab: (currentPlanTab === 'archived' || currentPlanTab === 'programs') ? currentPlanTab : 'active',
+                planSortBy: normalizePlanSort(planSortBy),
                 selectedPlanId: selectedPlanId || '',
                 selectedPlanWorkspaceId: selectedPlanWorkspaceId || '',
                 alwaysProvidedNotes: typeof alwaysProvidedNotes === 'string' ? alwaysProvidedNotes : '',
@@ -101,6 +112,7 @@ export function getClientHelpers(): string {
 
         function applyDashboardState() {
             setTopLevelTab(topLevelTab, { persist: false });
+            setPlanSort(planSortBy, { persist: false, update: false });
             setPlanTab(currentPlanTab, { persist: false });
             setAlwaysProvidedNotes(alwaysProvidedNotes, { persist: false });
             updateActionAvailability();
@@ -203,21 +215,22 @@ export function getClientHelpers(): string {
                     : '';
                 return \`
                     <div class="plan-item\${isSelected ? ' selected' : ''}" data-plan-id="\${planId}" data-workspace-id="\${planWorkspaceId}" tabindex="0" role="button" title="Select \${entityType.toLowerCase()}">
-                        <div class="plan-info">
-                            <div class="plan-title" title="\${plan.title}">\${plan.title}</div>
-                            <div class="plan-meta">
-                                <span class="entity-badge \${entityClass}">\${entityType}</span>
-                                \${metaParts.map(part => \`<span>\${part}</span>\`).join('<span>&#8226;</span>')}
+                        <div class="plan-primary-row">
+                            <div class="plan-info">
+                                <div class="plan-title" title="\${plan.title}">\${plan.title}</div>
+                                <div class="plan-meta">
+                                    <span class="entity-badge \${entityClass}">\${entityType}</span>
+                                    \${metaParts.map(part => \`<span>\${part}</span>\`).join('<span>&#8226;</span>')}
+                                </div>
                             </div>
-                            \${inlineSelectedDetails}
+                            <span class="plan-status \${plan.status}">\${plan.status}</span>
+                            <div class="plan-actions">
+                                <button class="btn btn-small btn-secondary" data-action="copy" data-copy="\${planId}" title="Copy plan ID">&#128203;</button>
+                                <button class="btn btn-small btn-secondary" data-action="open-plan-browser" data-plan-id="\${planId}" data-workspace-id="\${planWorkspaceId}" title="Open plan in default browser">&#8599;</button>
+                                <button class="btn btn-small" data-action="open-plan" data-plan-id="\${planId}" data-workspace-id="\${planWorkspaceId}" title="Open plan">&#8594;</button>
+                            </div>
                         </div>
-                        <span class="plan-status \${plan.status}">\${plan.status}</span>
-                        <div class="plan-actions">
-                            <button class="btn btn-small btn-secondary" data-action="select-plan" data-plan-id="\${planId}" data-workspace-id="\${planWorkspaceId}" title="Select plan">Select</button>
-                            <button class="btn btn-small btn-secondary" data-action="copy" data-copy="\${planId}" title="Copy plan ID">&#128203;</button>
-                            <button class="btn btn-small btn-secondary" data-action="open-plan-browser" data-plan-id="\${planId}" data-workspace-id="\${planWorkspaceId}" title="Open plan in default browser">&#8599;</button>
-                            <button class="btn btn-small" data-action="open-plan" data-plan-id="\${planId}" data-workspace-id="\${planWorkspaceId}" title="Open plan">&#8594;</button>
-                        </div>
+                        \${inlineSelectedDetails ? '<div class="plan-details-row">' + inlineSelectedDetails + '</div>' : ''}
                     </div>
                 \`;
             }).join('');
@@ -236,8 +249,13 @@ export function getClientHelpers(): string {
 
             const status = (selectedPlanDetails.status || 'unknown').toLowerCase();
             const currentPhase = selectedPlanDetails.current_phase || selectedPlanDetails.phase || '';
-            const workspaceValue = selectedPlanDetails.workspace_id || planWorkspaceId || workspaceId;
-            const inlineMeta = [workspaceValue, status, currentPhase].filter(Boolean).join(' • ');
+            const inlineMeta = [status, currentPhase].filter(Boolean).join(' • ');
+            const isProgram = selectedPlanDetails.is_program === true ||
+                selectedPlanDetails.is_program === 1 ||
+                selectedPlanDetails.is_program === '1';
+            const detailBody = isProgram
+                ? renderProgramChildren(selectedPlanDetails)
+                : renderStepViewer(selectedPlanDetails.steps || []);
 
             return (
                 '<div class="plan-inline-panel">' +
@@ -245,7 +263,7 @@ export function getClientHelpers(): string {
                         '<h4>' + escapeHtml(selectedPlanDetails.title || planId) + '</h4>' +
                         '<span class="selected-plan-meta">' + escapeHtml(inlineMeta) + '</span>' +
                     '</div>' +
-                    '<div class="selected-plan-body">' + renderStepViewer(selectedPlanDetails.steps || []) + '</div>' +
+                    '<div class="selected-plan-body">' + detailBody + '</div>' +
                 '</div>'
             );
         }
@@ -290,6 +308,110 @@ export function getClientHelpers(): string {
             if (persist) {
                 saveDashboardState();
             }
+        }
+
+        function setPlanSort(sort, options) {
+            planSortBy = normalizePlanSort(sort);
+            const persist = !(options && options.persist === false);
+            const shouldUpdate = !(options && options.update === false);
+            const sortSelect = document.getElementById('plansSortSelect');
+            if (sortSelect && sortSelect.value !== planSortBy) {
+                sortSelect.value = planSortBy;
+            }
+            if (shouldUpdate) {
+                updatePlanLists();
+            }
+            if (persist) {
+                saveDashboardState();
+            }
+        }
+
+        function getPlanUpdatedTimestamp(plan) {
+            const rawValue = plan.updated_at || plan.last_updated || plan.updatedAt;
+            if (typeof rawValue === 'number' && Number.isFinite(rawValue)) {
+                return rawValue;
+            }
+            if (typeof rawValue === 'string' && rawValue) {
+                const normalized = rawValue.includes('T') ? rawValue : rawValue.replace(' ', 'T');
+                const parsed = Date.parse(normalized);
+                if (Number.isFinite(parsed)) {
+                    return parsed;
+                }
+            }
+            return 0;
+        }
+
+        function getPlanCreatedTimestamp(plan) {
+            const rawValue = plan.created_at || plan.createdAt || plan.created || plan.timestamp;
+            if (typeof rawValue === 'number' && Number.isFinite(rawValue)) {
+                return rawValue;
+            }
+            if (typeof rawValue === 'string' && rawValue) {
+                const normalized = rawValue.includes('T') ? rawValue : rawValue.replace(' ', 'T');
+                const parsed = Date.parse(normalized);
+                if (Number.isFinite(parsed)) {
+                    return parsed;
+                }
+            }
+            return 0;
+        }
+
+        function sortPlans(plans, sort) {
+            const normalizedSort = normalizePlanSort(sort);
+            return (Array.isArray(plans) ? plans.slice() : []).sort((leftPlan, rightPlan) => {
+                const leftTitle = String(leftPlan.title || '').toLowerCase();
+                const rightTitle = String(rightPlan.title || '').toLowerCase();
+                const leftUpdated = getPlanUpdatedTimestamp(leftPlan);
+                const rightUpdated = getPlanUpdatedTimestamp(rightPlan);
+
+                if (normalizedSort === 'title') {
+                    return leftTitle.localeCompare(rightTitle);
+                }
+
+                if (normalizedSort === 'recent') {
+                    if (rightUpdated !== leftUpdated) {
+                        return rightUpdated - leftUpdated;
+                    }
+                    return leftTitle.localeCompare(rightTitle);
+                }
+
+                if (normalizedSort === 'oldest') {
+                    if (leftUpdated !== rightUpdated) {
+                        return leftUpdated - rightUpdated;
+                    }
+                    return leftTitle.localeCompare(rightTitle);
+                }
+
+                if (normalizedSort === 'progress') {
+                    const leftTotal = leftPlan.progress?.total || 0;
+                    const rightTotal = rightPlan.progress?.total || 0;
+                    const leftDone = leftPlan.progress?.done || 0;
+                    const rightDone = rightPlan.progress?.done || 0;
+                    const leftRatio = leftTotal > 0 ? leftDone / leftTotal : 0;
+                    const rightRatio = rightTotal > 0 ? rightDone / rightTotal : 0;
+                    if (rightRatio !== leftRatio) {
+                        return rightRatio - leftRatio;
+                    }
+                    if (rightDone !== leftDone) {
+                        return rightDone - leftDone;
+                    }
+                    return leftTitle.localeCompare(rightTitle);
+                }
+
+                if (normalizedSort === 'status') {
+                    const leftStatus = String(leftPlan.status || '').toLowerCase();
+                    const rightStatus = String(rightPlan.status || '').toLowerCase();
+                    const statusCompare = leftStatus.localeCompare(rightStatus);
+                    return statusCompare !== 0 ? statusCompare : leftTitle.localeCompare(rightTitle);
+                }
+
+                const leftCreated = getPlanCreatedTimestamp(leftPlan) || leftUpdated;
+                const rightCreated = getPlanCreatedTimestamp(rightPlan) || rightUpdated;
+                if (rightCreated !== leftCreated) {
+                    return rightCreated - leftCreated;
+                }
+                return leftTitle.localeCompare(rightTitle);
+            });
         }
 
         function getPlanSignature(plans) {
@@ -432,14 +554,68 @@ export function getClientHelpers(): string {
             }
         }
 
-        function setSelectedPlan(planId, planWorkspaceId) {
-            selectedPlanId = planId || '';
-            selectedPlanWorkspaceId = planWorkspaceId || workspaceId || '';
+        function scrollPlanItemIntoView(planId, planWorkspaceId) {
+            if (!planId || !planWorkspaceId) {
+                return;
+            }
+
+            const listContainers = [
+                document.getElementById('plansListActive'),
+                document.getElementById('plansListArchived'),
+                document.getElementById('plansListPrograms'),
+            ];
+
+            for (let index = 0; index < listContainers.length; index += 1) {
+                const container = listContainers[index];
+                if (!container) {
+                    continue;
+                }
+
+                const selector = '.plan-item[data-plan-id="' + planId + '"][data-workspace-id="' + planWorkspaceId + '"]';
+                const planItem = container.querySelector(selector);
+                if (planItem) {
+                    planItem.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                    return;
+                }
+            }
+        }
+
+        function setSelectedPlan(planId, planWorkspaceId, options) {
+            const shouldToggle = !(options && options.toggle === false);
+            const nextPlanId = planId || '';
+            const nextWorkspaceId = planWorkspaceId || workspaceId || '';
+            const isSameSelection = !!selectedPlanId &&
+                selectedPlanId === nextPlanId &&
+                selectedPlanWorkspaceId === nextWorkspaceId;
+
+            let collapsedPlanId = '';
+            let collapsedWorkspaceId = '';
+
+            if (shouldToggle && isSameSelection) {
+                collapsedPlanId = selectedPlanId;
+                collapsedWorkspaceId = selectedPlanWorkspaceId;
+                selectedPlanId = '';
+                selectedPlanWorkspaceId = '';
+                selectedPlanDetails = null;
+                selectedPlanBuildScripts = [];
+            } else {
+                selectedPlanId = nextPlanId;
+                selectedPlanWorkspaceId = nextWorkspaceId;
+            }
+
             ensureSelectedPlanIsValid();
             updatePlanLists();
-            fetchSelectedPlanDetails();
+            if (selectedPlanId && selectedPlanWorkspaceId) {
+                fetchSelectedPlanDetails();
+            }
             saveDashboardState();
             updateActionAvailability();
+
+            if (collapsedPlanId && collapsedWorkspaceId) {
+                setTimeout(() => {
+                    scrollPlanItemIntoView(collapsedPlanId, collapsedWorkspaceId);
+                }, 0);
+            }
         }
 
         function getSelectedPlanTarget() {
@@ -517,12 +693,6 @@ export function getClientHelpers(): string {
                         tooltip: 'Open a workspace to resolve context.',
                     };
                 }
-                if (context.targetType === 'none') {
-                    return {
-                        enabled: false,
-                        tooltip: 'Select a plan or program first.',
-                    };
-                }
                 return { enabled: true };
             }
 
@@ -577,22 +747,10 @@ export function getClientHelpers(): string {
                         tooltip: 'Open a workspace to resolve context.',
                     };
                 }
-                if (context.targetType === 'none') {
-                    return {
-                        enabled: false,
-                        tooltip: 'Select a plan or program first.',
-                    };
-                }
                 if (context.targetType === 'archived') {
                     return {
                         enabled: false,
                         tooltip: 'Archived plans do not support session controls.',
-                    };
-                }
-                if (context.targetType === 'program') {
-                    return {
-                        enabled: false,
-                        tooltip: 'Program-level session control is not available yet.',
                     };
                 }
                 return { enabled: true };
@@ -941,6 +1099,48 @@ export function getClientHelpers(): string {
             }).join('') + '</div>';
         }
 
+        function renderProgramChildren(program) {
+            const directChildren = Array.isArray(program?.child_plans)
+                ? program.child_plans
+                : (Array.isArray(program?.plans) ? program.plans : []);
+            const childIds = Array.isArray(program?.child_plan_ids) ? program.child_plan_ids : [];
+
+            if (directChildren.length === 0 && childIds.length === 0) {
+                return '<div class="empty-state">No child plans available for this program.</div>';
+            }
+
+            const childItems = directChildren.length > 0
+                ? directChildren
+                : childIds.map(childPlanId => ({
+                    id: childPlanId,
+                    title: String(childPlanId),
+                    status: 'unknown',
+                    current_phase: '',
+                }));
+
+            return '<div class="step-viewer-list">' + childItems.map((child, index) => {
+                const childId = child.id || child.plan_id || 'unknown';
+                const childTitle = escapeHtml(child.title || child.name || String(childId));
+                const childStatus = escapeHtml(String(child.status || 'unknown').toLowerCase());
+                const childPhase = escapeHtml(child.current_phase || child.phase || 'No phase');
+
+                return (
+                    '<div class="step-viewer-item">' +
+                        '<div class="step-viewer-line">' +
+                            '<span class="step-viewer-index">#' + (index + 1) + '</span>' +
+                            '<span class="step-viewer-task">' + childTitle + '</span>' +
+                            '<span class="step-viewer-status ' + childStatus + '">' + childStatus + '</span>' +
+                        '</div>' +
+                        '<div class="step-viewer-meta">' +
+                            '<span>' + escapeHtml(String(childId)) + '</span>' +
+                            '<span>&#8226;</span>' +
+                            '<span>' + childPhase + '</span>' +
+                        '</div>' +
+                    '</div>'
+                );
+            }).join('') + '</div>';
+        }
+
         function updateSelectedPlanPanel() {
             const elements = getSelectedPlanPanelElements();
             if (!elements.title || !elements.meta || !elements.body) {
@@ -950,7 +1150,7 @@ export function getClientHelpers(): string {
             if (!selectedPlanDetails) {
                 elements.title.textContent = 'No plan selected';
                 elements.meta.textContent = '';
-                elements.body.innerHTML = '<div class="empty-state">Select a plan to view ordered steps.</div>';
+                elements.body.innerHTML = '<div class="empty-state">Select a plan to view steps, or a program to view child plans.</div>';
                 return;
             }
 
@@ -958,10 +1158,15 @@ export function getClientHelpers(): string {
             const workspaceValue = selectedPlanDetails.workspace_id || selectedPlanWorkspaceId || workspaceId;
             const status = (selectedPlanDetails.status || 'unknown').toLowerCase();
             const currentPhase = selectedPlanDetails.current_phase || selectedPlanDetails.phase || '';
+            const isProgram = selectedPlanDetails.is_program === true ||
+                selectedPlanDetails.is_program === 1 ||
+                selectedPlanDetails.is_program === '1';
 
             elements.title.textContent = selectedPlanDetails.title || planId;
             elements.meta.textContent = [workspaceValue, status, currentPhase].filter(Boolean).join(' • ');
-            elements.body.innerHTML = renderStepViewer(selectedPlanDetails.steps || []);
+            elements.body.innerHTML = isProgram
+                ? renderProgramChildren(selectedPlanDetails)
+                : renderStepViewer(selectedPlanDetails.steps || []);
         }
 
         async function fetchSelectedPlanDetails() {
@@ -1039,10 +1244,13 @@ export function getClientHelpers(): string {
             const activeCount = document.getElementById('activeCount');
             const archivedCount = document.getElementById('archivedCount');
             const programsCount = document.getElementById('programsCount');
-            if (activeList) activeList.innerHTML = renderPlanList(activePlans, 'active');
-            if (archivedList) archivedList.innerHTML = renderPlanList(archivedPlans, 'archived');
-            if (programsList) programsList.innerHTML = renderPlanList(programPlans, 'programs');
-            if (programsSummary) programsSummary.innerHTML = renderProgramsSummary(programPlans);
+            const sortedActivePlans = sortPlans(activePlans, planSortBy);
+            const sortedArchivedPlans = sortPlans(archivedPlans, planSortBy);
+            const sortedProgramPlans = sortPlans(programPlans, planSortBy);
+            if (activeList) activeList.innerHTML = renderPlanList(sortedActivePlans, 'active');
+            if (archivedList) archivedList.innerHTML = renderPlanList(sortedArchivedPlans, 'archived');
+            if (programsList) programsList.innerHTML = renderPlanList(sortedProgramPlans, 'programs');
+            if (programsSummary) programsSummary.innerHTML = renderProgramsSummary(sortedProgramPlans);
             if (activeCount) activeCount.textContent = activePlans.length;
             if (archivedCount) archivedCount.textContent = archivedPlans.length;
             if (programsCount) programsCount.textContent = programPlans.length;

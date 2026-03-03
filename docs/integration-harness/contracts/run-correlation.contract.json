@@ -1,0 +1,190 @@
+{
+  "$schema": "./run-correlation.contract.schema.json",
+  "contract_version": "v1.0.0",
+  "runtime": "podman-compose",
+  "generated_at": "2026-03-03T00:00:00.000Z",
+  "run_id_format": "run_mma9q7t2_8224e780",
+  "reason_codes": [
+    "startup_gate_blocked",
+    "startup_gate_passed",
+    "health_probe_failed",
+    "readiness_probe_failed",
+    "dependency_unavailable",
+    "fault_injection_triggered",
+    "fault_injection_observed",
+    "runtime_unavailable",
+    "timeout_exceeded",
+    "assertion_failed",
+    "reconnect_observed",
+    "stale_session_invalidated",
+    "reconnect_gate_passed",
+    "degraded_mode_entered",
+    "operator_alert_visible",
+    "reconnect_attempt_started",
+    "partial_failure_observed",
+    "isolation_unaffected_healthy",
+    "proxy_heartbeat_healthy",
+    "proxy_heartbeat_decoupled"
+  ],
+  "event_schema": {
+    "required_fields": [
+      "run_id",
+      "component_id",
+      "event_type",
+      "timestamp",
+      "cause",
+      "attempt",
+      "outcome",
+      "reason_code"
+    ],
+    "component_ids": [
+      "mcp-server",
+      "dashboard",
+      "supervisor-proxy",
+      "extension-test-runner",
+      "interactive-terminal-bridge"
+    ],
+    "event_types": [
+      "service_start",
+      "service_stop",
+      "service_restart",
+      "health_check_pass",
+      "health_check_fail",
+      "readiness_pass",
+      "readiness_fail",
+      "connectivity_connected",
+      "connectivity_degraded",
+      "connectivity_disconnected",
+      "connectivity_reconnected",
+      "reconnect_attempt",
+      "reconnect_succeeded",
+      "reconnect_failed",
+      "fault_injected",
+      "assertion_pass",
+      "assertion_fail"
+    ],
+    "timestamp_format": "RFC3339/ISO-8601 UTC",
+    "field_types": {
+      "run_id": "string",
+      "component_id": "string",
+      "event_type": "string",
+      "timestamp": "string(date-time)",
+      "cause": "string",
+      "attempt": "integer",
+      "outcome": "string",
+      "reason_code": "string"
+    }
+  },
+  "diagnostics_capture_requirements": {
+    "event_timeline": {
+      "required_fields": [
+        "run_id",
+        "timestamp",
+        "event_type",
+        "component_id",
+        "cause",
+        "reason_code"
+      ],
+      "required_artifacts": [
+        "events/normalized-events.jsonl",
+        "health/fault-timeline.json",
+        "events/traceability-index.json"
+      ]
+    },
+    "failure_domain": {
+      "required_fields": [
+        "failure_domain",
+        "restart_scope",
+        "isolation_outcome"
+      ],
+      "allowed_values": [
+        "child-local",
+        "dependency-group",
+        "global"
+      ]
+    },
+    "retry_telemetry": {
+      "required_fields": [
+        "attempt",
+        "backoff_ms",
+        "cooldown_ms",
+        "retry_cap",
+        "retry_exhausted",
+        "outcome"
+      ],
+      "required_artifacts": [
+        "assertions/recovery-assertions.json",
+        "summary.json",
+        "summary.md"
+      ]
+    }
+  },
+  "sample_events": [
+    {
+      "run_id": "run_mma9q7t2_8224e780",
+      "component_id": "mcp-server",
+      "event_type": "service_start",
+      "timestamp": "2026-03-03T00:01:00.000Z",
+      "cause": "startup_gate_blocked",
+      "attempt": 0,
+      "outcome": "started",
+      "reason_code": "startup_gate_blocked",
+      "details": {
+        "stage": "preflight"
+      }
+    },
+    {
+      "run_id": "run_mma9q7t2_8224e780",
+      "component_id": "supervisor-proxy",
+      "event_type": "session_invalidated",
+      "timestamp": "2026-03-03T00:01:05.000Z",
+      "cause": "stale_session_invalidated",
+      "attempt": 0,
+      "outcome": "succeeded",
+      "reason_code": "stale_session_invalidated",
+      "details": {
+        "choreography_phase": "invalidate_stale_session"
+      }
+    },
+    {
+      "run_id": "run_mma9q7t2_8224e780",
+      "component_id": "dashboard",
+      "event_type": "reconnect_attempt",
+      "timestamp": "2026-03-03T00:01:08.000Z",
+      "cause": "dependency_unavailable",
+      "attempt": 1,
+      "outcome": "in_progress",
+      "reason_code": "reconnect_observed",
+      "details": {
+        "endpoint": "/api/health",
+        "status": 200
+      }
+    },
+    {
+      "run_id": "run_mma9q7t2_8224e780",
+      "component_id": "extension-test-runner",
+      "event_type": "reconnect_succeeded",
+      "timestamp": "2026-03-03T00:01:25.000Z",
+      "cause": "reconnect_observed",
+      "attempt": 1,
+      "outcome": "succeeded",
+      "reason_code": "reconnect_observed",
+      "details": {
+        "assertion": "connected_degraded_disconnected_reconnected"
+      }
+    },
+    {
+      "run_id": "run_mma9q7t2_8224e780",
+      "component_id": "supervisor-proxy",
+      "event_type": "operator_alert_emitted",
+      "timestamp": "2026-03-03T00:01:40.000Z",
+      "cause": "degraded_mode_entered",
+      "attempt": 6,
+      "outcome": "observed",
+      "reason_code": "operator_alert_visible",
+      "details": {
+        "alert_channel": "integration_harness"
+      }
+    }
+  ]
+}

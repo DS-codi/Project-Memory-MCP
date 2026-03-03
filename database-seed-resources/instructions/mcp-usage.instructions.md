@@ -149,6 +149,21 @@ memory_agent (action: complete) with
 
 > **Note:** Since server terminal hardening, only allowlisted commands execute. Non-allowlisted commands are blocked (not queued for approval).
 
+### Sequential Execution Rule (Hard Rule)
+
+> ⛔ **You MUST wait for the response from each `run` call before issuing the next `run` call.**
+
+This is enforced at the MCP server level as a rate limiter:
+
+- Every `run` call acquires an **in-flight lock** on its target session.
+- If a second `run` targets the same session while it is still locked, the server **automatically redirects the command to a new terminal tab** (a fresh session ID) and includes a `rate_limit_note` in the response `data`.
+- The lock is released when the response is received (success, error, or timeout).
+
+**Agent behaviour rule:**
+- Always let `run` resolve completely before calling `run` again.
+- Never fire multiple `run` calls in parallel.
+- If you see `rate_limit_note` in a response, you violated this rule — add a sequential dependency before the next invocation.
+
 ### Common Patterns
 ```
 memory_terminal (action: run) with

@@ -1,0 +1,215 @@
+{
+  "$schema": "./health-readiness.contract.schema.json",
+  "contract_version": "v1.2.0",
+  "runtime": "podman-compose",
+  "generated_at": "2026-03-03T00:00:00.000Z",
+  "reconnect_permission": {
+    "requires_liveness_probe_pass": true,
+    "requires_readiness_probe_pass": true,
+    "minimum_consecutive_passes": 2,
+    "gate_timeout_ms": 15000,
+    "deny_reconnect_reason_code": "readiness_gate_blocked",
+    "applies_to_components": [
+      "mcp-server",
+      "dashboard",
+      "supervisor-proxy",
+      "extension-test-runner"
+    ]
+  },
+  "health_validation_thresholds": {
+    "readiness": {
+      "required_consecutive_passes": 2,
+      "max_gate_wait_ms": 15000,
+      "failure_threshold_cap": 3
+    },
+    "liveness": {
+      "max_probe_timeout_ms": 3000,
+      "failure_threshold_cap": 3,
+      "required_for_reconnect_gate": true
+    },
+    "reconnect": {
+      "max_reconnect_latency_ms": 20000,
+      "max_attempts_cap": 6,
+      "attempt_count_reason_code": "backoff_attempt_limit_exceeded",
+      "latency_reason_code": "timeout_exceeded",
+      "circuit_breaker_failure_threshold": 3,
+      "circuit_breaker_open_duration_ms": 6000,
+      "circuit_breaker_open_reason_code": "circuit_breaker_open"
+    }
+  },
+  "composite_health_model": {
+    "dimensions": [
+      "liveness",
+      "readiness",
+      "dependency_health",
+      "reconnect_subsystem"
+    ],
+    "aggregation_rules": {
+      "healthy_requires_all": [
+        "liveness",
+        "readiness",
+        "dependency_health",
+        "reconnect_subsystem"
+      ],
+      "degraded_when_any_of": [
+        "readiness",
+        "dependency_health",
+        "reconnect_subsystem"
+      ],
+      "unhealthy_when_any_of": [
+        "liveness"
+      ],
+      "unhealthy_when_failed_dimension_count_gte": 2
+    },
+    "degraded_reason_code": "composite_health_degraded",
+    "unhealthy_reason_code": "composite_health_unhealthy",
+    "publish": {
+      "endpoint_path": "/health",
+      "include_dimension_status": true,
+      "include_reason_code": true
+    }
+  },
+  "components": [
+    {
+      "component_id": "mcp-server",
+      "required": true,
+      "depends_on": [],
+      "startup_order": 1,
+      "readiness_gate": "required",
+      "liveness_probe": {
+        "kind": "http",
+        "endpoint_path": "/health",
+        "url": "http://localhost:3000/health",
+        "method": "GET",
+        "probe_interval_ms": 3000,
+        "timeout_ms": 3000,
+        "failure_threshold": 3,
+        "success_status_codes": [200],
+        "response_json_path": "$.status",
+        "expected_value": "ok"
+      },
+      "readiness_probe": {
+        "kind": "http",
+        "endpoint_path": "/api/health",
+        "url": "http://localhost:3000/api/health",
+        "method": "GET",
+        "probe_interval_ms": 3000,
+        "timeout_ms": 3000,
+        "failure_threshold": 3,
+        "success_status_codes": [200],
+        "response_json_path": "$.connectionState",
+        "expected_value": "healthy"
+      }
+    },
+    {
+      "component_id": "dashboard",
+      "required": true,
+      "depends_on": ["mcp-server"],
+      "startup_order": 2,
+      "readiness_gate": "required",
+      "liveness_probe": {
+        "kind": "http",
+        "endpoint_path": "/api/health",
+        "url": "http://localhost:3001/api/health",
+        "method": "GET",
+        "probe_interval_ms": 3000,
+        "timeout_ms": 3000,
+        "failure_threshold": 3,
+        "success_status_codes": [200],
+        "response_json_path": "$.status",
+        "expected_value": "ok"
+      },
+      "readiness_probe": {
+        "kind": "tcp",
+        "host": "127.0.0.1",
+        "port": 3002,
+        "probe_interval_ms": 3000,
+        "timeout_ms": 3000,
+        "failure_threshold": 3
+      }
+    },
+    {
+      "component_id": "supervisor-proxy",
+      "required": true,
+      "depends_on": ["mcp-server", "dashboard"],
+      "startup_order": 3,
+      "readiness_gate": "required",
+      "liveness_probe": {
+        "kind": "http",
+        "endpoint_path": "/health",
+        "url": "http://localhost:3457/health",
+        "method": "GET",
+        "probe_interval_ms": 3000,
+        "timeout_ms": 3000,
+        "failure_threshold": 3,
+        "success_status_codes": [200],
+        "response_json_path": "$.status",
+        "expected_value": "ok"
+      },
+      "readiness_probe": {
+        "kind": "http",
+        "endpoint_path": "/supervisor/heartbeat",
+        "url": "http://localhost:3457/supervisor/heartbeat",
+        "method": "GET",
+        "probe_interval_ms": 3000,
+        "timeout_ms": 3000,
+        "failure_threshold": 3,
+        "success_status_codes": [200]
+      }
+    },
+    {
+      "component_id": "extension-test-runner",
+      "required": true,
+      "depends_on": ["mcp-server", "dashboard", "supervisor-proxy"],
+      "startup_order": 4,
+      "readiness_gate": "required",
+      "liveness_probe": {
+        "kind": "http",
+        "endpoint_path": "/health",
+        "url": "http://localhost:3000/health",
+        "method": "GET",
+        "probe_interval_ms": 5000,
+        "timeout_ms": 3000,
+        "failure_threshold": 2,
+        "success_status_codes": [200],
+        "response_json_path": "$.status",
+        "expected_value": "ok"
+      },
+      "readiness_probe": {
+        "kind": "http",
+        "endpoint_path": "/api/health",
+        "url": "http://localhost:3001/api/health",
+        "method": "GET",
+        "probe_interval_ms": 5000,
+        "timeout_ms": 3000,
+        "failure_threshold": 2,
+        "success_status_codes": [200],
+        "response_json_path": "$.status",
+        "expected_value": "ok"
+      }
+    },
+    {
+      "component_id": "interactive-terminal-bridge",
+      "required": false,
+      "depends_on": ["mcp-server"],
+      "startup_order": 5,
+      "readiness_gate": "optional",
+      "liveness_probe": {
+        "kind": "tcp",
+        "host": "127.0.0.1",
+        "port": 45459,
+        "probe_interval_ms": 5000,
+        "timeout_ms": 3000,
+        "failure_threshold": 2
+      },
+      "readiness_probe": {
+        "kind": "tcp",
+        "host": "127.0.0.1",
+        "port": 9100,
+        "probe_interval_ms": 5000,
+        "timeout_ms": 3000,
+        "failure_threshold": 2
+      }
+    }
+  ]
+}

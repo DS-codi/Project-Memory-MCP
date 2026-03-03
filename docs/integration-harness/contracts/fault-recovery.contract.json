@@ -1,0 +1,764 @@
+{
+  "$schema": "./fault-recovery.contract.schema.json",
+  "contract_version": "v1.4.0",
+  "runtime_default": "container-mode",
+  "dependency_failure_policy": {
+    "degrade_without_full_restart": true,
+    "degraded_reason_code": "capability_degraded_dependency_failure",
+    "isolation_assertion_reason_code": "dependency_failure_isolated",
+    "forbidden_restart_scope": "global",
+    "required_failure_domains": [
+      "dependency-group"
+    ]
+  },
+  "reconnect_storm_policy": {
+    "window_ms": 8000,
+    "max_attempts_in_window": 4,
+    "max_inflight_attempts": 1,
+    "queue_limit": 2,
+    "reject_new_attempts_when_saturated": true,
+    "rejection_reason_code": "reconnect_admission_limited"
+  },
+  "replay_ack_guarantees": {
+    "enabled": true,
+    "ack_mode": "at_least_once_with_dedup",
+    "require_replay_commit_before_resume": true,
+    "dedup_identity_fields": [
+      "component_id",
+      "session_id",
+      "replay_cursor",
+      "event_tag"
+    ],
+    "replay_window_max_events": 10000,
+    "ack_timeout_ms": 5000,
+    "pass_reason_code": "replay_ack_guarantee_satisfied",
+    "fail_reason_code": "replay_ack_guarantee_unverified"
+  },
+  "circuit_breaker_policy": {
+    "enabled": true,
+    "failure_threshold": 3,
+    "open_state_min_duration_ms": 6000,
+    "half_open_max_probe_attempts": 2,
+    "open_reason_code": "circuit_breaker_open",
+    "half_open_reason_code": "circuit_breaker_half_open",
+    "fail_fast_when_open": true
+  },
+  "reconnect_handshake_contract": {
+    "podman_first": true,
+    "require_transport_logical_binding": true,
+    "resume_token": {
+      "format": "base64url-jws",
+      "binds_to": [
+        "workspace_id",
+        "session_id",
+        "transport_id"
+      ],
+      "ttl_ms_min": 1000,
+      "ttl_ms_max": 900000,
+      "expiry_reason_code": "resume_token_expired"
+    },
+    "session_lease": {
+      "lease_required": true,
+      "lease_id_pattern": "^lease_[a-z0-9][a-z0-9_-]{7,63}$",
+      "lease_ttl_ms": 120000,
+      "renew_on_success": true,
+      "expiry_reason_code": "session_lease_expired"
+    },
+    "replay_cursor": {
+      "required": true,
+      "cursor_type": "monotonic-sequence",
+      "max_replay_window_events": 10000,
+      "stale_cursor_reason_code": "replay_cursor_stale"
+    },
+    "outcomes": [
+      "accepted",
+      "resume_denied",
+      "replay_required",
+      "full_resync_required"
+    ]
+  },
+  "reconnect_idempotency_contract": {
+    "idempotency_key_fields": [
+      "resume_token_hash",
+      "lease_id",
+      "replay_cursor",
+      "component_id"
+    ],
+    "suppression_window_ms": 30000,
+    "duplicate_policy": {
+      "duplicate_reconnect_attempt": "return_existing_result",
+      "duplicate_subscription": "no_op_ack",
+      "duplicate_replay_event": "suppress_emit"
+    },
+    "reason_codes": [
+      "reconnect_duplicate_suppressed",
+      "reconnect_idempotent_replay"
+    ]
+  },
+  "reconnect_protocol_conformance_matrix": {
+    "runtime_mode": "container-mode",
+    "validation_order": [
+      "normal",
+      "delayed",
+      "duplicate",
+      "stale-token"
+    ],
+    "cases": [
+      {
+        "case_id": "normal",
+        "description": "Resume handshake succeeds with valid token, lease, and replay cursor under nominal latency.",
+        "request_profile": {
+          "resume_token_state": "valid",
+          "session_lease_state": "active",
+          "transport_rebind": "same_transport",
+          "simulated_handshake_delay_ms": 50,
+          "duplicate_attempt_count": 1
+        },
+        "expected_outcome": "accepted",
+        "expected_reason_codes": [
+          "reconnect_observed",
+          "replay_ack_guarantee_satisfied"
+        ],
+        "must_emit_events": [
+          "session_invalidated",
+          "reconnect_attempt",
+          "dependency_gate_pass",
+          "readiness_pass",
+          "connectivity_reconnected"
+        ]
+      },
+      {
+        "case_id": "delayed",
+        "description": "Resume handshake remains valid when response latency is delayed but below timeout ceiling.",
+        "request_profile": {
+          "resume_token_state": "valid",
+          "session_lease_state": "active",
+          "transport_rebind": "new_transport",
+          "simulated_handshake_delay_ms": 1800,
+          "duplicate_attempt_count": 1
+        },
+        "expected_outcome": "accepted",
+        "expected_reason_codes": [
+          "reconnect_observed",
+          "replay_ack_guarantee_satisfied"
+        ],
+        "must_emit_events": [
+          "session_invalidated",
+          "reconnect_attempt",
+          "dependency_gate_pass",
+          "readiness_pass",
+          "connectivity_reconnected"
+        ]
+      },
+      {
+        "case_id": "duplicate",
+        "description": "Duplicate reconnect attempts within suppression window return existing result and do not duplicate subscription/replay emit.",
+        "request_profile": {
+          "resume_token_state": "valid",
+          "session_lease_state": "active",
+          "transport_rebind": "new_transport",
+          "simulated_handshake_delay_ms": 400,
+          "duplicate_attempt_count": 2
+        },
+        "expected_outcome": "accepted",
+        "expected_reason_codes": [
+          "reconnect_duplicate_suppressed",
+          "reconnect_idempotent_replay"
+        ],
+        "must_emit_events": [
+          "reconnect_attempt",
+          "connectivity_reconnected",
+          "assertion_pass"
+        ]
+      },
+      {
+        "case_id": "stale-token",
+        "description": "Stale or expired token is denied and requires full resync path.",
+        "request_profile": {
+          "resume_token_state": "expired",
+          "session_lease_state": "expired",
+          "transport_rebind": "new_transport",
+          "simulated_handshake_delay_ms": 100,
+          "duplicate_attempt_count": 1
+        },
+        "expected_outcome": "full_resync_required",
+        "expected_reason_codes": [
+          "resume_token_expired",
+          "session_lease_expired"
+        ],
+        "must_emit_events": [
+          "reconnect_attempt",
+          "reconnect_failed"
+        ]
+      }
+    ]
+  },
+  "scenarios": [
+    {
+      "scenario_id": "container_restart_mcp_server",
+      "runtime_mode": "container-mode",
+      "component_id": "mcp-server",
+      "failure_domain": "dependency-group",
+      "restart_scope": "dependency-group",
+      "isolation_rules": {
+        "allow_restart_only_within_scope": true,
+        "must_not_restart_outside_scope": true,
+        "unaffected_components_must_remain_healthy": [
+          "interactive-terminal-bridge"
+        ]
+      },
+      "atomic_actions": [
+        {
+          "action_id": "stop_project_memory_service",
+          "action_type": "stop_service",
+          "hold_ms": 1500,
+          "target": {
+            "compose_service": "project-memory"
+          }
+        },
+        {
+          "action_id": "delay_project_memory_service",
+          "action_type": "delay_response",
+          "delay_ms": 1200,
+          "target": {
+            "compose_service": "project-memory"
+          }
+        },
+        {
+          "action_id": "force_health_failure_mcp",
+          "action_type": "force_health_failure",
+          "target": {
+            "probe": {
+              "kind": "http",
+              "url": "http://localhost:3000/health",
+              "method": "GET",
+              "timeout_ms": 1000,
+              "success_status_codes": [503]
+            }
+          }
+        }
+      ],
+      "expected_transition_sequence": [
+        "connectivity_connected",
+        "connectivity_degraded",
+        "connectivity_disconnected",
+        "connectivity_reconnected"
+      ],
+      "reconnect_policy": {
+        "max_attempts": 6,
+        "initial_backoff_ms": 300,
+        "max_backoff_ms": 2000,
+        "multiplier": 2.0,
+        "jitter_ratio": 0.2,
+        "cooldown_after_attempts": 3,
+        "cooldown_by_failure_domain": {
+          "child_local_ms": 1200,
+          "dependency_group_ms": 1800,
+          "global_ms": 4000
+        },
+        "timeout_ms": 20000
+      },
+      "stop_start_policy": {
+        "idempotent_stop_start": true,
+        "stop_wait_for_exit_ms": 1500,
+        "orphan_child_reap_required": true,
+        "start_requires_clean_pid_set": true
+      },
+      "reconnect_choreography": {
+        "invalidate_stale_session_first": true,
+        "require_dependency_gate_pass": true,
+        "require_readiness_gate_pass": true,
+        "ordered_events": [
+          "session_invalidated",
+          "reconnect_attempt",
+          "dependency_gate_pass",
+          "readiness_pass",
+          "connectivity_reconnected"
+        ]
+      },
+      "safety_escalation": {
+        "degrade_after_max_attempts": true,
+        "degrade_after_timeout_ms": 20000,
+        "operator_alert_required": true,
+        "operator_alert_reason_code": "operator_alert_visible"
+      },
+      "reconnect_probe": {
+        "kind": "http",
+        "url": "http://localhost:3000/health",
+        "method": "GET",
+        "timeout_ms": 3000,
+        "success_status_codes": [200]
+      }
+    },
+    {
+      "scenario_id": "supervisor_proxy_partial_failure",
+      "runtime_mode": "supervisor-mode",
+      "component_id": "supervisor-proxy",
+      "failure_domain": "child-local",
+      "restart_scope": "child-local",
+      "isolation_rules": {
+        "allow_restart_only_within_scope": true,
+        "must_not_restart_outside_scope": true,
+        "unaffected_components_must_remain_healthy": [
+          "mcp-server",
+          "dashboard"
+        ]
+      },
+      "atomic_actions": [
+        {
+          "action_id": "kill_supervisor_proxy_process",
+          "action_type": "kill_process",
+          "target": {
+            "process_names": ["interactive-terminal", "supervisor", "project-memory-supervisor"]
+          }
+        },
+        {
+          "action_id": "delay_supervisor_proxy_path",
+          "action_type": "delay_response",
+          "delay_ms": 900,
+          "target": {
+            "process_names": ["interactive-terminal", "supervisor", "project-memory-supervisor"]
+          }
+        },
+        {
+          "action_id": "force_health_failure_supervisor",
+          "action_type": "force_health_failure",
+          "target": {
+            "probe": {
+              "kind": "http",
+              "url": "http://localhost:3457/health",
+              "method": "GET",
+              "timeout_ms": 1000,
+              "success_status_codes": [503]
+            }
+          }
+        }
+      ],
+      "expected_transition_sequence": [
+        "connectivity_connected",
+        "connectivity_degraded",
+        "connectivity_disconnected",
+        "connectivity_reconnected"
+      ],
+      "reconnect_policy": {
+        "max_attempts": 6,
+        "initial_backoff_ms": 250,
+        "max_backoff_ms": 2000,
+        "multiplier": 2.0,
+        "jitter_ratio": 0.2,
+        "cooldown_after_attempts": 2,
+        "cooldown_by_failure_domain": {
+          "child_local_ms": 1600,
+          "dependency_group_ms": 2200,
+          "global_ms": 4500
+        },
+        "timeout_ms": 15000
+      },
+      "stop_start_policy": {
+        "idempotent_stop_start": true,
+        "stop_wait_for_exit_ms": 1200,
+        "orphan_child_reap_required": true,
+        "start_requires_clean_pid_set": true
+      },
+      "reconnect_choreography": {
+        "invalidate_stale_session_first": true,
+        "require_dependency_gate_pass": true,
+        "require_readiness_gate_pass": true,
+        "ordered_events": [
+          "session_invalidated",
+          "reconnect_attempt",
+          "dependency_gate_pass",
+          "readiness_pass",
+          "connectivity_reconnected"
+        ]
+      },
+      "safety_escalation": {
+        "degrade_after_max_attempts": true,
+        "degrade_after_timeout_ms": 15000,
+        "operator_alert_required": true,
+        "operator_alert_reason_code": "operator_alert_visible"
+      },
+      "reconnect_probe": {
+        "kind": "http",
+        "url": "http://localhost:3457/health",
+        "method": "GET",
+        "timeout_ms": 2500,
+        "success_status_codes": [200]
+      },
+      "isolation_expectations": {
+        "degraded_component": "supervisor-proxy",
+        "degraded_probe": {
+          "kind": "http",
+          "url": "http://localhost:3457/health",
+          "method": "GET",
+          "timeout_ms": 1500,
+          "success_status_codes": [200]
+        },
+        "unaffected_components": [
+          "mcp-server",
+          "dashboard"
+        ],
+        "proxy_heartbeat_component": "supervisor-proxy"
+      }
+    },
+    {
+      "scenario_id": "extension_backend_restart",
+      "runtime_mode": "container-mode",
+      "component_id": "extension-test-runner",
+      "failure_domain": "dependency-group",
+      "restart_scope": "dependency-group",
+      "isolation_rules": {
+        "allow_restart_only_within_scope": true,
+        "must_not_restart_outside_scope": true,
+        "unaffected_components_must_remain_healthy": [
+          "interactive-terminal-bridge"
+        ]
+      },
+      "atomic_actions": [
+        {
+          "action_id": "extension_backend_stop_start",
+          "action_type": "stop_service",
+          "hold_ms": 1200,
+          "target": {
+            "compose_service": "project-memory"
+          }
+        },
+        {
+          "action_id": "extension_backend_delay",
+          "action_type": "delay_response",
+          "delay_ms": 1000,
+          "target": {
+            "compose_service": "project-memory"
+          }
+        }
+      ],
+      "expected_transition_sequence": [
+        "connectivity_connected",
+        "connectivity_degraded",
+        "connectivity_disconnected",
+        "connectivity_reconnected"
+      ],
+      "reconnect_policy": {
+        "max_attempts": 6,
+        "initial_backoff_ms": 250,
+        "max_backoff_ms": 2000,
+        "multiplier": 2.0,
+        "jitter_ratio": 0.2,
+        "cooldown_after_attempts": 3,
+        "cooldown_by_failure_domain": {
+          "child_local_ms": 1000,
+          "dependency_group_ms": 2000,
+          "global_ms": 4500
+        },
+        "timeout_ms": 18000
+      },
+      "stop_start_policy": {
+        "idempotent_stop_start": true,
+        "stop_wait_for_exit_ms": 1200,
+        "orphan_child_reap_required": true,
+        "start_requires_clean_pid_set": true
+      },
+      "reconnect_choreography": {
+        "invalidate_stale_session_first": true,
+        "require_dependency_gate_pass": true,
+        "require_readiness_gate_pass": true,
+        "ordered_events": [
+          "session_invalidated",
+          "reconnect_attempt",
+          "dependency_gate_pass",
+          "readiness_pass",
+          "connectivity_reconnected"
+        ]
+      },
+      "safety_escalation": {
+        "degrade_after_max_attempts": true,
+        "degrade_after_timeout_ms": 18000,
+        "operator_alert_required": true,
+        "operator_alert_reason_code": "operator_alert_visible"
+      },
+      "reconnect_probe": {
+        "kind": "http",
+        "url": "http://localhost:3000/health",
+        "method": "GET",
+        "timeout_ms": 2500,
+        "success_status_codes": [200]
+      }
+    },
+    {
+      "scenario_id": "extension_endpoint_failure",
+      "runtime_mode": "container-mode",
+      "component_id": "extension-test-runner",
+      "failure_domain": "child-local",
+      "restart_scope": "child-local",
+      "isolation_rules": {
+        "allow_restart_only_within_scope": true,
+        "must_not_restart_outside_scope": true,
+        "unaffected_components_must_remain_healthy": [
+          "mcp-server",
+          "dashboard",
+          "supervisor-proxy"
+        ]
+      },
+      "atomic_actions": [
+        {
+          "action_id": "extension_force_endpoint_failure",
+          "action_type": "force_health_failure",
+          "target": {
+            "probe": {
+              "kind": "http",
+              "url": "http://localhost:3999/health",
+              "method": "GET",
+              "timeout_ms": 1000,
+              "success_status_codes": [200]
+            }
+          }
+        }
+      ],
+      "expected_transition_sequence": [
+        "connectivity_connected",
+        "connectivity_degraded",
+        "connectivity_disconnected",
+        "connectivity_reconnected"
+      ],
+      "reconnect_policy": {
+        "max_attempts": 5,
+        "initial_backoff_ms": 300,
+        "max_backoff_ms": 1800,
+        "multiplier": 2.0,
+        "jitter_ratio": 0.2,
+        "cooldown_after_attempts": 2,
+        "cooldown_by_failure_domain": {
+          "child_local_ms": 1500,
+          "dependency_group_ms": 1800,
+          "global_ms": 4000
+        },
+        "timeout_ms": 15000
+      },
+      "stop_start_policy": {
+        "idempotent_stop_start": true,
+        "stop_wait_for_exit_ms": 1000,
+        "orphan_child_reap_required": true,
+        "start_requires_clean_pid_set": true
+      },
+      "reconnect_choreography": {
+        "invalidate_stale_session_first": true,
+        "require_dependency_gate_pass": true,
+        "require_readiness_gate_pass": true,
+        "ordered_events": [
+          "session_invalidated",
+          "reconnect_attempt",
+          "dependency_gate_pass",
+          "readiness_pass",
+          "connectivity_reconnected"
+        ]
+      },
+      "safety_escalation": {
+        "degrade_after_max_attempts": true,
+        "degrade_after_timeout_ms": 15000,
+        "operator_alert_required": true,
+        "operator_alert_reason_code": "operator_alert_visible"
+      },
+      "reconnect_probe": {
+        "kind": "http",
+        "url": "http://localhost:3000/health",
+        "method": "GET",
+        "timeout_ms": 2500,
+        "success_status_codes": [200]
+      }
+    },
+    {
+      "scenario_id": "supervisor_repeated_child_crash_burst",
+      "runtime_mode": "supervisor-mode",
+      "component_id": "supervisor-proxy",
+      "failure_domain": "child-local",
+      "restart_scope": "child-local",
+      "isolation_rules": {
+        "allow_restart_only_within_scope": true,
+        "must_not_restart_outside_scope": true,
+        "unaffected_components_must_remain_healthy": [
+          "mcp-server",
+          "dashboard"
+        ]
+      },
+      "atomic_actions": [
+        {
+          "action_id": "kill_supervisor_proxy_crash_1",
+          "action_type": "kill_process",
+          "target": {
+            "process_names": ["interactive-terminal", "supervisor", "project-memory-supervisor"]
+          }
+        },
+        {
+          "action_id": "kill_supervisor_proxy_crash_2",
+          "action_type": "kill_process",
+          "target": {
+            "process_names": ["interactive-terminal", "supervisor", "project-memory-supervisor"]
+          }
+        },
+        {
+          "action_id": "kill_supervisor_proxy_crash_3",
+          "action_type": "kill_process",
+          "target": {
+            "process_names": ["interactive-terminal", "supervisor", "project-memory-supervisor"]
+          }
+        },
+        {
+          "action_id": "delay_supervisor_proxy_recovery_path",
+          "action_type": "delay_response",
+          "delay_ms": 950,
+          "target": {
+            "process_names": ["interactive-terminal", "supervisor", "project-memory-supervisor"]
+          }
+        }
+      ],
+      "expected_transition_sequence": [
+        "connectivity_connected",
+        "connectivity_degraded",
+        "connectivity_disconnected",
+        "connectivity_reconnected"
+      ],
+      "reconnect_policy": {
+        "max_attempts": 7,
+        "initial_backoff_ms": 200,
+        "max_backoff_ms": 2200,
+        "multiplier": 2.0,
+        "jitter_ratio": 0.2,
+        "cooldown_after_attempts": 3,
+        "cooldown_by_failure_domain": {
+          "child_local_ms": 1700,
+          "dependency_group_ms": 2200,
+          "global_ms": 5000
+        },
+        "timeout_ms": 20000
+      },
+      "stop_start_policy": {
+        "idempotent_stop_start": true,
+        "stop_wait_for_exit_ms": 1500,
+        "orphan_child_reap_required": true,
+        "start_requires_clean_pid_set": true
+      },
+      "reconnect_choreography": {
+        "invalidate_stale_session_first": true,
+        "require_dependency_gate_pass": true,
+        "require_readiness_gate_pass": true,
+        "ordered_events": [
+          "session_invalidated",
+          "reconnect_attempt",
+          "dependency_gate_pass",
+          "readiness_pass",
+          "connectivity_reconnected"
+        ]
+      },
+      "safety_escalation": {
+        "degrade_after_max_attempts": true,
+        "degrade_after_timeout_ms": 20000,
+        "operator_alert_required": true,
+        "operator_alert_reason_code": "operator_alert_visible"
+      },
+      "reconnect_probe": {
+        "kind": "http",
+        "url": "http://localhost:3457/health",
+        "method": "GET",
+        "timeout_ms": 2500,
+        "success_status_codes": [200]
+      }
+    },
+    {
+      "scenario_id": "supervisor_dependency_unavailable_dashboard",
+      "runtime_mode": "container-mode",
+      "component_id": "supervisor-proxy",
+      "failure_domain": "dependency-group",
+      "restart_scope": "dependency-group",
+      "isolation_rules": {
+        "allow_restart_only_within_scope": true,
+        "must_not_restart_outside_scope": true,
+        "unaffected_components_must_remain_healthy": [
+          "mcp-server",
+          "interactive-terminal-bridge"
+        ]
+      },
+      "atomic_actions": [
+        {
+          "action_id": "stop_dashboard_dependency",
+          "action_type": "stop_service",
+          "hold_ms": 1800,
+          "target": {
+            "compose_service": "dashboard"
+          }
+        },
+        {
+          "action_id": "delay_dashboard_dependency",
+          "action_type": "delay_response",
+          "delay_ms": 1300,
+          "target": {
+            "compose_service": "dashboard"
+          }
+        },
+        {
+          "action_id": "force_dashboard_health_failure",
+          "action_type": "force_health_failure",
+          "target": {
+            "probe": {
+              "kind": "http",
+              "url": "http://localhost:3001/api/health",
+              "method": "GET",
+              "timeout_ms": 1200,
+              "success_status_codes": [503]
+            }
+          }
+        }
+      ],
+      "expected_transition_sequence": [
+        "connectivity_connected",
+        "connectivity_degraded",
+        "connectivity_disconnected",
+        "connectivity_reconnected"
+      ],
+      "reconnect_policy": {
+        "max_attempts": 6,
+        "initial_backoff_ms": 300,
+        "max_backoff_ms": 2500,
+        "multiplier": 2.0,
+        "jitter_ratio": 0.2,
+        "cooldown_after_attempts": 3,
+        "cooldown_by_failure_domain": {
+          "child_local_ms": 1400,
+          "dependency_group_ms": 2400,
+          "global_ms": 5000
+        },
+        "timeout_ms": 22000
+      },
+      "stop_start_policy": {
+        "idempotent_stop_start": true,
+        "stop_wait_for_exit_ms": 1500,
+        "orphan_child_reap_required": true,
+        "start_requires_clean_pid_set": true
+      },
+      "reconnect_choreography": {
+        "invalidate_stale_session_first": true,
+        "require_dependency_gate_pass": true,
+        "require_readiness_gate_pass": true,
+        "ordered_events": [
+          "session_invalidated",
+          "reconnect_attempt",
+          "dependency_gate_pass",
+          "readiness_pass",
+          "connectivity_reconnected"
+        ]
+      },
+      "safety_escalation": {
+        "degrade_after_max_attempts": true,
+        "degrade_after_timeout_ms": 22000,
+        "operator_alert_required": true,
+        "operator_alert_reason_code": "operator_alert_visible"
+      },
+      "reconnect_probe": {
+        "kind": "http",
+        "url": "http://localhost:3457/health",
+        "method": "GET",
+        "timeout_ms": 3000,
+        "success_status_codes": [200]
+      }
+    }
+  ]
+}

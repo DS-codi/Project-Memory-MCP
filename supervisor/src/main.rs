@@ -1484,10 +1484,13 @@ async fn handle_restart_command(
                 dashboard_runner,
             )
             .await;
-            // Spawn crash-recovery monitor after every (re)start so the
-            // supervisor detects crashes regardless of whether the terminal
-            // was started automatically or on demand.
-            {
+            // Terminal auto-restart watchdog is OFF by default.
+            // Rationale: interactive-terminal should be launched/relaunched on-demand
+            // by explicit caller intent (e.g. memory_terminal path), not by a background
+            // probe loop that can revive a terminal the operator intentionally stopped.
+            let terminal_health_restart_enabled =
+                parse_env_flag("PM_SUPERVISOR_TERMINAL_HEALTH_RESTART", false);
+            if terminal_health_restart_enabled {
                 let is_running = {
                     let reg = registry.lock().await;
                     reg.service_states()
@@ -1499,8 +1502,6 @@ async fn handle_restart_command(
                 if is_running {
                     let restart_tx_term = restart_tx.clone();
                     tokio::spawn(async move {
-                        // Give the Qt/QML binary ample time to start before
-                        // the first health probe fires.
                         tokio::time::sleep(Duration::from_secs(30)).await;
                         let mut failures = 0u32;
                         let mut interval = tokio::time::interval(Duration::from_secs(5));
@@ -1522,6 +1523,10 @@ async fn handle_restart_command(
                         }
                     });
                 }
+            } else {
+                eprintln!(
+                    "[supervisor] terminal health watchdog disabled (set PM_SUPERVISOR_TERMINAL_HEALTH_RESTART=1 to enable)"
+                );
             }
         }
         "dashboard" => {

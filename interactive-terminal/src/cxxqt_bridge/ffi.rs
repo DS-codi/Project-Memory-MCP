@@ -46,9 +46,23 @@ pub mod ffi {
         #[cxx_name = "connectionStatusChanged"]
         fn connection_status_changed(self: Pin<&mut TerminalApp>, connected: bool);
 
+        /// Emitted when an approved super-subagent launch has been routed to
+        /// a dedicated tagged tab (step 11).
+        ///
+        /// QML can connect to this signal to scroll to / highlight the new tab,
+        /// or to show a status toast.
+        #[qsignal]
+        #[cxx_name = "agentSessionLaunched"]
+        fn agent_session_launched(
+            self: Pin<&mut TerminalApp>,
+            session_id: QString,
+            label: QString,
+            provider: QString,
+        );
+
         #[qinvokable]
         #[cxx_name = "approveCommand"]
-        fn approve_command(self: Pin<&mut TerminalApp>, id: QString);
+        fn approve_command(self: Pin<&mut TerminalApp>, id: QString, autonomy_mode: QString);
 
         #[qinvokable]
         #[cxx_name = "declineCommand"]
@@ -169,6 +183,14 @@ pub mod ffi {
         #[qinvokable]
         #[cxx_name = "copyLastCommandOutput"]
         fn copy_last_command_output(self: Pin<&mut TerminalApp>) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "approvalProviderPrefillPolicy"]
+        fn approval_provider_prefill_policy(
+            self: &TerminalApp,
+            provider_policy_applies: bool,
+            preferred_provider: QString,
+        ) -> QString;
     }
 
     impl cxx_qt::Initialize for TerminalApp {}

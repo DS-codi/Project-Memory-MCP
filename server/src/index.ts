@@ -555,7 +555,7 @@ server.tool(
 
 server.tool(
   'memory_terminal',
-  'Terminal tool with GUI approval flow. Actions: run (execute command — auto-approves allowlisted, blocks destructive, shows GUI approval for others), read_output (get output from a session), kill (terminate a session), get_allowlist (view allowlist), update_allowlist (manage allowlist patterns).',
+  'Terminal tool with GUI approval flow. Actions: run (execute command — auto-approves allowlisted, blocks destructive, shows GUI approval for others), read_output (get output from a session), kill (terminate a session), get_allowlist (view allowlist), update_allowlist (manage allowlist patterns). SEQUENTIAL RULE: You MUST wait for each run response before calling run again. Concurrent run calls targeting the same session are automatically rerouted to a new terminal tab and will include a rate_limit_note in the response data.',
   {
     action: z.enum(['run', 'read_output', 'kill', 'get_allowlist', 'update_allowlist']).describe('The action to perform'),
     command: z.string().optional().describe('Command to execute (for run)'),

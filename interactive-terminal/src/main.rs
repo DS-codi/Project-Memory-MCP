@@ -1,10 +1,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod audit_log;
 mod build_check;
 mod command_executor;
 mod cxxqt_bridge;
 mod host_bridge_listener;
 mod integration;
+mod launch_builder;
 mod output_persistence;
 mod perf_monitor;
 mod protocol;

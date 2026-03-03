@@ -53,6 +53,7 @@ When the user sends a short control command, interpret it before normal routing.
 | User command | Hub behavior |
 |--------------|--------------|
 | `handoff` | Generate a continuation handoff prompt immediately (no clarification needed). |
+| `run planning cycle` | Execute the planning-cycle workflow immediately using the contract below. |
 | `status` | Summarize current plan/program status and next recommended role/action. |
 | `continue` | Continue the current workflow from the next pending step/phase. |
 | `pause` | Pause after current completion checkpoint and wait for user direction. |
@@ -71,6 +72,20 @@ If user says `handoff`, Hub MUST produce a transfer prompt wrapped with four bac
 7. Instruction for next agent to delete temporary context file after loading it
 
 If context is large, Hub MUST create `%project-root%/.projectmemory/temp_chat/<timestamp>-handoff.md` and reference it in the in-chat handoff prompt.
+
+### `run planning cycle` command contract
+
+If user says `run planning cycle`, Hub MUST execute this sequence:
+
+1. **Hub** — create or identify the target plan container and set/update `goals` + `success_criteria`.
+2. **Researcher** — gather rich implementation context required to write accurate plan steps.
+3. **Hub** — run deployment/session prep for Architect with the gathered context and explicit step boundaries.
+4. **Architect** — produce an accurate, atomic step plan from that context.
+
+Rules:
+- Hub may create or identify the plan and set goals/success criteria, but Architect owns plan-step authoring.
+- If a suitable plan already exists, Hub should reuse it and refresh goals/success criteria instead of creating duplicates.
+- Pause after Architect returns so the user can review plan steps before execution.
 
 ---
 
@@ -158,6 +173,10 @@ When composing a spoke prompt, Hub MUST embed:
 6. **Constraints** — From PromptAnalyst's `constraint_notes`.
 7. **Step update protocol** — Verbatim block (see below).
 8. **Anti-spawn instruction** — "Do NOT call runSubagent. Use memory_agent(action: handoff) to return to Hub."
+9. **Self-load lists** — Include explicit:
+  - `skills_to_load: ["..."]`
+  - `instructions_to_load: ["..."]`
+  selected via metadata-only discovery.
 
 A spoke prompt missing any of these is a Hub defect.
 
@@ -166,11 +185,14 @@ A spoke prompt missing any of these is a Hub defect.
 Before every `runSubagent` call:
 
 1. Pull role instructions: `memory_agent(action: get_instructions, agent_name: "<Role>")`
-2. Deploy context + prepare prompt: `memory_session(action: deploy_and_prep, agent_name: "<Role>", prompt: "<task + role instructions>", workspace_id: "...", plan_id: "...", compat_mode: "strict", phase_name: "<current_phase>", step_indices: [...])` → returns `prep_config` containing `enriched_prompt`, `session_id`, and `plan_context`
-3. Capture `prep_config.session_id`, `prep_config.plan_context.plan_id`, and `prep_config.plan_context.current_phase` — embed these **explicitly** in the final spawn prompt alongside step_indices
-4. Spawn: `runSubagent({ agentName: "Shell", prompt: prep_config.enriched_prompt, description: "<Role>: <brief task>" })`
+2. Select relevant skills/instructions using metadata only:
+  - `memory_agent(action: list_skills)` + `memory_agent(action: list_workspace_skills, workspace_id: "...")`
+  - `memory_agent(action: list_instructions)` + `memory_agent(action: list_workspace_instructions, workspace_id: "...")`
+3. Deploy context + prepare prompt: `memory_session(action: deploy_and_prep, agent_name: "<Role>", prompt: "<task + role instructions>", workspace_id: "...", plan_id: "...", compat_mode: "strict", phase_name: "<current_phase>", step_indices: [...])` → returns `prep_config` containing `enriched_prompt`, `session_id`, and `plan_context`
+4. Capture `prep_config.session_id`, `prep_config.plan_context.plan_id`, and `prep_config.plan_context.current_phase` — embed these **explicitly** in the final spawn prompt alongside step_indices and the `skills_to_load` / `instructions_to_load` lists.
+5. Spawn: `runSubagent({ agentName: "Shell", prompt: prep_config.enriched_prompt, description: "<Role>: <brief task>" })`
 
-`deploy_and_prep` embeds workspace context, plan state, matched skills, and scope boundaries into `prep_config.enriched_prompt`. Hub adds role instructions, task details, and explicit session context before calling it. If `deploy_and_prep` returns `success: false`, do NOT spawn — diagnose and retry.
+`deploy_and_prep` embeds workspace context, plan state, matched skills, and scope boundaries into `prep_config.enriched_prompt`. Hub adds role instructions, task details, explicit session context, and self-load lists before calling it. If `deploy_and_prep` returns `success: false`, do NOT spawn — diagnose and retry.
 
 ---
 
@@ -225,6 +247,13 @@ Hub acts on `hub_mode` from PromptAnalyst to select the execution pattern.
 1. **Executor** → Implement phase steps
 2. **Reviewer** → Build verification + code review. Include `pre_plan_build_status` ('passing' | 'failing' | 'unknown') from plan state so Reviewer knows whether to run a regression build check.
 3. **Tester** → Write tests for this phase (do not run yet)
+
+**Adaptive cadence policy (`standard_orchestration`):**
+- Hub should choose cadence dynamically per phase based on plan risk, code-change scope, and review findings.
+- Preferred baseline remains **Hub → Executor → Hub → Reviewer → Hub → Tester(write-only) → Hub** when risk is medium/high.
+- For low-risk, tightly scoped phases, Hub may defer Reviewer to a later checkpoint if step-validation is clean.
+- Tester test-writing MUST happen at the end of every phase before moving to the next phase.
+- Hub MUST run the post-spoke validation gate after each spoke and record rationale in plan notes when review timing is deferred.
 
 After all phases complete:
 4. **Tester** → Run all tests

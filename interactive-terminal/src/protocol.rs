@@ -93,6 +93,69 @@ pub struct SavedCommandsResponse {
     pub error: Option<String>,
 }
 
+// ─── Context-pack types ──────────────────────────────────────────────────────
+
+/// A single file reference included in a context-pack.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RelevantFile {
+    /// Workspace-relative or absolute file path.
+    pub path: String,
+    /// Optional short excerpt from the file, pre-truncated by the sender.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snippet: Option<String>,
+}
+
+/// Structured context assembled before a super-subagent launch request is
+/// forwarded to the GUI approval dialog.
+///
+/// Assembled server-side in `memory_terminal.ts::assembleContextPack` and
+/// embedded into the `context` JSON string of [`CommandRequest`] under the
+/// key `"context_pack"`, alongside existing keys such as `source`,
+/// `correlation`, and `approval`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct ContextPack {
+    /// Active plan step notes that motivated the launch request.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub step_notes: Option<String>,
+    /// Files referenced in the request (paths + optional snippet).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub relevant_files: Vec<RelevantFile>,
+    /// Workspace-level instructions loaded from the workspace settings.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_instructions: Option<String>,
+    /// Custom per-request instructions supplied by the calling agent.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub custom_instructions: Option<String>,
+    /// Agent type making the launch request (e.g. "Executor").
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requesting_agent: Option<String>,
+    /// Plan ID the request originates from.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plan_id: Option<String>,
+    /// MCP session ID of the requesting agent.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
+}
+
+/// Parse the context-pack from a [`CommandRequest`]'s `context` JSON string.
+///
+/// The context pack is embedded by the MCP server under the key `"context_pack"`
+/// within the outer JSON object that also contains `source`, `correlation`, and
+/// `approval` keys.
+///
+/// Returns `None` when the context is empty, not valid JSON, or does not
+/// contain a `"context_pack"` key.
+pub fn context_pack_from_context_json(context: &str) -> Option<ContextPack> {
+    if context.is_empty() {
+        return None;
+    }
+    let value: serde_json::Value = serde_json::from_str(context).ok()?;
+    let pack = value.get("context_pack")?;
+    serde_json::from_value(pack.clone()).ok()
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 /// MCP server → GUI: request approval for a command.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CommandRequest {

@@ -61,6 +61,11 @@ pub struct AppState {
     pub ws_terminal_tx: Option<tokio::sync::broadcast::Sender<Vec<u8>>>,
     /// Sessions that were started by the "Launch Gemini CLI" button.
     pub gemini_session_ids: HashSet<String>,
+    // ─── Agent-session tracking (step 11) ──────────────────────────────────
+    /// Session IDs that were started by an approved super-subagent launch.
+    pub agent_session_ids: HashSet<String>,
+    /// Rich metadata for each agent session, keyed by session ID.
+    pub agent_session_meta: HashMap<String, AgentSessionMeta>,
 }
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -90,6 +95,31 @@ pub(crate) struct SessionTabView {
     pub can_close: bool,
     pub lifecycle_state: SessionLifecycleState,
     pub is_gemini: bool,
+    // ─── Agent-session fields (step 11) ────────────────────────────────────
+    /// Whether this tab was started by an approved super-subagent launch.
+    pub is_agent_session: bool,
+    /// Normalised provider token (`"gemini"` / `"copilot"`), if applicable.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+    /// Agent type that requested the launch (e.g. `"Executor"`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requesting_agent: Option<String>,
+    /// Plan/session linkage string (plan_id or session_id from the request).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plan_session_id: Option<String>,
+}
+
+/// Metadata stored in `AppState` for each agent-session tab (step 11).
+#[derive(Debug, Clone)]
+pub(crate) struct AgentSessionMeta {
+    /// Normalised provider token (e.g. `"gemini"` or `"copilot"`).
+    pub provider: String,
+    /// Agent type that initiated the launch, if known.
+    pub requesting_agent: Option<String>,
+    /// Plan or session ID for cross-referencing with Project Memory.
+    pub plan_session_id: Option<String>,
+    /// Monotonic millisecond timestamp when the session was launched.
+    pub launched_at_ms: u64,
 }
 
 #[derive(Debug)]
@@ -136,6 +166,8 @@ impl Default for TerminalAppRust {
             output_tracker: OutputTracker::default(),
             ws_terminal_tx: None,
             gemini_session_ids: HashSet::new(),
+            agent_session_ids: HashSet::new(),
+            agent_session_meta: HashMap::new(),
         }));
 
         let session_tabs_json = {

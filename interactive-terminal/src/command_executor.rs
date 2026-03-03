@@ -608,7 +608,7 @@ fn build_wrapped_shell_command(request: &CommandRequest, marker: &str) -> String
             TerminalProfile::PowerShell | TerminalProfile::Pwsh => {
                 let escaped_cwd = escape_powershell_single_quoted(&cwd);
                 format!(
-                    "{env_prefix}Set-Location -LiteralPath '{escaped_cwd}'; & {{ {}; $code=$LASTEXITCODE; if ($null -eq $code) {{ $code=0 }}; Write-Output '{}'+$code }}",
+                    "{env_prefix}Set-Location -LiteralPath '{escaped_cwd}'; & {{ {}; $code=$LASTEXITCODE; if ($null -eq $code) {{ $code=0 }}; Write-Output ('{}' + [string]$code) }}",
                     command_with_args,
                     marker
                 )

@@ -23,6 +23,44 @@ use tokio::sync::broadcast;
 use tokio::io::AsyncWriteExt;
 use tokio::time::{sleep, Duration, Instant};
 
+fn normalize_provider_token(value: &str) -> String {
+    let trimmed = value.trim().to_ascii_lowercase();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+
+    let basename = trimmed
+        .rsplit(['\\', '/'])
+        .next()
+        .unwrap_or(trimmed.as_str());
+
+    basename
+        .trim_end_matches(".cmd")
+        .trim_end_matches(".exe")
+        .to_string()
+}
+
+fn is_provider_command(command: &str) -> bool {
+    matches!(
+        normalize_provider_token(command).as_str(),
+        "gemini" | "copilot"
+    )
+}
+
+fn is_agent_launch_context(context: &str) -> bool {
+    let lowered = context.to_ascii_lowercase();
+    lowered.contains("agent_cli_launch")
+        || lowered.contains("super_subagent")
+        || lowered.contains("launch_kind")
+        || lowered.contains("launch_type")
+        || lowered.contains("\"intent\":\"agent")
+        || lowered.contains("\"intent\": \"agent")
+}
+
+fn requires_gui_approval_hard_gate(req: &CommandRequest) -> bool {
+    req.allowlisted && is_provider_command(&req.command) && is_agent_launch_context(&req.context)
+}
+
 /// Non-pty-host path: ConPTY handle held directly in the UI process.
 #[cfg(all(windows, not(feature = "pty-host")))]
 #[derive(Clone)]
@@ -729,10 +767,16 @@ pub(crate) fn spawn_runtime_tasks(
                     while let Some(msg) = rx.recv().await {
                         match msg {
                             Message::CommandRequest(req) => {
-                                if req.allowlisted {
+                                let force_gui_approval = requires_gui_approval_hard_gate(&req);
+                                let mut effective_req = req.clone();
+                                if force_gui_approval {
+                                    effective_req.allowlisted = false;
+                                }
+
+                                if effective_req.allowlisted {
                                     let (send_result, tabs_json, selected_session_id, hydrated) = {
                                         let mut s = state.lock().unwrap();
-                                        let mut hydrated = req.clone();
+                                        let mut hydrated = effective_req.clone();
                                         s.hydrate_request_with_session_context(&mut hydrated);
                                         s.selected_session_id = hydrated.session_id.clone();
                                         let sender = s.command_tx.clone();
@@ -778,13 +822,24 @@ pub(crate) fn spawn_runtime_tasks(
                                     let (is_first, count, json, selected_cmd, tabs_json, selected_session_id) = {
                                         let mut s = state.lock().unwrap();
                                         let (is_first, count, json, selected_cmd) =
-                                            s.enqueue_pending_request(req.clone());
+                                            s.enqueue_pending_request(effective_req.clone());
                                         let tabs_json = s.session_tabs_to_json();
                                         let selected_session_id = s.selected_session_id.clone();
                                         (is_first, count, json, selected_cmd, tabs_json, selected_session_id)
                                     };
 
-                                    let req_clone = req.clone();
+                                    // ── Audit: super-subagent launch requested ────────────────────
+                                    if force_gui_approval {
+                                        crate::audit_log::emit_launch_requested(
+                                            &effective_req.workspace_path,
+                                            &effective_req.context,
+                                            &crate::launch_builder::normalize_provider_token(
+                                                &effective_req.command,
+                                            ),
+                                        );
+                                    }
+
+                                    let req_clone = effective_req.clone();
                                     let _ = qt.queue(move |mut obj| {
                                         obj.as_mut().set_pending_count(count);
                                         obj.as_mut().set_pending_commands_json(json);
@@ -1612,7 +1667,7 @@ fn build_ws_wrapped_command(request: &CommandRequest, marker: &str) -> String {
     };
 
     format!(
-        "{env_prefix}Set-Location -LiteralPath '{escaped_cwd}'; & {{ {}; $code=$LASTEXITCODE; if ($null -eq $code) {{ $code=0 }}; Write-Output '{}'+$code }}",
+        "{env_prefix}Set-Location -LiteralPath '{escaped_cwd}'; & {{ {}; $code=$LASTEXITCODE; if ($null -eq $code) {{ $code=0 }}; Write-Output ('{}' + [string]$code) }}",
         command_with_args,
         marker
     )

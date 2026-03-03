@@ -1,0 +1,83 @@
+version: "3.8"
+
+name: project-memory-integration
+
+services:
+  project-memory:
+    build:
+      context: ../..
+      dockerfile: Containerfile
+    container_name: project-memory-integration
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+      - "3002:3002"
+    networks:
+      - integration_net
+    volumes:
+      - type: bind
+        source: ${PM_HARNESS_DATA_DIR:-../../.tmp/integration-harness/default/data}
+        target: /harness/data
+      - type: bind
+        source: ${PM_HARNESS_SECRETS_DIR:-../../.tmp/integration-harness/default/secrets}
+        target: /run/secrets/harness
+        read_only: true
+      - type: bind
+        source: ../../data
+        target: /data
+      - type: bind
+        source: ../../agents
+        target: /agents
+        read_only: true
+      - type: volume
+        source: harness_runtime_state
+        target: /var/lib/project-memory-harness
+    environment:
+      MBS_DATA_ROOT: /data
+      MBS_AGENTS_ROOT: /agents
+      MBS_HOST_MCP_URL: ${MBS_HOST_MCP_URL:-}
+      MBS_WORKSPACE_MOUNTS: ${MBS_WORKSPACE_MOUNTS:-{}}
+      PM_RUNNING_IN_CONTAINER: "true"
+      PM_TERM_ADAPTER_MODE: ${PM_TERM_ADAPTER_MODE:-container_bridge}
+      PM_INTERACTIVE_TERMINAL_HOST_ALIAS: ${PM_INTERACTIVE_TERMINAL_HOST_ALIAS:-host.containers.internal}
+      PM_INTERACTIVE_TERMINAL_HOST_FALLBACK_ALIAS: ${PM_INTERACTIVE_TERMINAL_HOST_FALLBACK_ALIAS:-host.docker.internal}
+      PM_INTERACTIVE_TERMINAL_HOST_PORT: ${PM_INTERACTIVE_TERMINAL_HOST_PORT:-45459}
+      PM_INTERACTIVE_TERMINAL_CONNECT_TIMEOUT_MS: ${PM_INTERACTIVE_TERMINAL_CONNECT_TIMEOUT_MS:-3000}
+      PM_INTERACTIVE_TERMINAL_REQUEST_TIMEOUT_MS: ${PM_INTERACTIVE_TERMINAL_REQUEST_TIMEOUT_MS:-30000}
+      PM_INTERACTIVE_TERMINAL_TRACE_BRIDGE: ${PM_INTERACTIVE_TERMINAL_TRACE_BRIDGE:-0}
+      MCP_PORT: "3000"
+      DASHBOARD_PORT: "3001"
+      WS_PORT: "3002"
+      NODE_ENV: production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "const http=require('http');const r=http.get('http://localhost:3000/health',res=>{process.exit(res.statusCode===200?0:1)});r.on('error',()=>process.exit(1));r.setTimeout(3000,()=>{r.destroy();process.exit(1)})"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 6
+
+  readiness-gate:
+    image: docker.io/curlimages/curl:8.12.1
+    depends_on:
+      project-memory:
+        condition: service_healthy
+    command:
+      - sh
+      - -lc
+      - |
+        set -e
+        curl --fail --silent --show-error http://project-memory:3000/health >/dev/null
+        curl --fail --silent --show-error http://project-memory:3001/api/health >/dev/null
+    networks:
+      - integration_net
+    restart: "no"
+
+networks:
+  integration_net:
+    name: project_memory_integration_net
+    driver: bridge
+
+volumes:
+  harness_runtime_state:
+    name: project_memory_integration_runtime_state

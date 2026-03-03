@@ -1,0 +1,364 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-memory/contracts/integration-harness/run-correlation.contract.schema.json",
+  "title": "Integration Harness Run Correlation Contract",
+  "type": "object",
+  "required": [
+    "contract_version",
+    "runtime",
+    "generated_at",
+    "run_id_format",
+    "event_schema",
+    "reason_codes",
+    "diagnostics_capture_requirements"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string",
+      "pattern": "^v[0-9]+(\\.[0-9]+){0,2}$"
+    },
+    "runtime": {
+      "type": "string",
+      "enum": ["podman-compose"]
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "run_id_format": {
+      "type": "string",
+      "pattern": "^run_[a-z0-9][a-z0-9_-]{7,63}$"
+    },
+    "reason_codes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9_]+$"
+      }
+    },
+    "event_schema": {
+      "type": "object",
+      "required": [
+        "required_fields",
+        "component_ids",
+        "event_types",
+        "timestamp_format",
+        "field_types"
+      ],
+      "properties": {
+        "required_fields": {
+          "type": "array",
+          "minItems": 7,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "run_id",
+              "component_id",
+              "event_type",
+              "timestamp",
+              "cause",
+              "attempt",
+              "outcome",
+              "reason_code"
+            ]
+          }
+        },
+        "component_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "mcp-server",
+              "dashboard",
+              "supervisor-proxy",
+              "extension-test-runner",
+              "interactive-terminal-bridge"
+            ]
+          }
+        },
+        "event_types": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "service_start",
+              "service_stop",
+              "service_restart",
+              "health_check_pass",
+              "health_check_fail",
+              "readiness_pass",
+              "readiness_fail",
+              "connectivity_connected",
+              "connectivity_degraded",
+              "connectivity_disconnected",
+              "connectivity_reconnected",
+              "reconnect_attempt",
+              "reconnect_succeeded",
+              "reconnect_failed",
+              "session_invalidated",
+              "operator_alert_emitted",
+              "fault_injected",
+              "assertion_pass",
+              "assertion_fail"
+            ]
+          }
+        },
+        "timestamp_format": {
+          "type": "string",
+          "const": "RFC3339/ISO-8601 UTC"
+        },
+        "field_types": {
+          "type": "object",
+          "required": [
+            "run_id",
+            "component_id",
+            "event_type",
+            "timestamp",
+            "cause",
+            "attempt",
+            "outcome"
+          ],
+          "properties": {
+            "run_id": { "const": "string" },
+            "component_id": { "const": "string" },
+            "event_type": { "const": "string" },
+            "timestamp": { "const": "string(date-time)" },
+            "cause": { "const": "string" },
+            "attempt": { "const": "integer" },
+            "outcome": { "const": "string" },
+            "reason_code": { "const": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "sample_events": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/normalizedEvent"
+      }
+    },
+    "diagnostics_capture_requirements": {
+      "type": "object",
+      "required": [
+        "event_timeline",
+        "failure_domain",
+        "retry_telemetry"
+      ],
+      "properties": {
+        "event_timeline": {
+          "type": "object",
+          "required": [
+            "required_fields",
+            "required_artifacts"
+          ],
+          "properties": {
+            "required_fields": {
+              "type": "array",
+              "minItems": 4,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "run_id",
+                  "timestamp",
+                  "event_type",
+                  "component_id",
+                  "cause",
+                  "reason_code"
+                ]
+              }
+            },
+            "required_artifacts": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "events/normalized-events.jsonl",
+                  "health/fault-timeline.json",
+                  "events/traceability-index.json"
+                ]
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "failure_domain": {
+          "type": "object",
+          "required": [
+            "required_fields",
+            "allowed_values"
+          ],
+          "properties": {
+            "required_fields": {
+              "type": "array",
+              "minItems": 2,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "failure_domain",
+                  "restart_scope",
+                  "isolation_outcome"
+                ]
+              }
+            },
+            "allowed_values": {
+              "type": "array",
+              "minItems": 3,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "child-local",
+                  "dependency-group",
+                  "global"
+                ]
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "retry_telemetry": {
+          "type": "object",
+          "required": [
+            "required_fields",
+            "required_artifacts"
+          ],
+          "properties": {
+            "required_fields": {
+              "type": "array",
+              "minItems": 5,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "attempt",
+                  "backoff_ms",
+                  "cooldown_ms",
+                  "retry_cap",
+                  "retry_exhausted",
+                  "outcome"
+                ]
+              }
+            },
+            "required_artifacts": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "assertions/recovery-assertions.json",
+                  "summary.json",
+                  "summary.md"
+                ]
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "normalizedEvent": {
+      "type": "object",
+      "required": [
+        "run_id",
+        "component_id",
+        "event_type",
+        "timestamp",
+        "cause",
+        "attempt",
+        "outcome"
+      ],
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "pattern": "^run_[a-z0-9][a-z0-9_-]{7,63}$"
+        },
+        "component_id": {
+          "type": "string",
+          "enum": [
+            "mcp-server",
+            "dashboard",
+            "supervisor-proxy",
+            "extension-test-runner",
+            "interactive-terminal-bridge"
+          ]
+        },
+        "event_type": {
+          "type": "string",
+          "enum": [
+            "service_start",
+            "service_stop",
+            "service_restart",
+            "health_check_pass",
+            "health_check_fail",
+            "readiness_pass",
+            "readiness_fail",
+            "connectivity_connected",
+            "connectivity_degraded",
+            "connectivity_disconnected",
+            "connectivity_reconnected",
+            "reconnect_attempt",
+            "reconnect_succeeded",
+            "reconnect_failed",
+            "session_invalidated",
+            "operator_alert_emitted",
+            "fault_injected",
+            "assertion_pass",
+            "assertion_fail"
+          ]
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "cause": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "started",
+            "stopped",
+            "succeeded",
+            "failed",
+            "in_progress",
+            "skipped",
+            "observed"
+          ]
+        },
+        "reason_code": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "details": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

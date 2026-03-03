@@ -16,6 +16,7 @@
 import { randomBytes } from 'crypto';
 import * as store from '../../storage/db-store.js';
 import { deployForTask } from '../agent-deploy.js';
+import { getImportantResponseContext } from '../../utils/important-response-context.js';
 import { isSupervisorRunning } from '../orchestration/supervisor-client.js';
 import {
     type CanonicalHubMode,
@@ -216,6 +217,52 @@ function buildScopeBoundariesBlock(boundaries?: MemorySessionParams['prep_config
         );
     }
     lines.push('');
+    return lines.join('\n');
+}
+
+function buildAlwaysProvidedNotesBlock(
+    importantContext?: {
+        section_key: string;
+        summary?: string;
+        items?: Array<{ title?: string; description?: string; links?: string[] }>;
+        updated_at?: string;
+    }
+): string {
+    if (!importantContext) return '';
+
+    const lines: string[] = ['', '--- ALWAYS-PROVIDED NOTES (WORKSPACE CONTEXT) ---'];
+    lines.push(
+        'Priority: treat these notes as high-priority workspace constraints unless they conflict with higher-priority system, developer, or direct user instructions.'
+    );
+    lines.push(`Source section: ${importantContext.section_key}`);
+    if (importantContext.updated_at) {
+        lines.push(`Updated: ${importantContext.updated_at}`);
+    }
+
+    if (importantContext.summary && importantContext.summary.trim()) {
+        lines.push(`Summary: ${importantContext.summary.trim()}`);
+    }
+
+    if (Array.isArray(importantContext.items) && importantContext.items.length > 0) {
+        lines.push('Items:');
+        for (const item of importantContext.items) {
+            const title = typeof item?.title === 'string' ? item.title.trim() : '';
+            const description = typeof item?.description === 'string' ? item.description.trim() : '';
+            if (title && description) {
+                lines.push(`- ${title}: ${description}`);
+            } else if (title) {
+                lines.push(`- ${title}`);
+            } else if (description) {
+                lines.push(`- ${description}`);
+            }
+
+            if (Array.isArray(item?.links) && item.links.length > 0) {
+                lines.push(`  links: ${item.links.join(', ')}`);
+            }
+        }
+    }
+
+    lines.push('--- END ALWAYS-PROVIDED NOTES ---\n');
     return lines.join('\n');
 }
 
@@ -484,6 +531,30 @@ async function handlePrep(
         }
     }
 
+    let importantContext:
+        | {
+            section_key: string;
+            summary?: string;
+            items?: Array<{ title?: string; description?: string; links?: string[] }>;
+            updated_at?: string;
+        }
+        | undefined;
+    if (workspace_id) {
+        try {
+            const context = await getImportantResponseContext(workspace_id);
+            if (context) {
+                importantContext = {
+                    section_key: context.section_key,
+                    summary: context.summary,
+                    items: context.items as Array<{ title?: string; description?: string; links?: string[] }> | undefined,
+                    updated_at: context.updated_at,
+                };
+            }
+        } catch {
+            warnings.push({ code: 'CONTEXT_PARTIAL', message: 'Could not fetch always-provided workspace notes' });
+        }
+    }
+
     // Mint session ID
     const sessionId = mintSessionId();
     const startedAt = new Date().toISOString();
@@ -523,6 +594,11 @@ async function handlePrep(
         }
         promptParts.push(`Session: ${sessionId}`);
         promptParts.push('--- END CONTEXT ---\n');
+    }
+
+    const alwaysProvidedNotesBlock = buildAlwaysProvidedNotesBlock(importantContext);
+    if (alwaysProvidedNotesBlock) {
+        promptParts.push(alwaysProvidedNotesBlock);
     }
 
     promptParts.push(

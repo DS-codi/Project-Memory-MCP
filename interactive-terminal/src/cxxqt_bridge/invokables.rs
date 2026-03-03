@@ -6,6 +6,7 @@ use crate::protocol::{CommandRequest, CommandResponse, Message, ResponseStatus};
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use serde::Serialize;
+use serde_json::Value;
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::Write;
@@ -16,7 +17,205 @@ use std::process::Stdio;
 
 const GEMINI_SENTINEL_TOKEN: &str = "{{stored}}";
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub(crate) struct ApprovalProviderPrefillPolicy {
+    pub(crate) prefilled_provider: String,
+    pub(crate) provider_prefill_source: String,
+    pub(crate) provider_selection_required: bool,
+    pub(crate) provider_chooser_visible: bool,
+}
+
+fn normalize_provider_for_prefill(value: &str) -> &'static str {
+    let normalized = value.trim().to_ascii_lowercase();
+    match normalized.as_str() {
+        "gemini" | "gemini.cmd" => "gemini",
+        "copilot" | "copilot.cmd" => "copilot",
+        _ => "",
+    }
+}
+
+pub(crate) fn resolve_approval_provider_prefill_policy(
+    provider_policy_applies: bool,
+    preferred_provider: &str,
+    chooser_enabled: bool,
+) -> ApprovalProviderPrefillPolicy {
+    if !provider_policy_applies {
+        return ApprovalProviderPrefillPolicy {
+            prefilled_provider: String::new(),
+            provider_prefill_source: "none".to_string(),
+            provider_selection_required: false,
+            provider_chooser_visible: false,
+        };
+    }
+
+    let normalized_preferred = normalize_provider_for_prefill(preferred_provider);
+    if !normalized_preferred.is_empty() {
+        return ApprovalProviderPrefillPolicy {
+            prefilled_provider: normalized_preferred.to_string(),
+            provider_prefill_source: "default".to_string(),
+            provider_selection_required: false,
+            provider_chooser_visible: chooser_enabled,
+        };
+    }
+
+    ApprovalProviderPrefillPolicy {
+        prefilled_provider: String::new(),
+        provider_prefill_source: "none".to_string(),
+        provider_selection_required: true,
+        provider_chooser_visible: true,
+    }
+}
+
 impl ffi::TerminalApp {
+    fn normalize_autonomy_mode(value: &str) -> &'static str {
+        if value.trim().eq_ignore_ascii_case("autonomous") {
+            "autonomous"
+        } else {
+            "guided"
+        }
+    }
+
+    fn apply_approval_mode_to_context(context: &str, autonomy_mode: &str) -> String {
+        let selected_mode = Self::normalize_autonomy_mode(autonomy_mode).to_string();
+
+        let mut root = serde_json::from_str::<Value>(context)
+            .ok()
+            .and_then(|value| value.as_object().cloned())
+            .unwrap_or_default();
+
+        let mut source = root
+            .remove("source")
+            .and_then(|value| value.as_object().cloned())
+            .unwrap_or_default();
+        source.insert("mode".to_string(), Value::String(selected_mode.clone()));
+        root.insert("source".to_string(), Value::Object(source));
+
+        let mut approval = root
+            .remove("approval")
+            .and_then(|value| value.as_object().cloned())
+            .unwrap_or_default();
+        approval.insert(
+            "selected_autonomy_mode".to_string(),
+            Value::String(selected_mode),
+        );
+        root.insert("approval".to_string(), Value::Object(approval));
+
+        serde_json::to_string(&Value::Object(root)).unwrap_or_else(|_| {
+            format!(
+                "{{\"source\":{{\"mode\":\"{}\"}},\"approval\":{{\"selected_autonomy_mode\":\"{}\"}}}}",
+                Self::normalize_autonomy_mode(autonomy_mode),
+                Self::normalize_autonomy_mode(autonomy_mode)
+            )
+        })
+    }
+
+    fn sanitize_output_for_clipboard(text: &str) -> String {
+        let chars: Vec<char> = text.chars().collect();
+        let mut cleaned = String::with_capacity(chars.len());
+        let mut i = 0usize;
+
+        while i < chars.len() {
+            let ch = chars[i];
+
+            if ch == '\u{1b}' {
+                i += 1;
+                if i >= chars.len() {
+                    break;
+                }
+
+                match chars[i] {
+                    '[' => {
+                        i += 1;
+                        while i < chars.len() {
+                            let c = chars[i];
+                            if ('@'..='~').contains(&c) {
+                                i += 1;
+                                break;
+                            }
+                            i += 1;
+                        }
+                    }
+                    ']' => {
+                        i += 1;
+                        while i < chars.len() {
+                            if chars[i] == '\u{7}' {
+                                i += 1;
+                                break;
+                            }
+
+                            if chars[i] == '\u{1b}'
+                                && i + 1 < chars.len()
+                                && chars[i + 1] == '\\'
+                            {
+                                i += 2;
+                                break;
+                            }
+
+                            i += 1;
+                        }
+                    }
+                    'P' | 'X' | '^' | '_' => {
+                        i += 1;
+                        while i < chars.len() {
+                            if chars[i] == '\u{1b}'
+                                && i + 1 < chars.len()
+                                && chars[i + 1] == '\\'
+                            {
+                                i += 2;
+                                break;
+                            }
+                            i += 1;
+                        }
+                    }
+                    _ => {
+                        i += 1;
+                    }
+                }
+
+                continue;
+            }
+
+            if ch == '\r' {
+                if i + 1 < chars.len() && chars[i + 1] == '\n' {
+                    cleaned.push('\n');
+                    i += 2;
+                } else {
+                    cleaned.push('\n');
+                    i += 1;
+                }
+                continue;
+            }
+
+            if ch.is_control() && ch != '\n' && ch != '\t' {
+                i += 1;
+                continue;
+            }
+
+            cleaned.push(ch);
+            i += 1;
+        }
+
+        cleaned
+    }
+
+    pub fn approval_provider_prefill_policy(
+        self_ref: &Self,
+        provider_policy_applies: bool,
+        preferred_provider: QString,
+    ) -> QString {
+        let policy = resolve_approval_provider_prefill_policy(
+            provider_policy_applies,
+            &preferred_provider.to_string(),
+            *self_ref.approval_provider_chooser_enabled(),
+        );
+
+        let json = serde_json::to_string(&policy).unwrap_or_else(|_| {
+            "{\"prefilled_provider\":\"\",\"provider_prefill_source\":\"none\",\"provider_selection_required\":true,\"provider_chooser_visible\":true}".to_string()
+        });
+
+        QString::from(json)
+    }
+
     fn copy_text_to_clipboard(text: &str) -> Result<(), String> {
         if text.trim().is_empty() {
             return Err("Nothing to copy".to_string());
@@ -308,10 +507,47 @@ impl ffi::TerminalApp {
             .set_available_workspaces_json(QString::from(&suggestions_json));
     }
 
-    pub fn approve_command(mut self: Pin<&mut Self>, id: QString) {
+    pub fn approve_command(mut self: Pin<&mut Self>, id: QString, autonomy_mode: QString) {
         let id_str = id.to_string();
+        let autonomy_mode_str = autonomy_mode.to_string();
 
         let state_arc = self.rust().state.clone();
+
+        // ── Step 11: Agent-launch detection ────────────────────────────────
+        // Check whether the approved request is a super-subagent launch before
+        // applying the normal approval routing. If so, we intercept the request,
+        // create a dedicated tagged tab, dispatch the launch command via the
+        // pty abstraction, and immediately send an approved response back to the
+        // MCP TCP client instead of waiting for the interactive process to exit.
+        let is_agent_launch = {
+            let state = state_arc.lock().unwrap();
+            let selected = state.selected_session_id.clone();
+            state
+                .pending_commands_by_session
+                .get(&selected)
+                .and_then(|q| q.iter().find(|c| c.id == id_str))
+                .map(|c| {
+                    let provider =
+                        crate::launch_builder::normalize_provider_token(&c.command);
+                    let is_provider =
+                        matches!(provider.as_str(), "gemini" | "copilot");
+                    let ctx_lower = c.context.to_ascii_lowercase();
+                    let is_agent_ctx = ctx_lower.contains("agent_cli_launch")
+                        || ctx_lower.contains("super_subagent")
+                        || ctx_lower.contains("launch_kind")
+                        || ctx_lower.contains("launch_type")
+                        || ctx_lower.contains("\"intent\":\"agent")
+                        || ctx_lower.contains("\"intent\": \"agent");
+                    is_provider && is_agent_ctx
+                })
+                .unwrap_or(false)
+        };
+
+        if is_agent_launch {
+            self.approve_agent_launch_in_tab(id_str, autonomy_mode_str);
+            return;
+        }
+
         let (next_cmd, count, json, tabs_json, selected_session_id, approved_cmd_for_echo, ws_tx) = {
             let mut state = state_arc.lock().unwrap();
             let selected_session = state.selected_session_id.clone();
@@ -320,8 +556,15 @@ impl ffi::TerminalApp {
                 .entry(selected_session)
                 .or_default();
 
-            let cmd = queue.iter().find(|c| c.id == id_str).cloned();
+            let mut cmd = queue.iter().find(|c| c.id == id_str).cloned();
             queue.retain(|c| c.id != id_str);
+
+            if let Some(cmd_mut) = cmd.as_mut() {
+                cmd_mut.context = Self::apply_approval_mode_to_context(
+                    &cmd_mut.context,
+                    &autonomy_mode_str,
+                );
+            }
 
             if let (Some(tx), Some(cmd)) = (&state.command_tx, cmd.as_ref()) {
                 let _ = tx.try_send(cmd.clone());
@@ -352,13 +595,203 @@ impl ffi::TerminalApp {
         Self::show_command(&mut self, next_cmd.as_ref());
     }
 
+    /// Route an approved super-subagent launch into a dedicated tagged terminal
+    /// tab (step 11).
+    ///
+    /// Creates a new session, sets its display label, dispatches the launch
+    /// command through the pty abstraction, and immediately sends an
+    /// `Approved` [`CommandResponse`] back to the waiting MCP TCP client.
+    fn approve_agent_launch_in_tab(
+        mut self: Pin<&mut Self>,
+        id_str: String,
+        autonomy_mode_str: String,
+    ) {
+        use crate::cxxqt_bridge::AgentSessionMeta;
+        use crate::launch_builder::build_launch_command;
+        use crate::protocol::{
+            context_pack_from_context_json, CommandRequest, CommandResponse, Message, ResponseStatus,
+        };
+
+        let state_arc = self.rust().state.clone();
+
+        let (approved_cmd, session_id, tabs_json, status_text, signal_args) = {
+            let mut state = state_arc.lock().unwrap();
+            let selected_session = state.selected_session_id.clone();
+            let queue = state
+                .pending_commands_by_session
+                .entry(selected_session)
+                .or_default();
+
+            let cmd = queue.iter().find(|c| c.id == id_str).cloned();
+            queue.retain(|c| c.id != id_str);
+
+            let Some(mut cmd) = cmd else {
+                let tabs_json = state.session_tabs_to_json();
+                return drop((state, tabs_json)); // target not found; no-op
+            };
+
+            // Inject autonomy mode into context before routing
+            cmd.context =
+                Self::apply_approval_mode_to_context(&cmd.context, &autonomy_mode_str);
+
+            // Extract context pack and provider info
+            let context_pack = context_pack_from_context_json(&cmd.context);
+            let requesting_agent = context_pack
+                .as_ref()
+                .and_then(|p| p.requesting_agent.as_deref());
+            let plan_id = context_pack
+                .as_ref()
+                .and_then(|p| p.plan_id.as_deref());
+            let plan_short_id: Option<String> = plan_id.map(|id| {
+                let end = id.len().min(8);
+                id[..end].to_string()
+            });
+            let provider = {
+                use crate::launch_builder::normalize_provider_token;
+                normalize_provider_token(&cmd.command)
+            };
+
+            // Build the CLI launch command
+            let launch_result = build_launch_command(
+                &provider,
+                context_pack.as_ref(),
+                &autonomy_mode_str,
+                requesting_agent,
+                plan_short_id.as_deref(),
+            );
+
+            match launch_result {
+                Err(err) => {
+                    // Send decline so the MCP call unblocks with an error
+                    let resp = Message::CommandResponse(CommandResponse {
+                        id: cmd.id.clone(),
+                        status: ResponseStatus::Declined,
+                        output: None,
+                        exit_code: None,
+                        reason: Some(format!("Agent launch build failed: {err}")),
+                        output_file_path: None,
+                    });
+                    state.send_response(resp);
+                    let tabs_json = state.session_tabs_to_json();
+                    return drop((state, tabs_json));
+                }
+
+                Ok(launch_cmd) => {
+                    // Create a new dedicated session for this agent
+                    let session_id = state.create_session();
+                    // Label it with the descriptive tag (provider + agent + plan)
+                    state
+                        .session_display_names
+                        .insert(session_id.clone(), launch_cmd.session_label.clone());
+                    // Track as agent session
+                    state.agent_session_ids.insert(session_id.clone());
+                    state.agent_session_meta.insert(
+                        session_id.clone(),
+                        AgentSessionMeta {
+                            provider: launch_cmd.provider.clone(),
+                            requesting_agent: requesting_agent
+                                .map(|s| s.to_string()),
+                            plan_session_id: plan_id.map(|s| s.to_string()),
+                            launched_at_ms: monotonic_millis() as u64,
+                        },
+                    );
+
+                    // Build a CommandRequest that routes via the pty abstraction
+                    let launch_request = CommandRequest {
+                        id: format!("agent-launch-{}", monotonic_millis()),
+                        command: launch_cmd.program.clone(),
+                        working_directory: cmd.working_directory.clone(),
+                        context: format!(
+                            "[agent_launch] provider={} session={}",
+                            launch_cmd.provider, session_id
+                        ),
+                        session_id: session_id.clone(),
+                        terminal_profile: cmd.terminal_profile.clone(),
+                        workspace_path: cmd.workspace_path.clone(),
+                        venv_path: cmd.venv_path.clone(),
+                        activate_venv: cmd.activate_venv,
+                        timeout_seconds: 0, // interactive — no timeout
+                        args: launch_cmd.args.clone(),
+                        env: launch_cmd.env.clone(),
+                        workspace_id: cmd.workspace_id.clone(),
+                        allowlisted: true,
+                    };
+
+                    // Dispatch through the pty abstraction (same path as run_command)
+                    if let Some(tx) = &state.command_tx {
+                        let _ = tx.try_send(launch_request);
+                    }
+
+                    // ── Audit: launch approved and process started ────────────────────────
+                    crate::audit_log::emit_launch_approved(
+                        &cmd.workspace_path,
+                        &cmd.context,
+                        &launch_cmd.provider,
+                        &autonomy_mode_str,
+                        &session_id,
+                    );
+                    crate::audit_log::emit_launch_started(
+                        &cmd.workspace_path,
+                        &launch_cmd.provider,
+                        &session_id,
+                        requesting_agent,
+                        plan_id,
+                    );
+
+                    // Immediately acknowledge to the MCP TCP client so the
+                    // waiting agent call unblocks
+                    let out_msg = format!(
+                        "Agent session launched in tab: '{}'",
+                        launch_cmd.session_label
+                    );
+                    let resp = Message::CommandResponse(CommandResponse {
+                        id: cmd.id.clone(),
+                        status: ResponseStatus::Approved,
+                        output: Some(out_msg.clone()),
+                        exit_code: Some(0),
+                        reason: None,
+                        output_file_path: None,
+                    });
+                    state.send_response(resp);
+
+                    let tabs_json = state.session_tabs_to_json();
+                    let signal_args = (
+                        session_id.clone(),
+                        launch_cmd.session_label.clone(),
+                        launch_cmd.provider.clone(),
+                    );
+                    let status_text = format!(
+                        "Agent session started: {} ({})",
+                        launch_cmd.session_label, launch_cmd.provider
+                    );
+                    (cmd, session_id, tabs_json, status_text, Some(signal_args))
+                }
+            }
+        };
+
+        // Update Qt properties on the UI thread
+        self.as_mut().set_session_tabs_json(tabs_json);
+        self.as_mut()
+            .set_current_session_id(QString::from(&session_id));
+        self.as_mut().set_status_text(QString::from(&status_text));
+
+        // Emit agentSessionLaunched signal
+        if let Some((sid, label, provider)) = signal_args {
+            self.as_mut().agent_session_launched(
+                QString::from(&sid),
+                QString::from(&label),
+                QString::from(&provider),
+            );
+        }
+    }
+
     pub fn decline_command(mut self: Pin<&mut Self>, id: QString, reason: QString) {
         let id_str = id.to_string();
         let reason_str = reason.to_string();
         let normalized_reason = if reason_str.trim().is_empty() {
             None
         } else {
-            Some(reason_str)
+            Some(reason_str.clone())
         };
 
         let response = Message::CommandResponse(CommandResponse {
@@ -366,11 +799,23 @@ impl ffi::TerminalApp {
             status: ResponseStatus::Declined,
             output: None,
             exit_code: None,
-            reason: normalized_reason,
+            reason: normalized_reason.clone(),
             output_file_path: None,
         });
 
         let state_arc = self.rust().state.clone();
+
+        // ── Audit: peek at command data before removal ────────────────────
+        let declined_cmd_info = {
+            let state = state_arc.lock().unwrap();
+            let selected_session = state.selected_session_id.clone();
+            state
+                .pending_commands_by_session
+                .get(&selected_session)
+                .and_then(|q| q.iter().find(|c| c.id == id_str))
+                .map(|c| (c.command.clone(), c.context.clone(), c.workspace_path.clone()))
+        };
+
         let (next_cmd, count, json, tabs_json, selected_session_id) = {
             let mut state = state_arc.lock().unwrap();
             state.send_response(response);
@@ -387,6 +832,36 @@ impl ffi::TerminalApp {
             let selected_session_id = state.selected_session_id.clone();
             (next, count, json, tabs_json, selected_session_id)
         };
+
+        // ── Audit: emit launch_denied or launch_cancelled ─────────────────
+        if let Some((command, context, workspace_path)) = declined_cmd_info {
+            let provider = crate::launch_builder::normalize_provider_token(&command);
+            if !provider.is_empty() {
+                let ctx_lower = context.to_ascii_lowercase();
+                let is_agent_ctx = ctx_lower.contains("agent_cli_launch")
+                    || ctx_lower.contains("super_subagent")
+                    || ctx_lower.contains("launch_kind")
+                    || ctx_lower.contains("launch_type")
+                    || ctx_lower.contains("\"intent\":\"agent")
+                    || ctx_lower.contains("\"intent\": \"agent");
+                if is_agent_ctx {
+                    let reason_lower = reason_str.trim().to_ascii_lowercase();
+                    if reason_lower.is_empty()
+                        || reason_lower.contains("cancel")
+                        || reason_lower.contains("dismiss")
+                    {
+                        crate::audit_log::emit_launch_cancelled(&workspace_path, &context, &provider);
+                    } else {
+                        crate::audit_log::emit_launch_denied(
+                            &workspace_path,
+                            &context,
+                            &provider,
+                            normalized_reason.as_deref(),
+                        );
+                    }
+                }
+            }
+        }
 
         self.as_mut().set_pending_count(count);
         self.as_mut().set_pending_commands_json(json);
@@ -675,7 +1150,7 @@ impl ffi::TerminalApp {
     }
 
     pub fn copy_current_output(mut self: Pin<&mut Self>) -> bool {
-        let output = self.as_ref().output_text().to_string();
+        let output = Self::sanitize_output_for_clipboard(&self.as_ref().output_text().to_string());
         match Self::copy_text_to_clipboard(&output) {
             Ok(()) => {
                 self.as_mut()
@@ -690,7 +1165,7 @@ impl ffi::TerminalApp {
     }
 
     pub fn copy_last_command_output(mut self: Pin<&mut Self>) -> bool {
-        let output = Self::last_command_output_text(&self.as_ref());
+        let output = Self::sanitize_output_for_clipboard(&Self::last_command_output_text(&self.as_ref()));
         match Self::copy_text_to_clipboard(&output) {
             Ok(()) => {
                 self.as_mut()

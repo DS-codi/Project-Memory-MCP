@@ -58,6 +58,26 @@ STEP UPDATE PROTOCOL:
 
 ---
 
+## Build Command Policy (Installer-First)
+
+When a step involves build/test/install/compile/package actions in this workspace:
+
+1. Call `memory_plan(action: "list_build_scripts")` first.
+2. Resolve an appropriate script with `memory_plan(action: "run_build_script")`.
+3. Execute the resolved command in terminal using the returned directory.
+
+Do not jump directly to ad-hoc `npm run build`, `cargo build`, or `podman build` when an installer-based script exists.
+
+Preferred canonical commands are installer-first (for example `./install.ps1 -Component ...`).
+For focused tests, check `build-scripts.instructions.md` section **Targeted Test Wrapper Presets (Preferred for Focused Runs)** before creating new ad-hoc direct test commands.
+Only use direct fallback commands when:
+- no suitable build script exists, or
+- task explicitly requests low-level command diagnostics.
+
+If fallback is used, record the reason in step notes.
+
+---
+
 ## Handoff Protocol
 
 When your assigned work is complete (or you are blocked and cannot continue):

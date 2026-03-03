@@ -3,6 +3,7 @@ use super::{
 };
 use crate::protocol::{CommandRequest, Message};
 use cxx_qt_lib::QString;
+use tokio::sync::mpsc::error::TrySendError;
 
 impl AppState {
     fn set_selected_session_lifecycle(&mut self) {
@@ -55,22 +56,30 @@ impl AppState {
         let tabs = self
             .session_ids_sorted()
             .into_iter()
-            .map(|session_id| SessionTabView {
-                is_gemini: self.gemini_session_ids.contains(&session_id),
-                label: self.session_display_name_for(&session_id),
-                pending_count: self
-                    .pending_commands_by_session
-                    .get(&session_id)
-                    .map(|queue| queue.len() as i32)
-                    .unwrap_or(0),
-                is_active: session_id == self.selected_session_id,
-                can_close: true,
-                lifecycle_state: self
-                    .session_lifecycle_by_id
-                    .get(&session_id)
-                    .copied()
-                    .unwrap_or(SessionLifecycleState::Inactive),
-                session_id,
+            .map(|session_id| {
+                let is_agent = self.agent_session_ids.contains(&session_id);
+                let meta = self.agent_session_meta.get(&session_id);
+                SessionTabView {
+                    is_gemini: self.gemini_session_ids.contains(&session_id),
+                    label: self.session_display_name_for(&session_id),
+                    pending_count: self
+                        .pending_commands_by_session
+                        .get(&session_id)
+                        .map(|queue| queue.len() as i32)
+                        .unwrap_or(0),
+                    is_active: session_id == self.selected_session_id,
+                    can_close: true,
+                    lifecycle_state: self
+                        .session_lifecycle_by_id
+                        .get(&session_id)
+                        .copied()
+                        .unwrap_or(SessionLifecycleState::Inactive),
+                    is_agent_session: is_agent,
+                    provider: meta.map(|m| m.provider.clone()),
+                    requesting_agent: meta.and_then(|m| m.requesting_agent.clone()),
+                    plan_session_id: meta.and_then(|m| m.plan_session_id.clone()),
+                    session_id,
+                }
             })
             .collect::<Vec<_>>();
 
@@ -387,7 +396,22 @@ impl AppState {
 
     pub(crate) fn send_response(&self, msg: Message) {
         if let Some(tx) = self.response_tx.as_ref() {
-            let _ = tx.try_send(msg);
+            match tx.try_send(msg) {
+                Ok(()) => {}
+                Err(TrySendError::Full(msg)) => {
+                    let tx_clone = tx.clone();
+                    if let Ok(handle) = tokio::runtime::Handle::try_current() {
+                        handle.spawn(async move {
+                            let _ = tx_clone.send(msg).await;
+                        });
+                    } else {
+                        eprintln!("[interactive-terminal] response channel full and no runtime handle; dropping response");
+                    }
+                }
+                Err(TrySendError::Closed(_)) => {
+                    eprintln!("[interactive-terminal] response channel closed; dropping response");
+                }
+            }
         }
     }
 }

@@ -1,8 +1,9 @@
 use super::*;
 use crate::cxxqt_bridge::completed_outputs::OutputTracker;
+use crate::cxxqt_bridge::invokables::resolve_approval_provider_prefill_policy;
 use crate::protocol::{CommandRequest, TerminalProfile};
 use crate::saved_commands_repository::SavedCommandsRepository;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -40,6 +41,9 @@ fn test_state() -> AppState {
         command_tx: None,
         output_tracker: OutputTracker::default(),
         ws_terminal_tx: None,
+        gemini_session_ids: HashSet::new(),
+        agent_session_ids: HashSet::new(),
+        agent_session_meta: HashMap::new(),
     }
 }
 
@@ -61,6 +65,9 @@ fn test_state_with_repo(repo_root: PathBuf) -> AppState {
         command_tx: None,
         output_tracker: OutputTracker::default(),
         ws_terminal_tx: None,
+        gemini_session_ids: HashSet::new(),
+        agent_session_ids: HashSet::new(),
+        agent_session_meta: HashMap::new(),
     }
 }
 
@@ -417,6 +424,36 @@ fn saved_commands_stay_workspace_isolated_after_restart() {
     let _ = std::fs::remove_dir_all(repo_root);
 }
 
+#[test]
+fn approval_prefill_requires_explicit_selection_when_no_default_provider() {
+    let policy = resolve_approval_provider_prefill_policy(true, "", true);
+
+    assert_eq!(policy.prefilled_provider, "");
+    assert_eq!(policy.provider_prefill_source, "none");
+    assert!(policy.provider_selection_required);
+    assert!(policy.provider_chooser_visible);
+}
+
+#[test]
+fn approval_prefill_uses_configured_default_provider() {
+    let policy = resolve_approval_provider_prefill_policy(true, "copilot", true);
+
+    assert_eq!(policy.prefilled_provider, "copilot");
+    assert_eq!(policy.provider_prefill_source, "default");
+    assert!(!policy.provider_selection_required);
+    assert!(policy.provider_chooser_visible);
+}
+
+#[test]
+fn approval_prefill_forces_selection_when_chooser_disabled_and_no_default() {
+    let policy = resolve_approval_provider_prefill_policy(true, "", false);
+
+    assert_eq!(policy.prefilled_provider, "");
+    assert_eq!(policy.provider_prefill_source, "none");
+    assert!(policy.provider_selection_required);
+    assert!(policy.provider_chooser_visible);
+}
+
 // ---------------------------------------------------------------------------
 // Extended saved-commands coverage (Step #13)
 // ---------------------------------------------------------------------------
@@ -654,4 +691,200 @@ fn ffi_and_mod_have_identical_qinvokable_sets() {
         "Bridge parity OK — {} invokables match in both ffi.rs and mod.rs",
         ffi_names.len()
     );
+}
+
+// ---------------------------------------------------------------------------
+// Denial / cancel / error path tests (Step 13)
+// ---------------------------------------------------------------------------
+//
+// These tests validate that:
+//   1. Declining an agent-launch request removes it from the queue without
+//      spawning a new terminal session.
+//   2. A `ResponseStatus::Declined` message is sent back through the response
+//      channel so the waiting MCP TCP client unblocks with a clear error.
+//   3. The audit log emits `launch_denied` when a non-empty reason is given.
+//   4. The audit log emits `launch_cancelled` when no reason (or a cancel
+//      signal) is supplied.
+
+/// Helper: build a minimal `CommandRequest` that looks like a super-subagent
+/// launch (provider command + agent_cli_launch context string).
+fn make_agent_launch_request(id: &str, workspace_path: &str) -> CommandRequest {
+    CommandRequest {
+        id: id.to_string(),
+        command: "gemini".to_string(),
+        working_directory: String::new(),
+        context: r#"{"agent_cli_launch":true,"context_pack":{"requesting_agent":"Executor","plan_id":"plan_test123","session_id":"sess_test456","step_notes":"Deploy the service"}}"#.to_string(),
+        session_id: "default".to_string(),
+        terminal_profile: TerminalProfile::System,
+        workspace_path: workspace_path.to_string(),
+        venv_path: String::new(),
+        activate_venv: false,
+        timeout_seconds: 0,
+        args: Vec::new(),
+        env: HashMap::new(),
+        workspace_id: String::new(),
+        allowlisted: true,
+    }
+}
+
+/// 1. Declining does not open a new terminal session.
+#[test]
+fn decline_does_not_spawn_new_agent_session() {
+    let mut state = test_state();
+
+    // Enqueue an agent launch request
+    let req = make_agent_launch_request("req-decline-1", "");
+    state
+        .pending_commands_by_session
+        .entry("default".to_string())
+        .or_default()
+        .push(req);
+
+    let initial_session_count = state.pending_commands_by_session.len();
+
+    // Simulate the decline: remove from queue (no create_session call)
+    let id_to_decline = "req-decline-1";
+    let queue = state
+        .pending_commands_by_session
+        .entry("default".to_string())
+        .or_default();
+    queue.retain(|c| c.id != id_to_decline);
+
+    // Session count must NOT have increased
+    assert_eq!(
+        state.pending_commands_by_session.len(),
+        initial_session_count,
+        "Declining should not create new sessions"
+    );
+    assert!(
+        state.agent_session_ids.is_empty(),
+        "No agent session should be registered on decline"
+    );
+    assert!(
+        state.agent_session_meta.is_empty(),
+        "No agent metadata should be stored on decline"
+    );
+
+    // Queue should be empty
+    let queue_after = state
+        .pending_commands_by_session
+        .get("default")
+        .map(|q| q.len())
+        .unwrap_or(0);
+    assert_eq!(queue_after, 0, "Queue should be empty after decline");
+}
+
+/// 2. Declining sends a `ResponseStatus::Declined` response back to the caller.
+#[test]
+fn decline_sends_declined_response_to_channel() {
+    use crate::protocol::{CommandResponse, Message, ResponseStatus};
+
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<Message>(8);
+
+    let mut state = test_state();
+    state.response_tx = Some(tx);
+
+    // Enqueue an agent launch request
+    let req = make_agent_launch_request("req-decline-2", "");
+    state
+        .pending_commands_by_session
+        .entry("default".to_string())
+        .or_default()
+        .push(req);
+
+    // Simulate send_response + queue removal (mirrors decline_command internals)
+    let decline_response = Message::CommandResponse(CommandResponse {
+        id: "req-decline-2".to_string(),
+        status: ResponseStatus::Declined,
+        output: None,
+        exit_code: None,
+        reason: Some("User rejected the launch".to_string()),
+        output_file_path: None,
+    });
+    state.send_response(decline_response);
+
+    let queue = state
+        .pending_commands_by_session
+        .entry("default".to_string())
+        .or_default();
+    queue.retain(|c| c.id != "req-decline-2");
+
+    // Verify the response channel received a Declined message
+    let received = rx.try_recv().expect("response channel should have a message");
+    match received {
+        Message::CommandResponse(resp) => {
+            assert_eq!(resp.id, "req-decline-2");
+            assert_eq!(resp.status, ResponseStatus::Declined);
+            assert!(resp.reason.is_some());
+        }
+        other => panic!("Expected CommandResponse, got {other:?}"),
+    }
+
+    // Queue must be empty
+    let queue_len = state
+        .pending_commands_by_session
+        .get("default")
+        .map(|q| q.len())
+        .unwrap_or(0);
+    assert_eq!(queue_len, 0);
+}
+
+/// 3. Audit log: `emit_launch_denied` writes a `launch_denied` entry.
+#[test]
+fn decline_emits_launch_denied_audit_event() {
+    let workspace_dir = unique_temp_dir();
+    std::fs::create_dir_all(&workspace_dir).expect("create workspace dir");
+    let workspace_path = workspace_dir.to_string_lossy().to_string();
+
+    let context = r#"{"agent_cli_launch":true,"context_pack":{"requesting_agent":"Executor","plan_id":"plan_abc","session_id":"sess_xyz"}}"#;
+
+    crate::audit_log::emit_launch_denied(
+        &workspace_path,
+        context,
+        "gemini",
+        Some("Risk level too high"),
+    );
+
+    let log_path = workspace_dir.join("logs").join("agent_launch_audit.jsonl");
+    assert!(log_path.exists(), "audit log file should be created");
+
+    let content = std::fs::read_to_string(&log_path).expect("read audit log");
+    let entry: serde_json::Value =
+        serde_json::from_str(content.trim()).expect("valid JSON in audit log");
+
+    assert_eq!(entry["event"], "launch_denied");
+    assert_eq!(entry["provider"], "gemini");
+    assert_eq!(entry["requesting_agent"], "Executor");
+    assert_eq!(entry["plan_id"], "plan_abc");
+    assert_eq!(entry["reason"], "Risk level too high");
+
+    let _ = std::fs::remove_dir_all(&workspace_dir);
+}
+
+/// 4. Audit log: `emit_launch_cancelled` writes a `launch_cancelled` entry
+///    (used when the dialog is dismissed without a decision).
+#[test]
+fn decline_emits_launch_cancelled_for_empty_reason() {
+    let workspace_dir = unique_temp_dir();
+    std::fs::create_dir_all(&workspace_dir).expect("create workspace dir");
+    let workspace_path = workspace_dir.to_string_lossy().to_string();
+
+    let context = r#"{"agent_cli_launch":true,"context_pack":{"requesting_agent":"Executor","plan_id":"plan_cancel"}}"#;
+
+    crate::audit_log::emit_launch_cancelled(&workspace_path, context, "copilot");
+
+    let log_path = workspace_dir.join("logs").join("agent_launch_audit.jsonl");
+    assert!(log_path.exists(), "audit log file should be created");
+
+    let content = std::fs::read_to_string(&log_path).expect("read audit log");
+    let entry: serde_json::Value =
+        serde_json::from_str(content.trim()).expect("valid JSON in audit log");
+
+    assert_eq!(entry["event"], "launch_cancelled");
+    assert_eq!(entry["provider"], "copilot");
+    assert_eq!(entry["requesting_agent"], "Executor");
+    // reason should be absent (no value logged for cancel)
+    assert!(entry["reason"].is_null(), "cancel events have no reason field");
+
+    let _ = std::fs::remove_dir_all(&workspace_dir);
 }

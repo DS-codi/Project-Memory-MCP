@@ -148,6 +148,14 @@ pub struct ReconnectSection {
     pub max_attempts: u32,
     /// Fraction of the current base delay added as random jitter (default: 0.2).
     pub jitter_ratio: f64,
+    /// Apply cooldown when attempt_count reaches this value (0 = disabled).
+    pub cooldown_after_attempts: u32,
+    /// Extra cooldown delay for child-local failures.
+    pub cooldown_child_local_ms: u64,
+    /// Extra cooldown delay for dependency-group failures.
+    pub cooldown_dependency_group_ms: u64,
+    /// Extra cooldown delay for global failures.
+    pub cooldown_global_ms: u64,
 }
 
 impl Default for ReconnectSection {
@@ -158,6 +166,10 @@ impl Default for ReconnectSection {
             multiplier: 2.0,
             max_attempts: 0,
             jitter_ratio: 0.2,
+            cooldown_after_attempts: 0,
+            cooldown_child_local_ms: 0,
+            cooldown_dependency_group_ms: 0,
+            cooldown_global_ms: 0,
         }
     }
 }

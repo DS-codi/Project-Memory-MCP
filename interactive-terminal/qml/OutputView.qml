@@ -95,9 +95,13 @@ Rectangle {
                     }
 
                         onClicked: {
-                            outputArea.selectAll()
-                            outputArea.copy()
-                            outputArea.deselect()
+                            if (terminalApp) {
+                                terminalApp.copyCurrentOutput()
+                            } else {
+                                outputArea.selectAll()
+                                outputArea.copy()
+                                outputArea.deselect()
+                            }
                         }
                     }
 

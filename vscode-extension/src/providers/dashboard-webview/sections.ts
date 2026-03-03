@@ -211,6 +211,17 @@ export function getConnectedDashboardHtml(
                                     <div class="plans-widget">
                                         <div class="plans-header">
                                             <h3>Plans & Programs</h3>
+                                            <div class="plans-header-controls">
+                                                <label class="plans-sort-label" for="plansSortSelect">Sort</label>
+                                                <select class="plans-sort-select" id="plansSortSelect" data-action="plan-sort" aria-label="Sort plans">
+                                                    <option value="recent">Recently Updated</option>
+                                                    <option value="newest">Newest</option>
+                                                    <option value="oldest">Oldest</option>
+                                                    <option value="title">Title (A-Z)</option>
+                                                    <option value="progress">Progress</option>
+                                                    <option value="status">Status</option>
+                                                </select>
+                                            </div>
                                         </div>
                                         <div class="plans-tabs">
                                             <button class="plans-tab active" id="plansTabActive" data-tab="active">
@@ -247,7 +258,7 @@ export function getConnectedDashboardHtml(
                                                 <span class="selected-plan-meta" id="selectedPlanMeta"></span>
                                             </div>
                                             <div class="selected-plan-body" id="selectedPlanBody">
-                                                <div class="empty-state">Select a plan to view ordered steps.</div>
+                                                <div class="empty-state">Select a plan to view steps, or a program to view child plans.</div>
                                             </div>
                                         </div>
                                     </div>

@@ -6,7 +6,6 @@ Item {
 
     // Must be provided by the parent (main.qml passes terminalApp).
     required property var terminalApp
-    property bool suppressWebView: false
     property bool hasActiveSession: true
 
     Rectangle {
@@ -21,7 +20,6 @@ Item {
 
         sourceComponent: WebView {
             anchors.fill: parent
-            visible: !terminalView.suppressWebView
 
             // Load the terminal page from the local Rust WebSocket server.
             // Port 0 means the server has not started yet — show a blank page.

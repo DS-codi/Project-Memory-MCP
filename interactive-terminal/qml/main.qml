@@ -28,6 +28,7 @@ ApplicationWindow {
     property string pendingSessionDisplayName: ""
     property var approvalDialogRequest: ({})
     property string approvalSelectedProvider: ""
+    property string approvalSelectedAutonomyMode: "guided"
     property bool quitRequested: false
     property bool popupOverlayVisible: geminiSettingsDialog.visible
         || approvalDialog.visible
@@ -105,6 +106,14 @@ ApplicationWindow {
         return ""
     }
 
+    function normalizeAutonomyMode(value) {
+        const normalized = (value || "").trim().toLowerCase()
+        if (normalized === "autonomous") {
+            return "autonomous"
+        }
+        return "guided"
+    }
+
     function providerFromRequest(parsedContext, commandText) {
         const source = (parsedContext && parsedContext.source) || {}
         const fromSource = normalizeProvider(source.provider || source.cli_provider || "")
@@ -176,6 +185,7 @@ ApplicationWindow {
         if (terminalApp.pendingCount <= 0 || !terminalApp.currentRequestId) {
             approvalDialog.close()
             approvalDialogRequest = ({})
+            approvalSelectedAutonomyMode = "guided"
             return
         }
 
@@ -186,20 +196,42 @@ ApplicationWindow {
         if (terminalApp.currentAllowlisted) {
             approvalDialog.close()
             approvalDialogRequest = ({})
+            approvalSelectedAutonomyMode = "guided"
             return
         }
 
         const requestId = correlation.request_id || terminalApp.currentRequestId
         const commandText = source.command || terminalApp.commandText
         const providerApplies = providerPolicyApplies(parsedContext, commandText)
+        const requestedAutonomyMode = normalizeAutonomyMode(source.mode || (parsedContext.approval || {}).selected_autonomy_mode || "")
         const preferredProvider = normalizeProvider(terminalApp.preferredCliProvider || "")
         const requestedProvider = providerFromRequest(parsedContext, commandText)
-        const providerDefaultConfigured = providerApplies && preferredProvider.length > 0
-        const providerSelectionRequired = providerApplies && !providerDefaultConfigured
-        const prefilledProvider = providerDefaultConfigured ? preferredProvider : ""
-        const providerPrefillSource = providerDefaultConfigured ? "default" : "none"
+        let prefillPolicy = ({
+            prefilled_provider: "",
+            provider_prefill_source: "none",
+            provider_selection_required: providerApplies,
+            provider_chooser_visible: providerApplies
+        })
+
+        try {
+            const resolved = JSON.parse(terminalApp.approvalProviderPrefillPolicy(
+                providerApplies,
+                terminalApp.preferredCliProvider || ""
+            ) || "{}")
+            if (resolved && typeof resolved === "object") {
+                prefillPolicy = Object.assign(prefillPolicy, resolved)
+            }
+        } catch (e) {
+            // no-op: keep fallback policy when bridge response is unavailable
+        }
+
+        const providerSelectionRequired = !!prefillPolicy.provider_selection_required
+        const prefilledProvider = normalizeProvider(prefillPolicy.prefilled_provider || "")
+        const providerPrefillSource = (prefillPolicy.provider_prefill_source || "none").toString()
+        const providerChooserVisible = !!prefillPolicy.provider_chooser_visible
 
         approvalSelectedProvider = prefilledProvider
+        approvalSelectedAutonomyMode = requestedAutonomyMode
 
         approvalDialogRequest = {
             command: commandText,
@@ -219,9 +251,10 @@ ApplicationWindow {
             prefilledProvider: prefilledProvider,
             providerPrefillSource: providerPrefillSource,
             providerSelectionRequired: providerSelectionRequired,
-            providerChooserVisible: providerApplies
-                && (terminalApp.approvalProviderChooserEnabled || providerSelectionRequired),
+            providerChooserVisible: providerChooserVisible,
             autonomySelectorVisible: providerApplies && terminalApp.autonomyModeSelectorVisible,
+            selectedAutonomyMode: requestedAutonomyMode,
+            contextPack: parsedContext.context_pack || null,
         }
 
         root.showMainWindow()
@@ -292,6 +325,11 @@ ApplicationWindow {
                 root.showMainWindow()
             }
             root.syncApprovalDialog()
+        }
+
+        function onAgentSessionLaunched(sessionId, label, provider) {
+            root.syncSessionDisplayName()
+            root.refreshSessionTabs()
         }
     }
 
@@ -518,127 +556,139 @@ ApplicationWindow {
                     }
                 }
 
-                RowLayout {
+                ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 8
 
-                    Button {
-                        text: "Launch Gemini CLI"
-                        font.pixelSize: root.uiControlFontPx
-                        enabled: true
-                        onClicked: {
-                            terminalApp.launchGeminiInTab()
-                            geminiSettingsDialog.close()
-                        }
-                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
 
-                    Button {
-                        text: "Gemini \u2699"
-                        font.pixelSize: root.uiControlFontPx
-                        highlighted: terminalApp.geminiKeyPresent
-                        onClicked: geminiSettingsDialog.open()
-                    }
-
-                    Text {
-                        text: terminalApp.geminiKeyPresent ? "Key: stored" : "Key: free tier"
-                        color: terminalApp.geminiKeyPresent ? "#4caf50" : "#ff9800"
-                        font.pixelSize: 11
-                    }
-
-                    Item { Layout.fillWidth: true }
-
-                    Button {
-                        text: "New Tab"
-                        font.pixelSize: root.uiControlFontPx
-                        Layout.preferredWidth: 92
-                        Layout.preferredHeight: 30
-                        onClicked: {
-                            terminalApp.createSession()
-                            root.refreshSessionTabs()
-                        }
-                    }
-
-                    Button {
-                        text: "Saved Commands"
-                        font.pixelSize: root.uiControlFontPx
-                        Layout.preferredWidth: 148
-                        Layout.preferredHeight: 30
-                        onClicked: {
-                            if (savedCommandsDrawer.visible) {
-                                savedCommandsDrawer.close()
-                                return
+                        Button {
+                            text: "Launch Gemini CLI"
+                            font.pixelSize: root.uiControlFontPx
+                            enabled: true
+                            onClicked: {
+                                terminalApp.launchGeminiInTab()
+                                geminiSettingsDialog.close()
                             }
+                        }
 
-                            const workspaceId = root.savedCommandsWorkspaceOrDefault(savedCommandsWorkspaceField.text)
-                            if (terminalApp.openSavedCommands(workspaceId)) {
-                                savedCommandsWorkspaceField.text = terminalApp.savedCommandsWorkspaceId()
-                                root.refreshSavedCommands()
-                                savedCommandsDrawer.open()
-                                Qt.callLater(function() {
-                                    savedCommandsWorkspaceField.forceActiveFocus()
-                                    savedCommandsWorkspaceField.selectAll()
-                                })
+                        Button {
+                            text: "Gemini \u2699"
+                            font.pixelSize: root.uiControlFontPx
+                            highlighted: terminalApp.geminiKeyPresent
+                            onClicked: geminiSettingsDialog.open()
+                        }
+
+                        Text {
+                            text: terminalApp.geminiKeyPresent ? "Key: stored" : "Key: free tier"
+                            color: terminalApp.geminiKeyPresent ? "#4caf50" : "#ff9800"
+                            font.pixelSize: 11
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        Button {
+                            text: "Saved Commands"
+                            font.pixelSize: root.uiControlFontPx
+                            Layout.preferredWidth: 148
+                            Layout.preferredHeight: 30
+                            onClicked: {
+                                if (savedCommandsDrawer.visible) {
+                                    savedCommandsDrawer.close()
+                                    return
+                                }
+
+                                const workspaceId = root.savedCommandsWorkspaceOrDefault(savedCommandsWorkspaceField.text)
+                                if (terminalApp.openSavedCommands(workspaceId)) {
+                                    savedCommandsWorkspaceField.text = terminalApp.savedCommandsWorkspaceId()
+                                    root.refreshSavedCommands()
+                                    savedCommandsDrawer.open()
+                                    Qt.callLater(function() {
+                                        savedCommandsWorkspaceField.forceActiveFocus()
+                                        savedCommandsWorkspaceField.selectAll()
+                                    })
+                                }
                             }
                         }
                     }
 
-                    TextField {
-                        id: sessionNameInput
-                        Layout.preferredWidth: 150
-                        Layout.preferredHeight: 30
-                        placeholderText: "Session name"
-                        font.pixelSize: root.uiInputFontPx
-                        enabled: root.hasActiveTerminalSession
-                        text: root.pendingSessionDisplayName
-                        onTextChanged: root.pendingSessionDisplayName = text
-                        onAccepted: {
-                            if (root.hasActiveTerminalSession && terminalApp.renameSession(terminalApp.currentSessionId, text)) {
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        TextField {
+                            id: sessionNameInput
+                            Layout.preferredWidth: 150
+                            Layout.preferredHeight: 30
+                            placeholderText: "Session name"
+                            font.pixelSize: root.uiInputFontPx
+                            enabled: root.hasActiveTerminalSession
+                            text: root.pendingSessionDisplayName
+                            onTextChanged: root.pendingSessionDisplayName = text
+                            onAccepted: {
+                                if (root.hasActiveTerminalSession && terminalApp.renameSession(terminalApp.currentSessionId, text)) {
+                                    root.refreshSessionTabs()
+                                }
+                            }
+                        }
+
+                        Button {
+                            text: "New Tab"
+                            font.pixelSize: root.uiControlFontPx
+                            Layout.preferredWidth: 92
+                            Layout.preferredHeight: 30
+                            onClicked: {
+                                terminalApp.createSession()
                                 root.refreshSessionTabs()
                             }
                         }
-                    }
 
-                    Button {
-                        text: "Rename"
-                        Layout.preferredWidth: 92
-                        Layout.preferredHeight: 30
-                        font.pixelSize: root.uiControlFontPx
-                        enabled: root.hasActiveTerminalSession
-                        onClicked: {
-                            if (root.hasActiveTerminalSession && terminalApp.renameSession(terminalApp.currentSessionId, sessionNameInput.text)) {
-                                root.refreshSessionTabs()
+                        Button {
+                            text: "Rename"
+                            Layout.preferredWidth: 92
+                            Layout.preferredHeight: 30
+                            font.pixelSize: root.uiControlFontPx
+                            enabled: root.hasActiveTerminalSession
+                            onClicked: {
+                                if (root.hasActiveTerminalSession && terminalApp.renameSession(terminalApp.currentSessionId, sessionNameInput.text)) {
+                                    root.refreshSessionTabs()
+                                }
                             }
                         }
-                    }
 
-                    Button {
-                        text: "Restart"
-                        Layout.preferredWidth: 82
-                        Layout.preferredHeight: 30
-                        font.pixelSize: root.uiControlFontPx
-                        enabled: root.hasActiveTerminalSession
-                        onClicked: {
-                            if (root.hasActiveTerminalSession) {
-                                terminalApp.switchSession(terminalApp.currentSessionId)
+                        Button {
+                            text: "Restart"
+                            Layout.preferredWidth: 100
+                            Layout.preferredHeight: 30
+                            font.pixelSize: root.uiControlFontPx
+                            enabled: root.hasActiveTerminalSession
+                            onClicked: {
+                                if (root.hasActiveTerminalSession) {
+                                    terminalApp.switchSession(terminalApp.currentSessionId)
+                                }
                             }
                         }
-                    }
 
-                    Button {
-                        text: "Copy All"
-                        Layout.preferredWidth: 90
-                        Layout.preferredHeight: 30
-                        font.pixelSize: root.uiControlFontPx
-                        onClicked: terminalApp.copyCurrentOutput()
-                    }
+                        Button {
+                            text: "Copy All"
+                            Layout.preferredWidth: 90
+                            Layout.preferredHeight: 30
+                            font.pixelSize: root.uiControlFontPx
+                            onClicked: terminalApp.copyCurrentOutput()
+                        }
 
-                    Button {
-                        text: "Copy Last"
-                        Layout.preferredWidth: 90
-                        Layout.preferredHeight: 30
-                        font.pixelSize: root.uiControlFontPx
-                        enabled: root.hasActiveTerminalSession
-                        onClicked: terminalApp.copyLastCommandOutput()
+                        Button {
+                            text: "Copy Last"
+                            Layout.preferredWidth: 115
+                            Layout.preferredHeight: 30
+                            font.pixelSize: root.uiControlFontPx
+                            enabled: root.hasActiveTerminalSession
+                            onClicked: terminalApp.copyLastCommandOutput()
+                        }
+
+                        Item { Layout.fillWidth: true }
                     }
                 }
             }
@@ -860,7 +910,6 @@ ApplicationWindow {
             TerminalView {
                 anchors.fill: parent
                 terminalApp: terminalApp
-                suppressWebView: false
                 hasActiveSession: root.hasActiveTerminalSession
             }
         }
@@ -1168,6 +1217,82 @@ ApplicationWindow {
                         font.pixelSize: 12
                         wrapMode: Text.WrapAnywhere
                     }
+
+                    // ── Context-Pack rows (step 9) ──────────────────────────
+                    Text {
+                        visible: !!(approvalDialogRequest.contextPack
+                            && approvalDialogRequest.contextPack.requesting_agent)
+                        text: "Requesting Agent"
+                        color: "#808080"
+                        font.pixelSize: 12
+                    }
+                    Text {
+                        visible: !!(approvalDialogRequest.contextPack
+                            && approvalDialogRequest.contextPack.requesting_agent)
+                        text: (approvalDialogRequest.contextPack
+                            && approvalDialogRequest.contextPack.requesting_agent) || ""
+                        color: "#4ec9b0"
+                        font.pixelSize: 12
+                        wrapMode: Text.WrapAnywhere
+                    }
+
+                    Text {
+                        visible: !!(approvalDialogRequest.contextPack
+                            && approvalDialogRequest.contextPack.step_notes)
+                        text: "Step Notes"
+                        color: "#808080"
+                        font.pixelSize: 12
+                    }
+                    Text {
+                        visible: !!(approvalDialogRequest.contextPack
+                            && approvalDialogRequest.contextPack.step_notes)
+                        text: (approvalDialogRequest.contextPack
+                            && approvalDialogRequest.contextPack.step_notes) || ""
+                        color: "#d4d4d4"
+                        font.pixelSize: 12
+                        wrapMode: Text.WordWrap
+                        maximumLineCount: 4
+                        elide: Text.ElideRight
+                    }
+
+                    Text {
+                        visible: !!(approvalDialogRequest.contextPack
+                            && approvalDialogRequest.contextPack.relevant_files
+                            && approvalDialogRequest.contextPack.relevant_files.length > 0)
+                        text: "Context Files"
+                        color: "#808080"
+                        font.pixelSize: 12
+                    }
+                    Text {
+                        visible: !!(approvalDialogRequest.contextPack
+                            && approvalDialogRequest.contextPack.relevant_files
+                            && approvalDialogRequest.contextPack.relevant_files.length > 0)
+                        text: {
+                            const files = (approvalDialogRequest.contextPack
+                                && approvalDialogRequest.contextPack.relevant_files) || []
+                            const names = files.slice(0, 3).map(function(f) { return f.path })
+                            return files.length + " file(s): " + names.join(", ")
+                                + (files.length > 3 ? " …" : "")
+                        }
+                        color: "#d4d4d4"
+                        font.pixelSize: 12
+                        wrapMode: Text.WrapAnywhere
+                    }
+
+                    Text {
+                        visible: !!(approvalDialogRequest.contextPack
+                            && approvalDialogRequest.contextPack.custom_instructions)
+                        text: "Custom Instructions"
+                        color: "#808080"
+                        font.pixelSize: 12
+                    }
+                    Text {
+                        visible: !!(approvalDialogRequest.contextPack
+                            && approvalDialogRequest.contextPack.custom_instructions)
+                        text: "\u2713 provided"
+                        color: "#4ec9b0"
+                        font.pixelSize: 12
+                    }
                 }
             }
 
@@ -1176,6 +1301,76 @@ ApplicationWindow {
                 text: "Provider selection is required before approval."
                 color: "#f48771"
                 font.pixelSize: 12
+            }
+
+            RowLayout {
+                visible: approvalDialogRequest.providerChooserVisible
+                spacing: 8
+
+                Label {
+                    text: "Provider"
+                    color: "#c8c8c8"
+                    font.pixelSize: 12
+                }
+
+                ComboBox {
+                    id: approvalProviderChooser
+                    Layout.preferredWidth: 220
+                    font.pixelSize: root.uiControlFontPx
+                    model: approvalDialogRequest.providerSelectionRequired
+                        ? [
+                            "Select provider…",
+                            "Gemini",
+                            "Copilot"
+                        ]
+                        : [
+                            "Gemini",
+                            "Copilot"
+                        ]
+                    currentIndex: {
+                        const selected = (approvalSelectedProvider || "").toLowerCase()
+                        if (selected === "gemini") {
+                            return approvalDialogRequest.providerSelectionRequired ? 1 : 0
+                        }
+                        if (selected === "copilot") {
+                            return approvalDialogRequest.providerSelectionRequired ? 2 : 1
+                        }
+                        return 0
+                    }
+                    onActivated: {
+                        const choice = (model[currentIndex] || "").toString().toLowerCase()
+                        if (choice === "gemini") {
+                            approvalSelectedProvider = "gemini"
+                        } else if (choice === "copilot") {
+                            approvalSelectedProvider = "copilot"
+                        } else {
+                            approvalSelectedProvider = ""
+                        }
+                    }
+                }
+            }
+
+            RowLayout {
+                visible: approvalDialogRequest.autonomySelectorVisible
+                spacing: 8
+
+                Label {
+                    text: "Autonomy"
+                    color: "#c8c8c8"
+                    font.pixelSize: 12
+                }
+
+                ComboBox {
+                    id: approvalAutonomyChooser
+                    Layout.preferredWidth: 220
+                    font.pixelSize: root.uiControlFontPx
+                    model: ["Guided", "Autonomous"]
+                    currentIndex: (approvalSelectedAutonomyMode || "guided") === "autonomous" ? 1 : 0
+                    onActivated: {
+                        const choice = (model[currentIndex] || "").toString().toLowerCase()
+                        approvalSelectedAutonomyMode = (choice === "autonomous") ? "autonomous" : "guided"
+                    }
+                }
             }
 
             RowLayout {
@@ -1196,7 +1391,7 @@ ApplicationWindow {
                     font.pixelSize: root.uiControlFontPx
                     enabled: root.canSubmitApproval()
                     onClicked: {
-                        terminalApp.approveCommand(terminalApp.currentRequestId)
+                        terminalApp.approveCommand(terminalApp.currentRequestId, approvalSelectedAutonomyMode)
                         approvalDialog.close()
                     }
                 }
@@ -1204,13 +1399,27 @@ ApplicationWindow {
         }
     }
 
-    Drawer {
+    Popup {
         id: savedCommandsDrawer
         popupType: Popup.Window
-        edge: Qt.RightEdge
         modal: true
         width: Math.max(320, root.width * 0.38)
         height: root.height
+        x: root.width - width
+        y: 0
+        padding: 0
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        Overlay.modal: Rectangle {
+            color: "#70000000"
+        }
+
+        background: Rectangle {
+            color: "#252526"
+            border.color: "#3c3c3c"
+            border.width: 1
+        }
+
         onOpened: {
             savedCommandsWorkspaceField.text = root.savedCommandsWorkspaceOrDefault(terminalApp.savedCommandsWorkspaceId())
             terminalApp.openSavedCommands(savedCommandsWorkspaceField.text)

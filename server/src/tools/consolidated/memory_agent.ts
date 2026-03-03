@@ -267,8 +267,8 @@ export interface MemoryAgentParams {
 
 type AgentResult = 
   | { action: 'init'; data: InitialiseAgentResult }
-  | { action: 'complete'; data: AgentSession & { coordinator_next_action?: string } }
-  | { action: 'handoff'; data: LineageEntry & { verification?: { valid: boolean; issues: string[] }; coordinator_instruction: string } }
+  | { action: 'complete'; data: AgentSession & { coordinator_next_action?: string; hub_next_action?: string } }
+  | { action: 'handoff'; data: LineageEntry & { verification?: { valid: boolean; issues: string[] }; coordinator_instruction: string; hub_instruction?: string } }
   | { action: 'validate'; data: validationTools.AgentValidationResult & { deprecation_notice?: string } }
   | { action: 'list'; data: string[] }
   | { action: 'get_instructions'; data: { filename: string; content: string } }

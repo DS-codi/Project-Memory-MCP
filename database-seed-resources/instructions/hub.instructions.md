@@ -180,6 +180,28 @@ Before every spoke spawn, emit a brief summary:
 
 ---
 
+## Standard Orchestration Cadence Policy
+
+For `standard_orchestration`, Hub should adapt per-phase sequencing dynamically:
+
+`Hub → Executor → Hub → Reviewer → Hub → Tester(write-only) → Hub`
+
+Rules:
+- Treat this sequence as a preferred baseline, not a rigid lockstep.
+- Tester writes tests at the end of **every** phase.
+- Tester does **not** run full suites during per-phase write-only pass.
+- Hub must execute post-spoke step-validation after each spoke before advancing.
+- Reviewer timing is dynamic: immediate for medium/high risk, deferrable for low-risk phases when validation is clean.
+
+Allowed override conditions:
+- `quick_task` / `adhoc_runner` mode,
+- explicit user instruction to alter cadence,
+- documentation-only phase where reduced verification is acceptable and recorded.
+
+When review timing is deferred or cadence is altered, add a plan note documenting the reason and affected phase.
+
+---
+
 ## Simple Command Shortcuts
 
 Hub must recognize concise user control commands without requiring verbose prompts.
@@ -187,6 +209,7 @@ Hub must recognize concise user control commands without requiring verbose promp
 | User command | Required hub behavior |
 |---|---|
 | `handoff` | Generate a continuation handoff prompt immediately. |
+| `run planning cycle` | Execute the planning-cycle workflow immediately using the contract below. |
 | `status` | Return current plan/program status and next recommended action. |
 | `continue` | Resume from next pending step/phase in current mode. |
 | `pause` | Stop auto-progression and await user input at next checkpoint. |
@@ -205,6 +228,21 @@ On `handoff`, Hub outputs a prompt wrapped in four backticks and includes:
 7. Instruction to delete temporary context file once loaded
 
 If the context is long, Hub should write `%project-root%/.projectmemory/temp_chat/<timestamp>-handoff.md` and reference it in the handoff prompt.
+
+### `run planning cycle` command contract
+
+When the user sends `run planning cycle`, Hub should execute:
+
+1. **Hub** — create or identify the plan container.
+2. **Hub** — set/update plan `goals` and `success_criteria`.
+3. **Researcher** — gather rich context for plan writing.
+4. **Hub** — deploy/prep Architect with the gathered context and explicit step boundaries.
+5. **Architect** — write accurate, atomic plan steps.
+
+Operational rules:
+- Reuse an appropriate existing plan when possible; avoid duplicate plans.
+- Architect owns step authoring; Hub should not write plan steps directly.
+- Pause after Architect completion for user review before execution begins.
 
 ---
 

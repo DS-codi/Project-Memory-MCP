@@ -449,13 +449,13 @@ export async function initialiseAgent(
  * Complete an agent session - records summary and artifacts
  * 
  * HUB-AND-SPOKE MODEL:
- * - After completion, control returns to Coordinator
- * - The recommended_next_agent field tells Coordinator what to do next
+ * - After completion, control returns to Hub
+ * - The recommended_next_agent field tells Hub what to do next
  * - Non-Archivist agents MUST have called handoff before completing
  */
 export async function completeAgent(
   params: CompleteAgentParams
-): Promise<ToolResponse<AgentSession & { coordinator_next_action?: string }>> {
+): Promise<ToolResponse<AgentSession & { coordinator_next_action?: string; hub_next_action?: string }>> {
   try {
     const { workspace_id, plan_id, agent_type, summary, artifacts } = params;
     
@@ -595,19 +595,23 @@ export async function completeAgent(
     await store.savePlanState(state);
     await store.generatePlanMd(state);
     await releaseActiveRun(workspace_id, plan_id, 'SPAWN_RELEASE_COMPLETE', runIdFromSession);
-    
-    // Generate coordinator instruction
-    const coordinatorNextAction = state.recommended_next_agent
-      ? `Deploy ${state.recommended_next_agent} agent as recommended.`
+
+    const displayRecommendedAgent = state.recommended_next_agent === 'Coordinator'
+      ? 'Hub'
+      : state.recommended_next_agent;
+
+    const hubNextAction = displayRecommendedAgent
+      ? `Deploy ${displayRecommendedAgent} agent as recommended.`
       : agent_type === 'Archivist'
         ? 'Plan finalized.'
         : 'Review lineage for next agent recommendation.';
-    
+
     return {
       success: true,
       data: {
         ...session,
-        coordinator_next_action: coordinatorNextAction
+        coordinator_next_action: hubNextAction,
+        hub_next_action: hubNextAction
       }
     };
   } catch (error) {
@@ -644,6 +648,7 @@ export async function handoff(
 ): Promise<ToolResponse<LineageEntry & { 
   verification?: { valid: boolean; issues: string[] };
   coordinator_instruction: string;
+  hub_instruction?: string;
 }>> {
   try {
     const { workspace_id, plan_id, from_agent, to_agent, reason, data } = params;
@@ -730,17 +735,20 @@ export async function handoff(
     // Emit event for dashboard
     await events.handoff(workspace_id, plan_id, from_agent, to_agent, reason);
     
-    // Generate instruction for Coordinator
-    const coordinatorInstruction = to_agent === 'Coordinator' 
-      ? `Handoff recorded. Control returning to Coordinator for next decision.`
-      : `Handoff recommendation recorded. Coordinator should deploy ${to_agent} agent next. Reason: ${reason}`;
+    const displayTargetAgent = to_agent === 'Coordinator' ? 'Hub' : to_agent;
+
+    // Generate instruction for Hub (legacy key retained for compatibility)
+    const hubInstruction = displayTargetAgent === 'Hub'
+      ? 'Handoff recorded. Control returning to Hub for next decision.'
+      : `Handoff recommendation recorded. Hub should deploy ${displayTargetAgent} agent next. Reason: ${reason}`;
     
     return {
       success: true,
       data: { 
         ...entry, 
         verification,
-        coordinator_instruction: coordinatorInstruction
+        coordinator_instruction: hubInstruction,
+        hub_instruction: hubInstruction
       }
     };
   } catch (error) {

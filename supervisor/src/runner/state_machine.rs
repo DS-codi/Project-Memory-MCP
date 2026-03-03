@@ -31,6 +31,13 @@ use tracing::{debug, error, info, warn};
 use crate::config::{ReconnectSection, RestartPolicy};
 use super::backoff::BackoffState;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FailureDomain {
+    ChildLocal,
+    DependencyGroup,
+    Global,
+}
+
 // ---------------------------------------------------------------------------
 // State enum
 // ---------------------------------------------------------------------------
@@ -78,6 +85,10 @@ pub struct ServiceStateMachine {
     /// Controls whether (and when) the service is automatically restarted
     /// after a failure or disconnect.
     restart_policy: RestartPolicy,
+    cooldown_after_attempts: u32,
+    cooldown_child_local_ms: u64,
+    cooldown_dependency_group_ms: u64,
+    cooldown_global_ms: u64,
 }
 
 impl ServiceStateMachine {
@@ -93,7 +104,37 @@ impl ServiceStateMachine {
             attempt_count: 0,
             service_id: service_id.to_owned(),
             restart_policy,
+            cooldown_after_attempts: reconnect_config.cooldown_after_attempts,
+            cooldown_child_local_ms: reconnect_config.cooldown_child_local_ms,
+            cooldown_dependency_group_ms: reconnect_config.cooldown_dependency_group_ms,
+            cooldown_global_ms: reconnect_config.cooldown_global_ms,
         }
+    }
+
+    fn cooldown_for_domain(&self, domain: FailureDomain) -> u64 {
+        match domain {
+            FailureDomain::ChildLocal => self.cooldown_child_local_ms,
+            FailureDomain::DependencyGroup => self.cooldown_dependency_group_ms,
+            FailureDomain::Global => self.cooldown_global_ms,
+        }
+    }
+
+    fn domain_label(domain: FailureDomain) -> &'static str {
+        match domain {
+            FailureDomain::ChildLocal => "child_local",
+            FailureDomain::DependencyGroup => "dependency_group",
+            FailureDomain::Global => "global",
+        }
+    }
+
+    fn compute_retry_delay(&mut self, domain: FailureDomain) -> (u64, u64, u64) {
+        let backoff_delay = self.backoff.next_delay_ms();
+        let cooldown_delay = if self.cooldown_after_attempts > 0 && self.attempt_count >= self.cooldown_after_attempts {
+            self.cooldown_for_domain(domain)
+        } else {
+            0
+        };
+        (backoff_delay.max(cooldown_delay), backoff_delay, cooldown_delay)
     }
 
     /// Current connection state.
@@ -156,6 +197,10 @@ impl ServiceStateMachine {
     /// Transitions to: `Reconnecting { retry_after_ms }` using the back-off,
     /// or `Disconnected` if the restart policy is `NeverRestart`.
     pub fn on_probe_failure(&mut self) {
+        self.on_probe_failure_in_domain(FailureDomain::ChildLocal);
+    }
+
+    pub fn on_probe_failure_in_domain(&mut self, domain: FailureDomain) {
         let should_transition = matches!(
             self.state,
             ConnectionState::Probing
@@ -172,37 +217,44 @@ impl ServiceStateMachine {
                     service_id = %self.service_id,
                     old_state = ?old_state,
                     new_state = ?self.state,
+                    failure_domain = Self::domain_label(domain),
                     reason = "probe_failure_never_restart",
                     "state_transition"
                 );
                 return;
             }
 
-            let delay = self.backoff.next_delay_ms();
-            self.state = ConnectionState::Reconnecting {
-                retry_after_ms: delay,
-            };
             if self.should_give_up() {
+                self.state = ConnectionState::Disconnected;
                 error!(
                     service_id = %self.service_id,
                     old_state = ?old_state,
                     new_state = ?self.state,
                     attempt_count = self.attempt_count,
                     max_attempts = self.max_attempts,
-                    reason = "max_attempts_reached",
+                    failure_domain = Self::domain_label(domain),
+                    reason = "max_attempts_reached_disconnect",
                     "state_transition"
                 );
-            } else {
-                warn!(
-                    service_id = %self.service_id,
-                    old_state = ?old_state,
-                    new_state = ?self.state,
-                    attempt_count = self.attempt_count,
-                    retry_after_ms = delay,
-                    reason = "probe_failure",
-                    "state_transition"
-                );
+                return;
             }
+
+            let (delay, backoff_delay, cooldown_delay) = self.compute_retry_delay(domain);
+            self.state = ConnectionState::Reconnecting {
+                retry_after_ms: delay,
+            };
+            warn!(
+                service_id = %self.service_id,
+                old_state = ?old_state,
+                new_state = ?self.state,
+                attempt_count = self.attempt_count,
+                retry_after_ms = delay,
+                backoff_delay_ms = backoff_delay,
+                cooldown_delay_ms = cooldown_delay,
+                failure_domain = Self::domain_label(domain),
+                reason = "probe_failure",
+                "state_transition"
+            );
         }
     }
 
@@ -251,6 +303,10 @@ impl ServiceStateMachine {
     /// Transitions to: `Reconnecting { retry_after_ms }` using the back-off,
     /// or `Disconnected` if the restart policy is `NeverRestart`.
     pub fn on_failure(&mut self) {
+        self.on_failure_in_domain(FailureDomain::ChildLocal);
+    }
+
+    pub fn on_failure_in_domain(&mut self, domain: FailureDomain) {
         let should_transition = matches!(
             self.state,
             ConnectionState::Connected | ConnectionState::Verifying
@@ -265,36 +321,43 @@ impl ServiceStateMachine {
                     service_id = %self.service_id,
                     old_state = ?old_state,
                     new_state = ?self.state,
+                    failure_domain = Self::domain_label(domain),
                     reason = "failure_never_restart",
                     "state_transition"
                 );
                 return;
             }
 
-            let delay = self.backoff.next_delay_ms();
-            self.state = ConnectionState::Reconnecting {
-                retry_after_ms: delay,
-            };
             if self.should_give_up() {
+                self.state = ConnectionState::Disconnected;
                 error!(
                     service_id = %self.service_id,
                     old_state = ?old_state,
                     new_state = ?self.state,
                     attempt_count = self.attempt_count,
                     max_attempts = self.max_attempts,
-                    reason = "max_attempts_reached",
+                    failure_domain = Self::domain_label(domain),
+                    reason = "max_attempts_reached_disconnect",
                     "state_transition"
                 );
-            } else {
-                warn!(
-                    service_id = %self.service_id,
-                    old_state = ?old_state,
-                    new_state = ?self.state,
-                    retry_after_ms = delay,
-                    reason = "connection_failure",
-                    "state_transition"
-                );
+                return;
             }
+
+            let (delay, backoff_delay, cooldown_delay) = self.compute_retry_delay(domain);
+            self.state = ConnectionState::Reconnecting {
+                retry_after_ms: delay,
+            };
+            warn!(
+                service_id = %self.service_id,
+                old_state = ?old_state,
+                new_state = ?self.state,
+                retry_after_ms = delay,
+                backoff_delay_ms = backoff_delay,
+                cooldown_delay_ms = cooldown_delay,
+                failure_domain = Self::domain_label(domain),
+                reason = "connection_failure",
+                "state_transition"
+            );
         }
     }
 
@@ -516,6 +579,10 @@ mod tests {
             multiplier: 2.0,
             max_attempts: 2,
             jitter_ratio: 0.2,
+            cooldown_after_attempts: 0,
+            cooldown_child_local_ms: 0,
+            cooldown_dependency_group_ms: 0,
+            cooldown_global_ms: 0,
         };
         let mut sm = ServiceStateMachine::new(&config, "test-service", RestartPolicy::AlwaysRestart);
         sm.on_start();
@@ -524,6 +591,32 @@ mod tests {
         sm.on_retry_elapsed();
         sm.on_probe_failure(); // attempt 2
         assert!(sm.should_give_up());
+        assert_eq!(*sm.state(), ConnectionState::Disconnected);
+    }
+
+    #[test]
+    fn cooldown_floor_applies_for_dependency_group_domain() {
+        let config = ReconnectSection {
+            initial_delay_ms: 500,
+            max_delay_ms: 30_000,
+            multiplier: 2.0,
+            max_attempts: 5,
+            jitter_ratio: 0.0,
+            cooldown_after_attempts: 1,
+            cooldown_child_local_ms: 0,
+            cooldown_dependency_group_ms: 2_500,
+            cooldown_global_ms: 0,
+        };
+
+        let mut sm = ServiceStateMachine::new(&config, "test-service", RestartPolicy::AlwaysRestart);
+        sm.on_start();
+        sm.on_probe_failure_in_domain(FailureDomain::DependencyGroup);
+        match sm.state() {
+            ConnectionState::Reconnecting { retry_after_ms } => {
+                assert_eq!(*retry_after_ms, 2_500, "cooldown should floor reconnect delay for dependency-group failures");
+            }
+            other => panic!("expected Reconnecting, got {other:?}"),
+        }
     }
 
     // -----------------------------------------------------------------------

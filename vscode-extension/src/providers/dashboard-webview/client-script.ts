@@ -63,6 +63,15 @@ export function getClientScript(params: ClientScriptParams): string {
         let currentPlanTab = (persistedState.currentPlanTab === 'archived' || persistedState.currentPlanTab === 'programs')
             ? persistedState.currentPlanTab
             : 'active';
+        let planSortBy = (
+            persistedState.planSortBy === 'recent' ||
+            persistedState.planSortBy === 'title' ||
+            persistedState.planSortBy === 'status' ||
+            persistedState.planSortBy === 'oldest' ||
+            persistedState.planSortBy === 'progress'
+        )
+            ? persistedState.planSortBy
+            : 'newest';
         let selectedPlanId = typeof persistedState.selectedPlanId === 'string' ? persistedState.selectedPlanId : '';
         let selectedPlanWorkspaceId = typeof persistedState.selectedPlanWorkspaceId === 'string' ? persistedState.selectedPlanWorkspaceId : '';
         let selectedPlanDetails = null;
@@ -361,10 +370,10 @@ export function getClientScript(params: ClientScriptParams): string {
             } else if (action === 'select-plan' && planId) {
                 setSelectedPlan(planId, planWorkspaceId);
             } else if (action === 'open-plan-browser' && planId) {
-                setSelectedPlan(planId, planWorkspaceId);
+                setSelectedPlan(planId, planWorkspaceId, { toggle: false });
                 vscode.postMessage({ type: 'openPlanInBrowser', data: { planId: planId, workspaceId: planWorkspaceId } });
             } else if (action === 'open-plan' && planId) {
-                setSelectedPlan(planId, planWorkspaceId);
+                setSelectedPlan(planId, planWorkspaceId, { toggle: false });
                 vscode.postMessage({ type: 'openPlan', data: { planId: planId, workspaceId: planWorkspaceId } });
             } else if (action === 'copy' && copyText) {
                 vscode.postMessage({ type: 'copyToClipboard', data: { text: copyText } });
@@ -391,6 +400,13 @@ export function getClientScript(params: ClientScriptParams): string {
                 if (keyPlanId) {
                     setSelectedPlan(keyPlanId, keyWorkspaceId);
                 }
+            }
+        });
+
+        document.addEventListener('change', function(e) {
+            var target = e.target;
+            if (target && target.id === 'plansSortSelect') {
+                setPlanSort(target.value);
             }
         });
 

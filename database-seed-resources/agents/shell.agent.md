@@ -28,3 +28,8 @@ Follow it exactly.
 
 ### 4) Hard boundary
 - Never call `runSubagent`; Shell is always a spoke returning to Hub.
+
+### 5) Build script first
+- For build/test/install/compile/package steps, first use `memory_plan(action: "list_build_scripts")` and `memory_plan(action: "run_build_script")`.
+- Execute the resolved script command and directory; prefer installer-based `install.ps1` scripts over ad-hoc raw build commands.
+- Use raw fallback commands only when no registered script fits or task explicitly requires diagnostics.

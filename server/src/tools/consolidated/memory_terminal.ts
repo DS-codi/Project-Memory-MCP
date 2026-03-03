@@ -39,6 +39,29 @@ import { TcpTerminalAdapter } from '../terminal-tcp-adapter.js';
 const guiSessions = new Set<string>();
 
 // =========================================================================
+// In-Flight Session Rate Limiter
+// =========================================================================
+
+/**
+ * Tracks session IDs that currently have an in-flight `run` command.
+ *
+ * SEQUENTIAL RULE: Each `run` call MUST receive its response before another
+ * `run` targets the same session.  If a concurrent call arrives for a session
+ * that is already busy, it is automatically redirected to a fresh isolated
+ * terminal tab (a new unique session_id) so the two commands don't collide.
+ *
+ * The sentinel key '__selected__' represents the "selected / unspecified"
+ * session bucket (resolvedSessionId === '').
+ */
+const inFlightSessions = new Set<string>();
+
+const SELECTED_BUCKET_KEY = '__selected__';
+
+function toSessionBucketKey(resolvedSessionId: string): string {
+  return resolvedSessionId === '' ? SELECTED_BUCKET_KEY : resolvedSessionId;
+}
+
+// =========================================================================
 // Public Types
 // =========================================================================
 
@@ -48,6 +71,33 @@ export type MemoryTerminalAction =
   | 'kill'
   | 'get_allowlist'
   | 'update_allowlist';
+
+// ─── Context-pack types ──────────────────────────────────────────────────────
+
+/** A single file reference included in a context-pack. */
+export interface RelevantFile {
+  path: string;
+  snippet?: string;
+}
+
+/**
+ * Structured context assembled before a super-subagent launch request is
+ * forwarded to the GUI approval dialog.
+ *
+ * Embedded into the `context` JSON string of the TCP CommandRequest under the
+ * key `"context_pack"`, alongside `source`, `correlation`, and `approval`.
+ */
+export interface ContextPack {
+  step_notes?: string;
+  relevant_files?: RelevantFile[];
+  workspace_instructions?: string;
+  custom_instructions?: string;
+  requesting_agent?: string;
+  plan_id?: string;
+  session_id?: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export interface MemoryTerminalParams {
   action: MemoryTerminalAction;
@@ -81,6 +131,21 @@ export interface MemoryTerminalParams {
    * causes both to be set.
    */
   env?: Record<string, string>;
+  /**
+   * Agent launch metadata for super-subagent launches (for run).
+   * When present, triggers context-pack assembly and the GUI hard-gate approval
+   * flow. The assembled context pack is embedded in the `context` JSON field
+   * sent to the Interactive Terminal TCP adapter.
+   */
+  agent_launch_meta?: {
+    requesting_agent?: string;
+    plan_id?: string;
+    session_id?: string;
+    step_notes?: string;
+    relevant_files?: Array<{ path: string; snippet?: string }>;
+    workspace_instructions?: string;
+    custom_instructions?: string;
+  };
 }
 
 /**
@@ -94,6 +159,81 @@ export interface McpToolExtra {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sendNotification?: (notification: any) => Promise<void> | void;
   signal?: AbortSignal;
+}
+
+// =========================================================================
+// Context-Pack Assembly (Step 9)
+// =========================================================================
+
+/**
+ * Assemble a ContextPack from the `agent_launch_meta` fields of a run request.
+ *
+ * The returned object is serialised and embedded into the `context` JSON string
+ * sent to the Interactive Terminal under the key `"context_pack"`. The GUI
+ * approval dialog and the Rust application-side routing logic both read it from
+ * there.
+ *
+ * Returns `undefined` when no launch metadata is present.
+ */
+export function assembleContextPack(
+  params: MemoryTerminalParams,
+): ContextPack | undefined {
+  const meta = params.agent_launch_meta;
+  if (!meta) return undefined;
+
+  const pack: ContextPack = {};
+
+  if (meta.requesting_agent) pack.requesting_agent = meta.requesting_agent;
+  if (meta.plan_id) pack.plan_id = meta.plan_id;
+  if (meta.session_id) pack.session_id = meta.session_id;
+  if (meta.step_notes) pack.step_notes = meta.step_notes;
+  if (meta.workspace_instructions)
+    pack.workspace_instructions = meta.workspace_instructions;
+  if (meta.custom_instructions)
+    pack.custom_instructions = meta.custom_instructions;
+  if (meta.relevant_files && meta.relevant_files.length > 0)
+    pack.relevant_files = meta.relevant_files.map((f) => ({
+      path: f.path,
+      snippet: f.snippet,
+    }));
+
+  return pack;
+}
+
+/**
+ * Build the `context` JSON string for an agent-launch `CommandRequest`.
+ *
+ * The format mirrors the existing context envelope expected by the QML
+ * `parseContextInfo` / `syncApprovalDialog` flow:
+ * ```json
+ * {
+ *   "source": { "launch_kind": "agent_cli_launch", "intent": "agent_launch", ... },
+ *   "approval": { "provider_policy": "agent_cli_launch", ... },
+ *   "context_pack": { ... }
+ * }
+ * ```
+ */
+export function buildAgentLaunchContextJson(
+  params: MemoryTerminalParams,
+  contextPack: ContextPack,
+): string {
+  const meta = params.agent_launch_meta ?? {};
+  const envelope = {
+    source: {
+      launch_kind: 'agent_cli_launch',
+      intent: 'agent_launch',
+      command: params.command ?? '',
+      args: params.args ?? [],
+      mode: 'interactive',
+      session_id: meta.session_id ?? params.session_id ?? '',
+      workspace_id: params.workspace_id ?? '',
+    },
+    approval: {
+      provider_policy: 'agent_cli_launch',
+    },
+    context_pack: contextPack,
+  };
+  return JSON.stringify(envelope);
 }
 
 // =========================================================================
@@ -337,6 +477,30 @@ async function handleRun(
     resolvedSessionId = '';
   }
 
+  // ── Rate Limiter ────────────────────────────────────────────────────────
+  // If the target session already has an in-flight command, redirect this
+  // request to a new isolated terminal tab (new session_id) so the two
+  // commands don't collide on the same PTY session.
+  // Agents MUST wait for each run response before issuing the next call.
+  let sessionBucket = toSessionBucketKey(resolvedSessionId);
+  let rateRedirected = false;
+  if (inFlightSessions.has(sessionBucket)) {
+    resolvedSessionId = `mcp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    sessionBucket = resolvedSessionId;
+    rateRedirected = true;
+  }
+  inFlightSessions.add(sessionBucket);
+
+  // ── Context-Pack Assembly ────────────────────────────────────────────────
+  // When the caller supplies agent_launch_meta, assemble a structured context
+  // pack and embed it in the context JSON string.  The GUI approval dialog and
+  // the Rust hard-gate / routing logic both read from this field.
+  let contextJson: string | undefined;
+  const contextPack = assembleContextPack(params);
+  if (contextPack) {
+    contextJson = buildAgentLaunchContextJson(params, contextPack);
+  }
+
   // Build CommandRequest for the TCP wire protocol
   const request: CommandRequest = {
     type: 'command_request',
@@ -351,6 +515,7 @@ async function handleRun(
       : undefined,
     allowlisted: auth.decision === 'allowed',
     env: params.env && Object.keys(params.env).length > 0 ? params.env : undefined,
+    context: contextJson,
   };
 
   // Create a fresh TCP adapter for this request.
@@ -421,7 +586,18 @@ async function handleRun(
       guiSessions.add(response.id);
     }
 
-    return mapCommandResponseToToolResponse(response);
+    const result = mapCommandResponseToToolResponse(response);
+
+    // If we redirected due to rate limiting, surface a warning so the agent
+    // knows it must not fire concurrent run calls.
+    if (rateRedirected && result.success && result.data) {
+      (result.data as Record<string, unknown>).rate_limit_note =
+        'RATE LIMIT: The requested session already had an in-flight command. ' +
+        'This command was automatically routed to a new terminal tab. ' +
+        'RULE: Wait for each run response before issuing the next run call.';
+    }
+
+    return result;
   } catch (err) {
     stopHeartbeat();
     adapter.close();
@@ -429,6 +605,9 @@ async function handleRun(
       success: false,
       error: `Terminal run error: ${(err as Error).message}`,
     };
+  } finally {
+    // Always release the in-flight slot so future calls can proceed normally.
+    inFlightSessions.delete(sessionBucket);
   }
 }
 

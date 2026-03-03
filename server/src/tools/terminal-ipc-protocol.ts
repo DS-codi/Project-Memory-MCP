@@ -44,6 +44,14 @@ export interface CommandRequest {
    *  true  → GUI auto-executes, no approval dialog.
    *  false → GUI shows approval dialog. */
   allowlisted?: boolean;
+  /**
+   * Structured context for the approval dialog and launch routing.
+   * For normal commands this is a plain-text or empty string.
+   * For super-subagent launches assembled by `assembleContextPack`, this is
+   * a JSON object string with keys: `source`, `correlation`, `approval`,
+   * and optionally `context_pack` (embedded ContextPack).
+   */
+  context?: string;
 }
 
 /** GUI → MCP server: result of approval/execution. */

@@ -36,3 +36,48 @@ pub struct RuntimeDispatchResult {
     pub state: RuntimeSessionState,
     pub data: serde_json::Value,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryFailureDomain {
+    ChildLocal,
+    DependencyGroup,
+    Global,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RuntimeRestartPolicyContract {
+    pub max_attempts: u32,
+    pub initial_backoff_ms: u64,
+    pub max_backoff_ms: u64,
+    pub multiplier: f64,
+    pub jitter_ratio: f64,
+    pub cooldown_after_attempts: u32,
+    pub cooldown_child_local_ms: u64,
+    pub cooldown_dependency_group_ms: u64,
+    pub cooldown_global_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RuntimeStopStartPolicyContract {
+    pub stop_idempotent: bool,
+    pub stop_wait_for_child_exit_ms: u64,
+    pub orphan_child_reap_required: bool,
+    pub start_requires_clean_pid_set: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RuntimeReconnectChoreographyContract {
+    pub invalidate_stale_session_first: bool,
+    pub require_dependency_gate_pass: bool,
+    pub require_readiness_gate_pass: bool,
+    pub reconnect_order: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RuntimeSafetyEscalationContract {
+    pub degrade_after_max_attempts: bool,
+    pub degrade_after_timeout_ms: u64,
+    pub operator_alert_required: bool,
+    pub alert_reason_code: String,
+}

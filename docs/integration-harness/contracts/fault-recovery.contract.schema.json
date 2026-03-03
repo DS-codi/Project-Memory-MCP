@@ -1,0 +1,666 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-memory/contracts/integration-harness/fault-recovery.contract.schema.json",
+  "title": "Integration Harness Fault Recovery Contract",
+  "type": "object",
+  "required": [
+    "contract_version",
+    "runtime_default",
+    "dependency_failure_policy",
+    "reconnect_storm_policy",
+    "replay_ack_guarantees",
+    "circuit_breaker_policy",
+    "reconnect_handshake_contract",
+    "reconnect_idempotency_contract",
+    "reconnect_protocol_conformance_matrix",
+    "scenarios"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string",
+      "pattern": "^v[0-9]+(\\.[0-9]+){0,2}$"
+    },
+    "runtime_default": {
+      "type": "string",
+      "enum": ["container-mode", "supervisor-mode"]
+    },
+    "dependency_failure_policy": {
+      "$ref": "#/$defs/dependencyFailurePolicy"
+    },
+    "reconnect_storm_policy": {
+      "$ref": "#/$defs/reconnectStormPolicy"
+    },
+    "replay_ack_guarantees": {
+      "$ref": "#/$defs/replayAckGuarantees"
+    },
+    "circuit_breaker_policy": {
+      "$ref": "#/$defs/circuitBreakerPolicy"
+    },
+    "reconnect_handshake_contract": {
+      "$ref": "#/$defs/reconnectHandshakeContract"
+    },
+    "reconnect_idempotency_contract": {
+      "$ref": "#/$defs/reconnectIdempotencyContract"
+    },
+    "reconnect_protocol_conformance_matrix": {
+      "$ref": "#/$defs/reconnectProtocolConformanceMatrix"
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/scenario"
+      }
+    }
+  },
+  "$defs": {
+    "dependencyFailurePolicy": {
+      "type": "object",
+      "required": [
+        "degrade_without_full_restart",
+        "degraded_reason_code",
+        "isolation_assertion_reason_code",
+        "forbidden_restart_scope",
+        "required_failure_domains"
+      ],
+      "properties": {
+        "degrade_without_full_restart": { "type": "boolean" },
+        "degraded_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "isolation_assertion_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "forbidden_restart_scope": {
+          "type": "string",
+          "enum": ["global"]
+        },
+        "required_failure_domains": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["dependency-group"]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "reconnectStormPolicy": {
+      "type": "object",
+      "required": [
+        "window_ms",
+        "max_attempts_in_window",
+        "max_inflight_attempts",
+        "queue_limit",
+        "reject_new_attempts_when_saturated",
+        "rejection_reason_code"
+      ],
+      "properties": {
+        "window_ms": { "type": "integer", "minimum": 100, "maximum": 600000 },
+        "max_attempts_in_window": { "type": "integer", "minimum": 1, "maximum": 128 },
+        "max_inflight_attempts": { "type": "integer", "minimum": 1, "maximum": 16 },
+        "queue_limit": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "reject_new_attempts_when_saturated": { "type": "boolean" },
+        "rejection_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+      },
+      "additionalProperties": false
+    },
+    "replayAckGuarantees": {
+      "type": "object",
+      "required": [
+        "enabled",
+        "ack_mode",
+        "require_replay_commit_before_resume",
+        "dedup_identity_fields",
+        "replay_window_max_events",
+        "ack_timeout_ms",
+        "pass_reason_code",
+        "fail_reason_code"
+      ],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "ack_mode": {
+          "type": "string",
+          "enum": ["at_least_once_with_dedup", "exactly_once_logical"]
+        },
+        "require_replay_commit_before_resume": { "type": "boolean" },
+        "dedup_identity_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["component_id", "session_id", "replay_cursor", "event_tag"]
+          }
+        },
+        "replay_window_max_events": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+        "ack_timeout_ms": { "type": "integer", "minimum": 50, "maximum": 600000 },
+        "pass_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "fail_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+      },
+      "additionalProperties": false
+    },
+    "circuitBreakerPolicy": {
+      "type": "object",
+      "required": [
+        "enabled",
+        "failure_threshold",
+        "open_state_min_duration_ms",
+        "half_open_max_probe_attempts",
+        "open_reason_code",
+        "half_open_reason_code",
+        "fail_fast_when_open"
+      ],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "failure_threshold": { "type": "integer", "minimum": 1, "maximum": 64 },
+        "open_state_min_duration_ms": { "type": "integer", "minimum": 100, "maximum": 600000 },
+        "half_open_max_probe_attempts": { "type": "integer", "minimum": 1, "maximum": 16 },
+        "open_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "half_open_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "fail_fast_when_open": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "reconnectHandshakeContract": {
+      "type": "object",
+      "required": [
+        "podman_first",
+        "require_transport_logical_binding",
+        "resume_token",
+        "session_lease",
+        "replay_cursor",
+        "outcomes"
+      ],
+      "properties": {
+        "podman_first": { "type": "boolean" },
+        "require_transport_logical_binding": { "type": "boolean" },
+        "resume_token": {
+          "type": "object",
+          "required": ["format", "binds_to", "ttl_ms_min", "ttl_ms_max", "expiry_reason_code"],
+          "properties": {
+            "format": { "type": "string", "enum": ["base64url-jws", "opaque"] },
+            "binds_to": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "type": "string", "enum": ["workspace_id", "session_id", "transport_id"] }
+            },
+            "ttl_ms_min": { "type": "integer", "minimum": 100, "maximum": 600000 },
+            "ttl_ms_max": { "type": "integer", "minimum": 100, "maximum": 3600000 },
+            "expiry_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+          },
+          "additionalProperties": false
+        },
+        "session_lease": {
+          "type": "object",
+          "required": ["lease_required", "lease_id_pattern", "lease_ttl_ms", "renew_on_success", "expiry_reason_code"],
+          "properties": {
+            "lease_required": { "type": "boolean" },
+            "lease_id_pattern": { "type": "string" },
+            "lease_ttl_ms": { "type": "integer", "minimum": 100, "maximum": 3600000 },
+            "renew_on_success": { "type": "boolean" },
+            "expiry_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+          },
+          "additionalProperties": false
+        },
+        "replay_cursor": {
+          "type": "object",
+          "required": ["required", "cursor_type", "max_replay_window_events", "stale_cursor_reason_code"],
+          "properties": {
+            "required": { "type": "boolean" },
+            "cursor_type": { "type": "string", "enum": ["monotonic-sequence", "timestamp-offset"] },
+            "max_replay_window_events": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+            "stale_cursor_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+          },
+          "additionalProperties": false
+        },
+        "outcomes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["accepted", "resume_denied", "replay_required", "full_resync_required"]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "reconnectIdempotencyContract": {
+      "type": "object",
+      "required": [
+        "idempotency_key_fields",
+        "suppression_window_ms",
+        "duplicate_policy",
+        "reason_codes"
+      ],
+      "properties": {
+        "idempotency_key_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["resume_token_hash", "lease_id", "replay_cursor", "component_id"]
+          }
+        },
+        "suppression_window_ms": { "type": "integer", "minimum": 0, "maximum": 600000 },
+        "duplicate_policy": {
+          "type": "object",
+          "required": [
+            "duplicate_reconnect_attempt",
+            "duplicate_subscription",
+            "duplicate_replay_event"
+          ],
+          "properties": {
+            "duplicate_reconnect_attempt": { "type": "string", "enum": ["return_existing_result", "reject"] },
+            "duplicate_subscription": { "type": "string", "enum": ["no_op_ack", "reject"] },
+            "duplicate_replay_event": { "type": "string", "enum": ["suppress_emit", "allow"] }
+          },
+          "additionalProperties": false
+        },
+        "reason_codes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "reconnectProtocolConformanceMatrix": {
+      "type": "object",
+      "required": [
+        "runtime_mode",
+        "validation_order",
+        "cases"
+      ],
+      "properties": {
+        "runtime_mode": {
+          "type": "string",
+          "enum": ["container-mode", "supervisor-mode"]
+        },
+        "validation_order": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["normal", "delayed", "duplicate", "stale-token"]
+          }
+        },
+        "cases": {
+          "type": "array",
+          "minItems": 4,
+          "items": {
+            "$ref": "#/$defs/reconnectProtocolConformanceCase"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "reconnectProtocolConformanceCase": {
+      "type": "object",
+      "required": [
+        "case_id",
+        "description",
+        "request_profile",
+        "expected_outcome",
+        "expected_reason_codes",
+        "must_emit_events"
+      ],
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "enum": ["normal", "delayed", "duplicate", "stale-token"]
+        },
+        "description": {
+          "type": "string",
+          "minLength": 10
+        },
+        "request_profile": {
+          "type": "object",
+          "required": [
+            "resume_token_state",
+            "session_lease_state",
+            "transport_rebind",
+            "simulated_handshake_delay_ms",
+            "duplicate_attempt_count"
+          ],
+          "properties": {
+            "resume_token_state": {
+              "type": "string",
+              "enum": ["valid", "expired", "stale"]
+            },
+            "session_lease_state": {
+              "type": "string",
+              "enum": ["active", "expired", "missing"]
+            },
+            "transport_rebind": {
+              "type": "string",
+              "enum": ["same_transport", "new_transport"]
+            },
+            "simulated_handshake_delay_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 120000
+            },
+            "duplicate_attempt_count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 32
+            }
+          },
+          "additionalProperties": false
+        },
+        "expected_outcome": {
+          "type": "string",
+          "enum": ["accepted", "resume_denied", "replay_required", "full_resync_required"]
+        },
+        "expected_reason_codes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          }
+        },
+        "must_emit_events": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "session_invalidated",
+              "reconnect_attempt",
+              "dependency_gate_pass",
+              "readiness_pass",
+              "connectivity_reconnected",
+              "reconnect_failed",
+              "assertion_pass"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "probe": {
+      "type": "object",
+      "required": ["kind", "timeout_ms"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["http", "tcp"]
+        },
+        "url": { "type": "string" },
+        "method": { "type": "string" },
+        "success_status_codes": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 100, "maximum": 599 }
+        },
+        "host": { "type": "string" },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "timeout_ms": { "type": "integer", "minimum": 100, "maximum": 120000 }
+      },
+      "additionalProperties": true
+    },
+    "scenario": {
+      "type": "object",
+      "required": [
+        "scenario_id",
+        "runtime_mode",
+        "component_id",
+        "failure_domain",
+        "restart_scope",
+        "isolation_rules",
+        "atomic_actions",
+        "expected_transition_sequence",
+        "stop_start_policy",
+        "reconnect_policy",
+        "reconnect_choreography",
+        "safety_escalation",
+        "reconnect_probe"
+      ],
+      "properties": {
+        "scenario_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_-]{5,80}$"
+        },
+        "runtime_mode": {
+          "type": "string",
+          "enum": ["container-mode", "supervisor-mode"]
+        },
+        "component_id": {
+          "type": "string",
+          "enum": [
+            "mcp-server",
+            "dashboard",
+            "supervisor-proxy",
+            "extension-test-runner",
+            "interactive-terminal-bridge"
+          ]
+        },
+        "failure_domain": {
+          "type": "string",
+          "enum": ["child-local", "dependency-group", "global"]
+        },
+        "restart_scope": {
+          "type": "string",
+          "enum": ["child-local", "dependency-group", "global"]
+        },
+        "isolation_rules": {
+          "type": "object",
+          "required": [
+            "allow_restart_only_within_scope",
+            "must_not_restart_outside_scope",
+            "unaffected_components_must_remain_healthy"
+          ],
+          "properties": {
+            "allow_restart_only_within_scope": { "type": "boolean" },
+            "must_not_restart_outside_scope": { "type": "boolean" },
+            "unaffected_components_must_remain_healthy": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "mcp-server",
+                  "dashboard",
+                  "supervisor-proxy",
+                  "extension-test-runner",
+                  "interactive-terminal-bridge"
+                ]
+              },
+              "uniqueItems": true
+            }
+          },
+          "additionalProperties": false
+        },
+        "atomic_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["action_id", "action_type", "target"],
+            "properties": {
+              "action_id": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9_-]{3,80}$"
+              },
+              "action_type": {
+                "type": "string",
+                "enum": ["kill_process", "stop_service", "delay_response", "force_health_failure"]
+              },
+              "hold_ms": { "type": "integer", "minimum": 0, "maximum": 120000 },
+              "delay_ms": { "type": "integer", "minimum": 0, "maximum": 120000 },
+              "target": {
+                "type": "object",
+                "properties": {
+                  "compose_service": { "type": "string" },
+                  "process_names": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "minItems": 1
+                  },
+                  "probe": { "$ref": "#/$defs/probe" }
+                },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "expected_transition_sequence": {
+          "type": "array",
+          "minItems": 4,
+          "items": {
+            "type": "string",
+            "enum": [
+              "connectivity_connected",
+              "connectivity_degraded",
+              "connectivity_disconnected",
+              "connectivity_reconnected"
+            ]
+          }
+        },
+        "reconnect_policy": {
+          "type": "object",
+          "required": ["max_attempts", "initial_backoff_ms", "max_backoff_ms", "multiplier", "jitter_ratio", "cooldown_after_attempts", "cooldown_by_failure_domain", "timeout_ms"],
+          "properties": {
+            "max_attempts": { "type": "integer", "minimum": 1, "maximum": 32 },
+            "initial_backoff_ms": { "type": "integer", "minimum": 50, "maximum": 60000 },
+            "max_backoff_ms": { "type": "integer", "minimum": 50, "maximum": 120000 },
+            "multiplier": { "type": "number", "minimum": 1.0, "maximum": 8.0 },
+            "jitter_ratio": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+            "cooldown_after_attempts": { "type": "integer", "minimum": 0, "maximum": 32 },
+            "cooldown_by_failure_domain": {
+              "type": "object",
+              "required": ["child_local_ms", "dependency_group_ms", "global_ms"],
+              "properties": {
+                "child_local_ms": { "type": "integer", "minimum": 0, "maximum": 120000 },
+                "dependency_group_ms": { "type": "integer", "minimum": 0, "maximum": 120000 },
+                "global_ms": { "type": "integer", "minimum": 0, "maximum": 120000 }
+              },
+              "additionalProperties": false
+            },
+            "timeout_ms": { "type": "integer", "minimum": 100, "maximum": 600000 }
+          },
+          "additionalProperties": false
+        },
+        "stop_start_policy": {
+          "type": "object",
+          "required": [
+            "idempotent_stop_start",
+            "stop_wait_for_exit_ms",
+            "orphan_child_reap_required",
+            "start_requires_clean_pid_set"
+          ],
+          "properties": {
+            "idempotent_stop_start": { "type": "boolean" },
+            "stop_wait_for_exit_ms": { "type": "integer", "minimum": 0, "maximum": 120000 },
+            "orphan_child_reap_required": { "type": "boolean" },
+            "start_requires_clean_pid_set": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "reconnect_choreography": {
+          "type": "object",
+          "required": [
+            "invalidate_stale_session_first",
+            "require_dependency_gate_pass",
+            "require_readiness_gate_pass",
+            "ordered_events"
+          ],
+          "properties": {
+            "invalidate_stale_session_first": { "type": "boolean" },
+            "require_dependency_gate_pass": { "type": "boolean" },
+            "require_readiness_gate_pass": { "type": "boolean" },
+            "ordered_events": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "session_invalidated",
+                  "reconnect_attempt",
+                  "dependency_gate_pass",
+                  "readiness_pass",
+                  "connectivity_reconnected"
+                ]
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "safety_escalation": {
+          "type": "object",
+          "required": [
+            "degrade_after_max_attempts",
+            "degrade_after_timeout_ms",
+            "operator_alert_required",
+            "operator_alert_reason_code"
+          ],
+          "properties": {
+            "degrade_after_max_attempts": { "type": "boolean" },
+            "degrade_after_timeout_ms": { "type": "integer", "minimum": 0, "maximum": 600000 },
+            "operator_alert_required": { "type": "boolean" },
+            "operator_alert_reason_code": {
+              "type": "string",
+              "pattern": "^[a-z0-9_]+$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "reconnect_probe": {
+          "$ref": "#/$defs/probe"
+        },
+        "isolation_expectations": {
+          "type": "object",
+          "required": [
+            "degraded_component",
+            "degraded_probe",
+            "unaffected_components",
+            "proxy_heartbeat_component"
+          ],
+          "properties": {
+            "degraded_component": {
+              "type": "string",
+              "enum": [
+                "mcp-server",
+                "dashboard",
+                "supervisor-proxy",
+                "extension-test-runner",
+                "interactive-terminal-bridge"
+              ]
+            },
+            "degraded_probe": { "$ref": "#/$defs/probe" },
+            "unaffected_components": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "mcp-server",
+                  "dashboard",
+                  "supervisor-proxy",
+                  "extension-test-runner",
+                  "interactive-terminal-bridge"
+                ]
+              }
+            },
+            "proxy_heartbeat_component": {
+              "type": "string",
+              "enum": ["supervisor-proxy"]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

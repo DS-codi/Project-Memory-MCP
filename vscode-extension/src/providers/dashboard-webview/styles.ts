@@ -166,6 +166,26 @@ export function getStyles(): string {
             font-size: 12px;
             flex: 1;
         }
+        .plans-header-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+        }
+        .plans-sort-label {
+            font-size: 11px;
+            color: var(--vscode-descriptionForeground);
+        }
+        .plans-sort-select {
+            min-width: 120px;
+            max-width: 180px;
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 4px;
+            background: var(--vscode-dropdown-background);
+            color: var(--vscode-dropdown-foreground);
+            font-size: 11px;
+            padding: 3px 6px;
+        }
         .plans-tabs {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -701,7 +721,7 @@ export function getStyles(): string {
         /* Plan items */
         .plan-item {
             display: flex;
-            align-items: center;
+            flex-direction: column;
             padding: 10px 16px;
             gap: 10px;
             border-bottom: 1px solid var(--vscode-panel-border);
@@ -717,7 +737,20 @@ export function getStyles(): string {
             background: var(--vscode-list-activeSelectionBackground);
             color: var(--vscode-list-activeSelectionForeground);
         }
-        .plan-info { flex: 1; min-width: 0; }
+        .plan-primary-row {
+            width: 100%;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-areas:
+                'info status'
+                'actions actions';
+            gap: 8px;
+            align-items: start;
+        }
+        .plan-info {
+            grid-area: info;
+            min-width: 0;
+        }
         .plan-title { 
             font-size: 12px; 
             font-weight: 500;
@@ -752,6 +785,8 @@ export function getStyles(): string {
             border-color: var(--vscode-textLink-foreground);
         }
         .plan-status {
+            grid-area: status;
+            justify-self: end;
             padding: 2px 6px;
             border-radius: 3px;
             font-size: 10px;
@@ -759,12 +794,26 @@ export function getStyles(): string {
         }
         .plan-status.active { background: var(--vscode-testing-iconPassed); color: white; }
         .plan-status.archived { background: var(--vscode-descriptionForeground); color: white; }
-        .plan-actions { display: flex; gap: 4px; }
+        .plan-actions {
+            grid-area: actions;
+            display: flex;
+            gap: 4px;
+            justify-self: start;
+            flex-wrap: wrap;
+        }
+        .plan-item.selected .plan-primary-row {
+            gap: 10px;
+        }
+        .plan-details-row {
+            width: 100%;
+        }
 
         .plan-inline-panel {
-            margin-top: 8px;
+            margin-top: 2px;
             border-top: 1px solid var(--vscode-panel-border);
-            padding-top: 8px;
+            padding-top: 10px;
+            width: 100%;
+            overflow: hidden;
         }
         
         .empty-state {
@@ -779,24 +828,32 @@ export function getStyles(): string {
         }
         .selected-plan-header {
             display: flex;
-            align-items: baseline;
-            justify-content: space-between;
-            gap: 8px;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: flex-start;
+            gap: 4px;
             margin-bottom: 8px;
+            min-width: 0;
         }
         .selected-plan-header h4 {
             margin: 0;
             font-size: 12px;
             font-weight: 600;
             color: var(--vscode-editor-foreground);
+            width: 100%;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
         }
         .selected-plan-meta {
             font-size: 10px;
             color: var(--vscode-descriptionForeground);
-            text-align: right;
+            text-align: left;
+            width: 100%;
+            line-height: 1.3;
+            overflow-wrap: anywhere;
         }
         .selected-plan-body {
-            max-height: 220px;
+            max-height: 280px;
             overflow-y: auto;
             border: 1px solid var(--vscode-panel-border);
             border-radius: 6px;
@@ -860,15 +917,29 @@ export function getStyles(): string {
 
         @media (max-width: 520px) {
             .plan-item {
-                display: grid;
+                display: flex;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+            .plan-primary-row {
                 grid-template-columns: minmax(0, 1fr) auto;
-                align-items: start;
-                gap: 8px;
+                grid-template-areas:
+                    'info status'
+                    'actions actions';
             }
             .plan-actions {
-                grid-column: 1 / -1;
+                grid-area: actions;
                 justify-content: flex-start;
                 flex-wrap: wrap;
+            }
+            .plan-details-row,
+            .plan-inline-panel,
+            .selected-plan-header,
+            .selected-plan-meta,
+            .selected-plan-header h4 {
+                width: 100%;
+                min-width: 0;
             }
         }
 
@@ -1077,6 +1148,52 @@ export function getStyles(): string {
         }
         body.size-small .plans-tabs {
             grid-template-columns: 1fr;
+        }
+
+        body.size-small .plans-header {
+            flex-wrap: wrap;
+            align-items: flex-start;
+        }
+
+        body.size-small .plans-header-controls {
+            width: 100%;
+        }
+
+        body.size-small .plans-sort-select {
+            flex: 1;
+            max-width: none;
+        }
+
+        body.size-small .plan-primary-row {
+            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-areas:
+                'info status'
+                'actions actions';
+        }
+
+        body.size-small .plan-info {
+            grid-area: info;
+        }
+
+        body.size-small .plan-status {
+            grid-area: status;
+            justify-self: end;
+        }
+
+        body.size-small .plan-actions {
+            grid-area: actions;
+            justify-self: start;
+            flex-wrap: wrap;
+        }
+        body.size-medium .plan-primary-row {
+            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-areas:
+                'info status'
+                'actions actions';
+        }
+        body.size-medium .plan-actions {
+            justify-self: start;
+            flex-wrap: wrap;
         }
         body.size-small .dashboard-top-tabs {
             grid-template-columns: 1fr;

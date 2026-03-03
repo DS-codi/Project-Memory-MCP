@@ -1,0 +1,348 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-memory/contracts/integration-harness/health-readiness.contract.schema.json",
+  "title": "Integration Harness Health/Readiness Contract",
+  "type": "object",
+  "required": [
+    "contract_version",
+    "runtime",
+    "generated_at",
+    "components",
+    "reconnect_permission",
+    "health_validation_thresholds",
+    "composite_health_model"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string",
+      "pattern": "^v[0-9]+(\\.[0-9]+){0,2}$"
+    },
+    "runtime": {
+      "type": "string",
+      "enum": ["podman-compose"]
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "components": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/componentProbeContract"
+      }
+    },
+    "reconnect_permission": {
+      "type": "object",
+      "required": [
+        "requires_liveness_probe_pass",
+        "requires_readiness_probe_pass",
+        "minimum_consecutive_passes",
+        "gate_timeout_ms",
+        "deny_reconnect_reason_code",
+        "applies_to_components"
+      ],
+      "properties": {
+        "requires_liveness_probe_pass": { "type": "boolean" },
+        "requires_readiness_probe_pass": { "type": "boolean" },
+        "minimum_consecutive_passes": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "gate_timeout_ms": { "type": "integer", "minimum": 100, "maximum": 600000 },
+        "deny_reconnect_reason_code": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "applies_to_components": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "mcp-server",
+              "dashboard",
+              "supervisor-proxy",
+              "extension-test-runner",
+              "interactive-terminal-bridge"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "health_validation_thresholds": {
+      "type": "object",
+      "required": [
+        "readiness",
+        "liveness",
+        "reconnect"
+      ],
+      "properties": {
+        "readiness": {
+          "type": "object",
+          "required": [
+            "required_consecutive_passes",
+            "max_gate_wait_ms",
+            "failure_threshold_cap"
+          ],
+          "properties": {
+            "required_consecutive_passes": { "type": "integer", "minimum": 1, "maximum": 10 },
+            "max_gate_wait_ms": { "type": "integer", "minimum": 100, "maximum": 600000 },
+            "failure_threshold_cap": { "type": "integer", "minimum": 1, "maximum": 20 }
+          },
+          "additionalProperties": false
+        },
+        "liveness": {
+          "type": "object",
+          "required": [
+            "max_probe_timeout_ms",
+            "failure_threshold_cap",
+            "required_for_reconnect_gate"
+          ],
+          "properties": {
+            "max_probe_timeout_ms": { "type": "integer", "minimum": 100, "maximum": 120000 },
+            "failure_threshold_cap": { "type": "integer", "minimum": 1, "maximum": 20 },
+            "required_for_reconnect_gate": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "reconnect": {
+          "type": "object",
+          "required": [
+            "max_reconnect_latency_ms",
+            "max_attempts_cap",
+            "attempt_count_reason_code",
+            "latency_reason_code",
+            "circuit_breaker_failure_threshold",
+            "circuit_breaker_open_duration_ms",
+            "circuit_breaker_open_reason_code"
+          ],
+          "properties": {
+            "max_reconnect_latency_ms": { "type": "integer", "minimum": 100, "maximum": 600000 },
+            "max_attempts_cap": { "type": "integer", "minimum": 1, "maximum": 32 },
+            "attempt_count_reason_code": {
+              "type": "string",
+              "pattern": "^[a-z0-9_]+$"
+            },
+            "latency_reason_code": {
+              "type": "string",
+              "pattern": "^[a-z0-9_]+$"
+            },
+            "circuit_breaker_failure_threshold": { "type": "integer", "minimum": 1, "maximum": 64 },
+            "circuit_breaker_open_duration_ms": { "type": "integer", "minimum": 100, "maximum": 600000 },
+            "circuit_breaker_open_reason_code": {
+              "type": "string",
+              "pattern": "^[a-z0-9_]+$"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "composite_health_model": {
+      "type": "object",
+      "required": [
+        "dimensions",
+        "aggregation_rules",
+        "degraded_reason_code",
+        "unhealthy_reason_code",
+        "publish"
+      ],
+      "properties": {
+        "dimensions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "liveness",
+              "readiness",
+              "dependency_health",
+              "reconnect_subsystem"
+            ]
+          }
+        },
+        "aggregation_rules": {
+          "type": "object",
+          "required": [
+            "healthy_requires_all",
+            "degraded_when_any_of",
+            "unhealthy_when_any_of",
+            "unhealthy_when_failed_dimension_count_gte"
+          ],
+          "properties": {
+            "healthy_requires_all": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "liveness",
+                  "readiness",
+                  "dependency_health",
+                  "reconnect_subsystem"
+                ]
+              }
+            },
+            "degraded_when_any_of": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "readiness",
+                  "dependency_health",
+                  "reconnect_subsystem"
+                ]
+              }
+            },
+            "unhealthy_when_any_of": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": ["liveness"]
+              }
+            },
+            "unhealthy_when_failed_dimension_count_gte": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4
+            }
+          },
+          "additionalProperties": false
+        },
+        "degraded_reason_code": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "unhealthy_reason_code": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "publish": {
+          "type": "object",
+          "required": [
+            "endpoint_path",
+            "include_dimension_status",
+            "include_reason_code"
+          ],
+          "properties": {
+            "endpoint_path": {
+              "type": "string",
+              "pattern": "^/.*"
+            },
+            "include_dimension_status": { "type": "boolean" },
+            "include_reason_code": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "httpProbe": {
+      "type": "object",
+      "required": [
+        "kind",
+        "endpoint_path",
+        "url",
+        "method",
+        "probe_interval_ms",
+        "timeout_ms",
+        "failure_threshold",
+        "success_status_codes"
+      ],
+      "properties": {
+        "kind": { "const": "http" },
+        "endpoint_path": { "type": "string", "pattern": "^/.*" },
+        "url": { "type": "string", "format": "uri" },
+        "method": { "type": "string", "enum": ["GET", "POST"] },
+        "probe_interval_ms": { "type": "integer", "minimum": 100, "maximum": 600000 },
+        "timeout_ms": { "type": "integer", "minimum": 100, "maximum": 120000 },
+        "failure_threshold": { "type": "integer", "minimum": 1, "maximum": 20 },
+        "success_status_codes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "integer", "minimum": 100, "maximum": 599 }
+        },
+        "response_json_path": { "type": "string" },
+        "expected_value": {}
+      },
+      "additionalProperties": false
+    },
+    "tcpProbe": {
+      "type": "object",
+      "required": [
+        "kind",
+        "host",
+        "port",
+        "probe_interval_ms",
+        "timeout_ms",
+        "failure_threshold"
+      ],
+      "properties": {
+        "kind": { "const": "tcp" },
+        "host": { "type": "string", "minLength": 1 },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "probe_interval_ms": { "type": "integer", "minimum": 100, "maximum": 600000 },
+        "timeout_ms": { "type": "integer", "minimum": 100, "maximum": 120000 },
+        "failure_threshold": { "type": "integer", "minimum": 1, "maximum": 20 }
+      },
+      "additionalProperties": false
+    },
+    "componentProbeContract": {
+      "type": "object",
+      "required": [
+        "component_id",
+        "required",
+        "depends_on",
+        "startup_order",
+        "readiness_gate",
+        "liveness_probe"
+      ],
+      "properties": {
+        "component_id": {
+          "type": "string",
+          "enum": [
+            "mcp-server",
+            "dashboard",
+            "supervisor-proxy",
+            "extension-test-runner",
+            "interactive-terminal-bridge"
+          ]
+        },
+        "required": { "type": "boolean" },
+        "depends_on": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "startup_order": { "type": "integer", "minimum": 1, "maximum": 20 },
+        "readiness_gate": {
+          "type": "string",
+          "enum": ["required", "optional", "disabled"]
+        },
+        "liveness_probe": {
+          "oneOf": [
+            { "$ref": "#/$defs/httpProbe" },
+            { "$ref": "#/$defs/tcpProbe" }
+          ]
+        },
+        "readiness_probe": {
+          "oneOf": [
+            { "$ref": "#/$defs/httpProbe" },
+            { "$ref": "#/$defs/tcpProbe" }
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

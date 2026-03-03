@@ -1,5 +1,4 @@
-PowerShell 7.5.4
-PS C:\Users\User> cd "C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\"; .\install.ps1
+PS C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\interactive-terminal> cd "C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\"; .\install.ps1
 Project Memory MCP — Install
   Components : Supervisor, GuiForms, InteractiveTerminal, Server, Dashboard, Extension
   InstallOnly: False
@@ -13,6 +12,7 @@ Project Memory MCP — Install
    Qt:    C:\Qt\6.10.2\msvc2022_64
    QMAKE: C:\Qt\6.10.2\msvc2022_64\bin\qmake6.exe
    › cargo build --release -p supervisor
+   cargo build in progress...  warnings so far: 0
    cargo build in progress...  warnings so far: 0
 175 |     let mut rx = state.heartbeat_tx.subscribe();
     |         ----^^
@@ -63,6 +63,7 @@ Warning: Cannot find Visual Studio installation directory, VCINSTALLDIR is not s
    QMAKE: C:\Qt\6.10.2\msvc2022_64\bin\qmake6.exe
    › cargo build --release -p pm-approval-gui
    cargo build in progress...  warnings so far: 0
+   cargo build in progress...  warnings so far: 3
 6 | use std::time::{Duration, Instant};
   |                           ^^^^^^^
   |
@@ -162,6 +163,7 @@ cargo build in progress... warnings so far: 0
 cargo build in progress... warnings so far: 0
 cargo build in progress... warnings so far: 0
 cargo build in progress... warnings so far: 0
+cargo build in progress... warnings so far: 0
    Compiling interactive-terminal v0.1.0 (C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\interactive-terminal)
 warning: constant `PTY_HOST_IPC_PORT` is never used
   --> src\pty_host_launcher.rs:11:11
@@ -171,7 +173,7 @@ warning: constant `PTY_HOST_IPC_PORT` is never used
    |
    = note: `#[warn(dead_code)]` on by default
 warning: `interactive-terminal` (bin "interactive-terminal") generated 1 warning
-    Finished `release` profile [optimized] target(s) in 25.37s
+    Finished `release` profile [optimized] target(s) in 30.88s
 Build output (local):     C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\interactive-terminal\target\release\interactive-terminal.exe
 Deploying Qt runtime with: C:\Qt\6.10.2\msvc2022_64\bin\windeployqt.exe
 Adding Qt6Lottie Qt6LottieVectorImageGenerator Qt6QuickVectorImageGenerator for qlottievectorimage.dll from plugin type: vectorimageformats
@@ -252,7 +254,7 @@ computing gzip size...
 - Using dynamic import() to code-split the application
 - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
 - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.←[39m
-←[32mÔ£ô built in 6.16s←[39m
+←[32mÔ£ô built in 5.17s←[39m
    ✓ Dashboard frontend built → C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\dashboard\dist
    › npm run build (dashboard server)
 
@@ -339,7 +341,7 @@ project-memory-dashboard-0.2.0.vsix
 
 => Run vsce ls --tree to see all included files.
 
- DONE  Packaged: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\vscode-extension\project-memory-dashboard-0.2.0.vsix (472 files, 880.88 KB)
+ DONE  Packaged: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\vscode-extension\project-memory-dashboard-0.2.0.vsix (472 files, 882.58 KB)
    ✓ Extension compiled and packaged
    › Installing project-memory-dashboard-0.2.0.vsix
 Installing extensions...
@@ -349,9 +351,9 @@ Extension 'project-memory-dashboard-0.2.0.vsix' was successfully installed.
    Reload VS Code to activate the updated extension:
    Ctrl+Shift+P → Developer: Reload Window
 
-Done in 79s
+Done in 104s
 
-Build complete. Launch supervisor now? (Y/N): n
+Build complete. Launch supervisor now? (Y/N): N
    Supervisor was not launched.
    Launch command (direct):
    & 'C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\target\release\supervisor.exe'
