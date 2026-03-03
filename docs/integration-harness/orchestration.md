@@ -45,10 +45,18 @@ Health validation thresholds (contracted in `docs/integration-harness/contracts/
 - liveness: `max_probe_timeout_ms=3000`, `failure_threshold_cap=3`, required for reconnect gate
 - reconnect: `max_reconnect_latency_ms=20000`, `max_attempts_cap=6`
 
+Reconnect SLO pass/fail criteria (contracted in `reconnect_slo_criteria`):
+
+- Latency thresholds: `p95_reconnect_latency_ms=8000`, `p99_reconnect_latency_ms=15000`
+- Failure budget: `max_consecutive_reconnect_failures=2`
+- Ratio ceilings: `max_duplicate_reconnect_suppression_ratio=0.05`, `max_stale_token_denial_ratio=0.10`
+- Evaluation window: `evaluation_window_runs=20`
+
 Pass/fail semantics:
 
 - **pass** when required liveness/readiness probes satisfy threshold caps and reconnect completes within latency/attempt ceilings.
 - **fail** when readiness gate timeout is exceeded, probe failures exceed threshold caps, reconnect latency exceeds `max_reconnect_latency_ms`, or reconnect attempts exceed `max_attempts_cap`.
+- **fail** when any `reconnect_slo_criteria.pass_fail.fail_when_any` condition is observed in the run window.
 
 ## Isolated Data and Secrets Paths
 
@@ -77,6 +85,16 @@ Default lane policy:
 - Podman Compose `container-mode` is the canonical default for restart/reconnect validation.
 - `supervisor-mode` remains opt-in for targeted host-process diagnostics and is not required for gate promotion.
 
+Validation lane profile (repeatable):
+
+- `podman-compose-default` is the default run profile for matrix execution.
+- Repeatability key is `RunId`; artifacts are emitted under `.tmp/integration-harness/runs/<run_id>/artifacts`.
+- Canonical command:
+  - `pwsh -File .\scripts\integration-harness-matrix.ps1 -RunId <run_id> -Tier all -RunProfile podman-compose-default`
+- Optional diagnostic profiles:
+  - `podman-compose-network-chaos` (container-mode diagnostics)
+  - `supervisor-diagnostics` (non-gating host-process diagnostics)
+
 Fault runner guarantees:
 
 - Atomic actions per scenario (`kill_process`, `stop_service`, `delay_response`, `force_health_failure`)
@@ -101,7 +119,7 @@ Validation-only and dry-run support:
 
 ## Phase 4 Rollout Milestone Sequence (Lifecycle-First)
 
-Rollout sequencing is normative and must preserve lifecycle contract stability before introducing retry/reconnect behavior deltas.
+Rollout sequencing is normative and must preserve reconnect correctness during updates. No reconnect behavior delta may ship unless lifecycle and bounded-recovery contract locks are green first.
 
 Milestone order:
 
@@ -112,19 +130,22 @@ Milestone order:
      - `docs/integration-harness/contracts/health-readiness.contract.schema.json`
    - Validate contract parse and harness script validation flow before any reconnect policy edits.
 
-1. **Failure-domain and bounded-recovery contract lock**
+2. **Failure-domain and bounded-recovery contract lock**
    - Apply and validate failure-domain isolation and bounded restart policy shape:
      - `docs/integration-harness/contracts/fault-recovery.contract.json`
      - `docs/integration-harness/contracts/fault-recovery.contract.schema.json`
    - Confirm degraded-state escalation semantics are present before reconnect choreography tuning.
 
-1. **Reconnect choreography update window**
+3. **Reconnect choreography update window**
    - After milestones 1-2 pass, apply reconnect ordering/retry behavior updates in:
      - `scripts/integration-harness-fault-runner.ps1`
      - `scripts/integration-harness-recovery-assertions.ps1`
-   - Ensure stale-session invalidation and dependency/readiness gate checks remain ordered ahead of reconnect attempts.
+   - Preserve deterministic reconnect correctness invariants:
+     - stale-session invalidation and dependency/readiness gates occur before reconnect admission
+     - resume-token + lease checks occur before replay resume acceptance
+     - replay acknowledgment guarantee remains required before resume success
 
-1. **Podman-first regression gating and evidence generation**
+4. **Podman-first regression gating and evidence generation**
    - Execute Podman default fault lane, assertions, and summary generation:
      - `scripts/integration-harness-matrix.ps1`
      - `scripts/integration-harness-event-aggregate.ps1`

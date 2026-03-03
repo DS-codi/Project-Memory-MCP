@@ -1,6 +1,6 @@
 {
   "$schema": "./fault-recovery.contract.schema.json",
-  "contract_version": "v1.4.0",
+  "contract_version": "v1.5.0",
   "runtime_default": "container-mode",
   "dependency_failure_policy": {
     "degrade_without_full_restart": true,
@@ -190,6 +190,79 @@
           "reconnect_attempt",
           "reconnect_failed"
         ]
+      }
+    ]
+  },
+  "fault_injection_verification_matrix": {
+    "runtime_mode": "container-mode",
+    "default_compose_file": "docs/integration-harness/podman-compose.integration.yml",
+    "scenarios": [
+      {
+        "scenario_key": "pod_churn",
+        "description": "Project-memory service container is restarted with bounded stop/start hold to verify reconnect recovery path.",
+        "injection": {
+          "fault_type": "pod_restart",
+          "target": "project-memory",
+          "hold_ms": 1500
+        },
+        "expected_outcomes": {
+          "health_state": "degraded_then_recovered",
+          "required_events": [
+            "fault_injected",
+            "connectivity_degraded",
+            "connectivity_disconnected",
+            "connectivity_reconnected"
+          ],
+          "reason_codes": [
+            "fault_injection_observed",
+            "reconnect_observed"
+          ]
+        }
+      },
+      {
+        "scenario_key": "network_churn",
+        "description": "Temporary partition and delayed response are injected to validate bounded retry and reconnect gate behavior.",
+        "injection": {
+          "fault_type": "network_partition_delay",
+          "target": "integration_net",
+          "hold_ms": 1800
+        },
+        "expected_outcomes": {
+          "health_state": "degraded_then_recovered",
+          "required_events": [
+            "fault_injected",
+            "reconnect_attempt",
+            "dependency_gate_pass",
+            "readiness_pass",
+            "connectivity_reconnected"
+          ],
+          "reason_codes": [
+            "dependency_unavailable",
+            "reconnect_gate_passed"
+          ]
+        }
+      },
+      {
+        "scenario_key": "dependency_churn",
+        "description": "Dashboard dependency is made unavailable and then restored to verify failure-domain isolation and recovery.",
+        "injection": {
+          "fault_type": "dependency_unavailable_then_restore",
+          "target": "dashboard",
+          "hold_ms": 1800
+        },
+        "expected_outcomes": {
+          "health_state": "degraded_then_recovered",
+          "required_events": [
+            "fault_injected",
+            "connectivity_degraded",
+            "assertion_pass",
+            "connectivity_reconnected"
+          ],
+          "reason_codes": [
+            "dependency_failure_isolated",
+            "reconnect_observed"
+          ]
+        }
       }
     ]
   },

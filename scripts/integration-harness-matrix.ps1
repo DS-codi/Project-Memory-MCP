@@ -4,6 +4,8 @@ param(
     [Parameter(Mandatory)] [string]$RunId,
     [ValidateSet("smoke", "fault", "resilience", "all")]
     [string]$Tier = "all",
+    [ValidateSet("podman-compose-default", "podman-compose-network-chaos", "supervisor-diagnostics")]
+    [string]$RunProfile = "podman-compose-default",
     [switch]$ValidateOnly,
     [switch]$DryRun
 )
@@ -24,6 +26,32 @@ $root = Split-Path -Parent $PSScriptRoot
 $artifactsRoot = Join-Path $root ".tmp/integration-harness/runs/$RunId/artifacts"
 $assertionsRoot = Join-Path $artifactsRoot "assertions"
 $matrixPath = Join-Path $assertionsRoot "matrix-gates.json"
+
+$runProfiles = [ordered]@{
+    "podman-compose-default" = [ordered]@{
+        runtime_mode = "container-mode"
+        compose_file = "docs/integration-harness/podman-compose.integration.yml"
+        repeatable_by = "run_id"
+        description = "Canonical Podman Compose validation lane for release gating."
+    }
+    "podman-compose-network-chaos" = [ordered]@{
+        runtime_mode = "container-mode"
+        compose_file = "docs/integration-harness/podman-compose.integration.yml"
+        repeatable_by = "run_id"
+        description = "Podman Compose lane focused on network-churn diagnostics."
+    }
+    "supervisor-diagnostics" = [ordered]@{
+        runtime_mode = "supervisor-mode"
+        compose_file = "docs/integration-harness/podman-compose.integration.yml"
+        repeatable_by = "run_id"
+        description = "Host-process supervisor diagnostics; not a release gate lane."
+    }
+}
+
+$selectedProfile = $runProfiles[$RunProfile]
+if (-not $selectedProfile) {
+    throw "Unsupported run profile: $RunProfile"
+}
 
 $targetMinutes = [ordered]@{
     smoke = 15
@@ -111,7 +139,7 @@ try {
                     & (Join-Path $PSScriptRoot "integration-harness-extension-headless.ps1") -RunId $RunId -DryRun:$DryRun
                 }
                 "fault" {
-                    & (Join-Path $PSScriptRoot "integration-harness-fault-runner.ps1") -RunId $RunId -RuntimeMode container-mode -DryRun:$DryRun
+                    & (Join-Path $PSScriptRoot "integration-harness-fault-runner.ps1") -RunId $RunId -RuntimeMode ([string]$selectedProfile.runtime_mode) -ComposeFile ([string]$selectedProfile.compose_file) -DryRun:$DryRun
                     if ($LASTEXITCODE -ne 0) { throw "Fault runner failed for fault tier." }
 
                     & (Join-Path $PSScriptRoot "integration-harness-recovery-assertions.ps1") -RunId $RunId
@@ -172,6 +200,14 @@ finally {
         run_id = $RunId
         tier_requested = $Tier
         tiers_executed = $tiersToRun
+        run_profile = [ordered]@{
+            profile_id = $RunProfile
+            runtime_mode = [string]$selectedProfile.runtime_mode
+            compose_file = [string]$selectedProfile.compose_file
+            repeatable_by = [string]$selectedProfile.repeatable_by
+            description = [string]$selectedProfile.description
+            podman_compose_default_lane = ($RunProfile -eq "podman-compose-default")
+        }
         dry_run = [bool]$DryRun
         validate_only = [bool]$ValidateOnly
         runtime_targets_minutes = $targetMinutes

@@ -1,6 +1,6 @@
 {
   "$schema": "./health-readiness.contract.schema.json",
-  "contract_version": "v1.2.0",
+  "contract_version": "v1.3.0",
   "runtime": "podman-compose",
   "generated_at": "2026-03-03T00:00:00.000Z",
   "reconnect_permission": {
@@ -35,6 +35,39 @@
       "circuit_breaker_failure_threshold": 3,
       "circuit_breaker_open_duration_ms": 6000,
       "circuit_breaker_open_reason_code": "circuit_breaker_open"
+    }
+  },
+  "reconnect_slo_criteria": {
+    "thresholds": {
+      "p95_reconnect_latency_ms": 8000,
+      "p99_reconnect_latency_ms": 15000,
+      "max_consecutive_reconnect_failures": 2,
+      "max_duplicate_reconnect_suppression_ratio": 0.05,
+      "max_stale_token_denial_ratio": 0.1,
+      "evaluation_window_runs": 20
+    },
+    "pass_fail": {
+      "pass_when": [
+        "p95 reconnect latency <= p95_reconnect_latency_ms",
+        "p99 reconnect latency <= p99_reconnect_latency_ms",
+        "consecutive reconnect failures <= max_consecutive_reconnect_failures",
+        "duplicate reconnect suppression ratio <= max_duplicate_reconnect_suppression_ratio",
+        "stale-token denial ratio <= max_stale_token_denial_ratio"
+      ],
+      "fail_when_any": [
+        "p95 reconnect latency exceeds p95_reconnect_latency_ms",
+        "p99 reconnect latency exceeds p99_reconnect_latency_ms",
+        "consecutive reconnect failures exceed max_consecutive_reconnect_failures",
+        "duplicate reconnect suppression ratio exceeds max_duplicate_reconnect_suppression_ratio",
+        "stale-token denial ratio exceeds max_stale_token_denial_ratio"
+      ],
+      "failure_reason_codes": [
+        "reconnect_slo_p95_exceeded",
+        "reconnect_slo_p99_exceeded",
+        "reconnect_failure_streak_exceeded",
+        "duplicate_reconnect_ratio_exceeded",
+        "stale_token_denial_ratio_exceeded"
+      ]
     }
   },
   "composite_health_model": {
