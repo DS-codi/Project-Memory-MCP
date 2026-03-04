@@ -207,6 +207,24 @@ export function assemblePlanState(
     )
   );
 
+  const planDependencyRows = queryAll<Pick<DependencyRow, 'target_id'>>(
+    `SELECT target_id FROM dependencies
+     WHERE source_type = 'plan'
+       AND source_id = ?
+       AND target_type = 'plan'
+     ORDER BY created_at ASC, id ASC`,
+    [planRow.id]
+  );
+
+  const dependsOnPlans: string[] = [];
+  const seenDependencyPlanIds = new Set<string>();
+  for (const depRow of planDependencyRows) {
+    const dependencyPlanId = depRow.target_id;
+    if (!dependencyPlanId || seenDependencyPlanIds.has(dependencyPlanId)) continue;
+    seenDependencyPlanIds.add(dependencyPlanId);
+    dependsOnPlans.push(dependencyPlanId);
+  }
+
   // Determine current_phase from first pending/active step
   const currentStep = steps
     .filter(s => s.status === 'pending' || s.status === 'active')
@@ -240,6 +258,7 @@ export function assemblePlanState(
     confirmation_state: planRow.confirmation_state ? JSON.parse(planRow.confirmation_state) : undefined,
     paused_at_snapshot: planRow.paused_at_snapshot ? JSON.parse(planRow.paused_at_snapshot) : undefined,
     program_id:      planRow.program_id        ?? undefined,
+    depends_on_plans: dependsOnPlans,
     created_at:      planRow.created_at,
     updated_at:      planRow.updated_at,
     completed_at:    planRow.completed_at       ?? undefined,

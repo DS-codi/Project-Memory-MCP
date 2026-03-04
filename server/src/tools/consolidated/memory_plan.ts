@@ -1188,7 +1188,12 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
         plan_id:      params.plan_id,
         workflow_mode: params.workflow_mode ?? '',
       });
-      if (!result.success) return result;
+      if (!result.success) {
+        return {
+          success: false,
+          error: result.error ?? 'Failed to set workflow mode',
+        };
+      }
       return { success: true, data: { action: 'set_workflow_mode', data: result.data! } };
     }
 
@@ -1203,7 +1208,12 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
         workspace_id: params.workspace_id,
         plan_id:      params.plan_id,
       });
-      if (!result.success) return result;
+      if (!result.success) {
+        return {
+          success: false,
+          error: result.error ?? 'Failed to get workflow mode',
+        };
+      }
       return { success: true, data: { action: 'get_workflow_mode', data: result.data! } };
     }
 

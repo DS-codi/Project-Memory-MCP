@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import os from 'os';
+import path from 'path';
 import {
   setPlanDependencies,
   getPlanDependencies,
@@ -307,6 +309,33 @@ describe('getPlanDependencies', () => {
     expect(result.data!.dependents).toHaveLength(2);
   });
 
+  it('should return deduplicated stable dependents ordering', async () => {
+    const planA = makePlan({ id: 'plan_A' });
+    const planB1 = makePlan({ id: 'plan_B', depends_on_plans: ['plan_A'] });
+    const planB2 = makePlan({ id: 'plan_B', depends_on_plans: ['plan_A'] });
+    const planC = makePlan({ id: 'plan_C', depends_on_plans: ['plan_A'] });
+    const planD = makePlan({ id: 'plan_D', depends_on_plans: ['plan_A'] });
+    const unrelated = makePlan({ id: 'plan_Z', depends_on_plans: ['plan_X'] });
+
+    vi.mocked(store.getPlanState).mockResolvedValueOnce(planA);
+    vi.mocked(store.getWorkspacePlans).mockResolvedValueOnce([
+      planA,
+      planD,
+      unrelated,
+      planB1,
+      planC,
+      planB2,
+    ]);
+
+    const result = await getPlanDependencies({
+      workspace_id: WS,
+      plan_id: 'plan_A',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data!.dependents).toEqual(['plan_B', 'plan_C', 'plan_D']);
+  });
+
   it('should return empty arrays when plan has no dependencies', async () => {
     const planA = makePlan({ id: 'plan_A' }); // no depends_on_plans
 
@@ -378,5 +407,173 @@ describe('getPlanDependencies', () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain('required');
+  });
+});
+
+// ===========================================================================
+// Repro harness (real persistence path)
+// ===========================================================================
+
+describe.sequential('plan dependency persistence repro harness', () => {
+  async function createFixturePlans() {
+    vi.resetModules();
+    vi.doUnmock('../../storage/db-store.js');
+    vi.doUnmock('../../tools/plan/plan-programs.js');
+    vi.doUnmock('../../tools/consolidated/memory_plan.js');
+    vi.doMock('../../events/event-emitter.js', () => ({
+      events: {
+        planCreated: vi.fn(),
+        planUpdated: vi.fn().mockResolvedValue(undefined),
+      },
+    }));
+
+    const storeReal = await import('../../storage/db-store.js');
+    const memoryPlanReal = await import('../../tools/consolidated/memory_plan.js');
+
+    const fixtureWorkspacePath = path.join(
+      os.tmpdir(),
+      `pmcp-plan-deps-${Date.now()}-${Math.random().toString(16).slice(2)}`
+    );
+
+    const { meta } = await storeReal.createWorkspace(fixtureWorkspacePath);
+    const sourcePlan = await storeReal.createPlan(
+      meta.workspace_id,
+      'Source Plan',
+      'Repro source',
+      'bugfix',
+      'medium'
+    );
+    const targetPlan = await storeReal.createPlan(
+      meta.workspace_id,
+      'Target Plan',
+      'Repro target',
+      'bugfix',
+      'medium'
+    );
+    const controlPlan = await storeReal.createPlan(
+      meta.workspace_id,
+      'Control Plan',
+      'No dependencies expected',
+      'bugfix',
+      'medium'
+    );
+
+    return {
+      workspaceId: meta.workspace_id,
+      sourcePlanId: sourcePlan.id,
+      targetPlanId: targetPlan.id,
+      controlPlanId: controlPlan.id,
+      memoryPlanReal,
+    };
+  }
+
+  it('repro: set_plan_dependencies then immediate get_plan_dependencies returns same source dependency list', async () => {
+    const fixture = await createFixturePlans();
+
+    const setResult = await fixture.memoryPlanReal.memoryPlan({
+      action: 'set_plan_dependencies',
+      workspace_id: fixture.workspaceId,
+      plan_id: fixture.sourcePlanId,
+      depends_on_plans: [fixture.targetPlanId],
+    });
+
+    expect(setResult.success).toBe(true);
+    expect(setResult.data?.action).toBe('set_plan_dependencies');
+
+    const getResult = await fixture.memoryPlanReal.memoryPlan({
+      action: 'get_plan_dependencies',
+      workspace_id: fixture.workspaceId,
+      plan_id: fixture.sourcePlanId,
+    });
+
+    expect(getResult.success).toBe(true);
+    expect(getResult.data?.action).toBe('get_plan_dependencies');
+    expect(getResult.data!.data.depends_on_plans).toEqual([fixture.targetPlanId]);
+  });
+
+  it('repro: reverse-dependent lookup includes source plan and empty-control plan remains empty', async () => {
+    const fixture = await createFixturePlans();
+
+    const setResult = await fixture.memoryPlanReal.memoryPlan({
+      action: 'set_plan_dependencies',
+      workspace_id: fixture.workspaceId,
+      plan_id: fixture.sourcePlanId,
+      depends_on_plans: [fixture.targetPlanId],
+    });
+    expect(setResult.success).toBe(true);
+
+    const targetDeps = await fixture.memoryPlanReal.memoryPlan({
+      action: 'get_plan_dependencies',
+      workspace_id: fixture.workspaceId,
+      plan_id: fixture.targetPlanId,
+    });
+    expect(targetDeps.success).toBe(true);
+    expect(targetDeps.data?.action).toBe('get_plan_dependencies');
+    expect(targetDeps.data!.data.depends_on_plans).toEqual([]);
+    expect(targetDeps.data!.data.dependents).toContain(fixture.sourcePlanId);
+    expect((targetDeps.data!.data as any).depended_on_by ?? targetDeps.data!.data.dependents)
+      .toContain(fixture.sourcePlanId);
+
+    const controlDeps = await fixture.memoryPlanReal.memoryPlan({
+      action: 'get_plan_dependencies',
+      workspace_id: fixture.workspaceId,
+      plan_id: fixture.controlPlanId,
+    });
+    expect(controlDeps.success).toBe(true);
+    expect(controlDeps.data?.action).toBe('get_plan_dependencies');
+    expect(controlDeps.data!.data.depends_on_plans).toEqual([]);
+    expect(controlDeps.data!.data.dependents).toEqual([]);
+    expect(controlDeps.data!.data.message).toContain('0 dependencies');
+    expect(controlDeps.data!.data.message).toContain('0 dependents');
+  });
+
+  it('repro: clearing dependencies leaves source empty, target with no dependents, and unrelated plan unaffected', async () => {
+    const fixture = await createFixturePlans();
+
+    const setResult = await fixture.memoryPlanReal.memoryPlan({
+      action: 'set_plan_dependencies',
+      workspace_id: fixture.workspaceId,
+      plan_id: fixture.sourcePlanId,
+      depends_on_plans: [fixture.targetPlanId],
+    });
+    expect(setResult.success).toBe(true);
+
+    const clearResult = await fixture.memoryPlanReal.memoryPlan({
+      action: 'set_plan_dependencies',
+      workspace_id: fixture.workspaceId,
+      plan_id: fixture.sourcePlanId,
+      depends_on_plans: [],
+    });
+    expect(clearResult.success).toBe(true);
+
+    const sourceDeps = await fixture.memoryPlanReal.memoryPlan({
+      action: 'get_plan_dependencies',
+      workspace_id: fixture.workspaceId,
+      plan_id: fixture.sourcePlanId,
+    });
+    expect(sourceDeps.success).toBe(true);
+    expect(sourceDeps.data?.action).toBe('get_plan_dependencies');
+    expect(sourceDeps.data!.data.depends_on_plans).toEqual([]);
+    expect(sourceDeps.data!.data.dependents).toEqual([]);
+
+    const targetDeps = await fixture.memoryPlanReal.memoryPlan({
+      action: 'get_plan_dependencies',
+      workspace_id: fixture.workspaceId,
+      plan_id: fixture.targetPlanId,
+    });
+    expect(targetDeps.success).toBe(true);
+    expect(targetDeps.data?.action).toBe('get_plan_dependencies');
+    expect(targetDeps.data!.data.depends_on_plans).toEqual([]);
+    expect(targetDeps.data!.data.dependents).toEqual([]);
+
+    const controlDeps = await fixture.memoryPlanReal.memoryPlan({
+      action: 'get_plan_dependencies',
+      workspace_id: fixture.workspaceId,
+      plan_id: fixture.controlPlanId,
+    });
+    expect(controlDeps.success).toBe(true);
+    expect(controlDeps.data?.action).toBe('get_plan_dependencies');
+    expect(controlDeps.data!.data.depends_on_plans).toEqual([]);
+    expect(controlDeps.data!.data.dependents).toEqual([]);
   });
 });

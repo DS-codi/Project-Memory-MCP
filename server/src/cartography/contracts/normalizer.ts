@@ -19,7 +19,7 @@
  *      docs/architecture/memory-cartographer/compatibility-matrix.md
  */
 
-import type { CartographyEnvelope } from './types';
+import type { CartographyEnvelope } from './types.js';
 
 // ---------------------------------------------------------------------------
 // DiagnosticCode enum — canonical taxonomy

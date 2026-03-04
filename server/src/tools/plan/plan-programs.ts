@@ -692,13 +692,17 @@ export async function getPlanDependencies(
       };
     }
 
-    const dependsOn = plan.depends_on_plans || [];
+    const dependsOn = Array.isArray(plan.depends_on_plans)
+      ? Array.from(new Set(plan.depends_on_plans.filter(Boolean)))
+      : [];
 
     // Reverse lookup: find all plans that depend on this plan
     const allPlans = await store.getWorkspacePlans(workspace_id);
-    const dependents = allPlans
+    const dependents = Array.from(new Set(allPlans
       .filter(p => p.id !== plan_id && p.depends_on_plans?.includes(plan_id))
-      .map(p => p.id);
+      .map(p => p.id)
+      .filter(Boolean)))
+      .sort((left, right) => left.localeCompare(right));
 
     return {
       success: true,

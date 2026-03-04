@@ -223,9 +223,70 @@ When Hub executes work directly: mark steps `active` before starting, `done` wit
 
 ---
 
+## Workflow Mode Routing
+
+Hub reads `workflow_mode` from plan state in the same `memory_plan(action: get)` response as `recommended_next_agent`. When set, **`workflow_mode` takes precedence** over PromptAnalyst's `hub_mode` recommendation for that plan.
+
+### workflow_mode → hub_mode Mapping
+
+| `workflow_mode` | Canonical `hub_mode` | Execution pattern |
+|-----------------|---------------------|-------------------|
+| `standard` | `standard_orchestration` | Executor→Tester write→Reviewer per phase, then Tester run→Reviewer final→Archivist |
+| `tdd` | `tdd_cycle` | Tester write failing test→Executor make pass→Tester run verify→Reviewer refactor per phase, same end sequence |
+| `enrichment` | `investigation` (Architect-only) | Architect iterates each step to atomic granularity — no Executor, no Tester spawned |
+| `overnight` | `adhoc_runner` + `no_approval` flag | Standard loop, no Reviewer between phases, no approval-requiring terminal commands, auto-continue fully enabled |
+
+### Dispatch Rule
+
+After reading plan state:
+1. If `plan.workflow_mode` is set → map to canonical `hub_mode` using the table above.
+2. Otherwise → use PromptAnalyst's `hub_mode` recommendation.
+3. Store the resolved `hub_mode` in plan notes so spoke agents have traceability.
+
+**Enrichment mode**: spawn only Architect in a loop, refining each step to atomic granularity. No Executor or Tester until the user explicitly switches mode.
+
+**Overnight mode**: apply `no_approval` constraint — Hub must not spawn any spoke that requires interactive terminal approval, and must verify pre-flight conditions before starting (see Pre-Flight Check below).
+
+### Enrichment Mode Loop
+
+1. **Architect** → review current step(s) and break each into atomic sub-steps
+2. Hub reviews atomic granularity; if more refinement passes needed → repeat
+3. Hub pauses after each Architect pass for user review
+4. No Executor, Tester, or build verification during enrichment
+
+### Overnight Mode Loop
+
+Overnight mode follows `standard_orchestration` with these constraints:
+- **No Reviewer between phases** — Reviewer runs only at the final build verification step.
+- **No approval-requiring terminal commands** — Hub must not include steps with `requires_user_confirmation: true` except optionally the final review step.
+- **Pre-flight check required** — see Overnight Mode Pre-Flight Check below.
+- **Auto-continue fully enabled** — no phase pauses; Hub proceeds unattended.
+
+### Overnight Mode Pre-Flight Check
+
+Before spawning any spoke for an Overnight-mode plan, Hub MUST verify the workspace is clean:
+
+1. Run `git status --porcelain` — output must be **empty** (no unstaged or staged changes).
+2. Run `git log --oneline -1` — must return at least one commit.
+
+```
+# Overnight mode pre-flight verification
+git status --porcelain   # must return empty output
+git log --oneline -1     # must return a commit hash + message
+```
+
+**If either check fails:**
+- Hub MUST block execution — do NOT spawn any spoke.
+- Inform the user: "Overnight mode requires a clean, committed working tree. Please commit all changes before starting this plan."
+- Do not proceed until the user confirms the workspace is clean and the pre-flight checks pass.
+
+**Why:** Overnight mode runs unattended without incremental review gates. A clean commit provides a safe restore point if anything goes wrong during execution.
+
+---
+
 ## Workflow Loops by Mode
 
-Hub acts on `hub_mode` from PromptAnalyst to select the execution pattern.
+Hub acts on `hub_mode` from PromptAnalyst to select the execution pattern. If `plan.workflow_mode` is set, it overrides PromptAnalyst's `hub_mode` selection for that plan — see Workflow Mode Routing above.
 
 ### `standard_orchestration` — Pre-Phase Setup + Phase Loop
 

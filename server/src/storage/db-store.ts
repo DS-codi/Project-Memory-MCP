@@ -1445,6 +1445,22 @@ export async function savePlanState(state: PlanState): Promise<void> {
     program_id:             state.program_id ?? null,
   });
 
+  if (Array.isArray(state.depends_on_plans)) {
+    dbDeletePlanDeps(planId);
+    for (const dependencyPlanId of state.depends_on_plans) {
+      if (!dependencyPlanId || dependencyPlanId === planId) continue;
+      dbAddProgramDependency(
+        planId,
+        dependencyPlanId,
+        'blocks',
+        'pending',
+        null,
+        null,
+        null,
+      );
+    }
+  }
+
   // 2 & 3. Sync phases + steps in one transaction
   transaction(() => {
     // Delete all existing steps (cascade deletes step-level deps if FK ON)
