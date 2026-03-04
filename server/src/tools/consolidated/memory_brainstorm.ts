@@ -89,6 +89,37 @@ export async function memoryBrainstorm(
           params.form_request as unknown as FormRequest
         );
 
+        // When the GUI was never reached, the answers are auto-filled placeholders —
+        // not real human decisions.  Force the agent to pause and get explicit human
+        // approval via VS Code's native terminal-approval dialog before proceeding.
+        if (result.path === 'fallback') {
+          return {
+            success: false,
+            action,
+            data: {
+              ...result,
+              requires_approval: true,
+              approval_required_reason:
+                result.error ?? 'GUI was unavailable; answers shown below are auto-filled placeholders, not real human decisions.',
+              approval_instructions:
+                'STOP. The brainstorm GUI did not return live user answers.\n' +
+                'Auto-filled placeholder answers are included in this response but MUST NOT be used to drive plan decisions without human review.\n' +
+                '\n' +
+                'REQUIRED NEXT STEP:\n' +
+                '  Call memory_terminal(action: "run", command: "echo", args: ["brainstorm-approval-check"]) immediately.\n' +
+                '  This command is not on the auto-approve allowlist and will surface VS Code\'s native approval dialog.\n' +
+                '  The human reviewer will see the dialog, review the brainstorm context, and decide whether to approve.\n' +
+                '\n' +
+                'AFTER APPROVAL:\n' +
+                '  If the human approved → you may proceed using the fallback answers in this response.\n' +
+                '  If the GUI is now available → call memory_brainstorm(action: "route_with_fallback") again to get live answers before proceeding.',
+            },
+            error:
+              'Brainstorm GUI did not return live answers — human approval required before continuing. ' +
+              'See approval_instructions in data field.',
+          };
+        }
+
         return {
           success: result.success,
           action,

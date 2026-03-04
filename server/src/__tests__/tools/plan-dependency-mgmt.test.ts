@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 import {
@@ -415,6 +416,25 @@ describe('getPlanDependencies', () => {
 // ===========================================================================
 
 describe.sequential('plan dependency persistence repro harness', () => {
+  const fixtureWorkspaces: Array<{ workspaceId: string; workspacePath: string }> = [];
+
+  afterEach(async () => {
+    const cleanupTargets = fixtureWorkspaces.splice(0, fixtureWorkspaces.length);
+    if (cleanupTargets.length === 0) {
+      return;
+    }
+
+    const { deleteWorkspace } = await import('../../db/workspace-db.js');
+    for (const fixtureWorkspace of cleanupTargets) {
+      try {
+        deleteWorkspace(fixtureWorkspace.workspaceId);
+      } catch (error) {
+        void error;
+      }
+      await fs.rm(fixtureWorkspace.workspacePath, { recursive: true, force: true }).catch(() => undefined);
+    }
+  });
+
   async function createFixturePlans() {
     vi.resetModules();
     vi.doUnmock('../../storage/db-store.js');
@@ -436,6 +456,7 @@ describe.sequential('plan dependency persistence repro harness', () => {
     );
 
     const { meta } = await storeReal.createWorkspace(fixtureWorkspacePath);
+    fixtureWorkspaces.push({ workspaceId: meta.workspace_id, workspacePath: fixtureWorkspacePath });
     const sourcePlan = await storeReal.createPlan(
       meta.workspace_id,
       'Source Plan',

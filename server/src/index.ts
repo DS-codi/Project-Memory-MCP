@@ -682,7 +682,7 @@ server.tool(
 
 server.tool(
   'memory_brainstorm',
-  'Consolidated agent lifecycle and deployment tool. Actions: route (send FormRequest to GUI via Supervisor), route_with_fallback (send to GUI with auto-fill fallback when GUI unavailable), refine (submit standalone FormRefinementRequest to active Brainstorm agent).',
+  'Consolidated agent lifecycle and deployment tool. Actions: route (send FormRequest to GUI via Supervisor), route_with_fallback (send to GUI; when GUI is unavailable returns success:false with requires_approval:true — agent MUST call memory_terminal echo sentinel for VS Code approval before using fallback answers), refine (submit standalone FormRefinementRequest to active Brainstorm agent). GUI launches are serialised per-app: concurrent calls queue and wait rather than spawning duplicate windows.',
   {
     action: z.enum(['route', 'route_with_fallback', 'refine']).describe('The action to perform'),
     form_request: z.record(z.unknown()).optional().describe('FormRequest payload (required for route and route_with_fallback actions)'),

@@ -1,0 +1,323 @@
+{
+  "metadata": {
+    "generated_at": "2026-03-05T00:00:00.000Z",
+    "source": "migration-static-analysis",
+    "migration_count": 9,
+    "explicit_fk_count": 36,
+    "inferred_join_count": 7,
+    "total_tables": 40,
+    "db_engine": "sqlite",
+    "db_file": "{PM_DATA_ROOT}/project-memory.db"
+  },
+  "nodes": [
+    { "id": "workspaces",                        "label": "workspaces",                        "table_name": "workspaces",                        "outbound_fk_count": 1,  "inbound_fk_count": 15, "total_degree": 16, "centrality_rank": 1,  "is_hub": true  },
+    { "id": "plans",                             "label": "plans",                             "table_name": "plans",                             "outbound_fk_count": 2,  "inbound_fk_count": 10, "total_degree": 12, "centrality_rank": 2,  "is_hub": true  },
+    { "id": "programs",                          "label": "programs",                          "table_name": "programs",                          "outbound_fk_count": 1,  "inbound_fk_count": 3,  "total_degree": 4,  "centrality_rank": 3,  "is_hub": false },
+    { "id": "steps",                             "label": "steps",                             "table_name": "steps",                             "outbound_fk_count": 2,  "inbound_fk_count": 1,  "total_degree": 3,  "centrality_rank": 4,  "is_hub": false },
+    { "id": "step_file_edits",                   "label": "step_file_edits",                   "table_name": "step_file_edits",                   "outbound_fk_count": 3,  "inbound_fk_count": 0,  "total_degree": 3,  "centrality_rank": 5,  "is_hub": false },
+    { "id": "deployable_agent_profiles",         "label": "deployable_agent_profiles",         "table_name": "deployable_agent_profiles",         "outbound_fk_count": 1,  "inbound_fk_count": 2,  "total_degree": 3,  "centrality_rank": 6,  "is_hub": false },
+    { "id": "phases",                            "label": "phases",                            "table_name": "phases",                            "outbound_fk_count": 1,  "inbound_fk_count": 1,  "total_degree": 2,  "centrality_rank": 7,  "is_hub": false },
+    { "id": "build_scripts",                     "label": "build_scripts",                     "table_name": "build_scripts",                     "outbound_fk_count": 2,  "inbound_fk_count": 0,  "total_degree": 2,  "centrality_rank": 8,  "is_hub": false },
+    { "id": "program_plans",                     "label": "program_plans",                     "table_name": "program_plans",                     "outbound_fk_count": 2,  "inbound_fk_count": 0,  "total_degree": 2,  "centrality_rank": 9,  "is_hub": false },
+    { "id": "program_workspace_links",           "label": "program_workspace_links",           "table_name": "program_workspace_links",           "outbound_fk_count": 2,  "inbound_fk_count": 0,  "total_degree": 2,  "centrality_rank": 10, "is_hub": false },
+    { "id": "workspace_session_registry",        "label": "workspace_session_registry",        "table_name": "workspace_session_registry",        "outbound_fk_count": 2,  "inbound_fk_count": 0,  "total_degree": 2,  "centrality_rank": 11, "is_hub": false },
+    { "id": "category_workflow_definitions",     "label": "category_workflow_definitions",     "table_name": "category_workflow_definitions",     "outbound_fk_count": 2,  "inbound_fk_count": 0,  "total_degree": 2,  "centrality_rank": 12, "is_hub": false },
+    { "id": "tool_actions",                      "label": "tool_actions",                      "table_name": "tool_actions",                      "outbound_fk_count": 1,  "inbound_fk_count": 1,  "total_degree": 2,  "centrality_rank": 13, "is_hub": false },
+    { "id": "tools",                             "label": "tools",                             "table_name": "tools",                             "outbound_fk_count": 0,  "inbound_fk_count": 1,  "total_degree": 1,  "centrality_rank": 14, "is_hub": false },
+    { "id": "tool_action_params",                "label": "tool_action_params",                "table_name": "tool_action_params",                "outbound_fk_count": 1,  "inbound_fk_count": 0,  "total_degree": 1,  "centrality_rank": 15, "is_hub": false },
+    { "id": "agent_definitions",                 "label": "agent_definitions",                 "table_name": "agent_definitions",                 "outbound_fk_count": 0,  "inbound_fk_count": 1,  "total_degree": 1,  "centrality_rank": 16, "is_hub": false },
+    { "id": "plan_notes",                        "label": "plan_notes",                        "table_name": "plan_notes",                        "outbound_fk_count": 1,  "inbound_fk_count": 0,  "total_degree": 1,  "centrality_rank": 17, "is_hub": false },
+    { "id": "sessions",                          "label": "sessions",                          "table_name": "sessions",                          "outbound_fk_count": 1,  "inbound_fk_count": 0,  "total_degree": 1,  "centrality_rank": 18, "is_hub": false },
+    { "id": "lineage",                           "label": "lineage",                           "table_name": "lineage",                           "outbound_fk_count": 1,  "inbound_fk_count": 0,  "total_degree": 1,  "centrality_rank": 19, "is_hub": false },
+    { "id": "research_documents",                "label": "research_documents",                "table_name": "research_documents",                "outbound_fk_count": 1,  "inbound_fk_count": 0,  "total_degree": 1,  "centrality_rank": 20, "is_hub": false },
+    { "id": "knowledge",                         "label": "knowledge",                         "table_name": "knowledge",                         "outbound_fk_count": 1,  "inbound_fk_count": 0,  "total_degree": 1,  "centrality_rank": 21, "is_hub": false },
+    { "id": "program_risks",                     "label": "program_risks",                     "table_name": "program_risks",                     "outbound_fk_count": 1,  "inbound_fk_count": 0,  "total_degree": 1,  "centrality_rank": 22, "is_hub": false },
+    { "id": "agent_deployments",                 "label": "agent_deployments",                 "table_name": "agent_deployments",                 "outbound_fk_count": 1,  "inbound_fk_count": 0,  "total_degree": 1,  "centrality_rank": 23, "is_hub": false },
+    { "id": "instruction_deployments",           "label": "instruction_deployments",           "table_name": "instruction_deployments",           "outbound_fk_count": 1,  "inbound_fk_count": 0,  "total_degree": 1,  "centrality_rank": 24, "is_hub": false },
+    { "id": "skill_deployments",                 "label": "skill_deployments",                 "table_name": "skill_deployments",                 "outbound_fk_count": 1,  "inbound_fk_count": 0,  "total_degree": 1,  "centrality_rank": 25, "is_hub": false },
+    { "id": "update_log",                        "label": "update_log",                        "table_name": "update_log",                        "outbound_fk_count": 1,  "inbound_fk_count": 0,  "total_degree": 1,  "centrality_rank": 26, "is_hub": false },
+    { "id": "workspace_instruction_assignments", "label": "workspace_instruction_assignments", "table_name": "workspace_instruction_assignments", "outbound_fk_count": 1,  "inbound_fk_count": 0,  "total_degree": 1,  "centrality_rank": 27, "is_hub": false },
+    { "id": "workspace_skill_assignments",       "label": "workspace_skill_assignments",       "table_name": "workspace_skill_assignments",       "outbound_fk_count": 1,  "inbound_fk_count": 0,  "total_degree": 1,  "centrality_rank": 28, "is_hub": false },
+    { "id": "plan_workflow_settings",            "label": "plan_workflow_settings",            "table_name": "plan_workflow_settings",            "outbound_fk_count": 1,  "inbound_fk_count": 0,  "total_degree": 1,  "centrality_rank": 29, "is_hub": false },
+    { "id": "context_items",                     "label": "context_items",                     "table_name": "context_items",                     "outbound_fk_count": 0,  "inbound_fk_count": 0,  "total_degree": 0,  "centrality_rank": 30, "is_hub": false, "is_island": true },
+    { "id": "dependencies",                      "label": "dependencies",                      "table_name": "dependencies",                      "outbound_fk_count": 0,  "inbound_fk_count": 0,  "total_degree": 0,  "centrality_rank": 31, "is_hub": false, "is_island": true },
+    { "id": "event_log",                         "label": "event_log",                         "table_name": "event_log",                         "outbound_fk_count": 0,  "inbound_fk_count": 0,  "total_degree": 0,  "centrality_rank": 32, "is_hub": false, "is_island": true },
+    { "id": "instruction_files",                 "label": "instruction_files",                 "table_name": "instruction_files",                 "outbound_fk_count": 0,  "inbound_fk_count": 0,  "total_degree": 0,  "centrality_rank": 33, "is_hub": false, "is_island": true },
+    { "id": "skill_definitions",                 "label": "skill_definitions",                 "table_name": "skill_definitions",                 "outbound_fk_count": 0,  "inbound_fk_count": 0,  "total_degree": 0,  "centrality_rank": 34, "is_hub": false, "is_island": true },
+    { "id": "gui_routing_contracts",             "label": "gui_routing_contracts",             "table_name": "gui_routing_contracts",             "outbound_fk_count": 0,  "inbound_fk_count": 0,  "total_degree": 0,  "centrality_rank": 35, "is_hub": false, "is_island": true },
+    { "id": "plans_archive",                     "label": "plans_archive",                     "table_name": "plans_archive",                     "outbound_fk_count": 0,  "inbound_fk_count": 0,  "total_degree": 0,  "centrality_rank": 36, "is_hub": false, "is_island": true },
+    { "id": "phases_archive",                    "label": "phases_archive",                    "table_name": "phases_archive",                    "outbound_fk_count": 0,  "inbound_fk_count": 0,  "total_degree": 0,  "centrality_rank": 37, "is_hub": false, "is_island": true },
+    { "id": "steps_archive",                     "label": "steps_archive",                     "table_name": "steps_archive",                     "outbound_fk_count": 0,  "inbound_fk_count": 0,  "total_degree": 0,  "centrality_rank": 38, "is_hub": false, "is_island": true },
+    { "id": "sessions_archive",                  "label": "sessions_archive",                  "table_name": "sessions_archive",                  "outbound_fk_count": 0,  "inbound_fk_count": 0,  "total_degree": 0,  "centrality_rank": 39, "is_hub": false, "is_island": true },
+    { "id": "lineage_archive",                   "label": "lineage_archive",                   "table_name": "lineage_archive",                   "outbound_fk_count": 0,  "inbound_fk_count": 0,  "total_degree": 0,  "centrality_rank": 40, "is_hub": false, "is_island": true }
+  ],
+  "edges": [
+    {
+      "id": "e001", "from_table_id": "workspaces", "to_table_id": "workspaces",
+      "relation_kind": "foreign_key", "constraint_name": "fk_workspaces_parent",
+      "from_columns": ["parent_workspace_id"], "to_columns": ["id"],
+      "on_delete": "SET NULL", "on_update": null, "inferred": false,
+      "nullable": true, "note": "self-referential hierarchy"
+    },
+    {
+      "id": "e002", "from_table_id": "programs", "to_table_id": "workspaces",
+      "relation_kind": "foreign_key", "constraint_name": "fk_programs_workspace",
+      "from_columns": ["workspace_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e003", "from_table_id": "plans", "to_table_id": "workspaces",
+      "relation_kind": "foreign_key", "constraint_name": "fk_plans_workspace",
+      "from_columns": ["workspace_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e004", "from_table_id": "plans", "to_table_id": "programs",
+      "relation_kind": "foreign_key", "constraint_name": "fk_plans_program",
+      "from_columns": ["program_id"], "to_columns": ["id"],
+      "on_delete": "SET NULL", "on_update": null, "inferred": false, "nullable": true
+    },
+    {
+      "id": "e005", "from_table_id": "program_plans", "to_table_id": "programs",
+      "relation_kind": "foreign_key", "constraint_name": "fk_program_plans_program",
+      "from_columns": ["program_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e006", "from_table_id": "program_plans", "to_table_id": "plans",
+      "relation_kind": "foreign_key", "constraint_name": "fk_program_plans_plan",
+      "from_columns": ["plan_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e007", "from_table_id": "program_workspace_links", "to_table_id": "programs",
+      "relation_kind": "foreign_key", "constraint_name": "fk_pwl_program",
+      "from_columns": ["program_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e008", "from_table_id": "program_workspace_links", "to_table_id": "workspaces",
+      "relation_kind": "foreign_key", "constraint_name": "fk_pwl_workspace",
+      "from_columns": ["workspace_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e009", "from_table_id": "program_risks", "to_table_id": "programs",
+      "relation_kind": "foreign_key", "constraint_name": "fk_program_risks_program",
+      "from_columns": ["program_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e010", "from_table_id": "phases", "to_table_id": "plans",
+      "relation_kind": "foreign_key", "constraint_name": "fk_phases_plan",
+      "from_columns": ["plan_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e011", "from_table_id": "steps", "to_table_id": "phases",
+      "relation_kind": "foreign_key", "constraint_name": "fk_steps_phase",
+      "from_columns": ["phase_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e012", "from_table_id": "steps", "to_table_id": "plans",
+      "relation_kind": "foreign_key", "constraint_name": "fk_steps_plan",
+      "from_columns": ["plan_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e013", "from_table_id": "plan_notes", "to_table_id": "plans",
+      "relation_kind": "foreign_key", "constraint_name": "fk_plan_notes_plan",
+      "from_columns": ["plan_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e014", "from_table_id": "sessions", "to_table_id": "plans",
+      "relation_kind": "foreign_key", "constraint_name": "fk_sessions_plan",
+      "from_columns": ["plan_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e015", "from_table_id": "lineage", "to_table_id": "plans",
+      "relation_kind": "foreign_key", "constraint_name": "fk_lineage_plan",
+      "from_columns": ["plan_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e016", "from_table_id": "research_documents", "to_table_id": "workspaces",
+      "relation_kind": "foreign_key", "constraint_name": "fk_research_documents_workspace",
+      "from_columns": ["workspace_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e017", "from_table_id": "knowledge", "to_table_id": "workspaces",
+      "relation_kind": "foreign_key", "constraint_name": "fk_knowledge_workspace",
+      "from_columns": ["workspace_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e018", "from_table_id": "build_scripts", "to_table_id": "workspaces",
+      "relation_kind": "foreign_key", "constraint_name": "fk_build_scripts_workspace",
+      "from_columns": ["workspace_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e019", "from_table_id": "build_scripts", "to_table_id": "plans",
+      "relation_kind": "foreign_key", "constraint_name": "fk_build_scripts_plan",
+      "from_columns": ["plan_id"], "to_columns": ["id"],
+      "on_delete": "SET NULL", "on_update": null, "inferred": false, "nullable": true
+    },
+    {
+      "id": "e020", "from_table_id": "tool_actions", "to_table_id": "tools",
+      "relation_kind": "foreign_key", "constraint_name": "fk_tool_actions_tool",
+      "from_columns": ["tool_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e021", "from_table_id": "tool_action_params", "to_table_id": "tool_actions",
+      "relation_kind": "foreign_key", "constraint_name": "fk_tool_action_params_action",
+      "from_columns": ["action_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e022", "from_table_id": "update_log", "to_table_id": "workspaces",
+      "relation_kind": "foreign_key", "constraint_name": "fk_update_log_workspace",
+      "from_columns": ["workspace_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e023", "from_table_id": "step_file_edits", "to_table_id": "workspaces",
+      "relation_kind": "foreign_key", "constraint_name": "fk_sfe_workspace",
+      "from_columns": ["workspace_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e024", "from_table_id": "step_file_edits", "to_table_id": "plans",
+      "relation_kind": "foreign_key", "constraint_name": "fk_sfe_plan",
+      "from_columns": ["plan_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e025", "from_table_id": "step_file_edits", "to_table_id": "steps",
+      "relation_kind": "foreign_key", "constraint_name": "fk_sfe_step",
+      "from_columns": ["step_id"], "to_columns": ["id"],
+      "on_delete": "SET NULL", "on_update": null, "inferred": false, "nullable": true
+    },
+    {
+      "id": "e026", "from_table_id": "agent_deployments", "to_table_id": "workspaces",
+      "relation_kind": "foreign_key", "constraint_name": "fk_agent_deployments_workspace",
+      "from_columns": ["workspace_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e027", "from_table_id": "instruction_deployments", "to_table_id": "workspaces",
+      "relation_kind": "foreign_key", "constraint_name": "fk_instruction_deployments_workspace",
+      "from_columns": ["workspace_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e028", "from_table_id": "skill_deployments", "to_table_id": "workspaces",
+      "relation_kind": "foreign_key", "constraint_name": "fk_skill_deployments_workspace",
+      "from_columns": ["workspace_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e029", "from_table_id": "workspace_session_registry", "to_table_id": "workspaces",
+      "relation_kind": "foreign_key", "constraint_name": "fk_wsr_workspace",
+      "from_columns": ["workspace_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e030", "from_table_id": "workspace_session_registry", "to_table_id": "plans",
+      "relation_kind": "foreign_key", "constraint_name": "fk_wsr_plan",
+      "from_columns": ["plan_id"], "to_columns": ["id"],
+      "on_delete": "SET NULL", "on_update": null, "inferred": false, "nullable": true
+    },
+    {
+      "id": "e031", "from_table_id": "deployable_agent_profiles", "to_table_id": "agent_definitions",
+      "relation_kind": "foreign_key", "constraint_name": "fk_dap_agent_definition",
+      "from_columns": ["agent_name"], "to_columns": ["name"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e032", "from_table_id": "category_workflow_definitions", "to_table_id": "deployable_agent_profiles",
+      "relation_kind": "foreign_key", "constraint_name": "fk_cwd_hub_agent",
+      "from_columns": ["hub_agent_name"], "to_columns": ["agent_name"],
+      "on_delete": "SET NULL", "on_update": null, "inferred": false, "nullable": true
+    },
+    {
+      "id": "e033", "from_table_id": "category_workflow_definitions", "to_table_id": "deployable_agent_profiles",
+      "relation_kind": "foreign_key", "constraint_name": "fk_cwd_prompt_analyst",
+      "from_columns": ["prompt_analyst_agent_name"], "to_columns": ["agent_name"],
+      "on_delete": "SET NULL", "on_update": null, "inferred": false, "nullable": true
+    },
+    {
+      "id": "e034", "from_table_id": "workspace_instruction_assignments", "to_table_id": "workspaces",
+      "relation_kind": "foreign_key", "constraint_name": "fk_wia_workspace",
+      "from_columns": ["workspace_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e035", "from_table_id": "workspace_skill_assignments", "to_table_id": "workspaces",
+      "relation_kind": "foreign_key", "constraint_name": "fk_wsa_workspace",
+      "from_columns": ["workspace_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false
+    },
+    {
+      "id": "e036", "from_table_id": "plan_workflow_settings", "to_table_id": "plans",
+      "relation_kind": "foreign_key", "constraint_name": "fk_pws_plan",
+      "from_columns": ["plan_id"], "to_columns": ["id"],
+      "on_delete": "CASCADE", "on_update": null, "inferred": false, "nullable": false,
+      "note": "also enforced by trg_delete_workflow_settings trigger"
+    },
+    {
+      "id": "i001", "from_table_id": "program_risks", "to_table_id": "plans",
+      "relation_kind": "inferred",  "constraint_name": null,
+      "from_columns": ["source_plan_id"], "to_columns": ["id"],
+      "on_delete": null, "on_update": null, "inferred": true, "confidence": "medium",
+      "note": "source_plan_id TEXT column added in migration 003; no REFERENCES clause declared"
+    },
+    {
+      "id": "i002", "from_table_id": "step_file_edits", "to_table_id": "sessions",
+      "relation_kind": "inferred", "constraint_name": null,
+      "from_columns": ["session_id"], "to_columns": ["id"],
+      "on_delete": null, "on_update": null, "inferred": true, "confidence": "medium",
+      "note": "session_id TEXT column, no REFERENCES clause; logically tracks which session made the edit"
+    },
+    {
+      "id": "i003", "from_table_id": "agent_deployments", "to_table_id": "agent_definitions",
+      "relation_kind": "inferred", "constraint_name": null,
+      "from_columns": ["agent_name"], "to_columns": ["name"],
+      "on_delete": null, "on_update": null, "inferred": true, "confidence": "medium",
+      "note": "agent_name TEXT with UNIQUE(workspace_id,agent_name); no REFERENCES clause (deployable_agent_profiles.agent_name does have the FK)"
+    },
+    {
+      "id": "i004", "from_table_id": "instruction_deployments", "to_table_id": "instruction_files",
+      "relation_kind": "inferred", "constraint_name": null,
+      "from_columns": ["filename"], "to_columns": ["filename"],
+      "on_delete": null, "on_update": null, "inferred": true, "confidence": "high",
+      "note": "column comment says 'matches instruction_files.filename'; no FK declared"
+    },
+    {
+      "id": "i005", "from_table_id": "skill_deployments", "to_table_id": "skill_definitions",
+      "relation_kind": "inferred", "constraint_name": null,
+      "from_columns": ["skill_name"], "to_columns": ["name"],
+      "on_delete": null, "on_update": null, "inferred": true, "confidence": "high",
+      "note": "column comment says 'matches skill_definitions.name'; no FK declared"
+    },
+    {
+      "id": "i006", "from_table_id": "workspace_instruction_assignments", "to_table_id": "instruction_files",
+      "relation_kind": "inferred", "constraint_name": null,
+      "from_columns": ["filename"], "to_columns": ["filename"],
+      "on_delete": null, "on_update": null, "inferred": true, "confidence": "high",
+      "note": "column comment says 'matches instruction_files.filename'; no FK declared"
+    },
+    {
+      "id": "i007", "from_table_id": "workspace_skill_assignments", "to_table_id": "skill_definitions",
+      "relation_kind": "inferred", "constraint_name": null,
+      "from_columns": ["skill_name"], "to_columns": ["name"],
+      "on_delete": null, "on_update": null, "inferred": true, "confidence": "high",
+      "note": "column comment says 'matches skill_definitions.name'; no FK declared"
+    }
+  ]
+}

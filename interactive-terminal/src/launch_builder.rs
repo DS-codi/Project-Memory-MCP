@@ -1123,4 +1123,143 @@ mod tests {
             "Copilot CLI does not support --screen-reader; found in args: {:?}", cmd.args
         );
     }
+
+    // ── Prompt passing ────────────────────────────────────────────────────────
+
+    /// Gemini receives the initial prompt exclusively via the GEMINI_CONTEXT_FILE
+    /// temp file — never as a positional CLI argument.  A regression that adds
+    /// a positional arg would break `gemini [--flags] <no-positional>` invocation.
+    #[test]
+    fn gemini_never_uses_positional_prompt_arg() {
+        let pack = sample_context_pack(); // step_notes = Some("Implement feature X …")
+        let opts = LaunchOptions::default();
+        let cmd = build_gemini_launch(Some(&pack), "guided", Some("Executor"), Some("plan_abc1"), &opts)
+            .expect("build_gemini_launch with pack should succeed");
+
+        // The only flags should be --output_format / --screen-reader style flags.
+        // Positional args (those not starting with '--') other than the program
+        // itself must not appear in args.
+        let positional_args: Vec<&str> = cmd.args.iter()
+            .filter(|a| !a.starts_with('-'))
+            .map(|s| s.as_str())
+            .collect();
+        assert!(
+            positional_args.is_empty(),
+            "Gemini launch must not use positional prompt args; found: {:?}",
+            positional_args
+        );
+
+        // step_notes must be in the temp file, not in args
+        let path = cmd.context_pack_path.as_ref().expect("context pack path must be set");
+        let content = std::fs::read_to_string(path).unwrap();
+        assert!(content.contains("Implement feature X"), "step_notes must be in temp file");
+        let _ = std::fs::remove_file(path);
+    }
+
+    /// Copilot with a context pack but no step_notes must not append an extra
+    /// positional argument — the base args are exactly
+    /// ["copilot", "suggest", "--target", "shell"].
+    #[test]
+    fn copilot_no_step_notes_no_prompt_arg() {
+        let pack = ContextPack {
+            step_notes: None,
+            ..sample_context_pack()
+        };
+        let opts = LaunchOptions::default();
+        let cmd = build_copilot_launch(Some(&pack), "guided", Some("Executor"), Some("plan_abc1"), &opts)
+            .expect("copilot launch without step_notes should succeed");
+
+        let base = ["copilot", "suggest", "--target", "shell"];
+        assert_eq!(
+            cmd.args.as_slice(),
+            base.as_slice(),
+            "args must be exactly the base set when no step_notes are present; got: {:?}",
+            cmd.args
+        );
+
+        if let Some(path) = &cmd.context_pack_path {
+            let _ = std::fs::remove_file(path);
+        }
+    }
+
+    /// Copilot step_notes longer than 512 bytes must be truncated to 512 chars
+    /// followed by the '…' ellipsis character.
+    #[test]
+    fn copilot_step_notes_truncated_at_512_chars() {
+        let long_notes = "A".repeat(600);
+        let pack = ContextPack {
+            step_notes: Some(long_notes.clone()),
+            ..sample_context_pack()
+        };
+        let opts = LaunchOptions::default();
+        let cmd = build_copilot_launch(Some(&pack), "guided", Some("Executor"), None, &opts)
+            .expect("copilot launch with long step_notes should succeed");
+
+        // The prompt positional arg must be the truncated string
+        let prompt_arg = cmd.args.last().expect("args must be non-empty");
+        assert!(
+            prompt_arg.ends_with('\u{2026}'),  // '…'
+            "truncated arg must end with '…'; got: {:?}",
+            prompt_arg
+        );
+        // Character count: 512 visible chars + 1 ellipsis = ends at byte index 512 of original
+        assert!(
+            prompt_arg.len() < long_notes.len(),
+            "truncated arg must be shorter than original"
+        );
+        assert!(
+            prompt_arg.starts_with("AAAA"),
+            "truncated arg prefix must match original"
+        );
+
+        if let Some(path) = &cmd.context_pack_path {
+            let _ = std::fs::remove_file(path);
+        }
+    }
+
+    /// Copilot step_notes at exactly 512 chars must NOT be truncated.
+    #[test]
+    fn copilot_step_notes_exactly_512_not_truncated() {
+        let notes_512 = "B".repeat(512);
+        let pack = ContextPack {
+            step_notes: Some(notes_512.clone()),
+            ..sample_context_pack()
+        };
+        let opts = LaunchOptions::default();
+        let cmd = build_copilot_launch(Some(&pack), "guided", Some("Executor"), None, &opts)
+            .expect("copilot launch with 512-char step_notes should succeed");
+
+        let prompt_arg = cmd.args.last().expect("args must be non-empty");
+        assert_eq!(
+            *prompt_arg, notes_512,
+            "512-char notes must be passed verbatim without truncation"
+        );
+
+        if let Some(path) = &cmd.context_pack_path {
+            let _ = std::fs::remove_file(path);
+        }
+    }
+
+    /// Gemini context-pack temp file must contain all relevant fields from the
+    /// ContextPack, including `relevant_files` and `custom_instructions`.
+    #[test]
+    fn gemini_context_file_contains_full_pack() {
+        let pack = sample_context_pack();
+        let opts = LaunchOptions::default();
+        let cmd = build_gemini_launch(Some(&pack), "guided", Some("Executor"), None, &opts)
+            .expect("gemini launch with full pack should succeed");
+
+        let path = cmd.context_pack_path.as_ref().expect("context pack path must be set");
+        let content = std::fs::read_to_string(path).unwrap();
+        let parsed: ContextPack = serde_json::from_str(&content)
+            .expect("temp file must be valid ContextPack JSON");
+
+        assert_eq!(parsed.step_notes.as_deref(), Some("Implement feature X in src/feature.ts"));
+        assert_eq!(parsed.custom_instructions.as_deref(), Some("Focus on type safety"));
+        assert_eq!(parsed.requesting_agent.as_deref(), Some("Executor"));
+        assert_eq!(parsed.relevant_files.len(), 1);
+        assert_eq!(parsed.relevant_files[0].path, "src/feature.ts");
+
+        let _ = std::fs::remove_file(path);
+    }
 }

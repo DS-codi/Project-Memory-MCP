@@ -62,6 +62,31 @@ fn sessions() -> SessionRegistry {
 }
 
 // ---------------------------------------------------------------------------
+// Per-app serialising queue
+// ---------------------------------------------------------------------------
+
+/// One `Mutex<()>` per registered app name.  Acquiring it serialises
+/// concurrent `launch_form_app` calls for the same GUI — only one window
+/// instance is ever alive at a time.  A second caller waits here until the
+/// current launch completes (success, timeout, or error) before spawning.
+type AppLockMap = HashMap<String, Arc<Mutex<()>>>;
+static APP_LOCKS: OnceLock<Arc<Mutex<AppLockMap>>> = OnceLock::new();
+
+fn app_lock_map() -> Arc<Mutex<AppLockMap>> {
+    APP_LOCKS
+        .get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
+        .clone()
+}
+
+async fn get_or_create_app_lock(app_name: &str) -> Arc<Mutex<()>> {
+    let registry = app_lock_map();
+    let mut map = registry.lock().await;
+    map.entry(app_name.to_string())
+        .or_insert_with(|| Arc::new(Mutex::new(())))
+        .clone()
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -87,6 +112,12 @@ pub async fn launch_form_app(
     payload: &serde_json::Value,
     timeout_override: Option<u64>,
 ) -> FormAppResponse {
+    // Serialise concurrent launches for the same app — wait for any running
+    // instance to finish before spawning a new window.  The guard is held
+    // for the entire lifetime of this call and released on drop.
+    let app_lock = get_or_create_app_lock(app_name).await;
+    let _app_guard = app_lock.lock().await;
+
     let timeout_secs = timeout_override.unwrap_or(config.timeout_seconds);
     let start = Instant::now();
     let started_at_ms = SystemTime::now()
