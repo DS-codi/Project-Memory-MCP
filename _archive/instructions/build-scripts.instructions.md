@@ -6,6 +6,38 @@ applyTo: "**/*"
 
 This workspace has registered build scripts via the Project Memory MCP system. **Always check for existing build scripts before running ad-hoc commands.**
 
+## Default Build Entry Point (Required)
+
+For this workspace, the canonical build/install entry point is:
+
+```
+.\install.ps1
+```
+
+Run it from:
+
+```
+./Project-Memory-MCP
+```
+
+When adding new build scripts, prefer `./install.ps1 -Component ...` over raw `cargo`, `npm`, or `podman` commands unless a task explicitly requires direct invocation.
+
+## Default Test Entry Point (Required)
+
+For this workspace, the canonical test entry point is:
+
+```
+.\run-tests.ps1
+```
+
+Run it from:
+
+```
+./Project-Memory-MCP
+```
+
+For component-scoped test runs, use `./run-tests.ps1 -Component ...` before any direct test command.
+
 ## Retrieving Build Scripts
 
 ```
@@ -88,6 +120,20 @@ These are the standard build/test commands. Register them as build scripts when 
 | Task | Command | Directory |
 |------|---------|-----------|
 | Build all + install extension | `.\build-and-install.ps1` | `.` |
+
+## Targeted Test Wrapper Presets (Preferred for Focused Runs)
+
+When a task needs focused test coverage, prefer these registered `run-tests.ps1` presets before creating new ad-hoc direct test commands:
+
+| Task | Command | Directory |
+|------|---------|-----------|
+| Server targeted context tools | `.\run-tests.ps1 -Component Server -TestArg 'Server=src/__tests__/tools/memory-context-actions.test.ts src/__tests__/tools/context-search.tools.test.ts'` | `./Project-Memory-MCP` |
+| Supervisor targeted dispatcher | `.\run-tests.ps1 -Component Supervisor -TestArg 'Supervisor=control::runtime::dispatcher::tests:: -- --nocapture'` | `./Project-Memory-MCP` |
+| Dashboard targeted useMCPEvents | `.\run-tests.ps1 -Component Dashboard -TestArg 'Dashboard=src/__tests__/hooks/useMCPEvents.test.tsx'` | `./Project-Memory-MCP` |
+| Extension targeted plan routing | `.\run-tests.ps1 -Component Extension -TestArg 'Extension=out/test/suite/dashboard-client-helpers.test.js out/test/suite/dashboard-plan-selection-routing.test.js'` | `./Project-Memory-MCP` |
+| Server full output on failure | `.\run-tests.ps1 -Component Server -FullOutputOnFailure` | `./Project-Memory-MCP` |
+
+If no preset matches, register a new `run-tests.ps1` preset via `memory_plan(action: "add_build_script")` before falling back to direct test commands.
 
 ## Script Scope: Workspace vs Plan
 

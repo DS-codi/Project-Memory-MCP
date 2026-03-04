@@ -12,6 +12,9 @@
     "circuit_breaker_policy",
     "reconnect_handshake_contract",
     "reconnect_idempotency_contract",
+    "failed_reconnect_diagnostics_requirements",
+    "release_acceptance_checklist",
+    "data_freshness_validation",
     "reconnect_protocol_conformance_matrix",
     "fault_injection_verification_matrix",
     "scenarios"
@@ -42,6 +45,15 @@
     },
     "reconnect_idempotency_contract": {
       "$ref": "#/$defs/reconnectIdempotencyContract"
+    },
+    "failed_reconnect_diagnostics_requirements": {
+      "$ref": "#/$defs/failedReconnectDiagnosticsRequirements"
+    },
+    "release_acceptance_checklist": {
+      "$ref": "#/$defs/releaseAcceptanceChecklist"
+    },
+    "data_freshness_validation": {
+      "$ref": "#/$defs/dataFreshnessValidation"
     },
     "reconnect_protocol_conformance_matrix": {
       "$ref": "#/$defs/reconnectProtocolConformanceMatrix"
@@ -274,6 +286,179 @@
       },
       "additionalProperties": false
     },
+    "failedReconnectDiagnosticsRequirements": {
+      "type": "object",
+      "required": [
+        "podman_first",
+        "apply_when_reason_codes",
+        "required_artifacts",
+        "timeline_required_fields",
+        "lease_token_state_required_fields",
+        "replay_stats_required_fields",
+        "pass_reason_code",
+        "fail_reason_code"
+      ],
+      "properties": {
+        "podman_first": { "type": "boolean" },
+        "apply_when_reason_codes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          }
+        },
+        "required_artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^artifacts/.+"
+          }
+        },
+        "timeline_required_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "run_id",
+              "scenario_id",
+              "timestamp",
+              "event_type",
+              "component_id",
+              "reason_code",
+              "attempt"
+            ]
+          }
+        },
+        "lease_token_state_required_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "resume_token_state",
+              "session_lease_state",
+              "resume_token_ttl_ms_remaining",
+              "lease_ttl_ms_remaining"
+            ]
+          }
+        },
+        "replay_stats_required_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "replay_cursor",
+              "replay_window_events",
+              "replay_events_replayed",
+              "replay_events_deduped",
+              "replay_ack_count",
+              "replay_ack_latency_ms_p95"
+            ]
+          }
+        },
+        "pass_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "fail_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+      },
+      "additionalProperties": false
+    },
+    "releaseAcceptanceChecklist": {
+      "type": "object",
+      "required": [
+        "podman_first",
+        "deterministic_resume",
+        "non_cascading_recovery",
+        "required_artifacts",
+        "pass_reason_code",
+        "fail_reason_code"
+      ],
+      "properties": {
+        "podman_first": { "type": "boolean" },
+        "deterministic_resume": {
+          "type": "object",
+          "required": [
+            "required_reason_codes",
+            "required_events",
+            "minimum_passing_scenarios"
+          ],
+          "properties": {
+            "required_reason_codes": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9_]+$"
+              }
+            },
+            "required_events": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9_]+$"
+              }
+            },
+            "minimum_passing_scenarios": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1024
+            }
+          },
+          "additionalProperties": false
+        },
+        "non_cascading_recovery": {
+          "type": "object",
+          "required": [
+            "required_failure_domain",
+            "required_restart_scope",
+            "forbidden_restart_scope",
+            "minimum_passing_scenarios"
+          ],
+          "properties": {
+            "required_failure_domain": {
+              "type": "string",
+              "enum": ["child-local", "dependency-group", "global"]
+            },
+            "required_restart_scope": {
+              "type": "string",
+              "enum": ["child-local", "dependency-group", "global"]
+            },
+            "forbidden_restart_scope": {
+              "type": "string",
+              "enum": ["child-local", "dependency-group", "global"]
+            },
+            "minimum_passing_scenarios": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1024
+            }
+          },
+          "additionalProperties": false
+        },
+        "required_artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^artifacts/.+"
+          }
+        },
+        "pass_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "fail_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+      },
+      "additionalProperties": false
+    },
     "reconnectProtocolConformanceMatrix": {
       "type": "object",
       "required": [
@@ -392,6 +577,113 @@
       },
       "additionalProperties": false
     },
+    "dataFreshnessValidation": {
+      "type": "object",
+      "required": [
+        "post_recovery_window_ms",
+        "checks",
+        "pass_fail"
+      ],
+      "properties": {
+        "post_recovery_window_ms": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 600000
+        },
+        "checks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/dataFreshnessCheck"
+          }
+        },
+        "pass_fail": {
+          "$ref": "#/$defs/dataFreshnessPassFail"
+        }
+      },
+      "additionalProperties": false
+    },
+    "dataFreshnessCheck": {
+      "type": "object",
+      "required": [
+        "check_id",
+        "metric",
+        "comparator",
+        "threshold",
+        "data_source",
+        "failure_reason_code"
+      ],
+      "properties": {
+        "check_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_-]{3,80}$"
+        },
+        "metric": {
+          "type": "string",
+          "enum": [
+            "route_restore_latency_ms",
+            "session_rebind_latency_ms",
+            "first_fresh_event_latency_ms",
+            "stale_marker_clear_latency_ms",
+            "stale_event_replay_count"
+          ]
+        },
+        "comparator": {
+          "type": "string",
+          "enum": ["<=", "<", "=", ">=", ">"]
+        },
+        "threshold": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 600000
+        },
+        "data_source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "failure_reason_code": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "dataFreshnessPassFail": {
+      "type": "object",
+      "required": [
+        "pass_when_all",
+        "fail_when_any",
+        "pass_reason_code",
+        "fail_reason_code"
+      ],
+      "properties": {
+        "pass_when_all": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "fail_when_any": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "pass_reason_code": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "fail_reason_code": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        }
+      },
+      "additionalProperties": false
+    },
     "faultInjectionVerificationMatrix": {
       "type": "object",
       "required": [
@@ -429,7 +721,7 @@
       "properties": {
         "scenario_key": {
           "type": "string",
-          "enum": ["pod_churn", "network_churn", "dependency_churn"]
+          "enum": ["api_outage", "websocket_interruption", "backend_recovery"]
         },
         "description": {
           "type": "string",
@@ -441,7 +733,7 @@
           "properties": {
             "fault_type": {
               "type": "string",
-              "enum": ["pod_restart", "network_partition_delay", "dependency_unavailable_then_restore"]
+              "enum": ["api_outage", "websocket_interruption", "backend_recovery"]
             },
             "target": {
               "type": "string",

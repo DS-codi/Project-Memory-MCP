@@ -6,6 +6,7 @@ use crate::saved_commands_repository::SavedCommandsRepository;
 use cxx_qt_lib::QString;
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 pub struct TerminalAppRust {
@@ -41,11 +42,35 @@ pub struct TerminalAppRust {
     pub(crate) terminal_ws_port: i32,
     /// Compile-time PTY mode label surfaced to QML ("pty-host" or "in-process").
     pub(crate) terminal_mode_label: QString,
+    // ── Allowlist management (Phase 4.5) ──────────────────────────────────
+    /// JSON array of current allowlist patterns.
+    pub(crate) allowlist_patterns_json: QString,
+    /// Filter string for the allowlist panel search box.
+    pub(crate) allowlist_filter: QString,
+    /// Human-readable result of the last allowlist operation.
+    pub(crate) allowlist_last_error: QString,
+    /// Short operation label: "added", "removed", "duplicate", "not_found", "".
+    pub(crate) allowlist_last_op: QString,
+    /// Proposed pattern pending user confirmation (exact choice).
+    pub(crate) proposed_allowlist_pattern: QString,
+    /// Source command that triggered the current proposal.
+    pub(crate) proposed_from_command: QString,
+    /// Exact (low-risk) pattern for the proposal preview.
+    pub(crate) proposed_exact_pattern: QString,
+    /// Generalized (wider) pattern for the proposal preview.
+    pub(crate) proposed_general_pattern: QString,
+    /// Risk hint for the generalized pattern: "low", "medium", or "high".
+    pub(crate) proposed_risk_hint: QString,
     pub(crate) state: Arc<Mutex<AppState>>,
 }
 
 pub struct AppState {
     pub pending_commands_by_session: HashMap<String, Vec<CommandRequest>>,
+    // ── Allowlist management (Phase 4.5) ──────────────────────────────────
+    /// In-memory allowlist patterns (loaded from disk on first refresh).
+    pub allowlist_patterns: Vec<String>,
+    /// Discovered data root for allowlist file persistence.
+    pub allowlist_data_root: Option<PathBuf>,
     pub session_display_names: HashMap<String, String>,
     pub session_context_by_id: HashMap<String, SessionRuntimeContext>,
     pub session_lifecycle_by_id: HashMap<String, SessionLifecycleState>,
@@ -168,6 +193,8 @@ impl Default for TerminalAppRust {
             gemini_session_ids: HashSet::new(),
             agent_session_ids: HashSet::new(),
             agent_session_meta: HashMap::new(),
+            allowlist_patterns: Vec::new(),
+            allowlist_data_root: None,
         }));
 
         let session_tabs_json = {
@@ -225,6 +252,16 @@ impl Default for TerminalAppRust {
             tray_icon_url: resolve_tray_icon_url(),
             terminal_ws_port: 0,
             terminal_mode_label: QString::from(""),
+            // ── Allowlist management (Phase 4.5) ──────────────────────────────────
+            allowlist_patterns_json: QString::from("[]"),
+            allowlist_filter: QString::default(),
+            allowlist_last_error: QString::default(),
+            allowlist_last_op: QString::default(),
+            proposed_allowlist_pattern: QString::default(),
+            proposed_from_command: QString::default(),
+            proposed_exact_pattern: QString::default(),
+            proposed_general_pattern: QString::default(),
+            proposed_risk_hint: QString::default(),
             state,
         }
     }

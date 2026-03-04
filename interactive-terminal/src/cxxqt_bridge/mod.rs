@@ -10,6 +10,7 @@ mod invokables;
 pub mod pty_host_client;
 mod runtime_tasks;
 mod saved_commands_state;
+mod allowlist_state;
 mod session_runtime;
 mod state;
 mod window_focus;
@@ -57,6 +58,16 @@ pub mod ffi {
         /// Compile-time label: "pty-host" when the pty-host feature is active,
         /// "in-process" otherwise. Read-only after init; displayed in the header bar.
         #[qproperty(QString, terminal_mode_label, cxx_name = "terminalModeLabel")]
+        // ── Allowlist management (Phase 4.5) ──────────────────────────────────
+        #[qproperty(QString, allowlist_patterns_json, cxx_name = "allowlistPatternsJson")]
+        #[qproperty(QString, allowlist_filter, cxx_name = "allowlistFilter")]
+        #[qproperty(QString, allowlist_last_error, cxx_name = "allowlistLastError")]
+        #[qproperty(QString, allowlist_last_op, cxx_name = "allowlistLastOp")]
+        #[qproperty(QString, proposed_allowlist_pattern, cxx_name = "proposedAllowlistPattern")]
+        #[qproperty(QString, proposed_from_command, cxx_name = "proposedFromCommand")]
+        #[qproperty(QString, proposed_exact_pattern, cxx_name = "proposedExactPattern")]
+        #[qproperty(QString, proposed_general_pattern, cxx_name = "proposedGeneralPattern")]
+        #[qproperty(QString, proposed_risk_hint, cxx_name = "proposedRiskHint")]
         type TerminalApp = super::TerminalAppRust;
 
         #[qsignal]
@@ -220,6 +231,50 @@ pub mod ffi {
             provider_policy_applies: bool,
             preferred_provider: QString,
         ) -> QString;
+
+        // ── Allowlist management (Phase 4.5) ──────────────────────────────────
+
+        /// Reload allowlist patterns from disk and update `allowlistPatternsJson`.
+        #[qinvokable]
+        #[cxx_name = "refreshAllowlist"]
+        fn refresh_allowlist(self: Pin<&mut TerminalApp>);
+
+        /// Add a pattern to the allowlist. Returns true on success.
+        #[qinvokable]
+        #[cxx_name = "addAllowlistPattern"]
+        fn add_allowlist_pattern(self: Pin<&mut TerminalApp>, pattern: QString) -> bool;
+
+        /// Remove a pattern from the allowlist. Returns true on success.
+        #[qinvokable]
+        #[cxx_name = "removeAllowlistPattern"]
+        fn remove_allowlist_pattern(self: Pin<&mut TerminalApp>, pattern: QString) -> bool;
+
+        /// Derive exact + generalized patterns from a saved command and set the
+        /// `proposedExactPattern`, `proposedGeneralPattern`, `proposedRiskHint`,
+        /// `proposedAllowlistPattern` (defaults to exact), and `proposedFromCommand`.
+        #[qinvokable]
+        #[cxx_name = "deriveAllowlistPattern"]
+        fn derive_allowlist_pattern(self: Pin<&mut TerminalApp>, command: QString);
+
+        /// Confirm adding the currently selected `proposedAllowlistPattern`. Returns true on success.
+        #[qinvokable]
+        #[cxx_name = "confirmAddProposedPattern"]
+        fn confirm_add_proposed_pattern(self: Pin<&mut TerminalApp>) -> bool;
+
+        /// Cancel the pending allowlist proposal.
+        #[qinvokable]
+        #[cxx_name = "cancelProposedPattern"]
+        fn cancel_proposed_pattern(self: Pin<&mut TerminalApp>);
+
+        /// Select the exact (low-risk) pattern as the active proposal.
+        #[qinvokable]
+        #[cxx_name = "selectExactProposedPattern"]
+        fn select_exact_proposed_pattern(self: Pin<&mut TerminalApp>);
+
+        /// Select the generalized (wider) pattern as the active proposal.
+        #[qinvokable]
+        #[cxx_name = "selectGeneralProposedPattern"]
+        fn select_general_proposed_pattern(self: Pin<&mut TerminalApp>);
     }
 
     impl cxx_qt::Initialize for TerminalApp {}

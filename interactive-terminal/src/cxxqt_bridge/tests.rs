@@ -888,3 +888,84 @@ fn decline_emits_launch_cancelled_for_empty_reason() {
 
     let _ = std::fs::remove_dir_all(&workspace_dir);
 }
+
+// ---------------------------------------------------------------------------
+// Provider selection + autonomy mode scenario tests (Steps 15 & 17)
+// ---------------------------------------------------------------------------
+
+/// (c) chooser_override_enabled: when a default provider is configured AND
+/// the approval provider chooser is enabled, the chooser must still be
+/// visible so the user can override the pre-selected default.
+#[test]
+fn chooser_override_enabled_with_default_provider() {
+    // Default = "gemini", chooser explicitly enabled.
+    let policy = resolve_approval_provider_prefill_policy(true, "gemini", true);
+
+    // Default is pre-filled — no forced selection required.
+    assert_eq!(policy.prefilled_provider, "gemini");
+    assert_eq!(policy.provider_prefill_source, "default");
+    assert!(
+        !policy.provider_selection_required,
+        "default is preselected so forced selection must be false"
+    );
+    // Chooser must stay visible so the user can override.
+    assert!(
+        policy.provider_chooser_visible,
+        "chooser must remain visible when chooser_enabled=true, even with a default"
+    );
+}
+
+/// Verify that with a default provider set but the chooser *disabled*,
+/// the chooser is hidden (provider_chooser_visible=false).
+#[test]
+fn default_provider_with_chooser_disabled_hides_chooser() {
+    let policy = resolve_approval_provider_prefill_policy(true, "copilot", false);
+
+    assert_eq!(policy.prefilled_provider, "copilot");
+    assert!(!policy.provider_selection_required);
+    assert!(
+        !policy.provider_chooser_visible,
+        "chooser must be hidden when chooser_enabled=false and a default is set"
+    );
+}
+
+/// (d) autonomy_mode_propagated: the autonomy_mode value chosen in the
+/// approval dialog must reach the approved launch payload's environment
+/// variables via build_launch_command.
+#[test]
+fn autonomy_mode_propagated_to_launch_payload() {
+    use crate::launch_builder::build_launch_command;
+
+    // "autonomous" mode → PM_AGENT_AUTONOMY_MODE=autonomous (gemini path)
+    let autonomous_cmd = build_launch_command("gemini", None, "autonomous", Some("Tester"), None)
+        .expect("should build autonomous gemini launch");
+    assert_eq!(
+        autonomous_cmd
+            .env
+            .get("PM_AGENT_AUTONOMY_MODE")
+            .map(|s| s.as_str()),
+        Some("autonomous"),
+        "autonomous mode must appear in PM_AGENT_AUTONOMY_MODE env var"
+    );
+
+    // "guided" mode → PM_AGENT_AUTONOMY_MODE=guided (copilot path)
+    let guided_cmd = build_launch_command("copilot", None, "guided", Some("Tester"), None)
+        .expect("should build guided copilot launch");
+    assert_eq!(
+        guided_cmd
+            .env
+            .get("PM_AGENT_AUTONOMY_MODE")
+            .map(|s| s.as_str()),
+        Some("guided"),
+        "guided mode must appear in PM_AGENT_AUTONOMY_MODE env var"
+    );
+
+    // Empty autonomy_mode → PM_AGENT_AUTONOMY_MODE must NOT be injected
+    let empty_mode_cmd =
+        build_launch_command("gemini", None, "", Some("Tester"), None)
+            .expect("should build launch with empty autonomy mode");
+    assert!(
+        !empty_mode_cmd.env.contains_key("PM_AGENT_AUTONOMY_MODE"),
+        "empty autonomy mode must not inject PM_AGENT_AUTONOMY_MODE into env"
+    );
+}

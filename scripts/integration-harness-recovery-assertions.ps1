@@ -52,6 +52,70 @@ function Get-OptionalProperty {
     return $property.Value
 }
 
+function Get-FieldValueFromEvent {
+    param(
+        [Parameter(Mandatory)] [pscustomobject]$Event,
+        [Parameter(Mandatory)] [string]$FieldName
+    )
+
+    $directProperty = $Event.PSObject.Properties[$FieldName]
+    if ($null -ne $directProperty) {
+        return $directProperty.Value
+    }
+
+    $details = Get-OptionalProperty -Object $Event -Name "details"
+    if ($null -ne $details) {
+        $detailsProperty = $details.PSObject.Properties[$FieldName]
+        if ($null -ne $detailsProperty) {
+            return $detailsProperty.Value
+        }
+    }
+
+    return $null
+}
+
+function Get-ReasonCodeFromEvent {
+    param([Parameter(Mandatory)] [pscustomobject]$Event)
+
+    $directReasonCode = Get-OptionalProperty -Object $Event -Name "reason_code"
+    if (-not [string]::IsNullOrWhiteSpace([string]$directReasonCode)) {
+        return [string]$directReasonCode
+    }
+
+    $details = Get-OptionalProperty -Object $Event -Name "details"
+    if ($null -ne $details) {
+        $detailsReasonCode = Get-OptionalProperty -Object $details -Name "reason_code"
+        if (-not [string]::IsNullOrWhiteSpace([string]$detailsReasonCode)) {
+            return [string]$detailsReasonCode
+        }
+    }
+
+    return ""
+}
+
+function Assert-RequiredFieldsPresentForFailureEvents {
+    param(
+        [Parameter(Mandatory)] [string]$ScenarioId,
+        [Parameter(Mandatory)] [pscustomobject[]]$FailureEvents,
+        [Parameter(Mandatory)] [string[]]$RequiredFields,
+        [Parameter(Mandatory)] [string]$GroupName
+    )
+
+    foreach ($event in $FailureEvents) {
+        $missing = New-Object System.Collections.Generic.List[string]
+        foreach ($fieldName in $RequiredFields) {
+            $fieldValue = Get-FieldValueFromEvent -Event $event -FieldName $fieldName
+            if ($null -eq $fieldValue -or [string]::IsNullOrWhiteSpace([string]$fieldValue)) {
+                $missing.Add($fieldName)
+            }
+        }
+
+        if ($missing.Count -gt 0) {
+            throw "assertion_failed: scenario '$ScenarioId' missing required $GroupName fields for reconnect failure diagnostics: $($missing -join ', ')"
+        }
+    }
+}
+
 function Assert-TransitionSequence {
     param(
         [Parameter(Mandatory)] [string[]]$Expected,
@@ -139,6 +203,8 @@ $dependencyFailurePolicy = Get-OptionalProperty -Object $contract -Name "depende
 $reconnectStormPolicy = Get-OptionalProperty -Object $contract -Name "reconnect_storm_policy"
 $replayAckGuarantees = Get-OptionalProperty -Object $contract -Name "replay_ack_guarantees"
 $circuitBreakerPolicy = Get-OptionalProperty -Object $contract -Name "circuit_breaker_policy"
+$reconnectFailureDiagnostics = Get-OptionalProperty -Object $contract -Name "failed_reconnect_diagnostics_requirements"
+$releaseAcceptanceChecklist = Get-OptionalProperty -Object $contract -Name "release_acceptance_checklist"
 
 if ($ValidateOnly) {
     Write-Host "OK: Parsed fault contract and found events path: $eventsResolved"
@@ -402,6 +468,23 @@ foreach ($scenario in @($contract.scenarios)) {
             }
         }
 
+        if ($reconnectFailureDiagnostics) {
+            $targetReasonCodes = @((Get-OptionalProperty -Object $reconnectFailureDiagnostics -Name "apply_when_reason_codes" -DefaultValue @()))
+            $diagnosticFailureEvents = @(
+                $scenarioEvents |
+                    Where-Object {
+                        [string]$_.event_type -eq "reconnect_failed" -and
+                        ((@($targetReasonCodes).Count -eq 0) -or (@($targetReasonCodes) -contains [string]$_.reason_code))
+                    }
+            )
+
+            if ($diagnosticFailureEvents.Count -gt 0) {
+                Assert-RequiredFieldsPresentForFailureEvents -ScenarioId $scenarioId -FailureEvents $diagnosticFailureEvents -RequiredFields @($reconnectFailureDiagnostics.timeline_required_fields) -GroupName "timeline"
+                Assert-RequiredFieldsPresentForFailureEvents -ScenarioId $scenarioId -FailureEvents $diagnosticFailureEvents -RequiredFields @($reconnectFailureDiagnostics.lease_token_state_required_fields) -GroupName "lease/token state"
+                Assert-RequiredFieldsPresentForFailureEvents -ScenarioId $scenarioId -FailureEvents $diagnosticFailureEvents -RequiredFields @($reconnectFailureDiagnostics.replay_stats_required_fields) -GroupName "replay stats"
+            }
+        }
+
         $isolationExpectations = Get-OptionalProperty -Object $scenario -Name "isolation_expectations"
         $isolationMatrix = $null
         if ($isolationExpectations) {
@@ -503,6 +586,7 @@ foreach ($scenario in @($contract.scenarios)) {
             expected_transition_sequence = $expectedTransitions
             actual_transition_sequence = $actualTransitions
             reconnect_attempts = @($scenarioEvents | Where-Object { [string]$_.event_type -eq "reconnect_attempt" }).Count
+            diagnostics_capture_verified = if ($reconnectFailureDiagnostics) { $true } else { $false }
             isolation_assertion = if ($decouplingResult) { [string]$decouplingResult.event_type } else { "n/a" }
             isolation_matrix = $isolationMatrix
         })
@@ -527,6 +611,124 @@ $summary = [ordered]@{
     pass_count = @($results | Where-Object { $_.passed -eq $true }).Count
     fail_count = @($results | Where-Object { $_.passed -eq $false }).Count
     results = $results
+}
+
+if ($releaseAcceptanceChecklist) {
+    $runRoot = Join-Path $root ".tmp/integration-harness/runs/$RunId"
+    $requiredArtifacts = @((Get-OptionalProperty -Object $releaseAcceptanceChecklist -Name "required_artifacts" -DefaultValue @()))
+    $missingArtifacts = New-Object System.Collections.Generic.List[string]
+    foreach ($artifact in $requiredArtifacts) {
+        $artifactPath = Join-Path $runRoot ([string]$artifact)
+        if (-not (Test-Path $artifactPath)) {
+            $missingArtifacts.Add([string]$artifact)
+        }
+    }
+
+    $reasonCodeSet = New-Object System.Collections.Generic.HashSet[string] ([System.StringComparer]::OrdinalIgnoreCase)
+    $eventTypeSet = New-Object System.Collections.Generic.HashSet[string] ([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($event in $events) {
+        $eventType = [string](Get-OptionalProperty -Object $event -Name "event_type" -DefaultValue "")
+        if (-not [string]::IsNullOrWhiteSpace($eventType)) {
+            $null = $eventTypeSet.Add($eventType)
+        }
+
+        $reasonCode = Get-ReasonCodeFromEvent -Event $event
+        if (-not [string]::IsNullOrWhiteSpace($reasonCode)) {
+            $null = $reasonCodeSet.Add($reasonCode)
+        }
+    }
+
+    $deterministicResume = Get-OptionalProperty -Object $releaseAcceptanceChecklist -Name "deterministic_resume"
+    $requiredReasonCodes = @((Get-OptionalProperty -Object $deterministicResume -Name "required_reason_codes" -DefaultValue @()))
+    $requiredEvents = @((Get-OptionalProperty -Object $deterministicResume -Name "required_events" -DefaultValue @()))
+    $deterministicMinPassing = [int](Get-OptionalProperty -Object $deterministicResume -Name "minimum_passing_scenarios" -DefaultValue 1)
+
+    $missingReasonCodes = New-Object System.Collections.Generic.List[string]
+    foreach ($requiredCode in $requiredReasonCodes) {
+        if (-not $reasonCodeSet.Contains([string]$requiredCode)) {
+            $missingReasonCodes.Add([string]$requiredCode)
+        }
+    }
+
+    $missingEvents = New-Object System.Collections.Generic.List[string]
+    foreach ($requiredEvent in $requiredEvents) {
+        if (-not $eventTypeSet.Contains([string]$requiredEvent)) {
+            $missingEvents.Add([string]$requiredEvent)
+        }
+    }
+
+    $passingResults = @($results | Where-Object { $_.passed -eq $true })
+
+    $nonCascadingRecovery = Get-OptionalProperty -Object $releaseAcceptanceChecklist -Name "non_cascading_recovery"
+    $requiredFailureDomain = [string](Get-OptionalProperty -Object $nonCascadingRecovery -Name "required_failure_domain" -DefaultValue "dependency-group")
+    $requiredRestartScope = [string](Get-OptionalProperty -Object $nonCascadingRecovery -Name "required_restart_scope" -DefaultValue "dependency-group")
+    $forbiddenRestartScope = [string](Get-OptionalProperty -Object $nonCascadingRecovery -Name "forbidden_restart_scope" -DefaultValue "global")
+    $nonCascadingMinPassing = [int](Get-OptionalProperty -Object $nonCascadingRecovery -Name "minimum_passing_scenarios" -DefaultValue 1)
+
+    $matchingNonCascadingPassCount = 0
+    foreach ($passedResult in $passingResults) {
+        $scenarioDef = @($contract.scenarios | Where-Object { [string]$_.scenario_id -eq [string]$passedResult.scenario_id }) | Select-Object -First 1
+        if ($scenarioDef -and
+            [string](Get-OptionalProperty -Object $scenarioDef -Name "failure_domain" -DefaultValue "") -eq $requiredFailureDomain -and
+            [string](Get-OptionalProperty -Object $scenarioDef -Name "restart_scope" -DefaultValue "") -eq $requiredRestartScope) {
+            $matchingNonCascadingPassCount++
+        }
+    }
+
+    $forbiddenScopeScenarios = @(
+        $contract.scenarios |
+            Where-Object { [string](Get-OptionalProperty -Object $_ -Name "restart_scope" -DefaultValue "") -eq $forbiddenRestartScope } |
+            ForEach-Object { [string]$_.scenario_id }
+    )
+
+    $acceptanceFailures = New-Object System.Collections.Generic.List[string]
+    if ($missingArtifacts.Count -gt 0) {
+        $acceptanceFailures.Add("missing_required_artifacts=$($missingArtifacts -join ',')")
+    }
+    if ($missingReasonCodes.Count -gt 0) {
+        $acceptanceFailures.Add("missing_required_reason_codes=$($missingReasonCodes -join ',')")
+    }
+    if ($missingEvents.Count -gt 0) {
+        $acceptanceFailures.Add("missing_required_events=$($missingEvents -join ',')")
+    }
+    if ($passingResults.Count -lt $deterministicMinPassing) {
+        $acceptanceFailures.Add("deterministic_resume_min_passing_not_met=$($passingResults.Count)/$deterministicMinPassing")
+    }
+    if ($matchingNonCascadingPassCount -lt $nonCascadingMinPassing) {
+        $acceptanceFailures.Add("non_cascading_min_passing_not_met=$matchingNonCascadingPassCount/$nonCascadingMinPassing")
+    }
+    if ($forbiddenScopeScenarios.Count -gt 0) {
+        $acceptanceFailures.Add("forbidden_restart_scope_present=$($forbiddenScopeScenarios -join ',')")
+    }
+
+    $acceptancePassed = $acceptanceFailures.Count -eq 0
+    if (-not $acceptancePassed) {
+        $failed = $true
+    }
+
+    $acceptanceReason = if ($acceptancePassed) {
+        [string](Get-OptionalProperty -Object $releaseAcceptanceChecklist -Name "pass_reason_code" -DefaultValue "release_acceptance_ready")
+    }
+    else {
+        [string](Get-OptionalProperty -Object $releaseAcceptanceChecklist -Name "fail_reason_code" -DefaultValue "release_acceptance_not_ready")
+    }
+
+    $summary.release_acceptance = [ordered]@{
+        evaluated = $true
+        passed = $acceptancePassed
+        reason_code = $acceptanceReason
+        missing_artifacts = @($missingArtifacts)
+        missing_reason_codes = @($missingReasonCodes)
+        missing_events = @($missingEvents)
+        deterministic_resume_min_passing = $deterministicMinPassing
+        total_passing_scenarios = $passingResults.Count
+        non_cascading_required_failure_domain = $requiredFailureDomain
+        non_cascading_required_restart_scope = $requiredRestartScope
+        non_cascading_matching_pass_count = $matchingNonCascadingPassCount
+        forbidden_restart_scope = $forbiddenRestartScope
+        forbidden_restart_scope_scenarios = @($forbiddenScopeScenarios)
+        failures = @($acceptanceFailures)
+    }
 }
 
 Ensure-ParentDirectory -Path $outputResolved

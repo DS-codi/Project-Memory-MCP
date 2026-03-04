@@ -1981,4 +1981,177 @@ impl ffi::TerminalApp {
         )));
         true
     }
+
+    // ── Allowlist management (Phase 4.5) ──────────────────────────────────
+
+    /// Reload allowlist patterns from disk and update `allowlistPatternsJson`.
+    pub fn refresh_allowlist(mut self: Pin<&mut Self>) {
+        use cxx_qt::CxxQtType;
+
+        let json = {
+            let state_arc = self.rust().state.clone();
+            let mut state = state_arc.lock().unwrap();
+            state.refresh_allowlist();
+            state.allowlist_patterns_to_json()
+        };
+
+        self.as_mut()
+            .set_allowlist_patterns_json(QString::from(&json));
+    }
+
+    /// Add a pattern to the allowlist.  Returns true on success.
+    pub fn add_allowlist_pattern(mut self: Pin<&mut Self>, pattern: QString) -> bool {
+        use cxx_qt::CxxQtType;
+
+        let pattern_str = pattern.to_string();
+        let result = {
+            let state_arc = self.rust().state.clone();
+            let mut state = state_arc.lock().unwrap();
+            state.add_allowlist_pattern(&pattern_str)
+        };
+
+        match result {
+            Ok(()) => {
+                let json = {
+                    let state_arc = self.rust().state.clone();
+                    let state = state_arc.lock().unwrap();
+                    state.allowlist_patterns_to_json()
+                };
+                self.as_mut()
+                    .set_allowlist_patterns_json(QString::from(&json));
+                self.as_mut().set_allowlist_last_op(QString::from("added"));
+                self.as_mut().set_allowlist_last_error(QString::default());
+                true
+            }
+            Err(err) => {
+                let op = if err.contains("already in") {
+                    "duplicate"
+                } else {
+                    "error"
+                };
+                self.as_mut()
+                    .set_allowlist_last_op(QString::from(op));
+                self.as_mut()
+                    .set_allowlist_last_error(QString::from(&err));
+                false
+            }
+        }
+    }
+
+    /// Remove a pattern from the allowlist.  Returns true on success.
+    pub fn remove_allowlist_pattern(mut self: Pin<&mut Self>, pattern: QString) -> bool {
+        use cxx_qt::CxxQtType;
+
+        let pattern_str = pattern.to_string();
+        let result = {
+            let state_arc = self.rust().state.clone();
+            let mut state = state_arc.lock().unwrap();
+            state.remove_allowlist_pattern(&pattern_str)
+        };
+
+        match result {
+            Ok(()) => {
+                let json = {
+                    let state_arc = self.rust().state.clone();
+                    let state = state_arc.lock().unwrap();
+                    state.allowlist_patterns_to_json()
+                };
+                self.as_mut()
+                    .set_allowlist_patterns_json(QString::from(&json));
+                self.as_mut()
+                    .set_allowlist_last_op(QString::from("removed"));
+                self.as_mut().set_allowlist_last_error(QString::default());
+                true
+            }
+            Err(err) => {
+                let op = if err.contains("not found") {
+                    "not_found"
+                } else {
+                    "error"
+                };
+                self.as_mut()
+                    .set_allowlist_last_op(QString::from(op));
+                self.as_mut()
+                    .set_allowlist_last_error(QString::from(&err));
+                false
+            }
+        }
+    }
+
+    /// Derive exact + generalized patterns from a command and populate
+    /// the proposal bridge properties.
+    pub fn derive_allowlist_pattern(mut self: Pin<&mut Self>, command: QString) {
+        use crate::cxxqt_bridge::allowlist_state::derive_allowlist_patterns;
+
+        let cmd_str = command.to_string();
+        let (exact, general, risk) = derive_allowlist_patterns(&cmd_str);
+
+        self.as_mut()
+            .set_proposed_from_command(QString::from(&cmd_str));
+        self.as_mut()
+            .set_proposed_exact_pattern(QString::from(&exact));
+        self.as_mut()
+            .set_proposed_general_pattern(QString::from(&general));
+        self.as_mut()
+            .set_proposed_risk_hint(QString::from(risk));
+        // Default selection: exact (least permissive).
+        self.as_mut()
+            .set_proposed_allowlist_pattern(QString::from(&exact));
+    }
+
+    /// Confirm adding the currently selected `proposedAllowlistPattern`.
+    pub fn confirm_add_proposed_pattern(mut self: Pin<&mut Self>) -> bool {
+        use cxx_qt::CxxQtType;
+
+        let pattern = self.rust().proposed_allowlist_pattern.to_string();
+        if pattern.trim().is_empty() {
+            return false;
+        }
+
+        let ok = Self::add_allowlist_pattern(self.as_mut(), QString::from(&pattern));
+
+        // Clear proposal state regardless.
+        self.as_mut()
+            .set_proposed_allowlist_pattern(QString::default());
+        self.as_mut()
+            .set_proposed_from_command(QString::default());
+        self.as_mut()
+            .set_proposed_exact_pattern(QString::default());
+        self.as_mut()
+            .set_proposed_general_pattern(QString::default());
+        self.as_mut()
+            .set_proposed_risk_hint(QString::default());
+
+        ok
+    }
+
+    /// Cancel the pending allowlist proposal.
+    pub fn cancel_proposed_pattern(mut self: Pin<&mut Self>) {
+        self.as_mut()
+            .set_proposed_allowlist_pattern(QString::default());
+        self.as_mut()
+            .set_proposed_from_command(QString::default());
+        self.as_mut()
+            .set_proposed_exact_pattern(QString::default());
+        self.as_mut()
+            .set_proposed_general_pattern(QString::default());
+        self.as_mut()
+            .set_proposed_risk_hint(QString::default());
+    }
+
+    /// Select the exact (low-risk) pattern as the active proposal.
+    pub fn select_exact_proposed_pattern(mut self: Pin<&mut Self>) {
+        use cxx_qt::CxxQtType;
+        let exact = self.rust().proposed_exact_pattern.to_string();
+        self.as_mut()
+            .set_proposed_allowlist_pattern(QString::from(&exact));
+    }
+
+    /// Select the generalized (wider) pattern as the active proposal.
+    pub fn select_general_proposed_pattern(mut self: Pin<&mut Self>) {
+        use cxx_qt::CxxQtType;
+        let general = self.rust().proposed_general_pattern.to_string();
+        self.as_mut()
+            .set_proposed_allowlist_pattern(QString::from(&general));
+    }
 }

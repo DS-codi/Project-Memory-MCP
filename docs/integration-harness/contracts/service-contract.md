@@ -152,6 +152,168 @@ Mandatory gate predicates:
 
 If any gate fails, reconnect must be denied with the configured reason code (default: `readiness_gate_blocked`) and no reconnect attempt should be emitted for that component until gate recovery.
 
+## Dashboard Session Recovery Contract (Phase 1)
+
+Podman-first contract for dashboard runtime behavior during connection loss and resume.
+
+### Session State Boundaries
+
+The dashboard must persist and rehydrate this bounded session shape:
+
+- `auth/session`: authenticated session identity and lease context used for resume validation.
+- `route_context`: active workspace/plan route state.
+- `filters`: applied dashboard filters that affect visible plans and activity streams.
+- `pending_actions`: count and metadata for in-flight actions awaiting acknowledgement.
+
+Boundary rule: reconnect recovery is allowed to invalidate caches only inside the active workspace and plan boundary, unless a full-resync reason code is emitted.
+
+### Snapshot Schema
+
+Canonical snapshot payload:
+
+```json
+{
+	"snapshot_version": "v1",
+	"captured_at": "<iso8601>",
+	"boundary": {
+		"workspace_id": "<workspace_id>",
+		"plan_id": "<plan_id?>",
+		"auth_session_id": "<session_id?>",
+		"route_context_key": "<route-key>",
+		"filter_hash": "<stable-filter-hash>",
+		"pending_action_count": 0
+	},
+	"reconnect_state": "connected|reconnecting|degraded|recovered",
+	"stale_data": false,
+	"stale_reason_code": "<optional_reason_code>"
+}
+```
+
+### Rehydration Ordering
+
+Rehydration order is strict and must remain deterministic after reload or reconnect:
+
+1. `auth_session`
+2. `route_context`
+3. `filters`
+4. `pending_actions`
+5. `query_invalidation`
+6. `resume_events`
+
+Ordering invariant: `resume_events` processing is forbidden before `query_invalidation` completes for the active boundary.
+
+### Reconnect UI State Machine
+
+The dashboard UI state machine is constrained to:
+
+- `connected`: normal stream operation.
+- `reconnecting`: transport lost or reconnect attempt observed.
+- `degraded`: reconnect exceeds degraded threshold without recovery.
+- `recovered`: reconnect handshake accepted and invalidation queued.
+
+Required transitions:
+
+- `connected -> reconnecting` on stream error, disconnect, or reconnect-attempt event.
+- `reconnecting -> degraded` when degraded timeout elapses without recovery.
+- `reconnecting|degraded -> recovered` on reconnect success event.
+- `recovered -> connected` after boundary cache invalidation + first post-recovery state event.
+
+### Stale-Data Signaling & Invalidation Triggers
+
+The dashboard must mark data stale during `reconnecting`, `degraded`, and initial `recovered` state.
+
+Cache invalidation triggers on `connectivity_reconnected`:
+
+- `['workspaces']`
+- `['workspace', workspace_id]`
+- `['plans', workspace_id]`
+- `['plan', workspace_id, plan_id]` when `plan_id` is present
+- `['lineage', workspace_id, plan_id]` when `plan_id` is present
+
+Stale marker clearance condition: clear stale only after a post-recovery event confirms refreshed state (`workspace_updated` or `step_updated`) within boundary.
+
+### Post-Recovery Data-Freshness Validation (Phase 3)
+
+The integration harness must evaluate freshness checks after `connectivity_reconnected` using the machine-readable contract at `fault-recovery.contract.json -> data_freshness_validation`.
+
+| Check ID | Metric | Threshold | Pass Rule | Fail Rule |
+|---|---|---:|---|---|
+| `route_restore_latency` | `route_restore_latency_ms` | `<= 2000` | Route context restored within recovery window | Threshold exceeded (`route_restore_latency_exceeded`) |
+| `session_rebind_latency` | `session_rebind_latency_ms` | `<= 3000` | Session lease/rebind completes within recovery window | Threshold exceeded (`session_rebind_latency_exceeded`) |
+| `first_fresh_event_latency` | `first_fresh_event_latency_ms` | `<= 5000` | First post-recovery fresh state event observed in time | Threshold exceeded (`fresh_event_latency_exceeded`) |
+| `stale_marker_clear_latency` | `stale_marker_clear_latency_ms` | `<= 6000` | Stale marker clears after boundary refresh | Threshold exceeded (`stale_marker_clear_latency_exceeded`) |
+| `stale_event_replay_count` | `stale_event_replay_count` | `<= 0` | No stale replay emissions after reconnect | Any stale replay (`stale_event_replay_detected`) |
+
+Global pass/fail gate:
+
+- Pass when all checks satisfy thresholds within `post_recovery_window_ms=15000`.
+- Fail when any threshold is exceeded or route/session state remains stale past the post-recovery window.
+
+### Component-Level Degradation Isolation (Phase 2)
+
+Degraded-state handling must isolate by data domain so unaffected dashboard views continue to operate.
+
+Canonical UI query domains:
+
+- `workspace` -> `['workspace', workspace_id]`
+- `plans` -> `['plans', workspace_id]`
+- `plan` -> `['plan', workspace_id, plan_id]`
+- `lineage` -> `['lineage', workspace_id, plan_id]`
+
+Isolation rules:
+
+- `connectivity_degraded` may include `degraded_domains` (or alias `failed_domains`) as the authoritative failure-domain list.
+- Domains listed in `degraded_domains` must be marked stale/degraded; domains not listed remain healthy and continue rendering.
+- If degraded domains are omitted, infer from scope (`workspace_id` -> `workspace`, `plans`; `plan_id` -> `plan`, `lineage`), then fall back to all domains only when scope is missing.
+- `connectivity_reconnected` must reset all domain states to healthy before post-recovery transition to `connected`.
+
+### Dashboard Listener Lifecycle Idempotency (Phase 2)
+
+Dashboard realtime subscriptions must remain idempotent across reconnect and hot-reload cycles.
+
+Rules:
+
+- EventSource lifecycle is single-owner: setup always closes any pre-existing stream before creating a new stream.
+- Cleanup must detach event listeners and close transport to prevent duplicate callback registration.
+- Event processing is deduplicated by event `id` using a bounded in-memory suppression window.
+- Duplicate events inside suppression window are no-op and must not trigger duplicate invalidations or UI side effects.
+
+### Dashboard Retry/Backoff Policy (Phase 2)
+
+Dashboard reconnect handling must use bounded retry/backoff metadata for both network calls and realtime channel recovery signals.
+
+Policy defaults:
+
+- `initial_backoff_ms`: `1000`
+- `max_backoff_ms`: `30000`
+- `multiplier`: `2`
+- `jitter_ratio`: `0.2`
+- `max_attempts`: `8`
+
+Rules:
+
+- `reconnect_attempt` payload fields (`attempt`, `next_backoff_ms`, `reason_code`) are accepted when present but clamped to policy bounds.
+- Missing reconnect metadata must derive deterministic bounded backoff from policy defaults.
+- `connectivity_reconnected` resets retry state to baseline (`attempt=0`, `next_backoff_ms=initial_backoff_ms`).
+- Retry state must remain UI-visible for diagnostics and operator triage during degraded/reconnecting windows.
+
+### Pending Action UX Fallback (Phase 2)
+
+During transient outages, pending user actions must transition through explicit fallback modes to avoid lost intent and unsafe replay.
+
+Fallback modes:
+
+- `idle`: normal operation, no pending action backlog.
+- `buffering`: outage in progress with pending actions retained for replay.
+- `read_only`: outage in progress with zero pending backlog; UI should prevent new mutation actions.
+- `draining`: transport recovered and pending action backlog is being acknowledged/flushed.
+
+Mode transitions:
+
+- `connected -> reconnecting|degraded`: enter `buffering` when `pending_action_count > 0`, otherwise `read_only`.
+- `reconnecting|degraded -> recovered`: enter `draining` when pending actions remain; otherwise `idle`.
+- `recovered -> connected`: only after first post-recovery state event (`workspace_updated` or `step_updated`) and pending backlog reset.
+
 ## Transport vs Logical Session Lifecycle (Normative)
 
 Reconnect semantics are split across two layers and must remain explicitly decoupled:

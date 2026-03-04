@@ -1,6 +1,7 @@
 # Integration Harness Reviewer Readiness Checklist
 
 Run evidence scope:
+
 - Dry-run: `step21dryrun-final`
 - Validate-only: `step21validate-final`
 
@@ -44,3 +45,21 @@ Run evidence scope:
 - Confirm matrix gate semantics in `matrix-gates.json` match documented promotion rules.
 - Confirm CI workflow lane mapping in `.github/workflows/podman-integration-harness.yml` aligns with smoke/nightly/full-tier intent.
 - Confirm no non-Podman runtime dependency is required for canonical path.
+
+## 5a) Phase 4 lane ordering and diagnostics artifacts (Steps 13-14)
+
+- [x] Canonical lane order is documented as unit checks -> dashboard integration checks -> Podman Compose resilience lane in `docs/integration-harness/orchestration.md`
+- [x] Failed-run diagnostics explicitly require state timeline artifact `artifacts/health/fault-timeline.json`
+- [x] Failed-run diagnostics explicitly require reconnect-attempt telemetry artifact set (`artifacts/assertions/recovery-assertions.json`, `artifacts/summary.json`)
+- [x] Failed-run diagnostics explicitly require stale-data marker evidence in `artifacts/events/normalized-events.jsonl` and `artifacts/summary.json`
+
+## 6) Phase 4 release acceptance (non-cascading + deterministic resume)
+
+- [x] `release_acceptance_checklist` defined in `docs/integration-harness/contracts/fault-recovery.contract.json`
+- [x] Schema coverage added in `docs/integration-harness/contracts/fault-recovery.contract.schema.json`
+- [x] Recovery assertions enforce checklist and emit `release_acceptance` result in `artifacts/assertions/recovery-assertions.json`
+- [x] Deterministic resume evidence includes reason codes: `reconnect_duplicate_suppressed`, `reconnect_idempotent_replay`, `replay_ack_guarantee_satisfied`
+- [x] Non-cascading recovery evidence rejects `restart_scope=global` and requires passing `failure_domain=dependency-group` + `restart_scope=dependency-group`
+- [x] Session recovery guarantees validated: stale-session invalidation ordering, replay ACK guarantee, duplicate reconnect suppression
+- [x] Fault tolerance guarantees validated: bounded retry caps/cooldowns, failure-domain isolation, degraded-state operator alerting
+

@@ -43,7 +43,7 @@ vi.mock('../../tools/terminal-tcp-adapter.js', () => ({
       sendKill: mockAdapterSendKill,
       close: mockAdapterClose,
     };
-  })),
+  }),
 }));
 
 // ---------------------------------------------------------------------------
@@ -503,5 +503,116 @@ describe('memoryTerminal run action integration', () => {
         params: expect.objectContaining({ message: 'chunk-2' }),
       }),
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Allowlist round-trip behaviors (Step 16)
+// ---------------------------------------------------------------------------
+// Server-side allowlist logic (get_allowlist / update_allowlist actions).
+// GUI visibility of the allowlist panel is a QML feature that cannot be
+// automated via unit tests — manually validate that the QML AllowlistPanel
+// reflects backend state after add/remove operations in the running app.
+// ---------------------------------------------------------------------------
+
+describe('memoryTerminal allowlist round-trip behaviors', () => {
+  it('get_allowlist returns a non-empty patterns array for a workspace', async () => {
+    const result = await memoryTerminal({
+      action: 'get_allowlist',
+      workspace_id: 'ws-allowlist-get-001',
+    });
+    expect(result.success).toBe(true);
+    const data = result.data as { patterns: string[]; workspace_id: string; message: string };
+    expect(Array.isArray(data.patterns)).toBe(true);
+    expect(data.patterns.length).toBeGreaterThan(0);
+    expect(data.workspace_id).toBe('ws-allowlist-get-001');
+  });
+
+  it('update_allowlist add inserts a new pattern and succeeds', async () => {
+    const wsId = 'ws-allowlist-add-001';
+    const result = await memoryTerminal({
+      action: 'update_allowlist',
+      workspace_id: wsId,
+      patterns: ['my-custom-tool *'],
+      operation: 'add',
+    } as MemoryTerminalParams);
+
+    expect(result.success).toBe(true);
+    const data = result.data as { patterns: string[]; message: string };
+    expect(data.patterns).toContain('my-custom-tool *');
+    expect(data.message).toContain('add');
+  });
+
+  it('update_allowlist add with a duplicate pattern does not create duplicates', async () => {
+    const wsId = 'ws-allowlist-dup-001';
+
+    // Add pattern once
+    await memoryTerminal({
+      action: 'update_allowlist',
+      workspace_id: wsId,
+      patterns: ['dedup-tool *'],
+      operation: 'add',
+    } as MemoryTerminalParams);
+
+    const afterFirst = await memoryTerminal({
+      action: 'get_allowlist',
+      workspace_id: wsId,
+    });
+    const countAfterFirst = (afterFirst.data as { patterns: string[] }).patterns.length;
+
+    // Add the same pattern again
+    await memoryTerminal({
+      action: 'update_allowlist',
+      workspace_id: wsId,
+      patterns: ['dedup-tool *'],
+      operation: 'add',
+    } as MemoryTerminalParams);
+
+    const afterSecond = await memoryTerminal({
+      action: 'get_allowlist',
+      workspace_id: wsId,
+    });
+    const patternsAfterSecond = (afterSecond.data as { patterns: string[] }).patterns;
+
+    // Pattern count must not have grown
+    expect(patternsAfterSecond.length).toBe(countAfterFirst);
+    // Pattern appears exactly once
+    expect(patternsAfterSecond.filter((p) => p === 'dedup-tool *').length).toBe(1);
+  });
+
+  it('update_allowlist remove of a known pattern removes it', async () => {
+    const wsId = 'ws-allowlist-remove-001';
+
+    // Add then remove
+    await memoryTerminal({
+      action: 'update_allowlist',
+      workspace_id: wsId,
+      patterns: ['removable-tool *'],
+      operation: 'add',
+    } as MemoryTerminalParams);
+
+    const removeResult = await memoryTerminal({
+      action: 'update_allowlist',
+      workspace_id: wsId,
+      patterns: ['removable-tool *'],
+      operation: 'remove',
+    } as MemoryTerminalParams);
+
+    expect(removeResult.success).toBe(true);
+    const data = removeResult.data as { patterns: string[] };
+    expect(data.patterns).not.toContain('removable-tool *');
+  });
+
+  it('update_allowlist remove of a non-existent pattern is silently handled', async () => {
+    const result = await memoryTerminal({
+      action: 'update_allowlist',
+      workspace_id: 'ws-allowlist-nonexist-001',
+      patterns: ['pattern-that-does-not-exist *'],
+      operation: 'remove',
+    } as MemoryTerminalParams);
+
+    expect(result.success).toBe(true);
+    const data = result.data as { patterns: string[] };
+    expect(data.patterns).not.toContain('pattern-that-does-not-exist *');
   });
 });

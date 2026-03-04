@@ -346,6 +346,61 @@ export interface LiveUpdate {
   message: string;
 }
 
+export type RecoveryDomain = 'workspace' | 'plans' | 'plan' | 'lineage';
+
+export type RecoveryDomainStatus = 'healthy' | 'degraded';
+
+export type SessionReconnectState = 'connected' | 'reconnecting' | 'degraded' | 'recovered';
+
+export type PendingActionFallbackMode = 'idle' | 'buffering' | 'read_only' | 'draining';
+
+export interface RetryBackoffPolicy {
+  initial_backoff_ms: number;
+  max_backoff_ms: number;
+  multiplier: number;
+  jitter_ratio: number;
+  max_attempts: number;
+}
+
+export interface RetryBackoffState {
+  attempt: number;
+  next_backoff_ms: number;
+  reason_code?: string;
+}
+
+export interface PendingActionFallbackState {
+  mode: PendingActionFallbackMode;
+  pending_action_count: number;
+  reason_code?: string;
+}
+
+export type RecoveryDomainMap = Record<RecoveryDomain, RecoveryDomainStatus>;
+
+export interface SessionStateBoundary {
+  workspace_id: string;
+  plan_id?: string;
+  auth_session_id?: string;
+  route_context_key: string;
+  filter_hash: string;
+  pending_action_count: number;
+}
+
+export interface SessionSnapshotSchema {
+  snapshot_version: 'v1';
+  captured_at: string;
+  boundary: SessionStateBoundary;
+  reconnect_state: SessionReconnectState;
+  stale_data: boolean;
+  stale_reason_code?: string;
+  degraded_domains?: RecoveryDomainMap;
+  retry_backoff?: RetryBackoffState;
+  pending_action_fallback?: PendingActionFallbackState;
+}
+
+export interface SessionRehydrationOrder {
+  order: Array<'auth_session' | 'route_context' | 'filters' | 'pending_actions' | 'query_invalidation' | 'resume_events'>;
+}
+
 // =============================================================================
 // VS Code Copilot Integration Types
 // =============================================================================

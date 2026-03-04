@@ -419,4 +419,82 @@ mod tests {
         assert_eq!(extracted.step_notes, pack.step_notes);
         assert_eq!(extracted.relevant_files.len(), 1);
     }
+
+    // ── Scenario matrix: provider × mode × env propagation (Step 17) ─────────
+
+    #[test]
+    fn gemini_launch_guided_mode_sets_env() {
+        let cmd = build_gemini_launch(None, "guided", Some("Executor"), None)
+            .expect("guided gemini launch should succeed");
+        assert_eq!(
+            cmd.env.get("PM_AGENT_AUTONOMY_MODE").map(|s| s.as_str()),
+            Some("guided"),
+            "guided mode must be reflected in PM_AGENT_AUTONOMY_MODE"
+        );
+    }
+
+    #[test]
+    fn copilot_launch_autonomous_mode_sets_env() {
+        let cmd = build_copilot_launch(None, "autonomous", Some("Executor"), None)
+            .expect("autonomous copilot launch should succeed");
+        assert_eq!(
+            cmd.env.get("PM_AGENT_AUTONOMY_MODE").map(|s| s.as_str()),
+            Some("autonomous"),
+            "autonomous mode must be reflected in PM_AGENT_AUTONOMY_MODE"
+        );
+    }
+
+    #[test]
+    fn launch_empty_autonomy_mode_not_injected() {
+        // When autonomy mode is empty, PM_AGENT_AUTONOMY_MODE must NOT appear
+        // in the env map (caller didn't specify a mode).
+        let gemini_cmd = build_gemini_launch(None, "", Some("Executor"), None)
+            .expect("empty-mode gemini launch should succeed");
+        assert!(
+            !gemini_cmd.env.contains_key("PM_AGENT_AUTONOMY_MODE"),
+            "empty autonomy mode must not inject PM_AGENT_AUTONOMY_MODE for gemini"
+        );
+
+        let copilot_cmd = build_copilot_launch(None, "", Some("Executor"), None)
+            .expect("empty-mode copilot launch should succeed");
+        assert!(
+            !copilot_cmd.env.contains_key("PM_AGENT_AUTONOMY_MODE"),
+            "empty autonomy mode must not inject PM_AGENT_AUTONOMY_MODE for copilot"
+        );
+    }
+
+    #[test]
+    fn dispatch_preserves_autonomy_mode_per_provider() {
+        // Gemini autonomous
+        let g_auto = build_launch_command("gemini", None, "autonomous", Some("Tester"), None)
+            .expect("gemini autonomous dispatch");
+        assert_eq!(g_auto.provider, "gemini");
+        assert_eq!(
+            g_auto.env.get("PM_AGENT_AUTONOMY_MODE").map(|s| s.as_str()),
+            Some("autonomous")
+        );
+
+        // Copilot guided
+        let c_guided = build_launch_command("copilot", None, "guided", Some("Tester"), None)
+            .expect("copilot guided dispatch");
+        assert_eq!(c_guided.provider, "copilot");
+        assert_eq!(
+            c_guided.env.get("PM_AGENT_AUTONOMY_MODE").map(|s| s.as_str()),
+            Some("guided")
+        );
+    }
+
+    #[test]
+    fn gemini_session_label_without_plan_tag() {
+        let cmd = build_gemini_launch(None, "guided", Some("Executor"), None)
+            .expect("build should succeed");
+        assert_eq!(cmd.session_label, "Gemini \u{2014} Executor");
+    }
+
+    #[test]
+    fn copilot_session_label_with_plan_tag() {
+        let cmd = build_copilot_launch(None, "guided", Some("Analyst"), Some("plan_xyz"))
+            .expect("build should succeed");
+        assert_eq!(cmd.session_label, "Copilot \u{2014} Analyst \u{2014} plan_xyz");
+    }
 }

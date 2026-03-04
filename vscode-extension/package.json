@@ -306,9 +306,16 @@
         "projectMemory.defaultInstructions": {
           "type": "array",
           "default": [
-            "project-memory-system",
-            "mvc-architecture",
-            "handoff-protocol"
+            "build-scripts",
+            "hub-interaction-discipline",
+            "hub",
+            "mcp-usage",
+            "plan-context",
+            "prompt-analyst",
+            "session-interruption",
+            "shell",
+            "subagent-recovery",
+            "workspace-migration"
           ],
           "description": "List of instruction files to auto-deploy to new workspaces"
         },

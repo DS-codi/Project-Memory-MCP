@@ -136,8 +136,18 @@ Milestone order:
      - `docs/integration-harness/contracts/fault-recovery.contract.schema.json`
    - Confirm degraded-state escalation semantics are present before reconnect choreography tuning.
 
-3. **Reconnect choreography update window**
-   - After milestones 1-2 pass, apply reconnect ordering/retry behavior updates in:
+3. **Dashboard state-machine contract landing (mandatory before UX policy updates)**
+   - Land and validate deterministic dashboard recovery state-machine contract invariants before any UI fallback UX tuning:
+     - `session_recovery_state` transition legality is enforced (`steady -> degraded -> reconnecting -> resyncing|steady`)
+     - stale-session invalidation and reconnect admission gate ordering remain explicit and testable
+     - `state_transition_rejected` reason codes are emitted for invalid transitions
+   - Explicitly defer these until the state-machine lock above is green:
+     - UI fallback rendering behavior changes
+     - retry/backoff policy parameter tuning
+     - reconnect copy/notification wording updates
+
+4. **Reconnect choreography update window**
+   - After milestones 1-3 pass, apply reconnect ordering/retry behavior updates in:
      - `scripts/integration-harness-fault-runner.ps1`
      - `scripts/integration-harness-recovery-assertions.ps1`
    - Preserve deterministic reconnect correctness invariants:
@@ -145,7 +155,7 @@ Milestone order:
      - resume-token + lease checks occur before replay resume acceptance
      - replay acknowledgment guarantee remains required before resume success
 
-4. **Podman-first regression gating and evidence generation**
+5. **Podman-first regression gating and evidence generation**
    - Execute Podman default fault lane, assertions, and summary generation:
      - `scripts/integration-harness-matrix.ps1`
      - `scripts/integration-harness-event-aggregate.ps1`
@@ -153,7 +163,7 @@ Milestone order:
      - `scripts/integration-harness-run-summary.ps1`
    - Promote rollout only when lifecycle-contract invariants remain stable under the updated reconnect/retry behavior.
 
-## Phase 4 Regression Suite Order (Canonical)
+## Phase 4 Build/Test Lane Ordering (Step 13)
 
 Regression execution order is fixed and must not be reordered for release gating:
 
@@ -162,8 +172,9 @@ Regression execution order is fixed and must not be reordered for release gating
      - contract/schema parse checks for `service-contract.md`, `health-readiness.contract.json`, `fault-recovery.contract.json`, and `run-correlation.contract.json`
      - `pwsh -File .\scripts\integration-harness-fault-runner.ps1 -ValidateOnly`
 
-1. **Supervisor integration checks second**
-   - Validate choreography and bounded recovery assertions before resilience lane:
+1. **Dashboard integration checks second**
+   - Validate dashboard/session-recovery choreography and bounded recovery assertions before resilience lane:
+     - `pwsh -File .\scripts\integration-harness-matrix.ps1 -RunId <run_id> -Tier smoke -ValidateOnly`
      - `pwsh -File .\scripts\integration-harness-matrix.ps1 -RunId <run_id> -Tier fault -ValidateOnly`
      - `pwsh -File .\scripts\integration-harness-recovery-assertions.ps1 -RunId <run_id> -ValidateOnly`
 
@@ -180,7 +191,7 @@ Failure policy:
 
 - Stop on first failure in the current stage.
 - Do not execute downstream stages when an upstream stage fails.
-- Supervisor-mode runs remain supplemental diagnostics and do not replace Podman resilience gate evidence.
+- Supervisor-mode runs remain supplemental diagnostics and do not replace dashboard integration checks or Podman resilience gate evidence.
 
 ## Phase 4 Artifacts, Telemetry, and Evidence
 
@@ -221,7 +232,23 @@ Primary phase-4 outputs:
 - Machine-readable summary: `.tmp/integration-harness/runs/<run_id>/artifacts/summary.json`
 - Human-readable summary: `.tmp/integration-harness/runs/<run_id>/artifacts/summary.md`
 
-Diagnostics capture requirements for failed runs (normative):
+## Phase 4 Failed Recovery Diagnostics Artifacts (Step 14)
+
+Diagnostics capture requirements for failed runs are normative and must include state timeline, reconnect-attempt telemetry, and stale-data markers:
+
+- **State timeline artifact (required)**
+  - `artifacts/health/fault-timeline.json`
+  - Must capture ordered state transitions and causal linkage for the failed window.
+- **Reconnect attempts artifact set (required)**
+  - `artifacts/assertions/recovery-assertions.json`
+  - `artifacts/summary.json`
+  - Must capture `attempt`, `backoff_ms`, `cooldown_ms`, `retry_cap`, `retry_exhausted`, and `outcome`.
+- **Stale-data markers artifact set (required)**
+  - `artifacts/events/normalized-events.jsonl`
+  - `artifacts/summary.json`
+  - Must capture stale-data reasoning and clearance signals (`stale_reason_code`, stale marker latency/replay checks).
+
+Detailed field-level requirements:
 
 - **Event timeline evidence**
   - Required fields in normalized stream: `run_id`, `timestamp`, `event_type`, `component_id`, `cause`, `reason_code`
@@ -232,17 +259,69 @@ Diagnostics capture requirements for failed runs (normative):
 - **Retry telemetry evidence**
   - Required fields: `attempt`, `backoff_ms`, `cooldown_ms`, `retry_cap`, `retry_exhausted`, `outcome`
   - Required artifacts: `assertions/recovery-assertions.json`, `summary.json`, `summary.md`
+- **Lease/token state evidence**
+  - Required fields on reconnect failure diagnostics: `resume_token_state`, `session_lease_state`, `resume_token_ttl_ms_remaining`, `lease_ttl_ms_remaining`
+  - Required artifacts: `events/normalized-events.jsonl`, `assertions/recovery-assertions.json`
+- **Replay diagnostics evidence**
+  - Required fields on reconnect failure diagnostics: `replay_cursor`, `replay_window_events`, `replay_events_replayed`, `replay_events_deduped`, `replay_ack_count`, `replay_ack_latency_ms_p95`
+  - Required artifacts: `events/normalized-events.jsonl`, `summary.json`
 
 These requirements are contracted in:
 
 - `docs/integration-harness/contracts/run-correlation.contract.schema.json`
 - `docs/integration-harness/contracts/run-correlation.contract.json`
+- `docs/integration-harness/contracts/fault-recovery.contract.schema.json`
+- `docs/integration-harness/contracts/fault-recovery.contract.json`
 
 Validation-only support:
 
 - `pwsh -File .\scripts\integration-harness-event-aggregate.ps1 -RunId <run_id> -ValidateOnly`
 - `pwsh -File .\scripts\integration-harness-health-timeline.ps1 -RunId <run_id> -ValidateOnly`
 - `pwsh -File .\scripts\integration-harness-run-summary.ps1 -RunId <run_id> -ValidateOnly`
+
+## Phase 4 Release Acceptance Checklist (Step 15)
+
+Release acceptance is checklist-driven and Podman-first. The canonical checklist contract is:
+
+- `docs/integration-harness/contracts/fault-recovery.contract.json` → `release_acceptance_checklist`
+
+Deterministic resume criteria (must pass):
+
+- required reason codes observed in run evidence: `reconnect_duplicate_suppressed`, `reconnect_idempotent_replay`, `replay_ack_guarantee_satisfied`
+- required event evidence observed: `connectivity_reconnected`, `assertion_pass`
+- minimum passing scenario count is enforced by `deterministic_resume.minimum_passing_scenarios`
+
+Session recovery guarantees (must pass):
+
+- stale-session invalidation occurs before reconnect admission and replay resume
+- replay acknowledgment guarantee remains satisfied before resume success is emitted
+- duplicate reconnect suppression remains idempotent and reason-coded for auditability
+
+Non-cascading recovery criteria (must pass):
+
+- minimum passing scenarios in required failure domain/scope pair:
+  - `failure_domain=dependency-group`
+  - `restart_scope=dependency-group`
+- forbidden restart scope for acceptance: `global`
+
+Fault tolerance guarantees (must pass):
+
+- bounded retry behavior is enforced (`max_attempts`, cooldown floors, and retry exhaustion signaling)
+- failure-domain isolation is preserved for unaffected components during recovery runs
+- degraded-state escalation remains operator-visible when automated recovery is exhausted
+
+Required release evidence artifacts (run-scoped):
+
+- `artifacts/assertions/matrix-gates.json`
+- `artifacts/events/normalized-events.jsonl`
+- `artifacts/health/fault-timeline.json`
+- `artifacts/summary.json`
+
+Assertion enforcement:
+
+- `pwsh -File .\scripts\integration-harness-recovery-assertions.ps1 -RunId <run_id>` now evaluates `release_acceptance_checklist` and emits summary block `release_acceptance` with pass/fail reason code:
+  - pass: `release_acceptance_ready`
+  - fail: `release_acceptance_not_ready`
 
 ## Phase 5 Extension Headless Lane & CI
 

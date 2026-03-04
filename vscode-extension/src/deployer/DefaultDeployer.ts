@@ -49,7 +49,7 @@ export class DefaultDeployer {
 
         // Deploy instructions
         const instructionsTargetDir = path.join(workspacePath, '.github', 'instructions');
-        for (const instructionName of this.config.defaultInstructions) {
+        for (const instructionName of this.getInstructionNamesToDeploy()) {
             try {
                 const deployed = await this.deployInstruction(instructionName, instructionsTargetDir);
                 if (deployed) {
@@ -206,7 +206,7 @@ export class DefaultDeployer {
             return fs.existsSync(sourcePath);
         });
 
-        const instructions = this.config.defaultInstructions.filter(name => {
+        const instructions = this.getInstructionNamesToDeploy().filter(name => {
             const sourcePath = path.join(this.config.instructionsRoot, `${name}.instructions.md`);
             return fs.existsSync(sourcePath);
         });
@@ -217,6 +217,26 @@ export class DefaultDeployer {
         });
 
         return { agents, instructions, skills };
+    }
+
+    private getInstructionNamesToDeploy(): string[] {
+        const configured = this.config.defaultInstructions ?? [];
+        const configuredMatches = configured.filter(name => {
+            const sourcePath = path.join(this.config.instructionsRoot, `${name}.instructions.md`);
+            return fs.existsSync(sourcePath);
+        });
+
+        if (configuredMatches.length > 0) {
+            return configuredMatches;
+        }
+
+        if (!this.config.instructionsRoot || !fs.existsSync(this.config.instructionsRoot)) {
+            return [];
+        }
+
+        return fs.readdirSync(this.config.instructionsRoot)
+            .filter(entry => entry.endsWith('.instructions.md'))
+            .map(entry => entry.replace(/\.instructions\.md$/, ''));
     }
 
     private async copyFile(sourcePath: string, targetPath: string, overwrite = false): Promise<boolean> {

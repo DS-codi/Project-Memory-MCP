@@ -24,6 +24,7 @@ ApplicationWindow {
     property var sessionTabs: []
     property var savedCommands: []
     property var availableWorkspaces: []
+    property var allowlistPatterns: []
     property string selectedSavedCommandId: ""
     property string pendingSessionDisplayName: ""
     property var approvalDialogRequest: ({})
@@ -33,6 +34,7 @@ ApplicationWindow {
     property bool popupOverlayVisible: geminiSettingsDialog.visible
         || approvalDialog.visible
         || savedCommandsDrawer.visible
+        || allowlistDrawer.visible
     property bool hasActiveTerminalSession: (terminalApp.currentSessionId || "").trim().length > 0
 
     function syncSessionDisplayName() {
@@ -66,6 +68,16 @@ ApplicationWindow {
 
         if (!savedCommands.some(function(entry) { return entry.id === selectedSavedCommandId })) {
             selectedSavedCommandId = ""
+        }
+    }
+
+    function refreshAllowlist() {
+        terminalApp.refreshAllowlist()
+        try {
+            const parsed = JSON.parse(terminalApp.allowlistPatternsJson || "[]")
+            allowlistPatterns = Array.isArray(parsed) ? parsed : []
+        } catch (e) {
+            allowlistPatterns = []
         }
     }
 
@@ -331,11 +343,21 @@ ApplicationWindow {
             root.syncSessionDisplayName()
             root.refreshSessionTabs()
         }
+
+        function onAllowlistPatternsJsonChanged() {
+            try {
+                const parsed = JSON.parse(terminalApp.allowlistPatternsJson || "[]")
+                root.allowlistPatterns = Array.isArray(parsed) ? parsed : []
+            } catch (e) {
+                root.allowlistPatterns = []
+            }
+        }
     }
 
     Component.onCompleted: {
         refreshSessionTabs()
         refreshSavedCommands()
+        refreshAllowlist()
         refreshAvailableWorkspaces()
         terminalApp.showSessionStartup()
         root.syncApprovalDialog()
@@ -609,6 +631,21 @@ ApplicationWindow {
                                         savedCommandsWorkspaceField.forceActiveFocus()
                                         savedCommandsWorkspaceField.selectAll()
                                     })
+                                }
+                            }
+                        }
+
+                        Button {
+                            text: "Allowlist"
+                            font.pixelSize: root.uiControlFontPx
+                            Layout.preferredWidth: 88
+                            Layout.preferredHeight: 30
+                            onClicked: {
+                                if (allowlistDrawer.visible) {
+                                    allowlistDrawer.close()
+                                } else {
+                                    root.refreshAllowlist()
+                                    allowlistDrawer.open()
                                 }
                             }
                         }
@@ -1541,31 +1578,220 @@ ApplicationWindow {
                     border.color: root.selectedSavedCommandId === entry.id ? "#569cd6" : "#3c3c3c"
                     border.width: 1
 
-                    Column {
+                    Row {
                         anchors.fill: parent
                         anchors.leftMargin: 8
                         anchors.rightMargin: 8
                         anchors.topMargin: 6
                         spacing: 2
 
-                        Text {
-                            text: entry.name
-                            color: "#d4d4d4"
-                            font.pixelSize: 12
-                            elide: Text.ElideRight
+                        Column {
+                            width: parent.width - addToAllowlistBtn.width - 8
+                            spacing: 2
+
+                            Text {
+                                text: entry.name
+                                color: "#d4d4d4"
+                                font.pixelSize: 12
+                                elide: Text.ElideRight
+                                width: parent.width
+                            }
+
+                            Text {
+                                text: entry.command
+                                color: "#9da0a6"
+                                font.pixelSize: 11
+                                elide: Text.ElideRight
+                                width: parent.width
+                            }
                         }
 
-                        Text {
-                            text: entry.command
-                            color: "#9da0a6"
-                            font.pixelSize: 11
-                            elide: Text.ElideRight
+                        Button {
+                            id: addToAllowlistBtn
+                            text: "\u2192 Allowlist"
+                            font.pixelSize: 9
+                            implicitWidth: 76
+                            implicitHeight: 22
+                            anchors.verticalCenter: undefined
+                            y: 8
+                            onClicked: {
+                                terminalApp.deriveAllowlistPattern(entry.command)
+                            }
                         }
                     }
 
                     MouseArea {
                         anchors.fill: parent
+                        anchors.rightMargin: addToAllowlistBtn.width + 10
                         onClicked: root.selectedSavedCommandId = entry.id
+                    }
+                }
+            }
+
+            // ── Allowlist proposal confirmation banner (step 23 + 24) ───────
+            Rectangle {
+                visible: (terminalApp.proposedAllowlistPattern || "").length > 0
+                Layout.fillWidth: true
+                implicitHeight: proposalCol.implicitHeight + 16
+                color: "#1a2a1a"
+                border.color: "#4caf50"
+                border.width: 1
+                radius: 4
+
+                ColumnLayout {
+                    id: proposalCol
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    spacing: 6
+
+                    Text {
+                        text: "Add pattern to allowlist?"
+                        color: "#d4d4d4"
+                        font.pixelSize: 12
+                        font.bold: true
+                    }
+
+                    Text {
+                        text: "From: " + (terminalApp.proposedFromCommand || "")
+                        color: "#808080"
+                        font.pixelSize: 10
+                        elide: Text.ElideRight
+                        Layout.fillWidth: true
+                    }
+
+                    // Option A: Exact (low risk)
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 34
+                        radius: 3
+                        color: (terminalApp.proposedAllowlistPattern === terminalApp.proposedExactPattern)
+                            ? "#1a3a1a" : "#252526"
+                        border.color: (terminalApp.proposedAllowlistPattern === terminalApp.proposedExactPattern)
+                            ? "#4caf50" : "#3c3c3c"
+                        border.width: 1
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: terminalApp.selectExactProposedPattern()
+                        }
+
+                        Row {
+                            anchors.fill: parent
+                            anchors.leftMargin: 8
+                            anchors.rightMargin: 8
+                            spacing: 6
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "Exact:"
+                                color: "#808080"
+                                font.pixelSize: 10
+                            }
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: terminalApp.proposedExactPattern || ""
+                                color: "#9cdcfe"
+                                font.pixelSize: 11
+                                elide: Text.ElideRight
+                                width: parent.width - 110
+                            }
+
+                            Rectangle {
+                                anchors.verticalCenter: parent.verticalCenter
+                                radius: 3
+                                color: "#1a3a1a"
+                                width: lowRiskLabel.implicitWidth + 8
+                                height: 16
+
+                                Text {
+                                    id: lowRiskLabel
+                                    anchors.centerIn: parent
+                                    text: "low risk"
+                                    color: "#4caf50"
+                                    font.pixelSize: 9
+                                }
+                            }
+                        }
+                    }
+
+                    // Option B: Generalized (medium/high risk) — only show when different
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 34
+                        radius: 3
+                        visible: (terminalApp.proposedGeneralPattern || "") !== (terminalApp.proposedExactPattern || "")
+                        color: (terminalApp.proposedAllowlistPattern === terminalApp.proposedGeneralPattern)
+                            ? "#2a1a00" : "#252526"
+                        border.color: (terminalApp.proposedAllowlistPattern === terminalApp.proposedGeneralPattern)
+                            ? "#ff9800" : "#3c3c3c"
+                        border.width: 1
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: terminalApp.selectGeneralProposedPattern()
+                        }
+
+                        Row {
+                            anchors.fill: parent
+                            anchors.leftMargin: 8
+                            anchors.rightMargin: 8
+                            spacing: 6
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "Wide:"
+                                color: "#808080"
+                                font.pixelSize: 10
+                            }
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: terminalApp.proposedGeneralPattern || ""
+                                color: "#ce9178"
+                                font.pixelSize: 11
+                                elide: Text.ElideRight
+                                width: parent.width - 110
+                            }
+
+                            Rectangle {
+                                anchors.verticalCenter: parent.verticalCenter
+                                radius: 3
+                                color: "#2a1a00"
+                                width: riskHintLabel.implicitWidth + 8
+                                height: 16
+
+                                Text {
+                                    id: riskHintLabel
+                                    anchors.centerIn: parent
+                                    text: (terminalApp.proposedRiskHint || "medium") + " risk"
+                                    color: (terminalApp.proposedRiskHint || "") === "high" ? "#f44336" : "#ff9800"
+                                    font.pixelSize: 9
+                                }
+                            }
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        Button {
+                            text: "Confirm"
+                            font.pixelSize: root.uiControlFontPx
+                            onClicked: {
+                                terminalApp.confirmAddProposedPattern()
+                                root.refreshAllowlist()
+                            }
+                        }
+
+                        Button {
+                            text: "Cancel"
+                            font.pixelSize: root.uiControlFontPx
+                            onClicked: terminalApp.cancelProposedPattern()
+                        }
+
+                        Item { Layout.fillWidth: true }
                     }
                 }
             }
@@ -1583,6 +1809,241 @@ ApplicationWindow {
                             savedCommandsDrawer.close()
                         }
                     }
+                }
+
+                Item { Layout.fillWidth: true }
+            }
+        }
+    }
+
+    // ── Allowlist Drawer (Phase 4.5, steps 21–22) ─────────────────────────
+    Popup {
+        id: allowlistDrawer
+        popupType: Popup.Window
+        modal: true
+        width: Math.max(320, root.width * 0.40)
+        height: root.height
+        x: root.width - width
+        y: 0
+        padding: 0
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        Overlay.modal: Rectangle {
+            color: "#70000000"
+        }
+
+        background: Rectangle {
+            color: "#252526"
+            border.color: "#3c3c3c"
+            border.width: 1
+        }
+
+        onOpened: {
+            root.refreshAllowlist()
+            Qt.callLater(function() { allowlistFilter.forceActiveFocus() })
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 12
+            spacing: 8
+
+            Text {
+                text: "Allowlist Patterns"
+                color: "#d4d4d4"
+                font.pixelSize: 16
+                font.bold: true
+            }
+
+            Text {
+                text: (root.allowlistPatterns.length) + " pattern(s) loaded"
+                color: "#808080"
+                font.pixelSize: 11
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                TextField {
+                    id: allowlistFilter
+                    Layout.fillWidth: true
+                    placeholderText: "Search patterns…"
+                    font.pixelSize: root.uiInputFontPx
+                    onTextChanged: terminalApp.allowlistFilter = text
+                }
+
+                Button {
+                    text: "\u21bb Refresh"
+                    font.pixelSize: root.uiControlFontPx
+                    implicitWidth: 74
+                    implicitHeight: 30
+                    onClicked: root.refreshAllowlist()
+                }
+            }
+
+            // Step 22 — new-pattern input row
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                TextField {
+                    id: newPatternField
+                    Layout.fillWidth: true
+                    placeholderText: "New pattern…"
+                    font.pixelSize: root.uiInputFontPx
+                    onAccepted: {
+                        if (text.trim().length > 0) {
+                            terminalApp.addAllowlistPattern(text.trim())
+                            text = ""
+                        }
+                    }
+                }
+
+                Button {
+                    text: "Add"
+                    font.pixelSize: root.uiControlFontPx
+                    implicitWidth: 50
+                    implicitHeight: 30
+                    enabled: (newPatternField.text || "").trim().length > 0
+                    onClicked: {
+                        if (newPatternField.text.trim().length > 0) {
+                            terminalApp.addAllowlistPattern(newPatternField.text.trim())
+                            newPatternField.text = ""
+                        }
+                    }
+                }
+            }
+
+            // Pattern list — filtered by allowlistFilter
+            ListView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+
+                property var filteredPatterns: {
+                    const filter = (terminalApp.allowlistFilter || "").toLowerCase().trim()
+                    if (!filter) return root.allowlistPatterns
+                    return root.allowlistPatterns.filter(function(p) {
+                        return p.toLowerCase().indexOf(filter) >= 0
+                    })
+                }
+
+                model: filteredPatterns
+
+                delegate: Rectangle {
+                    width: ListView.view.width
+                    height: 34
+                    radius: 3
+                    color: removePatternArea.containsMouse ? "#35352a" : "#2d2d30"
+                    border.color: "#3c3c3c"
+                    border.width: 1
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 8
+                        anchors.rightMargin: 4
+                        spacing: 4
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: modelData
+                            color: "#d4d4d4"
+                            font.pixelSize: 12
+                            font.family: "Consolas,Courier New,monospace"
+                            elide: Text.ElideRight
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        Rectangle {
+                            width: 22
+                            height: 22
+                            radius: 4
+                            color: removePatternArea.pressed ? "#9f3434"
+                                : (removePatternArea.containsMouse ? "#5a3a3a" : "#3a3a3a")
+                            border.color: "#606060"
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "\u00D7"
+                                color: "#e0e0e0"
+                                font.pixelSize: 13
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                id: removePatternArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: terminalApp.removeAllowlistPattern(modelData)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Step 22 — status label with auto-clear timer
+            Rectangle {
+                visible: (terminalApp.allowlistLastOp || "").length > 0
+                    || (terminalApp.allowlistLastError || "").length > 0
+                Layout.fillWidth: true
+                height: 30
+                radius: 4
+                color: (terminalApp.allowlistLastOp === "error"
+                    || terminalApp.allowlistLastOp === "duplicate"
+                    || terminalApp.allowlistLastOp === "not_found")
+                    ? "#3a1a1a" : "#1a3a1a"
+                border.color: (terminalApp.allowlistLastOp === "error"
+                    || terminalApp.allowlistLastOp === "duplicate"
+                    || terminalApp.allowlistLastOp === "not_found")
+                    ? "#f44336" : "#4caf50"
+                border.width: 1
+
+                Text {
+                    anchors.centerIn: parent
+                    text: {
+                        var err = terminalApp.allowlistLastError || ""
+                        if (err.length > 0) return err
+                        var op = terminalApp.allowlistLastOp || ""
+                        if (op === "added") return "\u2713 Pattern added"
+                        if (op === "removed") return "\u2713 Pattern removed"
+                        return op
+                    }
+                    color: (terminalApp.allowlistLastOp === "error"
+                        || terminalApp.allowlistLastOp === "duplicate"
+                        || terminalApp.allowlistLastOp === "not_found")
+                        ? "#f44336" : "#4caf50"
+                    font.pixelSize: 12
+                }
+
+                Timer {
+                    id: allowlistStatusClearTimer
+                    interval: 3000
+                    repeat: false
+                    onTriggered: {
+                        terminalApp.allowlistLastOp = ""
+                        terminalApp.allowlistLastError = ""
+                    }
+                }
+
+                Connections {
+                    target: terminalApp
+                    function onAllowlistLastOpChanged() {
+                        if ((terminalApp.allowlistLastOp || "").length > 0) {
+                            allowlistStatusClearTimer.restart()
+                        }
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+
+                Button {
+                    text: "Close"
+                    font.pixelSize: root.uiControlFontPx
+                    onClicked: allowlistDrawer.close()
                 }
 
                 Item { Layout.fillWidth: true }

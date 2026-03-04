@@ -5,16 +5,29 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
 import { resolveWorkspaceIdentity } from './workspace-identity';
 
 function resolveDefaultPath(subdir: string): string {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (workspaceFolders) {
         const identity = resolveWorkspaceIdentity(workspaceFolders[0].uri.fsPath);
-        if (identity) {
-            return path.join(identity.projectPath, subdir);
+        const basePath = identity ? identity.projectPath : workspaceFolders[0].uri.fsPath;
+        const githubPath = path.join(basePath, '.github', subdir);
+        const legacyPath = path.join(basePath, subdir);
+
+        if (fs.existsSync(githubPath)) {
+            return githubPath;
         }
-        return vscode.Uri.joinPath(workspaceFolders[0].uri, subdir).fsPath;
+
+        if (fs.existsSync(legacyPath)) {
+            return legacyPath;
+        }
+
+        if (identity) {
+            return githubPath;
+        }
+        return vscode.Uri.joinPath(workspaceFolders[0].uri, '.github', subdir).fsPath;
     }
     return '';
 }
