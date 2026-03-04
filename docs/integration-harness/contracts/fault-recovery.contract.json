@@ -43,6 +43,118 @@
     "half_open_reason_code": "circuit_breaker_half_open",
     "fail_fast_when_open": true
   },
+  "extension_channel_reconnect_policy": {
+    "max_attempts": 6,
+    "initial_backoff_ms": 500,
+    "max_backoff_ms": 8000,
+    "multiplier": 2,
+    "jitter_ratio": 0.2,
+    "cooldown_after_attempts": 3,
+    "cooldown_ms": 2000,
+    "retry_exhausted_reason_code": "backoff_attempt_limit_exceeded",
+    "circuit_breaker": {
+      "open_after_consecutive_failures": 3,
+      "open_min_duration_ms": 6000,
+      "half_open_probe_max_attempts": 1,
+      "open_reason_code": "circuit_breaker_open",
+      "half_open_reason_code": "circuit_breaker_half_open",
+      "fail_fast_when_open": true
+    }
+  },
+  "stale_channel_detection_policy": {
+    "heartbeat_interval_ms": 5000,
+    "heartbeat_miss_threshold": 2,
+    "health_recheck_timeout_ms": 3000,
+    "stale_confirmation_window_ms": 12000,
+    "suspect_reason_code": "channel_suspected_stale",
+    "stale_reason_code": "channel_stale_detected",
+    "safe_rebind_sequence": [
+      "mark_channel_suspect",
+      "health_probe",
+      "invalidate_session",
+      "close_old_transport",
+      "bind_new_transport",
+      "resume_handshake",
+      "readiness_gate",
+      "admit_traffic"
+    ]
+  },
+  "feature_degradation_policy": {
+    "isolation_mode": "feature-domain",
+    "crash_free_extension_required": true,
+    "degraded_connection_modes": [
+      "partial",
+      "degraded"
+    ],
+    "domain_policies": {
+      "command_execution": "guarded_no_op",
+      "plan_reads": "stale_read_only",
+      "event_stream": "stream_unavailable_with_poll_fallback",
+      "diagnostics": "local_only_continue"
+    },
+    "required_reason_codes": [
+      "capability_degraded_dependency_failure",
+      "dependency_failure_isolated",
+      "backend_operation_downgraded"
+    ],
+    "recovery_gate": {
+      "require_rebind_success": true,
+      "require_readiness_pass": true,
+      "mutation_requires_fresh_confirmation": true
+    }
+  },
+  "extension_reconnect_telemetry_schema": {
+    "required_fields": [
+      "run_id",
+      "workspace_id",
+      "component_id",
+      "event_type",
+      "timestamp",
+      "attempt",
+      "reason_code",
+      "outcome",
+      "session_id",
+      "transport_id",
+      "registration_guard"
+    ],
+    "event_types": [
+      "reconnect_attempt",
+      "reconnect_failed",
+      "reconnect_recovered",
+      "circuit_breaker_opened",
+      "circuit_breaker_half_open_probe",
+      "duplicate_registration_guard_triggered"
+    ],
+    "duplicate_registration_guard": {
+      "required": true,
+      "scope_enum": [
+        "commands",
+        "providers",
+        "listeners",
+        "timers"
+      ],
+      "action_enum": [
+        "suppressed",
+        "no_op_ack",
+        "reused_existing"
+      ],
+      "required_fields": [
+        "scope",
+        "action",
+        "resource_id",
+        "idempotency_key"
+      ]
+    },
+    "reason_codes_required": [
+      "reconnect_observed",
+      "backoff_attempt_limit_exceeded",
+      "circuit_breaker_open",
+      "connectivity_reconnected",
+      "replay_ack_guarantee_satisfied",
+      "reconnect_duplicate_suppressed",
+      "duplicate_registration_prevented"
+    ]
+  },
   "reconnect_handshake_contract": {
     "podman_first": true,
     "require_transport_logical_binding": true,

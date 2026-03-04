@@ -58,6 +58,36 @@ Pass/fail semantics:
 - **fail** when readiness gate timeout is exceeded, probe failures exceed threshold caps, reconnect latency exceeds `max_reconnect_latency_ms`, or reconnect attempts exceed `max_attempts_cap`.
 - **fail** when any `reconnect_slo_criteria.pass_fail.fail_when_any` condition is observed in the run window.
 
+## Phase 1 Extension Reconnect Contract Checkpoints
+
+Phase 1 baseline verification for extension reconnect reliability is documentation-driven and must stay aligned with `contracts/service-contract.md` before fault-lane expansion.
+
+Required checkpoints (sequential):
+
+1. Activation/deactivation lifecycle boundaries are explicitly defined and mapped to extension-owned resources.
+2. Combined extension-host/backend reconnect state machine is defined with legal transitions.
+3. Idempotent registration/disposal rules are defined for commands, providers, listeners, and polling timers.
+4. Minimal persisted recovery state and replay-safety constraints are defined for reload/reconnect recovery.
+
+Gate rule:
+
+- Do not promote Phase 2 reconnect policy tuning or harness fault assertions until all Phase 1 checkpoints are present and internally consistent.
+
+## Phase 2 Reliability Design Checkpoints
+
+Phase 2 reliability design is documentation + contract driven and must be completed sequentially before Phase 3 verification matrix work.
+
+Required checkpoints (sequential):
+
+1. Define bounded extension reconnect retry/backoff and circuit-breaker policy.
+2. Define stale-channel detection via heartbeat/health checks and strict safe rebind ordering.
+3. Define partial-backend-outage failure isolation so features degrade by domain without extension crash.
+4. Define reconnect telemetry schema for attempts, failures, recoveries, and duplicate-registration guard outcomes.
+
+Gate rule:
+
+- Do not promote Phase 3 lane/test design until all Phase 2 checkpoints are represented in `service-contract.md`, `fault-recovery.contract.json`, and `fault-recovery.contract.schema.json`.
+
 ## Isolated Data and Secrets Paths
 
 Each run uses deterministic isolated paths under:

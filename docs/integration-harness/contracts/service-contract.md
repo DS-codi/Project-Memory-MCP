@@ -31,6 +31,85 @@ This contract defines the canonical participants for the cross-component integra
 - Extension lane probe behavior is owned by `vscode-extension/` maintainers.
 - Bridge runtime and host-port routing behavior is owned by `interactive-terminal/` maintainers.
 
+## VS Code Extension Reconnect Contract (Phase 1)
+
+This section defines the extension-side reconnect baseline for extension-host reload/update scenarios and backend channel restarts.
+
+### Activation/Deactivation Lifecycle Boundaries
+
+Lifecycle ownership is anchored in `vscode-extension/src/extension.ts` and the managed disposables it registers via `context.subscriptions`.
+
+| Lifecycle Stage | Boundary | Owned Resources | Contract Rule |
+|---|---|---|---|
+| `activate:start` | Extension host invokes `activate(context)` | module-level singleton instances only (`connectionManager`, `dashboardProvider`, status/tree services) | Activation must instantiate one owner instance per service and register each disposable exactly once into `context.subscriptions`. |
+| `activate:register` | Command/provider/event wiring | command registrations, tree/webview providers, heartbeat + event subscriptions | Registrations are activation-scoped and must be teardown-safe through VS Code disposal semantics (no out-of-band global registry). |
+| `activate:connect` | Service detection + channel start | `ConnectionManager.detectAndConnect/startAutoDetection`, `EventSubscriptionService.start` | Initial connect can fail without activation failure; reconnect path must stay available after partial startup. |
+| `deactivate:start` | Extension host invokes `deactivate()` | supervisor client lease, dashboard provider | Deactivation must detach supervisor client best-effort, dispose owned resources, and leave no retained registration/session ownership. |
+| `deactivate:complete` | Extension host process shutdown | all context-managed disposables | No reconnect timers/listeners/commands may outlive extension-host lifetime; restart begins from clean activation state. |
+
+Boundary invariants:
+
+- Activation/deactivation boundaries are extension-host scoped and independent from backend process lifecycle.
+- Backend reconnect attempts are forbidden from re-registering extension commands/providers after activation completes.
+- Deactivation must be idempotent: repeated detach/dispose attempts are tolerated and must not throw uncaught errors.
+
+### Extension + Backend Reconnect State Machine
+
+The extension-side reconnect contract uses explicit combined state for host lifecycle + backend channel health.
+
+| State | Entry Condition | Exit Transition(s) | Notes |
+|---|---|---|---|
+| `host_activating` | `activate(context)` begins | `on_activation_ready -> host_active_channel_detecting` | registration phase only |
+| `host_active_channel_detecting` | services registered; first detect/connect issued | `on_detect_success -> host_active_channel_connected`; `on_detect_failure -> host_active_channel_disconnected` | allows partial startup |
+| `host_active_channel_connected` | dashboard channel healthy (MCP optional partial allowed) | `on_channel_loss -> host_active_channel_reconnecting`; `on_host_deactivate -> host_deactivating` | normal steady state |
+| `host_active_channel_reconnecting` | SSE/polling detects disconnect/failure | `on_reconnect_success -> host_active_channel_connected`; `on_retry_exhausted -> host_active_channel_degraded`; `on_host_deactivate -> host_deactivating` | bounded retry/backoff applies |
+| `host_active_channel_degraded` | reconnect policy exhausted or circuit open | `on_manual_or_heartbeat_reset -> host_active_channel_detecting`; `on_host_deactivate -> host_deactivating` | degraded mode without re-registration |
+| `host_active_channel_disconnected` | initial detect fails before steady-state connectivity | `on_detect_retry -> host_active_channel_detecting`; `on_host_deactivate -> host_deactivating` | activation remains successful |
+| `host_deactivating` | `deactivate()` entered | `on_dispose_complete -> host_inactive` | disposal/detach only |
+| `host_inactive` | deactivation complete | `on_host_activate -> host_activating` | fresh activation required |
+
+Transition invariants:
+
+- `on_host_activate` is legal only from `host_inactive`.
+- Any `on_host_deactivate` transition is terminal for the current host session and cancels reconnect progression.
+- Channel recovery transitions (`on_reconnect_success`, `on_manual_or_heartbeat_reset`) must not invoke command/provider registration paths.
+
+### Idempotent Registration/Disposal Rules
+
+Registration and disposal safety is mandatory for commands, providers, listeners, and timers.
+
+| Resource Class | Registration Surface | Disposal Surface | Idempotency Rule |
+|---|---|---|---|
+| Commands | `vscode.commands.registerCommand(...)` in `activate` and command modules | VS Code subscription disposal on host unload | Commands are activation-time only; reconnect flows must never re-register command IDs. |
+| Tree/Webview Providers | `registerTreeDataProvider`, `registerWebviewViewProvider` | VS Code subscription disposal | Providers are single-owner per activation; reconnect is data refresh only. |
+| Event listeners/subscriptions | `EventSubscriptionService`, `SupervisorHeartbeat`, service `attach(...)` hooks | service `dispose()` and host subscription disposal | Listener attach must remain single-owner; reconnect can restart transport but cannot duplicate listeners. |
+| Connection polling/timers | `ConnectionManager.startAutoDetection` + internal timers | `stopAutoDetection` + manager disposal | Poll loop must guarantee one active detect cycle and enforce circuit-breaker reset path without duplicate timers. |
+
+Registration invariants:
+
+- Reconnect handling is transport/session recovery only; it is not an activation replay mechanism.
+- Duplicate registration is treated as contract violation even if runtime behavior appears benign.
+- Disposal paths must be safe under repeated invocation and partially initialized resources.
+
+### Minimal Persisted Recovery State and Replay-Safety
+
+Extension reload/reconnect recovery is restricted to a minimal persisted state envelope.
+
+Persisted fields (required minimum):
+
+- `workspace_id` (active workspace identity)
+- `selected_plan_id` and selected-plan workspace binding when present
+- `top_level_tab` (dashboard/plans/operations)
+- `always_provided_notes` (string payload used for plan route enrichment)
+- `last_known_connection_mode` (`connected|partial|disconnected|degraded`)
+
+Replay-safety constraints:
+
+- Persisted state must be UI-routing/session metadata only; it must not persist command-registration or listener-registration state.
+- Rehydrate path restores selection/view state first, then performs fresh backend fetch; stale cached payloads are advisory and not authoritative.
+- Reconnect/reload must not replay side-effecting actions automatically (no implicit command execution from persisted state).
+- If persisted selection targets missing workspace/plan, recovery must fall back to safe defaults and clear invalid selection.
+
 ## Supervisor Lifecycle Baseline (Contracted)
 
 The supervisor lifecycle state machine for each managed child process is the baseline contract surface and must remain lossless with `supervisor/src/runner/state_machine.rs`.
@@ -267,6 +346,29 @@ Isolation rules:
 - If degraded domains are omitted, infer from scope (`workspace_id` -> `workspace`, `plans`; `plan_id` -> `plan`, `lineage`), then fall back to all domains only when scope is missing.
 - `connectivity_reconnected` must reset all domain states to healthy before post-recovery transition to `connected`.
 
+### Extension Failure Isolation and Safe Degradation (Phase 2)
+
+Partial backend outage must degrade extension capabilities by feature domain without crashing extension host activation/session state.
+
+Feature-domain degradation map:
+
+- `command_execution` -> mutation commands switch to guarded no-op with user-visible degraded reason.
+- `plan_reads` -> cached/stale read-only fallback allowed.
+- `event_stream` -> stream marked unavailable; polling fallback may continue.
+- `diagnostics` -> local diagnostics/log emission remains enabled.
+
+Isolation rules:
+
+- A failure in one feature domain must not force global extension deactivate/reload.
+- Domain-level failure updates extension connection mode to `partial` or `degraded` and emits domain-specific reason code.
+- Commands/providers/listeners stay registered; only backend-bound operations are gated or downgraded.
+- Unhandled backend exceptions must be converted to typed degraded outcomes and must not propagate as extension-host crashes.
+
+Recovery rules:
+
+- Domain state transitions from `degraded` to `healthy` only after successful rebind + readiness pass for that domain dependency.
+- On recovery, queued non-destructive reads may replay; mutation commands require explicit fresh backend confirmation.
+
 ### Dashboard Listener Lifecycle Idempotency (Phase 2)
 
 Dashboard realtime subscriptions must remain idempotent across reconnect and hot-reload cycles.
@@ -296,6 +398,62 @@ Rules:
 - Missing reconnect metadata must derive deterministic bounded backoff from policy defaults.
 - `connectivity_reconnected` resets retry state to baseline (`attempt=0`, `next_backoff_ms=initial_backoff_ms`).
 - Retry state must remain UI-visible for diagnostics and operator triage during degraded/reconnecting windows.
+
+### Extension Backend Reconnect Retry + Circuit-Breaker Policy (Phase 2)
+
+Extension host reconnect attempts to backend channels must use a bounded retry policy and explicit circuit-breaker states.
+
+Policy defaults (extension channel):
+
+- `max_attempts`: `6`
+- `initial_backoff_ms`: `500`
+- `max_backoff_ms`: `8000`
+- `multiplier`: `2`
+- `jitter_ratio`: `0.2`
+- `cooldown_after_attempts`: `3`
+- `cooldown_ms`: `2000`
+
+Circuit-breaker defaults:
+
+- `state`: `closed|open|half_open`
+- `open_after_consecutive_failures`: `3`
+- `open_min_duration_ms`: `6000`
+- `half_open_probe_max_attempts`: `1`
+- `fail_fast_when_open`: `true`
+
+Rules:
+
+- Retry progression is exponential with jitter and is clamped to `max_backoff_ms`.
+- When retry count reaches `max_attempts`, transition to `host_active_channel_degraded` and emit `backoff_attempt_limit_exceeded`.
+- When the circuit is `open`, reconnect attempts fail fast with `circuit_breaker_open` until `open_min_duration_ms` elapses.
+- Half-open probe failure reopens the circuit and restarts the open timer; probe success closes circuit and resets attempt counters.
+- Reconnect success always resets circuit state to `closed` and retry counters to baseline.
+
+### Stale-Channel Detection and Safe Rebind Sequence (Phase 2)
+
+Extension reconnect flow must actively detect stale or half-open channels and execute a deterministic rebind sequence.
+
+Stale-channel detection policy:
+
+- Heartbeat interval: `5000ms`
+- Heartbeat miss threshold: `2` consecutive misses
+- Health recheck timeout: `3000ms`
+- Maximum stale confirmation window: `12000ms`
+
+Safe rebind sequence (strict order):
+
+1. Mark channel `suspect` after heartbeat misses exceed threshold.
+2. Run health-check probe; if pass, clear suspect state and continue current binding.
+3. If health-check fails, mark channel `stale`, emit `channel_stale_detected`, and stop outbound writes.
+4. Invalidate transport/session binding (`session_invalidated`) before creating a new transport.
+5. Create new transport binding and resume handshake (`reconnect_attempt`).
+6. Admit traffic only after readiness pass and reconnect outcome `accepted`.
+
+Rebind invariants:
+
+- At most one active transport binding per extension session.
+- Old channel must be closed before new channel listener attach to prevent duplicate callbacks.
+- Rebind failure returns to bounded retry policy; no direct re-registration of commands/providers is allowed.
 
 ### Pending Action UX Fallback (Phase 2)
 
@@ -402,6 +560,46 @@ Semantics:
 - `cause` identifies why the lifecycle action occurred (failure/recovery trigger code).
 - `attempt` is the zero-based or one-based retry counter used by the recovery policy for that component.
 - `outcome` captures result state (`started`, `stopped`, `in_progress`, `succeeded`, `failed`, `skipped`, `observed`).
+
+### Extension Reconnect Telemetry Schema (Phase 2)
+
+Reconnect telemetry emitted by extension-side reliability flows must follow a normalized envelope and event taxonomy.
+
+Required envelope fields:
+
+- `run_id`
+- `workspace_id`
+- `component_id`
+- `event_type`
+- `timestamp`
+- `attempt`
+- `reason_code`
+- `outcome`
+- `session_id`
+- `transport_id`
+- `registration_guard`
+
+Allowed reconnect event types:
+
+- `reconnect_attempt`
+- `reconnect_failed`
+- `reconnect_recovered`
+- `circuit_breaker_opened`
+- `circuit_breaker_half_open_probe`
+- `duplicate_registration_guard_triggered`
+
+Duplicate-registration guard payload requirements:
+
+- `registration_guard.scope`: `commands|providers|listeners|timers`
+- `registration_guard.action`: `suppressed|no_op_ack|reused_existing`
+- `registration_guard.resource_id`: stable command/provider/listener/timer identity
+- `registration_guard.idempotency_key`: dedup key used for suppression decision
+
+Reason-code requirements:
+
+- Attempt/failure path: `reconnect_observed`, `backoff_attempt_limit_exceeded`, `circuit_breaker_open`
+- Recovery path: `connectivity_reconnected`, `replay_ack_guarantee_satisfied`
+- Guard path: `reconnect_duplicate_suppressed`, `duplicate_registration_prevented`
 
 ## Machine-Readable Contract Artifacts
 

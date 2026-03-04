@@ -10,6 +10,10 @@
     "reconnect_storm_policy",
     "replay_ack_guarantees",
     "circuit_breaker_policy",
+    "extension_channel_reconnect_policy",
+    "stale_channel_detection_policy",
+    "feature_degradation_policy",
+    "extension_reconnect_telemetry_schema",
     "reconnect_handshake_contract",
     "reconnect_idempotency_contract",
     "failed_reconnect_diagnostics_requirements",
@@ -39,6 +43,18 @@
     },
     "circuit_breaker_policy": {
       "$ref": "#/$defs/circuitBreakerPolicy"
+    },
+    "extension_channel_reconnect_policy": {
+      "$ref": "#/$defs/extensionChannelReconnectPolicy"
+    },
+    "stale_channel_detection_policy": {
+      "$ref": "#/$defs/staleChannelDetectionPolicy"
+    },
+    "feature_degradation_policy": {
+      "$ref": "#/$defs/featureDegradationPolicy"
+    },
+    "extension_reconnect_telemetry_schema": {
+      "$ref": "#/$defs/extensionReconnectTelemetrySchema"
     },
     "reconnect_handshake_contract": {
       "$ref": "#/$defs/reconnectHandshakeContract"
@@ -173,6 +189,255 @@
         "open_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
         "half_open_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
         "fail_fast_when_open": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "extensionChannelReconnectPolicy": {
+      "type": "object",
+      "required": [
+        "max_attempts",
+        "initial_backoff_ms",
+        "max_backoff_ms",
+        "multiplier",
+        "jitter_ratio",
+        "cooldown_after_attempts",
+        "cooldown_ms",
+        "retry_exhausted_reason_code",
+        "circuit_breaker"
+      ],
+      "properties": {
+        "max_attempts": { "type": "integer", "minimum": 1, "maximum": 64 },
+        "initial_backoff_ms": { "type": "integer", "minimum": 50, "maximum": 600000 },
+        "max_backoff_ms": { "type": "integer", "minimum": 50, "maximum": 600000 },
+        "multiplier": { "type": "number", "exclusiveMinimum": 1, "maximum": 8 },
+        "jitter_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "cooldown_after_attempts": { "type": "integer", "minimum": 1, "maximum": 64 },
+        "cooldown_ms": { "type": "integer", "minimum": 0, "maximum": 600000 },
+        "retry_exhausted_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "circuit_breaker": {
+          "type": "object",
+          "required": [
+            "open_after_consecutive_failures",
+            "open_min_duration_ms",
+            "half_open_probe_max_attempts",
+            "open_reason_code",
+            "half_open_reason_code",
+            "fail_fast_when_open"
+          ],
+          "properties": {
+            "open_after_consecutive_failures": { "type": "integer", "minimum": 1, "maximum": 64 },
+            "open_min_duration_ms": { "type": "integer", "minimum": 100, "maximum": 600000 },
+            "half_open_probe_max_attempts": { "type": "integer", "minimum": 1, "maximum": 16 },
+            "open_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+            "half_open_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+            "fail_fast_when_open": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "staleChannelDetectionPolicy": {
+      "type": "object",
+      "required": [
+        "heartbeat_interval_ms",
+        "heartbeat_miss_threshold",
+        "health_recheck_timeout_ms",
+        "stale_confirmation_window_ms",
+        "suspect_reason_code",
+        "stale_reason_code",
+        "safe_rebind_sequence"
+      ],
+      "properties": {
+        "heartbeat_interval_ms": { "type": "integer", "minimum": 250, "maximum": 600000 },
+        "heartbeat_miss_threshold": { "type": "integer", "minimum": 1, "maximum": 32 },
+        "health_recheck_timeout_ms": { "type": "integer", "minimum": 100, "maximum": 600000 },
+        "stale_confirmation_window_ms": { "type": "integer", "minimum": 250, "maximum": 600000 },
+        "suspect_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "stale_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "safe_rebind_sequence": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "mark_channel_suspect",
+              "health_probe",
+              "invalidate_session",
+              "close_old_transport",
+              "bind_new_transport",
+              "resume_handshake",
+              "readiness_gate",
+              "admit_traffic"
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "featureDegradationPolicy": {
+      "type": "object",
+      "required": [
+        "isolation_mode",
+        "crash_free_extension_required",
+        "degraded_connection_modes",
+        "domain_policies",
+        "required_reason_codes",
+        "recovery_gate"
+      ],
+      "properties": {
+        "isolation_mode": {
+          "type": "string",
+          "enum": ["feature-domain"]
+        },
+        "crash_free_extension_required": { "type": "boolean" },
+        "degraded_connection_modes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["partial", "degraded"]
+          }
+        },
+        "domain_policies": {
+          "type": "object",
+          "required": [
+            "command_execution",
+            "plan_reads",
+            "event_stream",
+            "diagnostics"
+          ],
+          "properties": {
+            "command_execution": { "type": "string", "enum": ["guarded_no_op"] },
+            "plan_reads": { "type": "string", "enum": ["stale_read_only"] },
+            "event_stream": { "type": "string", "enum": ["stream_unavailable_with_poll_fallback"] },
+            "diagnostics": { "type": "string", "enum": ["local_only_continue"] }
+          },
+          "additionalProperties": false
+        },
+        "required_reason_codes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          }
+        },
+        "recovery_gate": {
+          "type": "object",
+          "required": [
+            "require_rebind_success",
+            "require_readiness_pass",
+            "mutation_requires_fresh_confirmation"
+          ],
+          "properties": {
+            "require_rebind_success": { "type": "boolean" },
+            "require_readiness_pass": { "type": "boolean" },
+            "mutation_requires_fresh_confirmation": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "extensionReconnectTelemetrySchema": {
+      "type": "object",
+      "required": [
+        "required_fields",
+        "event_types",
+        "duplicate_registration_guard",
+        "reason_codes_required"
+      ],
+      "properties": {
+        "required_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "run_id",
+              "workspace_id",
+              "component_id",
+              "event_type",
+              "timestamp",
+              "attempt",
+              "reason_code",
+              "outcome",
+              "session_id",
+              "transport_id",
+              "registration_guard"
+            ]
+          }
+        },
+        "event_types": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "reconnect_attempt",
+              "reconnect_failed",
+              "reconnect_recovered",
+              "circuit_breaker_opened",
+              "circuit_breaker_half_open_probe",
+              "duplicate_registration_guard_triggered"
+            ]
+          }
+        },
+        "duplicate_registration_guard": {
+          "type": "object",
+          "required": [
+            "required",
+            "scope_enum",
+            "action_enum",
+            "required_fields"
+          ],
+          "properties": {
+            "required": { "type": "boolean" },
+            "scope_enum": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": ["commands", "providers", "listeners", "timers"]
+              }
+            },
+            "action_enum": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": ["suppressed", "no_op_ack", "reused_existing"]
+              }
+            },
+            "required_fields": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": ["scope", "action", "resource_id", "idempotency_key"]
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "reason_codes_required": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          }
+        }
       },
       "additionalProperties": false
     },

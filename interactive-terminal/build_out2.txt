@@ -1,0 +1,2 @@
+QMake version 3.1
+Using Qt version 6.10.2 in C:/Qt/6.10.2/msvc2022_64/lib

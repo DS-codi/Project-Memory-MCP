@@ -44,6 +44,8 @@ fn test_state() -> AppState {
         gemini_session_ids: HashSet::new(),
         agent_session_ids: HashSet::new(),
         agent_session_meta: HashMap::new(),
+        allowlist_patterns: Vec::new(),
+        allowlist_data_root: None,
     }
 }
 
@@ -68,6 +70,8 @@ fn test_state_with_repo(repo_root: PathBuf) -> AppState {
         gemini_session_ids: HashSet::new(),
         agent_session_ids: HashSet::new(),
         agent_session_meta: HashMap::new(),
+        allowlist_patterns: Vec::new(),
+        allowlist_data_root: None,
     }
 }
 

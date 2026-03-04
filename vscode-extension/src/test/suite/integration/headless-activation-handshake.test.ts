@@ -47,6 +47,24 @@ async function writeAssertions(status: 'pass' | 'fail', details: Record<string, 
 }
 
 suite('Integration - Headless Activation + Handshake', () => {
+    test('re-activation is idempotent and does not duplicate lifecycle registration', async () => {
+        const extensionId = resolveExtensionId();
+        const extension = vscode.extensions.getExtension(extensionId);
+
+        assert.ok(extension, `Extension not found: ${extensionId}`);
+
+        const firstActivationResult = await extension!.activate();
+        assert.strictEqual(extension!.isActive, true, 'Extension did not become active after first activation');
+
+        const secondActivationResult = await extension!.activate();
+        assert.strictEqual(extension!.isActive, true, 'Extension should remain active after repeated activation');
+        assert.strictEqual(
+            secondActivationResult,
+            firstActivationResult,
+            'Repeated activation should be idempotent and return the same activation result',
+        );
+    });
+
     test('activates extension and performs backend handshake', async () => {
         const extensionId = resolveExtensionId();
         const extension = vscode.extensions.getExtension(extensionId);
