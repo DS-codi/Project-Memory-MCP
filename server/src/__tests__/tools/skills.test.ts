@@ -37,6 +37,10 @@ vi.mock('../../logging/workspace-update-log.js', () => ({
   appendWorkspaceFileUpdate: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('../../db/skill-db.js', () => ({
+  listSkills: vi.fn(() => []),
+}));
+
 import {
   listSkills,
   matchSkillsToContext,
@@ -404,7 +408,7 @@ describe('deploySkillsToWorkspace', () => {
 
     expect(result.success).toBe(true);
     expect(result.data!.deployed).toEqual([]);
-    expect(result.data!.errors).toContain('Skills source directory not found');
+    expect(result.data!.errors).toContain('No skills available in DB or filesystem source');
   });
 
   it('should require workspace_path parameter', async () => {
@@ -422,7 +426,9 @@ describe('deploySkillsToWorkspace', () => {
     (fs.access as Mock)
       .mockResolvedValueOnce(undefined)          // has-skill: SKILL.md exists
       .mockRejectedValueOnce(new Error('ENOENT')); // no-skill: no SKILL.md
-    (fs.readFile as Mock).mockResolvedValue('# Content');
+    (fs.readFile as Mock)
+      .mockResolvedValueOnce('# Content')
+      .mockRejectedValueOnce(new Error('ENOENT'));
     (fs.mkdir as Mock).mockResolvedValue(undefined);
     (fs.writeFile as Mock).mockResolvedValue(undefined);
 

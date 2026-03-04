@@ -36,6 +36,8 @@ export type PlanStatus = 'active' | 'paused' | 'completed' | 'archived' | 'faile
 
 export type PlanPriority = 'low' | 'medium' | 'high' | 'critical';
 
+export type WorkflowMode = 'standard' | 'tdd' | 'enrichment' | 'overnight';
+
 // =============================================================================
 // Paused-at Snapshot (Approval Gate)
 // =============================================================================
@@ -291,6 +293,7 @@ export interface PlanState {
   // Approval gate pause context
   paused_at_snapshot?: PausedAtSnapshot;  // Written when approval gate pauses a plan
   completed_at?: string;  // ISO timestamp set when the plan reaches a terminal status
+  workflow_mode?: WorkflowMode;  // Execution mode for Hub orchestration; defaults to 'standard'
   created_at: string;
   updated_at: string;
   agent_sessions: AgentSession[];
@@ -365,6 +368,7 @@ export interface CompactPlanState {
   success_criteria?: string[];
   pre_plan_build_status?: 'passing' | 'failing' | 'unknown';
   build_scripts?: BuildScript[];
+  workflow_mode?: WorkflowMode;  // Execution mode for Hub orchestration; defaults to 'standard'
   created_at: string;
   updated_at: string;
   plan_summary: CompactPlanSummary;

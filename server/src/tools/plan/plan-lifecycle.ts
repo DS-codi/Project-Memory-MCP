@@ -24,6 +24,7 @@ import type {
   SkillCreationRecommendation,
 } from '../../types/index.js';
 import * as store from '../../storage/db-store.js';
+import { deleteWorkflowMode, setWorkflowMode, getWorkflowMode } from '../../db/plan-db.js';
 import { archivePlanPrompts } from '../prompt-storage.js';
 import { buildPhasesFromSteps } from './plan-version.js';
 import { buildSkillRegistry } from '../skill-registry.js';
@@ -420,6 +421,10 @@ export async function archivePlan(
     state.current_agent = null;
     await store.savePlanState(state);
     await store.generatePlanMd(state);
+
+    // Application-level cleanup: remove workflow settings (belt-and-suspenders;
+    // the SQLite trigger only fires on DELETE FROM plans, not on status update).
+    deleteWorkflowMode(plan_id);
 
     // Archive plan-scoped prompts with header
     try {
@@ -1019,6 +1024,90 @@ export async function mergePlans(
       error: `Failed to merge plans: ${(error as Error).message}`,
     };
   }
+}
+
+// =============================================================================
+// Workflow Mode Handlers
+// =============================================================================
+
+const VALID_WORKFLOW_MODES = ['standard', 'tdd', 'enrichment', 'overnight'] as const;
+
+export interface SetWorkflowModeResult {
+  plan_id: string;
+  workflow_mode: string;
+  plan_state: PlanState;
+}
+
+export interface GetWorkflowModeResult {
+  plan_id: string;
+  workflow_mode: string;
+}
+
+/**
+ * Set the workflow execution mode for a plan.
+ * Upserts the plan_workflow_settings row and returns the updated plan state.
+ */
+export async function setWorkflowModeAction(
+  params: { workspace_id: string; plan_id: string; workflow_mode: string }
+): Promise<ToolResponse<SetWorkflowModeResult>> {
+  const { workspace_id, plan_id, workflow_mode } = params;
+
+  if (!workspace_id || !plan_id) {
+    return { success: false, error: 'workspace_id and plan_id are required' };
+  }
+  if (!workflow_mode || !(VALID_WORKFLOW_MODES as readonly string[]).includes(workflow_mode)) {
+    return {
+      success: false,
+      error: `workflow_mode must be one of: ${VALID_WORKFLOW_MODES.join(', ')}`
+    };
+  }
+
+  const state = await store.getPlanState(workspace_id, plan_id);
+  if (!state) {
+    return { success: false, error: `Plan not found: ${plan_id}` };
+  }
+
+  setWorkflowMode(plan_id, workflow_mode as import('../../db/types.js').WorkflowMode);
+
+  // Fetch fresh state (workflow_mode is now included via assemblePlanState)
+  const updatedState = await store.getPlanState(workspace_id, plan_id);
+
+  return {
+    success: true,
+    data: {
+      plan_id,
+      workflow_mode,
+      plan_state: updatedState ?? state,
+    },
+  };
+}
+
+/**
+ * Get the current workflow mode for a plan (defaults to 'standard' if not set).
+ */
+export async function getWorkflowModeAction(
+  params: { workspace_id: string; plan_id: string }
+): Promise<ToolResponse<GetWorkflowModeResult>> {
+  const { workspace_id, plan_id } = params;
+
+  if (!workspace_id || !plan_id) {
+    return { success: false, error: 'workspace_id and plan_id are required' };
+  }
+
+  const state = await store.getPlanState(workspace_id, plan_id);
+  if (!state) {
+    return { success: false, error: `Plan not found: ${plan_id}` };
+  }
+
+  const row = getWorkflowMode(plan_id);
+
+  return {
+    success: true,
+    data: {
+      plan_id,
+      workflow_mode: row?.workflow_mode ?? 'standard',
+    },
+  };
 }
 
 // =============================================================================

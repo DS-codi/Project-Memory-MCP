@@ -1087,6 +1087,28 @@ pub(crate) fn spawn_runtime_tasks(
                                 s.send_response(response);
                             }
                             Message::Heartbeat(_) => {}
+                            Message::WorkspaceListPush(push) => {
+                                // Store pushed workspace paths in state and
+                                // refresh the availableWorkspacesJson property
+                                // so the GUI pickers reflect the DB contents.
+                                let paths: Vec<String> = push
+                                    .workspaces
+                                    .iter()
+                                    .map(|w| w.path.clone())
+                                    .filter(|p| !p.trim().is_empty())
+                                    .collect();
+                                {
+                                    let mut s = state.lock().unwrap();
+                                    s.known_workspace_paths = paths.clone();
+                                }
+                                let suggestions_json = serde_json::to_string(&paths)
+                                    .unwrap_or_else(|_| "[]".to_string());
+                                let _ = qt.queue(move |mut obj| {
+                                    obj.as_mut().set_available_workspaces_json(
+                                        cxx_qt_lib::QString::from(&suggestions_json),
+                                    );
+                                });
+                            }
                             _ => {}
                         }
                     }
@@ -1591,6 +1613,27 @@ fn parse_marker_exit_code(line: &str, marker: &str) -> Option<i32> {
     value.parse::<i32>().ok()
 }
 
+fn strip_leading_current_dir_components(path: &std::path::Path) -> std::path::PathBuf {
+    use std::path::Component;
+
+    let mut cleaned = std::path::PathBuf::new();
+    let mut skipping_current_dir = true;
+
+    for component in path.components() {
+        if skipping_current_dir && matches!(component, Component::CurDir) {
+            continue;
+        }
+        skipping_current_dir = false;
+        cleaned.push(component.as_os_str());
+    }
+
+    if cleaned.as_os_str().is_empty() {
+        std::path::PathBuf::from(".")
+    } else {
+        cleaned
+    }
+}
+
 fn resolve_ws_working_directory(request: &CommandRequest) -> String {
     let requested = request.working_directory.trim();
     let workspace = request.workspace_path.trim();
@@ -1608,21 +1651,22 @@ fn resolve_ws_working_directory(request: &CommandRequest) -> String {
 
     if !requested.is_empty() {
         let requested_path = std::path::PathBuf::from(requested);
+        let normalized_requested_path = strip_leading_current_dir_components(&requested_path);
 
-        if requested_path.is_dir() {
+        if requested_path.is_absolute() && requested_path.is_dir() {
             return requested_path.to_string_lossy().to_string();
         }
 
         if requested_path.is_relative() {
             if let Some(workspace_path) = workspace_path.as_ref() {
-                let joined = workspace_path.join(&requested_path);
+                let joined = workspace_path.join(&normalized_requested_path);
                 if joined.is_dir() {
                     return joined.to_string_lossy().to_string();
                 }
             }
 
             if let Ok(current_dir) = std::env::current_dir() {
-                let joined = current_dir.join(&requested_path);
+                let joined = current_dir.join(&normalized_requested_path);
                 if joined.is_dir() {
                     return joined.to_string_lossy().to_string();
                 }

@@ -98,6 +98,7 @@ export interface PlanSummary {
     archived_at?: string | null;
     category?: string;
     priority?: string;
+    workflow_mode?: string; // 'standard' | 'tdd' | 'enrichment' | 'overnight'
     steps?: PlanStep[];
     agent_sessions?: AgentSessionSummary[];
 }
@@ -134,6 +135,12 @@ export class WorkspaceItem extends vscode.TreeItem {
     }
 }
 
+const WORKFLOW_MODE_LABELS: Record<string, string> = {
+    tdd: '[TDD]',
+    enrichment: '[ENR]',
+    overnight: '[ONT]',
+};
+
 export class PlanItem extends vscode.TreeItem {
     readonly kind = 'plan' as const;
     constructor(
@@ -143,7 +150,12 @@ export class PlanItem extends vscode.TreeItem {
         const done = plan.steps?.filter(s => s.status === 'done').length ?? 0;
         const total = plan.steps?.length ?? 0;
         const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-        const desc = total > 0 ? `${pct}% (${done}/${total})` : undefined;
+        const stepProgress = total > 0 ? `${pct}% (${done}/${total})` : undefined;
+        const modeBadge =
+            plan.workflow_mode && plan.workflow_mode !== 'standard'
+                ? ` ${WORKFLOW_MODE_LABELS[plan.workflow_mode] ?? plan.workflow_mode.toUpperCase()}`
+                : '';
+        const desc = stepProgress ? `${stepProgress}${modeBadge}` : modeBadge || undefined;
 
         super(plan.title, vscode.TreeItemCollapsibleState.Collapsed);
         this.id = `plan:${workspaceId}:${plan.plan_id}`;

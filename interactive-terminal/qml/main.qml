@@ -30,6 +30,23 @@ ApplicationWindow {
     property var approvalDialogRequest: ({})
     property string approvalSelectedProvider: ""
     property string approvalSelectedAutonomyMode: "guided"
+    property string approvalSessionMode: "new"
+    property string approvalResumeSessionId: ""
+    property string approvalOutputFormat: "text"
+    // ── Risk-aware approval policy (Steps 29–31) ─────────────────────────────
+    // Risk tier computed reactively from autonomy mode + budget selections.
+    // Tier 1 = Low (guided), Tier 2 = Medium (autonomous, capped), Tier 3 = High (autonomous, uncapped).
+    property int approvalRiskTier: approvalSelectedAutonomyMode === "autonomous"
+        ? (approvalBudgetMaxCommands > 0 || approvalBudgetMaxDurationSecs > 0 || approvalBudgetMaxFiles > 0 ? 2 : 3)
+        : 1
+    property bool approvalTrustedScopeConfirmed: false
+    property int approvalBudgetMaxCommands: 0
+    property int approvalBudgetMaxDurationSecs: 0
+    property int approvalBudgetMaxFiles: 0
+    // ── CLI load-reduction flags (Phase 3) ────────────────────────────────────
+    // Checked by default (opt-out behaviour — uncheck to disable the flag).
+    property bool approvalGeminiScreenReader: true
+    property bool approvalCopilotMinimalUi: true
     property bool quitRequested: false
     property bool popupOverlayVisible: geminiSettingsDialog.visible
         || approvalDialog.visible
@@ -161,11 +178,23 @@ ApplicationWindow {
             return false
         }
 
-        if (!approvalDialogRequest.providerSelectionRequired) {
-            return true
+        if (approvalDialogRequest.providerSelectionRequired) {
+            if (!(approvalSelectedProvider || "").trim().length) {
+                return false
+            }
         }
 
-        return (approvalSelectedProvider || "").trim().length > 0
+        // Resume requires a non-empty session ID
+        if (approvalSessionMode === "resume" && !(approvalResumeSessionId || "").trim().length) {
+            return false
+        }
+
+        // Trusted-scope confirmation required for risk tier >= 2 (Step 30)
+        if (approvalRiskTier >= 2 && !approvalTrustedScopeConfirmed) {
+            return false
+        }
+
+        return true
     }
 
     function showMainWindow() {
@@ -198,6 +227,15 @@ ApplicationWindow {
             approvalDialog.close()
             approvalDialogRequest = ({})
             approvalSelectedAutonomyMode = "guided"
+            approvalSessionMode = "new"
+            approvalResumeSessionId = ""
+            approvalOutputFormat = "text"
+            approvalTrustedScopeConfirmed = false
+            approvalBudgetMaxCommands = 0
+            approvalBudgetMaxDurationSecs = 0
+            approvalBudgetMaxFiles = 0
+            approvalGeminiScreenReader = true
+            approvalCopilotMinimalUi = true
             return
         }
 
@@ -209,6 +247,15 @@ ApplicationWindow {
             approvalDialog.close()
             approvalDialogRequest = ({})
             approvalSelectedAutonomyMode = "guided"
+            approvalSessionMode = "new"
+            approvalResumeSessionId = ""
+            approvalOutputFormat = "text"
+            approvalTrustedScopeConfirmed = false
+            approvalBudgetMaxCommands = 0
+            approvalBudgetMaxDurationSecs = 0
+            approvalBudgetMaxFiles = 0
+            approvalGeminiScreenReader = true
+            approvalCopilotMinimalUi = true
             return
         }
 
@@ -244,6 +291,17 @@ ApplicationWindow {
 
         approvalSelectedProvider = prefilledProvider
         approvalSelectedAutonomyMode = requestedAutonomyMode
+
+        // ── Pre-fill session lifecycle + output format from context JSON ──────
+        const srcSessionMode = (source.session_mode || "new").toString().toLowerCase()
+        const srcResumeSessionId = (source.resume_session_id || "").toString()
+        const srcOutputFormat = (source.output_format || "text").toString().toLowerCase()
+
+        approvalSessionMode = (srcSessionMode === "resume") ? "resume" : "new"
+        approvalResumeSessionId = srcResumeSessionId
+        approvalOutputFormat = (srcOutputFormat === "json" || srcOutputFormat === "stream-json")
+            ? srcOutputFormat
+            : "text"
 
         approvalDialogRequest = {
             command: commandText,
@@ -587,12 +645,24 @@ ApplicationWindow {
                         spacing: 8
 
                         Button {
+                            id: geminiLaunchBtn
                             text: "Launch Gemini CLI"
                             font.pixelSize: root.uiControlFontPx
                             enabled: true
                             onClicked: {
                                 terminalApp.launchGeminiInTab()
                                 geminiSettingsDialog.close()
+                            }
+                        }
+
+                        Button {
+                            id: copilotLaunchBtn
+                            text: "Launch Copilot CLI"
+                            font.pixelSize: root.uiControlFontPx
+                            enabled: true
+                            visible: terminalApp.copilotKeyPresent
+                            onClicked: {
+                                terminalApp.launchCopilotInTab()
                             }
                         }
 
@@ -614,7 +684,7 @@ ApplicationWindow {
                         Button {
                             text: "Saved Commands"
                             font.pixelSize: root.uiControlFontPx
-                            Layout.preferredWidth: 148
+                            Layout.minimumWidth: 148
                             Layout.preferredHeight: 30
                             onClicked: {
                                 if (savedCommandsDrawer.visible) {
@@ -638,7 +708,7 @@ ApplicationWindow {
                         Button {
                             text: "Allowlist"
                             font.pixelSize: root.uiControlFontPx
-                            Layout.preferredWidth: 88
+                            Layout.minimumWidth: 90
                             Layout.preferredHeight: 30
                             onClicked: {
                                 if (allowlistDrawer.visible) {
@@ -1148,6 +1218,49 @@ ApplicationWindow {
                 color: "#3c3c3c"
             }
 
+            // ── Risk tier badge (Step 29) ─────────────────────────────────────
+            Rectangle {
+                visible: approvalDialogRequest.providerPolicyApplies
+                Layout.fillWidth: false
+                Layout.preferredHeight: 26
+                radius: 13
+                color: approvalRiskTier === 3 ? "#4f1a1a"
+                    : approvalRiskTier === 2 ? "#3d2e00"
+                    : "#1a3a1a"
+                border.color: approvalRiskTier === 3 ? "#f87171"
+                    : approvalRiskTier === 2 ? "#fbbf24"
+                    : "#4ade80"
+                border.width: 1
+
+                Row {
+                    anchors.fill: parent
+                    anchors.leftMargin: 10
+                    anchors.rightMargin: 10
+                    spacing: 6
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: approvalRiskTier === 3 ? "\u26a0" : approvalRiskTier === 2 ? "\u25cf" : "\u2713"
+                        color: approvalRiskTier === 3 ? "#f87171"
+                            : approvalRiskTier === 2 ? "#fbbf24"
+                            : "#4ade80"
+                        font.pixelSize: 13
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: approvalRiskTier === 3 ? "Risk: High \u2014 autonomous / unrestricted"
+                            : approvalRiskTier === 2 ? "Risk: Medium \u2014 autonomous / capped"
+                            : "Risk: Low \u2014 guided mode"
+                        color: approvalRiskTier === 3 ? "#f87171"
+                            : approvalRiskTier === 2 ? "#fbbf24"
+                            : "#4ade80"
+                        font.pixelSize: 12
+                        font.bold: true
+                    }
+                }
+            }
+
             ScrollView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -1410,6 +1523,218 @@ ApplicationWindow {
                 }
             }
 
+            // ── Session lifecycle selector (Step 27) ─────────────────────────
+            RowLayout {
+                visible: approvalDialogRequest.providerPolicyApplies
+                spacing: 8
+
+                Label {
+                    text: "Session"
+                    color: "#c8c8c8"
+                    font.pixelSize: 12
+                }
+
+                ComboBox {
+                    id: approvalSessionModeChooser
+                    Layout.preferredWidth: 160
+                    font.pixelSize: root.uiControlFontPx
+                    model: ["New session", "Resume session"]
+                    currentIndex: approvalSessionMode === "resume" ? 1 : 0
+                    onActivated: {
+                        const choice = (model[currentIndex] || "").toString().toLowerCase()
+                        approvalSessionMode = choice.indexOf("resume") >= 0 ? "resume" : "new"
+                    }
+                }
+
+                TextField {
+                    id: approvalResumeSessionIdField
+                    visible: approvalSessionMode === "resume"
+                    Layout.preferredWidth: 200
+                    font.pixelSize: root.uiInputFontPx
+                    placeholderText: "Session ID to resume"
+                    text: approvalResumeSessionId
+                    onTextChanged: approvalResumeSessionId = text
+                }
+            }
+
+            Text {
+                visible: approvalDialogRequest.providerPolicyApplies
+                    && approvalSessionMode === "resume"
+                    && !(approvalResumeSessionId || "").trim().length
+                text: "Resume requires a session ID."
+                color: "#f48771"
+                font.pixelSize: 12
+            }
+
+            // ── Output format selector (Step 28) ─────────────────────────────
+            RowLayout {
+                visible: approvalDialogRequest.providerPolicyApplies
+                spacing: 8
+
+                Label {
+                    text: "Output format"
+                    color: "#c8c8c8"
+                    font.pixelSize: 12
+                }
+
+                ComboBox {
+                    id: approvalOutputFormatChooser
+                    Layout.preferredWidth: 160
+                    font.pixelSize: root.uiControlFontPx
+                    model: ["Text", "JSON", "Stream JSON"]
+                    currentIndex: {
+                        const fmt = approvalOutputFormat || "text"
+                        if (fmt === "json") return 1
+                        if (fmt === "stream-json") return 2
+                        return 0
+                    }
+                    onActivated: {
+                        const choice = (model[currentIndex] || "").toString().toLowerCase()
+                        if (choice === "json") {
+                            approvalOutputFormat = "json"
+                        } else if (choice === "stream json") {
+                            approvalOutputFormat = "stream-json"
+                        } else {
+                            approvalOutputFormat = "text"
+                        }
+                    }
+                }
+            }
+
+            // ── CLI load-reduction flags (Phase 3) ───────────────────────────
+            // Checkboxes are checked by default (opt-out); uncheck to suppress the flag.
+            ColumnLayout {
+                visible: approvalDialogRequest.providerPolicyApplies
+                spacing: 2
+
+                CheckBox {
+                    id: geminiScreenReaderCheckbox
+                    // Only show when Gemini is the selected/prefilled provider
+                    visible: (approvalSelectedProvider || "").toLowerCase() === "gemini"
+                        || (approvalDialogRequest.prefilledProvider || "").toLowerCase() === "gemini"
+                    text: "Screen reader mode (--screen-reader)"
+                    font.pixelSize: root.uiControlFontPx
+                    checked: approvalGeminiScreenReader
+                    onCheckedChanged: approvalGeminiScreenReader = checked
+                }
+
+                CheckBox {
+                    id: copilotMinimalUiCheckbox
+                    // Only show when Copilot is the selected/prefilled provider
+                    visible: (approvalSelectedProvider || "").toLowerCase() === "copilot"
+                        || (approvalDialogRequest.prefilledProvider || "").toLowerCase() === "copilot"
+                    // Copilot CLI v1.x has no --screen-reader equivalent; checkbox is
+                    // displayed for UX parity and reserved for future CLI support.
+                    text: "Minimal UI mode (reserved — no flag emitted in v1.x)"
+                    font.pixelSize: root.uiControlFontPx
+                    checked: approvalCopilotMinimalUi
+                    onCheckedChanged: approvalCopilotMinimalUi = checked
+                }
+            }
+
+            // ── Autonomy budget controls (Step 31) ───────────────────────────
+            ColumnLayout {
+                visible: approvalSelectedAutonomyMode === "autonomous"
+                spacing: 6
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 1
+                    color: "#3c3c3c"
+                }
+
+                Text {
+                    text: "Autonomy Budget (0 = unlimited)"
+                    color: "#c8c8c8"
+                    font.pixelSize: 12
+                    font.bold: true
+                }
+
+                RowLayout {
+                    spacing: 8
+                    Label { text: "Max commands"; color: "#c8c8c8"; font.pixelSize: 11 }
+                    SpinBox {
+                        id: budgetMaxCommandsBox
+                        from: 0; to: 99999
+                        value: approvalBudgetMaxCommands
+                        font.pixelSize: root.uiControlFontPx
+                        onValueModified: approvalBudgetMaxCommands = value
+                    }
+                }
+
+                RowLayout {
+                    spacing: 8
+                    Label { text: "Max duration (secs)"; color: "#c8c8c8"; font.pixelSize: 11 }
+                    SpinBox {
+                        id: budgetMaxDurationSecsBox
+                        from: 0; to: 99999
+                        value: approvalBudgetMaxDurationSecs
+                        font.pixelSize: root.uiControlFontPx
+                        onValueModified: approvalBudgetMaxDurationSecs = value
+                    }
+                }
+
+                RowLayout {
+                    spacing: 8
+                    Label { text: "Max files"; color: "#c8c8c8"; font.pixelSize: 11 }
+                    SpinBox {
+                        id: budgetMaxFilesBox
+                        from: 0; to: 99999
+                        value: approvalBudgetMaxFiles
+                        font.pixelSize: root.uiControlFontPx
+                        onValueModified: approvalBudgetMaxFiles = value
+                    }
+                }
+            }
+
+            // ── Trusted-scope confirmation gate (Step 30) ────────────────────
+            ColumnLayout {
+                visible: approvalRiskTier >= 2
+                spacing: 6
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 1
+                    color: approvalRiskTier === 3 ? "#f87171" : "#fbbf24"
+                    opacity: 0.6
+                }
+
+                RowLayout {
+                    spacing: 6
+                    Text {
+                        text: "\u26a0"
+                        color: approvalRiskTier === 3 ? "#f87171" : "#fbbf24"
+                        font.pixelSize: 14
+                    }
+                    Text {
+                        text: approvalRiskTier === 3
+                            ? "High-risk launch: autonomous mode, unrestricted scope"
+                            : "Medium-risk launch: autonomous mode with budget limits"
+                        color: approvalRiskTier === 3 ? "#f87171" : "#fbbf24"
+                        font.pixelSize: 12
+                        font.bold: true
+                    }
+                }
+
+                Text {
+                    text: approvalRiskTier === 3
+                        ? "I confirm this autonomous agent may operate across the full workspace without command, time, or file restrictions."
+                        : "I confirm this autonomous agent may access files and run commands within this workspace (within the stated budget limits)."
+                    color: "#d4d4d4"
+                    font.pixelSize: 11
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+
+                CheckBox {
+                    id: trustedScopeCheck
+                    text: "I understand and accept the risk"
+                    font.pixelSize: root.uiControlFontPx
+                    checked: approvalTrustedScopeConfirmed
+                    onCheckedChanged: approvalTrustedScopeConfirmed = checked
+                }
+            }
+
             RowLayout {
                 Layout.alignment: Qt.AlignRight
                 spacing: 8
@@ -1428,6 +1753,21 @@ ApplicationWindow {
                     font.pixelSize: root.uiControlFontPx
                     enabled: root.canSubmitApproval()
                     onClicked: {
+                        // Sync approval-time selections to bridge before approving
+                        terminalApp.approvalSessionMode = approvalSessionMode
+                        terminalApp.approvalOutputFormat = approvalOutputFormat
+                        if (approvalSessionMode === "resume") {
+                            terminalApp.approvalResumeSessionId = approvalResumeSessionId
+                        }
+                        // Sync risk/budget/trusted-scope (Steps 29–31)
+                        terminalApp.approvalRiskTier = approvalRiskTier
+                        terminalApp.approvalTrustedScopeConfirmed = approvalTrustedScopeConfirmed
+                        terminalApp.approvalBudgetMaxCommands = approvalBudgetMaxCommands
+                        terminalApp.approvalBudgetMaxDurationSecs = approvalBudgetMaxDurationSecs
+                        terminalApp.approvalBudgetMaxFiles = approvalBudgetMaxFiles
+                        // Sync CLI load-reduction flags (Phase 3)
+                        terminalApp.approvalGeminiScreenReader = approvalGeminiScreenReader
+                        terminalApp.approvalCopilotMinimalUi = approvalCopilotMinimalUi
                         terminalApp.approveCommand(terminalApp.currentRequestId, approvalSelectedAutonomyMode)
                         approvalDialog.close()
                     }
@@ -1490,6 +1830,7 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 placeholderText: "Workspace ID"
                 font.pixelSize: root.uiInputFontPx
+                focus: true
                 text: terminalApp.savedCommandsWorkspaceId()
                 onEditingFinished: {
                     const workspaceId = root.savedCommandsWorkspaceOrDefault(text)
@@ -1870,6 +2211,7 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     placeholderText: "Search patterns…"
                     font.pixelSize: root.uiInputFontPx
+                    focus: true
                     onTextChanged: terminalApp.allowlistFilter = text
                 }
 

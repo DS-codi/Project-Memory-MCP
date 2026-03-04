@@ -153,6 +153,36 @@ export type TerminalIpcMessage =
   | OutputChunk;
 
 // =========================================================================
+// Server → GUI push-only messages (not part of TerminalIpcMessage union;
+// these are fire-and-forget and never decoded by the TS side)
+// =========================================================================
+
+/** A registered Project Memory workspace entry. */
+export interface WorkspaceEntry {
+  /** Workspace ID (e.g. "project_memory_mcp-50e04147a402"). */
+  id: string;
+  /** Absolute filesystem path (e.g. "C:/Users/User/Project_Memory_MCP"). */
+  path: string;
+  /** Human-readable display name. */
+  name: string;
+}
+
+/**
+ * MCP server → GUI: current list of registered Project Memory workspaces.
+ * Sent on every `run` connect so the workspace/venv path pickers stay
+ * populated even before the user runs any commands.
+ */
+export interface WorkspaceListPush {
+  type: 'workspace_list_push';
+  workspaces: WorkspaceEntry[];
+}
+
+/** Encode a WorkspaceListPush as NDJSON for writing to a TCP socket. */
+export function encodeWorkspaceListPush(msg: WorkspaceListPush): string {
+  return JSON.stringify(msg) + '\n';
+}
+
+// =========================================================================
 // Type Guards
 // =========================================================================
 

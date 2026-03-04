@@ -6,7 +6,7 @@ import { promisify } from 'util';
 import {
   getWorkspace, getPlansByWorkspace, getPlan, getPlanPhases, getPlanSteps,
   getPlanSessions, getPlanLineage, getPlanNotes, getBuildScripts, getPlanContext,
-  getProgramChildPlans, listPrograms,
+  getProgramChildPlans, listPrograms, getWorkflowMode, setWorkflowMode,
 } from '../db/queries.js';
 import { emitEvent } from '../events/emitter.js';
 
@@ -256,6 +256,7 @@ plansRouter.get('/:workspaceId/:planId', (req, res) => {
     const lineage = getPlanLineage(planId);
     const sessions = getPlanSessions(planId);
     const notes = getPlanNotes(planId);
+    const workflowMode = getWorkflowMode(planId);
     res.json({
       id: plan.id,
       workspace_id: plan.workspace_id,
@@ -274,6 +275,7 @@ plansRouter.get('/:workspaceId/:planId', (req, res) => {
       created_at: plan.created_at,
       updated_at: plan.updated_at,
       archived_at: plan.archived_at,
+      workflow_mode: workflowMode ?? undefined,
       steps: steps.map(s => ({
         index: s.order_index,
         phase: phaseMap.get(s.phase_id) || '',
@@ -1171,6 +1173,37 @@ plansRouter.patch('/:workspaceId/:planId/goals', async (req, res) => {
   } catch (error) {
     console.error('Error updating goals:', error);
     res.status(500).json({ error: 'Failed to update goals' });
+  }
+});
+
+// ============================================================================
+// Workflow Mode Endpoint
+// ============================================================================
+
+// PATCH /api/plans/:workspaceId/:planId/workflow-mode - Set workflow mode
+plansRouter.patch('/:workspaceId/:planId/workflow-mode', (req, res) => {
+  try {
+    const { planId } = req.params;
+    const { workflow_mode } = req.body as { workflow_mode?: unknown };
+
+    const VALID_MODES = ['standard', 'tdd', 'enrichment', 'overnight'] as const;
+    if (!workflow_mode || !VALID_MODES.includes(workflow_mode as typeof VALID_MODES[number])) {
+      return res.status(400).json({
+        error: `Invalid workflow_mode. Must be one of: ${VALID_MODES.join(', ')}`,
+      });
+    }
+
+    const plan = getPlan(planId);
+    if (!plan) {
+      return res.status(404).json({ error: 'Plan not found' });
+    }
+
+    setWorkflowMode(planId, workflow_mode as typeof VALID_MODES[number]);
+
+    res.json({ success: true, workflow_mode });
+  } catch (error) {
+    console.error('Error setting workflow mode:', error);
+    res.status(500).json({ error: 'Failed to set workflow mode' });
   }
 });
 

@@ -37,3 +37,4 @@ export { memoryContext, type MemoryContextParams, type ContextAction } from './m
 export { memoryFilesystem, type MemoryFilesystemParams, type FilesystemAction } from './memory_filesystem.js';
 export { memoryTerminal, type MemoryTerminalParams, type MemoryTerminalAction } from './memory_terminal.js';
 export { memorySession, type MemorySessionParams, type SessionAction } from './memory_session.js';
+export { memoryBrainstorm, type MemoryBrainstormParams, type BrainstormAction } from './memory_brainstorm.js';

@@ -129,6 +129,10 @@ pub mod ffi {
         fn launch_gemini_in_tab(self: Pin<&mut TerminalApp>) -> bool;
 
         #[qinvokable]
+        #[cxx_name = "launchCopilotInTab"]
+        fn launch_copilot_in_tab(self: Pin<&mut TerminalApp>) -> bool;
+
+        #[qinvokable]
         #[cxx_name = "openSavedCommands"]
         fn open_saved_commands(self: Pin<&mut TerminalApp>, workspace_id: QString) -> bool;
 
@@ -191,6 +195,45 @@ pub mod ffi {
             provider_policy_applies: bool,
             preferred_provider: QString,
         ) -> QString;
+
+        #[qinvokable]
+        #[cxx_name = "refreshAllowlist"]
+        fn refresh_allowlist(self: Pin<&mut TerminalApp>);
+
+        #[qinvokable]
+        #[cxx_name = "addAllowlistPattern"]
+        fn add_allowlist_pattern(self: Pin<&mut TerminalApp>, pattern: QString);
+
+        #[qinvokable]
+        #[cxx_name = "removeAllowlistPattern"]
+        fn remove_allowlist_pattern(self: Pin<&mut TerminalApp>, pattern: QString);
+
+        #[qinvokable]
+        #[cxx_name = "deriveAllowlistPattern"]
+        fn derive_allowlist_pattern(self: Pin<&mut TerminalApp>, command: QString);
+
+        #[qinvokable]
+        #[cxx_name = "confirmAddProposedPattern"]
+        fn confirm_add_proposed_pattern(self: Pin<&mut TerminalApp>);
+
+        #[qinvokable]
+        #[cxx_name = "cancelProposedPattern"]
+        fn cancel_proposed_pattern(self: Pin<&mut TerminalApp>);
+
+        #[qinvokable]
+        #[cxx_name = "selectExactProposedPattern"]
+        fn select_exact_proposed_pattern(self: Pin<&mut TerminalApp>);
+
+        #[qinvokable]
+        #[cxx_name = "selectGeneralProposedPattern"]
+        fn select_general_proposed_pattern(self: Pin<&mut TerminalApp>);
+
+        /// Compute the risk tier from the given autonomy mode and current bridge
+        /// budget properties. Sets approvalRiskTier + approvalTrustedScopeText.
+        /// Returns 1 (Low), 2 (Medium), or 3 (High).
+        #[qinvokable]
+        #[cxx_name = "computeApprovalRiskTier"]
+        fn compute_approval_risk_tier(self: Pin<&mut TerminalApp>, autonomy_mode: QString) -> u32;
     }
 
     impl cxx_qt::Initialize for TerminalApp {}

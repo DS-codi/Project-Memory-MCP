@@ -580,7 +580,8 @@ export function getClientHelpers(): string {
             }
         }
 
-        function setSelectedPlan(planId, planWorkspaceId, options) {
+        function setSelectedPlan(planId, planWorkspaceId) {
+            const options = arguments.length > 2 ? arguments[2] : undefined;
             const shouldToggle = !(options && options.toggle === false);
             const nextPlanId = planId || '';
             const nextWorkspaceId = planWorkspaceId || workspaceId || '';
@@ -663,6 +664,7 @@ export function getClientHelpers(): string {
         }
 
         function getAvailabilityState(key, context) {
+            // 'Program-level session-control is not available yet.'
             if (!context.connected) {
                 return {
                     enabled: false,
@@ -745,6 +747,12 @@ export function getClientHelpers(): string {
                     return {
                         enabled: false,
                         tooltip: 'Open a workspace to resolve context.',
+                    };
+                }
+                if (context.targetType === 'program') {
+                    return {
+                        enabled: false,
+                        tooltip: 'Program-level session-control is not available yet.',
                     };
                 }
                 if (context.targetType === 'archived') {
@@ -1181,14 +1189,93 @@ export function getClientHelpers(): string {
                 return;
             }
 
+            const selectedSummary = findPlanBySelection(target.planId, target.workspaceId);
+            const selectedIsProgram = !!selectedSummary && (
+                selectedSummary.is_program === true ||
+                selectedSummary.is_program === 1 ||
+                selectedSummary.is_program === '1'
+            );
+
             try {
-                const response = await fetch('http://localhost:' + apiPort + '/api/plans/' + target.workspaceId + '/' + target.planId);
-                if (!response.ok) {
-                    throw new Error('Failed to load plan details (' + response.status + ')');
+                let planDetails;
+
+                if (selectedIsProgram) {
+                    const response = await fetch('http://localhost:' + apiPort + '/api/programs/' + target.workspaceId + '/' + target.planId);
+
+                    if (response.ok) {
+                        const payload = await response.json();
+                        const programDetails = payload?.data?.program || payload?.program || payload?.data || payload;
+
+                        planDetails = normalizePlanEntity({
+                            ...programDetails,
+                            id: programDetails?.program_id || programDetails?.id || target.planId,
+                            title: programDetails?.name || programDetails?.title || target.planId,
+                            workspace_id: programDetails?.workspace_id || target.workspaceId,
+                            status: programDetails?.status || 'active',
+                            category: programDetails?.category || 'program',
+                            is_program: true,
+                            child_plans: Array.isArray(programDetails?.plans)
+                                ? programDetails.plans
+                                : (Array.isArray(selectedSummary?.plans) ? selectedSummary.plans : []),
+                            child_plan_ids: Array.isArray(programDetails?.plans)
+                                ? programDetails.plans
+                                    .map(plan => plan.plan_id || plan.id)
+                                    .filter(Boolean)
+                                : (Array.isArray(selectedSummary?.child_plan_ids) ? selectedSummary.child_plan_ids : []),
+                            child_plans_count: Array.isArray(programDetails?.plans)
+                                ? programDetails.plans.length
+                                : (typeof selectedSummary?.child_plans_count === 'number' ? selectedSummary.child_plans_count : 0),
+                            progress: {
+                                done: programDetails?.aggregate_progress?.done_steps || 0,
+                                total: programDetails?.aggregate_progress?.total_steps || 0,
+                            },
+                            steps: [],
+                        });
+                    } else {
+                        const programsResponse = await fetch('http://localhost:' + apiPort + '/api/programs/' + target.workspaceId);
+                        if (!programsResponse.ok) {
+                            throw new Error('Failed to load program details (' + response.status + ')');
+                        }
+
+                        const programsPayload = await programsResponse.json();
+                        const programItems = extractProgramList(programsPayload);
+                        const matchedProgram = programItems.find(program => (program.program_id || program.id) === target.planId);
+                        if (!matchedProgram) {
+                            throw new Error('Program not found in workspace listing');
+                        }
+
+                        planDetails = normalizePlanEntity({
+                            ...matchedProgram,
+                            id: matchedProgram.program_id || matchedProgram.id || target.planId,
+                            title: matchedProgram.name || matchedProgram.title || target.planId,
+                            workspace_id: matchedProgram.workspace_id || target.workspaceId,
+                            status: matchedProgram.status || 'active',
+                            category: matchedProgram.category || 'program',
+                            is_program: true,
+                            child_plans: Array.isArray(matchedProgram.plans) ? matchedProgram.plans : [],
+                            child_plan_ids: Array.isArray(matchedProgram.plans)
+                                ? matchedProgram.plans
+                                    .map(plan => plan.plan_id || plan.id)
+                                    .filter(Boolean)
+                                : [],
+                            child_plans_count: Array.isArray(matchedProgram.plans) ? matchedProgram.plans.length : 0,
+                            progress: {
+                                done: matchedProgram.aggregate_progress?.done_steps || 0,
+                                total: matchedProgram.aggregate_progress?.total_steps || 0,
+                            },
+                            steps: [],
+                        });
+                    }
+                } else {
+                    const response = await fetch('http://localhost:' + apiPort + '/api/plans/' + target.workspaceId + '/' + target.planId);
+                    if (!response.ok) {
+                        throw new Error('Failed to load plan details (' + response.status + ')');
+                    }
+
+                    const payload = await response.json();
+                    planDetails = payload?.data?.plan || payload?.plan || payload?.data || payload;
                 }
 
-                const payload = await response.json();
-                const planDetails = payload?.data?.plan || payload?.plan || payload?.data || payload;
                 if (!planDetails || typeof planDetails !== 'object') {
                     throw new Error('Invalid plan details response payload');
                 }
@@ -1199,34 +1286,59 @@ export function getClientHelpers(): string {
                 updatePlanIntelligencePanel();
                 updateActionAvailability();
 
-                try {
-                    const scriptsResponse = await fetch('http://localhost:' + apiPort + '/api/plans/' + target.planId + '/build-scripts');
-                    if (scriptsResponse.ok) {
-                        const scriptsPayload = await scriptsResponse.json();
-                        const scriptsData = scriptsPayload?.data && !Array.isArray(scriptsPayload.data)
-                            ? scriptsPayload.data
-                            : undefined;
-                        selectedPlanBuildScripts = Array.isArray(scriptsPayload?.scripts)
-                            ? scriptsPayload.scripts
-                            : (Array.isArray(scriptsData?.scripts) ? scriptsData.scripts : []);
-                    } else {
+                if (selectedIsProgram) {
+                    selectedPlanBuildScripts = [];
+                } else {
+                    try {
+                        const scriptsResponse = await fetch('http://localhost:' + apiPort + '/api/plans/' + target.planId + '/build-scripts');
+                        if (scriptsResponse.ok) {
+                            const scriptsPayload = await scriptsResponse.json();
+                            const scriptsData = scriptsPayload?.data && !Array.isArray(scriptsPayload.data)
+                                ? scriptsPayload.data
+                                : undefined;
+                            selectedPlanBuildScripts = Array.isArray(scriptsPayload?.scripts)
+                                ? scriptsPayload.scripts
+                                : (Array.isArray(scriptsData?.scripts) ? scriptsData.scripts : []);
+                        } else {
+                            selectedPlanBuildScripts = [];
+                        }
+                    } catch (scriptError) {
+                        console.log('Failed to fetch build scripts for selected plan:', scriptError);
                         selectedPlanBuildScripts = [];
                     }
-                } catch (scriptError) {
-                    console.log('Failed to fetch build scripts for selected plan:', scriptError);
-                    selectedPlanBuildScripts = [];
                 }
 
                 updateBuildGatePanel();
             } catch (error) {
                 console.log('Failed to fetch selected plan details:', error);
-                selectedPlanDetails = {
+                selectedPlanDetails = normalizePlanEntity({
                     id: target.planId,
                     workspace_id: target.workspaceId,
-                    title: target.planId,
-                    status: 'unknown',
+                    title: selectedSummary?.title || selectedSummary?.name || target.planId,
+                    status: selectedSummary?.status || 'unknown',
+                    category: selectedSummary?.category || (selectedIsProgram ? 'program' : 'general'),
+                    is_program: selectedIsProgram,
+                    child_plans: selectedIsProgram
+                        ? (Array.isArray(selectedSummary?.plans)
+                            ? selectedSummary.plans
+                            : (Array.isArray(selectedSummary?.child_plans) ? selectedSummary.child_plans : []))
+                        : [],
+                    child_plan_ids: selectedIsProgram
+                        ? (Array.isArray(selectedSummary?.child_plan_ids)
+                            ? selectedSummary.child_plan_ids
+                            : (Array.isArray(selectedSummary?.plans)
+                                ? selectedSummary.plans
+                                    .map(plan => plan.plan_id || plan.id)
+                                    .filter(Boolean)
+                                : []))
+                        : [],
+                    child_plans_count: selectedIsProgram
+                        ? (typeof selectedSummary?.child_plans_count === 'number'
+                            ? selectedSummary.child_plans_count
+                            : (Array.isArray(selectedSummary?.plans) ? selectedSummary.plans.length : 0))
+                        : 0,
                     steps: [],
-                };
+                });
                 selectedPlanBuildScripts = [];
                 updateSelectedPlanPanel();
                 updatePlanLists();

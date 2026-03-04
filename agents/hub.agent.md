@@ -243,6 +243,17 @@ Hub acts on `hub_mode` from PromptAnalyst to select the execution pattern.
 - **Architect** reads Researcher's notes and creates the plan steps via `memory_plan` / `memory_steps`. **Hub does not create or modify plan steps.**
 - Hub pauses after Architect returns so user can review the plan before execution begins.
 
+### Post-Brainstorm Routing (FormRequest → GUI)
+
+When Brainstorm returns with `recommended_next_agent: "Coordinator"`, Hub MUST route its output through the GUI before spawning Architect:
+
+1. **Read FormRequest**: `memory_context(action: get, type: "brainstorm_form_request", workspace_id: "...", plan_id: "...")`
+2. **Route to GUI**: `memory_brainstorm(action: "route_with_fallback", form_request: <context.data>)`
+3. **Check result**:
+   - `result.path === "gui"` — user responded via native form; `result.answers` contains their selections
+   - `result.path === "fallback"` — Supervisor unavailable; `result.answers` contains auto-filled defaults (log this)
+4. **Pass to Architect**: include `result.text_summary` and `result.answers` in the Architect spawn prompt as architectural decision context
+
 **Phase loop** (repeat until all phases complete):
 1. **Executor** → Implement phase steps
 2. **Reviewer** → Build verification + code review. Include `pre_plan_build_status` ('passing' | 'failing' | 'unknown') from plan state so Reviewer knows whether to run a regression build check.

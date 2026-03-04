@@ -544,6 +544,20 @@ export interface SkillDeploymentRow {
 }
 
 // ============================================================
+// WORKFLOW MODE SETTINGS
+// ============================================================
+
+export type WorkflowMode = 'standard' | 'tdd' | 'enrichment' | 'overnight';
+
+export interface WorkflowModeSettingsRow {
+  id:            number;
+  plan_id:       string;
+  workflow_mode: WorkflowMode;
+  set_at:        string;
+  updated_at:    string;
+}
+
+// ============================================================
 // MIGRATIONS TRACKER (internal)
 // ============================================================
 

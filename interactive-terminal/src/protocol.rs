@@ -36,6 +36,8 @@ pub enum Message {
     ReadOutputResponse(ReadOutputResponse),
     KillSessionRequest(KillSessionRequest),
     KillSessionResponse(KillSessionResponse),
+    /// MCP server → GUI push: list of registered Project Memory workspaces.
+    WorkspaceListPush(WorkspaceListPush),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -105,6 +107,14 @@ pub struct RelevantFile {
     pub snippet: Option<String>,
 }
 
+/// Session-resume parameters embedded in a ContextPack for providers that
+/// support it (Gemini).  Copilot does not support session resume.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SessionResume {
+    /// The session ID to resume.
+    pub session_id: String,
+}
+
 /// Structured context assembled before a super-subagent launch request is
 /// forwarded to the GUI approval dialog.
 ///
@@ -135,6 +145,11 @@ pub struct ContextPack {
     /// MCP session ID of the requesting agent.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
+    /// Session-resume parameters.  Present when `session_mode = "resume"` and
+    /// a `resume_session_id` was provided at approval time.
+    /// Only Gemini supports session resume; for Copilot this field is ignored.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_resume: Option<SessionResume>,
 }
 
 /// Parse the context-pack from a [`CommandRequest`]'s `context` JSON string.
@@ -280,6 +295,28 @@ pub struct KillSessionResponse {
     pub message: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+}
+
+// ---------------------------------------------------------------------------
+// Workspace list push (MCP server → GUI, fire-and-forget)
+// ---------------------------------------------------------------------------
+
+/// A registered Project Memory workspace entry.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct WorkspaceEntry {
+    /// Workspace ID (e.g. "project_memory_mcp-50e04147a402").
+    pub id: String,
+    /// Absolute filesystem path.
+    pub path: String,
+    /// Human-readable display name.
+    pub name: String,
+}
+
+/// MCP server → GUI: current list of registered Project Memory workspaces.
+/// Sent as a fire-and-forget push on every `run` action connect.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct WorkspaceListPush {
+    pub workspaces: Vec<WorkspaceEntry>,
 }
 
 /// Bidirectional heartbeat for liveness detection.

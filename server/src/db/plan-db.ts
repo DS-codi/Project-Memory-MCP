@@ -2,7 +2,7 @@
  * Plan CRUD + archival operations.
  */
 
-import type { PlanRow, PlanArchiveRow } from './types.js';
+import type { PlanRow, PlanArchiveRow, WorkflowModeSettingsRow, WorkflowMode } from './types.js';
 import { queryOne, queryAll, run, transaction, newId, nowIso } from './query-helpers.js';
 
 // ---------------------------------------------------------------------------
@@ -295,4 +295,41 @@ export function getPlansByStatus(
     `SELECT * FROM plans WHERE workspace_id = ? AND status IN (${placeholders}) ORDER BY created_at DESC`,
     [wsId, ...statuses]
   );
+}
+// ---------------------------------------------------------------------------
+// Workflow Mode
+// ---------------------------------------------------------------------------
+
+/**
+ * Return the workflow settings row for a plan, or undefined if not set.
+ */
+export function getWorkflowMode(planId: string): WorkflowModeSettingsRow | undefined {
+  return queryOne<WorkflowModeSettingsRow>(
+    'SELECT * FROM plan_workflow_settings WHERE plan_id = ?',
+    [planId]
+  ) ?? undefined;
+}
+
+/**
+ * Upsert the workflow mode for a plan.
+ * - On first insert: both set_at and updated_at are set to now.
+ * - On subsequent calls: only workflow_mode and updated_at are updated; set_at is preserved.
+ */
+export function setWorkflowMode(planId: string, mode: WorkflowMode): void {
+  const now = nowIso();
+  run(
+    `INSERT INTO plan_workflow_settings (plan_id, workflow_mode, set_at, updated_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(plan_id) DO UPDATE SET
+       workflow_mode = excluded.workflow_mode,
+       updated_at    = excluded.updated_at`,
+    [planId, mode, now, now]
+  );
+}
+
+/**
+ * Delete the workflow settings row for a plan (application-level cleanup).
+ */
+export function deleteWorkflowMode(planId: string): void {
+  run('DELETE FROM plan_workflow_settings WHERE plan_id = ?', [planId]);
 }

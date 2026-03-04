@@ -1,6 +1,6 @@
 {
   "$schema": "./fault-recovery.contract.schema.json",
-  "contract_version": "v1.6.2",
+  "contract_version": "v1.7.0",
   "runtime_default": "container-mode",
   "dependency_failure_policy": {
     "degrade_without_full_restart": true,
@@ -189,6 +189,626 @@
       "full_resync_required"
     ]
   },
+  "interactive_terminal_session_contract": {
+    "lifecycle_state_machine": {
+      "states": [
+        "session_absent",
+        "session_starting",
+        "session_running",
+        "terminate_requested",
+        "session_terminated",
+        "session_failed"
+      ],
+      "initial_state": "session_absent",
+      "terminal_states": [
+        "session_terminated",
+        "session_failed"
+      ],
+      "action_transitions": [
+        {
+          "action": "execute",
+          "allowed_from": [
+            "session_absent",
+            "session_terminated",
+            "session_failed"
+          ],
+          "to": "session_starting",
+          "outcome": "session_started"
+        },
+        {
+          "action": "read_output",
+          "allowed_from": [
+            "session_starting",
+            "session_running",
+            "terminate_requested",
+            "session_terminated",
+            "session_failed"
+          ],
+          "to": "self",
+          "outcome": "output_snapshot_returned"
+        },
+        {
+          "action": "terminate",
+          "allowed_from": [
+            "session_starting",
+            "session_running"
+          ],
+          "to": "terminate_requested",
+          "outcome": "termination_signaled"
+        }
+      ],
+      "internal_transitions": [
+        {
+          "event": "process_spawned",
+          "from": "session_starting",
+          "to": "session_running"
+        },
+        {
+          "event": "process_exit",
+          "from": "session_running",
+          "to": "session_terminated"
+        },
+        {
+          "event": "process_exit",
+          "from": "terminate_requested",
+          "to": "session_terminated"
+        },
+        {
+          "event": "startup_failure",
+          "from": "session_starting",
+          "to": "session_failed"
+        }
+      ],
+      "illegal_transition_reason_code": "terminal_session_invalid_transition"
+    },
+    "session_identity_correlation": {
+      "adapter_modes": [
+        "local",
+        "bundled",
+        "container_bridge"
+      ],
+      "required_request_fields": [
+        "request_id",
+        "trace_id",
+        "workspace_id",
+        "adapter_mode",
+        "retry_attempt"
+      ],
+      "required_session_fields": [
+        "session_id",
+        "terminal_id",
+        "transport_id",
+        "component_id"
+      ],
+      "execute_identity_rules": {
+        "mint_session_id_once": true,
+        "preserve_session_id_across_adapter_retries": true,
+        "forbid_cross_mode_session_rebind": true,
+        "reroute_requires_parent_session_reference": true
+      },
+      "retry_correlation_rules": {
+        "retry_attempt_field": "retry_attempt",
+        "retry_attempt_starts_at": 0,
+        "retry_must_preserve_request_id": true,
+        "retry_must_preserve_trace_id": true,
+        "max_attempts_source": "extension_channel_reconnect_policy.max_attempts"
+      },
+      "reason_codes": [
+        "terminal_session_correlation_missing",
+        "terminal_session_adapter_mode_mismatch",
+        "terminal_session_retry_context_invalid"
+      ]
+    },
+    "adapter_selection_policy": {
+      "resolution_order": [
+        "runtime_adapter_override",
+        "env_adapter_mode",
+        "container_inference",
+        "default_local"
+      ],
+      "candidate_order_by_requested_mode": {
+        "local": [
+          "local",
+          "bundled"
+        ],
+        "bundled": [
+          "bundled",
+          "local"
+        ],
+        "container_bridge": [
+          "container_bridge",
+          "bundled",
+          "local"
+        ]
+      },
+      "container_inference_rule": {
+        "env_field": "PM_RUNNING_IN_CONTAINER",
+        "match_value": "true",
+        "inferred_mode": "container_bridge"
+      },
+      "preflight_required_for_modes": {
+        "local": [
+          "binary_present",
+          "spawn_capable"
+        ],
+        "bundled": [
+          "bundle_present",
+          "spawn_capable"
+        ],
+        "container_bridge": [
+          "bridge_mode_valid",
+          "host_alias_resolved",
+          "host_port_resolved",
+          "bridge_connectivity_probe"
+        ]
+      },
+      "preflight_outcomes": {
+        "ready_outcome": "adapter_ready",
+        "fallback_outcome": "adapter_preflight_failed_try_next",
+        "hard_fail_outcome": "adapter_preflight_failed_terminal"
+      },
+      "reason_codes": [
+        "terminal_adapter_selected",
+        "terminal_adapter_fallback_selected",
+        "terminal_adapter_preflight_failed"
+      ]
+    },
+    "bridge_unavailable_policy": {
+      "applies_to_mode": "container_bridge",
+      "unavailable_reason_codes": [
+        "terminal_bridge_mode_invalid",
+        "terminal_bridge_host_unreachable",
+        "terminal_bridge_connect_timeout"
+      ],
+      "execute_behavior": {
+        "before_session_allocation": "allow_fallback_ordered",
+        "after_session_allocation": "reject_without_rebind",
+        "session_allocation_on_failure": "forbidden"
+      },
+      "recovery_policy": {
+        "per_session_probe_interval_ms": 5000,
+        "per_session_max_recovery_attempts": 3,
+        "allow_background_recovery_without_global_flip": true
+      },
+      "cross_session_impact_forbidden": [
+        "terminate_other_sessions",
+        "clear_other_session_buffers",
+        "mutate_other_session_adapter_mode",
+        "reset_global_bridge_runtime_state"
+      ],
+      "reason_codes": [
+        "terminal_bridge_unavailable",
+        "terminal_bridge_recovery_deferred",
+        "terminal_bridge_recovery_succeeded",
+        "terminal_bridge_isolation_preserved"
+      ]
+    },
+    "output_buffer_contract": {
+      "max_buffer_bytes_per_session": 1048576,
+      "max_snapshot_bytes_per_read": 65536,
+      "max_snapshot_lines_per_read": 500,
+      "overflow_policy": "truncate_oldest_preserve_latest",
+      "cursor_model": {
+        "cursor_kind": "byte_offset",
+        "cursor_monotonic": true,
+        "cursor_replay_requires_exact_match": true,
+        "cursor_invalid_reason_code": "terminal_output_cursor_invalid"
+      },
+      "truncation_semantics": {
+        "emit_truncation_marker": true,
+        "truncation_reason_code": "terminal_output_truncated",
+        "must_preserve_cursor_safety": true
+      },
+      "eof_semantics": {
+        "post_termination_behavior": "allow_buffer_drain_then_eof",
+        "eof_reason_code": "terminal_output_stream_drained"
+      },
+      "reason_codes": [
+        "terminal_output_truncated",
+        "terminal_output_cursor_invalid",
+        "terminal_output_stream_drained"
+      ]
+    },
+    "session_isolation_guarantees": {
+      "isolation_key": "session_id",
+      "isolated_resources": [
+        "process_handle",
+        "output_buffer",
+        "working_directory",
+        "environment_overrides",
+        "request_correlation",
+        "interruption_directive_state"
+      ],
+      "concurrency_controls": {
+        "max_inflight_actions_per_session": 1,
+        "allow_parallel_sessions": true,
+        "session_lock_scope": "session_id"
+      },
+      "forbidden_cross_session_effects": [
+        "cross_session_output_append",
+        "cross_session_cursor_advance",
+        "cross_session_terminate_signal",
+        "cross_session_env_mutation",
+        "cross_session_adapter_rebind"
+      ],
+      "cleanup_guarantees": {
+        "on_session_terminated": [
+          "release_session_lock",
+          "seal_output_buffer",
+          "clear_session_env_overrides"
+        ],
+        "must_not_cleanup_other_sessions": true
+      },
+      "reason_codes": [
+        "terminal_session_isolation_enforced",
+        "terminal_session_state_leak_detected"
+      ]
+    },
+    "action_idempotency": {
+      "terminate": {
+        "idempotency_key_fields": [
+          "session_id",
+          "request_id",
+          "action",
+          "signal_nonce"
+        ],
+        "duplicate_policy": "return_existing_result",
+        "allowed_repeat_outcomes": [
+          "termination_signaled",
+          "already_terminating",
+          "already_terminated"
+        ],
+        "must_emit_single_kill_signal": true,
+        "reason_codes": [
+          "terminal_terminate_idempotent_replay",
+          "terminal_already_terminated"
+        ]
+      },
+      "read_output": {
+        "idempotency_key_fields": [
+          "session_id",
+          "cursor",
+          "request_id"
+        ],
+        "duplicate_policy": "return_same_cursor_page",
+        "cursor_required": true,
+        "must_not_advance_cursor_on_duplicate": true,
+        "post_termination_behavior": "allow_buffer_drain_then_eof",
+        "reason_codes": [
+          "terminal_read_output_duplicate_suppressed",
+          "terminal_output_stream_drained"
+        ]
+      },
+      "shared_invariants": [
+        "repeated_requests_must_not_mutate_state_twice",
+        "duplicate_responses_must_preserve_original_correlation",
+        "idempotent_result_required_after_session_terminated"
+      ]
+    },
+    "interruption_directive_boundaries": {
+      "directives": [
+        {
+          "directive": "graceful_stop",
+          "marker": "⚠️ SESSION STOP",
+          "delivery_boundary": "with_original_response",
+          "allowed_follow_up_actions": [
+            "read_output",
+            "terminate"
+          ],
+          "session_progression": "finish_current_microtask_then_stop"
+        },
+        {
+          "directive": "immediate_stop",
+          "marker": "🛑 SESSION STOP — IMMEDIATE",
+          "delivery_boundary": "replace_original_response",
+          "allowed_follow_up_actions": [
+            "terminate"
+          ],
+          "session_progression": "stop_immediately"
+        },
+        {
+          "directive": "terminated",
+          "marker": "❌ SESSION TERMINATED",
+          "delivery_boundary": "terminal_error_boundary",
+          "allowed_follow_up_actions": [
+            "read_output",
+            "terminate"
+          ],
+          "session_progression": "session_already_killed"
+        }
+      ],
+      "post_termination_action_policy": {
+        "read_output_after_terminated": "return_terminal_state_only",
+        "terminate_after_terminated": "idempotent_already_terminated",
+        "execute_after_terminated": "requires_new_session_id"
+      },
+      "forbidden_behaviors": [
+        "directive_must_not_escalate_permissions",
+        "graceful_stop_must_not_start_new_work_units",
+        "immediate_stop_must_block_read_progression",
+        "terminated_must_not_mutate_process_state"
+      ],
+      "reason_codes": [
+        "terminal_stop_graceful",
+        "terminal_stop_immediate",
+        "terminal_session_terminated_directive",
+        "terminal_stop_directive_violation"
+      ]
+    },
+    "verification_matrix": {
+      "lifecycle_conformance_tests": [
+        {
+          "case_id": "lifecycle_execute_read_terminate_sequence",
+          "description": "Validates canonical execute -> read_output -> terminate sequencing and post-termination drain-to-EOF behavior.",
+          "initial_state": "session_absent",
+          "action_sequence": [
+            "execute",
+            "read_output",
+            "terminate",
+            "read_output"
+          ],
+          "expected_state_sequence": [
+            "session_absent",
+            "session_starting",
+            "session_running",
+            "terminate_requested",
+            "session_terminated"
+          ],
+          "required_reason_codes": [
+            "terminal_adapter_selected",
+            "terminal_output_stream_drained"
+          ],
+          "required_assertions": [
+            "read_output_is_observational_only",
+            "terminate_advances_only_to_shutdown_path",
+            "post_termination_read_drains_then_eof"
+          ]
+        },
+        {
+          "case_id": "lifecycle_startup_read_then_terminate",
+          "description": "Validates read_output during session_starting remains observational and terminate transitions deterministically to termination.",
+          "initial_state": "session_absent",
+          "action_sequence": [
+            "execute",
+            "read_output",
+            "terminate"
+          ],
+          "expected_state_sequence": [
+            "session_absent",
+            "session_starting",
+            "terminate_requested",
+            "session_terminated"
+          ],
+          "required_reason_codes": [
+            "terminal_adapter_selected",
+            "terminal_output_stream_drained"
+          ],
+          "required_assertions": [
+            "startup_phase_read_does_not_mutate_lifecycle",
+            "single_effective_termination_signal"
+          ]
+        },
+        {
+          "case_id": "lifecycle_execute_requires_new_session_after_terminated",
+          "description": "Validates post-termination read_output returns terminal-state semantics and execute requires a newly allocated session identity.",
+          "initial_state": "session_terminated",
+          "action_sequence": [
+            "read_output",
+            "execute"
+          ],
+          "expected_state_sequence": [
+            "session_terminated",
+            "session_terminated",
+            "session_starting"
+          ],
+          "required_reason_codes": [
+            "terminal_output_stream_drained",
+            "terminal_adapter_selected"
+          ],
+          "required_assertions": [
+            "read_after_terminated_returns_terminal_state_only",
+            "execute_after_terminated_allocates_new_session_id"
+          ]
+        }
+      ],
+      "race_condition_tests": [
+        {
+          "case_id": "race_terminate_read_overlap_same_session",
+          "description": "Validates concurrent terminate/read_output overlap on one session resolves deterministically without duplicate mutation.",
+          "parallel_actions": [
+            "terminate",
+            "read_output"
+          ],
+          "expected_outcomes": [
+            "termination_signaled_or_already_terminating",
+            "buffer_drain_then_eof"
+          ],
+          "required_reason_codes": [
+            "terminal_terminate_idempotent_replay",
+            "terminal_output_stream_drained"
+          ],
+          "required_assertions": [
+            "concurrent_read_does_not_cancel_termination",
+            "overlap_path_preserves_session_lock_scope"
+          ]
+        },
+        {
+          "case_id": "race_duplicate_terminate_burst",
+          "description": "Validates repeated terminate calls under race pressure emit one effective kill signal with idempotent replay outcomes.",
+          "parallel_actions": [
+            "terminate",
+            "terminate",
+            "terminate"
+          ],
+          "expected_outcomes": [
+            "single_kill_signal",
+            "repeat_calls_return_existing_result"
+          ],
+          "required_reason_codes": [
+            "terminal_terminate_idempotent_replay",
+            "terminal_already_terminated"
+          ],
+          "required_assertions": [
+            "must_emit_single_kill_signal",
+            "repeat_terminate_is_idempotent"
+          ]
+        },
+        {
+          "case_id": "race_duplicate_read_same_cursor_with_terminate",
+          "description": "Validates duplicate read_output requests at identical cursor while terminate is in-flight keep cursor stability and deterministic EOF progression.",
+          "parallel_actions": [
+            "read_output",
+            "read_output",
+            "terminate"
+          ],
+          "expected_outcomes": [
+            "duplicate_reads_return_same_page",
+            "cursor_does_not_advance_on_duplicate"
+          ],
+          "required_reason_codes": [
+            "terminal_read_output_duplicate_suppressed",
+            "terminal_output_stream_drained"
+          ],
+          "required_assertions": [
+            "duplicate_read_preserves_cursor_identity",
+            "terminate_overlap_preserves_output_integrity"
+          ]
+        }
+      ],
+      "multi_session_stress_tests": [
+        {
+          "case_id": "stress_parallel_session_output_isolation",
+          "description": "Validates concurrent session execution and reads preserve per-session isolation boundaries under parallel load.",
+          "session_count": 8,
+          "workload_profile": [
+            "parallel_execute_and_read",
+            "mixed_termination_patterns"
+          ],
+          "expected_isolation_invariants": [
+            "no_cross_session_output_append",
+            "no_cross_session_cursor_advance",
+            "no_cross_session_terminate_signal"
+          ],
+          "required_reason_codes": [
+            "terminal_session_isolation_enforced",
+            "terminal_output_stream_drained"
+          ]
+        },
+        {
+          "case_id": "stress_buffer_truncation_integrity_under_pressure",
+          "description": "Validates per-session buffer ceilings and truncation semantics under sustained output pressure without cross-session corruption.",
+          "session_count": 16,
+          "workload_profile": [
+            "high_throughput_output_spike",
+            "bounded_snapshot_reads"
+          ],
+          "expected_isolation_invariants": [
+            "truncate_oldest_preserve_latest_per_session",
+            "cursor_monotonicity_preserved_after_truncation",
+            "no_buffer_corruption_across_sessions"
+          ],
+          "required_reason_codes": [
+            "terminal_output_truncated",
+            "terminal_session_isolation_enforced"
+          ]
+        },
+        {
+          "case_id": "stress_cleanup_isolation_after_partial_termination",
+          "description": "Validates terminating a subset of sessions does not clear locks, buffers, or environment state of still-active sessions.",
+          "session_count": 12,
+          "workload_profile": [
+            "staggered_terminate_and_read_drain",
+            "active_sessions_continue_under_neighbor_shutdown"
+          ],
+          "expected_isolation_invariants": [
+            "terminated_sessions_release_own_locks_only",
+            "must_not_cleanup_other_sessions",
+            "active_session_output_integrity_preserved"
+          ],
+          "required_reason_codes": [
+            "terminal_session_isolation_enforced",
+            "terminal_output_stream_drained"
+          ]
+        }
+      ],
+      "container_bridge_fault_tests": [
+        {
+          "case_id": "bridge_preflight_host_alias_unresolved_fallback",
+          "description": "Validates container_bridge preflight alias-resolution failure follows ordered fallback before session allocation and emits deterministic diagnostics.",
+          "runtime_mode": "container-mode",
+          "fault_stage": "preflight",
+          "fault_trigger": [
+            "pm_interactive_terminal_host_alias_unresolved",
+            "bridge_connectivity_probe_failed"
+          ],
+          "expected_outcomes": [
+            "fallback_order_evaluated_before_session_allocation",
+            "session_allocation_forbidden_if_all_candidates_fail",
+            "diagnostic_reason_code_emitted"
+          ],
+          "required_reason_codes": [
+            "terminal_bridge_unavailable",
+            "terminal_adapter_preflight_failed",
+            "terminal_adapter_fallback_selected"
+          ],
+          "required_diagnostics": [
+            "adapter_selection_trace",
+            "bridge_preflight_probe_result",
+            "reason_code_timeline"
+          ]
+        },
+        {
+          "case_id": "bridge_preflight_connect_timeout_terminal_reject",
+          "description": "Validates bridge connect-timeout preflight behavior rejects without session allocation when fallback candidates are exhausted.",
+          "runtime_mode": "container-mode",
+          "fault_stage": "preflight",
+          "fault_trigger": [
+            "pm_interactive_terminal_connect_timeout",
+            "bridge_host_port_unreachable"
+          ],
+          "expected_outcomes": [
+            "hard_fail_without_session_allocation",
+            "ordered_fallback_exhausted_before_reject"
+          ],
+          "required_reason_codes": [
+            "terminal_bridge_unavailable",
+            "terminal_bridge_connect_timeout",
+            "terminal_adapter_preflight_failed"
+          ],
+          "required_diagnostics": [
+            "bridge_probe_latency_ms",
+            "adapter_candidate_evaluation_order",
+            "preflight_failure_snapshot"
+          ]
+        },
+        {
+          "case_id": "bridge_post_allocation_recovery_isolated",
+          "description": "Validates post-allocation bridge loss triggers per-session bounded recovery with cross-session isolation preserved.",
+          "runtime_mode": "container-mode",
+          "fault_stage": "post_allocation",
+          "fault_trigger": [
+            "bridge_runtime_loss_after_session_allocation",
+            "per_session_recovery_probe_exhausted"
+          ],
+          "expected_outcomes": [
+            "operation_rejected_without_cross_mode_rebind",
+            "other_sessions_remain_unaffected",
+            "background_recovery_emits_deterministic_outcome"
+          ],
+          "required_reason_codes": [
+            "terminal_bridge_recovery_deferred",
+            "terminal_bridge_recovery_succeeded",
+            "terminal_bridge_isolation_preserved"
+          ],
+          "required_diagnostics": [
+            "per_session_probe_attempt_log",
+            "cross_session_isolation_assertions",
+            "recovery_decision_timeline"
+          ]
+        }
+      ]
+    }
+  },
   "reconnect_idempotency_contract": {
     "idempotency_key_fields": [
       "resume_token_hash",
@@ -220,6 +840,8 @@
       "artifacts/events/normalized-events.jsonl",
       "artifacts/health/fault-timeline.json",
       "artifacts/assertions/recovery-assertions.json",
+      "artifacts/assertions/extension-reconnect-assertions.json",
+      "artifacts/assertions/terminal-diagnostics-bundle.json",
       "artifacts/summary.json"
     ],
     "timeline_required_fields": [
@@ -245,6 +867,65 @@
       "replay_ack_count",
       "replay_ack_latency_ms_p95"
     ],
+    "retry_telemetry_required_fields": [
+      "attempt",
+      "backoff_ms",
+      "cooldown_ms",
+      "retry_cap",
+      "retry_exhausted",
+      "outcome"
+    ],
+    "registration_disposal_counter_required_fields": [
+      "register_attempt_count",
+      "register_success_count",
+      "register_suppressed_count",
+      "dispose_invocation_count",
+      "dispose_success_count"
+    ],
+    "diagnostics_bundle": {
+      "artifact_path": "artifacts/assertions/terminal-diagnostics-bundle.json",
+      "required_sections": [
+        "adapter_mode_snapshot",
+        "preflight_diagnostics",
+        "session_timeline",
+        "buffer_statistics"
+      ],
+      "adapter_mode_snapshot_required_fields": [
+        "requested_adapter_mode",
+        "resolved_adapter_mode",
+        "selection_source",
+        "candidate_order",
+        "fallback_applied",
+        "final_outcome_reason_code"
+      ],
+      "preflight_diagnostics_required_fields": [
+        "preflight_probe_id",
+        "probe_target",
+        "probe_started_at",
+        "probe_completed_at",
+        "probe_latency_ms",
+        "probe_outcome",
+        "probe_reason_code"
+      ],
+      "session_timeline_required_fields": [
+        "session_id",
+        "terminal_id",
+        "state_transition",
+        "timestamp",
+        "cause",
+        "reason_code"
+      ],
+      "buffer_statistics_required_fields": [
+        "session_id",
+        "buffer_bytes_current",
+        "buffer_bytes_peak",
+        "bytes_truncated_total",
+        "snapshot_bytes_returned",
+        "snapshot_lines_returned",
+        "cursor_start",
+        "cursor_end"
+      ]
+    },
     "pass_reason_code": "reconnect_failure_diagnostics_present",
     "fail_reason_code": "reconnect_failure_diagnostics_missing"
   },
@@ -261,6 +942,158 @@
         "assertion_pass"
       ],
       "minimum_passing_scenarios": 1
+    },
+    "build_test_execution_sequence": {
+      "stop_on_stage_failure": true,
+      "stages": [
+        {
+          "stage_id": "local_conformance",
+          "stage_order": 1,
+          "description": "Run extension-local conformance checks before Podman resilience execution.",
+          "required_commands": [
+            "./run-tests.ps1 -Component Extension",
+            "pwsh -File .\\scripts\\integration-harness-extension-headless.ps1 -RunId <run_id> -ValidateOnly",
+            "pwsh -File .\\scripts\\integration-harness-extension-reconnect.ps1 -RunId <run_id> -ValidateOnly"
+          ],
+          "required_artifacts": [
+            "artifacts/assertions/extension-headless-assertions.json",
+            "artifacts/assertions/extension-reconnect-assertions.json"
+          ],
+          "pass_reason_code": "local_conformance_passed"
+        },
+        {
+          "stage_id": "podman_bridge_resilience",
+          "stage_order": 2,
+          "description": "Run Podman bridge resilience lane after local conformance passes.",
+          "required_commands": [
+            "pwsh -File .\\scripts\\integration-harness-matrix.ps1 -RunId <run_id> -Tier resilience -RunProfile podman-compose-default"
+          ],
+          "required_fault_scenarios": [
+            "container_bridge_preflight_failure",
+            "container_bridge_recovery_diagnostics"
+          ],
+          "required_artifacts": [
+            "artifacts/assertions/matrix-gates.json",
+            "artifacts/assertions/recovery-assertions.json",
+            "artifacts/assertions/terminal-diagnostics-bundle.json",
+            "artifacts/events/normalized-events.jsonl",
+            "artifacts/summary.json"
+          ],
+          "pass_reason_code": "podman_bridge_resilience_passed"
+        }
+      ],
+      "fail_reason_code": "build_test_sequence_stage_failed"
+    },
+    "headless_reconnect_sustained_pass_rate": {
+      "required": true,
+      "scenario_ids": [
+        "extension_backend_restart",
+        "extension_backend_api_outage",
+        "extension_endpoint_failure"
+      ],
+      "evaluation_window_runs": 20,
+      "minimum_pass_rate": 0.95,
+      "minimum_consecutive_passing_runs": 5,
+      "required_artifacts": [
+        "artifacts/assertions/extension-reconnect-assertions.json",
+        "artifacts/assertions/matrix-gates.json",
+        "artifacts/summary.json"
+      ],
+      "pass_reason_code": "headless_reconnect_pass_rate_sustained",
+      "fail_reason_code": "headless_reconnect_pass_rate_below_threshold"
+    },
+    "session_stability_and_adapter_recovery_gate": {
+      "required": true,
+      "evaluation_window_runs": 20,
+      "required_artifacts": [
+        "artifacts/assertions/terminal-diagnostics-bundle.json",
+        "artifacts/assertions/extension-reconnect-assertions.json",
+        "artifacts/assertions/matrix-gates.json",
+        "artifacts/summary.json"
+      ],
+      "session_stability_thresholds": {
+        "max_startup_failure_rate": 0.02,
+        "max_unexpected_termination_rate": 0.01,
+        "max_cursor_regression_events": 0,
+        "max_cross_session_isolation_violations": 0
+      },
+      "adapter_recovery_thresholds": {
+        "minimum_preflight_success_rate": 0.98,
+        "max_terminal_preflight_failure_rate": 0.02,
+        "max_bridge_probe_latency_p95_ms": 1500,
+        "max_bridge_recovery_attempts_per_session": 3,
+        "minimum_bridge_recovery_success_rate": 0.95
+      },
+      "pass_reason_codes": [
+        "terminal_session_stability_gate_passed",
+        "terminal_adapter_recovery_gate_passed"
+      ],
+      "fail_reason_codes": [
+        "terminal_session_stability_gate_failed",
+        "terminal_adapter_recovery_gate_failed"
+      ]
+    },
+    "rollback_safe_mode_policy": {
+      "enabled": true,
+      "trigger_reason_codes": [
+        "headless_reconnect_pass_rate_below_threshold",
+        "release_acceptance_not_ready",
+        "backoff_attempt_limit_exceeded",
+        "terminal_session_stability_gate_failed",
+        "terminal_adapter_recovery_gate_failed"
+      ],
+      "stability_envelope_trigger_reason_codes": [
+        "terminal_session_stability_gate_failed",
+        "terminal_adapter_recovery_gate_failed",
+        "headless_reconnect_pass_rate_below_threshold"
+      ],
+      "threshold_regression_signals": {
+        "minimum_pass_rate": 0.95,
+        "evaluation_window_runs": 20,
+        "max_consecutive_failures_before_safe_mode": 2
+      },
+      "safe_mode_actions": [
+        "enforce_single_inflight_reconnect",
+        "disable_noncritical_realtime_features",
+        "block_mutating_extension_operations_until_fresh",
+        "emit_operator_alert"
+      ],
+      "rollback_actions": [
+        "revert_extension_reconnect_policy_to_last_known_good",
+        "pin_release_candidate_and_block_promotion",
+        "rerun_headless_reconnect_lane_before_safe_mode_exit"
+      ],
+      "rollback_sequence": [
+        "enter_safe_mode_and_freeze_promotion",
+        "revert_adapter_selection_policy_to_last_known_good",
+        "enforce_single_inflight_reconnect_and_mutation_block",
+        "rerun_local_conformance_lane",
+        "rerun_podman_bridge_resilience_lane"
+      ],
+      "release_controls": {
+        "pin_release_candidate": true,
+        "block_new_promotion": true,
+        "require_reviewer_ack_for_unpin": true
+      },
+      "post_rollback_validation": {
+        "required_sequence": [
+          "local_conformance",
+          "podman_bridge_resilience"
+        ],
+        "minimum_consecutive_passing_runs": 5,
+        "required_reason_codes": [
+          "headless_reconnect_pass_rate_sustained",
+          "terminal_session_stability_gate_passed",
+          "terminal_adapter_recovery_gate_passed"
+        ]
+      },
+      "exit_criteria": {
+        "minimum_consecutive_passing_runs": 5,
+        "required_reason_code": "headless_reconnect_pass_rate_sustained",
+        "manual_override_allowed": false
+      },
+      "pass_reason_code": "rollback_safe_mode_policy_enforced",
+      "fail_reason_code": "rollback_safe_mode_policy_missing"
     },
     "non_cascading_recovery": {
       "required_failure_domain": "dependency-group",
@@ -340,6 +1173,7 @@
       "normal",
       "delayed",
       "duplicate",
+      "rehydration",
       "stale-token"
     ],
     "cases": [
@@ -411,6 +1245,30 @@
         ]
       },
       {
+        "case_id": "rehydration",
+        "description": "Reconnect must rehydrate route/session context after connectivity restore before lane success is emitted.",
+        "request_profile": {
+          "resume_token_state": "valid",
+          "session_lease_state": "active",
+          "transport_rebind": "new_transport",
+          "simulated_handshake_delay_ms": 700,
+          "duplicate_attempt_count": 1
+        },
+        "expected_outcome": "accepted",
+        "expected_reason_codes": [
+          "connectivity_reconnected",
+          "post_recovery_data_fresh"
+        ],
+        "must_emit_events": [
+          "session_invalidated",
+          "reconnect_attempt",
+          "dependency_gate_pass",
+          "readiness_pass",
+          "connectivity_reconnected",
+          "assertion_pass"
+        ]
+      },
+      {
         "case_id": "stale-token",
         "description": "Stale or expired token is denied and requires full resync path.",
         "request_profile": {
@@ -435,13 +1293,37 @@
   "fault_injection_verification_matrix": {
     "runtime_mode": "container-mode",
     "default_compose_file": "docs/integration-harness/podman-compose.integration.yml",
+    "dependency_orchestration": {
+      "headless_lane_required": true,
+      "required_service_chain": [
+        "project-memory:health_pass",
+        "dashboard:api_ws_reachable",
+        "supervisor-proxy:heartbeat_pass_or_explicit_skip",
+        "extension-test-runner:start_after_dependency_gate",
+        "interactive-terminal-bridge:preflight_required_for_container_bridge_flows"
+      ],
+      "deterministic_fault_controls": [
+        "stop_service:project-memory",
+        "delay_response:project-memory",
+        "force_health_failure:mcp_or_dashboard",
+        "simulate_bridge_preflight_failure:interactive-terminal-bridge",
+        "inject_bridge_runtime_disconnect:interactive-terminal-bridge"
+      ],
+      "determinism_rules": [
+        "atomic_fault_action_per_scenario",
+        "restart_scope_must_match_contract",
+        "reconnect_requires_dependency_and_readiness_gate",
+        "assert_dependency_gate_evidence_per_scenario",
+        "container_bridge_faults_require_preflight_and_diagnostics_evidence"
+      ]
+    },
     "scenarios": [
       {
         "scenario_key": "api_outage",
         "description": "Dashboard API endpoint is forced unavailable and then restored to validate outage detection and reconnect recovery.",
         "injection": {
           "fault_type": "api_outage",
-          "target": "http://localhost:3001/api/health",
+          "target": "http://localhost:43001/api/health",
           "hold_ms": 2000
         },
         "expected_outcomes": {
@@ -451,6 +1333,8 @@
             "connectivity_degraded",
             "connectivity_disconnected",
             "reconnect_attempt",
+            "dependency_gate_pass",
+            "readiness_pass",
             "connectivity_reconnected"
           ],
           "reason_codes": [
@@ -464,7 +1348,7 @@
         "description": "WebSocket transport path is interrupted to validate reconnect sequencing and readiness-gated restore behavior.",
         "injection": {
           "fault_type": "websocket_interruption",
-          "target": "ws://localhost:3002",
+          "target": "ws://localhost:43002",
           "hold_ms": 1800
         },
         "expected_outcomes": {
@@ -498,11 +1382,60 @@
             "connectivity_degraded",
             "connectivity_disconnected",
             "assertion_pass",
+            "dependency_gate_pass",
+            "readiness_pass",
             "connectivity_reconnected"
           ],
           "reason_codes": [
             "backend_restarted",
             "reconnect_observed"
+          ]
+        }
+      },
+      {
+        "scenario_key": "container_bridge_preflight_failure",
+        "description": "Container bridge preflight is forced to fail to validate ordered fallback, no-session-allocation hard-fail path, and deterministic diagnostics.",
+        "injection": {
+          "fault_type": "container_bridge_preflight_failure",
+          "target": "interactive-terminal-bridge",
+          "hold_ms": 1200
+        },
+        "expected_outcomes": {
+          "health_state": "degraded_then_recovered",
+          "required_events": [
+            "fault_injected",
+            "assertion_pass",
+            "dependency_gate_pass",
+            "readiness_pass"
+          ],
+          "reason_codes": [
+            "terminal_adapter_preflight_failed",
+            "terminal_bridge_unavailable",
+            "terminal_adapter_fallback_selected"
+          ]
+        }
+      },
+      {
+        "scenario_key": "container_bridge_recovery_diagnostics",
+        "description": "Container bridge runtime disconnect is injected after allocation to validate bounded per-session recovery and required diagnostics emission.",
+        "injection": {
+          "fault_type": "container_bridge_recovery_diagnostics",
+          "target": "interactive-terminal-bridge",
+          "hold_ms": 2500
+        },
+        "expected_outcomes": {
+          "health_state": "degraded_then_recovered",
+          "required_events": [
+            "fault_injected",
+            "connectivity_degraded",
+            "reconnect_attempt",
+            "assertion_pass",
+            "connectivity_reconnected"
+          ],
+          "reason_codes": [
+            "terminal_bridge_recovery_deferred",
+            "terminal_bridge_recovery_succeeded",
+            "reconnect_failure_diagnostics_present"
           ]
         }
       }
@@ -545,7 +1478,7 @@
           "target": {
             "probe": {
               "kind": "http",
-              "url": "http://localhost:3000/health",
+              "url": "http://localhost:43000/health",
               "method": "GET",
               "timeout_ms": 1000,
               "success_status_codes": [503]
@@ -599,7 +1532,7 @@
       },
       "reconnect_probe": {
         "kind": "http",
-        "url": "http://localhost:3000/health",
+        "url": "http://localhost:43000/health",
         "method": "GET",
         "timeout_ms": 3000,
         "success_status_codes": [200]
@@ -793,7 +1726,96 @@
       },
       "reconnect_probe": {
         "kind": "http",
-        "url": "http://localhost:3000/health",
+        "url": "http://localhost:43000/health",
+        "method": "GET",
+        "timeout_ms": 2500,
+        "success_status_codes": [200]
+      }
+    },
+    {
+      "scenario_id": "extension_backend_api_outage",
+      "runtime_mode": "container-mode",
+      "component_id": "extension-test-runner",
+      "failure_domain": "dependency-group",
+      "restart_scope": "dependency-group",
+      "isolation_rules": {
+        "allow_restart_only_within_scope": true,
+        "must_not_restart_outside_scope": true,
+        "unaffected_components_must_remain_healthy": [
+          "interactive-terminal-bridge"
+        ]
+      },
+      "atomic_actions": [
+        {
+          "action_id": "extension_force_backend_api_outage",
+          "action_type": "force_health_failure",
+          "hold_ms": 1800,
+          "target": {
+            "probe": {
+              "kind": "http",
+              "url": "http://localhost:43001/api/health",
+              "method": "GET",
+              "timeout_ms": 1000,
+              "success_status_codes": [503]
+            }
+          }
+        },
+        {
+          "action_id": "extension_backend_api_delay",
+          "action_type": "delay_response",
+          "delay_ms": 900,
+          "target": {
+            "compose_service": "project-memory"
+          }
+        }
+      ],
+      "expected_transition_sequence": [
+        "connectivity_connected",
+        "connectivity_degraded",
+        "connectivity_disconnected",
+        "connectivity_reconnected"
+      ],
+      "reconnect_policy": {
+        "max_attempts": 6,
+        "initial_backoff_ms": 300,
+        "max_backoff_ms": 2200,
+        "multiplier": 2.0,
+        "jitter_ratio": 0.2,
+        "cooldown_after_attempts": 3,
+        "cooldown_by_failure_domain": {
+          "child_local_ms": 1100,
+          "dependency_group_ms": 2000,
+          "global_ms": 4500
+        },
+        "timeout_ms": 18000
+      },
+      "stop_start_policy": {
+        "idempotent_stop_start": true,
+        "stop_wait_for_exit_ms": 1200,
+        "orphan_child_reap_required": true,
+        "start_requires_clean_pid_set": true
+      },
+      "reconnect_choreography": {
+        "invalidate_stale_session_first": true,
+        "require_dependency_gate_pass": true,
+        "require_readiness_gate_pass": true,
+        "ordered_events": [
+          "session_invalidated",
+          "reconnect_attempt",
+          "dependency_gate_pass",
+          "readiness_pass",
+          "connectivity_reconnected"
+        ]
+      },
+      "safety_escalation": {
+        "degrade_after_max_attempts": true,
+        "degrade_after_timeout_ms": 18000,
+        "operator_alert_required": true,
+        "operator_alert_reason_code": "operator_alert_visible"
+      },
+      "reconnect_probe": {
+        "kind": "http",
+        "url": "http://localhost:43001/api/health",
         "method": "GET",
         "timeout_ms": 2500,
         "success_status_codes": [200]
@@ -875,7 +1897,7 @@
       },
       "reconnect_probe": {
         "kind": "http",
-        "url": "http://localhost:3000/health",
+        "url": "http://localhost:43000/health",
         "method": "GET",
         "timeout_ms": 2500,
         "success_status_codes": [200]
@@ -1015,7 +2037,7 @@
           "target": {
             "probe": {
               "kind": "http",
-              "url": "http://localhost:3001/api/health",
+              "url": "http://localhost:43001/api/health",
               "method": "GET",
               "timeout_ms": 1200,
               "success_status_codes": [503]
@@ -1075,5 +2097,558 @@
         "success_status_codes": [200]
       }
     }
-  ]
+  ],
+  "container_boundary_failure_taxonomy": {
+    "version": "v1.0.0",
+    "description": "Four-layer failure taxonomy for Podman container boundary faults. All boundary faults must be classified into one layer before recovery actions are applied.",
+    "fault_layers": {
+      "runtime": {
+        "layer_id": "runtime",
+        "description": "Faults originating from the container execution environment (process, OOM, resource).",
+        "fault_classes": [
+          {
+            "fault_class": "container_crash",
+            "trigger": "container process exits unexpectedly",
+            "detection_reason_code": "container_crash_detected",
+            "default_restart_scope": "child-local",
+            "escalation_condition": "dependent_services_lose_health",
+            "escalation_scope": "dependency-group"
+          },
+          {
+            "fault_class": "container_start_timeout",
+            "trigger": "container fails to reach healthy within start_period + interval * retries",
+            "detection_reason_code": "container_start_timeout_exceeded",
+            "default_restart_scope": "child-local",
+            "escalation_condition": "mandatory_service_unavailable",
+            "escalation_scope": "dependency-group"
+          },
+          {
+            "fault_class": "container_restart_loop",
+            "trigger": "container restarts exceed restart_loop_threshold within restart_loop_window_ms",
+            "restart_loop_threshold": 3,
+            "restart_loop_window_ms": 60000,
+            "detection_reason_code": "container_restart_limit_reached",
+            "default_restart_scope": "child-local",
+            "escalation_condition": "loop_threshold_exceeded",
+            "escalation_action": "transition_to_degraded_unavailable_require_operator_ack"
+          },
+          {
+            "fault_class": "resource_pressure",
+            "trigger": "CPU/memory/IO saturation causes probe timeouts",
+            "detection_reason_code": "resource_pressure_detected",
+            "default_restart_scope": "child-local",
+            "escalation_condition": "pressure_sustained_past_threshold",
+            "escalation_action": "throttle_fault_injection_and_emit_advisory"
+          }
+        ]
+      },
+      "network": {
+        "layer_id": "network",
+        "description": "Faults originating from Podman bridge networking, DNS resolution, or port publishing.",
+        "fault_classes": [
+          {
+            "fault_class": "network_partition",
+            "trigger": "service loses reachability within integration_net while process is running",
+            "detection_reason_code": "network_partition_detected",
+            "default_restart_scope": "dependency-group",
+            "requires_dependency_gate_reevaluation": true
+          },
+          {
+            "fault_class": "dns_resolution_failure",
+            "trigger": "internal compose DNS fails to resolve service hostname",
+            "detection_reason_code": "container_dns_resolution_failed",
+            "default_restart_scope": "child-local",
+            "requires_network_reestablish_before_readiness": true
+          },
+          {
+            "fault_class": "port_publish_failure",
+            "trigger": "published port not reachable from host",
+            "detection_reason_code": "container_port_undeclared",
+            "default_restart_scope": "child-local",
+            "requires_network_reconnect": true
+          },
+          {
+            "fault_class": "bridge_connectivity_loss",
+            "trigger": "container-bridge TCP channel loses connectivity after session allocation",
+            "detection_reason_code": "terminal_bridge_unavailable",
+            "default_restart_scope": "session-local",
+            "cross_session_impact_forbidden": true,
+            "recovery_is_per_session": true
+          }
+        ]
+      },
+      "storage": {
+        "layer_id": "storage",
+        "description": "Faults originating from volume, bind-mount, or named-volume integrity issues.",
+        "fault_classes": [
+          {
+            "fault_class": "volume_mount_failure",
+            "trigger": "named volume or bind-mount fails to attach at container start",
+            "detection_reason_code": "container_storage_mount_failed",
+            "default_restart_scope": "child-local",
+            "lifecycle_reset_required_if_corrupt": true
+          },
+          {
+            "fault_class": "data_path_corruption",
+            "trigger": "run-scoped data tree is corrupt or missing required subdirectories",
+            "detection_reason_code": "container_storage_boundary_violation",
+            "default_restart_scope": "dependency-group",
+            "lifecycle_script_must_recreate_run_tree": true
+          },
+          {
+            "fault_class": "abrupt_termination_corruption",
+            "trigger": "container killed without graceful shutdown; named volume partially written",
+            "detection_reason_code": "container_storage_integrity_check_required",
+            "default_restart_scope": "child-local",
+            "named_volume_integrity_check_required_before_restart_admission": true
+          },
+          {
+            "fault_class": "storage_boundary_violation",
+            "trigger": "service writes outside declared mount paths",
+            "detection_reason_code": "container_storage_boundary_violation",
+            "default_restart_scope": "child-local",
+            "quarantine_service_on_violation": true,
+            "run_flagged_contaminated": true
+          }
+        ]
+      },
+      "application": {
+        "layer_id": "application",
+        "description": "Faults originating from service-level logic, misconfiguration, or dependency readiness violations.",
+        "fault_classes": [
+          {
+            "fault_class": "health_endpoint_failure",
+            "trigger": "service running and reachable but health endpoint returns status=unhealthy",
+            "detection_reason_code": "application_health_check_failed",
+            "default_restart_scope": "child-local",
+            "do_not_gate_other_services_until_recovery": true
+          },
+          {
+            "fault_class": "dependency_readiness_violation",
+            "trigger": "dependent service starts traffic before upstream readiness gate passes",
+            "detection_reason_code": "dependency_gate_evidence_missing",
+            "default_restart_scope": "none",
+            "run_evidence_voided": true,
+            "all_affected_scenarios_must_be_reexecuted": true
+          },
+          {
+            "fault_class": "env_boundary_violation",
+            "trigger": "service uses env vars outside declared environment/env_file contract",
+            "detection_reason_code": "container_env_boundary_violated",
+            "default_restart_scope": "child-local",
+            "env_revalidation_required_before_restart": true
+          },
+          {
+            "fault_class": "circuit_breaker_open",
+            "trigger": "application-level circuit breaker opens after consecutive failures",
+            "detection_reason_code": "circuit_breaker_open",
+            "default_restart_scope": "none",
+            "application_managed_recovery_only": true,
+            "retry_after_open_min_duration_ms":  true,
+            "escalate_to_degraded_safety_mode_if_exhausted": true
+          }
+        ]
+      }
+    },
+    "classification_rule": {
+      "decision_order": ["runtime", "network", "storage", "application"],
+      "fault_layer_field": "fault_layer",
+      "required_in_scenario_assertion_output": true,
+      "unclassified_reason_code": "container_boundary_fault_unclassified"
+    }
+  },
+  "isolation_policy": {
+    "phase": "phase2_failure_isolation_design",
+    "description": "Single-service fault containment rules. A fault in one compose service MUST NOT cascade to restart services outside the fault's declared failure domain.",
+    "containment_scope_map": {
+      "child-local": "Restart limited to the faulted service container only. No peer or dependent services are restarted.",
+      "dependency-group": "Restart limited to the faulted service and its declared compose depends_on chain. Unrelated services must remain healthy.",
+      "global": "Restart of the full stack. FORBIDDEN under normal operating conditions. Requires explicit operator action and must emit the global_restart_operator_triggered reason code."
+    },
+    "enforcement_rules": [
+      "compose_restart_policy_must_match_failure_domain",
+      "harness_orchestrator_must_verify_no_unscoped_restart",
+      "unaffected_services_must_remain_in_healthy_state_throughout_restart"
+    ],
+    "forbidden_restart_scope": "global",
+    "cascade_gate": {
+      "description": "If service X faults, services not in X's dependency chain must not restart. Any restart outside scope emits an isolation violation event.",
+      "isolation_violation_event": "isolation_boundary_crossed",
+      "isolation_violation_reason_code": "container_isolation_boundary_crossed"
+    },
+    "diagnostic_requirement": {
+      "fault_layer_field_required": true,
+      "fault_layer_field": "fault_layer",
+      "isolation_scope_field": "failure_domain",
+      "required_on_any_boundary_fault_scenario": true
+    },
+    "pass_reason_code": "container_isolation_enforced",
+    "fail_reason_code": "container_isolation_violated"
+  },
+  "dependency_restart_choreography": {
+    "phase": "phase2_failure_isolation_design",
+    "description": "Ordered restart and recovery choreography for compose service dependency chains after a container fault.",
+    "restart_precedence": "depends_on_order_leafs_first",
+    "startup_admission_rule": "service_may_not_admit_traffic_until_all_depends_on_services_pass_readiness_gate",
+    "compose_managed_restart_integration": {
+      "restart_policy_compatibility": ["on-failure", "unless-stopped"],
+      "staggered_restart_required": true,
+      "staggered_restart_rule": "one_restart_per_dependency_tier_maximum_concurrent"
+    },
+    "ordered_recovery_events": [
+      "container_fault_detected",
+      "container_stopped",
+      "depends_on_readiness_gates_evaluated",
+      "container_started",
+      "health_check_waiting",
+      "health_check_passed",
+      "readiness_gate_open",
+      "service_admitted"
+    ],
+    "readiness_gate_re_evaluation": {
+      "required": true,
+      "trigger": "after_any_restart_in_dependency_chain",
+      "gate_pass_required_before_traffic_admission": true
+    },
+    "choreography_violation_reason_code": "dependency_restart_choreography_violated",
+    "pass_reason_code": "dependency_restart_choreography_passed"
+  },
+  "storage_integrity_policy": {
+    "phase": "phase2_failure_isolation_design",
+    "description": "Storage integrity verification protocol for named volumes after abrupt container termination.",
+    "abrupt_termination_triggers": ["SIGKILL", "OOM_kill", "host_crash", "runtime_forceful_stop"],
+    "named_volume_check": {
+      "required_before_service_admission": true,
+      "check_method": "service_pre_start_integrity_probe",
+      "sqlite_integrity_check": {
+        "pragma": "PRAGMA integrity_check",
+        "expected_result": "ok",
+        "applies_to_service": "project-memory"
+      }
+    },
+    "integrity_check_outcomes": {
+      "pass": {
+        "action": "normal_startup",
+        "reason_code": "storage_integrity_check_passed"
+      },
+      "fail": {
+        "action": "enter_degraded_block_admission",
+        "emit_event": "storage_integrity_failed",
+        "reason_code": "storage_integrity_check_failed",
+        "recovery": "operator_intervention_or_backup_restore_required",
+        "auto_restart_forbidden": true,
+        "description": "Corrupt volume must not be auto-restarted. Requires operator action or backup restore to prevent data loss escalation."
+      }
+    },
+    "volume_scope": "named_volumes_only",
+    "pre_start_gate_required": true,
+    "pass_reason_code": "storage_integrity_check_passed",
+    "fail_reason_code": "storage_integrity_check_failed"
+  },
+  "resource_boundary_policy": {
+    "phase": "phase2_failure_isolation_design",
+    "description": "Resource-boundary safeguard rules and degradation behavior under CPU, memory, and IO pressure.",
+    "resource_limits": {
+      "enforcement": "compose_deploy_resources_limits",
+      "required_fields": ["cpus", "memory"],
+      "applies_to_all_services": true
+    },
+    "pressure_thresholds": {
+      "cpu_pressure": {
+        "threshold_percent": 80,
+        "sustained_duration_ms": 30000,
+        "degraded_state": "cpu_pressure",
+        "degradation_behavior": "block_mutations_allow_read_only_degraded_ops",
+        "reason_code": "container_cpu_pressure_detected"
+      },
+      "memory_pressure": {
+        "oom_kill_classification": "abrupt_termination",
+        "pre_restart_check": "storage_integrity_check_required",
+        "reason_code": "container_memory_oom_kill"
+      },
+      "io_pressure": {
+        "disk_write_latency_threshold_ms": 500,
+        "degraded_state": "io_pressure",
+        "degradation_behavior": "suspend_event_streaming",
+        "reason_code": "container_io_pressure_detected"
+      }
+    },
+    "pressure_event": {
+      "event_name": "resource_pressure_event",
+      "required_fields": ["pressure_type", "service_id", "threshold", "current_value", "timestamp"],
+      "circuit_breaker_trips_on_sustained_pressure": true
+    },
+    "recovery": {
+      "pressure_clear_threshold_percent": 70,
+      "pressure_clear_sustained_duration_ms": 60000,
+      "action_on_clear": "re_admit_service",
+      "reason_code": "container_resource_pressure_cleared"
+    },
+    "operator_visibility": {
+      "alert_required": true,
+      "alert_reason_code": "container_resource_boundary_alert"
+    },
+    "pass_reason_code": "resource_boundary_safeguard_passed",
+    "fail_reason_code": "resource_boundary_safeguard_failed"
+  },
+  "podman_network_fault_verification_matrix": {
+    "phase": "phase3_podman_verification_lanes",
+    "description": "Podman Compose network fault verification tests covering bridge isolation, DNS lookup failure, and delayed route restoration.",
+    "scenarios": [
+      {
+        "scenario_id": "podman_bridge_isolation_partition",
+        "fault_class": "network_partition",
+        "fault_layer": "network",
+        "description": "Simulate bridge network isolation between compose services to verify dependency-group scoped recovery and reconnect gate re-evaluation.",
+        "injection": { "fault_type": "network_partition", "target_service": "project-memory", "isolation_scope": "integration_net", "hold_ms": 3000 },
+        "expected_reconnect_choreography": ["container_fault_detected","network_partition_detected","depends_on_readiness_gates_evaluated","health_check_waiting","health_check_passed","readiness_gate_open","service_admitted"],
+        "failure_domain": "dependency-group",
+        "restart_scope": "dependency-group",
+        "required_reason_codes": ["network_partition_detected","dependency_restart_choreography_passed","container_isolation_enforced"],
+        "required_assertions": ["dependency_gate_re_evaluated_after_partition","unaffected_services_remain_healthy","reconnect_admitted_only_after_readiness_pass"],
+        "pass_reason_code": "podman_bridge_isolation_test_passed",
+        "fail_reason_code": "podman_bridge_isolation_test_failed"
+      },
+      {
+        "scenario_id": "podman_dns_lookup_failure_and_recovery",
+        "fault_class": "dns_resolution_failure",
+        "fault_layer": "network",
+        "description": "Force internal compose DNS resolution failure for a service hostname and verify that readiness gate blocks reconnect until DNS is restored.",
+        "injection": { "fault_type": "dns_resolution_failure", "target_service": "project-memory", "dns_hostname": "project-memory", "hold_ms": 2500 },
+        "expected_reconnect_choreography": ["container_dns_resolution_failed","health_check_waiting","readiness_gate_open","service_admitted"],
+        "failure_domain": "child-local",
+        "restart_scope": "child-local",
+        "required_reason_codes": ["container_dns_resolution_failed","readiness_gate_timeout_exceeded","service_admitted"],
+        "required_assertions": ["client_must_re_resolve_dns_before_reconnect_admission","dns_failure_blocks_readiness_gate","stale_resolved_ip_invalidated_on_restart"],
+        "pass_reason_code": "podman_dns_failure_recovery_test_passed",
+        "fail_reason_code": "podman_dns_failure_recovery_test_failed"
+      },
+      {
+        "scenario_id": "podman_delayed_route_restoration",
+        "fault_class": "network_partition",
+        "fault_layer": "network",
+        "description": "Inject a delayed route restoration after bridge network loss to verify reconnect latency remains within recovery SLO thresholds.",
+        "injection": { "fault_type": "delayed_route_restoration", "target_service": "project-memory", "partition_hold_ms": 2000, "restoration_delay_ms": 1500 },
+        "recovery_latency_slo": { "max_reconnect_latency_ms": 20000, "p95_reconnect_latency_ms": 8000 },
+        "expected_reconnect_choreography": ["network_partition_detected","container_fault_detected","health_check_waiting","health_check_passed","readiness_gate_open","connectivity_reconnected"],
+        "failure_domain": "dependency-group",
+        "restart_scope": "dependency-group",
+        "required_reason_codes": ["network_partition_detected","reconnect_observed","connectivity_reconnected"],
+        "required_assertions": ["reconnect_latency_within_slo","dependency_gate_re_evaluated_after_route_restore","no_stale_session_admitted_before_readiness_pass"],
+        "pass_reason_code": "podman_delayed_route_restoration_test_passed",
+        "fail_reason_code": "podman_delayed_route_restoration_test_failed"
+      }
+    ],
+    "determinism_rules": [
+      "fault_actions_execute_atomically_per_scenario",
+      "dependency_gate_must_re_evaluate_after_any_network_fault",
+      "reconnect_admission_forbidden_before_dns_re_resolution",
+      "route_restoration_latency_must_stay_within_slo_thresholds",
+      "fault_layer_network_must_be_recorded_in_scenario_assertion_output"
+    ],
+    "required_artifacts": [
+      "artifacts/assertions/network-fault-assertions.json",
+      "artifacts/events/normalized-events.jsonl",
+      "artifacts/health/fault-timeline.json",
+      "artifacts/summary.json"
+    ]
+  },
+  "storage_volume_fault_verification_matrix": {
+    "phase": "phase3_podman_verification_lanes",
+    "description": "Storage and volume fault verification tests covering permission denial, mount loss, and delayed persistence availability.",
+    "scenarios": [
+      {
+        "scenario_id": "storage_volume_permission_denied",
+        "fault_class": "storage_permission_failure",
+        "fault_layer": "storage",
+        "description": "Deny write permission to the named volume mount for project-memory service to verify that integrity gate blocks restart and prevents data corruption.",
+        "injection": { "fault_type": "volume_permission_denied", "target_service": "project-memory", "volume": "project-memory-data", "hold_ms": 2000 },
+        "expected_recovery_sequence": ["container_fault_detected","storage_permission_denied_detected","pre_start_gate_blocked","operator_alert_emitted"],
+        "failure_domain": "child-local",
+        "restart_scope": "child-local",
+        "auto_restart_forbidden": true,
+        "required_reason_codes": ["storage_permission_denied_detected","pre_start_integrity_gate_blocked","operator_intervention_required"],
+        "required_assertions": ["service_must_not_auto_restart_on_permission_failure","operator_alert_emitted_on_permission_denial","integrity_gate_blocks_admission"],
+        "pass_reason_code": "storage_permission_denied_test_passed",
+        "fail_reason_code": "storage_permission_denied_test_failed"
+      },
+      {
+        "scenario_id": "storage_mount_loss_and_recovery",
+        "fault_class": "volume_mount_loss",
+        "fault_layer": "storage",
+        "description": "Detach the named volume from project-memory mid-session and verify that integrity check gate is enforced before any restart is attempted.",
+        "injection": { "fault_type": "volume_mount_detach", "target_service": "project-memory", "volume": "project-memory-data", "hold_ms": 3000 },
+        "expected_recovery_sequence": ["container_fault_detected","volume_mount_lost_detected","storage_integrity_check_required","storage_integrity_check_passed","service_admitted"],
+        "failure_domain": "dependency-group",
+        "restart_scope": "dependency-group",
+        "auto_restart_forbidden": false,
+        "required_reason_codes": ["volume_mount_lost_detected","storage_integrity_check_passed","service_admitted"],
+        "required_assertions": ["storage_integrity_check_must_precede_restart","volume_remount_confirmed_before_admission","dependent_services_gate_on_storage_recovery"],
+        "pass_reason_code": "storage_mount_loss_recovery_test_passed",
+        "fail_reason_code": "storage_mount_loss_recovery_test_failed"
+      },
+      {
+        "scenario_id": "storage_delayed_persistence_availability",
+        "fault_class": "volume_availability_delay",
+        "fault_layer": "storage",
+        "description": "Delay volume availability on service restart to verify that pre-start gate waits for storage readiness before admitting service traffic.",
+        "injection": { "fault_type": "volume_availability_delay", "target_service": "project-memory", "volume": "project-memory-data", "delay_ms": 2500 },
+        "pre_start_gate": { "wait_for_volume_ready": true, "max_wait_ms": 15000 },
+        "expected_recovery_sequence": ["container_started","storage_not_yet_available","pre_start_gate_waiting","storage_integrity_check_passed","readiness_gate_open","service_admitted"],
+        "failure_domain": "child-local",
+        "restart_scope": "child-local",
+        "required_reason_codes": ["storage_availability_delayed","pre_start_gate_waiting","storage_integrity_check_passed","service_admitted"],
+        "required_assertions": ["service_must_not_admit_traffic_before_storage_ready","pre_start_gate_enforces_storage_readiness","delayed_persistence_does_not_cascade_to_unaffected_services"],
+        "pass_reason_code": "storage_delayed_persistence_test_passed",
+        "fail_reason_code": "storage_delayed_persistence_test_failed"
+      }
+    ],
+    "determinism_rules": [
+      "storage_fault_actions_execute_atomically_per_scenario",
+      "pre_start_integrity_gate_required_before_any_restart_on_storage_fault",
+      "auto_restart_forbidden_on_permission_failure",
+      "volume_mount_loss_requires_integrity_check_before_admission",
+      "fault_layer_storage_must_be_recorded_in_scenario_assertion_output"
+    ],
+    "required_artifacts": [
+      "artifacts/assertions/storage-fault-assertions.json",
+      "artifacts/events/normalized-events.jsonl",
+      "artifacts/health/fault-timeline.json",
+      "artifacts/summary.json"
+    ]
+  },
+  "startup_order_readiness_fault_verification_matrix": {
+    "phase": "phase3_podman_verification_lanes",
+    "description": "Startup-order and readiness fault tests covering dependency timing races, restart storms, and readiness gate timeouts under slow-start conditions.",
+    "scenarios": [
+      {
+        "scenario_id": "dependency_timing_race_test",
+        "fault_class": "startup_timing_race",
+        "fault_layer": "application",
+        "description": "Force project-memory to start before its database volume is fully initialized to verify readiness gate blocks traffic until all depends_on conditions are satisfied.",
+        "injection": { "fault_type": "startup_dependency_not_ready", "target_service": "project-memory", "delayed_dependency": "project-memory-data-init", "delay_ms": 3000 },
+        "expected_startup_sequence": ["container_started","depends_on_readiness_gates_evaluated","health_check_waiting","health_check_passed","readiness_gate_open","service_admitted"],
+        "failure_domain": "dependency-group",
+        "restart_scope": "dependency-group",
+        "required_reason_codes": ["depends_on_gate_blocking","health_check_waiting","readiness_gate_open","service_admitted"],
+        "required_assertions": ["service_must_not_accept_traffic_before_dependency_gate_pass","depends_on_evaluated_in_startup_order","no_traffic_admitted_during_health_check_waiting"],
+        "pass_reason_code": "dependency_timing_race_test_passed",
+        "fail_reason_code": "dependency_timing_race_test_failed"
+      },
+      {
+        "scenario_id": "restart_storm_suppression_test",
+        "fault_class": "restart_storm",
+        "fault_layer": "application",
+        "description": "Simulate repeated rapid restart of project-memory to verify reconnect storm policy suppresses excess reconnect attempts and enforces cooldown.",
+        "injection": { "fault_type": "rapid_restart_sequence", "target_service": "project-memory", "restart_count": 5, "interval_ms": 500 },
+        "storm_suppression": { "max_reconnect_attempts_in_window": 5, "window_ms": 5000, "cooldown_after_storm_ms": 10000 },
+        "expected_suppression_sequence": ["container_fault_detected","reconnect_storm_detected","reconnect_attempt_suppressed","cooldown_active","reconnect_storm_policy_enforced"],
+        "failure_domain": "dependency-group",
+        "restart_scope": "dependency-group",
+        "required_reason_codes": ["reconnect_storm_detected","reconnect_attempt_rate_limited","reconnect_storm_policy_enforced"],
+        "required_assertions": ["storm_policy_rate_limits_reconnect_attempts","cooldown_enforced_after_storm_threshold","non_affected_services_not_impacted_by_storm_suppression"],
+        "pass_reason_code": "restart_storm_suppression_test_passed",
+        "fail_reason_code": "restart_storm_suppression_test_failed"
+      },
+      {
+        "scenario_id": "readiness_gate_timeout_under_slow_start",
+        "fault_class": "slow_startup",
+        "fault_layer": "application",
+        "description": "Slow-start project-memory to verify that readiness gate times out gracefully, emits the correct reason code, and does not admit traffic until health check passes.",
+        "injection": { "fault_type": "slow_startup", "target_service": "project-memory", "startup_delay_ms": 8000 },
+        "readiness_gate_timeout": { "timeout_ms": 30000, "timeout_reason_code": "readiness_gate_timeout_exceeded" },
+        "expected_startup_sequence": ["container_started","health_check_waiting","readiness_gate_timeout_exceeded","health_check_passed","readiness_gate_open","service_admitted"],
+        "failure_domain": "child-local",
+        "restart_scope": "child-local",
+        "required_reason_codes": ["readiness_gate_timeout_exceeded","health_check_passed","readiness_gate_open","service_admitted"],
+        "required_assertions": ["readiness_gate_timeout_does_not_force_service_restart","health_check_must_pass_before_traffic_admission","slow_start_does_not_cascade_to_unaffected_services"],
+        "pass_reason_code": "readiness_gate_slow_start_test_passed",
+        "fail_reason_code": "readiness_gate_slow_start_test_failed"
+      }
+    ],
+    "determinism_rules": [
+      "depends_on_gates_must_be_evaluated_before_service_admission",
+      "restart_storm_policy_must_suppress_excess_reconnect_attempts",
+      "readiness_gate_timeout_must_not_trigger_auto_restart",
+      "slow_start_isolation_must_not_cascade_to_unaffected_services",
+      "fault_layer_application_must_be_recorded_in_scenario_assertion_output"
+    ],
+    "required_artifacts": [
+      "artifacts/assertions/startup-order-assertions.json",
+      "artifacts/events/normalized-events.jsonl",
+      "artifacts/health/fault-timeline.json",
+      "artifacts/summary.json"
+    ]
+  },
+  "health_validation_thresholds": {
+    "phase": "phase3_podman_verification_lanes",
+    "description": "Health validation thresholds and pass/fail criteria for recovery latency and stability across all Phase 3 Podman verification lanes.",
+    "recovery_latency_thresholds": {
+      "max_reconnect_latency_ms": 20000,
+      "p95_reconnect_latency_ms": 8000,
+      "p99_reconnect_latency_ms": 15000,
+      "max_storage_integrity_check_latency_ms": 5000,
+      "max_readiness_gate_open_latency_ms": 30000,
+      "max_dns_re_resolution_latency_ms": 10000
+    },
+    "stability_thresholds": {
+      "minimum_consecutive_passing_scenarios": 3,
+      "evaluation_window_runs": 5,
+      "max_failure_budget_per_window": 1,
+      "min_pass_rate": 0.9
+    },
+    "pass_fail_criteria": [
+      {
+        "metric": "reconnect_latency_ms",
+        "comparator": "<=",
+        "threshold_ms": 20000,
+        "percentile": "p99",
+        "pass_reason_code": "reconnect_latency_within_threshold",
+        "fail_reason_code": "reconnect_latency_exceeded_threshold"
+      },
+      {
+        "metric": "storage_integrity_check_latency_ms",
+        "comparator": "<=",
+        "threshold_ms": 5000,
+        "percentile": "p95",
+        "pass_reason_code": "storage_integrity_check_latency_within_threshold",
+        "fail_reason_code": "storage_integrity_check_latency_exceeded_threshold"
+      },
+      {
+        "metric": "readiness_gate_open_latency_ms",
+        "comparator": "<=",
+        "threshold_ms": 30000,
+        "percentile": "max",
+        "pass_reason_code": "readiness_gate_latency_within_threshold",
+        "fail_reason_code": "readiness_gate_latency_exceeded_threshold"
+      },
+      {
+        "metric": "scenarios_consecutive_passing",
+        "comparator": ">=",
+        "threshold_count": 3,
+        "pass_reason_code": "stability_threshold_met",
+        "fail_reason_code": "stability_threshold_not_met"
+      }
+    ],
+    "gate_promotion_criteria": {
+      "all_network_fault_scenarios_pass": true,
+      "all_storage_fault_scenarios_pass": true,
+      "all_startup_order_scenarios_pass": true,
+      "recovery_latency_within_all_thresholds": true,
+      "stability_threshold_consecutive_passes_met": true,
+      "required_reason_codes": [
+        "podman_bridge_isolation_test_passed",
+        "podman_dns_failure_recovery_test_passed",
+        "podman_delayed_route_restoration_test_passed",
+        "storage_permission_denied_test_passed",
+        "storage_mount_loss_recovery_test_passed",
+        "storage_delayed_persistence_test_passed",
+        "dependency_timing_race_test_passed",
+        "restart_storm_suppression_test_passed",
+        "readiness_gate_slow_start_test_passed"
+      ]
+    },
+    "pass_reason_code": "phase3_health_validation_thresholds_passed",
+    "fail_reason_code": "phase3_health_validation_thresholds_failed"
+  }
 }

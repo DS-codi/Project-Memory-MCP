@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "memory-cartographer/v1/envelope",
+  "title": "MemoryCartographerEnvelope",
+  "description": "Canonical top-level output envelope produced by the memory_cartographer Python core. Every response — code scan, database scan, or both — is wrapped in this envelope. See docs/contracts/memory-cartographer-contract.md for the narrative specification.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "workspace_identity",
+    "generation_metadata",
+    "diagnostics"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Semantic version of the output schema produced by the Python core (e.g., '1.0.0'). MAJOR increment = breaking change; MINOR = additive; PATCH = non-structural fix.",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "workspace_identity": {
+      "$ref": "#/$defs/WorkspaceIdentity"
+    },
+    "generation_metadata": {
+      "$ref": "#/$defs/GenerationMetadata"
+    },
+    "diagnostics": {
+      "type": "array",
+      "description": "Structured diagnostic entries (errors, warnings, informational notices). Always present; may be empty.",
+      "items": {
+        "$ref": "#/$defs/DiagnosticEntry"
+      }
+    },
+    "code_cartography": {
+      "$ref": "#/$defs/CodeCartographySection",
+      "description": "Code scanning output. Present only when a code scan was requested and at least partially completed. Absent (not null) when not requested."
+    },
+    "database_cartography": {
+      "$ref": "#/$defs/DatabaseCartographySection",
+      "description": "Database scanning output. Present only when a database scan was requested and at least partially completed. Absent (not null) when not requested."
+    }
+  },
+  "$defs": {
+    "WorkspaceIdentity": {
+      "title": "WorkspaceIdentity",
+      "description": "Provenance descriptor for the workspace that was scanned.",
+      "type": "object",
+      "required": ["path", "name", "fingerprint"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Absolute path to the workspace root as seen by the Python core process."
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name for the workspace. Derived from directory name when no explicit name is configured.",
+          "minLength": 1
+        },
+        "fingerprint": {
+          "type": "string",
+          "description": "Deterministic SHA-256 hash of sorted scanned file paths paired with mtime_unix_ns values. Computed after scope filtering. Used for cache invalidation.",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "GenerationMetadata": {
+      "title": "GenerationMetadata",
+      "description": "Provenance and performance data for the scan that produced this envelope.",
+      "type": "object",
+      "required": [
+        "timestamp",
+        "duration_ms",
+        "cartographer_version",
+        "partial",
+        "request_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 UTC timestamp when the scan started (e.g., '2026-03-04T11:00:00.000Z')."
+        },
+        "duration_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Wall-clock duration of the scan in milliseconds as measured by the Python core."
+        },
+        "cartographer_version": {
+          "type": "string",
+          "description": "Semver version string of the Python core (memory_cartographer) that produced this output.",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "partial": {
+          "type": "boolean",
+          "description": "true if the result is a partial scan; false for a complete scan. When true, diagnostics will contain at least one entry explaining what was skipped."
+        },
+        "request_id": {
+          "type": "string",
+          "description": "Echoed from the runtime request envelope for correlation.",
+          "minLength": 1
+        }
+      }
+    },
+    "DiagnosticEntry": {
+      "title": "DiagnosticEntry",
+      "description": "A single diagnostic entry. See normalization-rules.md for the complete taxonomy.",
+      "type": "object",
+      "required": ["code", "severity", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Machine-readable diagnostic code (e.g., 'FILE_READ_ERROR'). See normalization-rules.md for full taxonomy.",
+          "minLength": 1
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["error", "warning", "info"],
+          "description": "Severity level: error = scan failure or hard constraint violation; warning = degraded coverage; info = informational."
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable explanation of the diagnostic.",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "description": "Workspace-relative file or directory path associated with this diagnostic, when applicable."
+        }
+      }
+    },
+    "CodeCartographySection": {
+      "title": "CodeCartographySection",
+      "description": "Code scanning output section. Refined by docs/contracts/sections/code-cartography.schema.json. This stub enables top-level envelope validation before the section schema is finalized.",
+      "type": "object"
+    },
+    "DatabaseCartographySection": {
+      "title": "DatabaseCartographySection",
+      "description": "Database scanning output section. Refined by docs/contracts/sections/database-cartography.schema.json. This stub enables top-level envelope validation before the section schema is finalized.",
+      "type": "object"
+    }
+  }
+}

@@ -462,7 +462,14 @@ export function useMCPEvents() {
       connectedRef.current = true;
       setIsConnected(true);
       setReconnectStateSafe('recovered');
-      setDomainsByStatus('healthy');
+      const hasDegradedDomain = Object.values(recoveryDomainsRef.current).some(
+        (domainState) => domainState === 'degraded',
+      );
+      if (!hasDegradedDomain) {
+        setDomainsByStatus('degraded');
+      } else {
+        setStaleDataSafe(true);
+      }
       pendingActionCountRef.current = getNumber(event.data.pending_action_count) ?? pendingActionCountRef.current;
       updatePendingActionFallback(
         'recovered',

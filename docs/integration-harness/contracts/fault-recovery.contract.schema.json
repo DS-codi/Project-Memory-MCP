@@ -15,6 +15,7 @@
     "feature_degradation_policy",
     "extension_reconnect_telemetry_schema",
     "reconnect_handshake_contract",
+    "interactive_terminal_session_contract",
     "reconnect_idempotency_contract",
     "failed_reconnect_diagnostics_requirements",
     "release_acceptance_checklist",
@@ -59,6 +60,9 @@
     "reconnect_handshake_contract": {
       "$ref": "#/$defs/reconnectHandshakeContract"
     },
+    "interactive_terminal_session_contract": {
+      "$ref": "#/$defs/interactiveTerminalSessionContract"
+    },
     "reconnect_idempotency_contract": {
       "$ref": "#/$defs/reconnectIdempotencyContract"
     },
@@ -83,6 +87,33 @@
       "items": {
         "$ref": "#/$defs/scenario"
       }
+    },
+    "container_boundary_failure_taxonomy": {
+      "$ref": "#/$defs/containerBoundaryFailureTaxonomy"
+    },
+    "isolation_policy": {
+      "$ref": "#/$defs/isolationPolicy"
+    },
+    "dependency_restart_choreography": {
+      "$ref": "#/$defs/dependencyRestartChoreography"
+    },
+    "storage_integrity_policy": {
+      "$ref": "#/$defs/storageIntegrityPolicy"
+    },
+    "resource_boundary_policy": {
+      "$ref": "#/$defs/resourceBoundaryPolicy"
+    },
+    "podman_network_fault_verification_matrix": {
+      "$ref": "#/$defs/podmanNetworkFaultVerificationMatrix"
+    },
+    "storage_volume_fault_verification_matrix": {
+      "$ref": "#/$defs/storageVolumeFaultVerificationMatrix"
+    },
+    "startup_order_readiness_fault_verification_matrix": {
+      "$ref": "#/$defs/startupOrderReadinessFaultVerificationMatrix"
+    },
+    "health_validation_thresholds": {
+      "$ref": "#/$defs/healthValidationThresholds"
     }
   },
   "$defs": {
@@ -551,6 +582,1061 @@
       },
       "additionalProperties": false
     },
+    "interactiveTerminalSessionContract": {
+      "type": "object",
+      "required": [
+        "lifecycle_state_machine",
+        "session_identity_correlation",
+        "adapter_selection_policy",
+        "bridge_unavailable_policy",
+        "output_buffer_contract",
+        "session_isolation_guarantees",
+        "action_idempotency",
+        "interruption_directive_boundaries",
+        "verification_matrix"
+      ],
+      "properties": {
+        "lifecycle_state_machine": {
+          "$ref": "#/$defs/terminalSessionLifecycleStateMachine"
+        },
+        "session_identity_correlation": {
+          "$ref": "#/$defs/terminalSessionIdentityCorrelation"
+        },
+        "adapter_selection_policy": {
+          "$ref": "#/$defs/terminalAdapterSelectionPolicy"
+        },
+        "bridge_unavailable_policy": {
+          "$ref": "#/$defs/terminalBridgeUnavailablePolicy"
+        },
+        "output_buffer_contract": {
+          "$ref": "#/$defs/terminalOutputBufferContract"
+        },
+        "session_isolation_guarantees": {
+          "$ref": "#/$defs/terminalSessionIsolationGuarantees"
+        },
+        "action_idempotency": {
+          "$ref": "#/$defs/terminalSessionActionIdempotency"
+        },
+        "interruption_directive_boundaries": {
+          "$ref": "#/$defs/terminalInterruptionDirectiveBoundaries"
+        },
+        "verification_matrix": {
+          "$ref": "#/$defs/terminalSessionVerificationMatrix"
+        }
+      },
+      "additionalProperties": false
+    },
+    "terminalSessionVerificationMatrix": {
+      "type": "object",
+      "required": [
+        "lifecycle_conformance_tests",
+        "race_condition_tests",
+        "multi_session_stress_tests",
+        "container_bridge_fault_tests"
+      ],
+      "properties": {
+        "lifecycle_conformance_tests": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/terminalLifecycleConformanceTest"
+          }
+        },
+        "race_condition_tests": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/terminalRaceConditionTest"
+          }
+        },
+        "multi_session_stress_tests": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/terminalMultiSessionStressTest"
+          }
+        },
+        "container_bridge_fault_tests": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/terminalContainerBridgeFaultTest"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "terminalLifecycleConformanceTest": {
+      "type": "object",
+      "required": [
+        "case_id",
+        "description",
+        "initial_state",
+        "action_sequence",
+        "expected_state_sequence",
+        "required_reason_codes",
+        "required_assertions"
+      ],
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "pattern": "^lifecycle_[a-z0-9][a-z0-9_]{3,80}$"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 10
+        },
+        "initial_state": {
+          "$ref": "#/$defs/terminalSessionState"
+        },
+        "action_sequence": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/terminalSessionAction"
+          }
+        },
+        "expected_state_sequence": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/terminalSessionState"
+          }
+        },
+        "required_reason_codes": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "required_assertions": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        }
+      },
+      "additionalProperties": false
+    },
+    "terminalRaceConditionTest": {
+      "type": "object",
+      "required": [
+        "case_id",
+        "description",
+        "parallel_actions",
+        "expected_outcomes",
+        "required_reason_codes",
+        "required_assertions"
+      ],
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "pattern": "^race_[a-z0-9][a-z0-9_]{3,80}$"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 10
+        },
+        "parallel_actions": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/terminalSessionAction"
+          }
+        },
+        "expected_outcomes": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "required_reason_codes": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "required_assertions": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        }
+      },
+      "additionalProperties": false
+    },
+    "terminalMultiSessionStressTest": {
+      "type": "object",
+      "required": [
+        "case_id",
+        "description",
+        "session_count",
+        "workload_profile",
+        "expected_isolation_invariants",
+        "required_reason_codes"
+      ],
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "pattern": "^stress_[a-z0-9][a-z0-9_]{3,80}$"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 10
+        },
+        "session_count": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 128
+        },
+        "workload_profile": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "expected_isolation_invariants": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "required_reason_codes": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        }
+      },
+      "additionalProperties": false
+    },
+    "terminalContainerBridgeFaultTest": {
+      "type": "object",
+      "required": [
+        "case_id",
+        "description",
+        "runtime_mode",
+        "fault_stage",
+        "fault_trigger",
+        "expected_outcomes",
+        "required_reason_codes",
+        "required_diagnostics"
+      ],
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "pattern": "^bridge_[a-z0-9][a-z0-9_]{3,80}$"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 10
+        },
+        "runtime_mode": {
+          "type": "string",
+          "enum": ["container-mode"]
+        },
+        "fault_stage": {
+          "type": "string",
+          "enum": ["preflight", "post_allocation"]
+        },
+        "fault_trigger": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "expected_outcomes": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "required_reason_codes": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "required_diagnostics": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        }
+      },
+      "additionalProperties": false
+    },
+    "terminalSessionAction": {
+      "type": "string",
+      "enum": [
+        "execute",
+        "read_output",
+        "terminate"
+      ]
+    },
+    "terminalSessionState": {
+      "type": "string",
+      "enum": [
+        "session_absent",
+        "session_starting",
+        "session_running",
+        "terminate_requested",
+        "session_terminated",
+        "session_failed"
+      ]
+    },
+    "terminalSessionLifecycleStateMachine": {
+      "type": "object",
+      "required": [
+        "states",
+        "initial_state",
+        "terminal_states",
+        "action_transitions",
+        "internal_transitions",
+        "illegal_transition_reason_code"
+      ],
+      "properties": {
+        "states": {
+          "type": "array",
+          "minItems": 6,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "session_absent",
+              "session_starting",
+              "session_running",
+              "terminate_requested",
+              "session_terminated",
+              "session_failed"
+            ]
+          }
+        },
+        "initial_state": {
+          "type": "string",
+          "enum": ["session_absent"]
+        },
+        "terminal_states": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["session_terminated", "session_failed"]
+          }
+        },
+        "action_transitions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["action", "allowed_from", "to", "outcome"],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": ["execute", "read_output", "terminate"]
+              },
+              "allowed_from": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "session_absent",
+                    "session_starting",
+                    "session_running",
+                    "terminate_requested",
+                    "session_terminated",
+                    "session_failed"
+                  ]
+                }
+              },
+              "to": {
+                "type": "string",
+                "enum": [
+                  "self",
+                  "session_starting",
+                  "session_running",
+                  "terminate_requested",
+                  "session_terminated",
+                  "session_failed"
+                ]
+              },
+              "outcome": {
+                "type": "string",
+                "pattern": "^[a-z0-9_]+$"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "internal_transitions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["event", "from", "to"],
+            "properties": {
+              "event": {
+                "type": "string",
+                "enum": ["process_spawned", "process_exit", "startup_failure"]
+              },
+              "from": {
+                "type": "string",
+                "enum": [
+                  "session_starting",
+                  "session_running",
+                  "terminate_requested"
+                ]
+              },
+              "to": {
+                "type": "string",
+                "enum": [
+                  "session_running",
+                  "session_terminated",
+                  "session_failed"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "illegal_transition_reason_code": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "terminalSessionIdentityCorrelation": {
+      "type": "object",
+      "required": [
+        "adapter_modes",
+        "required_request_fields",
+        "required_session_fields",
+        "execute_identity_rules",
+        "retry_correlation_rules",
+        "reason_codes"
+      ],
+      "properties": {
+        "adapter_modes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["local", "bundled", "container_bridge"]
+          }
+        },
+        "required_request_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["request_id", "trace_id", "workspace_id", "adapter_mode", "retry_attempt"]
+          }
+        },
+        "required_session_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["session_id", "terminal_id", "transport_id", "component_id"]
+          }
+        },
+        "execute_identity_rules": {
+          "type": "object",
+          "required": [
+            "mint_session_id_once",
+            "preserve_session_id_across_adapter_retries",
+            "forbid_cross_mode_session_rebind",
+            "reroute_requires_parent_session_reference"
+          ],
+          "properties": {
+            "mint_session_id_once": { "type": "boolean" },
+            "preserve_session_id_across_adapter_retries": { "type": "boolean" },
+            "forbid_cross_mode_session_rebind": { "type": "boolean" },
+            "reroute_requires_parent_session_reference": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "retry_correlation_rules": {
+          "type": "object",
+          "required": [
+            "retry_attempt_field",
+            "retry_attempt_starts_at",
+            "retry_must_preserve_request_id",
+            "retry_must_preserve_trace_id",
+            "max_attempts_source"
+          ],
+          "properties": {
+            "retry_attempt_field": {
+              "type": "string",
+              "enum": ["retry_attempt"]
+            },
+            "retry_attempt_starts_at": { "type": "integer", "minimum": 0, "maximum": 32 },
+            "retry_must_preserve_request_id": { "type": "boolean" },
+            "retry_must_preserve_trace_id": { "type": "boolean" },
+            "max_attempts_source": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        "reason_codes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "terminalAdapterSelectionPolicy": {
+      "type": "object",
+      "required": [
+        "resolution_order",
+        "candidate_order_by_requested_mode",
+        "container_inference_rule",
+        "preflight_required_for_modes",
+        "preflight_outcomes",
+        "reason_codes"
+      ],
+      "properties": {
+        "resolution_order": {
+          "type": "array",
+          "minItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "runtime_adapter_override",
+              "env_adapter_mode",
+              "container_inference",
+              "default_local"
+            ]
+          }
+        },
+        "candidate_order_by_requested_mode": {
+          "type": "object",
+          "required": ["local", "bundled", "container_bridge"],
+          "properties": {
+            "local": {
+              "$ref": "#/$defs/terminalAdapterModeSequence"
+            },
+            "bundled": {
+              "$ref": "#/$defs/terminalAdapterModeSequence"
+            },
+            "container_bridge": {
+              "$ref": "#/$defs/terminalAdapterModeSequence"
+            }
+          },
+          "additionalProperties": false
+        },
+        "container_inference_rule": {
+          "type": "object",
+          "required": ["env_field", "match_value", "inferred_mode"],
+          "properties": {
+            "env_field": { "type": "string", "minLength": 1 },
+            "match_value": { "type": "string", "minLength": 1 },
+            "inferred_mode": {
+              "type": "string",
+              "enum": ["container_bridge"]
+            }
+          },
+          "additionalProperties": false
+        },
+        "preflight_required_for_modes": {
+          "type": "object",
+          "required": ["local", "bundled", "container_bridge"],
+          "properties": {
+            "local": {
+              "$ref": "#/$defs/nonEmptyStringArray"
+            },
+            "bundled": {
+              "$ref": "#/$defs/nonEmptyStringArray"
+            },
+            "container_bridge": {
+              "$ref": "#/$defs/nonEmptyStringArray"
+            }
+          },
+          "additionalProperties": false
+        },
+        "preflight_outcomes": {
+          "type": "object",
+          "required": ["ready_outcome", "fallback_outcome", "hard_fail_outcome"],
+          "properties": {
+            "ready_outcome": {
+              "type": "string",
+              "enum": ["adapter_ready"]
+            },
+            "fallback_outcome": {
+              "type": "string",
+              "enum": ["adapter_preflight_failed_try_next"]
+            },
+            "hard_fail_outcome": {
+              "type": "string",
+              "enum": ["adapter_preflight_failed_terminal"]
+            }
+          },
+          "additionalProperties": false
+        },
+        "reason_codes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "terminalAdapterModeSequence": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": ["local", "bundled", "container_bridge"]
+      }
+    },
+    "terminalBridgeUnavailablePolicy": {
+      "type": "object",
+      "required": [
+        "applies_to_mode",
+        "unavailable_reason_codes",
+        "execute_behavior",
+        "recovery_policy",
+        "cross_session_impact_forbidden",
+        "reason_codes"
+      ],
+      "properties": {
+        "applies_to_mode": {
+          "type": "string",
+          "enum": ["container_bridge"]
+        },
+        "unavailable_reason_codes": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "execute_behavior": {
+          "type": "object",
+          "required": [
+            "before_session_allocation",
+            "after_session_allocation",
+            "session_allocation_on_failure"
+          ],
+          "properties": {
+            "before_session_allocation": {
+              "type": "string",
+              "enum": ["allow_fallback_ordered"]
+            },
+            "after_session_allocation": {
+              "type": "string",
+              "enum": ["reject_without_rebind"]
+            },
+            "session_allocation_on_failure": {
+              "type": "string",
+              "enum": ["forbidden"]
+            }
+          },
+          "additionalProperties": false
+        },
+        "recovery_policy": {
+          "type": "object",
+          "required": [
+            "per_session_probe_interval_ms",
+            "per_session_max_recovery_attempts",
+            "allow_background_recovery_without_global_flip"
+          ],
+          "properties": {
+            "per_session_probe_interval_ms": {
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 600000
+            },
+            "per_session_max_recovery_attempts": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 128
+            },
+            "allow_background_recovery_without_global_flip": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "cross_session_impact_forbidden": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "reason_codes": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        }
+      },
+      "additionalProperties": false
+    },
+    "terminalOutputBufferContract": {
+      "type": "object",
+      "required": [
+        "max_buffer_bytes_per_session",
+        "max_snapshot_bytes_per_read",
+        "max_snapshot_lines_per_read",
+        "overflow_policy",
+        "cursor_model",
+        "truncation_semantics",
+        "eof_semantics",
+        "reason_codes"
+      ],
+      "properties": {
+        "max_buffer_bytes_per_session": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 16777216
+        },
+        "max_snapshot_bytes_per_read": {
+          "type": "integer",
+          "minimum": 256,
+          "maximum": 1048576
+        },
+        "max_snapshot_lines_per_read": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20000
+        },
+        "overflow_policy": {
+          "type": "string",
+          "enum": ["truncate_oldest_preserve_latest"]
+        },
+        "cursor_model": {
+          "type": "object",
+          "required": [
+            "cursor_kind",
+            "cursor_monotonic",
+            "cursor_replay_requires_exact_match",
+            "cursor_invalid_reason_code"
+          ],
+          "properties": {
+            "cursor_kind": {
+              "type": "string",
+              "enum": ["byte_offset"]
+            },
+            "cursor_monotonic": {
+              "type": "boolean"
+            },
+            "cursor_replay_requires_exact_match": {
+              "type": "boolean"
+            },
+            "cursor_invalid_reason_code": {
+              "type": "string",
+              "pattern": "^[a-z0-9_]+$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "truncation_semantics": {
+          "type": "object",
+          "required": [
+            "emit_truncation_marker",
+            "truncation_reason_code",
+            "must_preserve_cursor_safety"
+          ],
+          "properties": {
+            "emit_truncation_marker": {
+              "type": "boolean"
+            },
+            "truncation_reason_code": {
+              "type": "string",
+              "pattern": "^[a-z0-9_]+$"
+            },
+            "must_preserve_cursor_safety": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "eof_semantics": {
+          "type": "object",
+          "required": [
+            "post_termination_behavior",
+            "eof_reason_code"
+          ],
+          "properties": {
+            "post_termination_behavior": {
+              "type": "string",
+              "enum": ["allow_buffer_drain_then_eof"]
+            },
+            "eof_reason_code": {
+              "type": "string",
+              "pattern": "^[a-z0-9_]+$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "reason_codes": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        }
+      },
+      "additionalProperties": false
+    },
+    "terminalSessionIsolationGuarantees": {
+      "type": "object",
+      "required": [
+        "isolation_key",
+        "isolated_resources",
+        "concurrency_controls",
+        "forbidden_cross_session_effects",
+        "cleanup_guarantees",
+        "reason_codes"
+      ],
+      "properties": {
+        "isolation_key": {
+          "type": "string",
+          "enum": ["session_id"]
+        },
+        "isolated_resources": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "concurrency_controls": {
+          "type": "object",
+          "required": [
+            "max_inflight_actions_per_session",
+            "allow_parallel_sessions",
+            "session_lock_scope"
+          ],
+          "properties": {
+            "max_inflight_actions_per_session": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 16
+            },
+            "allow_parallel_sessions": {
+              "type": "boolean"
+            },
+            "session_lock_scope": {
+              "type": "string",
+              "enum": ["session_id"]
+            }
+          },
+          "additionalProperties": false
+        },
+        "forbidden_cross_session_effects": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "cleanup_guarantees": {
+          "type": "object",
+          "required": [
+            "on_session_terminated",
+            "must_not_cleanup_other_sessions"
+          ],
+          "properties": {
+            "on_session_terminated": {
+              "$ref": "#/$defs/nonEmptyStringArray"
+            },
+            "must_not_cleanup_other_sessions": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "reason_codes": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        }
+      },
+      "additionalProperties": false
+    },
+    "nonEmptyStringArray": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9_]+$"
+      }
+    },
+    "terminalSessionActionIdempotency": {
+      "type": "object",
+      "required": [
+        "terminate",
+        "read_output",
+        "shared_invariants"
+      ],
+      "properties": {
+        "terminate": {
+          "$ref": "#/$defs/terminalTerminateIdempotency"
+        },
+        "read_output": {
+          "$ref": "#/$defs/terminalReadOutputIdempotency"
+        },
+        "shared_invariants": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "terminalTerminateIdempotency": {
+      "type": "object",
+      "required": [
+        "idempotency_key_fields",
+        "duplicate_policy",
+        "allowed_repeat_outcomes",
+        "must_emit_single_kill_signal",
+        "reason_codes"
+      ],
+      "properties": {
+        "idempotency_key_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["session_id", "request_id", "action", "signal_nonce"]
+          }
+        },
+        "duplicate_policy": {
+          "type": "string",
+          "enum": ["return_existing_result"]
+        },
+        "allowed_repeat_outcomes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["termination_signaled", "already_terminating", "already_terminated"]
+          }
+        },
+        "must_emit_single_kill_signal": { "type": "boolean" },
+        "reason_codes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "terminalReadOutputIdempotency": {
+      "type": "object",
+      "required": [
+        "idempotency_key_fields",
+        "duplicate_policy",
+        "cursor_required",
+        "must_not_advance_cursor_on_duplicate",
+        "post_termination_behavior",
+        "reason_codes"
+      ],
+      "properties": {
+        "idempotency_key_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["session_id", "cursor", "request_id"]
+          }
+        },
+        "duplicate_policy": {
+          "type": "string",
+          "enum": ["return_same_cursor_page"]
+        },
+        "cursor_required": { "type": "boolean" },
+        "must_not_advance_cursor_on_duplicate": { "type": "boolean" },
+        "post_termination_behavior": {
+          "type": "string",
+          "enum": ["allow_buffer_drain_then_eof"]
+        },
+        "reason_codes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "terminalInterruptionDirectiveBoundaries": {
+      "type": "object",
+      "required": [
+        "directives",
+        "post_termination_action_policy",
+        "forbidden_behaviors",
+        "reason_codes"
+      ],
+      "properties": {
+        "directives": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/terminalInterruptionDirective"
+          }
+        },
+        "post_termination_action_policy": {
+          "type": "object",
+          "required": [
+            "read_output_after_terminated",
+            "terminate_after_terminated",
+            "execute_after_terminated"
+          ],
+          "properties": {
+            "read_output_after_terminated": {
+              "type": "string",
+              "enum": ["return_terminal_state_only"]
+            },
+            "terminate_after_terminated": {
+              "type": "string",
+              "enum": ["idempotent_already_terminated"]
+            },
+            "execute_after_terminated": {
+              "type": "string",
+              "enum": ["requires_new_session_id"]
+            }
+          },
+          "additionalProperties": false
+        },
+        "forbidden_behaviors": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          }
+        },
+        "reason_codes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "terminalInterruptionDirective": {
+      "type": "object",
+      "required": [
+        "directive",
+        "marker",
+        "delivery_boundary",
+        "allowed_follow_up_actions",
+        "session_progression"
+      ],
+      "properties": {
+        "directive": {
+          "type": "string",
+          "enum": ["graceful_stop", "immediate_stop", "terminated"]
+        },
+        "marker": {
+          "type": "string",
+          "minLength": 1
+        },
+        "delivery_boundary": {
+          "type": "string",
+          "enum": ["with_original_response", "replace_original_response", "terminal_error_boundary"]
+        },
+        "allowed_follow_up_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["read_output", "terminate"]
+          }
+        },
+        "session_progression": {
+          "type": "string",
+          "enum": [
+            "finish_current_microtask_then_stop",
+            "stop_immediately",
+            "session_already_killed"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
     "failedReconnectDiagnosticsRequirements": {
       "type": "object",
       "required": [
@@ -560,6 +1646,9 @@
         "timeline_required_fields",
         "lease_token_state_required_fields",
         "replay_stats_required_fields",
+        "retry_telemetry_required_fields",
+        "registration_disposal_counter_required_fields",
+        "diagnostics_bundle",
         "pass_reason_code",
         "fail_reason_code"
       ],
@@ -630,6 +1719,136 @@
             ]
           }
         },
+        "retry_telemetry_required_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "attempt",
+              "backoff_ms",
+              "cooldown_ms",
+              "retry_cap",
+              "retry_exhausted",
+              "outcome"
+            ]
+          }
+        },
+        "registration_disposal_counter_required_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "register_attempt_count",
+              "register_success_count",
+              "register_suppressed_count",
+              "dispose_invocation_count",
+              "dispose_success_count"
+            ]
+          }
+        },
+        "diagnostics_bundle": {
+          "type": "object",
+          "required": [
+            "artifact_path",
+            "required_sections",
+            "adapter_mode_snapshot_required_fields",
+            "preflight_diagnostics_required_fields",
+            "session_timeline_required_fields",
+            "buffer_statistics_required_fields"
+          ],
+          "properties": {
+            "artifact_path": {
+              "type": "string",
+              "pattern": "^artifacts/assertions/terminal-diagnostics-bundle\\.json$"
+            },
+            "required_sections": {
+              "type": "array",
+              "minItems": 4,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "adapter_mode_snapshot",
+                  "preflight_diagnostics",
+                  "session_timeline",
+                  "buffer_statistics"
+                ]
+              }
+            },
+            "adapter_mode_snapshot_required_fields": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "requested_adapter_mode",
+                  "resolved_adapter_mode",
+                  "selection_source",
+                  "candidate_order",
+                  "fallback_applied",
+                  "final_outcome_reason_code"
+                ]
+              }
+            },
+            "preflight_diagnostics_required_fields": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "preflight_probe_id",
+                  "probe_target",
+                  "probe_started_at",
+                  "probe_completed_at",
+                  "probe_latency_ms",
+                  "probe_outcome",
+                  "probe_reason_code"
+                ]
+              }
+            },
+            "session_timeline_required_fields": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "session_id",
+                  "terminal_id",
+                  "state_transition",
+                  "timestamp",
+                  "cause",
+                  "reason_code"
+                ]
+              }
+            },
+            "buffer_statistics_required_fields": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "session_id",
+                  "buffer_bytes_current",
+                  "buffer_bytes_peak",
+                  "bytes_truncated_total",
+                  "snapshot_bytes_returned",
+                  "snapshot_lines_returned",
+                  "cursor_start",
+                  "cursor_end"
+                ]
+              }
+            }
+          },
+          "additionalProperties": false
+        },
         "pass_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
         "fail_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
       },
@@ -640,6 +1859,10 @@
       "required": [
         "podman_first",
         "deterministic_resume",
+        "build_test_execution_sequence",
+        "headless_reconnect_sustained_pass_rate",
+        "session_stability_and_adapter_recovery_gate",
+        "rollback_safe_mode_policy",
         "non_cascading_recovery",
         "required_artifacts",
         "pass_reason_code",
@@ -677,6 +1900,502 @@
               "type": "integer",
               "minimum": 1,
               "maximum": 1024
+            }
+          },
+          "additionalProperties": false
+        },
+        "build_test_execution_sequence": {
+          "type": "object",
+          "required": [
+            "stop_on_stage_failure",
+            "stages",
+            "fail_reason_code"
+          ],
+          "properties": {
+            "stop_on_stage_failure": {
+              "type": "boolean"
+            },
+            "stages": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "object",
+                "required": [
+                  "stage_id",
+                  "stage_order",
+                  "description",
+                  "required_commands",
+                  "required_artifacts",
+                  "pass_reason_code"
+                ],
+                "properties": {
+                  "stage_id": {
+                    "type": "string",
+                    "enum": [
+                      "local_conformance",
+                      "podman_bridge_resilience"
+                    ]
+                  },
+                  "stage_order": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 10
+                  },
+                  "required_commands": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required_fault_scenarios": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "container_bridge_preflight_failure",
+                        "container_bridge_recovery_diagnostics"
+                      ]
+                    }
+                  },
+                  "required_artifacts": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "pattern": "^artifacts/.+"
+                    }
+                  },
+                  "pass_reason_code": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9_]+$"
+                  }
+                },
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "stage_id": {
+                          "const": "local_conformance"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "stage_order": {
+                          "const": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "stage_id": {
+                          "const": "podman_bridge_resilience"
+                        }
+                      }
+                    },
+                    "then": {
+                      "required": [
+                        "required_fault_scenarios"
+                      ],
+                      "properties": {
+                        "stage_order": {
+                          "const": 2
+                        }
+                      }
+                    }
+                  }
+                ],
+                "additionalProperties": false
+              }
+            },
+            "fail_reason_code": {
+              "type": "string",
+              "pattern": "^[a-z0-9_]+$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "headless_reconnect_sustained_pass_rate": {
+          "type": "object",
+          "required": [
+            "required",
+            "scenario_ids",
+            "evaluation_window_runs",
+            "minimum_pass_rate",
+            "minimum_consecutive_passing_runs",
+            "required_artifacts",
+            "pass_reason_code",
+            "fail_reason_code"
+          ],
+          "properties": {
+            "required": {
+              "type": "boolean"
+            },
+            "scenario_ids": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "extension_backend_restart",
+                  "extension_backend_api_outage",
+                  "extension_endpoint_failure"
+                ]
+              }
+            },
+            "evaluation_window_runs": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000
+            },
+            "minimum_pass_rate": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "minimum_consecutive_passing_runs": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000
+            },
+            "required_artifacts": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^artifacts/.+"
+              }
+            },
+            "pass_reason_code": {
+              "type": "string",
+              "pattern": "^[a-z0-9_]+$"
+            },
+            "fail_reason_code": {
+              "type": "string",
+              "pattern": "^[a-z0-9_]+$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "session_stability_and_adapter_recovery_gate": {
+          "type": "object",
+          "required": [
+            "required",
+            "evaluation_window_runs",
+            "required_artifacts",
+            "session_stability_thresholds",
+            "adapter_recovery_thresholds",
+            "pass_reason_codes",
+            "fail_reason_codes"
+          ],
+          "properties": {
+            "required": {
+              "type": "boolean"
+            },
+            "evaluation_window_runs": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000
+            },
+            "required_artifacts": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^artifacts/.+"
+              }
+            },
+            "session_stability_thresholds": {
+              "type": "object",
+              "required": [
+                "max_startup_failure_rate",
+                "max_unexpected_termination_rate",
+                "max_cursor_regression_events",
+                "max_cross_session_isolation_violations"
+              ],
+              "properties": {
+                "max_startup_failure_rate": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "max_unexpected_termination_rate": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "max_cursor_regression_events": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100000
+                },
+                "max_cross_session_isolation_violations": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100000
+                }
+              },
+              "additionalProperties": false
+            },
+            "adapter_recovery_thresholds": {
+              "type": "object",
+              "required": [
+                "minimum_preflight_success_rate",
+                "max_terminal_preflight_failure_rate",
+                "max_bridge_probe_latency_p95_ms",
+                "max_bridge_recovery_attempts_per_session",
+                "minimum_bridge_recovery_success_rate"
+              ],
+              "properties": {
+                "minimum_preflight_success_rate": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "max_terminal_preflight_failure_rate": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "max_bridge_probe_latency_p95_ms": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 600000
+                },
+                "max_bridge_recovery_attempts_per_session": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 128
+                },
+                "minimum_bridge_recovery_success_rate": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              "additionalProperties": false
+            },
+            "pass_reason_codes": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9_]+$"
+              }
+            },
+            "fail_reason_codes": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9_]+$"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "rollback_safe_mode_policy": {
+          "type": "object",
+          "required": [
+            "enabled",
+            "trigger_reason_codes",
+            "stability_envelope_trigger_reason_codes",
+            "threshold_regression_signals",
+            "safe_mode_actions",
+            "rollback_actions",
+            "rollback_sequence",
+            "release_controls",
+            "post_rollback_validation",
+            "exit_criteria",
+            "pass_reason_code",
+            "fail_reason_code"
+          ],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "trigger_reason_codes": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9_]+$"
+              }
+            },
+            "stability_envelope_trigger_reason_codes": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9_]+$"
+              }
+            },
+            "threshold_regression_signals": {
+              "type": "object",
+              "required": [
+                "minimum_pass_rate",
+                "evaluation_window_runs",
+                "max_consecutive_failures_before_safe_mode"
+              ],
+              "properties": {
+                "minimum_pass_rate": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "evaluation_window_runs": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100000
+                },
+                "max_consecutive_failures_before_safe_mode": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100000
+                }
+              },
+              "additionalProperties": false
+            },
+            "safe_mode_actions": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9_]+$"
+              }
+            },
+            "rollback_actions": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9_]+$"
+              }
+            },
+            "rollback_sequence": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "enter_safe_mode_and_freeze_promotion",
+                  "revert_adapter_selection_policy_to_last_known_good",
+                  "enforce_single_inflight_reconnect_and_mutation_block",
+                  "rerun_local_conformance_lane",
+                  "rerun_podman_bridge_resilience_lane"
+                ]
+              }
+            },
+            "release_controls": {
+              "type": "object",
+              "required": [
+                "pin_release_candidate",
+                "block_new_promotion",
+                "require_reviewer_ack_for_unpin"
+              ],
+              "properties": {
+                "pin_release_candidate": {
+                  "type": "boolean"
+                },
+                "block_new_promotion": {
+                  "type": "boolean"
+                },
+                "require_reviewer_ack_for_unpin": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "post_rollback_validation": {
+              "type": "object",
+              "required": [
+                "required_sequence",
+                "minimum_consecutive_passing_runs",
+                "required_reason_codes"
+              ],
+              "properties": {
+                "required_sequence": {
+                  "type": "array",
+                  "minItems": 2,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "local_conformance",
+                      "podman_bridge_resilience"
+                    ]
+                  }
+                },
+                "minimum_consecutive_passing_runs": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100000
+                },
+                "required_reason_codes": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9_]+$"
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            "exit_criteria": {
+              "type": "object",
+              "required": [
+                "minimum_consecutive_passing_runs",
+                "required_reason_code",
+                "manual_override_allowed"
+              ],
+              "properties": {
+                "minimum_consecutive_passing_runs": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100000
+                },
+                "required_reason_code": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9_]+$"
+                },
+                "manual_override_allowed": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "pass_reason_code": {
+              "type": "string",
+              "pattern": "^[a-z0-9_]+$"
+            },
+            "fail_reason_code": {
+              "type": "string",
+              "pattern": "^[a-z0-9_]+$"
             }
           },
           "additionalProperties": false
@@ -742,7 +2461,7 @@
           "uniqueItems": true,
           "items": {
             "type": "string",
-            "enum": ["normal", "delayed", "duplicate", "stale-token"]
+            "enum": ["normal", "delayed", "duplicate", "rehydration", "stale-token"]
           }
         },
         "cases": {
@@ -768,7 +2487,7 @@
       "properties": {
         "case_id": {
           "type": "string",
-          "enum": ["normal", "delayed", "duplicate", "stale-token"]
+          "enum": ["normal", "delayed", "duplicate", "rehydration", "stale-token"]
         },
         "description": {
           "type": "string",
@@ -954,6 +2673,7 @@
       "required": [
         "runtime_mode",
         "default_compose_file",
+        "dependency_orchestration",
         "scenarios"
       ],
       "properties": {
@@ -965,11 +2685,74 @@
           "type": "string",
           "pattern": "^docs/integration-harness/.*\\.ya?ml$"
         },
+        "dependency_orchestration": {
+          "$ref": "#/$defs/faultMatrixDependencyOrchestration"
+        },
         "scenarios": {
           "type": "array",
           "minItems": 3,
           "items": {
             "$ref": "#/$defs/faultInjectionVerificationScenario"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "faultMatrixDependencyOrchestration": {
+      "type": "object",
+      "required": [
+        "headless_lane_required",
+        "required_service_chain",
+        "deterministic_fault_controls",
+        "determinism_rules"
+      ],
+      "properties": {
+        "headless_lane_required": {
+          "type": "boolean"
+        },
+        "required_service_chain": {
+          "type": "array",
+          "minItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "project-memory:health_pass",
+              "dashboard:api_ws_reachable",
+              "supervisor-proxy:heartbeat_pass_or_explicit_skip",
+              "extension-test-runner:start_after_dependency_gate",
+              "interactive-terminal-bridge:preflight_required_for_container_bridge_flows"
+            ]
+          }
+        },
+        "deterministic_fault_controls": {
+          "type": "array",
+          "minItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "stop_service:project-memory",
+              "delay_response:project-memory",
+              "force_health_failure:mcp_or_dashboard",
+              "simulate_bridge_preflight_failure:interactive-terminal-bridge",
+              "inject_bridge_runtime_disconnect:interactive-terminal-bridge"
+            ]
+          }
+        },
+        "determinism_rules": {
+          "type": "array",
+          "minItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "atomic_fault_action_per_scenario",
+              "restart_scope_must_match_contract",
+              "reconnect_requires_dependency_and_readiness_gate",
+              "assert_dependency_gate_evidence_per_scenario",
+              "container_bridge_faults_require_preflight_and_diagnostics_evidence"
+            ]
           }
         }
       },
@@ -986,7 +2769,13 @@
       "properties": {
         "scenario_key": {
           "type": "string",
-          "enum": ["api_outage", "websocket_interruption", "backend_recovery"]
+          "enum": [
+            "api_outage",
+            "websocket_interruption",
+            "backend_recovery",
+            "container_bridge_preflight_failure",
+            "container_bridge_recovery_diagnostics"
+          ]
         },
         "description": {
           "type": "string",
@@ -998,7 +2787,13 @@
           "properties": {
             "fault_type": {
               "type": "string",
-              "enum": ["api_outage", "websocket_interruption", "backend_recovery"]
+              "enum": [
+                "api_outage",
+                "websocket_interruption",
+                "backend_recovery",
+                "container_bridge_preflight_failure",
+                "container_bridge_recovery_diagnostics"
+              ]
             },
             "target": {
               "type": "string",
@@ -1323,6 +3118,561 @@
           },
           "additionalProperties": false
         }
+      },
+      "additionalProperties": false
+    },
+    "faultLayer": {
+      "type": "object",
+      "required": ["layer_id", "fault_classes"],
+      "properties": {
+        "layer_id": { "type": "string" },
+        "description": { "type": "string" },
+        "fault_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["fault_class", "trigger", "detection_reason_code"],
+            "properties": {
+              "fault_class": { "type": "string" },
+              "trigger": { "type": "string" },
+              "detection_reason_code": { "type": "string" },
+              "default_restart_scope": { "type": "string" }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "containerBoundaryFailureTaxonomy": {
+      "type": "object",
+      "description": "Four-layer container boundary failure taxonomy for Podman-managed integration harness flows.",
+      "required": ["version", "fault_layers", "classification_rule"],
+      "properties": {
+        "version": { "type": "string" },
+        "description": { "type": "string" },
+        "fault_layers": {
+          "type": "object",
+          "required": ["runtime", "network", "storage", "application"],
+          "properties": {
+            "runtime": { "$ref": "#/$defs/faultLayer" },
+            "network": { "$ref": "#/$defs/faultLayer" },
+            "storage": { "$ref": "#/$defs/faultLayer" },
+            "application": { "$ref": "#/$defs/faultLayer" }
+          },
+          "additionalProperties": false
+        },
+        "classification_rule": {
+          "type": "object",
+          "required": ["decision_order", "fault_layer_field", "required_in_scenario_assertion_output"],
+          "properties": {
+            "decision_order": {
+              "type": "array",
+              "items": { "type": "string", "enum": ["runtime", "network", "storage", "application"] }
+            },
+            "fault_layer_field": { "type": "string" },
+            "required_in_scenario_assertion_output": { "type": "boolean" },
+            "unclassified_reason_code": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "isolationPolicy": {
+      "type": "object",
+      "required": [
+        "phase",
+        "description",
+        "containment_scope_map",
+        "enforcement_rules",
+        "forbidden_restart_scope",
+        "cascade_gate",
+        "diagnostic_requirement",
+        "pass_reason_code",
+        "fail_reason_code"
+      ],
+      "properties": {
+        "phase": { "type": "string" },
+        "description": { "type": "string" },
+        "containment_scope_map": {
+          "type": "object",
+          "properties": {
+            "child-local": { "type": "string" },
+            "dependency-group": { "type": "string" },
+            "global": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "enforcement_rules": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string" }
+        },
+        "forbidden_restart_scope": {
+          "type": "string",
+          "enum": ["global"]
+        },
+        "cascade_gate": {
+          "type": "object",
+          "required": ["description", "isolation_violation_event", "isolation_violation_reason_code"],
+          "properties": {
+            "description": { "type": "string" },
+            "isolation_violation_event": { "type": "string" },
+            "isolation_violation_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+          },
+          "additionalProperties": false
+        },
+        "diagnostic_requirement": {
+          "type": "object",
+          "required": ["fault_layer_field_required", "fault_layer_field", "isolation_scope_field", "required_on_any_boundary_fault_scenario"],
+          "properties": {
+            "fault_layer_field_required": { "type": "boolean" },
+            "fault_layer_field": { "type": "string" },
+            "isolation_scope_field": { "type": "string" },
+            "required_on_any_boundary_fault_scenario": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "pass_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "fail_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+      },
+      "additionalProperties": false
+    },
+    "dependencyRestartChoreography": {
+      "type": "object",
+      "required": [
+        "phase",
+        "description",
+        "restart_precedence",
+        "startup_admission_rule",
+        "compose_managed_restart_integration",
+        "ordered_recovery_events",
+        "readiness_gate_re_evaluation",
+        "choreography_violation_reason_code",
+        "pass_reason_code"
+      ],
+      "properties": {
+        "phase": { "type": "string" },
+        "description": { "type": "string" },
+        "restart_precedence": { "type": "string" },
+        "startup_admission_rule": { "type": "string" },
+        "compose_managed_restart_integration": {
+          "type": "object",
+          "required": ["restart_policy_compatibility", "staggered_restart_required", "staggered_restart_rule"],
+          "properties": {
+            "restart_policy_compatibility": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "type": "string" }
+            },
+            "staggered_restart_required": { "type": "boolean" },
+            "staggered_restart_rule": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "ordered_recovery_events": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "container_fault_detected",
+              "container_stopped",
+              "depends_on_readiness_gates_evaluated",
+              "container_started",
+              "health_check_waiting",
+              "health_check_passed",
+              "readiness_gate_open",
+              "service_admitted"
+            ]
+          }
+        },
+        "readiness_gate_re_evaluation": {
+          "type": "object",
+          "required": ["required", "trigger", "gate_pass_required_before_traffic_admission"],
+          "properties": {
+            "required": { "type": "boolean" },
+            "trigger": { "type": "string" },
+            "gate_pass_required_before_traffic_admission": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "choreography_violation_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "pass_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+      },
+      "additionalProperties": false
+    },
+    "storageIntegrityPolicy": {
+      "type": "object",
+      "required": [
+        "phase",
+        "description",
+        "abrupt_termination_triggers",
+        "named_volume_check",
+        "integrity_check_outcomes",
+        "volume_scope",
+        "pre_start_gate_required",
+        "pass_reason_code",
+        "fail_reason_code"
+      ],
+      "properties": {
+        "phase": { "type": "string" },
+        "description": { "type": "string" },
+        "abrupt_termination_triggers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string" }
+        },
+        "named_volume_check": {
+          "type": "object",
+          "required": ["required_before_service_admission", "check_method", "sqlite_integrity_check"],
+          "properties": {
+            "required_before_service_admission": { "type": "boolean" },
+            "check_method": { "type": "string" },
+            "sqlite_integrity_check": {
+              "type": "object",
+              "required": ["pragma", "expected_result", "applies_to_service"],
+              "properties": {
+                "pragma": { "type": "string" },
+                "expected_result": { "type": "string" },
+                "applies_to_service": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "integrity_check_outcomes": {
+          "type": "object",
+          "required": ["pass", "fail"],
+          "properties": {
+            "pass": {
+              "type": "object",
+              "required": ["action", "reason_code"],
+              "properties": {
+                "action": { "type": "string" },
+                "reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+              },
+              "additionalProperties": false
+            },
+            "fail": {
+              "type": "object",
+              "required": ["action", "emit_event", "reason_code", "recovery", "auto_restart_forbidden", "description"],
+              "properties": {
+                "action": { "type": "string" },
+                "emit_event": { "type": "string" },
+                "reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+                "recovery": { "type": "string" },
+                "auto_restart_forbidden": { "type": "boolean" },
+                "description": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "volume_scope": { "type": "string" },
+        "pre_start_gate_required": { "type": "boolean" },
+        "pass_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "fail_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+      },
+      "additionalProperties": false
+    },
+    "resourceBoundaryPolicy": {
+      "type": "object",
+      "required": [
+        "phase",
+        "description",
+        "resource_limits",
+        "pressure_thresholds",
+        "pressure_event",
+        "recovery",
+        "operator_visibility",
+        "pass_reason_code",
+        "fail_reason_code"
+      ],
+      "properties": {
+        "phase": { "type": "string" },
+        "description": { "type": "string" },
+        "resource_limits": {
+          "type": "object",
+          "required": ["enforcement", "required_fields", "applies_to_all_services"],
+          "properties": {
+            "enforcement": { "type": "string" },
+            "required_fields": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "type": "string" }
+            },
+            "applies_to_all_services": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "pressure_thresholds": {
+          "type": "object",
+          "required": ["cpu_pressure", "memory_pressure", "io_pressure"],
+          "properties": {
+            "cpu_pressure": {
+              "type": "object",
+              "required": ["threshold_percent", "sustained_duration_ms", "degraded_state", "degradation_behavior", "reason_code"],
+              "properties": {
+                "threshold_percent": { "type": "integer", "minimum": 1, "maximum": 100 },
+                "sustained_duration_ms": { "type": "integer", "minimum": 0, "maximum": 600000 },
+                "degraded_state": { "type": "string" },
+                "degradation_behavior": { "type": "string" },
+                "reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+              },
+              "additionalProperties": false
+            },
+            "memory_pressure": {
+              "type": "object",
+              "required": ["oom_kill_classification", "pre_restart_check", "reason_code"],
+              "properties": {
+                "oom_kill_classification": { "type": "string" },
+                "pre_restart_check": { "type": "string" },
+                "reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+              },
+              "additionalProperties": false
+            },
+            "io_pressure": {
+              "type": "object",
+              "required": ["disk_write_latency_threshold_ms", "degraded_state", "degradation_behavior", "reason_code"],
+              "properties": {
+                "disk_write_latency_threshold_ms": { "type": "integer", "minimum": 0, "maximum": 600000 },
+                "degraded_state": { "type": "string" },
+                "degradation_behavior": { "type": "string" },
+                "reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "pressure_event": {
+          "type": "object",
+          "required": ["event_name", "required_fields", "circuit_breaker_trips_on_sustained_pressure"],
+          "properties": {
+            "event_name": { "type": "string" },
+            "required_fields": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "type": "string" }
+            },
+            "circuit_breaker_trips_on_sustained_pressure": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "recovery": {
+          "type": "object",
+          "required": ["pressure_clear_threshold_percent", "pressure_clear_sustained_duration_ms", "action_on_clear", "reason_code"],
+          "properties": {
+            "pressure_clear_threshold_percent": { "type": "integer", "minimum": 0, "maximum": 100 },
+            "pressure_clear_sustained_duration_ms": { "type": "integer", "minimum": 0, "maximum": 600000 },
+            "action_on_clear": { "type": "string" },
+            "reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+          },
+          "additionalProperties": false
+        },
+        "operator_visibility": {
+          "type": "object",
+          "required": ["alert_required", "alert_reason_code"],
+          "properties": {
+            "alert_required": { "type": "boolean" },
+            "alert_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+          },
+          "additionalProperties": false
+        },
+        "pass_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "fail_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+      },
+      "additionalProperties": false
+    },
+    "podmanNetworkFaultVerificationMatrix": {
+      "type": "object",
+      "required": ["phase", "description", "scenarios", "determinism_rules", "required_artifacts"],
+      "properties": {
+        "phase": { "type": "string" },
+        "description": { "type": "string" },
+        "scenarios": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["scenario_id", "fault_class", "fault_layer", "description", "injection", "failure_domain", "restart_scope", "required_reason_codes", "required_assertions", "pass_reason_code", "fail_reason_code"],
+            "properties": {
+              "scenario_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_]{3,80}$" },
+              "fault_class": { "type": "string" },
+              "fault_layer": { "type": "string", "enum": ["network", "storage", "runtime", "application"] },
+              "description": { "type": "string", "minLength": 10 },
+              "injection": { "type": "object", "required": ["fault_type", "target_service"], "additionalProperties": true },
+              "failure_domain": { "type": "string", "enum": ["child-local", "dependency-group", "global"] },
+              "restart_scope": { "type": "string", "enum": ["child-local", "dependency-group", "global"] },
+              "required_reason_codes": { "$ref": "#/$defs/nonEmptyStringArray" },
+              "required_assertions": { "$ref": "#/$defs/nonEmptyStringArray" },
+              "pass_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+              "fail_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+            },
+            "additionalProperties": true
+          }
+        },
+        "determinism_rules": { "$ref": "#/$defs/nonEmptyStringArray" },
+        "required_artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^artifacts/.+" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "storageVolumeFaultVerificationMatrix": {
+      "type": "object",
+      "required": ["phase", "description", "scenarios", "determinism_rules", "required_artifacts"],
+      "properties": {
+        "phase": { "type": "string" },
+        "description": { "type": "string" },
+        "scenarios": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["scenario_id", "fault_class", "fault_layer", "description", "injection", "failure_domain", "restart_scope", "required_reason_codes", "required_assertions", "pass_reason_code", "fail_reason_code"],
+            "properties": {
+              "scenario_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_]{3,80}$" },
+              "fault_class": { "type": "string" },
+              "fault_layer": { "type": "string", "enum": ["network", "storage", "runtime", "application"] },
+              "description": { "type": "string", "minLength": 10 },
+              "injection": { "type": "object", "required": ["fault_type", "target_service"], "additionalProperties": true },
+              "failure_domain": { "type": "string", "enum": ["child-local", "dependency-group", "global"] },
+              "restart_scope": { "type": "string", "enum": ["child-local", "dependency-group", "global"] },
+              "auto_restart_forbidden": { "type": "boolean" },
+              "required_reason_codes": { "$ref": "#/$defs/nonEmptyStringArray" },
+              "required_assertions": { "$ref": "#/$defs/nonEmptyStringArray" },
+              "pass_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+              "fail_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+            },
+            "additionalProperties": true
+          }
+        },
+        "determinism_rules": { "$ref": "#/$defs/nonEmptyStringArray" },
+        "required_artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^artifacts/.+" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "startupOrderReadinessFaultVerificationMatrix": {
+      "type": "object",
+      "required": ["phase", "description", "scenarios", "determinism_rules", "required_artifacts"],
+      "properties": {
+        "phase": { "type": "string" },
+        "description": { "type": "string" },
+        "scenarios": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["scenario_id", "fault_class", "fault_layer", "description", "injection", "failure_domain", "restart_scope", "required_reason_codes", "required_assertions", "pass_reason_code", "fail_reason_code"],
+            "properties": {
+              "scenario_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_]{3,80}$" },
+              "fault_class": { "type": "string" },
+              "fault_layer": { "type": "string", "enum": ["network", "storage", "runtime", "application"] },
+              "description": { "type": "string", "minLength": 10 },
+              "injection": { "type": "object", "required": ["fault_type", "target_service"], "additionalProperties": true },
+              "failure_domain": { "type": "string", "enum": ["child-local", "dependency-group", "global"] },
+              "restart_scope": { "type": "string", "enum": ["child-local", "dependency-group", "global"] },
+              "required_reason_codes": { "$ref": "#/$defs/nonEmptyStringArray" },
+              "required_assertions": { "$ref": "#/$defs/nonEmptyStringArray" },
+              "pass_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+              "fail_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+            },
+            "additionalProperties": true
+          }
+        },
+        "determinism_rules": { "$ref": "#/$defs/nonEmptyStringArray" },
+        "required_artifacts": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^artifacts/.+" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "healthValidationThresholds": {
+      "type": "object",
+      "required": ["phase", "description", "recovery_latency_thresholds", "stability_thresholds", "pass_fail_criteria", "gate_promotion_criteria", "pass_reason_code", "fail_reason_code"],
+      "properties": {
+        "phase": { "type": "string" },
+        "description": { "type": "string" },
+        "recovery_latency_thresholds": {
+          "type": "object",
+          "required": ["max_reconnect_latency_ms", "p95_reconnect_latency_ms", "p99_reconnect_latency_ms"],
+          "properties": {
+            "max_reconnect_latency_ms": { "type": "integer", "minimum": 0 },
+            "p95_reconnect_latency_ms": { "type": "integer", "minimum": 0 },
+            "p99_reconnect_latency_ms": { "type": "integer", "minimum": 0 },
+            "max_storage_integrity_check_latency_ms": { "type": "integer", "minimum": 0 },
+            "max_readiness_gate_open_latency_ms": { "type": "integer", "minimum": 0 },
+            "max_dns_re_resolution_latency_ms": { "type": "integer", "minimum": 0 }
+          },
+          "additionalProperties": false
+        },
+        "stability_thresholds": {
+          "type": "object",
+          "required": ["minimum_consecutive_passing_scenarios", "evaluation_window_runs", "max_failure_budget_per_window", "min_pass_rate"],
+          "properties": {
+            "minimum_consecutive_passing_scenarios": { "type": "integer", "minimum": 1 },
+            "evaluation_window_runs": { "type": "integer", "minimum": 1 },
+            "max_failure_budget_per_window": { "type": "integer", "minimum": 0 },
+            "min_pass_rate": { "type": "number", "minimum": 0, "maximum": 1 }
+          },
+          "additionalProperties": false
+        },
+        "pass_fail_criteria": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["metric", "comparator", "pass_reason_code", "fail_reason_code"],
+            "properties": {
+              "metric": { "type": "string" },
+              "comparator": { "type": "string", "enum": ["<=", "<", "=", ">=", ">" ] },
+              "threshold_ms": { "type": "integer", "minimum": 0 },
+              "threshold_count": { "type": "integer", "minimum": 0 },
+              "percentile": { "type": "string" },
+              "pass_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+              "fail_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "gate_promotion_criteria": {
+          "type": "object",
+          "required": ["required_reason_codes"],
+          "properties": {
+            "all_network_fault_scenarios_pass": { "type": "boolean" },
+            "all_storage_fault_scenarios_pass": { "type": "boolean" },
+            "all_startup_order_scenarios_pass": { "type": "boolean" },
+            "recovery_latency_within_all_thresholds": { "type": "boolean" },
+            "stability_threshold_consecutive_passes_met": { "type": "boolean" },
+            "required_reason_codes": { "$ref": "#/$defs/nonEmptyStringArray" }
+          },
+          "additionalProperties": false
+        },
+        "pass_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "fail_reason_code": { "type": "string", "pattern": "^[a-z0-9_]+$" }
       },
       "additionalProperties": false
     }

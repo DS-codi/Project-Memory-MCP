@@ -26,13 +26,13 @@ import { PausedPlanBanner } from '@/components/plan/PausedPlanBanner';
 import { HandoffTimeline } from '@/components/timeline/HandoffTimeline';
 import { BallInCourt } from '@/components/timeline/BallInCourt';
 import { useBuildScripts, useAddBuildScript, useDeleteBuildScript, useRunBuildScript } from '@/hooks/useBuildScripts';
-import { useResumePlan } from '@/hooks/usePlans';
+import { useResumePlan, useSetWorkflowMode } from '@/hooks/usePlans';
 import { useProgram } from '@/hooks/usePrograms';
 import { formatDate, formatRelative } from '@/utils/formatters';
 import { categoryColors, priorityColors, priorityIcons, planStatusColors } from '@/utils/colors';
 import { cn } from '@/utils/cn';
 import { postToVsCode } from '@/utils/vscode-bridge';
-import type { PlanState, AgentType, ProgramPlanRef } from '@/types';
+import type { PlanState, AgentType, ProgramPlanRef, WorkflowMode } from '@/types';
 
 async function fetchPlan(workspaceId: string, planId: string): Promise<PlanState> {
   const res = await fetch(`/api/plans/${workspaceId}/${planId}`);
@@ -80,6 +80,9 @@ export function PlanDetailPage() {
 
   // Resume paused plan mutation
   const resumeMutation = useResumePlan(workspaceId, planId);
+
+  // Workflow mode selector mutation
+  const workflowModeMutation = useSetWorkflowMode(workspaceId, planId);
 
   if (isLoading) {
     return (
@@ -170,6 +173,18 @@ export function PlanDetailPage() {
               {plan.current_phase && (
                 <Badge variant="slate">Phase: {plan.current_phase}</Badge>
               )}
+              <select
+                data-testid="workflow-mode-selector"
+                value={plan.workflow_mode ?? 'standard'}
+                onChange={(e) => workflowModeMutation.mutate(e.target.value as WorkflowMode)}
+                disabled={workflowModeMutation.isPending}
+                className="ml-1 bg-slate-700 border border-slate-600 text-slate-200 text-xs rounded px-2 py-0.5 cursor-pointer hover:border-violet-500 focus:outline-none focus:border-violet-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="standard">Standard</option>
+                <option value="tdd">TDD</option>
+                <option value="enrichment">Enrichment</option>
+                <option value="overnight">Overnight</option>
+              </select>
             </div>
             <h1 className="text-2xl font-bold mb-2">{plan.title}</h1>
             <p className="text-slate-400">{plan.description}</p>

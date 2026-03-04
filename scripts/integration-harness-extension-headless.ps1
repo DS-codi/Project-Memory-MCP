@@ -3,7 +3,7 @@
 param(
     [Parameter(Mandatory)] [string]$RunId,
     [string]$HealthContractPath = "docs/integration-harness/contracts/health-readiness.contract.json",
-    [string]$HandshakeUrl = "http://localhost:3000/health",
+    [string]$HandshakeUrl = "http://localhost:43000/health",
     [int]$HandshakeTimeoutMs = 3000,
     [string]$TestFile = "src/test/suite/integration/headless-activation-handshake.test.ts",
     [switch]$ValidateOnly,

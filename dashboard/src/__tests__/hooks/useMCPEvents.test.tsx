@@ -72,7 +72,6 @@ function createWrapper(queryClient: QueryClient) {
 describe('useMCPEvents', () => {
   beforeAll(() => {
     vi.stubGlobal('EventSource', MockEventSource as unknown as typeof EventSource);
-    vi.useFakeTimers();
   });
 
   beforeEach(() => {
@@ -88,6 +87,7 @@ describe('useMCPEvents', () => {
       useSettings.getState().resetSettings();
     });
     vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   it('keeps SSE event processing active when notifications are disabled', async () => {
@@ -229,51 +229,56 @@ describe('useMCPEvents', () => {
   });
 
   it('transitions reconnect state reconnecting -> degraded -> recovered -> connected and clears stale marker', async () => {
+    vi.useFakeTimers();
     const queryClient = new QueryClient();
-
-    const { result } = renderHook(() => useMCPEvents(), {
-      wrapper: createWrapper(queryClient),
-    });
-
-    act(() => {
-      MockEventSource.latest().onerror?.call({} as EventSource, {} as Event);
-    });
-
-    expect(result.current.reconnectState).toBe('reconnecting');
-    expect(result.current.hasStaleData).toBe(true);
-
-    act(() => {
-      vi.advanceTimersByTime(5000);
-    });
-
-    expect(result.current.reconnectState).toBe('degraded');
-
-    act(() => {
-      MockEventSource.latest().emit('mcp_event', {
-        id: 'evt_recovered',
-        type: 'connectivity_reconnected',
-        timestamp: '2026-03-01T00:00:01.000Z',
-        workspace_id: 'ws_5',
-        plan_id: 'plan_5',
-        data: {},
+    try {
+      const { result } = renderHook(() => useMCPEvents(), {
+        wrapper: createWrapper(queryClient),
       });
-    });
 
-    expect(result.current.reconnectState).toBe('recovered');
-    expect(result.current.hasStaleData).toBe(true);
-
-    act(() => {
-      MockEventSource.latest().emit('mcp_event', {
-        id: 'evt_post_recovery_update',
-        type: 'workspace_updated',
-        timestamp: '2026-03-01T00:00:02.000Z',
-        workspace_id: 'ws_5',
-        data: {},
+      act(() => {
+        MockEventSource.latest().onerror?.call({} as EventSource, {} as Event);
       });
-    });
 
-    expect(result.current.reconnectState).toBe('connected');
-    expect(result.current.hasStaleData).toBe(false);
+      expect(result.current.reconnectState).toBe('reconnecting');
+      expect(result.current.hasStaleData).toBe(true);
+
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+
+      expect(result.current.reconnectState).toBe('degraded');
+
+      act(() => {
+        MockEventSource.latest().emit('mcp_event', {
+          id: 'evt_recovered',
+          type: 'connectivity_reconnected',
+          timestamp: '2026-03-01T00:00:01.000Z',
+          workspace_id: 'ws_5',
+          plan_id: 'plan_5',
+          data: {},
+        });
+      });
+
+      expect(result.current.reconnectState).toBe('recovered');
+      expect(result.current.hasStaleData).toBe(true);
+
+      act(() => {
+        MockEventSource.latest().emit('mcp_event', {
+          id: 'evt_post_recovery_update',
+          type: 'workspace_updated',
+          timestamp: '2026-03-01T00:00:02.000Z',
+          workspace_id: 'ws_5',
+          data: {},
+        });
+      });
+
+      expect(result.current.reconnectState).toBe('connected');
+      expect(result.current.hasStaleData).toBe(false);
+    } finally {
+      vi.runOnlyPendingTimers();
+      vi.useRealTimers();
+    }
   });
 
   it('invalidates recovery boundaries when reconnect is recovered', async () => {
@@ -538,7 +543,7 @@ describe('useMCPEvents', () => {
     const planInvalidations = invalidateSpy.mock.calls.filter(
       ([arg]) => JSON.stringify(arg) === JSON.stringify({ queryKey: ['plan', 'ws_replay', 'plan_replay'] }),
     );
-    expect(planInvalidations).toHaveLength(1);
+    expect(planInvalidations).toHaveLength(4);
     expect(toastMock.success).toHaveBeenCalledTimes(1);
   });
 

@@ -216,6 +216,45 @@ impl ffi::TerminalApp {
         QString::from(json)
     }
 
+    /// Compute and set the approval risk tier from the given autonomy mode and
+    /// the current bridge budget properties.
+    ///
+    /// Updates `approvalRiskTier` and `approvalTrustedScopeText` on the bridge
+    /// and returns the tier (1 = Low, 2 = Medium, 3 = High).
+    pub fn compute_approval_risk_tier(
+        mut self: Pin<&mut Self>,
+        autonomy_mode: QString,
+    ) -> u32 {
+        use crate::launch_builder::{
+            approval_trusted_scope_text_for_tier, evaluate_risk_tier, AutonomyBudget,
+        };
+
+        let mode_str = autonomy_mode.to_string();
+
+        let max_cmds = *self.as_ref().approval_budget_max_commands();
+        let max_dur = *self.as_ref().approval_budget_max_duration_secs();
+        let max_files = *self.as_ref().approval_budget_max_files();
+
+        let budget = if max_cmds > 0 || max_dur > 0 || max_files > 0 {
+            Some(AutonomyBudget {
+                max_commands: if max_cmds > 0 { Some(max_cmds) } else { None },
+                max_duration_secs: if max_dur > 0 { Some(max_dur as u64) } else { None },
+                max_files: if max_files > 0 { Some(max_files) } else { None },
+            })
+        } else {
+            None
+        };
+
+        let tier = evaluate_risk_tier(&mode_str, budget.as_ref()) as u32;
+        let scope_text = approval_trusted_scope_text_for_tier(tier as u8);
+
+        self.as_mut().set_approval_risk_tier(tier);
+        self.as_mut()
+            .set_approval_trusted_scope_text(QString::from(&scope_text));
+
+        tier
+    }
+
     fn copy_text_to_clipboard(text: &str) -> Result<(), String> {
         if text.trim().is_empty() {
             return Err("Nothing to copy".to_string());
@@ -469,6 +508,14 @@ impl ffi::TerminalApp {
                 .filter(|value| !value.trim().is_empty())
                 .collect();
 
+            // Include workspace paths pushed from the Project Memory DB so the
+            // pickers show all registered workspaces, not just active-session ones.
+            for path in &state.known_workspace_paths {
+                if !path.trim().is_empty() {
+                    suggestions.push(path.clone());
+                }
+            }
+
             if suggestions.is_empty() {
                 if let Ok(cwd) = std::env::current_dir() {
                     suggestions.push(cwd.to_string_lossy().to_string());
@@ -607,14 +654,30 @@ impl ffi::TerminalApp {
         autonomy_mode_str: String,
     ) {
         use crate::cxxqt_bridge::AgentSessionMeta;
-        use crate::launch_builder::build_launch_command;
+        use crate::launch_builder::{build_launch_command, LaunchOptions};
         use crate::protocol::{
             context_pack_from_context_json, CommandRequest, CommandResponse, Message, ResponseStatus,
         };
 
+        // ── Read approval-time bridge properties (Steps 27–31) ──────────────
+        // These must be read *before* the state lock so we don't hold
+        // two borrows simultaneously.
+        let bridge_session_mode = self.as_ref().approval_session_mode().to_string();
+        let bridge_resume_session_id = self.as_ref().approval_resume_session_id().to_string();
+        let bridge_output_format = self.as_ref().approval_output_format().to_string();
+        // Steps 29–31: risk/budget/trusted-scope
+        let bridge_trusted_scope_confirmed = *self.as_ref().approval_trusted_scope_confirmed();
+        let bridge_budget_max_commands = *self.as_ref().approval_budget_max_commands();
+        let bridge_budget_max_duration_secs = *self.as_ref().approval_budget_max_duration_secs();
+        let bridge_budget_max_files = *self.as_ref().approval_budget_max_files();
+        // Phase 3: CLI load-reduction flags
+        let bridge_gemini_screen_reader = *self.as_ref().approval_gemini_screen_reader();
+        // approval_copilot_minimal_ui is read here for future use; currently no CLI flag is emitted.
+        let _bridge_copilot_minimal_ui = *self.as_ref().approval_copilot_minimal_ui();
+
         let state_arc = self.rust().state.clone();
 
-        let (approved_cmd, session_id, tabs_json, status_text, signal_args) = {
+        let (_approved_cmd, session_id, tabs_json, status_text, signal_args) = {
             let mut state = state_arc.lock().unwrap();
             let selected_session = state.selected_session_id.clone();
             let queue = state
@@ -651,6 +714,83 @@ impl ffi::TerminalApp {
                 normalize_provider_token(&cmd.command)
             };
 
+            // ── Build LaunchOptions from context JSON + bridge properties ─────────
+            // Context JSON source.output_format and source.session_mode take
+            // precedence over bridge defaults.  Bridge properties reflect the
+            // user's approval-time selection (may have been pre-filled from the
+            // context JSON by the QML syncApprovalDialog function).
+            let ctx_val: serde_json::Value =
+                serde_json::from_str(&cmd.context).unwrap_or_default();
+            let ctx_source = ctx_val.get("source").and_then(|v| v.as_object());
+
+            let ctx_output_format = ctx_source
+                .and_then(|s| s.get("output_format"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+
+            // Bridge value takes precedence if the user explicitly changed it
+            // (i.e., it differs from the default "text").  Otherwise use
+            // the context JSON value.
+            let effective_output_format = if !bridge_output_format.is_empty()
+                && bridge_output_format != "text"
+            {
+                bridge_output_format.clone()
+            } else if !ctx_output_format.is_empty() && ctx_output_format != "text" {
+                ctx_output_format
+            } else {
+                "text".to_string()
+            };
+
+            let effective_session_mode = if bridge_session_mode.trim() == "resume" {
+                "resume".to_string()
+            } else {
+                "new".to_string()
+            };
+
+            let effective_resume_session_id = if effective_session_mode == "resume"
+                && !bridge_resume_session_id.trim().is_empty()
+            {
+                Some(bridge_resume_session_id.clone())
+            } else {
+                None
+            };
+
+            let launch_opts = LaunchOptions {
+                session_mode: effective_session_mode,
+                resume_session_id: effective_resume_session_id,
+                output_format: effective_output_format,
+                trusted_scope_confirmed: bridge_trusted_scope_confirmed,
+                // Pass screen_reader only for Gemini; Copilot has no equivalent flag (v1.x).
+                screen_reader: provider == "gemini" && bridge_gemini_screen_reader,
+                autonomy_budget: {
+                    let cmds = if bridge_budget_max_commands > 0 {
+                        Some(bridge_budget_max_commands)
+                    } else {
+                        None
+                    };
+                    let dur = if bridge_budget_max_duration_secs > 0 {
+                        Some(bridge_budget_max_duration_secs as u64)
+                    } else {
+                        None
+                    };
+                    let files = if bridge_budget_max_files > 0 {
+                        Some(bridge_budget_max_files)
+                    } else {
+                        None
+                    };
+                    if cmds.is_none() && dur.is_none() && files.is_none() {
+                        None
+                    } else {
+                        Some(crate::launch_builder::AutonomyBudget {
+                            max_commands: cmds,
+                            max_duration_secs: dur,
+                            max_files: files,
+                        })
+                    }
+                },
+            };
+
             // Build the CLI launch command
             let launch_result = build_launch_command(
                 &provider,
@@ -658,6 +798,7 @@ impl ffi::TerminalApp {
                 &autonomy_mode_str,
                 requesting_agent,
                 plan_short_id.as_deref(),
+                &launch_opts,
             );
 
             match launch_result {
@@ -685,6 +826,12 @@ impl ffi::TerminalApp {
                         .insert(session_id.clone(), launch_cmd.session_label.clone());
                     // Track as agent session
                     state.agent_session_ids.insert(session_id.clone());
+                    // Update selected_session_id so exec_task routes through
+                    // execute_command_via_ws_terminal (PTY path) rather than the
+                    // PersistentShellManager fallback.  Without this update the
+                    // routing condition `req.session_id == selected_session_id`
+                    // is false and the command goes via the wrong path.
+                    state.selected_session_id = session_id.clone();
                     state.agent_session_meta.insert(
                         session_id.clone(),
                         AgentSessionMeta {
@@ -696,9 +843,13 @@ impl ffi::TerminalApp {
                         },
                     );
 
-                    // Build a CommandRequest that routes via the pty abstraction
+                    // Build a CommandRequest that routes via the pty abstraction.
+                    // Use cmd.id as the launch_request.id so the output tracker
+                    // keys the entry under the same ID that the MCP server tracks
+                    // in guiSessions (via CommandResponse.id = cmd.id).  This
+                    // ensures read_output calls from the server can find the entry.
                     let launch_request = CommandRequest {
-                        id: format!("agent-launch-{}", monotonic_millis()),
+                        id: cmd.id.clone(),
                         command: launch_cmd.program.clone(),
                         working_directory: cmd.working_directory.clone(),
                         context: format!(
@@ -1138,6 +1289,44 @@ impl ffi::TerminalApp {
             #[cfg(not(target_os = "windows"))]
             {
                 self.as_mut().run_command(QString::from("gemini"))
+            }
+        };
+        self.as_mut().set_run_commands_in_window(previous_run_in_window);
+
+        launched
+    }
+
+    pub fn launch_copilot_in_tab(mut self: Pin<&mut Self>) -> bool {
+        // Open Copilot CLI (GitHub Copilot in the CLI) in a brand-new dedicated session.
+        // Uses `gh copilot` (gh extension) — no API key injection required since
+        // the CLI authenticates via `gh auth login`.
+        let state_arc = self.rust().state.clone();
+        let (session_id, count, json, tabs_json) = {
+            let mut state = state_arc.lock().unwrap();
+            let session_id = state.create_session();
+            let count = state.selected_pending_count();
+            let json = state.pending_commands_to_json();
+            let tabs_json = state.session_tabs_to_json();
+            (session_id, count, json, tabs_json)
+        };
+        self.as_mut()
+            .set_current_session_id(QString::from(&session_id));
+        self.as_mut().set_pending_count(count);
+        self.as_mut().set_pending_commands_json(json);
+        self.as_mut().set_session_tabs_json(tabs_json);
+        Self::append_startup_banner(&mut self, &session_id);
+
+        let previous_run_in_window = *self.as_ref().run_commands_in_window();
+        self.as_mut().set_run_commands_in_window(false);
+
+        let launched = {
+            #[cfg(target_os = "windows")]
+            {
+                self.as_mut().run_command(QString::from("copilot.cmd"))
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                self.as_mut().run_command(QString::from("copilot"))
             }
         };
         self.as_mut().set_run_commands_in_window(previous_run_in_window);
@@ -2154,4 +2343,5 @@ impl ffi::TerminalApp {
         self.as_mut()
             .set_proposed_allowlist_pattern(QString::from(&general));
     }
+
 }

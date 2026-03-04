@@ -74,7 +74,7 @@ WORKDIR /app
 COPY --from=builder /build/server/package*.json server/
 COPY --from=builder /build/server/dist/ server/dist/
 WORKDIR /app/server
-RUN npm ci --omit=dev --ignore-scripts
+RUN npm ci --omit=dev
 WORKDIR /app
 
 # ---- Dashboard runtime ----
@@ -84,9 +84,9 @@ COPY --from=builder /build/dashboard/server/dist/ dashboard/server/dist/
 COPY --from=builder /build/dashboard/server/package*.json dashboard/server/
 # Install dashboard server deps  
 WORKDIR /app/dashboard
-RUN npm ci --omit=dev --ignore-scripts || true
+RUN npm ci --omit=dev || true
 WORKDIR /app/dashboard/server
-RUN npm ci --omit=dev --ignore-scripts || true
+RUN npm ci --omit=dev || true
 WORKDIR /app
 
 # ---- Entrypoint script ----

@@ -22,7 +22,9 @@ import {
   type KillSessionResponse,
   type OutputChunk,
   type TerminalIpcMessage,
+  type WorkspaceEntry,
   encodeMessage,
+  encodeWorkspaceListPush,
   decodeMessage,
   isCommandResponse,
   isHeartbeat,
@@ -30,6 +32,8 @@ import {
   isReadOutputResponse,
   isKillSessionResponse,
 } from './terminal-ipc-protocol.js';
+
+export type { WorkspaceEntry };
 
 // =========================================================================
 // Public Interface
@@ -506,6 +510,21 @@ export class TcpTerminalAdapter {
       isKillSessionResponse,
       (msg) => msg.id,
     );
+  }
+
+  // -----------------------------------------------------------------------
+  // Workspace list push (fire-and-forget)
+  // -----------------------------------------------------------------------
+
+  /**
+   * Push the current list of registered Project Memory workspaces to the GUI.
+   * This is a one-way push message — no response is expected.
+   * Silently ignored if the socket is not connected.
+   */
+  sendWorkspaceList(workspaces: WorkspaceEntry[]): void {
+    if (!this.socket || !this.connected || this.socket.destroyed) return;
+    const encoded = encodeWorkspaceListPush({ type: 'workspace_list_push', workspaces });
+    this.socket.write(encoded, 'utf8');
   }
 
   // -----------------------------------------------------------------------

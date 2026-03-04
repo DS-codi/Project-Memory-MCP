@@ -6,6 +6,7 @@ param(
     [string]$Tier = "all",
     [ValidateSet("podman-compose-default", "podman-compose-network-chaos", "supervisor-diagnostics")]
     [string]$RunProfile = "podman-compose-default",
+    [switch]$ExposeHostPorts,
     [switch]$ValidateOnly,
     [switch]$DryRun
 )
@@ -107,7 +108,7 @@ $results = New-Object System.Collections.Generic.List[object]
 $stackIsUp = $false
 
 if (-not $ValidateOnly -and -not $DryRun) {
-    & (Join-Path $PSScriptRoot "integration-harness-lifecycle.ps1") -Action up -RunId $RunId
+    & (Join-Path $PSScriptRoot "integration-harness-lifecycle.ps1") -Action up -RunId $RunId -ExposeHostPorts:$ExposeHostPorts
     if ($LASTEXITCODE -ne 0) {
         throw "Lifecycle up failed before matrix execution."
     }
@@ -139,7 +140,7 @@ try {
                     & (Join-Path $PSScriptRoot "integration-harness-extension-headless.ps1") -RunId $RunId -DryRun:$DryRun
                 }
                 "fault" {
-                    & (Join-Path $PSScriptRoot "integration-harness-fault-runner.ps1") -RunId $RunId -RuntimeMode ([string]$selectedProfile.runtime_mode) -ComposeFile ([string]$selectedProfile.compose_file) -DryRun:$DryRun
+                    & (Join-Path $PSScriptRoot "integration-harness-fault-runner.ps1") -RunId $RunId -RuntimeMode ([string]$selectedProfile.runtime_mode) -ComposeFile ([string]$selectedProfile.compose_file) -ExposeHostPorts:$ExposeHostPorts -DryRun:$DryRun
                     if ($LASTEXITCODE -ne 0) { throw "Fault runner failed for fault tier." }
 
                     & (Join-Path $PSScriptRoot "integration-harness-recovery-assertions.ps1") -RunId $RunId
@@ -155,7 +156,7 @@ try {
                     if ($LASTEXITCODE -ne 0) { throw "Run summary failed for fault tier." }
                 }
                 "resilience" {
-                    & (Join-Path $PSScriptRoot "integration-harness-extension-reconnect.ps1") -RunId $RunId -DryRun:$DryRun
+                    & (Join-Path $PSScriptRoot "integration-harness-extension-reconnect.ps1") -RunId $RunId -ExposeHostPorts:$ExposeHostPorts -DryRun:$DryRun
                     if ($LASTEXITCODE -ne 0) { throw "Extension reconnect resilience tier failed." }
                 }
             }
@@ -192,7 +193,7 @@ catch {
 }
 finally {
     if ($stackIsUp) {
-        & (Join-Path $PSScriptRoot "integration-harness-lifecycle.ps1") -Action down -RunId $RunId
+        & (Join-Path $PSScriptRoot "integration-harness-lifecycle.ps1") -Action down -RunId $RunId -ExposeHostPorts:$ExposeHostPorts
     }
 
     Ensure-ParentDirectory -Path $matrixPath
@@ -207,6 +208,7 @@ finally {
             repeatable_by = [string]$selectedProfile.repeatable_by
             description = [string]$selectedProfile.description
             podman_compose_default_lane = ($RunProfile -eq "podman-compose-default")
+            expose_host_ports = [bool]$ExposeHostPorts
         }
         dry_run = [bool]$DryRun
         validate_only = [bool]$ValidateOnly

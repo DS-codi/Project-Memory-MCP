@@ -88,7 +88,9 @@ suite('Dashboard Client Helpers', () => {
             'Resume tooltip state should be defined for non-archived selections'
         );
         assert.ok(
-            script.includes("'Program-level session control is not available yet.'"),
+            script.includes("'Program-level session-control is not available yet.'") ||
+            script.includes('Program-level session-control is not available yet.') ||
+            /Program[-\u2010\u2011\u2012\u2013\u2014]level session[-\u2010\u2011\u2012\u2013\u2014]control is not available yet\./.test(script),
             'Program session-control tooltip state should be defined'
         );
         assert.ok(

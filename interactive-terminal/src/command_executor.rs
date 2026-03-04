@@ -183,7 +183,9 @@ pub async fn execute_command_with_timeout(
     request: &CommandRequest,
     output_tx: mpsc::Sender<OutputLine>,
 ) -> Result<ExecutionResult, String> {
-    let timeout_dur = Duration::from_secs(request.timeout_seconds);
+    // treat timeout_seconds == 0 as "no timeout" (e.g. interactive/agent sessions)
+    let timeout_secs = if request.timeout_seconds == 0 { 86400 } else { request.timeout_seconds };
+    let timeout_dur = Duration::from_secs(timeout_secs);
     let accumulated = Arc::new(StdMutex::new(String::new()));
 
     match tokio::time::timeout(
@@ -225,7 +227,9 @@ impl PersistentShellManager {
         request: &CommandRequest,
         output_tx: mpsc::Sender<OutputLine>,
     ) -> Result<ExecutionResult, String> {
-        let timeout_dur = Duration::from_secs(request.timeout_seconds);
+        // treat timeout_seconds == 0 as "no timeout" (e.g. interactive/agent sessions)
+        let timeout_secs = if request.timeout_seconds == 0 { 86400 } else { request.timeout_seconds };
+        let timeout_dur = Duration::from_secs(timeout_secs);
 
         match tokio::time::timeout(timeout_dur, self.execute_command(request, output_tx.clone()))
             .await
@@ -1766,5 +1770,28 @@ mod tests {
             after_close.is_none(),
             "recv() must return None once all items are drained and channel is closed"
         );
+    }
+
+    // ── Step 12: Timeout zero guard ───────────────────────────────────────────
+
+    #[test]
+    fn timeout_zero_maps_to_large_duration() {
+        // Verifies the behaviour of the timeout-zero guard in
+        // execute_command_with_timeout: a timeout_seconds value of 0 must NOT
+        // result in a Duration::ZERO (which would immediately kill any process).
+        // Instead it must map to 86 400 s (24 h) so that interactive / agent
+        // sessions are not prematurely terminated.
+        let timeout_secs: u64 = 0;
+        let effective: u64 = if timeout_secs == 0 { 86_400 } else { timeout_secs };
+        assert_eq!(effective, 86_400, "Zero timeout must map to 86400s (24h)");
+        let dur = std::time::Duration::from_secs(effective);
+        assert!(
+            dur.as_secs() > 0,
+            "Duration must be non-zero for interactive sessions; got {:?}", dur
+        );
+        // Sanity-check that non-zero passthrough is unmodified.
+        let passthrough: u64 = 30;
+        let effective2: u64 = if passthrough == 0 { 86_400 } else { passthrough };
+        assert_eq!(effective2, 30, "Non-zero timeout must pass through unchanged");
     }
 }

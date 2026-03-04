@@ -275,6 +275,32 @@ export function getBuildScripts(workspaceId: string): BuildScriptRow[] {
 }
 
 // ============================================================
+// WORKFLOW MODE  (plan_workflow_settings junction table)
+// ============================================================
+
+export type WorkflowMode = 'standard' | 'tdd' | 'enrichment' | 'overnight';
+
+export function getWorkflowMode(planId: string): WorkflowMode | null {
+  const row = getDb()
+    .prepare('SELECT workflow_mode FROM plan_workflow_settings WHERE plan_id = ?')
+    .get(planId) as { workflow_mode: WorkflowMode } | undefined;
+  return row?.workflow_mode ?? null;
+}
+
+export function setWorkflowMode(planId: string, mode: WorkflowMode): void {
+  const now = new Date().toISOString();
+  getDb()
+    .prepare(
+      `INSERT INTO plan_workflow_settings (plan_id, workflow_mode, set_at, updated_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(plan_id) DO UPDATE SET
+         workflow_mode = excluded.workflow_mode,
+         updated_at    = excluded.updated_at`
+    )
+    .run(planId, mode, now, now);
+}
+
+// ============================================================
 // SEARCH
 // ============================================================
 

@@ -6,7 +6,8 @@ param(
     [string]$Component = "project-memory",
     [string]$RunId = "local",
     [string]$ComposeFile = "docs/integration-harness/podman-compose.integration.yml",
-    [string]$ContractPath = "docs/integration-harness/contracts/health-readiness.contract.json"
+    [string]$ContractPath = "docs/integration-harness/contracts/health-readiness.contract.json",
+    [switch]$ExposeHostPorts
 )
 
 Set-StrictMode -Version Latest
@@ -15,9 +16,19 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $composePath = if ([System.IO.Path]::IsPathRooted($ComposeFile)) { $ComposeFile } else { Join-Path $root $ComposeFile }
 $contractResolved = if ([System.IO.Path]::IsPathRooted($ContractPath)) { $ContractPath } else { Join-Path $root $ContractPath }
+$hostPortsOverridePath = Join-Path $root "docs/integration-harness/podman-compose.integration.hostports.yml"
 
 if (-not (Test-Path $composePath)) {
     throw "Compose file not found: $composePath"
+}
+
+$composeFileArgs = @("-f", $composePath)
+if ($ExposeHostPorts) {
+    if (-not (Test-Path $hostPortsOverridePath)) {
+        throw "Host ports override compose file not found: $hostPortsOverridePath"
+    }
+
+    $composeFileArgs += @("-f", $hostPortsOverridePath)
 }
 
 $runRoot = Join-Path $root ".tmp/integration-harness/runs/$RunId"
@@ -87,7 +98,7 @@ $env:COMPOSE_PROJECT_NAME = "pmh_$RunId"
 function Invoke-Compose {
     param([string[]]$Arguments)
 
-    & podman compose -f $composePath @Arguments
+    & podman compose @composeFileArgs @Arguments
     if ($LASTEXITCODE -ne 0) {
         throw "podman compose failed (exit $LASTEXITCODE) for arguments: $($Arguments -join ' ')"
     }
@@ -135,4 +146,4 @@ switch ($Action) {
     }
 }
 
-Write-Host "OK: integration harness lifecycle action '$Action' completed (run_id=$RunId)."
+Write-Host "OK: integration harness lifecycle action '$Action' completed (run_id=$RunId, expose_host_ports=$([bool]$ExposeHostPorts))."

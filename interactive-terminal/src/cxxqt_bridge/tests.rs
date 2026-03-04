@@ -46,6 +46,7 @@ fn test_state() -> AppState {
         agent_session_meta: HashMap::new(),
         allowlist_patterns: Vec::new(),
         allowlist_data_root: None,
+        known_workspace_paths: Vec::new(),
     }
 }
 
@@ -72,6 +73,7 @@ fn test_state_with_repo(repo_root: PathBuf) -> AppState {
         agent_session_meta: HashMap::new(),
         allowlist_patterns: Vec::new(),
         allowlist_data_root: None,
+        known_workspace_paths: Vec::new(),
     }
 }
 
@@ -938,10 +940,17 @@ fn default_provider_with_chooser_disabled_hides_chooser() {
 /// variables via build_launch_command.
 #[test]
 fn autonomy_mode_propagated_to_launch_payload() {
-    use crate::launch_builder::build_launch_command;
+    use crate::launch_builder::{build_launch_command, LaunchOptions};
+
+    // Autonomous mode requires trusted_scope_confirmed = true (Step 30 gate)
+    let opts_autonomous = LaunchOptions {
+        trusted_scope_confirmed: true,
+        ..LaunchOptions::default()
+    };
+    let opts = LaunchOptions::default();
 
     // "autonomous" mode → PM_AGENT_AUTONOMY_MODE=autonomous (gemini path)
-    let autonomous_cmd = build_launch_command("gemini", None, "autonomous", Some("Tester"), None)
+    let autonomous_cmd = build_launch_command("gemini", None, "autonomous", Some("Tester"), None, &opts_autonomous)
         .expect("should build autonomous gemini launch");
     assert_eq!(
         autonomous_cmd
@@ -953,7 +962,7 @@ fn autonomy_mode_propagated_to_launch_payload() {
     );
 
     // "guided" mode → PM_AGENT_AUTONOMY_MODE=guided (copilot path)
-    let guided_cmd = build_launch_command("copilot", None, "guided", Some("Tester"), None)
+    let guided_cmd = build_launch_command("copilot", None, "guided", Some("Tester"), None, &opts)
         .expect("should build guided copilot launch");
     assert_eq!(
         guided_cmd
@@ -966,7 +975,7 @@ fn autonomy_mode_propagated_to_launch_payload() {
 
     // Empty autonomy_mode → PM_AGENT_AUTONOMY_MODE must NOT be injected
     let empty_mode_cmd =
-        build_launch_command("gemini", None, "", Some("Tester"), None)
+        build_launch_command("gemini", None, "", Some("Tester"), None, &opts)
             .expect("should build launch with empty autonomy mode");
     assert!(
         !empty_mode_cmd.env.contains_key("PM_AGENT_AUTONOMY_MODE"),

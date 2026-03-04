@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { PlanSummary, PlanState } from '@/types';
+import type { PlanSummary, PlanState, WorkflowMode } from '@/types';
 
 const API_BASE = '/api';
 
@@ -167,6 +167,33 @@ export function useResumePlan(workspaceId: string | undefined, planId: string | 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['plan', workspaceId, planId] });
       queryClient.invalidateQueries({ queryKey: ['plans', workspaceId] });
+    },
+  });
+}
+
+export async function setWorkflowMode(
+  workspaceId: string,
+  planId: string,
+  mode: WorkflowMode,
+): Promise<{ success: boolean; workflow_mode: WorkflowMode }> {
+  const res = await fetch(`${API_BASE}/plans/${workspaceId}/${planId}/workflow-mode`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ workflow_mode: mode }),
+  });
+  if (!res.ok) throw new Error('Failed to set workflow mode');
+  return res.json();
+}
+
+export function useSetWorkflowMode(
+  workspaceId: string | undefined,
+  planId: string | undefined,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (mode: WorkflowMode) => setWorkflowMode(workspaceId!, planId!, mode),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plan', workspaceId, planId] });
     },
   });
 }

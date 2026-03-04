@@ -44,6 +44,7 @@ pub mod ffi {
         #[qproperty(bool, start_visible, cxx_name = "startVisible")]
         #[qproperty(bool, run_commands_in_window, cxx_name = "runCommandsInWindow")]
         #[qproperty(bool, gemini_key_present, cxx_name = "geminiKeyPresent")]
+        #[qproperty(bool, copilot_key_present, cxx_name = "copilotKeyPresent")]
         #[qproperty(bool, gemini_injection_requested, cxx_name = "geminiInjectionRequested")]
         #[qproperty(QString, preferred_cli_provider, cxx_name = "preferredCliProvider")]
         #[qproperty(bool, approval_provider_chooser_enabled, cxx_name = "approvalProviderChooserEnabled")]
@@ -68,6 +69,34 @@ pub mod ffi {
         #[qproperty(QString, proposed_exact_pattern, cxx_name = "proposedExactPattern")]
         #[qproperty(QString, proposed_general_pattern, cxx_name = "proposedGeneralPattern")]
         #[qproperty(QString, proposed_risk_hint, cxx_name = "proposedRiskHint")]
+        // ── Approval-time session lifecycle + output format (Steps 27–28) ─────
+        /// Session mode selected at approval time: "new" | "resume".
+        #[qproperty(QString, approval_session_mode, cxx_name = "approvalSessionMode")]
+        /// Resume session ID entered at approval time (only meaningful when
+        /// approval_session_mode = "resume").
+        #[qproperty(QString, approval_resume_session_id, cxx_name = "approvalResumeSessionId")]
+        /// Output format selected at approval time: "text" | "json" | "stream-json".
+        #[qproperty(QString, approval_output_format, cxx_name = "approvalOutputFormat")]
+        // ── Risk-aware approval policy (Steps 29–31) ─────────────────────────
+        /// Risk tier evaluated for the pending launch: 1 (Low) | 2 (Medium) | 3 (High).
+        #[qproperty(u32, approval_risk_tier, cxx_name = "approvalRiskTier")]
+        /// Whether the user has confirmed trusted-scope access for tier >= 2 launches.
+        #[qproperty(bool, approval_trusted_scope_confirmed, cxx_name = "approvalTrustedScopeConfirmed")]
+        /// Trusted-scope acknowledgement text (generated per tier).
+        #[qproperty(QString, approval_trusted_scope_text, cxx_name = "approvalTrustedScopeText")]
+        /// Autonomy budget — max commands (0 = unlimited).
+        #[qproperty(u32, approval_budget_max_commands, cxx_name = "approvalBudgetMaxCommands")]
+        /// Autonomy budget — max duration in seconds (0 = unlimited).
+        #[qproperty(u32, approval_budget_max_duration_secs, cxx_name = "approvalBudgetMaxDurationSecs")]
+        /// Autonomy budget — max files (0 = unlimited).
+        #[qproperty(u32, approval_budget_max_files, cxx_name = "approvalBudgetMaxFiles")]
+        // ── CLI load-reduction flags (Phase 3) ────────────────────────────────────
+        /// Whether to pass `--screen-reader` to Gemini CLI at launch (default: true).
+        /// Exposed in the approval dialog as an opt-out checkbox.
+        #[qproperty(bool, approval_gemini_screen_reader, cxx_name = "approvalGeminiScreenReader")]
+        /// Whether to request minimal UI mode for Copilot CLI at launch (default: true).
+        /// Reserved for forward compatibility; no CLI flag is currently emitted.
+        #[qproperty(bool, approval_copilot_minimal_ui, cxx_name = "approvalCopilotMinimalUi")]
         type TerminalApp = super::TerminalAppRust;
 
         #[qsignal]
@@ -167,6 +196,10 @@ pub mod ffi {
         #[qinvokable]
         #[cxx_name = "launchGeminiInTab"]
         fn launch_gemini_in_tab(self: Pin<&mut TerminalApp>) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "launchCopilotInTab"]
+        fn launch_copilot_in_tab(self: Pin<&mut TerminalApp>) -> bool;
 
         #[qinvokable]
         #[cxx_name = "openSavedCommands"]
@@ -275,6 +308,23 @@ pub mod ffi {
         #[qinvokable]
         #[cxx_name = "selectGeneralProposedPattern"]
         fn select_general_proposed_pattern(self: Pin<&mut TerminalApp>);
+
+        // ── Approval-time session lifecycle + output format (Steps 27–28) ─────
+        // The approval_* Q_PROPERTYs expose auto-generated WRITE setters to QML.
+        // QML sets them with direct property assignment:
+        //   terminalApp.approvalSessionMode = "resume"
+        // No separate invokable setter is needed or permitted (it would collide
+        // with the auto-generated set_approval_* Rust function).
+
+        // ── Risk-aware approval policy invokables (Steps 29–31) ──────────────
+
+        /// Compute the risk tier from the given autonomy mode and the current
+        /// bridge budget properties (approvalBudgetMaxCommands, etc.).
+        /// Sets `approvalRiskTier` and `approvalTrustedScopeText` on the bridge
+        /// and returns the tier (1 = Low, 2 = Medium, 3 = High).
+        #[qinvokable]
+        #[cxx_name = "computeApprovalRiskTier"]
+        fn compute_approval_risk_tier(self: Pin<&mut TerminalApp>, autonomy_mode: QString) -> u32;
     }
 
     impl cxx_qt::Initialize for TerminalApp {}

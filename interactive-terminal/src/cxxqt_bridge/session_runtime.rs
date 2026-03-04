@@ -29,6 +29,11 @@ pub struct TerminalAppRust {
     pub(crate) start_visible: bool,
     pub(crate) run_commands_in_window: bool,
     pub(crate) gemini_key_present: bool,
+    /// Whether a GitHub Copilot auth configuration was detected at startup.
+    /// Currently always `true` — the Copilot button is always visible since
+    /// detecting the exact auth state requires calling external binaries, which
+    /// is too slow for startup. Future: check ~/.config/gh/hosts.yml existence.
+    pub(crate) copilot_key_present: bool,
     pub(crate) gemini_injection_requested: bool,
     pub(crate) preferred_cli_provider: QString,
     pub(crate) approval_provider_chooser_enabled: bool,
@@ -61,6 +66,32 @@ pub struct TerminalAppRust {
     pub(crate) proposed_general_pattern: QString,
     /// Risk hint for the generalized pattern: "low", "medium", or "high".
     pub(crate) proposed_risk_hint: QString,
+    // ── Approval-time session lifecycle + output format (Steps 27–28) ────
+    /// Session mode to apply at the next agent launch approval: "new" | "resume".
+    pub(crate) approval_session_mode: QString,
+    /// Session ID to resume (only used when approval_session_mode = "resume").
+    pub(crate) approval_resume_session_id: QString,
+    /// Output format requested for the next launch: "text" | "json" | "stream-json".
+    pub(crate) approval_output_format: QString,
+    // ── Risk-aware approval policy (Steps 29–31) ─────────────────────────
+    /// Risk tier evaluated for the pending launch: 1 (Low), 2 (Medium), 3 (High).
+    pub(crate) approval_risk_tier: u32,
+    /// Whether the user has confirmed trusted-scope access for medium/high-risk launches.
+    pub(crate) approval_trusted_scope_confirmed: bool,
+    /// Text of the trusted-scope statement the user is asked to acknowledge.
+    pub(crate) approval_trusted_scope_text: QString,
+    /// Autonomy budget — max commands (0 = unlimited).
+    pub(crate) approval_budget_max_commands: u32,
+    /// Autonomy budget — max duration in seconds (0 = unlimited).
+    pub(crate) approval_budget_max_duration_secs: u32,
+    /// Autonomy budget — max files (0 = unlimited).
+    pub(crate) approval_budget_max_files: u32,
+    // ── CLI load-reduction flags (Phase 3) ─────────────────────────────────
+    /// Whether the user wants `--screen-reader` passed to Gemini CLI (default: true).
+    pub(crate) approval_gemini_screen_reader: bool,
+    /// Whether the user wants minimal-UI mode for Copilot CLI (default: true).
+    /// Reserved for forward compatibility; no CLI flag is emitted as of v1.x.
+    pub(crate) approval_copilot_minimal_ui: bool,
     pub(crate) state: Arc<Mutex<AppState>>,
 }
 
@@ -90,8 +121,9 @@ pub struct AppState {
     /// Session IDs that were started by an approved super-subagent launch.
     pub agent_session_ids: HashSet<String>,
     /// Rich metadata for each agent session, keyed by session ID.
-    pub agent_session_meta: HashMap<String, AgentSessionMeta>,
-}
+    pub agent_session_meta: HashMap<String, AgentSessionMeta>,    /// Workspace paths pushed from the MCP server (Project Memory DB).
+    /// Used to pre-populate the workspace/venv path pickers in the GUI.
+    pub known_workspace_paths: Vec<String>,}
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -195,6 +227,7 @@ impl Default for TerminalAppRust {
             agent_session_meta: HashMap::new(),
             allowlist_patterns: Vec::new(),
             allowlist_data_root: None,
+            known_workspace_paths: Vec::new(),
         }));
 
         let session_tabs_json = {
@@ -234,6 +267,9 @@ impl Default for TerminalAppRust {
             start_visible: true,
             run_commands_in_window: false,
             gemini_key_present,
+            // Copilot button is always shown; auth detection at startup would
+            // require calling `gh auth status`, which is too slow.
+            copilot_key_present: true,
             gemini_injection_requested: false,
             preferred_cli_provider: QString::from(
                 tray_settings
@@ -262,6 +298,18 @@ impl Default for TerminalAppRust {
             proposed_exact_pattern: QString::default(),
             proposed_general_pattern: QString::default(),
             proposed_risk_hint: QString::default(),
+            approval_session_mode: QString::from("new"),
+            approval_resume_session_id: QString::default(),
+            approval_output_format: QString::from("text"),
+            approval_risk_tier: 1,
+            approval_trusted_scope_confirmed: false,
+            approval_trusted_scope_text: QString::default(),
+            approval_budget_max_commands: 0,
+            approval_budget_max_duration_secs: 0,
+            approval_budget_max_files: 0,
+            // CLI load-reduction flags default to true (opt-out via unchecking)
+            approval_gemini_screen_reader: true,
+            approval_copilot_minimal_ui: true,
             state,
         }
     }

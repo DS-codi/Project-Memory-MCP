@@ -1,0 +1,281 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "memory-cartographer/v1/code-section",
+  "title": "CodeCartographySection",
+  "description": "Code cartography output section of the memory_cartographer envelope. Contains the results of a code scan: file inventory, extracted symbols, cross-file references, module graph, architecture edges, and dependency flow. See docs/contracts/memory-cartographer-contract.md and normalization-rules.md for ordering and stability guarantees.",
+  "type": "object",
+  "required": [
+    "files",
+    "symbols",
+    "references",
+    "module_graph",
+    "architecture_edges",
+    "dependency_flow"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "partial": {
+      "type": "boolean",
+      "description": "true if this section represents incomplete results (e.g., due to timeout, file-count cap, or depth cap). When true, the top-level generation_metadata.partial is also true."
+    },
+    "files": {
+      "type": "array",
+      "description": "Inventory of source files within scope. Ordered by workspace-relative path ascending (lexicographic, case-sensitive on case-preserving filesystems). The ordering guarantee is stable across runs on the same file tree.",
+      "items": {
+        "$ref": "#/$defs/FileEntry"
+      }
+    },
+    "symbols": {
+      "type": "array",
+      "description": "Extracted symbol definitions across all scanned files. Ordered by: (1) file path ascending, then (2) start line ascending, then (3) symbol name ascending. Ordering is deterministic for a given file tree.",
+      "items": {
+        "$ref": "#/$defs/SymbolEntry"
+      }
+    },
+    "references": {
+      "type": "array",
+      "description": "Cross-file symbol references (call sites, imports, usages). Ordered by: (1) from_file ascending, then (2) from_line ascending, then (3) to_file ascending. Ordering is deterministic.",
+      "items": {
+        "$ref": "#/$defs/ReferenceEntry"
+      }
+    },
+    "module_graph": {
+      "$ref": "#/$defs/ModuleGraph",
+      "description": "Adjacency representation of the module dependency graph. Nodes are workspace-relative module identifiers; edges are import/require relationships."
+    },
+    "architecture_edges": {
+      "type": "array",
+      "description": "Higher-level architectural dependency edges (e.g., layer violations, cross-boundary calls). Ordered by (from_module, to_module) pair ascending.",
+      "items": {
+        "$ref": "#/$defs/ArchitectureEdge"
+      }
+    },
+    "dependency_flow": {
+      "$ref": "#/$defs/DependencyFlow",
+      "description": "Topologically sorted dependency tiers and detected entry points for the module graph."
+    }
+  },
+  "$defs": {
+    "FileEntry": {
+      "title": "FileEntry",
+      "description": "A single source file within the scan scope.",
+      "type": "object",
+      "required": ["path", "language", "size_bytes", "mtime_unix_ns"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Workspace-relative path to the file (forward-slash separator, no leading slash). Primary sort key for the files array.",
+          "minLength": 1
+        },
+        "language": {
+          "type": "string",
+          "description": "Detected language identifier (e.g., 'python', 'typescript', 'rust', 'javascript'). 'unknown' when detection fails.",
+          "minLength": 1
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "File size in bytes at scan time."
+        },
+        "mtime_unix_ns": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Last-modification time as Unix nanoseconds. Used in fingerprint computation."
+        },
+        "symbol_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of symbols extracted from this file. 0 if no symbols were extracted (e.g., parse error or no recognizable declarations)."
+        },
+        "parse_error": {
+          "type": "boolean",
+          "description": "true if the file could not be fully parsed; the file is still included in the inventory but symbol extraction may be incomplete."
+        }
+      }
+    },
+    "SymbolEntry": {
+      "title": "SymbolEntry",
+      "description": "A single extracted symbol definition.",
+      "type": "object",
+      "required": ["id", "file", "name", "kind", "start_line"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable identity key for this symbol. Format: '{workspace_relative_file_path}::{symbol_name}'. See normalization-rules.md for full identity key rules.",
+          "minLength": 1
+        },
+        "file": {
+          "type": "string",
+          "description": "Workspace-relative path to the file containing this symbol definition.",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "description": "Symbol name as it appears in the source code.",
+          "minLength": 1
+        },
+        "qualified_name": {
+          "type": "string",
+          "description": "Fully qualified name including namespace/module prefix, when determinable. Absent when qualification cannot be resolved."
+        },
+        "kind": {
+          "type": "string",
+          "description": "Symbol kind: 'function' | 'class' | 'method' | 'variable' | 'constant' | 'interface' | 'type' | 'module' | 'enum' | 'unknown'.",
+          "minLength": 1
+        },
+        "start_line": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based line number where the symbol definition starts."
+        },
+        "end_line": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based line number where the symbol definition ends. Absent when not determinable."
+        },
+        "exported": {
+          "type": "boolean",
+          "description": "true if the symbol is exported/public from its module."
+        }
+      }
+    },
+    "ReferenceEntry": {
+      "title": "ReferenceEntry",
+      "description": "A cross-file reference from one location to a symbol defined in another file.",
+      "type": "object",
+      "required": ["from_file", "from_line", "to_symbol_id"],
+      "additionalProperties": false,
+      "properties": {
+        "from_file": {
+          "type": "string",
+          "description": "Workspace-relative path of the file containing the reference site. Primary sort key.",
+          "minLength": 1
+        },
+        "from_line": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based line number of the reference site in the source file. Secondary sort key."
+        },
+        "to_symbol_id": {
+          "type": "string",
+          "description": "Stable identity key of the referenced symbol (matches SymbolEntry.id).",
+          "minLength": 1
+        },
+        "to_file": {
+          "type": "string",
+          "description": "Workspace-relative path of the file where the referenced symbol is defined. Tertiary sort key."
+        },
+        "reference_kind": {
+          "type": "string",
+          "description": "Kind of reference: 'import' | 'call' | 'inherit' | 'instanceof' | 'type_reference' | 'unknown'."
+        }
+      }
+    },
+    "ModuleGraph": {
+      "title": "ModuleGraph",
+      "description": "Adjacency representation of the inter-module dependency graph.",
+      "type": "object",
+      "required": ["nodes", "edges"],
+      "additionalProperties": false,
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "description": "All module identifiers in the graph (workspace-relative paths, sorted ascending).",
+          "items": {
+            "type": "string"
+          }
+        },
+        "edges": {
+          "type": "array",
+          "description": "Import/require edges between modules. Ordered by (from, to) pair ascending.",
+          "items": {
+            "type": "object",
+            "required": ["from", "to"],
+            "additionalProperties": false,
+            "properties": {
+              "from": {
+                "type": "string",
+                "description": "Workspace-relative module path of the importing module."
+              },
+              "to": {
+                "type": "string",
+                "description": "Workspace-relative module path of the imported module."
+              },
+              "kind": {
+                "type": "string",
+                "description": "Edge type: 'static_import' | 'dynamic_import' | 'require' | 'unknown'."
+              }
+            }
+          }
+        }
+      }
+    },
+    "ArchitectureEdge": {
+      "title": "ArchitectureEdge",
+      "description": "A higher-level architectural dependency edge (layer boundary, cross-concern dependency).",
+      "type": "object",
+      "required": ["from_module", "to_module", "edge_kind"],
+      "additionalProperties": false,
+      "properties": {
+        "from_module": {
+          "type": "string",
+          "description": "Workspace-relative path of the source module. Primary sort key.",
+          "minLength": 1
+        },
+        "to_module": {
+          "type": "string",
+          "description": "Workspace-relative path of the target module. Secondary sort key.",
+          "minLength": 1
+        },
+        "edge_kind": {
+          "type": "string",
+          "description": "Architectural edge type: 'layer_call' | 'layer_violation' | 'cross_boundary' | 'circular' | 'unknown'.",
+          "minLength": 1
+        },
+        "annotation": {
+          "type": "string",
+          "description": "Optional human-readable annotation explaining the edge (e.g., which architectural rule was matched)."
+        }
+      }
+    },
+    "DependencyFlow": {
+      "title": "DependencyFlow",
+      "description": "Topologically sorted dependency tiers and entry points derived from the module graph.",
+      "type": "object",
+      "required": ["tiers", "entry_points"],
+      "additionalProperties": false,
+      "properties": {
+        "tiers": {
+          "type": "array",
+          "description": "Topological tiers of the module graph. Tier 0 contains modules with no dependencies; each subsequent tier depends only on earlier tiers. Within each tier, modules are sorted ascending.",
+          "items": {
+            "type": "array",
+            "description": "Sorted list of workspace-relative module paths in this tier.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "entry_points": {
+          "type": "array",
+          "description": "Detected entry-point modules (not imported by any other module in scope). Sorted ascending.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cycles": {
+          "type": "array",
+          "description": "Detected circular dependency cycles. Each cycle is the sorted list of module paths forming the cycle.",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

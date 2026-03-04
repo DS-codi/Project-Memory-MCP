@@ -1,0 +1,375 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "memory-cartographer/v1/db-section",
+  "title": "DatabaseCartographySection",
+  "description": "Database cartography output section of the memory_cartographer envelope. Contains the results of a database schema scan: data sources, tables, columns, constraints, relations, migration lineage, and query touchpoints. See docs/contracts/memory-cartographer-contract.md and normalization-rules.md for ordering and stability guarantees.",
+  "type": "object",
+  "required": [
+    "datasources",
+    "tables",
+    "columns",
+    "constraints",
+    "relations",
+    "migration_lineage",
+    "query_touchpoints"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "partial": {
+      "type": "boolean",
+      "description": "true if this section represents incomplete results (e.g., due to timeout, connection failure, or cap reached). When true, the top-level generation_metadata.partial is also true."
+    },
+    "datasources": {
+      "type": "array",
+      "description": "Data source descriptors for each database connection discovered in the workspace. Ordered by the datasource identity key ascending (see normalization-rules.md).",
+      "items": {
+        "$ref": "#/$defs/DataSourceEntry"
+      }
+    },
+    "tables": {
+      "type": "array",
+      "description": "Table (and view) descriptors across all scanned data sources. Ordered by: (1) datasource_id ascending, then (2) schema_name ascending (empty schema sorts before non-empty), then (3) table_name ascending.",
+      "items": {
+        "$ref": "#/$defs/TableEntry"
+      }
+    },
+    "columns": {
+      "type": "array",
+      "description": "Column descriptors for all tables. Ordered by: (1) table_id ascending, then (2) ordinal_position ascending.",
+      "items": {
+        "$ref": "#/$defs/ColumnEntry"
+      }
+    },
+    "constraints": {
+      "type": "array",
+      "description": "Constraint descriptors (primary keys, unique, check, not-null). Ordered by: (1) table_id ascending, then (2) constraint_kind ascending, then (3) constraint_name ascending.",
+      "items": {
+        "$ref": "#/$defs/ConstraintEntry"
+      }
+    },
+    "relations": {
+      "type": "array",
+      "description": "Foreign key and logical relations between tables. Ordered by: (1) from_table_id ascending, then (2) to_table_id ascending, then (3) constraint_name ascending.",
+      "items": {
+        "$ref": "#/$defs/RelationEntry"
+      }
+    },
+    "migration_lineage": {
+      "$ref": "#/$defs/MigrationLineage",
+      "description": "Migration file tracking and schema evolution lineage discovered in the workspace."
+    },
+    "query_touchpoints": {
+      "type": "array",
+      "description": "Source code locations that reference database tables or columns (raw SQL, ORM queries). Ordered by: (1) file ascending, then (2) line ascending.",
+      "items": {
+        "$ref": "#/$defs/QueryTouchpoint"
+      }
+    }
+  },
+  "$defs": {
+    "DataSourceEntry": {
+      "title": "DataSourceEntry",
+      "description": "A database connection or data source discovered in the workspace.",
+      "type": "object",
+      "required": ["id", "kind", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable identity key for this data source. Format: '{kind}::{name}' (workspace-scoped). See normalization-rules.md.",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "description": "Data source type: 'postgresql' | 'mysql' | 'sqlite' | 'mssql' | 'mongodb' | 'redis' | 'unknown'.",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable name for the data source (e.g., database name or connection alias).",
+          "minLength": 1
+        },
+        "connection_source": {
+          "type": "string",
+          "description": "How the connection was discovered: 'env_var' | 'config_file' | 'code_reference' | 'migration_file' | 'unknown'."
+        },
+        "config_path": {
+          "type": "string",
+          "description": "Workspace-relative path to the configuration file where this data source was discovered, when applicable."
+        }
+      }
+    },
+    "TableEntry": {
+      "title": "TableEntry",
+      "description": "A table or view in a scanned data source.",
+      "type": "object",
+      "required": ["id", "datasource_id", "table_name", "table_kind"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable identity key. Format: '{datasource_id}::{schema_name}::{table_name}' (schema_name may be empty for databases without schema namespacing). See normalization-rules.md.",
+          "minLength": 1
+        },
+        "datasource_id": {
+          "type": "string",
+          "description": "Identity key of the parent DataSourceEntry.",
+          "minLength": 1
+        },
+        "schema_name": {
+          "type": "string",
+          "description": "Database schema/namespace containing this table (e.g., 'public', 'dbo'). Empty string when the database has no schema namespacing."
+        },
+        "table_name": {
+          "type": "string",
+          "description": "Table or view name as it appears in the database.",
+          "minLength": 1
+        },
+        "table_kind": {
+          "type": "string",
+          "description": "Object kind: 'table' | 'view' | 'materialized_view' | 'unknown'.",
+          "minLength": 1
+        },
+        "column_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of columns in this table."
+        },
+        "row_count_estimate": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Estimated row count from database statistics, when available. Absent when not available."
+        }
+      }
+    },
+    "ColumnEntry": {
+      "title": "ColumnEntry",
+      "description": "A single column in a table.",
+      "type": "object",
+      "required": ["id", "table_id", "column_name", "data_type", "ordinal_position"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable identity key. Format: '{table_id}::{column_name}'. See normalization-rules.md.",
+          "minLength": 1
+        },
+        "table_id": {
+          "type": "string",
+          "description": "Identity key of the parent TableEntry.",
+          "minLength": 1
+        },
+        "column_name": {
+          "type": "string",
+          "description": "Column name as it appears in the database.",
+          "minLength": 1
+        },
+        "data_type": {
+          "type": "string",
+          "description": "Database-native data type string (e.g., 'varchar(255)', 'integer', 'boolean').",
+          "minLength": 1
+        },
+        "ordinal_position": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based ordinal position of the column in the table definition. Primary sort key within a table's columns."
+        },
+        "nullable": {
+          "type": "boolean",
+          "description": "true if the column allows NULL values. Always present (not optional for columns — see normalization-rules.md)."
+        },
+        "default_value": {
+          "type": "string",
+          "description": "Default value expression as a string, when present. Absent when no default is defined."
+        },
+        "is_primary_key": {
+          "type": "boolean",
+          "description": "true if this column is part of the primary key."
+        }
+      }
+    },
+    "ConstraintEntry": {
+      "title": "ConstraintEntry",
+      "description": "A table constraint (primary key, unique, check, not-null).",
+      "type": "object",
+      "required": ["id", "table_id", "constraint_kind", "constraint_name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable identity key. Format: '{table_id}::{constraint_name}'.",
+          "minLength": 1
+        },
+        "table_id": {
+          "type": "string",
+          "description": "Identity key of the parent TableEntry.",
+          "minLength": 1
+        },
+        "constraint_kind": {
+          "type": "string",
+          "description": "Constraint type: 'primary_key' | 'unique' | 'check' | 'not_null' | 'unknown'.",
+          "minLength": 1
+        },
+        "constraint_name": {
+          "type": "string",
+          "description": "Constraint name as it appears in the database.",
+          "minLength": 1
+        },
+        "column_ids": {
+          "type": "array",
+          "description": "Ordered list of column identity keys participating in this constraint.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "check_expression": {
+          "type": "string",
+          "description": "Check constraint expression as a string. Present only for check constraints."
+        }
+      }
+    },
+    "RelationEntry": {
+      "title": "RelationEntry",
+      "description": "A foreign key or logical relation between two tables.",
+      "type": "object",
+      "required": ["id", "from_table_id", "to_table_id", "relation_kind"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Stable identity key. Format: '{from_table_id}::{to_table_id}::{constraint_name}'.",
+          "minLength": 1
+        },
+        "from_table_id": {
+          "type": "string",
+          "description": "Identity key of the source (referencing) table. Sort key 1.",
+          "minLength": 1
+        },
+        "to_table_id": {
+          "type": "string",
+          "description": "Identity key of the target (referenced) table. Sort key 2.",
+          "minLength": 1
+        },
+        "relation_kind": {
+          "type": "string",
+          "description": "Relation type: 'foreign_key' | 'logical' | 'unknown'.",
+          "minLength": 1
+        },
+        "constraint_name": {
+          "type": "string",
+          "description": "Foreign key constraint name. Sort key 3."
+        },
+        "from_columns": {
+          "type": "array",
+          "description": "Ordered list of column identity keys in the source table.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "to_columns": {
+          "type": "array",
+          "description": "Ordered list of corresponding column identity keys in the target table.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "on_delete": {
+          "type": "string",
+          "description": "ON DELETE action: 'cascade' | 'set_null' | 'set_default' | 'restrict' | 'no_action' | 'unknown'."
+        },
+        "on_update": {
+          "type": "string",
+          "description": "ON UPDATE action: 'cascade' | 'set_null' | 'set_default' | 'restrict' | 'no_action' | 'unknown'."
+        }
+      }
+    },
+    "MigrationLineage": {
+      "title": "MigrationLineage",
+      "description": "Migration file discovery and schema evolution lineage.",
+      "type": "object",
+      "required": ["migration_files", "applied_count"],
+      "additionalProperties": false,
+      "properties": {
+        "migration_files": {
+          "type": "array",
+          "description": "Discovered migration files, sorted by (datasource_id, version) ascending.",
+          "items": {
+            "type": "object",
+            "required": ["path", "version"],
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Workspace-relative path to the migration file."
+              },
+              "version": {
+                "type": "string",
+                "description": "Migration version string (e.g., '0001', '20260304110000', 'V1__init')."
+              },
+              "datasource_id": {
+                "type": "string",
+                "description": "Identity key of the associated data source, when determinable."
+              },
+              "framework": {
+                "type": "string",
+                "description": "Migration framework: 'alembic' | 'flyway' | 'liquibase' | 'django' | 'rails' | 'sqlx' | 'custom' | 'unknown'."
+              },
+              "status": {
+                "type": "string",
+                "description": "Migration status (if determinable from applied migrations table): 'applied' | 'pending' | 'unknown'."
+              }
+            }
+          }
+        },
+        "applied_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of migrations detected as applied. 0 when not determinable."
+        },
+        "framework": {
+          "type": "string",
+          "description": "Primary migration framework detected in the workspace."
+        }
+      }
+    },
+    "QueryTouchpoint": {
+      "title": "QueryTouchpoint",
+      "description": "A source code location that references a database table or column.",
+      "type": "object",
+      "required": ["file", "line", "table_id"],
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string",
+          "description": "Workspace-relative source file path. Sort key 1.",
+          "minLength": 1
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based line number. Sort key 2."
+        },
+        "table_id": {
+          "type": "string",
+          "description": "Identity key of the referenced TableEntry.",
+          "minLength": 1
+        },
+        "column_ids": {
+          "type": "array",
+          "description": "Identity keys of specific columns referenced, when determinable.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "query_kind": {
+          "type": "string",
+          "description": "Query operation kind: 'select' | 'insert' | 'update' | 'delete' | 'ddl' | 'orm' | 'unknown'."
+        },
+        "orm_method": {
+          "type": "string",
+          "description": "ORM method name, when the touchpoint was detected through ORM usage (e.g., 'filter', 'where', 'find_by')."
+        }
+      }
+    }
+  }
+}

@@ -8,6 +8,7 @@ param(
     [string]$FaultContractPath = "docs/integration-harness/contracts/fault-recovery.contract.json",
     [string]$HealthContractPath = "docs/integration-harness/contracts/health-readiness.contract.json",
     [string]$ComposeFile = "docs/integration-harness/podman-compose.integration.yml",
+    [switch]$ExposeHostPorts,
     [string]$EventsPath,
     [switch]$ValidateOnly,
     [switch]$DryRun
@@ -216,11 +217,16 @@ function Test-Probe {
 
 function Invoke-Compose {
     param(
-        [Parameter(Mandatory)] [string]$ComposePath,
+        [Parameter(Mandatory)] [string[]]$ComposeFiles,
         [Parameter(Mandatory)] [string[]]$Arguments
     )
 
-    & podman compose -f $ComposePath @Arguments
+    $composeArgs = @()
+    foreach ($composeFile in $ComposeFiles) {
+        $composeArgs += @("-f", $composeFile)
+    }
+
+    & podman compose @composeArgs @Arguments
     if ($LASTEXITCODE -ne 0) {
         throw "podman compose failed (exit $LASTEXITCODE) for arguments: $($Arguments -join ' ')"
     }
@@ -785,6 +791,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $faultContractResolved = Resolve-PathFromRoot -Root $root -PathValue $FaultContractPath
 $healthContractResolved = Resolve-PathFromRoot -Root $root -PathValue $HealthContractPath
 $composeResolved = Resolve-PathFromRoot -Root $root -PathValue $ComposeFile
+$composeHostPortsOverride = Join-Path $root "docs/integration-harness/podman-compose.integration.hostports.yml"
 
 if (-not (Test-Path $faultContractResolved)) {
     throw "fault recovery contract not found: $faultContractResolved"
@@ -796,6 +803,15 @@ if (-not (Test-Path $healthContractResolved)) {
 
 if (-not (Test-Path $composeResolved)) {
     throw "compose file not found: $composeResolved"
+}
+
+$composeFiles = @($composeResolved)
+if ($ExposeHostPorts) {
+    if (-not (Test-Path $composeHostPortsOverride)) {
+        throw "compose host ports override not found: $composeHostPortsOverride"
+    }
+
+    $composeFiles += $composeHostPortsOverride
 }
 
 $faultContract = Get-Content -Path $faultContractResolved -Raw | ConvertFrom-Json
@@ -898,7 +914,7 @@ foreach ($scenario in $selectedScenarios) {
                     Write-TaggedEvent -EventsFile $resolvedEventsPath -RunId $RunId -RuntimeMode $mode -ScenarioId $scenarioIdResolved -ComponentId $componentId -EventType "connectivity_disconnected" -ReasonCode "fault_injection_triggered" -ActionId $actionId -Sequence $sequence -Cause "fault_injection_triggered" -Attempt 0 -Outcome "observed" -Details @{ service = $serviceName; synthetic = [bool]$DryRun }
 
                     if (-not $DryRun) {
-                        Invoke-Compose -ComposePath $composeResolved -Arguments @("stop", $serviceName)
+                        Invoke-Compose -ComposeFiles $composeFiles -Arguments @("stop", $serviceName)
                         if ($stopWaitForExitMs -gt 0) {
                             Start-Sleep -Milliseconds $stopWaitForExitMs
                         }
@@ -907,14 +923,14 @@ foreach ($scenario in $selectedScenarios) {
                         Write-TaggedEvent -EventsFile $resolvedEventsPath -RunId $RunId -RuntimeMode $mode -ScenarioId $scenarioIdResolved -ComponentId $componentId -EventType "start_sequence_started" -ReasonCode "idempotent_start_sequence_started" -ActionId $actionId -Sequence $sequence -Details @{ service = $serviceName; idempotent_stop_start = $idempotentStopStart }
 
                         if ($idempotentStopStart) {
-                            Invoke-Compose -ComposePath $composeResolved -Arguments @("up", "-d", "--remove-orphans", $serviceName)
+                            Invoke-Compose -ComposeFiles $composeFiles -Arguments @("up", "-d", "--remove-orphans", $serviceName)
                             if ($orphanChildReapRequired) {
                                 $sequence++
                                 Write-TaggedEvent -EventsFile $resolvedEventsPath -RunId $RunId -RuntimeMode $mode -ScenarioId $scenarioIdResolved -ComponentId $componentId -EventType "orphan_reap_completed" -ReasonCode "orphan_reap_verified" -ActionId $actionId -Sequence $sequence -Details @{ service = $serviceName; strategy = "compose_remove_orphans" }
                             }
                         }
                         else {
-                            Invoke-Compose -ComposePath $composeResolved -Arguments @("up", "-d", $serviceName)
+                            Invoke-Compose -ComposeFiles $composeFiles -Arguments @("up", "-d", $serviceName)
                         }
 
                         $sequence++
@@ -974,12 +990,12 @@ foreach ($scenario in $selectedScenarios) {
                     if (-not $DryRun) {
                         if ($mode -eq "container-mode" -and $action.target.compose_service) {
                             $serviceName = [string]$action.target.compose_service
-                            Invoke-Compose -ComposePath $composeResolved -Arguments @("pause", $serviceName)
+                            Invoke-Compose -ComposeFiles $composeFiles -Arguments @("pause", $serviceName)
                             try {
                                 Start-Sleep -Milliseconds $delayMs
                             }
                             finally {
-                                Invoke-Compose -ComposePath $composeResolved -Arguments @("unpause", $serviceName)
+                                Invoke-Compose -ComposeFiles $composeFiles -Arguments @("unpause", $serviceName)
                             }
                         }
                         else {

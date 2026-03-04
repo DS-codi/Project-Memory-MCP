@@ -3,6 +3,7 @@
 param(
     [Parameter(Mandatory)] [string]$RunId,
     [string]$FaultContractPath = "docs/integration-harness/contracts/fault-recovery.contract.json",
+    [switch]$ExposeHostPorts,
     [switch]$ValidateOnly,
     [switch]$DryRun
 )
@@ -62,7 +63,7 @@ $tempContract = [ordered]@{
 }
 $tempContract | ConvertTo-Json -Depth 16 | Set-Content -Path $tempContractPath
 
-& (Join-Path $PSScriptRoot "integration-harness-fault-runner.ps1") -RunId $RunId -FaultContractPath $tempContractPath -EventsPath $eventsPath -DryRun:$DryRun
+& (Join-Path $PSScriptRoot "integration-harness-fault-runner.ps1") -RunId $RunId -FaultContractPath $tempContractPath -ExposeHostPorts:$ExposeHostPorts -EventsPath $eventsPath -DryRun:$DryRun
 if ($LASTEXITCODE -ne 0) {
     throw "Extension reconnect fault runner failed (exit $LASTEXITCODE)."
 }

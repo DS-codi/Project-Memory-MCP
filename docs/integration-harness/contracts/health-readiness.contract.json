@@ -112,7 +112,7 @@
       "liveness_probe": {
         "kind": "http",
         "endpoint_path": "/health",
-        "url": "http://localhost:3000/health",
+        "url": "http://localhost:43000/health",
         "method": "GET",
         "probe_interval_ms": 3000,
         "timeout_ms": 3000,
@@ -124,7 +124,7 @@
       "readiness_probe": {
         "kind": "http",
         "endpoint_path": "/api/health",
-        "url": "http://localhost:3000/api/health",
+        "url": "http://localhost:43000/api/health",
         "method": "GET",
         "probe_interval_ms": 3000,
         "timeout_ms": 3000,
@@ -143,7 +143,7 @@
       "liveness_probe": {
         "kind": "http",
         "endpoint_path": "/api/health",
-        "url": "http://localhost:3001/api/health",
+        "url": "http://localhost:43001/api/health",
         "method": "GET",
         "probe_interval_ms": 3000,
         "timeout_ms": 3000,
@@ -155,7 +155,7 @@
       "readiness_probe": {
         "kind": "tcp",
         "host": "127.0.0.1",
-        "port": 3002,
+        "port": 43002,
         "probe_interval_ms": 3000,
         "timeout_ms": 3000,
         "failure_threshold": 3
@@ -199,7 +199,7 @@
       "liveness_probe": {
         "kind": "http",
         "endpoint_path": "/health",
-        "url": "http://localhost:3000/health",
+        "url": "http://localhost:43000/health",
         "method": "GET",
         "probe_interval_ms": 5000,
         "timeout_ms": 3000,
@@ -211,7 +211,7 @@
       "readiness_probe": {
         "kind": "http",
         "endpoint_path": "/api/health",
-        "url": "http://localhost:3001/api/health",
+        "url": "http://localhost:43001/api/health",
         "method": "GET",
         "probe_interval_ms": 5000,
         "timeout_ms": 3000,

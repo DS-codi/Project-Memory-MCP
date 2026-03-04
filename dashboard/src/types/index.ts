@@ -51,6 +51,8 @@ export type PlanStatus = 'active' | 'paused' | 'completed' | 'archived' | 'faile
 
 export type PlanPriority = 'low' | 'medium' | 'high' | 'critical';
 
+export type WorkflowMode = 'standard' | 'tdd' | 'enrichment' | 'overnight';
+
 export type RequestCategory = 
   | 'feature'
   | 'bug'
@@ -183,6 +185,7 @@ export interface PlanState {
   agent_sessions: AgentSession[];
   lineage: LineageEntry[];
   steps: PlanStep[];
+  workflow_mode?: WorkflowMode;
 
   // Plan Schema v2 optional fields
   phases?: import('./schema-v2').PlanPhase[];

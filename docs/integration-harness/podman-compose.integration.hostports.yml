@@ -1,0 +1,6 @@
+services:
+  project-memory:
+    ports:
+      - "127.0.0.1:${PM_HARNESS_MCP_HOST_PORT:-43000}:3000"
+      - "127.0.0.1:${PM_HARNESS_DASHBOARD_API_HOST_PORT:-43001}:3001"
+      - "127.0.0.1:${PM_HARNESS_DASHBOARD_WS_HOST_PORT:-43002}:3002"

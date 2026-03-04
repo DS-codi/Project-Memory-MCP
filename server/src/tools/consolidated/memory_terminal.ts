@@ -27,6 +27,7 @@ import {
 } from '../terminal-auth.js';
 import type { CommandRequest, CommandResponse } from '../terminal-ipc-protocol.js';
 import { TcpTerminalAdapter } from '../terminal-tcp-adapter.js';
+import { getAllWorkspaces } from '../../storage/db-store.js';
 
 // =========================================================================
 // GUI Session Tracking
@@ -145,6 +146,24 @@ export interface MemoryTerminalParams {
     relevant_files?: Array<{ path: string; snippet?: string }>;
     workspace_instructions?: string;
     custom_instructions?: string;
+    /**
+     * Output format for the AI session.
+     * "text" (default) | "json" | "stream-json".
+     * Gemini supports "json" and "stream-json" natively via --output_format.
+     * Copilot falls back to "text" and injects PM_REQUESTED_OUTPUT_FORMAT.
+     */
+    output_format?: 'text' | 'json' | 'stream-json';
+    /**
+     * Session lifecycle mode.
+     * "new" (default) — start a fresh session.
+     * "resume" — resume an existing session (Gemini only; Copilot returns an error).
+     */
+    session_mode?: 'new' | 'resume';
+    /**
+     * Session ID to resume.  Required when session_mode = "resume".
+     * Ignored when session_mode = "new".
+     */
+    resume_session_id?: string;
   };
 }
 
@@ -227,6 +246,19 @@ export function buildAgentLaunchContextJson(
       mode: 'interactive',
       session_id: meta.session_id ?? params.session_id ?? '',
       workspace_id: params.workspace_id ?? '',
+      // Step 28: output format (omit when default "text" to keep context JSON compact)
+      ...(meta.output_format && meta.output_format !== 'text'
+        ? { output_format: meta.output_format }
+        : {}),
+      // Step 27: session lifecycle (omit when default "new")
+      ...(meta.session_mode && meta.session_mode !== 'new'
+        ? {
+            session_mode: meta.session_mode,
+            ...(meta.resume_session_id
+              ? { resume_session_id: meta.resume_session_id }
+              : {}),
+          }
+        : {}),
     },
     approval: {
       provider_policy: 'agent_cli_launch',
@@ -432,6 +464,51 @@ function mapCommandResponseToToolResponse(
 // Action Handlers
 // =========================================================================
 
+/**
+ * Handle the `run` action for the memory_terminal tool.
+ *
+ * ## Approval-dialog lifecycle (IMPORTANT for agent callers)
+ *
+ * When the target command is not on the allowlist, this call **blocks** until
+ * the human user either approves or declines the command in the GUI approval
+ * dialog.  The call resolves as soon as a response arrives **or** after the
+ * `RESPONSE_TIMEOUT_MS` deadline (60 000 ms ≈ 60 s) elapses.
+ *
+ * ### Blocking behavior
+ * `sendAndAwait` opens a TCP connection to the interactive-terminal GUI and
+ * waits for a `CommandResponse` message.  The call does **not** return until
+ * the GUI sends that response (approved / declined / timeout).  From the
+ * agent's perspective, the `run` call can take up to 60 seconds.
+ *
+ * ### Modal one-shot
+ * The interactive-terminal GUI is a **single-client, sequential** TCP server.
+ * Only one command at a time can be pending approval on a given session.
+ * Agents MUST NOT send additional `run` calls for the same session while one
+ * is still pending.  Doing so triggers the rate-limiter (see below), which
+ * opens a new terminal tab — this is almost never the desired behavior for an
+ * agent session.
+ *
+ * ### Timeout behavior
+ * If the user does not approve or decline within 60 s, `sendAndAwait` rejects
+ * with a timeout error and this function returns `{ success: false, error: "…" }`.
+ * The pending command remains in the GUI queue; the agent should not retry
+ * automatically without user intervention.
+ *
+ * ### Parallel / concurrent call behavior (`inFlightSessions` rate limiter)
+ * Each session bucket may have at most **one** in-flight `run` call at a time.
+ * If a second `run` arrives for a session that is already busy, it is
+ * automatically redirected to a fresh terminal tab (a new `session_id`).  The
+ * response will include a `rate_limit_note` field warning the agent.  This
+ * leads to **tab proliferation** and should be avoided — agents must always
+ * wait for the previous `run` response before issuing the next one.
+ *
+ * ### Agent CLI session use pattern
+ * For agent CLI launches (Gemini, Copilot, etc.) via `agent_launch_meta`:
+ *   1. Send **one** `run` call and wait for the `CommandResponse`.
+ *   2. The response carries the `session_id` for subsequent `read_output` /
+ *      `kill` calls (`response.id` is added to `guiSessions`).
+ *   3. Do NOT send further `run` calls until the first one has returned.
+ */
 async function handleRun(
   params: MemoryTerminalParams,
   extra?: McpToolExtra,
@@ -575,6 +652,20 @@ async function handleRun(
 
   try {
     await adapter.connect();
+
+    // Push registered workspace paths so the interactive terminal's
+    // workspace/venv pickers are populated from the DB, not from ephemeral
+    // session state alone.
+    try {
+      const workspaces = await getAllWorkspaces();
+      adapter.sendWorkspaceList(
+        workspaces
+          .filter((w) => !!w.path)
+          .map((w) => ({ id: w.workspace_id, path: w.path, name: w.name }))
+      );
+    } catch {
+      // Non-fatal — workspace list is a UX convenience, not required for execution.
+    }
 
     const response: CommandResponse = await adapter.sendAndAwait(request);
 

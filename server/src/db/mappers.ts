@@ -24,6 +24,7 @@ import type {
   ResearchDocumentRow,
 } from './types.js';
 import { queryAll } from './query-helpers.js';
+import { getWorkflowMode } from './plan-db.js';
 
 // ---------------------------------------------------------------------------
 // Workspace
@@ -242,6 +243,7 @@ export function assemblePlanState(
     created_at:      planRow.created_at,
     updated_at:      planRow.updated_at,
     completed_at:    planRow.completed_at       ?? undefined,
+    workflow_mode:   getWorkflowMode(planRow.id)?.workflow_mode ?? 'standard',
     agent_sessions:  sessions.map(rowToSession),
     lineage:         lineage.map(rowToLineage),
     steps:           domainSteps,
