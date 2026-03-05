@@ -1,0 +1,400 @@
+{
+  "meta": {
+    "version": "1.0",
+    "generated_at": "2026-03-05",
+    "source": "Migration files 001-009 + step4_constraints FK analysis",
+    "total_nodes": 41,
+    "total_edges": 34,
+    "self_referential_edges": 1,
+    "nullable_fk_edges": 7
+  },
+  "nodes": [
+    "workspaces",
+    "programs",
+    "plans",
+    "program_plans",
+    "program_workspace_links",
+    "program_risks",
+    "phases",
+    "steps",
+    "plan_notes",
+    "sessions",
+    "lineage",
+    "context_items",
+    "research_documents",
+    "knowledge",
+    "build_scripts",
+    "dependencies",
+    "tools",
+    "tool_actions",
+    "tool_action_params",
+    "agent_definitions",
+    "instruction_files",
+    "skill_definitions",
+    "update_log",
+    "event_log",
+    "step_file_edits",
+    "agent_deployments",
+    "instruction_deployments",
+    "skill_deployments",
+    "workspace_session_registry",
+    "gui_routing_contracts",
+    "deployable_agent_profiles",
+    "category_workflow_definitions",
+    "workspace_instruction_assignments",
+    "workspace_skill_assignments",
+    "plan_workflow_settings",
+    "_migrations",
+    "plans_archive",
+    "phases_archive",
+    "steps_archive",
+    "sessions_archive",
+    "lineage_archive"
+  ],
+  "active_domain_nodes": [
+    "workspaces", "programs", "plans", "program_plans", "program_workspace_links",
+    "program_risks", "phases", "steps", "plan_notes", "sessions", "lineage",
+    "context_items", "research_documents", "knowledge", "build_scripts",
+    "dependencies", "tools", "tool_actions", "tool_action_params",
+    "agent_definitions", "instruction_files", "skill_definitions",
+    "update_log", "event_log", "step_file_edits", "agent_deployments",
+    "instruction_deployments", "skill_deployments", "workspace_session_registry",
+    "gui_routing_contracts", "deployable_agent_profiles",
+    "category_workflow_definitions", "workspace_instruction_assignments",
+    "workspace_skill_assignments", "plan_workflow_settings"
+  ],
+  "root_nodes": [
+    "workspaces", "tools", "agent_definitions", "instruction_files",
+    "skill_definitions", "event_log", "gui_routing_contracts", "context_items",
+    "dependencies"
+  ],
+  "edges": [
+    {
+      "from": "workspaces",
+      "to": "workspaces",
+      "via": "parent_workspace_id",
+      "type": "self_referential",
+      "on_delete": "SET NULL",
+      "nullable": true
+    },
+    {
+      "from": "programs",
+      "to": "workspaces",
+      "via": "workspace_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "plans",
+      "to": "workspaces",
+      "via": "workspace_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "plans",
+      "to": "programs",
+      "via": "program_id",
+      "type": "explicit_fk",
+      "on_delete": "SET NULL",
+      "nullable": true
+    },
+    {
+      "from": "program_plans",
+      "to": "programs",
+      "via": "program_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "program_plans",
+      "to": "plans",
+      "via": "plan_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "program_workspace_links",
+      "to": "programs",
+      "via": "program_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "program_workspace_links",
+      "to": "workspaces",
+      "via": "workspace_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "program_risks",
+      "to": "programs",
+      "via": "program_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "phases",
+      "to": "plans",
+      "via": "plan_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "steps",
+      "to": "phases",
+      "via": "phase_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "steps",
+      "to": "plans",
+      "via": "plan_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "plan_notes",
+      "to": "plans",
+      "via": "plan_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "sessions",
+      "to": "plans",
+      "via": "plan_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "lineage",
+      "to": "plans",
+      "via": "plan_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "research_documents",
+      "to": "workspaces",
+      "via": "workspace_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "knowledge",
+      "to": "workspaces",
+      "via": "workspace_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "build_scripts",
+      "to": "workspaces",
+      "via": "workspace_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "build_scripts",
+      "to": "plans",
+      "via": "plan_id",
+      "type": "explicit_fk",
+      "on_delete": "SET NULL",
+      "nullable": true
+    },
+    {
+      "from": "tool_actions",
+      "to": "tools",
+      "via": "tool_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "tool_action_params",
+      "to": "tool_actions",
+      "via": "action_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "update_log",
+      "to": "workspaces",
+      "via": "workspace_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "step_file_edits",
+      "to": "workspaces",
+      "via": "workspace_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "step_file_edits",
+      "to": "plans",
+      "via": "plan_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "step_file_edits",
+      "to": "steps",
+      "via": "step_id",
+      "type": "explicit_fk",
+      "on_delete": "SET NULL",
+      "nullable": true
+    },
+    {
+      "from": "agent_deployments",
+      "to": "workspaces",
+      "via": "workspace_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "instruction_deployments",
+      "to": "workspaces",
+      "via": "workspace_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "skill_deployments",
+      "to": "workspaces",
+      "via": "workspace_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "workspace_session_registry",
+      "to": "workspaces",
+      "via": "workspace_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "workspace_session_registry",
+      "to": "plans",
+      "via": "plan_id",
+      "type": "explicit_fk",
+      "on_delete": "SET NULL",
+      "nullable": true
+    },
+    {
+      "from": "deployable_agent_profiles",
+      "to": "agent_definitions",
+      "via": "agent_name",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "category_workflow_definitions",
+      "to": "deployable_agent_profiles",
+      "via": "hub_agent_name",
+      "type": "explicit_fk",
+      "on_delete": "SET NULL",
+      "nullable": true
+    },
+    {
+      "from": "category_workflow_definitions",
+      "to": "deployable_agent_profiles",
+      "via": "prompt_analyst_agent_name",
+      "type": "explicit_fk",
+      "on_delete": "SET NULL",
+      "nullable": true
+    },
+    {
+      "from": "workspace_instruction_assignments",
+      "to": "workspaces",
+      "via": "workspace_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "workspace_skill_assignments",
+      "to": "workspaces",
+      "via": "workspace_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    },
+    {
+      "from": "plan_workflow_settings",
+      "to": "plans",
+      "via": "plan_id",
+      "type": "explicit_fk",
+      "on_delete": "CASCADE",
+      "nullable": false
+    }
+  ],
+  "hub_nodes": [
+    {
+      "table": "workspaces",
+      "inbound_fk_count": 15,
+      "outbound_fk_count": 1,
+      "role": "root anchor — all workspace-scoped entities reference this",
+      "cascade_impact": "critical — deleting a workspace cascades 14 tables"
+    },
+    {
+      "table": "plans",
+      "inbound_fk_count": 10,
+      "outbound_fk_count": 2,
+      "role": "primary work unit — plan lifecycle cascades phases/steps/sessions/lineage",
+      "cascade_impact": "high — deleting a plan cascades 8 tables"
+    },
+    {
+      "table": "programs",
+      "inbound_fk_count": 4,
+      "outbound_fk_count": 1,
+      "role": "mid-tier aggregator for multi-plan work",
+      "cascade_impact": "medium — deleting a program cascades 3 tables, nullifies plans.program_id"
+    },
+    {
+      "table": "deployable_agent_profiles",
+      "inbound_fk_count": 2,
+      "outbound_fk_count": 1,
+      "role": "workflow definition anchor for hub/prompt-analyst agent model",
+      "cascade_impact": "low — nullifies category_workflow_definitions references"
+    }
+  ],
+  "nullable_fk_paths": [
+    { "table": "workspaces", "column": "parent_workspace_id", "references": "workspaces.id" },
+    { "table": "plans", "column": "program_id", "references": "programs.id" },
+    { "table": "build_scripts", "column": "plan_id", "references": "plans.id" },
+    { "table": "step_file_edits", "column": "step_id", "references": "steps.id" },
+    { "table": "workspace_session_registry", "column": "plan_id", "references": "plans.id" },
+    { "table": "category_workflow_definitions", "column": "hub_agent_name", "references": "deployable_agent_profiles.agent_name" },
+    { "table": "category_workflow_definitions", "column": "prompt_analyst_agent_name", "references": "deployable_agent_profiles.agent_name" }
+  ]
+}

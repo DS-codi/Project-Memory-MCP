@@ -1,0 +1,225 @@
+{
+  "cartography_manifest": {
+    "version": "1.0.0",
+    "schema": "manual-cartography-manifest/v1",
+    "generated_at": "2025-01-01T00:00:00Z",
+    "produced_by": "Database Cartography plan — manual execution (Python automation path is a stub)",
+    "plan_id": "plan_mm9b56x6_551d976d",
+    "workspace_id": "project_memory_mcp-50e04147a402"
+  },
+  "database": {
+    "engine": "SQLite",
+    "driver": "better-sqlite3",
+    "journal_mode": "WAL",
+    "foreign_keys": "ON",
+    "busy_timeout_ms": 5000,
+    "db_filename": "project-memory.db",
+    "data_root_env": "PM_DATA_ROOT",
+    "data_root_defaults": {
+      "windows": "%APPDATA%\\ProjectMemory\\",
+      "macos": "~/Library/Application Support/ProjectMemory/",
+      "linux": "${XDG_DATA_HOME:-~/.local/share}/ProjectMemory/"
+    }
+  },
+  "schema_summary": {
+    "active_domain_tables": 35,
+    "archive_tables": 5,
+    "migration_tracking_tables": 1,
+    "total_tables": 41,
+    "indexes": 57,
+    "triggers": 1,
+    "views": 0,
+    "migrations_applied": 9,
+    "migration_range": "001_initial_schema.sql — 009_plan_workflow_settings.sql"
+  },
+  "relation_graph": {
+    "total_nodes": 41,
+    "fk_edges": 34,
+    "nullable_fk_paths": 7,
+    "self_referential_fks": 1,
+    "polymorphic_join_patterns": 4,
+    "integrity_verdict": "PASSING",
+    "hub_nodes": [
+      { "table": "workspaces", "inbound_fk_count": 15, "role": "root anchor" },
+      { "table": "plans", "inbound_fk_count": 10, "role": "primary work unit" },
+      { "table": "programs", "inbound_fk_count": 4, "role": "multi-plan orchestration container" },
+      { "table": "deployable_agent_profiles", "inbound_fk_count": 2, "role": "agent deployment target" }
+    ]
+  },
+  "code_surface": {
+    "db_infrastructure_files": 8,
+    "domain_repository_files": 29,
+    "primary_access_pattern": "queryOne / queryAll / run / transaction via query-helpers.ts",
+    "connection_entrypoint": "server/src/db/connection.ts:getDb()",
+    "barrel_export": "server/src/db/index.ts",
+    "tool_handler_directories": [
+      "server/src/tools/",
+      "server/src/tools/plan/",
+      "server/src/tools/consolidated/",
+      "server/src/tools/orchestration/",
+      "server/src/tools/program/"
+    ]
+  },
+  "gaps": [
+    {
+      "id": "G-01",
+      "severity": "CRITICAL",
+      "category": "Adapter Stack",
+      "summary": "Python cartography automation entirely unimplemented",
+      "files_affected": [
+        "server/src/cartography/runtime/pythonBridge.ts",
+        "server/src/cartography/adapters/pythonCoreAdapter.ts",
+        "server/src/cartography/mappers/databaseMapper.ts"
+      ],
+      "remediation_priority": "high"
+    },
+    {
+      "id": "G-02",
+      "severity": "LOW",
+      "category": "Schema Surface",
+      "summary": "Archive tables have no TS read path",
+      "files_affected": ["server/src/db/plan-db.ts"],
+      "remediation_priority": "low"
+    },
+    {
+      "id": "G-03",
+      "severity": "NONE",
+      "category": "Intentional Design",
+      "summary": "Audit/log tables are immutable (INSERT + SELECT only)",
+      "remediation_priority": "none"
+    },
+    {
+      "id": "G-04",
+      "severity": "MEDIUM",
+      "category": "Schema Usage",
+      "summary": "Tool catalog tables may be unpopulated at runtime",
+      "files_affected": [
+        "server/src/db/tool-catalog-db.ts",
+        "server/src/db/seed.ts"
+      ],
+      "remediation_priority": "medium"
+    },
+    {
+      "id": "G-05",
+      "severity": "NONE",
+      "category": "Mapper Translation",
+      "summary": "8 domain-type vs DB column field-name deltas — compile-time safe",
+      "files_affected": ["server/src/db/mappers.ts"],
+      "remediation_priority": "none"
+    },
+    {
+      "id": "G-06",
+      "severity": "LOW",
+      "category": "Schema Surface",
+      "summary": "Assignment vs deployment table write-path transactionality unverified",
+      "files_affected": [
+        "server/src/db/instruction-deployment-db.ts",
+        "server/src/db/skill-deployment-db.ts"
+      ],
+      "remediation_priority": "low"
+    },
+    {
+      "id": "G-07",
+      "severity": "MEDIUM",
+      "category": "Cartography Contract",
+      "summary": "databaseMapper.ts type stubs have no runtime deserialization path",
+      "files_affected": ["server/src/cartography/mappers/databaseMapper.ts"],
+      "remediation_priority": "medium"
+    }
+  ],
+  "artifacts": [
+    {
+      "filename": "graph-adjacency.md",
+      "step": 6,
+      "type": "markdown",
+      "describes": "FK graph adjacency list with hub analysis",
+      "path": "docs/cartography/db/graph-adjacency.md"
+    },
+    {
+      "filename": "graph-adjacency-matrix.json",
+      "step": 6,
+      "type": "json",
+      "describes": "Machine-readable adjacency matrix (41 nodes, 34 edges)",
+      "path": "docs/cartography/db/graph-adjacency-matrix.json"
+    },
+    {
+      "filename": "graph-integrity-report.md",
+      "step": 7,
+      "type": "markdown",
+      "describes": "Graph integrity validation — verdict: PASSING",
+      "path": "docs/cartography/db/graph-integrity-report.md"
+    },
+    {
+      "filename": "migration-registry.md",
+      "step": 8,
+      "type": "markdown",
+      "describes": "Canonical migration execution order and runner behavior documentation",
+      "path": "docs/cartography/db/migration-registry.md"
+    },
+    {
+      "filename": "migration-object-timeline.md",
+      "step": 9,
+      "type": "markdown",
+      "describes": "Per-migration object-level change timeline for all 9 migrations",
+      "path": "docs/cartography/db/migration-object-timeline.md"
+    },
+    {
+      "filename": "schema-drift-report.md",
+      "step": 10,
+      "type": "markdown",
+      "describes": "Migration DDL vs *-db.ts code drift analysis — severity: LOW",
+      "path": "docs/cartography/db/schema-drift-report.md"
+    },
+    {
+      "filename": "code-db-touchpoints.md",
+      "step": 11,
+      "type": "markdown",
+      "describes": "Full call chain from MCP tool handlers through repositories to SQLite",
+      "path": "docs/cartography/db/code-db-touchpoints.md"
+    },
+    {
+      "filename": "symbol-to-db-map.md",
+      "step": 12,
+      "type": "markdown",
+      "describes": "Bidirectional TypeScript symbol to database object index",
+      "path": "docs/cartography/db/symbol-to-db-map.md"
+    },
+    {
+      "filename": "mapping-gaps.md",
+      "step": 13,
+      "type": "markdown",
+      "describes": "7 identified mapping gaps with severity ratings and remediation",
+      "path": "docs/cartography/db/mapping-gaps.md"
+    },
+    {
+      "filename": "unified-cartography-model.md",
+      "step": 14,
+      "type": "markdown",
+      "describes": "Master reference document linking all cartography artifacts",
+      "path": "docs/cartography/db/unified-cartography-model.md"
+    },
+    {
+      "filename": "cartography-manifest.json",
+      "step": 14,
+      "type": "json",
+      "describes": "Machine-readable manifest of all cartography artifacts and metadata",
+      "path": "docs/cartography/db/cartography-manifest.json"
+    },
+    {
+      "filename": "validation-report.md",
+      "step": 15,
+      "type": "markdown",
+      "describes": "Completeness checklist and final handoff gate",
+      "path": "docs/cartography/db/validation-report.md"
+    }
+  ],
+  "prior_session_artifacts": [
+    {
+      "filename": "relation-graph.json",
+      "step": 5,
+      "type": "json",
+      "describes": "FK edge list (40 nodes, 36 FK edges — produced by prior Researcher session)",
+      "path": "docs/cartography/relation-graph.json"
+    }
+  ]
+}
