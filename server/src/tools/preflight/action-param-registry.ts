@@ -18,12 +18,14 @@ import type { ActionParamDef } from './action-params-plan.js';
 export { PLAN_PARAMS, STEPS_PARAMS } from './action-params-plan.js';
 export { AGENT_PARAMS, CONTEXT_PARAMS } from './action-params-agent.js';
 export { WORKSPACE_PARAMS, TERMINAL_PARAMS, FILESYSTEM_PARAMS } from './action-params-other.js';
+export { CARTOGRAPHER_PARAMS } from './action-params-cartography.js';
 export type { ActionParamDef } from './action-params-plan.js';
 
 // Import for assembly
 import { PLAN_PARAMS, STEPS_PARAMS } from './action-params-plan.js';
 import { AGENT_PARAMS, CONTEXT_PARAMS } from './action-params-agent.js';
 import { WORKSPACE_PARAMS, TERMINAL_PARAMS, FILESYSTEM_PARAMS } from './action-params-other.js';
+import { CARTOGRAPHER_PARAMS } from './action-params-cartography.js';
 
 // =============================================================================
 // Unified Registry
@@ -41,6 +43,7 @@ export const ACTION_PARAM_SPECS: Record<string, Record<string, ActionParamDef>> 
   memory_workspace: WORKSPACE_PARAMS,
   memory_terminal: TERMINAL_PARAMS,
   memory_filesystem: FILESYSTEM_PARAMS,
+  memory_cartographer: CARTOGRAPHER_PARAMS,
 };
 
 // =============================================================================

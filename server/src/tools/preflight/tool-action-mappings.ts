@@ -39,6 +39,23 @@ const PLAN_READ: ToolActionMapping = {
   actions: ['get'],
 };
 
+/** memory_cartographer — all 17 actions (Phase A + Phase B stubs). */
+const CARTOGRAPHER_ALL: ToolActionMapping = {
+  tool: 'memory_cartographer',
+  actions: [
+    // cartography_queries (Phase B stubs)
+    'summary', 'file_context', 'flow_entry_points', 'layer_view', 'search',
+    // dependencies_dependents (Phase A)
+    'get_plan_dependencies', 'get_dependencies',
+    'reverse_dependent_lookup', 'bounded_traversal',
+    // architecture_slices (Phase B stubs)
+    'slice_catalog', 'slice_detail', 'slice_projection', 'slice_filters',
+    // database_map_access (Phase A)
+    'db_map_summary', 'db_node_lookup', 'db_edge_lookup',
+    'context_items_projection',
+  ],
+};
+
 // =============================================================================
 // AGENT_TOOL_MAPPINGS — the static source of truth
 // =============================================================================
@@ -55,6 +72,7 @@ export const AGENT_TOOL_MAPPINGS: AgentToolMappingRegistry = {
         'categorize', 'deploy_for_task',
       ],
     },
+    CARTOGRAPHER_ALL,
     {
       tool: 'memory_plan',
       actions: [
@@ -98,6 +116,7 @@ export const AGENT_TOOL_MAPPINGS: AgentToolMappingRegistry = {
   // ── Hub: Analyst ─────────────────────────────────────────────────────
   Analyst: [
     AGENT_LIFECYCLE,
+    CARTOGRAPHER_ALL,
     PLAN_READ,
     {
       tool: 'memory_context',
@@ -147,6 +166,7 @@ export const AGENT_TOOL_MAPPINGS: AgentToolMappingRegistry = {
       tool: 'memory_context',
       actions: ['store', 'get', 'search', 'promptanalyst_discover', 'pull'],
     },
+    CARTOGRAPHER_ALL,
   ],
 
   // ── Spoke: Architect ─────────────────────────────────────────────────
@@ -170,6 +190,7 @@ export const AGENT_TOOL_MAPPINGS: AgentToolMappingRegistry = {
       tool: 'memory_context',
       actions: ['get', 'store', 'search', 'promptanalyst_discover', 'pull'],
     },
+    CARTOGRAPHER_ALL,
   ],
 
   // ── Spoke: Reviewer ──────────────────────────────────────────────────
@@ -217,6 +238,7 @@ export const AGENT_TOOL_MAPPINGS: AgentToolMappingRegistry = {
       tool: 'memory_context',
       actions: ['append_research', 'list_research', 'get', 'store', 'search', 'promptanalyst_discover', 'pull'],
     },
+    CARTOGRAPHER_ALL,
   ],
 
   // ── Spoke: Archivist ─────────────────────────────────────────────────

@@ -698,6 +698,71 @@ server.tool(
   }
 );
 
+// =============================================================================
+// Cartographer Tool — memory_cartographer (Phase A SQLite + Phase B stubs)
+// =============================================================================
+
+server.tool(
+  'memory_cartographer',
+  'Consolidated cartography tool. Actions: get_plan_dependencies, get_dependencies, reverse_dependent_lookup, bounded_traversal (Phase A: SQLite plan dependency graph traversal); db_map_summary, db_node_lookup, db_edge_lookup, context_items_projection (Phase A: read-only SQLite schema introspection — context_data always masked); summary, file_context, flow_entry_points, layer_view, search (Phase B stubs: cartography_queries, Python runtime required); slice_catalog, slice_detail, slice_projection, slice_filters (Phase B stubs: architecture_slices, Python runtime required). Authorized agent types: Researcher, Architect, Coordinator, Analyst, Executor.',
+  {
+    action: z.enum([
+      // cartography_queries (Phase B)
+      'summary', 'file_context', 'flow_entry_points', 'layer_view', 'search',
+      // dependencies_dependents (Phase A)
+      'get_plan_dependencies', 'get_dependencies', 'reverse_dependent_lookup', 'bounded_traversal',
+      // architecture_slices (Phase B)
+      'slice_catalog', 'slice_detail', 'slice_projection', 'slice_filters',
+      // database_map_access (Phase A)
+      'db_map_summary', 'db_node_lookup', 'db_edge_lookup', 'context_items_projection',
+    ]).describe('The action to perform'),
+    workspace_id:   z.string().describe('Workspace identifier'),
+    agent_type:     z.string().optional().describe('Calling agent type — used for authorization (Researcher, Architect, Coordinator, Analyst, Executor only)'),
+    _session_id:    z.string().optional().describe('Session ID for instrumentation tracking'),
+    // dependencies_dependents
+    plan_id:        z.string().optional().describe('Target plan ID (get_plan_dependencies, get_dependencies, reverse_dependent_lookup)'),
+    root_plan_id:   z.string().optional().describe('Root plan ID for bounded_traversal'),
+    depth_limit:    z.number().optional().describe('Traversal depth limit (default varies by action, max 20)'),
+    direction:      z.enum(['dependencies', 'dependents', 'both']).optional().describe('Traversal direction for bounded_traversal (default: both)'),
+    include_archived: z.boolean().optional().describe('Include archived plans in traversal (default: false)'),
+    cursor:         z.string().optional().describe('Opaque pagination cursor from previous call'),
+    page_size:      z.number().optional().describe('Results per page for bounded_traversal (default: 50, max: 200)'),
+    // database_map_access
+    table_name:     z.enum(['context_items', 'workspaces', 'plans', 'agent_sessions', 'steps', 'handoffs', 'build_scripts', 'research_notes']).optional().describe('Allowed table name for db_node_lookup / db_edge_lookup'),
+    primary_key:    z.string().optional().describe('Primary key value for db_node_lookup / db_edge_lookup'),
+    edge_direction: z.enum(['outbound', 'inbound', 'both']).optional().describe("FK edge direction for db_edge_lookup (default: 'both')"),
+    parent_type:    z.enum(['plan', 'workspace']).optional().describe('Parent scope for context_items_projection'),
+    parent_id:      z.string().optional().describe('Parent plan or workspace ID for context_items_projection'),
+    type_filter:    z.array(z.string()).optional().describe('Filter context_items by type values'),
+    limit:          z.number().optional().describe('Max rows per page for context_items_projection (default: 50, max: 500)'),
+    order_by:       z.enum(['created_at', 'type', 'parent_id']).optional().describe("Order column for context_items_projection (default: 'created_at')"),
+    // cartography_queries Phase B params
+    file_id:        z.string().optional().describe('File identity key for file_context'),
+    include_symbols:    z.boolean().optional().describe('Include SymbolEntry list (file_context, default: true)'),
+    include_references: z.boolean().optional().describe('Include ReferenceEntry list (file_context, default: true)'),
+    force_refresh:  z.boolean().optional().describe('Bypass cache for summary (default: false)'),
+    layer_filter:   z.array(z.string()).optional().describe('Architecture layer tag filter'),
+    language_filter: z.array(z.string()).optional().describe('Language tag filter'),
+    layers:         z.array(z.string()).optional().describe('Layer tag names for layer_view'),
+    include_cross_layer_edges: z.boolean().optional().describe('Include cross-layer edges for layer_view (default: false)'),
+    query:          z.string().optional().describe('Search query for search action'),
+    search_scope:   z.enum(['symbols', 'files', 'modules', 'all']).optional().describe("Search scope (default: 'all')"),
+    // architecture_slices Phase B params
+    slice_id:       z.string().optional().describe('Slice identifier for slice_detail / slice_projection / slice_filters'),
+    materialize:    z.boolean().optional().describe('Force re-materialization for slice_detail (default: false)'),
+    projection_type: z.enum(['file_level', 'module_level', 'symbol_level']).optional().describe('Projection granularity for slice_projection'),
+    filters:        z.array(z.unknown()).optional().describe('Additional filters for slice_projection'),
+  },
+  async (params) => {
+    const result = await withLogging('memory_cartographer', params, () =>
+      consolidatedTools.handleMemoryCartographer(params as consolidatedTools.MemoryCartographerParams)
+    );
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+    };
+  }
+);
+
   return server;
 }
 

@@ -16,8 +16,12 @@
 
 use crate::protocol::ContextPack;
 use std::collections::HashMap;
+use std::fs::OpenOptions;
 use std::io::Write as _;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static CONTEXT_PACK_FILE_NONCE: AtomicU64 = AtomicU64::new(0);
 
 // ─── LaunchOptions ────────────────────────────────────────────────────────────
 
@@ -515,21 +519,36 @@ fn write_context_pack_to_tempfile(pack: &ContextPack) -> Result<PathBuf, String>
     let json =
         serde_json::to_string_pretty(pack).map_err(|e| format!("JSON serialise error: {e}"))?;
 
-    let file_name = format!(
-        "pm-ctx-pack-{}.json",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis()
-    );
-    let path = std::env::temp_dir().join(file_name);
+    // Use create_new + a monotonic nonce so concurrent test threads cannot
+    // overwrite each other's context-pack files in the same millisecond.
+    let ts_nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let pid = std::process::id();
+    let temp_dir = std::env::temp_dir();
 
-    let mut file = std::fs::File::create(&path)
-        .map_err(|e| format!("Cannot create context-pack temp file: {e}"))?;
-    file.write_all(json.as_bytes())
-        .map_err(|e| format!("Cannot write context-pack temp file: {e}"))?;
+    for _attempt in 0..32 {
+        let nonce = CONTEXT_PACK_FILE_NONCE.fetch_add(1, Ordering::Relaxed);
+        let file_name = format!("pm-ctx-pack-{ts_nanos}-{pid}-{nonce}.json");
+        let path = temp_dir.join(file_name);
 
-    Ok(path)
+        match OpenOptions::new().write(true).create_new(true).open(&path) {
+            Ok(mut file) => {
+                file.write_all(json.as_bytes())
+                    .map_err(|e| format!("Cannot write context-pack temp file: {e}"))?;
+                return Ok(path);
+            }
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
+                continue;
+            }
+            Err(err) => {
+                return Err(format!("Cannot create context-pack temp file: {err}"));
+            }
+        }
+    }
+
+    Err("Cannot create unique context-pack temp file after retries".to_string())
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
