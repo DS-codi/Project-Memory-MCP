@@ -128,6 +128,50 @@ function Write-Fail([string]$msg) {
     Write-Host "   ✗ $msg" -ForegroundColor Red
 }
 
+function Write-Warn([string]$msg) {
+    Write-Host "   ⚠ $msg" -ForegroundColor Yellow
+}
+
+# Detect whether npm needs SSL workarounds (corporate proxies / TLS interception).
+# Cached for the lifetime of this script run.
+$script:_NpmSslBypassNeeded = $null
+function Test-NpmSslBypassNeeded {
+    if ($null -ne $script:_NpmSslBypassNeeded) { return $script:_NpmSslBypassNeeded }
+
+    Write-Host "   Checking npm registry SSL connectivity..." -ForegroundColor DarkGray
+    try {
+        $out = npm ping --registry https://registry.npmjs.org 2>&1 | Out-String
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "   SSL OK — no workarounds needed" -ForegroundColor DarkGray
+            $script:_NpmSslBypassNeeded = $false
+        } else {
+            # npm ping failed — likely TLS interception or cert issue
+            Write-Warn "npm SSL check failed — enabling --strict-ssl=false for this install"
+            $script:_NpmSslBypassNeeded = $true
+        }
+    } catch {
+        Write-Warn "npm SSL check errored — enabling --strict-ssl=false for this install"
+        $script:_NpmSslBypassNeeded = $true
+    }
+    return $script:_NpmSslBypassNeeded
+}
+
+# Run npm install with automatic SSL workaround when needed.
+function Invoke-NpmInstall {
+    param([string]$Label = "npm install")
+    if (Test-NpmSslBypassNeeded) {
+        $prevTls = $env:NODE_TLS_REJECT_UNAUTHORIZED
+        $env:NODE_TLS_REJECT_UNAUTHORIZED = '0'
+        try {
+            Invoke-Checked $Label { npm install --strict-ssl=false 2>&1 | Write-Host }
+        } finally {
+            $env:NODE_TLS_REJECT_UNAUTHORIZED = $prevTls
+        }
+    } else {
+        Invoke-Checked $Label { npm install 2>&1 | Write-Host }
+    }
+}
+
 function Stop-SupervisorRuntimeProcesses {
     param(
         [string]$WorkspaceRoot
@@ -725,6 +769,7 @@ function Install-Server {
 
     Push-Location $ServerDir
     try {
+        Invoke-NpmInstall "npm install (server)"
         Invoke-Checked "npm run build" { npm run build 2>&1 | Write-Host }
         Write-Ok "Server built → $ServerDir\dist"
 
@@ -761,7 +806,7 @@ function Install-Extension {
     Push-Location $ExtDir
     try {
         if (-not $EffectiveInstallOnly) {
-            Invoke-Checked "npm install" { npm install 2>&1 | Write-Host }
+            Invoke-NpmInstall "npm install (extension)"
             Invoke-Checked "npm run compile" { npm run compile 2>&1 | Write-Host }
             Invoke-Checked "npm run package (vsce)" { npx @vscode/vsce package 2>&1 | Write-Host }
             Write-Ok "Extension compiled and packaged"
@@ -812,6 +857,7 @@ function Install-Dashboard {
     # Build React frontend
     Push-Location $DashDir
     try {
+        Invoke-NpmInstall "npm install (dashboard)"
         Invoke-Checked "npx vite build" { npx vite build 2>&1 | Write-Host }
         Write-Ok "Dashboard frontend built → $DashDir\dist"
     } finally {
@@ -822,6 +868,7 @@ function Install-Dashboard {
     $ServerDir = Join-Path $DashDir "server"
     Push-Location $ServerDir
     try {
+        Invoke-NpmInstall "npm install (dashboard server)"
         Invoke-Checked "npm run build (dashboard server)" { npm run build 2>&1 | Write-Host }
         Write-Ok "Dashboard server built → $ServerDir\dist"
     } finally {
