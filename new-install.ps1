@@ -336,8 +336,12 @@ try {
         Write-Section 'Migrate plans/context from old data root'
         Push-Location $ServerDir
         try {
-            Invoke-Checked "node dist/migration/migrate.js --data-root `"$resolvedOldDataRoot`"" {
-                node (Join-Path $ServerDir 'dist\migration\migrate.js') --data-root $resolvedOldDataRoot 2>&1 | Write-Host
+            Write-Host "  -> node dist/migration/migrate.js --data-root `"$resolvedOldDataRoot`"" -ForegroundColor Gray
+            node (Join-Path $ServerDir 'dist\migration\migrate.js') --data-root $resolvedOldDataRoot 2>&1 | Write-Host
+            if ($LASTEXITCODE -ne 0) {
+                Write-Warn "Migration completed with errors (exit $LASTEXITCODE). Some plans may not have been migrated — see report above. Continuing install."
+            } else {
+                Write-Ok 'Migration completed successfully.'
             }
         } finally {
             Pop-Location
