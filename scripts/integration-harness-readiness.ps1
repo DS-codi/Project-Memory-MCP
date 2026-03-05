@@ -4,7 +4,8 @@ param(
     [string]$ContractPath = "docs/integration-harness/contracts/health-readiness.contract.json",
     [int]$MaxAttempts = 5,
     [int]$ProbeIntervalMs = 3000,
-    [switch]$ValidateOnly
+    [switch]$ValidateOnly,
+    [switch]$SkipSupervisorProxy
 )
 
 Set-StrictMode -Version Latest
@@ -79,6 +80,11 @@ function Test-Probe {
 }
 
 $requiredComponents = @($contract.components | Where-Object { $_.required -eq $true -and $_.readiness_gate -eq "required" } | Sort-Object startup_order)
+if ($SkipSupervisorProxy) {
+    $requiredComponents = @($requiredComponents | Where-Object { [string]$_.component_id -ne "supervisor-proxy" })
+    Write-Host "INFO: Readiness gate skipping component 'supervisor-proxy' (isolated mode)."
+}
+
 if ($requiredComponents.Count -eq 0) {
     Write-Host "No required readiness-gated components found; startup gate passes by default."
     exit 0

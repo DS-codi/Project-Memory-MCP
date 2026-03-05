@@ -6,7 +6,9 @@ param(
     [string]$Tier = "all",
     [ValidateSet("podman-compose-default", "podman-compose-network-chaos", "supervisor-diagnostics")]
     [string]$RunProfile = "podman-compose-default",
+    [string]$FaultContractPath = "docs/integration-harness/contracts/fault-recovery.contract.json",
     [switch]$ExposeHostPorts,
+    [switch]$RequireSupervisorProxy,
     [switch]$ValidateOnly,
     [switch]$DryRun
 )
@@ -21,6 +23,19 @@ function Ensure-ParentDirectory {
     if (-not [string]::IsNullOrWhiteSpace($parent)) {
         $null = New-Item -ItemType Directory -Path $parent -Force
     }
+}
+
+function Resolve-PathFromRoot {
+    param(
+        [Parameter(Mandatory)] [string]$Root,
+        [Parameter(Mandatory)] [string]$PathValue
+    )
+
+    if ([System.IO.Path]::IsPathRooted($PathValue)) {
+        return $PathValue
+    }
+
+    return Join-Path $Root $PathValue
 }
 
 $root = Split-Path -Parent $PSScriptRoot
@@ -52,6 +67,42 @@ $runProfiles = [ordered]@{
 $selectedProfile = $runProfiles[$RunProfile]
 if (-not $selectedProfile) {
     throw "Unsupported run profile: $RunProfile"
+}
+
+$skipSupervisorProxy = ([string]$selectedProfile.runtime_mode -eq "container-mode" -and -not $RequireSupervisorProxy)
+
+$resolvedFaultContractPath = Resolve-PathFromRoot -Root $root -PathValue $FaultContractPath
+if (-not (Test-Path $resolvedFaultContractPath)) {
+    throw "Fault contract not found: $resolvedFaultContractPath"
+}
+
+$faultContractPathForRun = $resolvedFaultContractPath
+$removedSupervisorScenarios = @()
+if ($skipSupervisorProxy) {
+    $faultContract = Get-Content -Path $resolvedFaultContractPath -Raw | ConvertFrom-Json
+    $allScenarios = @($faultContract.scenarios)
+    $removedSupervisorScenarios = @(
+        $allScenarios |
+            Where-Object { [string]$_.component_id -eq "supervisor-proxy" } |
+            ForEach-Object { [string]$_.scenario_id }
+    )
+
+    $faultContract.scenarios = @(
+        $allScenarios |
+            Where-Object { [string]$_.component_id -ne "supervisor-proxy" }
+    )
+
+    if (@($faultContract.scenarios).Count -eq 0) {
+        throw "Isolated mode filtered all fault scenarios; no scenarios remain in $resolvedFaultContractPath"
+    }
+
+    $faultContractPathForRun = Join-Path $assertionsRoot "fault-recovery.contract.isolated.json"
+    Ensure-ParentDirectory -Path $faultContractPathForRun
+    $faultContract | ConvertTo-Json -Depth 24 | Set-Content -Path $faultContractPathForRun
+
+    if ($removedSupervisorScenarios.Count -gt 0) {
+        Write-Host "INFO: Isolated mode removed supervisor scenarios: $($removedSupervisorScenarios -join ', ')"
+    }
 }
 
 $targetMinutes = [ordered]@{
@@ -108,7 +159,7 @@ $results = New-Object System.Collections.Generic.List[object]
 $stackIsUp = $false
 
 if (-not $ValidateOnly -and -not $DryRun) {
-    & (Join-Path $PSScriptRoot "integration-harness-lifecycle.ps1") -Action up -RunId $RunId -ExposeHostPorts:$ExposeHostPorts
+    & (Join-Path $PSScriptRoot "integration-harness-lifecycle.ps1") -Action up -RunId $RunId -ExposeHostPorts:$ExposeHostPorts -SkipSupervisorProxy:$skipSupervisorProxy
     if ($LASTEXITCODE -ne 0) {
         throw "Lifecycle up failed before matrix execution."
     }
@@ -121,10 +172,10 @@ try {
         if ($ValidateOnly) {
             switch ($currentTier) {
                 "smoke" {
-                    & (Join-Path $PSScriptRoot "integration-harness-extension-headless.ps1") -RunId $RunId -ValidateOnly
+                    & (Join-Path $PSScriptRoot "integration-harness-extension-headless.ps1") -RunId $RunId -SkipSupervisorProxy:$skipSupervisorProxy -ValidateOnly
                 }
                 "fault" {
-                    & (Join-Path $PSScriptRoot "integration-harness-fault-runner.ps1") -RunId $RunId -ValidateOnly
+                    & (Join-Path $PSScriptRoot "integration-harness-fault-runner.ps1") -RunId $RunId -FaultContractPath $faultContractPathForRun -ValidateOnly
                 }
                 "resilience" {
                     & (Join-Path $PSScriptRoot "integration-harness-extension-reconnect.ps1") -RunId $RunId -ValidateOnly
@@ -137,13 +188,13 @@ try {
         else {
             switch ($currentTier) {
                 "smoke" {
-                    & (Join-Path $PSScriptRoot "integration-harness-extension-headless.ps1") -RunId $RunId -DryRun:$DryRun
+                    & (Join-Path $PSScriptRoot "integration-harness-extension-headless.ps1") -RunId $RunId -SkipSupervisorProxy:$skipSupervisorProxy -DryRun:$DryRun
                 }
                 "fault" {
-                    & (Join-Path $PSScriptRoot "integration-harness-fault-runner.ps1") -RunId $RunId -RuntimeMode ([string]$selectedProfile.runtime_mode) -ComposeFile ([string]$selectedProfile.compose_file) -ExposeHostPorts:$ExposeHostPorts -DryRun:$DryRun
+                    & (Join-Path $PSScriptRoot "integration-harness-fault-runner.ps1") -RunId $RunId -FaultContractPath $faultContractPathForRun -RuntimeMode ([string]$selectedProfile.runtime_mode) -ComposeFile ([string]$selectedProfile.compose_file) -ExposeHostPorts:$ExposeHostPorts -DryRun:$DryRun
                     if ($LASTEXITCODE -ne 0) { throw "Fault runner failed for fault tier." }
 
-                    & (Join-Path $PSScriptRoot "integration-harness-recovery-assertions.ps1") -RunId $RunId
+                    & (Join-Path $PSScriptRoot "integration-harness-recovery-assertions.ps1") -RunId $RunId -FaultContractPath $faultContractPathForRun
                     if ($LASTEXITCODE -ne 0) { throw "Recovery assertions failed for fault tier." }
 
                     & (Join-Path $PSScriptRoot "integration-harness-event-aggregate.ps1") -RunId $RunId
@@ -209,6 +260,10 @@ finally {
             description = [string]$selectedProfile.description
             podman_compose_default_lane = ($RunProfile -eq "podman-compose-default")
             expose_host_ports = [bool]$ExposeHostPorts
+            require_supervisor_proxy = [bool]$RequireSupervisorProxy
+            skip_supervisor_proxy = [bool]$skipSupervisorProxy
+            removed_supervisor_scenarios = @($removedSupervisorScenarios)
+            fault_contract_path = [string]$faultContractPathForRun
         }
         dry_run = [bool]$DryRun
         validate_only = [bool]$ValidateOnly

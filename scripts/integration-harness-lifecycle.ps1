@@ -7,7 +7,8 @@ param(
     [string]$RunId = "local",
     [string]$ComposeFile = "docs/integration-harness/podman-compose.integration.yml",
     [string]$ContractPath = "docs/integration-harness/contracts/health-readiness.contract.json",
-    [switch]$ExposeHostPorts
+    [switch]$ExposeHostPorts,
+    [switch]$SkipSupervisorProxy
 )
 
 Set-StrictMode -Version Latest
@@ -120,7 +121,7 @@ function Invoke-IdempotentStopStart {
 switch ($Action) {
     "up" {
         Invoke-Compose -Arguments @("up", "-d", "--build")
-        & (Join-Path $PSScriptRoot "integration-harness-readiness.ps1") -ContractPath $contractResolved
+        & (Join-Path $PSScriptRoot "integration-harness-readiness.ps1") -ContractPath $contractResolved -SkipSupervisorProxy:$SkipSupervisorProxy
         if ($LASTEXITCODE -ne 0) {
             throw "Readiness gate failed after stack startup."
         }
@@ -130,7 +131,7 @@ switch ($Action) {
     }
     "restart" {
         Invoke-IdempotentStopStart -ServiceName $Component -StopWaitMs 1000
-        & (Join-Path $PSScriptRoot "integration-harness-readiness.ps1") -ContractPath $contractResolved
+        & (Join-Path $PSScriptRoot "integration-harness-readiness.ps1") -ContractPath $contractResolved -SkipSupervisorProxy:$SkipSupervisorProxy
         if ($LASTEXITCODE -ne 0) {
             throw "Readiness gate failed after component restart."
         }
@@ -146,4 +147,4 @@ switch ($Action) {
     }
 }
 
-Write-Host "OK: integration harness lifecycle action '$Action' completed (run_id=$RunId, expose_host_ports=$([bool]$ExposeHostPorts))."
+Write-Host "OK: integration harness lifecycle action '$Action' completed (run_id=$RunId, expose_host_ports=$([bool]$ExposeHostPorts), skip_supervisor_proxy=$([bool]$SkipSupervisorProxy))."

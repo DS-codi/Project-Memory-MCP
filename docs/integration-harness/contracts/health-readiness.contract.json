@@ -1,8 +1,9 @@
 {
   "$schema": "./health-readiness.contract.schema.json",
-  "contract_version": "v1.3.0",
+  "contract_version": "v1.4.0",
   "runtime": "podman-compose",
-  "generated_at": "2026-03-03T00:00:00.000Z",
+  "generated_at": "2026-03-05T00:00:00.000Z",
+  "_isolation_note": "supervisor-proxy is a HOST-SIDE process, not a container service. It is intentionally marked required=false / readiness_gate=optional so that container-mode harness runs never probe the live developer system.",
   "reconnect_permission": {
     "requires_liveness_probe_pass": true,
     "requires_readiness_probe_pass": true,
@@ -12,7 +13,6 @@
     "applies_to_components": [
       "mcp-server",
       "dashboard",
-      "supervisor-proxy",
       "extension-test-runner"
     ]
   },
@@ -163,10 +163,11 @@
     },
     {
       "component_id": "supervisor-proxy",
-      "required": true,
+      "_note": "HOST-SIDE process only. Not present in container-mode isolated runs. Opt-in via -RequireSupervisorProxy on integration-harness-matrix.ps1.",
+      "required": false,
       "depends_on": ["mcp-server", "dashboard"],
       "startup_order": 3,
-      "readiness_gate": "required",
+      "readiness_gate": "optional",
       "liveness_probe": {
         "kind": "http",
         "endpoint_path": "/health",

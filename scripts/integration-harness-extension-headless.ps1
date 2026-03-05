@@ -6,6 +6,7 @@ param(
     [string]$HandshakeUrl = "http://localhost:43000/health",
     [int]$HandshakeTimeoutMs = 3000,
     [string]$TestFile = "src/test/suite/integration/headless-activation-handshake.test.ts",
+    [switch]$SkipSupervisorProxy,
     [switch]$ValidateOnly,
     [switch]$DryRun
 )
@@ -59,7 +60,7 @@ if ($ValidateOnly) {
 }
 
 if (-not $DryRun) {
-    & (Join-Path $PSScriptRoot "integration-harness-readiness.ps1") -ContractPath $contractResolved
+    & (Join-Path $PSScriptRoot "integration-harness-readiness.ps1") -ContractPath $contractResolved -SkipSupervisorProxy:$SkipSupervisorProxy
     if ($LASTEXITCODE -ne 0) {
         throw "Readiness gate failed before extension headless lane."
     }
