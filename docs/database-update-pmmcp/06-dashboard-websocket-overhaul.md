@@ -7,7 +7,7 @@
 **Dependencies:** Plan 5 (MCP Server Storage Replacement)
 
 > **Concurrency note (2026-02-24):** Plans 3/3.5/4/4.5 are complete — the SQLite schema and `server/src/db/` access layer already exist. Phases 1–4 and 6–9 are **fully unblocked** and are being worked now in parallel with Plan 5 Phase 2. Phase 5 (write path via MCP proxy) is deferred until Plan 5 Phase 2 lands; existing write paths remain in place as stubs during that window.  
-**Workspace Directory:** `C:\Users\User\Project_Memory_MCP\Project-Memory-MCP`
+**Workspace Directory:** `C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP`
 
 ## Goal
 

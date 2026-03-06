@@ -999,9 +999,9 @@ GitHub Copilot: Read [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memor
 
 Read [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/dashboard/package.json)
 
-Ran terminal command: Set-Location c:\Users\User\Project_Memory_MCP\Project-Memory-MCP\dashboard\server; npm run build
+Ran terminal command: Set-Location C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\dashboard\server; npm run build
 
-Ran terminal command: Set-Location c:\Users\User\Project_Memory_MCP\Project-Memory-MCP\dashboard; npm run server
+Ran terminal command: Set-Location C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\dashboard; npm run server
 
 Killed terminal
 
@@ -1302,8 +1302,8 @@ Made changes.
 
 User: do it
 
-GitHub Copilot: Ran terminal command: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\build-and-install.ps1
-Completed with input: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\build-and-install.ps1
+GitHub Copilot: Ran terminal command: C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\build-and-install.ps1
+Completed with input: C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\build-and-install.ps1
 
 Read [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/vscode-extension/src/providers/DashboardViewProvider.ts#740-740), lines 740 to 770
 
@@ -1321,7 +1321,7 @@ Made changes.
 
 User: yes
 
-GitHub Copilot: Ran terminal command: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\build-and-install.ps1
+GitHub Copilot: Ran terminal command: C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\build-and-install.ps1
 
 Build and install succeeded. VSIX packaged and installed.
 
@@ -1494,7 +1494,7 @@ Completed with input: {
   "message": "Update dashboard icons and inline SVGs"
 }
 
-Ran terminal command: git -C "C:\Users\User\Project_Memory_MCP\Project-Memory-MCP" push
+Ran terminal command: git -C "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP" push
 
 Pushed everything to `main`.
 
@@ -2217,7 +2217,7 @@ Searched for regex `postMessage\(message` (`**/DashboardViewProvider.ts`), no re
 Ran terminal command: git show HEAD:vscode-extension/src/providers/DashboardViewProvider.ts
 Completed with input: git show HEAD:vscode-extension/src/providers/DashboardViewProvider.ts
 
-Ran terminal command: git -C "C:\Users\User\Project_Memory_MCP\Project-Memory-MCP" show HEAD:vscode-extension/src/providers/DashboardViewProvider.ts
+Ran terminal command: git -C "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP" show HEAD:vscode-extension/src/providers/DashboardViewProvider.ts
 
 Searched for text `updateConfig` (`**/DashboardViewProvider.ts`), no results
 

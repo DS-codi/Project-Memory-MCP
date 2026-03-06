@@ -5,7 +5,7 @@
 **Status:** Phases 1–10 Complete — DB Backend Live — Event System DB-backed — workspace-identity.ts gutted (8.9 ✅) — TS: 0 errors | Tests: 1621/1621 ✅ — Phase 11 Smoke Tests Pending  
 **Parent Program:** [Database Migration & System Stabilization](00-program-overview.md)  
 **Dependencies:** Plans 01–04.5 (all implementation-complete as of 2026-02-24)  
-**Workspace Directory:** `C:\Users\User\Project_Memory_MCP\Project-Memory-MCP`
+**Workspace Directory:** `C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP`
 
 ## Goal
 

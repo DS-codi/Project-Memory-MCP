@@ -27,7 +27,7 @@ Run evidence scope:
 - [x] Test script registered: `Integration Harness Matrix Validate All`
 - [x] Test script registered: `Integration Harness Matrix DryRun All`
 - [x] All above scripts resolve via `memory_plan(action: run_build_script)`
-- [x] All above scripts executed successfully from `C:\Users\User\Project_Memory_MCP\Project-Memory-MCP`
+- [x] All above scripts executed successfully from `C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP`
 
 ## 4) End-to-end dry-run artifacts (Step 21)
 
