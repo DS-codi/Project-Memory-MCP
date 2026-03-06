@@ -218,7 +218,7 @@ impl ServiceRunner for InteractiveTerminalRunner {
 
         cmd.envs(&self.config.env);
 
-        let child = cmd.spawn().with_context(|| {
+        let mut child = cmd.spawn().with_context(|| {
             format!(
                 "failed to spawn interactive-terminal process: {}",
                 self.config.command
@@ -228,6 +228,26 @@ impl ServiceRunner for InteractiveTerminalRunner {
         let pid = child
             .id()
             .ok_or_else(|| anyhow::anyhow!("spawned interactive-terminal process has no PID"))?;
+
+        if let Some(stdout) = child.stdout.take() {
+            crate::runtime_output::spawn_pipe_reader(
+                "interactive_terminal".to_string(),
+                "stdout",
+                stdout,
+            );
+        }
+        if let Some(stderr) = child.stderr.take() {
+            crate::runtime_output::spawn_pipe_reader(
+                "interactive_terminal".to_string(),
+                "stderr",
+                stderr,
+            );
+        }
+        crate::runtime_output::emit(
+            "interactive_terminal",
+            "status",
+            format!("started pid={pid} port={}", self.config.port),
+        );
 
         // Assign to the supervisor job object so the OS kills this process
         // automatically if the supervisor exits or crashes.
@@ -254,6 +274,7 @@ impl ServiceRunner for InteractiveTerminalRunner {
                     .context("failed to kill interactive-terminal process")?;
                 self.state = RunnerState::Stopped;
                 self.started_at = None;
+                crate::runtime_output::emit("interactive_terminal", "status", "stopped");
                 // Remove the PID lock file so the next start() call does not see
                 // a stale entry for this now-dead process.
                 let pid_path = pid_file_path();

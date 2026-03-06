@@ -1,4 +1,4 @@
-import { CheckCircle, AlertCircle, XCircle, Upload, RefreshCw, FileText, BookOpen, Users } from 'lucide-react';
+import { CheckCircle, AlertCircle, XCircle, Upload, RefreshCw, FileText, BookOpen, Users, Activity } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { CopilotStatus } from '@/types';
 
@@ -91,6 +91,25 @@ export function CopilotStatusPanel({
     error: 'Not Configured',
   }[overallStatus];
 
+  const fallbackStatus: StatusItemProps['status'] =
+    status.fallbackApiHealth === 'healthy'
+      ? 'success'
+      : status.fallbackApiHealth === 'degraded'
+        ? 'warning'
+        : status.fallbackApiHealth === 'disabled'
+          ? 'none'
+          : 'error';
+
+  const fallbackDetail =
+    status.fallbackApiDetail ||
+    (status.fallbackApiHealth === 'healthy'
+      ? 'Fallback API responding'
+      : status.fallbackApiHealth === 'degraded'
+        ? 'Fallback API backend unavailable'
+        : status.fallbackApiHealth === 'disabled'
+          ? 'Fallback API disabled'
+          : 'Fallback API health unavailable');
+
   return (
     <div className={cn('bg-slate-800 rounded-lg overflow-hidden', className)}>
       {/* Header */}
@@ -155,6 +174,13 @@ export function CopilotStatusPanel({
           status={status.hasInstructions ? 'success' : 'none'}
           count={status.instructionCount}
           detail={status.hasInstructions ? 'Coding guidelines active' : 'No instructions configured'}
+        />
+
+        <StatusItem
+          label="Fallback API"
+          icon={<Activity className="w-4 h-4" />}
+          status={fallbackStatus}
+          detail={fallbackDetail}
         />
       </div>
 

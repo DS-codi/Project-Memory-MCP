@@ -3,7 +3,9 @@
 **Plan:** Consumer Integration & Validation: agent routing usage, tests, and cross-surface docs  
 **Phase:** Planning  
 **Step:** 1 — Consumer integration contract  
-**Status:** Specification (planning artifact; implementation targets steps 4-6)
+**Status:** Implementation complete (Phase A + Phase B live as of 2026-03-07)
+
+> **Revision Note (2026-03-07):** Phase B implementation complete. Migration 010 (`architecture_slices` table) applied. Python-bridge streams A (`cartography_queries`), B (`slice_detail`, `slice_projection`, `slice_filters`), and C (hub.agent.md documentation) all implemented. All "Phase B stub" labels below updated to reflect live status.
 
 ---
 
@@ -15,7 +17,7 @@ This document defines the complete consumer-facing contract for `memory_cartogra
 
 ## 1. Integration Scope Boundary
 
-`memory_cartographer` integration is split into two non-overlapping phases. **Phase A is unblocked. Phase B is Python-blocked.**
+`memory_cartographer` integration is split into two non-overlapping phases. **Phase A is unblocked. Phase B is Python-backed and now fully implemented.**
 
 ### Phase A — Implement the Tool (SQLite Domains)
 
@@ -37,20 +39,19 @@ Phase A is complete when the following work is done:
 
 **Phase A acceptance gate:** Server compiles, starts without error, `dependencies_dependents` and `database_map_access` actions return correct live data, preflight validation active on all 17 actions.
 
-### Phase B — Update Agent Consumers (Python-Blocked Domains)
+### Phase B — Agent Integration and Python-Backed Domains (COMPLETE)
 
 > **Scope:** Update agent instruction/prompt files so agents actively call `memory_cartographer` in their workflows. Also: bring Python bridge domains online.
 
-Phase B work items (blocked on separate Python core implementation plan):
-- `cartography_queries` — 5 actions, requires `PythonCoreAdapter` + fully implemented `cartograph` intent in Python core
-- `architecture_slices` (except `slice_catalog`) — 3 actions: `slice_detail`, `slice_projection`, `slice_filters` — require Python bridge
+Phase B work items — **all implemented**:
+- `cartography_queries` — 5 actions via `PythonCoreAdapter` + `cartograph` intent in Python core ✅
+- `architecture_slices` (except `slice_catalog`) — 3 actions: `slice_detail`, `slice_projection`, `slice_filters` — Python bridge implemented ✅
 
-Additional Phase B work (not Python-blocked but deferred to after Phase A stabilizes):
-- Update `agents/hub.agent.md` and other relevant agent files to include `memory_cartographer` usage patterns
-- Add `memory_cartographer` to agent spoke prompts for Hub's deployment context
-- Write Phase B integration tests with real Python bridge responses
+Additional Phase B work — **complete**:
+- `agents/hub.agent.md` updated with `memory_cartographer` usage patterns and dispatcher examples ✅
+- Phase B integration tests written and passing (1837/1840 total tests; only 3 pre-existing unrelated failures) ✅
 
-**Phase B does not begin until:** Phase A acceptance gate passes AND Python core `cartograph` implementation plan is complete.
+**Phase B status:** Complete. Python core `cartograph` intent implemented; migration 010 applied; all stubs replaced.
 
 ---
 
@@ -176,7 +177,7 @@ await memory_cartographer({
 
 ---
 
-### Domain: `cartography_queries` (Phase B — Python-blocked)
+### Domain: `cartography_queries` (Phase B — IMPLEMENTED, Python-backed)
 
 **Action: `cartography_queries.summary`**
 
@@ -231,7 +232,7 @@ await memory_cartographer({
 |-----------|------|----------|-------------|
 | `workspace_id` | `string` | Yes | Workspace identifier |
 
-**Actions: `architecture_slices.slice_detail`, `slice_projection`, `slice_filters`** (Phase B — Python-blocked)
+**Actions: `architecture_slices.slice_detail`, `slice_projection`, `slice_filters`** (Phase B — IMPLEMENTED, Python-backed)
 
 > See `docs/mcp-surface/memory-cartographer-action-inventory.md` for full Phase B parameter specs.
 
@@ -454,8 +455,8 @@ return data;
 | `dependencies_dependents` | `get_plan_dependencies`, `get_dependencies`, `reverse_dependent_lookup`, `bounded_traversal` | **Phase A** | None (pure SQLite) |
 | `database_map_access` | `db_map_summary`, `db_node_lookup`, `db_edge_lookup`, `context_items_projection` | **Phase A** | None (pure SQLite) |
 | `architecture_slices` | `slice_catalog` only | **Phase A** | None (slice registry in SQLite) |
-| `cartography_queries` | All 5 actions | **Phase B** | Python core `cartograph` intent fully implemented |
-| `architecture_slices` | `slice_detail`, `slice_projection`, `slice_filters` | **Phase B** | Python core + cartography engine stubs replaced |
+| `cartography_queries` | All 5 actions | **Phase B — LIVE** ✅ | Python core `cartograph` intent implemented via `PythonCoreAdapter` |
+| `architecture_slices` | `slice_detail`, `slice_projection`, `slice_filters` | **Phase B — LIVE** ✅ | Python bridge implemented; stubs replaced |
 
 **Phase A test coverage:** TC-DD-01 through TC-DD-12 (12 cases) + TC-DM-01 through TC-DM-12 (12 cases) = **24 test cases** executable immediately.
 

@@ -6,19 +6,110 @@ interface CopilotStatusResponse {
   status: CopilotStatus;
 }
 
+interface RuntimeFallbackHealthResponse {
+  fallback_api?: {
+    state?: string;
+    detail?: string;
+    checked_at?: string;
+  };
+}
+
+interface AgentDeploymentRecord {
+  workspace_id?: string;
+  sync_status?: string;
+}
+
+interface AgentRecord {
+  agent_id?: string;
+  deployments?: AgentDeploymentRecord[];
+}
+
+interface AgentsResponse {
+  agents?: AgentRecord[];
+}
+
+interface PromptsResponse {
+  prompts?: unknown[];
+}
+
+interface InstructionsResponse {
+  instructions?: unknown[];
+}
+
+type FallbackApiHealthState = CopilotStatus['fallbackApiHealth'];
+
+interface FallbackHealthSummary {
+  state: FallbackApiHealthState;
+  detail?: string;
+  checkedAt?: string;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isFallbackHealthState(value: unknown): value is FallbackApiHealthState {
+  return value === 'healthy' || value === 'degraded' || value === 'disabled' || value === 'unknown';
+}
+
+function normalizeFallbackHealth(payload: unknown): FallbackHealthSummary {
+  if (!isObject(payload)) {
+    return {
+      state: 'unknown',
+      detail: 'Fallback API health unavailable',
+    };
+  }
+
+  const fallbackApi = isObject(payload.fallback_api) ? payload.fallback_api : null;
+  const stateCandidate = fallbackApi?.state;
+  const detailCandidate = fallbackApi?.detail;
+  const checkedAtCandidate = fallbackApi?.checked_at;
+
+  return {
+    state: isFallbackHealthState(stateCandidate) ? stateCandidate : 'unknown',
+    detail: typeof detailCandidate === 'string' ? detailCandidate : undefined,
+    checkedAt: typeof checkedAtCandidate === 'string' ? checkedAtCandidate : undefined,
+  };
+}
+
+function defaultFallbackHealth(): FallbackHealthSummary {
+  return {
+    state: 'unknown',
+    detail: 'Fallback API health unavailable',
+  };
+}
+
+async function parseJsonOrDefault<T>(response: Response, fallback: T): Promise<T> {
+  try {
+    return (await response.json()) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 // Fetch Copilot status for a workspace
-async function fetchCopilotStatus(workspaceId: string): Promise<CopilotStatusResponse> {
+export async function fetchCopilotStatus(workspaceId: string): Promise<CopilotStatusResponse> {
   // Fetch agents, prompts, and instructions status in parallel
-  const [agentsRes, promptsRes, instructionsRes] = await Promise.all([
+  const [agentsRes, promptsRes, instructionsRes, fallbackHealthRes] = await Promise.all([
     fetch(`${API_BASE_URL}/api/agents`),
     fetch(`${API_BASE_URL}/api/prompts`),
     fetch(`${API_BASE_URL}/api/instructions/workspace/${workspaceId}`),
+    fetch(`${API_BASE_URL}/api/runtime/fallback-health`),
   ]);
 
   // Parse responses
-  const agents = agentsRes.ok ? await agentsRes.json() : { agents: [] };
-  const prompts = promptsRes.ok ? await promptsRes.json() : { prompts: [] };
-  const instructions = instructionsRes.ok ? await instructionsRes.json() : { instructions: [] };
+  const agents = agentsRes.ok
+    ? await parseJsonOrDefault<AgentsResponse>(agentsRes, { agents: [] })
+    : { agents: [] };
+  const prompts = promptsRes.ok
+    ? await parseJsonOrDefault<PromptsResponse>(promptsRes, { prompts: [] })
+    : { prompts: [] };
+  const instructions = instructionsRes.ok
+    ? await parseJsonOrDefault<InstructionsResponse>(instructionsRes, { instructions: [] })
+    : { instructions: [] };
+  const fallbackHealth = fallbackHealthRes.ok
+    ? normalizeFallbackHealth(await parseJsonOrDefault<RuntimeFallbackHealthResponse>(fallbackHealthRes, {}))
+    : defaultFallbackHealth();
 
   // Calculate outdated agents by checking deployments
   let outdatedAgents = 0;
@@ -28,10 +119,10 @@ async function fetchCopilotStatus(workspaceId: string): Promise<CopilotStatusRes
     for (const agent of agents.agents) {
       if (agent.deployments) {
         const wsDeployment = agent.deployments.find(
-          (d: any) => d.workspace_id === workspaceId
+          (deployment) => deployment.workspace_id === workspaceId,
         );
         if (!wsDeployment) {
-          missingFiles.push(`${agent.agent_id}.agent.md`);
+          missingFiles.push(`${agent.agent_id || 'unknown-agent'}.agent.md`);
         } else if (wsDeployment.sync_status === 'outdated') {
           outdatedAgents++;
         }
@@ -52,22 +143,35 @@ async function fetchCopilotStatus(workspaceId: string): Promise<CopilotStatusRes
     instructionCount,
     outdatedAgents,
     missingFiles,
+    fallbackApiHealth: fallbackHealth.state,
+    fallbackApiDetail: fallbackHealth.detail,
+    fallbackApiCheckedAt: fallbackHealth.checkedAt,
   };
 
   return { status };
 }
 
 // Global Copilot status (not workspace-specific)
-async function fetchGlobalCopilotStatus(): Promise<CopilotStatusResponse> {
-  const [agentsRes, promptsRes, instructionsRes] = await Promise.all([
+export async function fetchGlobalCopilotStatus(): Promise<CopilotStatusResponse> {
+  const [agentsRes, promptsRes, instructionsRes, fallbackHealthRes] = await Promise.all([
     fetch(`${API_BASE_URL}/api/agents`),
     fetch(`${API_BASE_URL}/api/prompts`),
     fetch(`${API_BASE_URL}/api/instructions`),
+    fetch(`${API_BASE_URL}/api/runtime/fallback-health`),
   ]);
 
-  const agents = agentsRes.ok ? await agentsRes.json() : { agents: [] };
-  const prompts = promptsRes.ok ? await promptsRes.json() : { prompts: [] };
-  const instructions = instructionsRes.ok ? await instructionsRes.json() : { instructions: [] };
+  const agents = agentsRes.ok
+    ? await parseJsonOrDefault<AgentsResponse>(agentsRes, { agents: [] })
+    : { agents: [] };
+  const prompts = promptsRes.ok
+    ? await parseJsonOrDefault<PromptsResponse>(promptsRes, { prompts: [] })
+    : { prompts: [] };
+  const instructions = instructionsRes.ok
+    ? await parseJsonOrDefault<InstructionsResponse>(instructionsRes, { instructions: [] })
+    : { instructions: [] };
+  const fallbackHealth = fallbackHealthRes.ok
+    ? normalizeFallbackHealth(await parseJsonOrDefault<RuntimeFallbackHealthResponse>(fallbackHealthRes, {}))
+    : defaultFallbackHealth();
 
   // Calculate total outdated across all workspaces
   let totalOutdated = 0;
@@ -75,7 +179,7 @@ async function fetchGlobalCopilotStatus(): Promise<CopilotStatusResponse> {
     for (const agent of agents.agents) {
       if (agent.deployments) {
         const outdated = agent.deployments.filter(
-          (d: any) => d.sync_status === 'outdated'
+          (deployment) => deployment.sync_status === 'outdated',
         ).length;
         totalOutdated += outdated;
       }
@@ -91,6 +195,9 @@ async function fetchGlobalCopilotStatus(): Promise<CopilotStatusResponse> {
     instructionCount: instructions.instructions?.length || 0,
     outdatedAgents: totalOutdated,
     missingFiles: [],
+    fallbackApiHealth: fallbackHealth.state,
+    fallbackApiDetail: fallbackHealth.detail,
+    fallbackApiCheckedAt: fallbackHealth.checkedAt,
   };
 
   return { status };

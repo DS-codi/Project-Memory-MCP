@@ -7,5 +7,6 @@ pub mod lock;
 pub mod logging;
 pub mod proxy;
 pub mod registry;
+pub mod runtime_output;
 pub mod runner;
 pub mod tray_tooltip;

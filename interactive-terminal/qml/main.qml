@@ -98,10 +98,91 @@ ApplicationWindow {
         }
     }
 
+    function workspaceLabelFromPath(pathText) {
+        const raw = (pathText || "").toString().trim()
+        if (!raw.length) {
+            return ""
+        }
+
+        const trimmed = raw.replace(/[\\/]+$/, "")
+        if (!trimmed.length) {
+            return raw
+        }
+
+        const parts = trimmed.split(/[\\/]/).filter(function(part) { return part.length > 0 })
+        if (!parts.length) {
+            return trimmed
+        }
+
+        return parts[parts.length - 1]
+    }
+
+    function normalizeWorkspaceSuggestion(entry) {
+        if (typeof entry === "string") {
+            const path = entry.trim()
+            if (!path.length) {
+                return null
+            }
+            return {
+                label: workspaceLabelFromPath(path),
+                path: path,
+                subtitle: path
+            }
+        }
+
+        if (!entry || typeof entry !== "object") {
+            return null
+        }
+
+        const candidatePath = (entry.path || entry.workspacePath || entry.subtitle || "").toString().trim()
+        const candidateLabel = (entry.label || entry.name || "").toString().trim()
+        const path = candidatePath.length ? candidatePath : candidateLabel
+        if (!path.length) {
+            return null
+        }
+
+        return {
+            label: candidateLabel.length ? candidateLabel : workspaceLabelFromPath(path),
+            path: path,
+            subtitle: path
+        }
+    }
+
+    function workspaceSuggestionAt(index) {
+        if (index < 0 || index >= availableWorkspaces.length) {
+            return { label: "", path: "", subtitle: "" }
+        }
+
+        const normalized = normalizeWorkspaceSuggestion(availableWorkspaces[index])
+        return normalized || { label: "", path: "", subtitle: "" }
+    }
+
     function refreshAvailableWorkspaces() {
         try {
             const parsed = JSON.parse(terminalApp.availableWorkspacesJson || "[]")
-            availableWorkspaces = Array.isArray(parsed) ? parsed : []
+            if (!Array.isArray(parsed)) {
+                availableWorkspaces = []
+                return
+            }
+
+            const deduped = []
+            const seen = {}
+            for (let i = 0; i < parsed.length; i++) {
+                const normalized = normalizeWorkspaceSuggestion(parsed[i])
+                if (!normalized || !normalized.path.length) {
+                    continue
+                }
+
+                const key = normalized.path.toLowerCase()
+                if (seen[key]) {
+                    continue
+                }
+
+                seen[key] = true
+                deduped.push(normalized)
+            }
+
+            availableWorkspaces = deduped
         } catch (e) {
             availableWorkspaces = []
         }
@@ -592,34 +673,106 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     spacing: 8
 
+                    Text {
+                        text: "Working Dir"
+                        color: "#d4d4d4"
+                        font.pixelSize: root.uiInputFontPx
+                    }
+
                     ComboBox {
                         id: workspacePathField
                         editable: true
                         model: root.availableWorkspaces
+                        textRole: "label"
                         Layout.preferredWidth: 240
                         Layout.preferredHeight: 28
                         font.pixelSize: root.uiInputFontPx
                         enabled: root.hasActiveTerminalSession
                         editText: terminalApp.currentWorkspacePath
                         onAccepted: terminalApp.setSessionWorkspacePath(editText)
-                        onActivated: terminalApp.setSessionWorkspacePath(currentText)
+                        onActivated: {
+                            const entry = root.workspaceSuggestionAt(index)
+                            const selectedPath = (entry.path || currentText || "").toString()
+                            editText = selectedPath
+                            terminalApp.setSessionWorkspacePath(selectedPath)
+                        }
+                        delegate: ItemDelegate {
+                            width: workspacePathField.width
+                            implicitHeight: 42
+                            highlighted: workspacePathField.highlightedIndex === index
+
+                            contentItem: Column {
+                                spacing: 1
+
+                                Text {
+                                    text: modelData && modelData.label ? modelData.label : ""
+                                    color: "#e8e8e8"
+                                    font.pixelSize: root.uiInputFontPx
+                                    elide: Text.ElideRight
+                                }
+
+                                Text {
+                                    text: modelData && modelData.subtitle ? modelData.subtitle : ""
+                                    color: "#8a8a8a"
+                                    font.pixelSize: Math.max(9, root.uiInputFontPx - 1)
+                                    elide: Text.ElideRight
+                                }
+                            }
+                        }
                         Component.onCompleted: {
                             popup.popupType = Popup.Window
                             popup.z = 3000
                         }
                     }
 
+                    Text {
+                        text: "Venv"
+                        color: "#d4d4d4"
+                        font.pixelSize: root.uiInputFontPx
+                        visible: activateVenvCheck.checked
+                    }
+
                     ComboBox {
                         id: venvPathField
                         editable: true
                         model: root.availableWorkspaces
+                        textRole: "label"
                         Layout.preferredWidth: 220
                         Layout.preferredHeight: 28
                         font.pixelSize: root.uiInputFontPx
-                        enabled: root.hasActiveTerminalSession
+                        visible: activateVenvCheck.checked
+                        enabled: root.hasActiveTerminalSession && activateVenvCheck.checked
                         editText: terminalApp.currentVenvPath
                         onAccepted: terminalApp.setSessionVenvPath(editText)
-                        onActivated: terminalApp.setSessionVenvPath(currentText)
+                        onActivated: {
+                            const entry = root.workspaceSuggestionAt(index)
+                            const selectedPath = (entry.path || currentText || "").toString()
+                            editText = selectedPath
+                            terminalApp.setSessionVenvPath(selectedPath)
+                        }
+                        delegate: ItemDelegate {
+                            width: venvPathField.width
+                            implicitHeight: 42
+                            highlighted: venvPathField.highlightedIndex === index
+
+                            contentItem: Column {
+                                spacing: 1
+
+                                Text {
+                                    text: modelData && modelData.label ? modelData.label : ""
+                                    color: "#e8e8e8"
+                                    font.pixelSize: root.uiInputFontPx
+                                    elide: Text.ElideRight
+                                }
+
+                                Text {
+                                    text: modelData && modelData.subtitle ? modelData.subtitle : ""
+                                    color: "#8a8a8a"
+                                    font.pixelSize: Math.max(9, root.uiInputFontPx - 1)
+                                    elide: Text.ElideRight
+                                }
+                            }
+                        }
                         Component.onCompleted: {
                             popup.popupType = Popup.Window
                             popup.z = 3000
@@ -650,6 +803,7 @@ ApplicationWindow {
                             font.pixelSize: root.uiControlFontPx
                             enabled: true
                             onClicked: {
+                                terminalApp.setSessionWorkspacePath(workspacePathField.editText || "")
                                 terminalApp.launchGeminiInTab()
                                 geminiSettingsDialog.close()
                             }
@@ -662,6 +816,7 @@ ApplicationWindow {
                             enabled: true
                             visible: terminalApp.copilotKeyPresent
                             onClicked: {
+                                terminalApp.setSessionWorkspacePath(workspacePathField.editText || "")
                                 terminalApp.launchCopilotInTab()
                             }
                         }
@@ -1109,6 +1264,7 @@ ApplicationWindow {
                     font.pixelSize: root.uiControlFontPx
                     enabled: terminalApp.geminiKeyPresent
                     onClicked: {
+                        terminalApp.setSessionWorkspacePath(workspacePathField.editText || "")
                         terminalApp.launchGeminiInTab()
                         geminiSettingsDialog.close()
                     }
@@ -1119,6 +1275,7 @@ ApplicationWindow {
                     font.pixelSize: root.uiControlFontPx
                     enabled: terminalApp.geminiKeyPresent
                     onClicked: {
+                        terminalApp.setSessionWorkspacePath(workspacePathField.editText || "")
                         terminalApp.launchGeminiSession()
                         geminiSettingsDialog.close()
                     }
@@ -1128,6 +1285,7 @@ ApplicationWindow {
                     text: "Launch Copilot CLI"
                     font.pixelSize: root.uiControlFontPx
                     onClicked: {
+                        terminalApp.setSessionWorkspacePath(workspacePathField.editText || "")
                         terminalApp.runCommand("copilot")
                         geminiSettingsDialog.close()
                     }

@@ -66,6 +66,29 @@ pub(crate) fn resolve_approval_provider_prefill_policy(
     }
 }
 
+#[cfg(target_os = "windows")]
+fn gemini_tab_launch_command() -> &'static str {
+    // Prefer command-resolution through Get-Command so the launch works for
+    // npm-installed shims (`gemini.cmd`, `gemini.ps1`, etc.).
+    "if (Get-Command gemini -ErrorAction SilentlyContinue) { gemini --screen-reader } elseif (Get-Command gemini.cmd -ErrorAction SilentlyContinue) { gemini.cmd --screen-reader } else { Write-Error 'Gemini CLI not found in PATH (expected gemini).'; }"
+}
+
+#[cfg(not(target_os = "windows"))]
+fn gemini_tab_launch_command() -> &'static str {
+    "gemini --screen-reader"
+}
+
+#[cfg(target_os = "windows")]
+fn copilot_tab_launch_command() -> &'static str {
+    // Primary path: standalone `copilot` CLI. Fallback path: `gh copilot`.
+    "if (Get-Command copilot.cmd -ErrorAction SilentlyContinue) { copilot.cmd } elseif (Get-Command copilot -ErrorAction SilentlyContinue) { copilot } elseif (Get-Command gh -ErrorAction SilentlyContinue) { Write-Warning 'Standalone copilot CLI not found; falling back to non-interactive gh copilot suggest.'; gh copilot suggest --target shell } else { Write-Error 'Copilot CLI not found in PATH (expected copilot or gh).'; }"
+}
+
+#[cfg(not(target_os = "windows"))]
+fn copilot_tab_launch_command() -> &'static str {
+    "copilot"
+}
+
 impl ffi::TerminalApp {
     fn normalize_autonomy_mode(value: &str) -> &'static str {
         if value.trim().eq_ignore_ascii_case("autonomous") {
@@ -452,14 +475,14 @@ impl ffi::TerminalApp {
     }
 
     fn append_output_line(this: &mut Pin<&mut Self>, line: &str) {
-        // Keep output_text updated for the legacy MCP read_output path.
-        // Do not broadcast these bridge/status lines to the live shell WebSocket stream;
-        // shell output should flow only through session-scoped PTY pipes.
-        let current = this.as_ref().output_text().to_string();
-        let next = if current.trim().is_empty() {
-            line.to_string()
-        } else {
-            format!("{current}\n{line}")
+        // Keep output scoped to the selected session so tabs do not mix output.
+        let state_arc = this.rust().state.clone();
+        let next = {
+            let mut state = state_arc.lock().unwrap();
+            let selected = state.selected_session_id.clone();
+            state
+                .append_output_line_for_session(&selected, line)
+                .unwrap_or_default()
         };
         this.as_mut().set_output_text(QString::from(&next));
     }
@@ -516,10 +539,13 @@ impl ffi::TerminalApp {
                 }
             }
 
+            let default_workspace = crate::cxxqt_bridge::default_workspace_path();
+            if !default_workspace.trim().is_empty() {
+                suggestions.push(default_workspace);
+            }
+
             if suggestions.is_empty() {
-                if let Ok(cwd) = std::env::current_dir() {
-                    suggestions.push(cwd.to_string_lossy().to_string());
-                }
+                suggestions.push(crate::cxxqt_bridge::default_workspace_path());
             }
 
             suggestions.sort();
@@ -1208,9 +1234,7 @@ impl ffi::TerminalApp {
             let state = state_arc.lock().unwrap();
             let selected = state.selected_session_context().workspace_path;
             if selected.trim().is_empty() {
-                std::env::current_dir()
-                    .map(|path| path.to_string_lossy().to_string())
-                    .unwrap_or_default()
+                crate::cxxqt_bridge::default_workspace_path()
             } else {
                 selected
             }
@@ -1222,7 +1246,7 @@ impl ffi::TerminalApp {
             launch
                 .arg("-NoExit")
                 .arg("-Command")
-                .arg("if (-not [string]::IsNullOrWhiteSpace($env:PM_GEMINI_CWD)) { Set-Location -LiteralPath $env:PM_GEMINI_CWD }; gemini")
+                .arg("if (-not [string]::IsNullOrWhiteSpace($env:PM_GEMINI_CWD)) { Set-Location -LiteralPath $env:PM_GEMINI_CWD }; gemini --screen-reader")
                 .env("PM_GEMINI_CWD", &workspace_path)
                 .env("GEMINI_API_KEY", &stored_key)
                 .env("GOOGLE_API_KEY", &stored_key)
@@ -1252,7 +1276,8 @@ impl ffi::TerminalApp {
         #[allow(unreachable_code)]
         {
             self.as_mut().set_gemini_injection_requested(true);
-            self.as_mut().run_command(QString::from("gemini"))
+            self.as_mut()
+                .run_command(QString::from("gemini --screen-reader"))
         }
     }
 
@@ -1276,21 +1301,20 @@ impl ffi::TerminalApp {
         self.as_mut().set_pending_commands_json(json);
         self.as_mut().set_session_tabs_json(tabs_json);
         Self::append_startup_banner(&mut self, &session_id);
+        Self::append_output_line(
+            &mut self,
+            "[gemini] launching Gemini CLI in the selected tab",
+        );
 
         let previous_run_in_window = *self.as_ref().run_commands_in_window();
         self.as_mut().set_run_commands_in_window(false);
         self.as_mut().set_gemini_injection_requested(true);
 
-        let launched = {
-            #[cfg(target_os = "windows")]
-            {
-                self.as_mut().run_command(QString::from("gemini.cmd"))
-            }
-            #[cfg(not(target_os = "windows"))]
-            {
-                self.as_mut().run_command(QString::from("gemini"))
-            }
-        };
+        let launched = Self::run_command_impl(
+            self.as_mut(),
+            QString::from(gemini_tab_launch_command()),
+            86400,
+        );
         self.as_mut().set_run_commands_in_window(previous_run_in_window);
 
         launched
@@ -1298,12 +1322,13 @@ impl ffi::TerminalApp {
 
     pub fn launch_copilot_in_tab(mut self: Pin<&mut Self>) -> bool {
         // Open Copilot CLI (GitHub Copilot in the CLI) in a brand-new dedicated session.
-        // Uses `gh copilot` (gh extension) — no API key injection required since
-        // the CLI authenticates via `gh auth login`.
+        // Prefers standalone `copilot` CLI; falls back to `gh copilot` when available.
+        // No API key injection required — authentication is handled by the CLI.
         let state_arc = self.rust().state.clone();
         let (session_id, count, json, tabs_json) = {
             let mut state = state_arc.lock().unwrap();
             let session_id = state.create_session();
+            state.copilot_session_ids.insert(session_id.clone());
             let count = state.selected_pending_count();
             let json = state.pending_commands_to_json();
             let tabs_json = state.session_tabs_to_json();
@@ -1315,26 +1340,30 @@ impl ffi::TerminalApp {
         self.as_mut().set_pending_commands_json(json);
         self.as_mut().set_session_tabs_json(tabs_json);
         Self::append_startup_banner(&mut self, &session_id);
+        Self::append_output_line(
+            &mut self,
+            "[copilot] launching Copilot CLI in the selected tab",
+        );
 
         let previous_run_in_window = *self.as_ref().run_commands_in_window();
         self.as_mut().set_run_commands_in_window(false);
 
-        let launched = {
-            #[cfg(target_os = "windows")]
-            {
-                self.as_mut().run_command(QString::from("copilot.cmd"))
-            }
-            #[cfg(not(target_os = "windows"))]
-            {
-                self.as_mut().run_command(QString::from("copilot"))
-            }
-        };
+        let launched = Self::run_command_impl(
+            self.as_mut(),
+            QString::from(copilot_tab_launch_command()),
+            86400,
+        );
         self.as_mut().set_run_commands_in_window(previous_run_in_window);
 
         launched
     }
 
     pub fn clear_output(mut self: Pin<&mut Self>) {
+        let state_arc = self.rust().state.clone();
+        {
+            let mut state = state_arc.lock().unwrap();
+            state.clear_selected_session_output();
+        }
         self.as_mut().set_output_text(QString::default());
     }
 
@@ -1532,6 +1561,13 @@ impl ffi::TerminalApp {
             this.as_mut().set_current_allowlisted(false);
             Self::sync_selected_session_context(this);
         }
+
+        let state_arc = this.rust().state.clone();
+        let session_output = {
+            let state = state_arc.lock().unwrap();
+            state.selected_session_output()
+        };
+        this.as_mut().set_output_text(QString::from(&session_output));
     }
 
     pub fn set_session_terminal_profile(mut self: Pin<&mut Self>, profile: QString) -> bool {
@@ -1852,7 +1888,11 @@ impl ffi::TerminalApp {
         true
     }
 
-    pub fn run_command(mut self: Pin<&mut Self>, command: QString) -> bool {
+    pub fn run_command(self: Pin<&mut Self>, command: QString) -> bool {
+        Self::run_command_impl(self, command, 300)
+    }
+
+    fn run_command_impl(mut self: Pin<&mut Self>, command: QString, timeout_secs: u64) -> bool {
         let command_text = command.to_string();
         let command_text = command_text.trim();
         if command_text.is_empty() {
@@ -1875,9 +1915,7 @@ impl ffi::TerminalApp {
                 let state = state_arc.lock().unwrap();
                 let selected = state.selected_session_context().workspace_path;
                 if selected.trim().is_empty() {
-                    std::env::current_dir()
-                        .map(|path| path.to_string_lossy().to_string())
-                        .unwrap_or_default()
+                    crate::cxxqt_bridge::default_workspace_path()
                 } else {
                     selected
                 }
@@ -1934,24 +1972,7 @@ impl ffi::TerminalApp {
             let context = state.selected_session_context();
 
             let working_directory = if context.workspace_path.trim().is_empty() {
-                #[cfg(target_os = "windows")]
-                {
-                    std::env::var("USERPROFILE")
-                        .ok()
-                        .filter(|path| std::path::Path::new(path).is_dir())
-                        .or_else(|| {
-                            std::env::current_dir()
-                                .ok()
-                                .map(|path| path.to_string_lossy().to_string())
-                        })
-                        .unwrap_or_default()
-                }
-                #[cfg(not(target_os = "windows"))]
-                {
-                    std::env::current_dir()
-                        .map(|path| path.to_string_lossy().to_string())
-                        .unwrap_or_default()
-                }
+                crate::cxxqt_bridge::default_workspace_path()
             } else {
                 context.workspace_path.clone()
             };
@@ -1966,7 +1987,7 @@ impl ffi::TerminalApp {
                 workspace_path: context.workspace_path.clone(),
                 venv_path: context.selected_venv_path.clone(),
                 activate_venv: context.activate_venv,
-                timeout_seconds: 300,
+                timeout_seconds: timeout_secs,
                 args: Vec::new(),
                 env: {
                     let mut env = std::collections::HashMap::new();

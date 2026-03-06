@@ -107,6 +107,7 @@ Mounted API routes:
 - `/api/deploy`
 - `/api/programs`
 - `/api/workspaces/:id/knowledge`
+- `/api/runtime/fallback-health`
 - `/api/health`
 - `/api/errors`
 

@@ -39,6 +39,8 @@ const mockCopilotStatus = {
   instructionCount: 3,
   outdatedAgents: 0,
   missingFiles: [],
+  fallbackApiHealth: 'healthy',
+  fallbackApiDetail: 'Fallback API responding',
 };
 
 describe('CopilotStatusPanel', () => {
@@ -51,6 +53,7 @@ describe('CopilotStatusPanel', () => {
 
     // Check that the component renders status items
     expect(screen.getByText(/Agents/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Fallback API/i).length).toBeGreaterThan(0);
   });
 
   it('should show deploy button when onDeploy is provided', () => {

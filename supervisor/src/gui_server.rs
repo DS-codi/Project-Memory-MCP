@@ -9,21 +9,26 @@
 //! | GET    | `/gui/ping`     | Availability check — returns app list    |
 //! | POST   | `/gui/launch`   | Launch a form-app GUI subprocess         |
 //! | POST   | `/gui/continue` | Continue a paused refinement session     |
+//! | GET    | `/runtime/recent` | Recent per-component runtime output    |
+//! | GET    | `/runtime/stream` | Live per-component runtime output (SSE)|
 //!
 //! The request body for `/gui/launch` may include optional routing metadata
 //! (`workspace_id`, `session_id`, `agent`) that is logged for observability
 //! but does not affect the underlying `launch_form_app` call.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use axum::{
     Json, Router,
-    extract::State,
+    extract::{Query, State},
     http::StatusCode,
+    response::{Sse, sse::Event},
     routing::{get, post},
 };
 use serde::Deserialize;
 use serde_json::json;
+use tokio::sync::broadcast;
 
 use crate::control::handler::FormAppConfigs;
 use crate::runner::form_app::{continue_form_app, launch_form_app};
@@ -71,6 +76,20 @@ pub struct ContinueRequest {
     /// Optional per-continuation timeout override in seconds.
     #[serde(default)]
     pub timeout_seconds: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RuntimeRecentQuery {
+    #[serde(default)]
+    pub component: Option<String>,
+    #[serde(default)]
+    pub limit: Option<usize>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RuntimeStreamQuery {
+    #[serde(default)]
+    pub component: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -167,6 +186,74 @@ async fn continue_handler(
     }
 }
 
+async fn runtime_recent_handler(
+    Query(query): Query<RuntimeRecentQuery>,
+) -> Json<serde_json::Value> {
+    let limit = query.limit.unwrap_or(200).clamp(1, 2_000);
+    let items = crate::runtime_output::recent(query.component.as_deref(), limit);
+
+    Json(json!({
+        "ok": true,
+        "data": {
+            "component": query.component,
+            "limit": limit,
+            "count": items.len(),
+            "items": items,
+        }
+    }))
+}
+
+async fn runtime_stream_handler(
+    Query(query): Query<RuntimeStreamQuery>,
+) -> Sse<impl futures_util::Stream<Item = Result<Event, std::convert::Infallible>>> {
+    let rx = crate::runtime_output::subscribe();
+    let component_filter = query
+        .component
+        .map(|value| value.trim().to_ascii_lowercase())
+        .filter(|value| !value.is_empty());
+
+    let stream = futures_util::stream::unfold(
+        (rx, component_filter),
+        |(mut rx, component_filter)| async move {
+            loop {
+                match rx.recv().await {
+                    Ok(event) => {
+                        if let Some(ref component) = component_filter {
+                            if !event.component.eq_ignore_ascii_case(component) {
+                                continue;
+                            }
+                        }
+
+                        let data = serde_json::to_string(&event).unwrap_or_else(|_| "{}".to_string());
+                        return Some((
+                            Ok(Event::default().event("runtime_output").data(data)),
+                            (rx, component_filter),
+                        ));
+                    }
+                    Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                        let data = json!({
+                            "type": "lagged",
+                            "skipped": skipped,
+                        })
+                        .to_string();
+                        return Some((
+                            Ok(Event::default().event("runtime_output_warning").data(data)),
+                            (rx, component_filter),
+                        ));
+                    }
+                    Err(broadcast::error::RecvError::Closed) => return None,
+                }
+            }
+        },
+    );
+
+    Sse::new(stream).keep_alive(
+        axum::response::sse::KeepAlive::new()
+            .interval(Duration::from_secs(15))
+            .text("ping"),
+    )
+}
+
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
@@ -178,6 +265,8 @@ pub fn build_router(form_apps: Arc<FormAppConfigs>) -> Router {
         .route("/gui/ping", get(ping_handler))
         .route("/gui/launch", post(launch_handler))
         .route("/gui/continue", post(continue_handler))
+    .route("/runtime/recent", get(runtime_recent_handler))
+    .route("/runtime/stream", get(runtime_stream_handler))
         .with_state(state)
 }
 

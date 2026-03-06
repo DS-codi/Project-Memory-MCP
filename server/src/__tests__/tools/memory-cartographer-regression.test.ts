@@ -13,8 +13,43 @@ import { handleMemoryCartographer } from '../../tools/memory_cartographer.js';
 import type { MemoryCartographerParams } from '../../tools/memory_cartographer.js';
 
 // ---------------------------------------------------------------------------
+// Hoisted mocks (needed for Phase B Python-adapter path)
+// ---------------------------------------------------------------------------
+const {
+  mockedInvokePythonCore,
+  mockedGetWorkspace,
+  mockedResolveAccessiblePath,
+} = vi.hoisted(() => ({
+  mockedInvokePythonCore: vi.fn().mockResolvedValue({
+    schema_version: '1.0.0',
+    request_id:     'regression_req_001',
+    status:         'ok',
+    result:         { query: 'summary', summary: { files_total: 0 } },
+    diagnostics:    { warnings: [], errors: [], markers: [], skipped_paths: [] },
+    elapsed_ms:     5,
+  }),
+  mockedGetWorkspace: vi.fn().mockReturnValue({
+    id:   'ws_regression_test',
+    path: 'C:/mock/workspace',
+  }),
+  mockedResolveAccessiblePath: vi.fn().mockResolvedValue('C:/mock/workspace'),
+}));
+
+// ---------------------------------------------------------------------------
 // Mocks — stable across all regression tests
 // ---------------------------------------------------------------------------
+vi.mock('../../db/workspace-db.js', () => ({
+  getWorkspace: mockedGetWorkspace,
+}));
+
+vi.mock('../../storage/workspace-mounts.js', () => ({
+  resolveAccessiblePath: mockedResolveAccessiblePath,
+}));
+
+vi.mock('../../cartography/runtime/pythonBridge.js', () => ({
+  invokePythonCore: mockedInvokePythonCore,
+}));
+
 vi.mock('../../tools/consolidated/workspace-validation.js', () => ({
   validateAndResolveWorkspaceId: vi.fn().mockResolvedValue({
     success: true,

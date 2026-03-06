@@ -122,6 +122,22 @@ command     = "node"
 args        = ["dist/index.js"]
 working_dir = "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\dashboard\\server"
 
+# ── Fallback API (proxy-mounted REST fallback) ──────────────────────────────
+
+[fallback_api]
+enabled = true
+port    = 3465
+
+# Dedicated fallback backend process served behind proxy route /api/fallback/*
+command     = "node"
+args        = ["dist/fallback-rest-main.js"]
+working_dir = "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\server"
+
+# Optional environment variables injected into fallback API process.
+# [fallback_api.env]
+# FALLBACK_API_HOST = "127.0.0.1"
+# FALLBACK_API_PORT = "3465"
+
 # ── Approval gate dialog ──────────────────────────────────────────────────────
 
 [approval]

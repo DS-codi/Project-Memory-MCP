@@ -1,4 +1,5 @@
 use crate::cxxqt_bridge::completed_outputs::OutputTracker;
+use crate::cxxqt_bridge::default_workspace_path;
 use crate::protocol::CommandRequest;
 use crate::protocol::TerminalProfile;
 use crate::saved_commands::WorkspaceSavedCommands;
@@ -97,6 +98,9 @@ pub struct TerminalAppRust {
 
 pub struct AppState {
     pub pending_commands_by_session: HashMap<String, Vec<CommandRequest>>,
+    /// Session-scoped terminal output text shown in the GUI output panel.
+    /// This prevents output from different sessions being mixed in one tab.
+    pub session_output_by_id: HashMap<String, String>,
     // ── Allowlist management (Phase 4.5) ──────────────────────────────────
     /// In-memory allowlist patterns (loaded from disk on first refresh).
     pub allowlist_patterns: Vec<String>,
@@ -117,13 +121,17 @@ pub struct AppState {
     pub ws_terminal_tx: Option<tokio::sync::broadcast::Sender<Vec<u8>>>,
     /// Sessions that were started by the "Launch Gemini CLI" button.
     pub gemini_session_ids: HashSet<String>,
+    /// Sessions that were started by the "Launch Copilot CLI" button.
+    pub copilot_session_ids: HashSet<String>,
     // ─── Agent-session tracking (step 11) ──────────────────────────────────
     /// Session IDs that were started by an approved super-subagent launch.
     pub agent_session_ids: HashSet<String>,
     /// Rich metadata for each agent session, keyed by session ID.
-    pub agent_session_meta: HashMap<String, AgentSessionMeta>,    /// Workspace paths pushed from the MCP server (Project Memory DB).
+    pub agent_session_meta: HashMap<String, AgentSessionMeta>,
+    /// Workspace paths pushed from the MCP server (Project Memory DB).
     /// Used to pre-populate the workspace/venv path pickers in the GUI.
-    pub known_workspace_paths: Vec<String>,}
+    pub known_workspace_paths: Vec<String>,
+}
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -192,6 +200,7 @@ pub(crate) struct UseSavedCommandResult {
 impl Default for TerminalAppRust {
     fn default() -> Self {
         let default_terminal_profile = default_terminal_profile_from_env();
+        let default_workspace = default_workspace_path();
         let tray_settings = crate::system_tray::load_settings();
         let gemini_key_present = tray_settings
             .gemini_api_key
@@ -201,11 +210,13 @@ impl Default for TerminalAppRust {
 
         let state = Arc::new(Mutex::new(AppState {
             pending_commands_by_session: HashMap::from([("default".to_string(), Vec::new())]),
+            session_output_by_id: HashMap::from([("default".to_string(), String::new())]),
             session_display_names: HashMap::from([("default".to_string(), "default".to_string())]),
             session_context_by_id: HashMap::from([(
                 "default".to_string(),
                 SessionRuntimeContext {
                     selected_terminal_profile: default_terminal_profile.clone(),
+                    workspace_path: default_workspace.clone(),
                     ..SessionRuntimeContext::default()
                 },
             )]),
@@ -223,6 +234,7 @@ impl Default for TerminalAppRust {
             output_tracker: OutputTracker::default(),
             ws_terminal_tx: None,
             gemini_session_ids: HashSet::new(),
+            copilot_session_ids: HashSet::new(),
             agent_session_ids: HashSet::new(),
             agent_session_meta: HashMap::new(),
             allowlist_patterns: Vec::new(),
@@ -259,7 +271,7 @@ impl Default for TerminalAppRust {
                 TerminalProfile::Bash => "bash",
                 TerminalProfile::System => "system",
             }),
-            current_workspace_path: QString::default(),
+            current_workspace_path: QString::from(&default_workspace),
             current_venv_path: QString::default(),
             current_activate_venv: false,
             current_allowlisted: false,

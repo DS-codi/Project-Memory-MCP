@@ -18,6 +18,7 @@ import { instructionsRouter } from './routes/instructions.js';
 import { deployRouter } from './routes/deploy.js';
 import { knowledgeRouter } from './routes/knowledge.js';
 import { programsRouter } from './routes/programs.js';
+import { runtimeRouter } from './routes/runtime.js';
 import { getDataRoot } from './storage/workspace-utils.js';
 import { eventBus } from './events/eventBus.js';
 import { getDb } from './db/connection.js';
@@ -77,6 +78,7 @@ app.use('/api/instructions', instructionsRouter);
 app.use('/api/deploy', deployRouter);
 app.use('/api/programs', programsRouter);
 app.use('/api/workspaces/:id/knowledge', knowledgeRouter);
+app.use('/api/runtime', runtimeRouter);
 
 // Health check — enhanced with uptime, WebSocket clients, memory, last error
 app.get('/api/health', (req, res) => {

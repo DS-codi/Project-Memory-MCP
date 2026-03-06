@@ -216,6 +216,15 @@ export const handlers = [
     return HttpResponse.json({ instructions: mockInstructions, total: mockInstructions.length });
   }),
 
+  http.get('/api/runtime/fallback-health', () => {
+    return HttpResponse.json({
+      fallback_api: {
+        state: 'disabled',
+        detail: 'Fallback API disabled in test environment',
+      },
+    });
+  }),
+
   http.get('/api/workspaces/:id/context', () => {
     return HttpResponse.json({ exists: true, context: mockWorkspaceContext });
   }),

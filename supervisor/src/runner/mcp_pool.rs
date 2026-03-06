@@ -48,7 +48,7 @@ impl ManagedInstance {
 
         Self {
             port,
-            runner: NodeRunner::new(cfg, health_timeout_ms, port),
+            runner: NodeRunner::new(cfg, health_timeout_ms, port, format!("mcp:{port}")),
             connection_count: 0,
             healthy: false,
             consecutive_failures: 0,

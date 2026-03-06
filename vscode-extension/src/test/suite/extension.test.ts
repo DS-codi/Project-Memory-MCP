@@ -116,6 +116,29 @@ suite('Commands Test Suite', () => {
     });
 });
 
+suite('Chat Participant Contributions', () => {
+    test('Memory chat participant exposes only /store-chat-details', async () => {
+        const extension = vscode.extensions.getExtension('project-memory.project-memory-dashboard');
+        assert.ok(extension, 'Extension should be installed');
+
+        const participants = extension?.packageJSON?.contributes?.chatParticipants as Array<{
+            id: string;
+            commands?: Array<{ name: string }>;
+        }> | undefined;
+
+        const memoryParticipant = participants?.find((participant) => participant.id === 'project-memory.memory');
+        assert.ok(memoryParticipant, 'project-memory.memory chat participant should be contributed');
+
+        const commandNames = (memoryParticipant?.commands ?? []).map((command) => command.name);
+        assert.deepStrictEqual(commandNames, ['store-chat-details']);
+
+        const legacyCommands = ['plan', 'context', 'handoff', 'status', 'deploy', 'diagnostics', 'knowledge'];
+        for (const legacyCommand of legacyCommands) {
+            assert.ok(!commandNames.includes(legacyCommand), `Legacy slash command should not be reintroduced: ${legacyCommand}`);
+        }
+    });
+});
+
 suite('Configuration Test Suite', () => {
     test('Configuration section should exist', () => {
         const config = vscode.workspace.getConfiguration('projectMemory');

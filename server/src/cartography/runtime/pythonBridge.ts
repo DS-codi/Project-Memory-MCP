@@ -14,6 +14,12 @@
  */
 
 import { spawn } from 'node:child_process';
+import { existsSync, statSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const MODULE_ENTRYPOINT = 'memory_cartographer.runtime.entrypoint';
+const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 
 // ---------------------------------------------------------------------------
 // Request / Response envelope types (wire format)
@@ -69,6 +75,150 @@ export interface PythonBridgeDiagnostics {
   skipped_paths: string[];
 }
 
+export interface PythonBridgeLaunchContext {
+  python_executable: string;
+  module_name: string;
+  cwd: string;
+  workspace_path: string | null;
+  module_search_paths: string[];
+  pythonpath: string;
+}
+
+interface ResolvedPythonLaunch {
+  env: NodeJS.ProcessEnv;
+  cwd: string;
+  launchContext: PythonBridgeLaunchContext;
+}
+
+function extractWorkspacePath(args: Record<string, unknown>): string | null {
+  const workspacePath = args.workspace_path;
+  return typeof workspacePath === 'string' && workspacePath.trim().length > 0
+    ? workspacePath.trim()
+    : null;
+}
+
+function isDirectory(candidatePath: string | null | undefined): candidatePath is string {
+  if (!candidatePath) {
+    return false;
+  }
+
+  try {
+    return existsSync(candidatePath) && statSync(candidatePath).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function normalizeForDedup(candidatePath: string): string {
+  return process.platform === 'win32'
+    ? candidatePath.toLowerCase()
+    : candidatePath;
+}
+
+function dedupePaths(candidatePaths: string[]): string[] {
+  const seen = new Set<string>();
+  const unique: string[] = [];
+
+  for (const candidatePath of candidatePaths) {
+    const normalized = normalizeForDedup(candidatePath);
+    if (seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    unique.push(candidatePath);
+  }
+
+  return unique;
+}
+
+function discoverPythonCoreSearchPaths(workspacePath: string | null): string[] {
+  const cwd = process.cwd();
+  const candidates = [
+    workspacePath ? path.resolve(workspacePath, 'python-core') : null,
+    workspacePath ? path.resolve(workspacePath, 'Project-Memory-MCP', 'python-core') : null,
+    path.resolve(cwd, 'python-core'),
+    path.resolve(cwd, '..', 'python-core'),
+    path.resolve(cwd, 'Project-Memory-MCP', 'python-core'),
+    path.resolve(MODULE_DIR, '..', '..', '..', '..', 'python-core'),
+    path.resolve(MODULE_DIR, '..', '..', '..', '..', 'Project-Memory-MCP', 'python-core'),
+  ];
+
+  const existing = candidates.filter((candidate): candidate is string => isDirectory(candidate));
+  return dedupePaths(existing);
+}
+
+function parsePythonPathEntries(pythonPathValue: string | undefined): string[] {
+  if (!pythonPathValue) {
+    return [];
+  }
+
+  return pythonPathValue
+    .split(path.delimiter)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
+function resolveSpawnCwd(
+  preferredCwd: string | undefined,
+  workspacePath: string | null,
+  moduleSearchPaths: string[],
+): string {
+  const candidates = [
+    preferredCwd,
+    workspacePath,
+    workspacePath ? path.resolve(workspacePath, 'Project-Memory-MCP') : null,
+    moduleSearchPaths.length > 0 ? path.dirname(moduleSearchPaths[0]) : null,
+    process.cwd(),
+  ];
+
+  for (const candidate of candidates) {
+    if (isDirectory(candidate)) {
+      return candidate;
+    }
+  }
+
+  return process.cwd();
+}
+
+function resolvePythonLaunch(
+  request: PythonBridgeRequest,
+  options: PythonBridgeOptions | undefined,
+  pythonExecutable: string,
+): ResolvedPythonLaunch {
+  const workspacePath = extractWorkspacePath(request.args);
+  const moduleSearchPaths = discoverPythonCoreSearchPaths(workspacePath);
+
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    ...(options?.env ?? {}),
+  };
+
+  const existingPythonPathEntries = parsePythonPathEntries(env.PYTHONPATH);
+  const pythonPathEntries = dedupePaths([...moduleSearchPaths, ...existingPythonPathEntries]);
+  if (pythonPathEntries.length > 0) {
+    env.PYTHONPATH = pythonPathEntries.join(path.delimiter);
+  }
+
+  const cwd = resolveSpawnCwd(options?.cwd, workspacePath, moduleSearchPaths);
+
+  return {
+    env,
+    cwd,
+    launchContext: {
+      python_executable: pythonExecutable,
+      module_name: MODULE_ENTRYPOINT,
+      cwd,
+      workspace_path: workspacePath,
+      module_search_paths: moduleSearchPaths,
+      pythonpath: env.PYTHONPATH ?? '',
+    },
+  };
+}
+
+function formatLaunchContext(launchContext: PythonBridgeLaunchContext): string {
+  return JSON.stringify(launchContext);
+}
+
 // ---------------------------------------------------------------------------
 // Bridge invocation function
 // ---------------------------------------------------------------------------
@@ -106,22 +256,21 @@ export async function invokePythonCore(
   options?: PythonBridgeOptions
 ): Promise<PythonBridgeResponse> {
   const pythonExecutable = options?.pythonExecutable?.trim() || 'python';
-  const env = {
-    ...process.env,
-    ...(options?.env ?? {}),
-  };
+  const launch = resolvePythonLaunch(request, options, pythonExecutable);
 
   let child;
   try {
-    child = spawn(pythonExecutable, ['-m', 'memory_cartographer.runtime.entrypoint'], {
+    child = spawn(pythonExecutable, ['-m', MODULE_ENTRYPOINT], {
       stdio: ['pipe', 'pipe', 'pipe'],
-      env,
+      env: launch.env,
+      cwd: launch.cwd,
       windowsHide: true,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new CartographyBridgeSpawnError(
-      `Failed to spawn Python core process with executable "${pythonExecutable}": ${message}`
+      `Failed to spawn Python core process with executable "${pythonExecutable}": ${message}. launch_context=${formatLaunchContext(launch.launchContext)}`,
+      launch.launchContext,
     );
   }
 
@@ -146,7 +295,7 @@ export async function invokePythonCore(
       if (!settled) {
         child.kill('SIGKILL');
         finalize(() => {
-          reject(new CartographyBridgeTimeoutError(request.request_id, request.timeout_ms));
+          reject(new CartographyBridgeTimeoutError(request.request_id, request.timeout_ms, launch.launchContext));
         });
       }
     }, request.timeout_ms);
@@ -156,7 +305,8 @@ export async function invokePythonCore(
       finalize(() => {
         reject(
           new CartographyBridgeSpawnError(
-            `Failed to start Python core process with executable "${pythonExecutable}": ${message}`
+            `Failed to start Python core process with executable "${pythonExecutable}": ${message}. launch_context=${formatLaunchContext(launch.launchContext)}`,
+            launch.launchContext,
           )
         );
       });
@@ -187,7 +337,7 @@ export async function invokePythonCore(
       if (exitCode !== 0) {
         const stderr = stderrBuffer.trim();
         finalize(() => {
-          reject(new CartographyBridgeUnexpectedExitError(exitCode, stderr));
+          reject(new CartographyBridgeUnexpectedExitError(exitCode, stderr, launch.launchContext));
         });
         return;
       }
@@ -195,7 +345,7 @@ export async function invokePythonCore(
       const rawLine = (firstResponseLine ?? stdoutBuffer.trim()).trim();
       if (!rawLine) {
         finalize(() => {
-          reject(new CartographyBridgeParseError('<empty response>'));
+          reject(new CartographyBridgeParseError('<empty response>', launch.launchContext));
         });
         return;
       }
@@ -209,14 +359,14 @@ export async function invokePythonCore(
             reject(error);
             return;
           }
-          reject(new CartographyBridgeParseError(rawLine));
+          reject(new CartographyBridgeParseError(rawLine, launch.launchContext));
         });
         return;
       }
 
       if (response.request_id !== request.request_id) {
         finalize(() => {
-          reject(new CartographyBridgeParseError(rawLine));
+          reject(new CartographyBridgeParseError(rawLine, launch.launchContext));
         });
         return;
       }
@@ -231,7 +381,7 @@ export async function invokePythonCore(
         return;
       }
       finalize(() => {
-        reject(new CartographyBridgeUnexpectedExitError(null, `Failed to write request to stdin: ${error.message}`));
+        reject(new CartographyBridgeUnexpectedExitError(null, `Failed to write request to stdin: ${error.message}`, launch.launchContext));
       });
     });
 
@@ -326,6 +476,10 @@ export interface PythonBridgeOptions {
    * Additional environment variables injected into the subprocess environment.
    */
   env?: Record<string, string>;
+  /**
+   * Optional cwd override for Python subprocess launch.
+   */
+  cwd?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -337,7 +491,8 @@ export class CartographyBridgeError extends Error {
   constructor(
     public readonly errorCode: string,
     message: string,
-    public readonly requestId?: string
+    public readonly requestId?: string,
+    public readonly launchContext?: PythonBridgeLaunchContext,
   ) {
     super(message);
     this.name = 'CartographyBridgeError';
@@ -345,32 +500,44 @@ export class CartographyBridgeError extends Error {
 }
 
 export class CartographyBridgeTimeoutError extends CartographyBridgeError {
-  constructor(requestId: string, timeoutMs: number) {
-    super('INVOCATION_TIMEOUT', `Python core timed out after ${timeoutMs}ms`, requestId);
+  constructor(requestId: string, timeoutMs: number, launchContext?: PythonBridgeLaunchContext) {
+    super(
+      'INVOCATION_TIMEOUT',
+      `Python core timed out after ${timeoutMs}ms. launch_context=${launchContext ? formatLaunchContext(launchContext) : '{}'}`,
+      requestId,
+      launchContext,
+    );
     this.name = 'CartographyBridgeTimeoutError';
   }
 }
 
 export class CartographyBridgeSpawnError extends CartographyBridgeError {
-  constructor(message: string) {
-    super('PYTHON_SPAWN_FAILED', message);
+  constructor(message: string, launchContext?: PythonBridgeLaunchContext) {
+    super('PYTHON_SPAWN_FAILED', message, undefined, launchContext);
     this.name = 'CartographyBridgeSpawnError';
   }
 }
 
 export class CartographyBridgeUnexpectedExitError extends CartographyBridgeError {
-  constructor(exitCode: number | null, stderr: string) {
+  constructor(exitCode: number | null, stderr: string, launchContext?: PythonBridgeLaunchContext) {
     super(
       'UNEXPECTED_EXIT',
-      `Python core exited with code ${exitCode ?? 'null'}. stderr: ${stderr}`
+      `Python core exited with code ${exitCode ?? 'null'}. stderr: ${stderr}. launch_context=${launchContext ? formatLaunchContext(launchContext) : '{}'}`,
+      undefined,
+      launchContext,
     );
     this.name = 'CartographyBridgeUnexpectedExitError';
   }
 }
 
 export class CartographyBridgeParseError extends CartographyBridgeError {
-  constructor(raw: string) {
-    super('INVALID_RESPONSE_ENVELOPE', `Failed to parse Python core response as JSON: ${raw}`);
+  constructor(raw: string, launchContext?: PythonBridgeLaunchContext) {
+    super(
+      'INVALID_RESPONSE_ENVELOPE',
+      `Failed to parse Python core response as JSON: ${raw}. launch_context=${launchContext ? formatLaunchContext(launchContext) : '{}'}`,
+      undefined,
+      launchContext,
+    );
     this.name = 'CartographyBridgeParseError';
   }
 }

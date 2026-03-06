@@ -7,12 +7,12 @@ import com.projectmemory.supervisor
 
 ApplicationWindow {
     id: root
-    width: 720
-    height: 480
+    width: 1000
+    height: 960
     // Window starts hidden — tray icon is the entry point.
     visible: supervisorGuiBridge.windowVisible
-    minimumWidth: 420
-    minimumHeight: 350
+    minimumWidth: 500
+    minimumHeight: 600
     title: "Project Memory Supervisor"
 
     Material.theme: Material.Dark
@@ -50,9 +50,58 @@ ApplicationWindow {
     // ── Session / activity data models ───────────────────────────────────────
     ListModel { id: sessionsList }
     ListModel { id: activityList }
+    ListModel { id: workspaceModel }
 
     property string mcpBaseUrl: "http://127.0.0.1:" + supervisorGuiBridge.mcpPort
     property string dashBaseUrl: "http://127.0.0.1:" + supervisorGuiBridge.dashboardPort
+    property string selectedWorkspaceId: ""
+
+    // ── Load registered workspaces from MCP admin API ─────────────────────
+    function loadWorkspaces() {
+        if (supervisorGuiBridge.mcpPort <= 0) return;
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+                try {
+                    var parsed = JSON.parse(xhr.responseText);
+                    var list = parsed.workspaces || [];
+                    var prevId = root.selectedWorkspaceId;
+                    workspaceModel.clear();
+                    for (var i = 0; i < list.length; i++) {
+                        workspaceModel.append({
+                            workspaceId: list[i].id,
+                            displayText: list[i].name || list[i].id
+                        });
+                    }
+                    // Restore previous selection or fall back to first entry
+                    var restored = false;
+                    if (prevId !== "") {
+                        for (var j = 0; j < workspaceModel.count; j++) {
+                            if (workspaceModel.get(j).workspaceId === prevId) {
+                                workspaceCombo.currentIndex = j;
+                                restored = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!restored && workspaceModel.count > 0) {
+                        workspaceCombo.currentIndex = 0;
+                        root.selectedWorkspaceId = workspaceModel.get(0).workspaceId;
+                    }
+                } catch(e) {}
+            }
+        };
+        xhr.open("GET", mcpBaseUrl + "/admin/workspaces");
+        xhr.send();
+    }
+
+    // Auto-load workspaces when MCP port becomes available
+    Connections {
+        target: supervisorGuiBridge
+        function onMcpPortChanged() {
+            if (supervisorGuiBridge.mcpPort > 0) root.loadWorkspaces()
+        }
+    }
 
     function stopSession(sessionKey) {
         var xhr = new XMLHttpRequest();
@@ -158,6 +207,10 @@ ApplicationWindow {
             Platform.MenuItem {
                 text: "Dashboard — Restart"
                 onTriggered: supervisorGuiBridge.restartService("dashboard")
+            }
+            Platform.MenuItem {
+                text: "Fallback API — Restart"
+                onTriggered: supervisorGuiBridge.restartService("fallback_api")
             }
             Platform.MenuSeparator {}
             Platform.MenuItem {
@@ -318,6 +371,37 @@ ApplicationWindow {
         }
 
         // ── Active Sessions ──────────────────────────────────────────────────
+        RowLayout {
+            spacing: 10
+            Layout.fillWidth: true
+
+            Rectangle {
+                width: 12; height: 12; radius: 6
+                color: root.statusColor(supervisorGuiBridge.fallbackStatus)
+                Layout.alignment: Qt.AlignVCenter
+            }
+            ColumnLayout {
+                spacing: 2
+                Layout.fillWidth: true
+                Layout.minimumWidth: 160
+                Label { text: "Fallback API"; font.bold: true }
+                Label {
+                    text: "Proxy route: /api/fallback/*"
+                    font.pixelSize: 11
+                    color: "#aaaaaa"
+                }
+            }
+            Label {
+                text: supervisorGuiBridge.fallbackStatus
+                Layout.fillWidth: true
+            }
+            Button {
+                text: "Restart"
+                onClicked: supervisorGuiBridge.restartService("fallback_api")
+            }
+        }
+
+        // ── Active Sessions ──────────────────────────────────────────────────
         GroupBox {
             title: "Active Sessions"
             Layout.fillWidth: true
@@ -397,6 +481,102 @@ ApplicationWindow {
                         text: "No recent activity"
                         color: "#aaaaaa"
                         font.pixelSize: 12
+                    }
+                }
+            }
+        }
+
+        // ── Workspace Cartographer ───────────────────────────────────────────
+        GroupBox {
+            title: "Workspace Cartographer"
+            Layout.fillWidth: true
+
+            ColumnLayout {
+                width: parent.width
+                spacing: 8
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    ComboBox {
+                        id: workspaceCombo
+                        model: workspaceModel
+                        textRole: "displayText"
+                        Layout.fillWidth: true
+                        enabled: workspaceModel.count > 0
+                        onCurrentIndexChanged: {
+                            if (currentIndex >= 0 && currentIndex < workspaceModel.count)
+                                root.selectedWorkspaceId = workspaceModel.get(currentIndex).workspaceId
+                        }
+                        displayText: workspaceModel.count === 0
+                            ? (supervisorGuiBridge.mcpStatus === "Running" ? "No workspaces registered" : "MCP offline")
+                            : currentText
+                    }
+
+                    Button {
+                        text: "↻"
+                        implicitWidth: 36
+                        flat: true
+                        enabled: supervisorGuiBridge.mcpPort > 0
+                        onClicked: root.loadWorkspaces()
+                        ToolTip.visible: hovered
+                        ToolTip.text: "Refresh workspace list"
+                        ToolTip.delay: 600
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    Button {
+                        id: cartographerBtn
+                        text: "Run Cartographer"
+                        enabled: root.selectedWorkspaceId !== "" && supervisorGuiBridge.mcpStatus === "Running"
+                        onClicked: {
+                            cartographerStatus.text = "Scanning\u2026"
+                            cartographerBtn.enabled = false
+                            var wsId = root.selectedWorkspaceId;
+                            var xhr = new XMLHttpRequest();
+                            xhr.onreadystatechange = function() {
+                                if (xhr.readyState === XMLHttpRequest.DONE) {
+                                    cartographerBtn.enabled = root.selectedWorkspaceId !== ""
+                                        && supervisorGuiBridge.mcpStatus === "Running";
+                                    if (xhr.status === 200) {
+                                        try {
+                                            var r = JSON.parse(xhr.responseText);
+                                            if (r.success) {
+                                                var inner = r.data && r.data.data ? r.data.data : {};
+                                                var res = inner.result || {};
+                                                var summary = res.summary || {};
+                                                var files = summary.files_total !== undefined ? summary.files_total : "?";
+                                                var elapsed = inner.elapsed_ms !== undefined ? inner.elapsed_ms : "?";
+                                                cartographerStatus.text = "\u2713 " + files + " file(s) scanned in " + elapsed + "ms";
+                                            } else {
+                                                cartographerStatus.text = "Error: " + (r.error || "scan failed");
+                                            }
+                                        } catch(e) {
+                                            cartographerStatus.text = "Scan complete";
+                                        }
+                                    } else {
+                                        cartographerStatus.text = "HTTP " + xhr.status;
+                                    }
+                                }
+                            };
+                            xhr.open("POST", mcpBaseUrl + "/admin/memory_cartographer");
+                            xhr.setRequestHeader("Content-Type", "application/json");
+                            xhr.send(JSON.stringify({ workspace_id: wsId }));
+                        }
+                    }
+
+                    Label {
+                        id: cartographerStatus
+                        text: ""
+                        color: text.startsWith("\u2713") ? "#4caf50" : (text.startsWith("Error") || text.startsWith("HTTP") ? "#f44336" : "#aaaaaa")
+                        font.pixelSize: 12
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
                     }
                 }
             }

@@ -410,3 +410,93 @@ Critical/high priority plans and `user_validation` steps always pause regardless
 - Always pass `workspace_id` to every Shell prompt. Shell never derives or registers its own workspace ID.
 - Check `orphaned_sessions` on every `memory_agent(action: init)` response and recover before spawning.
 - Do not spawn Shell before PromptAnalyst routing for a fresh session.
+
+---
+
+## memory_cartographer Tool Reference
+
+`memory_cartographer` is the consolidated MCP tool exposing 17 read-only actions for codebase and workspace introspection. All actions share `workspace_id` as a required parameter.
+
+### Who Can Invoke memory_cartographer
+
+Any authorized spoke agent may call `memory_cartographer` directly:
+
+| Agent | Authorized |
+|-------|-----------|
+| Coordinator (Hub) | Yes — for orchestration and dependency lookups |
+| Researcher | Yes — primary consumer for codebase discovery |
+| Architect | Yes — dependency and structure queries during design |
+| Executor | Yes — targeted file/symbol lookups during implementation |
+| Analyst | Yes — workspace introspection |
+| Tester | No |
+| Revisionist | No |
+| Archivist | No |
+
+Hub invokes `memory_cartographer` directly for orchestration-time dependency lookups (e.g. checking plan dependencies before spawning a spoke).
+
+### Phase A vs Phase B Actions
+
+Choose the action tier based on speed requirements and Python availability.
+
+#### Phase A — SQLite (fast, synchronous, no Python startup)
+
+These actions query the local SQLite database directly. Always available, sub-millisecond latency:
+
+| Action | Description |
+|--------|-------------|
+| `db_map_summary` | Workspace schema overview — table names, row counts, relation count |
+| `db_node_lookup` | Find a specific node/row by table name and primary key |
+| `db_edge_lookup` | Find FK edges and relationships for a given row |
+| `context_items_projection` | List context items (type, size, preview) without exposing `context_data` payload |
+| `slice_catalog` | List architecture slices from SQLite registry (migration 010) |
+| `get_plan_dependencies` | Plan dependency graph for a given plan ID |
+| `get_dependencies` | Transitive dependency traversal |
+| `reverse_dependent_lookup` | Find all plans that depend on a given plan |
+| `bounded_traversal` | Paginated bidirectional dependency graph traversal |
+
+#### Phase B — Python-backed (requires Python runtime, async)
+
+These actions invoke the Python core `cartograph` intent. They provide real-time analysis but require the Python bridge to be available (`prerequisite: python_bridge_ready`):
+
+| Action | Description |
+|--------|-------------|
+| `summary` | Real-time file discovery and workspace analysis summary |
+| `file_context` | File-level symbols and references for a given file |
+| `flow_entry_points` | Dependency flow entry points, optionally filtered by layer or language |
+| `layer_view` | Architecture layer visualization with optional cross-layer edges |
+| `search` | Keyword/regex search across files and symbols |
+| `slice_detail` | Full detail for a specific architecture slice |
+| `slice_projection` | Project a slice in a given format (file_level, module_level, symbol_level) |
+| `slice_filters` | Available filters for slices |
+
+**Guidance:** Prefer Phase A SQLite actions for fast, dependency-graph, and schema lookups. Reserve Phase B for real-time codebase analysis where up-to-date file/symbol data is required.
+
+### Example Dispatcher Patterns
+
+**Example 1 — Dependency-graph query (Phase A)**
+```
+memory_cartographer({ action: 'db_map_summary', workspace_id: '...' })
+// Returns tables array, relation_count — fast SQLite, always available
+```
+
+**Example 2 — Code search (Phase B)**
+```
+memory_cartographer({ action: 'search', workspace_id: '...', query: 'handleRequest', search_scope: 'symbols' })
+// Returns Python-backed search results — requires Python runtime
+```
+
+**Example 3 — Slice analysis (Phase A + Phase B)**
+```
+memory_cartographer({ action: 'slice_catalog', workspace_id: '...' })
+// Returns { slices: [], total: 0 } — SQLite, Phase A, always available
+
+memory_cartographer({ action: 'slice_detail', workspace_id: '...', slice_id: 'sl_xxx' })
+// Returns Python-backed slice detail — requires Python runtime
+```
+
+### Agent Usage Notes
+
+- All Phase A actions — and `slice_catalog` — are always available regardless of Python bridge state.
+- Phase B actions return a `PYTHON_CORE_ERROR` diagnostic when the Python bridge is unavailable; consumers must handle this gracefully and continue workflow execution.
+- `memory_cartographer` is a **supplemental** tool — agent workflows are complete without it. Never block on cartography errors.
+- For security: `context_data` is always masked in all responses. Use `context_items_projection` for safe context inspection.

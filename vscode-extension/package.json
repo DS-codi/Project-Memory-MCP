@@ -24,7 +24,8 @@
     "copilot"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onChatParticipant:project-memory.memory"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -205,6 +206,21 @@
         "title": "Go to File",
         "icon": "$(go-to-file)",
         "category": "Project Memory"
+      }
+    ],
+    "chatParticipants": [
+      {
+        "id": "project-memory.memory",
+        "name": "memory",
+        "fullName": "Project Memory",
+        "description": "Stores a detailed summary of the current @memory chat session into workspace context",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "store-chat-details",
+            "description": "Summarize this chat session and store useful context in Project Memory"
+          }
+        ]
       }
     ],
     "viewsContainers": {
