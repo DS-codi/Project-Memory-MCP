@@ -12,12 +12,15 @@ export interface DeploymentConfig {
 }
 
 export class DefaultDeployer {
-    private outputChannel: vscode.OutputChannel;
+    private outputChannel: vscode.OutputChannel | undefined;
+    private readonly suppressOutputChannel: boolean;
     private config: DeploymentConfig;
 
     constructor(config: DeploymentConfig) {
         this.config = config;
-        this.outputChannel = vscode.window.createOutputChannel('Project Memory Deployment');
+        // Extension-host tests exercise deployment code heavily; avoid creating
+        // VS Code output channels in that mode to prevent lifecycle noise.
+        this.suppressOutputChannel = process.env.PROJECT_MEMORY_TEST_MODE === '1';
     }
 
     updateConfig(config: Partial<DeploymentConfig>): void {
@@ -262,15 +265,33 @@ export class DefaultDeployer {
     }
 
     private log(message: string): void {
+        const outputChannel = this.getOutputChannel();
+        if (!outputChannel) {
+            return;
+        }
+
         const timestamp = new Date().toISOString();
-        this.outputChannel.appendLine(`[${timestamp}] ${message}`);
+        outputChannel.appendLine(`[${timestamp}] ${message}`);
     }
 
     showLogs(): void {
-        this.outputChannel.show();
+        this.getOutputChannel()?.show();
     }
 
     dispose(): void {
-        this.outputChannel.dispose();
+        this.outputChannel?.dispose();
+        this.outputChannel = undefined;
+    }
+
+    private getOutputChannel(): vscode.OutputChannel | undefined {
+        if (this.suppressOutputChannel) {
+            return undefined;
+        }
+
+        if (!this.outputChannel) {
+            this.outputChannel = vscode.window.createOutputChannel('Project Memory Deployment');
+        }
+
+        return this.outputChannel;
     }
 }

@@ -13,6 +13,8 @@
  *      docs/architecture/memory-cartographer/implementation-boundary.md
  */
 
+import { spawn } from 'node:child_process';
+
 // ---------------------------------------------------------------------------
 // Request / Response envelope types (wire format)
 // ---------------------------------------------------------------------------
@@ -103,12 +105,208 @@ export async function invokePythonCore(
   request: PythonBridgeRequest,
   options?: PythonBridgeOptions
 ): Promise<PythonBridgeResponse> {
-  // TODO: subprocess invocation
-  // TODO: stdin NDJSON serialization
-  // TODO: stdout NDJSON deserialization
-  // TODO: timeout enforcement with process.kill
-  // TODO: stderr capture for fatal error diagnostics
-  throw new Error('invokePythonCore() not yet implemented');
+  const pythonExecutable = options?.pythonExecutable?.trim() || 'python';
+  const env = {
+    ...process.env,
+    ...(options?.env ?? {}),
+  };
+
+  let child;
+  try {
+    child = spawn(pythonExecutable, ['-m', 'memory_cartographer.runtime.entrypoint'], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env,
+      windowsHide: true,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new CartographyBridgeSpawnError(
+      `Failed to spawn Python core process with executable "${pythonExecutable}": ${message}`
+    );
+  }
+
+  const ndjsonRequestLine = `${JSON.stringify(request)}\n`;
+
+  return await new Promise<PythonBridgeResponse>((resolve, reject) => {
+    let settled = false;
+    let stderrBuffer = '';
+    let stdoutBuffer = '';
+    let firstResponseLine: string | null = null;
+
+    const finalize = (callback: () => void): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timeoutHandle);
+      callback();
+    };
+
+    const timeoutHandle = setTimeout(() => {
+      if (!settled) {
+        child.kill('SIGKILL');
+        finalize(() => {
+          reject(new CartographyBridgeTimeoutError(request.request_id, request.timeout_ms));
+        });
+      }
+    }, request.timeout_ms);
+
+    child.once('error', (error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      finalize(() => {
+        reject(
+          new CartographyBridgeSpawnError(
+            `Failed to start Python core process with executable "${pythonExecutable}": ${message}`
+          )
+        );
+      });
+    });
+
+    child.stderr.on('data', (chunk) => {
+      stderrBuffer += chunk.toString();
+    });
+
+    child.stdout.on('data', (chunk) => {
+      stdoutBuffer += chunk.toString();
+
+      if (firstResponseLine !== null) {
+        return;
+      }
+
+      const newlineIndex = stdoutBuffer.indexOf('\n');
+      if (newlineIndex >= 0) {
+        firstResponseLine = stdoutBuffer.slice(0, newlineIndex).trim();
+      }
+    });
+
+    child.once('close', (exitCode) => {
+      if (settled) {
+        return;
+      }
+
+      if (exitCode !== 0) {
+        const stderr = stderrBuffer.trim();
+        finalize(() => {
+          reject(new CartographyBridgeUnexpectedExitError(exitCode, stderr));
+        });
+        return;
+      }
+
+      const rawLine = (firstResponseLine ?? stdoutBuffer.trim()).trim();
+      if (!rawLine) {
+        finalize(() => {
+          reject(new CartographyBridgeParseError('<empty response>'));
+        });
+        return;
+      }
+
+      let response: PythonBridgeResponse;
+      try {
+        response = parsePythonBridgeResponse(rawLine);
+      } catch (error) {
+        finalize(() => {
+          if (error instanceof CartographyBridgeError) {
+            reject(error);
+            return;
+          }
+          reject(new CartographyBridgeParseError(rawLine));
+        });
+        return;
+      }
+
+      if (response.request_id !== request.request_id) {
+        finalize(() => {
+          reject(new CartographyBridgeParseError(rawLine));
+        });
+        return;
+      }
+
+      finalize(() => {
+        resolve(response);
+      });
+    });
+
+    child.stdin.once('error', (error) => {
+      if (settled) {
+        return;
+      }
+      finalize(() => {
+        reject(new CartographyBridgeUnexpectedExitError(null, `Failed to write request to stdin: ${error.message}`));
+      });
+    });
+
+    child.stdin.end(ndjsonRequestLine, 'utf8');
+  });
+}
+
+function parsePythonBridgeResponse(rawLine: string): PythonBridgeResponse {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawLine);
+  } catch {
+    throw new CartographyBridgeParseError(rawLine);
+  }
+
+  if (!isRecord(parsed)) {
+    throw new CartographyBridgeParseError(rawLine);
+  }
+
+  const schemaVersion = parsed.schema_version;
+  const requestId = parsed.request_id;
+  const status = parsed.status;
+  const elapsedMs = parsed.elapsed_ms;
+
+  if (typeof schemaVersion !== 'string' || typeof requestId !== 'string') {
+    throw new CartographyBridgeParseError(rawLine);
+  }
+
+  if (status !== 'ok' && status !== 'partial' && status !== 'error') {
+    throw new CartographyBridgeParseError(rawLine);
+  }
+
+  if (typeof elapsedMs !== 'number' || !Number.isFinite(elapsedMs)) {
+    throw new CartographyBridgeParseError(rawLine);
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(parsed, 'result')) {
+    throw new CartographyBridgeParseError(rawLine);
+  }
+
+  if (!isRecord(parsed.diagnostics)) {
+    throw new CartographyBridgeParseError(rawLine);
+  }
+
+  const diagnostics = parsed.diagnostics;
+  if (
+    !isStringArray(diagnostics.warnings) ||
+    !isStringArray(diagnostics.errors) ||
+    !isStringArray(diagnostics.markers) ||
+    !isStringArray(diagnostics.skipped_paths)
+  ) {
+    throw new CartographyBridgeParseError(rawLine);
+  }
+
+  return {
+    schema_version: schemaVersion,
+    request_id: requestId,
+    status,
+    result: parsed.result as unknown | null,
+    diagnostics: {
+      warnings: diagnostics.warnings,
+      errors: diagnostics.errors,
+      markers: diagnostics.markers,
+      skipped_paths: diagnostics.skipped_paths,
+    },
+    elapsed_ms: elapsedMs,
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === 'string');
 }
 
 // ---------------------------------------------------------------------------

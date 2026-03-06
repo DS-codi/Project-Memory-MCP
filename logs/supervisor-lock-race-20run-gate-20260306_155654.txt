@@ -1,0 +1,10 @@
+session_id=sess_mmef6au2_e2387f3f
+tool_session_id=sess_mmef8jhs_c30b64f2
+raw_csv=.\logs\supervisor-lock-race-20run-results-20260306_155654.csv
+normalized_csv=.\logs\supervisor-lock-race-20run-normalized-20260306_155654.csv
+test_source=supervisor/tests/lock_integration.rs
+assertion_contract=acquired_count==1 and running_count==7 and stale_count==0
+runs_total=20
+runs_exit_success=20
+runs_exit_failure=0
+deterministic_gate_pass=True

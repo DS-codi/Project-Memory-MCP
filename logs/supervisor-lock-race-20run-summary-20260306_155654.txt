@@ -1,0 +1,7 @@
+session_id=sess_mmef6au2_e2387f3f
+tool_session_id=sess_mmef8jhs_c30b64f2
+timestamp=20260306_155654
+csv=.\logs\supervisor-lock-race-20run-results-20260306_155654.csv
+overall_pass=False
+pass_runs=0
+fail_runs=20

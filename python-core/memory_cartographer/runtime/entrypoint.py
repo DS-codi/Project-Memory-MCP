@@ -83,6 +83,69 @@ def _empty_diagnostics() -> Dict[str, Any]:
     return {"warnings": [], "errors": [], "markers": [], "skipped_paths": []}
 
 
+def _normalize_query_kind(value: Any) -> Optional[str]:
+    """Normalize a query selector to a lowercase query kind, when present."""
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        return normalized or None
+
+    if isinstance(value, dict):
+        for key in ("kind", "type", "name", "action", "intent", "query"):
+            candidate = value.get(key)
+            if isinstance(candidate, str):
+                normalized = candidate.strip().lower()
+                if normalized:
+                    return normalized
+
+    return None
+
+
+def _resolve_cartograph_query_kind(args: Dict[str, Any]) -> tuple[str, bool]:
+    """
+    Resolve the cartograph query kind.
+
+    Returns (query_kind, used_default).
+    """
+    for key in ("query", "query_type", "intent", "operation", "mode"):
+        kind = _normalize_query_kind(args.get(key))
+        if kind:
+            return kind, False
+
+    # For this runtime slice, an unspecified cartograph query defaults to summary.
+    return "summary", True
+
+
+def _build_minimal_summary_result(args: Dict[str, Any], timeout_ms: int) -> Dict[str, Any]:
+    """Build a deterministic minimal summary result payload."""
+    workspace_path = args.get("workspace_path")
+    scope = args.get("scope") if isinstance(args.get("scope"), dict) else {}
+    languages = args.get("languages") if isinstance(args.get("languages"), list) else []
+    normalized_languages = [lang for lang in languages if isinstance(lang, str)]
+
+    return {
+        "query": "summary",
+        "engine": "code_cartography",
+        "runtime_slice": "minimal_summary_v1",
+        "workspace": {
+            "path": workspace_path if isinstance(workspace_path, str) else None,
+            "scope": scope,
+            "languages": normalized_languages,
+        },
+        "summary": {
+            "file_count": 0,
+            "module_count": 0,
+            "symbol_count": 0,
+            "dependency_edge_count": 0,
+            "entry_point_count": 0,
+            "architecture_layers": [],
+            "has_cycles": False,
+        },
+        "budget": {
+            "timeout_ms": timeout_ms,
+        },
+    }
+
+
 def _write_response(envelope: Dict[str, Any]) -> None:
     """Write a single NDJSON line to stdout and flush."""
     sys.stdout.write(json.dumps(envelope, ensure_ascii=False) + "\n")
@@ -103,10 +166,13 @@ def _dispatch(action: str, args: Dict[str, Any], timeout_ms: int) -> tuple[str, 
     """
     Dispatch a request action and return (status, result, diagnostics).
 
-    TODO: implement dispatcher — route each action to its engine module:
-    - 'cartograph'         -> engines.code_cartography + engines.database_cartography
+    Current implementation supports:
     - 'probe_capabilities' -> contracts.version.CapabilityAdvertisement
     - 'health_check'       -> simple liveness check
+    - 'cartograph'         -> minimal 'summary' query for runtime slice
+
+    Non-summary cartograph queries are intentionally returned as explicit
+    not-implemented errors in this slice.
     """
 
     diag = _empty_diagnostics()
@@ -119,10 +185,21 @@ def _dispatch(action: str, args: Dict[str, Any], timeout_ms: int) -> tuple[str, 
         return "ok", {"status": "healthy", "schema_version": SCHEMA_VERSION}, diag
 
     if action == "cartograph":
-        # TODO: implement cartograph action — invoke scan, parse, graph resolution,
-        #       and export pipeline from engines sub-package.
-        diag["errors"].append(f"Action '{action}' not yet implemented")
-        return "error", None, diag
+        query_kind, used_default = _resolve_cartograph_query_kind(args)
+        if query_kind != "summary":
+            diag["errors"].append(
+                f"cartograph query '{query_kind}' is not implemented in this runtime slice; only 'summary' is supported"
+            )
+            return "error", None, diag
+
+        if used_default:
+            diag["warnings"].append(
+                "No cartograph query selector provided; defaulted to 'summary' for this minimal runtime slice"
+            )
+            diag["markers"].append("summary_selector_defaulted")
+
+        diag["markers"].append("summary_minimal_slice")
+        return "ok", _build_minimal_summary_result(args, timeout_ms), diag
 
     diag["errors"].append(f"Unknown action: '{action}'")
     return "error", None, diag

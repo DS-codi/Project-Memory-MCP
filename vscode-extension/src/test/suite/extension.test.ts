@@ -149,8 +149,9 @@ suite('Configuration Test Suite', () => {
 
     test('apiPort setting should have default value', () => {
         const config = vscode.workspace.getConfiguration('projectMemory');
-        const apiPort = config.get<number>('apiPort');
-        assert.strictEqual(apiPort, 3001, 'apiPort should default to 3001');
+        const apiPort = config.inspect<number>('apiPort');
+        assert.ok(apiPort, 'apiPort should be inspectable');
+        assert.strictEqual(apiPort?.defaultValue, 3459, 'apiPort should default to 3459');
     });
 });
 

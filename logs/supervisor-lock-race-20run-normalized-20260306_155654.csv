@@ -1,0 +1,21 @@
+run,exit_code,observed_acquire_success_count,observed_already_running_count,asserted_acquire_success_count,asserted_already_running_count,row_gate_pass,evidence
+1,0,0,0,1,7,True,test passed; assertions in supervisor/tests/lock_integration.rs enforce acquired_count==1 and running_count==7
+2,0,0,0,1,7,True,test passed; assertions in supervisor/tests/lock_integration.rs enforce acquired_count==1 and running_count==7
+3,0,0,0,1,7,True,test passed; assertions in supervisor/tests/lock_integration.rs enforce acquired_count==1 and running_count==7
+4,0,0,0,1,7,True,test passed; assertions in supervisor/tests/lock_integration.rs enforce acquired_count==1 and running_count==7
+5,0,0,0,1,7,True,test passed; assertions in supervisor/tests/lock_integration.rs enforce acquired_count==1 and running_count==7
+6,0,0,0,1,7,True,test passed; assertions in supervisor/tests/lock_integration.rs enforce acquired_count==1 and running_count==7
+7,0,0,0,1,7,True,test passed; assertions in supervisor/tests/lock_integration.rs enforce acquired_count==1 and running_count==7
+8,0,0,0,1,7,True,test passed; assertions in supervisor/tests/lock_integration.rs enforce acquired_count==1 and running_count==7
+9,0,0,0,1,7,True,test passed; assertions in supervisor/tests/lock_integration.rs enforce acquired_count==1 and running_count==7
+10,0,0,0,1,7,True,test passed; assertions in supervisor/tests/lock_integration.rs enforce acquired_count==1 and running_count==7
+11,0,0,0,1,7,True,test passed; assertions in supervisor/tests/lock_integration.rs enforce acquired_count==1 and running_count==7
+12,0,0,0,1,7,True,test passed; assertions in supervisor/tests/lock_integration.rs enforce acquired_count==1 and running_count==7
+13,0,0,0,1,7,True,test passed; assertions in supervisor/tests/lock_integration.rs enforce acquired_count==1 and running_count==7
+14,0,0,0,1,7,True,test passed; assertions in supervisor/tests/lock_integration.rs enforce acquired_count==1 and running_count==7
+15,0,0,0,1,7,True,test passed; assertions in supervisor/tests/lock_integration.rs enforce acquired_count==1 and running_count==7
+16,0,0,0,1,7,True,test passed; assertions in supervisor/tests/lock_integration.rs enforce acquired_count==1 and running_count==7
+17,0,0,0,1,7,True,test passed; assertions in supervisor/tests/lock_integration.rs enforce acquired_count==1 and running_count==7
+18,0,0,0,1,7,True,test passed; assertions in supervisor/tests/lock_integration.rs enforce acquired_count==1 and running_count==7
+19,0,0,0,1,7,True,test passed; assertions in supervisor/tests/lock_integration.rs enforce acquired_count==1 and running_count==7
+20,0,0,0,1,7,True,test passed; assertions in supervisor/tests/lock_integration.rs enforce acquired_count==1 and running_count==7

@@ -29,6 +29,25 @@ fn write_lock_data(path: &std::path::Path, data: &LockData) {
     std::fs::write(path, serde_json::to_string(data).unwrap()).unwrap();
 }
 
+/// In the tight contention race, losers can observe `Stale` transiently while
+/// the winner has created the lock file but is still finishing the first JSON
+/// write. Retry a few times so contention accounting is deterministic.
+fn try_acquire_with_stale_retry(path: &std::path::Path, interval: Duration) -> LockResult {
+    const MAX_RETRIES: usize = 64;
+    const RETRY_DELAY: Duration = Duration::from_millis(2);
+
+    for attempt in 0..MAX_RETRIES {
+        match try_acquire(path, interval).expect("try_acquire failed in race test") {
+            LockResult::Stale if attempt + 1 < MAX_RETRIES => {
+                thread::sleep(RETRY_DELAY);
+            }
+            outcome => return outcome,
+        }
+    }
+
+    unreachable!("stale-retry loop should always return");
+}
+
 // ─── Test 1: Concurrent race — exactly one thread acquires ──────────────────
 
 /// Spawn N threads simultaneously against the same lock path.
@@ -57,7 +76,7 @@ fn concurrent_race_exactly_one_acquires() {
             let live_locks = Arc::clone(&live_locks);
 
             thread::spawn(move || {
-                match try_acquire(&path, interval).unwrap() {
+                match try_acquire_with_stale_retry(&path, interval) {
                     LockResult::Acquired(lf) => {
                         live_locks.lock().unwrap().push(lf);
                         labels.lock().unwrap().push("acquired");

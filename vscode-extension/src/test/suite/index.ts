@@ -6,6 +6,7 @@
 import * as path from 'path';
 import Mocha from 'mocha';
 import { glob } from 'glob';
+import * as vscode from 'vscode';
 
 function normalizeRequestedTestPath(testPath: string): string {
     return testPath
@@ -34,6 +35,27 @@ function getRequestedTests(): string[] {
     } catch {
         return [];
     }
+}
+
+function resolveExtensionId(): string {
+    const explicitId = process.env.PM_EXTENSION_ID;
+    if (explicitId && explicitId.trim().length > 0) {
+        return explicitId.trim();
+    }
+
+    return 'project-memory.project-memory-dashboard';
+}
+
+async function teardownExtensionLifecycle(): Promise<void> {
+    // VS Code manages extension deactivation at process shutdown.
+    // Manual exported deactivate() calls here can race with in-flight API
+    // registrations and produce DisposableStore lifecycle warnings.
+    const extension = vscode.extensions.getExtension(resolveExtensionId());
+    if (!extension?.isActive) {
+        return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 export async function run(): Promise<void> {
@@ -70,6 +92,10 @@ export async function run(): Promise<void> {
             mocha.addFile(path.resolve(root, filePath));
         });
     }
+
+    mocha.suite.afterAll('extension lifecycle teardown', async () => {
+        await teardownExtensionLifecycle();
+    });
 
     // Run the mocha test
     return new Promise<void>((resolve, reject) => {
