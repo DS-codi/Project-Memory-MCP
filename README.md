@@ -177,7 +177,7 @@ cd interactive-terminal
 `launch-supervisor.ps1` is archived. Use direct executable launch:
 
 ```powershell
-cd "C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\target\release\"
+cd "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\target\release\"
 .\supervisor.exe
 ```
 

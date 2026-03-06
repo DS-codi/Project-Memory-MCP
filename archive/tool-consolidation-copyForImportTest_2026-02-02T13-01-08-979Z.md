@@ -540,7 +540,7 @@ Remove these 39 tool registrations:
 ### 11.3 Final cleanup
 - [ ] Update CHANGELOG.md with consolidation notes
 - [ ] Bump version: server 2.0.0, extension 0.3.0
-- [ ] Remove `index.ts.backup` (keep `C:\Users\User\Project_Memory_MCP\backup`)
+- [ ] Remove `index.ts.backup` (keep `C:\Users\<username>\Project-Memory-MCP\backup`)
 - [ ] Final build and package all components
 
 ---
@@ -548,7 +548,7 @@ Remove these 39 tool registrations:
 ## Rollback Plan
 
 If anything breaks:
-1. `C:\Users\User\Project_Memory_MCP\backup` has original agent files
+1. `C:\Users\<username>\Project-Memory-MCP\backup` has original agent files
 2. `server/src/index.ts.backup` has original 39-tool server
 3. Git history has all previous versions
 

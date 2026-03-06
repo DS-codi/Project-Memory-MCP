@@ -42,6 +42,17 @@ test-results/
 # Plan documentation
 docs/plans/
 backup/
+
+# Personal scratch / session files — should never be committed
+copied_terminal_output*.txt
+copied_devtools_log.md
+copied_logs.txt
+crash_out.txt
+more-errors.txt
+incomplete.txt
+agent_use-logDumps.txt
+chat_copy_from_other_workspace.md
+session-*.md
 *.vsix
 .vscode-test/
 from-work-pc/
