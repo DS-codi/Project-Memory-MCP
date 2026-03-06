@@ -54,13 +54,13 @@ Completed with input: {
   "plan_id": "plan_mm6lsu28_a99b5b9b"
 }
 
-Ran terminal command: Get-ChildItem -Path "c:\Users\User\Project_Memory_MCP" -Recurse -Force -Filter "handoff_plan_mm6lsu28_a99b5b9b_2026-03-01.md" | Select-Object -ExpandProperty FullName
+Ran terminal command: Get-ChildItem -Path "C:\Users\<username>\Project-Memory-MCP" -Recurse -Force -Filter "handoff_plan_mm6lsu28_a99b5b9b_2026-03-01.md" | Select-Object -ExpandProperty FullName
 
 The handoff file exists in the nested repository path; I’m reading it now and simultaneously extracting the current step statuses from the plan snapshot so I can resume at the exact next pending step.
 
 Read [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/.projectmemory/temp_chat/handoff_plan_mm6lsu28_a99b5b9b_2026-03-01.md)
 
-Searched for regex `"step_index"|"display_number"|"status"|"task"` (`**/c:\Users\User\AppData\Roaming\Code\User\workspaceStorage\0a2830f7d30721afd0856bb6d96c3daa\GitHub.copilot-chat\chat-session-resources\c919a106-52ed-4416-a270-4d170941bbf3\call_3iIPk2A3Su7UJ2YONrZjcGaV__vscode-1772320206794\content.json`), no results
+Searched for regex `"step_index"|"display_number"|"status"|"task"` (`**/<vscode-workspace-storage-path-redacted>
 
 Read [](file:///c%3A/Users/User/AppData/Roaming/Code/User/workspaceStorage/0a2830f7d30721afd0856bb6d96c3daa/GitHub.copilot-chat/chat-session-resources/c919a106-52ed-4416-a270-4d170941bbf3/call_3iIPk2A3Su7UJ2YONrZjcGaV__vscode-1772320206794/content.json#1-1), lines 1 to 340
 
@@ -108,7 +108,7 @@ Completed with input: {
   "script_id": "script_mln0f46v_69b6827a"
 }
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP\interactive-terminal"; $qtBin='C:/Qt/6.10.2/msvc2022_64/bin'; $env:QMAKE=Join-Path $qtBin 'qmake6.exe'; $env:PATH="$qtBin;$env:PATH"; cargo build --release
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\interactive-terminal"; $qtBin='C:/Qt/6.10.2/msvc2022_64/bin'; $env:QMAKE=Join-Path $qtBin 'qmake6.exe'; $env:PATH="$qtBin;$env:PATH"; cargo build --release
 
 User: #file:install.ps1 should be the only build script you use
 
@@ -143,11 +143,11 @@ Completed with input: {
 
 The MCP filesystem index doesn’t include that temp handoff file, so I’m doing a direct recursive filesystem lookup to find its exact path and then process it.
 
-Ran terminal command: Get-ChildItem -Path "c:\Users\User\Project_Memory_MCP" -Recurse -Force -Filter "handoff_plan_mm6lsu28_a99b5b9b_2026-03-01.md" | Select-Object -ExpandProperty FullName
+Ran terminal command: Get-ChildItem -Path "C:\Users\<username>\Project-Memory-MCP" -Recurse -Force -Filter "handoff_plan_mm6lsu28_a99b5b9b_2026-03-01.md" | Select-Object -ExpandProperty FullName
 
-Ran terminal command: Get-ChildItem -Path 'c:\Users\User\Project_Memory_MCP' -Recurse -Force -Filter 'handoff_plan_mm6lsu28_a99b5b9b_2026-03-01.md' | ForEach-Object { $_.FullName }
+Ran terminal command: Get-ChildItem -Path 'C:\Users\<username>\Project-Memory-MCP' -Recurse -Force -Filter 'handoff_plan_mm6lsu28_a99b5b9b_2026-03-01.md' | ForEach-Object { $_.FullName }
 
-User: its right here though C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\.projectmemory\temp_chat\interactive-terminal-build-handoff.md
+User: its right here though C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\.projectmemory\temp_chat\interactive-terminal-build-handoff.md
 
 
 GitHub Copilot: You’re right—that handoff file is in the nested repo path. I’ll read it, apply any delta context, delete it for cleanup, and then continue validation using only `install.ps1`.
@@ -166,7 +166,7 @@ Completed with input: {
   "confirm": true
 }
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 Build via install.ps1 succeeded, so I’m now closing step 14 with detailed notes and moving to step 15 by running targeted `cargo test` for `interactive-terminal`.
 
@@ -209,13 +209,13 @@ Completed with input: {
 
 Searched for files matching `**/run-tests.ps1`, 1 match
 
-Searched for regex `"index": 14|"index": 15|"status": "active"|"status": "pending"` (`**/c:\Users\User\AppData\Roaming\Code\User\workspaceStorage\0a2830f7d30721afd0856bb6d96c3daa\GitHub.copilot-chat\chat-session-resources\c919a106-52ed-4416-a270-4d170941bbf3\call_tjtdk1Q0CWmMJQTHlhcf2RyS__vscode-1772320206975\content.json`), no results
+Searched for regex `"index": 14|"index": 15|"status": "active"|"status": "pending"` (`**/<vscode-workspace-storage-path-redacted>
 
 Read [](file:///c%3A/Users/User/AppData/Roaming/Code/User/workspaceStorage/0a2830f7d30721afd0856bb6d96c3daa/GitHub.copilot-chat/chat-session-resources/c919a106-52ed-4416-a270-4d170941bbf3/call_tjtdk1Q0CWmMJQTHlhcf2RyS__vscode-1772320206975/content.json#330-330), lines 330 to 470
 
 I confirmed step 15 is already active, so I’m now running the dedicated workspace test script for `InteractiveTerminal` to complete this step without using ad-hoc test commands.
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 120 -FullOutputOnFailure
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 120 -FullOutputOnFailure
 
 Read [](file:///c%3A/Users/User/AppData/Roaming/Code/User/workspaceStorage/0a2830f7d30721afd0856bb6d96c3daa/GitHub.copilot-chat/chat-session-resources/c919a106-52ed-4416-a270-4d170941bbf3/call_uSn6PX5DPxh8kD7hbKb7xzsd__vscode-1772320206982/content.txt)
 
@@ -339,7 +339,7 @@ Generating patch (145 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Pr
 ```
 I’ve applied the UI patch; next I’ll run a targeted InteractiveTerminal install/build to ensure the QML changes package cleanly and are ready for you to verify visually.
 
-Ran terminal command: Set-Location "c:\Users\User\Project_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 Build/install completed successfully with the UI patch applied; I’ll do a quick error sweep on the edited QML files, then I’ll summarize exactly what changed and what to verify in the running app.
 
@@ -425,7 +425,7 @@ Generating patch (27 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Pro
 ```
 
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 Checked [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/src/cxxqt_bridge/mod.rs), [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/src/cxxqt_bridge/ffi.rs), [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/src/cxxqt_bridge/invokables.rs), [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/qml/main.qml), no problems found
 
@@ -539,7 +539,7 @@ Completed with input: {
 
 I’ve landed the step-17 code change and updated step tracking; next I’m rebuilding with install.ps1 and running the InteractiveTerminal test script to validate before marking step 17 complete.
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 Made changes.
 
@@ -567,7 +567,7 @@ I’ve switched the terminal view to unload WebView entirely during overlays; no
 
 Generating patch (10 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/qml/main.qml)
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 
 ```
@@ -575,7 +575,7 @@ Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Mem
 ```
 
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 Checked [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/qml/main.qml), [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/qml/TerminalView.qml), no problems found
 
@@ -612,7 +612,7 @@ Generating patch (10 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Pro
 ```
 
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 Made changes.
 
@@ -644,7 +644,7 @@ Generating patch (29 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Pro
 ```
 
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 Made changes.
 
@@ -662,7 +662,7 @@ Generating patch (135 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Pr
 ```
 I’ve replaced the tab strip with a size-aware horizontal list and explicit close buttons; next I’m running the required install.ps1 build to ensure the QML changes load correctly.
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 Checked [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/qml/main.qml), no problems found
 
@@ -708,7 +708,7 @@ Generating patch (32 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Pro
 ```
 
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 Made changes.
 
@@ -735,7 +735,7 @@ Read [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactiv
 
 I’m now checking whether `gemini` itself is healthy on this machine and reviewing the suggestion-overlay script for keystroke side effects that could produce the stray `>` prompt behavior you’re seeing.
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; gemini --version
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; gemini --version
 
 Read [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/resources/terminal.html)
 
@@ -836,7 +836,7 @@ Read [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactiv
 
 I’ve applied code fixes for Gemini launch and saved-command CRUD; next I’m running the InteractiveTerminal test script to verify nothing regressed, then I’ll finalize step 17 and continue into step 18 implementation.
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 120 -FullOutputOnFailure
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 120 -FullOutputOnFailure
 
 Read [](file:///c%3A/Users/User/AppData/Roaming/Code/User/workspaceStorage/0a2830f7d30721afd0856bb6d96c3daa/GitHub.copilot-chat/chat-session-resources/c919a106-52ed-4416-a270-4d170941bbf3/call_JdjApLUpeKAUQudjkgQvSCfw__vscode-1772320207464/content.txt)
 
@@ -877,8 +877,8 @@ Checked [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interac
 
 I fixed the malformed select block from the first patch; I’m re-running the required build and then tests to confirm the Step 18 changes are stable.
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
-Completed with input: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Completed with input: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 Generating patch (14 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs)
 
@@ -888,9 +888,9 @@ Generating patch (14 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Pro
 ```
 
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 120 -FullOutputOnFailure
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 120 -FullOutputOnFailure
 
 Made changes.
 
@@ -924,7 +924,7 @@ Generating patch (58 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Pro
 ```
 I’ve patched focus/session behavior; next I’m rebuilding with install.ps1 and checking diagnostics so you can immediately verify the new focus + default-session controls.
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 Made changes.
 
@@ -990,11 +990,11 @@ I’ve finished the session-isolation patch and now I’m running diagnostics/bu
 
 Checked [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/src/cxxqt_bridge/runtime_tasks.rs), [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/src/terminal_core/conpty_backend.rs), no problems found
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 Build succeeded. I’m running the InteractiveTerminal test script now to verify the new per-tab session routing doesn’t break existing behavior.
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 120 -FullOutputOnFailure
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 120 -FullOutputOnFailure
 
 Read [](file:///c%3A/Users/User/AppData/Roaming/Code/User/workspaceStorage/0a2830f7d30721afd0856bb6d96c3daa/GitHub.copilot-chat/chat-session-resources/c919a106-52ed-4416-a270-4d170941bbf3/call_mGM8BJWBxcIa9pklhe0Uqbge__vscode-1772320207849/content.txt)
 
@@ -1134,7 +1134,7 @@ User: after rebuilding, the gui wont appear at all.
 
 GitHub Copilot: I’m going to reproduce the startup failure first by launching the built binary from terminal and capturing crash output, then I’ll patch the exact startup blocker immediately.
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\target\release\interactive-terminal.exe
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\target\release\interactive-terminal.exe
 
 User: it starts but as a background process?
 
@@ -1164,7 +1164,7 @@ Read [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactiv
 
 I’m going to run the built app with debug logging to confirm whether it’s intentionally hiding to tray on startup, then I’ll patch startup defaults so normal launches always show the window.
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP\target\release"; .\interactive-terminal.exe --debug
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\target\release"; .\interactive-terminal.exe --debug
 
 Checked background terminal output
 
@@ -1230,13 +1230,13 @@ Generating patch (17 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Pro
 ```
 I’ve patched startup visibility and host-bridge fallback; next I’ll run the required build and then launch in debug once to verify the window behavior with your exact flow.
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 Checked [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/src/main.rs), [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/src/host_bridge_listener.rs), [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/qml/main.qml), no problems found
 
 Build is clean and I confirmed one hidden process was being killed during pre-clean, which aligns with your “background-only” symptom. I’ll do one direct debug launch check now to verify startup logs after the visibility fix.
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP\target\release"; .\interactive-terminal.exe --debug
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\target\release"; .\interactive-terminal.exe --debug
 
 Ran terminal command: Get-Process interactive-terminal -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,StartTime | Format-Table -AutoSize | Out-String
 
@@ -1258,11 +1258,11 @@ Generating patch (6 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Proj
 ```
 I’ve patched the race condition; next I’ll rebuild and then launch once in debug to confirm it no longer defaults to background-only behavior.
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 Checked [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/qml/main.qml), [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/src/cxxqt_bridge/session_runtime.rs), no problems found
 
-Ran terminal command: Get-Process interactive-terminal -ErrorAction SilentlyContinue | Stop-Process -Force; Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP\target\release"; .\interactive-terminal.exe --show
+Ran terminal command: Get-Process interactive-terminal -ErrorAction SilentlyContinue | Stop-Process -Force; Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\target\release"; .\interactive-terminal.exe --show
 
 Ran terminal command: Get-Process interactive-terminal -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,MainWindowTitle,Responding | Format-Table -AutoSize | Out-String
 
@@ -1284,13 +1284,13 @@ Read [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactiv
 
 I found a likely mismatch already: mod.rs carries the active Qt bridge definition while ffi.rs appears to be a second, divergent bridge copy. I’m now diffing just those three files to pinpoint exactly what changed and whether startup visibility flags were affected.
 
-Ran terminal command: git -C "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP" diff -- interactive-terminal/src/cxxqt_bridge/invokables.rs interactive-terminal/src/cxxqt_bridge/mod.rs interactive-terminal/src/cxxqt_bridge/ffi.rs
+Ran terminal command: git -C "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP" diff -- interactive-terminal/src/cxxqt_bridge/invokables.rs interactive-terminal/src/cxxqt_bridge/mod.rs interactive-terminal/src/cxxqt_bridge/ffi.rs
 
-Ran terminal command: git -C "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP" diff --cached -- interactive-terminal/src/cxxqt_bridge/invokables.rs interactive-terminal/src/cxxqt_bridge/mod.rs interactive-terminal/src/cxxqt_bridge/ffi.rs
+Ran terminal command: git -C "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP" diff --cached -- interactive-terminal/src/cxxqt_bridge/invokables.rs interactive-terminal/src/cxxqt_bridge/mod.rs interactive-terminal/src/cxxqt_bridge/ffi.rs
 
-Ran terminal command: git -C "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP" status --short -- interactive-terminal/src/cxxqt_bridge/invokables.rs interactive-terminal/src/cxxqt_bridge/mod.rs interactive-terminal/src/cxxqt_bridge/ffi.rs
+Ran terminal command: git -C "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP" status --short -- interactive-terminal/src/cxxqt_bridge/invokables.rs interactive-terminal/src/cxxqt_bridge/mod.rs interactive-terminal/src/cxxqt_bridge/ffi.rs
 
-Ran terminal command: $lines = git -C "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP" status --porcelain=v1; $lines | Where-Object { $_ -match "cxxqt_bridge/(invokables|mod|ffi)\.rs" } | ForEach-Object { $_ }
+Ran terminal command: $lines = git -C "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP" status --porcelain=v1; $lines | Where-Object { $_ -match "cxxqt_bridge/(invokables|mod|ffi)\.rs" } | ForEach-Object { $_ }
 
 User: here
 
@@ -1340,19 +1340,19 @@ Generating patch (33 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Pro
 ```
 
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 Checked [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/src/cxxqt_bridge/mod.rs), [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/src/cxxqt_bridge/ffi.rs), [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/src/cxxqt_bridge/invokables.rs), [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/qml/main.qml), no problems found
 
 I’ve now rolled back exactly those three bridge updates and rebuilt cleanly; next I’m doing an objective startup check (main window handle/title) so we can confirm whether this rollback fixed the hidden-background behavior.
 
-Ran terminal command: Get-Process interactive-terminal -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep -Milliseconds 400; Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP\target\release"; $p = Start-Process .\interactive-terminal.exe -PassThru; Start-Sleep -Seconds 2; $gp = Get-Process -Id $p.Id -ErrorAction SilentlyContinue; if ($null -eq $gp) { Write-Host "NOT_RUNNING" } else { [PSCustomObject]@{ Id=$gp.Id; MainWindowHandle=$gp.MainWindowHandle; MainWindowTitle=$gp.MainWindowTitle; Responding=$gp.Responding } | Format-List | Out-String }
+Ran terminal command: Get-Process interactive-terminal -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep -Milliseconds 400; Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\target\release"; $p = Start-Process .\interactive-terminal.exe -PassThru; Start-Sleep -Seconds 2; $gp = Get-Process -Id $p.Id -ErrorAction SilentlyContinue; if ($null -eq $gp) { Write-Host "NOT_RUNNING" } else { [PSCustomObject]@{ Id=$gp.Id; MainWindowHandle=$gp.MainWindowHandle; MainWindowTitle=$gp.MainWindowTitle; Responding=$gp.Responding } | Format-List | Out-String }
 
 Ran terminal command: .\interactive-terminal.exe --debug
 
-Ran terminal command: Get-Process interactive-terminal -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep -Milliseconds 300; Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP\target\release"; $p = Start-Process .\interactive-terminal.exe -ArgumentList "--show" -PassThru; Start-Sleep -Seconds 2; $gp = Get-Process -Id $p.Id -ErrorAction SilentlyContinue; if ($null -eq $gp) { Write-Host "NOT_RUNNING" } else { [PSCustomObject]@{ Id=$gp.Id; MainWindowHandle=$gp.MainWindowHandle; MainWindowTitle=$gp.MainWindowTitle; Responding=$gp.Responding } | Format-List | Out-String }
+Ran terminal command: Get-Process interactive-terminal -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep -Milliseconds 300; Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\target\release"; $p = Start-Process .\interactive-terminal.exe -ArgumentList "--show" -PassThru; Start-Sleep -Seconds 2; $gp = Get-Process -Id $p.Id -ErrorAction SilentlyContinue; if ($null -eq $gp) { Write-Host "NOT_RUNNING" } else { [PSCustomObject]@{ Id=$gp.Id; MainWindowHandle=$gp.MainWindowHandle; MainWindowTitle=$gp.MainWindowTitle; Responding=$gp.Responding } | Format-List | Out-String }
 
-Ran terminal command: $p = Get-Process interactive-terminal -ErrorAction SilentlyContinue; if ($p) { $p | Stop-Process -Force }; Start-Sleep -Milliseconds 300; Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP\target\release"; $proc = Start-Process .\interactive-terminal.exe -ArgumentList "--show" -PassThru; Start-Sleep -Seconds 3; $gp = Get-Process -Id $proc.Id -ErrorAction SilentlyContinue; if ($gp) { Write-Host "PID=$($gp.Id) HANDLE=$($gp.MainWindowHandle) TITLE='$($gp.MainWindowTitle)' RESP=$($gp.Responding)" } else { Write-Host "NOT_RUNNING" }
+Ran terminal command: $p = Get-Process interactive-terminal -ErrorAction SilentlyContinue; if ($p) { $p | Stop-Process -Force }; Start-Sleep -Milliseconds 300; Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\target\release"; $proc = Start-Process .\interactive-terminal.exe -ArgumentList "--show" -PassThru; Start-Sleep -Seconds 3; $gp = Get-Process -Id $proc.Id -ErrorAction SilentlyContinue; if ($gp) { Write-Host "PID=$($gp.Id) HANDLE=$($gp.MainWindowHandle) TITLE='$($gp.MainWindowTitle)' RESP=$($gp.Responding)" } else { Write-Host "NOT_RUNNING" }
 
 Searched for regex `id:\s*terminalProfileSelector|id:\s*defaultTerminalProfileSelector|id:\s*sessionTabsList|id:\s*appClipboard|id:\s*trayIcon` (`**/Project-Memory-MCP/interactive-terminal/qml/main.qml`), 5 results
 
@@ -1362,7 +1362,7 @@ Read [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactiv
 
 I’ve reverted the three suspect bridge changes; next I’m running `qmllint` against main.qml to confirm whether the no-window behavior is actually a QML load/instantiation error (which exactly matches a hidden background process with `MainWindowHandle=0`).
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP\interactive-terminal"; if (Get-Command qmllint -ErrorAction SilentlyContinue) { qmllint qml/main.qml } elseif (Test-Path "C:\Qt\6.10.2\msvc2022_64\bin\qmllint.exe") { & "C:\Qt\6.10.2\msvc2022_64\bin\qmllint.exe" qml/main.qml } else { Write-Host "QMLLINT_NOT_FOUND" }
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\interactive-terminal"; if (Get-Command qmllint -ErrorAction SilentlyContinue) { qmllint qml/main.qml } elseif (Test-Path "C:\Qt\6.10.2\msvc2022_64\bin\qmllint.exe") { & "C:\Qt\6.10.2\msvc2022_64\bin\qmllint.exe" qml/main.qml } else { Write-Host "QMLLINT_NOT_FOUND" }
 
 Read [](file:///c%3A/Users/User/AppData/Roaming/Code/User/workspaceStorage/0a2830f7d30721afd0856bb6d96c3daa/GitHub.copilot-chat/chat-session-resources/c919a106-52ed-4416-a270-4d170941bbf3/call_h24i9btK7X5ANhI8iHagPrL5__vscode-1772320208434/content.txt#1-1), lines 1 to 220
 
@@ -1376,7 +1376,7 @@ Generating patch (19 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Pro
 ```
 
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 **You were right to suspect that surface**
 - I rolled back the exact 3 highlighted bridge changes in mod.rs, ffi.rs, and invokables.rs.
@@ -1428,12 +1428,12 @@ Generating patch (39 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Pro
 ```
 I removed the risky QML clipboard object and replaced copy with Rust invokables, which should both restore GUI creation and keep copy functionality. I’m compiling and then running tests to confirm no regressions.
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 Checked [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/src/cxxqt_bridge/mod.rs), [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/src/cxxqt_bridge/ffi.rs), [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/src/cxxqt_bridge/invokables.rs), [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/qml/main.qml), no problems found
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
-Completed with input: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Completed with input: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 Generating patch (10 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/src/cxxqt_bridge/invokables.rs)
 
@@ -1443,11 +1443,11 @@ Generating patch (10 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Pro
 ```
 
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 Patch is compiled and deployed. I’ll run the InteractiveTerminal test script once for regression safety, then you can relaunch and confirm the window behavior immediately.
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 120 -FullOutputOnFailure
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 120 -FullOutputOnFailure
 
 Read [](file:///c%3A/Users/User/AppData/Roaming/Code/User/workspaceStorage/0a2830f7d30721afd0856bb6d96c3daa/GitHub.copilot-chat/chat-session-resources/c919a106-52ed-4416-a270-4d170941bbf3/call_gV5melhtmBN7RHSy6hwop61B__vscode-1772320208469/content.txt)
 
@@ -1591,7 +1591,7 @@ Ran terminal command: .\install.ps1 -Component InteractiveTerminal
 
 Checked [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/qml/main.qml), no problems found
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 120 -FullOutputOnFailure
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 120 -FullOutputOnFailure
 
 Made changes.
 
@@ -1607,7 +1607,7 @@ Generating patch (41 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Pro
 ```
 I’ve applied a cleaner close-button design; I’ll run a quick build check now so you can relaunch and see it immediately.
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 Made changes.
 
@@ -1653,7 +1653,7 @@ Generating patch (15 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Pro
 ```
 
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 Made changes.
 
@@ -1671,15 +1671,15 @@ Generating patch (68 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Pro
 ```
 I’ve compacted the tab chips so multiple tabs can sit side-by-side (and still scroll if needed). I’ll run the required InteractiveTerminal build now to ensure the UI change is clean.
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
-Completed with input: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Completed with input: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 Read [](file:///c%3A/Users/User/AppData/Roaming/Code/User/workspaceStorage/0a2830f7d30721afd0856bb6d96c3daa/GitHub.copilot-chat/chat-session-resources/c919a106-52ed-4416-a270-4d170941bbf3/call_dPY5PYJ5syRAaPsjKCMIz1GE__vscode-1772320208762/content.txt#1-1), lines 1 to 120
 
 The tab layout patch is in, but this build failure is a Windows resource-compile/toolchain hiccup (`build-script-build`/`rc.exe`), not from the QML tab changes themselves. I’m re-running the same build once to confirm it’s transient and get you a clean artifact.
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
-Completed with input: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Completed with input: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 Read [](file:///c%3A/Users/User/AppData/Roaming/Code/User/workspaceStorage/0a2830f7d30721afd0856bb6d96c3daa/GitHub.copilot-chat/chat-session-resources/c919a106-52ed-4416-a270-4d170941bbf3/call_QyEfVGgQCmqaqmXzAdMqo5hP__vscode-1772320208783/content.txt#1-1), lines 1 to 110
 
@@ -1790,12 +1790,12 @@ Generating patch (24 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Pro
 ```
 I’ve patched all three symptoms in code; next I’m running the required InteractiveTerminal build and tests so you can verify behavior immediately in the app.
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
 Checked [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/qml/main.qml), [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/resources/terminal.html), no problems found
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 120 -FullOutputOnFailure
-Completed with input: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 120 -FullOutputOnFailure
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 120 -FullOutputOnFailure
+Completed with input: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 120 -FullOutputOnFailure
 
 Read [](file:///c%3A/Users/User/AppData/Roaming/Code/User/workspaceStorage/0a2830f7d30721afd0856bb6d96c3daa/GitHub.copilot-chat/chat-session-resources/c919a106-52ed-4416-a270-4d170941bbf3/call_9X8qNWh2BWbajqGSYJkaEcnv__vscode-1772320208944/content.txt)
 
@@ -1819,7 +1819,7 @@ Generating patch (58 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Pro
 ```
 I’ve patched the session state logic to remove ghost selected tabs and prevent empty-session context from being recreated when no tab is active. Next I’m running the specific failing test first, then the full InteractiveTerminal test suite to confirm everything is green.
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP\interactive-terminal"; cargo test close_last_default_session_leaves_no_active_session -- --exact
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\interactive-terminal"; cargo test close_last_default_session_leaves_no_active_session -- --exact
 
 Ran terminal command: cargo test close_last_default_session_leaves_no_active_session
 
@@ -2013,9 +2013,9 @@ Ran terminal command: ..\run-tests.ps1 -Component InteractiveTerminal -TailLines
 
 I’ve applied the fix; now I’m running build/tests from the workspace root explicitly so path ambiguity doesn’t block validation.
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\install.ps1 -Component InteractiveTerminal
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 120 -Pattern "Test Files|Tests|Duration|failed|passed|error"
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 120 -Pattern "Test Files|Tests|Duration|failed|passed|error"
 
 Read [](file:///c%3A/Users/User/AppData/Roaming/Code/User/workspaceStorage/0a2830f7d30721afd0856bb6d96c3daa/GitHub.copilot-chat/chat-session-resources/c919a106-52ed-4416-a270-4d170941bbf3/call_A3TDRz87wMFlnJRVrkCcQHjo__vscode-1772353085672/content.txt)
 
@@ -2031,7 +2031,7 @@ Generating patch (12 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Pro
 
 Ran terminal command: .\install.ps1 -Component InteractiveTerminal
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 100 -Pattern "Test Files|Tests|Duration|failed|passed|error"
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 100 -Pattern "Test Files|Tests|Duration|failed|passed|error"
 
 Made changes.
 
@@ -2055,7 +2055,7 @@ I’ve hardened the command-history/suggestion overlay path to prevent the “st
 
 Ran terminal command: .\install.ps1 -Component InteractiveTerminal
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 100 -Pattern "Test Files|Tests|Duration|failed|passed|error"
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 100 -Pattern "Test Files|Tests|Duration|failed|passed|error"
 
 Read [](file:///c%3A/Users/User/AppData/Roaming/Code/User/workspaceStorage/0a2830f7d30721afd0856bb6d96c3daa/GitHub.copilot-chat/chat-session-resources/c919a106-52ed-4416-a270-4d170941bbf3/call_bwKUyg8MDkGLp5vo1kcdB6Hd__vscode-1772353085772/content.txt)
 
@@ -2280,7 +2280,7 @@ Generating patch (93 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Pro
 ```
 I’ve implemented session-scoped buffering + replay on tab switch, which should stop the “all tabs show same output” behavior by clearing and restoring the selected tab’s stream snapshot. I’ll run the required InteractiveTerminal tests and build now.
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 140 -Pattern "Test Files|Tests|Duration|failed|passed|error"
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 140 -Pattern "Test Files|Tests|Duration|failed|passed|error"
 
 Ran terminal command: .\install.ps1 -Component InteractiveTerminal
 
@@ -2422,8 +2422,8 @@ Generating patch (263 lines) in [](file:///c%3A/Users/User/Project_Memory_MCP/Pr
 ```
 
 
-Ran terminal command: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 160 -Pattern "Test Files|Tests|Duration|failed|passed|error"
-Completed with input: Set-Location "c:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 160 -Pattern "Test Files|Tests|Duration|failed|passed|error"
+Ran terminal command: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 160 -Pattern "Test Files|Tests|Duration|failed|passed|error"
+Completed with input: Set-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; .\run-tests.ps1 -Component InteractiveTerminal -TailLines 160 -Pattern "Test Files|Tests|Duration|failed|passed|error"
 
 Tests caught a syntax issue in the new spill patch, so I’m fixing the bracket/closure mismatch in runtime_tasks.rs and rerunning the same test script immediately.
 
@@ -3785,7 +3785,7 @@ cargo build in progress... warnings so far: 0
 cargo build in progress... warnings so far: 0
 cargo build in progress... warnings so far: 0
 cargo build in progress... warnings so far: 0
-   Compiling interactive-terminal v0.1.0 (C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\interactive-terminal)
+   Compiling interactive-terminal v0.1.0 (C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\interactive-terminal)
    Compiling windows-sys v0.59.0
 error[E0432]: unresolved import `windows_sys::Win32::UI::WindowsAndMessaging::AttachThreadInput`
  --> src\cxxqt_bridge\window_focus.rs:6:35
@@ -3810,7 +3810,7 @@ help: if you meant to create a null pointer, use `std::ptr::null_mut()`
 Some errors have detailed explanations: E0308, E0432.
 For more information about an error, try `rustc --explain E0308`.
 error: could not compile `interactive-terminal` (bin "interactive-terminal") due to 2 previous errors
-Exception: C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\interactive-terminal\build-interactive-terminal.ps1:466
+Exception: C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\interactive-terminal\build-interactive-terminal.ps1:466
 Line |
  466 |      throw 'cargo build failed.'
      |      ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4222,7 +4222,7 @@ Made changes.
 
 User: push all changes to main
 
-GitHub Copilot: Ran terminal command: cd "C:\Users\User\Project_Memory_MCP\Project-Memory-MCP"; git add -A; git status --short
+GitHub Copilot: Ran terminal command: cd "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP"; git add -A; git status --short
 
 Ran terminal command: git status --short
 
@@ -4271,11 +4271,11 @@ Completed with input: Get-ChildItem "interactive-terminal\" -Recurse -Filter "*.
 Ran terminal command: Get-ChildItem "interactive-terminal\" -Recurse -Filter "*.qml" | Select-Object FullName
 Completed with input: Get-ChildItem "interactive-terminal\" -Recurse -Filter "*.qml" | Select-Object FullName
 
-Ran terminal command: Get-ChildItem "C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\interactive-terminal\" -Recurse -Filter "*.qml" | Select-Object FullName
+Ran terminal command: Get-ChildItem "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\interactive-terminal\" -Recurse -Filter "*.qml" | Select-Object FullName
 
 `Get-ChildItem` returned too many results rendered as file. Let me search more specifically: 
 
-Ran terminal command: cd C:\Users\User\Project_Memory_MCP\Project-Memory-MCP; Get-ChildItem "interactive-terminal\qml" -Recurse -Filter "*.qml" | Select-Object -ExpandProperty FullName
+Ran terminal command: cd C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP; Get-ChildItem "interactive-terminal\qml" -Recurse -Filter "*.qml" | Select-Object -ExpandProperty FullName
 
 Let me read the main QML and the `status_text` property to understand what's shown in the UI: 
 
@@ -4360,8 +4360,8 @@ Here's what was added:
 Made changes.
 
 User: the terminal no longer runs:
-PS C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\target\release> .\interactive-terminal.exe --debug
-PS C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\target\release> 
+PS C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\target\release> .\interactive-terminal.exe --debug
+PS C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\target\release> 
 
 GitHub Copilot: Let me check the build log and look at what might be crashing silently: 
 
@@ -4397,12 +4397,12 @@ GitHub Copilot: That's the expected behavior for a `--release` build. The `#![cf
 
 If the window/tray isn't appearing at all, run this to wait and capture output in the existing console: 
 
-Ran terminal command: Start-Process -FilePath ".\interactive-terminal.exe" -ArgumentList "--debug" -Wait -NoNewWindow -WorkingDirectory "C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\target\release"
-Completed with input: Start-Process -FilePath ".\interactive-terminal.exe" -ArgumentList "--debug" -Wait -NoNewWindow -WorkingDirectory "C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\target\release"
+Ran terminal command: Start-Process -FilePath ".\interactive-terminal.exe" -ArgumentList "--debug" -Wait -NoNewWindow -WorkingDirectory "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\target\release"
+Completed with input: Start-Process -FilePath ".\interactive-terminal.exe" -ArgumentList "--debug" -Wait -NoNewWindow -WorkingDirectory "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\target\release"
 
-Ran terminal command: Test-Path "C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\target\release\interactive-terminal.exe"; Get-ChildItem "C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\target\release\interactive-terminal*"
+Ran terminal command: Test-Path "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\target\release\interactive-terminal.exe"; Get-ChildItem "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\target\release\interactive-terminal*"
 
-Ran terminal command: Push-Location "C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\target\release"; $p = Start-Process -FilePath ".\interactive-terminal.exe" -ArgumentList "--debug" -PassThru; Start-Sleep 3; if ($p.HasExited) { "EXITED with code $($p.ExitCode)" } else { "Still running (PID $($p.Id)) — window should be visible"; $p.Kill() }; Pop-Location
+Ran terminal command: Push-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\target\release"; $p = Start-Process -FilePath ".\interactive-terminal.exe" -ArgumentList "--debug" -PassThru; Start-Sleep 3; if ($p.HasExited) { "EXITED with code $($p.ExitCode)" } else { "Still running (PID $($p.Id)) — window should be visible"; $p.Kill() }; Pop-Location
 
 User: it launches as a background process but has no way to make it visible. Clicking the open button via the supervisor's gui doesnt work either.
 
@@ -4418,7 +4418,7 @@ The process runs but the window stays hidden. Most likely the QML engine is fail
 
 Read [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/src/cxxqt_bridge/session_runtime.rs#1-1), lines 1 to 100
 
-Ran terminal command: Push-Location "C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\target\release"; $p = Start-Process -FilePath ".\interactive-terminal.exe" -ArgumentList "--debug","--show" -PassThru; Start-Sleep 5; if ($p.HasExited) { "EXITED with code $($p.ExitCode)" } else { "Still running (PID $($p.Id))"; $p.Kill() }; Pop-Location
+Ran terminal command: Push-Location "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\target\release"; $p = Start-Process -FilePath ".\interactive-terminal.exe" -ArgumentList "--debug","--show" -PassThru; Start-Sleep 5; if ($p.HasExited) { "EXITED with code $($p.ExitCode)" } else { "Still running (PID $($p.Id))"; $p.Kill() }; Pop-Location
 
 Read [](file:///c%3A/Users/User/Project_Memory_MCP/Project-Memory-MCP/interactive-terminal/src/cxxqt_bridge/session_runtime.rs#100-100), lines 100 to 160
 
@@ -4489,7 +4489,7 @@ Two fixes applied:
 
 Now rebuild: 
 
-Ran terminal command: cd "C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\interactive-terminal"; cargo build --release 2>&1 | tail -5
+Ran terminal command: cd "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\interactive-terminal"; cargo build --release 2>&1 | tail -5
 
 Made changes.
 
@@ -4547,8 +4547,8 @@ Replacing 159 lines with 188 lines in [](file:///c%3A/Users/User/Project_Memory_
 ```
 Now verify it compiles: 
 
-Ran terminal command: cd "C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\interactive-terminal"; cargo build --release 2>&1 | Select-String -Pattern "^error|^warning.*unused|Finished|Compiling interactive"
-Completed with input: cd "C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\interactive-terminal"; cargo build --release 2>&1 | Select-String -Pattern "^error|^warning.*unused|Finished|Compiling interactive"
+Ran terminal command: cd "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\interactive-terminal"; cargo build --release 2>&1 | Select-String -Pattern "^error|^warning.*unused|Finished|Compiling interactive"
+Completed with input: cd "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\interactive-terminal"; cargo build --release 2>&1 | Select-String -Pattern "^error|^warning.*unused|Finished|Compiling interactive"
 
 Made changes.
 
@@ -5159,7 +5159,7 @@ Read [](file:///c%3A/Users/User/AppData/Roaming/Code/User/workspaceStorage/0a283
 
 Searching for regex `plan_mm84vaeu_1839d715|plan_mm7a4r0u_ae7a328a`
 
-Searched for regex `"title"|"plan_id"` (`**/c:\Users\User\AppData\Roaming\Code\User\workspaceStorage\0a2830f7d30721afd0856bb6d96c3daa\GitHub.copilot-chat\chat-session-resources\c919a106-52ed-4416-a270-4d170941bbf3\call_PPAr4vVzhj8JnT7hrlSrhob0__vscode-1772434965922\content.json`), no results
+Searched for regex `"title"|"plan_id"` (`**/<vscode-workspace-storage-path-redacted>
 
 I’m now querying the likely two plan IDs to report exact completion state instead of guessing from workspace summaries.
 

@@ -178,7 +178,7 @@ Scope aligned to cleanup plan `plan_mlusbxe0_f860bcbf` and hard constraints:
 ## Comparison vs Tag `work-machine-snapshot-2026-02-21`
 
 Comparison baseline used:
-- Tag checkout at `C:\Users\User\Project_Memory_MCP\git_Tag-work-machine-snapshot` (detached at `work-machine-snapshot-2026-02-21`)
+- Tag checkout at `C:\Users\<username>\Project-Memory-MCP\git_Tag-work-machine-snapshot` (detached at `work-machine-snapshot-2026-02-21`)
 - Current workspace head in `Project-Memory-MCP`
 
 ### Commit Delta
