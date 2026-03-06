@@ -7,15 +7,17 @@
  *       reverse_dependent_lookup, bounded_traversal
  *     - database_map_access: db_map_summary, db_node_lookup, db_edge_lookup,
  *       context_items_projection
- *   Phase B (Python-blocked, returns NOT_IMPLEMENTED stubs):
- *     - cartography_queries: summary, file_context, flow_entry_points,
- *       layer_view, search
+ *   Phase B (Python-backed summary + remaining NOT_IMPLEMENTED stubs):
+ *     - cartography_queries: summary (live), file_context,
+ *       flow_entry_points, layer_view, search
  *     - architecture_slices: slice_catalog, slice_detail, slice_projection,
  *       slice_filters
  *
  * SECURITY: context_data / data columns in context_items are ALWAYS masked
  * from all database_map_access outputs.
  */
+
+import { randomUUID } from 'node:crypto';
 
 import type { ToolResponse } from '../types/index.js';
 import { preflightValidate } from './preflight/index.js';
@@ -25,8 +27,12 @@ import {
   getDependents,
 } from '../db/dependency-db.js';
 import { getPlan } from '../db/plan-db.js';
+import { getWorkspace } from '../db/workspace-db.js';
 import { getDb } from '../db/connection.js';
 import { queryAll, queryOne } from '../db/query-helpers.js';
+import { resolveAccessiblePath } from '../storage/workspace-mounts.js';
+import { PythonCoreAdapter } from '../cartography/adapters/pythonCoreAdapter.js';
+import { ADAPTER_SCHEMA_VERSION } from '../cartography/contracts/version.js';
 import type {
   DependencyNode,
   DependencyEdge,
@@ -483,8 +489,129 @@ export async function handleMemoryCartographer(
   // ── Layer 3: action switch ────────────────────────────────────────────────
   switch (action) {
 
+    // ── Phase B live action: cartography_queries/summary ────────────────────
+    case 'summary': {
+      const workspace = getWorkspace(resolvedWorkspaceId);
+      if (!workspace?.path) {
+        return {
+          success: false,
+          error: `Unable to resolve workspace path for workspace '${resolvedWorkspaceId}'`,
+          data: {
+            action: 'summary',
+            data: {
+              error: 'WORKSPACE_PATH_UNAVAILABLE',
+              diagnostic_code: 'WORKSPACE_PATH_NOT_FOUND',
+              message: `Workspace path could not be resolved for '${resolvedWorkspaceId}'.`,
+            },
+          },
+        };
+      }
+
+      // Prefer a process-accessible path (container mount on Linux, host path on Windows).
+      const resolvedWorkspacePath = await resolveAccessiblePath(workspace.path);
+      const pythonWorkspacePath = resolvedWorkspacePath ?? workspace.path;
+
+      const scopeArgs: Record<string, unknown> = {};
+      if (typeof params.file_id === 'string' && params.file_id.length > 0) {
+        scopeArgs.file_id = params.file_id;
+      }
+      if (typeof params.include_symbols === 'boolean') {
+        scopeArgs.include_symbols = params.include_symbols;
+      }
+      if (typeof params.include_references === 'boolean') {
+        scopeArgs.include_references = params.include_references;
+      }
+      if (typeof params.force_refresh === 'boolean') {
+        scopeArgs.force_refresh = params.force_refresh;
+      }
+      if (Array.isArray(params.layer_filter) && params.layer_filter.length > 0) {
+        scopeArgs.layer_filter = params.layer_filter;
+      }
+      if (Array.isArray(params.layers) && params.layers.length > 0) {
+        scopeArgs.layers = params.layers;
+      }
+
+      const languageFilters = Array.isArray(params.language_filter)
+        ? params.language_filter.filter(
+            (language): language is string => typeof language === 'string' && language.length > 0,
+          )
+        : [];
+
+      const adapter = new PythonCoreAdapter();
+      const requestId = `cartograph_summary_${randomUUID()}`;
+
+      try {
+        const response = await adapter.invoke({
+          schema_version: ADAPTER_SCHEMA_VERSION,
+          request_id: requestId,
+          action: 'cartograph',
+          args: {
+            query: 'summary',
+            workspace_path: pythonWorkspacePath,
+            scope: scopeArgs,
+            ...(languageFilters.length > 0 ? { languages: languageFilters } : {}),
+          },
+          timeout_ms: 15_000,
+        });
+
+        if (response.status === 'error') {
+          return {
+            success: false,
+            error: 'Python core returned an error for summary action',
+            data: {
+              action: 'summary',
+              data: {
+                error: 'PYTHON_CORE_ERROR',
+                diagnostic_code: 'PYTHON_RUNTIME_ERROR',
+                message: response.diagnostics.errors.join('; ') || 'Python core returned status=error.',
+                request_id: response.request_id,
+                diagnostics: response.diagnostics,
+                elapsed_ms: response.elapsed_ms,
+              },
+            },
+          };
+        }
+
+        return {
+          success: true,
+          data: {
+            action: 'summary',
+            data: {
+              source: 'python_core',
+              request_id: response.request_id,
+              schema_version: response.schema_version,
+              status: response.status,
+              elapsed_ms: response.elapsed_ms,
+              diagnostics: response.diagnostics,
+              result: response.result,
+            },
+          },
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(JSON.stringify({
+          event: 'cartographer_fallback',
+          action: 'summary',
+          reason: 'python_core_error',
+          error: message,
+        }));
+
+        return {
+          success: false,
+          error: `summary failed: ${message}`,
+          data: {
+            action: 'summary',
+            data: {
+              error: 'PYTHON_CORE_ERROR',
+              diagnostic_code: 'PYTHON_RUNTIME_UNAVAILABLE',
+              message,
+            },
+          },
+        };
+      }
+    }
+
     // ── Phase B stubs: cartography_queries ──────────────────────────────────
-    case 'summary':
     case 'file_context':
     case 'flow_entry_points':
     case 'layer_view':

@@ -5,13 +5,23 @@
  *  1. Happy path — Phase A actions return structured results
  *  2. Security gate TC-DM-05 — context_data absent from context_items_projection rows
  *  3. Auth gate — unauthorized agent_type returns PERMISSION_DENIED (not throw)
- *  4. Phase B stubs — return diagnostic_code FEATURE_NOT_AVAILABLE (not throw)
+ *  4. Phase B summary is Python-backed while non-summary actions remain stubs
  *  5. Input validation — missing action / workspace_id return structured errors (not throw)
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { handleMemoryCartographer } from '../../tools/memory_cartographer.js';
 import type { MemoryCartographerParams } from '../../tools/memory_cartographer.js';
+
+const {
+  mockedGetWorkspace,
+  mockedResolveAccessiblePath,
+  mockedInvokePythonCore,
+} = vi.hoisted(() => ({
+  mockedGetWorkspace: vi.fn(),
+  mockedResolveAccessiblePath: vi.fn(),
+  mockedInvokePythonCore: vi.fn(),
+}));
 
 // ---------------------------------------------------------------------------
 // Mock workspace validation
@@ -42,6 +52,10 @@ vi.mock('../../db/plan-db.js', () => ({
   getPlan: vi.fn().mockReturnValue(null),
 }));
 
+vi.mock('../../db/workspace-db.js', () => ({
+  getWorkspace: mockedGetWorkspace,
+}));
+
 vi.mock('../../db/connection.js', () => ({
   getDb: vi.fn().mockReturnValue({
     pragma: vi.fn().mockReturnValue(42),
@@ -53,11 +67,49 @@ vi.mock('../../db/query-helpers.js', () => ({
   queryOne: vi.fn().mockReturnValue(null),
 }));
 
+vi.mock('../../storage/workspace-mounts.js', () => ({
+  resolveAccessiblePath: mockedResolveAccessiblePath,
+}));
+
+vi.mock('../../cartography/runtime/pythonBridge.js', () => ({
+  invokePythonCore: mockedInvokePythonCore,
+}));
+
 // ---------------------------------------------------------------------------
 // Test constants
 // ---------------------------------------------------------------------------
 const WORKSPACE_ID = 'ws_test_integration';
 const PLAN_ID      = 'plan_test_001';
+
+beforeEach(() => {
+  vi.clearAllMocks();
+
+  mockedGetWorkspace.mockReturnValue({
+    id: WORKSPACE_ID,
+    path: 'C:/mock/workspace',
+  });
+
+  mockedResolveAccessiblePath.mockResolvedValue('C:/mock/workspace');
+
+  mockedInvokePythonCore.mockResolvedValue({
+    schema_version: '1.0.0',
+    request_id: 'cartograph_summary_req_001',
+    status: 'ok',
+    result: {
+      query: 'summary',
+      summary: {
+        files_total: 2,
+      },
+    },
+    diagnostics: {
+      warnings: [],
+      errors: [],
+      markers: [],
+      skipped_paths: [],
+    },
+    elapsed_ms: 17,
+  });
+});
 
 const baseParams = (extra: Partial<MemoryCartographerParams>): MemoryCartographerParams => ({
   action:       'db_map_summary',
@@ -307,11 +359,44 @@ describe('Security gate TC-DM-05 — context_data masking', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 3. Phase B stubs — FEATURE_NOT_AVAILABLE (not throw)
+// 3. Phase B summary live + non-summary stubs
 // ---------------------------------------------------------------------------
 
-describe('Phase B stubs — FEATURE_NOT_AVAILABLE', () => {
-  const cartographyQueryActions = ['summary', 'file_context', 'flow_entry_points', 'layer_view', 'search'] as const;
+describe('Phase B summary + stubs', () => {
+  it('cartography_queries/summary returns Python-backed success envelope', async () => {
+    const result = await handleMemoryCartographer(
+      baseParams({ action: 'summary' }),
+    );
+
+    expect(result.success).toBe(true);
+    const payload = result.data as any;
+    expect(payload.action).toBe('summary');
+
+    const inner = payload.data;
+    expect(inner.source).toBe('python_core');
+    expect(inner.status).toBe('ok');
+    expect(inner.schema_version).toBe('1.0.0');
+    expect(inner.request_id).toBe('cartograph_summary_req_001');
+    expect(inner.elapsed_ms).toBe(17);
+    expect(inner.diagnostics).toEqual({
+      warnings: [],
+      errors: [],
+      markers: [],
+      skipped_paths: [],
+    });
+    expect(inner.result).toEqual(expect.objectContaining({ query: 'summary' }));
+    expect(inner.diagnostic_code).toBeUndefined();
+
+    expect(mockedInvokePythonCore).toHaveBeenCalledTimes(1);
+    const request = mockedInvokePythonCore.mock.calls[0][0];
+    expect(request.action).toBe('cartograph');
+    expect(request.args).toEqual(expect.objectContaining({
+      query: 'summary',
+      workspace_path: 'C:/mock/workspace',
+    }));
+  });
+
+  const cartographyQueryActions = ['file_context', 'flow_entry_points', 'layer_view', 'search'] as const;
   const architectureSliceActions = ['slice_catalog', 'slice_detail', 'slice_projection', 'slice_filters'] as const;
 
   for (const action of cartographyQueryActions) {
@@ -323,6 +408,7 @@ describe('Phase B stubs — FEATURE_NOT_AVAILABLE', () => {
       const inner = (result.data as any).data;
       expect(inner.diagnostic_code).toBe('FEATURE_NOT_AVAILABLE');
       expect(inner.error).toBe('NOT_IMPLEMENTED');
+      expect(mockedInvokePythonCore).not.toHaveBeenCalled();
     });
   }
 
@@ -334,12 +420,13 @@ describe('Phase B stubs — FEATURE_NOT_AVAILABLE', () => {
       expect(result.success).toBe(true);
       const inner = (result.data as any).data;
       expect(inner.diagnostic_code).toBe('FEATURE_NOT_AVAILABLE');
+      expect(mockedInvokePythonCore).not.toHaveBeenCalled();
     });
   }
 
-  it('Phase B stub data includes domain field', async () => {
+  it('Phase B cartography_queries stubs include domain field', async () => {
     const result = await handleMemoryCartographer(
-      baseParams({ action: 'summary' as any }),
+      baseParams({ action: 'file_context' as any }),
     );
     const inner = (result.data as any).data;
     expect(inner.domain).toBe('cartography_queries');

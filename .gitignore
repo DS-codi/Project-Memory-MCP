@@ -60,3 +60,7 @@ from-work-pc/
 .projectmemory/
 .tmp/
 data.zip
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo

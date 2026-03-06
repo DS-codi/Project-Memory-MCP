@@ -204,6 +204,38 @@ const ENV_PIPE_PATH = process.env.PM_ORCHESTRATION_SUPERVISOR_PIPE_PATH?.trim();
 /** Default TCP port when using TCP transport. */
 const DEFAULT_TCP_PORT = 45470;
 
+/** Default port for the GUI HTTP launcher server (supervisor/src/gui_server.rs). */
+const DEFAULT_GUI_HTTP_PORT = 3464;
+
+/**
+ * Resolve the base URL for the supervisor GUI HTTP server.
+ *
+ * Resolution order:
+ *   1. PM_SUPERVISOR_GUI_HTTP_URL (full URL override)
+ *   2. PM_SUPERVISOR_GUI_HTTP_HOST + PM_SUPERVISOR_GUI_HTTP_PORT
+ *   3. Container mode (PM_RUNNING_IN_CONTAINER=true) → host.containers.internal
+ *   4. Native → 127.0.0.1
+ */
+export function resolveGuiHttpUrl(): string {
+  const fullUrlOverride = process.env.PM_SUPERVISOR_GUI_HTTP_URL?.trim();
+  if (fullUrlOverride) return fullUrlOverride.replace(/\/$/, '');
+
+  const portRaw = process.env.PM_SUPERVISOR_GUI_HTTP_PORT?.trim();
+  const port = portRaw ? (parseInt(portRaw, 10) || DEFAULT_GUI_HTTP_PORT) : DEFAULT_GUI_HTTP_PORT;
+
+  const hostOverride = process.env.PM_SUPERVISOR_GUI_HTTP_HOST?.trim();
+  if (hostOverride) return `http://${hostOverride}:${port}`;
+
+  if (process.env.PM_RUNNING_IN_CONTAINER === 'true') {
+    const gateway = process.env.PM_SUPERVISOR_GUI_HTTP_GATEWAY?.trim()
+      || process.env.PM_INTERACTIVE_TERMINAL_HOST_GATEWAY?.trim()
+      || 'host.containers.internal';
+    return `http://${gateway}:${port}`;
+  }
+
+  return `http://127.0.0.1:${port}`;
+}
+
 /** Default connection timeout in ms. */
 const DEFAULT_CONNECT_TIMEOUT_MS = 3000;
 
@@ -497,8 +529,13 @@ export async function checkGuiAvailability(
     message: 'Supervisor is not running or unreachable',
   };
 
+  // In container mode the named pipe is inaccessible — go straight to HTTP.
+  if (process.env.PM_RUNNING_IN_CONTAINER === 'true') {
+    return checkGuiAvailabilityHttp(undefined, opts.connectTimeoutMs ?? 3000);
+  }
+
   try {
-    // 1. Try to connect and get status
+    // 1. Try to connect and get status via named pipe / TCP control plane.
     const statusResp = await supervisorRequest({ type: 'Status' }, {
       ...opts,
       connectTimeoutMs: opts.connectTimeoutMs ?? 2000,
@@ -510,58 +547,30 @@ export async function checkGuiAvailability(
     }
 
     // Status response data is an array of service states
-    const services = Array.isArray(statusResp.data) ? statusResp.data as ServiceState[] : [];
+    const _services = Array.isArray(statusResp.data) ? statusResp.data as ServiceState[] : [];
 
-    // 2. Check for brainstorm_gui and approval_gui in service list or
-    //    infer from the LaunchApp capability.
-    //    Note: form apps may not appear as services since they're on-demand.
-    //    We detect their availability by successfully getting a Status response
-    //    (supervisor is running) and checking if the WhoAmI response has
-    //    relevant capabilities.
-    let capabilities: string[] = [];
-    try {
-      const whoamiResp = await supervisorRequest({
-        type: 'WhoAmI',
-        request_id: randomUUID(),
-        client: 'mcp-server',
-        client_version: '1.0.0',
-      }, opts);
-      if (whoamiResp.ok && whoamiResp.data) {
-        const d = whoamiResp.data as WhoAmIResponseData;
-        capabilities = d.capabilities ?? [];
-      }
-    } catch {
-      // WhoAmI might not return capabilities — fall back to assuming
-      // form apps are available since the supervisor is running
+    // 2. Confirm via the GUI HTTP server that the GUI launcher is also up.
+    //    This is the single source of truth for which form apps are enabled.
+    const httpAvail = await checkGuiAvailabilityHttp(undefined, 2000);
+    if (httpAvail.supervisor_running) {
+      return {
+        ...httpAvail,
+        message: `Supervisor running (pipe ok); ${httpAvail.message}`,
+      };
     }
 
-    // Form apps are typically available when the supervisor is running
-    // and has them configured (not disabled).  We assume availability
-    // unless there's a signal otherwise.
-    const hasBrainstorm = capabilities.length === 0
-      || capabilities.includes('brainstorm_gui')
-      || capabilities.includes('launch_app')
-      || capabilities.includes('form_apps');
-
-    const hasApproval = capabilities.length === 0
-      || capabilities.includes('approval_gui')
-      || capabilities.includes('launch_app')
-      || capabilities.includes('form_apps');
-
-    const supervisorRunning = true;
-    const parts: string[] = ['Supervisor running'];
-    if (hasBrainstorm) parts.push('brainstorm_gui available');
-    if (hasApproval) parts.push('approval_gui available');
-
+    // GUI HTTP server not yet answering (e.g. first startup) — assume
+    // both form apps are available if we reached the supervisor at all.
     return {
-      supervisor_running: supervisorRunning,
-      brainstorm_gui: hasBrainstorm,
-      approval_gui: hasApproval,
-      capabilities,
-      message: parts.join('; '),
+      supervisor_running: true,
+      brainstorm_gui: true,
+      approval_gui: true,
+      capabilities: [],
+      message: 'Supervisor running (pipe ok); GUI HTTP server not yet ready',
     };
   } catch {
-    return unavailable;
+    // Named-pipe / TCP control plane failed — try HTTP as last resort.
+    return checkGuiAvailabilityHttp(undefined, opts.connectTimeoutMs ?? 3000);
   }
 }
 
@@ -583,46 +592,50 @@ export async function launchFormApp(
   timeoutSeconds?: number,
   opts: SupervisorClientOptions = {},
 ): Promise<FormAppLaunchResult> {
+  // In container mode go straight to the GUI HTTP server.
+  if (process.env.PM_RUNNING_IN_CONTAINER === 'true') {
+    return launchFormAppHttp(appName, payload, { timeoutSeconds });
+  }
+
   // LaunchApp can take a long time — use a generous request timeout
   const requestTimeout = timeoutSeconds
     ? (timeoutSeconds + 10) * 1000 // Add 10s buffer over GUI timeout
     : 310_000; // Default: 5 min + 10s
 
-  const resp = await supervisorRequest(
-    {
-      type: 'LaunchApp',
-      app_name: appName,
-      payload,
-      ...(timeoutSeconds != null ? { timeout_seconds: timeoutSeconds } : {}),
-    },
-    {
-      ...opts,
-      requestTimeoutMs: requestTimeout,
-    },
-  );
+  try {
+    const resp = await supervisorRequest(
+      {
+        type: 'LaunchApp',
+        app_name: appName,
+        payload,
+        ...(timeoutSeconds != null ? { timeout_seconds: timeoutSeconds } : {}),
+      },
+      {
+        ...opts,
+        requestTimeoutMs: requestTimeout,
+      },
+    );
 
-  if (!resp.ok) {
+    if (!resp.ok) {
+      // Named-pipe request failed — try HTTP fallback.
+      return launchFormAppHttp(appName, payload, { timeoutSeconds });
+    }
+
+    const data = resp.data as FormAppLaunchResult;
     return {
-      app_name: appName,
-      success: false,
-      error: resp.error ?? 'Unknown supervisor error',
-      elapsed_ms: 0,
-      timed_out: false,
+      app_name: data.app_name ?? appName,
+      success: data.success ?? false,
+      response_payload: data.response_payload,
+      error: data.error,
+      elapsed_ms: data.elapsed_ms ?? 0,
+      timed_out: data.timed_out ?? false,
+      pending_refinement: data.pending_refinement ?? false,
+      session_id: data.session_id,
     };
+  } catch {
+    // Named-pipe connection failed — try HTTP fallback.
+    return launchFormAppHttp(appName, payload, { timeoutSeconds });
   }
-
-  // Parse the FormAppResponse from the data field
-  const data = resp.data as FormAppLaunchResult;
-  return {
-    app_name: data.app_name ?? appName,
-    success: data.success ?? false,
-    response_payload: data.response_payload,
-    error: data.error,
-    elapsed_ms: data.elapsed_ms ?? 0,
-    timed_out: data.timed_out ?? false,
-    pending_refinement: data.pending_refinement ?? false,
-    session_id: data.session_id,
-  };
 }
 
 /**
@@ -640,42 +653,225 @@ export async function continueFormApp(
   timeoutSeconds?: number,
   opts: SupervisorClientOptions = {},
 ): Promise<FormAppLaunchResult> {
+  // In container mode go straight to the GUI HTTP server.
+  if (process.env.PM_RUNNING_IN_CONTAINER === 'true') {
+    return continueFormAppHttp(sessionId, payload, { timeoutSeconds });
+  }
+
   const requestTimeout = timeoutSeconds
     ? (timeoutSeconds + 10) * 1000
     : 310_000;
 
-  const resp = await supervisorRequest(
-    {
-      type: 'ContinueApp',
-      session_id: sessionId,
-      payload,
-      ...(timeoutSeconds != null ? { timeout_seconds: timeoutSeconds } : {}),
-    },
-    {
-      ...opts,
-      requestTimeoutMs: requestTimeout,
-    },
-  );
+  try {
+    const resp = await supervisorRequest(
+      {
+        type: 'ContinueApp',
+        session_id: sessionId,
+        payload,
+        ...(timeoutSeconds != null ? { timeout_seconds: timeoutSeconds } : {}),
+      },
+      {
+        ...opts,
+        requestTimeoutMs: requestTimeout,
+      },
+    );
 
-  if (!resp.ok) {
+    if (!resp.ok) {
+      // Named-pipe request failed — try HTTP fallback.
+      return continueFormAppHttp(sessionId, payload, { timeoutSeconds });
+    }
+
+    const data = resp.data as FormAppLaunchResult;
     return {
-      app_name: 'brainstorm_gui',
+      app_name: data.app_name ?? 'brainstorm_gui',
+      success: data.success ?? false,
+      response_payload: data.response_payload,
+      error: data.error,
+      elapsed_ms: data.elapsed_ms ?? 0,
+      timed_out: data.timed_out ?? false,
+      pending_refinement: data.pending_refinement ?? false,
+      session_id: data.session_id,
+    };
+  } catch {
+    // Named-pipe connection failed — try HTTP fallback.
+    return continueFormAppHttp(sessionId, payload, { timeoutSeconds });
+  }
+}
+
+// =========================================================================
+// GUI HTTP server helpers  (supervisor/src/gui_server.rs — port 3464)
+// =========================================================================
+
+/**
+ * Check GUI availability via the dedicated HTTP launcher server.
+ * This works from inside a container where the named pipe is not accessible.
+ */
+export async function checkGuiAvailabilityHttp(
+  baseUrl?: string,
+  timeoutMs = 3000,
+): Promise<GuiAvailability> {
+  const url = `${baseUrl ?? resolveGuiHttpUrl()}/gui/ping`;
+  const unavailable: GuiAvailability = {
+    supervisor_running: false,
+    brainstorm_gui: false,
+    approval_gui: false,
+    capabilities: [],
+    message: `GUI HTTP server unreachable at ${url}`,
+  };
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timer);
+
+    if (!res.ok) return unavailable;
+
+    const body = await res.json() as { available?: boolean; apps?: string[] };
+    if (!body.available) return unavailable;
+
+    const apps = body.apps ?? [];
+    return {
+      supervisor_running: true,
+      brainstorm_gui: apps.includes('brainstorm_gui'),
+      approval_gui: apps.includes('approval_gui'),
+      capabilities: apps.map(a => a),
+      message: `GUI HTTP server available; apps: ${apps.join(', ')}`,
+    };
+  } catch {
+    return unavailable;
+  }
+}
+
+/**
+ * Launch a form-app via the GUI HTTP server.
+ * Used as a fallback (or primary path in container mode) instead of the
+ * NDJSON named-pipe LaunchApp control request.
+ */
+export async function launchFormAppHttp(
+  appName: string,
+  payload: unknown,
+  opts: {
+    timeoutSeconds?: number;
+    baseUrl?: string;
+    workspaceId?: string;
+    sessionId?: string;
+    agent?: string;
+  } = {},
+): Promise<FormAppLaunchResult> {
+  const base = opts.baseUrl ?? resolveGuiHttpUrl();
+  const url = `${base}/gui/launch`;
+  const requestTimeoutMs = opts.timeoutSeconds
+    ? (opts.timeoutSeconds + 10) * 1000
+    : 310_000;
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), requestTimeoutMs);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        app_name: appName,
+        payload,
+        ...(opts.timeoutSeconds != null ? { timeout_seconds: opts.timeoutSeconds } : {}),
+        ...(opts.workspaceId ? { workspace_id: opts.workspaceId } : {}),
+        ...(opts.sessionId ? { session_id: opts.sessionId } : {}),
+        ...(opts.agent ? { agent: opts.agent } : {}),
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
+    const envelope = await res.json() as { ok: boolean; data?: FormAppLaunchResult; error?: string };
+    if (!envelope.ok || !envelope.data) {
+      return {
+        app_name: appName,
+        success: false,
+        error: envelope.error ?? 'GUI HTTP server returned not-ok',
+        elapsed_ms: 0,
+        timed_out: false,
+      };
+    }
+    const d = envelope.data;
+    return {
+      app_name: d.app_name ?? appName,
+      success: d.success ?? false,
+      response_payload: d.response_payload,
+      error: d.error,
+      elapsed_ms: d.elapsed_ms ?? 0,
+      timed_out: d.timed_out ?? false,
+      pending_refinement: d.pending_refinement ?? false,
+      session_id: d.session_id,
+    };
+  } catch (err) {
+    return {
+      app_name: appName,
       success: false,
-      error: resp.error ?? 'Unknown supervisor error',
+      error: `GUI HTTP launch error: ${err instanceof Error ? err.message : String(err)}`,
       elapsed_ms: 0,
       timed_out: false,
     };
   }
+}
 
-  const data = resp.data as FormAppLaunchResult;
-  return {
-    app_name: data.app_name ?? 'brainstorm_gui',
-    success: data.success ?? false,
-    response_payload: data.response_payload,
-    error: data.error,
-    elapsed_ms: data.elapsed_ms ?? 0,
-    timed_out: data.timed_out ?? false,
-    pending_refinement: data.pending_refinement ?? false,
-    session_id: data.session_id,
-  };
+/**
+ * Continue a paused refinement session via the GUI HTTP server.
+ */
+export async function continueFormAppHttp(
+  sessionId: string,
+  payload: unknown,
+  opts: { timeoutSeconds?: number; baseUrl?: string } = {},
+): Promise<FormAppLaunchResult> {
+  const base = opts.baseUrl ?? resolveGuiHttpUrl();
+  const url = `${base}/gui/continue`;
+  const requestTimeoutMs = opts.timeoutSeconds
+    ? (opts.timeoutSeconds + 10) * 1000
+    : 310_000;
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), requestTimeoutMs);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: sessionId,
+        payload,
+        ...(opts.timeoutSeconds != null ? { timeout_seconds: opts.timeoutSeconds } : {}),
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
+    const envelope = await res.json() as { ok: boolean; data?: FormAppLaunchResult; error?: string };
+    if (!envelope.ok || !envelope.data) {
+      return {
+        app_name: 'brainstorm_gui',
+        success: false,
+        error: envelope.error ?? 'GUI HTTP server returned not-ok on continue',
+        elapsed_ms: 0,
+        timed_out: false,
+      };
+    }
+    const d = envelope.data;
+    return {
+      app_name: d.app_name ?? 'brainstorm_gui',
+      success: d.success ?? false,
+      response_payload: d.response_payload,
+      error: d.error,
+      elapsed_ms: d.elapsed_ms ?? 0,
+      timed_out: d.timed_out ?? false,
+      pending_refinement: d.pending_refinement ?? false,
+      session_id: d.session_id,
+    };
+  } catch (err) {
+    return {
+      app_name: 'brainstorm_gui',
+      success: false,
+      error: `GUI HTTP continue error: ${err instanceof Error ? err.message : String(err)}`,
+      elapsed_ms: 0,
+      timed_out: false,
+    };
+  }
 }

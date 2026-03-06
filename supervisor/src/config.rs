@@ -78,6 +78,9 @@ pub struct SupervisorConfig {
     #[serde(default)]
     pub events: EventsSection,
 
+    #[serde(default)]
+    pub gui_server: GuiServerSection,
+
     /// Zero or more managed server definitions.
     #[serde(default)]
     pub servers: Vec<ServerDefinition>,
@@ -572,6 +575,36 @@ impl Default for EventsSection {
             buffer_size: 256,
             heartbeat_interval: 30,
             replay_buffer_size: 100,
+        }
+    }
+}
+
+/// Configuration for the GUI HTTP launcher server (`[gui_server]` section).
+///
+/// This server listens on a dedicated TCP port so the MCP container (which
+/// cannot access the Windows named pipe) can send GUI-launch requests.
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct GuiServerSection {
+    /// Whether to start the GUI HTTP server (default: `true`).
+    pub enabled: bool,
+    /// TCP port to listen on (default: `3464`).
+    /// Must not conflict with MCP proxy (3457), interactive terminal (3458),
+    /// dashboard (3459), or MCP worker pool (3460-3463).
+    pub port: u16,
+    /// Address to bind on (default: `"0.0.0.0"`).
+    /// Use `"0.0.0.0"` (default) so the server is reachable from Podman/Docker
+    /// containers via `host.containers.internal`.  Set to `"127.0.0.1"` to
+    /// restrict to loopback only.
+    pub bind_address: String,
+}
+
+impl Default for GuiServerSection {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            port: 3464,
+            bind_address: "0.0.0.0".to_string(),
         }
     }
 }
