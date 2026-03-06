@@ -367,7 +367,7 @@ memory_filesystem (action: tree) with
 
 **Canonical resolution rule:** `.projectmemory` root = `workspace_path` (from `memory_workspace(action: register)` response) + `/.projectmemory`. Never use any AppData path.
 
-**Example for this workspace:** `.projectmemory` root = `C:\Users\User\Project_Memory_MCP\.projectmemory`
+**Example for this workspace:** `.projectmemory` root = `C:\Users\<username>\Project-Memory-MCP\.projectmemory`
 
 ### Tool-Response Mirroring (Session Recovery)
 

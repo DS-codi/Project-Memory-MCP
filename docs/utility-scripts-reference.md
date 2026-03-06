@@ -144,7 +144,7 @@ Builds the Rust interactive terminal, optionally tests/runs/deploys Qt runtime, 
 Use direct launch from build output:
 
 ```powershell
-cd "C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\target\release\"
+cd "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\target\release\"
 .\supervisor.exe
 ```
 

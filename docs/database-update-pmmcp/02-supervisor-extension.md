@@ -5,7 +5,7 @@
 **Status:** Implementation Complete — Manual Integration Tests Pending  
 **Parent Program:** [Database Migration & System Stabilization](00-program-overview.md)  
 **Dependencies:** Plan 1 (Extension Strip-Down)  
-**Workspace Directory:** `C:\Users\User\Project_Memory_MCP\Project-Memory-MCP`
+**Workspace Directory:** `C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP`
 
 ## Goal
 
