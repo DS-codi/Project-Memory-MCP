@@ -76,6 +76,8 @@ impl cxx_qt::Initialize for ffi::SupervisorGuiBridge {
             .set_terminal_status(QString::from("Starting\u{2026}"));
         self.as_mut()
             .set_dashboard_status(QString::from("Starting\u{2026}"));
+        self.as_mut()
+            .set_fallback_status(QString::from("Starting\u{2026}"));
         self.as_mut().set_event_subscriber_count(0);
         self.as_mut().set_event_broadcast_enabled(false);
         self.as_mut().set_events_total_emitted(0);

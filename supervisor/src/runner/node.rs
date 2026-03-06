@@ -29,16 +29,23 @@ pub struct NodeRunner {
     config: NodeRunnerConfig,
     health_timeout_ms: u64,
     port: u16,
+    component_name: String,
     state: RunnerInternalState,
 }
 
 impl NodeRunner {
     /// Create a new `NodeRunner` from the node sub-config plus shared MCP settings.
-    pub fn new(config: NodeRunnerConfig, health_timeout_ms: u64, port: u16) -> Self {
+    pub fn new(
+        config: NodeRunnerConfig,
+        health_timeout_ms: u64,
+        port: u16,
+        component_name: impl Into<String>,
+    ) -> Self {
         Self {
             config,
             health_timeout_ms,
             port,
+            component_name: component_name.into(),
             state: RunnerInternalState::Stopped,
         }
     }
@@ -75,13 +82,25 @@ impl ServiceRunner for NodeRunner {
 
         cmd.envs(&self.config.env);
 
-        let child = cmd
+        let mut child = cmd
             .spawn()
             .with_context(|| format!("failed to spawn node process: {}", self.config.command))?;
 
         let pid = child
             .id()
             .ok_or_else(|| anyhow::anyhow!("spawned process has no PID"))?;
+
+        if let Some(stdout) = child.stdout.take() {
+            crate::runtime_output::spawn_pipe_reader(self.component_name.clone(), "stdout", stdout);
+        }
+        if let Some(stderr) = child.stderr.take() {
+            crate::runtime_output::spawn_pipe_reader(self.component_name.clone(), "stderr", stderr);
+        }
+        crate::runtime_output::emit(
+            &self.component_name,
+            "status",
+            format!("started pid={pid} port={}", self.port),
+        );
 
         // Assign to the supervisor job object so the OS kills this process
         // automatically if the supervisor exits or crashes.
@@ -97,6 +116,7 @@ impl ServiceRunner for NodeRunner {
             RunnerInternalState::Running { ref mut child, .. } => {
                 child.kill().await.context("failed to kill node process")?;
                 self.state = RunnerInternalState::Stopped;
+                crate::runtime_output::emit(&self.component_name, "status", "stopped");
             }
             RunnerInternalState::Stopped => {}
         }
@@ -175,7 +195,7 @@ mod tests {
     /// A freshly constructed NodeRunner must be in the Stopped state with no PID.
     #[tokio::test]
     async fn node_runner_new_defaults() {
-        let runner = NodeRunner::new(NodeRunnerConfig::default(), 1500, 3000);
+        let runner = NodeRunner::new(NodeRunnerConfig::default(), 1500, 3000, "mcp");
         assert!(runner.pid().is_none(), "pid should be None when Stopped");
         assert!(
             matches!(runner.status().await, ServiceStatus::Stopped),
@@ -187,7 +207,7 @@ mod tests {
     /// configured port without performing any I/O.
     #[tokio::test]
     async fn node_runner_discover_endpoint_format() {
-        let runner = NodeRunner::new(NodeRunnerConfig::default(), 1500, 3000);
+        let runner = NodeRunner::new(NodeRunnerConfig::default(), 1500, 3000, "mcp");
         let endpoint = runner
             .discover_endpoint()
             .await
@@ -199,7 +219,7 @@ mod tests {
     /// returns Ok(()) without panicking.
     #[tokio::test]
     async fn node_runner_stop_when_stopped_is_noop() {
-        let mut runner = NodeRunner::new(NodeRunnerConfig::default(), 1500, 3000);
+        let mut runner = NodeRunner::new(NodeRunnerConfig::default(), 1500, 3000, "mcp");
         let result = runner.stop().await;
         assert!(result.is_ok(), "stop() on a stopped runner should return Ok(())");
         // Status must remain Stopped.
@@ -210,7 +230,7 @@ mod tests {
     /// that explains the process is not running.
     #[tokio::test]
     async fn node_runner_health_probe_when_stopped() {
-        let runner = NodeRunner::new(NodeRunnerConfig::default(), 1500, 3000);
+        let runner = NodeRunner::new(NodeRunnerConfig::default(), 1500, 3000, "mcp");
         match runner.health_probe().await {
             HealthStatus::Unhealthy(reason) => {
                 assert!(

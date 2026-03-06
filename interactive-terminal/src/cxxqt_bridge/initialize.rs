@@ -27,6 +27,8 @@ impl cxx_qt::Initialize for ffi::TerminalApp {
             state.response_tx = Some(outgoing_tx);
             state.saved_commands_by_workspace =
                 state.saved_commands_repository.load_all_workspaces();
+            state.known_workspace_paths =
+                state.saved_commands_repository.registered_workspace_paths();
 
             let initial_workspace_id = state
                 .saved_commands_by_workspace
@@ -36,8 +38,22 @@ impl cxx_qt::Initialize for ffi::TerminalApp {
                 .unwrap_or_else(|| "default".to_string());
             state.saved_commands_ui_workspace_id = initial_workspace_id;
 
+            let available_workspaces_json = {
+                let mut suggestions = state.known_workspace_paths.clone();
+                let default_workspace = crate::cxxqt_bridge::default_workspace_path();
+                if !default_workspace.trim().is_empty() {
+                    suggestions.push(default_workspace);
+                }
+                suggestions.sort();
+                suggestions.dedup();
+                serde_json::to_string(&suggestions).unwrap_or_else(|_| "[]".to_string())
+            };
+
             self.as_mut()
                 .set_session_tabs_json(state.session_tabs_to_json());
+            self.as_mut().set_available_workspaces_json(QString::from(
+                &available_workspaces_json,
+            ));
         }
 
         match crate::system_tray::sync_startup_with_settings(port) {

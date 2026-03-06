@@ -18,6 +18,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 
 import type { ToolResponse } from '../types/index.js';
 import { preflightValidate } from './preflight/index.js';
@@ -417,6 +418,53 @@ function phaseBStub(action: CartographerAction, domain: 'cartography_queries' | 
   };
 }
 
+const SUMMARY_TIMEOUT_ENV_VAR = 'PM_CARTOGRAPHER_SUMMARY_TIMEOUT_MS';
+const DEFAULT_SUMMARY_TIMEOUT_MS = 60_000;
+const MIN_SUMMARY_TIMEOUT_MS = 1_000;
+const MAX_SUMMARY_TIMEOUT_MS = 300_000;
+const SUMMARY_REPO_ROOT_DIR = 'Project-Memory-MCP';
+const SUMMARY_PARENT_WORKSPACE_DIR = 'Project_Memory_MCP';
+
+function resolveSummaryTimeoutMs(): number {
+  const raw = process.env[SUMMARY_TIMEOUT_ENV_VAR];
+  if (!raw) {
+    return DEFAULT_SUMMARY_TIMEOUT_MS;
+  }
+
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return DEFAULT_SUMMARY_TIMEOUT_MS;
+  }
+
+  return Math.min(MAX_SUMMARY_TIMEOUT_MS, Math.max(MIN_SUMMARY_TIMEOUT_MS, parsed));
+}
+
+function resolveSummaryWorkspacePath(workspacePath: string): string {
+  const baseName = path.basename(workspacePath).toLowerCase();
+  if (baseName === SUMMARY_REPO_ROOT_DIR.toLowerCase()) {
+    return workspacePath;
+  }
+
+  if (baseName === SUMMARY_PARENT_WORKSPACE_DIR.toLowerCase()) {
+    return path.join(workspacePath, SUMMARY_REPO_ROOT_DIR);
+  }
+
+  return workspacePath;
+}
+
+function extractLaunchContextFromError(error: unknown): Record<string, unknown> | undefined {
+  if (typeof error !== 'object' || error === null || Array.isArray(error)) {
+    return undefined;
+  }
+
+  const candidate = (error as { launchContext?: unknown }).launchContext;
+  if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) {
+    return undefined;
+  }
+
+  return candidate as Record<string, unknown>;
+}
+
 // =============================================================================
 // Main handler
 // =============================================================================
@@ -510,6 +558,8 @@ export async function handleMemoryCartographer(
       // Prefer a process-accessible path (container mount on Linux, host path on Windows).
       const resolvedWorkspacePath = await resolveAccessiblePath(workspace.path);
       const pythonWorkspacePath = resolvedWorkspacePath ?? workspace.path;
+      const effectiveSummaryWorkspacePath = resolveSummaryWorkspacePath(pythonWorkspacePath);
+      const summaryTimeoutMs = resolveSummaryTimeoutMs();
 
       const scopeArgs: Record<string, unknown> = {};
       if (typeof params.file_id === 'string' && params.file_id.length > 0) {
@@ -547,11 +597,11 @@ export async function handleMemoryCartographer(
           action: 'cartograph',
           args: {
             query: 'summary',
-            workspace_path: pythonWorkspacePath,
+            workspace_path: effectiveSummaryWorkspacePath,
             scope: scopeArgs,
             ...(languageFilters.length > 0 ? { languages: languageFilters } : {}),
           },
-          timeout_ms: 15_000,
+          timeout_ms: summaryTimeoutMs,
         });
 
         if (response.status === 'error') {
@@ -589,11 +639,13 @@ export async function handleMemoryCartographer(
         };
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
+        const launchContext = extractLaunchContextFromError(error);
         console.warn(JSON.stringify({
           event: 'cartographer_fallback',
           action: 'summary',
           reason: 'python_core_error',
           error: message,
+          launch_context: launchContext ?? null,
         }));
 
         return {
@@ -605,36 +657,268 @@ export async function handleMemoryCartographer(
               error: 'PYTHON_CORE_ERROR',
               diagnostic_code: 'PYTHON_RUNTIME_UNAVAILABLE',
               message,
+              ...(launchContext ? { launch_context: launchContext } : {}),
             },
           },
         };
       }
     }
 
-    // ── Phase B stubs: cartography_queries ──────────────────────────────────
+    // ── Phase B live actions: cartography_queries ───────────────────────────
     case 'file_context':
     case 'flow_entry_points':
     case 'layer_view':
     case 'search': {
-      console.warn(JSON.stringify({
-        event:  'cartographer_phase_b_stub',
-        action,
-        domain: 'cartography_queries',
-      }));
-      return { success: true, data: phaseBStub(action, 'cartography_queries') };
+      const workspace = getWorkspace(resolvedWorkspaceId);
+      if (!workspace?.path) {
+        return {
+          success: false,
+          error: `Unable to resolve workspace path for workspace '${resolvedWorkspaceId}'`,
+          data: {
+            action,
+            data: {
+              error:           'WORKSPACE_PATH_UNAVAILABLE',
+              diagnostic_code: 'WORKSPACE_PATH_NOT_FOUND',
+              message:         `Workspace path could not be resolved for '${resolvedWorkspaceId}'.`,
+            },
+          },
+        };
+      }
+
+      const resolvedWorkspacePath = await resolveAccessiblePath(workspace.path);
+      const pythonWorkspacePath = resolvedWorkspacePath ?? workspace.path;
+
+      const adapter = new PythonCoreAdapter();
+      const requestId = `cartograph_${action}_${randomUUID()}`;
+
+      const queryArgs: Record<string, unknown> = {
+        query:          action,
+        workspace_path: pythonWorkspacePath,
+      };
+
+      if (action === 'file_context') {
+        queryArgs.file_id = params.file_id;
+        if (typeof params.include_symbols === 'boolean')    queryArgs.include_symbols    = params.include_symbols;
+        if (typeof params.include_references === 'boolean') queryArgs.include_references = params.include_references;
+      } else if (action === 'flow_entry_points') {
+        if (Array.isArray(params.layer_filter)    && params.layer_filter.length > 0)    queryArgs.layer_filter    = params.layer_filter;
+        if (Array.isArray(params.language_filter) && params.language_filter.length > 0) queryArgs.language_filter = params.language_filter;
+      } else if (action === 'layer_view') {
+        queryArgs.layers = params.layers;
+        if (typeof params.depth_limit === 'number')              queryArgs.depth_limit              = params.depth_limit;
+        if (typeof params.include_cross_layer_edges === 'boolean') queryArgs.include_cross_layer_edges = params.include_cross_layer_edges;
+      } else if (action === 'search') {
+        queryArgs.search_query = params.query;
+        if (params.search_scope)                        queryArgs.search_scope = params.search_scope;
+        if (Array.isArray(params.layer_filter) && params.layer_filter.length > 0) queryArgs.layer_filter = params.layer_filter;
+        if (typeof params.limit === 'number')           queryArgs.limit        = params.limit;
+      }
+
+      try {
+        const response = await adapter.invoke({
+          schema_version: ADAPTER_SCHEMA_VERSION,
+          request_id:     requestId,
+          action:         'cartograph',
+          args:           queryArgs,
+          timeout_ms:     15_000,
+        });
+
+        if (response.status === 'error') {
+          return {
+            success: false,
+            error:   `Python core returned an error for ${action} action`,
+            data: {
+              action,
+              data: {
+                error:           'PYTHON_CORE_ERROR',
+                diagnostic_code: 'PYTHON_RUNTIME_ERROR',
+                message:         response.diagnostics.errors.join('; ') || 'Python core returned status=error.',
+                request_id:      response.request_id,
+                diagnostics:     response.diagnostics,
+                elapsed_ms:      response.elapsed_ms,
+              },
+            },
+          };
+        }
+
+        return {
+          success: true,
+          data: {
+            action,
+            data: {
+              source:         'python_core',
+              request_id:     response.request_id,
+              schema_version: response.schema_version,
+              status:         response.status,
+              elapsed_ms:     response.elapsed_ms,
+              diagnostics:    response.diagnostics,
+              result:         response.result,
+            },
+          },
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        const launchContext = extractLaunchContextFromError(error);
+        console.warn(JSON.stringify({
+          event:          'cartographer_fallback',
+          action,
+          reason:         'python_core_error',
+          error:          message,
+          launch_context: launchContext ?? null,
+        }));
+
+        return {
+          success: false,
+          error:   `${action} failed: ${message}`,
+          data: {
+            action,
+            data: {
+              error:           'PYTHON_CORE_ERROR',
+              diagnostic_code: 'PYTHON_RUNTIME_UNAVAILABLE',
+              message,
+              ...(launchContext ? { launch_context: launchContext } : {}),
+            },
+          },
+        };
+      }
     }
 
-    // ── Phase B stubs: architecture_slices ──────────────────────────────────
-    case 'slice_catalog':
+    // ── architecture_slices: slice_catalog (SQLite-backed) ──────────────────
+    case 'slice_catalog': {
+      type SliceCatalogRow = {
+        id: string;
+        workspace_id: string;
+        path: string;
+        type: string;
+        catalog_metadata: string | null;
+        created_at: string;
+        updated_at: string;
+      };
+      const slices = queryAll<SliceCatalogRow>(
+        'SELECT id, workspace_id, path, type, catalog_metadata, created_at, updated_at FROM architecture_slices WHERE workspace_id = ?',
+        [resolvedWorkspaceId],
+      );
+      return {
+        success: true,
+        data: {
+          action: 'slice_catalog',
+          data: {
+            slices,
+            total: slices.length,
+          },
+        },
+      };
+    }
+
+    // ── Phase B live actions: architecture_slices ───────────────────────────
     case 'slice_detail':
     case 'slice_projection':
     case 'slice_filters': {
-      console.warn(JSON.stringify({
-        event:  'cartographer_phase_b_stub',
-        action,
-        domain: 'architecture_slices',
-      }));
-      return { success: true, data: phaseBStub(action, 'architecture_slices') };
+      const workspace = getWorkspace(resolvedWorkspaceId);
+      if (!workspace?.path) {
+        return {
+          success: false,
+          error: `Unable to resolve workspace path for workspace '${resolvedWorkspaceId}'`,
+          data: {
+            action,
+            data: {
+              error:           'WORKSPACE_PATH_UNAVAILABLE',
+              diagnostic_code: 'WORKSPACE_PATH_NOT_FOUND',
+              message:         `Workspace path could not be resolved for '${resolvedWorkspaceId}'.`,
+            },
+          },
+        };
+      }
+
+      const resolvedWorkspacePath = await resolveAccessiblePath(workspace.path);
+      const pythonWorkspacePath = resolvedWorkspacePath ?? workspace.path;
+
+      const adapter = new PythonCoreAdapter();
+      const requestId = `cartograph_${action}_${randomUUID()}`;
+
+      const queryArgs: Record<string, unknown> = {
+        query:          action,
+        workspace_path: pythonWorkspacePath,
+        workspace_id:   resolvedWorkspaceId,
+      };
+
+      if (action === 'slice_detail') {
+        queryArgs.slice_id = params.slice_id;
+      } else if (action === 'slice_projection') {
+        queryArgs.slice_id        = params.slice_id;
+        queryArgs.projection_type = params.projection_type;
+        if (Array.isArray(params.filters) && params.filters.length > 0) queryArgs.filters = params.filters;
+      } else if (action === 'slice_filters') {
+        if (params.slice_id) queryArgs.slice_id = params.slice_id;
+      }
+
+      try {
+        const response = await adapter.invoke({
+          schema_version: ADAPTER_SCHEMA_VERSION,
+          request_id:     requestId,
+          action:         'cartograph',
+          args:           queryArgs,
+          timeout_ms:     15_000,
+        });
+
+        if (response.status === 'error') {
+          return {
+            success: false,
+            error:   `Python core returned an error for ${action} action`,
+            data: {
+              action,
+              data: {
+                error:           'PYTHON_CORE_ERROR',
+                diagnostic_code: 'PYTHON_RUNTIME_ERROR',
+                message:         response.diagnostics.errors.join('; ') || 'Python core returned status=error.',
+                request_id:      response.request_id,
+                diagnostics:     response.diagnostics,
+                elapsed_ms:      response.elapsed_ms,
+              },
+            },
+          };
+        }
+
+        return {
+          success: true,
+          data: {
+            action,
+            data: {
+              source:         'python_core',
+              request_id:     response.request_id,
+              schema_version: response.schema_version,
+              status:         response.status,
+              elapsed_ms:     response.elapsed_ms,
+              diagnostics:    response.diagnostics,
+              result:         response.result,
+            },
+          },
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        const launchContext = extractLaunchContextFromError(error);
+        console.warn(JSON.stringify({
+          event:          'cartographer_fallback',
+          action,
+          reason:         'python_core_error',
+          error:          message,
+          launch_context: launchContext ?? null,
+        }));
+
+        return {
+          success: false,
+          error:   `${action} failed: ${message}`,
+          data: {
+            action,
+            data: {
+              error:           'PYTHON_CORE_ERROR',
+              diagnostic_code: 'PYTHON_RUNTIME_UNAVAILABLE',
+              message,
+              ...(launchContext ? { launch_context: launchContext } : {}),
+            },
+          },
+        };
+      }
     }
 
     // ── Phase A: dependencies_dependents ────────────────────────────────────

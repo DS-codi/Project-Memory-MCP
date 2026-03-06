@@ -1097,12 +1097,28 @@ pub(crate) fn spawn_runtime_tasks(
                                     .map(|w| w.path.clone())
                                     .filter(|p| !p.trim().is_empty())
                                     .collect();
-                                {
+                                let suggestions_json = {
                                     let mut s = state.lock().unwrap();
-                                    s.known_workspace_paths = paths.clone();
-                                }
-                                let suggestions_json = serde_json::to_string(&paths)
-                                    .unwrap_or_else(|_| "[]".to_string());
+                                    if !paths.is_empty() {
+                                        for path in paths {
+                                            if !s.known_workspace_paths.contains(&path) {
+                                                s.known_workspace_paths.push(path);
+                                            }
+                                        }
+                                    }
+
+                                    let default_workspace = crate::cxxqt_bridge::default_workspace_path();
+                                    if !default_workspace.trim().is_empty()
+                                        && !s.known_workspace_paths.contains(&default_workspace)
+                                    {
+                                        s.known_workspace_paths.push(default_workspace);
+                                    }
+
+                                    s.known_workspace_paths.sort();
+                                    s.known_workspace_paths.dedup();
+                                    serde_json::to_string(&s.known_workspace_paths)
+                                        .unwrap_or_else(|_| "[]".to_string())
+                                };
                                 let _ = qt.queue(move |mut obj| {
                                     obj.as_mut().set_available_workspaces_json(
                                         cxx_qt_lib::QString::from(&suggestions_json),
@@ -1196,6 +1212,7 @@ pub(crate) fn spawn_runtime_tasks(
                         let started_at_ms = crate::output_persistence::now_epoch_millis();
                         let (output_tx, mut output_rx) = tokio::sync::mpsc::channel::<OutputLine>(64);
                         let persisted_lines = Arc::new(Mutex::new(Vec::<crate::output_persistence::PersistedOutputLine>::new()));
+                        let request_session_id = req.session_id.clone();
 
                         let qt_output = qt.clone();
                         let persisted_lines_for_task = persisted_lines.clone();
@@ -1240,15 +1257,16 @@ pub(crate) fn spawn_runtime_tasks(
                                     }
                                 }
 
-                                let _ = qt_output.queue(move |mut obj| {
-                                    let cur = obj.as_ref().output_text().to_string();
-                                    let new_text = if cur.is_empty() {
-                                        ui_line
-                                    } else {
-                                        format!("{cur}\n{ui_line}")
-                                    };
-                                    obj.as_mut().set_output_text(QString::from(&new_text));
-                                });
+                                let next_selected_output = {
+                                    let mut s = state_for_fwd.lock().unwrap();
+                                    s.append_output_line_for_session(&request_session_id, &ui_line)
+                                };
+
+                                if let Some(new_text) = next_selected_output {
+                                    let _ = qt_output.queue(move |mut obj| {
+                                        obj.as_mut().set_output_text(QString::from(&new_text));
+                                    });
+                                }
                             }
                         });
 
@@ -1694,6 +1712,27 @@ fn resolve_ws_working_directory(request: &CommandRequest) -> String {
     ".".to_string()
 }
 
+fn strip_ansi(s: &str) -> String {
+    let bytes = s.as_bytes();
+    let mut result = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == 0x1b && i + 1 < bytes.len() && bytes[i + 1] == b'[' {
+            i += 2;
+            while i < bytes.len() && !bytes[i].is_ascii_alphabetic() {
+                i += 1;
+            }
+            if i < bytes.len() {
+                i += 1;
+            }
+        } else {
+            result.push(bytes[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8_lossy(&result).into_owned()
+}
+
 fn build_ws_wrapped_command(request: &CommandRequest, marker: &str) -> String {
     let cwd = resolve_ws_working_directory(request);
     let escaped_cwd = escape_powershell_single_quoted(&cwd);
@@ -1710,8 +1749,10 @@ fn build_ws_wrapped_command(request: &CommandRequest, marker: &str) -> String {
         format!("{} {}", request.command, rendered_args)
     };
 
+    let start_marker = marker.replace("__PM_DONE_", "__PM_START_");
     format!(
-        "{env_prefix}Set-Location -LiteralPath '{escaped_cwd}'; & {{ {}; $code=$LASTEXITCODE; if ($null -eq $code) {{ $code=0 }}; Write-Output ('{}' + [string]$code) }}",
+        "{env_prefix}Set-Location -LiteralPath '{escaped_cwd}'; Write-Output '{}'; {}; Write-Output ('{}' + [string]$(0+$LASTEXITCODE))",
+        start_marker,
         command_with_args,
         marker
     )
@@ -1736,6 +1777,8 @@ async fn execute_command_via_ws_terminal(
     let timeout = Duration::from_secs(request.timeout_seconds.max(1));
     let deadline = Instant::now() + timeout;
 
+    let start_marker_line = marker.replace("__PM_DONE_", "__PM_START_");
+    let mut found_start = false;
     let mut captured_output = String::new();
     let mut line_buffer = String::new();
 
@@ -1770,7 +1813,7 @@ async fn execute_command_via_ws_terminal(
                 }
 
                 let chunk = String::from_utf8_lossy(&bytes).to_string();
-                let chunk_for_mcp = chunk.replace(&marker, "");
+                let chunk_for_mcp = chunk.replace(&marker, "").replace(&start_marker_line, "");
                 if !chunk_for_mcp.is_empty() {
                     let response = Message::OutputChunk(OutputChunk {
                         id: request.id.clone(),
@@ -1780,12 +1823,18 @@ async fn execute_command_via_ws_terminal(
                     state.send_response(response);
                 }
 
-                captured_output.push_str(&chunk);
                 line_buffer.push_str(&chunk);
 
                 while let Some(newline_idx) = line_buffer.find('\n') {
                     let line = line_buffer[..newline_idx].trim_end_matches('\r').to_string();
                     line_buffer = line_buffer[newline_idx + 1..].to_string();
+
+                    if !found_start {
+                        if line.contains("__PM_START_") {
+                            found_start = true;
+                        }
+                        continue;
+                    }
 
                     if let Some(code) = parse_marker_exit_code(&line, &marker) {
                         return Ok(command_executor::ExecutionResult {
@@ -1795,8 +1844,13 @@ async fn execute_command_via_ws_terminal(
                         });
                     }
 
-                    if !line.is_empty() {
-                        let _ = output_tx.send(OutputLine::Stdout(line)).await;
+                    let clean = strip_ansi(&line);
+                    if !clean.is_empty() {
+                        if !captured_output.is_empty() {
+                            captured_output.push('\n');
+                        }
+                        captured_output.push_str(&clean);
+                        let _ = output_tx.send(OutputLine::Stdout(clean)).await;
                     }
                 }
             }
@@ -2329,7 +2383,7 @@ mod tests {
 
         let wrapped = build_ws_wrapped_command(&request, "__M__");
         assert!(
-            wrapped.contains("& { echo 'quick-smoke-ok';"),
+            wrapped.contains("; echo 'quick-smoke-ok'; Write-Output ("),
             "wrapped command: {wrapped}"
         );
     }

@@ -17,6 +17,19 @@ import { handleMemoryCartographer } from '../../tools/memory_cartographer.js';
 import type { MemoryCartographerParams } from '../../tools/memory_cartographer.js';
 
 // ---------------------------------------------------------------------------
+// Hoisted mocks (used by Phase B tests)
+// ---------------------------------------------------------------------------
+const {
+  mockedGetWorkspace,
+  mockedResolveAccessiblePath,
+  mockedInvokePythonCore,
+} = vi.hoisted(() => ({
+  mockedGetWorkspace:         vi.fn(),
+  mockedResolveAccessiblePath: vi.fn(),
+  mockedInvokePythonCore:     vi.fn(),
+}));
+
+// ---------------------------------------------------------------------------
 // Mocks
 // ---------------------------------------------------------------------------
 vi.mock('../../tools/consolidated/workspace-validation.js', () => ({
@@ -48,6 +61,18 @@ vi.mock('../../db/connection.js', () => ({
 vi.mock('../../db/query-helpers.js', () => ({
   queryAll: vi.fn().mockReturnValue([]),
   queryOne: vi.fn().mockReturnValue(null),
+}));
+
+vi.mock('../../db/workspace-db.js', () => ({
+  getWorkspace: mockedGetWorkspace,
+}));
+
+vi.mock('../../storage/workspace-mounts.js', () => ({
+  resolveAccessiblePath: mockedResolveAccessiblePath,
+}));
+
+vi.mock('../../cartography/runtime/pythonBridge.js', () => ({
+  invokePythonCore: mockedInvokePythonCore,
 }));
 
 // ---------------------------------------------------------------------------
@@ -217,19 +242,143 @@ describe('Benchmark — metadata structure { action, elapsed_ms, is_mock, phase 
 });
 
 // ---------------------------------------------------------------------------
-// 4. Phase B benchmarks — deferred (placeholder todos)
+// 4. Phase B benchmarks — Python adapter via mock
 // ---------------------------------------------------------------------------
 
 describe('Phase B benchmarks — deferred', () => {
-  it.todo('summary: benchmark latency once Python runtime is connected');
-  it.todo('file_context: benchmark latency once Python runtime is connected');
-  it.todo('flow_entry_points: benchmark latency once Python runtime is connected');
-  it.todo('layer_view: benchmark latency once Python runtime is connected');
-  it.todo('search: benchmark end-to-end latency once Python runtime is connected');
-  it.todo('slice_catalog: benchmark catalog listing latency');
-  it.todo('slice_detail: benchmark slice detail retrieval latency');
-  it.todo('slice_projection: benchmark slice projection rendering latency');
-  it.todo('slice_filters: benchmark filter evaluation latency');
-  it.todo('Phase B P95 latency baseline: all actions < 2000ms under mock Python adapter');
-  it.todo('Phase B throughput baseline: 10 concurrent summary calls within 5s');
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedGetWorkspace.mockReturnValue({
+      id:   WORKSPACE_ID,
+      path: 'C:/mock/workspace',
+    });
+    mockedResolveAccessiblePath.mockResolvedValue('C:/mock/workspace');
+    mockedInvokePythonCore.mockResolvedValue({
+      schema_version: '1.0.0',
+      request_id:     'benchmark_req_001',
+      status:         'ok',
+      result:         { query: 'summary', summary: { files_total: 2 } },
+      diagnostics:    { warnings: [], errors: [], markers: [], skipped_paths: [] },
+      elapsed_ms:     10,
+    });
+  });
+
+  it('summary: benchmark latency once Python runtime is connected', async () => {
+    const start = Date.now();
+    const result = await handleMemoryCartographer(base({ action: 'summary' }));
+    const elapsed = Date.now() - start;
+    expect(result.success).toBe(true);
+    expect(mockedInvokePythonCore).toHaveBeenCalled();
+    expect(elapsed).toBeLessThan(MOCK_LATENCY_BUDGET);
+  });
+
+  it('file_context: benchmark latency once Python runtime is connected', async () => {
+    const start = Date.now();
+    const result = await handleMemoryCartographer(base({ action: 'file_context' as any }));
+    const elapsed = Date.now() - start;
+    expect(result.success).toBe(true);
+    expect(mockedInvokePythonCore).toHaveBeenCalled();
+    expect(elapsed).toBeLessThan(MOCK_LATENCY_BUDGET);
+  });
+
+  it('flow_entry_points: benchmark latency once Python runtime is connected', async () => {
+    const start = Date.now();
+    const result = await handleMemoryCartographer(base({ action: 'flow_entry_points' as any }));
+    const elapsed = Date.now() - start;
+    expect(result.success).toBe(true);
+    expect(mockedInvokePythonCore).toHaveBeenCalled();
+    expect(elapsed).toBeLessThan(MOCK_LATENCY_BUDGET);
+  });
+
+  it('layer_view: benchmark latency once Python runtime is connected', async () => {
+    const start = Date.now();
+    const result = await handleMemoryCartographer(base({ action: 'layer_view' as any }));
+    const elapsed = Date.now() - start;
+    expect(result.success).toBe(true);
+    expect(mockedInvokePythonCore).toHaveBeenCalled();
+    expect(elapsed).toBeLessThan(MOCK_LATENCY_BUDGET);
+  });
+
+  it('search: benchmark end-to-end latency once Python runtime is connected', async () => {
+    const start = Date.now();
+    const result = await handleMemoryCartographer(base({ action: 'search' as any }));
+    const elapsed = Date.now() - start;
+    expect(result.success).toBe(true);
+    expect(mockedInvokePythonCore).toHaveBeenCalled();
+    expect(elapsed).toBeLessThan(MOCK_LATENCY_BUDGET);
+  });
+
+  it('slice_catalog: benchmark catalog listing latency', async () => {
+    const start = Date.now();
+    const result = await handleMemoryCartographer(base({ action: 'slice_catalog' as any }));
+    const elapsed = Date.now() - start;
+    expect(result.success).toBe(true);
+    // slice_catalog is SQLite-backed — Python adapter not called
+    expect(elapsed).toBeLessThan(MOCK_LATENCY_BUDGET);
+  });
+
+  it('slice_detail: benchmark slice detail retrieval latency', async () => {
+    const start = Date.now();
+    const result = await handleMemoryCartographer(
+      base({ action: 'slice_detail' as any, slice_id: 'sl_bench_001' } as any),
+    );
+    const elapsed = Date.now() - start;
+    expect(result.success).toBe(true);
+    expect(mockedInvokePythonCore).toHaveBeenCalled();
+    expect(elapsed).toBeLessThan(MOCK_LATENCY_BUDGET);
+  });
+
+  it('slice_projection: benchmark slice projection rendering latency', async () => {
+    const start = Date.now();
+    const result = await handleMemoryCartographer(
+      base({ action: 'slice_projection' as any, slice_id: 'sl_bench_001' } as any),
+    );
+    const elapsed = Date.now() - start;
+    expect(result.success).toBe(true);
+    expect(mockedInvokePythonCore).toHaveBeenCalled();
+    expect(elapsed).toBeLessThan(MOCK_LATENCY_BUDGET);
+  });
+
+  it('slice_filters: benchmark filter evaluation latency', async () => {
+    const start = Date.now();
+    const result = await handleMemoryCartographer(base({ action: 'slice_filters' as any }));
+    const elapsed = Date.now() - start;
+    expect(result.success).toBe(true);
+    expect(mockedInvokePythonCore).toHaveBeenCalled();
+    expect(elapsed).toBeLessThan(MOCK_LATENCY_BUDGET);
+  });
+
+  it('Phase B P95 latency baseline: all actions < 2000ms under mock Python adapter', async () => {
+    const scenarios: Array<Partial<MemoryCartographerParams>> = [
+      { action: 'summary' },
+      { action: 'file_context'    as any },
+      { action: 'flow_entry_points' as any },
+      { action: 'layer_view'      as any },
+      { action: 'search'          as any },
+      { action: 'slice_catalog'   as any },
+      { action: 'slice_detail'    as any, slice_id: 'sl_bench_001' } as any,
+      { action: 'slice_projection' as any, slice_id: 'sl_bench_001' } as any,
+      { action: 'slice_filters'   as any },
+    ];
+    for (const params of scenarios) {
+      const start  = Date.now();
+      const result = await handleMemoryCartographer(base(params));
+      const elapsed = Date.now() - start;
+      expect(result.success).toBe(true);
+      expect(elapsed).toBeLessThan(2000);
+    }
+  });
+
+  it('Phase B throughput baseline: 10 concurrent summary calls within 5s', async () => {
+    const start = Date.now();
+    const calls = Array.from({ length: 10 }, () =>
+      handleMemoryCartographer(base({ action: 'summary' })),
+    );
+    const results = await Promise.all(calls);
+    const elapsed = Date.now() - start;
+    expect(elapsed).toBeLessThan(5000);
+    for (const result of results) {
+      expect(result.success).toBe(true);
+    }
+  });
 });

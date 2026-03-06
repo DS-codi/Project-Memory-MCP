@@ -58,6 +58,8 @@ pub struct ProxyState {
     pub client: reqwest::Client,
     /// Base port — used for endpoints that are not session-specific.
     pub base_port: u16,
+    /// Optional fallback REST backend port used for `/api/fallback/*` routes.
+    pub fallback_port: Option<u16>,
     /// Broadcast sender for heartbeat SSE events.
     pub heartbeat_tx: broadcast::Sender<HeartbeatEvent>,
     /// Optional events broadcast handle.  Present when `events.enabled = true`.
@@ -172,7 +174,7 @@ async fn mcp_handler(
 async fn heartbeat_handler(
     State(state): State<ProxyState>,
 ) -> Sse<impl futures_util::Stream<Item = Result<Event, std::convert::Infallible>>> {
-    let mut rx = state.heartbeat_tx.subscribe();
+    let rx = state.heartbeat_tx.subscribe();
 
     let stream = futures_util::stream::unfold(rx, |mut rx| async move {
         // Wait for the next heartbeat tick (skip lagged messages).
@@ -214,6 +216,45 @@ async fn passthrough_handler(
     forward(&state.client, method, target_url, &headers, body).await
 }
 
+fn fallback_unavailable_response(message: &str) -> Response<Body> {
+    let body = serde_json::json!({
+        "success": false,
+        "error": message,
+        "code": "fallback_unavailable"
+    })
+    .to_string();
+
+    Response::builder()
+        .status(StatusCode::SERVICE_UNAVAILABLE)
+        .header("content-type", "application/json")
+        .body(Body::from(body))
+        .unwrap_or_else(|_| Response::new(Body::from("{\"success\":false,\"error\":\"fallback unavailable\",\"code\":\"fallback_unavailable\"}")))
+}
+
+async fn fallback_passthrough_handler(
+    State(state): State<ProxyState>,
+    req: Request,
+) -> Result<Response<Body>, StatusCode> {
+    let Some(fallback_port) = state.fallback_port else {
+        return Ok(fallback_unavailable_response("Fallback API service is disabled"));
+    };
+
+    let method = req.method().clone();
+    let uri = req.uri().clone();
+    let headers = req.headers().clone();
+    let path_and_query = uri.path_and_query().map(|pq| pq.as_str()).unwrap_or("/");
+    let target_url = format!("http://127.0.0.1:{fallback_port}{path_and_query}");
+    let body = axum::body::to_bytes(req.into_body(), 16 * 1024 * 1024)
+        .await
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+    match forward(&state.client, method, target_url, &headers, body).await {
+        Ok(response) => Ok(response),
+        Err(StatusCode::BAD_GATEWAY) => Ok(fallback_unavailable_response("Fallback API backend is unavailable")),
+        Err(status) => Err(status),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Router factory
 // ---------------------------------------------------------------------------
@@ -242,6 +283,7 @@ pub fn build_router(state: ProxyState) -> Router {
         // falsely mark the MCP as disconnected.
         .route("/health", get(proxy_health_handler))
         .route("/api/health", get(proxy_health_handler))
+        .route("/api/fallback/*path", any(fallback_passthrough_handler))
         .route("/supervisor/heartbeat", get(heartbeat_handler))
         .fallback(passthrough_handler);
 
@@ -307,6 +349,7 @@ pub fn start_heartbeat_ticker(
 pub async fn start_proxy(
     bind_addr: String,
     base_port: u16,
+    fallback_port: Option<u16>,
     dispatch_port: Arc<dyn Fn() -> u16 + Send + Sync>,
     heartbeat_tx: broadcast::Sender<HeartbeatEvent>,
     events_handle: Option<EventsHandle>,
@@ -323,6 +366,7 @@ pub async fn start_proxy(
         dispatch_port,
         client,
         base_port,
+        fallback_port,
         heartbeat_tx,
         events_handle,
     };
@@ -332,4 +376,113 @@ pub async fn start_proxy(
     eprintln!("[proxy] MCP proxy listening on {bind_addr} → dispatch base_port={base_port}");
     axum::serve(listener, app).await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::Request;
+    use http_body_util::BodyExt;
+    use tower::util::ServiceExt;
+
+    fn make_state(base_port: u16, fallback_port: Option<u16>) -> ProxyState {
+        let client = reqwest::Client::builder()
+            .connect_timeout(Duration::from_secs(2))
+            .build()
+            .expect("client");
+
+        ProxyState {
+            dispatch_port: Arc::new(move || base_port),
+            client,
+            base_port,
+            fallback_port,
+            heartbeat_tx: heartbeat_channel(),
+            events_handle: None,
+        }
+    }
+
+    async fn body_to_string(body: Body) -> String {
+        let collected = body.collect().await.expect("collect body");
+        String::from_utf8(collected.to_bytes().to_vec()).expect("utf8 body")
+    }
+
+    #[tokio::test]
+    async fn fallback_route_returns_503_when_disabled() {
+        let app = build_router(make_state(3460, None));
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/fallback/health")
+                    .method("GET")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let body = body_to_string(response.into_body()).await;
+        assert!(body.contains("fallback_unavailable"));
+    }
+
+    #[tokio::test]
+    async fn fallback_route_returns_503_when_backend_unreachable() {
+        let app = build_router(make_state(3460, Some(65_530)));
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/fallback/health")
+                    .method("GET")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let body = body_to_string(response.into_body()).await;
+        assert!(body.contains("Fallback API backend is unavailable"));
+    }
+
+    #[tokio::test]
+    async fn fallback_route_forwards_to_dedicated_backend() {
+        let backend = Router::new().route(
+            "/api/fallback/health",
+            get(|| async {
+                axum::Json(serde_json::json!({
+                    "success": true,
+                    "service": "fallback-backend"
+                }))
+            }),
+        );
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind backend");
+        let port = listener.local_addr().expect("local addr").port();
+        let backend_task = tokio::spawn(async move {
+            let _ = axum::serve(listener, backend).await;
+        });
+
+        let app = build_router(make_state(3460, Some(port)));
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/fallback/health")
+                    .method("GET")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        backend_task.abort();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = body_to_string(response.into_body()).await;
+        assert!(body.contains("fallback-backend"));
+    }
 }

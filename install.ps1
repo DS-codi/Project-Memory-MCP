@@ -5,11 +5,13 @@
 
 .DESCRIPTION
     Builds and installs one or more components of the Project Memory MCP system.
-    Components: Server, Extension, Container.
+    Components: Supervisor, GuiForms, InteractiveTerminal, Server, FallbackServer,
+    Dashboard, Extension, Container.
 
 .PARAMETER Component
     Which component(s) to build and install. Accepts an array.
-    Valid values: Server, Extension, Container, All
+    Valid values: Supervisor, GuiForms, InteractiveTerminal, Server,
+    FallbackServer, Dashboard, Extension, Container, All
     Default: All
 
 .PARAMETER InstallOnly
@@ -56,11 +58,15 @@
 .EXAMPLE
     # Fresh database + server only
     .\install.ps1 -Component Server -NewDatabase
+
+.EXAMPLE
+    # Build only the fallback REST server entrypoint
+    .\install.ps1 -Component FallbackServer
 #>
 
 [CmdletBinding()]
 param(
-    [ValidateSet("Server", "Extension", "Container", "Supervisor", "InteractiveTerminal", "Dashboard", "GuiForms", "All", "--help")]
+    [ValidateSet("Server", "FallbackServer", "Extension", "Container", "Supervisor", "InteractiveTerminal", "Dashboard", "GuiForms", "All", "--help")]
     [string[]]$Component = @("All"),
 
     [switch]$InstallOnly,
@@ -68,6 +74,7 @@ param(
     [switch]$Force,
     [switch]$NoBuild,  # alias for InstallOnly
     [switch]$NewDatabase,  # archive old DB and create a fresh one
+    [switch]$NoLaunchPrompt,  # suppress interactive launch prompt (for subprocess callers)
     [Alias('h')]
     [switch]$Help,
     [string[]]$RemainingArgs
@@ -83,7 +90,7 @@ function Show-InstallHelp {
     Write-Host "  .\install.ps1 [-Component <list>] [-InstallOnly] [-SkipInstall] [-Force] [-NoBuild] [-NewDatabase] [-h|-Help|--help]"
     Write-Host ""
     Write-Host "Components:" -ForegroundColor Cyan
-    Write-Host "  Supervisor, GuiForms, InteractiveTerminal, Server, Dashboard, Extension, Container, All"
+    Write-Host "  Supervisor, GuiForms, InteractiveTerminal, Server, FallbackServer, Dashboard, Extension, Container, All"
     Write-Host ""
     Write-Host "Flags:" -ForegroundColor Cyan
     Write-Host "  -InstallOnly   Extension only: install latest .vsix without rebuilding"
@@ -773,6 +780,14 @@ function Install-Server {
         Invoke-Checked "npm run build" { npm run build 2>&1 | Write-Host }
         Write-Ok "Server built → $ServerDir\dist"
 
+        # Ensure fallback REST transport entrypoint is present in build output.
+        $fallbackEntry = Join-Path $ServerDir "dist\fallback-rest-main.js"
+        if (-not (Test-Path $fallbackEntry)) {
+            Write-Fail "Fallback server entrypoint missing after build: $fallbackEntry"
+            exit 1
+        }
+        Write-Ok "Fallback server built → $fallbackEntry"
+
         # Archive old DB if -NewDatabase was requested (before seed creates a new one)
         if ($NewDatabase) {
             Archive-Database
@@ -790,6 +805,27 @@ function Install-Server {
         } else {
             Write-Ok "Database initialised at %APPDATA%\ProjectMemory\project-memory.db"
         }
+    } finally {
+        Pop-Location
+    }
+}
+
+function Install-FallbackServer {
+    Write-Step "Fallback Server"
+    $ServerDir = Join-Path $Root "server"
+
+    Push-Location $ServerDir
+    try {
+        Invoke-NpmInstall "npm install (server)"
+        Invoke-Checked "npm run build (fallback server)" { npm run build 2>&1 | Write-Host }
+
+        $fallbackEntry = Join-Path $ServerDir "dist\fallback-rest-main.js"
+        if (-not (Test-Path $fallbackEntry)) {
+            Write-Fail "Fallback server entrypoint missing after build: $fallbackEntry"
+            exit 1
+        }
+
+        Write-Ok "Fallback server built → $fallbackEntry"
     } finally {
         Pop-Location
     }
@@ -921,6 +957,7 @@ foreach ($comp in $Components) {
         "GuiForms"            { Install-GuiForms }
         "InteractiveTerminal" { Install-InteractiveTerminal }
         "Server"              { Install-Server }
+        "FallbackServer"      { Install-FallbackServer }
         "Dashboard"           { Install-Dashboard }
         "Extension"           { Install-Extension }
         "Container"           { Install-Container }
@@ -939,7 +976,7 @@ if ($Components -contains "Supervisor") {
     $canLaunchViaScript = Test-Path $launchScript
     $canLaunchDirect = Test-Path $supervisorExe
 
-    if ($canLaunchViaScript -or $canLaunchDirect) {
+    if (($canLaunchViaScript -or $canLaunchDirect) -and -not $NoLaunchPrompt) {
         $launchNow = Read-Host 'Build complete. Launch supervisor now? (Y/N)'
         if ($launchNow -match '^(?i)y(?:es)?$') {
             $launched = $false

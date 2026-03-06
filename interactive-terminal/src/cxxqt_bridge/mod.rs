@@ -332,8 +332,8 @@ pub mod ffi {
 }
 
 pub(crate) use helpers::{
-    monotonic_millis, saved_command_to_record, terminal_profile_from_key, terminal_profile_to_key,
-    timestamp_now,
+    default_workspace_path, monotonic_millis, saved_command_to_record, terminal_profile_from_key,
+    terminal_profile_to_key, timestamp_now,
 };
 pub(crate) use session_runtime::{
     AgentSessionMeta, AppState, SessionLifecycleState, SessionRuntimeContext, SessionTabView,

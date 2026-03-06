@@ -67,6 +67,9 @@ pub struct SupervisorConfig {
     pub dashboard: DashboardSection,
 
     #[serde(default)]
+    pub fallback_api: FallbackApiSection,
+
+    #[serde(default)]
     pub approval: ApprovalSection,
 
     #[serde(default)]
@@ -416,6 +419,38 @@ impl Default for DashboardSection {
             working_dir: None,
             env: HashMap::new(),
             requires_mcp: true,
+            restart_policy: RestartPolicy::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct FallbackApiSection {
+    pub enabled: bool,
+    pub port: u16,
+    /// Executable to invoke for the fallback API process (default: "node").
+    pub command: String,
+    /// Arguments passed to the command (default: ["dist/fallback-rest-main.js"]).
+    pub args: Vec<String>,
+    /// Working directory for the fallback API process.
+    pub working_dir: Option<PathBuf>,
+    /// Extra environment variables injected into the fallback API process.
+    pub env: HashMap<String, String>,
+    /// Restart policy for the fallback API service.
+    #[serde(default)]
+    pub restart_policy: RestartPolicy,
+}
+
+impl Default for FallbackApiSection {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            port: 3465,
+            command: "node".to_string(),
+            args: vec!["dist/fallback-rest-main.js".to_string()],
+            working_dir: None,
+            env: HashMap::new(),
             restart_policy: RestartPolicy::default(),
         }
     }
@@ -774,6 +809,9 @@ mod tests {
         let cfg = load(&path).expect("should use defaults");
         assert_eq!(cfg.supervisor.log_level, "info");
         assert_eq!(cfg.reconnect.max_delay_ms, 30_000);
+        assert!(cfg.fallback_api.enabled, "fallback API should be enabled by default");
+        assert_eq!(cfg.fallback_api.port, 3465);
+        assert_eq!(cfg.fallback_api.args, vec!["dist/fallback-rest-main.js".to_string()]);
     }
 
     #[test]

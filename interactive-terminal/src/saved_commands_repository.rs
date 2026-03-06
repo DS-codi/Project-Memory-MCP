@@ -18,10 +18,12 @@ pub struct SavedCommandsRepository {
 
 impl SavedCommandsRepository {
     pub fn from_env_or_default() -> Self {
-        if let Ok(env_data_root) = std::env::var("MBS_DATA_ROOT") {
-            let root = PathBuf::from(env_data_root.trim());
-            if !root.as_os_str().is_empty() {
-                return Self { data_root: root };
+        // Support both legacy and Project Memory-standard data root env vars.
+        for env_key in ["PM_DATA_ROOT", "MBS_DATA_ROOT"] {
+            if let Ok(env_data_root) = std::env::var(env_key) {
+                if let Some(root) = Self::resolve_explicit_data_root(&PathBuf::from(env_data_root.trim())) {
+                    return Self { data_root: root };
+                }
             }
         }
 
@@ -47,6 +49,28 @@ impl SavedCommandsRepository {
         Self {
             data_root: parent_data,
         }
+    }
+
+    fn resolve_explicit_data_root(candidate: &Path) -> Option<PathBuf> {
+        if candidate.as_os_str().is_empty() {
+            return None;
+        }
+
+        if candidate.join("workspace-registry.json").exists() {
+            return Some(candidate.to_path_buf());
+        }
+
+        let child_data = candidate.join("data");
+        if child_data.join("workspace-registry.json").exists() {
+            return Some(child_data);
+        }
+
+        let nested_repo_data = candidate.join("Project-Memory-MCP").join("data");
+        if nested_repo_data.join("workspace-registry.json").exists() {
+            return Some(nested_repo_data);
+        }
+
+        Some(candidate.to_path_buf())
     }
 
     #[allow(dead_code)]
@@ -130,6 +154,47 @@ impl SavedCommandsRepository {
         loaded
     }
 
+    /// Returns registered workspace paths from `workspace-registry.json`.
+    ///
+    /// This is used by the interactive terminal path pickers so users can
+    /// select any Project Memory registered workspace even before receiving a
+    /// live `WorkspaceListPush` message from the server.
+    pub fn registered_workspace_paths(&self) -> Vec<String> {
+        let registry_path = self.data_root.join("workspace-registry.json");
+        let Ok(raw) = fs::read_to_string(registry_path) else {
+            return Vec::new();
+        };
+
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(&raw) else {
+            return Vec::new();
+        };
+
+        let mut paths = value
+            .get("entries")
+            .and_then(|entries| entries.as_object())
+            .map(|entries| {
+                entries
+                    .keys()
+                    .filter(|path| !path.trim().is_empty())
+                    .map(|path| {
+                        #[cfg(target_os = "windows")]
+                        {
+                            path.replace('/', "\\")
+                        }
+                        #[cfg(not(target_os = "windows"))]
+                        {
+                            path.to_string()
+                        }
+                    })
+                    .collect::<Vec<String>>()
+            })
+            .unwrap_or_default();
+
+        paths.sort();
+        paths.dedup();
+        paths
+    }
+
     pub fn save_workspace(&self, model: &WorkspaceSavedCommands) -> io::Result<()> {
         let normalized = model
             .clone()
@@ -207,9 +272,20 @@ impl SavedCommandsRepository {
 
     fn discover_data_root(start: &Path) -> Option<PathBuf> {
         for candidate in start.ancestors() {
-            let data_dir = candidate.join("data");
-            if data_dir.join("workspace-registry.json").exists() {
-                return Some(data_dir);
+            if candidate.join("workspace-registry.json").exists() {
+                return Some(candidate.to_path_buf());
+            }
+
+            let primary_data = candidate.join("data");
+            if primary_data.join("workspace-registry.json").exists() {
+                return Some(primary_data);
+            }
+
+            // Common layout when launching from a parent folder that contains
+            // the actual repo at ./Project-Memory-MCP.
+            let nested_repo_data = candidate.join("Project-Memory-MCP").join("data");
+            if nested_repo_data.join("workspace-registry.json").exists() {
+                return Some(nested_repo_data);
             }
         }
 
@@ -311,6 +387,59 @@ mod tests {
             all["project-memory-mcp-40f6678f5a9b"].commands[0].name,
             "npx vitest run"
         );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn registered_workspace_paths_reads_registry_entries() {
+        let root = unique_temp_dir();
+        fs::create_dir_all(&root).expect("create test root");
+
+        let registry = serde_json::json!({
+            "schema_version": "1.0.0",
+            "entries": {
+                "c:/users/user/project_memory_mcp": "project_memory_mcp-50e04147a402",
+                "c:/users/user/project_memory_mcp/project-memory-mcp": "project-memory-mcp-40f6678f5a9b"
+            },
+            "updated_at": "2026-03-07T00:00:00.000Z"
+        });
+        fs::write(
+            root.join("workspace-registry.json"),
+            serde_json::to_string_pretty(&registry).expect("registry json"),
+        )
+        .expect("write registry");
+
+        let repo = SavedCommandsRepository::new(root.clone());
+        let paths = repo.registered_workspace_paths();
+
+        assert_eq!(paths.len(), 2);
+        assert!(
+            paths
+                .iter()
+                .any(|p| p.to_ascii_lowercase().contains("project_memory_mcp"))
+        );
+        assert!(
+            paths
+                .iter()
+                .any(|p| p.to_ascii_lowercase().contains("project-memory-mcp"))
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn discover_data_root_finds_nested_repo_data_dir() {
+        let root = unique_temp_dir();
+        let nested_data = root.join("Project-Memory-MCP").join("data");
+        fs::create_dir_all(&nested_data).expect("create nested data root");
+        fs::write(nested_data.join("workspace-registry.json"), "{}")
+            .expect("write nested registry");
+
+        let discovered = SavedCommandsRepository::discover_data_root(&root)
+            .expect("expected nested data root to be discovered");
+
+        assert_eq!(discovered, nested_data);
 
         let _ = fs::remove_dir_all(root);
     }

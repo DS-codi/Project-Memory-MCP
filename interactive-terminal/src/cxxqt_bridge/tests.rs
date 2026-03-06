@@ -26,6 +26,7 @@ fn unique_temp_dir() -> PathBuf {
 fn test_state() -> AppState {
     AppState {
         pending_commands_by_session: HashMap::from([("default".to_string(), Vec::new())]),
+        session_output_by_id: HashMap::from([("default".to_string(), String::new())]),
         session_display_names: HashMap::from([("default".to_string(), "default".to_string())]),
         session_context_by_id: HashMap::new(),
         session_lifecycle_by_id: HashMap::from([(
@@ -42,6 +43,7 @@ fn test_state() -> AppState {
         output_tracker: OutputTracker::default(),
         ws_terminal_tx: None,
         gemini_session_ids: HashSet::new(),
+        copilot_session_ids: HashSet::new(),
         agent_session_ids: HashSet::new(),
         agent_session_meta: HashMap::new(),
         allowlist_patterns: Vec::new(),
@@ -53,6 +55,7 @@ fn test_state() -> AppState {
 fn test_state_with_repo(repo_root: PathBuf) -> AppState {
     AppState {
         pending_commands_by_session: HashMap::from([("default".to_string(), Vec::new())]),
+        session_output_by_id: HashMap::from([("default".to_string(), String::new())]),
         session_display_names: HashMap::from([("default".to_string(), "default".to_string())]),
         session_context_by_id: HashMap::new(),
         session_lifecycle_by_id: HashMap::from([(
@@ -69,6 +72,7 @@ fn test_state_with_repo(repo_root: PathBuf) -> AppState {
         output_tracker: OutputTracker::default(),
         ws_terminal_tx: None,
         gemini_session_ids: HashSet::new(),
+        copilot_session_ids: HashSet::new(),
         agent_session_ids: HashSet::new(),
         agent_session_meta: HashMap::new(),
         allowlist_patterns: Vec::new(),
@@ -326,6 +330,46 @@ fn session_context_values_are_isolated_per_session() {
     assert_eq!(second_ctx.workspace_path, "C:/workspace/two");
     assert_eq!(second_ctx.selected_venv_path, "C:/workspace/two/.venv");
     assert!(!second_ctx.activate_venv);
+}
+
+#[test]
+fn create_session_inherits_selected_session_context() {
+    let mut state = test_state();
+
+    let source_session = state.create_session();
+    state.set_selected_terminal_profile(TerminalProfile::Pwsh);
+    state.set_selected_workspace_path("C:/workspace/inherited".to_string());
+    state.set_selected_venv_path("C:/workspace/inherited/.venv".to_string());
+    state.set_selected_activate_venv(true);
+
+    let inherited_session = state.create_session();
+    assert_ne!(source_session, inherited_session);
+
+    let inherited_ctx = state.selected_session_context();
+    assert_eq!(inherited_ctx.selected_terminal_profile, TerminalProfile::Pwsh);
+    assert_eq!(inherited_ctx.workspace_path, "C:/workspace/inherited");
+    assert_eq!(inherited_ctx.selected_venv_path, "C:/workspace/inherited/.venv");
+    assert!(inherited_ctx.activate_venv);
+}
+
+#[test]
+fn ai_cli_sessions_deduplicate_output_lines_keep_latest() {
+    let mut state = test_state();
+    let session_id = state.create_session();
+    state.gemini_session_ids.insert(session_id.clone());
+
+    let _ = state.append_output_line_for_session(&session_id, "loading modules");
+    let _ = state.append_output_line_for_session(&session_id, "step 1");
+    let _ = state.append_output_line_for_session(&session_id, "loading modules");
+
+    let output = state
+        .session_output_by_id
+        .get(&session_id)
+        .cloned()
+        .unwrap_or_default();
+
+    // Duplicate line should only exist once, at the most recent position.
+    assert_eq!(output, "step 1\nloading modules");
 }
 
 #[test]
@@ -980,5 +1024,58 @@ fn autonomy_mode_propagated_to_launch_payload() {
     assert!(
         !empty_mode_cmd.env.contains_key("PM_AGENT_AUTONOMY_MODE"),
         "empty autonomy mode must not inject PM_AGENT_AUTONOMY_MODE into env"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// CLI launch routing test (Phase 4 — Step 6)
+// ---------------------------------------------------------------------------
+
+/// Verifies that `create_session()` atomically sets `selected_session_id` so
+/// that a `CommandRequest` dispatched immediately after uses the same session
+/// ID and satisfies the `should_route_via_ws_terminal` routing condition
+/// (`req.session_id == state.selected_session_id`).
+#[test]
+fn cli_launch_routes_via_ws_terminal() {
+    let mut state = test_state();
+
+    // create_session() sets selected_session_id in the same locked block
+    // that populates pending_commands_by_session and session_context_by_id.
+    let session_id = state.create_session();
+
+    // 1. selected_session_id must equal the new session ID.
+    assert_eq!(
+        state.selected_session_id, session_id,
+        "create_session() must set selected_session_id to the new session"
+    );
+
+    // 2. has_session() must return true so run_command does not bail early.
+    assert!(
+        state.has_session(&session_id),
+        "has_session() must return true for the newly created session"
+    );
+
+    // 3. A CommandRequest built with the new session_id satisfies the
+    //    routing condition: req.session_id == state.selected_session_id.
+    let req = CommandRequest {
+        id: "cli-launch-test-1".to_string(),
+        command: "gemini.cmd".to_string(),
+        working_directory: String::new(),
+        context: "CLI launch test".to_string(),
+        session_id: session_id.clone(),
+        terminal_profile: TerminalProfile::System,
+        workspace_path: String::new(),
+        venv_path: String::new(),
+        activate_venv: false,
+        timeout_seconds: 86400,
+        args: Vec::new(),
+        env: HashMap::new(),
+        workspace_id: String::new(),
+        allowlisted: true,
+    };
+
+    assert_eq!(
+        req.session_id, state.selected_session_id,
+        "CommandRequest.session_id must match AppState.selected_session_id (routing condition)"
     );
 }

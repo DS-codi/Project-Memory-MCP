@@ -131,13 +131,25 @@ impl ServiceRunner for DashboardRunner {
 
         cmd.envs(&self.config.env);
 
-        let child = cmd
+        let mut child = cmd
             .spawn()
             .with_context(|| format!("failed to spawn dashboard process: {}", self.config.command))?;
 
         let pid = child
             .id()
             .ok_or_else(|| anyhow::anyhow!("spawned dashboard process has no PID"))?;
+
+        if let Some(stdout) = child.stdout.take() {
+            crate::runtime_output::spawn_pipe_reader("dashboard".to_string(), "stdout", stdout);
+        }
+        if let Some(stderr) = child.stderr.take() {
+            crate::runtime_output::spawn_pipe_reader("dashboard".to_string(), "stderr", stderr);
+        }
+        crate::runtime_output::emit(
+            "dashboard",
+            "status",
+            format!("started pid={pid} port={}", self.config.port),
+        );
 
         // Assign to the supervisor job object so the OS kills this process
         // automatically if the supervisor exits or crashes.
@@ -157,6 +169,7 @@ impl ServiceRunner for DashboardRunner {
                     .kill()
                     .await
                     .context("failed to kill dashboard process")?;
+                crate::runtime_output::emit("dashboard", "status", "stopped");
             }
             DashboardState::Stopped => {}
         }

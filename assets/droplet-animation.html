@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVG Fluid Vortex Simulation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/MotionPathPlugin.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #010103;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        #stage {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        svg {
+            width: 100vmin;
+            height: 100vmin;
+            overflow: visible;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="stage">
+        <svg id="main-svg" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <!-- Cinematic Viscous Liquid Filter -->
+                <filter id="mercury-liquid" x="-200%" y="-200%" width="500%" height="500%">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="1.8" result="blur" />
+                    <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -8" result="goo" />
+                    <feSpecularLighting in="goo" surfaceScale="5" specularConstant="2.2" specularExponent="40" lighting-color="#ffffff" result="spec">
+                        <fePointLight x="-250" y="-250" z="400" />
+                    </feSpecularLighting>
+                    <feComposite in="spec" in2="goo" operator="in" result="specOut" />
+                    <feComposite in="SourceGraphic" in2="specOut" operator="arithmetic" k1="0" k2="1" k3="1.3" k4="0" result="lit" />
+                </filter>
+
+                <!-- Liquid Gradient for Volume -->
+                <radialGradient id="liquid-grad" cx="35%" cy="35%" r="65%">
+                    <stop offset="0%" style="stop-color:#ffffff; stop-opacity:0.95" />
+                    <stop offset="30%" style="stop-color:#60a5fa; stop-opacity:0.8" />
+                    <stop offset="100%" style="stop-color:#1e40af; stop-opacity:0.5" />
+                </radialGradient>
+
+                <!-- DROPLET VARIATIONS -->
+                <path id="drop-1" d="M 0,-10 C 5,-10 8,-4 8,2 8,8 4,25 0,40 -4,25 -8,8 -8,2 -8,-4 -5,-10 0,-10 Z" fill="url(#liquid-grad)" filter="url(#mercury-liquid)" />
+                <path id="drop-2" d="M 0,-8 Q 9,-8 9,1 Q 9,10 0,10 Q -9,10 -9,1 Q -9,-8 0,-8 Z" fill="url(#liquid-grad)" filter="url(#mercury-liquid)" />
+                <path id="drop-3" d="M 0,-15 C 3,-15 5,-8 5,0 5,8 3,30 0,50 -3,30 -5,8 -5,0 -5,-8 -3,-15 0,-15 Z" fill="url(#liquid-grad)" filter="url(#mercury-liquid)" />
+                <path id="drop-4" d="M 0,-8 C 7,-8 11,-4 11,5 11,14 7,20 0,20 -7,20 -11,14 -11,5 -11,-4 -7,-8 0,-8 Z" fill="url(#liquid-grad)" filter="url(#mercury-liquid)" />
+
+                <!-- Absolute Complex Spiral Paths -->
+                <g id="vortex-paths" visibility="hidden">
+                    <path id="spiral-1" d="M 1100, -300 C 800, 200 1000, 700 500, 700 C 100, 700 0, 300 250, 150 C 450, 50 450, 350 250, 350 C 150, 350 150, 200 250, 250" />
+                    <path id="spiral-2" d="M -400, 1000 C 100, 1200 700, 800 700, 400 C 700, 0 300, -100 150, 150 C 50, 350 350, 450 350, 250 C 350, 150 200, 150 250, 250" />
+                    <path id="spiral-3" d="M -500, -300 C -100, -600 600, -200 600, 200 C 600, 500 200, 600 100, 350 C 50, 150 350, 100 350, 250 C 350, 350 200, 350 250, 250" />
+                    <path id="spiral-4" d="M 1200, 1000 C 1000, 500 400, 800 200, 600 C -100, 400 200, -100 400, 100 C 550, 250 150, 450 250, 250" />
+                    <path id="spiral-5" d="M 1200, 250 C 900, -200 400, -100 100, 100 C -100, 300 300, 600 400, 400 C 500, 200 200, 100 250, 250" />
+                    <path id="spiral-6" d="M -600, 250 C -200, 600 300, 800 500, 500 C 700, 200 400, -200 150, 100 C 0, 300 400, 400 250, 250" />
+                    <path id="spiral-7" d="M 250, 1200 C 600, 900 800, 400 500, 100 C 200, -100 -200, 300 100, 450 C 400, 600 450, 100 250, 250" />
+                    <path id="spiral-8" d="M 250, -800 C -200, -400 -300, 300 100, 600 C 500, 900 800, 300 450, 100 C 100, -100 50, 400 250, 250" />
+                </g>
+            </defs>
+
+            <!-- Back Layer: Atmosphere -->
+            <circle cx="250" cy="250" r="150" fill="url(#liquid-grad)" opacity="0.03" filter="blur(60px)" />
+
+            <!-- Middle Layer: Heavy Downpour -->
+            <g id="rain-layer"></g>
+            
+            <!-- Front Layer: Aggressive Vortex -->
+            <g id="vortex-layer"></g>
+
+            <!-- Visual Core Drain (Dynamic Pulse) -->
+            <g id="vortex-core-group">
+                <circle id="vortex-core-glow" cx="250" cy="250" r="12" fill="#5e9eff" opacity="0.15" filter="blur(8px)" />
+                <circle id="vortex-core-inner" cx="250" cy="250" r="4" fill="white" opacity="0.5" filter="blur(2px)" />
+            </g>
+        </svg>
+    </div>
+
+    <!-- UI Overlay -->
+    <div class="fixed top-8 left-8 text-blue-500 font-mono text-[9px] tracking-[0.4em] uppercase pointer-events-none opacity-40">
+        System.Fluid.Vortex :: Multi_Spiral_Escalation<br/>
+        Flow_Rate: <span id="particle-count">0</span><br/>
+        Criticality: <span id="criticality">0%</span>
+    </div>
+
+    <!-- Background Bar for Escalation -->
+    <div class="fixed bottom-0 left-0 w-full h-1 bg-blue-900/20">
+        <div id="progress-bar" class="h-full bg-blue-500 transition-all duration-100 ease-linear" style="width: 0%"></div>
+    </div>
+
+    <script>
+        gsap.registerPlugin(MotionPathPlugin);
+
+        const vortexLayer = document.querySelector("#vortex-layer");
+        const rainLayer = document.querySelector("#rain-layer");
+        const particleCounter = document.querySelector("#particle-count");
+        const criticalityLabel = document.querySelector("#criticality");
+        const progressBar = document.querySelector("#progress-bar");
+        const paths = ["#spiral-1", "#spiral-2", "#spiral-3", "#spiral-4", "#spiral-5", "#spiral-6", "#spiral-7", "#spiral-8"];
+        const dropletShapes = ["#drop-1", "#drop-2", "#drop-3", "#drop-4"];
+        
+        let activeParticles = 0;
+        let isExploding = false;
+        let criticality = 0; 
+        const CYCLE_DURATION = 120000; // 2 minutes build
+        let startTime = Date.now();
+
+        function updateCounter(change) {
+            activeParticles += change;
+            particleCounter.innerText = activeParticles;
+        }
+
+        // Initialize Core Pulse
+        gsap.to("#vortex-core-inner", {
+            attr: { r: 6 },
+            opacity: 0.8,
+            duration: 0.8,
+            repeat: -1,
+            yoyo: true,
+            ease: "sine.inOut"
+        });
+        gsap.to("#vortex-core-glow", {
+            attr: { r: 18 },
+            opacity: 0.3,
+            duration: 1.2,
+            repeat: -1,
+            yoyo: true,
+            ease: "sine.inOut"
+        });
+
+        /**
+         * Spawns an aggressive, jittery vortex particle
+         */
+        function spawnVortex(pathIdOverride = null) {
+            if (isExploding) return;
+            
+            const randomShape = dropletShapes[Math.floor(Math.random() * dropletShapes.length)];
+            const particle = document.createElementNS("http://www.w3.org/2000/svg", "use");
+            particle.setAttributeNS("http://www.w3.org/1999/xlink", "href", randomShape);
+            particle.classList.add('particle-vortex');
+            vortexLayer.appendChild(particle);
+            updateCounter(1);
+
+            const pathId = pathIdOverride || paths[Math.floor(Math.random() * paths.length)];
+            const pathElem = document.querySelector(pathId);
+            
+            const scale = 1.0 + Math.random() * 2.0;
+            // FAST SPEED: Reduced durations for quick movement
+            const duration = (0.6 + Math.random() * 0.8) * (1 - (criticality / 500)); 
+            const jitterAmount = 50 + (criticality * 2.0);
+
+            const tl = gsap.timeline({
+                onComplete: () => {
+                    if (particle.parentNode) {
+                        particle.remove();
+                        updateCounter(-1);
+                    }
+                }
+            });
+
+            // Position immediately to prevent corner-sticking
+            gsap.set(particle, { opacity: 0, scale: 0, x: -2000, y: -2000, transformOrigin: "50% 10%" });
+
+            // Fast Entrance
+            tl.to(particle, { opacity: 1, scale: scale, duration: 0.2 });
+
+            // High-Velocity Jittery Spiral Path
+            tl.to(particle, {
+                motionPath: {
+                    path: pathElem,
+                    autoRotate: true,
+                    start: 0,
+                    end: 1
+                },
+                x: `+=${(Math.random() - 0.5) * jitterAmount}`,
+                y: `+=${(Math.random() - 0.5) * jitterAmount}`,
+                duration: duration,
+                ease: "power3.in", // Aggressive acceleration
+                scale: scale * 0.1,
+                opacity: 0.1
+            }, "-=0.1");
+        }
+
+        /**
+         * Spawns constant heavy rain streaks
+         */
+        function spawnRain() {
+            if (isExploding) return;
+
+            const randomShape = dropletShapes[Math.floor(Math.random() * dropletShapes.length)];
+            const rain = document.createElementNS("http://www.w3.org/2000/svg", "use");
+            rain.setAttributeNS("http://www.w3.org/1999/xlink", "href", randomShape);
+            rain.classList.add('particle-rain');
+            rainLayer.appendChild(rain);
+
+            const x = Math.random() * 1600 - 550;
+            const size = 0.3 + Math.random() * 0.7;
+            const speed = (0.12 + Math.random() * 0.25); 
+
+            gsap.set(rain, {
+                x: x,
+                y: -500,
+                scaleX: size * 0.3,
+                scaleY: size * 4, 
+                opacity: 0.1 + Math.random() * 0.2,
+                transformOrigin: "center center"
+            });
+
+            gsap.to(rain, {
+                y: 1200,
+                duration: speed,
+                ease: "none",
+                onComplete: () => {
+                    if (rain.parentNode) rain.remove();
+                }
+            });
+        }
+
+        /**
+         * The Blast
+         */
+        function explodeAll() {
+            isExploding = true;
+            const allParticles = document.querySelectorAll('.particle-vortex, .particle-rain');
+            const centerX = 250;
+            const centerY = 250;
+
+            // Intensity Flare
+            gsap.to("#vortex-core-inner", { attr: { r: 50 }, opacity: 1, duration: 0.2 });
+            gsap.to("#vortex-core-glow", { attr: { r: 150 }, opacity: 0.5, duration: 0.2 });
+
+            allParticles.forEach(p => {
+                gsap.killTweensOf(p);
+                
+                const transform = p.getAttribute('transform') || "";
+                const translateMatch = transform.match(/translate\(([^, ]+)[, ]+([^)]+)\)/);
+                let currentX = translateMatch ? parseFloat(translateMatch[1]) : 250;
+                let currentY = translateMatch ? parseFloat(translateMatch[2]) : 250;
+
+                const angle = Math.atan2(currentY - centerY, currentX - centerX) || (Math.random() * Math.PI * 2);
+                const distance = 1000 + Math.random() * 800;
+                const destX = currentX + Math.cos(angle) * distance;
+                const destY = currentY + Math.sin(angle) * distance;
+
+                gsap.to(p, {
+                    x: destX,
+                    y: destY,
+                    opacity: 0,
+                    scale: 5,
+                    duration: 0.8,
+                    ease: "expo.out",
+                    onComplete: () => p.remove()
+                });
+            });
+
+            gsap.fromTo("body", { backgroundColor: "#3b82f6" }, { backgroundColor: "#010103", duration: 1.2 });
+
+            setTimeout(() => {
+                isExploding = false;
+                startTime = Date.now();
+                criticality = 0;
+                activeParticles = 0;
+                particleCounter.innerText = "0";
+                
+                // Reset Core
+                gsap.to("#vortex-core-inner", { attr: { r: 4 }, opacity: 0.5, duration: 1 });
+                gsap.to("#vortex-core-glow", { attr: { r: 12 }, opacity: 0.15, duration: 1 });
+            }, 3000);
+        }
+
+        /**
+         * Main animation loop control
+         */
+        function run() {
+            let lastBurstTime = 0;
+            
+            const loop = () => {
+                const now = Date.now();
+                const elapsed = now - startTime;
+                criticality = Math.min(100, (elapsed / CYCLE_DURATION) * 100);
+                
+                criticalityLabel.innerText = Math.floor(criticality) + "%";
+                progressBar.style.width = criticality + "%";
+
+                if (criticality >= 100 && !isExploding) {
+                    explodeAll();
+                }
+
+                if (!isExploding) {
+                    // SPORADIC CLUSTER LOGIC
+                    const burstThreshold = 800 - (criticality * 6); // Bursts happen more often over time
+                    if (now - lastBurstTime > burstThreshold) {
+                        // ALLOW MULTIPLE SPIRAL PATHS TO RUN AT ONCE
+                        const numSpiralPathsToTrigger = 1 + Math.floor(Math.random() * 2) + Math.floor(criticality / 40);
+                        
+                        for (let s = 0; s < numSpiralPathsToTrigger; s++) {
+                            const pathId = paths[Math.floor(Math.random() * paths.length)];
+                            const clusterSize = 3 + Math.floor(Math.random() * 5) + Math.floor(criticality / 10);
+                            
+                            for(let i=0; i < clusterSize; i++) {
+                                // Slight staggering within cluster
+                                setTimeout(() => spawnVortex(pathId), i * 30 + (s * 50));
+                            }
+                        }
+                        lastBurstTime = now;
+                    }
+
+                    // HEAVY RAIN - Fast and frequent
+                    spawnRain();
+                    spawnRain();
+                    if (Math.random() < 0.8) spawnRain();
+                    if (criticality > 50) spawnRain();
+                }
+                
+                requestAnimationFrame(loop);
+            };
+
+            loop();
+        }
+
+        window.onload = run;
+    </script>
+</body>
+</html>

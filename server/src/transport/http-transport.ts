@@ -24,6 +24,10 @@ import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import { InMemoryEventStore } from '@modelcontextprotocol/sdk/examples/shared/inMemoryEventStore.js';
 import { getDataRoot, listDirs } from '../storage/db-store.js';
 import { isDataRootAccessible } from './data-root-liveness.js';
+import { listWorkspaces } from '../db/workspace-db.js';
+import { handleMemoryCartographer } from '../tools/memory_cartographer.js';
+import { storeContext } from '../db/context-db.js';
+import { run, queryOne, newId, nowIso } from '../db/query-helpers.js';
 import { getAllLiveSessions, getLiveSessionCount, getLiveSessionEntry, clearLiveSession } from '../tools/session-live-store.js';
 import { runMigrations, migrationStatus } from '../db/index.js';
 
@@ -346,6 +350,75 @@ export function createHttpApp(getServer: () => McpServer): Express {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error('[http] Error running migrations:', error);
+      res.status(500).json({ error: message });
+    }
+  });
+
+  // ---- Admin: list registered workspaces (for supervisor UI) ----
+  app.get('/admin/workspaces', (_req: Request, res: Response) => {
+    try {
+      const rows = listWorkspaces();
+      const workspaces = rows.map(r => ({ id: r.id, name: r.name, path: r.path }));
+      res.json({ workspaces, total: workspaces.length });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[http] Error listing workspaces:', error);
+      res.status(500).json({ error: message });
+    }
+  });
+
+  // ---- Admin: trigger memory_cartographer summary scan ----
+  app.post('/admin/memory_cartographer', async (req: Request, res: Response) => {
+    const { workspace_id, force_refresh } = req.body as {
+      workspace_id?: unknown;
+      force_refresh?: unknown;
+    };
+    if (!workspace_id || typeof workspace_id !== 'string') {
+      res.status(400).json({ error: 'workspace_id is required' });
+      return;
+    }
+    try {
+      const result = await handleMemoryCartographer({
+        action: 'summary',
+        workspace_id,
+        agent_type: 'Coordinator',
+        ...(force_refresh === true && { force_refresh: true }),
+      });
+      if (result.success) {
+        storeContext('workspace', workspace_id, 'cartographer_summary', result.data as object);
+        // Upsert language-group slices into architecture_slices
+        const languageBreakdown = (result.data as Record<string, unknown> | undefined)
+          ?.data as Record<string, unknown> | undefined;
+        const summary = (languageBreakdown?.result as Record<string, unknown> | undefined)
+          ?.summary as Record<string, unknown> | undefined;
+        const langRows = Array.isArray(summary?.language_breakdown)
+          ? (summary.language_breakdown as Array<{ language: string; file_count: number }>)
+          : [];
+        const now = nowIso();
+        for (const entry of langRows) {
+          if (!entry.language) continue;
+          const existing = queryOne<{ id: string }>(
+            "SELECT id FROM architecture_slices WHERE workspace_id = ? AND path = ? AND type = 'language_group'",
+            [workspace_id, entry.language],
+          );
+          const meta = JSON.stringify({ language: entry.language, file_count: entry.file_count, scanned_at: now });
+          if (existing) {
+            run(
+              'UPDATE architecture_slices SET catalog_metadata = ?, updated_at = ? WHERE id = ?',
+              [meta, now, existing.id],
+            );
+          } else {
+            run(
+              'INSERT INTO architecture_slices (id, workspace_id, path, type, catalog_metadata, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+              [newId(), workspace_id, entry.language, 'language_group', meta, now, now],
+            );
+          }
+        }
+      }
+      res.json(result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[http] Error running memory_cartographer:', error);
       res.status(500).json({ error: message });
     }
   });

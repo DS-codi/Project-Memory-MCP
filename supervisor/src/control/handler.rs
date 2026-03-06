@@ -724,12 +724,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn status_returns_three_services() {
+    async fn status_returns_four_services() {
         let reg = make_registry();
         let resp = handle_request(ControlRequest::Status, reg, empty_form_apps(), shutdown_channel(), None, None, None, None).await;
         assert!(resp.ok);
         let arr = resp.data.as_array().expect("data should be array");
-        assert_eq!(arr.len(), 3);
+        assert_eq!(arr.len(), 4);
     }
 
     #[tokio::test]

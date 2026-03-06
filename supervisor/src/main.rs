@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 use supervisor::config;
-use supervisor::config::McpBackend;
+use supervisor::config::{McpBackend, NodeRunnerConfig};
 use supervisor::control::registry::ServiceStatus;
 use supervisor::runner::ServiceRunner;
 use supervisor::runner::container::ContainerRunner;
@@ -246,6 +246,8 @@ async fn supervisor_main() {
                     cfg.interactive_terminal.port, cfg.interactive_terminal.enabled);
                 eprintln!("[debug] dashboard: port={}, enabled={}",
                     cfg.dashboard.port, cfg.dashboard.enabled);
+                eprintln!("[debug] fallback_api: port={}, enabled={}",
+                    cfg.fallback_api.port, cfg.fallback_api.enabled);
             }
 
             let subprocess_runtime_enabled = parse_env_flag(
@@ -323,6 +325,9 @@ async fn supervisor_main() {
                     cfg.dashboard.port,
                     cfg.interactive_terminal.port,
                 ];
+                if cfg.fallback_api.enabled {
+                    ports_to_clear.push(cfg.fallback_api.port);
+                }
                 for i in 0..cfg.mcp.pool.max_instances {
                     ports_to_clear.push(cfg.mcp.pool.base_port + i);
                 }
@@ -342,6 +347,7 @@ async fn supervisor_main() {
                     cfg.mcp.node.clone(),
                     cfg.mcp.health_timeout_ms,
                     cfg.mcp.port,
+                    "mcp",
                 )),
                 McpBackend::Container => Box::new(ContainerRunner::new(
                     cfg.mcp.container.clone(),
@@ -358,10 +364,40 @@ async fn supervisor_main() {
                 cfg.mcp.health_timeout_ms,
             );
 
+            let mut fallback_env = cfg.fallback_api.env.clone();
+            fallback_env
+                .entry("FALLBACK_API_HOST".to_string())
+                .or_insert_with(|| "127.0.0.1".to_string());
+            fallback_env
+                .entry("FALLBACK_API_PORT".to_string())
+                .or_insert_with(|| cfg.fallback_api.port.to_string());
+
+            // Reuse MCP node working_dir as a safe fallback so relative
+            // fallback args like dist/fallback-rest-main.js resolve reliably.
+            let fallback_working_dir = cfg
+                .fallback_api
+                .working_dir
+                .clone()
+                .or_else(|| cfg.mcp.node.working_dir.clone());
+
+            let fallback_runner_cfg = NodeRunnerConfig {
+                command: cfg.fallback_api.command.clone(),
+                args: cfg.fallback_api.args.clone(),
+                working_dir: fallback_working_dir,
+                env: fallback_env,
+            };
+            let mut fallback_api_runner = NodeRunner::new(
+                fallback_runner_cfg,
+                cfg.mcp.health_timeout_ms,
+                cfg.fallback_api.port,
+                "fallback_api",
+            );
+
             // Start-time tracking for per-service uptime reporting.
             let mut mcp_started_at: Option<std::time::Instant> = None;
             let mut terminal_started_at: Option<std::time::Instant> = None;
             let mut dashboard_started_at: Option<std::time::Instant> = None;
+            let mut fallback_started_at: Option<std::time::Instant> = None;
 
             // ── Control-plane channel + transport ────────────────────────────
 
@@ -373,29 +409,35 @@ async fn supervisor_main() {
 
             let _service_registry = supervisor::registry::ServiceRegistry::shared();
 
-            let tray_tooltip = supervisor::tray_tooltip::build_tooltip(
-                &[
-                    supervisor::tray_tooltip::ServiceSummary {
-                        name: "MCP".to_string(),
-                        state: "Starting".to_string(),
-                        backend: Some(format!("{:?}", cfg.mcp.backend).to_lowercase()),
-                        endpoint: Some(format!("tcp://127.0.0.1:{}", cfg.mcp.port)),
-                    },
-                    supervisor::tray_tooltip::ServiceSummary {
-                        name: "Interactive Terminal".to_string(),
-                        state: "Starting".to_string(),
-                        backend: None,
-                        endpoint: Some(format!("tcp://127.0.0.1:{}", cfg.interactive_terminal.port)),
-                    },
-                    supervisor::tray_tooltip::ServiceSummary {
-                        name: "Dashboard".to_string(),
-                        state: "Starting".to_string(),
-                        backend: None,
-                        endpoint: Some(format!("http://127.0.0.1:{}", cfg.dashboard.port)),
-                    },
-                ],
-                0,
-            );
+            let mut tray_services = vec![
+                supervisor::tray_tooltip::ServiceSummary {
+                    name: "MCP".to_string(),
+                    state: "Starting".to_string(),
+                    backend: Some(format!("{:?}", cfg.mcp.backend).to_lowercase()),
+                    endpoint: Some(format!("tcp://127.0.0.1:{}", cfg.mcp.port)),
+                },
+                supervisor::tray_tooltip::ServiceSummary {
+                    name: "Interactive Terminal".to_string(),
+                    state: "Starting".to_string(),
+                    backend: None,
+                    endpoint: Some(format!("tcp://127.0.0.1:{}", cfg.interactive_terminal.port)),
+                },
+                supervisor::tray_tooltip::ServiceSummary {
+                    name: "Dashboard".to_string(),
+                    state: "Starting".to_string(),
+                    backend: None,
+                    endpoint: Some(format!("http://127.0.0.1:{}", cfg.dashboard.port)),
+                },
+            ];
+            if cfg.fallback_api.enabled {
+                tray_services.push(supervisor::tray_tooltip::ServiceSummary {
+                    name: "Fallback API".to_string(),
+                    state: "Starting".to_string(),
+                    backend: None,
+                    endpoint: Some(format!("http://127.0.0.1:{}", cfg.fallback_api.port)),
+                });
+            }
+            let tray_tooltip = supervisor::tray_tooltip::build_tooltip(&tray_services, 0);
             if cli.debug {
                 eprintln!("[debug] installing tray lifecycle...");
             }
@@ -640,9 +682,23 @@ async fn supervisor_main() {
                         // Start the reverse proxy on the primary MCP port.
                         let proxy_bind = format!("127.0.0.1:{proxy_port}");
                         let events_for_proxy = events_handle.clone();
+                        let fallback_proxy_port = if cfg.fallback_api.enabled {
+                            Some(cfg.fallback_api.port)
+                        } else {
+                            None
+                        };
                         tokio::spawn(async move {
                             let dispatch_port_fn: Arc<dyn Fn() -> u16 + Send + Sync> = Arc::new(move || base_port);
-                            if let Err(e) = supervisor::proxy::start_proxy(proxy_bind, base_port, dispatch_port_fn, heartbeat_tx, Some(events_for_proxy)).await {
+                            if let Err(e) = supervisor::proxy::start_proxy(
+                                proxy_bind,
+                                base_port,
+                                fallback_proxy_port,
+                                dispatch_port_fn,
+                                heartbeat_tx,
+                                Some(events_for_proxy),
+                            )
+                            .await
+                            {
                                 eprintln!("[supervisor] proxy error: {e}");
                             }
                         });
@@ -862,6 +918,56 @@ async fn supervisor_main() {
                 set_service_status(&registry, &mut tray, "dashboard", ServiceStatus::Stopped).await;
             }
 
+            if cfg.fallback_api.enabled {
+                println!("[supervisor] starting fallback API...");
+                set_service_status(&registry, &mut tray, "fallback_api", ServiceStatus::Starting).await;
+                match fallback_api_runner.start().await {
+                    Ok(()) => {
+                        set_service_status(&registry, &mut tray, "fallback_api", ServiceStatus::Running).await;
+                        set_service_health_ok(&registry, &mut tray, "fallback_api").await;
+                        println!("[supervisor] fallback API started.");
+                        fallback_started_at = Some(std::time::Instant::now());
+                    }
+                    Err(e) => {
+                        set_service_status(&registry, &mut tray, "fallback_api", ServiceStatus::Error(e.to_string())).await;
+                        set_service_error(&registry, &mut tray, "fallback_api", e.to_string()).await;
+                        eprintln!("[supervisor] failed to start fallback API: {e}");
+                    }
+                }
+
+                // Monitor the fallback API health so the subprocess is restarted
+                // without affecting MCP or dashboard service state.
+                {
+                    let restart_tx_fallback = restart_tx.clone();
+                    let fallback_port = cfg.fallback_api.port;
+                    let health_timeout = cfg.mcp.health_timeout_ms;
+                    tokio::spawn(async move {
+                        tokio::time::sleep(Duration::from_secs(30)).await;
+                        let mut failures = 0u32;
+                        let mut interval = tokio::time::interval(Duration::from_secs(5));
+                        loop {
+                            interval.tick().await;
+                            if probe_http_health(fallback_port, health_timeout).await {
+                                failures = 0;
+                            } else {
+                                failures += 1;
+                                eprintln!("[supervisor] fallback API health probe failed ({failures})");
+                                if failures >= 2 {
+                                    eprintln!("[supervisor] fallback API appears dead — requesting restart");
+                                    failures = 0;
+                                    let _ = restart_tx_fallback.send("fallback_api".to_string()).await;
+                                    tokio::time::sleep(Duration::from_secs(90)).await;
+                                    interval.reset();
+                                }
+                            }
+                        }
+                    });
+                }
+            } else {
+                println!("[supervisor] fallback API disabled — skipping.");
+                set_service_status(&registry, &mut tray, "fallback_api", ServiceStatus::Stopped).await;
+            }
+
             // ── Wait for shutdown ─────────────────────────────────────────────
 
             println!("[supervisor] all services started. Press Ctrl-C to stop.");
@@ -913,6 +1019,15 @@ async fn supervisor_main() {
                                         &mut terminal_runner,
                                         &mut dashboard_runner,
                                     ).await;
+                                } else if svc.trim().eq_ignore_ascii_case("fallback_api") || svc.trim().eq_ignore_ascii_case("fallback") {
+                                    set_service_status(&registry, &mut tray, "fallback_api", ServiceStatus::Stopping).await;
+                                    match fallback_api_runner.stop().await {
+                                        Ok(()) => set_service_status(&registry, &mut tray, "fallback_api", ServiceStatus::Stopped).await,
+                                        Err(error) => {
+                                            set_service_status(&registry, &mut tray, "fallback_api", ServiceStatus::Error(error.to_string())).await;
+                                            set_service_error(&registry, &mut tray, "fallback_api", error.to_string()).await;
+                                        }
+                                    }
                                 }
                                 continue;
                             }
@@ -935,6 +1050,19 @@ async fn supervisor_main() {
                                         &mut terminal_runner,
                                         &mut dashboard_runner,
                                     ).await;
+                                } else if svc.trim().eq_ignore_ascii_case("fallback_api") || svc.trim().eq_ignore_ascii_case("fallback") {
+                                    set_service_status(&registry, &mut tray, "fallback_api", ServiceStatus::Starting).await;
+                                    match fallback_api_runner.start().await {
+                                        Ok(()) => {
+                                            set_service_status(&registry, &mut tray, "fallback_api", ServiceStatus::Running).await;
+                                            set_service_health_ok(&registry, &mut tray, "fallback_api").await;
+                                            fallback_started_at = Some(std::time::Instant::now());
+                                        }
+                                        Err(error) => {
+                                            set_service_status(&registry, &mut tray, "fallback_api", ServiceStatus::Error(error.to_string())).await;
+                                            set_service_error(&registry, &mut tray, "fallback_api", error.to_string()).await;
+                                        }
+                                    }
                                 }
                                 continue;
                             }
@@ -946,6 +1074,7 @@ async fn supervisor_main() {
                                 &mut *mcp_runner,
                                 &mut terminal_runner,
                                 &mut dashboard_runner,
+                                &mut fallback_api_runner,
                                 cfg.mcp.backend.clone(),
                                 mcp_subprocess_runtime.is_some(),
                                 mcp_pool_for_restart,
@@ -982,6 +1111,11 @@ async fn supervisor_main() {
                                         }
                                     }
                                 }
+                                "fallback" | "fallback_api" => {
+                                    if fallback_api_runner.pid().is_some() {
+                                        fallback_started_at = Some(std::time::Instant::now());
+                                    }
+                                }
                                 _ => {}
                             }
                         }
@@ -1011,6 +1145,9 @@ async fn supervisor_main() {
                                 .map(|t| t.elapsed().as_secs() as i32)
                                 .unwrap_or(0);
                             let mcp_uptime = mcp_started_at
+                                .map(|t| t.elapsed().as_secs() as i32)
+                                .unwrap_or(0);
+                            let _fallback_uptime = fallback_started_at
                                 .map(|t| t.elapsed().as_secs() as i32)
                                 .unwrap_or(0);
                             let term_port_val = cfg.interactive_terminal.port as i32;
@@ -1046,6 +1183,18 @@ async fn supervisor_main() {
                 } else {
                     set_service_status(&registry, &mut tray, "dashboard", ServiceStatus::Stopped).await;
                     println!("[supervisor] dashboard stopped.");
+                }
+            }
+
+            if cfg.fallback_api.enabled {
+                set_service_status(&registry, &mut tray, "fallback_api", ServiceStatus::Stopping).await;
+                if let Err(e) = fallback_api_runner.stop().await {
+                    set_service_status(&registry, &mut tray, "fallback_api", ServiceStatus::Error(e.to_string())).await;
+                    set_service_error(&registry, &mut tray, "fallback_api", e.to_string()).await;
+                    eprintln!("[supervisor] error stopping fallback API: {e}");
+                } else {
+                    set_service_status(&registry, &mut tray, "fallback_api", ServiceStatus::Stopped).await;
+                    println!("[supervisor] fallback API stopped.");
                 }
             }
 
@@ -1125,12 +1274,14 @@ fn push_qt_status(snapshot: &supervisor::control::protocol::HealthSnapshot) {
     let mut mcp_status = String::from("Stopped");
     let mut terminal_status = String::from("Stopped");
     let mut dashboard_status = String::from("Stopped");
+    let mut fallback_status = String::from("Stopped");
     for child in &snapshot.children {
         let state = display_state_for_service(&child.status);
         match child.service_name.as_str() {
             "mcp" => mcp_status = state,
             "interactive_terminal" => terminal_status = state,
             "dashboard" => dashboard_status = state,
+            "fallback_api" => fallback_status = state,
             _ => {}
         }
     }
@@ -1141,6 +1292,7 @@ fn push_qt_status(snapshot: &supervisor::control::protocol::HealthSnapshot) {
             obj.as_mut().set_mcp_status(cxx_qt_lib::QString::from(&mcp_status));
             obj.as_mut().set_terminal_status(cxx_qt_lib::QString::from(&terminal_status));
             obj.as_mut().set_dashboard_status(cxx_qt_lib::QString::from(&dashboard_status));
+            obj.as_mut().set_fallback_status(cxx_qt_lib::QString::from(&fallback_status));
         });
     }
 }
@@ -1216,6 +1368,7 @@ fn display_name_for_service(service_name: &str) -> &'static str {
         "mcp" => "MCP",
         "interactive_terminal" => "Interactive Terminal",
         "dashboard" => "Dashboard",
+        "fallback_api" => "Fallback API",
         _ => "Service",
     }
 }
@@ -1425,6 +1578,7 @@ async fn handle_restart_command(
     mcp_runner: &mut dyn ServiceRunner,
     terminal_runner: &mut InteractiveTerminalRunner,
     dashboard_runner: &mut DashboardRunner,
+    fallback_api_runner: &mut NodeRunner,
     mcp_backend: McpBackend,
     mcp_subprocess_runtime_enabled: bool,
     mcp_pool_runtime: Option<Arc<tokio::sync::RwLock<supervisor::runner::mcp_pool::ManagedPool>>>,
@@ -1555,6 +1709,21 @@ async fn handle_restart_command(
                 dashboard_runner,
             )
             .await;
+        }
+        "fallback" | "fallback_api" => {
+            set_service_status(registry, tray, "fallback_api", ServiceStatus::Stopping).await;
+            let _ = fallback_api_runner.stop().await;
+            set_service_status(registry, tray, "fallback_api", ServiceStatus::Starting).await;
+            match fallback_api_runner.start().await {
+                Ok(()) => {
+                    set_service_status(registry, tray, "fallback_api", ServiceStatus::Running).await;
+                    set_service_health_ok(registry, tray, "fallback_api").await;
+                }
+                Err(error) => {
+                    set_service_status(registry, tray, "fallback_api", ServiceStatus::Error(error.to_string())).await;
+                    set_service_error(registry, tray, "fallback_api", error.to_string()).await;
+                }
+            }
         }
         other => {
             eprintln!("[supervisor] unknown restart service requested: {other}");

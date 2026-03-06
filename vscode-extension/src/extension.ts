@@ -4,8 +4,11 @@
  * Stripped-down entry point (Plan 01: Extension Strip-Down).
  * 
  * This extension is now a lightweight dashboard host + deployment helper.
- * All language-model tools, chat participants, MCP bridge HTTP transport,
- * session orchestration, and file watchers have been archived to src/_archive/.
+ * Legacy language-model tools, chat participants, MCP bridge HTTP transport,
+ * session orchestration, and file watchers were archived to src/_archive/.
+ *
+ * A minimal chat participant is reintroduced only for `/store-chat-details`,
+ * which writes a detailed session summary into workspace context.
  * 
  * Agents interact with the MCP server via MCP stdio transport (through the
  * supervisor), not through this extension.
@@ -33,6 +36,7 @@ import { enterDegradedMode, exitDegradedMode } from './supervisor/degraded';
 import { detectSupervisor } from './supervisor/detect';
 import { launchSupervisorDetached, launchSupervisorInTerminal, getSupervisorDirectory, openDirectoryInExplorer } from './supervisor/launcher';
 import { SupervisorControlClient } from './supervisor/control-client';
+import { registerStoreChatDetailsParticipant } from './chat/store-chat-details-participant';
 
 // --- Module-level state ---
 let dashboardProvider: DashboardViewProvider;
@@ -173,6 +177,7 @@ export function activate(context: vscode.ExtensionContext) {
     registerDeployCommands(context, dashboardProvider, defaultDeployer);
     registerPlanCommands(context, dashboardProvider, getDashboardPort);
     registerWorkspaceCommands(context, connectionManager, dashboardProvider);
+    registerStoreChatDetailsParticipant(context);
 
     // --- Diagnostics service and command ---
     diagnosticsService = new DiagnosticsService(connectionManager, dashboardPort);

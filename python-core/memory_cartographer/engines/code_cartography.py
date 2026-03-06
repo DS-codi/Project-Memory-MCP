@@ -315,6 +315,157 @@ class CodeCartographyEngine:
         }
 
     # ------------------------------------------------------------------
+    # Public query methods — wired from entrypoint.py dispatch branches
+    # ------------------------------------------------------------------
+
+    def get_file_context(
+        self,
+        workspace_path: str,
+        file_id: str,
+        include_symbols: bool = True,
+        include_references: bool = True,
+    ) -> dict[str, Any]:
+        """Return file-level context for a specific file.
+
+        Scans the workspace to confirm the file exists, then returns symbol
+        and reference data filtered to that file.  Symbol extraction is not
+        yet implemented, so ``symbols`` and ``references`` are always empty.
+        """
+        files = self._discover_files(workspace_path=workspace_path, scope={})
+        matched = [f for f in files if f.path == file_id]
+        file_meta = matched[0] if matched else None
+
+        result: dict[str, Any] = {"file_id": file_id}
+        if file_meta:
+            result["language"] = file_meta.language
+            result["size_bytes"] = file_meta.size_bytes
+        if include_symbols:
+            result["symbols"] = []
+        if include_references:
+            result["references"] = []
+        return result
+
+    def get_flow_entry_points(
+        self,
+        workspace_path: str,
+        layer_filter: Optional[list[str]] = None,
+        language_filter: Optional[list[str]] = None,
+    ) -> dict[str, Any]:
+        """Return dependency-flow entry points.
+
+        Delegates to ``_compute_dependency_flow`` over the module graph
+        built from the scan.  Reference resolution is not yet implemented,
+        so the module graph is derived from file paths only.
+        """
+        files = self._discover_files(
+            workspace_path=workspace_path,
+            scope={},
+            languages=language_filter,
+        )
+        references = self._resolve_references(files, self._extract_symbols(files))
+        module_graph = self._build_module_graph(references)
+        if not module_graph.get("nodes"):
+            module_graph["nodes"] = [f.path for f in files]
+        flow = self._compute_dependency_flow(module_graph)
+        return {
+            "entry_points": flow.get("entry_points", []),
+            "tiers": flow.get("tiers", []),
+            "cycles": flow.get("cycles", []),
+        }
+
+    def get_layer_view(
+        self,
+        workspace_path: str,
+        layers: list[str],
+        depth: int = 1,
+        include_cross_layer_edges: bool = False,
+    ) -> dict[str, Any]:
+        """Return architecture layer view filtered by layer labels.
+
+        Architecture-edge detection is not yet implemented; nodes and edges
+        are always empty at this stage.
+        """
+        return {
+            "layers": layers or [],
+            "nodes": [],
+            "edges": [],
+        }
+
+    def get_search(
+        self,
+        workspace_path: str,
+        search_query: str,
+        search_scope: str = "all",
+        limit: int = 50,
+    ) -> dict[str, Any]:
+        """Return keyword search results across files and symbols.
+
+        Basic implementation: performs case-insensitive substring match
+        against discovered file paths.  Symbol-level search is not yet
+        implemented.
+        """
+        if not search_query:
+            return {"search_query": search_query, "scope": search_scope, "results": [], "total": 0}
+
+        files = self._discover_files(workspace_path=workspace_path, scope={})
+        query_lower = search_query.lower()
+        matched = [
+            {"type": "file", "path": f.path, "language": f.language}
+            for f in files
+            if query_lower in f.path.lower()
+        ][:limit]
+        return {
+            "search_query": search_query,
+            "scope": search_scope,
+            "results": matched,
+            "total": len(matched),
+        }
+
+    def get_slice_detail(
+        self,
+        params: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Return detail for a specific architecture slice.
+
+        Stub implementation — returns a valid empty-detail envelope.
+        """
+        return {
+            "slice_id": params.get("slice_id"),
+            "detail": {},
+            "nodes": [],
+            "edges": [],
+        }
+
+    def get_slice_projection(
+        self,
+        params: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Return projection of an architecture slice.
+
+        Stub implementation — returns a valid empty-projection envelope.
+        """
+        return {
+            "slice_id": params.get("slice_id"),
+            "projection_type": params.get("projection_type"),
+            "projected_nodes": [],
+            "projected_edges": [],
+        }
+
+    def get_slice_filters(
+        self,
+        params: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Return available filters for architecture slices.
+
+        Stub implementation — returns a valid empty-filters envelope.
+        """
+        return {
+            "filters": [],
+            "available_types": [],
+            "workspace_id": params.get("workspace_id"),
+        }
+
+    # ------------------------------------------------------------------
     # Private sub-steps (stubs — to be implemented in later phases)
     # ------------------------------------------------------------------
 

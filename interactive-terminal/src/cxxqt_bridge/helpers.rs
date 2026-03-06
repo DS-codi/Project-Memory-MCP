@@ -1,6 +1,7 @@
 use crate::protocol::SavedCommandRecord;
 use crate::protocol::TerminalProfile;
 use crate::saved_commands::SavedCommand;
+use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub(crate) fn monotonic_millis() -> u128 {
@@ -47,4 +48,25 @@ pub(crate) fn terminal_profile_from_key(value: &str) -> Option<TerminalProfile> 
         "system" => Some(TerminalProfile::System),
         _ => None,
     }
+}
+
+pub(crate) fn default_workspace_path() -> String {
+    let env_keys: &[&str] = if cfg!(target_os = "windows") {
+        &["USERPROFILE", "HOME"]
+    } else {
+        &["HOME", "USERPROFILE"]
+    };
+
+    for key in env_keys {
+        if let Ok(value) = std::env::var(key) {
+            let trimmed = value.trim();
+            if !trimmed.is_empty() && Path::new(trimmed).is_dir() {
+                return trimmed.to_string();
+            }
+        }
+    }
+
+    std::env::current_dir()
+        .map(|path| path.to_string_lossy().to_string())
+        .unwrap_or_else(|_| ".".to_string())
 }

@@ -55,6 +55,7 @@ from memory_cartographer.contracts.version import (
     SCHEMA_VERSION,
     CapabilityAdvertisement,
 )
+from memory_cartographer.engines.code_cartography import CodeCartographyEngine
 
 
 # ---------------------------------------------------------------------------
@@ -186,20 +187,147 @@ def _dispatch(action: str, args: Dict[str, Any], timeout_ms: int) -> tuple[str, 
 
     if action == "cartograph":
         query_kind, used_default = _resolve_cartograph_query_kind(args)
-        if query_kind != "summary":
+
+        if query_kind == "summary":
+            if used_default:
+                diag["warnings"].append(
+                    "No cartograph query selector provided; defaulted to 'summary' for this minimal runtime slice"
+                )
+                diag["markers"].append("summary_selector_defaulted")
+
+            diag["markers"].append("summary_minimal_slice")
+            try:
+                engine = CodeCartographyEngine()
+                workspace_path = args.get("workspace_path")
+                scope = args.get("scope") if isinstance(args.get("scope"), dict) else {}
+                languages = args.get("languages") if isinstance(args.get("languages"), list) else None
+                result = engine.build_runtime_summary_result(
+                    workspace_path=workspace_path,
+                    scope=scope,
+                    languages=languages or [],
+                    timeout_ms=timeout_ms,
+                )
+            except Exception:  # noqa: BLE001
+                result = _build_minimal_summary_result(args, timeout_ms)
+            return "ok", result, diag
+
+        elif query_kind == "file_context":
+            workspace_path = args.get("workspace_path") or ""
+            file_id = args.get("file_id") or ""
+            include_symbols = args.get("include_symbols", True)
+            include_references = args.get("include_references", True)
+            try:
+                engine = CodeCartographyEngine()
+                result = engine.get_file_context(
+                    workspace_path=workspace_path,
+                    file_id=file_id,
+                    include_symbols=bool(include_symbols),
+                    include_references=bool(include_references),
+                )
+            except Exception:  # noqa: BLE001
+                result = {"file_id": file_id, "symbols": [], "references": []}
+            result["query"] = "file_context"
+            return "ok", result, diag
+
+        elif query_kind == "flow_entry_points":
+            workspace_path = args.get("workspace_path") or ""
+            layer_filter = args.get("layer_filter") if isinstance(args.get("layer_filter"), list) else None
+            language_filter = args.get("language_filter") if isinstance(args.get("language_filter"), list) else None
+            try:
+                engine = CodeCartographyEngine()
+                result = engine.get_flow_entry_points(
+                    workspace_path=workspace_path,
+                    layer_filter=layer_filter,
+                    language_filter=language_filter,
+                )
+            except Exception:  # noqa: BLE001
+                result = {"entry_points": [], "tiers": [], "cycles": []}
+            result["query"] = "flow_entry_points"
+            return "ok", result, diag
+
+        elif query_kind == "layer_view":
+            workspace_path = args.get("workspace_path") or ""
+            layers = args.get("layers") if isinstance(args.get("layers"), list) else []
+            depth_limit = args.get("depth_limit", 1)
+            include_cross_layer_edges = args.get("include_cross_layer_edges", False)
+            try:
+                engine = CodeCartographyEngine()
+                result = engine.get_layer_view(
+                    workspace_path=workspace_path,
+                    layers=layers,
+                    depth=int(depth_limit) if isinstance(depth_limit, (int, float)) else 1,
+                    include_cross_layer_edges=bool(include_cross_layer_edges),
+                )
+            except Exception:  # noqa: BLE001
+                result = {"layers": layers, "nodes": [], "edges": []}
+            result["query"] = "layer_view"
+            return "ok", result, diag
+
+        elif query_kind == "search":
+            workspace_path = args.get("workspace_path") or ""
+            search_query = args.get("search_query") or args.get("search_term") or ""
+            search_scope = args.get("search_scope", "all")
+            limit = args.get("limit", 50)
+            try:
+                engine = CodeCartographyEngine()
+                result = engine.get_search(
+                    workspace_path=workspace_path,
+                    search_query=search_query,
+                    search_scope=str(search_scope) if search_scope else "all",
+                    limit=int(limit) if isinstance(limit, (int, float)) else 50,
+                )
+            except Exception:  # noqa: BLE001
+                result = {"search_query": search_query, "scope": search_scope, "results": [], "total": 0}
+            result["query"] = "search"
+            return "ok", result, diag
+
+        elif query_kind == "slice_detail":
+            params_for_engine = {
+                "workspace_id": args.get("workspace_id") or "",
+                "slice_id": args.get("slice_id") or "",
+            }
+            try:
+                engine = CodeCartographyEngine()
+                result = engine.get_slice_detail(params_for_engine)
+            except Exception:  # noqa: BLE001
+                result = {"slice_id": args.get("slice_id"), "detail": {}, "nodes": [], "edges": []}
+            result["query"] = "slice_detail"
+            return "ok", result, diag
+
+        elif query_kind == "slice_projection":
+            params_for_engine = {
+                "workspace_id": args.get("workspace_id") or "",
+                "slice_id": args.get("slice_id") or "",
+                "projection_type": args.get("projection_type") or "",
+            }
+            try:
+                engine = CodeCartographyEngine()
+                result = engine.get_slice_projection(params_for_engine)
+            except Exception:  # noqa: BLE001
+                result = {"slice_id": args.get("slice_id"), "projection_type": args.get("projection_type"), "projected_nodes": [], "projected_edges": []}
+            result["query"] = "slice_projection"
+            return "ok", result, diag
+
+        elif query_kind == "slice_filters":
+            params_for_engine = {
+                "workspace_id": args.get("workspace_id") or "",
+                "slice_id": args.get("slice_id"),
+            }
+            try:
+                engine = CodeCartographyEngine()
+                result = engine.get_slice_filters(params_for_engine)
+            except Exception:  # noqa: BLE001
+                result = {"filters": [], "available_types": [], "workspace_id": args.get("workspace_id")}
+            result["query"] = "slice_filters"
+            return "ok", result, diag
+
+        else:
             diag["errors"].append(
-                f"cartograph query '{query_kind}' is not implemented in this runtime slice; only 'summary' is supported"
+                f"cartograph query '{query_kind}' is not implemented; "
+                f"supported queries: summary, file_context, flow_entry_points, layer_view, search, "
+                f"slice_detail, slice_projection, slice_filters"
             )
             return "error", None, diag
-
-        if used_default:
-            diag["warnings"].append(
-                "No cartograph query selector provided; defaulted to 'summary' for this minimal runtime slice"
-            )
-            diag["markers"].append("summary_selector_defaulted")
-
-        diag["markers"].append("summary_minimal_slice")
-        return "ok", _build_minimal_summary_result(args, timeout_ms), diag
 
     diag["errors"].append(f"Unknown action: '{action}'")
     return "error", None, diag

@@ -23,6 +23,7 @@ LANGUAGE_EXTENSION_MAP: Dict[str, List[str]] = {
     "java":        [".java"],
     "sql":         [".sql"],
     "shell":       [".sh", ".ps1", ".bash"],
+    "ahk":         [".ahk", ".ah2"],
 }
 
 
@@ -45,7 +46,7 @@ class ScopeConfig:
         "**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx",
         "**/*.py", "**/*.rs",  "**/*.go", "**/*.cs",
         "**/*.md", "**/*.json","**/*.yaml","**/*.toml",
-        "**/*.sql","**/*.sh",  "**/*.ps1",
+        "**/*.sql","**/*.sh",  "**/*.ps1", "**/*.ahk", "**/*.ah2",
     ])
     allow_overrides: List[str] = field(default_factory=list)
     max_depth: int = 15

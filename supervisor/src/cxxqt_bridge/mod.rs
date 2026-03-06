@@ -44,6 +44,7 @@ pub mod ffi {
         #[qproperty(QString, mcp_status, cxx_name = "mcpStatus")]
         #[qproperty(QString, terminal_status, cxx_name = "terminalStatus")]
         #[qproperty(QString, dashboard_status, cxx_name = "dashboardStatus")]
+        #[qproperty(QString, fallback_status, cxx_name = "fallbackStatus")]
         #[qproperty(QString, dashboard_url, cxx_name = "dashboardUrl")]
         #[qproperty(QString, terminal_url, cxx_name = "terminalUrl")]
         #[qproperty(i32, total_mcp_connections, cxx_name = "totalMcpConnections")]
@@ -140,6 +141,7 @@ pub struct SupervisorGuiBridgeRust {
     pub mcp_status: QString,
     pub terminal_status: QString,
     pub dashboard_status: QString,
+    pub fallback_status: QString,
     /// URLs pushed from main.rs after config loads.
     pub dashboard_url: QString,
     pub terminal_url: QString,
@@ -188,6 +190,7 @@ impl Default for SupervisorGuiBridgeRust {
             mcp_status: QString::from("Starting\u{2026}"),
             terminal_status: QString::from("Starting\u{2026}"),
             dashboard_status: QString::from("Starting\u{2026}"),
+            fallback_status: QString::from("Starting\u{2026}"),
             dashboard_url: QString::default(),
             terminal_url: QString::default(),
             total_mcp_connections: 0,

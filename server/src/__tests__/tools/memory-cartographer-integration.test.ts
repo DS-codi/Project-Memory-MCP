@@ -10,6 +10,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import path from 'node:path';
 import { handleMemoryCartographer } from '../../tools/memory_cartographer.js';
 import type { MemoryCartographerParams } from '../../tools/memory_cartographer.js';
 
@@ -394,50 +395,134 @@ describe('Phase B summary + stubs', () => {
       query: 'summary',
       workspace_path: 'C:/mock/workspace',
     }));
+    expect(request.timeout_ms).toBe(60_000);
+  });
+
+  it('cartography_queries/summary narrows workspace scope to repo root when parent workspace is broader', async () => {
+    mockedGetWorkspace.mockReturnValueOnce({
+      id: WORKSPACE_ID,
+      path: 'C:/Users/User/Project_Memory_MCP',
+    });
+    mockedResolveAccessiblePath.mockResolvedValueOnce('C:/Users/User/Project_Memory_MCP');
+
+    const result = await handleMemoryCartographer(
+      baseParams({ action: 'summary' }),
+    );
+
+    expect(result.success).toBe(true);
+    const request = mockedInvokePythonCore.mock.calls[0][0];
+    expect(request.args).toEqual(expect.objectContaining({
+      query: 'summary',
+      workspace_path: path.join('C:/Users/User/Project_Memory_MCP', 'Project-Memory-MCP'),
+    }));
+  });
+
+  it('cartography_queries/summary timeout is configurable via env var', async () => {
+    process.env.PM_CARTOGRAPHER_SUMMARY_TIMEOUT_MS = '65000';
+
+    try {
+      const result = await handleMemoryCartographer(
+        baseParams({ action: 'summary' }),
+      );
+
+      expect(result.success).toBe(true);
+      const request = mockedInvokePythonCore.mock.calls[0][0];
+      expect(request.timeout_ms).toBe(65_000);
+    } finally {
+      delete process.env.PM_CARTOGRAPHER_SUMMARY_TIMEOUT_MS;
+    }
+  });
+
+  it('cartography_queries/summary failure surfaces launch context for module discoverability diagnostics', async () => {
+    const runtimeError = Object.assign(
+      new Error("ModuleNotFoundError: No module named 'memory_cartographer'"),
+      {
+        launchContext: {
+          python_executable: 'python',
+          module_name: 'memory_cartographer.runtime.entrypoint',
+          cwd: 'C:/mock/workspace',
+          workspace_path: 'C:/mock/workspace',
+          module_search_paths: ['C:/mock/workspace/Project-Memory-MCP/python-core'],
+          pythonpath: 'C:/mock/workspace/Project-Memory-MCP/python-core',
+        },
+      },
+    );
+    mockedInvokePythonCore.mockRejectedValueOnce(runtimeError);
+
+    const result = await handleMemoryCartographer(
+      baseParams({ action: 'summary' }),
+    );
+
+    expect(result.success).toBe(false);
+    const payload = result.data as any;
+    expect(payload.action).toBe('summary');
+    expect(payload.data.diagnostic_code).toBe('PYTHON_RUNTIME_UNAVAILABLE');
+    expect(payload.data.message).toContain("ModuleNotFoundError: No module named 'memory_cartographer'");
+    expect(payload.data.launch_context).toEqual(expect.objectContaining({
+      module_name: 'memory_cartographer.runtime.entrypoint',
+      module_search_paths: expect.arrayContaining(['C:/mock/workspace/Project-Memory-MCP/python-core']),
+    }));
   });
 
   const cartographyQueryActions = ['file_context', 'flow_entry_points', 'layer_view', 'search'] as const;
-  const architectureSliceActions = ['slice_catalog', 'slice_detail', 'slice_projection', 'slice_filters'] as const;
+  const architectureSliceActions = ['slice_detail', 'slice_projection', 'slice_filters'] as const;
 
   for (const action of cartographyQueryActions) {
-    it(`cartography_queries/${action} returns FEATURE_NOT_AVAILABLE and does not throw`, async () => {
+    it(`cartography_queries/${action} invokes adapter and returns ok envelope`, async () => {
       const result = await handleMemoryCartographer(
         baseParams({ action } as Partial<MemoryCartographerParams> as MemoryCartographerParams),
       );
       expect(result.success).toBe(true);
-      const inner = (result.data as any).data;
-      expect(inner.diagnostic_code).toBe('FEATURE_NOT_AVAILABLE');
-      expect(inner.error).toBe('NOT_IMPLEMENTED');
-      expect(mockedInvokePythonCore).not.toHaveBeenCalled();
+      expect(mockedInvokePythonCore).toHaveBeenCalled();
     });
   }
 
   for (const action of architectureSliceActions) {
-    it(`architecture_slices/${action} returns FEATURE_NOT_AVAILABLE and does not throw`, async () => {
+    it(`architecture_slices/${action} invokes adapter and returns ok envelope`, async () => {
       const result = await handleMemoryCartographer(
-        baseParams({ action } as Partial<MemoryCartographerParams> as MemoryCartographerParams),
+        baseParams({ action, ...(action !== 'slice_filters' ? { slice_id: 'sl_test_001' } : {}) } as Partial<MemoryCartographerParams> as MemoryCartographerParams),
       );
       expect(result.success).toBe(true);
-      const inner = (result.data as any).data;
-      expect(inner.diagnostic_code).toBe('FEATURE_NOT_AVAILABLE');
-      expect(mockedInvokePythonCore).not.toHaveBeenCalled();
+      expect(mockedInvokePythonCore).toHaveBeenCalled();
     });
   }
 
-  it('Phase B cartography_queries stubs include domain field', async () => {
+  it('Phase B cartography_queries actions invoke Python adapter (not stub response)', async () => {
     const result = await handleMemoryCartographer(
       baseParams({ action: 'file_context' as any }),
     );
-    const inner = (result.data as any).data;
-    expect(inner.domain).toBe('cartography_queries');
+    expect(result.success).toBe(true);
+    expect(mockedInvokePythonCore).toHaveBeenCalled();
   });
 
-  it('Phase B architecture_slices stub includes correct domain', async () => {
+  it('Phase B architecture_slices actions invoke Python adapter (not stub response)', async () => {
+    const result = await handleMemoryCartographer(
+      baseParams({ action: 'slice_detail' as any, slice_id: 'sl_test_001' } as any),
+    );
+    expect(result.success).toBe(true);
+    expect(mockedInvokePythonCore).toHaveBeenCalled();
+  });
+
+  // TC-AS-10: slice_catalog is now SQLite-backed (not a stub)
+  it('TC-AS-10: slice_catalog returns { slices: [], total: 0 } on empty DB', async () => {
     const result = await handleMemoryCartographer(
       baseParams({ action: 'slice_catalog' as any }),
     );
+    expect(result.success).toBe(true);
     const inner = (result.data as any).data;
-    expect(inner.domain).toBe('architecture_slices');
+    expect(Array.isArray(inner.slices)).toBe(true);
+    expect(inner.slices).toHaveLength(0);
+    expect(inner.total).toBe(0);
+    expect(mockedInvokePythonCore).not.toHaveBeenCalled();
+  });
+
+  it('TC-AS-10: slice_catalog response has correct action field', async () => {
+    const result = await handleMemoryCartographer(
+      baseParams({ action: 'slice_catalog' as any }),
+    );
+    expect(result.success).toBe(true);
+    const data = (result.data as any);
+    expect(data.action).toBe('slice_catalog');
   });
 });
 

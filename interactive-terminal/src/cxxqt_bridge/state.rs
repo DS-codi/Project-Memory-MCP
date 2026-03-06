@@ -93,6 +93,14 @@ impl AppState {
         loop {
             let candidate = format!("session-{suffix}");
             if !self.has_session(&candidate) {
+                let inherited_context = if self.selected_session_id.trim().is_empty() {
+                    None
+                } else {
+                    self.session_context_by_id
+                        .get(&self.selected_session_id)
+                        .cloned()
+                };
+
                 if !self.selected_session_id.trim().is_empty() {
                     self.session_lifecycle_by_id.insert(
                         self.selected_session_id.clone(),
@@ -102,14 +110,17 @@ impl AppState {
 
                 self.pending_commands_by_session
                     .insert(candidate.clone(), Vec::new());
+                self.session_output_by_id
+                    .insert(candidate.clone(), String::new());
                 self.session_display_names
                     .insert(candidate.clone(), candidate.clone());
-                self.session_context_by_id
-                    .entry(candidate.clone())
-                    .or_insert_with(|| SessionRuntimeContext {
+                self.session_context_by_id.insert(
+                    candidate.clone(),
+                    inherited_context.unwrap_or_else(|| SessionRuntimeContext {
                         selected_terminal_profile: self.default_terminal_profile.clone(),
                         ..SessionRuntimeContext::default()
-                    });
+                    }),
+                );
                 self.selected_session_id = candidate.clone();
                 self.set_selected_session_lifecycle();
                 return candidate;
@@ -148,9 +159,11 @@ impl AppState {
         }
 
         self.pending_commands_by_session.remove(target);
+        self.session_output_by_id.remove(target);
         self.session_display_names.remove(target);
         self.session_context_by_id.remove(target);
         self.gemini_session_ids.remove(target);
+        self.copilot_session_ids.remove(target);
         self.session_lifecycle_by_id
             .insert(target.to_string(), SessionLifecycleState::Closed);
         self.session_lifecycle_by_id.remove(target);
@@ -199,6 +212,75 @@ impl AppState {
                 selected_terminal_profile: self.default_terminal_profile.clone(),
                 ..SessionRuntimeContext::default()
             })
+    }
+
+    pub(crate) fn selected_session_output(&self) -> String {
+        self.session_output_by_id
+            .get(&self.selected_session_id)
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    pub(crate) fn append_output_line_for_session(
+        &mut self,
+        session_id: &str,
+        line: &str,
+    ) -> Option<String> {
+        let target = session_id.trim();
+        if target.is_empty() {
+            return None;
+        }
+
+        let dedup_active = self.is_ai_cli_output_dedup_active(target);
+        let entry = self
+            .session_output_by_id
+            .entry(target.to_string())
+            .or_default();
+
+        if dedup_active {
+            let incoming = line.trim_end_matches('\r');
+            let mut lines = entry
+                .lines()
+                .map(|existing| existing.to_string())
+                .collect::<Vec<String>>();
+
+            // Keep only the most recent copy of duplicate lines while AI CLI
+            // sessions are active (Gemini/Copilot output often reprints status lines).
+            lines.retain(|existing| existing != incoming);
+            lines.push(incoming.to_string());
+            *entry = lines.join("\n");
+        } else {
+            if !entry.is_empty() {
+                entry.push('\n');
+            }
+            entry.push_str(line);
+        }
+
+        if self.selected_session_id == target {
+            Some(entry.clone())
+        } else {
+            None
+        }
+    }
+
+    fn is_ai_cli_output_dedup_active(&self, session_id: &str) -> bool {
+        if self.gemini_session_ids.contains(session_id) || self.copilot_session_ids.contains(session_id) {
+            return true;
+        }
+
+        self.agent_session_meta
+            .get(session_id)
+            .map(|meta| {
+                let provider = meta.provider.trim().to_ascii_lowercase();
+                provider == "gemini" || provider == "copilot"
+            })
+            .unwrap_or(false)
+    }
+
+    pub(crate) fn clear_selected_session_output(&mut self) {
+        let selected = self.selected_session_id.clone();
+        self.session_output_by_id
+            .insert(selected, String::new());
     }
 
     pub(crate) fn set_selected_terminal_profile(

@@ -453,6 +453,9 @@ export interface CopilotStatus {
   instructionCount: number;
   outdatedAgents: number;
   missingFiles: string[];
+  fallbackApiHealth: 'healthy' | 'degraded' | 'disabled' | 'unknown';
+  fallbackApiDetail?: string;
+  fallbackApiCheckedAt?: string;
 }
 
 // =============================================================================
