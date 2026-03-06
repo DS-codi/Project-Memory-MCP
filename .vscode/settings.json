@@ -1,0 +1,8 @@
+{
+  "projectMemory.serverPort": 3459,
+  "projectMemory.apiPort": 3459,
+  "projectMemory.mcpPort": 3457,
+  "chat.tools.terminal.autoApprove": {
+    "Test-Path": true
+  }
+}

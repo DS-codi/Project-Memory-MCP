@@ -504,6 +504,10 @@ if ($doDeploy) {
         } else {
             $deployArgs += '--debug'
         }
+        # Exclude the webview-webengine plugin: it depends on Qt6WebEngineQuick.dll which
+        # is not installed (Qt WebEngine is a separate large component). The app uses the
+        # WebView2 (Edge) backend instead, so this plugin is not needed.
+        $deployArgs += @('--exclude-plugins', 'qtwebview_webengine')
         $deployArgs += @('--qmldir', $scriptDir, $exePath)
 
         $deployResult = Invoke-NativeCommandCapture -FilePath $deployTool -Arguments $deployArgs -WorkingDirectory $scriptDir
@@ -617,6 +621,47 @@ if ($doDeploy) {
         # Comprehensive DLL verification + fallback copy from Qt bin
         # ---------------------------------------------------------------
         $outputDir = Split-Path -Parent $exePath
+
+        # ---------------------------------------------------------------
+        # DirectX Shader Compiler DLLs (dxcompiler.dll + dxil.dll)
+        # windeployqt cannot find these on its own; resolve from Windows SDK.
+        # Required by Qt 6 Quick's Direct3D 12 render backend.
+        # ---------------------------------------------------------------
+        function Find-WindowsSdkX64Dir {
+            $kitsBase = 'C:\Program Files (x86)\Windows Kits\10\bin'
+            if (-not (Test-Path $kitsBase)) { return $null }
+            # Pick the highest version that has dxcompiler.dll
+            $sdkVersions = Get-ChildItem $kitsBase -Directory |
+                Where-Object { $_.Name -match '^\d+\.\d+\.\d+\.\d+$' } |
+                Sort-Object { [Version]$_.Name } -Descending
+            foreach ($ver in $sdkVersions) {
+                $x64Dir = Join-Path $ver.FullName 'x64'
+                if (Test-Path (Join-Path $x64Dir 'dxcompiler.dll')) {
+                    return $x64Dir
+                }
+            }
+            return $null
+        }
+
+        $dxShaderDlls = @('dxcompiler.dll', 'dxil.dll')
+        $sdkX64Dir = Find-WindowsSdkX64Dir
+        if ($sdkX64Dir) {
+            foreach ($dxDll in $dxShaderDlls) {
+                $dxDest = Join-Path $outputDir $dxDll
+                if (-not (Test-Path $dxDest)) {
+                    $dxSrc = Join-Path $sdkX64Dir $dxDll
+                    if (Test-Path $dxSrc) {
+                        Copy-Item $dxSrc $dxDest -Force
+                        Write-Host "  + Copied $dxDll from Windows SDK: $sdkX64Dir" -ForegroundColor DarkGray
+                    } else {
+                        Write-Host "  WARNING: $dxDll not found in Windows SDK at $sdkX64Dir" -ForegroundColor Yellow
+                    }
+                }
+            }
+        } else {
+            Write-Host '  WARNING: Windows SDK x64 directory not found; dxcompiler.dll and dxil.dll will not be deployed.' -ForegroundColor Yellow
+            Write-Host '  Qt Quick Direct3D 12 rendering may fail at runtime. Install Windows SDK 10.0.26100.0 or newer.' -ForegroundColor Yellow
+        }
 
         $requiredDlls = @(
             # Core Qt runtime

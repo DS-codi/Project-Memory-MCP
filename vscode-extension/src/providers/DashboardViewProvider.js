@@ -314,7 +314,7 @@ class DashboardViewProvider {
     }
     getApiPort() {
         const config = vscode.workspace.getConfiguration('projectMemory');
-        return config.get('serverPort') || config.get('apiPort') || 3001;
+        return config.get('serverPort') || config.get('apiPort') || 3459;
     }
     getDashboardUrl() {
         return (0, ContainerDetection_1.getDashboardFrontendUrl)();
@@ -431,7 +431,7 @@ class DashboardViewProvider {
     }
     _getHtmlForWebview(webview) {
         const config = vscode.workspace.getConfiguration('projectMemory');
-        const apiPort = config.get('serverPort') || config.get('apiPort') || 3001;
+        const apiPort = config.get('serverPort') || config.get('apiPort') || 3459;
         const workspaceResolution = this.resolveWorkspaceContext();
         return (0, dashboard_webview_1.getWebviewHtml)({
             cspSource: webview.cspSource,

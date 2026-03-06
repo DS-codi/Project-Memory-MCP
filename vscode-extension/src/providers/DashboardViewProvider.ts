@@ -374,7 +374,7 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
 
     private getApiPort(): number {
         const config = vscode.workspace.getConfiguration('projectMemory');
-        return config.get<number>('serverPort') || config.get<number>('apiPort') || 3001;
+        return config.get<number>('serverPort') || config.get<number>('apiPort') || 3459;
     }
 
     private getDashboardUrl(): string {
@@ -516,7 +516,7 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
 
     private _getHtmlForWebview(webview: vscode.Webview): string {
         const config = vscode.workspace.getConfiguration('projectMemory');
-        const apiPort = config.get<number>('serverPort') || config.get<number>('apiPort') || 3001;
+        const apiPort = config.get<number>('serverPort') || config.get<number>('apiPort') || 3459;
         const workspaceResolution = this.resolveWorkspaceContext();
 
         return getWebviewHtml({

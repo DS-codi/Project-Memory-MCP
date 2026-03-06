@@ -58,7 +58,7 @@ export function activate(context: vscode.ExtensionContext) {
     const agentsRoot = config.get<string>('agentsRoot') || getDefaultAgentsRoot();
     const promptsRoot = config.get<string>('promptsRoot');
     const instructionsRoot = config.get<string>('instructionsRoot');
-    const dashboardPort = config.get<number>('serverPort') || 3001;
+    const dashboardPort = config.get<number>('serverPort') || 3459;
     const mcpPort = config.get<number>('mcpPort') || 3457;
     const defaultAgents = config.get<string[]>('defaultAgents') || [];
     const defaultInstructions = config.get<string[]>('defaultInstructions') || [];
@@ -117,7 +117,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     // --- Register all commands (no I/O, just registrations) ---
-    const getDashboardPort = () => config.get<number>('serverPort') || 3001;
+    const getDashboardPort = () => config.get<number>('serverPort') || 3459;
 
     // --- Register Plans TreeView ---
     planTreeProvider = new WorkspacePlanTreeProvider(dashboardPort);

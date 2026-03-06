@@ -256,12 +256,12 @@
         },
         "projectMemory.apiPort": {
           "type": "number",
-          "default": 3001,
+          "default": 3459,
           "description": "Port for the dashboard API server"
         },
         "projectMemory.serverPort": {
           "type": "number",
-          "default": 3001,
+          "default": 3459,
           "description": "Port for the dashboard API server"
         },
         "projectMemory.mcpPort": {

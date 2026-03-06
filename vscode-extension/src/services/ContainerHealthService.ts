@@ -62,7 +62,7 @@ export class ContainerHealthService extends EventEmitter {
         log?: (msg: string) => void;
     } = {}) {
         super();
-        this._dashboardPort = opts.dashboardPort ?? 3001;
+        this._dashboardPort = opts.dashboardPort ?? 3459;
         this._pollIntervalMs = opts.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
         this._logFn = opts.log ?? (() => { /* noop */ });
     }
