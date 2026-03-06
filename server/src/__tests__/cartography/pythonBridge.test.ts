@@ -115,11 +115,18 @@ describe('invokePythonCore', () => {
     vi.mocked(spawn).mockReturnValue(child as never);
 
     const promise = invokePythonCore(request);
+    const timeoutRejection = promise.then(
+      () => {
+        throw new Error('Expected invokePythonCore to reject on timeout');
+      },
+      (error: unknown) => error
+    );
 
     await vi.advanceTimersByTimeAsync(11);
 
-    await expect(promise).rejects.toBeInstanceOf(CartographyBridgeTimeoutError);
-    await expect(promise).rejects.toMatchObject({
+    const timeoutError = await timeoutRejection;
+    expect(timeoutError).toBeInstanceOf(CartographyBridgeTimeoutError);
+    expect(timeoutError).toMatchObject({
       errorCode: 'INVOCATION_TIMEOUT',
       requestId: request.request_id,
     });

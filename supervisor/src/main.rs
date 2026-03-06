@@ -472,6 +472,21 @@ async fn supervisor_main() {
             form_apps.insert("approval_gui".to_string(), cfg.approval_gui.0.clone());
             let form_apps = Arc::new(form_apps);
 
+            // ── GUI HTTP server ───────────────────────────────────────────────
+            // Exposes /gui/ping, /gui/launch, /gui/continue on a dedicated TCP
+            // port so the MCP container can request GUI launches without needing
+            // access to the Windows named pipe.
+            if cfg.gui_server.enabled {
+                let fa_for_gui = Arc::clone(&form_apps);
+                let gui_port = cfg.gui_server.port;
+                let gui_bind = cfg.gui_server.bind_address.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = supervisor::gui_server::start(&gui_bind, gui_port, fa_for_gui).await {
+                        eprintln!("[supervisor] GUI HTTP server error: {e}");
+                    }
+                });
+            }
+
             // ── Events broadcast channel ─────────────────────────────────────
             let events_config = supervisor::events::EventsConfig {
                 enabled: cfg.events.enabled,
