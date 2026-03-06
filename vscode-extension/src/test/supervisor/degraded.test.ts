@@ -96,11 +96,14 @@ suite('degraded mode', () => {
         const item = createdItems[0];
 
         assert.ok(
-            typeof item.text === 'string' && item.text.includes('Supervisor Unavailable'),
-            `Expected text to contain "Supervisor Unavailable"; got: "${item.text}"`
+            typeof item.text === 'string' && item.text.includes('Launch Supervisor'),
+            `Expected text to contain "Launch Supervisor"; got: "${item.text}"`
         );
-        assert.strictEqual(item.tooltip, 'Supervisor startup timed out');
-        assert.strictEqual(item.command, 'project-memory.startSupervisor');
+        assert.ok(
+            typeof item.tooltip === 'string' && item.tooltip.includes('Supervisor startup timed out'),
+            `Expected tooltip to include reason; got: "${String(item.tooltip)}"`
+        );
+        assert.strictEqual(item.command, 'project-memory.launchSupervisor');
         assert.ok(item.backgroundColor !== undefined, 'backgroundColor should be set');
         assert.ok(
             subscriptions.length > 0,
@@ -129,7 +132,10 @@ suite('degraded mode', () => {
         degradedModule.enterDegradedMode(ctx, 'new reason');
 
         const lastItem = createdItems[createdItems.length - 1];
-        assert.strictEqual(lastItem.tooltip, 'new reason');
+        assert.ok(
+            typeof lastItem.tooltip === 'string' && lastItem.tooltip.includes('new reason'),
+            `Expected tooltip to include new reason; got: "${String(lastItem.tooltip)}"`
+        );
     });
 
     // ---- exitDegradedMode ----

@@ -12,6 +12,15 @@ type ProbeTarget =
   | { kind: 'pipe'; path: string }
   | { kind: 'tcp'; host: string; port: number };
 
+type DetectSupervisorFn = (timeoutMs: number) => Promise<boolean>;
+
+// Test-only seam used by readiness/activation tests.
+let detectSupervisorOverride: DetectSupervisorFn | undefined;
+
+export function __setDetectSupervisorTestHook(hook: DetectSupervisorFn | undefined): void {
+  detectSupervisorOverride = hook;
+}
+
 function getProbeTargets(): ProbeTarget[] {
   const cfg = vscode.workspace.getConfiguration('projectMemory');
   const containerMode = cfg.get<'auto' | 'local' | 'container'>('containerMode', 'auto');
@@ -70,6 +79,10 @@ function tryProbe(target: ProbeTarget, timeoutMs: number): Promise<boolean> {
  * @returns `true` if the connection succeeds within the timeout, `false` otherwise.
  */
 export function detectSupervisor(timeoutMs: number): Promise<boolean> {
+  if (detectSupervisorOverride) {
+    return detectSupervisorOverride(timeoutMs);
+  }
+
   return (async () => {
     const targets = getProbeTargets();
     for (const target of targets) {

@@ -30,6 +30,26 @@ export interface ContainerStatus {
     dashboardInfo?: Record<string, unknown>;
 }
 
+type ProbeContainerFn = (mcpPort?: number, dashboardPort?: number) => Promise<ContainerStatus>;
+type GetContainerMcpPortFn = () => number;
+
+// Test-only seams used by extension unit tests when module exports are getter-only.
+let probeContainerOverride: ProbeContainerFn | undefined;
+let getContainerMcpPortOverride: GetContainerMcpPortFn | undefined;
+
+export function __setContainerDetectionTestHooks(hooks: {
+    probeContainer?: ProbeContainerFn;
+    getContainerMcpPort?: GetContainerMcpPortFn;
+}): void {
+    probeContainerOverride = hooks.probeContainer;
+    getContainerMcpPortOverride = hooks.getContainerMcpPort;
+}
+
+export function __resetContainerDetectionTestHooks(): void {
+    probeContainerOverride = undefined;
+    getContainerMcpPortOverride = undefined;
+}
+
 // ---------------------------------------------------------------------------
 // Health probes
 // ---------------------------------------------------------------------------
@@ -77,6 +97,10 @@ function probeEndpoint(url: string, timeoutMs = 3000): Promise<Record<string, un
  * The container is considered "detected" if at least the MCP health check passes.
  */
 export async function probeContainer(mcpPort = 3000, dashboardPort = 3001): Promise<ContainerStatus> {
+    if (probeContainerOverride) {
+        return probeContainerOverride(mcpPort, dashboardPort);
+    }
+
     const [mcpInfo, dashboardInfo] = await Promise.all([
         probeEndpoint(`http://localhost:${mcpPort}/health`),
         probeEndpoint(`http://localhost:${dashboardPort}/api/health`),
@@ -103,6 +127,10 @@ export function getContainerMode(): ContainerMode {
  * Read the container MCP port from VS Code settings.
  */
 export function getContainerMcpPort(): number {
+    if (getContainerMcpPortOverride) {
+        return getContainerMcpPortOverride();
+    }
+
     const config = vscode.workspace.getConfiguration('projectMemory');
     return config.get<number>('containerMcpPort', 3000);
 }

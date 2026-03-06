@@ -48,19 +48,17 @@ function settings(overrides: Partial<SupervisorSettings>): SupervisorSettings {
 // ---------------------------------------------------------------------------
 
 suite('runSupervisorActivation', () => {
-    let origDetect: unknown;
     let origShowInfo: typeof vscode.window.showInformationMessage;
 
     setup(() => {
-        origDetect   = detectModule.detectSupervisor;
         origShowInfo = vscode.window.showInformationMessage;
 
         // Safe default: supervisor not running.
-        detectModule.detectSupervisor = async (_t: number) => false;
+        detectModule.__setDetectSupervisorTestHook(async (_t: number) => false);
     });
 
     teardown(() => {
-        detectModule.detectSupervisor        = origDetect;
+        detectModule.__setDetectSupervisorTestHook(undefined);
         vscode.window.showInformationMessage = origShowInfo;
     });
 
@@ -68,10 +66,10 @@ suite('runSupervisorActivation', () => {
 
     test("startupMode='off' returns 'skipped' without calling detectSupervisor", async () => {
         let detectCalled = false;
-        detectModule.detectSupervisor = async (_t: number) => {
+        detectModule.__setDetectSupervisorTestHook(async (_t: number) => {
             detectCalled = true;
             return false;
-        };
+        });
 
         const result = await activationModule.runSupervisorActivation(
             MOCK_CONTEXT,
@@ -111,7 +109,7 @@ suite('runSupervisorActivation', () => {
     test("startupMode='prompt' + user picks Check proceeds with detection → 'ready'", async () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (vscode.window as any).showInformationMessage = async (..._args: unknown[]) => 'Check';
-        detectModule.detectSupervisor = async (_t: number) => true;
+        detectModule.__setDetectSupervisorTestHook(async (_t: number) => true);
 
         const result = await activationModule.runSupervisorActivation(
             MOCK_CONTEXT,
@@ -124,7 +122,7 @@ suite('runSupervisorActivation', () => {
     test("startupMode='prompt' + user picks Check + not running → 'degraded'", async () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (vscode.window as any).showInformationMessage = async (..._args: unknown[]) => 'Check';
-        detectModule.detectSupervisor = async (_t: number) => false;
+        detectModule.__setDetectSupervisorTestHook(async (_t: number) => false);
 
         const result = await activationModule.runSupervisorActivation(
             MOCK_CONTEXT,
@@ -137,7 +135,7 @@ suite('runSupervisorActivation', () => {
     // ---- startupMode = 'auto' ----
 
     test("startupMode='auto' + supervisor already running returns 'ready'", async () => {
-        detectModule.detectSupervisor = async (_t: number) => true;
+        detectModule.__setDetectSupervisorTestHook(async (_t: number) => true);
 
         const result = await activationModule.runSupervisorActivation(
             MOCK_CONTEXT,
@@ -148,7 +146,7 @@ suite('runSupervisorActivation', () => {
     });
 
     test("startupMode='auto' + supervisor not running returns 'degraded'", async () => {
-        detectModule.detectSupervisor = async (_t: number) => false;
+        detectModule.__setDetectSupervisorTestHook(async (_t: number) => false);
 
         const result = await activationModule.runSupervisorActivation(
             MOCK_CONTEXT,

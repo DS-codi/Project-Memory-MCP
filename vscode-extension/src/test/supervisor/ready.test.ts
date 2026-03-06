@@ -24,18 +24,12 @@ const readyModule = require('../../supervisor/ready');
 // ---------------------------------------------------------------------------
 
 suite('waitForSupervisorReady', () => {
-    let originalDetectSupervisor: unknown;
-
-    setup(() => {
-        originalDetectSupervisor = detectModule.detectSupervisor;
-    });
-
     teardown(() => {
-        detectModule.detectSupervisor = originalDetectSupervisor;
+        detectModule.__setDetectSupervisorTestHook(undefined);
     });
 
     test('resolves when detectSupervisor succeeds on the first attempt', async () => {
-        detectModule.detectSupervisor = async (_timeoutMs: number): Promise<boolean> => true;
+        detectModule.__setDetectSupervisorTestHook(async (_timeoutMs: number): Promise<boolean> => true);
 
         // Should resolve without throwing.
         await assert.doesNotReject(
@@ -47,10 +41,10 @@ suite('waitForSupervisorReady', () => {
         let callCount = 0;
 
         // Fail twice, then succeed on the third call.
-        detectModule.detectSupervisor = async (_timeoutMs: number): Promise<boolean> => {
+        detectModule.__setDetectSupervisorTestHook(async (_timeoutMs: number): Promise<boolean> => {
             callCount += 1;
             return callCount >= 3;
-        };
+        });
 
         await assert.doesNotReject(
             () => readyModule.waitForSupervisorReady(5000) as Promise<void>
@@ -64,7 +58,7 @@ suite('waitForSupervisorReady', () => {
 
     test('rejects with descriptive error when timeout is exceeded', async () => {
         // Always report not ready.
-        detectModule.detectSupervisor = async (_timeoutMs: number): Promise<boolean> => false;
+        detectModule.__setDetectSupervisorTestHook(async (_timeoutMs: number): Promise<boolean> => false);
 
         // timeoutMs = 0 → the elapsed check fires immediately.
         await assert.rejects(
@@ -81,7 +75,7 @@ suite('waitForSupervisorReady', () => {
     });
 
     test('rejects with message containing the timeout value', async () => {
-        detectModule.detectSupervisor = async (_timeoutMs: number): Promise<boolean> => false;
+        detectModule.__setDetectSupervisorTestHook(async (_timeoutMs: number): Promise<boolean> => false);
 
         await assert.rejects(
             () => readyModule.waitForSupervisorReady(0) as Promise<void>,

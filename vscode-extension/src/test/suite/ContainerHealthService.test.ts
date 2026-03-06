@@ -54,27 +54,23 @@ const FAILED_RESULT: MockProbeResult = {
 
 let currentProbeResult: MockProbeResult = HEALTHY_RESULT;
 
-// Save originals
-const origProbe = ContainerDetection.probeContainer;
-const origGetPort = ContainerDetection.getContainerMcpPort;
-
 suite('ContainerHealthService Test Suite', () => {
-    let service: InstanceType<typeof ContainerHealthService>;
+    let service!: InstanceType<typeof ContainerHealthService>;
 
     setup(() => {
-        // Install stubs
-        ContainerDetection.probeContainer = async () => currentProbeResult;
-        ContainerDetection.getContainerMcpPort = () => 3000;
+        // Install stubs via explicit test hooks (safe when exports are getter-only).
+        ContainerDetection.__setContainerDetectionTestHooks({
+            probeContainer: async () => currentProbeResult,
+            getContainerMcpPort: () => 3000,
+        });
 
         service = new ContainerHealthService({ pollIntervalMs: 100_000 });
         currentProbeResult = HEALTHY_RESULT;
     });
 
     teardown(() => {
-        service.dispose();
-        // Restore originals
-        ContainerDetection.probeContainer = origProbe;
-        ContainerDetection.getContainerMcpPort = origGetPort;
+        service?.dispose();
+        ContainerDetection.__resetContainerDetectionTestHooks();
     });
 
     // ---- Initial state ----

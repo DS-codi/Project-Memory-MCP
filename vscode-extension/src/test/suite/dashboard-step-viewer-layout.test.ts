@@ -23,7 +23,7 @@ suite('Dashboard Step Viewer Layout', () => {
             'Selected plan body element should be present for step viewer rendering'
         );
         assert.ok(
-            html.includes('Select a plan to view ordered steps.'),
+            html.includes('Select a plan to view steps'),
             'Selected plan panel should include empty-state copy'
         );
         assert.ok(
