@@ -5,5 +5,5 @@
   
   "// Alternatively, configure a specific external server path": "",
   "// projectMemory.chat.serverMode": "external",
-  "// projectMemory.chat.externalServerPath": "c:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\server\\dist\\index.js"
+  "// projectMemory.chat.externalServerPath": "C:\\path\\to\\project-memory-mcp\\server\\dist\\index.js"
 }

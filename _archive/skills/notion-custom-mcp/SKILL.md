@@ -490,7 +490,7 @@ Add to your `.vscode/mcp.json` or user `mcp.json`:
       "command": "uv",
       "args": [
         "--directory",
-        "c:\\Users\\codi.f\\Custom_MCP\\NotionCustomMCP",
+        "C:\\Users\\<username>\\Custom_MCP\\NotionCustomMCP",
         "--native-tls",
         "run",
         "python",
