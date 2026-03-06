@@ -139,8 +139,6 @@ export function resolveServerDirectory(log?: (msg: string) => void): string | nu
 
     const possiblePaths = [
         extensionPath ? path.join(extensionPath, 'server') : null,
-        'c:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\dashboard\\server',
-        'c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\dashboard\\server',
         workspacePath ? path.join(workspacePath, 'dashboard', 'server') : null,
         extensionPath ? path.join(extensionPath, '..', 'dashboard', 'server') : null,
     ].filter(Boolean) as string[];
@@ -164,8 +162,6 @@ export function resolveDashboardDirectory(log?: (msg: string) => void): string |
 
     const possiblePaths = [
         extensionPath ? path.join(extensionPath, 'dashboard') : null,
-        'c:\\Users\\codi.f\\vscode_ModularAgenticProcedureSystem\\dashboard',
-        'c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\dashboard',
         workspacePath ? path.join(workspacePath, 'dashboard') : null,
         extensionPath ? path.join(extensionPath, '..', 'dashboard') : null,
     ].filter(Boolean) as string[];

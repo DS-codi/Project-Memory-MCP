@@ -5,7 +5,7 @@
 **Status:** Complete  
 **Parent Program:** [Database Migration & System Stabilization](00-program-overview.md)  
 **Dependencies:** Plan 6 (Dashboard & WebSocket Overhaul)  
-**Workspace Directory:** `C:\Users\User\Project_Memory_MCP\Project-Memory-MCP`
+**Workspace Directory:** `C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP`
 
 ## Goal
 

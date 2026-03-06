@@ -5,7 +5,7 @@
 **Status:** ✅ Complete  
 **Parent Program:** [Database Migration & System Stabilization](00-program-overview.md)  
 **Dependencies:** None (first plan)  
-**Target:** `C:\Users\User\Project_Memory_MCP\Project-Memory-MCP\vscode-extension`  
+**Target:** `C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\vscode-extension`  
 **Archive Policy:** Files are moved to `src/_archive/` instead of deleted, preserving history for reference.
 
 ## Goal
