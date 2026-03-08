@@ -5,10 +5,10 @@ import * as vscode from 'vscode';
  */
 export interface SupervisorSettings {
   /**
-   * Controls whether the extension auto-starts the Supervisor on activation.
-   * - "off"    — never start automatically
-   * - "prompt" — ask the user before starting
-   * - "auto"   — start without prompting
+   * Controls startup detection behavior for Supervisor.
+   * - "off"    — skip startup detection
+   * - "prompt" — ask before checking
+   * - "auto"   — check automatically
    */
   startupMode: 'off' | 'prompt' | 'auto';
 

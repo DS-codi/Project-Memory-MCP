@@ -145,13 +145,6 @@ suite('Configuration Test Suite', () => {
         assert.ok(config, 'projectMemory configuration section should exist');
     });
 
-    test('dataRoot setting should be accessible', () => {
-        const config = vscode.workspace.getConfiguration('projectMemory');
-        const dataRoot = config.get<string>('dataRoot');
-        // dataRoot can be empty string or undefined, just check it doesn't throw
-        assert.ok(dataRoot !== null, 'dataRoot should be accessible');
-    });
-
     test('agentsRoot setting should be accessible', () => {
         const config = vscode.workspace.getConfiguration('projectMemory');
         const agentsRoot = config.get<string>('agentsRoot');
@@ -170,11 +163,35 @@ suite('Configuration Test Suite', () => {
         assert.strictEqual(autoDeploy, false, 'autoDeployAgents should default to false');
     });
 
-    test('apiPort setting should have default value', () => {
+    test('serverPort setting should have default value', () => {
         const config = vscode.workspace.getConfiguration('projectMemory');
-        const apiPort = config.inspect<number>('apiPort');
-        assert.ok(apiPort, 'apiPort should be inspectable');
-        assert.strictEqual(apiPort?.defaultValue, 3459, 'apiPort should default to 3459');
+        const serverPort = config.inspect<number>('serverPort');
+        assert.ok(serverPort, 'serverPort should be inspectable');
+        assert.strictEqual(serverPort?.defaultValue, 3459, 'serverPort should default to 3459');
+    });
+
+    test('legacy apiPort setting should not be contributed', () => {
+        const extension = vscode.extensions.getExtension('project-memory.project-memory-dashboard');
+        assert.ok(extension, 'Extension should be installed');
+
+        const configProps = extension?.packageJSON?.contributes?.configuration?.properties ?? {};
+        assert.ok(
+            !Object.prototype.hasOwnProperty.call(configProps, 'projectMemory.apiPort'),
+            'projectMemory.apiPort should not be contributed in package settings'
+        );
+    });
+
+    test('legacy showNotifications setting should be deprecated', () => {
+        const extension = vscode.extensions.getExtension('project-memory.project-memory-dashboard');
+        assert.ok(extension, 'Extension should be installed');
+
+        const configProps = extension?.packageJSON?.contributes?.configuration?.properties ?? {};
+        const showNotificationsSetting = configProps['projectMemory.showNotifications'];
+        assert.ok(showNotificationsSetting, 'projectMemory.showNotifications should remain for compatibility');
+        assert.ok(
+            typeof showNotificationsSetting.deprecationMessage === 'string' && showNotificationsSetting.deprecationMessage.length > 0,
+            'projectMemory.showNotifications should include a deprecationMessage'
+        );
     });
 });
 

@@ -10,6 +10,7 @@ This document lists the currently supported utility scripts for Project Memory M
 4. `interactive-terminal/build-interactive-terminal.ps1`
 5. `new-install.ps1`
 6. `scripts/preflight-machine.ps1`
+7. `scripts/folder_cleanup/*.py`
 
 Legacy helper scripts are archived and not part of the active workflow.
 
@@ -220,3 +221,71 @@ Runs a fast clean-machine readiness check before first build/install.
 ```
 
 Exit code is `1` when blocking requirements are missing.
+
+---
+
+## 7) `scripts/folder_cleanup/*.py`
+
+Safe cleanup toolkit for project-folder maintenance.
+
+### Cleanup policy
+
+- Report-first workflow (no direct deletion)
+- Local recycle-bin staging under `.cleanup-staging/recycle-bin/`
+- Date-modified metadata (`last_modified_utc`, `age_days`) included for triage
+- One-time scripts can extract reusable notes before staging
+
+### Scripts
+
+- `scripts/folder_cleanup/audit_cleanup.py`
+  - Scans the project and writes a cleanup proposal report in `.cleanup-staging/reports/`.
+  - Does not move or delete files.
+- `scripts/folder_cleanup/stage_cleanup.py`
+  - Moves proposed candidates from the report into `.cleanup-staging/recycle-bin/<run-id>/...`.
+  - `--apply` required to perform moves; without it, preview only.
+- `scripts/folder_cleanup/organize_by_category.py`
+  - Previews or applies category-based moves for top-level files in `scripts/` and `docs/` (or `documentation/`).
+  - Recently modified files are skipped by default.
+- `scripts/folder_cleanup/plan_cleanup_audit.py`
+  - Reads plans directly from the SQLite DB by default and generates a report-only cleanup proposal for Project Memory plans.
+  - Can also consume saved plan inventory JSON when `--plans-json` is provided.
+  - Classifies finished-not-archived, superseded, redundant, and related-plan program-grouping candidates.
+  - Proposes `memory_plan` actions, but executes no mutations.
+
+### Cleanup toolkit use cases
+
+- Generate cleanup proposal:
+
+```powershell
+python .\scripts\folder_cleanup\audit_cleanup.py --root .
+```
+
+- Preview staging:
+
+```powershell
+python .\scripts\folder_cleanup\stage_cleanup.py --root .
+```
+
+- Stage candidates (no hard delete):
+
+```powershell
+python .\scripts\folder_cleanup\stage_cleanup.py --root . --apply
+```
+
+- Preview organization moves:
+
+```powershell
+python .\scripts\folder_cleanup\organize_by_category.py --root .
+```
+
+- Generate plan cleanup proposal:
+
+```powershell
+python .\scripts\folder_cleanup\plan_cleanup_audit.py --workspace-id <workspace-id>
+```
+
+- Generate plan cleanup proposal from exported JSON payload:
+
+```powershell
+python .\scripts\folder_cleanup\plan_cleanup_audit.py --plans-json .\tmp\plans.json --workspace-id <workspace-id>
+```

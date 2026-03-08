@@ -263,22 +263,19 @@
         "projectMemory.autoRefresh": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically refresh dashboard when files change"
+          "description": "Automatically refresh dashboard when files change",
+          "deprecationMessage": "Deprecated: automatic refresh is now handled by event subscriptions and this setting is ignored."
         },
         "projectMemory.autoDeployAgents": {
           "type": "boolean",
           "default": false,
-          "description": "Automatically deploy agents when template files are saved"
-        },
-        "projectMemory.apiPort": {
-          "type": "number",
-          "default": 3459,
-          "description": "Port for the dashboard API server"
+          "description": "Automatically deploy agents when template files are saved",
+          "deprecationMessage": "Deprecated: watcher-driven auto-deploy is no longer active in the stripped-down extension."
         },
         "projectMemory.serverPort": {
           "type": "number",
           "default": 3459,
-          "description": "Port for the dashboard API server"
+          "description": "Port for the dashboard API server. Replaces legacy projectMemory.apiPort."
         },
         "projectMemory.mcpPort": {
           "type": "number",
@@ -374,12 +371,13 @@
         "projectMemory.showNotifications": {
           "type": "boolean",
           "default": true,
-          "description": "Show toast notifications for deployment and server events"
+          "description": "Show toast notifications for deployment and server events",
+          "deprecationMessage": "Deprecated: use projectMemory.notifications.enabled instead."
         },
         "projectMemory.notifications.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Master switch for plan/agent lifecycle notifications."
+          "description": "Master switch for Project Memory toast notifications and plan/agent lifecycle notifications."
         },
         "projectMemory.notifications.agentHandoffs": {
           "type": "boolean",
@@ -429,11 +427,11 @@
             "auto"
           ],
           "default": "auto",
-          "description": "Controls whether the extension auto-starts the Supervisor on activation.",
+          "description": "Controls Supervisor detection behavior on activation.",
           "enumDescriptions": [
-            "Never start Supervisor automatically",
-            "Prompt user before starting Supervisor",
-            "Automatically start Supervisor on extension activation"
+            "Skip startup detection",
+            "Prompt before running startup detection",
+            "Run startup detection automatically"
           ]
         },
         "supervisor.launcherPath": {

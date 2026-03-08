@@ -70,12 +70,12 @@ pub(crate) fn resolve_approval_provider_prefill_policy(
 fn gemini_tab_launch_command() -> &'static str {
     // Prefer command-resolution through Get-Command so the launch works for
     // npm-installed shims (`gemini.cmd`, `gemini.ps1`, etc.).
-    "if (Get-Command gemini -ErrorAction SilentlyContinue) { gemini --screen-reader } elseif (Get-Command gemini.cmd -ErrorAction SilentlyContinue) { gemini.cmd --screen-reader } else { Write-Error 'Gemini CLI not found in PATH (expected gemini).'; }"
+    "if (Get-Command gemini -ErrorAction SilentlyContinue) { gemini } elseif (Get-Command gemini.cmd -ErrorAction SilentlyContinue) { gemini.cmd } else { Write-Error 'Gemini CLI not found in PATH (expected gemini).'; }"
 }
 
 #[cfg(not(target_os = "windows"))]
 fn gemini_tab_launch_command() -> &'static str {
-    "gemini --screen-reader"
+    "gemini"
 }
 
 #[cfg(target_os = "windows")]

@@ -49,8 +49,9 @@ from __future__ import annotations
 import json
 import sys
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
+from memory_cartographer.contracts.normalization import normalize
 from memory_cartographer.contracts.version import (
     SCHEMA_VERSION,
     CapabilityAdvertisement,
@@ -147,6 +148,310 @@ def _build_minimal_summary_result(args: Dict[str, Any], timeout_ms: int) -> Dict
     }
 
 
+def _attach_query_to_result(query_kind: str, payload: Any) -> Dict[str, Any]:
+    """Attach query metadata to cartograph payloads in a predictable shape."""
+    if isinstance(payload, dict):
+        result = dict(payload)
+        result["query"] = query_kind
+        return result
+
+    return {"query": query_kind, "payload": payload}
+
+
+def _coerce_int(value: Any, default: int) -> int:
+    """Coerce a numeric-ish input to int while preserving deterministic defaults."""
+    if isinstance(value, bool):
+        return default
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    return default
+
+
+def _append_unique(target: list[str], message: str) -> None:
+    if message and message not in target:
+        target.append(message)
+
+
+def _marker_token(value: str) -> str:
+    token = "".join(char if char.isalnum() else "_" for char in value.lower())
+    while "__" in token:
+        token = token.replace("__", "_")
+    token = token.strip("_")
+    return token or "unknown"
+
+
+def _build_partial_query_result(query_kind: str, args: Dict[str, Any], timeout_ms: int) -> Dict[str, Any]:
+    if query_kind == "summary":
+        payload = _build_minimal_summary_result(args, timeout_ms)
+        payload["partial"] = True
+        return _attach_query_to_result("summary", payload)
+
+    if query_kind == "file_context":
+        return {
+            "query": "file_context",
+            "file_id": str(args.get("file_id") or ""),
+            "symbols": [],
+            "references": [],
+            "partial": True,
+        }
+
+    if query_kind == "flow_entry_points":
+        return {
+            "query": "flow_entry_points",
+            "entry_points": [],
+            "tiers": [],
+            "cycles": [],
+            "partial": True,
+        }
+
+    if query_kind == "layer_view":
+        return {
+            "query": "layer_view",
+            "layers": [],
+            "nodes": [],
+            "edges": [],
+            "partial": True,
+        }
+
+    if query_kind == "search":
+        return {
+            "query": "search",
+            "search_query": str(args.get("search_query") or args.get("search_term") or ""),
+            "scope": str(args.get("search_scope") or "all"),
+            "results": [],
+            "total": 0,
+            "partial": True,
+        }
+
+    if query_kind == "slice_detail":
+        return {
+            "query": "slice_detail",
+            "slice_id": args.get("slice_id"),
+            "detail": {},
+            "nodes": [],
+            "edges": [],
+            "partial": True,
+        }
+
+    if query_kind == "slice_projection":
+        return {
+            "query": "slice_projection",
+            "slice_id": args.get("slice_id"),
+            "projection_type": args.get("projection_type"),
+            "projected_nodes": [],
+            "projected_edges": [],
+            "partial": True,
+        }
+
+    if query_kind == "slice_filters":
+        return {
+            "query": "slice_filters",
+            "workspace_id": args.get("workspace_id"),
+            "filters": [],
+            "available_types": [],
+            "partial": True,
+        }
+
+    return {"query": query_kind, "payload": {}, "partial": True}
+
+
+def _merge_normalization_diagnostics(
+    query_kind: str,
+    normalized_result: Dict[str, Any],
+    diagnostics: Dict[str, Any],
+) -> None:
+    normalization_items = normalized_result.pop("_normalization_diagnostics", None)
+    if not isinstance(normalization_items, list):
+        return
+
+    for item in normalization_items:
+        if not isinstance(item, dict):
+            continue
+
+        severity = str(item.get("severity") or "warning").lower()
+        code = str(item.get("code") or "NORMALIZATION").strip() or "NORMALIZATION"
+        message = str(item.get("message") or "normalization diagnostic").strip()
+        path = item.get("path")
+        path_suffix = f" (path={path})" if isinstance(path, str) and path else ""
+        rendered = f"[{code}] {message}{path_suffix}"
+
+        if severity == "error":
+            _append_unique(diagnostics["errors"], rendered)
+        else:
+            _append_unique(diagnostics["warnings"], rendered)
+
+        marker = f"{query_kind}_normalization_{_marker_token(code)}"
+        _append_unique(diagnostics["markers"], marker)
+
+
+def _normalize_cartograph_result(
+    query_kind: str,
+    args: Dict[str, Any],
+    timeout_ms: int,
+    result: Any,
+    diagnostics: Dict[str, Any],
+) -> tuple[str, Dict[str, Any]]:
+    payload = _attach_query_to_result(query_kind, result)
+    errors_before = len(diagnostics["errors"])
+
+    try:
+        normalized = normalize(payload)
+    except Exception as exc:  # noqa: BLE001
+        _append_unique(
+            diagnostics["errors"],
+            f"cartograph query '{query_kind}' normalization failed: {type(exc).__name__}: {exc}",
+        )
+        _append_unique(diagnostics["markers"], f"{query_kind}_normalization_failed")
+        _append_unique(diagnostics["markers"], "cartograph_normalization_failed")
+        fallback = _build_partial_query_result(query_kind, args, timeout_ms)
+        return "partial", fallback
+
+    if not isinstance(normalized, dict):
+        normalized = _attach_query_to_result(query_kind, normalized)
+
+    _merge_normalization_diagnostics(query_kind, normalized, diagnostics)
+
+    if normalized.get("partial") is True:
+        return "partial", normalized
+
+    if len(diagnostics["errors"]) > errors_before:
+        normalized["partial"] = True
+        return "partial", normalized
+
+    return "ok", normalized
+
+
+def _handle_summary_query(args: Dict[str, Any], timeout_ms: int) -> Dict[str, Any]:
+    engine = CodeCartographyEngine()
+    workspace_path = args.get("workspace_path")
+    scope = args.get("scope") if isinstance(args.get("scope"), dict) else {}
+    languages = args.get("languages") if isinstance(args.get("languages"), list) else []
+
+    try:
+        payload = engine.build_runtime_summary_result(
+            workspace_path=workspace_path,
+            scope=scope,
+            languages=languages,
+            timeout_ms=timeout_ms,
+        )
+    except Exception:  # noqa: BLE001
+        payload = _build_minimal_summary_result(args, timeout_ms)
+
+    return _attach_query_to_result("summary", payload)
+
+
+def _handle_file_context_query(args: Dict[str, Any], _timeout_ms: int) -> Dict[str, Any]:
+    engine = CodeCartographyEngine()
+    workspace_path = args.get("workspace_path") or ""
+    file_id = args.get("file_id") or ""
+    include_symbols = bool(args.get("include_symbols", True))
+    include_references = bool(args.get("include_references", True))
+
+    payload = engine.get_file_context(
+        workspace_path=workspace_path,
+        file_id=file_id,
+        include_symbols=include_symbols,
+        include_references=include_references,
+    )
+    return _attach_query_to_result("file_context", payload)
+
+
+def _handle_flow_entry_points_query(args: Dict[str, Any], _timeout_ms: int) -> Dict[str, Any]:
+    engine = CodeCartographyEngine()
+    workspace_path = args.get("workspace_path") or ""
+    layer_filter = args.get("layer_filter") if isinstance(args.get("layer_filter"), list) else None
+    language_filter = args.get("language_filter") if isinstance(args.get("language_filter"), list) else None
+
+    payload = engine.get_flow_entry_points(
+        workspace_path=workspace_path,
+        layer_filter=layer_filter,
+        language_filter=language_filter,
+    )
+    return _attach_query_to_result("flow_entry_points", payload)
+
+
+def _handle_layer_view_query(args: Dict[str, Any], _timeout_ms: int) -> Dict[str, Any]:
+    engine = CodeCartographyEngine()
+    workspace_path = args.get("workspace_path") or ""
+    layers = args.get("layers") if isinstance(args.get("layers"), list) else []
+    depth_limit = _coerce_int(args.get("depth_limit", 1), 1)
+    include_cross_layer_edges = bool(args.get("include_cross_layer_edges", False))
+
+    payload = engine.get_layer_view(
+        workspace_path=workspace_path,
+        layers=layers,
+        depth=depth_limit,
+        include_cross_layer_edges=include_cross_layer_edges,
+    )
+    return _attach_query_to_result("layer_view", payload)
+
+
+def _handle_search_query(args: Dict[str, Any], _timeout_ms: int) -> Dict[str, Any]:
+    engine = CodeCartographyEngine()
+    workspace_path = args.get("workspace_path") or ""
+    search_query = args.get("search_query") or args.get("search_term") or ""
+    search_scope = str(args.get("search_scope") or "all")
+    limit = _coerce_int(args.get("limit", 50), 50)
+
+    payload = engine.get_search(
+        workspace_path=workspace_path,
+        search_query=search_query,
+        search_scope=search_scope,
+        limit=limit,
+    )
+    return _attach_query_to_result("search", payload)
+
+
+def _handle_slice_detail_query(args: Dict[str, Any], _timeout_ms: int) -> Dict[str, Any]:
+    engine = CodeCartographyEngine()
+    params_for_engine = {
+        "workspace_id": args.get("workspace_id") or "",
+        "slice_id": args.get("slice_id") or "",
+    }
+
+    payload = engine.get_slice_detail(params_for_engine)
+    return _attach_query_to_result("slice_detail", payload)
+
+
+def _handle_slice_projection_query(args: Dict[str, Any], _timeout_ms: int) -> Dict[str, Any]:
+    engine = CodeCartographyEngine()
+    params_for_engine = {
+        "workspace_id": args.get("workspace_id") or "",
+        "slice_id": args.get("slice_id") or "",
+        "projection_type": args.get("projection_type") or "",
+    }
+
+    payload = engine.get_slice_projection(params_for_engine)
+    return _attach_query_to_result("slice_projection", payload)
+
+
+def _handle_slice_filters_query(args: Dict[str, Any], _timeout_ms: int) -> Dict[str, Any]:
+    engine = CodeCartographyEngine()
+    params_for_engine = {
+        "workspace_id": args.get("workspace_id") or "",
+        "slice_id": args.get("slice_id"),
+    }
+
+    payload = engine.get_slice_filters(params_for_engine)
+    return _attach_query_to_result("slice_filters", payload)
+
+
+CartographQueryHandler = Callable[[Dict[str, Any], int], Dict[str, Any]]
+
+_CARTOGRAPH_QUERY_HANDLERS: Dict[str, CartographQueryHandler] = {
+    "summary": _handle_summary_query,
+    "file_context": _handle_file_context_query,
+    "flow_entry_points": _handle_flow_entry_points_query,
+    "layer_view": _handle_layer_view_query,
+    "search": _handle_search_query,
+    "slice_detail": _handle_slice_detail_query,
+    "slice_projection": _handle_slice_projection_query,
+    "slice_filters": _handle_slice_filters_query,
+}
+
+
 def _write_response(envelope: Dict[str, Any]) -> None:
     """Write a single NDJSON line to stdout and flush."""
     sys.stdout.write(json.dumps(envelope, ensure_ascii=False) + "\n")
@@ -170,10 +475,10 @@ def _dispatch(action: str, args: Dict[str, Any], timeout_ms: int) -> tuple[str, 
     Current implementation supports:
     - 'probe_capabilities' -> contracts.version.CapabilityAdvertisement
     - 'health_check'       -> simple liveness check
-    - 'cartograph'         -> minimal 'summary' query for runtime slice
-
-    Non-summary cartograph queries are intentionally returned as explicit
-    not-implemented errors in this slice.
+    - 'cartograph'         -> deterministic per-query handlers for:
+                              summary, file_context, flow_entry_points,
+                              layer_view, search, slice_detail,
+                              slice_projection, and slice_filters
     """
 
     diag = _empty_diagnostics()
@@ -190,144 +495,51 @@ def _dispatch(action: str, args: Dict[str, Any], timeout_ms: int) -> tuple[str, 
 
         if query_kind == "summary":
             if used_default:
-                diag["warnings"].append(
-                    "No cartograph query selector provided; defaulted to 'summary' for this minimal runtime slice"
-                )
+                diag["warnings"].append("No cartograph query selector provided; defaulted to 'summary'")
                 diag["markers"].append("summary_selector_defaulted")
-
             diag["markers"].append("summary_minimal_slice")
-            try:
-                engine = CodeCartographyEngine()
-                workspace_path = args.get("workspace_path")
-                scope = args.get("scope") if isinstance(args.get("scope"), dict) else {}
-                languages = args.get("languages") if isinstance(args.get("languages"), list) else None
-                result = engine.build_runtime_summary_result(
-                    workspace_path=workspace_path,
-                    scope=scope,
-                    languages=languages or [],
-                    timeout_ms=timeout_ms,
-                )
-            except Exception:  # noqa: BLE001
-                result = _build_minimal_summary_result(args, timeout_ms)
-            return "ok", result, diag
 
-        elif query_kind == "file_context":
-            workspace_path = args.get("workspace_path") or ""
-            file_id = args.get("file_id") or ""
-            include_symbols = args.get("include_symbols", True)
-            include_references = args.get("include_references", True)
-            try:
-                engine = CodeCartographyEngine()
-                result = engine.get_file_context(
-                    workspace_path=workspace_path,
-                    file_id=file_id,
-                    include_symbols=bool(include_symbols),
-                    include_references=bool(include_references),
-                )
-            except Exception:  # noqa: BLE001
-                result = {"file_id": file_id, "symbols": [], "references": []}
-            result["query"] = "file_context"
-            return "ok", result, diag
-
-        elif query_kind == "flow_entry_points":
-            workspace_path = args.get("workspace_path") or ""
-            layer_filter = args.get("layer_filter") if isinstance(args.get("layer_filter"), list) else None
-            language_filter = args.get("language_filter") if isinstance(args.get("language_filter"), list) else None
-            try:
-                engine = CodeCartographyEngine()
-                result = engine.get_flow_entry_points(
-                    workspace_path=workspace_path,
-                    layer_filter=layer_filter,
-                    language_filter=language_filter,
-                )
-            except Exception:  # noqa: BLE001
-                result = {"entry_points": [], "tiers": [], "cycles": []}
-            result["query"] = "flow_entry_points"
-            return "ok", result, diag
-
-        elif query_kind == "layer_view":
-            workspace_path = args.get("workspace_path") or ""
-            layers = args.get("layers") if isinstance(args.get("layers"), list) else []
-            depth_limit = args.get("depth_limit", 1)
-            include_cross_layer_edges = args.get("include_cross_layer_edges", False)
-            try:
-                engine = CodeCartographyEngine()
-                result = engine.get_layer_view(
-                    workspace_path=workspace_path,
-                    layers=layers,
-                    depth=int(depth_limit) if isinstance(depth_limit, (int, float)) else 1,
-                    include_cross_layer_edges=bool(include_cross_layer_edges),
-                )
-            except Exception:  # noqa: BLE001
-                result = {"layers": layers, "nodes": [], "edges": []}
-            result["query"] = "layer_view"
-            return "ok", result, diag
-
-        elif query_kind == "search":
-            workspace_path = args.get("workspace_path") or ""
-            search_query = args.get("search_query") or args.get("search_term") or ""
-            search_scope = args.get("search_scope", "all")
-            limit = args.get("limit", 50)
-            try:
-                engine = CodeCartographyEngine()
-                result = engine.get_search(
-                    workspace_path=workspace_path,
-                    search_query=search_query,
-                    search_scope=str(search_scope) if search_scope else "all",
-                    limit=int(limit) if isinstance(limit, (int, float)) else 50,
-                )
-            except Exception:  # noqa: BLE001
-                result = {"search_query": search_query, "scope": search_scope, "results": [], "total": 0}
-            result["query"] = "search"
-            return "ok", result, diag
-
-        elif query_kind == "slice_detail":
-            params_for_engine = {
-                "workspace_id": args.get("workspace_id") or "",
-                "slice_id": args.get("slice_id") or "",
-            }
-            try:
-                engine = CodeCartographyEngine()
-                result = engine.get_slice_detail(params_for_engine)
-            except Exception:  # noqa: BLE001
-                result = {"slice_id": args.get("slice_id"), "detail": {}, "nodes": [], "edges": []}
-            result["query"] = "slice_detail"
-            return "ok", result, diag
-
-        elif query_kind == "slice_projection":
-            params_for_engine = {
-                "workspace_id": args.get("workspace_id") or "",
-                "slice_id": args.get("slice_id") or "",
-                "projection_type": args.get("projection_type") or "",
-            }
-            try:
-                engine = CodeCartographyEngine()
-                result = engine.get_slice_projection(params_for_engine)
-            except Exception:  # noqa: BLE001
-                result = {"slice_id": args.get("slice_id"), "projection_type": args.get("projection_type"), "projected_nodes": [], "projected_edges": []}
-            result["query"] = "slice_projection"
-            return "ok", result, diag
-
-        elif query_kind == "slice_filters":
-            params_for_engine = {
-                "workspace_id": args.get("workspace_id") or "",
-                "slice_id": args.get("slice_id"),
-            }
-            try:
-                engine = CodeCartographyEngine()
-                result = engine.get_slice_filters(params_for_engine)
-            except Exception:  # noqa: BLE001
-                result = {"filters": [], "available_types": [], "workspace_id": args.get("workspace_id")}
-            result["query"] = "slice_filters"
-            return "ok", result, diag
-
-        else:
+        handler = _CARTOGRAPH_QUERY_HANDLERS.get(query_kind)
+        if handler is None:
             diag["errors"].append(
                 f"cartograph query '{query_kind}' is not implemented; "
                 f"supported queries: summary, file_context, flow_entry_points, layer_view, search, "
                 f"slice_detail, slice_projection, slice_filters"
             )
             return "error", None, diag
+
+        try:
+            result = handler(args, timeout_ms)
+        except Exception as exc:  # noqa: BLE001
+            _append_unique(
+                diag["errors"],
+                f"cartograph query '{query_kind}' failed: {type(exc).__name__}: {exc}",
+            )
+            _append_unique(
+                diag["warnings"],
+                f"cartograph query '{query_kind}' returned a partial fallback envelope after handler failure",
+            )
+            _append_unique(diag["markers"], f"{query_kind}_query_failed")
+            _append_unique(diag["markers"], "cartograph_query_partial_fallback")
+
+            fallback_result = _build_partial_query_result(query_kind, args, timeout_ms)
+            normalized_status, normalized_result = _normalize_cartograph_result(
+                query_kind=query_kind,
+                args=args,
+                timeout_ms=timeout_ms,
+                result=fallback_result,
+                diagnostics=diag,
+            )
+            return ("partial" if normalized_status == "ok" else normalized_status), normalized_result, diag
+
+        normalized_status, normalized_result = _normalize_cartograph_result(
+            query_kind=query_kind,
+            args=args,
+            timeout_ms=timeout_ms,
+            result=result,
+            diagnostics=diag,
+        )
+        return normalized_status, normalized_result, diag
 
     diag["errors"].append(f"Unknown action: '{action}'")
     return "error", None, diag

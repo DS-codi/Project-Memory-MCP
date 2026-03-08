@@ -1,0 +1,124 @@
+{
+  "generated_at_utc": "2026-03-08T03:54:08Z",
+  "policy": {
+    "approval_required_before_mutation": true,
+    "oldest_first_triage": true,
+    "no_automatic_mutations": true
+  },
+  "workspace_id": "demo-workspace",
+  "summary": {
+    "total_plans_analyzed": 3,
+    "finished_not_archived_count": 1,
+    "superseded_candidate_count": 1,
+    "redundant_group_count": 1,
+    "related_group_count": 0,
+    "proposed_action_count": 2
+  },
+  "triage_order_oldest_first": [
+    {
+      "plan_id": "plan_1",
+      "title": "Refactor server memory tools",
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-03T00:00:00Z",
+      "status": "completed",
+      "archived": false,
+      "finished_not_archived": true
+    },
+    {
+      "plan_id": "plan_3",
+      "title": "Dashboard event stream reliability",
+      "created_at": "2026-01-15T00:00:00Z",
+      "updated_at": null,
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_2",
+      "title": "Refactor server memory toolset",
+      "created_at": "2026-02-01T00:00:00Z",
+      "updated_at": "2026-02-03T00:00:00Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    }
+  ],
+  "findings": {
+    "finished_not_archived": [
+      {
+        "plan_id": "plan_1",
+        "title": "Refactor server memory tools",
+        "created_at": "2026-01-01T00:00:00Z",
+        "status": "completed",
+        "step_count": 2
+      }
+    ],
+    "superseded_candidates": [
+      {
+        "plan_id": "plan_1",
+        "title": "Refactor server memory tools",
+        "likely_superseded_by": "plan_2",
+        "reason": "Older plan in a high-similarity redundant group.",
+        "created_at": "2026-01-01T00:00:00Z"
+      }
+    ],
+    "redundant_groups": [
+      [
+        "plan_1",
+        "plan_2"
+      ]
+    ],
+    "related_groups": [],
+    "pairwise_similarity_notes": [
+      {
+        "left_plan_id": "plan_1",
+        "right_plan_id": "plan_2",
+        "relation": "redundant",
+        "similarity": 0.75,
+        "common_terms": [
+          "actions",
+          "cleanup",
+          "context",
+          "memory",
+          "refactor",
+          "server"
+        ]
+      }
+    ]
+  },
+  "proposed_actions": [
+    {
+      "action_type": "archive_finished_plan",
+      "requires_user_approval": true,
+      "priority_reason": "Oldest finished plans should be archived first.",
+      "plan_id": "plan_1",
+      "title": "Refactor server memory tools",
+      "created_at": "2026-01-01T00:00:00Z",
+      "mcp_action": "memory_plan",
+      "mcp_params": {
+        "action": "archive",
+        "plan_id": "plan_1",
+        "workspace_id": "demo-workspace"
+      }
+    },
+    {
+      "action_type": "merge_redundant_plans",
+      "requires_user_approval": true,
+      "priority_reason": "Redundant plans likely duplicate scope and can be consolidated.",
+      "target_plan_id": "plan_2",
+      "source_plan_ids": [
+        "plan_1"
+      ],
+      "mcp_action": "memory_plan",
+      "mcp_params": {
+        "action": "merge_plans",
+        "target_plan_id": "plan_2",
+        "source_plan_ids": [
+          "plan_1"
+        ],
+        "archive_sources": false,
+        "workspace_id": "demo-workspace"
+      }
+    }
+  ]
+}

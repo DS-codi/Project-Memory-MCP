@@ -10,6 +10,7 @@
 
 import * as http from 'http';
 import * as vscode from 'vscode';
+import { resolveDashboardPort } from '../utils/dashboard-port';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -143,7 +144,7 @@ export function getContainerMcpPort(): number {
 export function getDashboardFrontendUrl(): string {
     const config = vscode.workspace.getConfiguration('projectMemory');
     const mode = config.get<ContainerMode>('containerMode', 'auto');
-    const dashboardPort = config.get<number>('serverPort') || config.get<number>('apiPort') || 3459;
+    const dashboardPort = resolveDashboardPort(config);
 
     // In local-only mode, always use Vite dev server
     if (mode === 'local') {
@@ -172,7 +173,7 @@ export async function shouldUseContainer(): Promise<{ useContainer: boolean; sta
 
     const mcpPort = getContainerMcpPort();
     const config = vscode.workspace.getConfiguration('projectMemory');
-    const dashboardPort = config.get<number>('serverPort', 3001);
+    const dashboardPort = resolveDashboardPort(config);
 
     const status = await probeContainer(mcpPort, dashboardPort);
 

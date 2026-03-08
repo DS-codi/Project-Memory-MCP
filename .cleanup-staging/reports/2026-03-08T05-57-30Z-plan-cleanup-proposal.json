@@ -1,0 +1,1923 @@
+{
+  "generated_at_utc": "2026-03-08T05:57:30Z",
+  "policy": {
+    "approval_required_before_mutation": true,
+    "oldest_first_triage": true,
+    "no_automatic_mutations": true
+  },
+  "workspace_id": null,
+  "summary": {
+    "total_plans_analyzed": 192,
+    "finished_not_archived_count": 5,
+    "superseded_candidate_count": 0,
+    "redundant_group_count": 0,
+    "related_group_count": 1,
+    "proposed_action_count": 6
+  },
+  "triage_order_oldest_first": [
+    {
+      "plan_id": "plan_ml0l1sc2_b4594541",
+      "title": "DSVC Piece Management Panel - Phase 6: Advanced Edge Profile Editor",
+      "created_at": "2026-01-30T07:49:54Z",
+      "updated_at": "2026-02-11T08:05:06Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml0ops06_603c6237",
+      "title": "LibreCAD2D Polish & Enhancement Plan",
+      "created_at": "2026-01-30T09:32:32Z",
+      "updated_at": "2026-02-11T08:05:06Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml0sg50v_0888cfbe",
+      "title": "Rebuild Renderer GUI with Rust and CXX-Qt",
+      "created_at": "2026-01-30T11:17:01Z",
+      "updated_at": "2026-01-30T23:05:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml0wa5fl_8bde2940",
+      "title": "DSVC 3D Assembly Workbench - Implementation",
+      "created_at": "2026-01-30T13:04:20Z",
+      "updated_at": "2026-02-11T08:05:06Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml0zdmg9_e8acaff3",
+      "title": "DSVC 3D Assembly Generation System - Phase 4",
+      "created_at": "2026-01-30T14:31:01Z",
+      "updated_at": "2026-02-11T08:05:06Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml1xge1p_fa80645a",
+      "title": "Refactor GEGL Renderer: C to C++",
+      "created_at": "2026-01-31T06:24:57Z",
+      "updated_at": "2026-01-31T12:21:15Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml1xgifd_16ec02c1",
+      "title": "DSVC 2D/3D Workbench Improvements - UX, Performance, and 3D Assembly Features",
+      "created_at": "2026-01-31T06:25:03Z",
+      "updated_at": "2026-02-11T08:05:06Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml1z63xh_835e48ac",
+      "title": "Complete ds-dxf Crate: Measure DXF and RTM Companion Parsing",
+      "created_at": "2026-01-31T07:12:56Z",
+      "updated_at": "2026-01-31T12:28:39Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml26ii5p_9f89677f",
+      "title": "DSVC 2D/3D Workbench Improvements - Phase 2 (Remaining Features)",
+      "created_at": "2026-01-31T10:38:32Z",
+      "updated_at": "2026-02-11T08:05:06Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml2wkcs5_5070ee91",
+      "title": "Edge Profile Recognition and Assignment System",
+      "created_at": "2026-01-31T22:47:48Z",
+      "updated_at": "2026-02-11T08:05:06Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml31zrcg_8c7ad01a",
+      "title": "Pivot ds-viewer-gui from GEGL to skia-safe",
+      "created_at": "2026-02-01T01:19:45Z",
+      "updated_at": "2026-02-08T08:12:36Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml3cubvc_c4a17ed8",
+      "title": "Fix DSVC Piece Management Panel Visibility",
+      "created_at": "2026-02-01T06:23:28Z",
+      "updated_at": "2026-02-11T08:05:06Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml3l64x8_48e5abb4",
+      "title": "LibreCAD2D Core Fixes: Snapping, Entity Selection, Layer Panel, and Tool Improvements",
+      "created_at": "2026-02-01T10:16:35Z",
+      "updated_at": "2026-02-11T08:05:06Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml4tkwiq_752dd0c8",
+      "title": "Match Renderer Output to Professional Printout Templates",
+      "created_at": "2026-02-02T06:59:48Z",
+      "updated_at": "2026-02-02T17:14:28Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml57j88i_f2b0dbce",
+      "title": "Hello World Application",
+      "created_at": "2026-02-02T13:30:24Z",
+      "updated_at": "2026-02-14T22:31:10Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml58ca8p_da2dccdb",
+      "title": "DS CAD Testing Session Bug Fixes and Performance Improvements",
+      "created_at": "2026-02-02T13:53:00Z",
+      "updated_at": "2026-02-11T08:05:06Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml6jkf4p_1300f3f2",
+      "title": "DS Viewer GUI Improvements & Bug Fixes",
+      "created_at": "2026-02-03T11:55:01Z",
+      "updated_at": "2026-02-03T12:37:18Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml6jwpcl_6aa5f6bb",
+      "title": "QML Database-Free Module Development",
+      "created_at": "2026-02-03T12:04:34Z",
+      "updated_at": "2026-02-03T13:01:08Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml6lxnqx_fb2400c5",
+      "title": "DS-PAS CxxQt Application (Leveraging Existing Infrastructure)",
+      "created_at": "2026-02-03T13:01:18Z",
+      "updated_at": "2026-02-03T20:16:45Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml6rya47_81d8e009",
+      "title": "DS Viewer GUI Fixes - Round 2",
+      "created_at": "2026-02-03T15:49:45Z",
+      "updated_at": "2026-02-03T16:22:05Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml6vttwk_6f6b7b1e",
+      "title": "DS Viewer GUI & Skia Render: Bug Fixes and Feature Implementation",
+      "created_at": "2026-02-03T17:38:16Z",
+      "updated_at": "2026-02-10T17:01:24Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml6y50bc_2763ec1a",
+      "title": "Step Types & Enhanced Plan Management",
+      "created_at": "2026-02-03T18:42:56Z",
+      "updated_at": "2026-02-14T22:31:10Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml6zomx2_9ad68faa",
+      "title": "Phase 6 Completion: Build/Release/Docs",
+      "created_at": "2026-02-03T19:26:12Z",
+      "updated_at": "2026-02-03T19:32:09Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": true
+    },
+    {
+      "plan_id": "plan_ml71idel_62064e02",
+      "title": "Phase 6 Completion: Build, Release, Docs",
+      "created_at": "2026-02-03T20:17:19Z",
+      "updated_at": "2026-02-03T20:26:21Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": true
+    },
+    {
+      "plan_id": "plan_ml72da5d_09189d1a",
+      "title": "Builder Agent & Build Scripts Management",
+      "created_at": "2026-02-03T20:41:21Z",
+      "updated_at": "2026-02-14T22:31:10Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml7pvi0b_7993f739",
+      "title": "Agent System Enhancement - Goals, Instructions, and Plan Flexibility",
+      "created_at": "2026-02-04T07:39:22Z",
+      "updated_at": "2026-02-10T13:40:20Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml7qvqqf_34dde98b",
+      "title": "LibreCAD2D C++ Performance Refactor",
+      "created_at": "2026-02-04T08:07:33Z",
+      "updated_at": "2026-02-11T08:05:06Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_ml9typy7_04607713",
+      "title": "Standalone KPI System with Rust Core",
+      "created_at": "2026-02-05T19:09:23Z",
+      "updated_at": "2026-02-08T06:56:51Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlajg95z_97753197",
+      "title": "Refactor job_file_lookup to Pure Rust + CxxQt",
+      "created_at": "2026-02-06T07:02:52Z",
+      "updated_at": "2026-02-06T12:25:01Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlboillk_c5f5a7ed",
+      "title": "Render Piece Position Offset With Slab Image",
+      "created_at": "2026-02-07T02:12:25Z",
+      "updated_at": "2026-02-08T08:12:55Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlc3f65f_0fa2752e",
+      "title": "Bug Fixes and Edge Linking Tool",
+      "created_at": "2026-02-07T09:09:39Z",
+      "updated_at": "2026-02-11T08:05:06Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlct1x3l_a3f2e9f4",
+      "title": "Diagnose duplicate workspace folders and add workspace-wide context",
+      "created_at": "2026-02-07T21:07:11Z",
+      "updated_at": "2026-02-10T13:40:20Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mld463b5_828ea3a6",
+      "title": "Embed Rust Modules for notion_sync Performance",
+      "created_at": "2026-02-08T02:18:22Z",
+      "updated_at": "2026-02-08T09:43:28Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mldferi4_cd95ebac",
+      "title": "Systematic ds-parser Monolithic File Refactoring (Recreated)",
+      "created_at": "2026-02-08T07:33:02Z",
+      "updated_at": "2026-02-09T18:43:52Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mldlxxjz_5e903f98",
+      "title": "Embedded Rust Modules for notion_jit, notion_archival, and notion_polling",
+      "created_at": "2026-02-08T10:35:54Z",
+      "updated_at": "2026-02-09T02:33:00Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlet8ys6_2edb09aa",
+      "title": "DS Viewer GUI: Multi-Mode Viewing & Feature Integration",
+      "created_at": "2026-02-09T06:48:12Z",
+      "updated_at": "2026-02-11T00:19:49Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlgbe4zs_41f944e1",
+      "title": "Workspace Context Storage & Agent Context Overload Fix",
+      "created_at": "2026-02-10T08:03:53Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlgr8dgt_6c776679",
+      "title": "Refactor Monolithic Files in ds-skia-render",
+      "created_at": "2026-02-10T15:27:18Z",
+      "updated_at": "2026-02-10T20:30:12Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlgu8tma_ace7925a",
+      "title": "Refactor Monolithic Files in ds-parser/crates",
+      "created_at": "2026-02-10T16:51:38Z",
+      "updated_at": "2026-02-10T21:55:33Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlguutnf_4ee5eae0",
+      "title": "Refactor Monolithic Files in ds-viewer-gui: DSTC/DSVC Mode Separation",
+      "created_at": "2026-02-10T17:08:44Z",
+      "updated_at": "2026-02-11T03:50:00Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlhblj3b_1b1507cc",
+      "title": "VDF+TOP Dual-Mode Viewing, Piece Mapping, Vein Layout & Export + Bugfixes",
+      "created_at": "2026-02-11T00:57:24Z",
+      "updated_at": "2026-02-11T03:36:54Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlhcnabc_1aa2a7bd",
+      "title": "Add .dsvc render support to ds-skia-render load_ds_file()",
+      "created_at": "2026-02-11T01:26:46Z",
+      "updated_at": "2026-02-11T02:37:30Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlhis1bz_e5eff2c8",
+      "title": "Bugfix: VDF rendering blank white screen + layer panel 0-count",
+      "created_at": "2026-02-11T04:18:25Z",
+      "updated_at": "2026-02-11T06:32:15Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlhq1xg6_80e89bcc",
+      "title": "Viewer UX Improvements: VDF sizing, piece selection, slab navigation, cut display",
+      "created_at": "2026-02-11T07:42:04Z",
+      "updated_at": "2026-02-11T10:19:26Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlhqvvjk_737c938d",
+      "title": "LibreCAD2D Access Violation & Snap System Investigation",
+      "created_at": "2026-02-11T08:05:21Z",
+      "updated_at": "2026-02-11T09:19:24Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlig6h2u_23c6074c",
+      "title": "Live Render Pipeline: QML Overlays + Skia Caching + GPU Compositing",
+      "created_at": "2026-02-11T19:53:26Z",
+      "updated_at": "2026-02-15T20:46:30Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": true
+    },
+    {
+      "plan_id": "plan_mligdszb_4a0b2ca1",
+      "title": "KPI Desktop: Jiff Calendar + Rust Modules for Enhanced Schedule View",
+      "created_at": "2026-02-11T19:59:08Z",
+      "updated_at": "2026-02-11T20:02:16Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlj8xynd_fe091b17",
+      "title": "DS CAD Python-to-C++ Full Refactor",
+      "created_at": "2026-02-12T09:18:37Z",
+      "updated_at": "2026-03-04T11:01:31Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlj9sir5_53ba779e",
+      "title": "System-Wide Architecture Evolution: Builder Role, Integrated Programs, Skills, Context Optimization & Subagent Architecture",
+      "created_at": "2026-02-12T09:42:23Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlji84zf_271d5965",
+      "title": "QML Selection Overlay Reliability",
+      "created_at": "2026-02-12T13:38:29Z",
+      "updated_at": "2026-02-15T20:46:30Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlji84zg_1cda46c0",
+      "title": "Deterministic Skia Layer Caching",
+      "created_at": "2026-02-12T13:38:29Z",
+      "updated_at": "2026-02-15T20:46:30Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlji8500_92e67be8",
+      "title": "Incremental GPU Compositing Pipeline",
+      "created_at": "2026-02-12T13:38:29Z",
+      "updated_at": "2026-02-15T20:46:30Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlkl6ack_ee788799",
+      "title": "Container Resilience & Auto-Mount",
+      "created_at": "2026-02-13T07:48:47Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlkl6yw3_7e0a1787",
+      "title": "Agent Consolidation & Size Reduction",
+      "created_at": "2026-02-13T07:49:19Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlkl7hle_541c62b3",
+      "title": "Instructions to Skills Rewrite",
+      "created_at": "2026-02-13T07:49:44Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlkl7zuj_c2adac39",
+      "title": "VS Code Extension Modernization",
+      "created_at": "2026-02-13T07:50:07Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlkl8fh0_f61f6e26",
+      "title": "New MCP Actions \\u2014 Context Dump & Plan Export",
+      "created_at": "2026-02-13T07:50:27Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlkl8uls_ddc922f6",
+      "title": "Cognition Agent & Strict Spawn Tool",
+      "created_at": "2026-02-13T07:50:47Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlkl9sli_56a1957b",
+      "title": "Custom Terminal & Filesystem Tools",
+      "created_at": "2026-02-13T07:51:31Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlkrcpzw_a77c874b",
+      "title": "Integrated Program Dashboard Visualization",
+      "created_at": "2026-02-13T10:41:45Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mll9pkws_485d6ff0",
+      "title": "SkillWriter Cross-Workspace Instruction Refactoring",
+      "created_at": "2026-02-13T19:15:38Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mllaot7r_2964d5f0",
+      "title": "Parent-Child Workspace Hierarchy",
+      "created_at": "2026-02-13T19:43:02Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mllc6x7s_5254485e",
+      "title": "Custom Spawn Subagent Tool \u2014 Plan-Aware Orchestration",
+      "created_at": "2026-02-13T20:25:07Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlld2y2l_78778d06",
+      "title": "Plan Management Tool Actions \u2014 Program Linking & Dependencies",
+      "created_at": "2026-02-13T20:50:01Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mllgo3rk_e6a1fff0",
+      "title": "Interactive Terminal GUI App (Rust+QML)",
+      "created_at": "2026-02-13T22:30:27Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mllgocd5_95a81ffe",
+      "title": "MCP/Extension/Container Integration",
+      "created_at": "2026-02-13T22:30:38Z",
+      "updated_at": "2026-02-14T23:37:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mllgolot_3c671e13",
+      "title": "Agent/Instructions/Skills Integration",
+      "created_at": "2026-02-13T22:30:50Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mllgqya4_1bf77769",
+      "title": "Filesystem Tool Audit & Completion",
+      "created_at": "2026-02-13T22:32:40Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mllk399r_69d8f32a",
+      "title": "Chat Response Enhancements for Project Memory",
+      "created_at": "2026-02-14T00:06:13Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlln0dl1_bdde9d9d",
+      "title": "Dashboard Plan View Relationships & Active/Archived Sections",
+      "created_at": "2026-02-14T01:27:57Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlmdv2mv_ce3503ef",
+      "title": "Subagent Cancellation Prevention & Spawn Serialization",
+      "created_at": "2026-02-14T13:59:39Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlmifndl_ef8f927b",
+      "title": "Repurpose Spawn Tool to Context-Prep Only",
+      "created_at": "2026-02-14T16:07:38Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlmlx7k2_c9356d82",
+      "title": "Agent/Instructions/Skills Integration for Interactive Terminal GUI App (Rust+QML) - Continuation",
+      "created_at": "2026-02-14T17:45:16Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlmoos7f_e90cb553",
+      "title": "Interactive Terminal GUI Capability Audit + Build Verification",
+      "created_at": "2026-02-14T19:02:42Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlmp8lnj_c4415e8f",
+      "title": "Interactive Terminal: Tabbed Multi-Session + Terminal Profiles + Workspace Venv Mounting",
+      "created_at": "2026-02-14T19:18:06Z",
+      "updated_at": "2026-02-15T02:59:16Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlmqj8ns_338b580a",
+      "title": "Copilot SDK Replay Regression Harness",
+      "created_at": "2026-02-14T19:54:22Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlmszipb_1bde6342",
+      "title": "Reclassify monolith docs as skills",
+      "created_at": "2026-02-14T21:03:01Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlmt4jzq_21ac98e7",
+      "title": "Refactor cxxqt_bridge.rs Monolith",
+      "created_at": "2026-02-14T21:06:56Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlmuo39q_155aeb95",
+      "title": "Replay Core Reliability",
+      "created_at": "2026-02-14T21:50:07Z",
+      "updated_at": "2026-02-15T00:50:06Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlmuoa9v_e40d8edf",
+      "title": "Replay Diagnostics UX",
+      "created_at": "2026-02-14T21:50:16Z",
+      "updated_at": "2026-02-15T06:37:14Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlmuoaa0_6fd79273",
+      "title": "Replay Coverage Expansion",
+      "created_at": "2026-02-14T21:50:16Z",
+      "updated_at": "2026-02-15T07:09:55Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlmuoaaa_7d72246e",
+      "title": "Replay Execution Surfaces",
+      "created_at": "2026-02-14T21:50:16Z",
+      "updated_at": "2026-02-15T08:21:39Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlmuoaad_7320fefc",
+      "title": "Replay Model Matrix",
+      "created_at": "2026-02-14T21:50:16Z",
+      "updated_at": "2026-02-15T07:48:01Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlkl9b6s_1341dcbf",
+      "title": "Recovered plan: plan_mlkl9b6s_1341dcbf",
+      "created_at": "2026-02-14T22:31:11Z",
+      "updated_at": "2026-02-14T22:31:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlmwg7cr_19243d0a",
+      "title": "Editable workspace display names",
+      "created_at": "2026-02-14T22:39:58Z",
+      "updated_at": "2026-02-15T19:22:49Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlmx6bns_4f8352c2",
+      "title": "Migrate action restores workspace context",
+      "created_at": "2026-02-14T23:00:17Z",
+      "updated_at": "2026-02-15T00:31:20Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mln90wn8_491c69c7",
+      "title": "Fix extension workspace identity canonicalization for legacy workspace IDs",
+      "created_at": "2026-02-15T04:32:00Z",
+      "updated_at": "2026-02-15T04:37:43Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mln9fiho_efefd3af",
+      "title": "Live Chat/Dashboard Enhancement Validation",
+      "created_at": "2026-02-15T04:43:21Z",
+      "updated_at": "2026-02-15T06:41:26Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mln9xpn3_e30e1e01",
+      "title": "Approval Flow Smoke Plan",
+      "created_at": "2026-02-15T04:57:30Z",
+      "updated_at": "2026-02-15T05:24:29Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlndr1kz_6785bd7b",
+      "title": "Fix skills deploy ENOENT on external workspaces",
+      "created_at": "2026-02-15T06:44:17Z",
+      "updated_at": "2026-02-15T07:02:55Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlnebgne_7afd7298",
+      "title": "Switch to main and pull",
+      "created_at": "2026-02-15T07:00:10Z",
+      "updated_at": "2026-02-15T19:07:51Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlnfxh4x_bbb4035f",
+      "title": "Align skills source behavior with agents/instructions",
+      "created_at": "2026-02-15T07:45:17Z",
+      "updated_at": "2026-02-15T08:02:55Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlngqmi9_558588a9",
+      "title": "Global skills source fallback and unified resolver usage",
+      "created_at": "2026-02-15T08:07:57Z",
+      "updated_at": "2026-02-15T08:18:06Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlo47pgn_8d56a24b",
+      "title": "Manual Required Testing & Evidence",
+      "created_at": "2026-02-15T19:05:05Z",
+      "updated_at": "2026-02-15T20:46:30Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlo57bml_d489e9bb",
+      "title": "Host-only Interactive Terminal + MCP Integration Contract",
+      "created_at": "2026-02-15T19:32:47Z",
+      "updated_at": "2026-02-28T18:33:13Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlo5nidc_7e15bbbc",
+      "title": "Replay Ops Hardening Follow-up",
+      "created_at": "2026-02-15T19:45:22Z",
+      "updated_at": "2026-02-15T19:45:36Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlov60n5_21207af6",
+      "title": "MCP Terminal Tool Consolidation",
+      "created_at": "2026-02-16T07:39:36Z",
+      "updated_at": "2026-02-16T13:39:11Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlp8qxtq_ad821ebf",
+      "title": "MCP Terminal Tool & GUI Approval Flow",
+      "created_at": "2026-02-16T13:59:47Z",
+      "updated_at": "2026-03-08T05:30:55Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlpksy83_d5222084",
+      "title": "Subagent Session Interruption & Injection System",
+      "created_at": "2026-02-16T19:37:16Z",
+      "updated_at": "2026-02-17T19:14:53Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlrbibtt_fadcb5dd",
+      "title": "Session Injection Test",
+      "created_at": "2026-02-18T00:52:36Z",
+      "updated_at": "2026-02-25T11:24:09Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlro28bx_e79c3249",
+      "title": "Interactive Terminal: Persistent Process & End-to-End Connectivity",
+      "created_at": "2026-02-18T06:44:00Z",
+      "updated_at": "2026-02-18T20:03:34Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlrzfy8i_9567af08",
+      "title": "Category & Intake Engine",
+      "created_at": "2026-02-18T12:02:36Z",
+      "updated_at": "2026-02-18T19:13:49Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlrzgac4_a6c36762",
+      "title": "Plan Schema v2",
+      "created_at": "2026-02-18T12:02:52Z",
+      "updated_at": "2026-02-18T20:33:53Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlrzgmy4_d5dc2788",
+      "title": "Agent & Context Deployment System",
+      "created_at": "2026-02-18T12:03:08Z",
+      "updated_at": "2026-02-18T21:57:20Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlrzgxwt_f3b4274d",
+      "title": "Tool Preflight & Init Enrichment",
+      "created_at": "2026-02-18T12:03:22Z",
+      "updated_at": "2026-02-19T02:37:35Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlrzhaye_9868a2ae",
+      "title": "Handoff Stats & Incident Reports",
+      "created_at": "2026-02-18T12:03:39Z",
+      "updated_at": "2026-02-19T07:14:50Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlrzhpt2_f0713743",
+      "title": "Skill Registry & Auto-Creation",
+      "created_at": "2026-02-18T12:03:59Z",
+      "updated_at": "2026-02-19T08:53:00Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlrzi2tv_7c33d13e",
+      "title": "Integrated Programs Redesign",
+      "created_at": "2026-02-18T12:04:15Z",
+      "updated_at": "2026-02-19T10:38:18Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlrziekp_1e7ddc1e",
+      "title": "Frontend Overhaul",
+      "created_at": "2026-02-18T12:04:31Z",
+      "updated_at": "2026-02-19T11:26:20Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlrzipir_e5286925",
+      "title": "Hub Interaction Discipline",
+      "created_at": "2026-02-18T12:04:45Z",
+      "updated_at": "2026-02-19T11:58:26Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlsdgryg_1d3ceab0",
+      "title": "Migrator Agent",
+      "created_at": "2026-02-18T18:35:09Z",
+      "updated_at": "2026-02-18T20:59:02Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlt9d1kk_7f310620",
+      "title": "Interactive Terminal: MCP Auto-Connect on Launch",
+      "created_at": "2026-02-19T09:28:03Z",
+      "updated_at": "2026-02-28T18:33:14Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mltbe3zj_44eba4af",
+      "title": "Epic A \u2014 Supervisor Foundation",
+      "created_at": "2026-02-19T10:24:52Z",
+      "updated_at": "2026-02-20T00:52:42Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mltbe44b_bb9e4b62",
+      "title": "Epic D \u2014 VS Code Extension Integration",
+      "created_at": "2026-02-19T10:24:52Z",
+      "updated_at": "2026-02-20T13:29:05Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mltbe44b_03344c56",
+      "title": "Epic C \u2014 Runtime Runners",
+      "created_at": "2026-02-19T10:24:52Z",
+      "updated_at": "2026-02-19T21:45:55Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mltbe466_64116107",
+      "title": "Epic E \u2014 Observability + Operations",
+      "created_at": "2026-02-19T10:24:52Z",
+      "updated_at": "2026-02-20T13:40:25Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mltbe46q_cc4cd8f3",
+      "title": "Epic B \u2014 Control API + Handshake",
+      "created_at": "2026-02-19T10:24:52Z",
+      "updated_at": "2026-02-19T20:33:04Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mltbe478_7450addc",
+      "title": "Epic F \u2014 Optional Service Mode",
+      "created_at": "2026-02-19T10:24:52Z",
+      "updated_at": "2026-02-19T10:26:33Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mltfg98k_d9da7855",
+      "title": "Integrated Program Migration Auto-Detection",
+      "created_at": "2026-02-19T12:18:30Z",
+      "updated_at": "2026-02-19T13:18:14Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mltfg9aq_0e83910c",
+      "title": "Build, Test & Install \u2014 Orchestration Overhaul Promotion",
+      "created_at": "2026-02-19T12:18:31Z",
+      "updated_at": "2026-03-02T19:13:53Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mltfiehe_25fc65d7",
+      "title": "Approval Gate GUI",
+      "created_at": "2026-02-19T12:20:11Z",
+      "updated_at": "2026-02-20T00:51:28Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mltzwdxi_539556ac",
+      "title": "Brainstorm GUI \u2014 Structured Decision Surface",
+      "created_at": "2026-02-19T21:50:55Z",
+      "updated_at": "2026-02-20T14:02:00Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mluei9hj_3818109e",
+      "title": "Interactive Terminal CLI Agent Sessions",
+      "created_at": "2026-02-20T04:39:51Z",
+      "updated_at": "2026-02-20T21:57:07Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlusbxe0_f860bcbf",
+      "title": "Repository Cleanup \u2014 Legacy Systems Archival",
+      "created_at": "2026-02-20T11:06:50Z",
+      "updated_at": "2026-02-21T23:05:58Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mluxgrr5_2ca81e36",
+      "title": "Update side panel plans for v2 and programs",
+      "created_at": "2026-02-20T13:30:34Z",
+      "updated_at": "2026-02-21T01:15:15Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlvfu5mi_2e64aa7a",
+      "title": "Check Supervisor Runtime Status",
+      "created_at": "2026-02-20T22:04:51Z",
+      "updated_at": "2026-02-20T22:18:36Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlvgdbcw_4696b502",
+      "title": "Post-tag New Feature Validation Plan",
+      "created_at": "2026-02-20T22:19:45Z",
+      "updated_at": "2026-02-21T23:11:36Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlvgfi8a_f60d4895",
+      "title": "Align Extension Status to TCP Container Mode",
+      "created_at": "2026-02-20T22:21:27Z",
+      "updated_at": "2026-02-20T22:26:15Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlvkbo9r_0bb169ac",
+      "title": "Dedicated Copilot CLI Terminal GUI",
+      "created_at": "2026-02-21T00:10:27Z",
+      "updated_at": "2026-02-26T18:03:36Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlvkgebb_e18ba6a5",
+      "title": "Program/Workspace Context Search+Pull Feature",
+      "created_at": "2026-02-21T00:14:07Z",
+      "updated_at": "2026-02-28T18:33:13Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlvnqg8a_434a6139",
+      "title": "Unified Dynamic Hub Agent Model",
+      "created_at": "2026-02-21T01:45:55Z",
+      "updated_at": "2026-02-28T19:39:53Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlvtkpxg_5767a569",
+      "title": "Session Leak Fix & Dashboard Status Panel Overhaul",
+      "created_at": "2026-02-21T04:29:26Z",
+      "updated_at": "2026-02-26T13:37:58Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlvu06jp_09be59ff",
+      "title": "Supervisor App Upgrade: Tray, Child Lifecycle, Health GUI, SVG Assets",
+      "created_at": "2026-02-21T04:41:27Z",
+      "updated_at": "2026-02-21T06:09:18Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlvy56on_7e87ab98",
+      "title": "Supervisor Tray Runtime Regression: Menu + QML GUI + Startup State",
+      "created_at": "2026-02-21T06:37:19Z",
+      "updated_at": "2026-02-21T07:12:42Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlwvljbf_132b162a",
+      "title": "Supervisor GUI \u2014 service rows, visit dashboard, restart, open config",
+      "created_at": "2026-02-21T22:13:49Z",
+      "updated_at": "2026-02-26T13:37:05Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlwxod7u_b34cf054",
+      "title": "Bugfix: .projectmemory path resolution confusion",
+      "created_at": "2026-02-21T23:12:01Z",
+      "updated_at": "2026-02-22T02:10:40Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mlx42das_99b22bff",
+      "title": "Refactor: Merge deploy_for_task+prep and init+validate into single calls",
+      "created_at": "2026-02-22T02:10:51Z",
+      "updated_at": "2026-02-22T19:25:39Z",
+      "status": "paused",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm1yizfr_a6399236",
+      "title": "Fix dashboard deep-link Cannot GET for workspace/plan URL",
+      "created_at": "2026-02-25T11:34:40Z",
+      "updated_at": "2026-02-28T18:33:13Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm2dqr7f_189362d4",
+      "title": "Dashboard DB-only planning/tracking reads",
+      "created_at": "2026-02-25T18:40:37Z",
+      "updated_at": "2026-02-28T17:49:59Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm2edspp_6457907d",
+      "title": "Fix supervisor availability detection for spawn routing",
+      "created_at": "2026-02-25T18:58:32Z",
+      "updated_at": "2026-02-28T17:49:59Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm2i95jz_de84e7bb",
+      "title": "Supervisor as Native MCP Runtime (Remove MCP Instance Spawning)",
+      "created_at": "2026-02-25T20:46:54Z",
+      "updated_at": "2026-02-26T18:21:31Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm34c7tx_01cbf394",
+      "title": "Fix VDF loading crash: render buffer dimension mismatch",
+      "created_at": "2026-02-26T07:05:08Z",
+      "updated_at": "2026-02-26T07:09:24Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm34xr0c_8d1909d2",
+      "title": "Fix VDF blank rendering and add wheel zoom",
+      "created_at": "2026-02-26T07:21:53Z",
+      "updated_at": "2026-02-26T07:46:19Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm361wm3_d9f4483b",
+      "title": "Fix supervisor process status and restart control reliability",
+      "created_at": "2026-02-26T07:53:06Z",
+      "updated_at": "2026-02-28T17:49:59Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm3hc748_df720100",
+      "title": "Supervisor + Interactive Terminal: On-Demand Launch, GUI Enrichment & Extension Panel Migration",
+      "created_at": "2026-02-26T13:09:02Z",
+      "updated_at": "2026-02-27T08:52:34Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm3idme9_4eb7b147",
+      "title": "Dashboard plan list from Project Memory DB",
+      "created_at": "2026-02-26T13:38:08Z",
+      "updated_at": "2026-03-05T18:17:52Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm3k6xv9_8c42f7d0",
+      "title": "Supervisor proxy observability \u2014 trends, counters, diagnostics",
+      "created_at": "2026-02-26T14:28:56Z",
+      "updated_at": "2026-02-26T14:33:38Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm4pn14b_7f2c7458",
+      "title": "Interactive terminal Gemini session injection control",
+      "created_at": "2026-02-27T09:49:11Z",
+      "updated_at": "2026-02-28T17:49:59Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm4rayw7_8a7944da",
+      "title": "Stabilize VDF Rendering Fidelity and Interaction UX",
+      "created_at": "2026-02-27T10:35:47Z",
+      "updated_at": "2026-02-27T13:23:24Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm6ibr1q_7df9c6e1",
+      "title": "Interactive Terminal ConPTY implementation",
+      "created_at": "2026-02-28T15:59:59Z",
+      "updated_at": "2026-02-28T17:20:50Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm6lsu28_a99b5b9b",
+      "title": "Embedded terminal: xterm.js via WebEngineView + QWebChannel",
+      "created_at": "2026-02-28T17:37:15Z",
+      "updated_at": "2026-03-02T07:11:10Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm6p4mrw_c68142e8",
+      "title": "Fix dashboard workspace guard test regression",
+      "created_at": "2026-02-28T19:10:25Z",
+      "updated_at": "2026-03-05T18:17:48Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm6q6oyd_559abbc9",
+      "title": "Enforce PromptAnalyst dispatch and add PromptAnalyst discovery tools",
+      "created_at": "2026-02-28T19:40:00Z",
+      "updated_at": "2026-03-01T00:14:12Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm6scy1f_980802b8",
+      "title": "Realtime dashboard plan updates + webhook + VS Code plan selection/step viewer",
+      "created_at": "2026-02-28T20:40:51Z",
+      "updated_at": "2026-03-04T08:11:56Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm70v360_60c8942a",
+      "title": "Program Child 1 \u2014 On-Demand Instructions/Skills Provisioning Policy",
+      "created_at": "2026-03-01T00:38:55Z",
+      "updated_at": "2026-03-01T09:56:02Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm70v369_5b2b4643",
+      "title": "Program Child 2 \u2014 Extension Early UX Pass (Tabs, Buttons, Always-Provided Notes)",
+      "created_at": "2026-03-01T00:38:55Z",
+      "updated_at": "2026-03-01T09:54:00Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm70v36g_a1741fbc",
+      "title": "Program Child 3 \u2014 Dashboard Improvements Rollup & Hardening",
+      "created_at": "2026-03-01T00:38:55Z",
+      "updated_at": "2026-03-01T20:32:55Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm79uurd_1e011abb",
+      "title": "DB-first Agent/Instruction/Skill Migration + Hub Workflow Re-architecture",
+      "created_at": "2026-03-01T04:50:40Z",
+      "updated_at": "2026-03-01T04:59:26Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm7a4r0u_ae7a328a",
+      "title": "DB-first Agent/Instruction/Skill Migration + Hub Workflow Re-architecture",
+      "created_at": "2026-03-01T04:58:22Z",
+      "updated_at": "2026-03-05T18:17:57Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm84vaeu_1839d715",
+      "title": "Out-of-process PTY host for Interactive Terminal",
+      "created_at": "2026-03-01T19:18:49Z",
+      "updated_at": "2026-03-02T07:11:10Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm8vq9cg_21e27a6a",
+      "title": "Memory Terminal + GUI Integration Refresh with Approved Gemini/Copilot Super-Subagent Sessions",
+      "created_at": "2026-03-02T07:50:44Z",
+      "updated_at": "2026-03-04T08:18:35Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm9b56wp_c11823dd",
+      "title": "Program Foundation: memory_cartographer contract, scope, and compatibility rules",
+      "created_at": "2026-03-02T15:02:15Z",
+      "updated_at": "2026-03-05T08:47:53Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm9b56wx_c5a52a45",
+      "title": "Indexing Engine Upgrade: smart workspace indexing and dependency/entry-point graphing",
+      "created_at": "2026-03-02T15:02:15Z",
+      "updated_at": "2026-03-06T05:33:56Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm9b56x6_551d976d",
+      "title": "Database Cartography: schema, relation, migration, and DB-surface mapping",
+      "created_at": "2026-03-02T15:02:15Z",
+      "updated_at": "2026-03-05T03:14:24Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm9b56xe_92f7659d",
+      "title": "MCP Surface Integration: expose memory_cartographer actions/resources via consolidated tools",
+      "created_at": "2026-03-02T15:02:15Z",
+      "updated_at": "2026-03-05T18:45:12Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mm9b56xm_87259890",
+      "title": "Consumer Integration & Validation: agent routing usage, tests, and cross-surface docs",
+      "created_at": "2026-03-02T15:02:15Z",
+      "updated_at": "2026-03-06T03:25:48Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mma9q227_22543ae9",
+      "title": "Component Plan \u2014 Supervisor Resilience & Lifecycle Isolation",
+      "created_at": "2026-03-03T07:10:15Z",
+      "updated_at": "2026-03-03T18:54:48Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mma9q22h_dac0d020",
+      "title": "Component Plan \u2014 Server Resilience & Reconnect Semantics",
+      "created_at": "2026-03-03T07:10:15Z",
+      "updated_at": "2026-03-03T20:57:46Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mma9q22p_6faeff58",
+      "title": "Component Plan \u2014 Dashboard Fault Tolerance & Session Recovery",
+      "created_at": "2026-03-03T07:10:15Z",
+      "updated_at": "2026-03-04T01:09:46Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mma9q22x_42a50b94",
+      "title": "Component Plan \u2014 VS Code Extension Reconnect Reliability",
+      "created_at": "2026-03-03T07:10:15Z",
+      "updated_at": "2026-03-04T06:40:31Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mma9q235_af719fac",
+      "title": "Component Plan \u2014 Interactive Terminal Stability Envelope",
+      "created_at": "2026-03-03T07:10:15Z",
+      "updated_at": "2026-03-04T07:29:47Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mma9q23d_a7a28f45",
+      "title": "Component Plan \u2014 Container/Runtime Boundary Reliability",
+      "created_at": "2026-03-03T07:10:15Z",
+      "updated_at": "2026-03-04T08:20:44Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mma9q7t2_8224e780",
+      "title": "Integration Infrastructure Plan \u2014 Cross-Component Test Harness",
+      "created_at": "2026-03-03T07:10:22Z",
+      "updated_at": "2026-03-03T17:48:32Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmbbp5th_8c6e7895",
+      "title": "DS CAD GUI Interaction Test Harness",
+      "created_at": "2026-03-04T00:53:19Z",
+      "updated_at": "2026-03-04T01:44:26Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": true
+    },
+    {
+      "plan_id": "plan_mmbqt3yr_af40cbc4",
+      "title": "Workflow Mode Control: User-Selectable Plan Execution Modes",
+      "created_at": "2026-03-04T07:56:17Z",
+      "updated_at": "2026-03-04T14:32:44Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmbryryw_6ae206f4",
+      "title": "Bugfix: dashboard useMCPEvents + extension plan-routing test regressions",
+      "created_at": "2026-03-04T08:28:41Z",
+      "updated_at": "2026-03-04T10:13:37Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmbuakyy_dbb77c12",
+      "title": "Bugfix: Brainstorm GUI Integration \u2014 Register MCP Tool, Restore Agent Instructions, Update Hub Routing",
+      "created_at": "2026-03-04T09:33:51Z",
+      "updated_at": "2026-03-05T02:55:43Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmbvee6m_55ae6f3f",
+      "title": "Interactive Terminal & Memory Terminal CLI \u2014 UX Fixes and Agent Session Reliability",
+      "created_at": "2026-03-04T10:04:49Z",
+      "updated_at": "2026-03-04T11:36:34Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmbxnsyx_6b6ae85d",
+      "title": "Bugfix: Persist and read plan dependencies consistently for memory_plan set/get actions",
+      "created_at": "2026-03-04T11:08:07Z",
+      "updated_at": "2026-03-04T19:21:06Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmcfejtn_051ddb6d",
+      "title": "Diagnose Podman machine exits after startup",
+      "created_at": "2026-03-04T19:24:48Z",
+      "updated_at": "2026-03-05T18:17:38Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmejrl0d_6472cd19",
+      "title": "Python Code Engine Implementation",
+      "created_at": "2026-03-06T07:02:27Z",
+      "updated_at": "2026-03-08T00:48:39Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmetk41n_4e437579",
+      "title": "DFWGS Plan 1 \u2014 Core Engine: Scope Computation & Workspace File Generator",
+      "created_at": "2026-03-06T11:36:35Z",
+      "updated_at": "2026-03-06T11:51:43Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmetkctt_3fcfb7c7",
+      "title": "DFWGS Plan 2 \u2014 VS Code Extension: Command, Tool Restriction & Status Indicator",
+      "created_at": "2026-03-06T11:36:46Z",
+      "updated_at": "2026-03-06T11:37:06Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmetkku4_496644e7",
+      "title": "DFWGS Plan 3 \u2014 Supervisor: Scope-Change Notifications & Tray Integration",
+      "created_at": "2026-03-06T11:36:56Z",
+      "updated_at": "2026-03-06T11:37:09Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmf1s9zi_09c04c76",
+      "title": "memory_cartographer Phase B \u2014 Python-Backed Actions and Agent Integration",
+      "created_at": "2026-03-06T15:26:53Z",
+      "updated_at": "2026-03-06T20:26:31Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmf22cv3_677f3985",
+      "title": "Store Chat Details Command Stabilization",
+      "created_at": "2026-03-06T15:34:43Z",
+      "updated_at": "2026-03-06T15:37:51Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmf2l7z5_b40f212f",
+      "title": "REST Fallback Service via Supervisor-Managed Subprocess",
+      "created_at": "2026-03-06T15:49:23Z",
+      "updated_at": "2026-03-06T15:52:26Z",
+      "status": "paused",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmf2micr_eb63a1a9",
+      "title": "Interactive Terminal \u2014 PTY Output Isolation, Directory Selection & CLI Launch Fixes",
+      "created_at": "2026-03-06T15:50:23Z",
+      "updated_at": "2026-03-06T17:02:45Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmfci3uc_97531db7",
+      "title": "memory_cartographer Phase C \u2014 Import Parser and Dependency Linker",
+      "created_at": "2026-03-06T20:26:54Z",
+      "updated_at": "2026-03-07T01:59:52Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmfz7e9m_d6a3631b",
+      "title": "Debug GUI Forms Runtime and Launch Flow",
+      "created_at": "2026-03-07T07:02:25Z",
+      "updated_at": "2026-03-07T07:02:35Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmh5ze8r_7b61613a",
+      "title": "memory_cartographer Phase D \u2014 Runtime Completion and Contract Hardening",
+      "created_at": "2026-03-08T02:59:56Z",
+      "updated_at": "2026-03-08T05:57:09Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmh7nis5_aa81ce49",
+      "title": "ds-viewer-gui Piece Export Variants and SVG Support",
+      "created_at": "2026-03-08T03:46:41Z",
+      "updated_at": "2026-03-08T04:01:17Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": true
+    }
+  ],
+  "findings": {
+    "finished_not_archived": [
+      {
+        "plan_id": "plan_ml6zomx2_9ad68faa",
+        "title": "Phase 6 Completion: Build/Release/Docs",
+        "created_at": "2026-02-03T19:26:12Z",
+        "status": "active",
+        "step_count": 4
+      },
+      {
+        "plan_id": "plan_ml71idel_62064e02",
+        "title": "Phase 6 Completion: Build, Release, Docs",
+        "created_at": "2026-02-03T20:17:19Z",
+        "status": "active",
+        "step_count": 4
+      },
+      {
+        "plan_id": "plan_mlig6h2u_23c6074c",
+        "title": "Live Render Pipeline: QML Overlays + Skia Caching + GPU Compositing",
+        "created_at": "2026-02-11T19:53:26Z",
+        "status": "active",
+        "step_count": 33
+      },
+      {
+        "plan_id": "plan_mmbbp5th_8c6e7895",
+        "title": "DS CAD GUI Interaction Test Harness",
+        "created_at": "2026-03-04T00:53:19Z",
+        "status": "active",
+        "step_count": 25
+      },
+      {
+        "plan_id": "plan_mmh7nis5_aa81ce49",
+        "title": "ds-viewer-gui Piece Export Variants and SVG Support",
+        "created_at": "2026-03-08T03:46:41Z",
+        "status": "active",
+        "step_count": 4
+      }
+    ],
+    "superseded_candidates": [],
+    "redundant_groups": [],
+    "related_groups": [
+      [
+        "plan_ml6zomx2_9ad68faa",
+        "plan_ml71idel_62064e02"
+      ]
+    ],
+    "pairwise_similarity_notes": [
+      {
+        "left_plan_id": "plan_ml6zomx2_9ad68faa",
+        "right_plan_id": "plan_ml71idel_62064e02",
+        "relation": "closely_related",
+        "similarity": 0.556,
+        "common_terms": [
+          "build",
+          "completion",
+          "docs",
+          "final",
+          "guide",
+          "release",
+          "remaining",
+          "script"
+        ]
+      }
+    ]
+  },
+  "proposed_actions": [
+    {
+      "action_type": "archive_finished_plan",
+      "requires_user_approval": true,
+      "priority_reason": "Oldest finished plans should be archived first.",
+      "plan_id": "plan_ml6zomx2_9ad68faa",
+      "title": "Phase 6 Completion: Build/Release/Docs",
+      "created_at": "2026-02-03T19:26:12Z",
+      "mcp_action": "memory_plan",
+      "mcp_params": {
+        "action": "archive",
+        "plan_id": "plan_ml6zomx2_9ad68faa",
+        "workspace_id": "DS-Program-Hotkeys-97bde3e31ca8"
+      }
+    },
+    {
+      "action_type": "create_integrated_program_for_related_plans",
+      "requires_user_approval": true,
+      "group_plan_ids": [
+        "plan_ml6zomx2_9ad68faa",
+        "plan_ml71idel_62064e02"
+      ],
+      "recommended_program_title": "Integrated Program: Final Build Verification Remaining",
+      "mcp_action_sequence": [
+        {
+          "mcp_action": "memory_plan",
+          "mcp_params": {
+            "action": "create_program",
+            "title": "Integrated Program: Final Build Verification Remaining",
+            "description": "Created from related plan-cleanup candidates.",
+            "workspace_id": "DS-Program-Hotkeys-97bde3e31ca8"
+          }
+        },
+        {
+          "mcp_action": "memory_plan",
+          "mcp_params": {
+            "action": "add_plan_to_program",
+            "program_id": "<new_program_id_from_create_program>",
+            "plan_id": "plan_ml6zomx2_9ad68faa",
+            "workspace_id": "DS-Program-Hotkeys-97bde3e31ca8"
+          }
+        },
+        {
+          "mcp_action": "memory_plan",
+          "mcp_params": {
+            "action": "add_plan_to_program",
+            "program_id": "<new_program_id_from_create_program>",
+            "plan_id": "plan_ml71idel_62064e02",
+            "workspace_id": "DS-Program-Hotkeys-97bde3e31ca8"
+          }
+        }
+      ]
+    },
+    {
+      "action_type": "archive_finished_plan",
+      "requires_user_approval": true,
+      "priority_reason": "Oldest finished plans should be archived first.",
+      "plan_id": "plan_ml71idel_62064e02",
+      "title": "Phase 6 Completion: Build, Release, Docs",
+      "created_at": "2026-02-03T20:17:19Z",
+      "mcp_action": "memory_plan",
+      "mcp_params": {
+        "action": "archive",
+        "plan_id": "plan_ml71idel_62064e02",
+        "workspace_id": "DS-Program-Hotkeys-97bde3e31ca8"
+      }
+    },
+    {
+      "action_type": "archive_finished_plan",
+      "requires_user_approval": true,
+      "priority_reason": "Oldest finished plans should be archived first.",
+      "plan_id": "plan_mlig6h2u_23c6074c",
+      "title": "Live Render Pipeline: QML Overlays + Skia Caching + GPU Compositing",
+      "created_at": "2026-02-11T19:53:26Z",
+      "mcp_action": "memory_plan",
+      "mcp_params": {
+        "action": "archive",
+        "plan_id": "plan_mlig6h2u_23c6074c",
+        "workspace_id": "ds_file_decoder-dcf63cde98ef"
+      }
+    },
+    {
+      "action_type": "archive_finished_plan",
+      "requires_user_approval": true,
+      "priority_reason": "Oldest finished plans should be archived first.",
+      "plan_id": "plan_mmbbp5th_8c6e7895",
+      "title": "DS CAD GUI Interaction Test Harness",
+      "created_at": "2026-03-04T00:53:19Z",
+      "mcp_action": "memory_plan",
+      "mcp_params": {
+        "action": "archive",
+        "plan_id": "plan_mmbbp5th_8c6e7895",
+        "workspace_id": "ds_cad-f50b47b47834"
+      }
+    },
+    {
+      "action_type": "archive_finished_plan",
+      "requires_user_approval": true,
+      "priority_reason": "Oldest finished plans should be archived first.",
+      "plan_id": "plan_mmh7nis5_aa81ce49",
+      "title": "ds-viewer-gui Piece Export Variants and SVG Support",
+      "created_at": "2026-03-08T03:46:41Z",
+      "mcp_action": "memory_plan",
+      "mcp_params": {
+        "action": "archive",
+        "plan_id": "plan_mmh7nis5_aa81ce49",
+        "workspace_id": "ds_file_decoder-dcf63cde98ef"
+      }
+    }
+  ],
+  "plan_source": "db:C:\\Users\\User\\AppData\\Roaming\\ProjectMemory\\project-memory.db"
+}

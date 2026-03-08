@@ -71,6 +71,7 @@ The active script set is intentionally small and standardized:
 - `run-tests.ps1`
 - `interactive-terminal/build-interactive-terminal.ps1`
 - `scripts/preflight-machine.ps1`
+- `scripts/folder_cleanup/*.py` (non-destructive cleanup + organization helpers)
 
 Detailed arguments and use-cases are documented in:
 
@@ -109,15 +110,23 @@ From repo root:
 
 This checks required toolchains and required repository assets before a first-time build.
 
-### 0.5) First-time cross-machine install + migration
+### 0.5) First-time install (Wizard)
 
-From repo root:
+For a guided experience that installs Project Memory MCP to your user directories and sets up your environment:
+
+```powershell
+.\install-wizard.ps1
+```
+
+This is the recommended way to "install" the system into your OS (setting up PATH, PM_DATA_ROOT, and permanent binaries).
+
+### 0.6) First-time cross-machine install + migration
+
+For more advanced data migration and repo-local setup:
 
 ```powershell
 .\new-install.ps1
 ```
-
-This flow prompts for a **data root directory** (`PM_DATA_ROOT` — the single canonical location for the database and all workspace data), builds and seeds via `install.ps1`, optionally migrates plans from an old data root, refreshes workspace `identity.json` files, imports distributed skills/instructions from other registered workspaces, and installs remaining components — all delegated through `install.ps1`.
 
 ### 1) Prerequisites
 

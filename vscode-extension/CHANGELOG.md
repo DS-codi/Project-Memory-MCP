@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - **Plans Tab Selection + Step Viewer**
   - Explicit selected-plan workflow for rendering step details in the Plans tab
   - Step-viewer presentation for selected plans with phase/type/status context
@@ -38,7 +39,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `projectMemory.chat.externalServerPath` - External server path
 
 ### Changed
+
 - Extension test build now includes the test suite index entrypoint (`src/test/suite/index.ts`) to ensure generated `out/test/suite/index` is available to the test runner.
+- Settings cleanup for the stripped-down extension runtime:
+  - Removed contributed `projectMemory.apiPort` from Settings UI (runtime keeps legacy fallback behavior).
+  - Deprecated `projectMemory.showNotifications` in favor of `projectMemory.notifications.enabled`.
+  - Deprecated watcher-era compatibility settings `projectMemory.autoRefresh` and `projectMemory.autoDeployAgents`.
 - Updated VS Code engine requirement to 1.99.0 for Chat API support
 - Added `github.copilot-chat` as extension dependency
 - Added `@modelcontextprotocol/sdk` dependency
@@ -46,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2025-01-XX
 
 ### Added
+
 - **Embedded Server Management**
   - Extension now automatically starts and manages the dashboard server
   - No need to manually run `npm run dev:all` in a separate terminal
@@ -90,12 +97,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Copilot status indicator
 
 ### Changed
+
 - Updated README with Copilot integration documentation
 - Enhanced StatusBarManager with new display methods
 
 ## [0.1.0] - 2025-01-XX
 
 ### Added
+
 - Initial release
 - Dashboard webview with workspace overview
 - Agent management and deployment
@@ -106,12 +115,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integration with Project Memory MCP server
 
 ### Commands
+
 - `projectMemory.showDashboard` - Open dashboard sidebar
 - `projectMemory.createPlan` - Create new plan
 - `projectMemory.deployAgents` - Deploy agent templates
 - `projectMemory.refreshDashboard` - Refresh data
 
 ### Settings
+
 - `projectMemory.dataRoot` - Data directory path
 - `projectMemory.agentsRoot` - Agent templates path
 - `projectMemory.autoRefresh` - Enable auto-refresh

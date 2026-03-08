@@ -248,7 +248,18 @@ async fn supervisor_main() {
                     cfg.dashboard.port, cfg.dashboard.enabled);
                 eprintln!("[debug] fallback_api: port={}, enabled={}",
                     cfg.fallback_api.port, cfg.fallback_api.enabled);
+                eprintln!("[debug] runtime_output: enabled={}", cfg.runtime_output.enabled);
             }
+
+            supervisor::runtime_output::set_enabled(cfg.runtime_output.enabled);
+            println!(
+                "[supervisor] runtime output capture: {}",
+                if cfg.runtime_output.enabled {
+                    "enabled"
+                } else {
+                    "disabled"
+                }
+            );
 
             let subprocess_runtime_enabled = parse_env_flag(
                 "PM_SUPERVISOR_MCP_SUBPROCESS_RUNTIME",

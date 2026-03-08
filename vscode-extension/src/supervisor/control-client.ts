@@ -168,18 +168,29 @@ export class SupervisorControlClient implements vscode.Disposable {
         reject(new Error('A request is already in flight'));
         return;
       }
-      const timer = setTimeout(() => {
-        if (this.pending === resolve as unknown) {
+
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const onResponse = (response: ControlResponse) => {
+        if (timer) {
+          clearTimeout(timer);
+        }
+        resolve(response);
+      };
+
+      timer = setTimeout(() => {
+        if (this.pending === onResponse) {
           this.pending = null;
           reject(new Error('Supervisor request timed out'));
         }
       }, REQUEST_TIMEOUT_MS);
 
-      this.pending = (r) => { clearTimeout(timer); resolve(r); };
+      this.pending = onResponse;
 
       this.socket.write(JSON.stringify(req) + '\n', 'utf8', (err) => {
         if (err) {
-          clearTimeout(timer);
+          if (timer) {
+            clearTimeout(timer);
+          }
           this.pending = null;
           reject(err);
         }

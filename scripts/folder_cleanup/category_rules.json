@@ -1,0 +1,147 @@
+{
+  "ignore_paths": [
+    ".git",
+    ".github",
+    "node_modules",
+    "target",
+    ".cleanup-staging",
+    ".projectmemory",
+    "dist",
+    "build",
+    "venv",
+    ".venv",
+    "__pycache__"
+  ],
+  "doc_extensions": [
+    ".md",
+    ".rst",
+    ".txt"
+  ],
+  "script_extensions": [
+    ".ps1",
+    ".py",
+    ".sh",
+    ".bat",
+    ".cmd"
+  ],
+  "stale_days": {
+    "docs": 120,
+    "scripts": 45
+  },
+  "recent_guard_days": 14,
+  "one_time_script_name_patterns": [
+    "one-time",
+    "one_time",
+    "temp",
+    "tmp",
+    "ad-hoc",
+    "adhoc",
+    "quickfix",
+    "hotfix",
+    "migration-only",
+    "test_stdin",
+    "copy",
+    "backup"
+  ],
+  "one_time_script_content_patterns": [
+    "one-time",
+    "run once",
+    "temporary",
+    "quick workaround",
+    "manual cleanup"
+  ],
+  "worthwhile_script_content_patterns": [
+    "usage",
+    "example",
+    "function",
+    "class",
+    "param(",
+    "todo",
+    "note"
+  ],
+  "cleanup_candidate_path_patterns": [
+    "archive",
+    "backup",
+    "old",
+    "chat history",
+    "copied for transfer",
+    "tmp",
+    "temp"
+  ],
+  "docs_categories": {
+    "architecture": [
+      "architecture",
+      "design",
+      "contract",
+      "schema"
+    ],
+    "operations": [
+      "runbook",
+      "guide",
+      "setup",
+      "troubleshooting",
+      "install"
+    ],
+    "reports": [
+      "report",
+      "audit",
+      "validation",
+      "checklist",
+      "summary"
+    ],
+    "plans": [
+      "plan",
+      "roadmap",
+      "phase",
+      "backlog"
+    ],
+    "reference": [
+      "reference",
+      "api",
+      "cookbook",
+      "spec"
+    ],
+    "history": [
+      "history",
+      "chat",
+      "copied",
+      "archive"
+    ]
+  },
+  "scripts_categories": {
+    "build": [
+      "build",
+      "install",
+      "compile",
+      "package"
+    ],
+    "test": [
+      "test",
+      "harness",
+      "verify",
+      "assert",
+      "check"
+    ],
+    "maintenance": [
+      "cleanup",
+      "migrate",
+      "fix",
+      "repair",
+      "doctor"
+    ],
+    "automation": [
+      "deploy",
+      "release",
+      "sync",
+      "seed",
+      "bootstrap"
+    ],
+    "diagnostics": [
+      "debug",
+      "inspect",
+      "trace",
+      "profile",
+      "log"
+    ]
+  }
+}
