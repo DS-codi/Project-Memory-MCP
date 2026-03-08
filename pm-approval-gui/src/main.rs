@@ -18,9 +18,18 @@ fn main() {
         .expect("Failed to create tokio runtime");
     let _rt_guard = rt.enter();
 
+    // ── Qt logging: route to stderr so errors are visible in a terminal.
+    // On Windows, Qt sends all log output (including fatal QML errors) to
+    // OutputDebugString by default — completely invisible without a debugger.
+    // Setting this env var BEFORE QGuiApplication::new() redirects everything
+    // to stderr so QML load failures, type errors, etc. are always printed.
+    std::env::set_var("QT_FORCE_STDERR_LOGGING", "1");
+
     #[cfg(windows)]
-    std::env::set_var("QT_QPA_PLATFORM", "windows:darkmode=2");
-    std::env::set_var("QT_QUICK_CONTROLS_STYLE", "Material");
+    {
+        std::env::set_var("QT_QPA_PLATFORM", "windows:darkmode=2");
+        std::env::set_var("QT_QUICK_CONTROLS_STYLE", "Material");
+    }
 
     let mut app = QGuiApplication::new();
     let mut engine = QQmlApplicationEngine::new();

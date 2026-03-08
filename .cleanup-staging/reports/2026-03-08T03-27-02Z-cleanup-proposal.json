@@ -1,0 +1,541 @@
+{
+  "generated_at_utc": "2026-03-08T03:27:02Z",
+  "root": "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP",
+  "policy": {
+    "no_immediate_delete": true,
+    "staging_directory": ".cleanup-staging/recycle-bin",
+    "date_modified_priority": true,
+    "recent_guard_days": 14
+  },
+  "summary": {
+    "staging_candidate_count": 10,
+    "extract_then_stage_count": 10,
+    "organization_proposal_count": 48
+  },
+  "staging_candidates": [
+    {
+      "path": "archive/legacy-scripts/2026-03-01/docs/_dsdecoder-build-gui.ps1",
+      "kind": "script",
+      "proposed_action": "extract_reference_then_stage",
+      "reason": "One-time script with reusable reference material.",
+      "last_modified_utc": "2026-02-06T06:02:38Z",
+      "age_days": 29.89,
+      "size_bytes": 3151
+    },
+    {
+      "path": "archive/legacy-scripts/2026-03-01/setup-firewall-rule.ps1",
+      "kind": "script",
+      "proposed_action": "extract_reference_then_stage",
+      "reason": "One-time script with reusable reference material.",
+      "last_modified_utc": "2026-02-17T06:04:18Z",
+      "age_days": 18.89,
+      "size_bytes": 7208
+    },
+    {
+      "path": "archive/legacy-scripts/2026-03-01/run-container.ps1",
+      "kind": "script",
+      "proposed_action": "extract_reference_then_stage",
+      "reason": "One-time script with reusable reference material.",
+      "last_modified_utc": "2026-02-19T09:21:49Z",
+      "age_days": 16.75,
+      "size_bytes": 24486
+    },
+    {
+      "path": "archive/legacy-scripts/2026-03-01/huh.ps1",
+      "kind": "script",
+      "proposed_action": "extract_reference_then_stage",
+      "reason": "One-time script with reusable reference material.",
+      "last_modified_utc": "2026-02-25T05:17:52Z",
+      "age_days": 10.92,
+      "size_bytes": 9204
+    },
+    {
+      "path": "archive/legacy-scripts/2026-03-01/start-supervisor-wave-validation.ps1",
+      "kind": "script",
+      "proposed_action": "extract_reference_then_stage",
+      "reason": "One-time script with reusable reference material.",
+      "last_modified_utc": "2026-02-26T13:54:45Z",
+      "age_days": 9.56,
+      "size_bytes": 4025
+    },
+    {
+      "path": "archive/legacy-scripts/2026-03-01/stop-supervisor.ps1",
+      "kind": "script",
+      "proposed_action": "extract_reference_then_stage",
+      "reason": "One-time script with reusable reference material.",
+      "last_modified_utc": "2026-02-26T13:54:45Z",
+      "age_days": 9.56,
+      "size_bytes": 11447
+    },
+    {
+      "path": "archive/legacy-scripts/2026-03-01/run-wave-cohort-validation.ps1",
+      "kind": "script",
+      "proposed_action": "extract_reference_then_stage",
+      "reason": "One-time script with reusable reference material.",
+      "last_modified_utc": "2026-02-26T19:59:12Z",
+      "age_days": 9.31,
+      "size_bytes": 5449
+    },
+    {
+      "path": "archive/legacy-scripts/2026-03-01/build_install.ps1",
+      "kind": "script",
+      "proposed_action": "extract_reference_then_stage",
+      "reason": "One-time script with reusable reference material.",
+      "last_modified_utc": "2026-02-27T12:58:52Z",
+      "age_days": 8.6,
+      "size_bytes": 39874
+    },
+    {
+      "path": "archive/legacy-scripts/2026-03-01/launch-supervisor.ps1",
+      "kind": "script",
+      "proposed_action": "extract_reference_then_stage",
+      "reason": "One-time script with reusable reference material.",
+      "last_modified_utc": "2026-02-28T07:44:48Z",
+      "age_days": 7.82,
+      "size_bytes": 10272
+    },
+    {
+      "path": "scripts/folder_cleanup/cleanup_common.py",
+      "kind": "script",
+      "proposed_action": "extract_reference_then_stage",
+      "reason": "One-time script with reusable reference material.",
+      "last_modified_utc": "2026-03-08T03:25:02Z",
+      "age_days": 0.0,
+      "size_bytes": 22481
+    }
+  ],
+  "organization_proposals": [
+    {
+      "source_path": "docs/VSCODE_EXTENSION_SETUP.md",
+      "target_path": "docs/operations/VSCODE_EXTENSION_SETUP.md",
+      "suggested_category": "operations",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-02T06:22:48Z",
+      "age_days": 33.88
+    },
+    {
+      "source_path": "docs/CHAT_INTEGRATION.md",
+      "target_path": "docs/history/CHAT_INTEGRATION.md",
+      "suggested_category": "history",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-02T10:22:48Z",
+      "age_days": 33.71
+    },
+    {
+      "source_path": "docs/FIX_SERVER_NOT_FOUND_ERRORS.md",
+      "target_path": "docs/misc/FIX_SERVER_NOT_FOUND_ERRORS.md",
+      "suggested_category": "misc",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-03T06:16:24Z",
+      "age_days": 32.88
+    },
+    {
+      "source_path": "docs/fromdsdecoder.md",
+      "target_path": "docs/misc/fromdsdecoder.md",
+      "suggested_category": "misc",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-07T19:10:23Z",
+      "age_days": 28.34
+    },
+    {
+      "source_path": "docs/promptfrom12-02-2026.txt",
+      "target_path": "docs/misc/promptfrom12-02-2026.txt",
+      "suggested_category": "misc",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-12T09:41:21Z",
+      "age_days": 23.74
+    },
+    {
+      "source_path": "docs/integrated-programs.md",
+      "target_path": "docs/misc/integrated-programs.md",
+      "suggested_category": "misc",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-12T20:17:31Z",
+      "age_days": 23.3
+    },
+    {
+      "source_path": "docs/skills-system.md",
+      "target_path": "docs/misc/skills-system.md",
+      "suggested_category": "misc",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-12T20:17:31Z",
+      "age_days": 23.3
+    },
+    {
+      "source_path": "docs/worker-agent.md",
+      "target_path": "docs/misc/worker-agent.md",
+      "suggested_category": "misc",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-12T20:17:31Z",
+      "age_days": 23.3
+    },
+    {
+      "source_path": "docs/dynamic-prompt-system.md",
+      "target_path": "docs/misc/dynamic-prompt-system.md",
+      "suggested_category": "misc",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-12T20:29:57Z",
+      "age_days": 23.29
+    },
+    {
+      "source_path": "docs/add2planpls.md",
+      "target_path": "docs/plans/add2planpls.md",
+      "suggested_category": "plans",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-13T07:01:19Z",
+      "age_days": 22.85
+    },
+    {
+      "source_path": "docs/build-scripts-schema.md",
+      "target_path": "docs/architecture/build-scripts-schema.md",
+      "suggested_category": "architecture",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-13T12:04:26Z",
+      "age_days": 22.64
+    },
+    {
+      "source_path": "docs/build-scripts-user-guide.md",
+      "target_path": "docs/operations/build-scripts-user-guide.md",
+      "suggested_category": "operations",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-13T12:04:26Z",
+      "age_days": 22.64
+    },
+    {
+      "source_path": "docs/builder-agent.md",
+      "target_path": "docs/misc/builder-agent.md",
+      "suggested_category": "misc",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-13T12:07:45Z",
+      "age_days": 22.64
+    },
+    {
+      "source_path": "docs/manual-testing-checklist.md",
+      "target_path": "docs/reports/manual-testing-checklist.md",
+      "suggested_category": "reports",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-13T12:04:26Z",
+      "age_days": 22.64
+    },
+    {
+      "source_path": "docs/mcp-tools-build-scripts.md",
+      "target_path": "docs/misc/mcp-tools-build-scripts.md",
+      "suggested_category": "misc",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-13T12:04:26Z",
+      "age_days": 22.64
+    },
+    {
+      "source_path": "docs/tdd-driver.md",
+      "target_path": "docs/misc/tdd-driver.md",
+      "suggested_category": "misc",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-13T12:04:26Z",
+      "age_days": 22.64
+    },
+    {
+      "source_path": "docs/report-HighPerformantGraphics.md",
+      "target_path": "docs/reports/report-HighPerformantGraphics.md",
+      "suggested_category": "reports",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-14T18:41:01Z",
+      "age_days": 21.37
+    },
+    {
+      "source_path": "docs/interactive-terminal-contract-unification-design.md",
+      "target_path": "docs/architecture/interactive-terminal-contract-unification-design.md",
+      "suggested_category": "architecture",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-14T19:55:08Z",
+      "age_days": 21.31
+    },
+    {
+      "source_path": "docs/interactive-terminal-operator-troubleshooting.md",
+      "target_path": "docs/operations/interactive-terminal-operator-troubleshooting.md",
+      "suggested_category": "operations",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-14T19:55:26Z",
+      "age_days": 21.31
+    },
+    {
+      "source_path": "docs/mcp-terminal-tool-consolidation-phase1-contract-routing.md",
+      "target_path": "docs/architecture/mcp-terminal-tool-consolidation-phase1-contract-routing.md",
+      "suggested_category": "architecture",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-16T08:04:04Z",
+      "age_days": 19.81
+    },
+    {
+      "source_path": "docs/phase4-live-proof-issue-summary.md",
+      "target_path": "docs/reports/phase4-live-proof-issue-summary.md",
+      "suggested_category": "reports",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-16T20:54:12Z",
+      "age_days": 19.27
+    },
+    {
+      "source_path": "docs/system-overview-executive-summary.md",
+      "target_path": "docs/reports/system-overview-executive-summary.md",
+      "suggested_category": "reports",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-17T02:57:26Z",
+      "age_days": 19.02
+    },
+    {
+      "source_path": "docs/system-overview.md",
+      "target_path": "docs/misc/system-overview.md",
+      "suggested_category": "misc",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-17T02:56:49Z",
+      "age_days": 19.02
+    },
+    {
+      "source_path": "docs/interactive-terminal-remaining-work.md",
+      "target_path": "docs/misc/interactive-terminal-remaining-work.md",
+      "suggested_category": "misc",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-18T06:41:43Z",
+      "age_days": 17.86
+    },
+    {
+      "source_path": "docs/infrastructure-improvement-plan.md",
+      "target_path": "docs/plans/infrastructure-improvement-plan.md",
+      "suggested_category": "plans",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-19T09:21:49Z",
+      "age_days": 16.75
+    },
+    {
+      "source_path": "docs/strict-mode-boundaries.md",
+      "target_path": "docs/misc/strict-mode-boundaries.md",
+      "suggested_category": "misc",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-19T09:21:49Z",
+      "age_days": 16.75
+    },
+    {
+      "source_path": "docs/project-description.md",
+      "target_path": "docs/misc/project-description.md",
+      "suggested_category": "misc",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-19T21:36:29Z",
+      "age_days": 16.24
+    },
+    {
+      "source_path": "docs/supervisor-gui-development-log.md",
+      "target_path": "docs/misc/supervisor-gui-development-log.md",
+      "suggested_category": "misc",
+      "status": "ready",
+      "reason": "Top-level file should be grouped by category.",
+      "last_modified_utc": "2026-02-21T22:06:15Z",
+      "age_days": 14.22
+    },
+    {
+      "source_path": "docs/on-demand-provisioning-migration.md",
+      "target_path": "docs/misc/on-demand-provisioning-migration.md",
+      "suggested_category": "misc",
+      "status": "recent_review_needed",
+      "reason": "Recently modified file: review before moving.",
+      "last_modified_utc": "2026-03-01T04:56:13Z",
+      "age_days": 6.94
+    },
+    {
+      "source_path": "docs/recent-changes.md",
+      "target_path": "docs/misc/recent-changes.md",
+      "suggested_category": "misc",
+      "status": "recent_review_needed",
+      "reason": "Recently modified file: review before moving.",
+      "last_modified_utc": "2026-03-01T09:53:32Z",
+      "age_days": 6.73
+    },
+    {
+      "source_path": "docs/system-design-core-functionality.md",
+      "target_path": "docs/architecture/system-design-core-functionality.md",
+      "suggested_category": "architecture",
+      "status": "recent_review_needed",
+      "reason": "Recently modified file: review before moving.",
+      "last_modified_utc": "2026-03-01T09:53:32Z",
+      "age_days": 6.73
+    },
+    {
+      "source_path": "docs/db-reproducibility-package-format.md",
+      "target_path": "docs/misc/db-reproducibility-package-format.md",
+      "suggested_category": "misc",
+      "status": "recent_review_needed",
+      "reason": "Recently modified file: review before moving.",
+      "last_modified_utc": "2026-03-01T18:49:47Z",
+      "age_days": 6.36
+    },
+    {
+      "source_path": "docs/db-rebuild-runbook.md",
+      "target_path": "docs/operations/db-rebuild-runbook.md",
+      "suggested_category": "operations",
+      "status": "recent_review_needed",
+      "reason": "Recently modified file: review before moving.",
+      "last_modified_utc": "2026-03-01T20:53:45Z",
+      "age_days": 6.27
+    },
+    {
+      "source_path": "scripts/preflight-machine.ps1",
+      "target_path": "scripts/misc/preflight-machine.ps1",
+      "suggested_category": "misc",
+      "status": "recent_review_needed",
+      "reason": "Recently modified file: review before moving.",
+      "last_modified_utc": "2026-03-01T20:53:45Z",
+      "age_days": 6.27
+    },
+    {
+      "source_path": "scripts/integration-harness-run-summary.ps1",
+      "target_path": "scripts/test/integration-harness-run-summary.ps1",
+      "suggested_category": "test",
+      "status": "recent_review_needed",
+      "reason": "Recently modified file: review before moving.",
+      "last_modified_utc": "2026-03-03T11:20:45Z",
+      "age_days": 4.67
+    },
+    {
+      "source_path": "scripts/integration-harness-event-aggregate.ps1",
+      "target_path": "scripts/test/integration-harness-event-aggregate.ps1",
+      "suggested_category": "test",
+      "status": "recent_review_needed",
+      "reason": "Recently modified file: review before moving.",
+      "last_modified_utc": "2026-03-03T18:14:19Z",
+      "age_days": 4.38
+    },
+    {
+      "source_path": "scripts/integration-harness-health-timeline.ps1",
+      "target_path": "scripts/test/integration-harness-health-timeline.ps1",
+      "suggested_category": "test",
+      "status": "recent_review_needed",
+      "reason": "Recently modified file: review before moving.",
+      "last_modified_utc": "2026-03-03T18:14:19Z",
+      "age_days": 4.38
+    },
+    {
+      "source_path": "scripts/integration-harness-recovery-assertions.ps1",
+      "target_path": "scripts/test/integration-harness-recovery-assertions.ps1",
+      "suggested_category": "test",
+      "status": "recent_review_needed",
+      "reason": "Recently modified file: review before moving.",
+      "last_modified_utc": "2026-03-04T00:30:12Z",
+      "age_days": 4.12
+    },
+    {
+      "source_path": "scripts/integration-harness-fault-runner.ps1",
+      "target_path": "scripts/test/integration-harness-fault-runner.ps1",
+      "suggested_category": "test",
+      "status": "recent_review_needed",
+      "reason": "Recently modified file: review before moving.",
+      "last_modified_utc": "2026-03-04T09:47:37Z",
+      "age_days": 3.74
+    },
+    {
+      "source_path": "scripts/integration-harness-extension-reconnect.ps1",
+      "target_path": "scripts/test/integration-harness-extension-reconnect.ps1",
+      "suggested_category": "test",
+      "status": "recent_review_needed",
+      "reason": "Recently modified file: review before moving.",
+      "last_modified_utc": "2026-03-04T10:13:22Z",
+      "age_days": 3.72
+    },
+    {
+      "source_path": "scripts/integration-harness-extension-headless.ps1",
+      "target_path": "scripts/test/integration-harness-extension-headless.ps1",
+      "suggested_category": "test",
+      "status": "recent_review_needed",
+      "reason": "Recently modified file: review before moving.",
+      "last_modified_utc": "2026-03-05T02:46:45Z",
+      "age_days": 3.03
+    },
+    {
+      "source_path": "scripts/integration-harness-lifecycle.ps1",
+      "target_path": "scripts/test/integration-harness-lifecycle.ps1",
+      "suggested_category": "test",
+      "status": "recent_review_needed",
+      "reason": "Recently modified file: review before moving.",
+      "last_modified_utc": "2026-03-05T02:46:45Z",
+      "age_days": 3.03
+    },
+    {
+      "source_path": "scripts/integration-harness-matrix.ps1",
+      "target_path": "scripts/test/integration-harness-matrix.ps1",
+      "suggested_category": "test",
+      "status": "recent_review_needed",
+      "reason": "Recently modified file: review before moving.",
+      "last_modified_utc": "2026-03-05T02:46:45Z",
+      "age_days": 3.03
+    },
+    {
+      "source_path": "scripts/integration-harness-readiness.ps1",
+      "target_path": "scripts/test/integration-harness-readiness.ps1",
+      "suggested_category": "test",
+      "status": "recent_review_needed",
+      "reason": "Recently modified file: review before moving.",
+      "last_modified_utc": "2026-03-05T02:46:45Z",
+      "age_days": 3.03
+    },
+    {
+      "source_path": "scripts/fix-workspace-ports.ps1",
+      "target_path": "scripts/maintenance/fix-workspace-ports.ps1",
+      "suggested_category": "maintenance",
+      "status": "recent_review_needed",
+      "reason": "Recently modified file: review before moving.",
+      "last_modified_utc": "2026-03-06T03:25:04Z",
+      "age_days": 2.0
+    },
+    {
+      "source_path": "docs/issue_outline-performance_effects.md",
+      "target_path": "docs/misc/issue_outline-performance_effects.md",
+      "suggested_category": "misc",
+      "status": "recent_review_needed",
+      "reason": "Recently modified file: review before moving.",
+      "last_modified_utc": "2026-03-06T14:13:33Z",
+      "age_days": 1.55
+    },
+    {
+      "source_path": "docs/issue_outline.md",
+      "target_path": "docs/misc/issue_outline.md",
+      "suggested_category": "misc",
+      "status": "recent_review_needed",
+      "reason": "Recently modified file: review before moving.",
+      "last_modified_utc": "2026-03-06T14:13:33Z",
+      "age_days": 1.55
+    },
+    {
+      "source_path": "docs/utility-scripts-reference.md",
+      "target_path": "docs/reference/utility-scripts-reference.md",
+      "suggested_category": "reference",
+      "status": "recent_review_needed",
+      "reason": "Recently modified file: review before moving.",
+      "last_modified_utc": "2026-03-08T03:26:11Z",
+      "age_days": 0.0
+    }
+  ]
+}

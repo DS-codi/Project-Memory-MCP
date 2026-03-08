@@ -25,7 +25,8 @@ See also:
 from __future__ import annotations
 
 import enum
-from dataclasses import dataclass, field
+import json
+from dataclasses import dataclass
 from typing import Any, Optional
 
 
@@ -142,6 +143,178 @@ class NormalizationConfig:
 DEFAULT_NORMALIZATION_CONFIG = NormalizationConfig()
 
 
+_GENERIC_REQUIRED_ARRAY_PATHS: tuple[tuple[str, ...], ...] = (
+    ("files",),
+    ("symbols",),
+    ("references",),
+    ("architecture_edges",),
+    ("module_graph", "nodes"),
+    ("module_graph", "edges"),
+    ("dependency_flow", "tiers"),
+    ("dependency_flow", "entry_points"),
+    ("datasources",),
+    ("tables",),
+    ("columns",),
+    ("constraints",),
+    ("relations",),
+    ("query_touchpoints",),
+    ("migration_lineage", "migration_files"),
+)
+
+_QUERY_REQUIRED_ARRAY_PATHS: dict[str, tuple[tuple[str, ...], ...]] = {
+    "summary": (
+        ("workspace", "languages"),
+        ("summary", "architecture_layers"),
+        ("summary", "language_breakdown"),
+    ),
+    "file_context": (
+        ("symbols",),
+        ("references",),
+    ),
+    "flow_entry_points": (
+        ("entry_points",),
+        ("tiers",),
+        ("cycles",),
+    ),
+    "layer_view": (
+        ("layers",),
+        ("nodes",),
+        ("edges",),
+    ),
+    "search": (
+        ("results",),
+    ),
+    "slice_detail": (
+        ("nodes",),
+        ("edges",),
+    ),
+    "slice_projection": (
+        ("projected_nodes",),
+        ("projected_edges",),
+    ),
+    "slice_filters": (
+        ("filters",),
+        ("available_types",),
+    ),
+}
+
+_SECTION_PARTIAL_KEYS: tuple[str, ...] = (
+    "code_cartography",
+    "database_cartography",
+    "detail",
+    "projection_summary",
+)
+
+
+def _normalize_query_kind(output: dict[str, Any]) -> str:
+    value = output.get("query")
+    if isinstance(value, str):
+        return value.strip().lower()
+    return ""
+
+
+def _coerce_sort_value(value: Any) -> Any:
+    if value is None:
+        return ""
+    if isinstance(value, (str, int, float, bool)):
+        return value
+    return json.dumps(value, sort_keys=True, ensure_ascii=True, default=str)
+
+
+def _get_path(container: dict[str, Any], path: tuple[str, ...]) -> Any:
+    current: Any = container
+    for key in path:
+        if not isinstance(current, dict):
+            return None
+        current = current.get(key)
+    return current
+
+
+def _ensure_array_path(
+    container: dict[str, Any],
+    path: tuple[str, ...],
+    *,
+    create_missing_containers: bool,
+) -> None:
+    current: Any = container
+    for key in path[:-1]:
+        if not isinstance(current, dict):
+            return
+
+        next_value = current.get(key)
+        if next_value is None:
+            if not create_missing_containers:
+                return
+            next_value = {}
+            current[key] = next_value
+        elif not isinstance(next_value, dict):
+            if not create_missing_containers:
+                return
+            next_value = {}
+            current[key] = next_value
+
+        current = next_value
+
+    if not isinstance(current, dict):
+        return
+
+    leaf_key = path[-1]
+    leaf_value = current.get(leaf_key)
+    if not isinstance(leaf_value, list):
+        current[leaf_key] = []
+
+
+def _sort_array_path(
+    container: dict[str, Any],
+    path: tuple[str, ...],
+    *,
+    object_keys: Optional[tuple[str, ...]] = None,
+) -> None:
+    values = _get_path(container, path)
+    if not isinstance(values, list) or len(values) < 2:
+        return
+
+    if all(not isinstance(item, dict) for item in values):
+        values.sort(key=_coerce_sort_value)
+        return
+
+    if object_keys is None:
+        values.sort(key=lambda item: _coerce_sort_value(item))
+        return
+
+    values.sort(
+        key=lambda item: (
+            tuple(_coerce_sort_value(item.get(key)) for key in object_keys)
+            if isinstance(item, dict)
+            else (_coerce_sort_value(item),)
+        )
+    )
+
+
+def _is_valid_symbol_identity(value: Any) -> bool:
+    if not isinstance(value, str) or "::" not in value:
+        return False
+
+    file_part, symbol_part = value.split("::", 1)
+    if not file_part or not symbol_part:
+        return False
+    if file_part.startswith("/") or file_part.startswith("./"):
+        return False
+    if "\\" in file_part:
+        return False
+    return True
+
+
+def _new_identity_warning(path: str, field_name: str, value: Any) -> dict[str, Any]:
+    return {
+        "code": DiagnosticCode.SYMBOL_PARSE_ERROR.value,
+        "severity": "warning",
+        "path": path,
+        "field": field_name,
+        "message": f"Malformed identity key in '{field_name}': {value!r}",
+    }
+
+
 # ---------------------------------------------------------------------------
 # normalize() — main normalization entry point
 # ---------------------------------------------------------------------------
@@ -169,17 +342,43 @@ def normalize(output: dict, config: Optional[NormalizationConfig] = None) -> dic
     Returns:
         The normalized output dict.
 
-    TODO: Implement each step. Current stub returns output unchanged.
+    Normalization is intentionally non-throwing. Failures are represented as
+    diagnostics on the output so callers can emit structured warnings/errors
+    without dropping otherwise usable payload data.
     """
     if config is None:
         config = DEFAULT_NORMALIZATION_CONFIG
 
-    # TODO: implement normalization passes
+    if not isinstance(output, dict):
+        return output
+
+    normalization_diagnostics: list[dict[str, Any]] = []
+
     # Step 1: enforce empty arrays
+    if config.enforce_empty_arrays:
+        _enforce_empty_arrays(output)
+
     # Step 2: propagate partial flag
+    if config.propagate_partial_flag:
+        _propagate_partial_flag(output)
+
     # Step 3: enforce ordering
+    if config.enforce_ordering:
+        _enforce_ordering(output)
+
     # Step 4: validate identity keys
-    # Step 5: redact secrets
+    if config.enforce_identity_key_format:
+        normalization_diagnostics.extend(_validate_identity_keys(output))
+
+    # Step 5: redact secrets (wired separately; currently no-op)
+
+    if normalization_diagnostics:
+        existing = output.get("_normalization_diagnostics")
+        if isinstance(existing, list):
+            existing.extend(normalization_diagnostics)
+        else:
+            output["_normalization_diagnostics"] = normalization_diagnostics
+
     return output
 
 
@@ -194,8 +393,14 @@ def _enforce_empty_arrays(output: dict) -> None:
     Mutates output in place.
     TODO: implement
     """
-    # TODO: implement — walk required array paths and replace None/missing with []
-    raise NotImplementedError("_enforce_empty_arrays not yet implemented")
+    query_kind = _normalize_query_kind(output)
+
+    for path in _GENERIC_REQUIRED_ARRAY_PATHS:
+        _ensure_array_path(output, path, create_missing_containers=False)
+
+    query_paths = _QUERY_REQUIRED_ARRAY_PATHS.get(query_kind, ())
+    for path in query_paths:
+        _ensure_array_path(output, path, create_missing_containers=True)
 
 
 def _propagate_partial_flag(output: dict) -> None:
@@ -204,8 +409,22 @@ def _propagate_partial_flag(output: dict) -> None:
     Mutates output in place.
     TODO: implement
     """
-    # TODO: implement
-    raise NotImplementedError("_propagate_partial_flag not yet implemented")
+    generation_metadata = output.get("generation_metadata")
+    is_partial = bool(output.get("partial"))
+    if isinstance(generation_metadata, dict) and bool(generation_metadata.get("partial")):
+        is_partial = True
+
+    if not is_partial:
+        return
+
+    output["partial"] = True
+    if isinstance(generation_metadata, dict):
+        generation_metadata["partial"] = True
+
+    for section_key in _SECTION_PARTIAL_KEYS:
+        section = output.get(section_key)
+        if isinstance(section, dict):
+            section.setdefault("partial", True)
 
 
 def _enforce_ordering(output: dict) -> None:
@@ -214,8 +433,55 @@ def _enforce_ordering(output: dict) -> None:
     Mutates output in place.
     TODO: implement — apply sort key tuples per array field
     """
-    # TODO: implement
-    raise NotImplementedError("_enforce_ordering not yet implemented")
+    # Generic paths used by full section payloads.
+    _sort_array_path(output, ("files",), object_keys=("path",))
+    _sort_array_path(output, ("symbols",), object_keys=("file", "start_line", "name"))
+    _sort_array_path(output, ("references",), object_keys=("from_file", "from_line", "to_file"))
+    _sort_array_path(output, ("architecture_edges",), object_keys=("from_module", "to_module"))
+    _sort_array_path(output, ("module_graph", "nodes"))
+    _sort_array_path(output, ("module_graph", "edges"), object_keys=("from", "to"))
+    _sort_array_path(output, ("dependency_flow", "entry_points"))
+
+    tiers = _get_path(output, ("dependency_flow", "tiers"))
+    if isinstance(tiers, list):
+        for tier in tiers:
+            if isinstance(tier, list):
+                tier.sort(key=_coerce_sort_value)
+
+    query_kind = _normalize_query_kind(output)
+    if query_kind == "summary":
+        _sort_array_path(output, ("workspace", "languages"))
+        _sort_array_path(output, ("summary", "architecture_layers"))
+        _sort_array_path(output, ("summary", "language_breakdown"), object_keys=("language",))
+    elif query_kind == "flow_entry_points":
+        _sort_array_path(output, ("entry_points",))
+        _sort_array_path(output, ("tiers",))
+        _sort_array_path(output, ("cycles",))
+        tiers_value = output.get("tiers")
+        if isinstance(tiers_value, list):
+            for tier in tiers_value:
+                if isinstance(tier, list):
+                    tier.sort(key=_coerce_sort_value)
+        cycles_value = output.get("cycles")
+        if isinstance(cycles_value, list):
+            for cycle in cycles_value:
+                if isinstance(cycle, list):
+                    cycle.sort(key=_coerce_sort_value)
+    elif query_kind == "layer_view":
+        _sort_array_path(output, ("layers",), object_keys=("id", "name"))
+        _sort_array_path(output, ("nodes",))
+        _sort_array_path(output, ("edges",), object_keys=("from", "to"))
+    elif query_kind == "search":
+        _sort_array_path(output, ("results",), object_keys=("type", "path", "file", "name", "line"))
+    elif query_kind == "slice_detail":
+        _sort_array_path(output, ("nodes",))
+        _sort_array_path(output, ("edges",), object_keys=("from", "to"))
+    elif query_kind == "slice_projection":
+        _sort_array_path(output, ("projected_nodes",))
+        _sort_array_path(output, ("projected_edges",), object_keys=("from", "to"))
+    elif query_kind == "slice_filters":
+        _sort_array_path(output, ("filters",), object_keys=("id", "name", "value"))
+        _sort_array_path(output, ("available_types",))
 
 
 def _validate_identity_keys(output: dict) -> list[dict]:
@@ -224,5 +490,38 @@ def _validate_identity_keys(output: dict) -> list[dict]:
     Does not mutate output.
     TODO: implement
     """
-    # TODO: implement — check format patterns for all entity id fields
-    raise NotImplementedError("_validate_identity_keys not yet implemented")
+    diagnostics: list[dict[str, Any]] = []
+
+    symbols = output.get("symbols")
+    if isinstance(symbols, list):
+        for symbol in symbols:
+            if not isinstance(symbol, dict):
+                continue
+            symbol_id = symbol.get("id")
+            if _is_valid_symbol_identity(symbol_id):
+                continue
+            diagnostics.append(
+                _new_identity_warning(
+                    path=str(symbol.get("file") or ""),
+                    field_name="symbols[].id",
+                    value=symbol_id,
+                )
+            )
+
+    references = output.get("references")
+    if isinstance(references, list):
+        for reference in references:
+            if not isinstance(reference, dict):
+                continue
+            to_symbol_id = reference.get("to_symbol_id")
+            if _is_valid_symbol_identity(to_symbol_id):
+                continue
+            diagnostics.append(
+                _new_identity_warning(
+                    path=str(reference.get("from_file") or ""),
+                    field_name="references[].to_symbol_id",
+                    value=to_symbol_id,
+                )
+            )
+
+    return diagnostics

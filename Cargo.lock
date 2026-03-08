@@ -1310,6 +1310,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "pm-install-gui"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "cxx",
+ "cxx-qt",
+ "cxx-qt-build",
+ "cxx-qt-lib",
+ "pm-gui-forms",
+ "serde",
+ "serde_json",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "portable-pty"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

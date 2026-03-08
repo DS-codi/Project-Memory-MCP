@@ -82,6 +82,7 @@
   var wsUrl = 'ws://' + window.location.host + '/ws';
   var ws = null;
   var reconnectTimer = null;
+  var resizeDebounceTimer = null;
   var suggestionsEl = document.getElementById('suggestions');
   var commandHistory = [];
   var currentInput = '';
@@ -92,6 +93,11 @@
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(data);
     }
+  }
+
+  function sendResizeDebounced() {
+    if (resizeDebounceTimer) clearTimeout(resizeDebounceTimer);
+    resizeDebounceTimer = setTimeout(sendResize, 80);
   }
 
   function updateInputBuffer(data) {
@@ -216,8 +222,10 @@
     ws.binaryType = 'arraybuffer';
 
     ws.onopen = function() {
-      term.write('\x1b[32mConnected to shell\x1b[0m\r\n');
-      sendResize();
+      // Clear any stale content from a previous session so TUI apps (e.g.
+      // Gemini CLI) always draw onto a blank canvas after a reconnect.
+      term.clear();
+      sendResizeDebounced();
     };
 
     ws.onmessage = function(evt) {
@@ -297,9 +305,11 @@
   });
 
   // Keep xterm sized to fill the container.
+  // Debounce both sources so Gemini/Copilot CLI only get a single SIGWINCH
+  // even when ResizeObserver and ws.onopen fire in quick succession.
   var resizeObserver = new ResizeObserver(function() {
     fitAddon.fit();
-    sendResize();
+    sendResizeDebounced();
     if (suggestionItems.length) {
       positionSuggestions();
     }
@@ -308,7 +318,7 @@
 
   window.addEventListener('resize', function() {
     fitAddon.fit();
-    sendResize();
+    sendResizeDebounced();
     if (suggestionItems.length) {
       positionSuggestions();
     }

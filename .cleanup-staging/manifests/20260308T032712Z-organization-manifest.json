@@ -1,0 +1,303 @@
+{
+  "run_id": "20260308T032712Z",
+  "generated_at_utc": "2026-03-08T03:27:12Z",
+  "root": "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP",
+  "apply_changes": false,
+  "include_recent": false,
+  "items": [
+    {
+      "source_path": "docs/VSCODE_EXTENSION_SETUP.md",
+      "target_path": "docs/operations/VSCODE_EXTENSION_SETUP.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/CHAT_INTEGRATION.md",
+      "target_path": "docs/history/CHAT_INTEGRATION.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/FIX_SERVER_NOT_FOUND_ERRORS.md",
+      "target_path": "docs/misc/FIX_SERVER_NOT_FOUND_ERRORS.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/fromdsdecoder.md",
+      "target_path": "docs/misc/fromdsdecoder.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/promptfrom12-02-2026.txt",
+      "target_path": "docs/misc/promptfrom12-02-2026.txt",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/integrated-programs.md",
+      "target_path": "docs/misc/integrated-programs.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/skills-system.md",
+      "target_path": "docs/misc/skills-system.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/worker-agent.md",
+      "target_path": "docs/misc/worker-agent.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/dynamic-prompt-system.md",
+      "target_path": "docs/misc/dynamic-prompt-system.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/add2planpls.md",
+      "target_path": "docs/plans/add2planpls.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/build-scripts-schema.md",
+      "target_path": "docs/architecture/build-scripts-schema.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/build-scripts-user-guide.md",
+      "target_path": "docs/operations/build-scripts-user-guide.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/builder-agent.md",
+      "target_path": "docs/misc/builder-agent.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/manual-testing-checklist.md",
+      "target_path": "docs/reports/manual-testing-checklist.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/mcp-tools-build-scripts.md",
+      "target_path": "docs/misc/mcp-tools-build-scripts.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/tdd-driver.md",
+      "target_path": "docs/misc/tdd-driver.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/report-HighPerformantGraphics.md",
+      "target_path": "docs/reports/report-HighPerformantGraphics.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/interactive-terminal-contract-unification-design.md",
+      "target_path": "docs/architecture/interactive-terminal-contract-unification-design.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/interactive-terminal-operator-troubleshooting.md",
+      "target_path": "docs/operations/interactive-terminal-operator-troubleshooting.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/mcp-terminal-tool-consolidation-phase1-contract-routing.md",
+      "target_path": "docs/architecture/mcp-terminal-tool-consolidation-phase1-contract-routing.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/phase4-live-proof-issue-summary.md",
+      "target_path": "docs/reports/phase4-live-proof-issue-summary.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/system-overview-executive-summary.md",
+      "target_path": "docs/reports/system-overview-executive-summary.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/system-overview.md",
+      "target_path": "docs/misc/system-overview.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/interactive-terminal-remaining-work.md",
+      "target_path": "docs/misc/interactive-terminal-remaining-work.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/infrastructure-improvement-plan.md",
+      "target_path": "docs/plans/infrastructure-improvement-plan.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/strict-mode-boundaries.md",
+      "target_path": "docs/misc/strict-mode-boundaries.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/project-description.md",
+      "target_path": "docs/misc/project-description.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/supervisor-gui-development-log.md",
+      "target_path": "docs/misc/supervisor-gui-development-log.md",
+      "status": "preview",
+      "reason": "Top-level file should be grouped by category."
+    },
+    {
+      "source_path": "docs/on-demand-provisioning-migration.md",
+      "target_path": "docs/misc/on-demand-provisioning-migration.md",
+      "status": "skipped_recent_review_needed",
+      "reason": "Recently modified file: review before moving."
+    },
+    {
+      "source_path": "docs/recent-changes.md",
+      "target_path": "docs/misc/recent-changes.md",
+      "status": "skipped_recent_review_needed",
+      "reason": "Recently modified file: review before moving."
+    },
+    {
+      "source_path": "docs/system-design-core-functionality.md",
+      "target_path": "docs/architecture/system-design-core-functionality.md",
+      "status": "skipped_recent_review_needed",
+      "reason": "Recently modified file: review before moving."
+    },
+    {
+      "source_path": "docs/db-reproducibility-package-format.md",
+      "target_path": "docs/misc/db-reproducibility-package-format.md",
+      "status": "skipped_recent_review_needed",
+      "reason": "Recently modified file: review before moving."
+    },
+    {
+      "source_path": "docs/db-rebuild-runbook.md",
+      "target_path": "docs/operations/db-rebuild-runbook.md",
+      "status": "skipped_recent_review_needed",
+      "reason": "Recently modified file: review before moving."
+    },
+    {
+      "source_path": "scripts/preflight-machine.ps1",
+      "target_path": "scripts/misc/preflight-machine.ps1",
+      "status": "skipped_recent_review_needed",
+      "reason": "Recently modified file: review before moving."
+    },
+    {
+      "source_path": "scripts/integration-harness-run-summary.ps1",
+      "target_path": "scripts/test/integration-harness-run-summary.ps1",
+      "status": "skipped_recent_review_needed",
+      "reason": "Recently modified file: review before moving."
+    },
+    {
+      "source_path": "scripts/integration-harness-event-aggregate.ps1",
+      "target_path": "scripts/test/integration-harness-event-aggregate.ps1",
+      "status": "skipped_recent_review_needed",
+      "reason": "Recently modified file: review before moving."
+    },
+    {
+      "source_path": "scripts/integration-harness-health-timeline.ps1",
+      "target_path": "scripts/test/integration-harness-health-timeline.ps1",
+      "status": "skipped_recent_review_needed",
+      "reason": "Recently modified file: review before moving."
+    },
+    {
+      "source_path": "scripts/integration-harness-recovery-assertions.ps1",
+      "target_path": "scripts/test/integration-harness-recovery-assertions.ps1",
+      "status": "skipped_recent_review_needed",
+      "reason": "Recently modified file: review before moving."
+    },
+    {
+      "source_path": "scripts/integration-harness-fault-runner.ps1",
+      "target_path": "scripts/test/integration-harness-fault-runner.ps1",
+      "status": "skipped_recent_review_needed",
+      "reason": "Recently modified file: review before moving."
+    },
+    {
+      "source_path": "scripts/integration-harness-extension-reconnect.ps1",
+      "target_path": "scripts/test/integration-harness-extension-reconnect.ps1",
+      "status": "skipped_recent_review_needed",
+      "reason": "Recently modified file: review before moving."
+    },
+    {
+      "source_path": "scripts/integration-harness-extension-headless.ps1",
+      "target_path": "scripts/test/integration-harness-extension-headless.ps1",
+      "status": "skipped_recent_review_needed",
+      "reason": "Recently modified file: review before moving."
+    },
+    {
+      "source_path": "scripts/integration-harness-lifecycle.ps1",
+      "target_path": "scripts/test/integration-harness-lifecycle.ps1",
+      "status": "skipped_recent_review_needed",
+      "reason": "Recently modified file: review before moving."
+    },
+    {
+      "source_path": "scripts/integration-harness-matrix.ps1",
+      "target_path": "scripts/test/integration-harness-matrix.ps1",
+      "status": "skipped_recent_review_needed",
+      "reason": "Recently modified file: review before moving."
+    },
+    {
+      "source_path": "scripts/integration-harness-readiness.ps1",
+      "target_path": "scripts/test/integration-harness-readiness.ps1",
+      "status": "skipped_recent_review_needed",
+      "reason": "Recently modified file: review before moving."
+    },
+    {
+      "source_path": "scripts/fix-workspace-ports.ps1",
+      "target_path": "scripts/maintenance/fix-workspace-ports.ps1",
+      "status": "skipped_recent_review_needed",
+      "reason": "Recently modified file: review before moving."
+    },
+    {
+      "source_path": "docs/issue_outline-performance_effects.md",
+      "target_path": "docs/misc/issue_outline-performance_effects.md",
+      "status": "skipped_recent_review_needed",
+      "reason": "Recently modified file: review before moving."
+    },
+    {
+      "source_path": "docs/issue_outline.md",
+      "target_path": "docs/misc/issue_outline.md",
+      "status": "skipped_recent_review_needed",
+      "reason": "Recently modified file: review before moving."
+    },
+    {
+      "source_path": "docs/utility-scripts-reference.md",
+      "target_path": "docs/reference/utility-scripts-reference.md",
+      "status": "skipped_recent_review_needed",
+      "reason": "Recently modified file: review before moving."
+    }
+  ],
+  "summary": {
+    "total_items": 48,
+    "moved_count": 0,
+    "preview_count": 28,
+    "skipped_count": 20
+  }
+}

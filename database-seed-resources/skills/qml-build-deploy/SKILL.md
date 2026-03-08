@@ -1,6 +1,6 @@
 ---
 name: qml-build-deploy
-description: Use this skill when creating build scripts for applications that use QML files and require Qt DLL deployment. Covers windeployqt usage, comprehensive DLL verification, fallback copy strategies, QML module directory checks, platform plugin deployment, QRC resource path conventions, and PowerShell build script patterns for Rust+CxxQt and PySide6+QML projects on Windows.
+description: Use this skill when creating build scripts for applications that use QML files and require Qt DLL deployment. Covers windeployqt usage, qmllint pre-build validation, comprehensive DLL verification, fallback copy strategies, QML module directory checks, platform plugin deployment, QRC resource path conventions, Qt stderr logging setup, and PowerShell build script patterns for Rust+CxxQt and PySide6+QML projects on Windows.
 metadata:
   category: devops
   tags:
@@ -311,30 +311,176 @@ if let Some(engine) = engine.as_mut() {
 eprintln!("QML engine loaded — checking for root objects...");
 ```
 
+## QML Validation with qmllint (Pre-Build)
+
+`qmllint` ships with every Qt installation (`$QtDir\bin\qmllint.exe`) and catches QML errors **before** compiling anything. Always run it as the first build step.
+
+### Why This Matters
+
+QML errors that crash the engine at runtime produce no output on Windows by default (they go to `OutputDebugString`, invisible in a terminal). `qmllint` catches them at build time with precise file+line information.
+
+**Real example**: a `Layout.fillWidth` property used inside a `Row` instead of `RowLayout` caused `QQmlApplicationEngine failed to load component` with no visible output at runtime — qmllint would have caught it immediately with `Non-existent attached object`.
+
+### The `-I` Flag (Import Path)
+
+`qmllint` needs to know where to find QML modules. Always pass:
+- `-I $qtQmlRoot` — the Qt installation's QML modules (`$QtDir\qml`)
+- `-I $qmlSourceDir` — your project's own QML directory
+
+```powershell
+# ✅ Correct flags (Qt 6.x)
+& $qmllintPath -I $qtQmlRoot -I $qmlSourceDir @qmlFiles
+
+# ❌ Wrong — older flag name, rejected by Qt 6.x
+& $qmllintPath --import-path $qtQmlRoot ...
+```
+
+### Exit Codes
+
+| Exit Code | Meaning |
+|-----------|--------|
+| 0 | No issues |
+| 1 | Warnings only (non-fatal — build can continue) |
+| 2+ | Errors — QML will fail at runtime, abort the build |
+
+### Build Script Function
+
+```powershell
+function Invoke-QmlLint {
+    param([string]$PackageName, [switch]$Verbose, [string]$LogFile = '')
+
+    $qmllintPath = Join-Path $qtBin 'qmllint.exe'
+    if (-not (Test-Path $qmllintPath)) {
+        Write-Warning "qmllint.exe not found — skipping QML validation"
+        return $true
+    }
+
+    $qmlDir   = Join-Path $scriptDir "$PackageName\qml"
+    $qmlFiles = @(Get-ChildItem $qmlDir -Filter '*.qml' -Recurse -File |
+                    Where-Object { $_.FullName -notmatch '\\tests\\' })
+    if ($qmlFiles.Count -eq 0) { return $true }
+
+    Write-Host "  Running qmllint on $($qmlFiles.Count) QML files..." -ForegroundColor Gray
+
+    $output   = & $qmllintPath -I $qtQmlRoot -I $qmlDir ($qmlFiles.FullName) 2>&1
+    $exitCode = $LASTEXITCODE
+
+    $errors   = @($output | Where-Object { $_ -match ': Error' })
+    $warnings = @($output | Where-Object { $_ -match ': Warning' })
+
+    if ($LogFile -ne '') { $output | Out-File $LogFile -Encoding utf8 -Append }
+
+    # Always print errors; print warnings only when verbose
+    if ($errors.Count -gt 0 -or $Verbose) {
+        $output | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object {
+            $color = if ($_ -match ': Error') { 'Red' } elseif ($_ -match ': Warning') { 'Yellow' } else { 'Gray' }
+            Write-Host "  $_" -ForegroundColor $color
+        }
+    }
+
+    if ($exitCode -ge 2 -or $errors.Count -gt 0) {
+        Write-Host "  [XX] QML lint: $($errors.Count) error(s) — fix before building" -ForegroundColor Red
+        if (-not $Verbose) { Write-Host "  Re-run with -LintVerbose to see all details" -ForegroundColor Gray }
+        return $false
+    }
+    if ($warnings.Count -gt 0) {
+        Write-Host "  [!!] QML lint: $($warnings.Count) warning(s) in $($qmlFiles.Count) files (non-fatal)" -ForegroundColor Yellow
+    } else {
+        Write-Host "  [OK] QML lint passed ($($qmlFiles.Count) files, no issues)" -ForegroundColor Green
+    }
+    return $true
+}
+```
+
+### Calling the Lint Step
+
+Place the lint step **before** any `cargo build` / compilation call:
+
+```powershell
+# Params to expose
+param(
+    [switch]$LintVerbose,
+    [string]$LintLog = ''
+)
+
+# Kill any running instances first (exe is locked on Windows)
+$packages | ForEach-Object {
+    Get-Process -Name ($_ -replace '\.exe$', '') -ErrorAction SilentlyContinue | Stop-Process -Force
+}
+
+# Lint before compile
+Write-Host '=== QML Validation ===' -ForegroundColor Cyan
+$lintOk = $true
+foreach ($pkg in $packages) {
+    if (-not (Invoke-QmlLint -PackageName $pkg -Verbose:$LintVerbose -LogFile $LintLog)) {
+        $lintOk = $false
+    }
+}
+if (-not $lintOk) { exit 1 }
+
+# Now compile
+cargo build --release ...
+```
+
+### Common qmllint Errors and Fixes
+
+| qmllint Output | Root Cause | Fix |
+|----------------|-----------|-----|
+| `Non-existent attached object` | `Layout.*` property on a non-Layout child (e.g., inside `Row` instead of `RowLayout`) | Change `Row` → `RowLayout` and add `import QtQuick.Layouts` |
+| `Unqualified access` | Accessing outer component ID from inside a `delegate` without `pragma ComponentBehavior: Bound` | Add `pragma ComponentBehavior: Bound` or qualify the access with an explicit ID |
+| `Member "X" not found on type "Y"` | Calling a property/method that doesn't exist on that type | Check the Qt docs — e.g., `HoverHandler` has no `containsMouse`, use `MouseArea` instead |
+| `Detected width/height on item managed by layout` | Setting `width`/`height` directly on a `RowLayout`/`ColumnLayout` child | Use `Layout.preferredWidth`/`Layout.preferredHeight` instead |
+| `Type X unavailable` (in parent file) | A child component has errors preventing it from loading | Fix the errors reported for the child file first |
+| `Property value set multiple times` | Duplicate property binding (e.g., two `Component.onCompleted` on same object) | QML only allows one handler per signal per object — merge them |
+
 ## Debugging Qt Runtime Failures
 
 When a QML app compiles but shows no window, use these environment variables to get diagnostics.
 
+### Force Qt Errors to stderr (Critical — Do This First)
+
+On Windows, Qt sends all log output to `OutputDebugString` by default, which is invisible in a terminal. Set this **inside the app at startup** so errors are always visible:
+
+```rust
+// In main() — set BEFORE QGuiApplication::new()
+std::env::set_var("QT_FORCE_STDERR_LOGGING", "1");
+```
+
+Without this, `QQmlApplicationEngine failed to load component` and all QML errors are completely silent — the app just exits with code 1 and no output.
+
 ### Debug Environment Variables
 
 ```powershell
+$env:QT_FORCE_STDERR_LOGGING = '1'   # Route ALL Qt log output to stderr (do this always)
 $env:QT_DEBUG_PLUGINS = '1'          # Verbose plugin loading (qwindows.dll, etc.)
-$env:QML_IMPORT_TRACE = '1'          # Trace every QML import resolution
-$env:QT_LOGGING_RULES = '*.debug=true'  # Full Qt debug logging (very verbose)
+$env:QML_IMPORT_TRACE = '1'          # Trace every QML import resolution (very verbose)
+$env:QT_LOGGING_RULES = 'qt.qml.import=false'  # Suppress import trace noise while keeping errors
 ```
 
 ### Diagnostic Launch Pattern
 
 ```powershell
-# Capture stderr (where Qt writes diagnostics) to a log file
-$proc = Start-Process -FilePath $exePath -ArgumentList '--debug' `
-    -RedirectStandardError 'qt_debug.log' `
+# Capture stderr to a log file, suppress import trace noise
+$env:QT_FORCE_STDERR_LOGGING = '1'
+$env:QT_LOGGING_RULES = 'qt.qml.import=false;qt.qml.diskcache=false'
+
+$proc = Start-Process -FilePath $exePath `
+    -RedirectStandardOutput 'qt_stdout.log' `
+    -RedirectStandardError  'qt_stderr.log' `
     -PassThru -NoNewWindow
 
 Start-Sleep -Seconds 5
-$proc | Stop-Process -Force -ErrorAction SilentlyContinue
-Get-Content 'qt_debug.log'
+if (-not $proc.HasExited) { $proc | Stop-Process -Force }
+
+Get-Content 'qt_stdout.log'
+Get-Content 'qt_stderr.log'
 ```
+
+### Reading Large Log Files
+
+`QML_IMPORT_TRACE=1` produces thousands of lines. The relevant errors appear **at the end** of the log. Either:
+1. Use `QT_LOGGING_RULES='qt.qml.import=false'` to suppress import noise, or
+2. Read the tail: `(Get-Content 'qt_stderr.log') | Select-Object -Last 50`
 
 ### Common Error Messages and Fixes
 
@@ -344,8 +490,9 @@ Get-Content 'qt_debug.log'
 | `module "QtQuick" is not installed` | QML module directory missing | Run windeployqt with `--qmldir` or copy `qml\QtQuick` |
 | `Could not find the Qt platform plugin "windows"` | `platforms\qwindows.dll` missing | Copy from `$QtDir\plugins\platforms\` |
 | `Invalid property assignment: "X" is a read-only property` | QML syntax error crashing engine | Fix the QML property assignment |
-| `QQmlApplicationEngine failed to load component` | QML file not found or has errors | Check QRC path + run with `QML_IMPORT_TRACE=1` |
+| `QQmlApplicationEngine failed to load component` | QML file not found or has errors | Check QRC path; run qmllint to find the specific error |
 | `Plugin uses incompatible Qt library` | Mixing debug/release DLLs | Ensure `--release` or `--debug` flag matches build profile |
+| `Type X unavailable` | A QML component file has errors | Fix qmllint errors in that file — it won't load until clean |
 
 ## Complete Build Script Template
 

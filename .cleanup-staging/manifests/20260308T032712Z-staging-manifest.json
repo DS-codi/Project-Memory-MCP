@@ -1,0 +1,99 @@
+{
+  "run_id": "20260308T032712Z",
+  "generated_at_utc": "2026-03-08T03:27:12Z",
+  "root": "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP",
+  "apply_changes": false,
+  "no_immediate_delete": true,
+  "report_source": "2026-03-08T03:27:02Z",
+  "items": [
+    {
+      "path": "archive/legacy-scripts/2026-03-01/docs/_dsdecoder-build-gui.ps1",
+      "proposed_action": "extract_reference_then_stage",
+      "source_exists": true,
+      "destination": ".cleanup-staging/recycle-bin/20260308T032712Z/archive/legacy-scripts/2026-03-01/docs/_dsdecoder-build-gui.ps1",
+      "status": "preview",
+      "reference_extracted": true
+    },
+    {
+      "path": "archive/legacy-scripts/2026-03-01/setup-firewall-rule.ps1",
+      "proposed_action": "extract_reference_then_stage",
+      "source_exists": true,
+      "destination": ".cleanup-staging/recycle-bin/20260308T032712Z/archive/legacy-scripts/2026-03-01/setup-firewall-rule.ps1",
+      "status": "preview",
+      "reference_extracted": true
+    },
+    {
+      "path": "archive/legacy-scripts/2026-03-01/run-container.ps1",
+      "proposed_action": "extract_reference_then_stage",
+      "source_exists": true,
+      "destination": ".cleanup-staging/recycle-bin/20260308T032712Z/archive/legacy-scripts/2026-03-01/run-container.ps1",
+      "status": "preview",
+      "reference_extracted": true
+    },
+    {
+      "path": "archive/legacy-scripts/2026-03-01/huh.ps1",
+      "proposed_action": "extract_reference_then_stage",
+      "source_exists": true,
+      "destination": ".cleanup-staging/recycle-bin/20260308T032712Z/archive/legacy-scripts/2026-03-01/huh.ps1",
+      "status": "preview",
+      "reference_extracted": true
+    },
+    {
+      "path": "archive/legacy-scripts/2026-03-01/start-supervisor-wave-validation.ps1",
+      "proposed_action": "extract_reference_then_stage",
+      "source_exists": true,
+      "destination": ".cleanup-staging/recycle-bin/20260308T032712Z/archive/legacy-scripts/2026-03-01/start-supervisor-wave-validation.ps1",
+      "status": "preview",
+      "reference_extracted": true
+    },
+    {
+      "path": "archive/legacy-scripts/2026-03-01/stop-supervisor.ps1",
+      "proposed_action": "extract_reference_then_stage",
+      "source_exists": true,
+      "destination": ".cleanup-staging/recycle-bin/20260308T032712Z/archive/legacy-scripts/2026-03-01/stop-supervisor.ps1",
+      "status": "preview",
+      "reference_extracted": true
+    },
+    {
+      "path": "archive/legacy-scripts/2026-03-01/run-wave-cohort-validation.ps1",
+      "proposed_action": "extract_reference_then_stage",
+      "source_exists": true,
+      "destination": ".cleanup-staging/recycle-bin/20260308T032712Z/archive/legacy-scripts/2026-03-01/run-wave-cohort-validation.ps1",
+      "status": "preview",
+      "reference_extracted": true
+    },
+    {
+      "path": "archive/legacy-scripts/2026-03-01/build_install.ps1",
+      "proposed_action": "extract_reference_then_stage",
+      "source_exists": true,
+      "destination": ".cleanup-staging/recycle-bin/20260308T032712Z/archive/legacy-scripts/2026-03-01/build_install.ps1",
+      "status": "preview",
+      "reference_extracted": true
+    },
+    {
+      "path": "archive/legacy-scripts/2026-03-01/launch-supervisor.ps1",
+      "proposed_action": "extract_reference_then_stage",
+      "source_exists": true,
+      "destination": ".cleanup-staging/recycle-bin/20260308T032712Z/archive/legacy-scripts/2026-03-01/launch-supervisor.ps1",
+      "status": "preview",
+      "reference_extracted": true
+    },
+    {
+      "path": "scripts/folder_cleanup/cleanup_common.py",
+      "proposed_action": "extract_reference_then_stage",
+      "source_exists": true,
+      "destination": ".cleanup-staging/recycle-bin/20260308T032712Z/scripts/folder_cleanup/cleanup_common.py",
+      "status": "preview",
+      "reference_extracted": true
+    }
+  ],
+  "reference_extract_files": [
+    ".cleanup-staging/reference-extracts/20260308T032712Z-reference-material.md"
+  ],
+  "summary": {
+    "total_items": 10,
+    "staged_count": 0,
+    "preview_count": 10,
+    "skipped_count": 0
+  }
+}

@@ -366,25 +366,21 @@ export function createFallbackRestApp(): Express {
     respondGuiProxyResult(res, result);
   });
 
-  app.get('/api/fallback/runtime/stream-url', (req: Request, res: ExpressResponse) => {
-    const params = new URLSearchParams();
-    if (typeof req.query.component === 'string' && req.query.component.trim().length > 0) {
-      params.set('component', req.query.component.trim());
+  app.get('/api/fallback/runtime/capture', async (_req: Request, res: ExpressResponse) => {
+    const result = await proxySupervisorGuiRequest('/runtime/capture', 'GET');
+    respondGuiProxyResult(res, result);
+  });
+
+  app.put('/api/fallback/runtime/capture', async (req: Request, res: ExpressResponse) => {
+    if (typeof req.body?.enabled !== 'boolean') {
+      respondValidationError(res, 'enabled must be a boolean');
+      return;
     }
 
-    const queryString = params.toString();
-    const baseUrl = resolveSupervisorGuiBaseUrl();
-    const url =
-      queryString.length > 0 ? `${baseUrl}/runtime/stream?${queryString}` : `${baseUrl}/runtime/stream`;
-
-    res.status(200).json({
-      success: true,
-      data: {
-        url,
-      },
-      source: FALLBACK_SOURCE,
-      timestamp: nowIso(),
+    const result = await proxySupervisorGuiRequest('/runtime/capture', 'POST', {
+      enabled: req.body.enabled,
     });
+    respondGuiProxyResult(res, result);
   });
 
   app.post('/api/fallback/workspaces/register', async (req: Request, res: ExpressResponse) => {

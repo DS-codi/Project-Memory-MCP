@@ -466,42 +466,179 @@ describe('Phase B summary + stubs', () => {
 
   const cartographyQueryActions = ['file_context', 'flow_entry_points', 'layer_view', 'search'] as const;
   const architectureSliceActions = ['slice_detail', 'slice_projection', 'slice_filters'] as const;
+  type NonSummaryAction = (typeof cartographyQueryActions)[number] | (typeof architectureSliceActions)[number];
 
-  for (const action of cartographyQueryActions) {
-    it(`cartography_queries/${action} invokes adapter and returns ok envelope`, async () => {
+  const nonSummaryCases: Array<{
+    action: NonSummaryAction;
+    params: Partial<MemoryCartographerParams>;
+    expectedArgs: Record<string, unknown>;
+    unexpectedArgKeys: string[];
+  }> = [
+    {
+      action: 'file_context',
+      params: {
+        file_id: 'src/tools/memory_cartographer.ts',
+        include_symbols: true,
+        include_references: false,
+      },
+      expectedArgs: {
+        query: 'file_context',
+        workspace_path: 'C:/mock/workspace',
+        file_id: 'src/tools/memory_cartographer.ts',
+        include_symbols: true,
+        include_references: false,
+      },
+      unexpectedArgKeys: ['workspace_id', 'search_query', 'projection_type'],
+    },
+    {
+      action: 'flow_entry_points',
+      params: {
+        layer_filter: ['server', 'python-core'],
+        language_filter: ['typescript', 'python'],
+      },
+      expectedArgs: {
+        query: 'flow_entry_points',
+        workspace_path: 'C:/mock/workspace',
+        layer_filter: ['server', 'python-core'],
+        language_filter: ['typescript', 'python'],
+      },
+      unexpectedArgKeys: ['workspace_id', 'file_id', 'search_query'],
+    },
+    {
+      action: 'layer_view',
+      params: {
+        layers: ['orchestration', 'runtime'],
+        depth_limit: 2,
+        include_cross_layer_edges: true,
+      },
+      expectedArgs: {
+        query: 'layer_view',
+        workspace_path: 'C:/mock/workspace',
+        layers: ['orchestration', 'runtime'],
+        depth_limit: 2,
+        include_cross_layer_edges: true,
+      },
+      unexpectedArgKeys: ['workspace_id', 'search_query', 'slice_id'],
+    },
+    {
+      action: 'search',
+      params: {
+        query: 'memory cartographer',
+        search_scope: 'symbols',
+        layer_filter: ['server'],
+        limit: 25,
+      },
+      expectedArgs: {
+        query: 'search',
+        workspace_path: 'C:/mock/workspace',
+        search_query: 'memory cartographer',
+        search_scope: 'symbols',
+        layer_filter: ['server'],
+        limit: 25,
+      },
+      unexpectedArgKeys: ['workspace_id', 'file_id', 'projection_type'],
+    },
+    {
+      action: 'slice_detail',
+      params: {
+        slice_id: 'sl_test_001',
+      },
+      expectedArgs: {
+        query: 'slice_detail',
+        workspace_path: 'C:/mock/workspace',
+        workspace_id: WORKSPACE_ID,
+        slice_id: 'sl_test_001',
+      },
+      unexpectedArgKeys: ['search_query', 'layers', 'layer_filter'],
+    },
+    {
+      action: 'slice_projection',
+      params: {
+        slice_id: 'sl_test_001',
+        projection_type: 'module_level',
+        filters: [{ type: 'layer', values: ['runtime'] }],
+      },
+      expectedArgs: {
+        query: 'slice_projection',
+        workspace_path: 'C:/mock/workspace',
+        workspace_id: WORKSPACE_ID,
+        slice_id: 'sl_test_001',
+        projection_type: 'module_level',
+        filters: [{ type: 'layer', values: ['runtime'] }],
+      },
+      unexpectedArgKeys: ['search_query', 'file_id'],
+    },
+    {
+      action: 'slice_filters',
+      params: {
+        slice_id: 'sl_test_001',
+      },
+      expectedArgs: {
+        query: 'slice_filters',
+        workspace_path: 'C:/mock/workspace',
+        workspace_id: WORKSPACE_ID,
+        slice_id: 'sl_test_001',
+      },
+      unexpectedArgKeys: ['search_query', 'projection_type', 'filters'],
+    },
+  ];
+
+  for (const testCase of nonSummaryCases) {
+    const { action, params, expectedArgs, unexpectedArgKeys } = testCase;
+
+    it(`Phase B ${action} maps request args and returns normalized success envelope`, async () => {
+      mockedInvokePythonCore.mockResolvedValueOnce({
+        schema_version: '1.0.0',
+        request_id: `cartograph_${action}_req_001`,
+        status: 'ok',
+        result: {
+          query: action,
+          rows: [],
+        },
+        diagnostics: {
+          warnings: [],
+          errors: [],
+          markers: [],
+          skipped_paths: [],
+        },
+        elapsed_ms: 19,
+      });
+
       const result = await handleMemoryCartographer(
-        baseParams({ action } as Partial<MemoryCartographerParams> as MemoryCartographerParams),
+        baseParams({ action, ...params } as Partial<MemoryCartographerParams> as MemoryCartographerParams),
       );
+
       expect(result.success).toBe(true);
-      expect(mockedInvokePythonCore).toHaveBeenCalled();
+      const payload = result.data as any;
+      expect(payload.action).toBe(action);
+
+      const inner = payload.data;
+      expect(inner).toEqual(expect.objectContaining({
+        source: 'python_core',
+        request_id: `cartograph_${action}_req_001`,
+        schema_version: '1.0.0',
+        status: 'ok',
+        elapsed_ms: 19,
+        diagnostics: {
+          warnings: [],
+          errors: [],
+          markers: [],
+          skipped_paths: [],
+        },
+      }));
+      expect(inner.result).toEqual(expect.objectContaining({ query: action }));
+      expect(inner.diagnostic_code).toBeUndefined();
+
+      expect(mockedInvokePythonCore).toHaveBeenCalledTimes(1);
+      const request = mockedInvokePythonCore.mock.calls[0][0];
+      expect(request.action).toBe('cartograph');
+      expect(request.timeout_ms).toBe(15_000);
+      expect(request.args).toEqual(expect.objectContaining(expectedArgs));
+      for (const key of unexpectedArgKeys) {
+        expect(request.args).not.toHaveProperty(key);
+      }
     });
   }
-
-  for (const action of architectureSliceActions) {
-    it(`architecture_slices/${action} invokes adapter and returns ok envelope`, async () => {
-      const result = await handleMemoryCartographer(
-        baseParams({ action, ...(action !== 'slice_filters' ? { slice_id: 'sl_test_001' } : {}) } as Partial<MemoryCartographerParams> as MemoryCartographerParams),
-      );
-      expect(result.success).toBe(true);
-      expect(mockedInvokePythonCore).toHaveBeenCalled();
-    });
-  }
-
-  it('Phase B cartography_queries actions invoke Python adapter (not stub response)', async () => {
-    const result = await handleMemoryCartographer(
-      baseParams({ action: 'file_context' as any }),
-    );
-    expect(result.success).toBe(true);
-    expect(mockedInvokePythonCore).toHaveBeenCalled();
-  });
-
-  it('Phase B architecture_slices actions invoke Python adapter (not stub response)', async () => {
-    const result = await handleMemoryCartographer(
-      baseParams({ action: 'slice_detail' as any, slice_id: 'sl_test_001' } as any),
-    );
-    expect(result.success).toBe(true);
-    expect(mockedInvokePythonCore).toHaveBeenCalled();
-  });
 
   // TC-AS-10: slice_catalog is now SQLite-backed (not a stub)
   it('TC-AS-10: slice_catalog returns { slices: [], total: 0 } on empty DB', async () => {

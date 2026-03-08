@@ -272,17 +272,89 @@ describe('fallback REST transport', () => {
     expect(body.code).toBe('invalid_request');
   });
 
-  it('returns direct supervisor runtime stream URL', async () => {
+  it('proxies runtime capture state', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          data: {
+            enabled: true,
+          },
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+
     const { status, body } = await httpJsonRequest(
-      `${baseUrl}/api/fallback/runtime/stream-url?component=fallback_api`,
+      `${baseUrl}/api/fallback/runtime/capture`,
       'GET',
     );
 
     expect(status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data).toMatchObject({
-      url: 'http://127.0.0.1:3464/runtime/stream?component=fallback_api',
+      ok: true,
+      data: {
+        enabled: true,
+      },
     });
+    expect(body.debug).toMatchObject({
+      method: 'GET',
+      path: '/runtime/capture',
+      upstream_status: 200,
+    });
+  });
+
+  it('updates runtime capture state', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          data: {
+            enabled: false,
+          },
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+
+    const { status, body } = await httpJsonRequest(
+      `${baseUrl}/api/fallback/runtime/capture`,
+      'PUT',
+      { enabled: false },
+    );
+
+    expect(status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data).toMatchObject({
+      ok: true,
+      data: {
+        enabled: false,
+      },
+    });
+    const [, options] = fetchMock.mock.calls[0] as [string, Record<string, unknown>];
+    expect(options.method).toBe('POST');
+    expect(JSON.parse(String(options.body))).toEqual({ enabled: false });
+  });
+
+  it('validates runtime capture payload', async () => {
+    const { status, body } = await httpJsonRequest(
+      `${baseUrl}/api/fallback/runtime/capture`,
+      'PUT',
+      { enabled: 'nope' as unknown as boolean },
+    );
+
+    expect(status).toBe(400);
+    expect(body.success).toBe(false);
+    expect(body.code).toBe('invalid_request');
   });
 
   it('registers workspace via memory_workspace register action', async () => {

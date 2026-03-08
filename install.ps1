@@ -27,6 +27,12 @@
 .PARAMETER NoBuild
     Alias for -InstallOnly (kept for back-compat with build-and-install.ps1 usage).
 
+.PARAMETER LintVerbose
+    Print all qmllint output during QML pre-build validation, not just errors.
+
+.PARAMETER LintLog
+    Optional path to a file where qmllint output is appended (one entry per validated package).
+
 .EXAMPLE
     # Build and install everything
     .\install.ps1
@@ -66,7 +72,7 @@
 
 [CmdletBinding()]
 param(
-    [ValidateSet("Server", "FallbackServer", "Extension", "Container", "Supervisor", "InteractiveTerminal", "Dashboard", "GuiForms", "All", "--help")]
+    [ValidateSet("Server", "FallbackServer", "Extension", "Container", "Supervisor", "InteractiveTerminal", "Dashboard", "GuiForms", "InstallWizard", "All", "--help")]
     [string[]]$Component = @("All"),
 
     [switch]$InstallOnly,
@@ -75,6 +81,8 @@ param(
     [switch]$NoBuild,  # alias for InstallOnly
     [switch]$NewDatabase,  # archive old DB and create a fresh one
     [switch]$NoLaunchPrompt,  # suppress interactive launch prompt (for subprocess callers)
+    [switch]$LintVerbose,     # print all qmllint output, not just errors
+    [string]$LintLog = '',    # append qmllint output to this log file (optional)
     [Alias('h')]
     [switch]$Help,
     [string[]]$RemainingArgs
@@ -98,6 +106,8 @@ function Show-InstallHelp {
     Write-Host "  -Force         Pass --force for extension install; use --no-cache for container build"
     Write-Host "  -NoBuild       Alias for -InstallOnly"
     Write-Host "  -NewDatabase   Archive existing SQLite DB and create a fresh one during server setup"
+    Write-Host "  -LintVerbose   Print all qmllint output during QML pre-build validation (default: errors only)"
+    Write-Host "  -LintLog <path>  Append qmllint output to a log file"
     Write-Host "  -h, -Help      Show this help message"
     Write-Host "  --help         Also accepted"
 }
@@ -540,6 +550,157 @@ function Invoke-CargoBuild {
     }
 }
 
+# Validates QML files with qmllint before compilation.
+# Returns $true if lint passed or is non-fatal (warnings only); $false on hard errors (exit >= 2).
+# Silently skips when qmllint.exe is missing or there are no .qml files — never blocks a build in that case.
+function Invoke-QmlLint {
+    param(
+        [Parameter(Mandatory)][string]$QtBin,
+        [Parameter(Mandatory)][string]$QmlDir,
+        [string]$Label    = '',
+        [bool]$PrintAll   = $false,
+        [string]$LogFile  = ''
+    )
+
+    $qmllintPath = Join-Path $QtBin 'qmllint.exe'
+    if (-not (Test-Path $qmllintPath)) {
+        Write-Host "   (qmllint.exe not found in Qt bin — skipping QML validation)" -ForegroundColor DarkGray
+        return $true
+    }
+
+    if (-not (Test-Path $QmlDir)) {
+        Write-Host "   (QML directory not found: $QmlDir — skipping lint)" -ForegroundColor DarkGray
+        return $true
+    }
+
+    $qmlFiles = @(Get-ChildItem $QmlDir -Filter '*.qml' -File -Recurse |
+                    Where-Object { $_.FullName -notmatch '\\tests?\\' })
+    if ($qmlFiles.Count -eq 0) {
+        Write-Host "   (no .qml files in $(Split-Path $QmlDir -Leaf) — skipping lint)" -ForegroundColor DarkGray
+        return $true
+    }
+
+    $displayLabel = if ($Label) { "qmllint ($Label)" } else { 'qmllint' }
+    Write-Host "   › $displayLabel — $($qmlFiles.Count) file(s)" -ForegroundColor Gray
+
+    $qtQmlRoot = Join-Path (Split-Path -Parent $QtBin) 'qml'
+    $output    = & $qmllintPath -I $qtQmlRoot -I $QmlDir ($qmlFiles.FullName) 2>&1
+    $exitCode  = $LASTEXITCODE
+
+    $errors   = @($output | Where-Object { $_ -match ': Error' })
+    $warnings = @($output | Where-Object { $_ -match ': Warning' })
+
+    if ($LogFile -ne '') { $output | Out-File $LogFile -Encoding utf8 -Append }
+
+    if ($errors.Count -gt 0 -or $PrintAll) {
+        $output | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object {
+            $color = if ($_ -match ': Error') { 'Red' } elseif ($_ -match ': Warning') { 'Yellow' } else { 'Gray' }
+            Write-Host "     $_" -ForegroundColor $color
+        }
+    }
+
+    if ($exitCode -ge 2 -or $errors.Count -gt 0) {
+        Write-Fail "QML lint ($Label): $($errors.Count) error(s) in $($qmlFiles.Count) file(s) — fix before building"
+        if (-not $PrintAll) { Write-Host "   Re-run with -LintVerbose to see full details" -ForegroundColor DarkGray }
+        return $false
+    }
+    if ($warnings.Count -gt 0) {
+        Write-Warn "QML lint ($Label): $($warnings.Count) warning(s) in $($qmlFiles.Count) files (non-fatal)"
+    } else {
+        Write-Host "   [OK] QML lint passed ($($qmlFiles.Count) files, 0 issues)" -ForegroundColor Green
+    }
+    return $true
+}
+
+# Verifies Qt DLL deployment completeness after windeployqt, copying any missing files from the Qt installation.
+# Checks: core Qt DLLs, controls style plugins (frequently missed by windeployqt), the
+# platform plugin (qwindows.dll — missing = no window at all), and required QML module directories.
+function Invoke-QtDeployVerify {
+    param(
+        [Parameter(Mandatory)][string]$ExePath,
+        [Parameter(Mandatory)][string]$QtDir,
+        [Parameter(Mandatory)][string]$QtBin,
+        [string]$Label = ''
+    )
+
+    $outputDir    = Split-Path -Parent $ExePath
+    $displayLabel = if ($Label) { "Qt deploy verify ($Label)" } else { 'Qt deploy verify' }
+    Write-Host "   › $displayLabel" -ForegroundColor Gray
+
+    $requiredDlls = @(
+        # Core Qt runtime
+        'Qt6Core.dll', 'Qt6Gui.dll', 'Qt6Network.dll', 'Qt6OpenGL.dll',
+        # QML engine
+        'Qt6Qml.dll', 'Qt6QmlMeta.dll', 'Qt6QmlModels.dll', 'Qt6QmlWorkerScript.dll',
+        # QtQuick rendering
+        'Qt6Quick.dll', 'Qt6QuickControls2.dll', 'Qt6QuickControls2Impl.dll',
+        'Qt6QuickTemplates2.dll', 'Qt6QuickLayouts.dll', 'Qt6QuickShapes.dll',
+        # Controls style plugins — windeployqt regularly misses these
+        'Qt6QuickControls2Basic.dll', 'Qt6QuickControls2BasicStyleImpl.dll',
+        'Qt6QuickControls2Material.dll', 'Qt6QuickControls2MaterialStyleImpl.dll',
+        'Qt6QuickControls2Fusion.dll', 'Qt6QuickControls2FusionStyleImpl.dll',
+        'Qt6QuickControls2Universal.dll', 'Qt6QuickControls2UniversalStyleImpl.dll',
+        # SVG icons + software OpenGL fallback (required for RDP/VM/headless)
+        'Qt6Svg.dll', 'D3Dcompiler_47.dll', 'opengl32sw.dll'
+    )
+
+    $missingItems = @()
+    $copiedItems  = @()
+
+    foreach ($dll in $requiredDlls) {
+        $dest = Join-Path $outputDir $dll
+        if (-not (Test-Path $dest)) {
+            $src = Join-Path $QtBin $dll
+            if (Test-Path $src) {
+                Copy-Item $src $dest -Force
+                $copiedItems += $dll
+            } else {
+                $missingItems += $dll
+            }
+        }
+    }
+
+    # Platform plugin — without qwindows.dll Qt cannot open any window at all
+    $platformDir = Join-Path $outputDir 'platforms'
+    if (-not (Test-Path (Join-Path $platformDir 'qwindows.dll'))) {
+        $srcPlatform = Join-Path $QtDir 'plugins\platforms\qwindows.dll'
+        if (Test-Path $srcPlatform) {
+            New-Item -ItemType Directory -Force -Path $platformDir | Out-Null
+            Copy-Item $srcPlatform (Join-Path $platformDir 'qwindows.dll') -Force
+            $copiedItems += 'platforms\qwindows.dll'
+        } else {
+            $missingItems += 'platforms\qwindows.dll'
+        }
+    }
+
+    # QML module directories — required for import resolution at runtime
+    $qtQmlRoot = Join-Path $QtDir 'qml'
+    foreach ($qmlSubDir in @('qml\QtQuick', 'qml\QtQuick\Controls', 'qml\QtQuick\Layouts', 'qml\QtQml')) {
+        $qmlPath = Join-Path $outputDir $qmlSubDir
+        if (-not (Test-Path $qmlPath)) {
+            $srcQmlPath = Join-Path $qtQmlRoot ($qmlSubDir -replace '^qml\\', '')
+            if (Test-Path $srcQmlPath) {
+                Copy-Item $srcQmlPath $qmlPath -Recurse -Force
+                $copiedItems += $qmlSubDir
+            } else {
+                $missingItems += "qml-dir:$qmlSubDir"
+            }
+        }
+    }
+
+    if ($copiedItems.Count -gt 0) {
+        Write-Warn "windeployqt missed $($copiedItems.Count) item(s) — copied from Qt:"
+        $copiedItems | ForEach-Object { Write-Host "     + $_" -ForegroundColor Yellow }
+    }
+    if ($missingItems.Count -gt 0) {
+        Write-Fail "Qt deployment incomplete ($Label) — not found in Qt install: $($missingItems -join ', ')"
+        exit 1
+    }
+    if ($copiedItems.Count -eq 0) {
+        Write-Host "   Qt deployment verified (all required items present)" -ForegroundColor DarkGray
+    }
+}
+
 # ──────────────────────────────────────────────────────────────
 # Rust crates
 # ──────────────────────────────────────────────────────────────
@@ -576,12 +737,15 @@ function Install-Supervisor {
     $env:PATH  = "$($Qt.QtBin);$env:PATH"
 
     try {
+        $supervisorQmlDir = Join-Path $Root 'supervisor'
+        $supervisorExe    = Join-Path $Root 'target\release\supervisor.exe'
+        if (-not (Invoke-QmlLint -QtBin $Qt.QtBin -QmlDir $supervisorQmlDir -Label 'supervisor' -PrintAll:($LintVerbose.IsPresent) -LogFile $LintLog)) { exit 1 }
+
         Invoke-CargoBuild -Arguments @('build', '--release', '-p', 'supervisor') -WorkingDirectory $Root
 
         $deployTool = Join-Path $Qt.QtBin 'windeployqt.exe'
-        $supervisorQmlDir = Join-Path $Root 'supervisor'
-        $supervisorExe = Join-Path $Root 'target\release\supervisor.exe'
         Invoke-WinDeployQt -ToolPath $deployTool -ExePath $supervisorExe -QmlDir $supervisorQmlDir -Label 'supervisor'
+        Invoke-QtDeployVerify -ExePath $supervisorExe -QtDir $Qt.QtDir -QtBin $Qt.QtBin -Label 'supervisor'
 
         # Copy tray icons next to the exe so the QML SystemTrayIcon can resolve
         # them via the file:/// URL built in initialize.rs → resolve_tray_icon_url().
@@ -633,6 +797,41 @@ function Install-InteractiveTerminal {
 # PM GUI Binaries  (pm-approval-gui, pm-brainstorm-gui)
 # ──────────────────────────────────────────────────────────────
 
+function Install-InstallWizard {
+    Write-Step "Project Memory Install Wizard (GUI)"
+    Set-CargoNetworkEnv
+
+    try {
+        $Qt = Resolve-QtToolchain
+    } catch {
+        Write-Fail $_.Exception.Message
+        exit 1
+    }
+
+    $prevQmake = $env:QMAKE
+    $prevPath  = $env:PATH
+    $env:QMAKE = $Qt.QmakePath
+    $env:PATH  = "$($Qt.QtBin);$env:PATH"
+
+    try {
+        $installQmlDir = Join-Path $Root 'pm-install-gui'
+        $installExe    = Join-Path $Root 'target\release\pm-install-gui.exe'
+        if (-not (Invoke-QmlLint -QtBin $Qt.QtBin -QmlDir $installQmlDir -Label 'install-wizard' -PrintAll:($LintVerbose.IsPresent) -LogFile $LintLog)) { exit 1 }
+
+        Invoke-CargoBuild -Arguments @('build', '--release', '-p', 'pm-install-gui') -WorkingDirectory $Root
+
+        $deployTool = Join-Path $Qt.QtBin 'windeployqt.exe'
+        # We also need to deploy for webview/webengine if it's used
+        Invoke-WinDeployQt -ToolPath $deployTool -ExePath $installExe -QmlDir $installQmlDir -Label 'install-wizard'
+        Invoke-QtDeployVerify -ExePath $installExe -QtDir $Qt.QtDir -QtBin $Qt.QtBin -Label 'install-wizard'
+
+        Write-Ok "Install Wizard built → target/release/pm-install-gui.exe"
+    } finally {
+        $env:QMAKE = $prevQmake
+        $env:PATH  = $prevPath
+    }
+}
+
 function Install-GuiForms {
     Write-Step "PM GUI Binaries (pm-approval-gui, pm-brainstorm-gui)"
 
@@ -654,17 +853,21 @@ function Install-GuiForms {
     Set-CargoNetworkEnv
 
     try {
+        $deployTool       = Join-Path $Qt.QtBin 'windeployqt.exe'
+        $approvalQmlDir   = Join-Path $Root 'pm-approval-gui'
+        $approvalExe      = Join-Path $Root 'target\release\pm-approval-gui.exe'
+        if (-not (Invoke-QmlLint -QtBin $Qt.QtBin -QmlDir $approvalQmlDir -Label 'pm-approval-gui' -PrintAll:($LintVerbose.IsPresent) -LogFile $LintLog)) { exit 1 }
         Invoke-CargoBuild -Arguments @('build', '--release', '-p', 'pm-approval-gui')   -WorkingDirectory $Root
-        $deployTool = Join-Path $Qt.QtBin 'windeployqt.exe'
-        $approvalQmlDir = Join-Path $Root 'pm-approval-gui'
-        $approvalExe = Join-Path $Root 'target\release\pm-approval-gui.exe'
         Invoke-WinDeployQt -ToolPath $deployTool -ExePath $approvalExe -QmlDir $approvalQmlDir -Label 'pm-approval-gui'
+        Invoke-QtDeployVerify -ExePath $approvalExe -QtDir $Qt.QtDir -QtBin $Qt.QtBin -Label 'pm-approval-gui'
         Write-Ok "pm-approval-gui built → target/release/pm-approval-gui.exe"
 
-        Invoke-CargoBuild -Arguments @('build', '--release', '-p', 'pm-brainstorm-gui') -WorkingDirectory $Root
         $brainstormQmlDir = Join-Path $Root 'pm-brainstorm-gui'
-        $brainstormExe = Join-Path $Root 'target\release\pm-brainstorm-gui.exe'
+        $brainstormExe    = Join-Path $Root 'target\release\pm-brainstorm-gui.exe'
+        if (-not (Invoke-QmlLint -QtBin $Qt.QtBin -QmlDir $brainstormQmlDir -Label 'pm-brainstorm-gui' -PrintAll:($LintVerbose.IsPresent) -LogFile $LintLog)) { exit 1 }
+        Invoke-CargoBuild -Arguments @('build', '--release', '-p', 'pm-brainstorm-gui') -WorkingDirectory $Root
         Invoke-WinDeployQt -ToolPath $deployTool -ExePath $brainstormExe -QmlDir $brainstormQmlDir -Label 'pm-brainstorm-gui'
+        Invoke-QtDeployVerify -ExePath $brainstormExe -QtDir $Qt.QtDir -QtBin $Qt.QtBin -Label 'pm-brainstorm-gui'
         Write-Ok "pm-brainstorm-gui built → target/release/pm-brainstorm-gui.exe"
     } finally {
         $env:QMAKE = $prevQmake
@@ -955,6 +1158,7 @@ foreach ($comp in $Components) {
     switch ($comp) {
         "Supervisor"          { Install-Supervisor }
         "GuiForms"            { Install-GuiForms }
+        "InstallWizard"       { Install-InstallWizard }
         "InteractiveTerminal" { Install-InteractiveTerminal }
         "Server"              { Install-Server }
         "FallbackServer"      { Install-FallbackServer }

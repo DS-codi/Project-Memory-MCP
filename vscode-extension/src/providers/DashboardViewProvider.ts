@@ -8,6 +8,8 @@
 import * as vscode from 'vscode';
 import { resolveWorkspaceIdentity, computeFallbackWorkspaceId } from '../utils/workspace-identity';
 import { getDashboardFrontendUrl } from '../server/ContainerDetection';
+import { resolveDashboardPort } from '../utils/dashboard-port';
+import { notificationsEnabled } from '../utils/helpers';
 import { getWebviewHtml } from './dashboard-webview';
 import {
     handleGetSkills, handleDeploySkill,
@@ -16,7 +18,7 @@ import {
 
 function notify(message: string, ...items: string[]): Thenable<string | undefined> {
     const config = vscode.workspace.getConfiguration('projectMemory');
-    if (config.get<boolean>('showNotifications', true)) {
+    if (notificationsEnabled(config)) {
         return vscode.window.showInformationMessage(message, ...items);
     }
     return Promise.resolve(undefined);
@@ -374,7 +376,7 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
 
     private getApiPort(): number {
         const config = vscode.workspace.getConfiguration('projectMemory');
-        return config.get<number>('serverPort') || config.get<number>('apiPort') || 3459;
+        return resolveDashboardPort(config);
     }
 
     private getDashboardUrl(): string {
@@ -516,7 +518,7 @@ export class DashboardViewProvider implements vscode.WebviewViewProvider {
 
     private _getHtmlForWebview(webview: vscode.Webview): string {
         const config = vscode.workspace.getConfiguration('projectMemory');
-        const apiPort = config.get<number>('serverPort') || config.get<number>('apiPort') || 3459;
+        const apiPort = resolveDashboardPort(config);
         const workspaceResolution = this.resolveWorkspaceContext();
 
         return getWebviewHtml({

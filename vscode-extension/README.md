@@ -87,7 +87,6 @@ See `package.json` for the full and authoritative list.
 
 High-use settings include:
 
-- `projectMemory.dataRoot`
 - `projectMemory.agentsRoot`
 - `projectMemory.skillsRoot`
 - `projectMemory.instructionsRoot`
@@ -99,6 +98,12 @@ High-use settings include:
 - `projectMemory.notifications.enabled`
 - `supervisor.startupMode`
 - `supervisor.launcherPath`
+
+Legacy compatibility note:
+
+- `projectMemory.apiPort` is deprecated and hidden from Settings UI. The extension still reads it as a fallback when `projectMemory.serverPort` is not explicitly set.
+- `projectMemory.showNotifications` is deprecated; use `projectMemory.notifications.enabled`.
+- `projectMemory.autoRefresh` and `projectMemory.autoDeployAgents` are deprecated compatibility settings and are ignored by the stripped-down runtime.
 
 Use VS Code Settings UI and search for **Project Memory** or **supervisor**.
 
@@ -125,7 +130,7 @@ vscode-extension/
 
 - The extension can run in local or container-oriented connection modes (`projectMemory.containerMode`).
 - Dashboard auto-connection is controlled by `projectMemory.dashboard.enabled`.
-- Supervisor auto-start behavior is controlled by `supervisor.startupMode`.
+- Supervisor startup detection behavior is controlled by `supervisor.startupMode`.
 
 ## Keeping Docs Accurate
 

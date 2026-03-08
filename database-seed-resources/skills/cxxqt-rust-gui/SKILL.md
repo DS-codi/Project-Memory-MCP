@@ -1,6 +1,6 @@
 ---
 name: cxxqt-rust-gui
-description: "Use this skill when building Qt-based GUI applications in Rust using CxxQt. Covers project structure, QObject integration, QML bindings, signal/slot patterns, and build configuration with cxx-qt-build."
+description: "Use this skill when building Qt-based GUI applications in Rust using CxxQt. Covers project structure, QObject integration, QML bindings, signal/slot patterns, build configuration with cxx-qt-build, QT_FORCE_STDERR_LOGGING setup for visible QML errors, and Qt style configuration for custom QML controls."
 ---
 
 # CxxQt Rust GUI Development Instructions
@@ -287,8 +287,21 @@ mod cxxqt_bridge;
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QUrl};
 
 fn main() {
+    // ── Qt logging: route to stderr so errors are visible in a terminal.
+    // On Windows, Qt sends all log output (including fatal QML errors) to
+    // OutputDebugString by default — completely invisible without a debugger.
+    // Setting this env var BEFORE QGuiApplication::new() redirects everything
+    // to stderr so QML load failures, type errors, etc. are always printed.
+    std::env::set_var("QT_FORCE_STDERR_LOGGING", "1");
+
     #[cfg(windows)]
-    std::env::set_var("QT_QPA_PLATFORM", "windows:darkmode=2");
+    {
+        std::env::set_var("QT_QPA_PLATFORM", "windows:darkmode=2");
+        // Use a non-native style so custom QML backgrounds/indicators render correctly.
+        // The Windows native style does not support QML property overrides on
+        // background/contentItem/indicator — causes runtime style warnings.
+        std::env::set_var("QT_QUICK_CONTROLS_STYLE", "Fusion");
+    }
 
     let mut app = QGuiApplication::new();
     let mut engine = QQmlApplicationEngine::new();
@@ -302,6 +315,18 @@ fn main() {
     }
 }
 ```
+
+### Why `QT_FORCE_STDERR_LOGGING` Matters
+
+Without it, a QML load failure produces no output at all on Windows. The engine exits with code 1 in silence. With it:
+
+```
+qrc:/qt/qml/.../main.qml:462:21: Type VdfImageViewer unavailable
+qrc:/qt/qml/.../VdfImageViewer.qml:449:45: Non-existent attached object
+QQmlApplicationEngine failed to load component
+```
+
+Set it unconditionally — it has no performance cost and makes all failures debuggable without a separate debug build.
 
 ## Error Handling
 

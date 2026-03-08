@@ -36,7 +36,9 @@ import { enterDegradedMode, exitDegradedMode } from './supervisor/degraded';
 import { detectSupervisor } from './supervisor/detect';
 import { launchSupervisorDetached, launchSupervisorInTerminal, getSupervisorDirectory, openDirectoryInExplorer } from './supervisor/launcher';
 import { SupervisorControlClient } from './supervisor/control-client';
+import { buildSupervisorWindowId } from './supervisor/window-id';
 import { registerStoreChatDetailsParticipant } from './chat/store-chat-details-participant';
+import { resolveDashboardPort } from './utils/dashboard-port';
 
 // --- Module-level state ---
 let dashboardProvider: DashboardViewProvider;
@@ -51,6 +53,8 @@ let notificationService: NotificationService;
 
 // Supervisor control client -- registers this window with the pool manager.
 let supervisorClient: SupervisorControlClient | null = null;
+let supervisorWindowId: string | null = null;
+let supervisorAttachInFlight: Promise<boolean> | null = null;
 
 // --- Activation ---
 
@@ -62,7 +66,7 @@ export function activate(context: vscode.ExtensionContext) {
     const agentsRoot = config.get<string>('agentsRoot') || getDefaultAgentsRoot();
     const promptsRoot = config.get<string>('promptsRoot');
     const instructionsRoot = config.get<string>('instructionsRoot');
-    const dashboardPort = config.get<number>('serverPort') || 3459;
+    const dashboardPort = resolveDashboardPort(config);
     const mcpPort = config.get<number>('mcpPort') || 3457;
     const defaultAgents = config.get<string[]>('defaultAgents') || [];
     const defaultInstructions = config.get<string[]>('defaultInstructions') || [];
@@ -86,6 +90,7 @@ export function activate(context: vscode.ExtensionContext) {
     });
     connectionManager.onConnected = () => {
         exitDegradedMode();
+        void ensureSupervisorClientAttached(context);
     };
     context.subscriptions.push(connectionManager);
 
@@ -121,7 +126,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     // --- Register all commands (no I/O, just registrations) ---
-    const getDashboardPort = () => config.get<number>('serverPort') || 3459;
+    const getDashboardPort = () => resolveDashboardPort(vscode.workspace.getConfiguration('projectMemory'));
 
     // --- Register Plans TreeView ---
     planTreeProvider = new WorkspacePlanTreeProvider(dashboardPort);
@@ -201,6 +206,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         supervisorHeartbeat.onRestored(() => {
             connectionManager.resetCircuit();
+            void ensureSupervisorClientAttached(context);
         }),
     );
 
@@ -331,6 +337,7 @@ export function activate(context: vscode.ExtensionContext) {
                     const connected = await connectionManager.detectAndConnect();
                     if (connected) {
                         exitDegradedMode();
+                        await ensureSupervisorClientAttached(context);
                         vscode.window.showInformationMessage('Project Memory Supervisor connected.');
                     } else {
                         vscode.window.showWarningMessage(
@@ -368,7 +375,10 @@ export function activate(context: vscode.ExtensionContext) {
                 
                 // Poll for connection
                 setTimeout(async () => {
-                    await connectionManager.detectAndConnect();
+                    const connected = await connectionManager.detectAndConnect();
+                    if (connected) {
+                        await ensureSupervisorClientAttached(context);
+                    }
                 }, 3000);
             } catch (error) {
                 const msg = error instanceof Error ? error.message : String(error);
@@ -421,6 +431,7 @@ export function activate(context: vscode.ExtensionContext) {
             const connected = await connectionManager.detectAndConnect();
             if (connected) {
                 exitDegradedMode();
+                await ensureSupervisorClientAttached(context);
                 vscode.window.showInformationMessage('Project Memory components connected.');
             } else {
                 vscode.window.showWarningMessage(
@@ -448,20 +459,9 @@ export function activate(context: vscode.ExtensionContext) {
                 canLaunch
             );
         } else if (supervisorResult === 'ready') {
-            // Supervisor is running -- register this VS Code window with it so
-            // the pool manager can track which windows are connected.
-            supervisorClient = new SupervisorControlClient();
-            context.subscriptions.push(supervisorClient);
-            const connected = await supervisorClient.connect();
-            if (connected) {
-                const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-                const windowId = workspaceFolder
-                    ? workspaceFolder.uri.fsPath
-                    : `${vscode.env.machineId}:${process.pid}`;
-                const clientId = await supervisorClient.attachClient(process.pid, windowId);
-                if (clientId) {
-                    console.log(`[Supervisor] Registered as ${clientId} (window: ${windowId})`);
-                }
+            const attached = await ensureSupervisorClientAttached(context);
+            if (!attached) {
+                console.warn('[Supervisor] Supervisor detected but this VS Code window could not be registered.');
             }
         }
     }).catch(err => {
@@ -472,7 +472,8 @@ export function activate(context: vscode.ExtensionContext) {
     // --- Pool management commands ---
     context.subscriptions.push(
         vscode.commands.registerCommand('projectMemory.showMcpSessions', async () => {
-            if (!supervisorClient?.isConnected) {
+            const attached = await ensureSupervisorClientAttached(context);
+            if (!attached || !supervisorClient?.isConnected) {
                 vscode.window.showWarningMessage('Not connected to Supervisor. Launch it first.');
                 return;
             }
@@ -484,6 +485,8 @@ export function activate(context: vscode.ExtensionContext) {
             const channel = vscode.window.createOutputChannel('MCP Sessions');
             channel.clear();
             channel.appendLine(`Active MCP Sessions (${sessions.length}):`);
+            channel.appendLine(`Local client: ${supervisorClient.clientId ?? 'not attached'}`);
+            channel.appendLine(`Local window: ${getSupervisorWindowId()}`);
             channel.appendLine('');
             for (const s of sessions) {
                 channel.appendLine(`  Session: ${s.session_id}`);
@@ -501,7 +504,8 @@ export function activate(context: vscode.ExtensionContext) {
         }),
 
         vscode.commands.registerCommand('projectMemory.showMcpInstances', async () => {
-            if (!supervisorClient?.isConnected) {
+            const attached = await ensureSupervisorClientAttached(context);
+            if (!attached || !supervisorClient?.isConnected) {
                 vscode.window.showWarningMessage('Not connected to Supervisor. Launch it first.');
                 return;
             }
@@ -520,7 +524,8 @@ export function activate(context: vscode.ExtensionContext) {
         }),
 
         vscode.commands.registerCommand('projectMemory.scaleUpMcp', async () => {
-            if (!supervisorClient?.isConnected) {
+            const attached = await ensureSupervisorClientAttached(context);
+            if (!attached || !supervisorClient?.isConnected) {
                 vscode.window.showWarningMessage('Not connected to Supervisor. Launch it first.');
                 return;
             }
@@ -566,12 +571,15 @@ export function activate(context: vscode.ExtensionContext) {
 export async function deactivate() {
     console.log('Project Memory Dashboard extension deactivating...');
 
+    supervisorAttachInFlight = null;
+
     // Unregister this window from the Supervisor pool manager.
     if (supervisorClient) {
         await supervisorClient.detachClient().catch(() => { /* ignore */ });
         supervisorClient.dispose();
         supervisorClient = null;
     }
+    supervisorWindowId = null;
 
     // Dispose dashboard provider
     if (dashboardProvider) {
@@ -582,6 +590,57 @@ export async function deactivate() {
 }
 
 // --- Private initialization helpers ---
+
+function getPrimaryWorkspacePath(): string | undefined {
+    return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+}
+
+function getSupervisorWindowId(): string {
+    if (!supervisorWindowId) {
+        supervisorWindowId = buildSupervisorWindowId({
+            workspacePath: getPrimaryWorkspacePath(),
+            machineId: vscode.env.machineId,
+            processId: process.pid,
+        });
+    }
+
+    return supervisorWindowId;
+}
+
+async function ensureSupervisorClientAttached(context: vscode.ExtensionContext): Promise<boolean> {
+    if (supervisorAttachInFlight) {
+        return supervisorAttachInFlight;
+    }
+
+    supervisorAttachInFlight = (async () => {
+        if (!supervisorClient) {
+            supervisorClient = new SupervisorControlClient();
+            context.subscriptions.push(supervisorClient);
+        }
+
+        const connected = await supervisorClient.connect();
+        if (!connected) {
+            return false;
+        }
+
+        if (supervisorClient.clientId) {
+            return true;
+        }
+
+        const windowId = getSupervisorWindowId();
+        const clientId = await supervisorClient.attachClient(process.pid, windowId);
+        if (!clientId) {
+            return false;
+        }
+
+        console.log(`[Supervisor] Registered as ${clientId} (window: ${windowId})`);
+        return true;
+    })().finally(() => {
+        supervisorAttachInFlight = null;
+    });
+
+    return supervisorAttachInFlight;
+}
 
 /**
  * Detect and prompt to launch supervisor if not connected.

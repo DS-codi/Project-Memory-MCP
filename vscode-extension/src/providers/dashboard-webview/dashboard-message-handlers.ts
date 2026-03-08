@@ -9,6 +9,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { getDefaultSkillsRoot, getDefaultInstructionsRoot } from '../../utils/defaults';
+import { notificationsEnabled } from '../../utils/helpers';
 import { buildMissingSkillsSourceWarning, resolveSkillsSourceRoot } from '../../utils/skillsSourceRoot';
 
 /** Message posting interface (subset of DashboardViewProvider) */
@@ -18,7 +19,7 @@ export interface MessagePoster {
 
 function notify(message: string, ...items: string[]): Thenable<string | undefined> {
     const config = vscode.workspace.getConfiguration('projectMemory');
-    if (config.get<boolean>('showNotifications', true)) {
+    if (notificationsEnabled(config)) {
         return vscode.window.showInformationMessage(message, ...items);
     }
     return Promise.resolve(undefined);

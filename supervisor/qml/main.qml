@@ -228,12 +228,13 @@ ApplicationWindow {
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 20
-        spacing: 12
+        spacing: 16
 
         Label {
-            text: "Project Memory Supervisor"
+            text: "PROJECT MEMORY SUPERVISOR"
             font.pixelSize: 22
             font.bold: true
+            font.letterSpacing: 1.0
         }
 
         // ── Scrollable content area ───────────────────────────────────────────
@@ -243,432 +244,394 @@ ApplicationWindow {
             clip: true
             boundsBehavior: Flickable.StopAtBounds
             contentHeight: scrollContent.implicitHeight
-
             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
             ColumnLayout {
                 id: scrollContent
                 width: parent.width
-                spacing: 12
+                spacing: 14
 
-        // ── MCP row ──────────────────────────────────────────────────────────
-        RowLayout {
-            spacing: 10
-            Layout.fillWidth: true
+                Label { text: "Core Services"; font.pixelSize: 12; color: "#888888" }
 
-            Rectangle {
-                width: 12; height: 12; radius: 6
-                color: root.statusColor(supervisorGuiBridge.mcpStatus)
-                Layout.alignment: Qt.AlignVCenter
-            }
-            ColumnLayout {
-                spacing: 2
-                Layout.fillWidth: true
-                Layout.minimumWidth: 160
-                Label { text: "MCP Server"; font.bold: true }
-                Label {
-                    text: "Port: " + supervisorGuiBridge.mcpPort
-                        + "  Runtime: " + supervisorGuiBridge.mcpRuntime
-                        + "  PID: " + supervisorGuiBridge.mcpPid
-                        + "  Up: " + supervisorGuiBridge.mcpUptimeSecs + "s"
-                    font.pixelSize: 11
-                    color: "#aaaaaa"
-                    visible: supervisorGuiBridge.mcpStatus === "Running"
-                }
-            }
-            Label {
-                text: supervisorGuiBridge.mcpStatus
-                Layout.fillWidth: true
-            }
-            Button {
-                text: "Restart"
-                onClicked: supervisorGuiBridge.restartService("mcp")
-            }
-        }
-
-        // ── Interactive Terminal row ──────────────────────────────────────────
-        RowLayout {
-            spacing: 10
-            Layout.fillWidth: true
-
-            Rectangle {
-                width: 12; height: 12; radius: 6
-                color: root.statusColor(supervisorGuiBridge.terminalStatus)
-                Layout.alignment: Qt.AlignVCenter
-            }
-            ColumnLayout {
-                spacing: 2
-                Layout.fillWidth: true
-                Layout.minimumWidth: 160
-                Label { text: "Interactive Terminal"; font.bold: true }
-                Label {
-                    text: "Port: " + supervisorGuiBridge.terminalPort
-                        + "  Runtime: " + supervisorGuiBridge.terminalRuntime
-                        + "  PID: " + supervisorGuiBridge.terminalPid
-                        + "  Up: " + supervisorGuiBridge.terminalUptimeSecs + "s"
-                    font.pixelSize: 11
-                    color: "#aaaaaa"
-                    visible: supervisorGuiBridge.terminalStatus === "Running"
-                }
-            }
-            Label {
-                text: supervisorGuiBridge.terminalStatus
-                Layout.fillWidth: true
-            }
-            Button {
-                text: "Open"
-                enabled: supervisorGuiBridge.terminalUrl !== ""
-                onClicked: supervisorGuiBridge.openTerminal()
-            }
-            Button {
-                text: supervisorGuiBridge.terminalStatus === "Running" ? "Stop" : "Start"
-                enabled: supervisorGuiBridge.terminalStatus !== "Starting"
-                         && supervisorGuiBridge.terminalStatus !== "Stopping"
-                onClicked: supervisorGuiBridge.terminalStatus === "Running"
-                           ? supervisorGuiBridge.stopService("terminal")
-                           : supervisorGuiBridge.startService("terminal")
-            }
-        }
-
-        // ── Dashboard row ─────────────────────────────────────────────────────
-        RowLayout {
-            spacing: 10
-            Layout.fillWidth: true
-
-            Rectangle {
-                width: 12; height: 12; radius: 6
-                color: root.statusColor(supervisorGuiBridge.dashboardStatus)
-                Layout.alignment: Qt.AlignVCenter
-            }
-            ColumnLayout {
-                spacing: 2
-                Layout.fillWidth: true
-                Layout.minimumWidth: 160
-                Label { text: "Dashboard"; font.bold: true }
-                Label {
-                    text: "Port: " + supervisorGuiBridge.dashboardPort
-                        + "  Runtime: " + supervisorGuiBridge.dashboardRuntime
-                        + "  PID: " + supervisorGuiBridge.dashboardPid
-                        + "  Up: " + supervisorGuiBridge.dashboardUptimeSecs + "s"
-                    font.pixelSize: 11
-                    color: "#aaaaaa"
-                    visible: supervisorGuiBridge.dashboardStatus === "Running"
-                }
-            }
-            Label {
-                text: supervisorGuiBridge.dashboardStatus
-                Layout.fillWidth: true
-            }
-            Button {
-                text: "Visit"
-                enabled: supervisorGuiBridge.dashboardUrl !== ""
-                onClicked: supervisorGuiBridge.openDashboard()
-            }
-            Button {
-                text: "Restart"
-                onClicked: supervisorGuiBridge.restartService("dashboard")
-            }
-        }
-
-        // ── Active Sessions ──────────────────────────────────────────────────
-        RowLayout {
-            spacing: 10
-            Layout.fillWidth: true
-
-            Rectangle {
-                width: 12; height: 12; radius: 6
-                color: root.statusColor(supervisorGuiBridge.fallbackStatus)
-                Layout.alignment: Qt.AlignVCenter
-            }
-            ColumnLayout {
-                spacing: 2
-                Layout.fillWidth: true
-                Layout.minimumWidth: 160
-                Label { text: "Fallback API"; font.bold: true }
-                Label {
-                    text: "Proxy route: /api/fallback/*"
-                    font.pixelSize: 11
-                    color: "#aaaaaa"
-                }
-            }
-            Label {
-                text: supervisorGuiBridge.fallbackStatus
-                Layout.fillWidth: true
-            }
-            Button {
-                text: "Restart"
-                onClicked: supervisorGuiBridge.restartService("fallback_api")
-            }
-        }
-
-        // ── Active Sessions ──────────────────────────────────────────────────
-        GroupBox {
-            title: "Active Sessions"
-            Layout.fillWidth: true
-            Layout.maximumHeight: 160
-
-            ScrollView {
-                anchors.fill: parent
-                clip: true
-                contentWidth: availableWidth
-
-                ColumnLayout {
-                    width: parent.width
-                    spacing: 4
-
-                    Repeater {
-                        id: sessionsRepeater
-                        model: sessionsList
-
-                        delegate: RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            Label {
-                                text: model.agentType + " · " + model.sessionId.slice(0, 12)
-                                Layout.fillWidth: true
-                                font.pixelSize: 12
-                            }
-                            Label {
-                                text: model.status
-                                color: "#4caf50"
-                                font.pixelSize: 11
-                            }
-                            Button {
-                                text: "Stop"
-                                font.pixelSize: 11
-                                padding: 4
-                                onClicked: root.stopSession(model.sessionKey)
-                            }
-                        }
-                    }
-
-                    Label {
-                        visible: sessionsRepeater.count === 0
-                        text: "No active sessions"
-                        color: "#aaaaaa"
-                        font.pixelSize: 12
-                    }
-                }
-            }
-        }
-
-        // ── Recent Activity ──────────────────────────────────────────────────
-        GroupBox {
-            title: "Recent Activity"
-            Layout.fillWidth: true
-            Layout.maximumHeight: 140
-
-            ScrollView {
-                width: parent.width
-                height: 100
-                clip: true
-
-                ListView {
-                    id: activityView
-                    model: activityList
-                    delegate: Label {
-                        width: activityView.width
-                        text: model.evType + " · " + model.evTimestamp
-                        font.pixelSize: 11
-                        color: "#cccccc"
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Label {
-                        anchors.centerIn: parent
-                        visible: activityView.count === 0
-                        text: "No recent activity"
-                        color: "#aaaaaa"
-                        font.pixelSize: 12
-                    }
-                }
-            }
-        }
-
-        // ── Workspace Cartographer ───────────────────────────────────────────
-        GroupBox {
-            title: "Workspace Cartographer"
-            Layout.fillWidth: true
-
-            ColumnLayout {
-                width: parent.width
-                spacing: 8
-
-                RowLayout {
+                // ── Service cards (2×2 grid) ──────────────────────────────────
+                GridLayout {
                     Layout.fillWidth: true
-                    spacing: 8
+                    columns: 2
+                    rowSpacing: 10
+                    columnSpacing: 10
 
-                    ComboBox {
-                        id: workspaceCombo
-                        model: workspaceModel
-                        textRole: "displayText"
+                    // ── MCP Server ────────────────────────────────────────────
+                    Rectangle {
                         Layout.fillWidth: true
-                        enabled: workspaceModel.count > 0
-                        onCurrentIndexChanged: {
-                            if (currentIndex >= 0 && currentIndex < workspaceModel.count)
-                                root.selectedWorkspaceId = workspaceModel.get(currentIndex).workspaceId
+                        implicitHeight: 130
+                        color: "#1a1a1a"; radius: 8; border.color: "#2d2d2d"
+                        RowLayout {
+                            anchors.fill: parent; anchors.margins: 14; spacing: 14
+                            Rectangle {
+                                width: 48; height: 48; radius: 8; color: "#162a1e"
+                                Label { anchors.centerIn: parent; text: "\u2699"; font.pixelSize: 22; color: "#4caf50" }
+                            }
+                            ColumnLayout {
+                                Layout.fillWidth: true; spacing: 4
+                                RowLayout {
+                                    spacing: 6
+                                    Label { text: "MCP Server"; font.bold: true; font.pixelSize: 13 }
+                                    Rectangle { width: 8; height: 8; radius: 4; color: root.statusColor(supervisorGuiBridge.mcpStatus); Layout.alignment: Qt.AlignVCenter }
+                                    Label { text: supervisorGuiBridge.mcpStatus; font.pixelSize: 12; color: root.statusColor(supervisorGuiBridge.mcpStatus) }
+                                }
+                                Label {
+                                    text: "PID: " + supervisorGuiBridge.mcpPid + "   Port: " + supervisorGuiBridge.mcpPort + "   Runtime: " + supervisorGuiBridge.mcpRuntime + "   Up: " + supervisorGuiBridge.mcpUptimeSecs + "s"
+                                    font.pixelSize: 10; color: "#666666"
+                                    visible: supervisorGuiBridge.mcpStatus === "Running"
+                                }
+                                RowLayout {
+                                    spacing: 6
+                                    Button { text: "Restart"; implicitHeight: 36; leftPadding: 14; rightPadding: 14; onClicked: supervisorGuiBridge.restartService("mcp") }
+                                }
+                            }
                         }
-                        displayText: workspaceModel.count === 0
-                            ? (supervisorGuiBridge.mcpStatus === "Running" ? "No workspaces registered" : "MCP offline")
-                            : currentText
                     }
 
-                    Button {
-                        text: "↻"
-                        implicitWidth: 36
-                        flat: true
-                        enabled: supervisorGuiBridge.mcpPort > 0
-                        onClicked: root.loadWorkspaces()
-                        ToolTip.visible: hovered
-                        ToolTip.text: "Refresh workspace list"
-                        ToolTip.delay: 600
-                    }
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-
-                    Button {
-                        id: cartographerBtn
-                        text: "Run Cartographer"
-                        enabled: root.selectedWorkspaceId !== "" && supervisorGuiBridge.mcpStatus === "Running"
-                        onClicked: {
-                            cartographerStatus.text = "Scanning\u2026"
-                            cartographerBtn.enabled = false
-                            var wsId = root.selectedWorkspaceId;
-                            var xhr = new XMLHttpRequest();
-                            xhr.onreadystatechange = function() {
-                                if (xhr.readyState === XMLHttpRequest.DONE) {
-                                    cartographerBtn.enabled = root.selectedWorkspaceId !== ""
-                                        && supervisorGuiBridge.mcpStatus === "Running";
-                                    if (xhr.status === 200) {
-                                        try {
-                                            var r = JSON.parse(xhr.responseText);
-                                            if (r.success) {
-                                                var inner = r.data && r.data.data ? r.data.data : {};
-                                                var res = inner.result || {};
-                                                var summary = res.summary || {};
-                                                var files = summary.files_total !== undefined ? summary.files_total : "?";
-                                                var elapsed = inner.elapsed_ms !== undefined ? inner.elapsed_ms : "?";
-                                                cartographerStatus.text = "\u2713 " + files + " file(s) scanned in " + elapsed + "ms";
-                                            } else {
-                                                cartographerStatus.text = "Error: " + (r.error || "scan failed");
-                                            }
-                                        } catch(e) {
-                                            cartographerStatus.text = "Scan complete";
-                                        }
-                                    } else {
-                                        cartographerStatus.text = "HTTP " + xhr.status;
+                    // ── Interactive Terminal ──────────────────────────────────
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 130
+                        color: "#1a1a1a"; radius: 8; border.color: "#2d2d2d"
+                        RowLayout {
+                            anchors.fill: parent; anchors.margins: 14; spacing: 14
+                            Rectangle {
+                                width: 48; height: 48; radius: 8; color: "#0d2a2a"
+                                Label { anchors.centerIn: parent; text: ">_"; font.pixelSize: 16; font.bold: true; color: "#26c6da" }
+                            }
+                            ColumnLayout {
+                                Layout.fillWidth: true; spacing: 4
+                                RowLayout {
+                                    spacing: 6
+                                    Label { text: "Interactive Terminal"; font.bold: true; font.pixelSize: 13 }
+                                    Rectangle { width: 8; height: 8; radius: 4; color: root.statusColor(supervisorGuiBridge.terminalStatus); Layout.alignment: Qt.AlignVCenter }
+                                    Label { text: supervisorGuiBridge.terminalStatus; font.pixelSize: 12; color: root.statusColor(supervisorGuiBridge.terminalStatus) }
+                                }
+                                Label {
+                                    text: "PID: " + supervisorGuiBridge.terminalPid + "   Port: " + supervisorGuiBridge.terminalPort + "   Runtime: " + supervisorGuiBridge.terminalRuntime + "   Up: " + supervisorGuiBridge.terminalUptimeSecs + "s"
+                                    font.pixelSize: 10; color: "#666666"
+                                    visible: supervisorGuiBridge.terminalStatus === "Running"
+                                }
+                                RowLayout {
+                                    spacing: 6
+                                    Button {
+                                        text: "Open"; implicitHeight: 36; leftPadding: 14; rightPadding: 14
+                                        enabled: supervisorGuiBridge.terminalUrl !== ""
+                                        onClicked: supervisorGuiBridge.openTerminal()
+                                    }
+                                    Button {
+                                        text: supervisorGuiBridge.terminalStatus === "Running" ? "Stop" : "Start"
+                                        implicitHeight: 36; leftPadding: 14; rightPadding: 14
+                                        enabled: supervisorGuiBridge.terminalStatus !== "Starting" && supervisorGuiBridge.terminalStatus !== "Stopping"
+                                        onClicked: supervisorGuiBridge.terminalStatus === "Running"
+                                                   ? supervisorGuiBridge.stopService("terminal")
+                                                   : supervisorGuiBridge.startService("terminal")
                                     }
                                 }
-                            };
-                            xhr.open("POST", mcpBaseUrl + "/admin/memory_cartographer");
-                            xhr.setRequestHeader("Content-Type", "application/json");
-                            xhr.send(JSON.stringify({ workspace_id: wsId }));
+                            }
                         }
                     }
 
-                    Label {
-                        id: cartographerStatus
-                        text: ""
-                        color: text.startsWith("\u2713") ? "#4caf50" : (text.startsWith("Error") || text.startsWith("HTTP") ? "#f44336" : "#aaaaaa")
-                        font.pixelSize: 12
+                    // ── Dashboard ─────────────────────────────────────────────
+                    Rectangle {
                         Layout.fillWidth: true
-                        wrapMode: Text.WordWrap
+                        implicitHeight: 130
+                        color: "#1a1a1a"; radius: 8; border.color: "#2d2d2d"
+                        RowLayout {
+                            anchors.fill: parent; anchors.margins: 14; spacing: 14
+                            Rectangle {
+                                width: 48; height: 48; radius: 8; color: "#0d1f2e"
+                                Label { anchors.centerIn: parent; text: "\u229e"; font.pixelSize: 22; color: "#42a5f5" }
+                            }
+                            ColumnLayout {
+                                Layout.fillWidth: true; spacing: 4
+                                RowLayout {
+                                    spacing: 6
+                                    Label { text: "Dashboard"; font.bold: true; font.pixelSize: 13 }
+                                    Rectangle { width: 8; height: 8; radius: 4; color: root.statusColor(supervisorGuiBridge.dashboardStatus); Layout.alignment: Qt.AlignVCenter }
+                                    Label { text: supervisorGuiBridge.dashboardStatus; font.pixelSize: 12; color: root.statusColor(supervisorGuiBridge.dashboardStatus) }
+                                }
+                                Label {
+                                    text: "PID: " + supervisorGuiBridge.dashboardPid + "   Port: " + supervisorGuiBridge.dashboardPort + "   Runtime: " + supervisorGuiBridge.dashboardRuntime + "   Up: " + supervisorGuiBridge.dashboardUptimeSecs + "s"
+                                    font.pixelSize: 10; color: "#666666"
+                                    visible: supervisorGuiBridge.dashboardStatus === "Running"
+                                }
+                                RowLayout {
+                                    spacing: 6
+                                    Button {
+                                        text: "Visit"; implicitHeight: 36; leftPadding: 14; rightPadding: 14
+                                        enabled: supervisorGuiBridge.dashboardUrl !== ""
+                                        onClicked: supervisorGuiBridge.openDashboard()
+                                    }
+                                    Button { text: "Restart"; implicitHeight: 36; leftPadding: 14; rightPadding: 14; onClicked: supervisorGuiBridge.restartService("dashboard") }
+                                }
+                            }
+                        }
                     }
-                }
-            }
-        }
 
-        // ── MCP proxy monitoring ────────────────────────────────────────────
-        Rectangle {
-            Layout.fillWidth: true
-            color: "transparent"
-            border.color: "#3a3a3a"
-            radius: 6
-            implicitHeight: monitorLayout.implicitHeight + 16
+                    // ── Fallback API ──────────────────────────────────────────
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 130
+                        color: "#1a1a1a"; radius: 8; border.color: "#2d2d2d"
+                        RowLayout {
+                            anchors.fill: parent; anchors.margins: 14; spacing: 14
+                            Rectangle {
+                                width: 48; height: 48; radius: 8; color: "#2a0d0d"
+                                Label { anchors.centerIn: parent; text: "{}"; font.pixelSize: 15; font.bold: true; color: "#ef5350" }
+                            }
+                            ColumnLayout {
+                                Layout.fillWidth: true; spacing: 4
+                                RowLayout {
+                                    spacing: 6
+                                    Label { text: "Fallback API"; font.bold: true; font.pixelSize: 13 }
+                                    Rectangle { width: 8; height: 8; radius: 4; color: root.statusColor(supervisorGuiBridge.fallbackStatus); Layout.alignment: Qt.AlignVCenter }
+                                    Label { text: supervisorGuiBridge.fallbackStatus; font.pixelSize: 12; color: root.statusColor(supervisorGuiBridge.fallbackStatus) }
+                                }
+                                Label { text: "Proxy route: /api/fallback/*"; font.pixelSize: 10; color: "#666666" }
+                                RowLayout {
+                                    spacing: 6
+                                    Button { text: "Restart"; implicitHeight: 36; leftPadding: 14; rightPadding: 14; onClicked: supervisorGuiBridge.restartService("fallback_api") }
+                                }
+                            }
+                        }
+                    }
 
-            ColumnLayout {
-                id: monitorLayout
-                anchors.fill: parent
-                anchors.margins: 8
-                spacing: 4
+                } // end GridLayout (service cards)
 
-                Label {
-                    text: "MCP Proxy Monitoring"
-                    font.bold: true
-                }
-
-                Label {
-                    text: "Total MCP connections: " + supervisorGuiBridge.totalMcpConnections
-                }
-
-                Label {
-                    text: "Active MCP instances: " + supervisorGuiBridge.activeMcpInstances
-                }
-
-                Label {
-                    visible: supervisorGuiBridge.totalMcpConnections > 0
-                    text: "Distribution: " + supervisorGuiBridge.mcpInstanceDistribution
-                }
-
-                Label {
-                    visible: supervisorGuiBridge.totalMcpConnections === 0
-                    text: "No active MCP sessions"
-                    color: "#9e9e9e"
-                }
-            }
-        }
-
-        // ── Event broadcast channel status ──────────────────────────────────
-        Rectangle {
-            Layout.fillWidth: true
-            color: "transparent"
-            border.color: "#3a3a3a"
-            radius: 6
-            implicitHeight: eventsMonitorLayout.implicitHeight + 16
-
-            ColumnLayout {
-                id: eventsMonitorLayout
-                anchors.fill: parent
-                anchors.margins: 8
-                spacing: 4
-
-                Label {
-                    text: "Event Broadcast Channel"
-                    font.bold: true
-                }
-
+                // ── Active Sessions + Recent Activity ─────────────────────────
                 RowLayout {
-                    spacing: 8
+                    Layout.fillWidth: true
+                    spacing: 10
 
                     Rectangle {
-                        width: 10
-                        height: 10
-                        radius: 5
-                        color: supervisorGuiBridge.eventBroadcastEnabled ? "#4caf50" : "#9e9e9e"
+                        Layout.fillWidth: true
+                        implicitHeight: 220
+                        color: "#1a1a1a"; radius: 8; border.color: "#2d2d2d"
+                        ColumnLayout {
+                            anchors.fill: parent; anchors.margins: 14; spacing: 8
+                            Label { text: "Active Sessions"; font.bold: true; font.pixelSize: 13 }
+                            RowLayout {
+                                spacing: 0
+                                Label { text: "Session ID";  font.pixelSize: 10; color: "#666666"; Layout.preferredWidth: 130 }
+                                Label { text: "Type";        font.pixelSize: 10; color: "#666666"; Layout.fillWidth: true }
+                                Label { text: "Status";      font.pixelSize: 10; color: "#666666"; Layout.preferredWidth: 58 }
+                                Label { text: "Actions";     font.pixelSize: 10; color: "#666666"; Layout.preferredWidth: 80 }
+                            }
+                            Rectangle { Layout.fillWidth: true; height: 1; color: "#2a2a2a" }
+                            ScrollView {
+                                Layout.fillWidth: true; Layout.fillHeight: true; clip: true; contentWidth: availableWidth
+                                ColumnLayout {
+                                    width: parent.width; spacing: 6
+                                    Repeater {
+                                        id: sessionsRepeater
+                                        model: sessionsList
+                                        delegate: RowLayout {
+                                            Layout.fillWidth: true; spacing: 0
+                                            Label { text: model.sessionId.slice(0, 16); font.pixelSize: 11; Layout.preferredWidth: 130; color: "#cccccc"; elide: Text.ElideRight }
+                                            Label { text: model.agentType; font.pixelSize: 11; Layout.fillWidth: true; color: "#cccccc" }
+                                            Rectangle {
+                                                width: 52; height: 18; radius: 9; color: "#1b3a1e"; Layout.preferredWidth: 58
+                                                Label { anchors.centerIn: parent; text: "ACTIVE"; font.pixelSize: 9; font.bold: true; color: "#66bb6a" }
+                                            }
+                                            Button { text: "Stop"; implicitHeight: 32; leftPadding: 12; rightPadding: 12; Layout.preferredWidth: 80; onClicked: root.stopSession(model.sessionKey) }
+                                        }
+                                    }
+                                    Label {
+                                        visible: sessionsRepeater.count === 0
+                                        text: "No active sessions"; color: "#555555"; font.pixelSize: 12; Layout.fillWidth: true
+                                    }
+                                }
+                            }
+                        }
                     }
 
-                    Label {
-                        text: supervisorGuiBridge.eventBroadcastEnabled
-                            ? "Active - " + supervisorGuiBridge.eventSubscriberCount + " subscriber(s) | "
-                              + supervisorGuiBridge.eventsTotalEmitted + " event(s) emitted"
-                            : "Disabled"
-                        color: supervisorGuiBridge.eventBroadcastEnabled ? "#cccccc" : "#9e9e9e"
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 220
+                        color: "#1a1a1a"; radius: 8; border.color: "#2d2d2d"
+                        ColumnLayout {
+                            anchors.fill: parent; anchors.margins: 14; spacing: 8
+                            Label { text: "Recent Activity"; font.bold: true; font.pixelSize: 13 }
+                            Rectangle { Layout.fillWidth: true; height: 1; color: "#2a2a2a" }
+                            ScrollView {
+                                Layout.fillWidth: true; Layout.fillHeight: true; clip: true; contentWidth: availableWidth
+                                ListView {
+                                    id: activityView
+                                    model: activityList
+                                    spacing: 4
+                                    delegate: Label {
+                                        width: activityView.width
+                                        text: model.evType + " \u00b7 " + model.evTimestamp
+                                        font.pixelSize: 11; color: "#aaaaaa"; wrapMode: Text.WordWrap
+                                    }
+                                    Label {
+                                        anchors.centerIn: parent; visible: activityView.count === 0
+                                        text: "No recent activity"; color: "#555555"; font.pixelSize: 12
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
-            }
-        }
 
-        Label {
-            Layout.fillWidth: true
-            visible: supervisorGuiBridge.actionFeedback !== ""
-            text: supervisorGuiBridge.actionFeedback
-            color: "#b0bec5"
-            wrapMode: Text.Wrap
-        }
+                // ── Workspace Cartographer + MCP Proxy + Events ───────────────
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 210
+                        color: "#1a1a1a"; radius: 8; border.color: "#2d2d2d"
+                        ColumnLayout {
+                            anchors.fill: parent; anchors.margins: 14; spacing: 10
+                            Label { text: "Workspace Cartographer"; font.bold: true; font.pixelSize: 13 }
+                            RowLayout {
+                                Layout.fillWidth: true; spacing: 8
+                                ComboBox {
+                                    id: workspaceCombo
+                                    model: workspaceModel
+                                    textRole: "displayText"
+                                    Layout.fillWidth: true
+                                    enabled: workspaceModel.count > 0
+                                    onCurrentIndexChanged: {
+                                        if (currentIndex >= 0 && currentIndex < workspaceModel.count)
+                                            root.selectedWorkspaceId = workspaceModel.get(currentIndex).workspaceId
+                                    }
+                                    displayText: workspaceModel.count === 0
+                                        ? (supervisorGuiBridge.mcpStatus === "Running" ? "No workspaces registered" : "MCP offline")
+                                        : currentText
+                                }
+                                Button {
+                                    text: "\u21bb"; implicitWidth: 32; flat: true
+                                    enabled: supervisorGuiBridge.mcpPort > 0
+                                    onClicked: root.loadWorkspaces()
+                                    ToolTip.visible: hovered; ToolTip.text: "Refresh workspace list"; ToolTip.delay: 600
+                                }
+                            }
+                            Button {
+                                id: cartographerBtn
+                                text: "Scan Project"
+                                Layout.fillWidth: true
+                                enabled: root.selectedWorkspaceId !== "" && supervisorGuiBridge.mcpStatus === "Running"
+                                onClicked: {
+                                    cartographerStatus.text = "Scanning\u2026"
+                                    cartographerBtn.enabled = false
+                                    var wsId = root.selectedWorkspaceId;
+                                    var xhr = new XMLHttpRequest();
+                                    xhr.onreadystatechange = function() {
+                                        if (xhr.readyState === XMLHttpRequest.DONE) {
+                                            cartographerBtn.enabled = root.selectedWorkspaceId !== ""
+                                                && supervisorGuiBridge.mcpStatus === "Running";
+                                            if (xhr.status === 200) {
+                                                try {
+                                                    var r = JSON.parse(xhr.responseText);
+                                                    if (r.success) {
+                                                        var inner = r.data && r.data.data ? r.data.data : {};
+                                                        var res = inner.result || {};
+                                                        var summary = res.summary || {};
+                                                        var files = summary.files_total !== undefined ? summary.files_total : "?";
+                                                        var elapsed = inner.elapsed_ms !== undefined ? inner.elapsed_ms : "?";
+                                                        cartographerStatus.text = "Total: " + files + " files   Scan time: " + elapsed + "ms";
+                                                    } else {
+                                                        cartographerStatus.text = "Error: " + (r.error || "scan failed");
+                                                    }
+                                                } catch(e) {
+                                                    cartographerStatus.text = "Scan complete";
+                                                }
+                                            } else {
+                                                cartographerStatus.text = "HTTP " + xhr.status;
+                                            }
+                                        }
+                                    };
+                                    xhr.open("POST", mcpBaseUrl + "/admin/memory_cartographer");
+                                    xhr.setRequestHeader("Content-Type", "application/json");
+                                    xhr.send(JSON.stringify({ workspace_id: wsId }));
+                                }
+                            }
+                            Label {
+                                id: cartographerStatus
+                                text: ""
+                                font.pixelSize: 11
+                                color: text.startsWith("Total") ? "#4caf50"
+                                     : (text.startsWith("Error") || text.startsWith("HTTP") ? "#f44336" : "#888888")
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                            }
+                        }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: 120
+                            color: "#1a1a1a"; radius: 8; border.color: "#2d2d2d"
+                            ColumnLayout {
+                                anchors.fill: parent; anchors.margins: 14; spacing: 8
+                                Label { text: "MCP Proxy"; font.bold: true; font.pixelSize: 13 }
+                                RowLayout {
+                                    spacing: 28
+                                    ColumnLayout {
+                                        spacing: 2
+                                        Label { text: supervisorGuiBridge.totalMcpConnections; font.pixelSize: 26; font.bold: true; color: "#e0e0e0" }
+                                        Label { text: "Total Connections"; font.pixelSize: 10; color: "#666666" }
+                                    }
+                                    ColumnLayout {
+                                        spacing: 2
+                                        Label { text: supervisorGuiBridge.activeMcpInstances; font.pixelSize: 26; font.bold: true; color: "#e0e0e0" }
+                                        Label { text: "Active Instances"; font.pixelSize: 10; color: "#666666" }
+                                    }
+                                    Label {
+                                        text: supervisorGuiBridge.mcpInstanceDistribution
+                                        font.pixelSize: 11; color: "#888888"; Layout.fillWidth: true
+                                        visible: supervisorGuiBridge.totalMcpConnections > 0
+                                        wrapMode: Text.WordWrap
+                                    }
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: 82
+                            color: "#1a1a1a"; radius: 8; border.color: "#2d2d2d"
+                            RowLayout {
+                                anchors.fill: parent; anchors.margins: 14; spacing: 12
+                                ColumnLayout {
+                                    spacing: 4; Layout.fillWidth: true
+                                    Label { text: "Event Broadcast"; font.bold: true; font.pixelSize: 13 }
+                                    Label {
+                                        text: supervisorGuiBridge.eventBroadcastEnabled
+                                            ? supervisorGuiBridge.eventSubscriberCount + " subscriber(s) \u00b7 " + supervisorGuiBridge.eventsTotalEmitted + " emitted"
+                                            : "Disabled"
+                                        font.pixelSize: 11; color: "#888888"
+                                    }
+                                }
+                                Rectangle {
+                                    width: 10; height: 10; radius: 5
+                                    color: supervisorGuiBridge.eventBroadcastEnabled ? "#4caf50" : "#555555"
+                                    Layout.alignment: Qt.AlignVCenter
+                                }
+                            }
+                        }
+
+                    } // end right ColumnLayout
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    visible: supervisorGuiBridge.actionFeedback !== ""
+                    text: supervisorGuiBridge.actionFeedback
+                    color: "#b0bec5"
+                    wrapMode: Text.Wrap
+                }
 
             } // end scrollContent ColumnLayout
         } // end Flickable
@@ -679,7 +642,7 @@ ApplicationWindow {
             Layout.alignment: Qt.AlignRight
 
             Button {
-                text: "Edit Config"
+                text: "\u2699  Configuration"
                 onClicked: {
                     configSaveError.text = ""
                     configTextArea.text = supervisorGuiBridge.loadConfigToml()
@@ -687,7 +650,7 @@ ApplicationWindow {
                 }
             }
             Button {
-                text: "Hide to Tray"
+                text: "Minimize to Tray"
                 onClicked: supervisorGuiBridge.hideWindow()
             }
         }

@@ -5,12 +5,45 @@
 import * as vscode from 'vscode';
 import { resolveWorkspaceIdentity } from './workspace-identity';
 
+function readExplicitBoolean(config: vscode.WorkspaceConfiguration, key: string): boolean | undefined {
+    const inspected = config.inspect<boolean>(key);
+    const candidates = [
+        inspected?.workspaceFolderValue,
+        inspected?.workspaceValue,
+        inspected?.globalValue,
+    ];
+
+    return candidates.find((value): value is boolean => typeof value === 'boolean');
+}
+
+/**
+ * Return whether extension toasts should be displayed.
+ *
+ * `projectMemory.notifications.enabled` is canonical. We keep
+ * `projectMemory.showNotifications` as a legacy fallback only.
+ */
+export function notificationsEnabled(
+    config: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration('projectMemory')
+): boolean {
+    const explicitCanonical = readExplicitBoolean(config, 'notifications.enabled');
+    if (explicitCanonical !== undefined) {
+        return explicitCanonical;
+    }
+
+    const explicitLegacy = readExplicitBoolean(config, 'showNotifications');
+    if (explicitLegacy !== undefined) {
+        return explicitLegacy;
+    }
+
+    return config.get<boolean>('notifications.enabled', true);
+}
+
 /**
  * Show an information message if notifications are enabled.
  */
 export function notify(message: string, ...items: string[]): Thenable<string | undefined> {
     const config = vscode.workspace.getConfiguration('projectMemory');
-    if (config.get<boolean>('showNotifications', true)) {
+    if (notificationsEnabled(config)) {
         return vscode.window.showInformationMessage(message, ...items);
     }
     return Promise.resolve(undefined);

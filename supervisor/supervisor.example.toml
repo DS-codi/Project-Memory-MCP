@@ -138,6 +138,14 @@ working_dir = "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\server"
 # FALLBACK_API_HOST = "127.0.0.1"
 # FALLBACK_API_PORT = "3465"
 
+# ── Runtime output capture (subprocess stdout/stderr telemetry) ─────────────
+
+[runtime_output]
+
+# When false, supervisor still drains child process pipes (to avoid blocking)
+# but skips buffering and broadcast overhead for runtime output events.
+enabled = true
+
 # ── Approval gate dialog ──────────────────────────────────────────────────────
 
 [approval]

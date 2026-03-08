@@ -84,6 +84,9 @@ pub struct SupervisorConfig {
     #[serde(default)]
     pub gui_server: GuiServerSection,
 
+    #[serde(default)]
+    pub runtime_output: RuntimeOutputSection,
+
     /// Zero or more managed server definitions.
     #[serde(default)]
     pub servers: Vec<ServerDefinition>,
@@ -644,6 +647,21 @@ impl Default for GuiServerSection {
     }
 }
 
+/// Runtime output capture controls (`[runtime_output]` section).
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct RuntimeOutputSection {
+    /// When `false`, runtime output events are not buffered or broadcast.
+    /// Subprocess stdout/stderr is still drained to avoid pipe backpressure.
+    pub enabled: bool,
+}
+
+impl Default for RuntimeOutputSection {
+    fn default() -> Self {
+        Self { enabled: true }
+    }
+}
+
 /// A single externally-managed server definition.
 #[derive(Debug, Deserialize, Default)]
 pub struct ServerDefinition {
@@ -809,6 +827,7 @@ mod tests {
         let cfg = load(&path).expect("should use defaults");
         assert_eq!(cfg.supervisor.log_level, "info");
         assert_eq!(cfg.reconnect.max_delay_ms, 30_000);
+        assert!(cfg.runtime_output.enabled, "runtime output capture should be enabled by default");
         assert!(cfg.fallback_api.enabled, "fallback API should be enabled by default");
         assert_eq!(cfg.fallback_api.port, 3465);
         assert_eq!(cfg.fallback_api.args, vec!["dist/fallback-rest-main.js".to_string()]);
