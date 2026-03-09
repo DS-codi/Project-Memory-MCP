@@ -17,6 +17,21 @@
 /** Which kind of form this is. */
 export type FormType = 'brainstorm' | 'approval';
 
+/** Contract mode for approval requests/responses. */
+export type ApprovalMode = 'binary' | 'multiple_choice' | 'multi_approval_session';
+
+/** Explicit request shape for approval-mode negotiation. */
+export type ApprovalRequestShape =
+  | 'confirm_reject_question'
+  | 'radio_select_question'
+  | 'multi_approval_question_set';
+
+/** Explicit response shape for approval-mode negotiation. */
+export type ApprovalResponseShape =
+  | 'confirm_reject_answer'
+  | 'radio_select_answer'
+  | 'approval_decision_v2';
+
 /** Terminal status of a submitted/timed-out/cancelled form. */
 export type FormStatus =
   | 'completed'
@@ -33,6 +48,161 @@ export type GuiFormsFallbackMode = 'chat' | 'none';
 
 /** Possible actions for a confirm/reject answer. */
 export type ConfirmRejectAction = 'approve' | 'reject';
+
+/** Deterministic decision state for v2 approval payloads. */
+export type ApprovalDecisionState = 'approve' | 'reject' | 'defer' | 'no_decision' | 'invalid';
+
+/** Deterministic outcomes expected by approval gate routing. */
+export type ApprovalRoutingOutcome =
+  | 'approved'
+  | 'rejected'
+  | 'timeout'
+  | 'deferred'
+  | 'fallback_to_chat'
+  | 'error';
+
+/**
+ * Compatibility/failure cases that approval routing must handle deterministically.
+ *
+ * Cross-layer contract:
+ * - Legacy `confirm_reject`/`confirm_reject_answer` payloads remain accepted.
+ * - Unknown modes and malformed decision payloads are fail-safe (never auto-approved).
+ * - Partial multi-session decisions map to non-approved outcomes.
+ */
+export type ApprovalCompatibilityCase =
+  | 'legacy_confirm_reject_approve'
+  | 'legacy_confirm_reject_reject'
+  | 'v2_binary_approve'
+  | 'v2_binary_reject'
+  | 'v2_multiple_choice_selected'
+  | 'v2_multi_session_all_approved'
+  | 'v2_multi_session_any_rejected'
+  | 'v2_multi_session_partial_or_deferred'
+  | 'timed_out'
+  | 'form_deferred'
+  | 'gui_unavailable_or_launch_failed'
+  | 'missing_decision_payload'
+  | 'unknown_mode'
+  | 'malformed_answer_payload';
+
+/** Optional deterministic reason codes for non-approved compatibility outcomes. */
+export type ApprovalFailureReason =
+  | 'missing_decision'
+  | 'unknown_mode'
+  | 'malformed_answer'
+  | 'partial_session_completion'
+  | 'gui_unavailable'
+  | 'launch_failed'
+  | 'response_status_unexpected'
+  | 'request_timed_out';
+
+/** One row in the compatibility/failure semantics matrix. */
+export interface ApprovalCompatibilityMatrixEntry {
+  case: ApprovalCompatibilityCase;
+  outcome: ApprovalRoutingOutcome;
+  approved: boolean;
+  failure_reason?: ApprovalFailureReason;
+  notes: string;
+}
+
+/**
+ * Canonical approval compatibility and failure semantics matrix.
+ *
+ * This documents expected routing behavior for legacy and v2 payloads.
+ * Missing/unknown/malformed decisions are intentionally non-approved.
+ */
+export const APPROVAL_COMPATIBILITY_MATRIX: readonly ApprovalCompatibilityMatrixEntry[] = [
+  {
+    case: 'legacy_confirm_reject_approve',
+    outcome: 'approved',
+    approved: true,
+    notes: 'Legacy confirm_reject payload with explicit approve action.',
+  },
+  {
+    case: 'legacy_confirm_reject_reject',
+    outcome: 'rejected',
+    approved: false,
+    notes: 'Legacy confirm_reject payload with explicit reject action.',
+  },
+  {
+    case: 'v2_binary_approve',
+    outcome: 'approved',
+    approved: true,
+    notes: 'V2 binary decision contains explicit approve action.',
+  },
+  {
+    case: 'v2_binary_reject',
+    outcome: 'rejected',
+    approved: false,
+    notes: 'V2 binary decision contains explicit reject action.',
+  },
+  {
+    case: 'v2_multiple_choice_selected',
+    outcome: 'approved',
+    approved: true,
+    notes: 'V2 multiple-choice decision selected a non-empty option id.',
+  },
+  {
+    case: 'v2_multi_session_all_approved',
+    outcome: 'approved',
+    approved: true,
+    notes: 'Every multi-session decision is approve.',
+  },
+  {
+    case: 'v2_multi_session_any_rejected',
+    outcome: 'rejected',
+    approved: false,
+    notes: 'At least one multi-session item is explicitly rejected.',
+  },
+  {
+    case: 'v2_multi_session_partial_or_deferred',
+    outcome: 'deferred',
+    approved: false,
+    failure_reason: 'partial_session_completion',
+    notes: 'Any defer/no_decision indicates incomplete approval set.',
+  },
+  {
+    case: 'timed_out',
+    outcome: 'timeout',
+    approved: false,
+    failure_reason: 'request_timed_out',
+    notes: 'Timeout is non-approved unless an explicit decision answer is parsed.',
+  },
+  {
+    case: 'form_deferred',
+    outcome: 'deferred',
+    approved: false,
+    notes: 'GUI explicitly deferred decision.',
+  },
+  {
+    case: 'gui_unavailable_or_launch_failed',
+    outcome: 'fallback_to_chat',
+    approved: false,
+    failure_reason: 'gui_unavailable',
+    notes: 'Supervisor/GUI unavailable or launch failure requires coordinator handoff.',
+  },
+  {
+    case: 'missing_decision_payload',
+    outcome: 'error',
+    approved: false,
+    failure_reason: 'missing_decision',
+    notes: 'Completed response without parseable decision payload is fail-safe.',
+  },
+  {
+    case: 'unknown_mode',
+    outcome: 'error',
+    approved: false,
+    failure_reason: 'unknown_mode',
+    notes: 'Unknown approval mode is treated as a protocol error.',
+  },
+  {
+    case: 'malformed_answer_payload',
+    outcome: 'error',
+    approved: false,
+    failure_reason: 'malformed_answer',
+    notes: 'Malformed answer payload is treated as a protocol error.',
+  },
+] as const;
 
 /** Result of a countdown timer question. */
 export type TimerResult = 'completed' | 'timed_out';
@@ -59,6 +229,21 @@ export interface WindowConfig {
   height?: number;
   /** Title for the window title-bar. */
   title: string;
+}
+
+/** Session metadata for multi-approval handling. */
+export interface ApprovalSessionContract {
+  session_id: string;
+  item_ids?: string[];
+  require_all_responses?: boolean;
+}
+
+/** Shared approval contract metadata (v2) for explicit mode/shape negotiation. */
+export interface ApprovalContractV2 {
+  mode: ApprovalMode;
+  request_shape: ApprovalRequestShape;
+  response_shape: ApprovalResponseShape;
+  session?: ApprovalSessionContract;
 }
 
 // ── Metadata ───────────────────────────────────────────────────
@@ -172,6 +357,20 @@ export type Question =
   | ConfirmRejectQuestion
   | CountdownTimerQuestion;
 
+/** One approval prompt item in a multi-approval session. */
+export interface ApprovalQuestionItem {
+  item_id: string;
+  label: string;
+  description?: string;
+  question: Question;
+}
+
+/** Explicit v2 request payload for approval-mode question sets. */
+export interface ApprovalQuestionSetV2 {
+  mode: ApprovalMode;
+  items?: ApprovalQuestionItem[];
+}
+
 // ── Answer types ───────────────────────────────────────────────
 
 /** Answer to a radio_select question. */
@@ -191,10 +390,39 @@ export interface FreeTextAnswer {
 
 /** Answer to a confirm_reject question. */
 export interface ConfirmRejectAnswer {
-  type: 'confirm_reject_answer';
+  /** Legacy payloads may use 'confirm_reject'. */
+  type: 'confirm_reject_answer' | 'confirm_reject';
   action: ConfirmRejectAction;
   /** Optional notes explaining the decision. */
   notes?: string;
+}
+
+/** Per-item decision entry used by multi-approval sessions. */
+export interface ApprovalSessionItemDecisionV2 {
+  item_id: string;
+  decision: ApprovalDecisionState;
+  selected?: string;
+  notes?: string;
+}
+
+/** Explicit v2 approval decision payload. */
+export interface ApprovalDecisionPayloadV2 {
+  mode: ApprovalMode;
+  /** Binary mode action. */
+  action?: ConfirmRejectAction;
+  /** Multiple-choice mode selected option id. */
+  selected?: string;
+  /** Multi-session mode session id. */
+  session_id?: string;
+  /** Multi-session mode per-item decisions. */
+  decisions?: ApprovalSessionItemDecisionV2[];
+  notes?: string;
+}
+
+/** Explicit v2 approval decision answer envelope. */
+export interface ApprovalDecisionV2Answer {
+  type: 'approval_decision_v2';
+  decision: ApprovalDecisionPayloadV2;
 }
 
 /** Answer to a countdown_timer question. */
@@ -211,6 +439,7 @@ export type AnswerValue =
   | RadioSelectAnswer
   | FreeTextAnswer
   | ConfirmRejectAnswer
+  | ApprovalDecisionV2Answer
   | CountdownTimerAnswer;
 
 /** A single answer bundled with metadata. */
@@ -252,7 +481,7 @@ export interface FormRequest {
   /** Ordered list of questions to present. */
   questions: Question[];
   /** Optional form-type-specific context (e.g. ApprovalStepContext for approval forms). */
-  context?: ApprovalStepContext | Record<string, unknown>;
+  context?: ApprovalStepContext | ApprovalRequestContextV2 | Record<string, unknown>;
 }
 
 /** The outbound response sent from GUI → Supervisor on stdout. */
@@ -372,4 +601,14 @@ export interface ApprovalStepContext {
   step_task: string;
   step_index: number;
   urgency: ApprovalUrgency;
+}
+
+/** V2 approval context carrying explicit contract metadata. */
+export interface ApprovalRequestContextV2 {
+  plan_title: string;
+  phase: string;
+  step_task: string;
+  step_index: number;
+  urgency: ApprovalUrgency;
+  contract: ApprovalContractV2;
 }

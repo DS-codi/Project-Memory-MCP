@@ -10,11 +10,13 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from uuid import uuid4
 
 from cleanup_common import cleanup_paths, ensure_staging_directories, iso_utc, now_utc, save_json_file
 
 TERMINAL_PLAN_STATUSES = {"done", "completed", "complete", "archived"}
 TERMINAL_STEP_STATUSES = {"done", "blocked"}
+STALE_ACTIVE_STATUSES = {"active", "in_progress"}
 
 STOPWORDS = {
     "the",
@@ -93,6 +95,16 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=20,
         help="How many oldest triage items to print (default: 20).",
+    )
+    parser.add_argument(
+        "--stale-active-days",
+        type=float,
+        default=None,
+        help=(
+            "Optional stale-active recommendation threshold in days. "
+            "When set, active non-archived plans with no recent activity beyond this threshold "
+            "are added as approval-required pause recommendations."
+        ),
     )
     return parser.parse_args()
 
@@ -430,6 +442,8 @@ def classify_plan(plan: Dict[str, Any]) -> Dict[str, Any]:
     created_at = parse_dt(plan.get("created_at"))
     updated_at = parse_dt(plan.get("updated_at"))
     completed_at = parse_dt(plan.get("completed_at"))
+    last_activity_dt = updated_at or created_at
+    normalized_status = re.sub(r"[\s\-]+", "_", status).strip("_")
 
     finished_not_archived = (not archived) and (
         status in TERMINAL_PLAN_STATUSES or all_steps_done or completed_at is not None
@@ -442,11 +456,14 @@ def classify_plan(plan: Dict[str, Any]) -> Dict[str, Any]:
         "title": plan.get("title") or "(untitled)",
         "description": plan.get("description") or "",
         "status": status or "unknown",
+        "normalized_status": normalized_status or "unknown",
         "archived": archived,
         "created_at": iso_utc(created_at) if created_at else None,
         "updated_at": iso_utc(updated_at) if updated_at else None,
+        "last_activity_at": iso_utc(last_activity_dt) if last_activity_dt else None,
         "created_dt": created_at,
         "updated_dt": updated_at,
+        "last_activity_dt": last_activity_dt,
         "tokens": plan_tokens(plan),
         "step_count": step_count,
         "done_steps": done_steps,
@@ -522,7 +539,153 @@ def _workspace_hint(plan_ids: Sequence[str], by_id: Dict[str, Dict[str, Any]], f
     return fallback_workspace_id
 
 
-def build_report(raw_plans: List[Dict[str, Any]], workspace_id: Optional[str]) -> Dict[str, Any]:
+def _pause_stale_plan_params(
+    item: Dict[str, Any],
+    stale_active_days: float,
+    workspace_id_fallback: Optional[str],
+) -> Dict[str, Any]:
+    params: Dict[str, Any] = {
+        "action": "pause_plan",
+        "plan_id": item["id"],
+        "pause_reason": "deferred",
+        "pause_user_notes": (
+            "Stale active plan recommendation from plan_cleanup_audit.py: "
+            f"no activity for {item['stale_age_days']} day(s), "
+            f"threshold {round(stale_active_days, 2)} day(s)."
+        ),
+    }
+    action_workspace_id = item.get("workspace_id") or workspace_id_fallback
+    if action_workspace_id:
+        params["workspace_id"] = action_workspace_id
+    return params
+
+
+def build_stale_active_approval_gui_batch(
+    stale_active_candidates: List[Dict[str, Any]],
+    stale_active_days: float,
+    workspace_id_fallback: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    if not stale_active_candidates:
+        return None
+
+    workspace_ids = {
+        candidate.get("workspace_id")
+        for candidate in stale_active_candidates
+        if isinstance(candidate.get("workspace_id"), str) and candidate.get("workspace_id")
+    }
+    if len(workspace_ids) == 1:
+        form_workspace_id = next(iter(workspace_ids))
+    else:
+        form_workspace_id = workspace_id_fallback or "unknown-workspace"
+
+    request_id = str(uuid4())
+    session_id = f"plan_cleanup_audit_{uuid4().hex[:12]}"
+    representative_plan_id = stale_active_candidates[0]["plan_id"]
+
+    questions: List[Dict[str, Any]] = []
+    response_mapping: List[Dict[str, Any]] = []
+
+    for candidate in stale_active_candidates:
+        plan_id = candidate["plan_id"]
+        question_id = f"stale_active__{plan_id}"
+        item_for_params = {
+            "id": plan_id,
+            "workspace_id": candidate.get("workspace_id"),
+            "stale_age_days": candidate["stale_age_days"],
+        }
+        approve_params = _pause_stale_plan_params(item_for_params, stale_active_days, workspace_id_fallback)
+
+        questions.append(
+            {
+                "type": "confirm_reject",
+                "id": question_id,
+                "label": f"Stale active plan: {candidate['title']}",
+                "description": (
+                    f"Plan ID: {plan_id}\n"
+                    f"Status: {candidate['status']}\n"
+                    f"Last activity: {candidate['last_activity_at']}\n"
+                    f"Stale age: {candidate['stale_age_days']} day(s) "
+                    f"(threshold: {round(stale_active_days, 2)} day(s))"
+                ),
+                "required": True,
+                "approve_label": "Pause as Deferred",
+                "reject_label": "Keep Active",
+                "allow_notes": True,
+                "notes_placeholder": "Optional rationale for this decision...",
+            }
+        )
+
+        response_mapping.append(
+            {
+                "question_id": question_id,
+                "plan_id": plan_id,
+                "on_approve": {
+                    "mcp_action": "memory_plan",
+                    "mcp_params": approve_params,
+                },
+                "on_reject": {
+                    "action": "no_mutation",
+                    "note": "Keep the plan active.",
+                },
+            }
+        )
+
+    questions.append(
+        {
+            "type": "countdown_timer",
+            "id": "stale_active_review_timer",
+            "label": "Review timer: {remaining}s",
+            "duration_seconds": 300,
+            "on_timeout": "defer",
+            "pause_on_interaction": True,
+        }
+    )
+
+    return {
+        "form_request": {
+            "type": "form_request",
+            "version": 1,
+            "request_id": request_id,
+            "form_type": "approval",
+            "metadata": {
+                "plan_id": representative_plan_id,
+                "workspace_id": form_workspace_id,
+                "session_id": session_id,
+                "agent": "FolderCleanupShell",
+                "title": "Stale Active Plan Review",
+                "description": (
+                    "Review stale active plan recommendations from plan_cleanup_audit.py. "
+                    "Approve to pause a plan as deferred, or reject to keep it active."
+                ),
+            },
+            "timeout": {
+                "duration_seconds": 300,
+                "on_timeout": "defer",
+                "fallback_mode": "chat",
+            },
+            "window": {
+                "always_on_top": True,
+                "width": 640,
+                "height": 520,
+                "title": "Stale Active Plan Review",
+            },
+            "questions": questions,
+            "context": {
+                "source": "plan_cleanup_audit.py",
+                "mode": "stale_active_plan_review",
+                "threshold_days": round(stale_active_days, 2),
+                "candidate_count": len(stale_active_candidates),
+            },
+        },
+        "response_mapping": response_mapping,
+    }
+
+
+def build_report(
+    raw_plans: List[Dict[str, Any]],
+    workspace_id: Optional[str],
+    stale_active_days: Optional[float],
+) -> Dict[str, Any]:
     classified = [classify_plan(plan) for plan in raw_plans if plan.get("id")]
     if workspace_id:
         classified = [item for item in classified if item.get("workspace_id") == workspace_id]
@@ -532,6 +695,48 @@ def build_report(raw_plans: List[Dict[str, Any]], workspace_id: Optional[str]) -
     triage = sorted(classified, key=plan_sort_key)
 
     finished_not_archived = [item for item in triage if item["finished_not_archived"]]
+    stale_active_candidates: List[Dict[str, Any]] = []
+
+    if stale_active_days is not None:
+        now = now_utc()
+        for item in triage:
+            if item["archived"] or item["finished_not_archived"]:
+                continue
+            if item.get("normalized_status") not in STALE_ACTIVE_STATUSES:
+                continue
+
+            last_activity_dt = item.get("last_activity_dt")
+            if not isinstance(last_activity_dt, datetime):
+                continue
+
+            stale_age = round((now - last_activity_dt).total_seconds() / 86400, 2)
+            if stale_age < stale_active_days:
+                continue
+
+            stale_active_candidates.append(
+                {
+                    "plan_id": item["id"],
+                    "workspace_id": item.get("workspace_id"),
+                    "title": item["title"],
+                    "status": item["status"],
+                    "created_at": item["created_at"],
+                    "updated_at": item["updated_at"],
+                    "last_activity_at": item.get("last_activity_at"),
+                    "stale_age_days": stale_age,
+                    "reason": (
+                        "Active plan has no recent activity and exceeded the stale threshold. "
+                        "Recommend explicit pause/defer confirmation."
+                    ),
+                }
+            )
+
+        stale_active_candidates.sort(
+            key=lambda candidate: (
+                -candidate["stale_age_days"],
+                candidate.get("created_at") or "",
+                candidate["plan_id"],
+            )
+        )
 
     redundant_edges: List[Tuple[str, str]] = []
     related_edges: List[Tuple[str, str]] = []
@@ -619,6 +824,32 @@ def build_report(raw_plans: List[Dict[str, Any]], workspace_id: Optional[str]) -
                 "created_at": item["created_at"],
                 "mcp_action": "memory_plan",
                 "mcp_params": params,
+            }
+        )
+
+    for candidate in stale_active_candidates:
+        item_for_params = {
+            "id": candidate["plan_id"],
+            "workspace_id": candidate.get("workspace_id"),
+            "stale_age_days": candidate["stale_age_days"],
+        }
+        params = _pause_stale_plan_params(item_for_params, float(stale_active_days), workspace_id)
+
+        proposed_actions.append(
+            {
+                "action_type": "pause_stale_active_plan",
+                "requires_user_approval": True,
+                "priority_reason": (
+                    "Active plan appears stale and should be explicitly confirmed before remaining active."
+                ),
+                "plan_id": candidate["plan_id"],
+                "title": candidate["title"],
+                "status": candidate["status"],
+                "last_activity_at": candidate["last_activity_at"],
+                "stale_age_days": candidate["stale_age_days"],
+                "mcp_action": "memory_plan",
+                "mcp_params": params,
+                "approval_gui_question_id": f"stale_active__{candidate['plan_id']}",
             }
         )
 
@@ -764,7 +995,15 @@ def build_report(raw_plans: List[Dict[str, Any]], workspace_id: Optional[str]) -
 
     proposed_actions.sort(key=action_sort_key)
 
-    return {
+    stale_active_gui_batch = None
+    if stale_active_days is not None:
+        stale_active_gui_batch = build_stale_active_approval_gui_batch(
+            stale_active_candidates=stale_active_candidates,
+            stale_active_days=float(stale_active_days),
+            workspace_id_fallback=workspace_id,
+        )
+
+    report: Dict[str, Any] = {
         "generated_at_utc": iso_utc(now_utc()),
         "policy": {
             "approval_required_before_mutation": True,
@@ -772,9 +1011,14 @@ def build_report(raw_plans: List[Dict[str, Any]], workspace_id: Optional[str]) -
             "no_automatic_mutations": True,
         },
         "workspace_id": workspace_id,
+        "stale_active_mode": {
+            "enabled": stale_active_days is not None,
+            "threshold_days": stale_active_days,
+        },
         "summary": {
             "total_plans_analyzed": len(classified),
             "finished_not_archived_count": len(finished_not_archived),
+            "stale_active_candidate_count": len(stale_active_candidates),
             "superseded_candidate_count": len(superseded_candidates),
             "redundant_group_count": len(redundant_groups),
             "related_group_count": len(related_groups),
@@ -803,6 +1047,7 @@ def build_report(raw_plans: List[Dict[str, Any]], workspace_id: Optional[str]) -
                 }
                 for item in finished_not_archived
             ],
+            "stale_active_candidates": stale_active_candidates,
             "superseded_candidates": superseded_candidates,
             "redundant_groups": redundant_groups,
             "related_groups": related_groups,
@@ -810,6 +1055,11 @@ def build_report(raw_plans: List[Dict[str, Any]], workspace_id: Optional[str]) -
         },
         "proposed_actions": proposed_actions,
     }
+
+    if stale_active_gui_batch:
+        report["approval_gui_batch"] = stale_active_gui_batch
+
+    return report
 
 
 def default_output_path(root: Path, generated_at_utc: str) -> Path:
@@ -819,9 +1069,16 @@ def default_output_path(root: Path, generated_at_utc: str) -> Path:
 
 def print_summary(report: Dict[str, Any], print_limit: int) -> None:
     summary = report.get("summary", {})
+    stale_mode = report.get("stale_active_mode", {})
     print("Plan cleanup proposal generated.")
     print(f"  Plans analyzed: {summary.get('total_plans_analyzed', 0)}")
     print(f"  Finished not archived: {summary.get('finished_not_archived_count', 0)}")
+    if stale_mode.get("enabled"):
+        print(
+            "  Stale active candidates: "
+            f"{summary.get('stale_active_candidate_count', 0)} "
+            f"(threshold={stale_mode.get('threshold_days')} days)"
+        )
     print(f"  Superseded candidates: {summary.get('superseded_candidate_count', 0)}")
     print(f"  Redundant groups: {summary.get('redundant_group_count', 0)}")
     print(f"  Related groups: {summary.get('related_group_count', 0)}")
@@ -836,9 +1093,21 @@ def print_summary(report: Dict[str, Any], print_limit: int) -> None:
                 f"status={item['status']} | archived={item['archived']}"
             )
 
+    stale_candidates = report.get("findings", {}).get("stale_active_candidates", [])[:print_limit]
+    if stale_candidates:
+        print("\nStale active candidates:")
+        for item in stale_candidates:
+            print(
+                f"  - {item['plan_id']} | status={item['status']} | "
+                f"last_activity={item['last_activity_at']} | stale_age_days={item['stale_age_days']}"
+            )
+
 
 def main() -> int:
     args = parse_args()
+
+    if args.stale_active_days is not None and args.stale_active_days < 0:
+        raise SystemExit("--stale-active-days must be >= 0 when provided.")
 
     source_details = ""
     if args.plans_json:
@@ -873,7 +1142,11 @@ def main() -> int:
     root = Path.cwd().resolve()
     ensure_staging_directories(root)
 
-    report = build_report(plans, workspace_id=args.workspace_id)
+    report = build_report(
+        plans,
+        workspace_id=args.workspace_id,
+        stale_active_days=args.stale_active_days,
+    )
     report["plan_source"] = source_details
     output_path = Path(args.output).resolve() if args.output else default_output_path(root, report["generated_at_utc"])
     save_json_file(output_path, report)

@@ -2,9 +2,50 @@
 //!
 //! Each variant is a serde-tagged enum discriminated on `"type"`.
 
+use std::fmt;
+
 use serde::{Deserialize, Serialize};
 
 use super::config::TimeoutAction;
+use super::envelope::{ApprovalMode, ApprovalRequestShape};
+
+/// Deterministic failure reasons for approval question validation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ApprovalQuestionValidationFailure {
+    MissingQuestionItems,
+    TooManyQuestionItems,
+    EmptyItemId,
+    EmptyQuestionId,
+    MissingRadioOptions,
+    EmptyRadioOptionId,
+    UnsupportedQuestionType,
+}
+
+/// Validation error emitted when approval question payload shape is unsupported.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ApprovalQuestionValidationError {
+    pub failure: ApprovalQuestionValidationFailure,
+    pub detail: String,
+}
+
+impl ApprovalQuestionValidationError {
+    fn new(failure: ApprovalQuestionValidationFailure, detail: impl Into<String>) -> Self {
+        Self {
+            failure,
+            detail: detail.into(),
+        }
+    }
+}
+
+impl fmt::Display for ApprovalQuestionValidationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}: {}", self.failure, self.detail)
+    }
+}
+
+impl std::error::Error for ApprovalQuestionValidationError {}
 
 /// A single option within a [`RadioSelectQuestion`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -112,6 +153,175 @@ pub enum Question {
     FreeText(FreeTextQuestion),
     ConfirmReject(ConfirmRejectQuestion),
     CountdownTimer(CountdownTimerQuestion),
+}
+
+impl Question {
+    /// Returns the approval request shape represented by this question, when applicable.
+    pub fn approval_request_shape(&self) -> Option<ApprovalRequestShape> {
+        match self {
+            Question::ConfirmReject(_) => Some(ApprovalRequestShape::ConfirmRejectQuestion),
+            Question::RadioSelect(_) => Some(ApprovalRequestShape::RadioSelectQuestion),
+            Question::FreeText(_) | Question::CountdownTimer(_) => None,
+        }
+    }
+
+    /// Returns the question id independent of variant shape.
+    pub fn question_id(&self) -> &str {
+        match self {
+            Question::RadioSelect(question) => &question.id,
+            Question::FreeText(question) => &question.id,
+            Question::ConfirmReject(question) => &question.id,
+            Question::CountdownTimer(question) => &question.id,
+        }
+    }
+
+    /// Validates whether this question is supported for the provided approval mode.
+    pub fn validate_for_approval_mode(
+        &self,
+        mode: ApprovalMode,
+    ) -> Result<(), ApprovalQuestionValidationError> {
+        let question_id = self.question_id().trim();
+        if question_id.is_empty() {
+            return Err(ApprovalQuestionValidationError::new(
+                ApprovalQuestionValidationFailure::EmptyQuestionId,
+                "Approval question id must not be empty",
+            ));
+        }
+
+        match mode {
+            ApprovalMode::Binary => match self {
+                Question::ConfirmReject(_) => Ok(()),
+                _ => Err(ApprovalQuestionValidationError::new(
+                    ApprovalQuestionValidationFailure::UnsupportedQuestionType,
+                    format!(
+                        "Binary approval mode only supports confirm_reject questions, got {}",
+                        question_type_name(self)
+                    ),
+                )),
+            },
+            ApprovalMode::MultipleChoice => match self {
+                Question::RadioSelect(question) => validate_radio_select(question),
+                _ => Err(ApprovalQuestionValidationError::new(
+                    ApprovalQuestionValidationFailure::UnsupportedQuestionType,
+                    format!(
+                        "Multiple-choice approval mode only supports radio_select questions, got {}",
+                        question_type_name(self)
+                    ),
+                )),
+            },
+            ApprovalMode::MultiApprovalSession => match self {
+                Question::ConfirmReject(_) => Ok(()),
+                Question::RadioSelect(question) => validate_radio_select(question),
+                _ => Err(ApprovalQuestionValidationError::new(
+                    ApprovalQuestionValidationFailure::UnsupportedQuestionType,
+                    format!(
+                        "Multi-approval session mode supports confirm_reject or radio_select questions, got {}",
+                        question_type_name(self)
+                    ),
+                )),
+            },
+        }
+    }
+}
+
+/// One approval prompt item in a multi-approval session.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ApprovalQuestionItem {
+    pub item_id: String,
+    pub label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Item-local decision question.
+    pub question: Question,
+}
+
+/// Explicit request payload for v2 approval modes.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ApprovalQuestionSetV2 {
+    pub mode: ApprovalMode,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub items: Vec<ApprovalQuestionItem>,
+}
+
+impl ApprovalQuestionSetV2 {
+    /// Validates mode-aware approval question-set shape constraints.
+    pub fn validate(&self) -> Result<(), ApprovalQuestionValidationError> {
+        if self.items.is_empty() {
+            return Err(ApprovalQuestionValidationError::new(
+                ApprovalQuestionValidationFailure::MissingQuestionItems,
+                "approval_question_set_v2.items must contain at least one item",
+            ));
+        }
+
+        if !matches!(self.mode, ApprovalMode::MultiApprovalSession) && self.items.len() != 1 {
+            return Err(ApprovalQuestionValidationError::new(
+                ApprovalQuestionValidationFailure::TooManyQuestionItems,
+                format!(
+                    "{} mode expects exactly one question item, got {}",
+                    approval_mode_name(self.mode),
+                    self.items.len()
+                ),
+            ));
+        }
+
+        for item in &self.items {
+            if item.item_id.trim().is_empty() {
+                return Err(ApprovalQuestionValidationError::new(
+                    ApprovalQuestionValidationFailure::EmptyItemId,
+                    "approval question item_id must not be empty",
+                ));
+            }
+
+            item.question.validate_for_approval_mode(self.mode)?;
+        }
+
+        Ok(())
+    }
+}
+
+fn question_type_name(question: &Question) -> &'static str {
+    match question {
+        Question::RadioSelect(_) => "radio_select",
+        Question::FreeText(_) => "free_text",
+        Question::ConfirmReject(_) => "confirm_reject",
+        Question::CountdownTimer(_) => "countdown_timer",
+    }
+}
+
+fn approval_mode_name(mode: ApprovalMode) -> &'static str {
+    match mode {
+        ApprovalMode::Binary => "binary",
+        ApprovalMode::MultipleChoice => "multiple_choice",
+        ApprovalMode::MultiApprovalSession => "multi_approval_session",
+    }
+}
+
+fn validate_radio_select(question: &RadioSelectQuestion) -> Result<(), ApprovalQuestionValidationError> {
+    if question.options.is_empty() {
+        return Err(ApprovalQuestionValidationError::new(
+            ApprovalQuestionValidationFailure::MissingRadioOptions,
+            format!(
+                "radio_select question '{}' must contain at least one option",
+                question.id
+            ),
+        ));
+    }
+
+    for option in &question.options {
+        if option.id.trim().is_empty() {
+            return Err(ApprovalQuestionValidationError::new(
+                ApprovalQuestionValidationFailure::EmptyRadioOptionId,
+                format!(
+                    "radio_select question '{}' contains an option with empty id",
+                    question.id
+                ),
+            ));
+        }
+    }
+
+    Ok(())
 }
 
 // ── Default helpers ──────────────────────────────────────────────

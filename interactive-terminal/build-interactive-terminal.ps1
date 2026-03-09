@@ -757,6 +757,18 @@ if ($doDeploy) {
 
         Write-Host 'Qt runtime deployment verified.' -ForegroundColor Green
 
+        # Keep tray/window icon assets beside the executable so runtime URL
+        # resolution in CxxQt bridge code works in both local and staged output.
+        $iconSourceDir = Join-Path $scriptDir 'resources'
+        foreach ($iconName in @('itpm-icon.ico', 'itpm-icon.svg')) {
+            $srcIcon = Join-Path $iconSourceDir $iconName
+            if (Test-Path $srcIcon) {
+                Copy-Item $srcIcon (Join-Path $outputDir $iconName) -Force
+            } else {
+                Write-Host "WARNING: icon asset not found: $srcIcon" -ForegroundColor Yellow
+            }
+        }
+
         if ($Profile -eq 'release') {
             $workspaceReleaseDir = Join-Path $workspaceRoot 'target\release'
             New-Item -ItemType Directory -Force -Path $workspaceReleaseDir | Out-Null
@@ -788,6 +800,26 @@ if ($doDeploy) {
                 }
                 else {
                     throw
+                }
+            }
+
+            foreach ($iconArtifact in @('itpm-icon.ico', 'itpm-icon.svg')) {
+                $iconSource = Join-Path $outputDir $iconArtifact
+                if (-not (Test-Path $iconSource)) {
+                    continue
+                }
+
+                try {
+                    Copy-Item $iconSource -Destination (Join-Path $workspaceReleaseDir $iconArtifact) -Force -ErrorAction Stop
+                }
+                catch {
+                    if ($_.Exception.Message -match 'being used by another process') {
+                        [void]$stagingSkipped.Add($iconArtifact)
+                        Write-Host "Staging warning: locked destination for $iconArtifact; keeping existing file." -ForegroundColor Yellow
+                    }
+                    else {
+                        throw
+                    }
                 }
             }
 

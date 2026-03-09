@@ -1,7 +1,7 @@
-import QtQuick
-import QtQuick.Controls
-import QtQuick.Controls.Material
-import QtQuick.Layouts
+import QtQuick 2.15
+import QtQuick.Controls 2.15
+import QtQuick.Controls.Material 2.15
+import QtQuick.Layouts 1.15
 import Qt.labs.platform 1.1 as Platform
 import com.projectmemory.supervisor
 
@@ -137,7 +137,7 @@ ApplicationWindow {
                     } catch(e) {}
                 }
             };
-            xhr.open("GET", mcpBaseUrl + "/sessions/live");
+            xhr.open("GET", root.mcpBaseUrl + "/sessions/live");
             xhr.send();
         }
     }
@@ -166,7 +166,7 @@ ApplicationWindow {
                     } catch(e) {}
                 }
             };
-            xhr.open("GET", dashBaseUrl + "/api/events?limit=10");
+            xhr.open("GET", root.dashBaseUrl + "/api/events?limit=10");
             xhr.send();
         }
     }
@@ -268,7 +268,8 @@ ApplicationWindow {
                         RowLayout {
                             anchors.fill: parent; anchors.margins: 14; spacing: 14
                             Rectangle {
-                                width: 48; height: 48; radius: 8; color: "#162a1e"
+                                Layout.preferredWidth: 48; Layout.preferredHeight: 48
+                                radius: 8; color: "#162a1e"
                                 Label { anchors.centerIn: parent; text: "\u2699"; font.pixelSize: 22; color: "#4caf50" }
                             }
                             ColumnLayout {
@@ -276,7 +277,12 @@ ApplicationWindow {
                                 RowLayout {
                                     spacing: 6
                                     Label { text: "MCP Server"; font.bold: true; font.pixelSize: 13 }
-                                    Rectangle { width: 8; height: 8; radius: 4; color: root.statusColor(supervisorGuiBridge.mcpStatus); Layout.alignment: Qt.AlignVCenter }
+                                    Rectangle {
+                                        Layout.preferredWidth: 8; Layout.preferredHeight: 8
+                                        radius: 4
+                                        color: root.statusColor(supervisorGuiBridge.mcpStatus)
+                                        Layout.alignment: Qt.AlignVCenter
+                                    }
                                     Label { text: supervisorGuiBridge.mcpStatus; font.pixelSize: 12; color: root.statusColor(supervisorGuiBridge.mcpStatus) }
                                 }
                                 Label {
@@ -300,7 +306,8 @@ ApplicationWindow {
                         RowLayout {
                             anchors.fill: parent; anchors.margins: 14; spacing: 14
                             Rectangle {
-                                width: 48; height: 48; radius: 8; color: "#0d2a2a"
+                                Layout.preferredWidth: 48; Layout.preferredHeight: 48
+                                radius: 8; color: "#0d2a2a"
                                 Label { anchors.centerIn: parent; text: ">_"; font.pixelSize: 16; font.bold: true; color: "#26c6da" }
                             }
                             ColumnLayout {
@@ -308,7 +315,12 @@ ApplicationWindow {
                                 RowLayout {
                                     spacing: 6
                                     Label { text: "Interactive Terminal"; font.bold: true; font.pixelSize: 13 }
-                                    Rectangle { width: 8; height: 8; radius: 4; color: root.statusColor(supervisorGuiBridge.terminalStatus); Layout.alignment: Qt.AlignVCenter }
+                                    Rectangle {
+                                        Layout.preferredWidth: 8; Layout.preferredHeight: 8
+                                        radius: 4
+                                        color: root.statusColor(supervisorGuiBridge.terminalStatus)
+                                        Layout.alignment: Qt.AlignVCenter
+                                    }
                                     Label { text: supervisorGuiBridge.terminalStatus; font.pixelSize: 12; color: root.statusColor(supervisorGuiBridge.terminalStatus) }
                                 }
                                 Label {
@@ -344,7 +356,8 @@ ApplicationWindow {
                         RowLayout {
                             anchors.fill: parent; anchors.margins: 14; spacing: 14
                             Rectangle {
-                                width: 48; height: 48; radius: 8; color: "#0d1f2e"
+                                Layout.preferredWidth: 48; Layout.preferredHeight: 48
+                                radius: 8; color: "#0d1f2e"
                                 Label { anchors.centerIn: parent; text: "\u229e"; font.pixelSize: 22; color: "#42a5f5" }
                             }
                             ColumnLayout {
@@ -352,7 +365,12 @@ ApplicationWindow {
                                 RowLayout {
                                     spacing: 6
                                     Label { text: "Dashboard"; font.bold: true; font.pixelSize: 13 }
-                                    Rectangle { width: 8; height: 8; radius: 4; color: root.statusColor(supervisorGuiBridge.dashboardStatus); Layout.alignment: Qt.AlignVCenter }
+                                    Rectangle {
+                                        Layout.preferredWidth: 8; Layout.preferredHeight: 8
+                                        radius: 4
+                                        color: root.statusColor(supervisorGuiBridge.dashboardStatus)
+                                        Layout.alignment: Qt.AlignVCenter
+                                    }
                                     Label { text: supervisorGuiBridge.dashboardStatus; font.pixelSize: 12; color: root.statusColor(supervisorGuiBridge.dashboardStatus) }
                                 }
                                 Label {
@@ -381,7 +399,8 @@ ApplicationWindow {
                         RowLayout {
                             anchors.fill: parent; anchors.margins: 14; spacing: 14
                             Rectangle {
-                                width: 48; height: 48; radius: 8; color: "#2a0d0d"
+                                Layout.preferredWidth: 48; Layout.preferredHeight: 48
+                                radius: 8; color: "#2a0d0d"
                                 Label { anchors.centerIn: parent; text: "{}"; font.pixelSize: 15; font.bold: true; color: "#ef5350" }
                             }
                             ColumnLayout {
@@ -389,7 +408,12 @@ ApplicationWindow {
                                 RowLayout {
                                     spacing: 6
                                     Label { text: "Fallback API"; font.bold: true; font.pixelSize: 13 }
-                                    Rectangle { width: 8; height: 8; radius: 4; color: root.statusColor(supervisorGuiBridge.fallbackStatus); Layout.alignment: Qt.AlignVCenter }
+                                    Rectangle {
+                                        Layout.preferredWidth: 8; Layout.preferredHeight: 8
+                                        radius: 4
+                                        color: root.statusColor(supervisorGuiBridge.fallbackStatus)
+                                        Layout.alignment: Qt.AlignVCenter
+                                    }
                                     Label { text: supervisorGuiBridge.fallbackStatus; font.pixelSize: 12; color: root.statusColor(supervisorGuiBridge.fallbackStatus) }
                                 }
                                 Label { text: "Proxy route: /api/fallback/*"; font.pixelSize: 10; color: "#666666" }
@@ -422,7 +446,7 @@ ApplicationWindow {
                                 Label { text: "Status";      font.pixelSize: 10; color: "#666666"; Layout.preferredWidth: 58 }
                                 Label { text: "Actions";     font.pixelSize: 10; color: "#666666"; Layout.preferredWidth: 80 }
                             }
-                            Rectangle { Layout.fillWidth: true; height: 1; color: "#2a2a2a" }
+                            Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: "#2a2a2a" }
                             ScrollView {
                                 Layout.fillWidth: true; Layout.fillHeight: true; clip: true; contentWidth: availableWidth
                                 ColumnLayout {
@@ -431,14 +455,29 @@ ApplicationWindow {
                                         id: sessionsRepeater
                                         model: sessionsList
                                         delegate: RowLayout {
+                                            id: sessionRow
+                                            required property string sessionId
+                                            required property string agentType
+                                            required property string sessionKey
+                                            function requestStop() {
+                                                root.stopSession(sessionRow.sessionKey)
+                                            }
                                             Layout.fillWidth: true; spacing: 0
-                                            Label { text: model.sessionId.slice(0, 16); font.pixelSize: 11; Layout.preferredWidth: 130; color: "#cccccc"; elide: Text.ElideRight }
-                                            Label { text: model.agentType; font.pixelSize: 11; Layout.fillWidth: true; color: "#cccccc" }
+                                            Label { text: sessionRow.sessionId.slice(0, 16); font.pixelSize: 11; Layout.preferredWidth: 130; color: "#cccccc"; elide: Text.ElideRight }
+                                            Label { text: sessionRow.agentType; font.pixelSize: 11; Layout.fillWidth: true; color: "#cccccc" }
                                             Rectangle {
-                                                width: 52; height: 18; radius: 9; color: "#1b3a1e"; Layout.preferredWidth: 58
+                                                Layout.preferredWidth: 58; Layout.preferredHeight: 18
+                                                radius: 9; color: "#1b3a1e"
                                                 Label { anchors.centerIn: parent; text: "ACTIVE"; font.pixelSize: 9; font.bold: true; color: "#66bb6a" }
                                             }
-                                            Button { text: "Stop"; implicitHeight: 32; leftPadding: 12; rightPadding: 12; Layout.preferredWidth: 80; onClicked: root.stopSession(model.sessionKey) }
+                                            Button {
+                                                text: "Stop"
+                                                implicitHeight: 32
+                                                leftPadding: 12
+                                                rightPadding: 12
+                                                Layout.preferredWidth: 80
+                                                onClicked: sessionRow.requestStop()
+                                            }
                                         }
                                     }
                                     Label {
@@ -457,7 +496,7 @@ ApplicationWindow {
                         ColumnLayout {
                             anchors.fill: parent; anchors.margins: 14; spacing: 8
                             Label { text: "Recent Activity"; font.bold: true; font.pixelSize: 13 }
-                            Rectangle { Layout.fillWidth: true; height: 1; color: "#2a2a2a" }
+                            Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: "#2a2a2a" }
                             ScrollView {
                                 Layout.fillWidth: true; Layout.fillHeight: true; clip: true; contentWidth: availableWidth
                                 ListView {
@@ -465,8 +504,10 @@ ApplicationWindow {
                                     model: activityList
                                     spacing: 4
                                     delegate: Label {
-                                        width: activityView.width
-                                        text: model.evType + " \u00b7 " + model.evTimestamp
+                                        required property string evType
+                                        required property string evTimestamp
+                                        width: ListView.view ? ListView.view.width : 0
+                                        text: evType + " \u00b7 " + evTimestamp
                                         font.pixelSize: 11; color: "#aaaaaa"; wrapMode: Text.WordWrap
                                     }
                                     Label {
@@ -549,7 +590,7 @@ ApplicationWindow {
                                             }
                                         }
                                     };
-                                    xhr.open("POST", mcpBaseUrl + "/admin/memory_cartographer");
+                                    xhr.open("POST", root.mcpBaseUrl + "/admin/memory_cartographer");
                                     xhr.setRequestHeader("Content-Type", "application/json");
                                     xhr.send(JSON.stringify({ workspace_id: wsId }));
                                 }
@@ -615,7 +656,8 @@ ApplicationWindow {
                                     }
                                 }
                                 Rectangle {
-                                    width: 10; height: 10; radius: 5
+                                    Layout.preferredWidth: 10; Layout.preferredHeight: 10
+                                    radius: 5
                                     color: supervisorGuiBridge.eventBroadcastEnabled ? "#4caf50" : "#555555"
                                     Layout.alignment: Qt.AlignVCenter
                                 }

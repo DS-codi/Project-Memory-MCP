@@ -17,6 +17,7 @@ import { validateAndResolveWorkspaceId } from './workspace-validation.js';
 import { preflightValidate } from '../preflight/index.js';
 import { updateSessionRegistry } from '../../db/workspace-session-registry-db.js';
 import { serverSessionIdForPrepId } from '../session-live-store.js';
+import { maybeAttachCoordinatorHandoffInstruction } from '../orchestration/approval-gate-routing.js';
 
 /**
  * Enrich step objects with display_number (1-based) for agent/UI consumption.
@@ -181,7 +182,15 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
         notes: params.notes
       });
       if (!result.success) {
-        return { success: false, error: result.error };
+        const baseError = result.error ?? 'Failed to update step';
+        return {
+          success: false,
+          error: maybeAttachCoordinatorHandoffInstruction(baseError, {
+            workspace_id,
+            plan_id,
+            step_index: params.step_index,
+          }),
+        };
       }
       syncRegistryFromPlanState(params._session_id, result.data!);
       // Track step status change for session instrumentation
@@ -213,7 +222,15 @@ export async function memorySteps(params: MemoryStepsParams): Promise<ToolRespon
         updates: mappedUpdates
       });
       if (!result.success) {
-        return { success: false, error: result.error };
+        const baseError = result.error ?? 'Failed to batch update steps';
+        return {
+          success: false,
+          error: maybeAttachCoordinatorHandoffInstruction(baseError, {
+            workspace_id,
+            plan_id,
+            step_index: params.updates[0]?.index,
+          }),
+        };
       }
       syncRegistryFromPlanState(params._session_id, result.data!);
       // Track step status changes for session instrumentation

@@ -1,0 +1,73 @@
+{
+  "generated_at_utc": "2026-03-08T07:03:41Z",
+  "policy": {
+    "approval_required_before_mutation": true,
+    "oldest_first_triage": true,
+    "no_automatic_mutations": true
+  },
+  "workspace_id": "project-memory-mcp-40f6678f5a9b",
+  "summary": {
+    "total_plans_analyzed": 5,
+    "finished_not_archived_count": 0,
+    "superseded_candidate_count": 0,
+    "redundant_group_count": 0,
+    "related_group_count": 0,
+    "proposed_action_count": 0
+  },
+  "triage_order_oldest_first": [
+    {
+      "plan_id": "plan_mm79uurd_1e011abb",
+      "title": "DB-first Agent/Instruction/Skill Migration + Hub Workflow Re-architecture",
+      "created_at": "2026-03-01T04:50:40Z",
+      "updated_at": "2026-03-01T04:59:26Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmetk41n_4e437579",
+      "title": "DFWGS Plan 1 \u2014 Core Engine: Scope Computation & Workspace File Generator",
+      "created_at": "2026-03-06T11:36:35Z",
+      "updated_at": "2026-03-06T11:51:43Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmetkctt_3fcfb7c7",
+      "title": "DFWGS Plan 2 \u2014 VS Code Extension: Command, Tool Restriction & Status Indicator",
+      "created_at": "2026-03-06T11:36:46Z",
+      "updated_at": "2026-03-06T11:37:06Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmetkku4_496644e7",
+      "title": "DFWGS Plan 3 \u2014 Supervisor: Scope-Change Notifications & Tray Integration",
+      "created_at": "2026-03-06T11:36:56Z",
+      "updated_at": "2026-03-06T11:37:09Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmfz7e9m_d6a3631b",
+      "title": "Debug GUI Forms Runtime and Launch Flow",
+      "created_at": "2026-03-07T07:02:25Z",
+      "updated_at": "2026-03-07T07:02:35Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    }
+  ],
+  "findings": {
+    "finished_not_archived": [],
+    "superseded_candidates": [],
+    "redundant_groups": [],
+    "related_groups": [],
+    "pairwise_similarity_notes": []
+  },
+  "proposed_actions": [],
+  "plan_source": "db:C:\\Users\\User\\AppData\\Roaming\\ProjectMemory\\project-memory.db"
+}

@@ -587,14 +587,55 @@ function Invoke-QmlLint {
     $output    = & $qmllintPath -I $qtQmlRoot -I $QmlDir ($qmlFiles.FullName) 2>&1
     $exitCode  = $LASTEXITCODE
 
-    $errors   = @($output | Where-Object { $_ -match ': Error' })
-    $warnings = @($output | Where-Object { $_ -match ': Warning' })
+    # qmllint warning/error formats vary by Qt version and codepath.
+    # Handle both forms:
+    #   - "Warning: file.qml:line:col: ..."
+    #   - "file.qml:line:col: Warning: ..."
+    $outputLines    = @($output | ForEach-Object { "$_" })
+    $errorPattern   = '^\s*Error:|:\s*Error\b'
+    $warningPattern = '^\s*Warning:|:\s*Warning\b'
 
-    if ($LogFile -ne '') { $output | Out-File $LogFile -Encoding utf8 -Append }
+    $errors   = @($outputLines | Where-Object { $_ -match $errorPattern })
+    $warnings = @($outputLines | Where-Object { $_ -match $warningPattern })
+
+    $warningKinds = @{}
+    foreach ($warningLine in $warnings) {
+        $kind = 'unknown'
+        if ($warningLine -match '\[(?<kind>[^\]]+)\]\s*$') {
+            $kind = $Matches.kind
+        }
+        if ($warningKinds.ContainsKey($kind)) {
+            $warningKinds[$kind] += 1
+        } else {
+            $warningKinds[$kind] = 1
+        }
+    }
+
+    $importWarningCount = if ($warningKinds.ContainsKey('import')) { [int]$warningKinds['import'] } else { 0 }
+    $missingPropertyCount = if ($warningKinds.ContainsKey('missing-property')) { [int]$warningKinds['missing-property'] } else { 0 }
+    $incompatibleTypeCount = if ($warningKinds.ContainsKey('incompatible-type')) { [int]$warningKinds['incompatible-type'] } else { 0 }
+
+    $primaryWarningKinds = @{}
+    $cascadingWarningKinds = @{}
+    if ($importWarningCount -gt 0) {
+        foreach ($entry in $warningKinds.GetEnumerator()) {
+            if ($entry.Key -in @('missing-property', 'incompatible-type')) {
+                $cascadingWarningKinds[$entry.Key] = $entry.Value
+            } else {
+                $primaryWarningKinds[$entry.Key] = $entry.Value
+            }
+        }
+    } else {
+        foreach ($entry in $warningKinds.GetEnumerator()) {
+            $primaryWarningKinds[$entry.Key] = $entry.Value
+        }
+    }
+
+    if ($LogFile -ne '') { $outputLines | Out-File $LogFile -Encoding utf8 -Append }
 
     if ($errors.Count -gt 0 -or $PrintAll) {
-        $output | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object {
-            $color = if ($_ -match ': Error') { 'Red' } elseif ($_ -match ': Warning') { 'Yellow' } else { 'Gray' }
+        $outputLines | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object {
+            $color = if ($_ -match $errorPattern) { 'Red' } elseif ($_ -match $warningPattern) { 'Yellow' } else { 'Gray' }
             Write-Host "     $_" -ForegroundColor $color
         }
     }
@@ -605,7 +646,68 @@ function Invoke-QmlLint {
         return $false
     }
     if ($warnings.Count -gt 0) {
-        Write-Warn "QML lint ($Label): $($warnings.Count) warning(s) in $($qmlFiles.Count) files (non-fatal)"
+        # If imports fail, qmllint often cascades into many missing-property/incompatible-type
+        # diagnostics for custom bridge types. Report that split explicitly so summaries stay readable.
+        $cascadingCount = 0
+        if ($importWarningCount -gt 0) {
+            $cascadingCount = $missingPropertyCount + $incompatibleTypeCount
+        }
+
+        $unresolvedModules = @()
+        if ($importWarningCount -gt 0) {
+            $unresolvedModules = @(
+                $warnings |
+                ForEach-Object {
+                    if ($_ -match 'Failed to import\s+([A-Za-z0-9\._]+)') {
+                        $Matches[1]
+                    }
+                } |
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+                Select-Object -Unique
+            )
+        }
+
+        if ($cascadingCount -gt 0) {
+            $primaryCount = [Math]::Max(0, $warnings.Count - $cascadingCount)
+            Write-Warn "QML lint ($Label): $($warnings.Count) warning diagnostic(s) while scanning $($qmlFiles.Count) file(s) (primary=$primaryCount, cascading=$cascadingCount from unresolved imports; non-fatal)"
+            if ($unresolvedModules.Count -gt 0) {
+                Write-Host "   Import root cause: unresolved module(s): $($unresolvedModules -join ', ')" -ForegroundColor DarkGray
+                Write-Host "   Note: import-cascade warnings are often expected before bridge/plugin artifacts are built." -ForegroundColor DarkGray
+            }
+        } else {
+            Write-Warn "QML lint ($Label): $($warnings.Count) warning diagnostic(s) while scanning $($qmlFiles.Count) file(s) (non-fatal)"
+        }
+
+        if ($warningKinds.Count -gt 0) {
+            if ($cascadingCount -gt 0) {
+                $topPrimaryKinds = $primaryWarningKinds.GetEnumerator() |
+                    Sort-Object -Property Value -Descending |
+                    Select-Object -First 4 |
+                    ForEach-Object { "$($_.Key)=$($_.Value)" }
+
+                if ($topPrimaryKinds.Count -gt 0) {
+                    Write-Host "   QML lint primary categories: $($topPrimaryKinds -join ', ')" -ForegroundColor DarkGray
+                }
+
+                $topCascadeKinds = $cascadingWarningKinds.GetEnumerator() |
+                    Sort-Object -Property Value -Descending |
+                    Select-Object -First 4 |
+                    ForEach-Object { "$($_.Key)=$($_.Value)" }
+
+                if ($topCascadeKinds.Count -gt 0) {
+                    Write-Host "   QML lint cascading categories: $($topCascadeKinds -join ', ')" -ForegroundColor DarkGray
+                }
+            } else {
+                $topKinds = $warningKinds.GetEnumerator() |
+                    Sort-Object -Property Value -Descending |
+                    Select-Object -First 4 |
+                    ForEach-Object { "$($_.Key)=$($_.Value)" }
+
+                if ($topKinds.Count -gt 0) {
+                    Write-Host "   QML lint warning categories: $($topKinds -join ', ')" -ForegroundColor DarkGray
+                }
+            }
+        }
     } else {
         Write-Host "   [OK] QML lint passed ($($qmlFiles.Count) files, 0 issues)" -ForegroundColor Green
     }
@@ -782,6 +884,9 @@ function Install-InteractiveTerminal {
         exit 1
     }
     $QtDir = $Qt.QtDir
+
+    $terminalQmlDir = Join-Path $Root 'interactive-terminal\qml'
+    if (-not (Invoke-QmlLint -QtBin $Qt.QtBin -QmlDir $terminalQmlDir -Label 'interactive-terminal' -PrintAll:($LintVerbose.IsPresent) -LogFile $LintLog)) { exit 1 }
 
     Write-Host "   › Delegating to build-interactive-terminal.ps1 (QtDir=$QtDir)" -ForegroundColor Gray
     & $BuildScript -Profile release -QtDir $QtDir
@@ -1180,7 +1285,21 @@ if ($Components -contains "Supervisor") {
     $canLaunchViaScript = Test-Path $launchScript
     $canLaunchDirect = Test-Path $supervisorExe
 
-    if (($canLaunchViaScript -or $canLaunchDirect) -and -not $NoLaunchPrompt) {
+    if (-not ($canLaunchViaScript -or $canLaunchDirect)) {
+        Write-Host "   [warn] no supervisor launch target found." -ForegroundColor Yellow
+        Write-Host "   Missing script: $launchScript" -ForegroundColor DarkGray
+        Write-Host "   Missing executable: $supervisorExe" -ForegroundColor DarkGray
+    } elseif ($NoLaunchPrompt) {
+        Write-Host "   Supervisor launch prompt suppressed (-NoLaunchPrompt)." -ForegroundColor DarkGray
+        if ($canLaunchViaScript) {
+            Write-Host "   Launch command (script):" -ForegroundColor DarkGray
+            Write-Host "   & '$launchScript'" -ForegroundColor DarkGray
+        }
+        if ($canLaunchDirect) {
+            Write-Host "   Launch command (direct):" -ForegroundColor DarkGray
+            Write-Host "   & '$supervisorExe'" -ForegroundColor DarkGray
+        }
+    } else {
         $launchNow = Read-Host 'Build complete. Launch supervisor now? (Y/N)'
         if ($launchNow -match '^(?i)y(?:es)?$') {
             $launched = $false
@@ -1226,9 +1345,5 @@ if ($Components -contains "Supervisor") {
                 Write-Host "   & '$supervisorExe'" -ForegroundColor DarkGray
             }
         }
-    } else {
-        Write-Host "   [warn] no supervisor launch target found." -ForegroundColor Yellow
-        Write-Host "   Missing script: $launchScript" -ForegroundColor DarkGray
-        Write-Host "   Missing executable: $supervisorExe" -ForegroundColor DarkGray
     }
 }

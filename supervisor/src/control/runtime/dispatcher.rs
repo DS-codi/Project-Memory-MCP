@@ -6,6 +6,7 @@ use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 
+use crate::config::{diagnose_command, CommandDiagnosticStatus};
 use crate::control::runtime::backpressure::BackpressureGate;
 use crate::control::runtime::cancel::CancellationRegistry;
 use crate::control::runtime::contracts::{
@@ -168,6 +169,30 @@ impl RuntimeDispatcher {
             });
         }
 
+        let command_diag = diagnose_command(&self.cfg.command, self.cfg.working_dir.as_ref());
+        let resolved_runtime_command = match command_diag.status {
+            CommandDiagnosticStatus::Ready => command_diag
+                .resolved_command
+                .clone()
+                .unwrap_or_else(|| PathBuf::from(&self.cfg.command)),
+            CommandDiagnosticStatus::MissingCommand => {
+                return Err(RuntimeError::InvalidRequest {
+                    message: format!(
+                        "runtime command preflight failed before launch attempt: {}",
+                        command_diag.detail
+                    ),
+                });
+            }
+            CommandDiagnosticStatus::UnresolvedExecutablePath => {
+                return Err(RuntimeError::SubprocessFailure {
+                    message: format!(
+                        "runtime command preflight failed before launch attempt: {}",
+                        command_diag.detail
+                    ),
+                });
+            }
+        };
+
         let session = self.sessions.init_session(requested_session).await;
         let session_id = session.session_id.clone();
 
@@ -194,7 +219,7 @@ impl RuntimeDispatcher {
             return Err(RuntimeError::Cancelled { session_id });
         }
 
-        let mut cmd = Command::new(&self.cfg.command);
+        let mut cmd = Command::new(&resolved_runtime_command);
         cmd.args(&self.cfg.args)
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
@@ -209,7 +234,11 @@ impl RuntimeDispatcher {
         }
 
         let mut child = cmd.spawn().map_err(|e| RuntimeError::SubprocessFailure {
-            message: format!("failed to spawn mcp runtime command {}: {e}", self.cfg.command),
+            message: format!(
+                "failed to spawn mcp runtime command \"{}\" (resolved: \"{}\"): {e}",
+                self.cfg.command,
+                resolved_runtime_command.display()
+            ),
         })?;
 
         if let Some(mut stdin) = child.stdin.take() {
@@ -673,5 +702,67 @@ mod tests {
         }
 
         assert!(overload_count > 0, "expected at least one overload under stress");
+    }
+
+    #[tokio::test]
+    async fn execute_missing_command_fails_preflight_before_spawn() {
+        let dispatcher = make_dispatcher_with(
+            "   ".to_string(),
+            Vec::new(),
+            1,
+            2,
+            50,
+            2_000,
+            1,
+        );
+
+        let err = dispatcher
+            .dispatch(
+                &serde_json::json!({
+                    "runtime": { "op": "execute", "session_id": "missing-command" }
+                }),
+                Some(500),
+            )
+            .await
+            .expect_err("missing command should fail preflight");
+
+        match err {
+            RuntimeError::InvalidRequest { message } => {
+                assert!(message.contains("preflight"));
+                assert!(message.contains("empty"));
+            }
+            other => panic!("expected invalid request preflight error, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn execute_unresolved_command_fails_preflight_before_spawn() {
+        let dispatcher = make_dispatcher_with(
+            "this-command-should-not-exist-runtime-dispatcher".to_string(),
+            Vec::new(),
+            1,
+            2,
+            50,
+            2_000,
+            1,
+        );
+
+        let err = dispatcher
+            .dispatch(
+                &serde_json::json!({
+                    "runtime": { "op": "execute", "session_id": "unresolved-command" }
+                }),
+                Some(500),
+            )
+            .await
+            .expect_err("unresolved command should fail preflight");
+
+        match err {
+            RuntimeError::SubprocessFailure { message } => {
+                assert!(message.contains("preflight"));
+                assert!(message.contains("not found") || message.contains("does not exist"));
+            }
+            other => panic!("expected subprocess preflight error, got {other:?}"),
+        }
     }
 }

@@ -1,0 +1,362 @@
+{
+  "generated_at_utc": "2026-03-08T10:12:36Z",
+  "policy": {
+    "approval_required_before_mutation": true,
+    "oldest_first_triage": true,
+    "no_automatic_mutations": true
+  },
+  "workspace_id": "project-memory-mcp-40f6678f5a9b",
+  "stale_active_mode": {
+    "enabled": true,
+    "threshold_days": 1.0
+  },
+  "summary": {
+    "total_plans_analyzed": 5,
+    "finished_not_archived_count": 0,
+    "stale_active_candidate_count": 4,
+    "superseded_candidate_count": 0,
+    "redundant_group_count": 0,
+    "related_group_count": 0,
+    "proposed_action_count": 4
+  },
+  "triage_order_oldest_first": [
+    {
+      "plan_id": "plan_mm79uurd_1e011abb",
+      "title": "DB-first Agent/Instruction/Skill Migration + Hub Workflow Re-architecture",
+      "created_at": "2026-03-01T04:50:40Z",
+      "updated_at": "2026-03-01T04:59:26Z",
+      "status": "archived",
+      "archived": true,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmetk41n_4e437579",
+      "title": "DFWGS Plan 1 \u2014 Core Engine: Scope Computation & Workspace File Generator",
+      "created_at": "2026-03-06T11:36:35Z",
+      "updated_at": "2026-03-06T11:51:43Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmetkctt_3fcfb7c7",
+      "title": "DFWGS Plan 2 \u2014 VS Code Extension: Command, Tool Restriction & Status Indicator",
+      "created_at": "2026-03-06T11:36:46Z",
+      "updated_at": "2026-03-06T11:37:06Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmetkku4_496644e7",
+      "title": "DFWGS Plan 3 \u2014 Supervisor: Scope-Change Notifications & Tray Integration",
+      "created_at": "2026-03-06T11:36:56Z",
+      "updated_at": "2026-03-06T11:37:09Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    },
+    {
+      "plan_id": "plan_mmfz7e9m_d6a3631b",
+      "title": "Debug GUI Forms Runtime and Launch Flow",
+      "created_at": "2026-03-07T07:02:25Z",
+      "updated_at": "2026-03-07T07:02:35Z",
+      "status": "active",
+      "archived": false,
+      "finished_not_archived": false
+    }
+  ],
+  "findings": {
+    "finished_not_archived": [],
+    "stale_active_candidates": [
+      {
+        "plan_id": "plan_mmetkctt_3fcfb7c7",
+        "workspace_id": "project-memory-mcp-40f6678f5a9b",
+        "title": "DFWGS Plan 2 \u2014 VS Code Extension: Command, Tool Restriction & Status Indicator",
+        "status": "active",
+        "created_at": "2026-03-06T11:36:46Z",
+        "updated_at": "2026-03-06T11:37:06Z",
+        "last_activity_at": "2026-03-06T11:37:06Z",
+        "stale_age_days": 1.94,
+        "reason": "Active plan has no recent activity and exceeded the stale threshold. Recommend explicit pause/defer confirmation."
+      },
+      {
+        "plan_id": "plan_mmetkku4_496644e7",
+        "workspace_id": "project-memory-mcp-40f6678f5a9b",
+        "title": "DFWGS Plan 3 \u2014 Supervisor: Scope-Change Notifications & Tray Integration",
+        "status": "active",
+        "created_at": "2026-03-06T11:36:56Z",
+        "updated_at": "2026-03-06T11:37:09Z",
+        "last_activity_at": "2026-03-06T11:37:09Z",
+        "stale_age_days": 1.94,
+        "reason": "Active plan has no recent activity and exceeded the stale threshold. Recommend explicit pause/defer confirmation."
+      },
+      {
+        "plan_id": "plan_mmetk41n_4e437579",
+        "workspace_id": "project-memory-mcp-40f6678f5a9b",
+        "title": "DFWGS Plan 1 \u2014 Core Engine: Scope Computation & Workspace File Generator",
+        "status": "active",
+        "created_at": "2026-03-06T11:36:35Z",
+        "updated_at": "2026-03-06T11:51:43Z",
+        "last_activity_at": "2026-03-06T11:51:43Z",
+        "stale_age_days": 1.93,
+        "reason": "Active plan has no recent activity and exceeded the stale threshold. Recommend explicit pause/defer confirmation."
+      },
+      {
+        "plan_id": "plan_mmfz7e9m_d6a3631b",
+        "workspace_id": "project-memory-mcp-40f6678f5a9b",
+        "title": "Debug GUI Forms Runtime and Launch Flow",
+        "status": "active",
+        "created_at": "2026-03-07T07:02:25Z",
+        "updated_at": "2026-03-07T07:02:35Z",
+        "last_activity_at": "2026-03-07T07:02:35Z",
+        "stale_age_days": 1.13,
+        "reason": "Active plan has no recent activity and exceeded the stale threshold. Recommend explicit pause/defer confirmation."
+      }
+    ],
+    "superseded_candidates": [],
+    "redundant_groups": [],
+    "related_groups": [],
+    "pairwise_similarity_notes": []
+  },
+  "proposed_actions": [
+    {
+      "action_type": "pause_stale_active_plan",
+      "requires_user_approval": true,
+      "priority_reason": "Active plan appears stale and should be explicitly confirmed before remaining active.",
+      "plan_id": "plan_mmetk41n_4e437579",
+      "title": "DFWGS Plan 1 \u2014 Core Engine: Scope Computation & Workspace File Generator",
+      "status": "active",
+      "last_activity_at": "2026-03-06T11:51:43Z",
+      "stale_age_days": 1.93,
+      "mcp_action": "memory_plan",
+      "mcp_params": {
+        "action": "pause_plan",
+        "plan_id": "plan_mmetk41n_4e437579",
+        "pause_reason": "deferred",
+        "pause_user_notes": "Stale active plan recommendation from plan_cleanup_audit.py: no activity for 1.93 day(s), threshold 1.0 day(s).",
+        "workspace_id": "project-memory-mcp-40f6678f5a9b"
+      },
+      "approval_gui_question_id": "stale_active__plan_mmetk41n_4e437579"
+    },
+    {
+      "action_type": "pause_stale_active_plan",
+      "requires_user_approval": true,
+      "priority_reason": "Active plan appears stale and should be explicitly confirmed before remaining active.",
+      "plan_id": "plan_mmetkctt_3fcfb7c7",
+      "title": "DFWGS Plan 2 \u2014 VS Code Extension: Command, Tool Restriction & Status Indicator",
+      "status": "active",
+      "last_activity_at": "2026-03-06T11:37:06Z",
+      "stale_age_days": 1.94,
+      "mcp_action": "memory_plan",
+      "mcp_params": {
+        "action": "pause_plan",
+        "plan_id": "plan_mmetkctt_3fcfb7c7",
+        "pause_reason": "deferred",
+        "pause_user_notes": "Stale active plan recommendation from plan_cleanup_audit.py: no activity for 1.94 day(s), threshold 1.0 day(s).",
+        "workspace_id": "project-memory-mcp-40f6678f5a9b"
+      },
+      "approval_gui_question_id": "stale_active__plan_mmetkctt_3fcfb7c7"
+    },
+    {
+      "action_type": "pause_stale_active_plan",
+      "requires_user_approval": true,
+      "priority_reason": "Active plan appears stale and should be explicitly confirmed before remaining active.",
+      "plan_id": "plan_mmetkku4_496644e7",
+      "title": "DFWGS Plan 3 \u2014 Supervisor: Scope-Change Notifications & Tray Integration",
+      "status": "active",
+      "last_activity_at": "2026-03-06T11:37:09Z",
+      "stale_age_days": 1.94,
+      "mcp_action": "memory_plan",
+      "mcp_params": {
+        "action": "pause_plan",
+        "plan_id": "plan_mmetkku4_496644e7",
+        "pause_reason": "deferred",
+        "pause_user_notes": "Stale active plan recommendation from plan_cleanup_audit.py: no activity for 1.94 day(s), threshold 1.0 day(s).",
+        "workspace_id": "project-memory-mcp-40f6678f5a9b"
+      },
+      "approval_gui_question_id": "stale_active__plan_mmetkku4_496644e7"
+    },
+    {
+      "action_type": "pause_stale_active_plan",
+      "requires_user_approval": true,
+      "priority_reason": "Active plan appears stale and should be explicitly confirmed before remaining active.",
+      "plan_id": "plan_mmfz7e9m_d6a3631b",
+      "title": "Debug GUI Forms Runtime and Launch Flow",
+      "status": "active",
+      "last_activity_at": "2026-03-07T07:02:35Z",
+      "stale_age_days": 1.13,
+      "mcp_action": "memory_plan",
+      "mcp_params": {
+        "action": "pause_plan",
+        "plan_id": "plan_mmfz7e9m_d6a3631b",
+        "pause_reason": "deferred",
+        "pause_user_notes": "Stale active plan recommendation from plan_cleanup_audit.py: no activity for 1.13 day(s), threshold 1.0 day(s).",
+        "workspace_id": "project-memory-mcp-40f6678f5a9b"
+      },
+      "approval_gui_question_id": "stale_active__plan_mmfz7e9m_d6a3631b"
+    }
+  ],
+  "approval_gui_batch": {
+    "form_request": {
+      "type": "form_request",
+      "version": 1,
+      "request_id": "e5967512-345e-4536-940f-3d5628ef2f54",
+      "form_type": "approval",
+      "metadata": {
+        "plan_id": "plan_mmetkctt_3fcfb7c7",
+        "workspace_id": "project-memory-mcp-40f6678f5a9b",
+        "session_id": "plan_cleanup_audit_21259f7cedac",
+        "agent": "FolderCleanupShell",
+        "title": "Stale Active Plan Review",
+        "description": "Review stale active plan recommendations from plan_cleanup_audit.py. Approve to pause a plan as deferred, or reject to keep it active."
+      },
+      "timeout": {
+        "duration_seconds": 300,
+        "on_timeout": "defer",
+        "fallback_mode": "chat"
+      },
+      "window": {
+        "always_on_top": true,
+        "width": 640,
+        "height": 520,
+        "title": "Stale Active Plan Review"
+      },
+      "questions": [
+        {
+          "type": "confirm_reject",
+          "id": "stale_active__plan_mmetkctt_3fcfb7c7",
+          "label": "Stale active plan: DFWGS Plan 2 \u2014 VS Code Extension: Command, Tool Restriction & Status Indicator",
+          "description": "Plan ID: plan_mmetkctt_3fcfb7c7\nStatus: active\nLast activity: 2026-03-06T11:37:06Z\nStale age: 1.94 day(s) (threshold: 1.0 day(s))",
+          "required": true,
+          "approve_label": "Pause as Deferred",
+          "reject_label": "Keep Active",
+          "allow_notes": true,
+          "notes_placeholder": "Optional rationale for this decision..."
+        },
+        {
+          "type": "confirm_reject",
+          "id": "stale_active__plan_mmetkku4_496644e7",
+          "label": "Stale active plan: DFWGS Plan 3 \u2014 Supervisor: Scope-Change Notifications & Tray Integration",
+          "description": "Plan ID: plan_mmetkku4_496644e7\nStatus: active\nLast activity: 2026-03-06T11:37:09Z\nStale age: 1.94 day(s) (threshold: 1.0 day(s))",
+          "required": true,
+          "approve_label": "Pause as Deferred",
+          "reject_label": "Keep Active",
+          "allow_notes": true,
+          "notes_placeholder": "Optional rationale for this decision..."
+        },
+        {
+          "type": "confirm_reject",
+          "id": "stale_active__plan_mmetk41n_4e437579",
+          "label": "Stale active plan: DFWGS Plan 1 \u2014 Core Engine: Scope Computation & Workspace File Generator",
+          "description": "Plan ID: plan_mmetk41n_4e437579\nStatus: active\nLast activity: 2026-03-06T11:51:43Z\nStale age: 1.93 day(s) (threshold: 1.0 day(s))",
+          "required": true,
+          "approve_label": "Pause as Deferred",
+          "reject_label": "Keep Active",
+          "allow_notes": true,
+          "notes_placeholder": "Optional rationale for this decision..."
+        },
+        {
+          "type": "confirm_reject",
+          "id": "stale_active__plan_mmfz7e9m_d6a3631b",
+          "label": "Stale active plan: Debug GUI Forms Runtime and Launch Flow",
+          "description": "Plan ID: plan_mmfz7e9m_d6a3631b\nStatus: active\nLast activity: 2026-03-07T07:02:35Z\nStale age: 1.13 day(s) (threshold: 1.0 day(s))",
+          "required": true,
+          "approve_label": "Pause as Deferred",
+          "reject_label": "Keep Active",
+          "allow_notes": true,
+          "notes_placeholder": "Optional rationale for this decision..."
+        },
+        {
+          "type": "countdown_timer",
+          "id": "stale_active_review_timer",
+          "label": "Review timer: {remaining}s",
+          "duration_seconds": 300,
+          "on_timeout": "defer",
+          "pause_on_interaction": true
+        }
+      ],
+      "context": {
+        "source": "plan_cleanup_audit.py",
+        "mode": "stale_active_plan_review",
+        "threshold_days": 1.0,
+        "candidate_count": 4
+      }
+    },
+    "response_mapping": [
+      {
+        "question_id": "stale_active__plan_mmetkctt_3fcfb7c7",
+        "plan_id": "plan_mmetkctt_3fcfb7c7",
+        "on_approve": {
+          "mcp_action": "memory_plan",
+          "mcp_params": {
+            "action": "pause_plan",
+            "plan_id": "plan_mmetkctt_3fcfb7c7",
+            "pause_reason": "deferred",
+            "pause_user_notes": "Stale active plan recommendation from plan_cleanup_audit.py: no activity for 1.94 day(s), threshold 1.0 day(s).",
+            "workspace_id": "project-memory-mcp-40f6678f5a9b"
+          }
+        },
+        "on_reject": {
+          "action": "no_mutation",
+          "note": "Keep the plan active."
+        }
+      },
+      {
+        "question_id": "stale_active__plan_mmetkku4_496644e7",
+        "plan_id": "plan_mmetkku4_496644e7",
+        "on_approve": {
+          "mcp_action": "memory_plan",
+          "mcp_params": {
+            "action": "pause_plan",
+            "plan_id": "plan_mmetkku4_496644e7",
+            "pause_reason": "deferred",
+            "pause_user_notes": "Stale active plan recommendation from plan_cleanup_audit.py: no activity for 1.94 day(s), threshold 1.0 day(s).",
+            "workspace_id": "project-memory-mcp-40f6678f5a9b"
+          }
+        },
+        "on_reject": {
+          "action": "no_mutation",
+          "note": "Keep the plan active."
+        }
+      },
+      {
+        "question_id": "stale_active__plan_mmetk41n_4e437579",
+        "plan_id": "plan_mmetk41n_4e437579",
+        "on_approve": {
+          "mcp_action": "memory_plan",
+          "mcp_params": {
+            "action": "pause_plan",
+            "plan_id": "plan_mmetk41n_4e437579",
+            "pause_reason": "deferred",
+            "pause_user_notes": "Stale active plan recommendation from plan_cleanup_audit.py: no activity for 1.93 day(s), threshold 1.0 day(s).",
+            "workspace_id": "project-memory-mcp-40f6678f5a9b"
+          }
+        },
+        "on_reject": {
+          "action": "no_mutation",
+          "note": "Keep the plan active."
+        }
+      },
+      {
+        "question_id": "stale_active__plan_mmfz7e9m_d6a3631b",
+        "plan_id": "plan_mmfz7e9m_d6a3631b",
+        "on_approve": {
+          "mcp_action": "memory_plan",
+          "mcp_params": {
+            "action": "pause_plan",
+            "plan_id": "plan_mmfz7e9m_d6a3631b",
+            "pause_reason": "deferred",
+            "pause_user_notes": "Stale active plan recommendation from plan_cleanup_audit.py: no activity for 1.13 day(s), threshold 1.0 day(s).",
+            "workspace_id": "project-memory-mcp-40f6678f5a9b"
+          }
+        },
+        "on_reject": {
+          "action": "no_mutation",
+          "note": "Keep the plan active."
+        }
+      }
+    ]
+  },
+  "plan_source": "db:C:\\Users\\User\\AppData\\Roaming\\ProjectMemory\\project-memory.db"
+}

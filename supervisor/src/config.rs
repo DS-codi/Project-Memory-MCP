@@ -4,7 +4,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::fmt;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::control::protocol::BackendKind;
 
@@ -549,6 +549,205 @@ impl Default for FormAppConfig {
     fn default() -> Self {
         default_form_app_config("form-app")
     }
+}
+
+// ---------------------------------------------------------------------------
+// Form-app summonability diagnostics
+// ---------------------------------------------------------------------------
+
+/// High-level readiness result for a command string.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CommandDiagnosticStatus {
+    Ready,
+    MissingCommand,
+    UnresolvedExecutablePath,
+}
+
+/// Result of resolving a command before any spawn attempt.
+#[derive(Debug, Clone)]
+pub struct CommandDiagnostic {
+    pub status: CommandDiagnosticStatus,
+    pub command: String,
+    pub resolved_command: Option<PathBuf>,
+    pub detail: String,
+}
+
+/// Summonability status for a form app at config/runtime-map registration time.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FormAppSummonabilityStatus {
+    Enabled,
+    DisabledByConfig,
+    MissingCommand,
+    UnresolvedExecutablePath,
+}
+
+/// Diagnostic payload used by startup/runtime-map gating.
+#[derive(Debug, Clone)]
+pub struct FormAppSummonabilityDiagnostic {
+    pub app_name: String,
+    pub status: FormAppSummonabilityStatus,
+    pub command: String,
+    pub resolved_command: Option<PathBuf>,
+    pub detail: String,
+}
+
+impl FormAppSummonabilityDiagnostic {
+    pub fn is_launchable(&self) -> bool {
+        matches!(self.status, FormAppSummonabilityStatus::Enabled)
+    }
+}
+
+/// Diagnose whether a form-app config is launchable before registering it in
+/// the runtime map.
+pub fn diagnose_form_app_summonability(
+    app_name: &str,
+    cfg: &FormAppConfig,
+) -> FormAppSummonabilityDiagnostic {
+    if !cfg.enabled {
+        return FormAppSummonabilityDiagnostic {
+            app_name: app_name.to_string(),
+            status: FormAppSummonabilityStatus::DisabledByConfig,
+            command: cfg.command.trim().to_string(),
+            resolved_command: None,
+            detail: format!(
+                "form app \"{app_name}\" is disabled in config (enabled=false)"
+            ),
+        };
+    }
+
+    let command_diag = diagnose_command(&cfg.command, cfg.working_dir.as_ref());
+    let status = match command_diag.status {
+        CommandDiagnosticStatus::Ready => FormAppSummonabilityStatus::Enabled,
+        CommandDiagnosticStatus::MissingCommand => FormAppSummonabilityStatus::MissingCommand,
+        CommandDiagnosticStatus::UnresolvedExecutablePath => {
+            FormAppSummonabilityStatus::UnresolvedExecutablePath
+        }
+    };
+
+    FormAppSummonabilityDiagnostic {
+        app_name: app_name.to_string(),
+        status,
+        command: command_diag.command,
+        resolved_command: command_diag.resolved_command,
+        detail: command_diag.detail,
+    }
+}
+
+/// Resolve a command string to an executable path and classify failure causes.
+pub fn diagnose_command(command: &str, working_dir: Option<&PathBuf>) -> CommandDiagnostic {
+    let trimmed = command.trim();
+    if trimmed.is_empty() {
+        return CommandDiagnostic {
+            status: CommandDiagnosticStatus::MissingCommand,
+            command: String::new(),
+            resolved_command: None,
+            detail: "command is empty after trimming".to_string(),
+        };
+    }
+
+    if let Some(resolved_command) = resolve_command_path(trimmed, working_dir) {
+        return CommandDiagnostic {
+            status: CommandDiagnosticStatus::Ready,
+            command: trimmed.to_string(),
+            resolved_command: Some(resolved_command.clone()),
+            detail: format!("resolved executable path: {}", resolved_command.display()),
+        };
+    }
+
+    let detail = if looks_like_explicit_path(trimmed) {
+        let candidate = explicit_command_candidate(trimmed, working_dir);
+        format!("executable path \"{}\" does not exist", candidate.display())
+    } else {
+        format!("command \"{trimmed}\" was not found on PATH")
+    };
+
+    CommandDiagnostic {
+        status: CommandDiagnosticStatus::UnresolvedExecutablePath,
+        command: trimmed.to_string(),
+        resolved_command: None,
+        detail,
+    }
+}
+
+fn resolve_command_path(command: &str, working_dir: Option<&PathBuf>) -> Option<PathBuf> {
+    if looks_like_explicit_path(command) {
+        return canonical_existing_file(explicit_command_candidate(command, working_dir));
+    }
+
+    resolve_command_on_path(command)
+}
+
+fn explicit_command_candidate(command: &str, working_dir: Option<&PathBuf>) -> PathBuf {
+    let base = PathBuf::from(command);
+    if base.is_absolute() {
+        base
+    } else if let Some(dir) = working_dir {
+        dir.join(base)
+    } else {
+        base
+    }
+}
+
+fn resolve_command_on_path(command: &str) -> Option<PathBuf> {
+    let path_env = std::env::var_os("PATH")?;
+    let has_extension = Path::new(command).extension().is_some();
+
+    for dir in std::env::split_paths(&path_env) {
+        let direct_candidate = dir.join(command);
+        if let Some(found) = canonical_existing_file(direct_candidate) {
+            return Some(found);
+        }
+
+        if has_extension {
+            continue;
+        }
+
+        #[cfg(windows)]
+        {
+            for ext in windows_pathexts() {
+                let with_ext = dir.join(format!("{command}{ext}"));
+                if let Some(found) = canonical_existing_file(with_ext) {
+                    return Some(found);
+                }
+            }
+        }
+    }
+
+    None
+}
+
+fn canonical_existing_file(path: PathBuf) -> Option<PathBuf> {
+    if !path.is_file() {
+        return None;
+    }
+
+    Some(path.canonicalize().unwrap_or(path))
+}
+
+fn looks_like_explicit_path(command: &str) -> bool {
+    Path::new(command).is_absolute()
+        || command.starts_with('.')
+        || command.contains('/')
+        || command.contains('\\')
+}
+
+#[cfg(windows)]
+fn windows_pathexts() -> Vec<String> {
+    let raw =
+        std::env::var("PATHEXT").unwrap_or_else(|_| ".COM;.EXE;.BAT;.CMD".to_string());
+
+    raw.split(';')
+        .filter_map(|ext| {
+            let trimmed = ext.trim();
+            if trimmed.is_empty() {
+                None
+            } else if trimmed.starts_with('.') {
+                Some(trimmed.to_ascii_lowercase())
+            } else {
+                Some(format!(".{}", trimmed.to_ascii_lowercase()))
+            }
+        })
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -1227,6 +1426,60 @@ command = "/usr/bin/node"
             cfg.command, "node",
             "command should default to 'node'"
         );
+    }
+
+    #[test]
+    fn diagnose_form_app_summonability_reports_disabled_by_config() {
+        let mut cfg = FormAppConfig::default();
+        cfg.enabled = false;
+
+        let diag = diagnose_form_app_summonability("approval_gui", &cfg);
+        assert_eq!(diag.app_name, "approval_gui");
+        assert!(matches!(
+            diag.status,
+            FormAppSummonabilityStatus::DisabledByConfig
+        ));
+        assert!(!diag.is_launchable());
+    }
+
+    #[test]
+    fn diagnose_form_app_summonability_reports_missing_command() {
+        let mut cfg = FormAppConfig::default();
+        cfg.command = "   ".to_string();
+
+        let diag = diagnose_form_app_summonability("approval_gui", &cfg);
+        assert!(matches!(
+            diag.status,
+            FormAppSummonabilityStatus::MissingCommand
+        ));
+        assert!(diag.detail.contains("empty"));
+        assert!(!diag.is_launchable());
+    }
+
+    #[test]
+    fn diagnose_form_app_summonability_reports_unresolved_executable_path() {
+        let mut cfg = FormAppConfig::default();
+        cfg.command = "this-command-should-not-exist-pm-approval-gui".to_string();
+
+        let diag = diagnose_form_app_summonability("approval_gui", &cfg);
+        assert!(matches!(
+            diag.status,
+            FormAppSummonabilityStatus::UnresolvedExecutablePath
+        ));
+        assert!(diag.detail.contains("not found") || diag.detail.contains("does not exist"));
+        assert!(!diag.is_launchable());
+    }
+
+    #[test]
+    fn diagnose_form_app_summonability_reports_enabled_for_existing_executable() {
+        let mut cfg = FormAppConfig::default();
+        let current_exe = std::env::current_exe().expect("current executable path");
+        cfg.command = current_exe.to_string_lossy().to_string();
+
+        let diag = diagnose_form_app_summonability("approval_gui", &cfg);
+        assert!(matches!(diag.status, FormAppSummonabilityStatus::Enabled));
+        assert!(diag.is_launchable());
+        assert!(diag.resolved_command.is_some());
     }
 }
 

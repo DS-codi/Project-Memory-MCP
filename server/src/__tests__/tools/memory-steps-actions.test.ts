@@ -5,6 +5,7 @@ import * as fileStore from '../../storage/db-store.js';
 import * as validation from '../../tools/consolidated/workspace-validation.js';
 import * as sessionRegistryDb from '../../db/workspace-session-registry-db.js';
 import * as sessionLiveStore from '../../tools/session-live-store.js';
+import * as approvalGateRouting from '../../tools/orchestration/approval-gate-routing.js';
 
 vi.mock('../../storage/db-store.js');
 vi.mock('../../tools/consolidated/workspace-validation.js');
@@ -133,6 +134,39 @@ describe('MCP Tool: memory_steps Add/Update/Batch/Insert/Delete/Replace Actions'
         stepIndicesClaimed: [1],
         status: 'active',
       });
+    });
+
+    it('should surface Coordinator handoff guidance when approval GUI is unavailable for a gated step', async () => {
+      const mockPlanState = createMockPlanState(1);
+      mockPlanState.steps[0] = {
+        ...mockPlanState.steps[0],
+        requires_confirmation: true,
+      };
+      vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(mockPlanState);
+      vi.spyOn(approvalGateRouting, 'routeApprovalGate').mockResolvedValue({
+        approved: false,
+        path: 'fallback',
+        outcome: 'fallback_to_chat',
+        error: 'Approval GUI unavailable; fallback_to_chat',
+        elapsed_ms: 4,
+        requires_handoff_to_coordinator: true,
+        handoff_instruction: 'Do not auto-approve. Handoff to Hub/Coordinator now via memory_agent(action: "handoff", to_agent: "Coordinator").',
+      } as any);
+
+      const params: MemoryStepsParams = {
+        action: 'update',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        step_index: 0,
+        status: 'active',
+      };
+
+      const result = await memorySteps(params);
+
+      expect(approvalGateRouting.routeApprovalGate).toHaveBeenCalledOnce();
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('memory_agent(action: "handoff"');
+      expect(result.error).toContain('to_agent: "Coordinator"');
     });
   });
 

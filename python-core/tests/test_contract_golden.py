@@ -25,6 +25,10 @@ from memory_cartographer.guardrails.safety import (
     should_skip_file,
 )
 from memory_cartographer.guardrails.perf_budget import PerfConfig, PerfTracker
+from memory_cartographer.contracts.normalization import (
+    DiagnosticCode,
+    normalize,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -168,3 +172,200 @@ class TestPerfGuardrails:
         tracker.on_batch_complete(batch_file_count=200)
         assert tracker.batches_completed == 2
         assert tracker.files_processed == 300
+
+
+# ---------------------------------------------------------------------------
+# Normalization contract golden tests
+# ---------------------------------------------------------------------------
+
+class TestNormalizationContractGolden:
+    def test_required_arrays_are_materialized_for_summary_and_sections(self):
+        raw_output = {
+            "query": "summary",
+            "workspace": {},
+            "summary": {
+                "architecture_layers": None,
+                "language_breakdown": None,
+            },
+            "symbols": None,
+            "references": None,
+            "code_cartography": {
+                "files": None,
+                "module_graph": {
+                    "nodes": None,
+                    "edges": None,
+                },
+                "dependency_flow": {
+                    "tiers": None,
+                    "entry_points": None,
+                },
+            },
+        }
+
+        normalized = normalize(raw_output)
+
+        # These assertions guard against regression to no-op normalization.
+        assert normalized["workspace"]["languages"] == []
+        assert normalized["summary"]["architecture_layers"] == []
+        assert normalized["summary"]["language_breakdown"] == []
+        assert normalized["symbols"] == []
+        assert normalized["references"] == []
+        assert normalized["files"] == []
+        assert normalized["code_cartography"]["files"] == []
+        assert normalized["code_cartography"]["symbols"] == []
+        assert normalized["code_cartography"]["references"] == []
+        assert normalized["code_cartography"]["module_graph"]["nodes"] == []
+        assert normalized["code_cartography"]["module_graph"]["edges"] == []
+        assert normalized["code_cartography"]["dependency_flow"]["tiers"] == []
+        assert normalized["code_cartography"]["dependency_flow"]["entry_points"] == []
+
+    def test_slice_projection_ordering_is_deterministic_across_input_permutations(self):
+        payload_a = {
+            "query": "slice_projection",
+            "projected_nodes": [
+                {
+                    "path": "src/z.py",
+                    "file_id": "src/z.py",
+                    "module_id": "m.z",
+                    "symbol_id": "src/z.py::zeta",
+                    "name": "zeta",
+                    "start_line": 20,
+                },
+                {
+                    "path": "src/a.py",
+                    "file_id": "src/a.py",
+                    "module_id": "m.a",
+                    "symbol_id": "src/a.py::alpha",
+                    "name": "alpha",
+                    "start_line": 5,
+                },
+            ],
+            "projected_edges": [
+                {
+                    "from_module": "m.z",
+                    "from": "src/z.py::zeta",
+                    "to_module": "m.a",
+                    "to": "src/a.py::alpha",
+                    "edge_kind": "calls",
+                },
+                {
+                    "from_module": "m.a",
+                    "from": "src/a.py::alpha",
+                    "to_module": "m.z",
+                    "to": "src/z.py::zeta",
+                    "edge_kind": "imports",
+                },
+            ],
+        }
+
+        payload_b = {
+            "query": "slice_projection",
+            "projected_nodes": list(reversed(payload_a["projected_nodes"])),
+            "projected_edges": list(reversed(payload_a["projected_edges"])),
+        }
+
+        normalized_a = normalize(payload_a)
+        normalized_b = normalize(payload_b)
+
+        expected_nodes = [
+            {
+                "path": "src/a.py",
+                "file_id": "src/a.py",
+                "module_id": "m.a",
+                "symbol_id": "src/a.py::alpha",
+                "name": "alpha",
+                "start_line": 5,
+            },
+            {
+                "path": "src/z.py",
+                "file_id": "src/z.py",
+                "module_id": "m.z",
+                "symbol_id": "src/z.py::zeta",
+                "name": "zeta",
+                "start_line": 20,
+            },
+        ]
+        expected_edges = [
+            {
+                "from_module": "m.a",
+                "from": "src/a.py::alpha",
+                "to_module": "m.z",
+                "to": "src/z.py::zeta",
+                "edge_kind": "imports",
+            },
+            {
+                "from_module": "m.z",
+                "from": "src/z.py::zeta",
+                "to_module": "m.a",
+                "to": "src/a.py::alpha",
+                "edge_kind": "calls",
+            },
+        ]
+
+        assert normalized_a["projected_nodes"] == expected_nodes
+        assert normalized_a["projected_edges"] == expected_edges
+        assert normalized_b["projected_nodes"] == expected_nodes
+        assert normalized_b["projected_edges"] == expected_edges
+
+    def test_partial_flag_propagates_from_generation_metadata_to_sections(self):
+        raw_output = {
+            "query": "slice_detail",
+            "partial": False,
+            "generation_metadata": {"partial": True},
+            "detail": {"partial": False},
+            "projection_summary": {},
+        }
+
+        normalized = normalize(raw_output)
+
+        assert normalized["partial"] is True
+        assert normalized["generation_metadata"]["partial"] is True
+        assert normalized["detail"]["partial"] is True
+        assert normalized["projection_summary"]["partial"] is True
+
+    def test_identity_key_diagnostics_are_emitted_and_deduplicated(self):
+        raw_output = {
+            "query": "file_context",
+            "symbols": [
+                {"file": "src/main.py", "id": "invalid-symbol-id"},
+                {"file": "src/main.py", "id": "invalid-symbol-id"},
+            ],
+            "references": [
+                {
+                    "from_file": "src/main.py",
+                    "to_symbol_id": "broken-target-id",
+                }
+            ],
+            "projected_nodes": [
+                {
+                    "file_id": "src/projection.py",
+                    "id": "invalid-projected-node-id",
+                }
+            ],
+        }
+
+        normalized = normalize(raw_output)
+        diagnostics = normalized.get("_normalization_diagnostics")
+
+        assert isinstance(diagnostics, list)
+        assert any(
+            item.get("code") == DiagnosticCode.SYMBOL_PARSE_ERROR.value
+            for item in diagnostics
+            if isinstance(item, dict)
+        )
+
+        fields = {
+            item.get("field")
+            for item in diagnostics
+            if isinstance(item, dict)
+        }
+        assert "symbols[].id" in fields
+        assert "references[].to_symbol_id" in fields
+        assert "projected_nodes[].id" in fields
+
+        symbol_id_warnings = [
+            item
+            for item in diagnostics
+            if isinstance(item, dict) and item.get("field") == "symbols[].id"
+        ]
+        assert len(symbol_id_warnings) == 1

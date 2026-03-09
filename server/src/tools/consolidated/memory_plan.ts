@@ -32,6 +32,11 @@ import * as programTools from '../program/index.js';
 import * as fileStore from '../../storage/db-store.js';
 import { validateAndResolveWorkspaceId } from './workspace-validation.js';
 import { preflightValidate } from '../preflight/index.js';
+import {
+  maybeAttachCoordinatorHandoffInstruction,
+  pausePlanAtApprovalGate,
+  routeApprovalGate,
+} from '../orchestration/approval-gate-routing.js';
 import type {
   ProgramRisk,
   ProgramDependency,
@@ -43,7 +48,7 @@ import type {
   DependencyType,
 } from '../../types/program-v2.types.js';
 
-export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate' | 'set_goals' | 'add_build_script' | 'list_build_scripts' | 'run_build_script' | 'delete_build_script' | 'create_from_template' | 'list_templates' | 'confirm' | 'create_program' | 'add_plan_to_program' | 'upgrade_to_program' | 'list_program_plans' | 'export_plan' | 'link_to_program' | 'unlink_from_program' | 'set_plan_dependencies' | 'get_plan_dependencies' | 'set_plan_priority' | 'clone_plan' | 'merge_plans' | 'add_risk' | 'list_risks' | 'auto_detect_risks' | 'set_dependency' | 'get_dependencies' | 'migrate_programs' | 'pause_plan' | 'resume_plan' | 'set_workflow_mode' | 'get_workflow_mode';
+export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate' | 'set_goals' | 'add_build_script' | 'list_build_scripts' | 'run_build_script' | 'delete_build_script' | 'create_from_template' | 'list_templates' | 'confirm' | 'summon_approval' | 'create_program' | 'add_plan_to_program' | 'upgrade_to_program' | 'list_program_plans' | 'export_plan' | 'link_to_program' | 'unlink_from_program' | 'set_plan_dependencies' | 'get_plan_dependencies' | 'set_plan_priority' | 'clone_plan' | 'merge_plans' | 'add_risk' | 'list_risks' | 'auto_detect_risks' | 'set_dependency' | 'get_dependencies' | 'migrate_programs' | 'pause_plan' | 'resume_plan' | 'set_workflow_mode' | 'get_workflow_mode';
 
 export interface MemoryPlanParams {
   action: PlanAction;
@@ -80,6 +85,9 @@ export interface MemoryPlanParams {
   confirm_phase?: string;
   confirm_step_index?: number;
   confirmed_by?: string;
+  // Approval summon params
+  approval_step_index?: number;
+  approval_session_id?: string;
   // Program params
   program_id?: string;
   move_steps_to_child?: boolean;
@@ -138,6 +146,21 @@ type PlanResult =
   | { action: 'create_from_template'; data: PlanState }
   | { action: 'list_templates'; data: planTools.PlanTemplateSteps[] }
   | { action: 'confirm'; data: { plan_state: PlanState; confirmation: unknown } }
+  | { action: 'summon_approval'; data: {
+      plan_id: string;
+      step_index: number;
+      approved: boolean;
+      outcome: import('../../types/gui-forms.types.js').ApprovalRoutingOutcome;
+      path: 'gui' | 'fallback';
+      paused: boolean;
+      status: string;
+      elapsed_ms: number;
+      user_notes?: string;
+      requires_handoff_to_coordinator?: boolean;
+      handoff_instruction?: string;
+      confirmation_recorded?: boolean;
+      paused_at_snapshot?: import('../../types/plan.types.js').PausedAtSnapshot;
+    } }
   | { action: 'create_program'; data: ProgramState }
   | { action: 'add_plan_to_program'; data: ProgramManifest }
   | { action: 'upgrade_to_program'; data: { program: ProgramState; manifest: ProgramManifest } }
@@ -221,7 +244,7 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
   if (!action) {
     return {
       success: false,
-      error: 'action is required. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, create_program, add_plan_to_program, upgrade_to_program, list_program_plans, link_to_program, unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans, add_risk, list_risks, auto_detect_risks, set_dependency, get_dependencies, migrate_programs'
+      error: 'action is required. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, summon_approval, create_program, add_plan_to_program, upgrade_to_program, list_program_plans, link_to_program, unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans, add_risk, list_risks, auto_detect_risks, set_dependency, get_dependencies, migrate_programs'
     };
   }
 
@@ -644,7 +667,14 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
           confirmed_by: params.confirmed_by
         });
         if (!result.success) {
-          return { success: false, error: result.error };
+          const baseError = result.error ?? 'Failed to confirm phase';
+          return {
+            success: false,
+            error: maybeAttachCoordinatorHandoffInstruction(baseError, {
+              workspace_id: params.workspace_id,
+              plan_id: params.plan_id,
+            }),
+          };
         }
         return {
           success: true,
@@ -666,7 +696,15 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
           confirmed_by: params.confirmed_by
         });
         if (!result.success) {
-          return { success: false, error: result.error };
+          const baseError = result.error ?? 'Failed to confirm step';
+          return {
+            success: false,
+            error: maybeAttachCoordinatorHandoffInstruction(baseError, {
+              workspace_id: params.workspace_id,
+              plan_id: params.plan_id,
+              step_index: params.confirm_step_index,
+            }),
+          };
         }
         return {
           success: true,
@@ -677,6 +715,118 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
       return {
         success: false,
         error: `Unknown confirmation_scope: ${params.confirmation_scope}`
+      };
+    }
+
+    case 'summon_approval': {
+      if (!params.workspace_id || !params.plan_id || params.approval_step_index === undefined) {
+        return {
+          success: false,
+          error: 'workspace_id, plan_id, and approval_step_index are required for action: summon_approval'
+        };
+      }
+
+      const state = await fileStore.getPlanState(params.workspace_id, params.plan_id);
+      if (!state) {
+        return {
+          success: false,
+          error: `Plan not found: ${params.plan_id}`
+        };
+      }
+
+      const targetStep = state.steps.find((step) => step.index === params.approval_step_index);
+      if (!targetStep) {
+        return {
+          success: false,
+          error: `Step not found: ${params.approval_step_index}`
+        };
+      }
+
+      const approvalSessionId = params.approval_session_id && params.approval_session_id.trim().length > 0
+        ? params.approval_session_id
+        : `approval_gate_${params.plan_id}_${params.approval_step_index}_${Date.now()}`;
+
+      const gateResult = await routeApprovalGate(
+        state,
+        params.approval_step_index,
+        approvalSessionId,
+      );
+
+      if (gateResult.approved) {
+        const confirmResult = await planTools.confirmStep({
+          workspace_id: params.workspace_id,
+          plan_id: params.plan_id,
+          step_index: params.approval_step_index,
+          confirmed_by: 'approval_gui',
+        });
+
+        if (!confirmResult.success) {
+          return {
+            success: false,
+            error: confirmResult.error ?? 'Approval succeeded, but step confirmation could not be recorded',
+          };
+        }
+
+        return {
+          success: true,
+          data: {
+            action: 'summon_approval',
+            data: {
+              plan_id: params.plan_id,
+              step_index: params.approval_step_index,
+              approved: true,
+              outcome: gateResult.outcome,
+              path: gateResult.path,
+              paused: false,
+              status: confirmResult.data?.plan_state.status ?? state.status,
+              elapsed_ms: gateResult.elapsed_ms,
+              confirmation_recorded: true,
+            }
+          }
+        };
+      }
+
+      let pausedState: PlanState | null = null;
+      if (gateResult.paused_snapshot) {
+        pausedState = await pausePlanAtApprovalGate(
+          params.workspace_id,
+          params.plan_id,
+          gateResult.paused_snapshot,
+        );
+        if (!pausedState) {
+          return {
+            success: false,
+            error: `Failed to pause plan at approval gate: ${params.plan_id}`,
+          };
+        }
+      }
+
+      if (gateResult.outcome === 'fallback_to_chat' || gateResult.outcome === 'error') {
+        return {
+          success: false,
+          error: gateResult.error ?? `Approval gate failed with outcome: ${gateResult.outcome}`,
+        };
+      }
+
+      return {
+        success: true,
+        data: {
+          action: 'summon_approval',
+          data: {
+            plan_id: params.plan_id,
+            step_index: params.approval_step_index,
+            approved: false,
+            outcome: gateResult.outcome,
+            path: gateResult.path,
+            paused: pausedState?.status === 'paused',
+            status: pausedState?.status ?? state.status,
+            elapsed_ms: gateResult.elapsed_ms,
+            user_notes: gateResult.user_notes,
+            requires_handoff_to_coordinator: gateResult.requires_handoff_to_coordinator,
+            handoff_instruction: gateResult.handoff_instruction,
+            paused_at_snapshot: gateResult.paused_snapshot,
+          }
+        }
       };
     }
 
@@ -1220,7 +1370,7 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, create_program, add_plan_to_program, upgrade_to_program, list_program_plans, export_plan, link_to_program, unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans, add_risk, list_risks, auto_detect_risks, set_dependency, get_dependencies, migrate_programs, pause_plan, resume_plan, set_workflow_mode, get_workflow_mode`
+        error: `Unknown action: ${action}. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, summon_approval, create_program, add_plan_to_program, upgrade_to_program, list_program_plans, export_plan, link_to_program, unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans, add_risk, list_risks, auto_detect_risks, set_dependency, get_dependencies, migrate_programs, pause_plan, resume_plan, set_workflow_mode, get_workflow_mode`
       };
   }
 }

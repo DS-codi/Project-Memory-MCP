@@ -131,10 +131,11 @@ pub enum ControlRequest {
     /// Launch an on-demand form-app GUI process, pipe a payload on stdin,
     /// and return the response from stdout.
     ///
-    /// If the GUI response has `status: "refinement_requested"`, the response
-    /// will include `pending_refinement: true` and a `session_id` token.
-    /// Use `ContinueApp` with that token to send a `FormRefinementResponse`
-    /// and read the next `FormResponse` from the still-running GUI.
+    /// If the GUI response requests continuation (`status:
+    /// "refinement_requested"`), the response will include
+    /// `pending_refinement: true` and a `session_id` token. Use
+    /// `ContinueApp` with that token to send the next payload and read the
+    /// next `FormResponse` from the still-running GUI.
     LaunchApp {
         /// Registered app name: `"brainstorm_gui"` or `"approval_gui"`.
         app_name: String,
@@ -148,8 +149,8 @@ pub enum ControlRequest {
 
     /// Continue a GUI session that returned `pending_refinement: true`.
     ///
-    /// Sends a `FormRefinementResponse` JSON payload to the running GUI's
-    /// stdin and waits for the next `FormResponse` on stdout.
+    /// Sends the next JSON payload to the running GUI's stdin and waits for
+    /// the next `FormResponse` on stdout.
     ContinueApp {
         /// Session token returned by `LaunchApp` with `pending_refinement: true`.
         session_id: String,
@@ -248,13 +249,87 @@ pub struct FormAppResponse {
     pub elapsed_ms: u64,
     /// `true` when the process was killed because the timeout expired.
     pub timed_out: bool,
-    /// `true` when the GUI requested refinement and a session is waiting.
+    /// `true` when the GUI requested another round and a session is waiting.
     /// Supply the `session_id` in a subsequent `ContinueApp` request.
     #[serde(default)]
     pub pending_refinement: bool,
-    /// Session token for `ContinueApp` — only present when `pending_refinement == true`.
+    /// Session token for `ContinueApp`. Present when
+    /// `pending_refinement == true`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
+}
+
+impl FormAppResponse {
+    /// Success response for a completed GUI round-trip.
+    pub fn success(
+        app_name: impl Into<String>,
+        response_payload: serde_json::Value,
+        elapsed_ms: u64,
+    ) -> Self {
+        Self {
+            app_name: app_name.into(),
+            success: true,
+            response_payload: Some(response_payload),
+            error: None,
+            elapsed_ms,
+            timed_out: false,
+            pending_refinement: false,
+            session_id: None,
+        }
+    }
+
+    /// Success response for a GUI round that requested another refinement pass.
+    pub fn refinement_pending(
+        app_name: impl Into<String>,
+        response_payload: serde_json::Value,
+        elapsed_ms: u64,
+        session_id: impl Into<String>,
+    ) -> Self {
+        Self::continuation_pending(app_name, response_payload, elapsed_ms, session_id)
+    }
+
+    /// Success response for a GUI round that requested another continuation pass.
+    pub fn continuation_pending(
+        app_name: impl Into<String>,
+        response_payload: serde_json::Value,
+        elapsed_ms: u64,
+        session_id: impl Into<String>,
+    ) -> Self {
+        Self {
+            app_name: app_name.into(),
+            success: true,
+            response_payload: Some(response_payload),
+            error: None,
+            elapsed_ms,
+            timed_out: false,
+            pending_refinement: true,
+            session_id: Some(session_id.into()),
+        }
+    }
+
+    /// Failure response for spawn/config/read/timeout errors.
+    pub fn failure(
+        app_name: impl Into<String>,
+        error: impl Into<String>,
+        elapsed_ms: u64,
+        timed_out: bool,
+    ) -> Self {
+        Self {
+            app_name: app_name.into(),
+            success: false,
+            response_payload: None,
+            error: Some(error.into()),
+            elapsed_ms,
+            timed_out,
+            pending_refinement: false,
+            session_id: None,
+        }
+    }
+
+    /// Config-level failure before process launch starts.
+    pub fn config_failure(app_name: impl Into<String>, error: impl Into<String>) -> Self {
+        Self::failure(app_name, error, 0, false)
+    }
 }
 
 /// Aggregate connection health summary for the minimal health GUI.
@@ -462,6 +537,23 @@ mod tests {
                 assert!(matches!(backend, BackendKind::Node));
             }
             other => panic!("expected SetBackend, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn decode_launch_app_with_timeout() {
+        let line = r#"{"type":"LaunchApp","app_name":"approval_gui","payload":{},"timeout_seconds":5}"#;
+        let req = decode_request(line).expect("parse");
+        match req {
+            ControlRequest::LaunchApp {
+                app_name,
+                timeout_seconds,
+                ..
+            } => {
+                assert_eq!(app_name, "approval_gui");
+                assert_eq!(timeout_seconds, Some(5));
+            }
+            other => panic!("expected LaunchApp, got {other:?}"),
         }
     }
 

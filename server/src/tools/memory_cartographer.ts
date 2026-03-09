@@ -418,10 +418,47 @@ const MIN_SUMMARY_TIMEOUT_MS = 1_000;
 const MAX_SUMMARY_TIMEOUT_MS = 300_000;
 const NON_SUMMARY_TIMEOUT_ENV_VAR = 'PM_CARTOGRAPHER_NON_SUMMARY_TIMEOUT_MS';
 const DEFAULT_NON_SUMMARY_TIMEOUT_MS = 15_000;
+const DEFAULT_HEAVY_QUERY_TIMEOUT_MS = 60_000;
 const MIN_NON_SUMMARY_TIMEOUT_MS = 1_000;
 const MAX_NON_SUMMARY_TIMEOUT_MS = 300_000;
+const FILE_CONTEXT_TIMEOUT_ENV_VAR = 'PM_CARTOGRAPHER_FILE_CONTEXT_TIMEOUT_MS';
+const FLOW_ENTRY_POINTS_TIMEOUT_ENV_VAR = 'PM_CARTOGRAPHER_FLOW_ENTRY_POINTS_TIMEOUT_MS';
+const LAYER_VIEW_TIMEOUT_ENV_VAR = 'PM_CARTOGRAPHER_LAYER_VIEW_TIMEOUT_MS';
+const SEARCH_TIMEOUT_ENV_VAR = 'PM_CARTOGRAPHER_SEARCH_TIMEOUT_MS';
 const SUMMARY_REPO_ROOT_DIR = 'Project-Memory-MCP';
 const SUMMARY_PARENT_WORKSPACE_DIR = 'Project_Memory_MCP';
+
+const NON_SUMMARY_QUERY_TIMEOUT_ENV_VARS: Partial<Record<NonSummaryPythonAction, string>> = {
+  file_context: FILE_CONTEXT_TIMEOUT_ENV_VAR,
+  flow_entry_points: FLOW_ENTRY_POINTS_TIMEOUT_ENV_VAR,
+  layer_view: LAYER_VIEW_TIMEOUT_ENV_VAR,
+  search: SEARCH_TIMEOUT_ENV_VAR,
+};
+
+const HEAVY_NON_SUMMARY_QUERY_ACTIONS = new Set<NonSummaryPythonAction>([
+  'file_context',
+  'flow_entry_points',
+  'layer_view',
+  'search',
+]);
+
+function parseConfiguredTimeoutMs(
+  envVarName: string,
+  minTimeoutMs: number,
+  maxTimeoutMs: number,
+): number | undefined {
+  const raw = process.env[envVarName];
+  if (!raw) {
+    return undefined;
+  }
+
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return undefined;
+  }
+
+  return Math.min(maxTimeoutMs, Math.max(minTimeoutMs, parsed));
+}
 
 function resolveConfiguredTimeoutMs(
   envVarName: string,
@@ -429,17 +466,7 @@ function resolveConfiguredTimeoutMs(
   minTimeoutMs: number,
   maxTimeoutMs: number,
 ): number {
-  const raw = process.env[envVarName];
-  if (!raw) {
-    return defaultTimeoutMs;
-  }
-
-  const parsed = Number.parseInt(raw, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return defaultTimeoutMs;
-  }
-
-  return Math.min(maxTimeoutMs, Math.max(minTimeoutMs, parsed));
+  return parseConfiguredTimeoutMs(envVarName, minTimeoutMs, maxTimeoutMs) ?? defaultTimeoutMs;
 }
 
 function resolveSummaryTimeoutMs(): number {
@@ -451,13 +478,33 @@ function resolveSummaryTimeoutMs(): number {
   );
 }
 
-function resolveNonSummaryTimeoutMs(): number {
-  return resolveConfiguredTimeoutMs(
+function resolveNonSummaryTimeoutMs(action: NonSummaryPythonAction): number {
+  const actionEnvVar = NON_SUMMARY_QUERY_TIMEOUT_ENV_VARS[action];
+  if (actionEnvVar) {
+    const actionTimeoutMs = parseConfiguredTimeoutMs(
+      actionEnvVar,
+      MIN_NON_SUMMARY_TIMEOUT_MS,
+      MAX_NON_SUMMARY_TIMEOUT_MS,
+    );
+    if (typeof actionTimeoutMs === 'number') {
+      return actionTimeoutMs;
+    }
+  }
+
+  const nonSummaryTimeoutMs = parseConfiguredTimeoutMs(
     NON_SUMMARY_TIMEOUT_ENV_VAR,
-    DEFAULT_NON_SUMMARY_TIMEOUT_MS,
     MIN_NON_SUMMARY_TIMEOUT_MS,
     MAX_NON_SUMMARY_TIMEOUT_MS,
   );
+  if (typeof nonSummaryTimeoutMs === 'number') {
+    return nonSummaryTimeoutMs;
+  }
+
+  if (HEAVY_NON_SUMMARY_QUERY_ACTIONS.has(action)) {
+    return DEFAULT_HEAVY_QUERY_TIMEOUT_MS;
+  }
+
+  return DEFAULT_NON_SUMMARY_TIMEOUT_MS;
 }
 
 function resolveSummaryWorkspacePath(workspacePath: string): string {
@@ -717,6 +764,7 @@ async function invokeNonSummaryPythonAction(
   const adapter = new PythonCoreAdapter();
   const requestId = `cartograph_${action}_${randomUUID()}`;
   const queryArgs = buildNonSummaryQueryArgs(action, params, pythonWorkspacePath, resolvedWorkspaceId);
+  const timeoutMs = resolveNonSummaryTimeoutMs(action);
 
   try {
     const response = await adapter.invoke({
@@ -724,7 +772,7 @@ async function invokeNonSummaryPythonAction(
       request_id:     requestId,
       action:         'cartograph',
       args:           queryArgs,
-      timeout_ms:     resolveNonSummaryTimeoutMs(),
+      timeout_ms:     timeoutMs,
     });
 
     if (response.status === 'error') {

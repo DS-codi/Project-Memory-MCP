@@ -461,6 +461,10 @@ pub(crate) fn spawn_runtime_tasks(
                 const MAX_BUFFERED_CHUNKS_PER_SESSION: usize = 1024;
                 const MAX_BUFFERED_BYTES_PER_SESSION: usize = 4 * 1024 * 1024;
                 let disk_spill_enabled = env_truthy("PM_TERMINAL_SESSION_SPILL", true);
+                // Track the last known terminal dimensions so we can trigger a fresh
+                // SIGWINCH on tab switch for interactive TUI sessions.
+                let last_resize_dims: Arc<std::sync::Mutex<(u16, u16)>> =
+                    Arc::new(std::sync::Mutex::new((120, 35)));
                 let spill_root = default_session_spill_root();
 
                 // pty-host feature: connect to the out-of-process PTY host.
@@ -566,6 +570,7 @@ pub(crate) fn spawn_runtime_tasks(
                 });
 
                 // Input pump: route xterm input to currently selected session shell.
+                let last_resize_dims_for_input = last_resize_dims.clone();
                 let mut inlet = input_rx;
                 let state_for_input = state_for_msg.clone();
                 let handles_for_input = session_handles.clone();
@@ -614,6 +619,9 @@ pub(crate) fn spawn_runtime_tasks(
                             resize_conpty(&handle.master, cols, rows);
                             #[cfg(feature = "pty-host")]
                             handle.resize(cols, rows);
+                            if let Ok(mut dims) = last_resize_dims_for_input.lock() {
+                                *dims = (cols, rows);
+                            }
                         } else {
                             #[cfg(not(feature = "pty-host"))]
                             {
@@ -636,9 +644,11 @@ pub(crate) fn spawn_runtime_tasks(
                 // replay cached output on tab switch, and clean up closed sessions.
                 let state_for_monitor = state_for_msg.clone();
                 let handles_for_monitor = session_handles.clone();
+                let handles_for_tui_resize = session_handles.clone();
                 let output_tx_for_monitor = session_output_tx.clone();
                 let buffers_for_monitor = session_output_buffers.clone();
                 let ws_output_for_monitor = ws_output_tx.clone();
+                let last_resize_dims_for_monitor = last_resize_dims.clone();
                 tokio::spawn(async move {
                     let mut previous_selected_session_id = String::new();
                     loop {
@@ -664,37 +674,63 @@ pub(crate) fn spawn_runtime_tasks(
                         }
 
                         if selected_session_id != previous_selected_session_id {
-                            let _ = ws_output_for_monitor.send(b"\x1b[2J\x1b[H".to_vec());
+                            // \x1b[3J clears xterm.js scrollback; \x1b[2J clears the
+                            // visible viewport; \x1b[H homes the cursor.
+                            let _ = ws_output_for_monitor.send(b"\x1b[3J\x1b[2J\x1b[H".to_vec());
 
                             if !selected_session_id.trim().is_empty() {
-                                let (spill_path, replay_chunks) = {
-                                    let buffers = buffers_for_monitor.lock().await;
-                                    buffers
-                                        .get(&selected_session_id)
-                                        .map(|buffer| {
-                                            (buffer.spill_file_path.clone(), buffer.snapshot_chunks())
-                                        })
-                                        .unwrap_or((None, Vec::new()))
+                                let is_tui_session = {
+                                    let s = state_for_monitor.lock().unwrap();
+                                    s.gemini_session_ids.contains(&selected_session_id)
+                                        || s.copilot_session_ids.contains(&selected_session_id)
                                 };
 
-                                if let Some(spill_path) = spill_path {
-                                    match tokio::fs::read(&spill_path).await {
-                                        Ok(bytes) => {
-                                            if !bytes.is_empty() {
-                                                let _ = ws_output_for_monitor.send(bytes);
+                                if is_tui_session {
+                                    // For interactive TUI sessions (Gemini, Copilot) do NOT
+                                    // replay buffered VT output — it contains every intermediate
+                                    // render frame and would produce stacked garbage in xterm.js.
+                                    // Instead, send SIGWINCH so the live process redraws itself.
+                                    let (cols, rows) = *last_resize_dims_for_monitor.lock().unwrap();
+                                    let handle = {
+                                        let map = handles_for_tui_resize.lock().await;
+                                        map.get(&selected_session_id).cloned()
+                                    };
+                                    if let Some(h) = handle {
+                                        #[cfg(not(feature = "pty-host"))]
+                                        resize_conpty(&h.master, cols, rows);
+                                        #[cfg(feature = "pty-host")]
+                                        h.resize(cols, rows);
+                                    }
+                                } else {
+                                    let (spill_path, replay_chunks) = {
+                                        let buffers = buffers_for_monitor.lock().await;
+                                        buffers
+                                            .get(&selected_session_id)
+                                            .map(|buffer| {
+                                                (buffer.spill_file_path.clone(), buffer.snapshot_chunks())
+                                            })
+                                            .unwrap_or((None, Vec::new()))
+                                    };
+
+                                    if let Some(spill_path) = spill_path {
+                                        match tokio::fs::read(&spill_path).await {
+                                            Ok(bytes) => {
+                                                if !bytes.is_empty() {
+                                                    let _ = ws_output_for_monitor.send(bytes);
+                                                }
+                                            }
+                                            Err(error) => {
+                                                eprintln!(
+                                                    "[WsTerminal] failed to read session spill for {}: {}",
+                                                    selected_session_id, error
+                                                );
                                             }
                                         }
-                                        Err(error) => {
-                                            eprintln!(
-                                                "[WsTerminal] failed to read session spill for {}: {}",
-                                                selected_session_id, error
-                                            );
-                                        }
                                     }
-                                }
 
-                                for chunk in replay_chunks {
-                                    let _ = ws_output_for_monitor.send(chunk);
+                                    for chunk in replay_chunks {
+                                        let _ = ws_output_for_monitor.send(chunk);
+                                    }
                                 }
                             }
 
@@ -1270,183 +1306,338 @@ pub(crate) fn spawn_runtime_tasks(
                             }
                         });
 
-                        // (B) Race command execution against kill signal
-                        tokio::select! {
-                            result = async {
-                                if route_via_ws_terminal {
-                                    execute_command_via_ws_terminal(
-                                        &req,
+                        // (B) Race command execution against kill signal.
+                        //
+                        // WS-routed commands (Gemini CLI, Copilot CLI) are long-running
+                        // interactive PTY sessions that can stay open indefinitely.  We
+                        // MUST NOT await them inline — doing so would block the exec loop
+                        // for the entire session lifetime, preventing any second CLI launch
+                        // within the same app instance.  Instead, spawn them as background
+                        // tasks and let the loop pick up the next command immediately.
+                        if route_via_ws_terminal {
+                            let req_s = req;
+                            let state_s = state.clone();
+                            let qt_s = qt.clone();
+                            let ws_input = ws_input_for_exec.clone();
+                            let ws_output = ws_output_for_exec.clone();
+                            tokio::spawn(async move {
+                                tokio::select! {
+                                    result = execute_command_via_ws_terminal(
+                                        &req_s,
                                         output_tx,
-                                        ws_input_for_exec.clone(),
-                                        ws_output_for_exec.clone(),
-                                        state.clone(),
-                                    ).await
-                                } else {
-                                    shell_manager.execute_command_with_timeout(&req, output_tx).await
-                                }
-                            } => {
-                                let _ = output_forward.await;
-                                let completed_at_ms = crate::output_persistence::now_epoch_millis();
-                                let captured_lines = persisted_lines.lock().unwrap().clone();
+                                        ws_input,
+                                        ws_output,
+                                        state_s.clone(),
+                                    ) => {
+                                        let _ = output_forward.await;
+                                        let completed_at_ms = crate::output_persistence::now_epoch_millis();
+                                        let captured_lines = persisted_lines.lock().unwrap().clone();
 
-                                // (C) Mark completed with separated stdout/stderr
-                                let (separated_stdout, separated_stderr) = separate_stdout_stderr(&captured_lines);
-                                {
-                                    let exit_code = match &result {
-                                        Ok(r) => r.exit_code,
-                                        Err(_) => Some(-1),
-                                    };
-                                    let mut s = state.lock().unwrap();
-                                    s.output_tracker.mark_completed(
-                                        &req.id, exit_code,
-                                        separated_stdout, separated_stderr,
-                                    );
-                                }
+                                        let (separated_stdout, separated_stderr) = separate_stdout_stderr(&captured_lines);
+                                        {
+                                            let exit_code = match &result {
+                                                Ok(r) => r.exit_code,
+                                                Err(_) => Some(-1),
+                                            };
+                                            let mut s = state_s.lock().unwrap();
+                                            s.output_tracker.mark_completed(
+                                                &req_s.id, exit_code,
+                                                separated_stdout, separated_stderr,
+                                            );
+                                        }
 
-                                match result {
-                                    Ok(exec_result) => {
+                                        match result {
+                                            Ok(exec_result) => {
+                                                let persisted_path = match crate::output_persistence::write_command_output_file(
+                                                    &req_s,
+                                                    &ResponseStatus::Approved,
+                                                    &captured_lines,
+                                                    exec_result.exit_code,
+                                                    started_at_ms,
+                                                    completed_at_ms,
+                                                ) {
+                                                    Ok(path) => Some(path),
+                                                    Err(error) => {
+                                                        eprintln!("Failed to persist command output: {error}");
+                                                        None
+                                                    }
+                                                };
+
+                                                let response = Message::CommandResponse(CommandResponse {
+                                                    id: exec_result.request_id.clone(),
+                                                    status: ResponseStatus::Approved,
+                                                    output: Some(exec_result.output),
+                                                    exit_code: exec_result.exit_code,
+                                                    reason: None,
+                                                    output_file_path: persisted_path,
+                                                });
+                                                { state_s.lock().unwrap().send_response(response); }
+
+                                                let id_str = exec_result.request_id;
+                                                let success = exec_result.exit_code == Some(0);
+                                                let _ = qt_s.queue(move |mut obj| {
+                                                    let msg = if success {
+                                                        "Command completed successfully"
+                                                    } else {
+                                                        "Command failed"
+                                                    };
+                                                    obj.as_mut().set_status_text(QString::from(msg));
+                                                    obj.as_mut().command_completed(QString::from(&id_str), success);
+                                                });
+                                            }
+                                            Err(err) => {
+                                                let mut error_lines = captured_lines;
+                                                if error_lines.is_empty() {
+                                                    error_lines.push(crate::output_persistence::PersistedOutputLine {
+                                                        timestamp_ms: completed_at_ms,
+                                                        stream: "stderr".to_string(),
+                                                        text: err.clone(),
+                                                    });
+                                                }
+                                                let persisted_path = match crate::output_persistence::write_command_output_file(
+                                                    &req_s,
+                                                    &ResponseStatus::Approved,
+                                                    &error_lines,
+                                                    Some(-1),
+                                                    started_at_ms,
+                                                    completed_at_ms,
+                                                ) {
+                                                    Ok(path) => Some(path),
+                                                    Err(error) => {
+                                                        eprintln!("Failed to persist command output after error: {error}");
+                                                        None
+                                                    }
+                                                };
+                                                let response = Message::CommandResponse(CommandResponse {
+                                                    id: req_s.id.clone(),
+                                                    status: ResponseStatus::Approved,
+                                                    output: Some(err.clone()),
+                                                    exit_code: Some(-1),
+                                                    reason: None,
+                                                    output_file_path: persisted_path,
+                                                });
+                                                { state_s.lock().unwrap().send_response(response); }
+                                                let id_str = req_s.id.clone();
+                                                let _ = qt_s.queue(move |mut obj| {
+                                                    obj.as_mut().set_status_text(QString::from(&format!("Error: {err}")));
+                                                    obj.as_mut().command_completed(QString::from(&id_str), false);
+                                                });
+                                            }
+                                        }
+                                    }
+                                    _ = kill_rx => {
+                                        // Kill signal: drop execution future, drain output_forward.
+                                        // WS-terminal sessions use ConPTY session handles for
+                                        // process management — no shell_manager call needed here.
+                                        let _ = output_forward.await;
+                                        let completed_at_ms = crate::output_persistence::now_epoch_millis();
+                                        let captured_lines = persisted_lines.lock().unwrap().clone();
+                                        let (separated_stdout, separated_stderr) = separate_stdout_stderr(&captured_lines);
+                                        {
+                                            let mut s = state_s.lock().unwrap();
+                                            s.output_tracker.mark_completed(
+                                                &req_s.id, Some(-1),
+                                                separated_stdout, separated_stderr,
+                                            );
+                                        }
                                         let persisted_path = match crate::output_persistence::write_command_output_file(
-                                            &req,
+                                            &req_s,
                                             &ResponseStatus::Approved,
                                             &captured_lines,
-                                            exec_result.exit_code,
-                                            started_at_ms,
-                                            completed_at_ms,
-                                        ) {
-                                            Ok(path) => Some(path),
-                                            Err(error) => {
-                                                eprintln!("Failed to persist command output: {error}");
-                                                None
-                                            }
-                                        };
-
-                                        let response = Message::CommandResponse(CommandResponse {
-                                            id: exec_result.request_id.clone(),
-                                            status: ResponseStatus::Approved,
-                                            output: Some(exec_result.output),
-                                            exit_code: exec_result.exit_code,
-                                            reason: None,
-                                            output_file_path: persisted_path,
-                                        });
-
-                                        {
-                                            let s = state.lock().unwrap();
-                                            s.send_response(response);
-                                        }
-
-                                        let id_str = exec_result.request_id;
-                                        let success = exec_result.exit_code == Some(0);
-                                        let _ = qt.queue(move |mut obj| {
-                                            let msg = if success {
-                                                "Command completed successfully"
-                                            } else {
-                                                "Command failed"
-                                            };
-                                            obj.as_mut().set_status_text(QString::from(msg));
-                                            obj.as_mut().command_completed(QString::from(&id_str), success);
-                                        });
-                                    }
-                                    Err(err) => {
-                                        let mut error_lines = captured_lines;
-                                        if error_lines.is_empty() {
-                                            error_lines.push(crate::output_persistence::PersistedOutputLine {
-                                                timestamp_ms: completed_at_ms,
-                                                stream: "stderr".to_string(),
-                                                text: err.clone(),
-                                            });
-                                        }
-
-                                        let persisted_path = match crate::output_persistence::write_command_output_file(
-                                            &req,
-                                            &ResponseStatus::Approved,
-                                            &error_lines,
                                             Some(-1),
                                             started_at_ms,
                                             completed_at_ms,
                                         ) {
                                             Ok(path) => Some(path),
                                             Err(error) => {
-                                                eprintln!("Failed to persist command output after error: {error}");
+                                                eprintln!("Failed to persist command output after kill: {error}");
                                                 None
                                             }
                                         };
-
                                         let response = Message::CommandResponse(CommandResponse {
-                                            id: req.id.clone(),
+                                            id: req_s.id.clone(),
                                             status: ResponseStatus::Approved,
-                                            output: Some(err.clone()),
+                                            output: Some("Process killed by user request".to_string()),
                                             exit_code: Some(-1),
-                                            reason: None,
+                                            reason: Some("Process killed by user request".to_string()),
                                             output_file_path: persisted_path,
                                         });
-
-                                        {
-                                            let s = state.lock().unwrap();
-                                            s.send_response(response);
-                                        }
-
-                                        let id_str = req.id.clone();
-                                        let _ = qt.queue(move |mut obj| {
-                                            obj.as_mut()
-                                                .set_status_text(QString::from(&format!("Error: {err}")));
+                                        { state_s.lock().unwrap().send_response(response); }
+                                        let id_str = req_s.id.clone();
+                                        let _ = qt_s.queue(move |mut obj| {
+                                            obj.as_mut().set_status_text(QString::from("Process killed"));
                                             obj.as_mut().command_completed(QString::from(&id_str), false);
                                         });
                                     }
                                 }
-                            }
-                            _ = kill_rx => {
-                                // (D) Kill signal received — execution future is dropped,
-                                // which drops output_tx and terminates output_forward.
-                                let _ = output_forward.await;
-                                shell_manager.terminate_session_shell(&req.session_id).await;
-                                let completed_at_ms = crate::output_persistence::now_epoch_millis();
-                                let captured_lines = persisted_lines.lock().unwrap().clone();
+                            });
+                            // exec loop continues immediately — picks up next command
+                        } else {
+                            tokio::select! {
+                                result = shell_manager.execute_command_with_timeout(&req, output_tx) => {
+                                    let _ = output_forward.await;
+                                    let completed_at_ms = crate::output_persistence::now_epoch_millis();
+                                    let captured_lines = persisted_lines.lock().unwrap().clone();
 
-                                let (separated_stdout, separated_stderr) = separate_stdout_stderr(&captured_lines);
-                                {
-                                    let mut s = state.lock().unwrap();
-                                    s.output_tracker.mark_completed(
-                                        &req.id, Some(-1),
-                                        separated_stdout, separated_stderr,
-                                    );
-                                }
-
-                                // Persist output for killed process
-                                let persisted_path = match crate::output_persistence::write_command_output_file(
-                                    &req,
-                                    &ResponseStatus::Approved,
-                                    &captured_lines,
-                                    Some(-1),
-                                    started_at_ms,
-                                    completed_at_ms,
-                                ) {
-                                    Ok(path) => Some(path),
-                                    Err(error) => {
-                                        eprintln!("Failed to persist command output after kill: {error}");
-                                        None
+                                    // (C) Mark completed with separated stdout/stderr
+                                    let (separated_stdout, separated_stderr) = separate_stdout_stderr(&captured_lines);
+                                    {
+                                        let exit_code = match &result {
+                                            Ok(r) => r.exit_code,
+                                            Err(_) => Some(-1),
+                                        };
+                                        let mut s = state.lock().unwrap();
+                                        s.output_tracker.mark_completed(
+                                            &req.id, exit_code,
+                                            separated_stdout, separated_stderr,
+                                        );
                                     }
-                                };
 
-                                let response = Message::CommandResponse(CommandResponse {
-                                    id: req.id.clone(),
-                                    status: ResponseStatus::Approved,
-                                    output: Some("Process killed by user request".to_string()),
-                                    exit_code: Some(-1),
-                                    reason: Some("Process killed by user request".to_string()),
-                                    output_file_path: persisted_path,
-                                });
+                                    match result {
+                                        Ok(exec_result) => {
+                                            let persisted_path = match crate::output_persistence::write_command_output_file(
+                                                &req,
+                                                &ResponseStatus::Approved,
+                                                &captured_lines,
+                                                exec_result.exit_code,
+                                                started_at_ms,
+                                                completed_at_ms,
+                                            ) {
+                                                Ok(path) => Some(path),
+                                                Err(error) => {
+                                                    eprintln!("Failed to persist command output: {error}");
+                                                    None
+                                                }
+                                            };
 
-                                {
-                                    let s = state.lock().unwrap();
-                                    s.send_response(response);
+                                            let response = Message::CommandResponse(CommandResponse {
+                                                id: exec_result.request_id.clone(),
+                                                status: ResponseStatus::Approved,
+                                                output: Some(exec_result.output),
+                                                exit_code: exec_result.exit_code,
+                                                reason: None,
+                                                output_file_path: persisted_path,
+                                            });
+
+                                            {
+                                                let s = state.lock().unwrap();
+                                                s.send_response(response);
+                                            }
+
+                                            let id_str = exec_result.request_id;
+                                            let success = exec_result.exit_code == Some(0);
+                                            let _ = qt.queue(move |mut obj| {
+                                                let msg = if success {
+                                                    "Command completed successfully"
+                                                } else {
+                                                    "Command failed"
+                                                };
+                                                obj.as_mut().set_status_text(QString::from(msg));
+                                                obj.as_mut().command_completed(QString::from(&id_str), success);
+                                            });
+                                        }
+                                        Err(err) => {
+                                            let mut error_lines = captured_lines;
+                                            if error_lines.is_empty() {
+                                                error_lines.push(crate::output_persistence::PersistedOutputLine {
+                                                    timestamp_ms: completed_at_ms,
+                                                    stream: "stderr".to_string(),
+                                                    text: err.clone(),
+                                                });
+                                            }
+
+                                            let persisted_path = match crate::output_persistence::write_command_output_file(
+                                                &req,
+                                                &ResponseStatus::Approved,
+                                                &error_lines,
+                                                Some(-1),
+                                                started_at_ms,
+                                                completed_at_ms,
+                                            ) {
+                                                Ok(path) => Some(path),
+                                                Err(error) => {
+                                                    eprintln!("Failed to persist command output after error: {error}");
+                                                    None
+                                                }
+                                            };
+
+                                            let response = Message::CommandResponse(CommandResponse {
+                                                id: req.id.clone(),
+                                                status: ResponseStatus::Approved,
+                                                output: Some(err.clone()),
+                                                exit_code: Some(-1),
+                                                reason: None,
+                                                output_file_path: persisted_path,
+                                            });
+
+                                            {
+                                                let s = state.lock().unwrap();
+                                                s.send_response(response);
+                                            }
+
+                                            let id_str = req.id.clone();
+                                            let _ = qt.queue(move |mut obj| {
+                                                obj.as_mut()
+                                                    .set_status_text(QString::from(&format!("Error: {err}")));
+                                                obj.as_mut().command_completed(QString::from(&id_str), false);
+                                            });
+                                        }
+                                    }
                                 }
+                                _ = kill_rx => {
+                                    // (D) Kill signal received — execution future is dropped,
+                                    // which drops output_tx and terminates output_forward.
+                                    let _ = output_forward.await;
+                                    shell_manager.terminate_session_shell(&req.session_id).await;
+                                    let completed_at_ms = crate::output_persistence::now_epoch_millis();
+                                    let captured_lines = persisted_lines.lock().unwrap().clone();
 
-                                let id_str = req.id.clone();
-                                let _ = qt.queue(move |mut obj| {
-                                    obj.as_mut()
-                                        .set_status_text(QString::from("Process killed"));
-                                    obj.as_mut().command_completed(QString::from(&id_str), false);
-                                });
+                                    let (separated_stdout, separated_stderr) = separate_stdout_stderr(&captured_lines);
+                                    {
+                                        let mut s = state.lock().unwrap();
+                                        s.output_tracker.mark_completed(
+                                            &req.id, Some(-1),
+                                            separated_stdout, separated_stderr,
+                                        );
+                                    }
+
+                                    // Persist output for killed process
+                                    let persisted_path = match crate::output_persistence::write_command_output_file(
+                                        &req,
+                                        &ResponseStatus::Approved,
+                                        &captured_lines,
+                                        Some(-1),
+                                        started_at_ms,
+                                        completed_at_ms,
+                                    ) {
+                                        Ok(path) => Some(path),
+                                        Err(error) => {
+                                            eprintln!("Failed to persist command output after kill: {error}");
+                                            None
+                                        }
+                                    };
+
+                                    let response = Message::CommandResponse(CommandResponse {
+                                        id: req.id.clone(),
+                                        status: ResponseStatus::Approved,
+                                        output: Some("Process killed by user request".to_string()),
+                                        exit_code: Some(-1),
+                                        reason: Some("Process killed by user request".to_string()),
+                                        output_file_path: persisted_path,
+                                    });
+
+                                    {
+                                        let s = state.lock().unwrap();
+                                        s.send_response(response);
+                                    }
+
+                                    let id_str = req.id.clone();
+                                    let _ = qt.queue(move |mut obj| {
+                                        obj.as_mut()
+                                            .set_status_text(QString::from("Process killed"));
+                                        obj.as_mut().command_completed(QString::from(&id_str), false);
+                                    });
+                                }
                             }
                         }
                     }

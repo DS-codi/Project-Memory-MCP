@@ -19,6 +19,11 @@ use crate::config::InteractiveTerminalSection;
 use crate::control::registry::ServiceStatus;
 use crate::runner::{HealthStatus, ServiceRunner};
 
+#[cfg(windows)]
+use windows_sys::Win32::UI::WindowsAndMessaging::{
+    FindWindowW, SetForegroundWindow, ShowWindow, SW_RESTORE,
+};
+
 /// How long after `start()` we skip TCP health probes.  The Qt/QML binary can
 /// take 20-40 s to open its TCP port on a cold start, so we give it a generous
 /// window before the crash-recovery monitor is allowed to declare it dead.
@@ -101,6 +106,24 @@ impl InteractiveTerminalRunner {
                 .status();
         }
     }
+
+    #[cfg(windows)]
+    fn restore_existing_window() -> bool {
+        let mut title: Vec<u16> = "Interactive Terminal".encode_utf16().collect();
+        title.push(0);
+
+        let hwnd = unsafe { FindWindowW(std::ptr::null(), title.as_ptr()) };
+        if hwnd.is_null() {
+            return false;
+        }
+
+        unsafe {
+            ShowWindow(hwnd, SW_RESTORE);
+            SetForegroundWindow(hwnd);
+        }
+
+        true
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -161,6 +184,16 @@ impl ServiceRunner for InteractiveTerminalRunner {
     /// included `--port` in `config.args`.
     async fn start(&mut self) -> anyhow::Result<()> {
         if matches!(self.state, RunnerState::Running { .. }) {
+            #[cfg(windows)]
+            {
+                if Self::restore_existing_window() {
+                    crate::runtime_output::emit(
+                        "interactive_terminal",
+                        "status",
+                        "already running (tracked) — restored window",
+                    );
+                }
+            }
             return Ok(()); // already running — idempotent
         }
 
@@ -174,10 +207,23 @@ impl ServiceRunner for InteractiveTerminalRunner {
                 .and_then(|s| s.trim().parse::<u32>().ok())
             {
                 Some(existing_pid) if is_pid_alive(existing_pid) => {
+                    #[cfg(windows)]
+                    let restored_window = Self::restore_existing_window();
+                    #[cfg(not(windows))]
+                    let restored_window = false;
+
                     tracing::warn!(
                         pid = existing_pid,
+                        restored_window,
                         "interactive-terminal already running (PID lock file present); \
                          skipping duplicate spawn"
+                    );
+                    crate::runtime_output::emit(
+                        "interactive_terminal",
+                        "status",
+                        format!(
+                            "already running pid={existing_pid} restored_window={restored_window}"
+                        ),
                     );
                     return Ok(());
                 }

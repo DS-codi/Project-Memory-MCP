@@ -200,6 +200,17 @@ export const PLAN_PARAMS: Record<string, ActionParamDef> = {
     ],
   },
 
+  summon_approval: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+      { name: 'plan_id', type: 'string', description: 'Plan ID' },
+      { name: 'approval_step_index', type: 'number', description: '0-based step index to request approval for' },
+    ],
+    optional: [
+      { name: 'approval_session_id', type: 'string', description: 'Optional explicit session ID used for approval routing' },
+    ],
+  },
+
   create_program: {
     required: [
       { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
