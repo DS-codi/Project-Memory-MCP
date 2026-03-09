@@ -15,7 +15,6 @@ ApplicationWindow {
     minimumWidth: 480
     minimumHeight: 400
     title: "Interactive Terminal"
-    icon.source: terminalApp.trayIconUrl
     color: "#1e1e1e"
     Material.theme: Material.Dark
     Material.accent: Material.Blue
