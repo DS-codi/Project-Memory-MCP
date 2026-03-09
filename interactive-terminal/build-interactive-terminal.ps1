@@ -504,10 +504,6 @@ if ($doDeploy) {
         } else {
             $deployArgs += '--debug'
         }
-        # Exclude the webview-webengine plugin: it depends on Qt6WebEngineQuick.dll which
-        # is not installed (Qt WebEngine is a separate large component). The app uses the
-        # WebView2 (Edge) backend instead, so this plugin is not needed.
-        $deployArgs += @('--exclude-plugins', 'qtwebview_webengine')
         $deployArgs += @('--qmldir', $scriptDir, $exePath)
 
         $deployResult = Invoke-NativeCommandCapture -FilePath $deployTool -Arguments $deployArgs -WorkingDirectory $scriptDir
@@ -736,13 +732,35 @@ if ($doDeploy) {
             'qml\QtQuick',
             'qml\QtQuick\Controls',
             'qml\QtQuick\Layouts',
-            'qml\QtQml'
+            'qml\QtQml',
+            'qml\QtWebView'
         )
         foreach ($qmlDir in $requiredQmlDirs) {
             $qmlPath = Join-Path $outputDir $qmlDir
             if (-not (Test-Path $qmlPath)) {
-                Write-Host "WARNING: QML module directory missing: $qmlDir" -ForegroundColor Yellow
-                $missingDlls += "qml-dir:$qmlDir"
+                $qmlSrcPath = Join-Path $QtDir $qmlDir
+                if (Test-Path $qmlSrcPath) {
+                    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $qmlPath) | Out-Null
+                    Copy-Item $qmlSrcPath -Destination $qmlPath -Recurse -Force
+                    $copiedDlls += "qml-dir:$qmlDir"
+                } else {
+                    Write-Host "WARNING: QML module directory missing: $qmlDir" -ForegroundColor Yellow
+                    $missingDlls += "qml-dir:$qmlDir"
+                }
+            }
+        }
+
+        # Verify WebView backend plugin required by QtWebView (Edge WebView2 on Windows).
+        $webViewPluginName = if ($Profile -eq 'release') { 'qtwebview_webview2.dll' } else { 'qtwebview_webview2d.dll' }
+        $webViewPluginDest = Join-Path $outputDir (Join-Path 'webview' $webViewPluginName)
+        if (-not (Test-Path $webViewPluginDest)) {
+            $webViewPluginSrc = Join-Path $QtDir (Join-Path 'plugins\webview' $webViewPluginName)
+            if (Test-Path $webViewPluginSrc) {
+                New-Item -ItemType Directory -Force -Path (Split-Path -Parent $webViewPluginDest) | Out-Null
+                Copy-Item $webViewPluginSrc $webViewPluginDest -Force
+                $copiedDlls += "webview\$webViewPluginName"
+            } else {
+                $missingDlls += "webview\$webViewPluginName"
             }
         }
 
@@ -838,11 +856,13 @@ if ($doDeploy) {
                 }
             }
 
-            foreach ($artifactDir in @('platforms', 'imageformats', 'iconengines', 'qml', 'QtQuick', 'Qt6Quick_layouts')) {
+            foreach ($artifactDir in @('platforms', 'imageformats', 'iconengines', 'webview', 'qml', 'QtQuick', 'Qt6Quick_layouts')) {
                 $sourcePath = Join-Path $outputDir $artifactDir
                 if (Test-Path $sourcePath) {
                     try {
-                        Copy-Item $sourcePath -Destination (Join-Path $workspaceReleaseDir $artifactDir) -Recurse -Force -ErrorAction Stop
+                        $destinationPath = Join-Path $workspaceReleaseDir $artifactDir
+                        New-Item -ItemType Directory -Force -Path $destinationPath | Out-Null
+                        Copy-Item (Join-Path $sourcePath '*') -Destination $destinationPath -Recurse -Force -ErrorAction Stop
                     }
                     catch {
                         if ($_.Exception.Message -match 'being used by another process') {
@@ -852,6 +872,37 @@ if ($doDeploy) {
                         else {
                             throw
                         }
+                    }
+                }
+            }
+
+            # Ensure critical QML modules are available at the top-level staged location
+            # even when bulk qml copy has partial lock contention.
+            $criticalQmlModules = @('QtWebView')
+            foreach ($moduleName in $criticalQmlModules) {
+                $sourceModuleDir = Join-Path $outputDir (Join-Path 'qml' $moduleName)
+                if (-not (Test-Path $sourceModuleDir)) {
+                    continue
+                }
+
+                $destModuleDir = Join-Path $workspaceReleaseDir (Join-Path 'qml' $moduleName)
+                $destQmldir = Join-Path $destModuleDir 'qmldir'
+                if (Test-Path $destQmldir) {
+                    continue
+                }
+
+                try {
+                    New-Item -ItemType Directory -Force -Path $destModuleDir | Out-Null
+                    Copy-Item (Join-Path $sourceModuleDir '*') -Destination $destModuleDir -Recurse -Force -ErrorAction Stop
+                    Write-Host "Staging sync: copied qml/$moduleName module to workspace release output." -ForegroundColor DarkGray
+                }
+                catch {
+                    if ($_.Exception.Message -match 'being used by another process') {
+                        [void]$stagingSkipped.Add("qml/$moduleName")
+                        Write-Host "Staging warning: locked destination under qml/$moduleName; keeping existing files." -ForegroundColor Yellow
+                    }
+                    else {
+                        throw
                     }
                 }
             }
