@@ -15,7 +15,10 @@
  */
 
 import type {
+  ApprovalContractV2,
   ApprovalFailureReason,
+  ApprovalMode,
+  ApprovalRequestContextV2,
   ApprovalRoutingOutcome,
   FormRequest,
   FormResponse,
@@ -113,6 +116,8 @@ export function maybeAttachCoordinatorHandoffInstruction(
 }
 
 const LEGACY_CONFIRM_REJECT_TYPES = new Set(['confirm_reject_answer', 'confirm_reject']);
+const LEGACY_RADIO_SELECT_TYPES = new Set(['radio_select_answer']);
+const AGGREGATED_MULTI_APPROVAL_TYPES = new Set(['approval_session_submission_v2']);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -152,6 +157,61 @@ function resolveLegacyConfirmRejectDecision(value: unknown): DecisionResolution 
     failure_reason: 'malformed_answer',
     detail: `Malformed legacy confirm_reject payload: invalid action "${action ?? '<missing>'}"`,
   };
+}
+
+function resolveLegacyRadioSelectDecision(value: unknown): DecisionResolution | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const type = readString(value, 'type');
+  if (!type || !LEGACY_RADIO_SELECT_TYPES.has(type)) {
+    return null;
+  }
+
+  const selected = readString(value, 'selected');
+  const notes = readString(value, 'free_text');
+
+  if (selected && selected.trim().length > 0) {
+    return {
+      outcome: 'approved',
+      user_notes: notes,
+    };
+  }
+
+  return {
+    outcome: 'error',
+    failure_reason: 'missing_decision',
+    detail: 'Multiple-choice radio_select_answer payload is missing selected option',
+  };
+}
+
+function resolveAggregateSessionSubmissionDecision(value: unknown): DecisionResolution | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const type = readString(value, 'type');
+  if (!type || !AGGREGATED_MULTI_APPROVAL_TYPES.has(type)) {
+    return null;
+  }
+
+  const mode = readString(value, 'mode') ?? 'multi_approval_session';
+  const decision: Record<string, unknown> = {
+    mode,
+    session_id: value.session_id,
+    decisions: value.decisions,
+  };
+
+  const notes = readString(value, 'notes');
+  if (notes) {
+    decision.notes = notes;
+  }
+
+  return resolveV2DecisionPayload({
+    type: 'approval_decision_v2',
+    decision,
+  });
 }
 
 function resolveV2DecisionPayload(value: unknown): DecisionResolution | null {
@@ -327,6 +387,16 @@ function resolveCompletedDecision(response: FormResponse): DecisionResolution {
       return legacyResolution;
     }
 
+    const radioSelectResolution = resolveLegacyRadioSelectDecision(value);
+    if (radioSelectResolution) {
+      return radioSelectResolution;
+    }
+
+    const aggregateSessionResolution = resolveAggregateSessionSubmissionDecision(value);
+    if (aggregateSessionResolution) {
+      return aggregateSessionResolution;
+    }
+
     const v2Resolution = resolveV2DecisionPayload(value);
     if (v2Resolution) {
       return v2Resolution;
@@ -397,6 +467,52 @@ function buildStepContext(
   };
 }
 
+function selectApprovalModeForStep(
+  _planState: PlanState,
+  _stepIndex: number,
+): ApprovalMode {
+  // Current plan-step gates use binary confirm/reject prompts.
+  // Keep this explicit so request-mode negotiation is deterministic.
+  return 'binary';
+}
+
+function buildApprovalContract(mode: ApprovalMode): ApprovalContractV2 {
+  switch (mode) {
+    case 'multiple_choice':
+      return {
+        mode,
+        request_shape: 'radio_select_question',
+        response_shape: 'radio_select_answer',
+      };
+    case 'multi_approval_session':
+      return {
+        mode,
+        request_shape: 'multi_approval_question_set',
+        response_shape: 'approval_decision_v2',
+      };
+    case 'binary':
+    default:
+      return {
+        mode: 'binary',
+        request_shape: 'confirm_reject_question',
+        response_shape: 'confirm_reject_answer',
+      };
+  }
+}
+
+function buildApprovalRequestContext(
+  stepContext: ApprovalStepContext,
+  mode: ApprovalMode,
+): ApprovalRequestContextV2 {
+  const contract = buildApprovalContract(mode);
+  return {
+    step: stepContext,
+    contract,
+    // Legacy metadata path retained for supervisor-side diagnostics.
+    approval_contract_v2: contract,
+  };
+}
+
 /** Build a FormRequest for an approval gate dialog. */
 function buildApprovalFormRequest(
   planState: PlanState,
@@ -405,6 +521,8 @@ function buildApprovalFormRequest(
 ): FormRequest {
   const step = planState.steps[stepIndex];
   const stepContext = buildStepContext(planState, stepIndex);
+  const mode = selectApprovalModeForStep(planState, stepIndex);
+  const approvalContext = buildApprovalRequestContext(stepContext, mode);
 
   const questions = [
     {
@@ -438,7 +556,7 @@ function buildApprovalFormRequest(
       description: `Step ${stepIndex + 1} of plan "${planState.title}"`,
     },
     questions,
-    stepContext,
+    approvalContext as unknown as ApprovalStepContext,
   );
 
   // Fail-safe default: timeout does not imply approval unless an explicit decision is returned.

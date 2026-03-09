@@ -723,6 +723,73 @@ describe('MCP Tool: memory_plan Core Actions', () => {
       }
     });
 
+    it('pauses the plan and returns deferred outcome when GUI defers', async () => {
+      const baseState = makePlanState();
+      const pausedSnapshot = {
+        paused_at: '2026-02-04T10:02:00Z',
+        step_index: 0,
+        phase: 'Phase 1',
+        step_task: 'Task 1',
+        reason: 'deferred' as const,
+        user_notes: 'Waiting for requirement clarification',
+        session_id: 'sess_approval_003',
+      };
+
+      vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(baseState as any);
+      mockRouteApprovalGate.mockResolvedValue({
+        approved: false,
+        path: 'gui',
+        outcome: 'deferred',
+        user_notes: 'Waiting for requirement clarification',
+        paused_snapshot: pausedSnapshot,
+        elapsed_ms: 27,
+      } as any);
+      mockPausePlanAtApprovalGate.mockResolvedValue({
+        ...baseState,
+        status: 'paused',
+        paused_at_snapshot: pausedSnapshot,
+      } as any);
+
+      const result = await memoryPlan({
+        action: 'summon_approval',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        approval_step_index: 0,
+        approval_session_id: 'sess_approval_003',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockPausePlanAtApprovalGate).toHaveBeenCalledOnce();
+      if (result.data && result.data.action === 'summon_approval') {
+        expect(result.data.data.approved).toBe(false);
+        expect(result.data.data.paused).toBe(true);
+        expect(result.data.data.outcome).toBe('deferred');
+      }
+    });
+
+    it('fails closed when approval response mode parsing fails', async () => {
+      vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(makePlanState() as any);
+      mockRouteApprovalGate.mockResolvedValue({
+        approved: false,
+        path: 'gui',
+        outcome: 'error',
+        error: 'Approval decision parsing failed (unknown_mode): Unknown approval_decision_v2 mode "legacy_unknown". Fallback behavior "blocked".',
+        elapsed_ms: 5,
+      } as any);
+
+      const result = await memoryPlan({
+        action: 'summon_approval',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        approval_step_index: 0,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('unknown_mode');
+      expect(result.error).toContain('Fallback behavior "blocked"');
+      expect(mockPausePlanAtApprovalGate).not.toHaveBeenCalled();
+    });
+
     it('returns an error when approval GUI is unavailable', async () => {
       vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(makePlanState() as any);
       mockRouteApprovalGate.mockResolvedValue({

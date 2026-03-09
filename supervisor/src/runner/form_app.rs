@@ -577,4 +577,42 @@ mod tests {
         assert!(final_round.success);
         assert!(!final_round.pending_refinement);
     }
+
+    #[test]
+    fn continuation_status_aliases_are_all_recognized() {
+        for status in [
+            "refinement_requested",
+            "continuation_requested",
+            "continue_requested",
+        ] {
+            assert!(
+                response_requests_continuation(&serde_json::json!({ "status": status })),
+                "status should request continuation: {status}"
+            );
+        }
+
+        assert!(!response_requests_continuation(&serde_json::json!({ "status": "approved" })));
+        assert!(!response_requests_continuation(&serde_json::json!({ "status": null })));
+        assert!(!response_requests_continuation(&serde_json::json!({})));
+    }
+
+    #[tokio::test]
+    async fn continue_unknown_session_returns_structured_failure() {
+        let resp = continue_form_app(
+            "missing-session-id",
+            &serde_json::json!({ "round": 2 }),
+            None,
+        )
+        .await;
+
+        assert!(!resp.success);
+        assert!(!resp.timed_out);
+        assert_eq!(resp.app_name, "unknown");
+        assert!(
+            resp.error
+                .as_deref()
+                .unwrap_or_default()
+                .contains("session not found")
+        );
+    }
 }

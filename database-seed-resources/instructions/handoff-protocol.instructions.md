@@ -174,7 +174,7 @@ Use these rules when coordinating non-core agents or alternate flows.
 - Allowed tools: `memory_plan` (read-only), `memory_context` (read-only), `memory_steps` (read-only).
 - Capabilities: Analyze codebase, ideate solutions, critique approaches, provide structured reasoning.
 - Handoff to Coordinator with recommendation based on analysis findings (e.g., Architect, Executor, Researcher).
-- Spawned by hub agents using `memory_spawn_agent` (prep) followed by native `runSubagent` (execute).
+- Spawned by hub agents using `memory_session(action: deploy_and_prep)` (prep) followed by native `runSubagent` (execute).
 
 ### TDDDriver (TDD Hub)
 - TDDDriver is a **hub agent** — it CAN call `runSubagent`.
@@ -204,14 +204,15 @@ When a user cancels or interrupts a subagent mid-execution, the hub that spawned
 
 See `instructions/subagent-recovery.instructions.md` for the full scope boundary template.
 
-## Spawn Preparation Tool (`memory_spawn_agent`)
+## Spawn Preparation Tool (`memory_session`)
 
-Hub agents should use `memory_spawn_agent` to prepare context-rich spawn payloads, then execute with native `runSubagent`.
+Hub agents should use `memory_session(action: deploy_and_prep)` to prepare context-rich spawn payloads, then execute with native `runSubagent`.
 
 ### Usage
 
 ```json
 {
+  "action": "deploy_and_prep",
   "compat_mode": "strict",
   "agent_name": "Cognition",
   "workspace_id": "workspace-id",
@@ -225,7 +226,7 @@ Then launch natively:
 ```json
 {
   "agentName": "Cognition",
-  "prompt": "<memory_spawn_agent.prep_config.enriched_prompt>",
+  "prompt": "<memory_session.prep_config.enriched_prompt>",
   "description": "Analyze authentication module"
 }
 ```
@@ -241,5 +242,5 @@ Then launch natively:
 
 - **Only hub agents** (Coordinator, Analyst, Runner, TDDDriver) should prepare+spawn subagents.
 - Spoke agents MUST NOT spawn — use `memory_agent(action: handoff)` instead.
-- `memory_spawn_agent` is prep-only and MUST NOT be treated as execution.
+- `memory_session(action: deploy_and_prep)` is prep-only and MUST NOT be treated as execution.
 - Always call native `runSubagent` after prep using `prep_config.enriched_prompt`.

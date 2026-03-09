@@ -708,6 +708,35 @@ mod tests {
         }))
     }
 
+    fn continuation_roundtrip_config() -> FormAppConfig {
+        #[cfg(target_os = "windows")]
+        let (command, args) = (
+            "powershell".to_string(),
+            vec![
+                "-NoProfile".to_string(),
+                "-Command".to_string(),
+                "$null = [Console]::In.ReadLine(); [Console]::Out.WriteLine('{\"status\":\"refinement_requested\"}'); $null = [Console]::In.ReadLine(); [Console]::Out.WriteLine('{\"status\":\"approved\"}')".to_string(),
+            ],
+        );
+        #[cfg(not(target_os = "windows"))]
+        let (command, args) = (
+            "sh".to_string(),
+            vec![
+                "-c".to_string(),
+                "read _; echo '{\"status\":\"refinement_requested\"}'; read _; echo '{\"status\":\"approved\"}'"
+                    .to_string(),
+            ],
+        );
+
+        FormAppConfig {
+            enabled: true,
+            command,
+            args,
+            timeout_seconds: 5,
+            ..FormAppConfig::default()
+        }
+    }
+
     #[tokio::test]
     async fn status_returns_four_services() {
         let reg = make_registry();
@@ -1076,6 +1105,84 @@ mod tests {
         assert_eq!(resp.data["success"], false);
         assert_eq!(resp.data["timed_out"], false);
         assert_eq!(resp.data["error"], top_error);
+    }
+
+    #[tokio::test]
+    async fn continue_app_unknown_session_returns_structured_error_details() {
+        let reg = make_registry();
+        let resp = handle_request(
+            ControlRequest::ContinueApp {
+                session_id: "missing-session-id".to_string(),
+                payload: serde_json::json!({ "round": 2 }),
+                timeout_seconds: None,
+            },
+            reg,
+            empty_form_apps(),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+
+        assert!(!resp.ok);
+        let top_error = resp.error.clone().expect("top-level error");
+        assert!(top_error.contains("session not found"));
+        assert_eq!(resp.data["success"], false);
+        assert_eq!(resp.data["timed_out"], false);
+        assert_eq!(resp.data["app_name"], "unknown");
+        assert_eq!(resp.data["error"], top_error);
+    }
+
+    #[tokio::test]
+    async fn launch_and_continue_round_trip_keeps_session_until_final_response() {
+        let mut apps = FormAppConfigs::new();
+        apps.insert("approval_gui".to_string(), continuation_roundtrip_config());
+
+        let reg = make_registry();
+        let launch_resp = handle_request(
+            ControlRequest::LaunchApp {
+                app_name: "approval_gui".to_string(),
+                payload: serde_json::json!({ "round": 1 }),
+                timeout_seconds: None,
+            },
+            Arc::clone(&reg),
+            Arc::new(apps),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+
+        assert!(launch_resp.ok);
+        assert_eq!(launch_resp.data["pending_refinement"], true);
+        let session_id = launch_resp.data["session_id"]
+            .as_str()
+            .expect("session id")
+            .to_string();
+
+        let continue_resp = handle_request(
+            ControlRequest::ContinueApp {
+                session_id,
+                payload: serde_json::json!({ "round": 2 }),
+                timeout_seconds: None,
+            },
+            reg,
+            empty_form_apps(),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+
+        assert!(continue_resp.ok);
+        assert_eq!(continue_resp.data["pending_refinement"], false);
+        assert_eq!(continue_resp.data["response_payload"]["status"], "approved");
     }
 
     #[tokio::test]

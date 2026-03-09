@@ -698,8 +698,6 @@ impl ffi::TerminalApp {
         let bridge_budget_max_files = *self.as_ref().approval_budget_max_files();
         // Phase 3: CLI load-reduction flags
         let bridge_gemini_screen_reader = *self.as_ref().approval_gemini_screen_reader();
-        // approval_copilot_minimal_ui is read here for future use; currently no CLI flag is emitted.
-        let _bridge_copilot_minimal_ui = *self.as_ref().approval_copilot_minimal_ui();
 
         let state_arc = self.rust().state.clone();
 
@@ -787,7 +785,8 @@ impl ffi::TerminalApp {
                 resume_session_id: effective_resume_session_id,
                 output_format: effective_output_format,
                 trusted_scope_confirmed: bridge_trusted_scope_confirmed,
-                // Pass screen_reader only for Gemini; Copilot has no equivalent flag (v1.x).
+                // Pass --screen-reader only when explicitly enabled for Gemini.
+                // Copilot has no equivalent launch flag as of CLI v1.x.
                 screen_reader: provider == "gemini" && bridge_gemini_screen_reader,
                 autonomy_budget: {
                     let cmds = if bridge_budget_max_commands > 0 {
@@ -852,6 +851,7 @@ impl ffi::TerminalApp {
                         .insert(session_id.clone(), launch_cmd.session_label.clone());
                     // Track as agent session
                     state.agent_session_ids.insert(session_id.clone());
+                    state.register_provider_session(&session_id, &launch_cmd.provider);
                     // Update selected_session_id so exec_task routes through
                     // execute_command_via_ws_terminal (PTY path) rather than the
                     // PersistentShellManager fallback.  Without this update the
@@ -874,6 +874,16 @@ impl ffi::TerminalApp {
                     // keys the entry under the same ID that the MCP server tracks
                     // in guiSessions (via CommandResponse.id = cmd.id).  This
                     // ensures read_output calls from the server can find the entry.
+                    //
+                    // Env precedence (highest last):
+                    // 1) provider launch-builder defaults (`launch_cmd.env`)
+                    // 2) server-supplied request env (`cmd.env`) including
+                    //    spawn_cli_session auto MCP env and explicit user overrides.
+                    let mut merged_launch_env = launch_cmd.env.clone();
+                    for (key, value) in cmd.env.iter() {
+                        merged_launch_env.insert(key.clone(), value.clone());
+                    }
+
                     let launch_request = CommandRequest {
                         id: cmd.id.clone(),
                         command: launch_cmd.program.clone(),
@@ -889,7 +899,7 @@ impl ffi::TerminalApp {
                         activate_venv: cmd.activate_venv,
                         timeout_seconds: 0, // interactive — no timeout
                         args: launch_cmd.args.clone(),
-                        env: launch_cmd.env.clone(),
+                        env: merged_launch_env,
                         workspace_id: cmd.workspace_id.clone(),
                         allowlisted: true,
                     };
@@ -1289,7 +1299,7 @@ impl ffi::TerminalApp {
         let (session_id, count, json, tabs_json) = {
             let mut state = state_arc.lock().unwrap();
             let session_id = state.create_session();
-            state.gemini_session_ids.insert(session_id.clone());
+            state.register_provider_session(&session_id, "gemini");
             let count = state.selected_pending_count();
             let json = state.pending_commands_to_json();
             let tabs_json = state.session_tabs_to_json();
@@ -1328,7 +1338,7 @@ impl ffi::TerminalApp {
         let (session_id, count, json, tabs_json) = {
             let mut state = state_arc.lock().unwrap();
             let session_id = state.create_session();
-            state.copilot_session_ids.insert(session_id.clone());
+            state.register_provider_session(&session_id, "copilot");
             let count = state.selected_pending_count();
             let json = state.pending_commands_to_json();
             let tabs_json = state.session_tabs_to_json();

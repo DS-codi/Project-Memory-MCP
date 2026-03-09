@@ -8,20 +8,20 @@ This workspace uses the **Project Memory MCP** for tracking work across agent se
 
 ## Consolidated Tools (v2.0)
 
-The MCP server provides 5 unified tools with action parameters, plus 2 extension-side tools:
+The MCP server exposes consolidated action-based tools, plus extension-side terminal surfaces:
 
 | Tool | Actions |
 |------|--------|
 | `memory_workspace` | `register`, `info`, `list`, `reindex`, `merge`, `scan_ghosts`, `migrate` |
 | `memory_plan` | `list`, `get`, `create`, `update`, `archive`, `import`, `find`, `add_note`, `delete`, `consolidate`, `set_goals`, `add_build_script`, `list_build_scripts`, `run_build_script`, `delete_build_script`, `create_from_template`, `list_templates`, `confirm` |
 | `memory_steps` | `add`, `update`, `batch_update`, `insert`, `delete`, `reorder`, `move`, `sort`, `set_order`, `replace` |
+| `memory_session` | `prep`, `deploy_and_prep`, `list_sessions`, `get_session` *(session prep + deploy contract for native `runSubagent` launches)* |
 | `memory_agent` | `init`, `complete`, `handoff`, `validate`, `list`, `get_instructions`, `deploy`, `get_briefing`, `get_lineage` + **skill discovery**: `list_skills`, `get_skill`, `assign_skill`, `unassign_skill`, `list_workspace_skills` + **skill management**: `create_skill`, `delete_skill` + **instruction discovery**: `list_instructions`, `get_instruction`, `assign_instruction`, `unassign_instruction`, `list_workspace_instructions` + **instruction management**: `create_instruction`, `delete_instruction` |
 | `memory_context` | `get`, `store`, `store_initial`, `list`, `append_research`, `list_research`, `generate_instructions`, `workspace_get`, `workspace_set`, `workspace_update`, `workspace_delete`, `knowledge_store`, `knowledge_get`, `knowledge_list`, `knowledge_delete`, `search`, `pull`, `write_prompt`, `dump_context`, `batch_store` |
 | `memory_terminal` | `run`, `read_output`, `kill`, `get_allowlist`, `update_allowlist` |
 | `memory_filesystem` | `read`, `write`, `search`, `list`, `tree`, `delete`, `move`, `copy`, `append`, `exists` |
 | `memory_terminal_interactive` | `execute`, `read_output`, `terminate`, `list` *(canonical MCP contract; legacy aliases accepted with compatibility metadata)* |
 | `memory_terminal_vscode` | `create`, `send`, `close`, `list` *(extension-side, visible VS Code terminals)* |
-| `memory_spawn_agent` | Context-prep only *(extension-side, returns `prep_config` for native `runSubagent`)* |
 
 **Build script paths:** `list_build_scripts` includes `directory_path` and `command_path` when available so builders can run scripts directly in the terminal.
 
@@ -391,28 +391,26 @@ The MCP server automatically mirrors tool response payloads to `.projectmemory` 
 - On agent `handoff` or `complete`, `tool_responses/` is moved to `reviewed_queue/` alongside `execution_notes/`.
 - VS Code's `workspaceStorage` buffer is independent and still created by VS Code — `.projectmemory/active_agents/{agent}/tool_responses/` is the project-owned copy.
 
-## Spawn Context Preparation (`memory_spawn_agent`)
+## Session Prep and Deployment (`memory_session`)
 
-`memory_spawn_agent` is an **extension-side, context-prep-only** tool. It does NOT execute subagent launches.
+`memory_session` prepares agent sessions and deployment context before native subagent execution. It does NOT execute subagent launches.
 
 Hub agents (Coordinator, Analyst, Runner, TDDDriver) call it before `runSubagent` to:
-1. Enrich the prompt with workspace/plan context
+1. Enrich prompts with workspace/plan context
 2. Inject scope boundaries and anti-spawning instructions for spoke targets
-3. Add git stability guardrails
+3. Provision a `session_id` and return `prep_config` for launch
+
+Use `deploy_and_prep` when you need both deployment and prompt prep in one call. Use `prep` for prompt/session preparation without deployment.
 
 ```
-memory_spawn_agent with
+memory_session (action: deploy_and_prep) with
   agent_name: "Executor",
   prompt: "Implement feature X...",
   workspace_id: "...",
   plan_id: "...",
   compat_mode: "strict",
-  prep_config: {
-    scope_boundaries: {
-      files_allowed: ["src/feature.ts"],
-      directories_allowed: ["src/"]
-    }
-  }
+  phase_name: "Implement",
+  step_indices: [3]
 ```
 
 Then launch the agent natively:
@@ -424,11 +422,11 @@ runSubagent({
 ```
 
 **Key rules:**
-- `execution.spawn_executed` is always `false` — the tool never launches agents
-- `compat_mode: "strict"` returns only `prep_config`; `"legacy"` also includes deprecated `spawn_config` alias
-- Spoke agents MUST NOT call `memory_spawn_agent` — use `memory_agent(action: handoff)` instead
+- `deploy_and_prep` and `prep` are prep-only — they never launch agents
+- `compat_mode: "strict"` returns canonical `prep_config`; `"legacy"` also includes deprecated `spawn_config` alias
+- Spoke agents MUST NOT use `memory_session` to spawn — use `memory_agent(action: handoff)` instead
 
-> **Migration note:** If you have code or documentation referencing `memory_spawn_agent` as an execution tool, update it to the prep-only flow: call `memory_spawn_agent` for context, then `runSubagent` natively.
+> **Migration note:** If you have code or documentation referencing `memory_spawn_agent`, migrate to `memory_session(action: deploy_and_prep)` and then call native `runSubagent`.
 
 ## Hub-and-Spoke Model
 

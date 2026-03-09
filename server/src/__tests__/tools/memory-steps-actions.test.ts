@@ -167,6 +167,71 @@ describe('MCP Tool: memory_steps Add/Update/Batch/Insert/Delete/Replace Actions'
       expect(result.success).toBe(false);
       expect(result.error).toContain('memory_agent(action: "handoff"');
       expect(result.error).toContain('to_agent: "Coordinator"');
+      expect(result.error).toContain('Fallback behavior "fallback_to_chat"');
+    });
+
+    it('should return deferred fallback behavior when approval is deferred for a gated step', async () => {
+      const mockPlanState = createMockPlanState(1);
+      mockPlanState.steps[0] = {
+        ...mockPlanState.steps[0],
+        requires_confirmation: true,
+      };
+      vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(mockPlanState);
+      vi.spyOn(approvalGateRouting, 'routeApprovalGate').mockResolvedValue({
+        approved: false,
+        path: 'gui',
+        outcome: 'deferred',
+        user_notes: 'Need additional context',
+        elapsed_ms: 6,
+      } as any);
+
+      const params: MemoryStepsParams = {
+        action: 'update',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        step_index: 0,
+        status: 'active',
+      };
+
+      const result = await memorySteps(params);
+
+      expect(approvalGateRouting.routeApprovalGate).toHaveBeenCalledOnce();
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Approval gate outcome "deferred"');
+      expect(result.error).toContain('Fallback behavior "deferred"');
+      expect(result.error).toContain('Need additional context');
+    });
+
+    it('should return blocked fallback behavior when approval decision payload mode is invalid', async () => {
+      const mockPlanState = createMockPlanState(1);
+      mockPlanState.steps[0] = {
+        ...mockPlanState.steps[0],
+        requires_confirmation: true,
+      };
+      vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(mockPlanState);
+      vi.spyOn(approvalGateRouting, 'routeApprovalGate').mockResolvedValue({
+        approved: false,
+        path: 'gui',
+        outcome: 'error',
+        error: 'Approval decision parsing failed (unknown_mode): Unknown approval_decision_v2 mode "legacy_unknown"',
+        elapsed_ms: 6,
+      } as any);
+
+      const params: MemoryStepsParams = {
+        action: 'update',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        step_index: 0,
+        status: 'active',
+      };
+
+      const result = await memorySteps(params);
+
+      expect(approvalGateRouting.routeApprovalGate).toHaveBeenCalledOnce();
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Approval gate outcome "error"');
+      expect(result.error).toContain('Fallback behavior "blocked"');
+      expect(result.error).toContain('unknown_mode');
     });
   });
 

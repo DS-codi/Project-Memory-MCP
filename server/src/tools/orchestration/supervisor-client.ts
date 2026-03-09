@@ -159,6 +159,26 @@ export interface WhoAmIResponseData {
   capabilities?: string[];
 }
 
+export type SummonabilityDiagnosticKind =
+  | 'supervisor-unavailable'
+  | 'approval_gui-unavailable'
+  | 'brainstorm_gui-unavailable'
+  | 'launch-failed'
+  | 'response-shape-error';
+
+export interface SummonabilityDiagnostic {
+  kind: SummonabilityDiagnosticKind;
+  message: string;
+  source: 'control' | 'http' | 'client';
+  app_name?: string;
+  details?: Record<string, unknown>;
+}
+
+export interface LaunchModeSessionMetadata {
+  mode?: string;
+  session_id?: string;
+}
+
 /** FormApp launch result from LaunchApp or ContinueApp. */
 export interface FormAppLaunchResult {
   app_name: string;
@@ -171,6 +191,10 @@ export interface FormAppLaunchResult {
   pending_refinement?: boolean;
   /** Session token to pass to continueFormApp when pending_refinement is true. */
   session_id?: string;
+  /** Additive summonability diagnostics for downstream routing. */
+  diagnostics?: SummonabilityDiagnostic[];
+  /** Additive mode/session metadata extracted from request/response payloads. */
+  metadata?: LaunchModeSessionMetadata;
 }
 
 /** Status of a single service in the supervisor registry. */
@@ -189,6 +213,8 @@ export interface GuiAvailability {
   capabilities: string[];
   /** Human-readable status message. */
   message: string;
+  /** Additive summonability diagnostics for downstream routing. */
+  diagnostics?: SummonabilityDiagnostic[];
 }
 
 // =========================================================================
@@ -267,6 +293,249 @@ function encodeNdjson(msg: unknown): string {
 
 function asErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function readString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+}
+
+function readStringFromObject(value: unknown, key: string): string | undefined {
+  if (!isRecord(value)) return undefined;
+  return readString(value[key]);
+}
+
+interface LaunchRequestMetadata {
+  workspace_id?: string;
+  session_id?: string;
+  agent?: string;
+  mode?: string;
+}
+
+function extractLaunchRequestMetadata(payload: unknown): LaunchRequestMetadata {
+  if (!isRecord(payload)) return {};
+
+  const metadata = isRecord(payload.metadata) ? payload.metadata : undefined;
+  const context = isRecord(payload.context) ? payload.context : undefined;
+  const approvalContract = context && isRecord(context.approval_contract_v2)
+    ? context.approval_contract_v2
+    : undefined;
+
+  return {
+    workspace_id: readString(metadata?.workspace_id),
+    session_id: readString(metadata?.session_id),
+    agent: readString(metadata?.agent),
+    mode: readString(approvalContract?.mode),
+  };
+}
+
+function extractLaunchMetadata(
+  requestMetadata: LaunchRequestMetadata,
+  responsePayload: unknown,
+  launchData: Record<string, unknown>,
+): LaunchModeSessionMetadata | undefined {
+  const responseRoot = isRecord(responsePayload) ? responsePayload : undefined;
+  const responseMetadata = responseRoot && isRecord(responseRoot.metadata)
+    ? responseRoot.metadata
+    : undefined;
+
+  let responseMode = readStringFromObject(launchData, 'mode');
+  if (!responseMode) {
+    const answers = responseRoot?.answers;
+    if (Array.isArray(answers)) {
+      for (const answer of answers) {
+        if (!isRecord(answer)) continue;
+        const value = isRecord(answer.value) ? answer.value : undefined;
+        if (!value || readString(value.type) !== 'approval_decision_v2') continue;
+        const decision = isRecord(value.decision) ? value.decision : undefined;
+        const candidateMode = readString(decision?.mode);
+        if (candidateMode) {
+          responseMode = candidateMode;
+          break;
+        }
+      }
+    }
+  }
+
+  let responseSessionId = readStringFromObject(launchData, 'session_id')
+    ?? readString(responseMetadata?.session_id);
+
+  if (!responseSessionId) {
+    const answers = responseRoot?.answers;
+    if (Array.isArray(answers)) {
+      for (const answer of answers) {
+        if (!isRecord(answer)) continue;
+        const value = isRecord(answer.value) ? answer.value : undefined;
+        if (!value || readString(value.type) !== 'approval_decision_v2') continue;
+        const decision = isRecord(value.decision) ? value.decision : undefined;
+        const candidateSessionId = readString(decision?.session_id);
+        if (candidateSessionId) {
+          responseSessionId = candidateSessionId;
+          break;
+        }
+      }
+    }
+  }
+
+  const mode = responseMode ?? requestMetadata.mode;
+  const sessionId = responseSessionId ?? requestMetadata.session_id;
+  if (!mode && !sessionId) return undefined;
+
+  return {
+    ...(mode ? { mode } : {}),
+    ...(sessionId ? { session_id: sessionId } : {}),
+  };
+}
+
+function classifyUnavailableKind(appName: string): SummonabilityDiagnosticKind {
+  if (appName === 'approval_gui') return 'approval_gui-unavailable';
+  if (appName === 'brainstorm_gui') return 'brainstorm_gui-unavailable';
+  return 'launch-failed';
+}
+
+function classifyLaunchFailureKind(
+  appName: string,
+  errorMessage?: string,
+): SummonabilityDiagnosticKind {
+  const message = (errorMessage ?? '').toLowerCase();
+  if (
+    message.includes('disabled')
+    || message.includes('unknown form app')
+    || message.includes('not registered')
+    || message.includes('unavailable')
+    || message.includes('missing command')
+    || message.includes('unresolved executable path')
+  ) {
+    return classifyUnavailableKind(appName);
+  }
+  return 'launch-failed';
+}
+
+function buildLaunchFailureResult(
+  appName: string,
+  kind: SummonabilityDiagnosticKind,
+  message: string,
+  source: SummonabilityDiagnostic['source'],
+  requestMetadata: LaunchRequestMetadata,
+  details?: Record<string, unknown>,
+): FormAppLaunchResult {
+  const metadata = extractLaunchMetadata(requestMetadata, undefined, {});
+  return {
+    app_name: appName,
+    success: false,
+    error: message,
+    elapsed_ms: 0,
+    timed_out: false,
+    diagnostics: [{
+      kind,
+      message,
+      source,
+      app_name: appName,
+      ...(details ? { details } : {}),
+    }],
+    ...(metadata ? { metadata } : {}),
+  };
+}
+
+function normalizeLaunchResult(
+  appName: string,
+  rawData: unknown,
+  source: SummonabilityDiagnostic['source'],
+  requestMetadata: LaunchRequestMetadata,
+): FormAppLaunchResult {
+  if (!isRecord(rawData)) {
+    return buildLaunchFailureResult(
+      appName,
+      'response-shape-error',
+      'Launch response data is not an object',
+      source,
+      requestMetadata,
+      { received_type: rawData === null ? 'null' : typeof rawData },
+    );
+  }
+
+  if (typeof rawData.success !== 'boolean') {
+    return buildLaunchFailureResult(
+      appName,
+      'response-shape-error',
+      'Launch response is missing boolean success field',
+      source,
+      requestMetadata,
+      { keys: Object.keys(rawData) },
+    );
+  }
+
+  const metadata = extractLaunchMetadata(requestMetadata, rawData.response_payload, rawData);
+  const error = readString(rawData.error);
+  const result: FormAppLaunchResult = {
+    app_name: readString(rawData.app_name) ?? appName,
+    success: rawData.success,
+    response_payload: rawData.response_payload,
+    error,
+    elapsed_ms: typeof rawData.elapsed_ms === 'number' && Number.isFinite(rawData.elapsed_ms)
+      ? rawData.elapsed_ms
+      : 0,
+    timed_out: typeof rawData.timed_out === 'boolean' ? rawData.timed_out : false,
+    pending_refinement: typeof rawData.pending_refinement === 'boolean'
+      ? rawData.pending_refinement
+      : false,
+    session_id: readString(rawData.session_id),
+    ...(metadata ? { metadata } : {}),
+  };
+
+  if (!result.success) {
+    const failureMessage = error ?? `Launch failed for ${appName}`;
+    result.diagnostics = [{
+      kind: classifyLaunchFailureKind(appName, failureMessage),
+      message: failureMessage,
+      source,
+      app_name: appName,
+    }];
+  }
+
+  return result;
+}
+
+function createUnavailableAvailability(
+  source: SummonabilityDiagnostic['source'],
+  message: string,
+): GuiAvailability {
+  return {
+    supervisor_running: false,
+    brainstorm_gui: false,
+    approval_gui: false,
+    capabilities: [],
+    message,
+    diagnostics: [{
+      kind: 'supervisor-unavailable',
+      message,
+      source,
+    }],
+  };
+}
+
+function attachCapabilityDiagnostics(result: GuiAvailability): GuiAvailability {
+  const diagnostics: SummonabilityDiagnostic[] = [...(result.diagnostics ?? [])];
+  if (!result.approval_gui) {
+    diagnostics.push({
+      kind: 'approval_gui-unavailable',
+      message: 'approval_gui capability is unavailable',
+      source: 'client',
+      app_name: 'approval_gui',
+    });
+  }
+  if (!result.brainstorm_gui) {
+    diagnostics.push({
+      kind: 'brainstorm_gui-unavailable',
+      message: 'brainstorm_gui capability is unavailable',
+      source: 'client',
+      app_name: 'brainstorm_gui',
+    });
+  }
+  return diagnostics.length > 0 ? { ...result, diagnostics } : result;
 }
 
 function connectViaPipe(
@@ -521,13 +790,10 @@ export async function isSupervisorRunning(
 export async function checkGuiAvailability(
   opts: SupervisorClientOptions = {},
 ): Promise<GuiAvailability> {
-  const unavailable: GuiAvailability = {
-    supervisor_running: false,
-    brainstorm_gui: false,
-    approval_gui: false,
-    capabilities: [],
-    message: 'Supervisor is not running or unreachable',
-  };
+  const unavailable = createUnavailableAvailability(
+    'control',
+    'Supervisor is not running or unreachable',
+  );
 
   // In container mode the named pipe is inaccessible — go straight to HTTP.
   if (process.env.PM_RUNNING_IN_CONTAINER === 'true') {
@@ -546,10 +812,46 @@ export async function checkGuiAvailability(
       return { ...unavailable, message: `Supervisor returned error: ${statusResp.error}` };
     }
 
-    // Status response data is an array of service states
+    // Status response data is an array of service states.
     const _services = Array.isArray(statusResp.data) ? statusResp.data as ServiceState[] : [];
 
-    // 2. Confirm via the GUI HTTP server that the GUI launcher is also up.
+    // 2. Prefer WhoAmI capability signals when available on control transport.
+    try {
+      const whoAmIResp = await supervisorRequest(
+        {
+          type: 'WhoAmI',
+          request_id: randomUUID(),
+          client: 'mcp-server',
+          client_version: '1.0.0',
+        },
+        {
+          ...opts,
+          connectTimeoutMs: opts.connectTimeoutMs ?? 2000,
+          requestTimeoutMs: opts.requestTimeoutMs ?? 3000,
+        },
+      );
+
+      if (whoAmIResp.ok && isRecord(whoAmIResp.data)) {
+        const capabilitiesRaw = whoAmIResp.data.capabilities;
+        const capabilities = Array.isArray(capabilitiesRaw)
+          ? capabilitiesRaw.filter((entry): entry is string => typeof entry === 'string')
+          : [];
+
+        if (capabilities.length > 0) {
+          return attachCapabilityDiagnostics({
+            supervisor_running: true,
+            brainstorm_gui: capabilities.includes('brainstorm_gui'),
+            approval_gui: capabilities.includes('approval_gui'),
+            capabilities,
+            message: `Supervisor running (control capability check); apps: ${capabilities.join(', ')}`,
+          });
+        }
+      }
+    } catch {
+      // Capability handshake is best-effort; availability may still be checked via HTTP.
+    }
+
+    // 3. Confirm via the GUI HTTP server that the GUI launcher is also up.
     //    This is the single source of truth for which form apps are enabled.
     const httpAvail = await checkGuiAvailabilityHttp(undefined, 2000);
     if (httpAvail.supervisor_running) {
@@ -561,13 +863,13 @@ export async function checkGuiAvailability(
 
     // GUI HTTP server not yet answering (e.g. first startup) — assume
     // both form apps are available if we reached the supervisor at all.
-    return {
+    return attachCapabilityDiagnostics({
       supervisor_running: true,
       brainstorm_gui: true,
       approval_gui: true,
       capabilities: [],
       message: 'Supervisor running (pipe ok); GUI HTTP server not yet ready',
-    };
+    });
   } catch {
     // Named-pipe / TCP control plane failed — try HTTP as last resort.
     return checkGuiAvailabilityHttp(undefined, opts.connectTimeoutMs ?? 3000);
@@ -592,9 +894,16 @@ export async function launchFormApp(
   timeoutSeconds?: number,
   opts: SupervisorClientOptions = {},
 ): Promise<FormAppLaunchResult> {
+  const requestMetadata = extractLaunchRequestMetadata(payload);
+
   // In container mode go straight to the GUI HTTP server.
   if (process.env.PM_RUNNING_IN_CONTAINER === 'true') {
-    return launchFormAppHttp(appName, payload, { timeoutSeconds });
+    return launchFormAppHttp(appName, payload, {
+      timeoutSeconds,
+      workspaceId: requestMetadata.workspace_id,
+      sessionId: requestMetadata.session_id,
+      agent: requestMetadata.agent,
+    });
   }
 
   // LaunchApp can take a long time — use a generous request timeout
@@ -618,23 +927,56 @@ export async function launchFormApp(
 
     if (!resp.ok) {
       // Named-pipe request failed — try HTTP fallback.
-      return launchFormAppHttp(appName, payload, { timeoutSeconds });
+      const fallback = await launchFormAppHttp(appName, payload, {
+        timeoutSeconds,
+        workspaceId: requestMetadata.workspace_id,
+        sessionId: requestMetadata.session_id,
+        agent: requestMetadata.agent,
+      });
+      if (!fallback.success) {
+        const controlError = readString(resp.error) ?? 'LaunchApp request returned ok=false';
+        const combinedDiagnostics: SummonabilityDiagnostic[] = [
+          {
+            kind: classifyLaunchFailureKind(appName, controlError),
+            message: controlError,
+            source: 'control',
+            app_name: appName,
+          },
+          ...(fallback.diagnostics ?? []),
+        ];
+        return {
+          ...fallback,
+          diagnostics: combinedDiagnostics,
+        };
+      }
+      return fallback;
     }
 
-    const data = resp.data as FormAppLaunchResult;
-    return {
-      app_name: data.app_name ?? appName,
-      success: data.success ?? false,
-      response_payload: data.response_payload,
-      error: data.error,
-      elapsed_ms: data.elapsed_ms ?? 0,
-      timed_out: data.timed_out ?? false,
-      pending_refinement: data.pending_refinement ?? false,
-      session_id: data.session_id,
-    };
-  } catch {
+    return normalizeLaunchResult(appName, resp.data, 'control', requestMetadata);
+  } catch (error) {
     // Named-pipe connection failed — try HTTP fallback.
-    return launchFormAppHttp(appName, payload, { timeoutSeconds });
+    const fallback = await launchFormAppHttp(appName, payload, {
+      timeoutSeconds,
+      workspaceId: requestMetadata.workspace_id,
+      sessionId: requestMetadata.session_id,
+      agent: requestMetadata.agent,
+    });
+    if (!fallback.success) {
+      const transportError = asErrorMessage(error);
+      const diagnostics: SummonabilityDiagnostic[] = [
+        {
+          kind: 'supervisor-unavailable',
+          message: `Control transport unavailable: ${transportError}`,
+          source: 'control',
+        },
+        ...(fallback.diagnostics ?? []),
+      ];
+      return {
+        ...fallback,
+        diagnostics,
+      };
+    }
+    return fallback;
   }
 }
 
@@ -711,13 +1053,10 @@ export async function checkGuiAvailabilityHttp(
   timeoutMs = 3000,
 ): Promise<GuiAvailability> {
   const url = `${baseUrl ?? resolveGuiHttpUrl()}/gui/ping`;
-  const unavailable: GuiAvailability = {
-    supervisor_running: false,
-    brainstorm_gui: false,
-    approval_gui: false,
-    capabilities: [],
-    message: `GUI HTTP server unreachable at ${url}`,
-  };
+  const unavailable = createUnavailableAvailability(
+    'http',
+    `GUI HTTP server unreachable at ${url}`,
+  );
 
   try {
     const controller = new AbortController();
@@ -725,19 +1064,29 @@ export async function checkGuiAvailabilityHttp(
     const res = await fetch(url, { signal: controller.signal });
     clearTimeout(timer);
 
-    if (!res.ok) return unavailable;
+    if (!res.ok) {
+      return {
+        ...unavailable,
+        message: `GUI HTTP server returned ${res.status} at ${url}`,
+      };
+    }
 
     const body = await res.json() as { available?: boolean; apps?: string[] };
-    if (!body.available) return unavailable;
+    if (!body.available) {
+      return {
+        ...unavailable,
+        message: `GUI HTTP server reported unavailable at ${url}`,
+      };
+    }
 
     const apps = body.apps ?? [];
-    return {
+    return attachCapabilityDiagnostics({
       supervisor_running: true,
       brainstorm_gui: apps.includes('brainstorm_gui'),
       approval_gui: apps.includes('approval_gui'),
       capabilities: apps.map(a => a),
       message: `GUI HTTP server available; apps: ${apps.join(', ')}`,
-    };
+    });
   } catch {
     return unavailable;
   }
@@ -759,6 +1108,12 @@ export async function launchFormAppHttp(
     agent?: string;
   } = {},
 ): Promise<FormAppLaunchResult> {
+  const requestMetadata: LaunchRequestMetadata = {
+    ...extractLaunchRequestMetadata(payload),
+    ...(opts.workspaceId ? { workspace_id: opts.workspaceId } : {}),
+    ...(opts.sessionId ? { session_id: opts.sessionId } : {}),
+    ...(opts.agent ? { agent: opts.agent } : {}),
+  };
   const base = opts.baseUrl ?? resolveGuiHttpUrl();
   const url = `${base}/gui/launch`;
   const requestTimeoutMs = opts.timeoutSeconds
@@ -783,35 +1138,39 @@ export async function launchFormAppHttp(
     });
     clearTimeout(timer);
 
-    const envelope = await res.json() as { ok: boolean; data?: FormAppLaunchResult; error?: string };
-    if (!envelope.ok || !envelope.data) {
-      return {
-        app_name: appName,
-        success: false,
-        error: envelope.error ?? 'GUI HTTP server returned not-ok',
-        elapsed_ms: 0,
-        timed_out: false,
-      };
+    const envelope = await res.json() as unknown;
+    if (!isRecord(envelope) || typeof envelope.ok !== 'boolean') {
+      return buildLaunchFailureResult(
+        appName,
+        'response-shape-error',
+        'GUI HTTP launch returned invalid response envelope',
+        'http',
+        requestMetadata,
+        { received_type: envelope === null ? 'null' : typeof envelope },
+      );
     }
-    const d = envelope.data;
-    return {
-      app_name: d.app_name ?? appName,
-      success: d.success ?? false,
-      response_payload: d.response_payload,
-      error: d.error,
-      elapsed_ms: d.elapsed_ms ?? 0,
-      timed_out: d.timed_out ?? false,
-      pending_refinement: d.pending_refinement ?? false,
-      session_id: d.session_id,
-    };
+
+    if (!envelope.ok) {
+      const errorMessage = readString(envelope.error) ?? 'GUI HTTP server returned not-ok';
+      return buildLaunchFailureResult(
+        appName,
+        classifyLaunchFailureKind(appName, errorMessage),
+        errorMessage,
+        'http',
+        requestMetadata,
+      );
+    }
+
+    return normalizeLaunchResult(appName, envelope.data, 'http', requestMetadata);
   } catch (err) {
-    return {
-      app_name: appName,
-      success: false,
-      error: `GUI HTTP launch error: ${err instanceof Error ? err.message : String(err)}`,
-      elapsed_ms: 0,
-      timed_out: false,
-    };
+    const message = `GUI HTTP launch error: ${err instanceof Error ? err.message : String(err)}`;
+    return buildLaunchFailureResult(
+      appName,
+      'supervisor-unavailable',
+      message,
+      'http',
+      requestMetadata,
+    );
   }
 }
 

@@ -35,7 +35,7 @@ The system is designed around a **hub-and-spoke agent model** where a Coordinato
 │  ┌────────┴──────────────────────────┴───────────────────┐   │
 │  │              VS Code Extension (TypeScript)            │   │
 │  │  Server lifecycle · Agent deploy · File watchers       │   │
-│  │  Language model tools · Spawn prep · Interactive term  │   │
+│  │  Language model tools · Session prep/deploy · Interactive term  │   │
 │  └────────────────────────┬──────────────────────────────┘   │
 └───────────────────────────┼──────────────────────────────────┘
                             │ stdio / HTTP / SSE
@@ -106,8 +106,8 @@ The extension is the primary user-facing integration point:
 - **Server lifecycle management** — automatic MCP server startup/shutdown, process monitoring
 - **Agent/prompt/instruction/skill deployer** — copies operational knowledge files into workspaces
 - **File watchers** — auto-deploy on source changes (agents, instructions, skills)
-- **Spawn preparation** (`memory_spawn_agent`) — context enrichment for subagent launches (prep-only, not execution)
-- **Interactive terminal** (`memory_terminal_interactive`) — visible VS Code terminal creation/management
+- **Session prep and deploy** (`memory_session`) — context enrichment + session provisioning for native subagent launches (prep-only, not execution)
+- **Interactive terminal** (`memory_terminal_interactive`) — canonical interactive/headless terminal contract (separate from `memory_terminal_vscode` host terminal lifecycle)
 
 ### 3.3 Dashboard (`dashboard/`)
 

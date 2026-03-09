@@ -10,6 +10,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type {
   FormResponse,
   Answer,
+  ApprovalDecisionV2Answer,
   ConfirmRejectAnswer,
 } from '../../types/gui-forms.types.js';
 
@@ -131,6 +132,104 @@ function makeApprovalResponse(
   };
 }
 
+function makeRadioSelectResponse(
+  selected: string,
+  freeText?: string,
+  status: FormResponse['status'] = 'completed',
+): FormResponse {
+  return {
+    type: 'form_response',
+    version: 1,
+    request_id: 'approval-req-001',
+    form_type: 'approval',
+    status,
+    metadata: {
+      plan_id: 'plan_test_001',
+      workspace_id: 'ws_test_001',
+      session_id: 'sess_test',
+      completed_at: '2026-02-20T12:00:00Z',
+      duration_ms: 3000,
+    },
+    answers: [
+      {
+        question_id: 'approval_decision',
+        value: {
+          type: 'radio_select_answer',
+          selected,
+          ...(freeText ? { free_text: freeText } : {}),
+        },
+      },
+    ],
+  };
+}
+
+function makeV2DecisionResponse(
+  decision: ApprovalDecisionV2Answer['decision'],
+  status: FormResponse['status'] = 'completed',
+): FormResponse {
+  return {
+    type: 'form_response',
+    version: 1,
+    request_id: 'approval-req-001',
+    form_type: 'approval',
+    status,
+    metadata: {
+      plan_id: 'plan_test_001',
+      workspace_id: 'ws_test_001',
+      session_id: 'sess_test',
+      completed_at: '2026-02-20T12:00:00Z',
+      duration_ms: 3000,
+    },
+    answers: [
+      {
+        question_id: 'approval_decision',
+        value: {
+          type: 'approval_decision_v2',
+          decision,
+        },
+      },
+    ],
+  };
+}
+
+function makeAggregateSessionSubmissionResponse(
+  payload: {
+    session_id?: string;
+    decisions?: Array<{
+      item_id: string;
+      decision: 'approve' | 'reject' | 'defer' | 'no_decision' | 'invalid';
+      notes?: string;
+    }>;
+    notes?: string;
+    mode?: 'binary' | 'multiple_choice' | 'multi_approval_session';
+  },
+  status: FormResponse['status'] = 'completed',
+): FormResponse {
+  return {
+    type: 'form_response',
+    version: 1,
+    request_id: 'approval-req-001',
+    form_type: 'approval',
+    status,
+    metadata: {
+      plan_id: 'plan_test_001',
+      workspace_id: 'ws_test_001',
+      session_id: 'sess_test',
+      completed_at: '2026-02-20T12:00:00Z',
+      duration_ms: 3000,
+    },
+    answers: [
+      {
+        question_id: 'approval_decision',
+        value: {
+          type: 'approval_session_submission_v2',
+          ...payload,
+        },
+      },
+    ],
+  };
+}
+
 function makeLaunchResult(overrides: Partial<FormAppLaunchResult> = {}): FormAppLaunchResult {
   return {
     app_name: 'approval_gui',
@@ -196,6 +295,128 @@ describe('routeApprovalGate', () => {
     expect(result.path).toBe('gui');
     expect(result.outcome).toBe('approved');
     expect(result.gui_response).toBeDefined();
+
+    const launchPayload = mockLaunchForm.mock.calls[0]?.[1] as {
+      context?: {
+        step?: { step_task?: string; step_index?: number };
+        contract?: { mode?: string; request_shape?: string; response_shape?: string };
+        approval_contract_v2?: { mode?: string; request_shape?: string; response_shape?: string };
+      };
+    };
+    expect(launchPayload.context).toMatchObject({
+      step: {
+        step_task: 'Build auth module',
+        step_index: 1,
+      },
+      contract: {
+        mode: 'binary',
+        request_shape: 'confirm_reject_question',
+        response_shape: 'confirm_reject_answer',
+      },
+      approval_contract_v2: {
+        mode: 'binary',
+        request_shape: 'confirm_reject_question',
+        response_shape: 'confirm_reject_answer',
+      },
+    });
+  });
+
+  it('accepts multiple-choice radio_select_answer responses deterministically', async () => {
+    mockCheckGui.mockResolvedValue(makeGuiAvailability());
+    mockLaunchForm.mockResolvedValue(makeLaunchResult({
+      response_payload: makeRadioSelectResponse('approve_option', 'Looks good'),
+    }));
+
+    const result = await routeApprovalGate(makePlanState(), 1, 'sess_001');
+
+    expect(result.approved).toBe(true);
+    expect(result.outcome).toBe('approved');
+  });
+
+  it('accepts approval_decision_v2 binary responses deterministically', async () => {
+    mockCheckGui.mockResolvedValue(makeGuiAvailability());
+    mockLaunchForm.mockResolvedValue(makeLaunchResult({
+      response_payload: makeV2DecisionResponse({
+        mode: 'binary',
+        action: 'approve',
+      }),
+    }));
+
+    const result = await routeApprovalGate(makePlanState(), 1, 'sess_001');
+
+    expect(result.approved).toBe(true);
+    expect(result.outcome).toBe('approved');
+  });
+
+  it('accepts approval_decision_v2 multiple_choice responses deterministically', async () => {
+    mockCheckGui.mockResolvedValue(makeGuiAvailability());
+    mockLaunchForm.mockResolvedValue(makeLaunchResult({
+      response_payload: makeV2DecisionResponse({
+        mode: 'multiple_choice',
+        selected: 'ship_it',
+      }),
+    }));
+
+    const result = await routeApprovalGate(makePlanState(), 1, 'sess_001');
+
+    expect(result.approved).toBe(true);
+    expect(result.outcome).toBe('approved');
+  });
+
+  it('handles aggregated multi-session submissions with any rejection as rejected', async () => {
+    mockCheckGui.mockResolvedValue(makeGuiAvailability());
+    mockLaunchForm.mockResolvedValue(makeLaunchResult({
+      response_payload: makeAggregateSessionSubmissionResponse({
+        session_id: 'agg_sess_1',
+        decisions: [
+          { item_id: 'q1', decision: 'approve' },
+          { item_id: 'q2', decision: 'reject', notes: 'Needs revision' },
+        ],
+      }),
+    }));
+
+    const result = await routeApprovalGate(makePlanState(), 1, 'sess_001');
+
+    expect(result.approved).toBe(false);
+    expect(result.outcome).toBe('rejected');
+    expect(result.paused_snapshot?.reason).toBe('rejected');
+  });
+
+  it('handles aggregated multi-session submissions with all approvals as approved', async () => {
+    mockCheckGui.mockResolvedValue(makeGuiAvailability());
+    mockLaunchForm.mockResolvedValue(makeLaunchResult({
+      response_payload: makeAggregateSessionSubmissionResponse({
+        session_id: 'agg_sess_all_ok',
+        decisions: [
+          { item_id: 'q1', decision: 'approve' },
+          { item_id: 'q2', decision: 'approve' },
+        ],
+      }),
+    }));
+
+    const result = await routeApprovalGate(makePlanState(), 1, 'sess_001');
+
+    expect(result.approved).toBe(true);
+    expect(result.outcome).toBe('approved');
+  });
+
+  it('handles aggregated multi-session submissions with defer/no_decision as deferred', async () => {
+    mockCheckGui.mockResolvedValue(makeGuiAvailability());
+    mockLaunchForm.mockResolvedValue(makeLaunchResult({
+      response_payload: makeAggregateSessionSubmissionResponse({
+        session_id: 'agg_sess_2',
+        decisions: [
+          { item_id: 'q1', decision: 'approve' },
+          { item_id: 'q2', decision: 'no_decision', notes: 'Need follow-up' },
+        ],
+      }),
+    }));
+
+    const result = await routeApprovalGate(makePlanState(), 1, 'sess_001');
+
+    expect(result.approved).toBe(false);
+    expect(result.outcome).toBe('deferred');
+    expect(result.paused_snapshot?.reason).toBe('deferred');
   });
 
   // --- Rejection path ---
@@ -222,7 +443,7 @@ describe('routeApprovalGate', () => {
 
   // --- Timeout path ---
 
-  it('auto-approves on timeout when on_timeout is approve (default)', async () => {
+  it('does not auto-approve on timeout (fail-safe)', async () => {
     mockCheckGui.mockResolvedValue(makeGuiAvailability());
     const guiResponse: FormResponse = {
       ...makeApprovalResponse('approve'),
@@ -234,9 +455,9 @@ describe('routeApprovalGate', () => {
 
     const result = await routeApprovalGate(makePlanState(), 1, 'sess_001');
 
-    // The default approval form uses on_timeout: 'approve'
-    expect(result.approved).toBe(true);
-    expect(result.outcome).toBe('approved');
+    expect(result.approved).toBe(false);
+    expect(result.outcome).toBe('timeout');
+    expect(result.paused_snapshot?.reason).toBe('timeout');
   });
 
   // --- Cancelled / deferred paths ---
@@ -339,9 +560,9 @@ describe('routeApprovalGate', () => {
     expect(result.paused_snapshot!.session_id).toBe('sess_snap');
   });
 
-  it('treats completed response with no confirm_reject answer as approved', async () => {
+  it('treats completed response with no decision answer as error (fail-safe)', async () => {
     mockCheckGui.mockResolvedValue(makeGuiAvailability());
-    // Response with only a timer answer, no confirm_reject
+    // Response with only a timer answer, no approval decision payload.
     const guiResponse: FormResponse = {
       type: 'form_response',
       version: 1,
@@ -360,8 +581,9 @@ describe('routeApprovalGate', () => {
 
     const result = await routeApprovalGate(makePlanState(), 1, 'sess_001');
 
-    expect(result.approved).toBe(true);
-    expect(result.outcome).toBe('approved');
+    expect(result.approved).toBe(false);
+    expect(result.outcome).toBe('error');
+    expect(result.error).toContain('missing_decision');
   });
 
   it('uses plan priority for urgency mapping in the form request', async () => {

@@ -37,6 +37,35 @@ interface StepApprovalResolution {
   error?: string;
 }
 
+type StepApprovalFallbackOutcome = 'fallback_to_chat' | 'blocked' | 'deferred';
+
+function classifyStepApprovalFallbackOutcome(outcome: string): StepApprovalFallbackOutcome {
+  if (outcome === 'fallback_to_chat') {
+    return 'fallback_to_chat';
+  }
+  if (outcome === 'deferred' || outcome === 'timeout') {
+    return 'deferred';
+  }
+  return 'blocked';
+}
+
+function defaultStepApprovalFailureDetail(outcome: string): string {
+  switch (outcome) {
+    case 'rejected':
+      return 'Approval request was explicitly rejected by the user.';
+    case 'deferred':
+      return 'Approval request was deferred and cannot be auto-approved.';
+    case 'timeout':
+      return 'Approval request timed out without an explicit approval decision.';
+    case 'error':
+      return 'Approval decision payload was invalid or could not be parsed.';
+    case 'fallback_to_chat':
+      return 'Approval GUI was unavailable for this gated step.';
+    default:
+      return `Approval gate returned non-approved outcome "${outcome}".`;
+  }
+}
+
 function resolveApprovalSessionId(state: PlanState, stepIndex: number): string {
   const activeSession = state.agent_sessions?.find(session => !session.completed_at);
   if (activeSession?.session_id) {
@@ -67,20 +96,27 @@ async function ensureStepApprovalViaGui(
     return { approved: true };
   }
 
+  const fallbackOutcome = classifyStepApprovalFallbackOutcome(gateResult.outcome);
+  const failureDetail = gateResult.error ?? defaultStepApprovalFailureDetail(gateResult.outcome);
   const notesSuffix = gateResult.user_notes ? ` User notes: ${gateResult.user_notes}` : '';
-  const baseError = gateResult.error
-    ? `Step ${stepIndex} requires explicit user confirmation before execution. Approval gate outcome "${gateResult.outcome}". ${gateResult.error}${notesSuffix}`
-    : `Step ${stepIndex} requires explicit user confirmation before execution. Approval gate outcome "${gateResult.outcome}".${notesSuffix}`;
+  const baseError = `Step ${stepIndex} requires explicit user confirmation before execution. Approval gate outcome "${gateResult.outcome}". Fallback behavior "${fallbackOutcome}". ${failureDetail}${notesSuffix}`;
+
+  if (fallbackOutcome === 'fallback_to_chat') {
+    return {
+      approved: false,
+      error: maybeAttachCoordinatorHandoffInstruction(baseError, {
+        workspace_id: workspaceId,
+        plan_id: planId,
+        step_index: stepIndex,
+        outcome: gateResult.outcome,
+        detail: gateResult.error,
+      }),
+    };
+  }
 
   return {
     approved: false,
-    error: maybeAttachCoordinatorHandoffInstruction(baseError, {
-      workspace_id: workspaceId,
-      plan_id: planId,
-      step_index: stepIndex,
-      outcome: gateResult.outcome,
-      detail: gateResult.error,
-    }),
+    error: baseError,
   };
 }
 

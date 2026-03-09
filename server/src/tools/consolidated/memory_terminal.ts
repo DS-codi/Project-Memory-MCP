@@ -1,8 +1,9 @@
 /**
  * Consolidated Terminal Tool — memory_terminal
  *
- * Simplified flat API with 5 actions:
+ * Simplified flat API with 6 actions:
  *   - run           — execute a command (with three-way authorization + GUI approval)
+ *   - spawn_cli_session — structured provider-session spawn (validated payload)
  *   - read_output   — get output from a session
  *   - kill          — terminate a session
  *   - get_allowlist — view the allowlist
@@ -68,10 +69,31 @@ function toSessionBucketKey(resolvedSessionId: string): string {
 
 export type MemoryTerminalAction =
   | 'run'
+  | 'spawn_cli_session'
   | 'read_output'
   | 'kill'
   | 'get_allowlist'
   | 'update_allowlist';
+
+export interface SpawnCliSessionContext {
+  requesting_agent?: string;
+  plan_id?: string;
+  session_id?: string;
+  step_notes?: string;
+  relevant_files?: Array<{ path: string; snippet?: string }>;
+  workspace_instructions?: string;
+  custom_instructions?: string;
+  output_format?: 'text' | 'json' | 'stream-json';
+  session_mode?: 'new' | 'resume';
+  resume_session_id?: string;
+}
+
+interface NormalizedSpawnCliSessionPayload {
+  provider: 'gemini' | 'copilot';
+  cwd: string;
+  prompt?: string;
+  context: SpawnCliSessionContext;
+}
 
 // ─── Context-pack types ──────────────────────────────────────────────────────
 
@@ -90,6 +112,7 @@ export interface RelevantFile {
  */
 export interface ContextPack {
   step_notes?: string;
+  startup_prompt?: string;
   relevant_files?: RelevantFile[];
   workspace_instructions?: string;
   custom_instructions?: string;
@@ -132,6 +155,12 @@ export interface MemoryTerminalParams {
    * causes both to be set.
    */
   env?: Record<string, string>;
+  /** Provider to launch for action=spawn_cli_session. */
+  provider?: string;
+  /** Startup prompt for action=spawn_cli_session. */
+  prompt?: string;
+  /** Structured context payload for action=spawn_cli_session. */
+  context?: SpawnCliSessionContext;
   /**
    * Agent launch metadata for super-subagent launches (for run).
    * When present, triggers context-pack assembly and the GUI hard-gate approval
@@ -164,6 +193,8 @@ export interface MemoryTerminalParams {
      * Ignored when session_mode = "new".
      */
     resume_session_id?: string;
+    /** Startup prompt used by provider launch builders (when supported). */
+    startup_prompt?: string;
   };
 }
 
@@ -210,6 +241,7 @@ export function assembleContextPack(
     pack.workspace_instructions = meta.workspace_instructions;
   if (meta.custom_instructions)
     pack.custom_instructions = meta.custom_instructions;
+  if (meta.startup_prompt) pack.startup_prompt = meta.startup_prompt;
   if (meta.relevant_files && meta.relevant_files.length > 0)
     pack.relevant_files = meta.relevant_files.map((f) => ({
       path: f.path,
@@ -326,6 +358,278 @@ export async function classifyCommand(
 
   // 4. Not on allowlist, not destructive → needs approval from GUI
   return { decision: 'needs_approval' };
+}
+
+function normalizeProviderToken(value: string): string {
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return '';
+  const base = trimmed.split(/[\\/]/).pop() ?? trimmed;
+  return base.replace(/\.(cmd|exe)$/i, '');
+}
+
+function normalizeSpawnContext(
+  raw: SpawnCliSessionContext | undefined,
+): SpawnCliSessionContext | null {
+  if (!raw) {
+    return {};
+  }
+
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    return null;
+  }
+
+  const normalized: SpawnCliSessionContext = {};
+
+  const setIfText = (
+    key: keyof SpawnCliSessionContext,
+    value: unknown,
+  ): void => {
+    if (typeof value !== 'string') {
+      return;
+    }
+    const trimmed = value.trim();
+    if (trimmed.length > 0) {
+      normalized[key] = trimmed as SpawnCliSessionContext[keyof SpawnCliSessionContext];
+    }
+  };
+
+  setIfText('requesting_agent', raw.requesting_agent);
+  setIfText('plan_id', raw.plan_id);
+  setIfText('session_id', raw.session_id);
+  setIfText('step_notes', raw.step_notes);
+  setIfText('workspace_instructions', raw.workspace_instructions);
+  setIfText('custom_instructions', raw.custom_instructions);
+  setIfText('output_format', raw.output_format);
+  setIfText('session_mode', raw.session_mode);
+  setIfText('resume_session_id', raw.resume_session_id);
+
+  if (raw.relevant_files !== undefined) {
+    if (!Array.isArray(raw.relevant_files)) {
+      return null;
+    }
+    const files = raw.relevant_files
+      .map((entry) => {
+        if (!entry || typeof entry.path !== 'string') {
+          return null;
+        }
+        const path = entry.path.trim();
+        if (!path) {
+          return null;
+        }
+        const snippet =
+          typeof entry.snippet === 'string' && entry.snippet.trim().length > 0
+            ? entry.snippet
+            : undefined;
+        return { path, snippet };
+      })
+      .filter((entry): entry is { path: string; snippet?: string } => entry !== null);
+
+    if (files.length !== raw.relevant_files.length) {
+      return null;
+    }
+
+    normalized.relevant_files = files;
+  }
+
+  const outputFormat = normalized.output_format;
+  if (
+    outputFormat !== undefined &&
+    outputFormat !== 'text' &&
+    outputFormat !== 'json' &&
+    outputFormat !== 'stream-json'
+  ) {
+    return null;
+  }
+
+  const sessionMode = normalized.session_mode;
+  if (
+    sessionMode !== undefined &&
+    sessionMode !== 'new' &&
+    sessionMode !== 'resume'
+  ) {
+    return null;
+  }
+
+  if (
+    normalized.session_mode === 'resume' &&
+    !normalized.resume_session_id
+  ) {
+    return null;
+  }
+
+  return normalized;
+}
+
+function normalizeSpawnCliSessionPayload(
+  params: MemoryTerminalParams,
+): { payload?: NormalizedSpawnCliSessionPayload; error?: string } {
+  if (!params.provider || !params.provider.trim()) {
+    return {
+      error:
+        'provider is required for action: spawn_cli_session (expected gemini or copilot)',
+    };
+  }
+
+  const provider = normalizeProviderToken(params.provider);
+  if (provider !== 'gemini' && provider !== 'copilot') {
+    return {
+      error:
+        `Invalid provider for spawn_cli_session: "${params.provider}". Use gemini or copilot.`,
+    };
+  }
+
+  let cwd = process.cwd();
+  if (params.cwd !== undefined) {
+    if (typeof params.cwd !== 'string' || !params.cwd.trim()) {
+      return {
+        error: 'cwd must be a non-empty string when provided for spawn_cli_session',
+      };
+    }
+    cwd = params.cwd.trim();
+  }
+
+  let prompt: string | undefined;
+  if (params.prompt !== undefined) {
+    if (typeof params.prompt !== 'string') {
+      return { error: 'prompt must be a string for spawn_cli_session' };
+    }
+    const trimmed = params.prompt.trim();
+    if (trimmed.length > 4000) {
+      return { error: 'prompt is too long (max 4000 characters)' };
+    }
+    if (trimmed.length > 0) {
+      prompt = trimmed;
+    }
+  }
+
+  const context = normalizeSpawnContext(params.context);
+  if (context === null) {
+    return {
+      error:
+        'context is invalid for spawn_cli_session (check relevant_files, output_format, session_mode, and resume_session_id)',
+    };
+  }
+
+  return {
+    payload: {
+      provider: provider as 'gemini' | 'copilot',
+      cwd,
+      prompt,
+      context,
+    },
+  };
+}
+
+const DEFAULT_PM_MCP_SERVER_URL = 'http://127.0.0.1:3467/mcp';
+const DEFAULT_PM_MCP_TRANSPORT = 'streamable_http';
+
+function readTrimmedNonEmpty(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function firstExplicitUserEnvValue(
+  userEnv: Record<string, string> | undefined,
+  keys: readonly string[],
+): string | undefined {
+  if (!userEnv) {
+    return undefined;
+  }
+
+  for (const key of keys) {
+    const value = readTrimmedNonEmpty(userEnv[key]);
+    if (value) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function resolveMcpServerUrl(): string {
+  const candidates = [
+    process.env.PM_MCP_SERVER_URL,
+    process.env.PROJECT_MEMORY_MCP_SERVER_URL,
+    process.env.MBS_HOST_MCP_URL,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim().length > 0) {
+      return candidate.trim();
+    }
+  }
+
+  return DEFAULT_PM_MCP_SERVER_URL;
+}
+
+function buildSpawnAutoMcpEnv(
+  params: MemoryTerminalParams,
+  payload: NormalizedSpawnCliSessionPayload,
+): Record<string, string> {
+  const resolvedMcpServerUrl = resolveMcpServerUrl();
+  const autoEnv: Record<string, string> = {
+    PM_MCP_SERVER_URL: resolvedMcpServerUrl,
+    PROJECT_MEMORY_MCP_SERVER_URL: resolvedMcpServerUrl,
+    PM_MCP_TRANSPORT:
+      process.env.PM_MCP_TRANSPORT?.trim() || DEFAULT_PM_MCP_TRANSPORT,
+    PM_CLI_SPAWN_SOURCE: 'memory_terminal.spawn_cli_session',
+    PM_CLI_PROVIDER: payload.provider,
+  };
+
+  if (params.workspace_id?.trim()) {
+    autoEnv.PM_WORKSPACE_ID = params.workspace_id.trim();
+  }
+  if (payload.context.plan_id?.trim()) {
+    autoEnv.PM_PLAN_ID = payload.context.plan_id.trim();
+  }
+  if (payload.context.session_id?.trim()) {
+    autoEnv.PM_AGENT_SESSION_ID = payload.context.session_id.trim();
+  }
+
+  return autoEnv;
+}
+
+function mergeSpawnEnvWithPrecedence(
+  autoEnv: Record<string, string>,
+  userEnv: Record<string, string> | undefined,
+): Record<string, string> {
+  // Deterministic precedence for spawn_cli_session env:
+  // 1) auto-injected Project Memory defaults
+  // 2) explicit non-empty user overrides from request payload
+  // Blank user values for PM MCP keys are ignored to avoid accidental unsetting.
+  const mergedEnv: Record<string, string> = {
+    ...autoEnv,
+    ...(userEnv ?? {}),
+  };
+
+  const explicitUserMcpServerUrl = firstExplicitUserEnvValue(userEnv, [
+    'PM_MCP_SERVER_URL',
+    'PROJECT_MEMORY_MCP_SERVER_URL',
+  ]);
+
+  const resolvedMcpServerUrl =
+    explicitUserMcpServerUrl ??
+    readTrimmedNonEmpty(autoEnv.PM_MCP_SERVER_URL) ??
+    readTrimmedNonEmpty(autoEnv.PROJECT_MEMORY_MCP_SERVER_URL) ??
+    DEFAULT_PM_MCP_SERVER_URL;
+
+  // Keep URL aliases synchronized so provider launchers receive one canonical value.
+  mergedEnv.PM_MCP_SERVER_URL = resolvedMcpServerUrl;
+  mergedEnv.PROJECT_MEMORY_MCP_SERVER_URL = resolvedMcpServerUrl;
+
+  const explicitUserTransport = firstExplicitUserEnvValue(userEnv, [
+    'PM_MCP_TRANSPORT',
+  ]);
+
+  mergedEnv.PM_MCP_TRANSPORT =
+    explicitUserTransport ??
+    readTrimmedNonEmpty(autoEnv.PM_MCP_TRANSPORT) ??
+    DEFAULT_PM_MCP_TRANSPORT;
+
+  return mergedEnv;
 }
 
 // =========================================================================
@@ -702,6 +1006,54 @@ async function handleRun(
   }
 }
 
+async function handleSpawnCliSession(
+  params: MemoryTerminalParams,
+  extra?: McpToolExtra,
+): Promise<ToolResponse> {
+  const normalized = normalizeSpawnCliSessionPayload(params);
+  if (!normalized.payload) {
+    return {
+      success: false,
+      error: normalized.error ?? 'Invalid spawn_cli_session payload',
+    };
+  }
+
+  const { payload } = normalized;
+  const mergedLaunchContext = payload.context;
+  const mergedEnv = mergeSpawnEnvWithPrecedence(
+    buildSpawnAutoMcpEnv(params, payload),
+    params.env,
+  );
+
+  return handleRun(
+    {
+      action: 'run',
+      command: payload.provider,
+      args: [],
+      cwd: payload.cwd,
+      timeout_ms: params.timeout_ms,
+      workspace_id: params.workspace_id,
+      session_id: params.session_id,
+      session_target: params.session_target,
+      env: mergedEnv,
+      agent_launch_meta: {
+        requesting_agent: mergedLaunchContext.requesting_agent,
+        plan_id: mergedLaunchContext.plan_id,
+        session_id: mergedLaunchContext.session_id,
+        step_notes: mergedLaunchContext.step_notes,
+        relevant_files: mergedLaunchContext.relevant_files,
+        workspace_instructions: mergedLaunchContext.workspace_instructions,
+        custom_instructions: mergedLaunchContext.custom_instructions,
+        output_format: mergedLaunchContext.output_format,
+        session_mode: mergedLaunchContext.session_mode,
+        resume_session_id: mergedLaunchContext.resume_session_id,
+        startup_prompt: payload.prompt,
+      },
+    },
+    extra,
+  );
+}
+
 async function handleReadOutputAction(
   params: MemoryTerminalParams,
 ): Promise<ToolResponse> {
@@ -855,6 +1207,8 @@ export async function memoryTerminal(
   switch (params.action) {
     case 'run':
       return handleRun(params, extra);
+    case 'spawn_cli_session':
+      return handleSpawnCliSession(params, extra);
     case 'read_output':
       return handleReadOutputAction(params);
     case 'kill':
@@ -866,7 +1220,7 @@ export async function memoryTerminal(
     default:
       return {
         success: false,
-        error: `Unknown action: "${(params as { action: string }).action}". Valid actions: run, read_output, kill, get_allowlist, update_allowlist`,
+        error: `Unknown action: "${(params as { action: string }).action}". Valid actions: run, spawn_cli_session, read_output, kill, get_allowlist, update_allowlist`,
       };
   }
 }

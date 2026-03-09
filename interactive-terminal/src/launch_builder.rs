@@ -109,7 +109,7 @@ pub struct LaunchOptions {
     /// `--screen-reader` disables animations, reduces visual decorations, and
     /// suppresses rich terminal output that is unnecessary for agent sessions.
     /// Defaults to `false`; the GUI approval dialog exposes a checkbox
-    /// (checked by default, i.e. opt-out) that sets this flag.
+    /// (unchecked by default, i.e. opt-in) that sets this flag.
     /// Ignored for Copilot — see [`build_copilot_launch`] for details.
     pub screen_reader: bool,
 }
@@ -244,6 +244,8 @@ pub fn build_gemini_launch(
         context_pack
     };
 
+    inject_project_memory_mcp_env_defaults(&mut env, "gemini", resolved_pack);
+
     // ── Output format ────────────────────────────────────────────────────────
     // Gemini supports --output_format natively.
     let effective_output_format = match options.output_format.trim() {
@@ -259,9 +261,16 @@ pub fn build_gemini_launch(
     // ── Screen-reader / load-reduction flags ─────────────────────────────────
     // --screen-reader disables rich terminal decorations and animations that
     // are unnecessary (and slow) for agent sessions.  Controlled by the
-    // approval-dialog checkbox (default: checked / opt-out).
+    // approval-dialog checkbox (default: unchecked / opt-in).
     if options.screen_reader {
         args.push("--screen-reader".to_string());
+    }
+
+    // spawn_cli_session startup prompt: keep interactive mode while
+    // pre-seeding the first user message.
+    if let Some(startup_prompt) = startup_prompt_from_context_pack(resolved_pack) {
+        args.push("--prompt-interactive".to_string());
+        args.push(startup_prompt);
     }
 
     // Serialise context pack to a temp file if supplied
@@ -317,12 +326,12 @@ pub fn build_gemini_launch(
 
 /// Build a [`LaunchCommand`] for an interactive GitHub Copilot CLI session.
 ///
-/// Targets `gh copilot suggest --target shell`, which is the most broadly
-/// interactive Copilot CLI entrypoint.  The `gh` binary routed from PATH.
+/// Uses an interactive Copilot-first launch chain.
+/// On Windows the fallback order is:
+/// `copilot.cmd` -> `copilot` -> `gh copilot suggest --target shell`.
 ///
-/// When a context pack with step notes is supplied, the step notes are
-/// injected as the initial prompt string (positional argument to
-/// `gh copilot suggest`) so the first interaction is pre-seeded.
+/// When `context_pack.startup_prompt` is supplied, the prompt is injected into
+/// the provider launch path (`copilot -p` or fallback equivalent).
 ///
 /// **Session resume is not supported by Copilot.**  When
 /// `options.session_mode = "resume"`, this function returns
@@ -348,37 +357,28 @@ pub fn build_copilot_launch(
         return Err("Copilot does not support session resume".to_string());
     }
 
-    let program = "gh".to_string();
+    let program = copilot_interactive_launch_command();
+    let startup_prompt = startup_prompt_from_context_pack(context_pack);
 
     // ── Screen-reader / load-reduction flags ─────────────────────────────────
     // The `gh copilot` CLI (v1.x) does not expose equivalent load-reduction
     // flags such as `--screen-reader`, `--no-interactive-hints`, or
     // `--disable-animations`.  The `options.screen_reader` field is read by
     // `build_gemini_launch` but intentionally ignored here to avoid passing
-    // invalid arguments.  `approval_copilot_minimal_ui` is surfaced as a
-    // user-facing checkbox in the approval dialog for forward compatibility;
-    // no CLI flag is emitted at this time.
+    // invalid arguments.
     // Copilot CLI has no equivalent screen-reader flag as of v1.x.
-    let mut args: Vec<String> = vec![
-        "copilot".to_string(),
-        "suggest".to_string(),
-        "--target".to_string(),
-        "shell".to_string(),
-    ];
+    // Launch path is provider-interactive first, with deterministic fallback.
+    // Fallback order (Windows): copilot.cmd -> copilot -> gh copilot suggest --target shell.
+    eprintln!(
+        "[PM][launch_builder] Copilot launch order: copilot.cmd -> copilot -> gh copilot suggest --target shell"
+    );
+    let mut args: Vec<String> = Vec::new();
     let mut env: HashMap<String, String> = HashMap::new();
     let mut context_pack_path: Option<PathBuf> = None;
 
-    // Pre-seed initial prompt with step notes if available
+    // Keep context available via temp file. Prompt injection for spawn_cli_session
+    // is handled through dedicated startup fields in later steps.
     if let Some(pack) = context_pack {
-        if let Some(notes) = &pack.step_notes {
-            let truncated = if notes.len() > 512 {
-                format!("{}…", &notes[..512])
-            } else {
-                notes.clone()
-            };
-            args.push(truncated);
-        }
-
         // Write full context pack to a temp file for reference
         match write_context_pack_to_tempfile(pack) {
             Ok(path) => {
@@ -396,12 +396,27 @@ pub fn build_copilot_launch(
         }
     }
 
+    if let Some(prompt) = startup_prompt {
+        #[cfg(target_os = "windows")]
+        {
+            env.insert("PM_COPILOT_STARTUP_PROMPT".to_string(), prompt);
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            args.push("-p".to_string());
+            args.push(prompt);
+        }
+    }
+
     if !autonomy_mode.is_empty() {
         env.insert(
             "PM_AGENT_AUTONOMY_MODE".to_string(),
             autonomy_mode.to_string(),
         );
     }
+
+    inject_project_memory_mcp_env_defaults(&mut env, "copilot", context_pack);
 
     // ── Output format ────────────────────────────────────────────────────────
     // Copilot does not support structured output natively.
@@ -451,6 +466,18 @@ pub fn build_copilot_launch(
         session_label,
         provider: "copilot".to_string(),
     })
+}
+
+#[cfg(target_os = "windows")]
+fn copilot_interactive_launch_command() -> String {
+    // Explicit fallback chain for environments where standalone Copilot CLI
+    // may not be present.
+    "$pmPrompt = $env:PM_COPILOT_STARTUP_PROMPT; if (Get-Command copilot.cmd -ErrorAction SilentlyContinue) { if (-not [string]::IsNullOrWhiteSpace($pmPrompt)) { copilot.cmd -p $pmPrompt } else { copilot.cmd } } elseif (Get-Command copilot -ErrorAction SilentlyContinue) { if (-not [string]::IsNullOrWhiteSpace($pmPrompt)) { copilot -p $pmPrompt } else { copilot } } elseif (Get-Command gh -ErrorAction SilentlyContinue) { Write-Warning 'Standalone copilot CLI not found; falling back to gh copilot suggest --target shell.'; if (-not [string]::IsNullOrWhiteSpace($pmPrompt)) { gh copilot suggest --target shell $pmPrompt } else { gh copilot suggest --target shell } } else { Write-Error 'Copilot CLI not found in PATH (expected copilot or gh).'; }".to_string()
+}
+
+#[cfg(not(target_os = "windows"))]
+fn copilot_interactive_launch_command() -> String {
+    "copilot".to_string()
 }
 
 // ─── Provider dispatch ───────────────────────────────────────────────────────
@@ -511,6 +538,74 @@ pub fn normalize_provider_token(value: &str) -> String {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+fn startup_prompt_from_context_pack(context_pack: Option<&ContextPack>) -> Option<String> {
+    context_pack.and_then(|pack| {
+        pack.startup_prompt
+            .as_ref()
+            .map(|value| value.trim())
+            .filter(|value| !value.is_empty())
+            .map(|value| value.to_string())
+    })
+}
+
+fn inject_project_memory_mcp_env_defaults(
+    env: &mut HashMap<String, String>,
+    provider: &str,
+    context_pack: Option<&ContextPack>,
+) {
+    const DEFAULT_PM_MCP_SERVER_URL: &str = "http://127.0.0.1:3467/mcp";
+    const DEFAULT_PM_MCP_TRANSPORT: &str = "streamable_http";
+
+    let resolved_server_url = env
+        .get("PM_MCP_SERVER_URL")
+        .cloned()
+        .or_else(|| env.get("PROJECT_MEMORY_MCP_SERVER_URL").cloned())
+        .or_else(|| std::env::var("PM_MCP_SERVER_URL").ok())
+        .or_else(|| std::env::var("PROJECT_MEMORY_MCP_SERVER_URL").ok())
+        .or_else(|| std::env::var("MBS_HOST_MCP_URL").ok())
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| DEFAULT_PM_MCP_SERVER_URL.to_string());
+
+    let resolved_transport = env
+        .get("PM_MCP_TRANSPORT")
+        .cloned()
+        .or_else(|| std::env::var("PM_MCP_TRANSPORT").ok())
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| DEFAULT_PM_MCP_TRANSPORT.to_string());
+
+    env.entry("PM_MCP_SERVER_URL".to_string())
+        .or_insert_with(|| resolved_server_url.clone());
+    env.entry("PROJECT_MEMORY_MCP_SERVER_URL".to_string())
+        .or_insert(resolved_server_url);
+    env.entry("PM_MCP_TRANSPORT".to_string())
+        .or_insert(resolved_transport);
+    env.entry("PM_CLI_SPAWN_SOURCE".to_string())
+        .or_insert_with(|| "interactive_terminal.launch_builder".to_string());
+    env.entry("PM_CLI_PROVIDER".to_string())
+        .or_insert_with(|| provider.to_string());
+
+    if let Some(pack) = context_pack {
+        if let Some(plan_id) = pack.plan_id.as_ref().map(|value| value.trim()) {
+            if !plan_id.is_empty() {
+                env.entry("PM_PLAN_ID".to_string())
+                    .or_insert_with(|| plan_id.to_string());
+            }
+        }
+        if let Some(session_id) = pack.session_id.as_ref().map(|value| value.trim()) {
+            if !session_id.is_empty() {
+                env.entry("PM_AGENT_SESSION_ID".to_string())
+                    .or_insert_with(|| session_id.to_string());
+            }
+        }
+        if let Some(requesting_agent) = pack.requesting_agent.as_ref().map(|value| value.trim()) {
+            if !requesting_agent.is_empty() {
+                env.entry("PM_REQUESTING_AGENT".to_string())
+                    .or_insert_with(|| requesting_agent.to_string());
+            }
+        }
+    }
+}
+
 /// Serialise a [`ContextPack`] to a temporary JSON file.
 ///
 /// The file is created in the system temp directory with a unique name.
@@ -561,6 +656,7 @@ mod tests {
     fn sample_context_pack() -> ContextPack {
         ContextPack {
             step_notes: Some("Implement feature X in src/feature.ts".to_string()),
+            startup_prompt: None,
             relevant_files: vec![RelevantFile {
                 path: "src/feature.ts".to_string(),
                 snippet: Some("export function featureX() {}".to_string()),
@@ -574,6 +670,41 @@ mod tests {
         }
     }
 
+    fn assert_pm_mcp_defaults(cmd: &LaunchCommand, provider: &str) {
+        let server_url = cmd
+            .env
+            .get("PM_MCP_SERVER_URL")
+            .map(|value| value.as_str())
+            .unwrap_or("");
+        let alias_url = cmd
+            .env
+            .get("PROJECT_MEMORY_MCP_SERVER_URL")
+            .map(|value| value.as_str())
+            .unwrap_or("");
+        let transport = cmd
+            .env
+            .get("PM_MCP_TRANSPORT")
+            .map(|value| value.as_str())
+            .unwrap_or("");
+
+        assert!(
+            !server_url.trim().is_empty(),
+            "PM_MCP_SERVER_URL must be injected"
+        );
+        assert_eq!(
+            server_url, alias_url,
+            "PM_MCP_SERVER_URL and PROJECT_MEMORY_MCP_SERVER_URL must stay synchronized"
+        );
+        assert!(
+            !transport.trim().is_empty(),
+            "PM_MCP_TRANSPORT must be injected"
+        );
+        assert_eq!(
+            cmd.env.get("PM_CLI_PROVIDER").map(|value| value.as_str()),
+            Some(provider)
+        );
+    }
+
     #[test]
     fn gemini_launch_no_pack() {
         let opts = LaunchOptions::default();
@@ -585,6 +716,30 @@ mod tests {
         assert!(cmd.context_pack_path.is_none());
         assert_eq!(cmd.session_label, "Gemini \u{2014} Executor \u{2014} plan_abc1");
         assert!(!cmd.env.contains_key("GEMINI_CONTEXT_FILE"));
+        assert_pm_mcp_defaults(&cmd, "gemini");
+    }
+
+    #[test]
+    fn default_launch_options_keep_visual_mode_by_default() {
+        let opts = LaunchOptions::default();
+
+        let gemini_cmd = build_gemini_launch(None, "guided", Some("Tester"), None, &opts)
+            .expect("default gemini launch should succeed");
+        assert!(
+            !gemini_cmd.args.contains(&"--screen-reader".to_string()),
+            "default Gemini launches must remain in visual mode"
+        );
+
+        let copilot_cmd = build_copilot_launch(None, "guided", Some("Tester"), None, &opts)
+            .expect("default copilot launch should succeed");
+        assert!(
+            !copilot_cmd.args.contains(&"--screen-reader".to_string()),
+            "Copilot launches must never emit --screen-reader"
+        );
+        assert!(
+            !copilot_cmd.env.contains_key("PM_COPILOT_STARTUP_PROMPT"),
+            "startup prompt env must be absent when no prompt is provided"
+        );
     }
 
     #[test]
@@ -618,11 +773,79 @@ mod tests {
             .expect("build_copilot_launch should succeed with no context pack");
 
         assert_eq!(cmd.provider, "copilot");
-        assert_eq!(cmd.program, "gh");
-        assert!(cmd.args.contains(&"suggest".to_string()));
-        assert!(cmd.args.contains(&"--target".to_string()));
-        assert!(cmd.args.contains(&"shell".to_string()));
+        #[cfg(target_os = "windows")]
+        assert!(
+            cmd.program.contains("copilot.cmd") && cmd.program.contains("gh copilot suggest --target shell"),
+            "windows command should include explicit fallback chain"
+        );
+        #[cfg(not(target_os = "windows"))]
+        assert_eq!(cmd.program, "copilot");
+        assert!(cmd.args.is_empty());
         assert!(cmd.context_pack_path.is_none());
+        assert_pm_mcp_defaults(&cmd, "copilot");
+    }
+
+    #[test]
+    fn copilot_windows_launch_chain_prefers_standalone_before_gh_fallback() {
+        #[cfg(target_os = "windows")]
+        {
+            let opts = LaunchOptions::default();
+            let cmd = build_copilot_launch(None, "guided", Some("Executor"), None, &opts)
+                .expect("build_copilot_launch should succeed on windows");
+
+            let copilot_cmd_pos = cmd.program.find("Get-Command copilot.cmd");
+            let copilot_pos = cmd.program.find("Get-Command copilot -ErrorAction");
+            let gh_pos = cmd.program.find("Get-Command gh");
+
+            assert!(
+                copilot_cmd_pos.is_some(),
+                "expected copilot.cmd probe in launch chain"
+            );
+            assert!(
+                copilot_pos.is_some(),
+                "expected copilot probe in launch chain"
+            );
+            assert!(gh_pos.is_some(), "expected gh fallback probe in launch chain");
+            assert!(
+                copilot_cmd_pos.unwrap() < copilot_pos.unwrap()
+                    && copilot_pos.unwrap() < gh_pos.unwrap(),
+                "expected launch order copilot.cmd -> copilot -> gh fallback, got: {}",
+                cmd.program
+            );
+            assert!(
+                cmd.program.contains("gh copilot suggest --target shell"),
+                "expected gh fallback command in launch chain"
+            );
+        }
+    }
+
+    #[test]
+    fn context_pack_ids_are_injected_into_pm_env() {
+        let pack = sample_context_pack();
+        let opts = LaunchOptions::default();
+        let cmd = build_gemini_launch(Some(&pack), "guided", Some("Executor"), None, &opts)
+            .expect("build_gemini_launch should inject context identifiers");
+
+        assert_eq!(
+            cmd.env.get("PM_PLAN_ID").map(|value| value.as_str()),
+            Some("plan_abc12345_abcdefgh")
+        );
+        assert_eq!(
+            cmd.env
+                .get("PM_AGENT_SESSION_ID")
+                .map(|value| value.as_str()),
+            Some("sess_abc12345_abcdefgh")
+        );
+        assert_eq!(
+            cmd.env
+                .get("PM_REQUESTING_AGENT")
+                .map(|value| value.as_str()),
+            Some("Executor")
+        );
+
+        if let Some(path) = &cmd.context_pack_path {
+            let _ = std::fs::remove_file(path);
+        }
     }
 
     #[test]
@@ -632,9 +855,8 @@ mod tests {
         let cmd = build_copilot_launch(Some(&pack), "guided", Some("Executor"), Some("plan_abc1"), &opts)
             .expect("build_copilot_launch should succeed with context pack");
 
-        // Step notes should appear as a trailing positional arg
-        let notes_in_args = cmd.args.iter().any(|a| a.contains("Implement feature X"));
-        assert!(notes_in_args, "step notes should be injected as initial prompt");
+        // Copilot interactive launch should not force a startup positional prompt.
+        assert!(cmd.args.is_empty());
 
         // Context pack temp file should be written
         assert!(cmd.context_pack_path.is_some());
@@ -642,6 +864,94 @@ mod tests {
 
         // Cleanup
         if let Some(path) = &cmd.context_pack_path {
+            let _ = std::fs::remove_file(path);
+        }
+    }
+
+    #[test]
+    fn gemini_startup_prompt_adds_prompt_interactive_arg() {
+        let mut pack = sample_context_pack();
+        pack.startup_prompt = Some("Inspect current project and summarize blockers".to_string());
+
+        let opts = LaunchOptions::default();
+        let cmd = build_gemini_launch(Some(&pack), "guided", Some("Executor"), None, &opts)
+            .expect("gemini launch with startup prompt should succeed");
+
+        let flag_index = cmd
+            .args
+            .iter()
+            .position(|arg| arg == "--prompt-interactive")
+            .expect("--prompt-interactive should be emitted when startup_prompt is present");
+        assert_eq!(
+            cmd.args.get(flag_index + 1).map(|value| value.as_str()),
+            Some("Inspect current project and summarize blockers")
+        );
+
+        if let Some(path) = &cmd.context_pack_path {
+            let _ = std::fs::remove_file(path);
+        }
+    }
+
+    #[test]
+    fn copilot_startup_prompt_injected_for_provider_launch() {
+        let mut pack = sample_context_pack();
+        pack.startup_prompt = Some("Generate a migration checklist".to_string());
+
+        let opts = LaunchOptions::default();
+        let cmd = build_copilot_launch(Some(&pack), "guided", Some("Executor"), None, &opts)
+            .expect("copilot launch with startup prompt should succeed");
+
+        #[cfg(target_os = "windows")]
+        assert_eq!(
+            cmd.env
+                .get("PM_COPILOT_STARTUP_PROMPT")
+                .map(|value| value.as_str()),
+            Some("Generate a migration checklist")
+        );
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            assert_eq!(
+                cmd.args,
+                vec!["-p".to_string(), "Generate a migration checklist".to_string()]
+            );
+        }
+
+        if let Some(path) = &cmd.context_pack_path {
+            let _ = std::fs::remove_file(path);
+        }
+    }
+
+    #[test]
+    fn whitespace_startup_prompt_is_ignored_for_provider_launches() {
+        let mut pack = sample_context_pack();
+        pack.startup_prompt = Some("   ".to_string());
+
+        let opts = LaunchOptions::default();
+        let gemini_cmd = build_gemini_launch(Some(&pack), "guided", Some("Executor"), None, &opts)
+            .expect("gemini launch with blank prompt should succeed");
+        assert!(
+            !gemini_cmd.args.contains(&"--prompt-interactive".to_string()),
+            "blank startup prompt must not emit --prompt-interactive"
+        );
+
+        let copilot_cmd = build_copilot_launch(Some(&pack), "guided", Some("Executor"), None, &opts)
+            .expect("copilot launch with blank prompt should succeed");
+        #[cfg(target_os = "windows")]
+        assert!(
+            !copilot_cmd.env.contains_key("PM_COPILOT_STARTUP_PROMPT"),
+            "blank startup prompt must not set PM_COPILOT_STARTUP_PROMPT"
+        );
+        #[cfg(not(target_os = "windows"))]
+        assert!(
+            copilot_cmd.args.is_empty(),
+            "blank startup prompt must not emit positional prompt args"
+        );
+
+        if let Some(path) = &gemini_cmd.context_pack_path {
+            let _ = std::fs::remove_file(path);
+        }
+        if let Some(path) = &copilot_cmd.context_pack_path {
             let _ = std::fs::remove_file(path);
         }
     }
@@ -1188,11 +1498,9 @@ mod tests {
         let cmd = build_copilot_launch(Some(&pack), "guided", Some("Executor"), Some("plan_abc1"), &opts)
             .expect("copilot launch without step_notes should succeed");
 
-        let base = ["copilot", "suggest", "--target", "shell"];
-        assert_eq!(
-            cmd.args.as_slice(),
-            base.as_slice(),
-            "args must be exactly the base set when no step_notes are present; got: {:?}",
+        assert!(
+            cmd.args.is_empty(),
+            "no startup prompt args should be present by default; got: {:?}",
             cmd.args
         );
 
@@ -1201,63 +1509,6 @@ mod tests {
         }
     }
 
-    /// Copilot step_notes longer than 512 bytes must be truncated to 512 chars
-    /// followed by the '…' ellipsis character.
-    #[test]
-    fn copilot_step_notes_truncated_at_512_chars() {
-        let long_notes = "A".repeat(600);
-        let pack = ContextPack {
-            step_notes: Some(long_notes.clone()),
-            ..sample_context_pack()
-        };
-        let opts = LaunchOptions::default();
-        let cmd = build_copilot_launch(Some(&pack), "guided", Some("Executor"), None, &opts)
-            .expect("copilot launch with long step_notes should succeed");
-
-        // The prompt positional arg must be the truncated string
-        let prompt_arg = cmd.args.last().expect("args must be non-empty");
-        assert!(
-            prompt_arg.ends_with('\u{2026}'),  // '…'
-            "truncated arg must end with '…'; got: {:?}",
-            prompt_arg
-        );
-        // Character count: 512 visible chars + 1 ellipsis = ends at byte index 512 of original
-        assert!(
-            prompt_arg.len() < long_notes.len(),
-            "truncated arg must be shorter than original"
-        );
-        assert!(
-            prompt_arg.starts_with("AAAA"),
-            "truncated arg prefix must match original"
-        );
-
-        if let Some(path) = &cmd.context_pack_path {
-            let _ = std::fs::remove_file(path);
-        }
-    }
-
-    /// Copilot step_notes at exactly 512 chars must NOT be truncated.
-    #[test]
-    fn copilot_step_notes_exactly_512_not_truncated() {
-        let notes_512 = "B".repeat(512);
-        let pack = ContextPack {
-            step_notes: Some(notes_512.clone()),
-            ..sample_context_pack()
-        };
-        let opts = LaunchOptions::default();
-        let cmd = build_copilot_launch(Some(&pack), "guided", Some("Executor"), None, &opts)
-            .expect("copilot launch with 512-char step_notes should succeed");
-
-        let prompt_arg = cmd.args.last().expect("args must be non-empty");
-        assert_eq!(
-            *prompt_arg, notes_512,
-            "512-char notes must be passed verbatim without truncation"
-        );
-
-        if let Some(path) = &cmd.context_pack_path {
-            let _ = std::fs::remove_file(path);
-        }
-    }
 
     /// Gemini context-pack temp file must contain all relevant fields from the
     /// ContextPack, including `relevant_files` and `custom_instructions`.

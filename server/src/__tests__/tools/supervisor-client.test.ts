@@ -82,6 +82,7 @@ let supervisorRequest: typeof import('../../tools/orchestration/supervisor-clien
 let isSupervisorRunning: typeof import('../../tools/orchestration/supervisor-client.js').isSupervisorRunning;
 let checkGuiAvailability: typeof import('../../tools/orchestration/supervisor-client.js').checkGuiAvailability;
 let launchFormApp: typeof import('../../tools/orchestration/supervisor-client.js').launchFormApp;
+let launchFormAppHttp: typeof import('../../tools/orchestration/supervisor-client.js').launchFormAppHttp;
 let startSupervisorService: typeof import('../../tools/orchestration/supervisor-client.js').startSupervisorService;
 
 beforeEach(async () => {
@@ -90,6 +91,10 @@ beforeEach(async () => {
 
   mockSocket = createMockSocket();
   (net.Socket as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => mockSocket);
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockRejectedValue(new Error('fetch not mocked in this test')),
+  );
 
   // Re-import to get fresh module binding
   const mod = await import('../../tools/orchestration/supervisor-client.js');
@@ -97,11 +102,13 @@ beforeEach(async () => {
   isSupervisorRunning = mod.isSupervisorRunning;
   checkGuiAvailability = mod.checkGuiAvailability;
   launchFormApp = mod.launchFormApp;
+  launchFormAppHttp = mod.launchFormAppHttp;
   startSupervisorService = mod.startSupervisorService;
 });
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 // ── Helpers ────────────────────────────────────────────────────
@@ -346,7 +353,8 @@ describe('checkGuiAvailability', () => {
     expect(result.supervisor_running).toBe(false);
     expect(result.brainstorm_gui).toBe(false);
     expect(result.approval_gui).toBe(false);
-    expect(result.message).toContain('not running');
+    expect(result.message).toContain('unreachable');
+    expect(result.diagnostics?.some((diag) => diag.kind === 'supervisor-unavailable')).toBe(true);
   });
 
   it('returns supervisor_running:false when Status response is not ok', async () => {
@@ -355,6 +363,7 @@ describe('checkGuiAvailability', () => {
     const result = await checkGuiAvailability({ forceTcp: true });
 
     expect(result.supervisor_running).toBe(false);
+    expect(result.diagnostics?.some((diag) => diag.kind === 'supervisor-unavailable')).toBe(true);
   });
 
   it('returns all available when supervisor has capabilities', async () => {
@@ -445,6 +454,35 @@ describe('checkGuiAvailability', () => {
     expect(result.supervisor_running).toBe(true);
     expect(result.brainstorm_gui).toBe(false);
     expect(result.approval_gui).toBe(true);
+    expect(result.diagnostics?.some((diag) => diag.kind === 'brainstorm_gui-unavailable')).toBe(true);
+  });
+
+  it('sets approval_gui-unavailable diagnostic when approval capability is missing', async () => {
+    let callCount = 0;
+    mockSocket.connect.mockImplementation(() => {
+      queueMicrotask(() => mockSocket._emitConnect());
+      return mockSocket;
+    });
+    mockSocket.write.mockImplementation(() => {
+      callCount++;
+      queueMicrotask(() => {
+        if (callCount === 1) {
+          mockSocket._emitData(JSON.stringify({ ok: true, data: [] }) + '\n');
+        } else {
+          mockSocket._emitData(JSON.stringify({
+            ok: true,
+            data: { capabilities: ['brainstorm_gui'] },
+          }) + '\n');
+        }
+      });
+      return true;
+    });
+
+    const result = await checkGuiAvailability({ forceTcp: true });
+
+    expect(result.supervisor_running).toBe(true);
+    expect(result.approval_gui).toBe(false);
+    expect(result.diagnostics?.some((diag) => diag.kind === 'approval_gui-unavailable')).toBe(true);
   });
 });
 
@@ -467,7 +505,20 @@ describe('launchFormApp', () => {
 
     const result = await launchFormApp(
       'brainstorm_gui',
-      { type: 'form_request', questions: [] },
+      {
+        type: 'form_request',
+        metadata: {
+          workspace_id: 'ws_1',
+          session_id: 'sess_request_1',
+          agent: 'Coordinator',
+        },
+        context: {
+          approval_contract_v2: {
+            mode: 'multiple_choice',
+          },
+        },
+        questions: [],
+      },
       60,
       { forceTcp: true },
     );
@@ -477,24 +528,35 @@ describe('launchFormApp', () => {
     expect(result.elapsed_ms).toBe(2500);
     expect(result.timed_out).toBe(false);
     expect(result.response_payload).toBeDefined();
+    expect(result.metadata).toMatchObject({
+      mode: 'multiple_choice',
+      session_id: 'sess_request_1',
+    });
   });
 
-  it('returns failure result when supervisor returns ok:false', async () => {
+  it('returns approval_gui-unavailable diagnostics when supervisor launch reports disabled app', async () => {
     setupHappyPath({
-      ok: false,
-      error: 'App not registered',
+      ok: true,
+      data: {
+        app_name: 'approval_gui',
+        success: false,
+        error: 'form app "approval_gui" is disabled in config',
+        elapsed_ms: 0,
+        timed_out: false,
+      },
     });
 
     const result = await launchFormApp(
-      'brainstorm_gui',
+      'approval_gui',
       { questions: [] },
       undefined,
       { forceTcp: true },
     );
 
     expect(result.success).toBe(false);
-    expect(result.error).toBe('App not registered');
+    expect(result.error).toContain('disabled');
     expect(result.timed_out).toBe(false);
+    expect(result.diagnostics?.some((diag) => diag.kind === 'approval_gui-unavailable')).toBe(true);
   });
 
   it('uses generous request timeout for long-running GUI interactions', async () => {
@@ -550,5 +612,86 @@ describe('launchFormApp', () => {
     const result = await launchFormApp('approval_gui', {}, undefined, { forceTcp: true });
 
     expect(result.app_name).toBe('approval_gui');
+  });
+
+  it('returns response-shape-error diagnostics when launch response shape is invalid', async () => {
+    setupHappyPath({
+      ok: true,
+      data: {
+        app_name: 'approval_gui',
+        elapsed_ms: 42,
+      },
+    });
+
+    const result = await launchFormApp('approval_gui', {}, undefined, { forceTcp: true });
+
+    expect(result.success).toBe(false);
+    expect(result.diagnostics?.some((diag) => diag.kind === 'response-shape-error')).toBe(true);
+  });
+
+  it('propagates mode/session metadata from approval_decision_v2 response payload', async () => {
+    setupHappyPath({
+      ok: true,
+      data: {
+        app_name: 'approval_gui',
+        success: true,
+        response_payload: {
+          type: 'form_response',
+          answers: [
+            {
+              question_id: 'approval_decision',
+              value: {
+                type: 'approval_decision_v2',
+                decision: {
+                  mode: 'multi_approval_session',
+                  session_id: 'session_from_answer',
+                },
+              },
+            },
+          ],
+        },
+        elapsed_ms: 10,
+        timed_out: false,
+      },
+    });
+
+    const result = await launchFormApp('approval_gui', {}, undefined, { forceTcp: true });
+
+    expect(result.success).toBe(true);
+    expect(result.metadata).toMatchObject({
+      mode: 'multi_approval_session',
+      session_id: 'session_from_answer',
+    });
+  });
+
+  it('returns response-shape-error when HTTP launch envelope shape is invalid', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({ status: 'ok' }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
+    ) as unknown as typeof fetch);
+
+    const result = await launchFormAppHttp('approval_gui', {
+      metadata: {
+        workspace_id: 'ws_http',
+        session_id: 'sess_http',
+      },
+      context: {
+        approval_contract_v2: {
+          mode: 'binary',
+        },
+      },
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.diagnostics?.some((diag) => diag.kind === 'response-shape-error')).toBe(true);
+    expect(result.metadata).toMatchObject({
+      mode: 'binary',
+      session_id: 'sess_http',
+    });
   });
 });

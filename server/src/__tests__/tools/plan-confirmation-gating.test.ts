@@ -95,6 +95,57 @@ describe('Plan confirmation gating', () => {
     expect(result.error).toContain('requires explicit user confirmation');
     expect(result.error).toContain('memory_agent(action: "handoff"');
     expect(result.error).toContain('to_agent: "Coordinator"');
+    expect(result.error).toContain('Fallback behavior "fallback_to_chat"');
+  });
+
+  it('returns explicit deferred fallback behavior when approval is deferred', async () => {
+    vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(createPlanState());
+    mockRouteApprovalGate.mockResolvedValue({
+      approved: false,
+      path: 'gui',
+      outcome: 'deferred',
+      user_notes: 'Need more context',
+      elapsed_ms: 11,
+    } as any);
+
+    const result = await updateStep({
+      workspace_id: mockWorkspaceId,
+      plan_id: mockPlanId,
+      step_index: 0,
+      status: 'active',
+    });
+
+    expect(result.success).toBe(false);
+    expect(mockRouteApprovalGate).toHaveBeenCalledOnce();
+    expect(result.error).toContain('Approval gate outcome "deferred"');
+    expect(result.error).toContain('Fallback behavior "deferred"');
+    expect(result.error).toContain('Need more context');
+    expect(result.error).not.toContain('memory_agent(action: "handoff"');
+  });
+
+  it('returns explicit blocked fallback behavior when approval payload parsing fails', async () => {
+    vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(createPlanState());
+    mockRouteApprovalGate.mockResolvedValue({
+      approved: false,
+      path: 'gui',
+      outcome: 'error',
+      error: 'Approval decision parsing failed (unknown_mode): Unknown approval_decision_v2 mode "legacy_unknown"',
+      elapsed_ms: 9,
+    } as any);
+
+    const result = await updateStep({
+      workspace_id: mockWorkspaceId,
+      plan_id: mockPlanId,
+      step_index: 0,
+      status: 'active',
+    });
+
+    expect(result.success).toBe(false);
+    expect(mockRouteApprovalGate).toHaveBeenCalledOnce();
+    expect(result.error).toContain('Approval gate outcome "error"');
+    expect(result.error).toContain('Fallback behavior "blocked"');
+    expect(result.error).toContain('unknown_mode');
+    expect(result.error).not.toContain('memory_agent(action: "handoff"');
   });
 
   it('marks step confirmed when approval GUI approves and continues execution', async () => {
