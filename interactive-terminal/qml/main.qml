@@ -44,9 +44,10 @@ ApplicationWindow {
     property int approvalBudgetMaxDurationSecs: 0
     property int approvalBudgetMaxFiles: 0
     // ── CLI load-reduction flags (Phase 3) ────────────────────────────────────
-    // Checked by default (opt-out behaviour — uncheck to disable the flag).
-    property bool approvalGeminiScreenReader: true
-    property bool approvalCopilotMinimalUi: true
+    // Unchecked by default (opt-in): keep provider launches in full visual mode
+    // unless the approver explicitly enables an accessibility flag.
+    property bool approvalGeminiScreenReader: false
+    property bool approvalCopilotMinimalUi: false
     property bool quitRequested: false
     property bool popupOverlayVisible: geminiSettingsDialog.visible
         || approvalDialog.visible
@@ -315,8 +316,8 @@ ApplicationWindow {
             approvalBudgetMaxCommands = 0
             approvalBudgetMaxDurationSecs = 0
             approvalBudgetMaxFiles = 0
-            approvalGeminiScreenReader = true
-            approvalCopilotMinimalUi = true
+            approvalGeminiScreenReader = false
+            approvalCopilotMinimalUi = false
             return
         }
 
@@ -335,8 +336,8 @@ ApplicationWindow {
             approvalBudgetMaxCommands = 0
             approvalBudgetMaxDurationSecs = 0
             approvalBudgetMaxFiles = 0
-            approvalGeminiScreenReader = true
-            approvalCopilotMinimalUi = true
+            approvalGeminiScreenReader = false
+            approvalCopilotMinimalUi = false
             return
         }
 
@@ -1760,7 +1761,8 @@ ApplicationWindow {
             }
 
             // ── CLI load-reduction flags (Phase 3) ───────────────────────────
-            // Checkboxes are checked by default (opt-out); uncheck to suppress the flag.
+            // Controls are opt-in: no load-reduction flags are injected unless
+            // the approver explicitly enables them.
             ColumnLayout {
                 visible: approvalDialogRequest.providerPolicyApplies
                 spacing: 2
@@ -1770,23 +1772,22 @@ ApplicationWindow {
                     // Only show when Gemini is the selected/prefilled provider
                     visible: (approvalSelectedProvider || "").toLowerCase() === "gemini"
                         || (approvalDialogRequest.prefilledProvider || "").toLowerCase() === "gemini"
-                    text: "Screen reader mode (--screen-reader)"
+                    text: "Enable screen reader mode (--screen-reader)"
                     font.pixelSize: root.uiControlFontPx
                     checked: approvalGeminiScreenReader
                     onCheckedChanged: approvalGeminiScreenReader = checked
                 }
 
-                CheckBox {
-                    id: copilotMinimalUiCheckbox
-                    // Only show when Copilot is the selected/prefilled provider
+                Text {
+                    // Show a plain note for Copilot so visible controls only map
+                    // to launch flags that actually exist at runtime.
                     visible: (approvalSelectedProvider || "").toLowerCase() === "copilot"
                         || (approvalDialogRequest.prefilledProvider || "").toLowerCase() === "copilot"
-                    // Copilot CLI v1.x has no --screen-reader equivalent; checkbox is
-                    // displayed for UX parity and reserved for future CLI support.
-                    text: "Minimal UI mode (reserved — no flag emitted in v1.x)"
+                    text: "Copilot CLI v1.x has no screen-reader/minimal-UI launch flag."
+                    color: "#a0a7b4"
                     font.pixelSize: root.uiControlFontPx
-                    checked: approvalCopilotMinimalUi
-                    onCheckedChanged: approvalCopilotMinimalUi = checked
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
                 }
             }
 

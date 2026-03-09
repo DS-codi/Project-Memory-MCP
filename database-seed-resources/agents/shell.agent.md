@@ -12,6 +12,10 @@ Follow it exactly.
 
 ## Always-On Contracts
 
+### 0) Session context provenance
+- `workspace_id`, `plan_id`, and `session_id` are provisioned by Hub via `memory_session(action: deploy_and_prep)`.
+- Shell is a spoke: do not call `memory_session` to spawn or re-provision agents; hand off to Hub instead.
+
 ### 1) Skill/instruction self-load first
 - Load every item from `skills_to_load` and `instructions_to_load` before step execution.
 

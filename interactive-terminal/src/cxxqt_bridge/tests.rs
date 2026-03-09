@@ -356,7 +356,7 @@ fn create_session_inherits_selected_session_context() {
 fn ai_cli_sessions_deduplicate_output_lines_keep_latest() {
     let mut state = test_state();
     let session_id = state.create_session();
-    state.gemini_session_ids.insert(session_id.clone());
+    state.register_provider_session(&session_id, "gemini");
 
     let _ = state.append_output_line_for_session(&session_id, "loading modules");
     let _ = state.append_output_line_for_session(&session_id, "step 1");
@@ -370,6 +370,59 @@ fn ai_cli_sessions_deduplicate_output_lines_keep_latest() {
 
     // Duplicate line should only exist once, at the most recent position.
     assert_eq!(output, "step 1\nloading modules");
+}
+
+#[test]
+fn register_provider_session_unifies_agent_and_manual_tui_sets() {
+    let mut state = test_state();
+    let session_id = state.create_session();
+
+    // Simulate an agent session; provider classification must still route
+    // through the same Gemini/Copilot TUI sets used by manual launches.
+    state.agent_session_ids.insert(session_id.clone());
+    state.register_provider_session(&session_id, "copilot.cmd");
+
+    assert!(state.copilot_session_ids.contains(&session_id));
+    assert!(!state.gemini_session_ids.contains(&session_id));
+
+    // Verify provider-set classification activates duplicate-frame guards.
+    let _ = state.append_output_line_for_session(&session_id, "render frame");
+    let _ = state.append_output_line_for_session(&session_id, "render frame");
+    let output = state
+        .session_output_by_id
+        .get(&session_id)
+        .cloned()
+        .unwrap_or_default();
+    assert_eq!(output, "render frame");
+}
+
+#[test]
+fn terminal_app_defaults_keep_approval_launches_in_visual_mode() {
+    let app = TerminalAppRust::default();
+
+    assert!(
+        !app.approval_gemini_screen_reader,
+        "Gemini approval should default to visual mode"
+    );
+    assert!(
+        !app.approval_copilot_minimal_ui,
+        "Copilot approval should default to full UI mode"
+    );
+}
+
+#[test]
+fn register_provider_session_normalizes_paths_and_skips_unknown_provider() {
+    let mut state = test_state();
+
+    let gemini_session_id = state.create_session();
+    state.register_provider_session(&gemini_session_id, "C:\\Tools\\GEMINI.EXE");
+    assert!(state.gemini_session_ids.contains(&gemini_session_id));
+    assert!(!state.copilot_session_ids.contains(&gemini_session_id));
+
+    let unknown_session_id = state.create_session();
+    state.register_provider_session(&unknown_session_id, "claude");
+    assert!(!state.gemini_session_ids.contains(&unknown_session_id));
+    assert!(!state.copilot_session_ids.contains(&unknown_session_id));
 }
 
 #[test]

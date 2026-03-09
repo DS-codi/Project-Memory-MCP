@@ -6,7 +6,7 @@ applyTo: "**/*"
 
 ## Overview
 
-The session interruption system provides structured, cooperative control over subagent sessions launched via `memory_spawn_agent`. It allows hub agents and users to:
+The session interruption system provides structured, cooperative control over subagent sessions launched via `memory_session(action: deploy_and_prep)`. It allows hub agents and users to:
 
 - **Stop** a running subagent gracefully, immediately, or forcefully
 - **Inject guidance** into a running subagent's tool-call flow to redirect its approach
@@ -19,7 +19,7 @@ This replaces ad-hoc user cancellation with a managed protocol that preserves pl
 
 ### Session ID Tracking
 
-When spawned through `memory_spawn_agent`, your enriched prompt includes a `_session_id`. **Include `_session_id` in every MCP tool call** — this is how the system tracks your session and delivers directives.
+When spawned through `memory_session(action: deploy_and_prep)`, your enriched prompt includes a `_session_id`. **Include `_session_id` in every MCP tool call** — this is how the system tracks your session and delivers directives.
 
 ### Responding to Stop Directives
 

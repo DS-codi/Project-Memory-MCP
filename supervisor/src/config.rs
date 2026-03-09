@@ -1471,6 +1471,50 @@ command = "/usr/bin/node"
     }
 
     #[test]
+    fn diagnose_command_resolves_trimmed_relative_path_against_working_dir() {
+        let temp = tempdir_like::TempDir::new().expect("temp dir");
+        let working_dir = temp.path().to_path_buf();
+        let command_path = working_dir.join("bin").join("mock-gui");
+        std::fs::create_dir_all(command_path.parent().expect("parent dir")).expect("mkdir");
+        std::fs::write(&command_path, "echo").expect("write placeholder binary");
+
+        let diag = diagnose_command("  ./bin/mock-gui  ", Some(&working_dir));
+        assert!(matches!(diag.status, CommandDiagnosticStatus::Ready));
+        assert_eq!(diag.command, "./bin/mock-gui");
+        let resolved = diag.resolved_command.expect("resolved command path");
+        assert_eq!(
+            resolved,
+            command_path
+                .canonicalize()
+                .unwrap_or_else(|_| command_path.clone())
+        );
+    }
+
+    #[test]
+    fn diagnose_command_reports_explicit_missing_path_with_resolved_candidate_detail() {
+        let temp = tempdir_like::TempDir::new().expect("temp dir");
+        let working_dir = temp.path().to_path_buf();
+        let expected_candidate = working_dir.join("missing").join("approval-gui");
+
+        let diag = diagnose_command("./missing/approval-gui", Some(&working_dir));
+        assert!(matches!(
+            diag.status,
+            CommandDiagnosticStatus::UnresolvedExecutablePath
+        ));
+        assert!(diag.resolved_command.is_none());
+        assert!(
+            diag.detail.contains(expected_candidate.file_name().and_then(|n| n.to_str()).unwrap_or("approval-gui")),
+            "detail should mention the unresolved command candidate, got: {}",
+            diag.detail
+        );
+        assert!(
+            diag.detail.contains("missing"),
+            "detail should include missing path context, got: {}",
+            diag.detail
+        );
+    }
+
+    #[test]
     fn diagnose_form_app_summonability_reports_enabled_for_existing_executable() {
         let mut cfg = FormAppConfig::default();
         let current_exe = std::env::current_exe().expect("current executable path");

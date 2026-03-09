@@ -425,6 +425,15 @@ export interface ApprovalDecisionV2Answer {
   decision: ApprovalDecisionPayloadV2;
 }
 
+/** Aggregate multi-session submission payload (normalized server-side to approval_decision_v2). */
+export interface ApprovalSessionSubmissionV2Answer {
+  type: 'approval_session_submission_v2';
+  mode?: ApprovalMode;
+  session_id?: string;
+  decisions?: ApprovalSessionItemDecisionV2[];
+  notes?: string;
+}
+
 /** Answer to a countdown_timer question. */
 export interface CountdownTimerAnswer {
   type: 'countdown_timer_answer';
@@ -440,6 +449,7 @@ export type AnswerValue =
   | FreeTextAnswer
   | ConfirmRejectAnswer
   | ApprovalDecisionV2Answer
+  | ApprovalSessionSubmissionV2Answer
   | CountdownTimerAnswer;
 
 /** A single answer bundled with metadata. */
@@ -605,10 +615,8 @@ export interface ApprovalStepContext {
 
 /** V2 approval context carrying explicit contract metadata. */
 export interface ApprovalRequestContextV2 {
-  plan_title: string;
-  phase: string;
-  step_task: string;
-  step_index: number;
-  urgency: ApprovalUrgency;
+  step: ApprovalStepContext;
   contract: ApprovalContractV2;
+  /** Back-compat alias consumed by existing supervisor-side metadata extraction paths. */
+  approval_contract_v2?: ApprovalContractV2;
 }

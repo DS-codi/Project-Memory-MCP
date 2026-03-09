@@ -158,6 +158,14 @@ describe('fallback REST transport', () => {
       app_name: 'brainstorm_gui',
       payload: {
         title: 'Form title',
+        metadata: {
+          session_id: 'sess_payload_1',
+        },
+        context: {
+          approval_contract_v2: {
+            mode: 'multiple_choice',
+          },
+        },
       },
       workspace_id: 'ws_launch',
       session_id: 'sess_123',
@@ -181,6 +189,73 @@ describe('fallback REST transport', () => {
       workspace_id: 'ws_launch',
       session_id: 'sess_123',
       agent: 'Coordinator',
+    });
+    expect(parsedBody.payload).toMatchObject({
+      metadata: {
+        session_id: 'sess_payload_1',
+      },
+      context: {
+        approval_contract_v2: {
+          mode: 'multiple_choice',
+        },
+      },
+    });
+  });
+
+  it('preserves summonability diagnostics and launch metadata from upstream launch payload', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ok: true,
+          data: {
+            success: false,
+            error: 'form app "approval_gui" is disabled in config',
+            diagnostics: [
+              {
+                kind: 'approval_gui-unavailable',
+                message: 'approval_gui capability is unavailable',
+                source: 'http',
+                app_name: 'approval_gui',
+              },
+            ],
+            metadata: {
+              mode: 'multiple_choice',
+              session_id: 'sess_upstream_meta_1',
+            },
+          },
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+
+    const { status, body } = await httpJsonRequest(`${baseUrl}/api/fallback/gui/launch`, 'POST', {
+      app_name: 'approval_gui',
+      payload: {
+        prompt: 'Approve?',
+      },
+      session_id: 'sess_request_meta_1',
+    });
+
+    expect(status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data).toMatchObject({
+      ok: true,
+      data: {
+        success: false,
+        diagnostics: [
+          {
+            kind: 'approval_gui-unavailable',
+          },
+        ],
+        metadata: {
+          mode: 'multiple_choice',
+          session_id: 'sess_upstream_meta_1',
+        },
+      },
     });
   });
 

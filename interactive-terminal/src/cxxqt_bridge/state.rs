@@ -130,6 +130,29 @@ impl AppState {
         }
     }
 
+    /// Classify a session into provider-specific TUI guard sets.
+    ///
+    /// Agent-launched and manual sessions must share the same classification so
+    /// tab-switch replay logic can consistently avoid stale VT frame replays.
+    pub(crate) fn register_provider_session(&mut self, session_id: &str, provider: &str) {
+        let normalized = crate::launch_builder::normalize_provider_token(provider);
+        if session_id.trim().is_empty() {
+            return;
+        }
+
+        match normalized.as_str() {
+            "gemini" => {
+                self.gemini_session_ids.insert(session_id.to_string());
+                self.copilot_session_ids.remove(session_id);
+            }
+            "copilot" => {
+                self.copilot_session_ids.insert(session_id.to_string());
+                self.gemini_session_ids.remove(session_id);
+            }
+            _ => {}
+        }
+    }
+
     pub(crate) fn switch_session(&mut self, session_id: &str) -> Result<(), String> {
         let selected = session_id.trim();
         if selected.is_empty() {

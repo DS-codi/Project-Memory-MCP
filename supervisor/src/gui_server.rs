@@ -276,3 +276,181 @@ pub async fn start(bind_address: &str, port: u16, form_apps: Arc<FormAppConfigs>
     axum::serve(listener, build_router(form_apps)).await?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use http_body_util::BodyExt;
+    use tower::util::ServiceExt;
+
+    use crate::config::FormAppConfig;
+
+    fn form_apps_with(entries: Vec<(&str, FormAppConfig)>) -> Arc<FormAppConfigs> {
+        let mut form_apps = FormAppConfigs::new();
+        for (name, cfg) in entries {
+            form_apps.insert(name.to_string(), cfg);
+        }
+        Arc::new(form_apps)
+    }
+
+    async fn response_json(response: axum::response::Response) -> serde_json::Value {
+        let body = response
+            .into_body()
+            .collect()
+            .await
+            .expect("collect response body")
+            .to_bytes();
+        serde_json::from_slice(&body).expect("response body is valid JSON")
+    }
+
+    fn post_json(uri: &str, payload: serde_json::Value) -> Request<Body> {
+        Request::builder()
+            .method("POST")
+            .uri(uri)
+            .header("content-type", "application/json")
+            .body(Body::from(payload.to_string()))
+            .expect("request")
+    }
+
+    #[tokio::test]
+    async fn ping_lists_only_enabled_apps() {
+        let mut enabled = FormAppConfig::default();
+        enabled.enabled = true;
+        let mut disabled = FormAppConfig::default();
+        disabled.enabled = false;
+
+        let app = build_router(form_apps_with(vec![
+            ("approval_gui", enabled),
+            ("brainstorm_gui", disabled),
+        ]));
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/gui/ping")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let json = response_json(response).await;
+        assert_eq!(json["available"], true);
+
+        let apps = json["apps"].as_array().expect("apps array");
+        assert!(apps.iter().any(|v| v == "approval_gui"));
+        assert!(!apps.iter().any(|v| v == "brainstorm_gui"));
+    }
+
+    #[tokio::test]
+    async fn launch_unknown_app_returns_structured_not_found_error() {
+        let app = build_router(form_apps_with(vec![]));
+
+        let response = app
+            .oneshot(post_json(
+                "/gui/launch",
+                serde_json::json!({ "app_name": "unknown_gui", "payload": {"x": 1} }),
+            ))
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        let json = response_json(response).await;
+        assert_eq!(json["ok"], false);
+        assert!(
+            json["error"]
+                .as_str()
+                .expect("error string")
+                .contains("unknown form app")
+        );
+        assert_eq!(json["data"]["app_name"], "unknown_gui");
+        assert_eq!(json["data"]["success"], false);
+        assert_eq!(json["data"]["timed_out"], false);
+    }
+
+    #[tokio::test]
+    async fn launch_disabled_app_returns_structured_bad_request_error() {
+        let mut cfg = FormAppConfig::default();
+        cfg.enabled = false;
+        cfg.command = "echo".to_string();
+
+        let app = build_router(form_apps_with(vec![("approval_gui", cfg)]));
+        let response = app
+            .oneshot(post_json(
+                "/gui/launch",
+                serde_json::json!({ "app_name": "approval_gui", "payload": {} }),
+            ))
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let json = response_json(response).await;
+        assert_eq!(json["ok"], false);
+        assert!(
+            json["error"]
+                .as_str()
+                .expect("error string")
+                .contains("disabled")
+        );
+        assert_eq!(json["data"]["app_name"], "approval_gui");
+        assert_eq!(json["data"]["success"], false);
+    }
+
+    #[tokio::test]
+    async fn launch_spawn_failure_returns_structured_internal_error() {
+        let cfg = FormAppConfig {
+            enabled: true,
+            command: "this-binary-does-not-exist-29387".to_string(),
+            ..FormAppConfig::default()
+        };
+
+        let app = build_router(form_apps_with(vec![("approval_gui", cfg)]));
+        let response = app
+            .oneshot(post_json(
+                "/gui/launch",
+                serde_json::json!({ "app_name": "approval_gui", "payload": {"request": "x"} }),
+            ))
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        let json = response_json(response).await;
+        assert_eq!(json["ok"], false);
+        assert!(
+            json["error"]
+                .as_str()
+                .expect("error string")
+                .contains("failed to spawn")
+        );
+        assert_eq!(json["data"]["app_name"], "approval_gui");
+        assert_eq!(json["data"]["success"], false);
+        assert_eq!(json["data"]["timed_out"], false);
+    }
+
+    #[tokio::test]
+    async fn continue_unknown_session_returns_structured_internal_error() {
+        let app = build_router(form_apps_with(vec![]));
+        let response = app
+            .oneshot(post_json(
+                "/gui/continue",
+                serde_json::json!({ "session_id": "missing-session", "payload": {"step": 2} }),
+            ))
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        let json = response_json(response).await;
+        assert_eq!(json["ok"], false);
+        assert!(
+            json["data"]["error"]
+                .as_str()
+                .expect("error string")
+                .contains("session not found")
+        );
+    }
+}

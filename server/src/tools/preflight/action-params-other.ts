@@ -104,6 +104,22 @@ export const TERMINAL_PARAMS: Record<string, ActionParamDef> = {
     ],
   },
 
+  spawn_cli_session: {
+    required: [
+      { name: 'provider', type: 'string', description: 'Provider to launch (gemini or copilot)' },
+    ],
+    optional: [
+      { name: 'cwd', type: 'string', description: 'Working directory for the spawned session' },
+      { name: 'prompt', type: 'string', description: 'Startup prompt for provider launch' },
+      { name: 'context', type: 'object', description: 'Structured launch context (requesting_agent/plan/session/notes/files/output/session_mode)' },
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+      { name: 'session_id', type: 'string', description: 'Session ID override (optional)' },
+      { name: 'session_target', type: 'string', description: 'Run-session routing behavior (selected/default/specific)' },
+      { name: 'timeout_ms', type: 'number', description: 'Execution timeout in milliseconds' },
+      { name: 'env', type: 'object', description: 'Per-request environment variable overrides' },
+    ],
+  },
+
   read_output: {
     required: [
       { name: 'session_id', type: 'string', description: 'Session ID' },

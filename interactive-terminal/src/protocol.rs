@@ -127,6 +127,12 @@ pub struct ContextPack {
     /// Active plan step notes that motivated the launch request.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub step_notes: Option<String>,
+    /// Optional startup prompt passed explicitly by spawn_cli_session callers.
+    ///
+    /// This is distinct from `step_notes`: notes are context metadata, while
+    /// `startup_prompt` is intended to be injected into provider launch args.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub startup_prompt: Option<String>,
     /// Files referenced in the request (paths + optional snippet).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub relevant_files: Vec<RelevantFile>,

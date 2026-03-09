@@ -189,6 +189,7 @@ Before every `runSubagent` call:
   - `memory_agent(action: list_skills)` + `memory_agent(action: list_workspace_skills, workspace_id: "...")`
   - `memory_agent(action: list_instructions)` + `memory_agent(action: list_workspace_instructions, workspace_id: "...")`
 3. Deploy context + prepare prompt: `memory_session(action: deploy_and_prep, agent_name: "<Role>", prompt: "<task + role instructions>", workspace_id: "...", plan_id: "...", compat_mode: "strict", phase_name: "<current_phase>", step_indices: [...])` → returns `prep_config` containing `enriched_prompt`, `session_id`, and `plan_context`
+  - `memory_session` visibility for Hub workflows: `prep` (prep only), `deploy_and_prep` (recommended), `list_sessions`, `get_session`
 4. Capture `prep_config.session_id`, `prep_config.plan_context.plan_id`, and `prep_config.plan_context.current_phase` — embed these **explicitly** in the final spawn prompt alongside step_indices and the `skills_to_load` / `instructions_to_load` lists.
 5. Spawn: `runSubagent({ agentName: "Shell", prompt: prep_config.enriched_prompt, description: "<Role>: <brief task>" })`
 

@@ -88,9 +88,9 @@ pub struct TerminalAppRust {
     /// Autonomy budget — max files (0 = unlimited).
     pub(crate) approval_budget_max_files: u32,
     // ── CLI load-reduction flags (Phase 3) ─────────────────────────────────
-    /// Whether the user wants `--screen-reader` passed to Gemini CLI (default: true).
+    /// Whether the user wants `--screen-reader` passed to Gemini CLI (default: false).
     pub(crate) approval_gemini_screen_reader: bool,
-    /// Whether the user wants minimal-UI mode for Copilot CLI (default: true).
+    /// Whether the user wants minimal-UI mode for Copilot CLI (default: false).
     /// Reserved for forward compatibility; no CLI flag is emitted as of v1.x.
     pub(crate) approval_copilot_minimal_ui: bool,
     pub(crate) state: Arc<Mutex<AppState>>,
@@ -319,9 +319,9 @@ impl Default for TerminalAppRust {
             approval_budget_max_commands: 0,
             approval_budget_max_duration_secs: 0,
             approval_budget_max_files: 0,
-            // CLI load-reduction flags default to true (opt-out via unchecking)
-            approval_gemini_screen_reader: true,
-            approval_copilot_minimal_ui: true,
+            // Keep launches in full visual mode unless explicitly opted in.
+            approval_gemini_screen_reader: false,
+            approval_copilot_minimal_ui: false,
             state,
         }
     }

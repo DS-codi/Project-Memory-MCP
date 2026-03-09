@@ -557,9 +557,9 @@ server.tool(
 
 server.tool(
   'memory_terminal',
-  'Terminal tool with GUI approval flow. Actions: run (execute command — auto-approves allowlisted, blocks destructive, shows GUI approval for others), read_output (get output from a session), kill (terminate a session), get_allowlist (view allowlist), update_allowlist (manage allowlist patterns). SEQUENTIAL RULE: You MUST wait for each run response before calling run again. Concurrent run calls targeting the same session are automatically rerouted to a new terminal tab and will include a rate_limit_note in the response data.',
+  'Terminal tool with GUI approval flow. Actions: run (execute command — auto-approves allowlisted, blocks destructive, shows GUI approval for others), spawn_cli_session (validated provider session spawn with provider/cwd/prompt/context payload), read_output (get output from a session), kill (terminate a session), get_allowlist (view allowlist), update_allowlist (manage allowlist patterns). SEQUENTIAL RULE: You MUST wait for each run response before calling run again. Concurrent run calls targeting the same session are automatically rerouted to a new terminal tab and will include a rate_limit_note in the response data.',
   {
-    action: z.enum(['run', 'read_output', 'kill', 'get_allowlist', 'update_allowlist']).describe('The action to perform'),
+    action: z.enum(['run', 'spawn_cli_session', 'read_output', 'kill', 'get_allowlist', 'update_allowlist']).describe('The action to perform'),
     command: z.string().optional().describe('Command to execute (for run)'),
     args: z.array(z.string()).optional().describe('Command arguments (for run)'),
     cwd: z.string().optional().describe('Working directory (for run)'),
@@ -570,6 +570,31 @@ server.tool(
     patterns: z.array(z.string()).optional().describe('Allowlist patterns (for update_allowlist)'),
     operation: z.enum(['add', 'remove', 'set']).optional().describe('How to modify the allowlist (for update_allowlist)'),
     env: z.record(z.string()).optional().describe('Per-request environment variables injected into the spawned process (for run). Supports Gemini/Google API key alias auto-expansion.'),
+    provider: z.string().optional().describe('Provider to launch for spawn_cli_session (gemini or copilot)'),
+    prompt: z.string().optional().describe('Startup prompt for spawn_cli_session'),
+    context: z
+      .object({
+        requesting_agent: z.string().optional(),
+        plan_id: z.string().optional(),
+        session_id: z.string().optional(),
+        step_notes: z.string().optional(),
+        relevant_files: z
+          .array(
+            z.object({
+              path: z.string(),
+              snippet: z.string().optional(),
+            })
+          )
+          .optional(),
+        workspace_instructions: z.string().optional(),
+        custom_instructions: z.string().optional(),
+        output_format: z.enum(['text', 'json', 'stream-json']).optional(),
+        session_mode: z.enum(['new', 'resume']).optional(),
+        resume_session_id: z.string().optional(),
+      })
+      .passthrough()
+      .optional()
+      .describe('Structured context payload for spawn_cli_session'),
   },
   async (params, extra) => {
     const result = await withLogging('memory_terminal', params, () =>

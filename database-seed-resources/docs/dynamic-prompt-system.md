@@ -248,7 +248,7 @@ The existing deploy commands in the extension and dashboard support deploying pr
    - Scope: src/auth/providers/
    - Steps: 1-4
 
-4. Coordinator → spawns Executor with reference to prompt
+4. Coordinator → runs `memory_session(action: deploy_and_prep)` and then spawns Executor with the prepared prompt
 
 5. Executor reads prompt, implements Phase 1
 
