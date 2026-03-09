@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PM Toolchain Icons - Brutalist Edition</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: #e4e4e0;
+            color: #000;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 3rem;
+            transition: background-color 0.3s ease;
+        }
+
+        header {
+            border-bottom: 12px solid #000;
+            margin-bottom: 4rem;
+            padding-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            gap: 2rem;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: -3px;
+        }
+
+        p.subtitle {
+            font-size: 1.25rem;
+            font-weight: bold;
+            margin-top: 0.5rem;
+            text-transform: uppercase;
+        }
+
+        .toggle-btn {
+            padding: 1rem 1.5rem;
+            font-size: 1.1rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            background: #000;
+            color: #fff;
+            border: 8px solid #000;
+            cursor: pointer;
+            box-shadow: 6px 6px 0px #fff, 10px 10px 0px #000;
+            transition: transform 0.1s, box-shadow 0.1s, background 0.3s, color 0.3s;
+            font-family: inherit;
+        }
+
+        .toggle-btn:hover {
+            transform: translate(2px, 2px);
+            box-shadow: 4px 4px 0px #fff, 8px 8px 0px #000;
+        }
+
+        main {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 4rem;
+        }
+
+        .icon-card {
+            background: #fff;
+            border: 12px solid #000;
+            box-shadow: 20px 20px 0px #000;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+
+        /* Define Theme Colors Per Card */
+        .icon-card:nth-child(1) { --theme-color: #ff90e8; } /* Pink */
+        .icon-card:nth-child(2) { --theme-color: #80ff72; } /* Lime */
+        .icon-card:nth-child(3) { --theme-color: #38b6ff; } /* Cyan */
+        .icon-card:nth-child(4) { --theme-color: #ffde59; } /* Yellow */
+        .icon-card:nth-child(5) { --theme-color: #ff5e00; } /* Safety Orange (Installer) */
+
+        .icon-card:hover {
+            transform: translate(4px, 4px);
+            box-shadow: 16px 16px 0px #000;
+        }
+
+        .icon-card h2 {
+            background: #000;
+            color: #fff;
+            padding: 1.25rem;
+            font-size: 1.5rem;
+            text-align: center;
+            border-bottom: 12px solid #000;
+            letter-spacing: -1px;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .icon-wrapper {
+            padding: 3rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-image: radial-gradient(#000 2px, transparent 2px);
+            background-size: 32px 32px;
+            background-position: -16px -16px;
+            transition: background-image 0.3s;
+        }
+
+        /* SVG Reset for internal styling */
+        svg {
+            width: 100%;
+            height: auto;
+            max-width: 320px;
+            background: #fff;
+            border: 8px solid #000;
+            display: block;
+        }
+
+        /* =========================================
+           NEO-BRUTALISM SHADOW OVERRIDES
+           ========================================= */
+        body.neo-brutalist {
+            background-color: #fcebd5;
+        }
+
+        body.neo-brutalist .toggle-btn {
+            background: #ffde59;
+            color: #000;
+            box-shadow: 6px 6px 0px #ff90e8, 10px 10px 0px #000;
+        }
+
+        body.neo-brutalist .toggle-btn:hover {
+            box-shadow: 4px 4px 0px #ff90e8, 8px 8px 0px #000;
+        }
+
+        /* Card Hover Shadows adapt to the icon's theme color */
+        body.neo-brutalist .icon-card { 
+            box-shadow: 20px 20px 0px var(--theme-color); 
+        }
+        body.neo-brutalist .icon-card:hover { 
+            box-shadow: 16px 16px 0px var(--theme-color); 
+        }
+
+        /* Update background grid to match the icon's color */
+        body.neo-brutalist .icon-wrapper {
+            background-image: radial-gradient(var(--theme-color) 2px, transparent 2px);
+        }
+
+        /* The magic offset shadow layers */
+        .shadow-layer {
+            opacity: 0;
+            transform: translate(0px, 0px);
+            transition: opacity 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        body.neo-brutalist .shadow-layer {
+            opacity: 1;
+            transform: translate(16px, 16px);
+        }
+
+        body.neo-brutalist .shadow-layer.fill-shadow {
+            fill: var(--theme-color);
+        }
+
+        body.neo-brutalist .shadow-layer.stroke-shadow {
+            fill: none;
+            stroke: var(--theme-color);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1>PM Toolchain Icons</h1>
+            <p class="subtitle">Brutalist System Architecture Collection</p>
+        </div>
+        <button id="theme-toggle" class="toggle-btn">Enable Color Shadows</button>
+    </header>
+
+    <main>
+        <!-- 1. pm-brainstorm-gui (Pink Theme) -->
+        <div class="icon-card">
+            <h2>pm-brainstorm-gui</h2>
+            <div class="icon-wrapper">
+                <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="512" height="512" fill="#fff" />
+                    
+                    <!-- Shadow Layer (Offset Shapes) -->
+                    <circle class="shadow-layer stroke-shadow" cx="256" cy="256" r="144" stroke-width="32" />
+                    
+                    <!-- Main Layer (Stark Black & White) -->
+                    <circle cx="256" cy="256" r="144" fill="none" stroke="#000" stroke-width="32" />
+                    
+                    <!-- Lightning Halo (White fill masks the shadows beneath) -->
+                    <polygon points="320,40 120,280 260,280 160,480 440,200 280,200" fill="#fff" stroke="#000" stroke-width="32" stroke-linejoin="miter" />
+                    <polygon class="shadow-layer fill-shadow" points="320,40 120,280 260,280 160,480 440,200 280,200" />
+                    <polygon points="320,40 120,280 260,280 160,480 440,200 280,200" fill="#000" />
+                    
+                    <!-- Shared PM Identity Mark -->
+                    <g class="pm-mark">
+                        <rect class="shadow-layer fill-shadow" x="360" y="390" width="110" height="80" />
+                        <rect x="360" y="390" width="110" height="80" fill="#000" stroke="#fff" stroke-width="8" />
+                        <text x="415" y="446" fill="#fff" font-family="'Courier New', Courier, monospace" font-weight="900" font-size="48" text-anchor="middle">pm</text>
+                    </g>
+                </svg>
+            </div>
+        </div>
+
+        <!-- 2. pm-approval-gui (Lime Theme) -->
+        <div class="icon-card">
+            <h2>pm-approval-gui</h2>
+            <div class="icon-wrapper">
+                <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="512" height="512" fill="#fff" />
+                    
+                    <!-- Shadow Layer -->
+                    <rect class="shadow-layer stroke-shadow" x="100" y="80" width="312" height="360" stroke-width="32" />
+                    <rect class="shadow-layer fill-shadow" x="180" y="48" width="152" height="64" />
+                    <line class="shadow-layer stroke-shadow" x1="160" y1="176" x2="352" y2="176" stroke-width="24" />
+                    <line class="shadow-layer stroke-shadow" x1="160" y1="240" x2="280" y2="240" stroke-width="24" />
+                    
+                    <!-- Main Layer -->
+                    <rect x="100" y="80" width="312" height="360" fill="#fff" stroke="#000" stroke-width="32" />
+                    <rect x="180" y="48" width="152" height="64" fill="#000" />
+                    <line x1="160" y1="176" x2="352" y2="176" stroke="#000" stroke-width="24" />
+                    <line x1="160" y1="240" x2="280" y2="240" stroke="#000" stroke-width="24" />
+                    
+                    <!-- Massive Validation Checkmark -->
+                    <polyline points="120,280 240,400 480,140" fill="none" stroke="#fff" stroke-width="72" stroke-linejoin="miter" stroke-linecap="square" />
+                    <polyline class="shadow-layer stroke-shadow" points="120,280 240,400 480,140" stroke-width="40" stroke-linejoin="miter" stroke-linecap="square" />
+                    <polyline points="120,280 240,400 480,140" fill="none" stroke="#000" stroke-width="40" stroke-linejoin="miter" stroke-linecap="square" />
+                    
+                    <!-- Shared PM Identity Mark -->
+                    <g class="pm-mark">
+                        <rect class="shadow-layer fill-shadow" x="360" y="390" width="110" height="80" />
+                        <rect x="360" y="390" width="110" height="80" fill="#000" stroke="#fff" stroke-width="8" />
+                        <text x="415" y="446" fill="#fff" font-family="'Courier New', Courier, monospace" font-weight="900" font-size="48" text-anchor="middle">pm</text>
+                    </g>
+                </svg>
+            </div>
+        </div>
+
+        <!-- 3. interactive-terminal (Cyan Theme) -->
+        <div class="icon-card">
+            <h2>interactive-terminal</h2>
+            <div class="icon-wrapper">
+                <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="512" height="512" fill="#fff" />
+                    
+                    <!-- Shadow Layer -->
+                    <rect class="shadow-layer stroke-shadow" x="48" y="104" width="416" height="304" stroke-width="32" />
+                    <rect class="shadow-layer fill-shadow" x="48" y="104" width="416" height="72" />
+                    <polyline class="shadow-layer stroke-shadow" points="96,224 144,272 96,320" stroke-width="32" stroke-linejoin="miter" stroke-linecap="square" />
+                    <rect class="shadow-layer fill-shadow" x="176" y="296" width="48" height="24" />
+                    <rect class="shadow-layer fill-shadow" x="96" y="352" width="128" height="24" />
+                    <rect class="shadow-layer fill-shadow" x="240" y="352" width="160" height="24" />
+                    
+                    <!-- Main Layer -->
+                    <rect x="48" y="104" width="416" height="304" fill="#fff" stroke="#000" stroke-width="32" />
+                    <rect x="48" y="104" width="416" height="72" fill="#000" />
+                    <rect x="80" y="128" width="24" height="24" fill="#fff" />
+                    <rect x="128" y="128" width="24" height="24" fill="#fff" />
+                    <polyline points="96,224 144,272 96,320" fill="none" stroke="#000" stroke-width="32" stroke-linejoin="miter" stroke-linecap="square" />
+                    <rect x="176" y="296" width="48" height="24" fill="#000" />
+                    <rect x="96" y="352" width="128" height="24" fill="#000" />
+                    <rect x="240" y="352" width="160" height="24" fill="#000" />
+
+                    <!-- Shared PM Identity Mark -->
+                    <g class="pm-mark">
+                        <rect class="shadow-layer fill-shadow" x="360" y="390" width="110" height="80" />
+                        <rect x="360" y="390" width="110" height="80" fill="#000" stroke="#fff" stroke-width="8" />
+                        <text x="415" y="446" fill="#fff" font-family="'Courier New', Courier, monospace" font-weight="900" font-size="48" text-anchor="middle">pm</text>
+                    </g>
+                </svg>
+            </div>
+        </div>
+
+        <!-- 4. supervisor (Yellow Theme) -->
+        <div class="icon-card">
+            <h2>supervisor</h2>
+            <div class="icon-wrapper">
+                <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="512" height="512" fill="#fff" />
+                    
+                    <!-- Shadow Layer -->
+                    <polygon class="shadow-layer stroke-shadow" points="48,256 256,96 464,256 256,416" stroke-width="32" stroke-linejoin="miter" />
+                    <line class="shadow-layer stroke-shadow" x1="256" y1="108" x2="256" y2="404" stroke-width="16" />
+                    <line class="shadow-layer stroke-shadow" x1="60" y1="256" x2="452" y2="256" stroke-width="16" />
+                    <rect class="shadow-layer fill-shadow" x="192" y="192" width="128" height="128" />
+
+                    <!-- Main Layer -->
+                    <polygon points="48,256 256,96 464,256 256,416" fill="#fff" stroke="#000" stroke-width="32" stroke-linejoin="miter" />
+                    <line x1="256" y1="108" x2="256" y2="404" stroke="#000" stroke-width="16" />
+                    <line x1="60" y1="256" x2="452" y2="256" stroke="#000" stroke-width="16" />
+                    <rect x="192" y="192" width="128" height="128" fill="#000" />
+                    <rect x="264" y="216" width="32" height="32" fill="#fff" />
+
+                    <!-- Shared PM Identity Mark -->
+                    <g class="pm-mark">
+                        <rect class="shadow-layer fill-shadow" x="360" y="390" width="110" height="80" />
+                        <rect x="360" y="390" width="110" height="80" fill="#000" stroke="#fff" stroke-width="8" />
+                        <text x="415" y="446" fill="#fff" font-family="'Courier New', Courier, monospace" font-weight="900" font-size="48" text-anchor="middle">pm</text>
+                    </g>
+                </svg>
+            </div>
+        </div>
+
+        <!-- 5. pm-installer (Grid + Down Arrow Montage) -->
+        <div class="icon-card">
+            <h2>pm-installer</h2>
+            <div class="icon-wrapper">
+                <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="512" height="512" fill="#fff" />
+                    
+                    <!-- Quadrant 1: Supervisor (Yellow) -->
+                    <g style="--theme-color: #ffde59" transform="translate(16, 16) scale(0.42)">
+                        <!-- shadow -->
+                        <polygon class="shadow-layer stroke-shadow" points="48,256 256,96 464,256 256,416" stroke-width="32" stroke-linejoin="miter" />
+                        <line class="shadow-layer stroke-shadow" x1="256" y1="108" x2="256" y2="404" stroke-width="16" />
+                        <line class="shadow-layer stroke-shadow" x1="60" y1="256" x2="452" y2="256" stroke-width="16" />
+                        <rect class="shadow-layer fill-shadow" x="192" y="192" width="128" height="128" />
+                        <!-- main -->
+                        <polygon points="48,256 256,96 464,256 256,416" fill="#fff" stroke="#000" stroke-width="32" stroke-linejoin="miter" />
+                        <line x1="256" y1="108" x2="256" y2="404" stroke="#000" stroke-width="16" />
+                        <line x1="60" y1="256" x2="452" y2="256" stroke="#000" stroke-width="16" />
+                        <rect x="192" y="192" width="128" height="128" fill="#000" />
+                        <rect x="264" y="216" width="32" height="32" fill="#fff" />
+                        <!-- pm mark -->
+                        <g class="pm-mark">
+                            <rect class="shadow-layer fill-shadow" x="360" y="390" width="110" height="80" />
+                            <rect x="360" y="390" width="110" height="80" fill="#000" stroke="#fff" stroke-width="8" />
+                            <text x="415" y="446" fill="#fff" font-family="'Courier New', Courier, monospace" font-weight="900" font-size="48" text-anchor="middle">pm</text>
+                        </g>
+                    </g>
+
+                    <!-- Quadrant 2: Terminal (Cyan) -->
+                    <g style="--theme-color: #38b6ff" transform="translate(280, 16) scale(0.42)">
+                        <!-- shadow -->
+                        <rect class="shadow-layer stroke-shadow" x="48" y="104" width="416" height="304" stroke-width="32" />
+                        <rect class="shadow-layer fill-shadow" x="48" y="104" width="416" height="72" />
+                        <polyline class="shadow-layer stroke-shadow" points="96,224 144,272 96,320" stroke-width="32" stroke-linejoin="miter" stroke-linecap="square" />
+                        <rect class="shadow-layer fill-shadow" x="176" y="296" width="48" height="24" />
+                        <rect class="shadow-layer fill-shadow" x="96" y="352" width="128" height="24" />
+                        <rect class="shadow-layer fill-shadow" x="240" y="352" width="160" height="24" />
+                        <!-- main -->
+                        <rect x="48" y="104" width="416" height="304" fill="#fff" stroke="#000" stroke-width="32" />
+                        <rect x="48" y="104" width="416" height="72" fill="#000" />
+                        <rect x="80" y="128" width="24" height="24" fill="#fff" />
+                        <rect x="128" y="128" width="24" height="24" fill="#fff" />
+                        <polyline points="96,224 144,272 96,320" fill="none" stroke="#000" stroke-width="32" stroke-linejoin="miter" stroke-linecap="square" />
+                        <rect x="176" y="296" width="48" height="24" fill="#000" />
+                        <rect x="96" y="352" width="128" height="24" fill="#000" />
+                        <rect x="240" y="352" width="160" height="24" fill="#000" />
+                        <!-- pm mark -->
+                        <g class="pm-mark">
+                            <rect class="shadow-layer fill-shadow" x="360" y="390" width="110" height="80" />
+                            <rect x="360" y="390" width="110" height="80" fill="#000" stroke="#fff" stroke-width="8" />
+                            <text x="415" y="446" fill="#fff" font-family="'Courier New', Courier, monospace" font-weight="900" font-size="48" text-anchor="middle">pm</text>
+                        </g>
+                    </g>
+
+                    <!-- Quadrant 3: Brainstorm (Pink) -->
+                    <g style="--theme-color: #ff90e8" transform="translate(16, 280) scale(0.42)">
+                        <!-- shadow -->
+                        <circle class="shadow-layer stroke-shadow" cx="256" cy="256" r="144" stroke-width="32" />
+                        <!-- main -->
+                        <circle cx="256" cy="256" r="144" fill="none" stroke="#000" stroke-width="32" />
+                        <polygon points="320,40 120,280 260,280 160,480 440,200 280,200" fill="#fff" stroke="#000" stroke-width="32" stroke-linejoin="miter" />
+                        <polygon class="shadow-layer fill-shadow" points="320,40 120,280 260,280 160,480 440,200 280,200" />
+                        <polygon points="320,40 120,280 260,280 160,480 440,200 280,200" fill="#000" />
+                        <!-- pm mark -->
+                        <g class="pm-mark">
+                            <rect class="shadow-layer fill-shadow" x="360" y="390" width="110" height="80" />
+                            <rect x="360" y="390" width="110" height="80" fill="#000" stroke="#fff" stroke-width="8" />
+                            <text x="415" y="446" fill="#fff" font-family="'Courier New', Courier, monospace" font-weight="900" font-size="48" text-anchor="middle">pm</text>
+                        </g>
+                    </g>
+
+                    <!-- Quadrant 4: Approval (Lime) -->
+                    <g style="--theme-color: #80ff72" transform="translate(280, 280) scale(0.42)">
+                        <!-- shadow -->
+                        <rect class="shadow-layer stroke-shadow" x="100" y="80" width="312" height="360" stroke-width="32" />
+                        <rect class="shadow-layer fill-shadow" x="180" y="48" width="152" height="64" />
+                        <line class="shadow-layer stroke-shadow" x1="160" y1="176" x2="352" y2="176" stroke-width="24" />
+                        <line class="shadow-layer stroke-shadow" x1="160" y1="240" x2="280" y2="240" stroke-width="24" />
+                        <!-- main -->
+                        <rect x="100" y="80" width="312" height="360" fill="#fff" stroke="#000" stroke-width="32" />
+                        <rect x="180" y="48" width="152" height="64" fill="#000" />
+                        <line x1="160" y1="176" x2="352" y2="176" stroke="#000" stroke-width="24" />
+                        <line x1="160" y1="240" x2="280" y2="240" stroke="#000" stroke-width="24" />
+                        <!-- massive check -->
+                        <polyline points="120,280 240,400 480,140" fill="none" stroke="#fff" stroke-width="72" stroke-linejoin="miter" stroke-linecap="square" />
+                        <polyline class="shadow-layer stroke-shadow" points="120,280 240,400 480,140" stroke-width="40" stroke-linejoin="miter" stroke-linecap="square" />
+                        <polyline points="120,280 240,400 480,140" fill="none" stroke="#000" stroke-width="40" stroke-linejoin="miter" stroke-linecap="square" />
+                        <!-- pm mark -->
+                        <g class="pm-mark">
+                            <rect class="shadow-layer fill-shadow" x="360" y="390" width="110" height="80" />
+                            <rect x="360" y="390" width="110" height="80" fill="#000" stroke="#fff" stroke-width="8" />
+                            <text x="415" y="446" fill="#fff" font-family="'Courier New', Courier, monospace" font-weight="900" font-size="48" text-anchor="middle">pm</text>
+                        </g>
+                    </g>
+
+                    <!-- Overlaid Giant Down Arrow (Installer Motif) -->
+                    <!-- Thick White Halo to cut the grid beneath -->
+                    <polygon points="192,48 320,48 320,240 432,240 256,464 80,240 192,240" fill="#fff" stroke="#fff" stroke-width="64" stroke-linejoin="miter" />
+
+                    <!-- Down Arrow Shadow (Inherits Card's Orange Theme automatically) -->
+                    <polygon class="shadow-layer fill-shadow" points="192,48 320,48 320,240 432,240 256,464 80,240 192,240" />
+
+                    <!-- Down Arrow Core -->
+                    <polygon points="192,48 320,48 320,240 432,240 256,464 80,240 192,240" fill="#000" />
+                </svg>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.getElementById('theme-toggle').addEventListener('click', function() {
+            document.body.classList.toggle('neo-brutalist');
+            if (document.body.classList.contains('neo-brutalist')) {
+                this.textContent = 'Switch to Classic Brutalism';
+            } else {
+                this.textContent = 'Enable Color Shadows';
+            }
+        });
+    </script>
+</body>
+</html>

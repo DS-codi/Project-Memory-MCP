@@ -29,6 +29,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::control::handler::FormAppConfigs;
+use crate::control::protocol::FormAppResponse;
 use crate::runner::form_app::{continue_form_app, launch_form_app};
 
 // ---------------------------------------------------------------------------
@@ -122,43 +123,34 @@ async fn launch_handler(
     let cfg = match state.form_apps.get(&req.app_name) {
         Some(c) if c.enabled => c,
         Some(_) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(json!({
-                    "ok": false,
-                    "error": format!("form app \"{}\" is disabled in config", req.app_name)
-                })),
+            let resp = FormAppResponse::config_failure(
+                req.app_name.clone(),
+                format!("form app \"{}\" is disabled in config", req.app_name),
             );
+            return launch_http_response(StatusCode::BAD_REQUEST, resp);
         }
         None => {
             let known: Vec<&String> = state.form_apps.keys().collect();
-            return (
-                StatusCode::NOT_FOUND,
-                Json(json!({
-                    "ok": false,
-                    "error": format!(
-                        "unknown form app \"{}\". known: {:?}",
-                        req.app_name, known
-                    )
-                })),
+            let resp = FormAppResponse::config_failure(
+                req.app_name.clone(),
+                format!(
+                    "unknown form app: \"{}\". Known apps: {:?}",
+                    req.app_name, known
+                ),
             );
+            return launch_http_response(StatusCode::NOT_FOUND, resp);
         }
     };
 
     let resp = launch_form_app(cfg, &req.app_name, &req.payload, req.timeout_seconds).await;
-    let status = if resp.success {
-        StatusCode::OK
-    } else {
-        StatusCode::INTERNAL_SERVER_ERROR
-    };
-
-    match serde_json::to_value(&resp) {
-        Ok(data) => (status, Json(json!({ "ok": resp.success, "data": data }))),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({ "ok": false, "error": format!("serialisation error: {e}") })),
-        ),
-    }
+    launch_http_response(
+        if resp.success {
+            StatusCode::OK
+        } else {
+            StatusCode::INTERNAL_SERVER_ERROR
+        },
+        resp,
+    )
 }
 
 async fn continue_handler(
@@ -176,6 +168,32 @@ async fn continue_handler(
 
     match serde_json::to_value(&resp) {
         Ok(data) => (status, Json(json!({ "ok": resp.success, "data": data }))),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "ok": false, "error": format!("serialisation error: {e}") })),
+        ),
+    }
+}
+
+fn launch_http_response(
+    status: StatusCode,
+    resp: FormAppResponse,
+) -> (StatusCode, Json<serde_json::Value>) {
+    match serde_json::to_value(&resp) {
+        Ok(data) => {
+            if resp.success {
+                (status, Json(json!({ "ok": true, "data": data })))
+            } else {
+                (
+                    status,
+                    Json(json!({
+                        "ok": false,
+                        "error": resp.error.clone(),
+                        "data": data,
+                    })),
+                )
+            }
+        }
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({ "ok": false, "error": format!("serialisation error: {e}") })),

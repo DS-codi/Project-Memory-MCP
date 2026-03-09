@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#fff" />
+  <rect x="48" y="104" width="416" height="304" fill="#fff" stroke="#000" stroke-width="32" />
+  <rect x="48" y="104" width="416" height="72" fill="#000" />
+  <rect x="80" y="128" width="24" height="24" fill="#fff" />
+  <rect x="128" y="128" width="24" height="24" fill="#fff" />
+  <polyline points="96,224 144,272 96,320" fill="none" stroke="#000" stroke-width="32" stroke-linejoin="miter" stroke-linecap="square" />
+  <rect x="176" y="296" width="48" height="24" fill="#000" />
+  <rect x="96" y="352" width="128" height="24" fill="#000" />
+  <rect x="240" y="352" width="160" height="24" fill="#000" />
+  <g>
+    <rect x="360" y="390" width="110" height="80" fill="#000" stroke="#fff" stroke-width="8" />
+    <text x="415" y="446" fill="#fff" font-family="'Courier New', Courier, monospace" font-weight="900" font-size="48" text-anchor="middle">pm</text>
+  </g>
+</svg>

@@ -3,13 +3,54 @@ import { memoryPlan } from '../../tools/consolidated/memory_plan.js';
 import type { MemoryPlanParams } from '../../tools/consolidated/memory_plan.js';
 import * as planTools from '../../tools/plan/index.js';
 import * as validation from '../../tools/consolidated/workspace-validation.js';
+import * as fileStore from '../../storage/db-store.js';
+import * as approvalGateRouting from '../../tools/orchestration/approval-gate-routing.js';
 
 vi.mock('../../tools/plan.tools.js');
 vi.mock('../../tools/consolidated/workspace-validation.js');
 vi.mock('../../storage/workspace-identity.js');
+vi.mock('../../tools/orchestration/approval-gate-routing.js', async () => {
+  const actual = await vi.importActual<typeof import('../../tools/orchestration/approval-gate-routing.js')>(
+    '../../tools/orchestration/approval-gate-routing.js',
+  );
+  return {
+    ...actual,
+    routeApprovalGate: vi.fn(),
+    pausePlanAtApprovalGate: vi.fn(),
+  };
+});
 
 const mockWorkspaceId = 'ws_plan_actions_123';
 const mockPlanId = 'plan_actions_456';
+const mockRouteApprovalGate = vi.mocked(approvalGateRouting.routeApprovalGate);
+const mockPausePlanAtApprovalGate = vi.mocked(approvalGateRouting.pausePlanAtApprovalGate);
+
+function makePlanState() {
+  return {
+    id: mockPlanId,
+    workspace_id: mockWorkspaceId,
+    title: 'Plan',
+    description: 'Plan desc',
+    category: 'feature' as const,
+    priority: 'medium' as const,
+    status: 'active' as const,
+    current_phase: 'Phase 1',
+    current_agent: null,
+    created_at: '2026-02-04T10:00:00Z',
+    updated_at: '2026-02-04T10:00:00Z',
+    steps: [
+      {
+        index: 0,
+        phase: 'Phase 1',
+        task: 'Task 1',
+        status: 'pending' as const,
+      },
+    ],
+    agent_sessions: [],
+    lineage: [],
+    notes: [],
+  };
+}
 
 describe('MCP Tool: memory_plan Core Actions', () => {
   beforeEach(() => {
@@ -532,6 +573,38 @@ describe('MCP Tool: memory_plan Core Actions', () => {
     });
   });
 
+  describe('confirm action', () => {
+    it('should require workspace_id, plan_id, and confirmation_scope', async () => {
+      const result = await memoryPlan({
+        action: 'confirm',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+      } as MemoryPlanParams);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('confirmation_scope');
+    });
+
+    it('should append Coordinator handoff guidance when confirmStep reports GUI-unavailable fallback', async () => {
+      vi.spyOn(planTools, 'confirmStep').mockResolvedValue({
+        success: false,
+        error: 'Approval GUI unavailable; fallback_to_chat',
+      });
+
+      const result = await memoryPlan({
+        action: 'confirm',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        confirmation_scope: 'step',
+        confirm_step_index: 2,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('memory_agent(action: "handoff"');
+      expect(result.error).toContain('to_agent: "Coordinator"');
+    });
+  });
+
   describe('list_templates action', () => {
     it('should list templates', async () => {
       vi.spyOn(planTools, 'getTemplates').mockReturnValue([
@@ -545,6 +618,132 @@ describe('MCP Tool: memory_plan Core Actions', () => {
         expect(result.data.data).toHaveLength(1);
         expect(result.data.data[0].template).toBe('feature');
       }
+    });
+  });
+
+  describe('summon_approval action', () => {
+    it('should require workspace_id, plan_id, and approval_step_index', async () => {
+      const result = await memoryPlan({
+        action: 'summon_approval',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+      } as MemoryPlanParams);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('approval_step_index');
+    });
+
+    it('records approval by confirming the target step when GUI approves', async () => {
+      vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(makePlanState() as any);
+      mockRouteApprovalGate.mockResolvedValue({
+        approved: true,
+        path: 'gui',
+        outcome: 'approved',
+        elapsed_ms: 12,
+      } as any);
+      vi.spyOn(planTools, 'confirmStep').mockResolvedValue({
+        success: true,
+        data: {
+          plan_state: makePlanState(),
+          confirmation: {
+            confirmed: true,
+            confirmed_by: 'approval_gui',
+            confirmed_at: '2026-02-04T10:00:12Z',
+          },
+        },
+      } as any);
+
+      const result = await memoryPlan({
+        action: 'summon_approval',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        approval_step_index: 0,
+        approval_session_id: 'sess_approval_001',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockRouteApprovalGate).toHaveBeenCalledWith(
+        expect.any(Object),
+        0,
+        'sess_approval_001',
+      );
+      expect(planTools.confirmStep).toHaveBeenCalledWith({
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        step_index: 0,
+        confirmed_by: 'approval_gui',
+      });
+      if (result.data && result.data.action === 'summon_approval') {
+        expect(result.data.data.approved).toBe(true);
+        expect(result.data.data.confirmation_recorded).toBe(true);
+      }
+    });
+
+    it('pauses the plan when GUI rejects', async () => {
+      const baseState = makePlanState();
+      const pausedSnapshot = {
+        paused_at: '2026-02-04T10:01:00Z',
+        step_index: 0,
+        phase: 'Phase 1',
+        step_task: 'Task 1',
+        reason: 'rejected' as const,
+        user_notes: 'Needs revision',
+        session_id: 'sess_approval_002',
+      };
+
+      vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(baseState as any);
+      mockRouteApprovalGate.mockResolvedValue({
+        approved: false,
+        path: 'gui',
+        outcome: 'rejected',
+        user_notes: 'Needs revision',
+        paused_snapshot: pausedSnapshot,
+        elapsed_ms: 33,
+      } as any);
+      mockPausePlanAtApprovalGate.mockResolvedValue({
+        ...baseState,
+        status: 'paused',
+        paused_at_snapshot: pausedSnapshot,
+      } as any);
+
+      const result = await memoryPlan({
+        action: 'summon_approval',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        approval_step_index: 0,
+        approval_session_id: 'sess_approval_002',
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockPausePlanAtApprovalGate).toHaveBeenCalledOnce();
+      if (result.data && result.data.action === 'summon_approval') {
+        expect(result.data.data.approved).toBe(false);
+        expect(result.data.data.paused).toBe(true);
+        expect(result.data.data.outcome).toBe('rejected');
+      }
+    });
+
+    it('returns an error when approval GUI is unavailable', async () => {
+      vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(makePlanState() as any);
+      mockRouteApprovalGate.mockResolvedValue({
+        approved: false,
+        path: 'fallback',
+        outcome: 'fallback_to_chat',
+        error: 'Approval GUI unavailable; fallback_to_chat',
+        elapsed_ms: 4,
+        requires_handoff_to_coordinator: true,
+      } as any);
+
+      const result = await memoryPlan({
+        action: 'summon_approval',
+        workspace_id: mockWorkspaceId,
+        plan_id: mockPlanId,
+        approval_step_index: 0,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Approval GUI unavailable');
+      expect(mockPausePlanAtApprovalGate).not.toHaveBeenCalled();
     });
   });
 });

@@ -10,6 +10,7 @@ ApplicationWindow {
     width: 900
     height: 700
     title: formApp.title
+    icon.source: "qrc:/qt/qml/com/projectmemory/brainstorm/resources/app_icon.png"
     color: "#1e1e1e"
 
     Material.theme: Material.Dark

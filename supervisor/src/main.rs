@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 use supervisor::config;
-use supervisor::config::{McpBackend, NodeRunnerConfig};
+use supervisor::config::{FormAppSummonabilityStatus, McpBackend, NodeRunnerConfig};
 use supervisor::control::registry::ServiceStatus;
 use supervisor::runner::ServiceRunner;
 use supervisor::runner::container::ContainerRunner;
@@ -37,6 +37,36 @@ struct Cli {
     /// Enable verbose debug output.
     #[arg(long)]
     debug: bool,
+}
+
+#[cfg(windows)]
+unsafe extern "C" {
+    fn set_app_icon();
+}
+
+fn env_flag_enabled(name: &str) -> bool {
+    std::env::var(name)
+        .map(|value| {
+            let normalized = value.trim();
+            normalized == "1"
+                || normalized.eq_ignore_ascii_case("true")
+                || normalized.eq_ignore_ascii_case("yes")
+                || normalized.eq_ignore_ascii_case("on")
+        })
+        .unwrap_or(false)
+}
+
+fn configure_qt_logging(debug_mode: bool) {
+    // Route Qt/QML diagnostics to stderr so launch failures are visible in logs.
+    std::env::set_var("QT_FORCE_STDERR_LOGGING", "1");
+
+    if debug_mode || env_flag_enabled("PM_QT_DEBUG_PLUGINS") {
+        std::env::set_var("QT_DEBUG_PLUGINS", "1");
+    }
+
+    if debug_mode || env_flag_enabled("PM_QML_IMPORT_TRACE") {
+        std::env::set_var("QML_IMPORT_TRACE", "1");
+    }
 }
 
 fn supervisor_instance_name() -> String {
@@ -112,6 +142,8 @@ fn main() {
         eprintln!("[supervisor:debug] setting Qt env vars...");
     }
 
+    configure_qt_logging(debug_mode);
+
     #[cfg(windows)]
     std::env::set_var("QT_QPA_PLATFORM", "windows:darkmode=2");
     std::env::set_var("QT_QUICK_CONTROLS_STYLE", "Material");
@@ -166,6 +198,13 @@ fn main() {
         eprintln!("[supervisor:debug] creating QGuiApplication...");
     }
     let mut app = QGuiApplication::new();
+
+    #[cfg(windows)]
+    unsafe {
+        // Reinforce window/taskbar icon from QRC/runtime paths after app init.
+        set_app_icon();
+    }
+
     if debug_mode {
         eprintln!("[supervisor:debug] creating QQmlApplicationEngine...");
     }
@@ -522,7 +561,47 @@ async fn supervisor_main() {
 
             let mut form_apps = std::collections::HashMap::new();
             form_apps.insert("brainstorm_gui".to_string(), cfg.brainstorm_gui.0.clone());
-            form_apps.insert("approval_gui".to_string(), cfg.approval_gui.0.clone());
+
+            // Harden approval_gui registration at the runtime-map boundary so
+            // summonability failures are explicit before any launch attempt.
+            let mut approval_gui_cfg = cfg.approval_gui.0.clone();
+            let approval_gui_diag = config::diagnose_form_app_summonability(
+                "approval_gui",
+                &approval_gui_cfg,
+            );
+
+            match approval_gui_diag.status {
+                FormAppSummonabilityStatus::Enabled => {
+                    if let Some(ref resolved) = approval_gui_diag.resolved_command {
+                        approval_gui_cfg.command = resolved.to_string_lossy().to_string();
+                    }
+                    println!(
+                        "[supervisor] approval_gui summonability: enabled (resolved_command=\"{}\")",
+                        approval_gui_cfg.command
+                    );
+                }
+                FormAppSummonabilityStatus::DisabledByConfig => {
+                    println!(
+                        "[supervisor] approval_gui summonability: disabled in config (enabled=false)"
+                    );
+                }
+                FormAppSummonabilityStatus::MissingCommand => {
+                    approval_gui_cfg.enabled = false;
+                    eprintln!(
+                        "[supervisor] approval_gui summonability: disabled at runtime-map boundary (missing command). {}",
+                        approval_gui_diag.detail
+                    );
+                }
+                FormAppSummonabilityStatus::UnresolvedExecutablePath => {
+                    approval_gui_cfg.enabled = false;
+                    eprintln!(
+                        "[supervisor] approval_gui summonability: disabled at runtime-map boundary (unresolved executable path). {}",
+                        approval_gui_diag.detail
+                    );
+                }
+            }
+
+            form_apps.insert("approval_gui".to_string(), approval_gui_cfg);
             let form_apps = Arc::new(form_apps);
 
             // ── GUI HTTP server ───────────────────────────────────────────────

@@ -4,6 +4,35 @@ mod cxxqt_bridge;
 
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QUrl};
 
+#[cfg(windows)]
+unsafe extern "C" {
+    fn set_app_icon();
+}
+
+fn env_flag_enabled(name: &str) -> bool {
+    std::env::var(name)
+        .map(|value| {
+            let normalized = value.trim();
+            normalized == "1"
+                || normalized.eq_ignore_ascii_case("true")
+                || normalized.eq_ignore_ascii_case("yes")
+                || normalized.eq_ignore_ascii_case("on")
+        })
+        .unwrap_or(false)
+}
+
+fn configure_qt_logging() {
+    std::env::set_var("QT_FORCE_STDERR_LOGGING", "1");
+
+    if env_flag_enabled("PM_QT_DEBUG_PLUGINS") {
+        std::env::set_var("QT_DEBUG_PLUGINS", "1");
+    }
+
+    if env_flag_enabled("PM_QML_IMPORT_TRACE") {
+        std::env::set_var("QML_IMPORT_TRACE", "1");
+    }
+}
+
 fn main() {
     // The CxxQt Initialize impl calls tokio::spawn to read stdin on a background
     // task.  Without an active tokio runtime this panics immediately when the
@@ -18,12 +47,8 @@ fn main() {
         .expect("Failed to create tokio runtime");
     let _rt_guard = rt.enter();
 
-    // ── Qt logging: route to stderr so errors are visible in a terminal.
-    // On Windows, Qt sends all log output (including fatal QML errors) to
-    // OutputDebugString by default — completely invisible without a debugger.
-    // Setting this env var BEFORE QGuiApplication::new() redirects everything
-    // to stderr so QML load failures, type errors, etc. are always printed.
-    std::env::set_var("QT_FORCE_STDERR_LOGGING", "1");
+    // Keep QML diagnostics visible and allow optional deep plugin/import tracing.
+    configure_qt_logging();
 
     #[cfg(windows)]
     {
@@ -32,6 +57,13 @@ fn main() {
     }
 
     let mut app = QGuiApplication::new();
+
+    #[cfg(windows)]
+    unsafe {
+        // Reinforce window/taskbar icon from QRC/runtime paths after app init.
+        set_app_icon();
+    }
+
     let mut engine = QQmlApplicationEngine::new();
 
     if let Some(engine) = engine.as_mut() {

@@ -61,29 +61,29 @@ pub mod ffi {
 
 impl ffi::InstallWizard {
     pub fn start_install(mut self: Pin<&mut Self>) {
-        self.set_is_installing(true);
-        self.set_progress(0.0);
-        self.set_status_text(QString::from("Initializing..."));
+        self.as_mut().set_is_installing(true);
+        self.as_mut().set_progress(0.0);
+        self.as_mut().set_status_text(QString::from("Initializing..."));
     }
 
     pub fn update_simulation(mut self: Pin<&mut Self>) {
-        let current = self.progress();
+        let current = *self.as_ref().progress();
         if current < 100.0 {
             let next = current + 0.5;
-            self.set_progress(next);
+            self.as_mut().set_progress(next);
             
             if next < 30.0 {
-                self.set_status_text(QString::from("Building components (Supervisor, Server)..."));
+                self.as_mut().set_status_text(QString::from("Building components (Supervisor, Server)..."));
             } else if next < 60.0 {
-                self.set_status_text(QString::from("Deploying binaries and runtime DLLs..."));
+                self.as_mut().set_status_text(QString::from("Deploying binaries and runtime DLLs..."));
             } else if next < 90.0 {
-                self.set_status_text(QString::from("Configuring PM_DATA_ROOT and PATH..."));
+                self.as_mut().set_status_text(QString::from("Configuring PM_DATA_ROOT and PATH..."));
             } else {
-                self.set_status_text(QString::from("Finishing setup..."));
+                self.as_mut().set_status_text(QString::from("Finishing setup..."));
             }
 
             if next >= 100.0 {
-                self.set_is_finished(true);
+                self.as_mut().set_is_finished(true);
             }
         }
     }

@@ -11,6 +11,7 @@ ApplicationWindow {
     height: 600
     visible: true
     title: "Project Memory Installer"
+    icon.source: "qrc:/qt/qml/com/projectmemory/installer/resources/app_icon.png"
     flags: Qt.Window | Qt.FramelessWindowHint
     color: "#010103"
 

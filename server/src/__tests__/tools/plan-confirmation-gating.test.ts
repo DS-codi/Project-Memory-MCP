@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { updateStep } from '../../tools/plan/index.js';
 import * as fileStore from '../../storage/db-store.js';
+import * as approvalGateRouting from '../../tools/orchestration/approval-gate-routing.js';
 
 vi.mock('../../storage/db-store.js');
 vi.mock('../../events/event-emitter.js', () => ({
@@ -8,9 +9,19 @@ vi.mock('../../events/event-emitter.js', () => ({
     stepUpdated: vi.fn(),
   },
 }));
+vi.mock('../../tools/orchestration/approval-gate-routing.js', async () => {
+  const actual = await vi.importActual<typeof import('../../tools/orchestration/approval-gate-routing.js')>(
+    '../../tools/orchestration/approval-gate-routing.js',
+  );
+  return {
+    ...actual,
+    routeApprovalGate: vi.fn(),
+  };
+});
 
 const mockWorkspaceId = 'ws_confirm_test_123';
 const mockPlanId = 'plan_confirm_test_456';
+const mockRouteApprovalGate = vi.mocked(approvalGateRouting.routeApprovalGate);
 
 function createPlanState(overrides?: Partial<ReturnType<typeof basePlanState>>) {
   return { ...basePlanState(), ...overrides };
@@ -60,8 +71,17 @@ describe('Plan confirmation gating', () => {
     vi.spyOn(fileStore, 'nowISO').mockReturnValue('2026-02-08T01:00:00Z');
   });
 
-  it('blocks step execution when step confirmation is required', async () => {
+  it('attempts approval GUI routing for gated steps and returns Coordinator handoff guidance when unavailable', async () => {
     vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(createPlanState());
+    mockRouteApprovalGate.mockResolvedValue({
+      approved: false,
+      path: 'fallback',
+      outcome: 'fallback_to_chat',
+      error: 'Approval GUI unavailable; fallback_to_chat',
+      elapsed_ms: 5,
+      requires_handoff_to_coordinator: true,
+      handoff_instruction: 'Do not auto-approve. Handoff to Hub/Coordinator now via memory_agent(action: "handoff", to_agent: "Coordinator").',
+    } as any);
 
     const result = await updateStep({
       workspace_id: mockWorkspaceId,
@@ -71,7 +91,37 @@ describe('Plan confirmation gating', () => {
     });
 
     expect(result.success).toBe(false);
+    expect(mockRouteApprovalGate).toHaveBeenCalledOnce();
     expect(result.error).toContain('requires explicit user confirmation');
+    expect(result.error).toContain('memory_agent(action: "handoff"');
+    expect(result.error).toContain('to_agent: "Coordinator"');
+  });
+
+  it('marks step confirmed when approval GUI approves and continues execution', async () => {
+    vi.spyOn(fileStore, 'getPlanState').mockResolvedValue(createPlanState());
+    mockRouteApprovalGate.mockResolvedValue({
+      approved: true,
+      path: 'gui',
+      outcome: 'approved',
+      elapsed_ms: 8,
+    } as any);
+
+    const result = await updateStep({
+      workspace_id: mockWorkspaceId,
+      plan_id: mockPlanId,
+      step_index: 0,
+      status: 'active',
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockRouteApprovalGate).toHaveBeenCalledOnce();
+    if (result.data) {
+      const confirmation = result.data.plan_state.confirmation_state?.steps?.[0];
+      const step = result.data.plan_state.steps.find(s => s.index === 0);
+      expect(confirmation?.confirmed).toBe(true);
+      expect(confirmation?.confirmed_by).toBe('approval_gui');
+      expect(step?.status).toBe('active');
+    }
   });
 
   it('blocks phase completion when phase confirmation is missing', async () => {

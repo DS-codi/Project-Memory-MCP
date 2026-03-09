@@ -21,11 +21,68 @@ import {
   requiresStepConfirmation,
   hasStepConfirmation,
   hasPhaseConfirmation,
-  validateStepOrder
+  validateStepOrder,
+  ensureConfirmationState
 } from './plan-utils.js';
 import { checkProgramUpgradeSuggestion } from './plan-step-mutations.js';
 import { applySkillPhaseMatching } from './plan-lifecycle.js';
 import { announcePhaseCompletion } from '../program/program-phase-announcer.js';
+import {
+  routeApprovalGate,
+  maybeAttachCoordinatorHandoffInstruction,
+} from '../orchestration/approval-gate-routing.js';
+
+interface StepApprovalResolution {
+  approved: boolean;
+  error?: string;
+}
+
+function resolveApprovalSessionId(state: PlanState, stepIndex: number): string {
+  const activeSession = state.agent_sessions?.find(session => !session.completed_at);
+  if (activeSession?.session_id) {
+    return activeSession.session_id;
+  }
+  return `approval_gate_${state.id}_${stepIndex}_${Date.now()}`;
+}
+
+async function ensureStepApprovalViaGui(
+  state: PlanState,
+  workspaceId: string,
+  planId: string,
+  stepIndex: number,
+): Promise<StepApprovalResolution> {
+  const gateResult = await routeApprovalGate(
+    state,
+    stepIndex,
+    resolveApprovalSessionId(state, stepIndex),
+  );
+
+  if (gateResult.approved) {
+    const confirmationState = ensureConfirmationState(state);
+    confirmationState.steps[stepIndex] = {
+      confirmed: true,
+      confirmed_by: 'approval_gui',
+      confirmed_at: store.nowISO(),
+    };
+    return { approved: true };
+  }
+
+  const notesSuffix = gateResult.user_notes ? ` User notes: ${gateResult.user_notes}` : '';
+  const baseError = gateResult.error
+    ? `Step ${stepIndex} requires explicit user confirmation before execution. Approval gate outcome "${gateResult.outcome}". ${gateResult.error}${notesSuffix}`
+    : `Step ${stepIndex} requires explicit user confirmation before execution. Approval gate outcome "${gateResult.outcome}".${notesSuffix}`;
+
+  return {
+    approved: false,
+    error: maybeAttachCoordinatorHandoffInstruction(baseError, {
+      workspace_id: workspaceId,
+      plan_id: planId,
+      step_index: stepIndex,
+      outcome: gateResult.outcome,
+      detail: gateResult.error,
+    }),
+  };
+}
 
 // =============================================================================
 // Step Updates
@@ -72,10 +129,18 @@ export async function updateStep(
     // Confirmation gating for step execution
     if (status === 'active' || status === 'done') {
       if (requiresStepConfirmation(step) && !hasStepConfirmation(state, step_index)) {
-        return {
-          success: false,
-          error: `Step ${step_index} requires explicit user confirmation before execution. Use memory_plan action "confirm" with scope "step".`
-        };
+        const approvalResolution = await ensureStepApprovalViaGui(
+          state,
+          workspace_id,
+          plan_id,
+          step_index,
+        );
+        if (!approvalResolution.approved) {
+          return {
+            success: false,
+            error: approvalResolution.error,
+          };
+        }
       }
 
       if (status === 'done') {
@@ -223,7 +288,6 @@ export async function batchUpdateSteps(
     const boundaries = AGENT_BOUNDARIES[currentAgent];
 
     const updatesByIndex = new Map(updates.map(update => [update.step_index, update]));
-    const confirmationErrors: string[] = [];
 
     for (const update of updates) {
       const step = state.steps.find(s => s.index === update.step_index);
@@ -233,16 +297,20 @@ export async function batchUpdateSteps(
 
       if (update.status === 'active' || update.status === 'done') {
         if (requiresStepConfirmation(step) && !hasStepConfirmation(state, update.step_index)) {
-          confirmationErrors.push(`Step ${update.step_index} requires explicit user confirmation.`);
+          const approvalResolution = await ensureStepApprovalViaGui(
+            state,
+            workspace_id,
+            plan_id,
+            update.step_index,
+          );
+          if (!approvalResolution.approved) {
+            return {
+              success: false,
+              error: approvalResolution.error,
+            };
+          }
         }
       }
-    }
-
-    if (confirmationErrors.length > 0) {
-      return {
-        success: false,
-        error: `${confirmationErrors.join(' ')} Use memory_plan action "confirm" before updating these steps.`
-      };
     }
 
     const phases = [...new Set(state.steps.map(s => s.phase))];

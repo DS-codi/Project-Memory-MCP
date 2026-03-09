@@ -25,7 +25,7 @@ Older files are listed first so age is one of the primary triage signals.
 - `audit_cleanup.py` - Generates a cleanup proposal report only.
 - `stage_cleanup.py` - Moves proposed cleanup candidates into recycle-bin staging.
 - `organize_by_category.py` - Previews/applies category-based moves for top-level files in `scripts/` and `docs/` (or `documentation/`).
-- `plan_cleanup_audit.py` - Generates a non-destructive Project Memory plan cleanup proposal (finished-not-archived, superseded, redundant, related program groups).
+- `plan_cleanup_audit.py` - Generates a non-destructive Project Memory plan cleanup proposal (finished-not-archived, stale-active, superseded, redundant, related program groups).
 - `category_rules.json` - Configurable detection and category rules.
 
 ## Typical Workflow
@@ -75,6 +75,20 @@ python .\scripts\folder_cleanup\organize_by_category.py --root . --apply --inclu
 ```powershell
 python .\scripts\folder_cleanup\plan_cleanup_audit.py --workspace-id <workspace-id>
 ```
+
+1. Optional stale-active recommendation mode (report-only):
+
+```powershell
+python .\scripts\folder_cleanup\plan_cleanup_audit.py --workspace-id <workspace-id> --stale-active-days 7
+```
+
+When stale-active mode is enabled, the report adds:
+
+- `findings.stale_active_candidates`
+- `proposed_actions` entries with `action_type: "pause_stale_active_plan"`
+- `approval_gui_batch` payload containing an approval-form `form_request` and response mapping
+
+Use `approval_gui_batch.form_request` with your existing GUI routing flow when you want an explicit approve/reject pass over stale-plan pause recommendations.
 
 1. Optional fallback: use an exported JSON payload instead of direct DB reads:
 

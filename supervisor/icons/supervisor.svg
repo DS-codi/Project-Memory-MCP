@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#fff" />
+  <polygon points="48,256 256,96 464,256 256,416" fill="#fff" stroke="#000" stroke-width="32" stroke-linejoin="miter" />
+  <line x1="256" y1="108" x2="256" y2="404" stroke="#000" stroke-width="16" />
+  <line x1="60" y1="256" x2="452" y2="256" stroke="#000" stroke-width="16" />
+  <rect x="192" y="192" width="128" height="128" fill="#000" />
+  <rect x="264" y="216" width="32" height="32" fill="#fff" />
+  <g>
+    <rect x="360" y="390" width="110" height="80" fill="#000" stroke="#fff" stroke-width="8" />
+    <text x="415" y="446" fill="#fff" font-family="'Courier New', Courier, monospace" font-weight="900" font-size="48" text-anchor="middle">pm</text>
+  </g>
+</svg>

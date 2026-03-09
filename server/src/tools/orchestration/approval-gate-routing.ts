@@ -15,11 +15,12 @@
  */
 
 import type {
+  ApprovalFailureReason,
+  ApprovalRoutingOutcome,
   FormRequest,
   FormResponse,
   ApprovalStepContext,
   ApprovalUrgency,
-  ConfirmRejectAnswer,
 } from '../../types/gui-forms.types.js';
 
 import type { PlanState, PausedAtSnapshot } from '../../types/plan.types.js';
@@ -41,7 +42,14 @@ import * as store from '../../storage/db-store.js';
 // =========================================================================
 
 /** Possible outcomes of an approval gate. */
-export type ApprovalOutcome = 'approved' | 'rejected' | 'timeout' | 'deferred' | 'fallback_to_chat' | 'error';
+export type ApprovalOutcome = ApprovalRoutingOutcome;
+
+interface DecisionResolution {
+  outcome: 'approved' | 'rejected' | 'deferred' | 'error';
+  user_notes?: string;
+  failure_reason?: ApprovalFailureReason;
+  detail?: string;
+}
 
 /** Result of an approval gate routing attempt. */
 export interface ApprovalGateResult {
@@ -59,8 +67,298 @@ export interface ApprovalGateResult {
   paused_snapshot?: PausedAtSnapshot;
   /** Error message if something went wrong. */
   error?: string;
+  /** True when caller must hand off to Coordinator before retrying. */
+  requires_handoff_to_coordinator?: boolean;
+  /** Explicit handoff instruction for tool surfaces. */
+  handoff_instruction?: string;
   /** Timing in milliseconds. */
   elapsed_ms: number;
+}
+
+export interface ApprovalHandoffContext {
+  workspace_id: string;
+  plan_id: string;
+  step_index?: number;
+  outcome?: ApprovalOutcome | 'unknown';
+  detail?: string;
+}
+
+const APPROVAL_UNAVAILABLE_PATTERN = /fallback_to_chat|approval gui unavailable|approval gui failed|no response payload|approval gate error/i;
+
+export function buildCoordinatorHandoffInstruction(context: ApprovalHandoffContext): string {
+  const stepLabel = typeof context.step_index === 'number'
+    ? `step ${context.step_index}`
+    : 'the gated step';
+  const reason = context.detail
+    ? `Approval GUI unavailable for ${stepLabel} (outcome: ${context.outcome ?? 'unknown'}; detail: ${context.detail})`
+    : `Approval GUI unavailable for ${stepLabel} (outcome: ${context.outcome ?? 'unknown'})`;
+
+  return `Do not auto-approve. Handoff to Hub/Coordinator now via memory_agent(action: \"handoff\", workspace_id: \"${context.workspace_id}\", plan_id: \"${context.plan_id}\", from_agent: \"<current agent>\", to_agent: \"Coordinator\", reason: \"${reason}\").`;
+}
+
+export function maybeAttachCoordinatorHandoffInstruction(
+  message: string,
+  context: ApprovalHandoffContext,
+): string {
+  if (!message) {
+    return buildCoordinatorHandoffInstruction(context);
+  }
+  if (message.includes('memory_agent(action: "handoff"')) {
+    return message;
+  }
+  if (!APPROVAL_UNAVAILABLE_PATTERN.test(message)) {
+    return message;
+  }
+  return `${message} ${buildCoordinatorHandoffInstruction(context)}`;
+}
+
+const LEGACY_CONFIRM_REJECT_TYPES = new Set(['confirm_reject_answer', 'confirm_reject']);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function readString(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
+function resolveLegacyConfirmRejectDecision(value: unknown): DecisionResolution | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const type = readString(value, 'type');
+  if (!type || !LEGACY_CONFIRM_REJECT_TYPES.has(type)) {
+    return null;
+  }
+
+  const action = readString(value, 'action');
+  const notes = readString(value, 'notes');
+
+  if (action === 'approve') {
+    return { outcome: 'approved' };
+  }
+
+  if (action === 'reject') {
+    return {
+      outcome: 'rejected',
+      user_notes: notes,
+    };
+  }
+
+  return {
+    outcome: 'error',
+    failure_reason: 'malformed_answer',
+    detail: `Malformed legacy confirm_reject payload: invalid action "${action ?? '<missing>'}"`,
+  };
+}
+
+function resolveV2DecisionPayload(value: unknown): DecisionResolution | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  if (readString(value, 'type') !== 'approval_decision_v2') {
+    return null;
+  }
+
+  const decisionRaw = value.decision;
+  if (!isRecord(decisionRaw)) {
+    return {
+      outcome: 'error',
+      failure_reason: 'malformed_answer',
+      detail: 'Malformed approval_decision_v2 payload: missing decision object',
+    };
+  }
+
+  const mode = readString(decisionRaw, 'mode');
+  const topLevelNotes = readString(decisionRaw, 'notes');
+
+  switch (mode) {
+    case 'binary': {
+      const action = readString(decisionRaw, 'action');
+      if (action === 'approve') {
+        return { outcome: 'approved', user_notes: topLevelNotes };
+      }
+      if (action === 'reject') {
+        return { outcome: 'rejected', user_notes: topLevelNotes };
+      }
+      return {
+        outcome: 'error',
+        failure_reason: 'missing_decision',
+        detail: 'Binary approval_decision_v2 payload is missing explicit action',
+      };
+    }
+
+    case 'multiple_choice': {
+      const selected = readString(decisionRaw, 'selected');
+      if (selected && selected.trim().length > 0) {
+        return { outcome: 'approved', user_notes: topLevelNotes };
+      }
+      return {
+        outcome: 'error',
+        failure_reason: 'missing_decision',
+        detail: 'Multiple-choice approval_decision_v2 payload is missing selected option',
+      };
+    }
+
+    case 'multi_approval_session': {
+      const sessionId = readString(decisionRaw, 'session_id');
+      if (!sessionId || sessionId.trim().length === 0) {
+        return {
+          outcome: 'error',
+          failure_reason: 'malformed_answer',
+          detail: 'Multi-approval session decision is missing session_id',
+        };
+      }
+
+      const decisionsRaw = decisionRaw.decisions;
+      if (!Array.isArray(decisionsRaw)) {
+        return {
+          outcome: 'error',
+          failure_reason: 'malformed_answer',
+          detail: 'Multi-approval session decision is missing decisions array',
+        };
+      }
+
+      if (decisionsRaw.length === 0) {
+        return {
+          outcome: 'deferred',
+          failure_reason: 'partial_session_completion',
+          detail: 'Multi-approval session contains no item decisions',
+          user_notes: topLevelNotes,
+        };
+      }
+
+      let hasReject = false;
+      let hasDeferred = false;
+      let firstNotes = topLevelNotes;
+
+      for (const item of decisionsRaw) {
+        if (!isRecord(item)) {
+          return {
+            outcome: 'error',
+            failure_reason: 'malformed_answer',
+            detail: 'Multi-approval session contains non-object decision entry',
+          };
+        }
+
+        const state = readString(item, 'decision');
+        const itemNotes = readString(item, 'notes');
+        if (!firstNotes && itemNotes) {
+          firstNotes = itemNotes;
+        }
+
+        if (state === 'approve') {
+          continue;
+        }
+
+        if (state === 'reject') {
+          hasReject = true;
+          continue;
+        }
+
+        if (state === 'defer' || state === 'no_decision') {
+          hasDeferred = true;
+          continue;
+        }
+
+        if (state === 'invalid') {
+          return {
+            outcome: 'error',
+            failure_reason: 'malformed_answer',
+            detail: 'Multi-approval session contains invalid decision state',
+          };
+        }
+
+        return {
+          outcome: 'error',
+          failure_reason: 'malformed_answer',
+          detail: `Multi-approval session contains unknown decision state "${state ?? '<missing>'}"`,
+        };
+      }
+
+      if (hasReject) {
+        return {
+          outcome: 'rejected',
+          user_notes: firstNotes,
+        };
+      }
+
+      if (hasDeferred) {
+        return {
+          outcome: 'deferred',
+          user_notes: firstNotes,
+          failure_reason: 'partial_session_completion',
+          detail: 'Multi-approval session is partially complete or deferred',
+        };
+      }
+
+      return {
+        outcome: 'approved',
+        user_notes: firstNotes,
+      };
+    }
+
+    default:
+      return {
+        outcome: 'error',
+        failure_reason: 'unknown_mode',
+        detail: `Unknown approval_decision_v2 mode "${mode ?? '<missing>'}"`,
+      };
+  }
+}
+
+function resolveCompletedDecision(response: FormResponse): DecisionResolution {
+  const answers: unknown[] = Array.isArray(response.answers)
+    ? response.answers as unknown[]
+    : [];
+
+  for (const rawAnswer of answers) {
+    if (!isRecord(rawAnswer)) {
+      continue;
+    }
+
+    const value = rawAnswer.value;
+
+    const legacyResolution = resolveLegacyConfirmRejectDecision(value);
+    if (legacyResolution) {
+      return legacyResolution;
+    }
+
+    const v2Resolution = resolveV2DecisionPayload(value);
+    if (v2Resolution) {
+      return v2Resolution;
+    }
+  }
+
+  return {
+    outcome: 'error',
+    failure_reason: 'missing_decision',
+    detail: 'Missing decision payload: no confirm_reject or approval_decision_v2 answer found',
+  };
+}
+
+function buildPausedSnapshot(
+  planState: PlanState,
+  stepIndex: number,
+  sessionId: string,
+  reason: 'rejected' | 'timeout' | 'deferred',
+  guiResponse: FormResponse,
+  userNotes?: string,
+): PausedAtSnapshot {
+  const step = planState.steps[stepIndex];
+  return {
+    paused_at: new Date().toISOString(),
+    step_index: stepIndex,
+    phase: step?.phase ?? planState.current_phase,
+    step_task: step?.task ?? 'Unknown',
+    reason,
+    approval_response: guiResponse,
+    user_notes: userNotes,
+    session_id: sessionId,
+  };
 }
 
 // =========================================================================
@@ -80,15 +378,8 @@ function priorityToUrgency(priority: string): ApprovalUrgency {
 
 /** Extract rejection notes from a FormResponse. */
 function extractRejectionNotes(response: FormResponse): string | undefined {
-  for (const answer of response.answers) {
-    if (answer.value.type === 'confirm_reject_answer') {
-      const cra = answer.value as ConfirmRejectAnswer;
-      if (cra.action === 'reject' && cra.notes) {
-        return cra.notes;
-      }
-    }
-  }
-  return undefined;
+  const decision = resolveCompletedDecision(response);
+  return decision.user_notes;
 }
 
 /** Build an ApprovalStepContext from plan state and step index. */
@@ -132,12 +423,12 @@ function buildApprovalFormRequest(
       id: 'approval_timer',
       label: 'Time remaining: {remaining}s',
       duration_seconds: 60,
-      on_timeout: 'approve' as const,
+      on_timeout: 'defer' as const,
       pause_on_interaction: true,
     },
   ];
 
-  return createApprovalRequest(
+  const request = createApprovalRequest(
     {
       plan_id: planState.id,
       workspace_id: planState.workspace_id,
@@ -149,6 +440,11 @@ function buildApprovalFormRequest(
     questions,
     stepContext,
   );
+
+  // Fail-safe default: timeout does not imply approval unless an explicit decision is returned.
+  request.timeout.on_timeout = 'defer';
+
+  return request;
 }
 
 // =========================================================================
@@ -171,17 +467,33 @@ export async function routeApprovalGate(
   opts: SupervisorClientOptions = {},
 ): Promise<ApprovalGateResult> {
   const startTime = Date.now();
-  const step = planState.steps[stepIndex];
+  const handoffContextBase: ApprovalHandoffContext = {
+    workspace_id: planState.workspace_id,
+    plan_id: planState.id,
+    step_index: stepIndex,
+  };
 
   // 1. Check GUI availability
   const availability = await checkGuiAvailability(opts);
 
   if (!availability.supervisor_running || !availability.approval_gui) {
+    const baseError = 'Approval GUI unavailable; fallback_to_chat';
+    const handoffInstruction = buildCoordinatorHandoffInstruction({
+      ...handoffContextBase,
+      outcome: 'fallback_to_chat',
+      detail: baseError,
+    });
     return {
       approved: false,
       path: 'fallback',
       outcome: 'fallback_to_chat',
-      error: 'Approval GUI unavailable; fallback_to_chat',
+      error: maybeAttachCoordinatorHandoffInstruction(baseError, {
+        ...handoffContextBase,
+        outcome: 'fallback_to_chat',
+        detail: baseError,
+      }),
+      requires_handoff_to_coordinator: true,
+      handoff_instruction: handoffInstruction,
       elapsed_ms: Date.now() - startTime,
     };
   }
@@ -198,22 +510,46 @@ export async function routeApprovalGate(
     );
 
     if (!result.success) {
+      const baseError = `Approval GUI failed: ${result.error}`;
+      const handoffInstruction = buildCoordinatorHandoffInstruction({
+        ...handoffContextBase,
+        outcome: 'fallback_to_chat',
+        detail: baseError,
+      });
       return {
         approved: false,
         path: 'fallback',
         outcome: 'fallback_to_chat',
-        error: `Approval GUI failed: ${result.error}`,
+        error: maybeAttachCoordinatorHandoffInstruction(baseError, {
+          ...handoffContextBase,
+          outcome: 'fallback_to_chat',
+          detail: baseError,
+        }),
+        requires_handoff_to_coordinator: true,
+        handoff_instruction: handoffInstruction,
         elapsed_ms: Date.now() - startTime,
       };
     }
 
     const guiResponse = result.response_payload as FormResponse | undefined;
     if (!guiResponse) {
+      const baseError = 'Approval GUI returned no response payload';
+      const handoffInstruction = buildCoordinatorHandoffInstruction({
+        ...handoffContextBase,
+        outcome: 'fallback_to_chat',
+        detail: baseError,
+      });
       return {
         approved: false,
         path: 'fallback',
         outcome: 'fallback_to_chat',
-        error: 'Approval GUI returned no response payload',
+        error: maybeAttachCoordinatorHandoffInstruction(baseError, {
+          ...handoffContextBase,
+          outcome: 'fallback_to_chat',
+          detail: baseError,
+        }),
+        requires_handoff_to_coordinator: true,
+        handoff_instruction: handoffInstruction,
         elapsed_ms: Date.now() - startTime,
       };
     }
@@ -223,56 +559,9 @@ export async function routeApprovalGate(
 
     switch (guiResponse.status) {
       case 'completed': {
-        // Check if the confirm_reject answer is approve or reject
-        const decision = guiResponse.answers.find(
-          a => a.value.type === 'confirm_reject_answer',
-        );
-        if (decision) {
-          const cra = decision.value as ConfirmRejectAnswer;
-          if (cra.action === 'approve') {
-            return {
-              approved: true,
-              path: 'gui',
-              outcome: 'approved',
-              gui_response: guiResponse,
-              elapsed_ms: elapsed,
-            };
-          }
-          // Explicit rejection
-          const userNotes = cra.notes;
-          return {
-            approved: false,
-            path: 'gui',
-            outcome: 'rejected',
-            user_notes: userNotes,
-            gui_response: guiResponse,
-            paused_snapshot: {
-              paused_at: new Date().toISOString(),
-              step_index: stepIndex,
-              phase: step?.phase ?? planState.current_phase,
-              step_task: step?.task ?? 'Unknown',
-              reason: 'rejected',
-              approval_response: guiResponse,
-              user_notes: userNotes,
-              session_id: sessionId,
-            },
-            elapsed_ms: elapsed,
-          };
-        }
-        // No confirm_reject answer found — treat as approved
-        return {
-          approved: true,
-          path: 'gui',
-          outcome: 'approved',
-          gui_response: guiResponse,
-          elapsed_ms: elapsed,
-        };
-      }
+        const decision = resolveCompletedDecision(guiResponse);
 
-      case 'timed_out': {
-        // Timer expired — check on_timeout setting
-        // Default for approval is auto-approve on timeout
-        if (formRequest.timeout.on_timeout === 'approve') {
+        if (decision.outcome === 'approved') {
           return {
             approved: true,
             path: 'gui',
@@ -281,27 +570,79 @@ export async function routeApprovalGate(
             elapsed_ms: elapsed,
           };
         }
-        // Timeout with reject action → pause
+
+        if (decision.outcome === 'rejected') {
+          return {
+            approved: false,
+            path: 'gui',
+            outcome: 'rejected',
+            user_notes: decision.user_notes,
+            gui_response: guiResponse,
+            paused_snapshot: buildPausedSnapshot(
+              planState,
+              stepIndex,
+              sessionId,
+              'rejected',
+              guiResponse,
+              decision.user_notes,
+            ),
+            elapsed_ms: elapsed,
+          };
+        }
+
+        if (decision.outcome === 'deferred') {
+          return {
+            approved: false,
+            path: 'gui',
+            outcome: 'deferred',
+            user_notes: decision.user_notes,
+            gui_response: guiResponse,
+            paused_snapshot: buildPausedSnapshot(
+              planState,
+              stepIndex,
+              sessionId,
+              'deferred',
+              guiResponse,
+              decision.user_notes,
+            ),
+            elapsed_ms: elapsed,
+          };
+        }
+
+        const failureSuffix = decision.failure_reason
+          ? ` (${decision.failure_reason})`
+          : '';
+        return {
+          approved: false,
+          path: 'gui',
+          outcome: 'error',
+          error: `Approval decision parsing failed${failureSuffix}: ${decision.detail ?? 'malformed response payload'}`,
+          gui_response: guiResponse,
+          elapsed_ms: elapsed,
+        };
+      }
+
+      case 'timed_out': {
+        const timeoutNotes = extractRejectionNotes(guiResponse);
         return {
           approved: false,
           path: 'gui',
           outcome: 'timeout',
+          user_notes: timeoutNotes,
           gui_response: guiResponse,
-          paused_snapshot: {
-            paused_at: new Date().toISOString(),
-            step_index: stepIndex,
-            phase: step?.phase ?? planState.current_phase,
-            step_task: step?.task ?? 'Unknown',
-            reason: 'timeout',
-            approval_response: guiResponse,
-            session_id: sessionId,
-          },
+          paused_snapshot: buildPausedSnapshot(
+            planState,
+            stepIndex,
+            sessionId,
+            'timeout',
+            guiResponse,
+            timeoutNotes,
+          ),
           elapsed_ms: elapsed,
         };
       }
 
       case 'cancelled': {
-        // User closed the dialog — treat as rejection
         const userNotes = extractRejectionNotes(guiResponse);
         return {
           approved: false,
@@ -309,35 +650,34 @@ export async function routeApprovalGate(
           outcome: 'rejected',
           user_notes: userNotes,
           gui_response: guiResponse,
-          paused_snapshot: {
-            paused_at: new Date().toISOString(),
-            step_index: stepIndex,
-            phase: step?.phase ?? planState.current_phase,
-            step_task: step?.task ?? 'Unknown',
-            reason: 'rejected',
-            approval_response: guiResponse,
-            user_notes: userNotes,
-            session_id: sessionId,
-          },
+          paused_snapshot: buildPausedSnapshot(
+            planState,
+            stepIndex,
+            sessionId,
+            'rejected',
+            guiResponse,
+            userNotes,
+          ),
           elapsed_ms: elapsed,
         };
       }
 
       case 'deferred': {
+        const userNotes = extractRejectionNotes(guiResponse);
         return {
           approved: false,
           path: 'gui',
           outcome: 'deferred',
+          user_notes: userNotes,
           gui_response: guiResponse,
-          paused_snapshot: {
-            paused_at: new Date().toISOString(),
-            step_index: stepIndex,
-            phase: step?.phase ?? planState.current_phase,
-            step_task: step?.task ?? 'Unknown',
-            reason: 'deferred',
-            approval_response: guiResponse,
-            session_id: sessionId,
-          },
+          paused_snapshot: buildPausedSnapshot(
+            planState,
+            stepIndex,
+            sessionId,
+            'deferred',
+            guiResponse,
+            userNotes,
+          ),
           elapsed_ms: elapsed,
         };
       }
@@ -354,11 +694,23 @@ export async function routeApprovalGate(
       }
     }
   } catch (err) {
+    const baseError = `Approval gate error: ${err instanceof Error ? err.message : String(err)}`;
+    const handoffInstruction = buildCoordinatorHandoffInstruction({
+      ...handoffContextBase,
+      outcome: 'fallback_to_chat',
+      detail: baseError,
+    });
     return {
       approved: false,
       path: 'fallback',
       outcome: 'fallback_to_chat',
-      error: `Approval gate error: ${err instanceof Error ? err.message : String(err)}`,
+      error: maybeAttachCoordinatorHandoffInstruction(baseError, {
+        ...handoffContextBase,
+        outcome: 'fallback_to_chat',
+        detail: baseError,
+      }),
+      requires_handoff_to_coordinator: true,
+      handoff_instruction: handoffInstruction,
       elapsed_ms: Date.now() - startTime,
     };
   }

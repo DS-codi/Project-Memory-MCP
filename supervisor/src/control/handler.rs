@@ -11,7 +11,7 @@ use tokio::sync::Mutex;
 use crate::config::FormAppConfig;
 use crate::control::mcp_admin;
 use crate::control::mcp_runtime::McpSubprocessRuntime;
-use crate::control::protocol::{ControlRequest, ControlResponse};
+use crate::control::protocol::{ControlRequest, ControlResponse, FormAppResponse};
 use crate::control::registry::{Registry, ServiceStatus};
 use crate::runner::form_app::{continue_form_app, launch_form_app};
 
@@ -23,6 +23,23 @@ fn deprecated_pool_response(command: &str) -> ControlResponse {
         "command": command,
         "runtime_mode": "native_supervisor",
     }))
+}
+
+fn form_app_control_response(resp: FormAppResponse) -> ControlResponse {
+    match serde_json::to_value(&resp) {
+        Ok(data) => {
+            if resp.success {
+                ControlResponse::ok(data)
+            } else {
+                ControlResponse {
+                    ok: false,
+                    error: resp.error.clone(),
+                    data,
+                }
+            }
+        }
+        Err(e) => ControlResponse::err(format!("serialisation error: {e}")),
+    }
 }
 
 /// Resolved form-app configuration map, keyed by app name.
@@ -110,57 +127,53 @@ pub async fn handle_request_with_runtime(
         }
 
         // ---------------------------------------------------------------
-        // Start — for interactive_terminal: on-demand launch with
-        // idempotency guard (Running/Starting → return success immediately).
-        // For other services: update registry status only (legacy behaviour).
+        // Start — dispatch interactive terminal starts through the same
+        // on-demand channel used by the GUI Start button.
+        //
+        // Important: do not trust registry status for idempotency here.
+        // The terminal health watchdog is optional, so registry state can be
+        // stale (e.g. "running" after the process was manually closed).
+        // The runner's own start path performs the real dedupe checks.
         // ---------------------------------------------------------------
         ControlRequest::Start { service } => {
-            if service == "interactive_terminal" {
-                // Check current status — avoid spawning a duplicate process.
-                let current_status = {
-                    let reg = registry.lock().await;
-                    reg.service_states()
-                        .into_iter()
-                        .find(|s| s.name == service)
-                        .map(|s| s.status)
-                };
-                match current_status {
-                    Some(ServiceStatus::Running) | Some(ServiceStatus::Starting) => {
-                        // Already running or in the process of starting — idempotent.
-                        return ControlResponse::ok(
-                            json!({ "service": service, "status": "already_running" }),
-                        );
-                    }
-                    _ => {
-                        // Not running — dispatch via restart channel so the main
-                        // loop calls terminal_runner.start() on the correct task.
-                        if let Some(ref tx) = restart_tx {
-                            match tx.send(service.clone()).await {
-                                Ok(()) => {
-                                    let mut reg = registry.lock().await;
-                                    reg.set_service_status(&service, ServiceStatus::Starting);
-                                    return ControlResponse::ok(
-                                        json!({ "service": service, "status": "starting" }),
-                                    );
-                                }
-                                Err(e) => {
-                                    return ControlResponse::err(format!(
-                                        "on-demand launch dispatch failed: {e}"
-                                    ));
-                                }
-                            }
+            let requested_service = service.trim().to_string();
+            let canonical_service = match requested_service.to_ascii_lowercase().as_str() {
+                "terminal" => "interactive_terminal".to_string(),
+                _ => requested_service.clone(),
+            };
+
+            if canonical_service == "interactive_terminal" {
+                // Route to the same "start:<service>" dispatch contract used by
+                // the CxxQt bridge so this behaves like a true launch request.
+                if let Some(ref tx) = restart_tx {
+                    let dispatch = format!("start:{canonical_service}");
+                    match tx.send(dispatch).await {
+                        Ok(()) => {
+                            let mut reg = registry.lock().await;
+                            reg.set_service_status(&canonical_service, ServiceStatus::Starting);
+                            return ControlResponse::ok(
+                                json!({ "service": requested_service, "status": "starting" }),
+                            );
                         }
-                        // No restart channel (e.g. unit-test context) — fall through
-                        // to the legacy registry-only update.
-                        let mut reg = registry.lock().await;
-                        reg.set_service_status(&service, ServiceStatus::Starting);
-                        ControlResponse::ok(json!({ "service": service, "status": "starting" }))
+                        Err(e) => {
+                            return ControlResponse::err(format!(
+                                "on-demand launch dispatch failed: {e}"
+                            ));
+                        }
                     }
                 }
+
+                // No restart channel (e.g. unit-test context) — fall through to
+                // registry-only status update for compatibility.
+                let mut reg = registry.lock().await;
+                reg.set_service_status(&canonical_service, ServiceStatus::Starting);
+                return ControlResponse::ok(
+                    json!({ "service": requested_service, "status": "starting" }),
+                );
             } else {
                 let mut reg = registry.lock().await;
-                reg.set_service_status(&service, ServiceStatus::Starting);
-                ControlResponse::ok(json!({ "service": service, "status": "starting" }))
+                reg.set_service_status(&canonical_service, ServiceStatus::Starting);
+                ControlResponse::ok(json!({ "service": requested_service, "status": "starting" }))
             }
         }
 
@@ -547,20 +560,7 @@ pub async fn handle_request_with_runtime(
             timeout_seconds,
         } => {
             let resp = continue_form_app(&session_id, &payload, timeout_seconds).await;
-            match serde_json::to_value(&resp) {
-                Ok(data) => {
-                    if resp.success {
-                        ControlResponse::ok(data)
-                    } else {
-                        ControlResponse {
-                            ok: false,
-                            error: resp.error.clone(),
-                            data,
-                        }
-                    }
-                }
-                Err(e) => ControlResponse::err(format!("serialisation error: {e}")),
-            }
+            form_app_control_response(resp)
         }
 
         // ---------------------------------------------------------------
@@ -571,37 +571,22 @@ pub async fn handle_request_with_runtime(
             payload,
             timeout_seconds,
         } => {
-            let cfg = match form_apps.get(&app_name) {
-                Some(c) if c.enabled => c,
-                Some(_) => {
-                    return ControlResponse::err(format!(
-                        "form app \"{app_name}\" is disabled in config"
-                    ));
-                }
-                None => {
-                    return ControlResponse::err(format!(
-                        "unknown form app: \"{app_name}\". \
-                         Known apps: {:?}",
+            let resp = match form_apps.get(&app_name) {
+                Some(c) if c.enabled => launch_form_app(c, &app_name, &payload, timeout_seconds).await,
+                Some(_) => FormAppResponse::config_failure(
+                    app_name.clone(),
+                    format!("form app \"{app_name}\" is disabled in config"),
+                ),
+                None => FormAppResponse::config_failure(
+                    app_name.clone(),
+                    format!(
+                        "unknown form app: \"{app_name}\". Known apps: {:?}",
                         form_apps.keys().collect::<Vec<_>>()
-                    ));
-                }
+                    ),
+                ),
             };
 
-            let resp = launch_form_app(cfg, &app_name, &payload, timeout_seconds).await;
-            match serde_json::to_value(&resp) {
-                Ok(data) => {
-                    if resp.success {
-                        ControlResponse::ok(data)
-                    } else {
-                        ControlResponse {
-                            ok: false,
-                            error: resp.error.clone(),
-                            data,
-                        }
-                    }
-                }
-                Err(e) => ControlResponse::err(format!("serialisation error: {e}")),
-            }
+            form_app_control_response(resp)
         }
 
         // ---------------------------------------------------------------
@@ -791,6 +776,77 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn start_interactive_terminal_alias_dispatches_start_command() {
+        let reg = make_registry();
+        let (restart_tx, mut restart_rx) = tokio::sync::mpsc::channel::<String>(4);
+
+        let resp = handle_request(
+            ControlRequest::Start {
+                service: "terminal".to_string(),
+            },
+            Arc::clone(&reg),
+            empty_form_apps(),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            Some(restart_tx),
+        )
+        .await;
+
+        assert!(resp.ok);
+        assert_eq!(resp.data["status"], "starting");
+        assert_eq!(resp.data["service"], "terminal");
+
+        let dispatched = tokio::time::timeout(
+            std::time::Duration::from_millis(200),
+            restart_rx.recv(),
+        )
+        .await
+        .expect("expected start dispatch")
+        .expect("restart channel should yield a message");
+
+        assert_eq!(dispatched, "start:interactive_terminal");
+    }
+
+    #[tokio::test]
+    async fn start_interactive_terminal_dispatches_even_when_registry_is_stale_running() {
+        let reg = make_registry();
+        {
+            let mut locked = reg.lock().await;
+            locked.set_service_status("interactive_terminal", ServiceStatus::Running);
+        }
+
+        let (restart_tx, mut restart_rx) = tokio::sync::mpsc::channel::<String>(4);
+        let resp = handle_request(
+            ControlRequest::Start {
+                service: "interactive_terminal".to_string(),
+            },
+            Arc::clone(&reg),
+            empty_form_apps(),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            Some(restart_tx),
+        )
+        .await;
+
+        assert!(resp.ok);
+        assert_eq!(resp.data["status"], "starting");
+
+        let dispatched = tokio::time::timeout(
+            std::time::Duration::from_millis(200),
+            restart_rx.recv(),
+        )
+        .await
+        .expect("expected start dispatch")
+        .expect("restart channel should yield a message");
+
+        assert_eq!(dispatched, "start:interactive_terminal");
+    }
+
+    #[tokio::test]
     async fn set_backend_container() {
         let reg = make_registry();
         let resp = handle_request(
@@ -946,7 +1002,12 @@ mod tests {
         )
         .await;
         assert!(!resp.ok);
-        assert!(resp.error.unwrap().contains("unknown form app"));
+        let top_error = resp.error.clone().expect("top-level error");
+        assert!(top_error.contains("unknown form app"));
+        assert_eq!(resp.data["app_name"], "nonexistent_gui");
+        assert_eq!(resp.data["success"], false);
+        assert_eq!(resp.data["timed_out"], false);
+        assert_eq!(resp.data["error"], top_error);
     }
 
     #[tokio::test]
@@ -974,7 +1035,47 @@ mod tests {
         )
         .await;
         assert!(!resp.ok);
-        assert!(resp.error.unwrap().contains("disabled"));
+        let top_error = resp.error.clone().expect("top-level error");
+        assert!(top_error.contains("disabled"));
+        assert_eq!(resp.data["app_name"], "test_gui");
+        assert_eq!(resp.data["success"], false);
+        assert_eq!(resp.data["timed_out"], false);
+        assert_eq!(resp.data["error"], top_error);
+    }
+
+    #[tokio::test]
+    async fn launch_app_spawn_failure_returns_structured_error_details() {
+        let mut apps = FormAppConfigs::new();
+        apps.insert("broken_gui".to_string(), FormAppConfig {
+            enabled: true,
+            command: "this-binary-does-not-exist-29387".to_string(),
+            ..FormAppConfig::default()
+        });
+
+        let reg = make_registry();
+        let resp = handle_request(
+            ControlRequest::LaunchApp {
+                app_name: "broken_gui".to_string(),
+                payload: serde_json::json!({}),
+                timeout_seconds: None,
+            },
+            reg,
+            Arc::new(apps),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+
+        assert!(!resp.ok);
+        let top_error = resp.error.clone().expect("top-level error");
+        assert!(top_error.contains("failed to spawn"));
+        assert_eq!(resp.data["app_name"], "broken_gui");
+        assert_eq!(resp.data["success"], false);
+        assert_eq!(resp.data["timed_out"], false);
+        assert_eq!(resp.data["error"], top_error);
     }
 
     #[tokio::test]

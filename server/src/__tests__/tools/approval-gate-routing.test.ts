@@ -162,6 +162,10 @@ describe('routeApprovalGate', () => {
     expect(result.approved).toBe(false);
     expect(result.path).toBe('fallback');
     expect(result.outcome).toBe('fallback_to_chat');
+    expect(result.requires_handoff_to_coordinator).toBe(true);
+    expect(result.handoff_instruction).toContain('memory_agent(action: "handoff"');
+    expect(result.handoff_instruction).toContain('to_agent: "Coordinator"');
+    expect(result.error).toContain('memory_agent(action: "handoff"');
   });
 
   it('falls back to chat when approval_gui is unavailable', async () => {
@@ -172,6 +176,9 @@ describe('routeApprovalGate', () => {
     expect(result.approved).toBe(false);
     expect(result.path).toBe('fallback');
     expect(result.outcome).toBe('fallback_to_chat');
+    expect(result.requires_handoff_to_coordinator).toBe(true);
+    expect(result.handoff_instruction).toContain('memory_agent(action: "handoff"');
+    expect(result.handoff_instruction).toContain('to_agent: "Coordinator"');
   });
 
   // --- Approval path ---

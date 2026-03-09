@@ -17,6 +17,55 @@ pub enum FormType {
     Approval,
 }
 
+/// Contract mode for approval requests/responses.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ApprovalMode {
+    Binary,
+    MultipleChoice,
+    MultiApprovalSession,
+}
+
+/// Explicit shape used by the request payload for approval flows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ApprovalRequestShape {
+    ConfirmRejectQuestion,
+    RadioSelectQuestion,
+    MultiApprovalQuestionSet,
+}
+
+/// Explicit shape used by the response payload for approval flows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ApprovalResponseShape {
+    ConfirmRejectAnswer,
+    RadioSelectAnswer,
+    ApprovalDecisionV2,
+}
+
+/// Session metadata for multi-approval handling.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ApprovalSessionContract {
+    pub session_id: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub item_ids: Vec<String>,
+    #[serde(default)]
+    pub require_all_responses: bool,
+}
+
+/// Shared approval contract metadata (v2) for explicit mode and shape negotiation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ApprovalContractV2 {
+    pub mode: ApprovalMode,
+    pub request_shape: ApprovalRequestShape,
+    pub response_shape: ApprovalResponseShape,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session: Option<ApprovalSessionContract>,
+}
+
 /// Metadata shared across request and response envelopes.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

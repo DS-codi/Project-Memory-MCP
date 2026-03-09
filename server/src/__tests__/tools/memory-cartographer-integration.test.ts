@@ -471,6 +471,7 @@ describe('Phase B summary + stubs', () => {
   const nonSummaryCases: Array<{
     action: NonSummaryAction;
     params: Partial<MemoryCartographerParams>;
+    expectedTimeoutMs: number;
     expectedArgs: Record<string, unknown>;
     unexpectedArgKeys: string[];
   }> = [
@@ -481,6 +482,7 @@ describe('Phase B summary + stubs', () => {
         include_symbols: true,
         include_references: false,
       },
+      expectedTimeoutMs: 60_000,
       expectedArgs: {
         query: 'file_context',
         workspace_path: 'C:/mock/workspace',
@@ -496,6 +498,7 @@ describe('Phase B summary + stubs', () => {
         layer_filter: ['server', 'python-core'],
         language_filter: ['typescript', 'python'],
       },
+      expectedTimeoutMs: 60_000,
       expectedArgs: {
         query: 'flow_entry_points',
         workspace_path: 'C:/mock/workspace',
@@ -511,6 +514,7 @@ describe('Phase B summary + stubs', () => {
         depth_limit: 2,
         include_cross_layer_edges: true,
       },
+      expectedTimeoutMs: 60_000,
       expectedArgs: {
         query: 'layer_view',
         workspace_path: 'C:/mock/workspace',
@@ -528,6 +532,7 @@ describe('Phase B summary + stubs', () => {
         layer_filter: ['server'],
         limit: 25,
       },
+      expectedTimeoutMs: 60_000,
       expectedArgs: {
         query: 'search',
         workspace_path: 'C:/mock/workspace',
@@ -543,6 +548,7 @@ describe('Phase B summary + stubs', () => {
       params: {
         slice_id: 'sl_test_001',
       },
+      expectedTimeoutMs: 15_000,
       expectedArgs: {
         query: 'slice_detail',
         workspace_path: 'C:/mock/workspace',
@@ -558,6 +564,7 @@ describe('Phase B summary + stubs', () => {
         projection_type: 'module_level',
         filters: [{ type: 'layer', values: ['runtime'] }],
       },
+      expectedTimeoutMs: 15_000,
       expectedArgs: {
         query: 'slice_projection',
         workspace_path: 'C:/mock/workspace',
@@ -573,6 +580,7 @@ describe('Phase B summary + stubs', () => {
       params: {
         slice_id: 'sl_test_001',
       },
+      expectedTimeoutMs: 15_000,
       expectedArgs: {
         query: 'slice_filters',
         workspace_path: 'C:/mock/workspace',
@@ -584,7 +592,7 @@ describe('Phase B summary + stubs', () => {
   ];
 
   for (const testCase of nonSummaryCases) {
-    const { action, params, expectedArgs, unexpectedArgKeys } = testCase;
+    const { action, params, expectedTimeoutMs, expectedArgs, unexpectedArgKeys } = testCase;
 
     it(`Phase B ${action} maps request args and returns normalized success envelope`, async () => {
       mockedInvokePythonCore.mockResolvedValueOnce({
@@ -632,13 +640,81 @@ describe('Phase B summary + stubs', () => {
       expect(mockedInvokePythonCore).toHaveBeenCalledTimes(1);
       const request = mockedInvokePythonCore.mock.calls[0][0];
       expect(request.action).toBe('cartograph');
-      expect(request.timeout_ms).toBe(15_000);
+      expect(request.timeout_ms).toBe(expectedTimeoutMs);
       expect(request.args).toEqual(expect.objectContaining(expectedArgs));
       for (const key of unexpectedArgKeys) {
         expect(request.args).not.toHaveProperty(key);
       }
     });
   }
+
+  it('Phase B non-summary timeout can be overridden globally via PM_CARTOGRAPHER_NON_SUMMARY_TIMEOUT_MS', async () => {
+    process.env.PM_CARTOGRAPHER_NON_SUMMARY_TIMEOUT_MS = '90000';
+
+    try {
+      mockedInvokePythonCore.mockResolvedValueOnce({
+        schema_version: '1.0.0',
+        request_id: 'cartograph_search_req_timeout_override',
+        status: 'ok',
+        result: {
+          query: 'search',
+          rows: [],
+        },
+        diagnostics: {
+          warnings: [],
+          errors: [],
+          markers: [],
+          skipped_paths: [],
+        },
+        elapsed_ms: 11,
+      });
+
+      const result = await handleMemoryCartographer(
+        baseParams({ action: 'search', query: 'timeout override' }),
+      );
+
+      expect(result.success).toBe(true);
+      const request = mockedInvokePythonCore.mock.calls[0][0];
+      expect(request.timeout_ms).toBe(90_000);
+    } finally {
+      delete process.env.PM_CARTOGRAPHER_NON_SUMMARY_TIMEOUT_MS;
+    }
+  });
+
+  it('Phase B file_context timeout prefers action-specific env override over global non-summary override', async () => {
+    process.env.PM_CARTOGRAPHER_NON_SUMMARY_TIMEOUT_MS = '90000';
+    process.env.PM_CARTOGRAPHER_FILE_CONTEXT_TIMEOUT_MS = '120000';
+
+    try {
+      mockedInvokePythonCore.mockResolvedValueOnce({
+        schema_version: '1.0.0',
+        request_id: 'cartograph_file_context_req_timeout_override',
+        status: 'ok',
+        result: {
+          query: 'file_context',
+          rows: [],
+        },
+        diagnostics: {
+          warnings: [],
+          errors: [],
+          markers: [],
+          skipped_paths: [],
+        },
+        elapsed_ms: 9,
+      });
+
+      const result = await handleMemoryCartographer(
+        baseParams({ action: 'file_context', file_id: 'src/tools/memory_cartographer.ts' }),
+      );
+
+      expect(result.success).toBe(true);
+      const request = mockedInvokePythonCore.mock.calls[0][0];
+      expect(request.timeout_ms).toBe(120_000);
+    } finally {
+      delete process.env.PM_CARTOGRAPHER_FILE_CONTEXT_TIMEOUT_MS;
+      delete process.env.PM_CARTOGRAPHER_NON_SUMMARY_TIMEOUT_MS;
+    }
+  });
 
   // TC-AS-10: slice_catalog is now SQLite-backed (not a stub)
   it('TC-AS-10: slice_catalog returns { slices: [], total: 0 } on empty DB', async () => {
