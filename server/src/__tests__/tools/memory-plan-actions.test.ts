@@ -5,6 +5,7 @@ import * as planTools from '../../tools/plan/index.js';
 import * as validation from '../../tools/consolidated/workspace-validation.js';
 import * as fileStore from '../../storage/db-store.js';
 import * as approvalGateRouting from '../../tools/orchestration/approval-gate-routing.js';
+import * as supervisorClient from '../../tools/orchestration/supervisor-client.js';
 
 vi.mock('../../tools/plan.tools.js');
 vi.mock('../../tools/consolidated/workspace-validation.js');
@@ -19,11 +20,23 @@ vi.mock('../../tools/orchestration/approval-gate-routing.js', async () => {
     pausePlanAtApprovalGate: vi.fn(),
   };
 });
+vi.mock('../../tools/orchestration/supervisor-client.js', async () => {
+  const actual = await vi.importActual<typeof import('../../tools/orchestration/supervisor-client.js')>(
+    '../../tools/orchestration/supervisor-client.js',
+  );
+  return {
+    ...actual,
+    checkGuiAvailability: vi.fn(),
+    launchFormApp: vi.fn(),
+  };
+});
 
 const mockWorkspaceId = 'ws_plan_actions_123';
 const mockPlanId = 'plan_actions_456';
 const mockRouteApprovalGate = vi.mocked(approvalGateRouting.routeApprovalGate);
 const mockPausePlanAtApprovalGate = vi.mocked(approvalGateRouting.pausePlanAtApprovalGate);
+const mockCheckGuiAvailability = vi.mocked(supervisorClient.checkGuiAvailability);
+const mockLaunchFormApp = vi.mocked(supervisorClient.launchFormApp);
 
 function makePlanState() {
   return {
@@ -49,6 +62,78 @@ function makePlanState() {
     agent_sessions: [],
     lineage: [],
     notes: [],
+  };
+}
+
+function makeCleanupApprovalBatch(workspaceId: string = mockWorkspaceId) {
+  return {
+    form_request: {
+      type: 'form_request',
+      version: 1,
+      request_id: 'req_cleanup_001',
+      form_type: 'approval',
+      metadata: {
+        plan_id: mockPlanId,
+        workspace_id: workspaceId,
+        session_id: 'sess_cleanup_001',
+        agent: 'FolderCleanupShell',
+        title: 'Stale Active Plan Review',
+      },
+      timeout: {
+        duration_seconds: 300,
+        on_timeout: 'defer',
+        fallback_mode: 'chat',
+      },
+      window: {
+        title: 'Stale Active Plan Review',
+      },
+      questions: [
+        {
+          type: 'confirm_reject',
+          id: 'stale_active__plan_A',
+          label: 'Plan A',
+        },
+        {
+          type: 'confirm_reject',
+          id: 'stale_active__plan_B',
+          label: 'Plan B',
+        },
+      ],
+    },
+    response_mapping: [
+      {
+        question_id: 'stale_active__plan_A',
+        plan_id: 'plan_A',
+        on_approve: {
+          mcp_action: 'memory_plan',
+          mcp_params: {
+            action: 'pause_plan',
+            plan_id: 'plan_A',
+            pause_reason: 'deferred',
+            workspace_id: workspaceId,
+          },
+        },
+        on_reject: {
+          action: 'no_mutation',
+        },
+      },
+      {
+        question_id: 'stale_active__plan_B',
+        plan_id: 'plan_B',
+        on_approve: {
+          mcp_action: 'memory_plan',
+          mcp_params: {
+            action: 'pause_plan',
+            plan_id: 'plan_B',
+            pause_reason: 'deferred',
+            workspace_id: workspaceId,
+          },
+        },
+        on_reject: {
+          action: 'no_mutation',
+        },
+      },
+    ],
   };
 }
 
@@ -811,6 +896,142 @@ describe('MCP Tool: memory_plan Core Actions', () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain('Approval GUI unavailable');
       expect(mockPausePlanAtApprovalGate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('summon_cleanup_approval action', () => {
+    it('requires workspace_id and cleanup payload source', async () => {
+      const result = await memoryPlan({
+        action: 'summon_cleanup_approval',
+        workspace_id: mockWorkspaceId,
+      } as MemoryPlanParams);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('cleanup_report_path');
+    });
+
+    it('returns approved cleanup actions from confirm/reject answers', async () => {
+      const batch = makeCleanupApprovalBatch();
+      mockCheckGuiAvailability.mockResolvedValue({
+        supervisor_running: true,
+        brainstorm_gui: true,
+        approval_gui: true,
+        capabilities: ['approval_gui'],
+        message: 'Supervisor running',
+      } as any);
+      mockLaunchFormApp.mockResolvedValue({
+        app_name: 'approval_gui',
+        success: true,
+        elapsed_ms: 41,
+        timed_out: false,
+        response_payload: {
+          type: 'form_response',
+          version: 1,
+          request_id: 'req_cleanup_001',
+          form_type: 'approval',
+          status: 'completed',
+          metadata: {
+            plan_id: mockPlanId,
+            workspace_id: mockWorkspaceId,
+            session_id: 'sess_cleanup_001',
+          },
+          answers: [
+            {
+              question_id: 'stale_active__plan_A',
+              value: {
+                type: 'confirm_reject_answer',
+                action: 'approve',
+                notes: 'Pause this one',
+              },
+            },
+            {
+              question_id: 'stale_active__plan_B',
+              value: {
+                type: 'confirm_reject_answer',
+                action: 'reject',
+                notes: 'Keep active',
+              },
+            },
+          ],
+        },
+      } as any);
+
+      const result = await memoryPlan({
+        action: 'summon_cleanup_approval',
+        workspace_id: mockWorkspaceId,
+        cleanup_form_request: batch.form_request,
+        cleanup_response_mapping: batch.response_mapping,
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockLaunchFormApp).toHaveBeenCalledOnce();
+      if (result.data && result.data.action === 'summon_cleanup_approval') {
+        expect(result.data.data.approved_action_count).toBe(1);
+        expect(result.data.data.no_mutation_count).toBe(1);
+        expect(result.data.data.form_status).toBe('completed');
+        expect(result.data.data.approved_actions[0].question_id).toBe('stale_active__plan_A');
+        expect(result.data.data.approved_actions[0].mcp_params.action).toBe('pause_plan');
+      }
+    });
+
+    it('fails when payload workspace does not match tool workspace_id', async () => {
+      const batch = makeCleanupApprovalBatch('different-workspace-id');
+
+      const result = await memoryPlan({
+        action: 'summon_cleanup_approval',
+        workspace_id: mockWorkspaceId,
+        cleanup_form_request: batch.form_request,
+        cleanup_response_mapping: batch.response_mapping,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('workspace mismatch');
+      expect(mockLaunchFormApp).not.toHaveBeenCalled();
+    });
+
+    it('maps unanswered items to no mutation when timed out', async () => {
+      const batch = makeCleanupApprovalBatch();
+      mockCheckGuiAvailability.mockResolvedValue({
+        supervisor_running: true,
+        brainstorm_gui: true,
+        approval_gui: true,
+        capabilities: ['approval_gui'],
+        message: 'Supervisor running',
+      } as any);
+      mockLaunchFormApp.mockResolvedValue({
+        app_name: 'approval_gui',
+        success: true,
+        elapsed_ms: 28,
+        timed_out: true,
+        response_payload: {
+          type: 'form_response',
+          version: 1,
+          request_id: 'req_cleanup_001',
+          form_type: 'approval',
+          status: 'timed_out',
+          metadata: {
+            plan_id: mockPlanId,
+            workspace_id: mockWorkspaceId,
+            session_id: 'sess_cleanup_001',
+          },
+          answers: [],
+        },
+      } as any);
+
+      const result = await memoryPlan({
+        action: 'summon_cleanup_approval',
+        workspace_id: mockWorkspaceId,
+        cleanup_form_request: batch.form_request,
+        cleanup_response_mapping: batch.response_mapping,
+      });
+
+      expect(result.success).toBe(true);
+      if (result.data && result.data.action === 'summon_cleanup_approval') {
+        expect(result.data.data.form_status).toBe('timed_out');
+        expect(result.data.data.approved_action_count).toBe(0);
+        expect(result.data.data.no_mutation_count).toBe(2);
+        expect(result.data.data.decisions.every((item) => item.decision === 'defer')).toBe(true);
+      }
     });
   });
 });

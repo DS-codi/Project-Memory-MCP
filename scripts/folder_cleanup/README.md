@@ -88,7 +88,28 @@ When stale-active mode is enabled, the report adds:
 - `proposed_actions` entries with `action_type: "pause_stale_active_plan"`
 - `approval_gui_batch` payload containing an approval-form `form_request` and response mapping
 
-Use `approval_gui_batch.form_request` with your existing GUI routing flow when you want an explicit approve/reject pass over stale-plan pause recommendations.
+You can now route the cleanup approval batch directly through MCP with:
+
+```json
+{
+  "action": "summon_cleanup_approval",
+  "workspace_id": "<workspace-id>",
+  "cleanup_report_path": ".cleanup-staging/reports/<timestamp>-plan-cleanup-proposal.json"
+}
+```
+
+Or pass payloads directly from the report:
+
+```json
+{
+  "action": "summon_cleanup_approval",
+  "workspace_id": "<workspace-id>",
+  "cleanup_form_request": { "...": "approval_gui_batch.form_request" },
+  "cleanup_response_mapping": [ { "...": "approval_gui_batch.response_mapping" } ]
+}
+```
+
+The action launches `approval_gui`, parses decisions, and returns only the approved `memory_plan` actions to run next (no mutations are executed by the summon action itself).
 
 1. Optional fallback: use an exported JSON payload instead of direct DB reads:
 

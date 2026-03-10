@@ -8,6 +8,7 @@
  *          migrate_programs
  */
 
+import { promises as fs } from 'node:fs';
 import path from 'path';
 import type { 
   ToolResponse, 
@@ -27,6 +28,10 @@ import type {
   ClonePlanResult,
   MergePlansResult,
 } from '../../types/index.js';
+import type {
+  FormResponse,
+  FormStatus,
+} from '../../types/gui-forms.types.js';
 import * as planTools from '../plan/index.js';
 import * as programTools from '../program/index.js';
 import * as fileStore from '../../storage/db-store.js';
@@ -37,6 +42,10 @@ import {
   pausePlanAtApprovalGate,
   routeApprovalGate,
 } from '../orchestration/approval-gate-routing.js';
+import {
+  checkGuiAvailability,
+  launchFormApp,
+} from '../orchestration/supervisor-client.js';
 import type {
   ProgramRisk,
   ProgramDependency,
@@ -48,7 +57,7 @@ import type {
   DependencyType,
 } from '../../types/program-v2.types.js';
 
-export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate' | 'set_goals' | 'add_build_script' | 'list_build_scripts' | 'run_build_script' | 'delete_build_script' | 'create_from_template' | 'list_templates' | 'confirm' | 'summon_approval' | 'create_program' | 'add_plan_to_program' | 'upgrade_to_program' | 'list_program_plans' | 'export_plan' | 'link_to_program' | 'unlink_from_program' | 'set_plan_dependencies' | 'get_plan_dependencies' | 'set_plan_priority' | 'clone_plan' | 'merge_plans' | 'add_risk' | 'list_risks' | 'auto_detect_risks' | 'set_dependency' | 'get_dependencies' | 'migrate_programs' | 'pause_plan' | 'resume_plan' | 'set_workflow_mode' | 'get_workflow_mode';
+export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate' | 'set_goals' | 'add_build_script' | 'list_build_scripts' | 'run_build_script' | 'delete_build_script' | 'create_from_template' | 'list_templates' | 'confirm' | 'summon_approval' | 'summon_cleanup_approval' | 'create_program' | 'add_plan_to_program' | 'upgrade_to_program' | 'list_program_plans' | 'export_plan' | 'link_to_program' | 'unlink_from_program' | 'set_plan_dependencies' | 'get_plan_dependencies' | 'set_plan_priority' | 'clone_plan' | 'merge_plans' | 'add_risk' | 'list_risks' | 'auto_detect_risks' | 'set_dependency' | 'get_dependencies' | 'migrate_programs' | 'pause_plan' | 'resume_plan' | 'set_workflow_mode' | 'get_workflow_mode';
 
 export interface MemoryPlanParams {
   action: PlanAction;
@@ -88,6 +97,10 @@ export interface MemoryPlanParams {
   // Approval summon params
   approval_step_index?: number;
   approval_session_id?: string;
+  // Cleanup approval summon params
+  cleanup_report_path?: string;
+  cleanup_form_request?: Record<string, unknown>;
+  cleanup_response_mapping?: Record<string, unknown>[];
   // Program params
   program_id?: string;
   move_steps_to_child?: boolean;
@@ -160,6 +173,31 @@ type PlanResult =
       handoff_instruction?: string;
       confirmation_recorded?: boolean;
       paused_at_snapshot?: import('../../types/plan.types.js').PausedAtSnapshot;
+    } }
+  | { action: 'summon_cleanup_approval'; data: {
+      workspace_id: string;
+      request_id?: string;
+      session_id?: string;
+      form_status: FormStatus;
+      response_mapping_count: number;
+      approved_action_count: number;
+      no_mutation_count: number;
+      elapsed_ms: number;
+      approved_actions: Array<{
+        question_id: string;
+        plan_id?: string;
+        mcp_action: 'memory_plan';
+        mcp_params: Record<string, unknown>;
+        notes?: string;
+      }>;
+      decisions: Array<{
+        question_id: string;
+        plan_id?: string;
+        decision: 'approve' | 'reject' | 'defer' | 'no_decision';
+        notes?: string;
+        mapped: boolean;
+      }>;
+      warnings?: string[];
     } }
   | { action: 'create_program'; data: ProgramState }
   | { action: 'add_plan_to_program'; data: ProgramManifest }
@@ -238,13 +276,244 @@ function resolveScriptPaths(script: BuildScript, workspaceRoot: string): BuildSc
   };
 }
 
+type CleanupDecision = 'approve' | 'reject' | 'defer' | 'no_decision';
+
+interface CleanupDecisionEntry {
+  decision: CleanupDecision;
+  notes?: string;
+}
+
+interface CleanupApprovalBatchPayload {
+  formRequest: Record<string, unknown>;
+  responseMapping: Record<string, unknown>[];
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function readStringField(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
+function readNumberField(record: Record<string, unknown>, key: string): number | undefined {
+  const value = record[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function parseCleanupDecision(rawDecision: string | undefined): CleanupDecision | undefined {
+  if (!rawDecision) {
+    return undefined;
+  }
+  if (rawDecision === 'approve' || rawDecision === 'reject' || rawDecision === 'defer' || rawDecision === 'no_decision') {
+    return rawDecision;
+  }
+  return undefined;
+}
+
+function decisionPriority(decision: CleanupDecision): number {
+  switch (decision) {
+    case 'approve':
+      return 4;
+    case 'reject':
+      return 3;
+    case 'defer':
+      return 2;
+    case 'no_decision':
+    default:
+      return 1;
+  }
+}
+
+function upsertCleanupDecision(
+  decisions: Map<string, CleanupDecisionEntry>,
+  questionId: string,
+  incoming: CleanupDecisionEntry,
+): void {
+  const existing = decisions.get(questionId);
+  if (!existing) {
+    decisions.set(questionId, incoming);
+    return;
+  }
+
+  if (decisionPriority(incoming.decision) > decisionPriority(existing.decision)) {
+    decisions.set(questionId, incoming);
+    return;
+  }
+
+  if (!existing.notes && incoming.notes) {
+    decisions.set(questionId, { ...existing, notes: incoming.notes });
+  }
+}
+
+function defaultDecisionForFormStatus(status: FormStatus): CleanupDecision {
+  switch (status) {
+    case 'timed_out':
+    case 'deferred':
+    case 'refinement_requested':
+      return 'defer';
+    case 'cancelled':
+      return 'reject';
+    case 'completed':
+    default:
+      return 'no_decision';
+  }
+}
+
+function extractCleanupDecisions(response: FormResponse): Map<string, CleanupDecisionEntry> {
+  const decisions = new Map<string, CleanupDecisionEntry>();
+  const answers = Array.isArray(response.answers) ? response.answers as unknown[] : [];
+
+  for (const rawAnswer of answers) {
+    if (!isObjectRecord(rawAnswer)) {
+      continue;
+    }
+
+    const questionId = readStringField(rawAnswer, 'question_id');
+    const value = rawAnswer.value;
+    if (!isObjectRecord(value)) {
+      continue;
+    }
+
+    const valueType = readStringField(value, 'type');
+    if ((valueType === 'confirm_reject_answer' || valueType === 'confirm_reject') && questionId) {
+      const action = readStringField(value, 'action');
+      const notes = readStringField(value, 'notes');
+      const decision = action === 'approve' ? 'approve' : action === 'reject' ? 'reject' : undefined;
+      if (decision) {
+        upsertCleanupDecision(decisions, questionId, { decision, notes });
+      }
+      continue;
+    }
+
+    const parseMultiSessionDecisions = (rawDecisions: unknown, topLevelNotes?: string): void => {
+      if (!Array.isArray(rawDecisions)) {
+        return;
+      }
+
+      for (const rawDecisionEntry of rawDecisions) {
+        if (!isObjectRecord(rawDecisionEntry)) {
+          continue;
+        }
+        const itemId = readStringField(rawDecisionEntry, 'item_id');
+        const decision = parseCleanupDecision(readStringField(rawDecisionEntry, 'decision'));
+        const notes = readStringField(rawDecisionEntry, 'notes') ?? topLevelNotes;
+        if (itemId && decision) {
+          upsertCleanupDecision(decisions, itemId, { decision, notes });
+        }
+      }
+    };
+
+    if (valueType === 'approval_decision_v2') {
+      const decisionPayload = value.decision;
+      if (!isObjectRecord(decisionPayload)) {
+        continue;
+      }
+
+      const mode = readStringField(decisionPayload, 'mode');
+      const topLevelNotes = readStringField(decisionPayload, 'notes');
+
+      if (mode === 'binary' && questionId) {
+        const action = readStringField(decisionPayload, 'action');
+        const decision = action === 'approve' ? 'approve' : action === 'reject' ? 'reject' : undefined;
+        if (decision) {
+          upsertCleanupDecision(decisions, questionId, { decision, notes: topLevelNotes });
+        }
+        continue;
+      }
+
+      if (mode === 'multiple_choice' && questionId) {
+        const selected = readStringField(decisionPayload, 'selected');
+        if (selected && selected.trim().length > 0) {
+          upsertCleanupDecision(decisions, questionId, { decision: 'approve', notes: topLevelNotes });
+        }
+        continue;
+      }
+
+      if (mode === 'multi_approval_session') {
+        parseMultiSessionDecisions(decisionPayload.decisions, topLevelNotes);
+      }
+      continue;
+    }
+
+    if (valueType === 'approval_session_submission_v2') {
+      parseMultiSessionDecisions(value.decisions, readStringField(value, 'notes'));
+    }
+  }
+
+  return decisions;
+}
+
+async function resolveCleanupApprovalBatch(
+  params: MemoryPlanParams,
+): Promise<{ batch?: CleanupApprovalBatchPayload; error?: string }> {
+  if (params.cleanup_form_request || params.cleanup_response_mapping) {
+    if (!params.cleanup_form_request || !params.cleanup_response_mapping) {
+      return {
+        error: 'cleanup_form_request and cleanup_response_mapping must be provided together for action: summon_cleanup_approval',
+      };
+    }
+
+    return {
+      batch: {
+        formRequest: params.cleanup_form_request,
+        responseMapping: params.cleanup_response_mapping,
+      },
+    };
+  }
+
+  if (!params.cleanup_report_path) {
+    return {
+      error: 'cleanup_report_path is required (or provide cleanup_form_request + cleanup_response_mapping) for action: summon_cleanup_approval',
+    };
+  }
+
+  const resolvedReportPath = path.isAbsolute(params.cleanup_report_path)
+    ? params.cleanup_report_path
+    : path.resolve(process.cwd(), params.cleanup_report_path);
+
+  try {
+    const content = await fs.readFile(resolvedReportPath, 'utf8');
+    const parsed = JSON.parse(content) as unknown;
+    if (!isObjectRecord(parsed)) {
+      return { error: `Cleanup report payload is not an object: ${resolvedReportPath}` };
+    }
+
+    const batch = parsed.approval_gui_batch;
+    if (!isObjectRecord(batch)) {
+      return { error: `cleanup report is missing approval_gui_batch: ${resolvedReportPath}` };
+    }
+
+    const formRequest = batch.form_request;
+    const responseMapping = batch.response_mapping;
+    if (!isObjectRecord(formRequest)) {
+      return { error: `cleanup report approval_gui_batch.form_request is invalid: ${resolvedReportPath}` };
+    }
+    if (!Array.isArray(responseMapping)) {
+      return { error: `cleanup report approval_gui_batch.response_mapping is invalid: ${resolvedReportPath}` };
+    }
+
+    return {
+      batch: {
+        formRequest,
+        responseMapping: responseMapping.filter(isObjectRecord),
+      },
+    };
+  } catch (error) {
+    return {
+      error: `Failed to load cleanup report at ${resolvedReportPath}: ${(error as Error).message}`,
+    };
+  }
+}
+
 export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse<PlanResult>> {
   const { action } = params;
 
   if (!action) {
     return {
       success: false,
-      error: 'action is required. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, summon_approval, create_program, add_plan_to_program, upgrade_to_program, list_program_plans, link_to_program, unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans, add_risk, list_risks, auto_detect_risks, set_dependency, get_dependencies, migrate_programs'
+      error: 'action is required. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, summon_approval, summon_cleanup_approval, create_program, add_plan_to_program, upgrade_to_program, list_program_plans, link_to_program, unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans, add_risk, list_risks, auto_detect_risks, set_dependency, get_dependencies, migrate_programs'
     };
   }
 
@@ -830,6 +1099,165 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
       };
     }
 
+    case 'summon_cleanup_approval': {
+      if (!params.workspace_id) {
+        return {
+          success: false,
+          error: 'workspace_id is required for action: summon_cleanup_approval'
+        };
+      }
+
+      const batchResult = await resolveCleanupApprovalBatch(params);
+      if (!batchResult.batch) {
+        return {
+          success: false,
+          error: batchResult.error ?? 'Failed to resolve cleanup approval payload',
+        };
+      }
+
+      const { formRequest, responseMapping } = batchResult.batch;
+      const metadata = isObjectRecord(formRequest.metadata)
+        ? formRequest.metadata
+        : undefined;
+      const formWorkspaceId = metadata
+        ? readStringField(metadata, 'workspace_id')
+        : undefined;
+
+      if (formWorkspaceId && formWorkspaceId !== params.workspace_id) {
+        return {
+          success: false,
+          error: `cleanup approval payload workspace mismatch: form_request.workspace_id=${formWorkspaceId}, tool workspace_id=${params.workspace_id}`,
+        };
+      }
+
+      const timeoutConfig = isObjectRecord(formRequest.timeout)
+        ? formRequest.timeout
+        : undefined;
+      const timeoutSeconds = timeoutConfig
+        ? readNumberField(timeoutConfig, 'duration_seconds')
+        : undefined;
+
+      const availability = await checkGuiAvailability();
+      if (!availability.supervisor_running || !availability.approval_gui) {
+        return {
+          success: false,
+          error: `Cleanup approval GUI unavailable: ${availability.message}`,
+        };
+      }
+
+      const launchResult = await launchFormApp(
+        'approval_gui',
+        formRequest,
+        timeoutSeconds,
+      );
+
+      const diagnosticText = (launchResult.diagnostics ?? [])
+        .map((diag) => `${diag.kind}: ${diag.message}`)
+        .join('; ');
+
+      if (!launchResult.success) {
+        const suffix = diagnosticText ? ` (${diagnosticText})` : '';
+        return {
+          success: false,
+          error: `Failed to launch cleanup approval GUI: ${launchResult.error ?? 'unknown error'}${suffix}`,
+        };
+      }
+
+      if (!isObjectRecord(launchResult.response_payload)) {
+        return {
+          success: false,
+          error: 'Cleanup approval GUI returned no response payload',
+        };
+      }
+
+      const formResponse = launchResult.response_payload as FormResponse;
+      const formStatus = formResponse.status;
+      const defaultDecision = defaultDecisionForFormStatus(formStatus);
+      const decisionMap = extractCleanupDecisions(formResponse);
+
+      const approvedActions: Array<{
+        question_id: string;
+        plan_id?: string;
+        mcp_action: 'memory_plan';
+        mcp_params: Record<string, unknown>;
+        notes?: string;
+      }> = [];
+      const decisions: Array<{
+        question_id: string;
+        plan_id?: string;
+        decision: 'approve' | 'reject' | 'defer' | 'no_decision';
+        notes?: string;
+        mapped: boolean;
+      }> = [];
+      const warnings: string[] = [];
+
+      for (const rawMapping of responseMapping) {
+        const questionId = readStringField(rawMapping, 'question_id');
+        if (!questionId) {
+          warnings.push('cleanup response_mapping entry is missing question_id; skipping entry');
+          continue;
+        }
+
+        const planId = readStringField(rawMapping, 'plan_id');
+        const pickedDecision = decisionMap.get(questionId);
+        const decision = pickedDecision?.decision ?? defaultDecision;
+        const notes = pickedDecision?.notes;
+        let mapped = false;
+
+        if (decision === 'approve') {
+          const onApprove = rawMapping.on_approve;
+          if (!isObjectRecord(onApprove)) {
+            warnings.push(`question_id "${questionId}" approved, but on_approve mapping is missing`);
+          } else {
+            const mappedAction = readStringField(onApprove, 'mcp_action');
+            const mappedParams = onApprove.mcp_params;
+            if (mappedAction === 'memory_plan' && isObjectRecord(mappedParams)) {
+              approvedActions.push({
+                question_id: questionId,
+                ...(planId ? { plan_id: planId } : {}),
+                mcp_action: 'memory_plan',
+                mcp_params: mappedParams,
+                ...(notes ? { notes } : {}),
+              });
+              mapped = true;
+            } else {
+              warnings.push(`question_id "${questionId}" approved, but on_approve must map to memory_plan with object mcp_params`);
+            }
+          }
+        } else {
+          mapped = isObjectRecord(rawMapping.on_reject);
+        }
+
+        decisions.push({
+          question_id: questionId,
+          ...(planId ? { plan_id: planId } : {}),
+          decision,
+          ...(notes ? { notes } : {}),
+          mapped,
+        });
+      }
+
+      return {
+        success: true,
+        data: {
+          action: 'summon_cleanup_approval',
+          data: {
+            workspace_id: params.workspace_id,
+            request_id: readStringField(formRequest, 'request_id'),
+            session_id: metadata ? readStringField(metadata, 'session_id') : undefined,
+            form_status: formStatus,
+            response_mapping_count: responseMapping.length,
+            approved_action_count: approvedActions.length,
+            no_mutation_count: decisions.length - approvedActions.length,
+            elapsed_ms: launchResult.elapsed_ms,
+            approved_actions: approvedActions,
+            decisions,
+            ...(warnings.length > 0 ? { warnings } : {}),
+          },
+        },
+      };
+    }
+
     // =========================================================================
     // Program Actions
     // =========================================================================
@@ -1370,7 +1798,7 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, summon_approval, create_program, add_plan_to_program, upgrade_to_program, list_program_plans, export_plan, link_to_program, unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans, add_risk, list_risks, auto_detect_risks, set_dependency, get_dependencies, migrate_programs, pause_plan, resume_plan, set_workflow_mode, get_workflow_mode`
+        error: `Unknown action: ${action}. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, summon_approval, summon_cleanup_approval, create_program, add_plan_to_program, upgrade_to_program, list_program_plans, export_plan, link_to_program, unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans, add_risk, list_risks, auto_detect_risks, set_dependency, get_dependencies, migrate_programs, pause_plan, resume_plan, set_workflow_mode, get_workflow_mode`
       };
   }
 }

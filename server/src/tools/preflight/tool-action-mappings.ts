@@ -83,7 +83,7 @@ export const AGENT_TOOL_MAPPINGS: AgentToolMappingRegistry = {
         'create_program', 'add_plan_to_program', 'upgrade_to_program',
         'list_program_plans', 'export_plan', 'link_to_program',
         'unlink_from_program', 'set_plan_dependencies',
-        'get_plan_dependencies', 'set_plan_priority', 'clone_plan', 'summon_approval',
+        'get_plan_dependencies', 'set_plan_priority', 'clone_plan', 'summon_approval', 'summon_cleanup_approval',
         'merge_plans',
       ],
     },

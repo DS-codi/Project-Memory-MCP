@@ -211,6 +211,17 @@ export const PLAN_PARAMS: Record<string, ActionParamDef> = {
     ],
   },
 
+  summon_cleanup_approval: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+    ],
+    optional: [
+      { name: 'cleanup_report_path', type: 'string', description: 'Path to plan cleanup report with approval_gui_batch payload' },
+      { name: 'cleanup_form_request', type: 'object', description: 'Cleanup approval form_request payload' },
+      { name: 'cleanup_response_mapping', type: 'object[]', description: 'Cleanup approval response mapping payload' },
+    ],
+  },
+
   create_program: {
     required: [
       { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
