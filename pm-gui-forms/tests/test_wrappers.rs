@@ -246,18 +246,36 @@ fn approval_request_window_title() {
 // ── ApprovalResponse Tests ───────────────────────────────────────
 
 #[test]
-fn approval_response_completed_is_approved() {
+fn approval_response_completed_without_decision_is_not_approved() {
     let resp = mock_form_response(FormType::Approval, FormStatus::Completed);
     let ar: ApprovalResponse = resp.into();
-    assert!(ar.is_approved());
+    assert!(!ar.is_approved());
     assert!(!ar.is_rejected());
 }
 
 #[test]
-fn approval_response_timed_out_is_approved() {
+fn approval_response_timed_out_without_decision_is_not_approved() {
     let resp = mock_form_response(FormType::Approval, FormStatus::TimedOut);
     let ar: ApprovalResponse = resp.into();
-    assert!(ar.is_approved(), "Timed-out approval should count as approved");
+    assert!(!ar.is_approved());
+    assert!(!ar.is_rejected());
+}
+
+#[test]
+fn approval_response_completed_with_explicit_approve_decision_is_approved() {
+    let mut resp = mock_form_response(FormType::Approval, FormStatus::Completed);
+    resp.answers.push(Answer {
+        question_id: "approval_decision".into(),
+        value: AnswerValue::ConfirmRejectAnswer {
+            action: ConfirmRejectAction::Approve,
+            notes: None,
+        },
+        auto_filled: false,
+        marked_for_refinement: false,
+    });
+
+    let ar: ApprovalResponse = resp.into();
+    assert!(ar.is_approved());
     assert!(!ar.is_rejected());
 }
 
