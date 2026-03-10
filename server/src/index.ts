@@ -746,6 +746,8 @@ server.tool(
     workspace_id:   z.string().describe('Workspace identifier'),
     agent_type:     z.string().optional().describe('Calling agent type — used for authorization (Researcher, Architect, Coordinator, Analyst, Executor only)'),
     _session_id:    z.string().optional().describe('Session ID for instrumentation tracking'),
+    caller_surface: z.string().optional().describe('Optional caller surface metadata (for example: supervisor) used for origin-aware side effects'),
+    write_documentation: z.boolean().optional().describe('When true with caller_surface=supervisor, writes a markdown report for the action under workspace docs/cartographer/supervisor-reports'),
     // dependencies_dependents
     plan_id:        z.string().optional().describe('Target plan ID (get_plan_dependencies, get_dependencies, reverse_dependent_lookup)'),
     root_plan_id:   z.string().optional().describe('Root plan ID for bounded_traversal'),

@@ -100,6 +100,10 @@ export interface MemoryCartographerParams {
   agent_type?: string;
   /** Session tracking */
   _session_id?: string;
+  /** Optional caller surface metadata (used for supervisor-specific side effects) */
+  caller_surface?: string;
+  /** When true, emit a markdown report into the target workspace */
+  write_documentation?: boolean;
 
   // --- dependencies_dependents ---
   plan_id?: string;
@@ -603,6 +607,143 @@ function extractLaunchContextFromResponse(response: PythonCoreResponse): Record<
   return extractLaunchContextFromDiagnostics(response.diagnostics.errors);
 }
 
+const SUPERVISOR_REPORT_RELATIVE_DIR = path.join('docs', 'cartographer', 'supervisor-reports');
+
+interface SupervisorDocumentationRecord {
+  status: 'written' | 'failed';
+  generated_at: string;
+  file_path?: string;
+  relative_path?: string;
+  bytes?: number;
+  error?: string;
+}
+
+function shouldWriteSupervisorDocumentation(params: MemoryCartographerParams): boolean {
+  return params.caller_surface === 'supervisor' && params.write_documentation === true;
+}
+
+function sanitizeParamsForDocumentation(params: MemoryCartographerParams): Record<string, unknown> {
+  const sanitized: Record<string, unknown> = { ...params };
+  delete sanitized._session_id;
+  return sanitized;
+}
+
+function formatSupervisorDocumentation(
+  workspaceId: string,
+  workspacePath: string,
+  action: CartographerAction,
+  params: MemoryCartographerParams,
+  response: PythonCoreResponse,
+): string {
+  const generatedAt = new Date().toISOString();
+  const diagnostics = response.diagnostics ?? {
+    warnings: [] as string[],
+    errors: [] as string[],
+    markers: [] as string[],
+    skipped_paths: [] as string[],
+  };
+
+  const summaryStats = isRecord(response.result) && isRecord(response.result.summary)
+    ? response.result.summary
+    : undefined;
+
+  const topLevelSummary = {
+    status: response.status,
+    elapsed_ms: response.elapsed_ms,
+    warning_count: Array.isArray(diagnostics.warnings) ? diagnostics.warnings.length : 0,
+    error_count: Array.isArray(diagnostics.errors) ? diagnostics.errors.length : 0,
+    marker_count: Array.isArray(diagnostics.markers) ? diagnostics.markers.length : 0,
+    skipped_path_count: Array.isArray(diagnostics.skipped_paths) ? diagnostics.skipped_paths.length : 0,
+    summary_stats: action === 'summary' ? (summaryStats ?? null) : undefined,
+  };
+
+  return [
+    '# Cartographer Supervisor Report',
+    '',
+    `- Generated at (UTC): ${generatedAt}`,
+    `- Workspace ID: ${workspaceId}`,
+    `- Workspace Path: ${workspacePath}`,
+    `- Action: ${action}`,
+    `- Caller Surface: ${params.caller_surface ?? 'unknown'}`,
+    '',
+    '## Request Parameters',
+    '```json',
+    JSON.stringify(sanitizeParamsForDocumentation(params), null, 2),
+    '```',
+    '',
+    '## Execution Summary',
+    '```json',
+    JSON.stringify(topLevelSummary, null, 2),
+    '```',
+    '',
+    '## Diagnostics',
+    '```json',
+    JSON.stringify(diagnostics, null, 2),
+    '```',
+    '',
+    '## Raw Cartographer Result',
+    '```json',
+    JSON.stringify(response.result ?? null, null, 2),
+    '```',
+    '',
+  ].join('\n');
+}
+
+async function writeSupervisorDocumentation(
+  workspaceId: string,
+  workspacePath: string,
+  action: CartographerAction,
+  params: MemoryCartographerParams,
+  response: PythonCoreResponse,
+): Promise<SupervisorDocumentationRecord> {
+  const generatedAt = new Date().toISOString();
+  const timestampSlug = generatedAt.replace(/[.:]/g, '-');
+  const fileName = `cartographer-supervisor-${action}-${timestampSlug}.md`;
+  const reportDir = path.join(workspacePath, SUPERVISOR_REPORT_RELATIVE_DIR);
+  const reportPath = path.join(reportDir, fileName);
+  const relativePath = path.relative(workspacePath, reportPath) || reportPath;
+  const content = formatSupervisorDocumentation(workspaceId, workspacePath, action, params, response);
+
+  try {
+    const fs = await import('node:fs/promises');
+    await fs.mkdir(reportDir, { recursive: true });
+    await fs.writeFile(reportPath, content, 'utf-8');
+
+    return {
+      status: 'written',
+      generated_at: generatedAt,
+      file_path: reportPath,
+      relative_path: relativePath,
+      bytes: Buffer.byteLength(content, 'utf8'),
+    };
+  } catch (error) {
+    return {
+      status: 'failed',
+      generated_at: generatedAt,
+      error: error instanceof Error ? error.message : String(error),
+      file_path: reportPath,
+      relative_path: relativePath,
+    };
+  }
+}
+
+function attachDocumentationRecord(
+  payload: ToolResponse<unknown>,
+  record: SupervisorDocumentationRecord,
+): ToolResponse<unknown> {
+  if (!isRecord(payload.data)) {
+    return payload;
+  }
+
+  const actionEnvelope = payload.data;
+  if (!isRecord(actionEnvelope.data)) {
+    return payload;
+  }
+
+  actionEnvelope.data.documentation = record;
+  return payload;
+}
+
 function buildPythonRuntimeErrorEnvelope(
   action: NonSummaryPythonAction,
   response: PythonCoreResponse,
@@ -775,11 +916,38 @@ async function invokeNonSummaryPythonAction(
       timeout_ms:     timeoutMs,
     });
 
-    if (response.status === 'error') {
-      return buildPythonRuntimeErrorEnvelope(action, response);
+    let documentationRecord: SupervisorDocumentationRecord | undefined;
+    if (shouldWriteSupervisorDocumentation(params)) {
+      documentationRecord = await writeSupervisorDocumentation(
+        resolvedWorkspaceId,
+        pythonWorkspacePath,
+        action,
+        params,
+        response,
+      );
+
+      if (documentationRecord.status === 'failed') {
+        console.warn(JSON.stringify({
+          event: 'cartographer_documentation_write_failed',
+          action,
+          workspace_id: resolvedWorkspaceId,
+          error: documentationRecord.error,
+          file_path: documentationRecord.file_path ?? null,
+        }));
+      }
     }
 
-    return buildPythonSuccessEnvelope(action, response);
+    if (response.status === 'error') {
+      const payload = buildPythonRuntimeErrorEnvelope(action, response);
+      return documentationRecord
+        ? attachDocumentationRecord(payload, documentationRecord)
+        : payload;
+    }
+
+    const payload = buildPythonSuccessEnvelope(action, response);
+    return documentationRecord
+      ? attachDocumentationRecord(payload, documentationRecord)
+      : payload;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const launchContext = extractLaunchContextFromError(error) ?? extractLaunchContextFromMessage(message);
@@ -890,6 +1058,7 @@ export async function handleMemoryCartographer(
       const resolvedWorkspacePath = await resolveAccessiblePath(workspace.path);
       const pythonWorkspacePath = resolvedWorkspacePath ?? workspace.path;
       const effectiveSummaryWorkspacePath = resolveSummaryWorkspacePath(pythonWorkspacePath);
+      const documentationWorkspacePath = effectiveSummaryWorkspacePath;
       const summaryTimeoutMs = resolveSummaryTimeoutMs();
 
       const scopeArgs: Record<string, unknown> = {};
@@ -953,7 +1122,28 @@ export async function handleMemoryCartographer(
           };
         }
 
-        return {
+        let documentationRecord: SupervisorDocumentationRecord | undefined;
+        if (shouldWriteSupervisorDocumentation(params)) {
+          documentationRecord = await writeSupervisorDocumentation(
+            resolvedWorkspaceId,
+            documentationWorkspacePath,
+            'summary',
+            params,
+            response,
+          );
+
+          if (documentationRecord.status === 'failed') {
+            console.warn(JSON.stringify({
+              event: 'cartographer_documentation_write_failed',
+              action: 'summary',
+              workspace_id: resolvedWorkspaceId,
+              error: documentationRecord.error,
+              file_path: documentationRecord.file_path ?? null,
+            }));
+          }
+        }
+
+        const payload: ToolResponse<unknown> = {
           success: true,
           data: {
             action: 'summary',
@@ -968,6 +1158,10 @@ export async function handleMemoryCartographer(
             },
           },
         };
+
+        return documentationRecord
+          ? attachDocumentationRecord(payload, documentationRecord)
+          : payload;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         const launchContext = extractLaunchContextFromError(error);
