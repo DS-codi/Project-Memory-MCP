@@ -43,6 +43,7 @@
 .PARAMETER ApplyOutdatedAuditFixes
     Apply safe fixes during the post-install outdated audit (for example stale
     port values and missing/mismatched .projectmemory/identity.json files).
+    Port migrations are confirmation-gated and require user approval before write.
 
 .EXAMPLE
     # Build and install everything

@@ -16,7 +16,8 @@
 
 .PARAMETER Apply
     Apply safe automatic fixes:
-    - Replace stale port values in JSON settings files
+    - Replace stale port values in JSON settings files (after user confirmation)
+    - Migrate legacy projectMemory.apiPort key to projectMemory.serverPort (after user confirmation)
     - Create/update .projectmemory/identity.json when missing/mismatched
 
 .EXAMPLE
@@ -38,6 +39,9 @@ $ErrorActionPreference = 'Stop'
 $script:Findings = [System.Collections.Generic.List[pscustomobject]]::new()
 $script:AppliedFixCount = 0
 $script:ScannedFileCount = 0
+$script:PortMigrationConsentResolved = $false
+$script:PortMigrationApproved = $false
+$script:PortMigrationDeclinedRecorded = $false
 
 function Write-Section {
     param([string]$Message)
@@ -74,6 +78,130 @@ function Add-Finding {
         Message       = $Message
         Fixed         = $Fixed
     }) | Out-Null
+}
+
+function Request-PortMigrationApproval {
+    param(
+        [string]$FirstFilePath = ''
+    )
+
+    if ($script:PortMigrationConsentResolved) {
+        return $script:PortMigrationApproved
+    }
+
+    $script:PortMigrationConsentResolved = $true
+
+    if (-not $Apply) {
+        $script:PortMigrationApproved = $false
+        return $false
+    }
+
+    if (-not [Environment]::UserInteractive) {
+        Write-WarnLine 'Port migration requires confirmation, but no interactive terminal is available. Skipping port migration fixes.'
+        $script:PortMigrationApproved = $false
+        return $false
+    }
+
+    Write-Host ''
+    Write-Host 'Port migration confirmation required.' -ForegroundColor Yellow
+    Write-Host '  Legacy/stale Project Memory port settings were detected.' -ForegroundColor DarkGray
+    if (-not [string]::IsNullOrWhiteSpace($FirstFilePath)) {
+        Write-Host "  Example file: $FirstFilePath" -ForegroundColor DarkGray
+    }
+    Write-Host '  Proposed changes:' -ForegroundColor DarkGray
+    Write-Host '    - update legacy port values to current defaults' -ForegroundColor DarkGray
+    Write-Host '    - migrate projectMemory.apiPort to projectMemory.serverPort' -ForegroundColor DarkGray
+
+    try {
+        $response = Read-Host 'Apply automatic port migration now? (Y/N)'
+    } catch {
+        Write-WarnLine "Could not read user input for port migration confirmation: $($_.Exception.Message)"
+        $script:PortMigrationApproved = $false
+        return $false
+    }
+
+    $script:PortMigrationApproved = $response -match '^(?i)y(?:es)?$'
+    if ($script:PortMigrationApproved) {
+        Write-Host '  Port migration approved.' -ForegroundColor Green
+    } else {
+        Write-Host '  Port migration declined by user.' -ForegroundColor Yellow
+    }
+
+    return $script:PortMigrationApproved
+}
+
+function Move-LegacyApiPortInMap {
+    param(
+        [System.Collections.IDictionary]$Map
+    )
+
+    if ($null -eq $Map -or -not $Map.Contains('projectMemory.apiPort')) {
+        return $false
+    }
+
+    $apiPortValue = $Map['projectMemory.apiPort']
+    if (-not $Map.Contains('projectMemory.serverPort')) {
+        $Map['projectMemory.serverPort'] = $apiPortValue
+    }
+
+    [void]$Map.Remove('projectMemory.apiPort')
+    return $true
+}
+
+function Try-MigrateLegacyApiPortKey {
+    param(
+        [Parameter(Mandatory)][string]$JsonText
+    )
+
+    try {
+        $parsed = $JsonText | ConvertFrom-Json -AsHashtable
+    } catch {
+        return [pscustomobject]@{
+            Success        = $false
+            Changed        = $false
+            UpdatedContent = $JsonText
+            Error          = $_.Exception.Message
+        }
+    }
+
+    if (-not ($parsed -is [System.Collections.IDictionary])) {
+        return [pscustomobject]@{
+            Success        = $false
+            Changed        = $false
+            UpdatedContent = $JsonText
+            Error          = 'Parsed JSON root is not an object.'
+        }
+    }
+
+    $changed = $false
+
+    if (Move-LegacyApiPortInMap -Map $parsed) {
+        $changed = $true
+    }
+
+    if (
+        $parsed.Contains('settings') -and
+        ($parsed['settings'] -is [System.Collections.IDictionary]) -and
+        (Move-LegacyApiPortInMap -Map $parsed['settings'])
+    ) {
+        $changed = $true
+    }
+
+    if (-not $changed) {
+        return [pscustomobject]@{
+            Success        = $true
+            Changed        = $false
+            UpdatedContent = $JsonText
+            Error          = ''
+        }
+    }
+
+    return [pscustomobject]@{
+        Success        = $true
+        Changed        = $true
+        UpdatedContent = ($parsed | ConvertTo-Json -Depth 100)
+        Error          = ''
+    }
 }
 
 function Resolve-DataRoot {
@@ -184,26 +312,55 @@ function Update-FileContentIfNeeded {
     )
 
     $updated = $content
-    $hadMatch = $false
+    $hadPortFinding = $false
+    $hasLegacyApiPortKey = $content -match '"projectMemory\.apiPort"\s*:'
 
     foreach ($rule in $replacements) {
-        if ($updated -match $rule.Pattern) {
-            $hadMatch = $true
+        if ($content -match $rule.Pattern) {
+            $hadPortFinding = $true
             Add-Finding -Type $rule.Type -WorkspaceId $WorkspaceId -WorkspacePath $WorkspacePath -FilePath $FilePath -Message $rule.Message
-            if ($ApplyFixes) {
+        }
+    }
+
+    if ($hasLegacyApiPortKey) {
+        $hadPortFinding = $true
+        Add-Finding -Type 'legacy-api-port-key' -WorkspaceId $WorkspaceId -WorkspacePath $WorkspacePath -FilePath $FilePath -Message 'projectMemory.apiPort is legacy; prefer projectMemory.serverPort.' -Severity 'info'
+    }
+
+    $applyPortFixes = $false
+    if ($ApplyFixes -and $hadPortFinding) {
+        $applyPortFixes = Request-PortMigrationApproval -FirstFilePath $FilePath
+
+        if (-not $applyPortFixes -and -not $script:PortMigrationDeclinedRecorded) {
+            Add-Finding -Type 'port-migration-skipped-by-user' -WorkspaceId $WorkspaceId -WorkspacePath $WorkspacePath -FilePath $FilePath -Message 'Port migration was declined by user. No port changes were applied.' -Severity 'info'
+            $script:PortMigrationDeclinedRecorded = $true
+        }
+    }
+
+    if ($applyPortFixes) {
+        foreach ($rule in $replacements) {
+            if ($updated -match $rule.Pattern) {
                 $updated = [regex]::Replace($updated, $rule.Pattern, $rule.Replace)
+            }
+        }
+
+        if ($hasLegacyApiPortKey) {
+            $migrationResult = Try-MigrateLegacyApiPortKey -JsonText $updated
+            if ($migrationResult.Success) {
+                if ($migrationResult.Changed) {
+                    $updated = [string]$migrationResult.UpdatedContent
+                    Add-Finding -Type 'legacy-api-port-key-migrated' -WorkspaceId $WorkspaceId -WorkspacePath $WorkspacePath -FilePath $FilePath -Message 'Migrated projectMemory.apiPort to projectMemory.serverPort and removed legacy key.' -Severity 'info' -Fixed $true
+                }
+            } else {
+                Add-Finding -Type 'legacy-api-port-migration-failed' -WorkspaceId $WorkspaceId -WorkspacePath $WorkspacePath -FilePath $FilePath -Message "Could not migrate legacy apiPort key automatically: $($migrationResult.Error)" -Severity 'warning'
             }
         }
     }
 
-    if ($content -match '"projectMemory\.apiPort"\s*:') {
-        Add-Finding -Type 'legacy-api-port-key' -WorkspaceId $WorkspaceId -WorkspacePath $WorkspacePath -FilePath $FilePath -Message 'projectMemory.apiPort is legacy; prefer projectMemory.serverPort.' -Severity 'info'
-    }
-
-    if ($ApplyFixes -and $hadMatch -and $updated -ne $content) {
+    if ($ApplyFixes -and $applyPortFixes -and $updated -ne $content) {
         Set-Content -Path $FilePath -Value $updated -NoNewline -Encoding UTF8
         $script:AppliedFixCount++
-        Add-Finding -Type 'autofix-applied' -WorkspaceId $WorkspaceId -WorkspacePath $WorkspacePath -FilePath $FilePath -Message 'Updated stale Project Memory port settings.' -Severity 'info' -Fixed $true
+        Add-Finding -Type 'autofix-applied' -WorkspaceId $WorkspaceId -WorkspacePath $WorkspacePath -FilePath $FilePath -Message 'Applied approved Project Memory port migrations.' -Severity 'info' -Fixed $true
     }
 }
 
