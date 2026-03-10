@@ -18,10 +18,14 @@ const {
   mockedGetWorkspace,
   mockedResolveAccessiblePath,
   mockedInvokePythonCore,
+  mockedFsMkdir,
+  mockedFsWriteFile,
 } = vi.hoisted(() => ({
   mockedGetWorkspace: vi.fn(),
   mockedResolveAccessiblePath: vi.fn(),
   mockedInvokePythonCore: vi.fn(),
+  mockedFsMkdir: vi.fn(),
+  mockedFsWriteFile: vi.fn(),
 }));
 
 // ---------------------------------------------------------------------------
@@ -76,6 +80,11 @@ vi.mock('../../cartography/runtime/pythonBridge.js', () => ({
   invokePythonCore: mockedInvokePythonCore,
 }));
 
+vi.mock('node:fs/promises', () => ({
+  mkdir: mockedFsMkdir,
+  writeFile: mockedFsWriteFile,
+}));
+
 // ---------------------------------------------------------------------------
 // Test constants
 // ---------------------------------------------------------------------------
@@ -110,6 +119,9 @@ beforeEach(() => {
     },
     elapsed_ms: 17,
   });
+
+  mockedFsMkdir.mockResolvedValue(undefined);
+  mockedFsWriteFile.mockResolvedValue(undefined);
 });
 
 const baseParams = (extra: Partial<MemoryCartographerParams>): MemoryCartographerParams => ({
@@ -461,6 +473,55 @@ describe('Phase B summary + stubs', () => {
     expect(payload.data.launch_context).toEqual(expect.objectContaining({
       module_name: 'memory_cartographer.runtime.entrypoint',
       module_search_paths: expect.arrayContaining(['C:/mock/workspace/Project-Memory-MCP/python-core']),
+    }));
+  });
+
+  it('summary writes supervisor documentation into workspace docs path when called from supervisor', async () => {
+    const result = await handleMemoryCartographer(
+      baseParams({ action: 'summary', caller_surface: 'supervisor', write_documentation: true }),
+    );
+
+    expect(result.success).toBe(true);
+    expect(mockedFsMkdir).toHaveBeenCalledTimes(1);
+    expect(mockedFsWriteFile).toHaveBeenCalledTimes(1);
+
+    const [writtenPath, content] = mockedFsWriteFile.mock.calls[0] as [string, string];
+    expect(writtenPath).toContain(path.join('docs', 'cartographer', 'supervisor-reports'));
+    expect(content).toContain('# Cartographer Supervisor Report');
+    expect(content).toContain('## Raw Cartographer Result');
+
+    const payload = result.data as any;
+    expect(payload.data.documentation).toEqual(expect.objectContaining({
+      status: 'written',
+    }));
+    expect(payload.data.documentation.relative_path).toContain(path.join('docs', 'cartographer', 'supervisor-reports'));
+  });
+
+  it('summary does not write supervisor documentation for standard MCP calls', async () => {
+    const result = await handleMemoryCartographer(
+      baseParams({ action: 'summary' }),
+    );
+
+    expect(result.success).toBe(true);
+    expect(mockedFsMkdir).not.toHaveBeenCalled();
+    expect(mockedFsWriteFile).not.toHaveBeenCalled();
+
+    const payload = result.data as any;
+    expect(payload.data.documentation).toBeUndefined();
+  });
+
+  it('summary remains successful when supervisor documentation write fails', async () => {
+    mockedFsWriteFile.mockRejectedValueOnce(new Error('disk full'));
+
+    const result = await handleMemoryCartographer(
+      baseParams({ action: 'summary', caller_surface: 'supervisor', write_documentation: true }),
+    );
+
+    expect(result.success).toBe(true);
+    const payload = result.data as any;
+    expect(payload.data.documentation).toEqual(expect.objectContaining({
+      status: 'failed',
+      error: expect.stringContaining('disk full'),
     }));
   });
 

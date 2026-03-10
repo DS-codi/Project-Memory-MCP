@@ -382,6 +382,8 @@ export function createHttpApp(getServer: () => McpServer): Express {
         action: 'summary',
         workspace_id,
         agent_type: 'Coordinator',
+        caller_surface: 'supervisor',
+        write_documentation: true,
         ...(force_refresh === true && { force_refresh: true }),
       });
       if (result.success) {
