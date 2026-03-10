@@ -380,35 +380,75 @@ function normalizeSpawnContext(
 
   const normalized: SpawnCliSessionContext = {};
 
-  const setIfText = (
-    key: keyof SpawnCliSessionContext,
-    value: unknown,
-  ): void => {
+  const toTrimmedString = (value: unknown): string | undefined => {
     if (typeof value !== 'string') {
-      return;
+      return undefined;
     }
     const trimmed = value.trim();
-    if (trimmed.length > 0) {
-      normalized[key] = trimmed as SpawnCliSessionContext[keyof SpawnCliSessionContext];
-    }
+    return trimmed.length > 0 ? trimmed : undefined;
   };
 
-  setIfText('requesting_agent', raw.requesting_agent);
-  setIfText('plan_id', raw.plan_id);
-  setIfText('session_id', raw.session_id);
-  setIfText('step_notes', raw.step_notes);
-  setIfText('workspace_instructions', raw.workspace_instructions);
-  setIfText('custom_instructions', raw.custom_instructions);
-  setIfText('output_format', raw.output_format);
-  setIfText('session_mode', raw.session_mode);
-  setIfText('resume_session_id', raw.resume_session_id);
+  const requestingAgent = toTrimmedString(raw.requesting_agent);
+  if (requestingAgent) {
+    normalized.requesting_agent = requestingAgent;
+  }
+
+  const planId = toTrimmedString(raw.plan_id);
+  if (planId) {
+    normalized.plan_id = planId;
+  }
+
+  const sessionId = toTrimmedString(raw.session_id);
+  if (sessionId) {
+    normalized.session_id = sessionId;
+  }
+
+  const stepNotes = toTrimmedString(raw.step_notes);
+  if (stepNotes) {
+    normalized.step_notes = stepNotes;
+  }
+
+  const workspaceInstructions = toTrimmedString(raw.workspace_instructions);
+  if (workspaceInstructions) {
+    normalized.workspace_instructions = workspaceInstructions;
+  }
+
+  const customInstructions = toTrimmedString(raw.custom_instructions);
+  if (customInstructions) {
+    normalized.custom_instructions = customInstructions;
+  }
+
+  const outputFormat = toTrimmedString(raw.output_format);
+  if (outputFormat !== undefined) {
+    if (
+      outputFormat !== 'text' &&
+      outputFormat !== 'json' &&
+      outputFormat !== 'stream-json'
+    ) {
+      return null;
+    }
+    normalized.output_format = outputFormat;
+  }
+
+  const sessionMode = toTrimmedString(raw.session_mode);
+  if (sessionMode !== undefined) {
+    if (sessionMode !== 'new' && sessionMode !== 'resume') {
+      return null;
+    }
+    normalized.session_mode = sessionMode;
+  }
+
+  const resumeSessionId = toTrimmedString(raw.resume_session_id);
+  if (resumeSessionId) {
+    normalized.resume_session_id = resumeSessionId;
+  }
 
   if (raw.relevant_files !== undefined) {
     if (!Array.isArray(raw.relevant_files)) {
       return null;
     }
     const files = raw.relevant_files
-      .map((entry) => {
+      .map((entry): { path: string; snippet?: string } | null => {
         if (!entry || typeof entry.path !== 'string') {
           return null;
         }
@@ -416,38 +456,18 @@ function normalizeSpawnContext(
         if (!path) {
           return null;
         }
-        const snippet =
-          typeof entry.snippet === 'string' && entry.snippet.trim().length > 0
-            ? entry.snippet
-            : undefined;
-        return { path, snippet };
+        const snippet = toTrimmedString(entry.snippet);
+        return snippet ? { path, snippet } : { path };
       })
-      .filter((entry): entry is { path: string; snippet?: string } => entry !== null);
+      .filter(
+        (entry): entry is { path: string; snippet?: string } => entry !== null,
+      );
 
     if (files.length !== raw.relevant_files.length) {
       return null;
     }
 
     normalized.relevant_files = files;
-  }
-
-  const outputFormat = normalized.output_format;
-  if (
-    outputFormat !== undefined &&
-    outputFormat !== 'text' &&
-    outputFormat !== 'json' &&
-    outputFormat !== 'stream-json'
-  ) {
-    return null;
-  }
-
-  const sessionMode = normalized.session_mode;
-  if (
-    sessionMode !== undefined &&
-    sessionMode !== 'new' &&
-    sessionMode !== 'resume'
-  ) {
-    return null;
   }
 
   if (

@@ -33,6 +33,14 @@
 .PARAMETER LintLog
     Optional path to a file where qmllint output is appended (one entry per validated package).
 
+.PARAMETER SkipOutdatedAudit
+    Skip the post-install audit that checks for outdated Project Memory settings
+    and workspace-level files based on project-memory.db registrations.
+
+.PARAMETER ApplyOutdatedAuditFixes
+    Apply safe fixes during the post-install outdated audit (for example stale
+    port values and missing/mismatched .projectmemory/identity.json files).
+
 .EXAMPLE
     # Build and install everything
     .\install.ps1
@@ -83,6 +91,8 @@ param(
     [switch]$NoLaunchPrompt,  # suppress interactive launch prompt (for subprocess callers)
     [switch]$LintVerbose,     # print all qmllint output, not just errors
     [string]$LintLog = '',    # append qmllint output to this log file (optional)
+    [switch]$SkipOutdatedAudit,
+    [switch]$ApplyOutdatedAuditFixes,
     [Alias('h')]
     [switch]$Help,
     [string[]]$RemainingArgs
@@ -95,7 +105,7 @@ function Show-InstallHelp {
     Write-Host "Project Memory MCP — Install" -ForegroundColor Magenta
     Write-Host ""
     Write-Host "Usage:" -ForegroundColor Cyan
-    Write-Host "  .\install.ps1 [-Component <list>] [-InstallOnly] [-SkipInstall] [-Force] [-NoBuild] [-NewDatabase] [-h|-Help|--help]"
+    Write-Host "  .\install.ps1 [-Component <list>] [-InstallOnly] [-SkipInstall] [-Force] [-NoBuild] [-NewDatabase] [-SkipOutdatedAudit] [-ApplyOutdatedAuditFixes] [-h|-Help|--help]"
     Write-Host ""
     Write-Host "Components:" -ForegroundColor Cyan
     Write-Host "  Supervisor, GuiForms, InteractiveTerminal, Server, FallbackServer, Dashboard, Extension, Container, All"
@@ -108,6 +118,8 @@ function Show-InstallHelp {
     Write-Host "  -NewDatabase   Archive existing SQLite DB and create a fresh one during server setup"
     Write-Host "  -LintVerbose   Print all qmllint output during QML pre-build validation (default: errors only)"
     Write-Host "  -LintLog <path>  Append qmllint output to a log file"
+    Write-Host "  -SkipOutdatedAudit  Skip post-install outdated settings/files audit"
+    Write-Host "  -ApplyOutdatedAuditFixes  Apply safe fixes in the post-install outdated audit"
     Write-Host "  -h, -Help      Show this help message"
     Write-Host "  --help         Also accepted"
 }
@@ -147,6 +159,37 @@ function Write-Fail([string]$msg) {
 
 function Write-Warn([string]$msg) {
     Write-Host "   ⚠ $msg" -ForegroundColor Yellow
+}
+
+function Invoke-OutdatedSettingsAudit {
+    param(
+        [switch]$ApplyFixes
+    )
+
+    $auditScript = Join-Path $Root 'scripts\audit-outdated-settings-and-files.ps1'
+    if (-not (Test-Path $auditScript)) {
+        Write-Warn "Outdated settings/files audit script not found: $auditScript"
+        return
+    }
+
+    Write-Step "Outdated Settings and Workspace File Audit"
+
+    try {
+        if ($ApplyFixes) {
+            & $auditScript -Apply
+        } else {
+            & $auditScript
+        }
+    } catch {
+        Write-Warn "Audit script error: $($_.Exception.Message)"
+        return
+    }
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warn "Audit script exited with code $LASTEXITCODE"
+    } else {
+        Write-Ok "Outdated settings/files audit completed"
+    }
 }
 
 # Detect whether npm needs SSL workarounds (corporate proxies / TLS interception).
@@ -434,9 +477,9 @@ function Invoke-WinDeployQt {
         ) -ForegroundColor DarkGray
     }
 
-    $directCount = ($directDependenciesLine -split '\s+' | Where-Object { $_ }).Count
-    $allCount    = ($allDependenciesLine    -split '\s+' | Where-Object { $_ }).Count
-    $deployCount = ($toBeDeployedLine       -split '\s+' | Where-Object { $_ }).Count
+    $directCount = @($directDependenciesLine -split '\s+' | Where-Object { $_ }).Count
+    $allCount    = @($allDependenciesLine    -split '\s+' | Where-Object { $_ }).Count
+    $deployCount = @($toBeDeployedLine       -split '\s+' | Where-Object { $_ }).Count
     if ($directCount -gt 0 -or $allCount -gt 0 -or $deployCount -gt 0) {
         Write-Host ("   Qt dependency sets: direct={0} all={1} deploy={2}" -f $directCount, $allCount, $deployCount) -ForegroundColor DarkGray
     }
@@ -486,7 +529,7 @@ function Invoke-CargoBuild {
         while (-not $process.HasExited) {
             $warnCount = 0
             if (Test-Path $stderrFile) {
-                try { $warnCount = (Select-String -Path $stderrFile -Pattern '^warning:').Count }
+                try { $warnCount = @(Select-String -Path $stderrFile -Pattern '^warning:').Count }
                 catch { $warnCount = [Math]::Max(0, $lastWarn) }
             }
             $now = [DateTime]::UtcNow
@@ -680,28 +723,34 @@ function Invoke-QmlLint {
 
         if ($warningKinds.Count -gt 0) {
             if ($cascadingCount -gt 0) {
-                $topPrimaryKinds = $primaryWarningKinds.GetEnumerator() |
+                $topPrimaryKinds = @(
+                    $primaryWarningKinds.GetEnumerator() |
                     Sort-Object -Property Value -Descending |
                     Select-Object -First 4 |
                     ForEach-Object { "$($_.Key)=$($_.Value)" }
+                )
 
                 if ($topPrimaryKinds.Count -gt 0) {
                     Write-Host "   QML lint primary categories: $($topPrimaryKinds -join ', ')" -ForegroundColor DarkGray
                 }
 
-                $topCascadeKinds = $cascadingWarningKinds.GetEnumerator() |
+                $topCascadeKinds = @(
+                    $cascadingWarningKinds.GetEnumerator() |
                     Sort-Object -Property Value -Descending |
                     Select-Object -First 4 |
                     ForEach-Object { "$($_.Key)=$($_.Value)" }
+                )
 
                 if ($topCascadeKinds.Count -gt 0) {
                     Write-Host "   QML lint cascading categories: $($topCascadeKinds -join ', ')" -ForegroundColor DarkGray
                 }
             } else {
-                $topKinds = $warningKinds.GetEnumerator() |
+                $topKinds = @(
+                    $warningKinds.GetEnumerator() |
                     Sort-Object -Property Value -Descending |
                     Select-Object -First 4 |
                     ForEach-Object { "$($_.Key)=$($_.Value)" }
+                )
 
                 if ($topKinds.Count -gt 0) {
                     Write-Host "   QML lint warning categories: $($topKinds -join ', ')" -ForegroundColor DarkGray
@@ -855,7 +904,7 @@ function Install-Supervisor {
         $iconsTarget = Join-Path $Root 'target\release'
         if (Test-Path $iconsSource) {
             Copy-Item -Path "$iconsSource\*.ico" -Destination $iconsTarget -Force
-            $iconCount = (Get-ChildItem "$iconsSource\*.ico").Count
+            $iconCount = @(Get-ChildItem "$iconsSource\*.ico").Count
             Write-Host "   Copied $iconCount tray icon(s) → target/release/" -ForegroundColor DarkGray
         } else {
             Write-Host "   [warn] supervisor/assets/icons not found – tray icon may be blank" -ForegroundColor Yellow
@@ -1258,6 +1307,8 @@ Write-Host "  InstallOnly: $EffectiveInstallOnly" -ForegroundColor DarkGray
 Write-Host "  SkipInstall: $SkipInstall" -ForegroundColor DarkGray
 Write-Host "  Force      : $Force" -ForegroundColor DarkGray
 Write-Host "  NewDatabase: $NewDatabase" -ForegroundColor DarkGray
+Write-Host "  SkipAudit  : $SkipOutdatedAudit" -ForegroundColor DarkGray
+Write-Host "  ApplyAudit : $ApplyOutdatedAuditFixes" -ForegroundColor DarkGray
 
 foreach ($comp in $Components) {
     switch ($comp) {
@@ -1271,6 +1322,13 @@ foreach ($comp in $Components) {
         "Extension"           { Install-Extension }
         "Container"           { Install-Container }
     }
+}
+
+if (-not $SkipOutdatedAudit) {
+    Invoke-OutdatedSettingsAudit -ApplyFixes:$ApplyOutdatedAuditFixes
+} else {
+    Write-Host "`n── Outdated Settings and Workspace File Audit" -ForegroundColor Cyan
+    Write-Host "   (skipped by -SkipOutdatedAudit)" -ForegroundColor DarkGray
 }
 
 $Elapsed = (Get-Date) - $StartTime
