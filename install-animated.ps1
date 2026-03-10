@@ -5,11 +5,13 @@
 
 .DESCRIPTION
     Builds and installs one or more components of the Project Memory MCP system.
-    Components: Server, Extension, Container.
+    Components: Supervisor, GuiForms, InteractiveTerminal, Server, FallbackServer,
+    Dashboard, Extension, Container.
 
 .PARAMETER Component
     Which component(s) to build and install. Accepts an array.
-    Valid values: Server, Extension, Container, All
+    Valid values: Supervisor, GuiForms, InteractiveTerminal, Server,
+    FallbackServer, Dashboard, Extension, Container, All
     Default: All
 
 .PARAMETER InstallOnly
@@ -24,6 +26,23 @@
 
 .PARAMETER NoBuild
     Alias for -InstallOnly (kept for back-compat with build-and-install.ps1 usage).
+
+.PARAMETER NoLaunchPrompt
+    Suppress the final optional "launch supervisor now" prompt.
+
+.PARAMETER LintVerbose
+    Print all qmllint output during QML pre-build validation, not just errors.
+
+.PARAMETER LintLog
+    Optional path to a file where qmllint output is appended (one entry per validated package).
+
+.PARAMETER SkipOutdatedAudit
+    Skip the post-install audit that checks for outdated Project Memory settings
+    and workspace-level files based on project-memory.db registrations.
+
+.PARAMETER ApplyOutdatedAuditFixes
+    Apply safe fixes during the post-install outdated audit (for example stale
+    port values and missing/mismatched .projectmemory/identity.json files).
 
 .EXAMPLE
     # Build and install everything
@@ -56,11 +75,15 @@
 .EXAMPLE
     # Fresh database + server only
     .\install.ps1 -Component Server -NewDatabase
+
+.EXAMPLE
+    # Build only the fallback REST server entrypoint
+    .\install.ps1 -Component FallbackServer
 #>
 
 [CmdletBinding()]
 param(
-    [ValidateSet("Server", "Extension", "Container", "Supervisor", "InteractiveTerminal", "Dashboard", "GuiForms", "All", "--help")]
+    [ValidateSet("Server", "FallbackServer", "Extension", "Container", "Supervisor", "InteractiveTerminal", "Dashboard", "GuiForms", "InstallWizard", "All", "--help")]
     [string[]]$Component = @("All"),
 
     [switch]$InstallOnly,
@@ -68,6 +91,11 @@ param(
     [switch]$Force,
     [switch]$NoBuild,  # alias for InstallOnly
     [switch]$NewDatabase,  # archive old DB and create a fresh one
+    [switch]$NoLaunchPrompt,  # suppress interactive launch prompt (for subprocess callers)
+    [switch]$LintVerbose,     # print all qmllint output, not just errors
+    [string]$LintLog = '',    # append qmllint output to this log file (optional)
+    [switch]$SkipOutdatedAudit,
+    [switch]$ApplyOutdatedAuditFixes,
     [Alias('h')]
     [switch]$Help,
     [string[]]$RemainingArgs
@@ -197,10 +225,10 @@ function Show-InstallHelp {
     Show-HelpBanner
     Write-Host ""
     Write-Host "Usage:" -ForegroundColor Cyan
-    Write-Host "  .\install-animated.ps1 [-Component <list>] [-InstallOnly] [-SkipInstall] [-Force] [-NoBuild] [-NewDatabase] [-h|-Help|--help]"
+    Write-Host "  .\install-animated.ps1 [-Component <list>] [-InstallOnly] [-SkipInstall] [-Force] [-NoBuild] [-NewDatabase] [-SkipOutdatedAudit] [-ApplyOutdatedAuditFixes] [-h|-Help|--help]"
     Write-Host ""
     Write-Host "Components:" -ForegroundColor Cyan
-    Write-Host "  Supervisor, GuiForms, InteractiveTerminal, Server, Dashboard, Extension, Container, All"
+    Write-Host "  Supervisor, GuiForms, InteractiveTerminal, Server, FallbackServer, Dashboard, Extension, Container, All"
     Write-Host ""
     Write-Host "Flags:" -ForegroundColor Cyan
     Write-Host "  -InstallOnly   Extension only: install latest .vsix without rebuilding"
@@ -208,6 +236,11 @@ function Show-InstallHelp {
     Write-Host "  -Force         Pass --force for extension install; use --no-cache for container build"
     Write-Host "  -NoBuild       Alias for -InstallOnly"
     Write-Host "  -NewDatabase   Archive existing SQLite DB and create a fresh one during server setup"
+    Write-Host "  -NoLaunchPrompt  Suppress final supervisor launch prompt"
+    Write-Host "  -LintVerbose   Print all qmllint output during QML pre-build validation (default: errors only)"
+    Write-Host "  -LintLog <path>  Append qmllint output to a log file"
+    Write-Host "  -SkipOutdatedAudit  Skip post-install outdated settings/files audit"
+    Write-Host "  -ApplyOutdatedAuditFixes  Apply safe fixes in the post-install outdated audit"
     Write-Host "  -h, -Help      Show this help message"
     Write-Host "  --help         Also accepted"
 }
@@ -318,6 +351,13 @@ function Get-InstallFlags {
     if ($Force)        { [void]$flags.Add('-Force') }
     if ($NoBuild)      { [void]$flags.Add('-NoBuild') }
     if ($NewDatabase)  { [void]$flags.Add('-NewDatabase') }
+    if ($LintVerbose)  { [void]$flags.Add('-LintVerbose') }
+    if ($LintLog)      { [void]$flags.Add('-LintLog'); [void]$flags.Add($LintLog) }
+    if ($ApplyOutdatedAuditFixes) { [void]$flags.Add('-ApplyOutdatedAuditFixes') }
+    # install-animated delegates component-by-component; suppress nested audit and run once at end.
+    [void]$flags.Add('-SkipOutdatedAudit')
+    # Avoid nested launch prompts when delegating to canonical installer.
+    [void]$flags.Add('-NoLaunchPrompt')
     return $flags.ToArray()
 }
 
@@ -334,6 +374,42 @@ function Write-Ok([string]$msg) {
 function Write-Fail([string]$msg) {
     Reset-InstallStatusLine
     Write-Host "   ✗ $msg" -ForegroundColor Red
+}
+
+function Write-Warn([string]$msg) {
+    Reset-InstallStatusLine
+    Write-Host "   ⚠ $msg" -ForegroundColor Yellow
+}
+
+function Invoke-OutdatedSettingsAudit {
+    param(
+        [switch]$ApplyFixes
+    )
+
+    $auditScript = Join-Path $Root 'scripts\audit-outdated-settings-and-files.ps1'
+    if (-not (Test-Path $auditScript)) {
+        Write-Warn "Outdated settings/files audit script not found: $auditScript"
+        return
+    }
+
+    Write-Step "Outdated Settings and Workspace File Audit"
+
+    try {
+        if ($ApplyFixes) {
+            & $auditScript -Apply
+        } else {
+            & $auditScript
+        }
+    } catch {
+        Write-Warn "Audit script error: $($_.Exception.Message)"
+        return
+    }
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warn "Audit script exited with code $LASTEXITCODE"
+    } else {
+        Write-Ok "Outdated settings/files audit completed"
+    }
 }
 
 function Set-CurrentComponent([string]$Name) {
@@ -591,7 +667,7 @@ function Install-Supervisor {
     Stop-SupervisorRuntimeProcesses -WorkspaceRoot $Root
     Invoke-CheckedCommand -Description 'install.ps1 -Component Supervisor' `
         -FilePath 'pwsh' `
-        -Arguments (@('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $CanonicalInstallScript, '-Component', 'Supervisor', '-NoLaunchPrompt') + (Get-InstallFlags)) `
+        -Arguments (@('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $CanonicalInstallScript, '-Component', 'Supervisor') + (Get-InstallFlags)) `
         -WorkingDirectory $Root
     Write-Ok "supervisor built → target/release/supervisor.exe"
 }
@@ -604,6 +680,16 @@ function Install-InteractiveTerminal {
         -Arguments (@('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $CanonicalInstallScript, '-Component', 'InteractiveTerminal') + (Get-InstallFlags)) `
         -WorkingDirectory $Root
     Write-Ok "interactive-terminal built → target/release/interactive-terminal.exe"
+}
+
+function Install-InstallWizard {
+    Set-CurrentComponent 'InstallWizard'
+    Write-Step "Project Memory Install Wizard (GUI)"
+    Invoke-CheckedCommand -Description 'install.ps1 -Component InstallWizard' `
+        -FilePath 'pwsh' `
+        -Arguments (@('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $CanonicalInstallScript, '-Component', 'InstallWizard') + (Get-InstallFlags)) `
+        -WorkingDirectory $Root
+    Write-Ok "Install Wizard built → target/release/pm-install-gui.exe"
 }
 
 # ──────────────────────────────────────────────────────────────
@@ -636,6 +722,16 @@ function Install-Server {
     } else {
         Write-Ok "Server built + database seeded at %APPDATA%\ProjectMemory\project-memory.db"
     }
+}
+
+function Install-FallbackServer {
+    Set-CurrentComponent 'FallbackServer'
+    Write-Step "Fallback Server"
+    Invoke-CheckedCommand -Description "install.ps1 -Component FallbackServer" `
+        -FilePath 'pwsh' `
+        -Arguments (@('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $CanonicalInstallScript, '-Component', 'FallbackServer') + (Get-InstallFlags)) `
+        -WorkingDirectory $Root
+    Write-Ok "Fallback server built → server/dist/fallback-rest-main.js"
 }
 
 # ──────────────────────────────────────────────────────────────
@@ -701,17 +797,28 @@ Write-Host "  InstallOnly: $EffectiveInstallOnly" -ForegroundColor DarkGray
 Write-Host "  SkipInstall: $SkipInstall" -ForegroundColor DarkGray
 Write-Host "  Force      : $Force" -ForegroundColor DarkGray
 Write-Host "  NewDatabase: $NewDatabase" -ForegroundColor DarkGray
+Write-Host "  SkipAudit  : $SkipOutdatedAudit" -ForegroundColor DarkGray
+Write-Host "  ApplyAudit : $ApplyOutdatedAuditFixes" -ForegroundColor DarkGray
 
 foreach ($comp in $Components) {
     switch ($comp) {
         "Supervisor"          { Install-Supervisor }
         "GuiForms"            { Install-GuiForms }
+        "InstallWizard"       { Install-InstallWizard }
         "InteractiveTerminal" { Install-InteractiveTerminal }
         "Server"              { Install-Server }
+        "FallbackServer"      { Install-FallbackServer }
         "Dashboard"           { Install-Dashboard }
         "Extension"           { Install-Extension }
         "Container"           { Install-Container }
     }
+}
+
+if (-not $SkipOutdatedAudit) {
+    Invoke-OutdatedSettingsAudit -ApplyFixes:$ApplyOutdatedAuditFixes
+} else {
+    Write-Step "Outdated Settings and Workspace File Audit"
+    Write-Host "   (skipped by -SkipOutdatedAudit)" -ForegroundColor DarkGray
 }
 
 $Elapsed = (Get-Date) - $StartTime
@@ -736,7 +843,21 @@ if ($Components -contains "Supervisor") {
     $canLaunchViaScript = Test-Path $launchScript
     $canLaunchDirect = Test-Path $supervisorExe
 
-    if ($canLaunchViaScript -or $canLaunchDirect) {
+    if (-not ($canLaunchViaScript -or $canLaunchDirect)) {
+        Write-Host "   [warn] no supervisor launch target found." -ForegroundColor Yellow
+        Write-Host "   Missing script: $launchScript" -ForegroundColor DarkGray
+        Write-Host "   Missing executable: $supervisorExe" -ForegroundColor DarkGray
+    } elseif ($NoLaunchPrompt) {
+        Write-Host "   Supervisor launch prompt suppressed (-NoLaunchPrompt)." -ForegroundColor DarkGray
+        if ($canLaunchViaScript) {
+            Write-Host "   Launch command (script):" -ForegroundColor DarkGray
+            Write-Host "   & '$launchScript'" -ForegroundColor DarkGray
+        }
+        if ($canLaunchDirect) {
+            Write-Host "   Launch command (direct):" -ForegroundColor DarkGray
+            Write-Host "   & '$supervisorExe'" -ForegroundColor DarkGray
+        }
+    } else {
         $launchNow = Read-Host 'Build complete. Launch supervisor now? (Y/N)'
         if ($launchNow -match '^(?i)y(?:es)?$') {
             $launched = $false
@@ -782,9 +903,5 @@ if ($Components -contains "Supervisor") {
                 Write-Host "   & '$supervisorExe'" -ForegroundColor DarkGray
             }
         }
-    } else {
-        Write-Host "   [warn] no supervisor launch target found." -ForegroundColor Yellow
-        Write-Host "   Missing script: $launchScript" -ForegroundColor DarkGray
-        Write-Host "   Missing executable: $supervisorExe" -ForegroundColor DarkGray
     }
 }
