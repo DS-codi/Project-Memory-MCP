@@ -25,7 +25,11 @@ import { InMemoryEventStore } from '@modelcontextprotocol/sdk/examples/shared/in
 import { getDataRoot, listDirs } from '../storage/db-store.js';
 import { isDataRootAccessible } from './data-root-liveness.js';
 import { listWorkspaces } from '../db/workspace-db.js';
-import { handleMemoryCartographer } from '../tools/memory_cartographer.js';
+import {
+  handleMemoryCartographer,
+  type CartographerAction,
+  type MemoryCartographerParams,
+} from '../tools/memory_cartographer.js';
 import { storeContext } from '../db/context-db.js';
 import { run, queryOne, newId, nowIso } from '../db/query-helpers.js';
 import { getAllLiveSessions, getLiveSessionCount, getLiveSessionEntry, clearLiveSession } from '../tools/session-live-store.js';
@@ -49,6 +53,55 @@ interface TransportEntry {
 
 const transports: Record<string, TransportEntry> = {};
 const serverStartTime = Date.now();
+
+const SUPERVISOR_CARTOGRAPHER_ACTIONS = new Set<CartographerAction>([
+  'summary',
+  'file_context',
+  'flow_entry_points',
+  'layer_view',
+  'search',
+  'slice_detail',
+  'slice_projection',
+  'slice_filters',
+]);
+
+const SUPERVISOR_SEARCH_SCOPES = new Set<NonNullable<MemoryCartographerParams['search_scope']>>([
+  'symbols',
+  'files',
+  'modules',
+  'all',
+]);
+
+const SUPERVISOR_PROJECTION_TYPES = new Set<NonNullable<MemoryCartographerParams['projection_type']>>([
+  'file_level',
+  'module_level',
+  'symbol_level',
+]);
+
+function parseSupervisorCartographerAction(value: unknown): CartographerAction | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  if (!SUPERVISOR_CARTOGRAPHER_ACTIONS.has(value as CartographerAction)) {
+    return undefined;
+  }
+  return value as CartographerAction;
+}
+
+function parseOptionalStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const parsed = value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0);
+  return parsed.length > 0 ? parsed : undefined;
+}
+
+function parseOptionalNumber(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return undefined;
+  }
+  return value;
+}
 
 // ---------------------------------------------------------------------------
 // Health endpoint
@@ -367,27 +420,104 @@ export function createHttpApp(getServer: () => McpServer): Express {
     }
   });
 
-  // ---- Admin: trigger memory_cartographer summary scan ----
+  // ---- Admin: trigger memory_cartographer queries (for supervisor UI) ----
   app.post('/admin/memory_cartographer', async (req: Request, res: Response) => {
-    const { workspace_id, force_refresh } = req.body as {
-      workspace_id?: unknown;
-      force_refresh?: unknown;
-    };
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const { workspace_id, force_refresh } = body;
     if (!workspace_id || typeof workspace_id !== 'string') {
       res.status(400).json({ error: 'workspace_id is required' });
       return;
     }
+
+    const parsedAction = parseSupervisorCartographerAction(body.action);
+    if (typeof body.action !== 'undefined' && !parsedAction) {
+      res.status(400).json({ error: `Unsupported action '${String(body.action)}' for /admin/memory_cartographer` });
+      return;
+    }
+
+    const action: CartographerAction = parsedAction ?? 'summary';
+
+    const requestParams: MemoryCartographerParams = {
+      action,
+      workspace_id,
+      agent_type: 'Coordinator',
+      caller_surface: 'supervisor',
+      write_documentation: true,
+      ...(force_refresh === true && { force_refresh: true }),
+    };
+
+    if (typeof body.file_id === 'string') {
+      requestParams.file_id = body.file_id;
+    }
+    if (typeof body.include_symbols === 'boolean') {
+      requestParams.include_symbols = body.include_symbols;
+    }
+    if (typeof body.include_references === 'boolean') {
+      requestParams.include_references = body.include_references;
+    }
+    if (typeof body.include_cross_layer_edges === 'boolean') {
+      requestParams.include_cross_layer_edges = body.include_cross_layer_edges;
+    }
+    if (typeof body.query === 'string') {
+      requestParams.query = body.query;
+    }
+    if (typeof body.slice_id === 'string') {
+      requestParams.slice_id = body.slice_id;
+    }
+    if (typeof body.materialize === 'boolean') {
+      requestParams.materialize = body.materialize;
+    }
+
+    const searchScope = body.search_scope;
+    if (typeof searchScope === 'string' && SUPERVISOR_SEARCH_SCOPES.has(searchScope as NonNullable<MemoryCartographerParams['search_scope']>)) {
+      requestParams.search_scope = searchScope as NonNullable<MemoryCartographerParams['search_scope']>;
+    }
+
+    const projectionType = body.projection_type;
+    if (typeof projectionType === 'string' && SUPERVISOR_PROJECTION_TYPES.has(projectionType as NonNullable<MemoryCartographerParams['projection_type']>)) {
+      requestParams.projection_type = projectionType as NonNullable<MemoryCartographerParams['projection_type']>;
+    }
+
+    const layerFilter = parseOptionalStringArray(body.layer_filter);
+    if (layerFilter) {
+      requestParams.layer_filter = layerFilter;
+    }
+
+    const languageFilter = parseOptionalStringArray(body.language_filter);
+    if (languageFilter) {
+      requestParams.language_filter = languageFilter;
+    }
+
+    const layers = parseOptionalStringArray(body.layers);
+    if (layers) {
+      requestParams.layers = layers;
+    }
+
+    const limit = parseOptionalNumber(body.limit);
+    if (typeof limit === 'number') {
+      requestParams.limit = limit;
+    }
+
+    const depthLimit = parseOptionalNumber(body.depth_limit);
+    if (typeof depthLimit === 'number') {
+      requestParams.depth_limit = depthLimit;
+    }
+
+    if (Array.isArray(body.filters)) {
+      requestParams.filters = body.filters;
+    }
+
     try {
-      const result = await handleMemoryCartographer({
-        action: 'summary',
-        workspace_id,
-        agent_type: 'Coordinator',
-        caller_surface: 'supervisor',
-        write_documentation: true,
-        ...(force_refresh === true && { force_refresh: true }),
-      });
+      const result = await handleMemoryCartographer(requestParams);
       if (result.success) {
-        storeContext('workspace', workspace_id, 'cartographer_summary', result.data as object);
+        const contextType = action === 'summary' ? 'cartographer_summary' : `cartographer_${action}`;
+        storeContext('workspace', workspace_id, contextType, result.data as object);
+
+        if (action !== 'summary') {
+          res.json(result);
+          return;
+        }
+
         // Upsert language-group slices into architecture_slices
         const languageBreakdown = (result.data as Record<string, unknown> | undefined)
           ?.data as Record<string, unknown> | undefined;

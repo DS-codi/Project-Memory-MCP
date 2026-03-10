@@ -525,6 +525,84 @@ describe('Phase B summary + stubs', () => {
     }));
   });
 
+  it('non-summary actions write supervisor documentation when requested', async () => {
+    mockedInvokePythonCore.mockResolvedValueOnce({
+      schema_version: '1.0.0',
+      request_id: 'cartograph_search_req_supervisor_doc',
+      status: 'ok',
+      result: {
+        query: 'search',
+        rows: [],
+      },
+      diagnostics: {
+        warnings: [],
+        errors: [],
+        markers: [],
+        skipped_paths: [],
+      },
+      elapsed_ms: 21,
+    });
+
+    const result = await handleMemoryCartographer(
+      baseParams({
+        action: 'search',
+        query: 'supervisor report',
+        caller_surface: 'supervisor',
+        write_documentation: true,
+      }),
+    );
+
+    expect(result.success).toBe(true);
+    expect(mockedFsMkdir).toHaveBeenCalledTimes(1);
+    expect(mockedFsWriteFile).toHaveBeenCalledTimes(1);
+
+    const [writtenPath, content] = mockedFsWriteFile.mock.calls[0] as [string, string];
+    expect(writtenPath).toContain(path.join('docs', 'cartographer', 'supervisor-reports'));
+    expect(writtenPath).toContain('cartographer-supervisor-search-');
+    expect(content).toContain('- Action: search');
+
+    const payload = result.data as any;
+    expect(payload.data.documentation).toEqual(expect.objectContaining({
+      status: 'written',
+    }));
+  });
+
+  it('non-summary Python status=error still returns supervisor documentation metadata', async () => {
+    mockedInvokePythonCore.mockResolvedValueOnce({
+      schema_version: '1.0.0',
+      request_id: 'cartograph_search_req_supervisor_error_doc',
+      status: 'error',
+      result: {
+        query: 'search',
+      },
+      diagnostics: {
+        warnings: [],
+        errors: ['search failed'],
+        markers: [],
+        skipped_paths: [],
+      },
+      elapsed_ms: 13,
+    });
+
+    const result = await handleMemoryCartographer(
+      baseParams({
+        action: 'search',
+        query: 'will fail',
+        caller_surface: 'supervisor',
+        write_documentation: true,
+      }),
+    );
+
+    expect(result.success).toBe(false);
+    expect(mockedFsWriteFile).toHaveBeenCalledTimes(1);
+
+    const payload = result.data as any;
+    expect(payload.data.diagnostic_code).toBe('PYTHON_RUNTIME_ERROR');
+    expect(payload.data.documentation).toEqual(expect.objectContaining({
+      status: 'written',
+    }));
+  });
+
   const cartographyQueryActions = ['file_context', 'flow_entry_points', 'layer_view', 'search'] as const;
   const architectureSliceActions = ['slice_detail', 'slice_projection', 'slice_filters'] as const;
   type NonSummaryAction = (typeof cartographyQueryActions)[number] | (typeof architectureSliceActions)[number];

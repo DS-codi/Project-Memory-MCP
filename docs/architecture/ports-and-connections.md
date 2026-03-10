@@ -1,7 +1,12 @@
 # Port and Connection Map — Project Memory MCP
 
-**Last updated:** 2026-03-05  
+**Last updated:** 2026-03-10  
 **Status:** Authoritative reference. Update this file whenever a port changes.
+
+Need step-by-step setup instructions for Windows/macOS/Linux? See
+[docs/workspace-setup/cross-platform-port-setup.md](../workspace-setup/cross-platform-port-setup.md).
+
+Runtime support note: Supervisor-managed runtime is the only supported means of running the system in its current state. Standalone/container port sections below are retained as legacy or test reference only.
 
 ---
 
@@ -38,10 +43,12 @@ test is explicitly opt-in for supervisor integration testing.
 
 ---
 
-## Standalone / Direct-Run Mode
+## Standalone / Direct-Run Mode (Legacy Reference)
 
 Used when the **MCP server and dashboard are run directly** (e.g. `node server.js`,
 `npm run dev`) without the supervisor.
+
+> Unsupported for normal runtime in the current system state. Keep this section for migration/debug context only.
 
 | Port | Protocol | Component | Config key / source |
 |---|---|---|---|
@@ -99,7 +106,8 @@ Source: [docs/integration-harness/podman-compose.integration.hostports.yml](../i
 | Extension setting | Default | Connects to |
 |---|---|---|
 | `projectMemory.mcpPort` | `3457` | Supervisor proxy (live host) |
-| `projectMemory.apiPort` / `projectMemory.serverPort` | `3001` | Dashboard API (live host, standalone mode) |
+| `projectMemory.serverPort` | `3459` | Dashboard API (supervisor-managed live host) |
+| `projectMemory.apiPort` (legacy) | Deprecated | Legacy alias for dashboard API; keep equal to `projectMemory.serverPort` if present |
 | Supervisor detection (named pipe) | `\\.\pipe\project-memory-supervisor` | Supervisor control API |
 | Supervisor detection (TCP fallback) | `127.0.0.1:45470` | Supervisor control API |
 
@@ -118,7 +126,7 @@ GET http://localhost:<mcpPort>/supervisor/heartbeat
  │                   VS Code + Extension                        │
  │                                                             │
  │  MCP tools ──→ :3457 (supervisor proxy)                     │
- │  Dashboard webview ──→ :3001 (dashboard API)                │
+ │  Dashboard webview ──→ :3459 (dashboard API)                │
  │  Supervisor heartbeat ──→ :3457/supervisor/heartbeat        │
  │  Supervisor detect ──→ pipe OR :45470                       │
  └─────────────────────────────────────────────────────────────┘
@@ -127,7 +135,7 @@ GET http://localhost:<mcpPort>/supervisor/heartbeat
  ┌────────────────────┐   ┌───────────────────┐
  │  Supervisor        │   │  Dashboard Node.js │
  │  (Rust + Qt/QML)   │   │  :3459             │
- │                    │   │  → :3001 external  │
+ │                    │   │  (supervisor-managed) │
  │  Control API:      │   └───────────────────┘
  │    pipe (default)  │            │
  │    :45470 (TCP)    │            ▼
@@ -167,7 +175,7 @@ GET http://localhost:<mcpPort>/supervisor/heartbeat
 | Port | Owner | Environment |
 |---|---|---|
 | `3000` | MCP server | Container / standalone |
-| `3001` | Dashboard API | Container / standalone / supervisor |
+| `3001` | Dashboard API | Container / standalone (legacy reference) |
 | `3002` | Dashboard WebSocket | Container / standalone |
 | `3457` | Supervisor proxy (MCP public endpoint) | **Live host system** |
 | `3458` | Interactive Terminal (supervisor-managed) | **Live host system** |
