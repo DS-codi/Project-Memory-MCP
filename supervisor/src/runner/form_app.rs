@@ -430,6 +430,21 @@ async fn read_ndjson_line(
     Ok(value)
 }
 
+/// Kill every form-app process that is currently alive in the global session
+/// registry.  Call this during supervisor shutdown to ensure no GUI windows
+/// (e.g. `pm-approval-gui`, `pm-brainstorm-gui`) are left as orphans after
+/// the supervisor exits.
+pub async fn kill_all_sessions() {
+    let registry = sessions();
+    let mut map = registry.lock().await;
+    for (token, session) in map.iter_mut() {
+        eprintln!("[form_app] killing live session '{}' (app: {})", token, session.app_name);
+        let _ = session.child.kill().await;
+        let _ = session.child.wait().await;
+    }
+    map.clear();
+}
+
 /// Best-effort kill of the child process.
 async fn kill_child(child: &mut tokio::process::Child) {
     let _ = child.kill().await;

@@ -10,7 +10,6 @@ ApplicationWindow {
     width: 500
     height: root.multiSessionMode ? 560 : (approvalApp.multipleChoiceMode ? 520 : 350)
     title: approvalApp.title
-    icon.source: "qrc:/qt/qml/com/projectmemory/approval/resources/app_icon.png"
     color: "#1e1e1e"
     flags: Qt.Window | Qt.WindowStaysOnTopHint
 

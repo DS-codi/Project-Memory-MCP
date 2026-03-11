@@ -120,10 +120,26 @@ fn build_args(base_args: &[String], port: u16) -> Vec<String> {
 /// Called during `ManagedPool::init()` so that Node.js MCP instances left
 /// over from a previous supervisor run do not block the new pool from
 /// binding to the same ports.
+///
+/// After each kill attempt, waits 300 ms and re-checks the port.  If the
+/// port is still occupied the process is a Windows zombie whose kernel
+/// object is being kept alive by a leaked handle (e.g. from a crashed VS
+/// Code extension host).  A log warning is emitted; only a reboot can free
+/// such a port.
 async fn kill_orphans_on_ports(ports: &[u16]) {
     for &port in ports {
         if let Some(pid) = find_pid_for_port(port).await {
             kill_pid(pid, port);
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+            if find_pid_for_port(port).await.is_some() {
+                eprintln!(
+                    "[pool] ZOMBIE SOCKET on port {port}: port is still occupied after \
+                     killing PID {pid}.  This is likely a Windows zombie \u{2014} the previous \
+                     process object is being kept alive by a leaked handle (e.g. from a \
+                     crashed VS Code extension host).  A system reboot is required to \
+                     release this port."
+                );
+            }
         }
     }
 }

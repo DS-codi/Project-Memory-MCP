@@ -1170,7 +1170,7 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
         };
       }
 
-      const formResponse = launchResult.response_payload as FormResponse;
+      const formResponse = launchResult.response_payload as unknown as FormResponse;
       const formStatus = formResponse.status;
       const defaultDecision = defaultDecisionForFormStatus(formStatus);
       const decisionMap = extractCleanupDecisions(formResponse);
