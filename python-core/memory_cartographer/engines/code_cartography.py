@@ -202,15 +202,23 @@ class CodeCartographyEngine:
         """
         started_at = time.monotonic()
 
+        # Compute a shared deadline (90 % of the budget) so each phase can
+        # bail out early and Python can write a partial response before the
+        # TypeScript subprocess timeout kills the process.
+        deadline: Optional[float] = None
+        if timeout_ms is not None and timeout_ms > 0:
+            deadline = started_at + (timeout_ms / 1000.0) * 0.90
+
         normalized_scope = scope if isinstance(scope, dict) else {}
         normalized_languages = self._normalize_language_filters(languages)
         files = self._discover_files(
             workspace_path=workspace_path,
             scope=normalized_scope,
             languages=normalized_languages,
+            deadline=deadline,
         )
         workspace_root = Path(workspace_path)
-        symbols = self._extract_symbols(files, workspace_root)
+        symbols = self._extract_symbols(files, workspace_root, deadline=deadline)
         references = self._resolve_references(files, symbols, workspace_root)
         module_graph = self._build_module_graph(references)
         if not module_graph.get("nodes"):
@@ -1532,15 +1540,22 @@ class CodeCartographyEngine:
     # Private sub-steps (stubs — to be implemented in later phases)
     # ------------------------------------------------------------------
 
+    _DISCOVER_DEADLINE_CHECK_INTERVAL = 200
+
     def _discover_files(
         self,
         workspace_path: str,
         scope: dict,
         languages: Optional[list[str]] = None,
+        deadline: Optional[float] = None,
     ) -> list[CodeFile]:
         """Discover and inventory source files within scope.
 
         Returns a list sorted by workspace-relative path ascending.
+        When *deadline* is provided (``time.monotonic()`` epoch) file
+        discovery stops early and returns a partial list rather than
+        running past the budget and letting the TypeScript host kill the
+        process.
         """
         if not isinstance(workspace_path, str) or not workspace_path.strip():
             return []
@@ -1560,7 +1575,15 @@ class CodeCartographyEngine:
         language_filter = set(self._normalize_language_filters(languages))
 
         discovered: list[CodeFile] = []
+        _files_since_check: int = 0
+        _deadline_hit = False
         for current_root, dirs, files in os.walk(root, topdown=True):
+            # Check deadline at each directory level (cheap, avoids stat overhead).
+            if deadline is not None and time.monotonic() >= deadline:
+                _deadline_hit = True
+                dirs[:] = []
+                break
+
             relative_dir = Path(current_root).resolve().relative_to(root).as_posix()
             current_depth = 0 if relative_dir == "." else relative_dir.count("/") + 1
 
@@ -1614,11 +1637,33 @@ class CodeCartographyEngine:
                     )
                 )
 
+                # Periodic deadline check inside the file loop so a directory
+                # with thousands of files doesn't overrun the budget.
+                _files_since_check += 1
+                if (
+                    deadline is not None
+                    and _files_since_check >= self._DISCOVER_DEADLINE_CHECK_INTERVAL
+                ):
+                    _files_since_check = 0
+                    if time.monotonic() >= deadline:
+                        _deadline_hit = True
+                        dirs[:] = []  # prevent os.walk from descending further
+                        break
+
+            if _deadline_hit:
+                break
+
         discovered.sort(key=lambda entry: entry.path)
         return discovered
 
-    def _extract_symbols(self, files, workspace_root: Path) -> list:
-        """Extract symbols from all files using language-specific extractors."""
+    _SYMBOL_DEADLINE_CHECK_INTERVAL = 200
+
+    def _extract_symbols(self, files, workspace_root: Path, deadline: Optional[float] = None) -> list:
+        """Extract symbols from all files using language-specific extractors.
+
+        When *deadline* is provided the extraction loop exits early rather than
+        overrunning the scan budget.
+        """
         dispatch = {
             '.ts': self._extract_ts_symbols,
             '.tsx': self._extract_ts_symbols,
@@ -1643,7 +1688,16 @@ class CodeCartographyEngine:
         }
         symbols = []
         seen_ids: dict = {}
+        _files_since_check: int = 0
         for f in files:
+            _files_since_check += 1
+            if (
+                deadline is not None
+                and _files_since_check >= self._SYMBOL_DEADLINE_CHECK_INTERVAL
+            ):
+                _files_since_check = 0
+                if time.monotonic() >= deadline:
+                    break
             # Always generate the module sentinel for every file
             sentinel = Symbol(
                 id=f'{f.path}::__module__',

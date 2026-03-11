@@ -104,6 +104,8 @@ export interface MemoryCartographerParams {
   caller_surface?: string;
   /** When true, emit a markdown report into the target workspace */
   write_documentation?: boolean;
+  /** When true, stream Python subprocess stderr to process.stderr in real-time (visible in supervisor/interactive terminal) */
+  debug_output?: boolean;
 
   // --- dependencies_dependents ---
   plan_id?: string;
@@ -914,7 +916,7 @@ async function invokeNonSummaryPythonAction(
       action:         'cartograph',
       args:           queryArgs,
       timeout_ms:     timeoutMs,
-    });
+    }, { debug_output: params.debug_output });
 
     let documentationRecord: SupervisorDocumentationRecord | undefined;
     if (shouldWriteSupervisorDocumentation(params)) {
@@ -1102,7 +1104,7 @@ export async function handleMemoryCartographer(
             ...(languageFilters.length > 0 ? { languages: languageFilters } : {}),
           },
           timeout_ms: summaryTimeoutMs,
-        });
+        }, { debug_output: params.debug_output });
 
         if (response.status === 'error') {
           return {
