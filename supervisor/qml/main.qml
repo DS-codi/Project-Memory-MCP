@@ -5,6 +5,8 @@ import QtQuick.Layouts 1.15
 import Qt.labs.platform 1.1 as Platform
 import com.projectmemory.supervisor
 
+pragma ComponentBehavior: Bound
+
 ApplicationWindow {
     id: root
     width: 1000
@@ -460,7 +462,7 @@ ApplicationWindow {
                                             required property string agentType
                                             required property string sessionKey
                                             function requestStop() {
-                                                root.stopSession(sessionRow.sessionKey)
+                                                root.stopSession(sessionKey)
                                             }
                                             Layout.fillWidth: true; spacing: 0
                                             Label { text: sessionRow.sessionId.slice(0, 16); font.pixelSize: 11; Layout.preferredWidth: 130; color: "#cccccc"; elide: Text.ElideRight }
