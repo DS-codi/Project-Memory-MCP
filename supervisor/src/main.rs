@@ -659,19 +659,36 @@ async fn supervisor_main() {
             tokio::spawn(async move {
                 while let Some((req, resp_tx)) = rx.recv().await {
                     eprintln!("[supervisor] control request: {:?}", req);
-                    let resp = supervisor::control::handler::handle_request_with_runtime(
-                        req,
-                        Arc::clone(&reg2),
-                        Arc::clone(&fa2),
-                        shutdown_tx2.clone(),
-                        mcp_base_url_for_handler.clone(),
-                        Some(events_handle2.clone()),
-                        events_url2.clone(),
-                        Some(restart_tx_for_handler.clone()),
-                        mcp_runtime_for_handler.clone(),
-                    )
-                    .await;
-                    let _ = resp_tx.send(resp);
+                    // Spawn each request in its own task so that long-running
+                    // LaunchApp / ContinueApp calls (which may wait for GUI user
+                    // interaction for hundreds of seconds) never starve health
+                    // checks, WhoAmI pings, or MCP pool management requests
+                    // sent by other clients.  All shared state is already
+                    // protected by Arc / Mutex / watch / mpsc so concurrent
+                    // dispatch is safe.
+                    let reg3 = Arc::clone(&reg2);
+                    let fa3 = Arc::clone(&fa2);
+                    let shutdown_tx3 = shutdown_tx2.clone();
+                    let mcp_base_url3 = mcp_base_url_for_handler.clone();
+                    let events_handle3 = Some(events_handle2.clone());
+                    let events_url3 = events_url2.clone();
+                    let restart_tx3 = Some(restart_tx_for_handler.clone());
+                    let mcp_runtime3 = mcp_runtime_for_handler.clone();
+                    tokio::spawn(async move {
+                        let resp = supervisor::control::handler::handle_request_with_runtime(
+                            req,
+                            reg3,
+                            fa3,
+                            shutdown_tx3,
+                            mcp_base_url3,
+                            events_handle3,
+                            events_url3,
+                            restart_tx3,
+                            mcp_runtime3,
+                        )
+                        .await;
+                        let _ = resp_tx.send(resp);
+                    });
                 }
             });
 
@@ -777,6 +794,7 @@ async fn supervisor_main() {
                         } else {
                             None
                         };
+                        let mcp_health_tx_for_proxy = mcp_health_tx.clone();
                         tokio::spawn(async move {
                             let dispatch_port_fn: Arc<dyn Fn() -> u16 + Send + Sync> = Arc::new(move || base_port);
                             if let Err(e) = supervisor::proxy::start_proxy(
@@ -789,7 +807,18 @@ async fn supervisor_main() {
                             )
                             .await
                             {
+                                // Escalate to the tray/status system so the failure is
+                                // visible in diagnostics — not just a silent eprintln.
+                                // EADDRINUSE here almost always means a zombie socket left
+                                // by a crashed extension host holding a leaked Win32 handle.
                                 eprintln!("[supervisor] proxy error: {e}");
+                                let _ = mcp_health_tx_for_proxy
+                                    .send(McpHealthSignal::Degraded(format!(
+                                        "MCP proxy failed to bind — {e}. \
+                                         If caused by EADDRINUSE after restart, a zombie socket \
+                                         may be blocking the port (reboot required)."
+                                    )))
+                                    .await;
                             }
                         });
 
@@ -1311,6 +1340,12 @@ async fn supervisor_main() {
                     println!("[supervisor] interactive terminal stopped.");
                 }
             }
+
+            // Kill any form-app GUI processes (e.g. pm-approval-gui,
+            // pm-brainstorm-gui) that are alive in long-lived refinement
+            // sessions.  Without this they become orphaned processes after
+            // the supervisor exits, which leaves their ports/sockets open.
+            supervisor::runner::form_app::kill_all_sessions().await;
 
             println!("Supervisor stopped.");
 
@@ -1876,10 +1911,30 @@ enum McpHealthSignal {
 /// created — so that orphaned Node.js / dashboard processes left over from a
 /// previous (crashed or force-killed) supervisor run do not block the new
 /// instances from binding to the same ports.
+///
+/// After each kill attempt, waits 300 ms and re-checks the port.  If the port
+/// is still occupied the process is a Windows zombie (kernel object kept alive
+/// by a leaked handle from a dead extension host).  `taskkill` cannot clear
+/// such sockets — only a reboot will free them — so a prominent error is
+/// logged rather than proceeding silently to bind and getting EADDRINUSE.
 async fn kill_orphans_on_ports(ports: &[u16]) {
     for &port in ports {
         if let Some(pid) = find_pid_for_port(port).await {
             kill_pid(pid, port);
+            // Verify the port is actually free after the kill.  A zombie
+            // process (its kernel object kept alive by a leaked Win32 handle)
+            // will survive `taskkill /F` — the socket stays bound even though
+            // no living thread owns it.
+            tokio::time::sleep(Duration::from_millis(300)).await;
+            if find_pid_for_port(port).await.is_some() {
+                eprintln!(
+                    "[supervisor] ZOMBIE SOCKET on port {port}: port is still occupied after \
+                     killing PID {pid}.  This is likely a Windows zombie — the previous \
+                     process object is being kept alive by a leaked handle (e.g. from a \
+                     crashed VS Code extension host).  A system reboot is required to \
+                     release this port."
+                );
+            }
         }
     }
 }
