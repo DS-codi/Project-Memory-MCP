@@ -313,7 +313,11 @@ export async function invokePythonCore(
     });
 
     child.stderr.on('data', (chunk) => {
-      stderrBuffer += chunk.toString();
+      const chunkText = chunk.toString();
+      stderrBuffer += chunkText;
+      if (options?.debug_output) {
+        process.stderr.write(chunkText);
+      }
     });
 
     child.stdout.on('data', (chunk) => {
@@ -480,6 +484,12 @@ export interface PythonBridgeOptions {
    * Optional cwd override for Python subprocess launch.
    */
   cwd?: string;
+  /**
+   * When true, forward Python subprocess stderr in real-time to
+   * process.stderr so it is visible in the supervisor / interactive terminal.
+   * Useful for diagnosing hangs, scan failures, and import errors.
+   */
+  debug_output?: boolean;
 }
 
 // ---------------------------------------------------------------------------

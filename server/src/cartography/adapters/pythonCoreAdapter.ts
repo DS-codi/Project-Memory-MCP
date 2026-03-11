@@ -15,7 +15,7 @@
 
 import { randomUUID } from 'node:crypto';
 
-import { invokePythonCore } from '../runtime/pythonBridge.js';
+import { invokePythonCore, type PythonBridgeOptions } from '../runtime/pythonBridge.js';
 import {
   ADAPTER_SCHEMA_VERSION,
   CartographyCompatibilityErrorCode,
@@ -112,7 +112,7 @@ export interface IPythonCoreAdapter {
    * @returns Validated response envelope.
    * @throws {CartographyAdapterError} on transport, timeout, or version mismatch.
    */
-  invoke(request: PythonCoreRequest): Promise<PythonCoreResponse>;
+  invoke(request: PythonCoreRequest, options?: PythonBridgeOptions): Promise<PythonCoreResponse>;
 }
 
 // ---------------------------------------------------------------------------
@@ -153,8 +153,8 @@ export class PythonCoreAdapter implements IPythonCoreAdapter {
     return this.parseCapabilities(response.result, response.request_id);
   }
 
-  async invoke(request: PythonCoreRequest): Promise<PythonCoreResponse> {
-    const response = await invokePythonCore(request);
+  async invoke(request: PythonCoreRequest, options?: PythonBridgeOptions): Promise<PythonCoreResponse> {
+    const response = await invokePythonCore(request, options);
     this.assertSchemaCompatibility(response.schema_version, response.request_id);
 
     // Preserve the runtime envelope exactly as produced by pythonBridge.
