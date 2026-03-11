@@ -132,10 +132,12 @@ fn main() {
             eprintln!("[supervisor] another instance is already running — aborting.");
             std::process::exit(1);
         }
-        // Intentionally leak the handle.  It must remain open for the entire
-        // process lifetime to keep the mutex claimed.  The OS releases it when
-        // the process exits.
-        std::mem::forget(handle);
+        // Intentionally keep the handle open for the entire process lifetime
+        // to hold the mutex claimed.  Raw pointers have no Drop impl so there
+        // is no destructor to suppress; `let _ = …` silences the
+        // forgetting_copy_types lint while making the intent explicit.  The OS
+        // releases the handle when the process exits.
+        let _ = handle;
     }
 
     if debug_mode {

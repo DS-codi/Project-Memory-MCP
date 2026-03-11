@@ -247,9 +247,15 @@ impl ManagedPool {
     }
 
     /// Spawn `min_instances` instances starting at `base_port`.
+    ///
+    /// Before spawning, any orphaned processes from a previous run that are
+    /// still holding these ports are killed.
     pub async fn init(&mut self) {
-        for i in 0..self.pool_cfg.min_instances {
-            let port = self.pool_cfg.base_port + i;
+        let ports: Vec<u16> = (0..self.pool_cfg.min_instances)
+            .map(|i| self.pool_cfg.base_port + i)
+            .collect();
+        kill_orphans_on_ports(&ports).await;
+        for &port in &ports {
             self.spawn_instance(port).await;
         }
     }
