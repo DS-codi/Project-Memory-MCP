@@ -59,6 +59,7 @@ import {
   getAgentDeployDir,
 } from '../storage/db-store.js';
 import { completeRegistrySession } from '../db/workspace-session-registry-db.js';
+import { clearLiveSession } from './session-live-store.js';
 
 /**
  * Initialize an agent session - MUST be called first by every agent
@@ -752,6 +753,7 @@ export async function handoff(
     if (handoffSession) {
       try {
         completeRegistrySession(handoffSession.session_id);
+        clearLiveSession(handoffSession.session_id);
       } catch {
         // Non-fatal
       }

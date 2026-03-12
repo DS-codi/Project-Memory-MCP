@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronRight, FolderTree } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { Badge } from '../common/Badge';
+import { CopyButton } from '../common/CopyButton';
 import { ProgressBar } from '../common/ProgressBar';
 import { EmptyState } from '../common/EmptyState';
 import { planStatusColors } from '@/utils/colors';
@@ -11,15 +12,17 @@ import type { ProgramSummary, ProgramPlanRef } from '@/types';
 interface ProgramTreeViewProps {
   programs: ProgramSummary[];
   workspaceId: string;
+  workspaceName?: string;
   className?: string;
 }
 
 interface ProgramNodeProps {
   program: ProgramSummary;
   workspaceId: string;
+  workspaceName?: string;
 }
 
-function PlanRefRow({ plan, workspaceId }: { plan: ProgramPlanRef; workspaceId: string }) {
+function PlanRefRow({ plan, workspaceId, programId, workspaceName }: { plan: ProgramPlanRef; workspaceId: string; programId: string; workspaceName?: string }) {
   const pct = plan.progress.total > 0
     ? Math.round((plan.progress.done / plan.progress.total) * 100)
     : 0;
@@ -42,12 +45,21 @@ function PlanRefRow({ plan, workspaceId }: { plan: ProgramPlanRef; workspaceId: 
         <span className="text-xs text-slate-500 min-w-[4rem] text-right">
           {plan.progress.done}/{plan.progress.total} ({pct}%)
         </span>
+        <CopyButton
+          text={[
+            `plan: ${plan.plan_id}`,
+            `program: ${programId}`,
+            `workspace: ${workspaceName ?? workspaceId}`,
+          ].join(' | ')}
+          label="plan ID"
+          size={12}
+        />
       </div>
     </Link>
   );
 }
 
-function ProgramNode({ program, workspaceId }: ProgramNodeProps) {
+function ProgramNode({ program, workspaceId, workspaceName }: ProgramNodeProps) {
   const [expanded, setExpanded] = useState(false);
   const agg = program.aggregate_progress;
 
@@ -74,6 +86,11 @@ function ProgramNode({ program, workspaceId }: ProgramNodeProps) {
             >
               {program.name}
             </Link>
+            <CopyButton
+              text={`program: ${program.program_id} | workspace: ${workspaceName ?? workspaceId}`}
+              label="program ID"
+              size={12}
+            />
             <Badge variant="bg-slate-600/40 text-slate-300 border-slate-500/50">
               {agg.total_plans} plan{agg.total_plans !== 1 ? 's' : ''}
             </Badge>
@@ -150,6 +167,8 @@ function ProgramNode({ program, workspaceId }: ProgramNodeProps) {
                 key={plan.plan_id}
                 plan={plan}
                 workspaceId={workspaceId}
+                programId={program.program_id}
+                workspaceName={workspaceName}
               />
             ))
           )}
@@ -159,7 +178,7 @@ function ProgramNode({ program, workspaceId }: ProgramNodeProps) {
   );
 }
 
-export function ProgramTreeView({ programs, workspaceId, className }: ProgramTreeViewProps) {
+export function ProgramTreeView({ programs, workspaceId, workspaceName, className }: ProgramTreeViewProps) {
   if (programs.length === 0) {
     return (
       <EmptyState
@@ -178,6 +197,7 @@ export function ProgramTreeView({ programs, workspaceId, className }: ProgramTre
           key={program.program_id}
           program={program}
           workspaceId={workspaceId}
+          workspaceName={workspaceName}
         />
       ))}
     </div>
