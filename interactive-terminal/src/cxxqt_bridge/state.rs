@@ -404,7 +404,10 @@ impl AppState {
 
         if req.workspace_path.trim().is_empty() {
             req.workspace_path = ctx.workspace_path.clone();
-        } else {
+        } else if std::path::Path::new(req.workspace_path.trim()).is_absolute() {
+            // Only update the session context with absolute paths.  A bare name
+            // (e.g. a workspace identifier like "my-project") must not be stored
+            // as a directory path — it would produce wrong Set-Location paths.
             ctx.workspace_path = req.workspace_path.clone();
         }
 
