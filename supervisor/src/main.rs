@@ -273,7 +273,7 @@ async fn supervisor_main() {
     }
 
     match config::load(&config_path) {
-        Ok(cfg) => {
+        Ok(mut cfg) => {
             println!("Supervisor starting...");
             if cli.debug {
                 eprintln!("[debug] resolved config: {cfg:#?}");
@@ -410,7 +410,11 @@ async fn supervisor_main() {
             // Interactive terminal runner (single GUI + TCP-server process).
             let mut terminal_runner = InteractiveTerminalRunner::new(cfg.interactive_terminal.clone());
 
-            // Dashboard runner.
+            // Dashboard runner — inject PORT env var so the Node.js process
+            // listens on the configured port instead of its own hardcoded 3001 default.
+            cfg.dashboard.env
+                .entry("PORT".to_string())
+                .or_insert_with(|| cfg.dashboard.port.to_string());
             let mut dashboard_runner = DashboardRunner::new(
                 cfg.dashboard.clone(),
                 cfg.mcp.health_timeout_ms,
@@ -1092,6 +1096,12 @@ async fn supervisor_main() {
             // ── Wait for shutdown ─────────────────────────────────────────────
 
             println!("[supervisor] all services started. Press Ctrl-C to stop.");
+
+            // Write the runtime ports manifest so consumers (extension, launch
+            // script, audit script) can read live ports without parsing toml.
+            if let Some(dir) = config_path.parent() {
+                write_ports_manifest(dir, &cfg);
+            }
             let mut tray_poll_tick = tokio::time::interval(Duration::from_millis(150));
             let mut uptime_interval = tokio::time::interval(Duration::from_secs(30));
             loop {
@@ -1349,6 +1359,11 @@ async fn supervisor_main() {
             // the supervisor exits, which leaves their ports/sockets open.
             supervisor::runner::form_app::kill_all_sessions().await;
 
+            // Remove the ports manifest so consumers know no supervisor is running.
+            if let Some(dir) = config_path.parent() {
+                delete_ports_manifest(dir);
+            }
+
             println!("Supervisor stopped.");
 
             // Signal Qt to hide the tray icon before the process exits.  This
@@ -1373,6 +1388,51 @@ async fn supervisor_main() {
         Err(e) => {
             eprintln!("error: failed to load config: {e}");
             std::process::exit(1);
+        }
+    }
+}
+
+// ── Ports manifest ──────────────────────────────────────────────────────────
+
+/// Write `ports.json` to the same directory as the supervisor config file so
+/// every consumer (extension, launch script, audit script) can discover the
+/// live runtime ports without parsing supervisor.toml or hard-coding defaults.
+fn write_ports_manifest(config_dir: &std::path::Path, cfg: &config::SupervisorConfig) {
+    let path = config_dir.join("ports.json");
+    let pid = std::process::id();
+    let now = {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0)
+    };
+    let json = serde_json::json!({
+        "schema_version": 1,
+        "written_at_unix": now,
+        "supervisor_pid": pid,
+        "services": {
+            "mcp_proxy": cfg.mcp.port,
+            "mcp_pool_base": cfg.mcp.pool.base_port,
+            "interactive_terminal": cfg.interactive_terminal.port,
+            "dashboard": cfg.dashboard.port,
+            "fallback_api": cfg.fallback_api.port,
+            "gui_server": cfg.gui_server.port
+        }
+    });
+    match std::fs::write(&path, json.to_string()) {
+        Ok(()) => println!("[supervisor] ports manifest written: {}", path.display()),
+        Err(e) => eprintln!("[supervisor] failed to write ports manifest: {e}"),
+    }
+}
+
+/// Remove `ports.json` on clean shutdown so consumers know the supervisor is
+/// not running and should not trust stale port values.
+fn delete_ports_manifest(config_dir: &std::path::Path) {
+    let path = config_dir.join("ports.json");
+    if path.exists() {
+        if let Err(e) = std::fs::remove_file(&path) {
+            eprintln!("[supervisor] could not delete ports manifest: {e}");
         }
     }
 }
