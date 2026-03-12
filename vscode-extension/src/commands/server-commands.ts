@@ -63,6 +63,10 @@ export function registerServerCommands(
             } else {
                 const connected = await connectionManager.detectAndConnect();
                 if (connected) {
+                    // Ensure the circuit breaker is reset so keepalive polling resumes.
+                    // detectAndConnect() bypasses the circuit, but without an explicit
+                    // reset the polling timer never restarts after a manual re-detect.
+                    connectionManager.resetCircuit();
                     notify('Connected to Project Memory components');
                 } else {
                     const choice = await vscode.window.showWarningMessage(

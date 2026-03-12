@@ -1873,13 +1873,13 @@ fn resolve_ws_working_directory(request: &CommandRequest) -> String {
                     return joined.to_string_lossy().to_string();
                 }
             }
-
-            if let Ok(current_dir) = std::env::current_dir() {
-                let joined = current_dir.join(&normalized_requested_path);
-                if joined.is_dir() {
-                    return joined.to_string_lossy().to_string();
-                }
-            }
+            // Note: we intentionally do NOT fall back to current_dir().join(requested)
+            // here.  The interactive terminal binary's process CWD is the binary's own
+            // directory (e.g. target/release/), not the user's workspace.  Joining a
+            // bare workspace identifier (e.g. "my-project") with that CWD can silently
+            // match an incidental subdirectory and produce a bogus Set-Location path.
+            // If workspace_path is set, relative sub-paths are already handled above.
+            // Otherwise the fallback below (USERPROFILE / current_dir) is used.
         }
     }
 

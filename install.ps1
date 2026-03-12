@@ -1344,6 +1344,17 @@ if ($Components -contains "Supervisor") {
     $canLaunchViaScript = Test-Path $launchScript
     $canLaunchDirect = Test-Path $supervisorExe
 
+    # Always write a fresh supervisor.toml with correct ports (3457/3458/3459)
+    # regardless of whether the user chooses to launch now or later.
+    if ($canLaunchViaScript) {
+        Write-Host "`n── Writing supervisor configuration" -ForegroundColor Cyan
+        try {
+            & $launchScript -WriteConfigOnly
+        } catch {
+            Write-Host "   [warn] config write failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    }
+
     if (-not ($canLaunchViaScript -or $canLaunchDirect)) {
         Write-Host "   [warn] no supervisor launch target found." -ForegroundColor Yellow
         Write-Host "   Missing script: $launchScript" -ForegroundColor DarkGray

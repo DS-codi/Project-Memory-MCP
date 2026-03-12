@@ -7,6 +7,12 @@
     registered workspaces from the workspaces table, and scans workspace-level
     files for stale settings or identity mismatches.
 
+    Also reads canonical port values from supervisor.toml (or falls back to
+    built-in defaults) and checks the global VS Code user settings
+    (%APPDATA%\Code\User\settings.json) for projectMemory port values that
+    don't match. This catches stale ports in global settings even when the
+    workspace-level .vscode/settings.json is correct.
+
     By default this script only reports findings. Use -Apply to auto-fix known,
     safe remediations.
 
@@ -280,7 +286,8 @@ function Update-FileContentIfNeeded {
         [Parameter(Mandatory)][string]$FilePath,
         [Parameter(Mandatory)][string]$WorkspaceId,
         [Parameter(Mandatory)][string]$WorkspacePath,
-        [Parameter(Mandatory)][bool]$ApplyFixes
+        [Parameter(Mandatory)][bool]$ApplyFixes,
+        [Parameter(Mandatory)][hashtable]$CanonicalPorts
     )
 
     if (-not (Test-Path $FilePath)) {
@@ -290,24 +297,28 @@ function Update-FileContentIfNeeded {
     $script:ScannedFileCount++
     $content = Get-Content -Path $FilePath -Raw
 
+    # Patterns match any value that isn't the canonical port so stale values
+    # like 3000, 3001, 3467, etc. are all caught regardless of their origin.
+    $mcpPort  = $CanonicalPorts.McpPort
+    $dashPort = $CanonicalPorts.DashboardPort
     $replacements = @(
         @{
-            Pattern = '"projectMemory\.serverPort"\s*:\s*3001'
-            Replace = '"projectMemory.serverPort": 3459'
+            Pattern = "`"projectMemory\.serverPort`"\s*:\s*(?!${dashPort}\b)\d+"
+            Replace = "`"projectMemory.serverPort`": ${dashPort}"
             Type    = 'stale-server-port'
-            Message = 'projectMemory.serverPort uses legacy value 3001 (expected 3459 for supervisor-managed runtime).'
+            Message = "projectMemory.serverPort is wrong (expected ${dashPort} for supervisor-managed runtime)."
         },
         @{
-            Pattern = '"projectMemory\.apiPort"\s*:\s*3001'
-            Replace = '"projectMemory.apiPort": 3459'
+            Pattern = "`"projectMemory\.apiPort`"\s*:\s*(?!${dashPort}\b)\d+"
+            Replace = "`"projectMemory.apiPort`": ${dashPort}"
             Type    = 'stale-api-port'
-            Message = 'projectMemory.apiPort uses legacy value 3001.'
+            Message = "projectMemory.apiPort is wrong (expected ${dashPort})."
         },
         @{
-            Pattern = '"projectMemory\.mcpPort"\s*:\s*3000'
-            Replace = '"projectMemory.mcpPort": 3457'
+            Pattern = "`"projectMemory\.mcpPort`"\s*:\s*(?!${mcpPort}\b)\d+"
+            Replace = "`"projectMemory.mcpPort`": ${mcpPort}"
             Type    = 'stale-mcp-port'
-            Message = 'projectMemory.mcpPort uses legacy value 3000 (expected 3457 for supervisor proxy).'
+            Message = "projectMemory.mcpPort is wrong (expected ${mcpPort} for supervisor proxy)."
         }
     )
 
@@ -435,7 +446,8 @@ function Scan-Workspace {
     param(
         [Parameter(Mandatory)][pscustomobject]$Workspace,
         [Parameter(Mandatory)][string]$ResolvedDataRoot,
-        [Parameter(Mandatory)][bool]$ApplyFixes
+        [Parameter(Mandatory)][bool]$ApplyFixes,
+        [Parameter(Mandatory)][hashtable]$CanonicalPorts
     )
 
     $workspaceId = [string]$Workspace.id
@@ -454,11 +466,245 @@ function Scan-Workspace {
     Ensure-WorkspaceIdentityFile -WorkspaceId $workspaceId -WorkspacePath $workspacePath -ResolvedDataRoot $ResolvedDataRoot -ApplyFixes:$ApplyFixes
 
     $settingsPath = Join-Path $workspacePath '.vscode\settings.json'
-    Update-FileContentIfNeeded -FilePath $settingsPath -WorkspaceId $workspaceId -WorkspacePath $workspacePath -ApplyFixes:$ApplyFixes
+    Update-FileContentIfNeeded -FilePath $settingsPath -WorkspaceId $workspaceId -WorkspacePath $workspacePath -ApplyFixes:$ApplyFixes -CanonicalPorts $CanonicalPorts
 
     $workspaceFiles = @(Get-ChildItem -Path $workspacePath -Filter '*.code-workspace' -File -ErrorAction SilentlyContinue)
     foreach ($file in $workspaceFiles) {
-        Update-FileContentIfNeeded -FilePath $file.FullName -WorkspaceId $workspaceId -WorkspacePath $workspacePath -ApplyFixes:$ApplyFixes
+        Update-FileContentIfNeeded -FilePath $file.FullName -WorkspaceId $workspaceId -WorkspacePath $workspacePath -ApplyFixes:$ApplyFixes -CanonicalPorts $CanonicalPorts
+    }
+}
+
+function Get-CanonicalPorts {
+    # Defaults mirror New-SupervisorToml in launch-supervisor.ps1
+    $ports = @{
+        McpPort       = 3457
+        DashboardPort = 3459
+    }
+
+    $tomlPath = Join-Path $env:APPDATA 'ProjectMemory\supervisor.toml'
+    if (-not (Test-Path $tomlPath)) {
+        return $ports
+    }
+
+    try {
+        $toml = Get-Content -Path $tomlPath -Raw
+        # [^\[]* stops at the next section header, so we only read within [mcp]
+        if ($toml -match '\[mcp\][^\[]*\bport\s*=\s*(\d+)') {
+            $ports.McpPort = [int]$Matches[1]
+        }
+        if ($toml -match '\[dashboard\][^\[]*\bport\s*=\s*(\d+)') {
+            $ports.DashboardPort = [int]$Matches[1]
+        }
+    } catch {
+        Write-WarnLine "Could not read supervisor.toml for canonical ports; using defaults. Error: $($_.Exception.Message)"
+    }
+
+    return $ports
+}
+
+function Check-GlobalVscodeSettings {
+    param(
+        [Parameter(Mandatory)][hashtable]$CanonicalPorts,
+        [Parameter(Mandatory)][bool]$ApplyFixes
+    )
+
+    if ([string]::IsNullOrWhiteSpace($env:APPDATA)) {
+        return
+    }
+
+    $globalSettingsPath = Join-Path $env:APPDATA 'Code\User\settings.json'
+    if (-not (Test-Path $globalSettingsPath)) {
+        return
+    }
+
+    $script:ScannedFileCount++
+    $content = Get-Content -Path $globalSettingsPath -Raw
+    $hadFinding = $false
+
+    # Check projectMemory.mcpPort — match any value that isn't the canonical port
+    $mcpPattern = '"projectMemory\.mcpPort"\s*:\s*(\d+)'
+    if ($content -match $mcpPattern) {
+        $currentValue = [int]$Matches[1]
+        if ($currentValue -ne $CanonicalPorts.McpPort) {
+            $hadFinding = $true
+            Add-Finding `
+                -Type 'global-settings-stale-mcp-port' `
+                -WorkspaceId '' `
+                -WorkspacePath '<global-user-settings>' `
+                -FilePath $globalSettingsPath `
+                -Message "Global VS Code user settings: projectMemory.mcpPort is $currentValue but supervisor uses $($CanonicalPorts.McpPort). The extension will fail to connect." `
+                -Severity 'warning'
+        }
+    }
+
+    # Check projectMemory.serverPort — match any value that isn't the canonical port
+    $serverPattern = '"projectMemory\.serverPort"\s*:\s*(\d+)'
+    if ($content -match $serverPattern) {
+        $currentValue = [int]$Matches[1]
+        if ($currentValue -ne $CanonicalPorts.DashboardPort) {
+            $hadFinding = $true
+            Add-Finding `
+                -Type 'global-settings-stale-server-port' `
+                -WorkspaceId '' `
+                -WorkspacePath '<global-user-settings>' `
+                -FilePath $globalSettingsPath `
+                -Message "Global VS Code user settings: projectMemory.serverPort is $currentValue but supervisor uses $($CanonicalPorts.DashboardPort)." `
+                -Severity 'warning'
+        }
+    }
+
+    # Check for legacy projectMemory.apiPort key
+    $hasLegacyApiPort = $content -match '"projectMemory\.apiPort"\s*:'
+    if ($hasLegacyApiPort) {
+        $hadFinding = $true
+        Add-Finding `
+            -Type 'global-settings-legacy-api-port-key' `
+            -WorkspaceId '' `
+            -WorkspacePath '<global-user-settings>' `
+            -FilePath $globalSettingsPath `
+            -Message 'Global VS Code user settings: projectMemory.apiPort is legacy; prefer projectMemory.serverPort.' `
+            -Severity 'info'
+    }
+
+    if (-not $hadFinding) {
+        return
+    }
+
+    $applyFix = $false
+    if ($ApplyFixes) {
+        $applyFix = Request-PortMigrationApproval -FirstFilePath $globalSettingsPath
+        if (-not $applyFix -and -not $script:PortMigrationDeclinedRecorded) {
+            Add-Finding `
+                -Type 'port-migration-skipped-by-user' `
+                -WorkspaceId '' `
+                -WorkspacePath '<global-user-settings>' `
+                -FilePath $globalSettingsPath `
+                -Message 'Port migration declined by user. No changes applied to global VS Code user settings.' `
+                -Severity 'info'
+            $script:PortMigrationDeclinedRecorded = $true
+        }
+    }
+
+    if (-not $applyFix) {
+        return
+    }
+
+    # Apply fixes with regex to preserve JSONC formatting and comments
+    $updated = $content
+
+    if ($content -match $mcpPattern -and [int]$Matches[1] -ne $CanonicalPorts.McpPort) {
+        $updated = [regex]::Replace($updated, $mcpPattern, "`"projectMemory.mcpPort`": $($CanonicalPorts.McpPort)")
+    }
+
+    if ($content -match $serverPattern -and [int]$Matches[1] -ne $CanonicalPorts.DashboardPort) {
+        $updated = [regex]::Replace($updated, $serverPattern, "`"projectMemory.serverPort`": $($CanonicalPorts.DashboardPort)")
+    }
+
+    if ($hasLegacyApiPort) {
+        $migrationResult = Try-MigrateLegacyApiPortKey -JsonText $updated
+        if ($migrationResult.Success -and $migrationResult.Changed) {
+            $updated = [string]$migrationResult.UpdatedContent
+            Add-Finding `
+                -Type 'global-settings-legacy-api-port-migrated' `
+                -WorkspaceId '' `
+                -WorkspacePath '<global-user-settings>' `
+                -FilePath $globalSettingsPath `
+                -Message 'Migrated projectMemory.apiPort to projectMemory.serverPort in global VS Code user settings.' `
+                -Severity 'info' `
+                -Fixed $true
+        } elseif (-not $migrationResult.Success) {
+            Add-Finding `
+                -Type 'global-settings-legacy-api-port-migration-failed' `
+                -WorkspaceId '' `
+                -WorkspacePath '<global-user-settings>' `
+                -FilePath $globalSettingsPath `
+                -Message "Could not auto-migrate legacy apiPort key in global settings (file may use JSONC): $($migrationResult.Error)" `
+                -Severity 'info'
+        }
+    }
+
+    if ($updated -ne $content) {
+        Set-Content -Path $globalSettingsPath -Value $updated -NoNewline -Encoding UTF8
+        $script:AppliedFixCount++
+        Add-Finding `
+            -Type 'global-settings-autofix-applied' `
+            -WorkspaceId '' `
+            -WorkspacePath '<global-user-settings>' `
+            -FilePath $globalSettingsPath `
+            -Message 'Applied port fixes to global VS Code user settings.' `
+            -Severity 'info' `
+            -Fixed $true
+    }
+}
+
+function Check-GlobalMcpJson {
+    param(
+        [Parameter(Mandatory)][hashtable]$CanonicalPorts,
+        [Parameter(Mandatory)][bool]$ApplyFixes
+    )
+
+    if ([string]::IsNullOrWhiteSpace($env:APPDATA)) {
+        return
+    }
+
+    $mcpJsonPath = Join-Path $env:APPDATA 'Code\User\mcp.json'
+    if (-not (Test-Path $mcpJsonPath)) {
+        return
+    }
+
+    $script:ScannedFileCount++
+    $content = Get-Content -Path $mcpJsonPath -Raw
+
+    # Match the project-memory server URL to extract current port
+    $urlPattern = '("project-memory"\s*:\s*\{[^}]*"url"\s*:\s*"http://localhost:)(\d+)(/mcp")'
+    if (-not ($content -match $urlPattern)) {
+        return
+    }
+
+    $currentPort = [int]$Matches[2]
+    if ($currentPort -eq $CanonicalPorts.McpPort) {
+        return
+    }
+
+    Add-Finding `
+        -Type 'global-mcp-json-stale-port' `
+        -WorkspaceId '' `
+        -WorkspacePath '<global-mcp-config>' `
+        -FilePath $mcpJsonPath `
+        -Message "VS Code user mcp.json: project-memory URL uses port $currentPort but supervisor runs on $($CanonicalPorts.McpPort). VS Code built-in MCP client will fail to connect." `
+        -Severity 'warning'
+
+    if (-not $ApplyFixes) {
+        return
+    }
+
+    $applyFix = Request-PortMigrationApproval -FirstFilePath $mcpJsonPath
+    if (-not $applyFix) {
+        if (-not $script:PortMigrationDeclinedRecorded) {
+            Add-Finding `
+                -Type 'port-migration-skipped-by-user' `
+                -WorkspaceId '' `
+                -WorkspacePath '<global-mcp-config>' `
+                -FilePath $mcpJsonPath `
+                -Message 'Port migration declined by user. No changes applied to VS Code user mcp.json.' `
+                -Severity 'info'
+            $script:PortMigrationDeclinedRecorded = $true
+        }
+        return
+    }
+
+    $updated = [regex]::Replace($content, $urlPattern, "`${1}$($CanonicalPorts.McpPort)`${3}")
+    if ($updated -ne $content) {
+        Set-Content -Path $mcpJsonPath -Value $updated -NoNewline -Encoding UTF8
+        $script:AppliedFixCount++
+        Add-Finding `
+            -Type 'global-mcp-json-autofix-applied' `
+            -WorkspaceId '' `
+            -WorkspacePath '<global-mcp-config>' `
+            -FilePath $mcpJsonPath `
+            -Message "Updated project-memory URL in VS Code user mcp.json from port $currentPort to $($CanonicalPorts.McpPort)." `
+            -Severity 'info' `
+            -Fixed $true
     }
 }
 
@@ -471,6 +717,19 @@ Write-Section 'Project Memory Outdated Settings / Files Audit'
 Write-Detail "Data root: $resolvedDataRoot"
 Write-Detail "Database:  $dbPath"
 Write-Detail "Apply fixes: $Apply"
+
+Write-Section 'Global VS Code User Settings'
+$canonicalPorts = Get-CanonicalPorts
+$tomlPath = Join-Path $env:APPDATA 'ProjectMemory\supervisor.toml'
+if (Test-Path $tomlPath) {
+    Write-Detail "Ports read from: $tomlPath"
+} else {
+    Write-Detail 'supervisor.toml not found; using built-in defaults'
+}
+Write-Detail "Canonical MCP port:       $($canonicalPorts.McpPort)"
+Write-Detail "Canonical dashboard port: $($canonicalPorts.DashboardPort)"
+Check-GlobalVscodeSettings -CanonicalPorts $canonicalPorts -ApplyFixes:$Apply
+Check-GlobalMcpJson -CanonicalPorts $canonicalPorts -ApplyFixes:$Apply
 
 if (-not (Test-Path $dbPath)) {
     Write-WarnLine "Database not found at $dbPath"
@@ -490,7 +749,7 @@ try {
 Write-Detail "Registered workspaces from DB: $($workspaces.Count)"
 
 foreach ($workspace in $workspaces) {
-    Scan-Workspace -Workspace $workspace -ResolvedDataRoot $resolvedDataRoot -ApplyFixes:$Apply
+    Scan-Workspace -Workspace $workspace -ResolvedDataRoot $resolvedDataRoot -ApplyFixes:$Apply -CanonicalPorts $canonicalPorts
 }
 
 Write-Section 'Summary'
