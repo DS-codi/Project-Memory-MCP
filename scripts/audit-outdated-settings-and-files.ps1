@@ -479,8 +479,24 @@ function Get-CanonicalPorts {
     $ports = @{
         McpPort       = 3457
         DashboardPort = 3459
+        Source        = 'defaults'
     }
 
+    # Prefer the live runtime ports manifest if the supervisor is running.
+    $manifestPath = Join-Path $env:APPDATA 'ProjectMemory\ports.json'
+    if (Test-Path $manifestPath) {
+        try {
+            $manifest = Get-Content -Raw -Path $manifestPath | ConvertFrom-Json
+            $ports.McpPort       = [int]$manifest.services.mcp_proxy
+            $ports.DashboardPort = [int]$manifest.services.dashboard
+            $ports.Source        = 'ports.json'
+            return $ports
+        } catch {
+            Write-WarnLine "Could not parse ports.json; falling back to supervisor.toml. Error: $($_.Exception.Message)"
+        }
+    }
+
+    # Fall back to supervisor.toml (static config, reflects intended ports).
     $tomlPath = Join-Path $env:APPDATA 'ProjectMemory\supervisor.toml'
     if (-not (Test-Path $tomlPath)) {
         return $ports
@@ -495,6 +511,7 @@ function Get-CanonicalPorts {
         if ($toml -match '\[dashboard\][^\[]*\bport\s*=\s*(\d+)') {
             $ports.DashboardPort = [int]$Matches[1]
         }
+        $ports.Source = 'supervisor.toml'
     } catch {
         Write-WarnLine "Could not read supervisor.toml for canonical ports; using defaults. Error: $($_.Exception.Message)"
     }

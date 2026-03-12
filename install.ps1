@@ -162,6 +162,157 @@ function Write-Warn([string]$msg) {
     Write-Host "   ⚠ $msg" -ForegroundColor Yellow
 }
 
+function Sync-VscodeProjectMemoryConfig {
+    <#
+    .SYNOPSIS
+        Syncs VS Code user-level config files so they match the supervisor ports.
+        Updates %APPDATA%\Code\User\mcp.json (VS Code built-in MCP client)
+        and %APPDATA%\Code\User\settings.json (extension settings).
+    #>
+    param(
+        [Parameter(Mandatory)][int]$McpPort,
+        [Parameter(Mandatory)][int]$DashboardPort
+    )
+
+    # --- mcp.json: VS Code built-in MCP client ---
+    $mcpJsonPath = Join-Path $env:APPDATA 'Code\User\mcp.json'
+    if (Test-Path $mcpJsonPath) {
+        $raw = Get-Content $mcpJsonPath -Raw
+        $urlPattern = '("project-memory"\s*:\s*\{[^}]*"url"\s*:\s*"http://localhost:)(\d+)(/mcp")'
+        if ($raw -match $urlPattern) {
+            $currentPort = [int]$Matches[2]
+            if ($currentPort -ne $McpPort) {
+                $updated = [regex]::Replace($raw, $urlPattern, "`${1}${McpPort}`${3}")
+                Set-Content -Path $mcpJsonPath -Value $updated -NoNewline -Encoding UTF8
+                Write-Host "   Updated mcp.json: project-memory port $currentPort → $McpPort" -ForegroundColor Green
+            }
+        }
+    }
+
+    # --- settings.json: extension settings ---
+    $settingsPath = Join-Path $env:APPDATA 'Code\User\settings.json'
+    if (Test-Path $settingsPath) {
+        $raw = Get-Content $settingsPath -Raw
+        $changed = $false
+
+        $mcpPattern  = '"projectMemory\.mcpPort"\s*:\s*(?!{0}\b)\d+' -f $McpPort
+        $dashPattern = '"projectMemory\.serverPort"\s*:\s*(?!{0}\b)\d+' -f $DashboardPort
+
+        if ($raw -match $mcpPattern) {
+            $raw     = [regex]::Replace($raw, $mcpPattern, "`"projectMemory.mcpPort`": $McpPort")
+            $changed = $true
+        }
+        if ($raw -match $dashPattern) {
+            $raw     = [regex]::Replace($raw, $dashPattern, "`"projectMemory.serverPort`": $DashboardPort")
+            $changed = $true
+        }
+
+        if ($changed) {
+            Set-Content -Path $settingsPath -Value $raw -NoNewline -Encoding UTF8
+            Write-Host "   Updated settings.json: projectMemory ports synced to MCP=$McpPort dashboard=$DashboardPort" -ForegroundColor Green
+        }
+    }
+}
+
+function Test-ComponentUpToDate {
+    <#
+    .SYNOPSIS
+        Returns $true when $ArtifactPath exists and is newer than all source files,
+        meaning the component does not need to be rebuilt. Returns $false if the
+        artifact is missing or any source file is newer — triggering a rebuild.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$Label,
+        [Parameter(Mandatory)][string]$ArtifactPath,
+        [string[]]$SourceDirs  = @(),
+        [string[]]$SourceFiles = @()
+    )
+    if (-not (Test-Path $ArtifactPath)) { return $false }
+
+    $artifactTime = (Get-Item $ArtifactPath).LastWriteTimeUtc
+
+    foreach ($f in $SourceFiles) {
+        if ((Test-Path $f) -and (Get-Item $f).LastWriteTimeUtc -gt $artifactTime) {
+            Write-Host "   (changed: $(Split-Path $f -Leaf))" -ForegroundColor DarkGray
+            return $false
+        }
+    }
+
+    # Exclude common build-output subdirectories so artifact-internal timestamps
+    # (nested target/, dist/, node_modules/) don't trigger false positive rebuilds.
+    $excludePattern = '[\\/](target|build|node_modules|dist|out|\.git)[\\/]'
+    foreach ($dir in $SourceDirs) {
+        if (-not (Test-Path $dir)) { continue }
+        $newer = Get-ChildItem -Path $dir -Recurse -File -ErrorAction SilentlyContinue |
+                 Where-Object { $_.FullName -notmatch $excludePattern -and $_.LastWriteTimeUtc -gt $artifactTime } |
+                 Select-Object -First 1
+        if ($newer) {
+            Write-Host "   (changed: $($newer.Name))" -ForegroundColor DarkGray
+            return $false
+        }
+    }
+
+    return $true
+}
+
+function Invoke-VsCodeRestart {
+    <#
+    .SYNOPSIS
+        Detects running VS Code instances, prompts the user for confirmation,
+        then kills and relaunches VS Code so the newly installed extension activates.
+    #>
+    param([switch]$SkipPrompt)
+
+    $codeProcs = @(Get-Process -Name 'Code' -ErrorAction SilentlyContinue)
+    if ($codeProcs.Count -eq 0) {
+        Write-Host "   (no VS Code instances detected — start VS Code to activate the new extension)" -ForegroundColor DarkGray
+        return
+    }
+
+    Write-Host "   $($codeProcs.Count) VS Code process(es) running." -ForegroundColor Yellow
+    Write-Host "   A restart is required for the updated extension to activate." -ForegroundColor DarkGray
+
+    if ($SkipPrompt) {
+        Write-Host "   Restart prompt suppressed (-NoLaunchPrompt)." -ForegroundColor DarkGray
+        Write-Host "   Please restart VS Code manually (Ctrl+Shift+P → Developer: Reload Window)." -ForegroundColor Yellow
+        return
+    }
+
+    $response = Read-Host 'Restart VS Code now to activate the new extension? (Y/N)'
+    if ($response -notmatch '^(?i)y(?:es)?$') {
+        Write-Host "   VS Code not restarted." -ForegroundColor Yellow
+        Write-Host "   Reload manually: Ctrl+Shift+P → Developer: Reload Window" -ForegroundColor DarkGray
+        return
+    }
+
+    # Capture the Code.exe path before killing all processes
+    $codeExePath = $null
+    try {
+        $codeExePath = ($codeProcs | Where-Object { $_.Path } | Select-Object -First 1).Path
+    } catch {}
+    if (-not $codeExePath) {
+        foreach ($candidate in @(
+            "$env:LOCALAPPDATA\Programs\Microsoft VS Code\Code.exe",
+            'C:\Program Files\Microsoft VS Code\Code.exe'
+        )) {
+            if (Test-Path $candidate) { $codeExePath = $candidate; break }
+        }
+    }
+
+    Write-Host "   Stopping VS Code..." -ForegroundColor Gray
+    $codeProcs | Stop-Process -Force -ErrorAction SilentlyContinue
+    Get-Process -Name 'Code - Insiders' -ErrorAction SilentlyContinue |
+        Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Milliseconds 1500
+
+    if ($codeExePath -and (Test-Path $codeExePath)) {
+        Start-Process -FilePath $codeExePath
+        Write-Ok "VS Code restarted — extension will activate on load"
+    } else {
+        Write-Warn "Could not locate Code.exe — please start VS Code manually"
+    }
+}
+
 function Invoke-OutdatedSettingsAudit {
     param(
         [switch]$ApplyFixes
@@ -284,6 +435,19 @@ function Stop-SupervisorRuntimeProcesses {
     }
 
     Start-Sleep -Milliseconds 900
+
+    # Clean up stale ports manifest: supervisor was force-killed so its graceful
+    # shutdown hook (delete_ports_manifest) could not run. Remove it now so the
+    # post-install audit and next launch don't see outdated service addresses.
+    $stalePortsJson = Join-Path $env:APPDATA 'ProjectMemory\ports.json'
+    if (Test-Path $stalePortsJson) {
+        try {
+            Remove-Item -Path $stalePortsJson -Force
+            Write-Host "   Removed stale ports manifest (supervisor was force-stopped)" -ForegroundColor DarkGray
+        } catch {
+            Write-Host "   [warn] Could not remove stale ports manifest: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    }
 }
 
 function Resolve-QtToolchain {
@@ -867,6 +1031,16 @@ function Set-CargoNetworkEnv {
 
 function Install-Supervisor {
     Write-Step "Supervisor (Rust + Qt QML)"
+    if (-not $Force) {
+        $supervisorExeCheck = Join-Path $Root 'target\release\supervisor.exe'
+        if (Test-ComponentUpToDate -Label 'Supervisor' `
+                -ArtifactPath $supervisorExeCheck `
+                -SourceDirs   @((Join-Path $Root 'supervisor')) `
+                -SourceFiles  @((Join-Path $Root 'Cargo.lock'), (Join-Path $Root 'Cargo.toml'))) {
+            Write-Ok "Supervisor is up to date — skipping (use -Force to rebuild)"
+            return
+        }
+    }
     Set-CargoNetworkEnv
 
     # Rebuilding supervisor must tear down all managed runtime components,
@@ -920,6 +1094,16 @@ function Install-Supervisor {
 
 function Install-InteractiveTerminal {
     Write-Step "Interactive Terminal (Rust + Qt)"
+    if (-not $Force) {
+        $termExeCheck = Join-Path $Root 'target\release\interactive-terminal.exe'
+        if (Test-ComponentUpToDate -Label 'InteractiveTerminal' `
+                -ArtifactPath $termExeCheck `
+                -SourceDirs   @((Join-Path $Root 'interactive-terminal')) `
+                -SourceFiles  @((Join-Path $Root 'Cargo.lock'))) {
+            Write-Ok "Interactive Terminal is up to date — skipping (use -Force to rebuild)"
+            return
+        }
+    }
 
     $BuildScript = Join-Path $Root "interactive-terminal\build-interactive-terminal.ps1"
     if (-not (Test-Path $BuildScript)) {
@@ -954,6 +1138,16 @@ function Install-InteractiveTerminal {
 
 function Install-InstallWizard {
     Write-Step "Project Memory Install Wizard (GUI)"
+    if (-not $Force) {
+        $installExeCheck = Join-Path $Root 'target\release\pm-install-gui.exe'
+        if (Test-ComponentUpToDate -Label 'InstallWizard' `
+                -ArtifactPath $installExeCheck `
+                -SourceDirs   @((Join-Path $Root 'pm-install-gui')) `
+                -SourceFiles  @((Join-Path $Root 'Cargo.lock'))) {
+            Write-Ok "Install Wizard is up to date — skipping (use -Force to rebuild)"
+            return
+        }
+    }
     Set-CargoNetworkEnv
 
     try {
@@ -989,6 +1183,17 @@ function Install-InstallWizard {
 
 function Install-GuiForms {
     Write-Step "PM GUI Binaries (pm-approval-gui, pm-brainstorm-gui)"
+    if (-not $Force) {
+        $approvalExeCheck   = Join-Path $Root 'target\release\pm-approval-gui.exe'
+        $brainstormExeCheck = Join-Path $Root 'target\release\pm-brainstorm-gui.exe'
+        $guiDirs  = @((Join-Path $Root 'pm-approval-gui'), (Join-Path $Root 'pm-brainstorm-gui'))
+        $guiFiles = @((Join-Path $Root 'Cargo.lock'))
+        if ((Test-ComponentUpToDate -Label 'pm-approval-gui'   -ArtifactPath $approvalExeCheck   -SourceDirs $guiDirs -SourceFiles $guiFiles) -and
+            (Test-ComponentUpToDate -Label 'pm-brainstorm-gui' -ArtifactPath $brainstormExeCheck -SourceDirs $guiDirs -SourceFiles $guiFiles)) {
+            Write-Ok "PM GUI Binaries are up to date — skipping (use -Force to rebuild)"
+            return
+        }
+    }
 
     try {
         $Qt = Resolve-QtToolchain
@@ -1132,6 +1337,17 @@ function Install-Server {
     Write-Step "Server"
     $ServerDir = Join-Path $Root "server"
 
+    if (-not $Force -and -not $NewDatabase) {
+        $serverArtifact = Join-Path $ServerDir 'dist\index.js'
+        if (Test-ComponentUpToDate -Label 'Server' `
+                -ArtifactPath $serverArtifact `
+                -SourceDirs   @((Join-Path $ServerDir 'src')) `
+                -SourceFiles  @((Join-Path $ServerDir 'package.json'))) {
+            Write-Ok "Server is up to date — skipping (use -Force or -NewDatabase to rebuild)"
+            return
+        }
+    }
+
     Push-Location $ServerDir
     try {
         Invoke-NpmInstall "npm install (server)"
@@ -1172,6 +1388,17 @@ function Install-FallbackServer {
     Write-Step "Fallback Server"
     $ServerDir = Join-Path $Root "server"
 
+    if (-not $Force) {
+        $fallbackArtifact = Join-Path $ServerDir 'dist\fallback-rest-main.js'
+        if (Test-ComponentUpToDate -Label 'FallbackServer' `
+                -ArtifactPath $fallbackArtifact `
+                -SourceDirs   @((Join-Path $ServerDir 'src')) `
+                -SourceFiles  @((Join-Path $ServerDir 'package.json'))) {
+            Write-Ok "Fallback Server is up to date — skipping (use -Force to rebuild)"
+            return
+        }
+    }
+
     Push-Location $ServerDir
     try {
         Invoke-NpmInstall "npm install (server)"
@@ -1200,10 +1427,20 @@ function Install-Extension {
     Push-Location $ExtDir
     try {
         if (-not $EffectiveInstallOnly) {
-            Invoke-NpmInstall "npm install (extension)"
-            Invoke-Checked "npm run compile" { npm run compile 2>&1 | Write-Host }
-            Invoke-Checked "npm run package (vsce)" { npx @vscode/vsce package 2>&1 | Write-Host }
-            Write-Ok "Extension compiled and packaged"
+            $latestVsix = Get-ChildItem -Path $ExtDir -Filter '*.vsix' |
+                          Sort-Object LastWriteTime -Descending | Select-Object -First 1
+            if (-not $Force -and $latestVsix -and (Test-ComponentUpToDate `
+                    -Label       'Extension' `
+                    -ArtifactPath $latestVsix.FullName `
+                    -SourceDirs   @((Join-Path $ExtDir 'src')) `
+                    -SourceFiles  @((Join-Path $ExtDir 'package.json')))) {
+                Write-Ok "Extension source unchanged — skipping compile and package (use -Force to rebuild)"
+            } else {
+                Invoke-NpmInstall "npm install (extension)"
+                Invoke-Checked "npm run compile" { npm run compile 2>&1 | Write-Host }
+                Invoke-Checked "npm run package (vsce)" { npx @vscode/vsce package 2>&1 | Write-Host }
+                Write-Ok "Extension compiled and packaged"
+            }
         } else {
             Write-Host "   (skipping build — InstallOnly mode)" -ForegroundColor DarkGray
         }
@@ -1247,6 +1484,22 @@ function Install-Extension {
 function Install-Dashboard {
     Write-Step "Dashboard"
     $DashDir = Join-Path $Root "dashboard"
+
+    if (-not $Force) {
+        $dashFrontArtifact  = Join-Path $DashDir 'dist\index.html'
+        $dashServerArtifact = Join-Path $DashDir 'server\dist\index.js'
+        if ((Test-ComponentUpToDate -Label 'Dashboard frontend' `
+                 -ArtifactPath $dashFrontArtifact `
+                 -SourceDirs   @((Join-Path $DashDir 'src')) `
+                 -SourceFiles  @((Join-Path $DashDir 'package.json'))) -and
+            (Test-ComponentUpToDate -Label 'Dashboard server' `
+                 -ArtifactPath $dashServerArtifact `
+                 -SourceDirs   @((Join-Path $DashDir 'server\src')) `
+                 -SourceFiles  @((Join-Path $DashDir 'server\package.json')))) {
+            Write-Ok "Dashboard is up to date — skipping (use -Force to rebuild)"
+            return
+        }
+    }
 
     # Build React frontend
     Push-Location $DashDir
@@ -1336,6 +1589,13 @@ $Elapsed = (Get-Date) - $StartTime
 Write-Host ""
 Write-Host "Done in $([math]::Round($Elapsed.TotalSeconds, 1))s" -ForegroundColor Magenta
 
+# ── VS Code restart prompt (when Extension was just installed) ───────────────
+if ($Components -contains "Extension" -and -not $SkipInstall) {
+    Write-Host ""
+    Write-Step "VS Code Restart"
+    Invoke-VsCodeRestart -SkipPrompt:$NoLaunchPrompt
+}
+
 # ── Optional supervisor launch prompt (no automatic launch) ─────────────────
 if ($Components -contains "Supervisor") {
     $launchScript = Join-Path $Root 'launch-supervisor.ps1'
@@ -1390,6 +1650,32 @@ if ($Components -contains "Supervisor") {
                     Start-Process -FilePath $supervisorExe -WorkingDirectory (Split-Path -Parent $supervisorExe) | Out-Null
                     Write-Ok "Supervisor launched: $supervisorExe"
                     $launched = $true
+
+                    # Wait for ports manifest and sync VS Code config (mirrors what
+                    # launch-supervisor.ps1 does; needed here because that script errored out).
+                    Write-Host "`n── Waiting for supervisor ports manifest" -ForegroundColor Cyan
+                    $portsJsonPath   = Join-Path $env:APPDATA 'ProjectMemory\ports.json'
+                    $manifestTimeout = 15  # seconds
+                    $manifestFound   = $false
+                    $elapsed         = 0
+                    while ($elapsed -lt $manifestTimeout) {
+                        if (Test-Path $portsJsonPath) { $manifestFound = $true; break }
+                        Start-Sleep -Milliseconds 500
+                        $elapsed += 0.5
+                    }
+                    if ($manifestFound) {
+                        try {
+                            $manifest          = Get-Content -Raw -Path $portsJsonPath | ConvertFrom-Json
+                            $liveMcpPort       = [int]$manifest.services.mcp_proxy
+                            $liveDashboardPort = [int]$manifest.services.dashboard
+                            Write-Ok "Ports manifest read: MCP=$liveMcpPort  Dashboard=$liveDashboardPort"
+                            Sync-VscodeProjectMemoryConfig -McpPort $liveMcpPort -DashboardPort $liveDashboardPort
+                        } catch {
+                            Write-Warn "Could not parse ports manifest: $($_.Exception.Message)"
+                        }
+                    } else {
+                        Write-Warn "Ports manifest not found within ${manifestTimeout}s — VS Code config not updated."
+                    }
                 } catch {
                     Write-Host "   [warn] direct supervisor launch failed: $($_.Exception.Message)" -ForegroundColor Yellow
                 }
