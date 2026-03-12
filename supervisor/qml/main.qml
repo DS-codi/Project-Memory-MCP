@@ -180,7 +180,7 @@ ApplicationWindow {
         icon.source: supervisorGuiBridge.trayIconUrl
         tooltip: "Project Memory Supervisor\n" + supervisorGuiBridge.statusText
             + (supervisorGuiBridge.eventBroadcastEnabled
-                ? "\nEvents: [on] " + supervisorGuiBridge.eventSubscriberCount + " subscriber(s)"
+                ? "\nEvents: [on] " + supervisorGuiBridge.eventsTotalEmitted + " relayed"
                 : "\nEvents: [off]")
 
         onActivated: function(reason) {
@@ -643,24 +643,34 @@ ApplicationWindow {
 
                         Rectangle {
                             Layout.fillWidth: true
-                            implicitHeight: 82
+                            implicitHeight: 96
                             color: "#1a1a1a"; radius: 8; border.color: "#2d2d2d"
                             RowLayout {
                                 anchors.fill: parent; anchors.margins: 14; spacing: 12
                                 ColumnLayout {
                                     spacing: 4; Layout.fillWidth: true
-                                    Label { text: "Event Broadcast"; font.bold: true; font.pixelSize: 13 }
+                                    Label { text: "Event Relay"; font.bold: true; font.pixelSize: 13 }
                                     Label {
                                         text: supervisorGuiBridge.eventBroadcastEnabled
-                                            ? supervisorGuiBridge.eventSubscriberCount + " subscriber(s) \u00b7 " + supervisorGuiBridge.eventsTotalEmitted + " emitted"
+                                            ? supervisorGuiBridge.eventsTotalEmitted + " event(s) relayed from MCP"
                                             : "Disabled"
                                         font.pixelSize: 11; color: "#888888"
+                                    }
+                                    Label {
+                                        text: supervisorGuiBridge.eventBroadcastEnabled
+                                            ? supervisorGuiBridge.eventSubscriberCount + " ext. subscriber(s) on /supervisor/events"
+                                            : ""
+                                        font.pixelSize: 10
+                                        color: supervisorGuiBridge.eventSubscriberCount > 0 ? "#888888" : "#555555"
+                                        visible: supervisorGuiBridge.eventBroadcastEnabled
                                     }
                                 }
                                 Rectangle {
                                     Layout.preferredWidth: 10; Layout.preferredHeight: 10
                                     radius: 5
-                                    color: supervisorGuiBridge.eventBroadcastEnabled ? "#4caf50" : "#555555"
+                                    color: supervisorGuiBridge.eventBroadcastEnabled
+                                        ? (supervisorGuiBridge.eventsTotalEmitted > 0 ? "#4caf50" : "#888888")
+                                        : "#555555"
                                     Layout.alignment: Qt.AlignVCenter
                                 }
                             }

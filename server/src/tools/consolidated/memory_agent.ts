@@ -155,6 +155,8 @@ export interface MemoryAgentParams {
   // For complete
   summary?: string;
   artifacts?: string[];
+  /** Force-close an orphaned spoke session without requiring a prior handoff. For Coordinator/Hub use only. */
+  hub_force_close?: boolean;
   
   // For handoff
   from_agent?: AgentType;
@@ -536,13 +538,18 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
         plan_id: params.plan_id,
         agent_type: params.agent_type,
         summary: params.summary,
-        artifacts: params.artifacts
+        artifacts: params.artifacts,
+        hub_force_close: params.hub_force_close
       });
       if (!result.success) {
         return { success: false, error: result.error };
       }
 
-      // Clear from live store — session is done
+      // Clean up live store and registry.
+      // Primary path: spoke passes _session_id so we can look up the server session ID.
+      // Fallback path: Hub force-closes an orphaned session — no _session_id, but
+      // completeAgent returns the session_id from plan state so we can still clean up.
+      const completedSessionId = result.data?.session_id;
       if (params._session_id) {
         const serverSid = serverSessionIdForPrepId(params._session_id);
         if (serverSid) {
@@ -552,6 +559,14 @@ export async function memoryAgent(params: MemoryAgentParams): Promise<ToolRespon
           } catch {
             // non-fatal: registry cleanup best effort
           }
+        }
+      } else if (completedSessionId) {
+        // Hub called complete without _session_id (force-close path)
+        try {
+          clearLiveSession(completedSessionId);
+          completeRegistrySession(completedSessionId);
+        } catch {
+          // non-fatal: registry cleanup best effort
         }
       }
 

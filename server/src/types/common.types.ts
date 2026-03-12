@@ -205,6 +205,12 @@ export interface CompleteAgentParams {
   agent_type: AgentType;
   summary: string;
   artifacts?: string[];
+  /**
+   * When true, skip the "must call handoff first" enforcement.
+   * For Coordinator/Hub use only — to close orphaned spoke sessions
+   * after runSubagent returns without the proper handoff+complete protocol.
+   */
+  hub_force_close?: boolean;
 }
 
 export interface GetWorkspacePlansParams {

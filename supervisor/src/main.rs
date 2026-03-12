@@ -9,7 +9,7 @@
 use clap::Parser;
 use cxx_qt::CxxQtType;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 use std::time::Duration;
 use supervisor::config;
 use supervisor::config::{FormAppSummonabilityStatus, McpBackend, NodeRunnerConfig};
@@ -515,6 +515,9 @@ async fn supervisor_main() {
             let (restart_tx, mut restart_rx) = tokio::sync::mpsc::channel::<String>(32);
             let (mcp_health_tx, mut mcp_health_rx) =
                 tokio::sync::mpsc::channel::<McpHealthSignal>(16);
+            // Shared flag driven by McpHealthSignal so the heartbeat ticker
+            // broadcasts real proxy health instead of a hardcoded `true`.
+            let mcp_healthy_flag = Arc::new(AtomicBool::new(true));
 
             if let Some(qt) = supervisor::cxxqt_bridge::SUPERVISOR_QT.get() {
                 let restart_tx_for_qt = restart_tx.clone();
@@ -789,7 +792,10 @@ async fn supervisor_main() {
                             proxy_port,
                             base_port,
                             Arc::new(move || pool_for_hb.try_read().map(|g| g.ports().len()).unwrap_or(0)),
-                            Arc::new(|| true), // placeholder — pool health is checked in poll loop
+                            {
+                                let flag = Arc::clone(&mcp_healthy_flag);
+                                Arc::new(move || flag.load(Ordering::Relaxed))
+                            },
                         );
 
                         // Start the reverse proxy on the primary MCP port.
@@ -803,26 +809,44 @@ async fn supervisor_main() {
                         let mcp_health_tx_for_proxy = mcp_health_tx.clone();
                         tokio::spawn(async move {
                             let dispatch_port_fn: Arc<dyn Fn() -> u16 + Send + Sync> = Arc::new(move || base_port);
-                            if let Err(e) = supervisor::proxy::start_proxy(
-                                proxy_bind,
-                                base_port,
-                                fallback_proxy_port,
-                                dispatch_port_fn,
-                                heartbeat_tx,
-                                Some(events_for_proxy),
-                            )
-                            .await
-                            {
-                                // Escalate to the tray/status system so the failure is
-                                // visible in diagnostics — not just a silent eprintln.
-                                // EADDRINUSE here almost always means a zombie socket left
+                            // Retry the proxy bind up to 3 times with a 2-second delay.
+                            // A single transient failure (e.g. the SO_REUSEADDR race on
+                            // Windows before the TIME_WAIT entry expires) should not
+                            // permanently kill the proxy.
+                            let mut last_err = String::new();
+                            let mut success = false;
+                            for attempt in 1u32..=3 {
+                                if attempt > 1 {
+                                    eprintln!("[supervisor] retrying proxy bind (attempt {attempt}/3)...");
+                                    tokio::time::sleep(Duration::from_secs(2)).await;
+                                }
+                                match supervisor::proxy::start_proxy(
+                                    proxy_bind.clone(),
+                                    base_port,
+                                    fallback_proxy_port,
+                                    Arc::clone(&dispatch_port_fn),
+                                    heartbeat_tx.clone(),
+                                    Some(events_for_proxy.clone()),
+                                )
+                                .await
+                                {
+                                    Ok(()) => { success = true; break; }
+                                    Err(e) => {
+                                        last_err = e.to_string();
+                                        eprintln!("[supervisor] proxy error (attempt {attempt}/3): {e}");
+                                    }
+                                }
+                            }
+                            if !success {
+                                // All retry attempts exhausted — escalate to the
+                                // tray/status system so the failure is visible.
+                                // EADDRINUSE almost always means a zombie socket left
                                 // by a crashed extension host holding a leaked Win32 handle.
-                                eprintln!("[supervisor] proxy error: {e}");
                                 let _ = mcp_health_tx_for_proxy
                                     .send(McpHealthSignal::Degraded(format!(
-                                        "MCP proxy failed to bind — {e}. \
-                                         If caused by EADDRINUSE after restart, a zombie socket \
-                                         may be blocking the port (reboot required)."
+                                        "MCP proxy failed to bind after 3 attempts — {last_err}. \
+                                         If port 3457 is blocked by a zombie socket, a reboot \
+                                         may be required."
                                     )))
                                     .await;
                             }
@@ -1255,10 +1279,12 @@ async fn supervisor_main() {
                         if let Some(signal) = mcp_health_signal {
                             match signal {
                                 McpHealthSignal::Degraded(error) => {
+                                    mcp_healthy_flag.store(false, Ordering::Relaxed);
                                     set_service_status(&registry, &mut tray, "mcp", ServiceStatus::Error(error.clone())).await;
                                     set_service_error(&registry, &mut tray, "mcp", error).await;
                                 }
                                 McpHealthSignal::Recovered => {
+                                    mcp_healthy_flag.store(true, Ordering::Relaxed);
                                     set_service_status(&registry, &mut tray, "mcp", ServiceStatus::Running).await;
                                     set_service_health_ok(&registry, &mut tray, "mcp").await;
                                 }

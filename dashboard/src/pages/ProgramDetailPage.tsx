@@ -1,6 +1,8 @@
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, FolderTree, Target, ListChecks, CheckCircle, AlertTriangle, Activity, Megaphone } from 'lucide-react';
 import { useProgram } from '@/hooks/usePrograms';
+import { useWorkspace } from '@/hooks/useWorkspaces';
+import { CopyButton } from '@/components/common/CopyButton';
 import { Badge } from '@/components/common/Badge';
 import { ProgressBar } from '@/components/common/ProgressBar';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -11,10 +13,16 @@ import type { ProgramPlanRef, AggregateProgress } from '@/types';
 import { EnhancedDependencyGraph } from '@/components/program/EnhancedDependencyGraph';
 import { ProgramRiskOverview } from '@/components/program/ProgramRiskOverview';
 
-function PlanRow({ plan, workspaceId }: { plan: ProgramPlanRef; workspaceId: string }) {
+function PlanRow({ plan, workspaceId, programId, workspaceName }: { plan: ProgramPlanRef; workspaceId: string; programId: string; workspaceName?: string }) {
   const percentage = plan.progress.total > 0
     ? Math.round((plan.progress.done / plan.progress.total) * 100)
     : 0;
+
+  const copyText = [
+    `plan: ${plan.plan_id}`,
+    `program: ${programId}`,
+    `workspace: ${workspaceName ?? workspaceId}`,
+  ].join(' | ');
 
   return (
     <Link
@@ -30,6 +38,7 @@ function PlanRow({ plan, workspaceId }: { plan: ProgramPlanRef; workspaceId: str
           {plan.current_phase && (
             <span className="text-xs text-slate-500">{plan.current_phase}</span>
           )}
+          <CopyButton text={copyText} label="plan ID" size={12} />
         </div>
       </div>
       <div className="flex items-center gap-3">
@@ -120,6 +129,7 @@ export function ProgramDetailPage() {
   }>();
 
   const { data: program, isLoading, error } = useProgram(workspaceId, programId);
+  const { data: workspaceMeta } = useWorkspace(workspaceId);
 
   if (isLoading) {
     return (
@@ -161,6 +171,11 @@ export function ProgramDetailPage() {
           <Badge variant="bg-slate-600/40 text-slate-300 border-slate-500/50">
             {agg.total_plans} plan{agg.total_plans !== 1 ? 's' : ''}
           </Badge>
+          <CopyButton
+            text={`program: ${programId!} | workspace: ${workspaceMeta?.name ?? workspaceId!}`}
+            label="program ID"
+            size={14}
+          />
         </div>
         {program.description && (
           <p className="text-slate-400">{program.description}</p>
@@ -275,7 +290,7 @@ export function ProgramDetailPage() {
         ) : (
           <div className="space-y-3">
             {program.plans.map((plan) => (
-              <PlanRow key={plan.plan_id} plan={plan} workspaceId={workspaceId!} />
+              <PlanRow key={plan.plan_id} plan={plan} workspaceId={workspaceId!} programId={programId!} workspaceName={workspaceMeta?.name} />
             ))}
           </div>
         )}
