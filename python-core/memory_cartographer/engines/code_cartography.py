@@ -1584,7 +1584,15 @@ class CodeCartographyEngine:
                 dirs[:] = []
                 break
 
-            relative_dir = Path(current_root).resolve().relative_to(root).as_posix()
+            # Do NOT call resolve() here — os.walk(root) already yields
+            # current_root paths with the same prefix as root. Re-resolving
+            # can expand network/subst/junction drives to UNC or real paths
+            # inconsistently, causing relative_to() to throw ValueError and
+            # silently dropping every file found during the walk.
+            try:
+                relative_dir = Path(current_root).relative_to(root).as_posix()
+            except ValueError:
+                relative_dir = "."
             current_depth = 0 if relative_dir == "." else relative_dir.count("/") + 1
 
             # Keep directory traversal deterministic and bounded.
@@ -1601,8 +1609,11 @@ class CodeCartographyEngine:
             for file_name in sorted(files):
                 file_path = Path(current_root) / file_name
                 try:
-                    relative_path = file_path.resolve().relative_to(root).as_posix()
-                except (OSError, ValueError):
+                    # Use the path as os.walk gave it (consistent with root) —
+                    # do NOT call resolve() which can expand to a different
+                    # drive form (e.g. UNC) and break relative_to().
+                    relative_path = file_path.relative_to(root).as_posix()
+                except ValueError:
                     continue
 
                 if relative_path.count("/") > max_depth:

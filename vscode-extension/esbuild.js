@@ -31,7 +31,13 @@ async function main() {
         platform: 'node',
         outbase: 'src',
         outdir: 'out',
-        external: ['vscode'],
+        external: [
+            'vscode',
+            // mocha uses require.resolve() on these at runtime; they must stay
+            // as runtime requires rather than be bundled.
+            './reporters/parallel-buffered',
+            './worker.js',
+        ],
         logLevel: 'info',
     });
 
