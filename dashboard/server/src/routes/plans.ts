@@ -798,6 +798,137 @@ plansRouter.put('/:workspaceId/:planId/steps', async (req, res) => {
   }
 });
 
+// PATCH /api/plans/:workspaceId/:planId/steps/:stepIndex - Update a single step
+plansRouter.patch('/:workspaceId/:planId/steps/:stepIndex', async (req, res) => {
+  try {
+    const { workspaceId, planId, stepIndex } = req.params;
+    const index = parseInt(stepIndex, 10);
+    if (isNaN(index)) {
+      return res.status(400).json({ error: 'Invalid step index' });
+    }
+
+    const { status, notes, task, phase, type, assignee } = req.body;
+
+    const statePath = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'plans', planId, 'state.json');
+    const content = await fs.readFile(statePath, 'utf-8');
+    const state = JSON.parse(content);
+
+    const step = state.steps?.find((s: { index: number }) => s.index === index);
+    if (!step) {
+      return res.status(404).json({ error: `Step with index ${index} not found` });
+    }
+
+    const prevStatus = step.status;
+    if (status !== undefined) step.status = status;
+    if (notes !== undefined) step.notes = notes || undefined;
+    if (task !== undefined) step.task = task;
+    if (phase !== undefined) step.phase = phase;
+    if (type !== undefined) step.type = type || undefined;
+    if (assignee !== undefined) step.assignee = assignee || undefined;
+    if (status === 'done' && !step.completed_at) {
+      step.completed_at = new Date().toISOString();
+    }
+
+    state.updated_at = new Date().toISOString();
+    await fs.writeFile(statePath, JSON.stringify(state, null, 2));
+
+    if (prevStatus !== step.status) {
+      await emitEvent('step_updated', {
+        step_index: index,
+        step_task: step.task,
+        new_status: step.status,
+        plan_title: state.title,
+      }, { workspace_id: workspaceId, plan_id: planId });
+    }
+
+    res.json({ success: true, step, state });
+  } catch (error) {
+    console.error('Error updating step:', error);
+    res.status(500).json({ error: 'Failed to update step' });
+  }
+});
+
+// POST /api/plans/:workspaceId/:planId/confirm - Confirm a step or phase
+plansRouter.post('/:workspaceId/:planId/confirm', async (req, res) => {
+  try {
+    const { workspaceId, planId } = req.params;
+    const { confirmation_scope, confirm_step_index, confirm_phase, confirmed_by = 'user' } = req.body;
+
+    if (!confirmation_scope || !['step', 'phase'].includes(confirmation_scope)) {
+      return res.status(400).json({ error: 'confirmation_scope must be "step" or "phase"' });
+    }
+
+    const statePath = path.join(globalThis.MBS_DATA_ROOT, workspaceId, 'plans', planId, 'state.json');
+    const content = await fs.readFile(statePath, 'utf-8');
+    const state = JSON.parse(content);
+
+    if (!state.confirmation_state) {
+      state.confirmation_state = { phases: {}, steps: {} };
+    }
+    if (!state.confirmation_state.phases) state.confirmation_state.phases = {};
+    if (!state.confirmation_state.steps) state.confirmation_state.steps = {};
+
+    const now = new Date().toISOString();
+    const confirmEntry = { confirmed: true, confirmed_by, confirmed_at: now };
+
+    if (confirmation_scope === 'step') {
+      const index = parseInt(String(confirm_step_index), 10);
+      if (isNaN(index)) {
+        return res.status(400).json({ error: 'confirm_step_index must be a number' });
+      }
+      const step = state.steps?.find((s: { index: number }) => s.index === index);
+      if (!step) {
+        return res.status(404).json({ error: `Step with index ${index} not found` });
+      }
+      // Mark step as done and record confirmation
+      step.status = 'done';
+      step.completed_at = step.completed_at || now;
+      state.confirmation_state.steps[String(index)] = confirmEntry;
+
+      await fs.writeFile(statePath, JSON.stringify(state, null, 2));
+
+      await emitEvent('step_confirmed', {
+        step_index: index,
+        step_task: step.task,
+        confirmed_by,
+        plan_title: state.title,
+      }, { workspace_id: workspaceId, plan_id: planId });
+
+      res.json({ success: true, step, confirmation_scope: 'step', confirmed_at: now });
+    } else {
+      // Phase confirmation
+      if (!confirm_phase) {
+        return res.status(400).json({ error: 'confirm_phase is required for phase confirmation' });
+      }
+      state.confirmation_state.phases[confirm_phase] = confirmEntry;
+
+      // Mark all pending/active steps in this phase as done
+      const phaseSteps = (state.steps || []).filter(
+        (s: { phase: string; status: string }) => s.phase === confirm_phase && s.status !== 'done'
+      );
+      for (const s of phaseSteps) {
+        s.status = 'done';
+        s.completed_at = s.completed_at || now;
+      }
+
+      state.updated_at = now;
+      await fs.writeFile(statePath, JSON.stringify(state, null, 2));
+
+      await emitEvent('phase_confirmed', {
+        phase: confirm_phase,
+        confirmed_by,
+        steps_completed: phaseSteps.length,
+        plan_title: state.title,
+      }, { workspace_id: workspaceId, plan_id: planId });
+
+      res.json({ success: true, phase: confirm_phase, confirmation_scope: 'phase', confirmed_at: now, steps_completed: phaseSteps.length });
+    }
+  } catch (error) {
+    console.error('Error confirming step/phase:', error);
+    res.status(500).json({ error: 'Failed to confirm step/phase' });
+  }
+});
+
 // POST /api/plans/:workspaceId/:planId/archive - Archive a plan
 plansRouter.post('/:workspaceId/:planId/archive', async (req, res) => {
   try {

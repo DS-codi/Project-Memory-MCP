@@ -217,6 +217,21 @@ After each spoke returns, Hub MUST call `memory_plan(action: get)` and verify as
 - Resolve by: (a) re-prompting the spoke with the specific missed steps, or (b) Hub manually updating with correct status and notes based on reported artifacts
 - Steps with vague notes are not acceptable — add context via `memory_plan(action: add_note)`
 
+### Session cleanup gate (required after every spoke)
+
+After the step-validation check above, Hub MUST force-close any open session the spoke left behind:
+
+```
+memory_agent(action: complete, workspace_id: "...", plan_id: "...",
+             agent_type: "<Role>", hub_force_close: true,
+             summary: "Hub cleanup: session closed after spoke returned")
+```
+
+- `success: true` → session was orphaned; Hub closed it. The supervisor dashboard will now show it as inactive.
+- `error: "No active session found"` → spoke properly called handoff+complete; nothing to do.
+
+**Do NOT skip this step.** Unclosed sessions appear as phantom "Active Sessions" in the supervisor dashboard indefinitely (until the 20-minute stale-recovery fires on the next init).
+
 ### Hub self-discipline (direct execution)
 
 When Hub executes work directly: mark steps `active` before starting, `done` with specific notes immediately after. Never batch at end of session.
