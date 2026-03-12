@@ -39,6 +39,7 @@ import { SupervisorControlClient } from './supervisor/control-client';
 import { buildSupervisorWindowId } from './supervisor/window-id';
 import { registerStoreChatDetailsParticipant } from './chat/store-chat-details-participant';
 import { resolveDashboardPort } from './utils/dashboard-port';
+import { readPortsManifest } from './utils/ports-manifest';
 
 // --- Module-level state ---
 let dashboardProvider: DashboardViewProvider;
@@ -61,13 +62,16 @@ let supervisorAttachInFlight: Promise<boolean> | null = null;
 export function activate(context: vscode.ExtensionContext) {
     console.log('Project Memory Dashboard extension activating...');
 
-    // Read configuration
+    // Read configuration — prefer live ports manifest written by supervisor,
+    // fall back to VS Code settings so the extension still works when the
+    // supervisor hasn't started yet.
     const config = vscode.workspace.getConfiguration('projectMemory');
     const agentsRoot = config.get<string>('agentsRoot') || getDefaultAgentsRoot();
     const promptsRoot = config.get<string>('promptsRoot');
     const instructionsRoot = config.get<string>('instructionsRoot');
-    const dashboardPort = resolveDashboardPort(config);
-    const mcpPort = config.get<number>('mcpPort') || 3457;
+    const portsManifest = readPortsManifest();
+    const dashboardPort = portsManifest?.services.dashboard ?? resolveDashboardPort(config);
+    const mcpPort = portsManifest?.services.mcp_proxy ?? (config.get<number>('mcpPort') || 3457);
     const defaultAgents = config.get<string[]>('defaultAgents') || [];
     const defaultInstructions = config.get<string[]>('defaultInstructions') || [];
     const autoDeployOnWorkspaceOpen = config.get<boolean>('autoDeployOnWorkspaceOpen') ?? false;

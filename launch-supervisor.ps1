@@ -267,6 +267,9 @@ command            = "node"
 args               = ["dist/index.js"]
 working_dir        = '$dashboardDir'
 
+[dashboard.env]
+PORT               = "$dashboardPort"
+
 [approval]
 default_countdown_seconds = 60
 default_on_timeout        = "approve"
@@ -371,3 +374,32 @@ if ($process.HasExited) {
 }
 
 Write-Ok "Supervisor launched (PID $($process.Id))"
+
+# ── Wait for ports manifest and sync VS Code config ────────────────────────
+Write-Step 'Waiting for supervisor ports manifest'
+$portsJsonPath = Join-Path $env:APPDATA 'ProjectMemory\ports.json'
+$manifestTimeout = 15  # seconds
+$manifestFound   = $false
+$elapsed         = 0
+while ($elapsed -lt $manifestTimeout) {
+    if (Test-Path $portsJsonPath) {
+        $manifestFound = $true
+        break
+    }
+    Start-Sleep -Milliseconds 500
+    $elapsed += 0.5
+}
+
+if ($manifestFound) {
+    try {
+        $manifest = Get-Content -Raw -Path $portsJsonPath | ConvertFrom-Json
+        $liveMcpPort       = [int]$manifest.services.mcp_proxy
+        $liveDashboardPort = [int]$manifest.services.dashboard
+        Write-Ok "Ports manifest read: MCP=$liveMcpPort  Dashboard=$liveDashboardPort"
+        Sync-VscodeProjectMemoryConfig -McpPort $liveMcpPort -DashboardPort $liveDashboardPort
+    } catch {
+        Write-Warn "Could not parse ports manifest: $($_.Exception.Message)"
+    }
+} else {
+    Write-Warn "Ports manifest not found within ${manifestTimeout}s — VS Code config not updated."
+}
