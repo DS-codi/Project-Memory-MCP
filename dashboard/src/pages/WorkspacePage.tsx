@@ -341,7 +341,7 @@ export function WorkspacePage() {
           </button>
         </div>
         {programs.length > 0 ? (
-          <ProgramTreeView programs={programs} workspaceId={workspaceId!} />
+          <ProgramTreeView programs={programs} workspaceId={workspaceId!} workspaceName={workspace.name} />
         ) : (
           <p className="text-sm text-slate-500">No programs yet. Create one to group related plans.</p>
         )}
