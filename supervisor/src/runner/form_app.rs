@@ -202,6 +202,16 @@ pub async fn launch_form_app(
     };
     let mut reader = BufReader::new(stdout);
 
+    // -- Drain stderr so the pipe buffer never fills and blocks the GUI ------
+    // QT_FORCE_STDERR_LOGGING=1 is inherited from the supervisor process and
+    // causes the child to write Qt/QML log output to stderr. Without draining
+    // this pipe, the kernel buffer (typically 4–64 KB) fills up and the child
+    // process blocks on its next stderr write, making the window disappear or
+    // never appear.
+    if let Some(stderr) = child.stderr.take() {
+        crate::runtime_output::spawn_pipe_reader(app_name.to_string(), "stderr", stderr);
+    }
+
     // -- Write request to stdin (keep stdin alive for potential refinement) --
     let stdin = match write_payload_keep_stdin(stdin, payload).await {
         Ok(s) => s,

@@ -1626,10 +1626,23 @@ impl ffi::TerminalApp {
 
     pub fn set_session_workspace_path(mut self: Pin<&mut Self>, workspace_path: QString) {
         let workspace = workspace_path.to_string();
+        let trimmed = workspace.trim().to_string();
+
+        // Reject relative paths — they produce wrong Set-Location paths at runtime
+        // (e.g. the process CWD of the binary would be used as the base, which is
+        // target/release/, not the user's workspace).  Empty string is allowed to
+        // clear the workspace path.
+        if !trimmed.is_empty() && !std::path::Path::new(&trimmed).is_absolute() {
+            self.as_mut().set_status_text(QString::from(&format!(
+                "Workspace path must be an absolute path (got: '{trimmed}')."
+            )));
+            return;
+        }
+
         let state_arc = self.rust().state.clone();
         {
             let mut state = state_arc.lock().unwrap();
-            state.set_selected_workspace_path(workspace);
+            state.set_selected_workspace_path(trimmed);
         }
 
         Self::sync_selected_session_context(&mut self);

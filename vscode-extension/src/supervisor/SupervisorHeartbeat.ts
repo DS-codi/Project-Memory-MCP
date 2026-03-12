@@ -37,7 +37,13 @@ export class SupervisorHeartbeat implements vscode.Disposable {
     public readonly onBeat = this._onBeat.event;
     /** Fires when the heartbeat stream is lost (supervisor down/unreachable). */
     public readonly onLost = this._onLost.event;
-    /** Fires when the stream reconnects after being lost. */
+    /**
+     * Fires when the heartbeat stream is established — both on the **first**
+     * successful connection and on each subsequent reconnect after a loss.
+     * Use this to reset circuit breakers or re-attach clients whenever the
+     * supervisor becomes reachable, regardless of whether it was reachable
+     * at extension startup.
+     */
     public readonly onRestored = this._onRestored.event;
 
     private req: http.ClientRequest | null = null;
@@ -96,11 +102,13 @@ export class SupervisorHeartbeat implements vscode.Disposable {
 
             // Connection established.
             this.reconnectDelayMs = 2000;
-            if (this.wasConnected === false) {
-                this.wasConnected = true;
-            } else {
-                this._onRestored.fire();
-            }
+            this.wasConnected = true;
+            // Fire onRestored on first connection AND on reconnection after loss.
+            // Extension subscribers use this to reset the circuit breaker and
+            // re-attach the supervisor control client — both are required on the
+            // first connect when the circuit may have tripped (3 failed polls)
+            // before the supervisor finished starting up.
+            this._onRestored.fire();
 
             let buffer = '';
             res.setEncoding('utf8');
