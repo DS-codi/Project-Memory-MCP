@@ -14,6 +14,8 @@ export interface MCPEvent {
 
 export type EventType = 
   | 'step_updated'
+  | 'step_confirmed'
+  | 'phase_confirmed'
   | 'plan_created'
   | 'plan_archived'
   | 'plan_resumed'

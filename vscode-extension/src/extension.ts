@@ -189,7 +189,7 @@ export function activate(context: vscode.ExtensionContext) {
     registerStoreChatDetailsParticipant(context);
 
     // --- Diagnostics service and command ---
-    diagnosticsService = new DiagnosticsService(connectionManager, dashboardPort);
+    diagnosticsService = new DiagnosticsService(connectionManager);
     context.subscriptions.push(diagnosticsService);
 
     // Replace the old 60-second poll with a single shared SSE heartbeat.

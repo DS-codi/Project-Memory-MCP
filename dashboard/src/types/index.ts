@@ -104,6 +104,7 @@ export interface PlanStep {
   notes?: string;
   assignee?: string;
   requires_validation?: boolean;
+  requires_confirmation?: boolean;
   completed_at?: string;
 }
 

@@ -29,6 +29,7 @@ export interface DiagnosticsReport {
         supervisorHeartbeat: boolean;
         lastHeartbeatMs: number | null;
         poolInstances: number;
+        mcpProxyHealthy: boolean;
     };
     extension: {
         memoryMB: number;
@@ -49,8 +50,7 @@ export class DiagnosticsService implements vscode.Disposable {
     private heartbeatAlive = false;
 
     constructor(
-        private connectionManager: ConnectionManager,
-        private dashboardPort: number
+        private connectionManager: ConnectionManager
     ) {}
 
     /**
@@ -97,6 +97,12 @@ export class DiagnosticsService implements vscode.Disposable {
             issues.push('MCP server (proxy) is not reachable');
         }
 
+        // MCP proxy health from heartbeat (reflects pool availability).
+        const mcpProxyHealthy = this.lastHeartbeat?.mcp_healthy ?? true;
+        if (!mcpProxyHealthy) {
+            issues.push('MCP proxy health degraded — pool instances may be offline');
+        }
+
         // Supervisor heartbeat.
         if (!this.heartbeatAlive) {
             issues.push('Supervisor heartbeat lost — supervisor may be down');
@@ -126,13 +132,14 @@ export class DiagnosticsService implements vscode.Disposable {
             connection: {
                 dashboardConnected,
                 mcpConnected,
-                dashboardPort: this.dashboardPort,
-                mcpPort: this.connectionManager['config'].mcpPort,
+                dashboardPort: this.connectionManager.dashboardPort,
+                mcpPort: this.lastHeartbeat?.mcp_proxy_port ?? this.connectionManager.mcpPort,
             },
             mcp: {
                 supervisorHeartbeat: this.heartbeatAlive,
                 lastHeartbeatMs: this.lastHeartbeat?.timestamp_ms ?? null,
                 poolInstances: this.lastHeartbeat?.pool_instances ?? 0,
+                mcpProxyHealthy,
             },
             extension: { memoryMB, uptime: uptimeSeconds },
             health,
@@ -162,6 +169,7 @@ export class DiagnosticsService implements vscode.Disposable {
             '',
             '--- Supervisor ---',
             `  Heartbeat: ${report.mcp.supervisorHeartbeat ? '✓ alive' : '✗ lost'}`,
+            `  MCP proxy: ${report.mcp.mcpProxyHealthy ? '✓ healthy' : '✗ degraded'}`,
             `  Pool instances: ${report.mcp.poolInstances}`,
             '',
             '--- Extension ---',

@@ -10,6 +10,7 @@ import type { PlanSummary, PlanStatus, RequestCategory, PlanPriority, ProgramSum
 interface PlanListProps {
   plans: PlanSummary[];
   workspaceId: string;
+  workspaceName?: string;
   isLoading?: boolean;
   programs?: ProgramSummary[];
 }
@@ -18,7 +19,7 @@ const statuses: PlanStatus[] = ['active', 'paused', 'completed', 'archived', 'fa
 const categories: RequestCategory[] = ['feature', 'bug', 'change', 'refactor', 'analysis', 'investigation', 'debug', 'documentation'];
 const priorities: PlanPriority[] = ['critical', 'high', 'medium', 'low'];
 
-export function PlanList({ plans, workspaceId, isLoading, programs }: PlanListProps) {
+export function PlanList({ plans, workspaceId, workspaceName, isLoading, programs }: PlanListProps) {
   const [showFilters, setShowFilters] = useState(false);
   const [statusFilter, setStatusFilter] = useState<PlanStatus[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<RequestCategory[]>([]);
@@ -252,7 +253,7 @@ export function PlanList({ plans, workspaceId, isLoading, programs }: PlanListPr
             ) : (
               <div className="space-y-4">
                 {activePlans.map((plan) => (
-                  <PlanCard key={plan.id} plan={plan} workspaceId={workspaceId} programName={programIdToName.get(plan.program_id ?? '') ?? undefined} />
+                  <PlanCard key={plan.id} plan={plan} workspaceId={workspaceId} workspaceName={workspaceName} programName={programIdToName.get(plan.program_id ?? '') ?? undefined} />
                 ))}
               </div>
             )}
@@ -270,7 +271,7 @@ export function PlanList({ plans, workspaceId, isLoading, programs }: PlanListPr
             ) : (
               <div className="space-y-4">
                 {archivedPlans.map((plan) => (
-                  <PlanCard key={plan.id} plan={plan} workspaceId={workspaceId} programName={programIdToName.get(plan.program_id ?? '') ?? undefined} />
+                  <PlanCard key={plan.id} plan={plan} workspaceId={workspaceId} workspaceName={workspaceName} programName={programIdToName.get(plan.program_id ?? '') ?? undefined} />
                 ))}
               </div>
             )}

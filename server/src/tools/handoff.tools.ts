@@ -58,6 +58,8 @@ import {
   getInitContextPath,
   getAgentDeployDir,
 } from '../storage/db-store.js';
+import { completeRegistrySession } from '../db/workspace-session-registry-db.js';
+import { clearLiveSession } from './session-live-store.js';
 
 /**
  * Initialize an agent session - MUST be called first by every agent
@@ -474,9 +476,11 @@ export async function completeAgent(
       };
     }
     
-    // CRITICAL: Enforce handoff requirement for non-Archivist agents
+    // CRITICAL: Enforce handoff requirement for non-Archivist agents.
+    // hub_force_close bypasses this check — only Coordinator/Hub should set it,
+    // to close orphaned spoke sessions after runSubagent returns.
     const boundaries = AGENT_BOUNDARIES[agent_type];
-    if (!boundaries.can_finalize) {
+    if (!boundaries.can_finalize && !params.hub_force_close) {
       // Check if this agent has made a handoff in this session
       const agentHandoffs = state.lineage.filter(l => l.from_agent === agent_type);
       
@@ -595,6 +599,15 @@ export async function completeAgent(
     await store.savePlanState(state);
     await store.generatePlanMd(state);
     await releaseActiveRun(workspace_id, plan_id, 'SPAWN_RELEASE_COMPLETE', runIdFromSession);
+
+    // Always close the registry row using the session's own ID.
+    // This ensures the dashboard shows the session as closed even when the
+    // caller (Hub force-closing an orphaned session) does not pass _session_id.
+    try {
+      completeRegistrySession(session.session_id);
+    } catch {
+      // Non-fatal: registry cleanup failure should not block completion
+    }
 
     const displayRecommendedAgent = state.recommended_next_agent === 'Coordinator'
       ? 'Hub'
@@ -731,7 +744,21 @@ export async function handoff(
     await store.generatePlanMd(state);
     const fallbackRunId = findActiveSessionRunId(state, from_agent);
     await releaseActiveRun(workspace_id, plan_id, releaseReasonCode, runIdFromHandoff ?? fallbackRunId);
-    
+
+    // Close the registry row for the from_agent session directly, so the dashboard
+    // reflects the session as inactive immediately (does not wait for _session_id lookup or complete).
+    const handoffSession = [...state.agent_sessions]
+      .reverse()
+      .find(s => s.agent_type === from_agent && s.completed_at === undefined);
+    if (handoffSession) {
+      try {
+        completeRegistrySession(handoffSession.session_id);
+        clearLiveSession(handoffSession.session_id);
+      } catch {
+        // Non-fatal
+      }
+    }
+
     // Emit event for dashboard
     await events.handoff(workspace_id, plan_id, from_agent, to_agent, reason);
     
