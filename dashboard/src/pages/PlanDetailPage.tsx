@@ -28,6 +28,7 @@ import { BallInCourt } from '@/components/timeline/BallInCourt';
 import { useBuildScripts, useAddBuildScript, useDeleteBuildScript, useRunBuildScript } from '@/hooks/useBuildScripts';
 import { useResumePlan, useSetWorkflowMode } from '@/hooks/usePlans';
 import { useProgram } from '@/hooks/usePrograms';
+import { useWorkspace } from '@/hooks/useWorkspaces';
 import { formatDate, formatRelative } from '@/utils/formatters';
 import { categoryColors, priorityColors, priorityIcons, planStatusColors } from '@/utils/colors';
 import { cn } from '@/utils/cn';
@@ -77,6 +78,9 @@ export function PlanDetailPage() {
 
   // Fetch parent program for sibling plans and breadcrumb name
   const { data: parentProgram } = useProgram(workspaceId, plan?.program_id);
+
+  // Fetch workspace info for composite copy text
+  const { data: workspaceMeta } = useWorkspace(workspaceId);
 
   // Resume paused plan mutation
   const resumeMutation = useResumePlan(workspaceId, planId);
@@ -209,7 +213,14 @@ export function PlanDetailPage() {
             </div>
             <div className="font-mono mb-1 flex items-center gap-1 justify-end">
               <span>{plan.id}</span>
-              <CopyButton text={plan.id} label="plan ID" />
+              <CopyButton
+                text={[
+                  `plan: ${plan.id}`,
+                  plan.program_id ? `program: ${plan.program_id}` : null,
+                  `workspace: ${workspaceMeta?.name ?? workspaceId!}`,
+                ].filter(Boolean).join(' | ')}
+                label="plan ID"
+              />
             </div>
             <div className="flex items-center gap-1 justify-end">
               <Clock size={14} />

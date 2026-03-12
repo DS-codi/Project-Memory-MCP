@@ -3,7 +3,7 @@
  * 
  * Detects and connects to external Project Memory components:
  * - MCP server (port 3457 by default)
- * - Dashboard server (port 3001 by default)
+ * - Dashboard server (port 3459 by default)
  * 
  * NO PROCESS SPAWNING - all components must be launched externally via
  * the Supervisor (start-supervisor.ps1 or supervisor.exe).
@@ -53,6 +53,9 @@ export class ConnectionManager implements vscode.Disposable {
         this.updateStatusBar('disconnected');
         this.statusBarItem.show();
     }
+
+    get mcpPort(): number { return this.config.mcpPort; }
+    get dashboardPort(): number { return this.config.dashboardPort; }
 
     // --- Connection Detection ---
 

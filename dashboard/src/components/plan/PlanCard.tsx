@@ -17,10 +17,11 @@ import type { PlanSummary, AgentType } from '@/types';
 interface PlanCardProps {
   plan: PlanSummary;
   workspaceId: string;
+  workspaceName?: string;
   programName?: string;
 }
 
-export function PlanCard({ plan, workspaceId, programName }: PlanCardProps) {
+export function PlanCard({ plan, workspaceId, workspaceName, programName }: PlanCardProps) {
   const navigate = useNavigate();
   const parentProgramId = plan.relationships?.parent_program_id ?? plan.program_id;
   const childPlanCount = plan.relationships?.child_plan_ids?.length ?? plan.child_plan_ids?.length ?? 0;
@@ -162,7 +163,15 @@ export function PlanCard({ plan, workspaceId, programName }: PlanCardProps) {
         </div>
         <span className="flex items-center gap-1">
           <span className="font-mono">{plan.id.slice(-8)}</span>
-          <CopyButton text={plan.id} label="plan ID" size={12} />
+          <CopyButton
+            text={[
+              `plan: ${plan.id}`,
+              parentProgramId ? `program: ${parentProgramId}` : null,
+              `workspace: ${workspaceName ?? workspaceId}`,
+            ].filter(Boolean).join(' | ')}
+            label="plan ID"
+            size={12}
+          />
         </span>
       </div>
     </Link>

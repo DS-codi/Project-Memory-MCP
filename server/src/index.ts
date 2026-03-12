@@ -447,6 +447,7 @@ server.tool(
     }).optional().describe('Set by orchestrators (Coordinator/Analyst/Runner) during init to control validation behavior'),
     summary: z.string().optional().describe('Session summary (for complete)'),
     artifacts: z.array(z.string()).optional().describe('Created artifacts (for complete)'),
+    hub_force_close: z.boolean().optional().describe('Force-close an orphaned spoke session without requiring a prior handoff. For Coordinator/Hub use only — call after runSubagent returns to clean up sessions the spoke left open.'),
     from_agent: AgentTypeSchema.optional().describe('Source agent (for handoff)'),
     to_agent: AgentTypeSchema.optional().describe('Target agent (for handoff)'),
     reason: z.string().optional().describe('Handoff reason'),

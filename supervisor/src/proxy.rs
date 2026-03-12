@@ -372,7 +372,21 @@ pub async fn start_proxy(
     };
 
     let app = build_router(state);
-    let listener = tokio::net::TcpListener::bind(&bind_addr).await?;
+    // Use SO_REUSEADDR so a rapid supervisor restart does not hit EADDRINUSE
+    // from TIME_WAIT sockets left by the previous run.  On Windows the default
+    // socket behaviour is SO_EXCLUSIVEADDRUSE which blocks re-use even after
+    // the owning process has exited until the TIME_WAIT period expires.
+    let bind_addr_parsed: std::net::SocketAddr = bind_addr
+        .parse()
+        .map_err(|e| anyhow::anyhow!("invalid bind address {bind_addr:?}: {e}"))?;
+    let socket = if bind_addr_parsed.is_ipv4() {
+        tokio::net::TcpSocket::new_v4()?
+    } else {
+        tokio::net::TcpSocket::new_v6()?
+    };
+    socket.set_reuseaddr(true)?;
+    socket.bind(bind_addr_parsed)?;
+    let listener = socket.listen(1024)?;
     eprintln!("[proxy] MCP proxy listening on {bind_addr} → dispatch base_port={base_port}");
     axum::serve(listener, app).await?;
     Ok(())
