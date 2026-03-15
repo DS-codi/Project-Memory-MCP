@@ -97,7 +97,7 @@ export function getConnectedDashboardHtml(
                                             <div class="action-group">
                                                 <div class="icon-row-title">Deploy &#x2014; Hub Agents</div>
                                                 <div class="icon-grid">
-                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemory.deployAgents" title="Deploy Agents">
+                                                    <button class="icon-btn" data-action="run-command" data-command="projectMemory.deployAgents" title="Deploy Hub Agents from Database">
                                                         ${iconSvgs.deployAgents}
                                                     </button>
                                                     <button class="icon-btn" data-action="run-command" data-command="projectMemory.deployInstructions" title="Deploy Instructions">

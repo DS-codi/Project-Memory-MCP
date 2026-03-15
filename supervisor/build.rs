@@ -30,7 +30,18 @@ fn main() {
     }
 
     let mut builder = CxxQtBuilder::new_qml_module(
-        QmlModule::new("com.projectmemory.supervisor").qml_files(["qml/main.qml"]),
+        QmlModule::new("com.projectmemory.supervisor").qml_files([
+            "qml/main.qml",
+            "qml/StatusRing.qml",
+            "qml/ServiceCard.qml",
+            "qml/SessionsPanel.qml",
+            "qml/ActivityPanel.qml",
+            "qml/CartographerPanel.qml",
+            "qml/McpProxyPanel.qml",
+            "qml/EventBroadcastPanel.qml",
+            "qml/SettingsPanel.qml",
+            "qml/ChatbotPanel.qml",
+        ]),
     )
     .qrc_resources([
         "resources/app_icon.ico",

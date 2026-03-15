@@ -141,6 +141,72 @@ export interface OutputChunk {
   chunk: string;
 }
 
+/** MCP server → GUI: launch an agent CLI session inside the interactive terminal. */
+export interface StartAgentSessionRequest {
+  type: 'start_agent_session_request';
+  /** Unique request ID (correlates with StartAgentSessionResponse.id). */
+  id: string;
+  /** Session kind — always 'agent_cli_session' for dashboard-launched sessions. */
+  session_kind: 'agent_cli_session' | 'agent_cli_specialized';
+  /** Caller-provided session identifier. */
+  session_id: string;
+  /** Runtime session ID (optional). */
+  runtime_session_id?: string;
+  /** CLI command to run (e.g. "gemini" or "copilot"). */
+  command: string;
+  /** Working directory for the agent process. */
+  working_directory: string;
+  /** Freeform context string for the session. */
+  context?: string;
+  /** Extra CLI args. */
+  args?: string[];
+  /** Extra environment variables. */
+  env?: Record<string, string>;
+  /** Project Memory workspace ID. */
+  workspace_id?: string;
+  /** Plan ID to scope the session. */
+  plan_id?: string;
+  /** Agent type label (e.g. "Executor"). */
+  agent_type?: string;
+  /** Prompt/context payload for the agent. */
+  prompt_payload?: {
+    enriched_prompt: string;
+    scope_boundaries?: {
+      files_allowed?: string[];
+      directories_allowed?: string[];
+    };
+  };
+  /** Session timeout in seconds (default 300). */
+  timeout_seconds?: number;
+}
+
+/** GUI → MCP server: result of launching an agent session. */
+export interface StartAgentSessionResponse {
+  type: 'start_agent_session_response';
+  /** Correlates to the original StartAgentSessionRequest.id. */
+  id: string;
+  /** Session kind echoed back. */
+  session_kind: 'agent_cli_session' | 'agent_cli_specialized';
+  /** Session identifier assigned by the GUI. */
+  session_id: string;
+  /** Runtime session ID. */
+  runtime_session_id: string;
+  /** Current session state. */
+  state: 'starting' | 'running' | 'stopping' | 'stopped' | 'completed' | 'failed';
+  /** Whether the request was accepted. */
+  accepted: boolean;
+  /** Human-readable message. */
+  message?: string;
+  /** Error message if rejected. */
+  error?: string;
+  /** Error code if rejected. */
+  error_code?: string;
+  /** Whether a fallback path was used. */
+  fallback_used?: boolean;
+  /** Reason for fallback. */
+  fallback_reason?: string;
+}
+
 /** Union of all wire messages. */
 export type TerminalIpcMessage =
   | CommandRequest
@@ -150,7 +216,9 @@ export type TerminalIpcMessage =
   | ReadOutputResponse
   | KillSessionRequest
   | KillSessionResponse
-  | OutputChunk;
+  | OutputChunk
+  | StartAgentSessionRequest
+  | StartAgentSessionResponse;
 
 // =========================================================================
 // Server → GUI push-only messages (not part of TerminalIpcMessage union;
@@ -216,6 +284,11 @@ export function isOutputChunk(msg: TerminalIpcMessage): msg is OutputChunk {
   return msg.type === 'output_chunk';
 }
 
+/** Returns true if `msg` is a StartAgentSessionResponse. */
+export function isStartAgentSessionResponse(msg: TerminalIpcMessage): msg is StartAgentSessionResponse {
+  return msg.type === 'start_agent_session_response';
+}
+
 // =========================================================================
 // Encode / Decode
 // =========================================================================
@@ -241,6 +314,8 @@ const KNOWN_TYPES = new Set([
   'kill_session_request',
   'kill_session_response',
   'output_chunk',
+  'start_agent_session_request',
+  'start_agent_session_response',
 ]);
 
 export function decodeMessage(line: string): TerminalIpcMessage | null {

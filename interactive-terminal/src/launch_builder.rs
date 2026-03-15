@@ -268,9 +268,13 @@ pub fn build_gemini_launch(
 
     // spawn_cli_session startup prompt: keep interactive mode while
     // pre-seeding the first user message.
+    // Strip embedded newlines before the value becomes a shell argument:
+    // the arg is wrapped in single quotes inside a compound PowerShell
+    // one-liner, and a literal newline would cause the shell to execute
+    // the command prematurely at that position.
     if let Some(startup_prompt) = startup_prompt_from_context_pack(resolved_pack) {
         args.push("--prompt-interactive".to_string());
-        args.push(startup_prompt);
+        args.push(startup_prompt.replace('\r', "").replace('\n', " "));
     }
 
     // Serialise context pack to a temp file if supplied
@@ -553,7 +557,7 @@ fn inject_project_memory_mcp_env_defaults(
     provider: &str,
     context_pack: Option<&ContextPack>,
 ) {
-    const DEFAULT_PM_MCP_SERVER_URL: &str = "http://127.0.0.1:3467/mcp";
+    const DEFAULT_PM_MCP_SERVER_URL: &str = "http://127.0.0.1:3457/mcp";
     const DEFAULT_PM_MCP_TRANSPORT: &str = "streamable_http";
 
     let resolved_server_url = env

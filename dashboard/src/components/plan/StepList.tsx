@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Edit2, Check, X, ChevronDown, ChevronRight, CheckCircle2, Circle, ShieldCheck, AlertTriangle, CheckCheck } from 'lucide-react';
+import { Bot, Edit2, Check, X, ChevronDown, ChevronRight, CheckCircle2, Circle, ShieldCheck, AlertTriangle, CheckCheck } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { Badge } from '../common/Badge';
 import { statusColors, statusIcons, stepTypeColors } from '@/utils/colors';
@@ -8,6 +8,7 @@ import { StepEditor } from './StepEditor';
 import { StepFilterBar, applyFiltersAndSort } from './StepFilterBar';
 import type { StepFilters, StepSort } from './StepFilterBar';
 import { useStepMutations } from '@/hooks/useStepMutations';
+import { LaunchAgentSessionDialog } from './LaunchAgentSessionDialog';
 import type { PlanStep, StepStatus, StepType } from '@/types';
 import type { PlanPhase } from '@/types/schema-v2';
 
@@ -129,6 +130,7 @@ export function StepList({ steps, workspaceId, planId, editable = false, phases 
   const [isSavingStep, setIsSavingStep] = useState(false);
   const [confirmingStepIndex, setConfirmingStepIndex] = useState<number | null>(null);
   const [quickStatusStepIndex, setQuickStatusStepIndex] = useState<number | null>(null);
+  const [launchDialogStep, setLaunchDialogStep] = useState<PlanStep | null>(null);
 
   // Apply filters and sort
   const filteredSteps = applyFiltersAndSort(steps, filters, sort);
@@ -431,6 +433,16 @@ export function StepList({ steps, workspaceId, planId, editable = false, phases 
                                 <Edit2 size={14} className="text-slate-400" />
                               </button>
                             )}
+                            {/* Launch agent session for this step */}
+                            {workspaceId && planId && (
+                              <button
+                                onClick={() => setLaunchDialogStep(step)}
+                                className="p-1.5 rounded hover:bg-emerald-700/30 transition-colors opacity-0 group-hover/step:opacity-100 focus:opacity-100"
+                                title="Launch agent session for this step"
+                              >
+                                <Bot size={14} className="text-slate-500 group-hover/step:text-emerald-400" />
+                              </button>
+                            )}
                           </div>
                         </div>
 
@@ -466,6 +478,19 @@ export function StepList({ steps, workspaceId, planId, editable = false, phases 
           </div>
         );
       })}
+
+      {/* Launch agent session dialog — rendered at StepList level */}
+      {workspaceId && planId && launchDialogStep && (
+        <LaunchAgentSessionDialog
+          open={true}
+          onClose={() => setLaunchDialogStep(null)}
+          workspaceId={workspaceId}
+          planId={planId}
+          phase={launchDialogStep.phase}
+          stepIndex={launchDialogStep.index}
+          stepTask={launchDialogStep.task}
+        />
+      )}
     </div>
   );
 }

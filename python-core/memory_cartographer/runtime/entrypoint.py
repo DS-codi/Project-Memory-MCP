@@ -254,6 +254,24 @@ def _build_partial_query_result(query_kind: str, args: Dict[str, Any], timeout_m
             "partial": True,
         }
 
+    if query_kind == "full_scan":
+        return {
+            "query": "full_scan",
+            "engine": "code_cartography",
+            "runtime_slice": "full_scan_v1",
+            "workspace": {"path": args.get("workspace_path"), "scope": {}, "languages": []},
+            "summary": {"file_count": 0, "symbol_count": 0, "reference_count": 0,
+                        "module_count": 0, "dependency_edge_count": 0,
+                        "entry_point_count": 0, "has_cycles": False},
+            "files": [],
+            "symbols": [],
+            "references": [],
+            "module_graph": {"nodes": [], "edges": []},
+            "dependency_flow": {"tiers": [], "entry_points": [], "cycles": []},
+            "budget": {"timeout_ms": timeout_ms, "elapsed_ms": 0},
+            "partial": True,
+        }
+
     return {"query": query_kind, "payload": {}, "partial": True}
 
 
@@ -438,6 +456,87 @@ def _handle_slice_filters_query(args: Dict[str, Any], _timeout_ms: int) -> Dict[
     return _attach_query_to_result("slice_filters", payload)
 
 
+def _handle_full_scan_query(args: Dict[str, Any], timeout_ms: int) -> Dict[str, Any]:
+    """Return the full scan result including files, symbols, references, and module graph.
+
+    This is intended for background cache population — not for interactive use.
+    The response can be large (all symbols and references in the workspace).
+    """
+    engine = CodeCartographyEngine()
+    workspace_path = args.get("workspace_path") or ""
+    scope = args.get("scope") if isinstance(args.get("scope"), dict) else {}
+    languages = args.get("languages") if isinstance(args.get("languages"), list) else []
+    include_symbols = bool(args.get("include_symbols", True))
+    include_references = bool(args.get("include_references", True))
+
+    started_at = time.monotonic()
+    deadline: Optional[float] = None
+    if timeout_ms and timeout_ms > 0:
+        deadline = started_at + (timeout_ms / 1000.0) * 0.90
+
+    normalized_scope = scope if isinstance(scope, dict) else {}
+    normalized_languages = engine._normalize_language_filters(languages)  # noqa: SLF001
+
+    files = engine._discover_files(  # noqa: SLF001
+        workspace_path=workspace_path,
+        scope=normalized_scope,
+        languages=normalized_languages,
+        deadline=deadline,
+    )
+
+    symbols = []
+    if include_symbols and files:
+        symbols = engine._extract_symbols(  # noqa: SLF001
+            files=files,
+            workspace_root=__import__('pathlib').Path(workspace_path),
+            deadline=deadline,
+        )
+
+    references = []
+    if include_references and files and symbols:
+        references = engine._resolve_references(files, symbols, __import__('pathlib').Path(workspace_path))  # noqa: SLF001
+
+    module_graph = engine._build_module_graph(references)  # noqa: SLF001
+    if not module_graph.get("nodes"):
+        module_graph["nodes"] = [f.path for f in files]
+
+    dependency_flow = engine._compute_dependency_flow(module_graph)  # noqa: SLF001
+
+    from dataclasses import asdict
+    elapsed_ms = int((time.monotonic() - started_at) * 1000)
+    partial = bool(elapsed_ms > timeout_ms) if timeout_ms else False
+
+    payload: Dict[str, Any] = {
+        "query": "full_scan",
+        "engine": "code_cartography",
+        "runtime_slice": "full_scan_v1",
+        "workspace": {
+            "path": workspace_path,
+            "scope": normalized_scope,
+            "languages": normalized_languages,
+        },
+        "summary": {
+            "file_count": len(files),
+            "symbol_count": len(symbols),
+            "reference_count": len(references),
+            "module_count": len(module_graph.get("nodes", [])),
+            "dependency_edge_count": len(module_graph.get("edges", [])),
+            "entry_point_count": len(dependency_flow.get("entry_points", [])),
+            "has_cycles": bool(dependency_flow.get("cycles")),
+        },
+        "files": [asdict(f) for f in files],
+        "symbols": [asdict(s) for s in symbols],
+        "references": [asdict(r) for r in references],
+        "module_graph": module_graph,
+        "dependency_flow": dependency_flow,
+        "budget": {"timeout_ms": timeout_ms, "elapsed_ms": elapsed_ms},
+    }
+    if partial:
+        payload["partial"] = True
+
+    return payload
+
+
 CartographQueryHandler = Callable[[Dict[str, Any], int], Dict[str, Any]]
 
 _CARTOGRAPH_QUERY_HANDLERS: Dict[str, CartographQueryHandler] = {
@@ -449,6 +548,7 @@ _CARTOGRAPH_QUERY_HANDLERS: Dict[str, CartographQueryHandler] = {
     "slice_detail": _handle_slice_detail_query,
     "slice_projection": _handle_slice_projection_query,
     "slice_filters": _handle_slice_filters_query,
+    "full_scan": _handle_full_scan_query,
 }
 
 
@@ -504,7 +604,7 @@ def _dispatch(action: str, args: Dict[str, Any], timeout_ms: int) -> tuple[str, 
             diag["errors"].append(
                 f"cartograph query '{query_kind}' is not implemented; "
                 f"supported queries: summary, file_context, flow_entry_points, layer_view, search, "
-                f"slice_detail, slice_projection, slice_filters"
+                f"slice_detail, slice_projection, slice_filters, full_scan"
             )
             return "error", None, diag
 
