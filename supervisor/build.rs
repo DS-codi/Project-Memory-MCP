@@ -41,6 +41,7 @@ fn main() {
             "qml/EventBroadcastPanel.qml",
             "qml/SettingsPanel.qml",
             "qml/ChatbotPanel.qml",
+            "qml/PlansPanel.qml",
         ]),
     )
     .qrc_resources([

@@ -109,6 +109,7 @@ export const AGENT_TOOL_MAPPINGS: AgentToolMappingRegistry = {
       actions: [
         'register', 'list', 'info', 'reindex', 'merge',
         'scan_ghosts', 'migrate', 'link', 'export_pending',
+        'generate_focused_workspace', 'list_focused_workspaces',
       ],
     },
   ],
@@ -165,6 +166,10 @@ export const AGENT_TOOL_MAPPINGS: AgentToolMappingRegistry = {
     {
       tool: 'memory_context',
       actions: ['store', 'get', 'search', 'promptanalyst_discover', 'pull'],
+    },
+    {
+      tool: 'memory_workspace',
+      actions: ['generate_focused_workspace', 'list_focused_workspaces'],
     },
     CARTOGRAPHER_ALL,
   ],

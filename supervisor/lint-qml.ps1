@@ -1,9 +1,16 @@
 <#
 .SYNOPSIS
-    Run qmllint on supervisor QML files.
+    Run qmllint on QML files.
 
 .PARAMETER File
-    Specific .qml file to lint (relative or absolute). Omit to lint all files in qml/.
+    A specific .qml file to lint (relative or absolute path). Overrides -Dir/-Recurse.
+
+.PARAMETER Dir
+    Directory to search for .qml files. Defaults to the qml/ folder next to this script.
+    Pass any absolute or relative path, e.g. "." or "C:\MyProject\qml".
+
+.PARAMETER Recurse
+    Search Dir and all its subdirectories (like Get-ChildItem -Recurse).
 
 .PARAMETER QtPath
     Path to qmllint.exe. Defaults to the Qt 6.10.2 MSVC installation.
@@ -12,12 +19,25 @@
     Pass --verbose to qmllint for detailed output even on passing files.
 
 .EXAMPLE
+    # Lint all files in ./qml/
     .\lint-qml.ps1
+
+    # Lint all files in ./qml/ and every sub-folder
+    .\lint-qml.ps1 -Recurse
+
+    # Lint a whole project tree
+    .\lint-qml.ps1 -Dir "C:\MyProject" -Recurse
+
+    # Lint a single file
     .\lint-qml.ps1 -File qml\PlansPanel.qml
+
+    # Single file with verbose qmllint output
     .\lint-qml.ps1 -File qml\PlansPanel.qml -Verbose
 #>
 param(
     [string]$File     = "",
+    [string]$Dir      = "",
+    [switch]$Recurse,
     [string]$QtPath   = "C:\Qt\6.10.2\msvc2022_64\bin\qmllint.exe",
     [switch]$Verbose
 )
@@ -41,23 +61,43 @@ if (-not (Test-Path $QtPath)) {
 
 # ── Resolve target files ──────────────────────────────────────────────────────
 $scriptDir = Split-Path $MyInvocation.MyCommand.Path -Parent
-$qmlDir    = Join-Path $scriptDir "qml"
 
 if ($File) {
-    # Accept relative paths (resolve against cwd, then scriptDir/qml)
+    # Single-file mode — resolve against cwd first, then scriptDir/qml
+    $defaultQmlDir = Join-Path $scriptDir "qml"
     if (Test-Path $File) {
         $targets = @((Resolve-Path $File).Path)
-    } elseif (Test-Path (Join-Path $qmlDir $File)) {
-        $targets = @((Resolve-Path (Join-Path $qmlDir $File)).Path)
+    } elseif (Test-Path (Join-Path $defaultQmlDir $File)) {
+        $targets = @((Resolve-Path (Join-Path $defaultQmlDir $File)).Path)
     } else {
         Write-Error "File not found: $File"
         exit 1
     }
 } else {
-    $targets = Get-ChildItem $qmlDir -Filter "*.qml" | Sort-Object Name |
+    # Directory mode
+    if ($Dir) {
+        # Resolve relative Dir paths against cwd
+        $searchRoot = if ([System.IO.Path]::IsPathRooted($Dir)) { $Dir } `
+                      else { Join-Path (Get-Location) $Dir }
+    } else {
+        $searchRoot = Join-Path $scriptDir "qml"
+    }
+
+    if (-not (Test-Path $searchRoot -PathType Container)) {
+        Write-Error "Directory not found: $searchRoot"
+        exit 1
+    }
+
+    $gcArgs = @{ Path = $searchRoot; Filter = "*.qml" }
+    if ($Recurse) { $gcArgs["Recurse"] = $true }
+
+    $targets = Get-ChildItem @gcArgs |
+               Sort-Object { $_.FullName } |
                Select-Object -ExpandProperty FullName
+
     if ($targets.Count -eq 0) {
-        Write-Host "No .qml files found in $qmlDir" -ForegroundColor Yellow
+        $recurseNote = if ($Recurse) { " (recursively)" } else { "" }
+        Write-Host "No .qml files found in $searchRoot$recurseNote" -ForegroundColor Yellow
         exit 0
     }
 }
@@ -68,24 +108,30 @@ $failCount = 0
 $lintArgs  = @()
 if ($Verbose) { $lintArgs += "--verbose" }
 
+$recurseNote = if ($Recurse -and -not $File) { " (recursive)" } else { "" }
 Write-Host ""
-Write-Host "qmllint  ($($targets.Count) file$(if ($targets.Count -ne 1){'s'}))" -ForegroundColor Cyan
+Write-Host "qmllint  ($($targets.Count) file$(if ($targets.Count -ne 1){'s'})$recurseNote)" -ForegroundColor Cyan
 Write-Host ("-" * 60)
 
 foreach ($f in $targets) {
-    $name   = Split-Path $f -Leaf
+    # Show path relative to searchRoot when linting a directory, otherwise just filename
+    if ($File) {
+        $displayName = Split-Path $f -Leaf
+    } else {
+        $displayName = $f.Substring($searchRoot.Length).TrimStart('\', '/')
+    }
+
     $output = & $QtPath @lintArgs $f 2>&1 | Out-String
 
     if ($LASTEXITCODE -eq 0) {
-        Write-Host ("  {0,-6} {1}" -f "PASS", $name) -ForegroundColor Green
+        Write-Host ("  {0,-6} {1}" -f "PASS", $displayName) -ForegroundColor Green
         if ($Verbose -and $output.Trim()) {
             Write-Host $output.Trim() -ForegroundColor DarkGray
         }
         $passCount++
     } else {
-        Write-Host ("  {0,-6} {1}" -f "FAIL", $name) -ForegroundColor Red
+        Write-Host ("  {0,-6} {1}" -f "FAIL", $displayName) -ForegroundColor Red
         if ($output.Trim()) {
-            # Indent output for readability
             $output.Trim() -split "`n" | ForEach-Object { Write-Host "         $_" -ForegroundColor Yellow }
         }
         $failCount++

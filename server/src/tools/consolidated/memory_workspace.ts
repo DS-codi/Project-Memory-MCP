@@ -17,8 +17,12 @@ import type { WorkspaceHierarchyInfo } from '../../storage/db-store.js';
 import { normalizeWorkspacePath } from '../../storage/db-store.js';
 import { detectMigrationAdvisories } from '../program/index.js';
 import type { MigrationAdvisory } from '../program/index.js';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { getFocusedWorkspacesDir, getFocusedWorkspacePath } from '../../storage/db-store.js';
+import { events } from '../../events/event-emitter.js';
 
-export type WorkspaceAction = 'register' | 'list' | 'info' | 'reindex' | 'merge' | 'scan_ghosts' | 'migrate' | 'link' | 'set_display_name' | 'export_pending';
+export type WorkspaceAction = 'register' | 'list' | 'info' | 'reindex' | 'merge' | 'scan_ghosts' | 'migrate' | 'link' | 'set_display_name' | 'export_pending' | 'generate_focused_workspace' | 'list_focused_workspaces';
 
 export interface MemoryWorkspaceParams {
   action: WorkspaceAction;
@@ -32,7 +36,12 @@ export interface MemoryWorkspaceParams {
   mode?: 'link' | 'unlink';          // for link
   hierarchical?: boolean;            // for list (hierarchical grouping)
   display_name?: string;             // for set_display_name
-  output_filename?: string;          // for export_pending (custom filename, defaults to 'pending-steps.md')
+  output_filename?: string;          // for export_pending (custom filename, defaults to 'pending-steps.md'); also for generate_focused_workspace
+  plan_id?: string;                  // for generate_focused_workspace, list_focused_workspaces
+  files_allowed?: string[];          // for generate_focused_workspace (explicit file scope)
+  directories_allowed?: string[];    // for generate_focused_workspace (explicit directory scope)
+  base_workspace_path?: string;      // for generate_focused_workspace (base .code-workspace to merge into)
+  session_id?: string;               // for generate_focused_workspace (optional registry update)
 }
 
 interface WorkspaceInfoResult {
@@ -56,7 +65,145 @@ type WorkspaceResult =
   | { action: 'migrate'; data: MigrateWorkspaceResult }
   | { action: 'link'; data: { mode: 'link' | 'unlink'; parent_id: string; child_id: string; hierarchy: WorkspaceHierarchyInfo } }
   | { action: 'set_display_name'; data: { workspace: WorkspaceMeta } }
-  | { action: 'export_pending'; data: { workspace_id: string; file_path: string; plans_included: number; total_pending_steps: number } };
+  | { action: 'export_pending'; data: { workspace_id: string; file_path: string; plans_included: number; total_pending_steps: number } }
+  | { action: 'generate_focused_workspace'; data: { file_path: string; files_in_scope: string[] } }
+  | { action: 'list_focused_workspaces'; data: { workspaces: Array<{ plan_id: string; file_path: string; filename: string }> } };
+
+// Helper: generate a focused .code-workspace file scoped to a plan's directories
+async function handleGenerateFocusedWorkspace(
+  params: MemoryWorkspaceParams
+): Promise<ToolResponse<WorkspaceResult>> {
+  if (!params.workspace_id) {
+    return { success: false, error: 'workspace_id is required for action: generate_focused_workspace' };
+  }
+  if (!params.plan_id) {
+    return { success: false, error: 'plan_id is required for action: generate_focused_workspace' };
+  }
+
+  const validated = await validateAndResolveWorkspaceId(params.workspace_id);
+  if (!validated.success) return validated.error_response as ToolResponse<WorkspaceResult>;
+  const workspaceId = validated.workspace_id;
+
+  const workspace = await store.getWorkspace(workspaceId);
+  if (!workspace) {
+    return { success: false, error: `Workspace not found: ${workspaceId}` };
+  }
+  const workspacePath = workspace.workspace_path || workspace.path;
+  if (!workspacePath) {
+    return { success: false, error: `Workspace has no filesystem path: ${workspaceId}` };
+  }
+
+  const planId = params.plan_id;
+
+  // Build folders array: resolve relative paths to absolute
+  const folders = (params.directories_allowed ?? []).map(dir =>
+    path.isAbsolute(dir) ? dir : path.join(workspacePath, dir)
+  );
+
+  // Build workspace JSON
+  const workspaceJson: Record<string, unknown> = {
+    folders: folders.map(f => ({ path: f })),
+    settings: {
+      'files.watcherExclude': {
+        '**': true,
+        ...Object.fromEntries(folders.map(f => [`${f}/**`, false]))
+      },
+      'search.exclude': { '**': true }
+    }
+  };
+
+  // Optional base workspace merge
+  if (params.base_workspace_path) {
+    try {
+      const baseContent = fs.readFileSync(params.base_workspace_path, 'utf-8');
+      const baseJson = JSON.parse(baseContent) as Record<string, unknown>;
+      // Plan folders replace base folders entirely; plan settings win on conflict
+      workspaceJson.settings = Object.assign(
+        {},
+        (baseJson.settings as Record<string, unknown>) ?? {},
+        workspaceJson.settings as Record<string, unknown>
+      );
+    } catch (err) {
+      return { success: false, error: `Failed to read base_workspace_path: ${(err as Error).message}` };
+    }
+  }
+
+  // Compute output path and write file
+  const outputPath = getFocusedWorkspacePath(workspacePath, planId, params.output_filename);
+  fs.mkdirSync(getFocusedWorkspacesDir(workspacePath), { recursive: true });
+  fs.writeFileSync(outputPath, JSON.stringify(workspaceJson, null, 2));
+
+  // Note: upsertSessionRegistry not present in this file — session_id param accepted but registry update skipped
+
+  const filesInScope = [
+    ...(params.directories_allowed ?? []),
+    ...(params.files_allowed ?? [])
+  ];
+
+  // Emit workspace_scope_changed event
+  await events.workspaceScopeChanged(workspaceId, planId, {
+    workspace_id: workspaceId,
+    plan_id: planId,
+    file_path: outputPath,
+    files_in_scope: filesInScope,
+  });
+
+  return {
+    success: true,
+    data: {
+      action: 'generate_focused_workspace',
+      data: { file_path: outputPath, files_in_scope: filesInScope }
+    }
+  };
+}
+
+// Helper: list all focused .code-workspace files for a workspace
+async function handleListFocusedWorkspaces(
+  params: MemoryWorkspaceParams
+): Promise<ToolResponse<WorkspaceResult>> {
+  if (!params.workspace_id) {
+    return { success: false, error: 'workspace_id is required for action: list_focused_workspaces' };
+  }
+
+  const validated = await validateAndResolveWorkspaceId(params.workspace_id);
+  if (!validated.success) return validated.error_response as ToolResponse<WorkspaceResult>;
+  const workspaceId = validated.workspace_id;
+
+  const workspace = await store.getWorkspace(workspaceId);
+  if (!workspace) {
+    return { success: false, error: `Workspace not found: ${workspaceId}` };
+  }
+  const workspacePath = workspace.workspace_path || workspace.path;
+  if (!workspacePath) {
+    return { success: false, error: `Workspace has no filesystem path: ${workspaceId}` };
+  }
+
+  const dir = getFocusedWorkspacesDir(workspacePath);
+  if (!fs.existsSync(dir)) {
+    return { success: true, data: { action: 'list_focused_workspaces', data: { workspaces: [] } } };
+  }
+
+  let files = fs.readdirSync(dir).filter(f => f.endsWith('.code-workspace'));
+  if (params.plan_id) {
+    files = files.filter(f => f.startsWith(`plan-${params.plan_id}`));
+  }
+
+  const extractPlanId = (f: string) => f.match(/^plan-(.+)\.code-workspace$/)?.[1] ?? '';
+
+  return {
+    success: true,
+    data: {
+      action: 'list_focused_workspaces',
+      data: {
+        workspaces: files.map(f => ({
+          filename: f,
+          file_path: path.join(dir, f),
+          plan_id: extractPlanId(f)
+        }))
+      }
+    }
+  };
+}
 
 export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<ToolResponse<WorkspaceResult>> {
   const { action } = params;
@@ -604,10 +751,14 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
       };
     }
 
+    case 'generate_focused_workspace':
+      return await handleGenerateFocusedWorkspace(params);
+    case 'list_focused_workspaces':
+      return await handleListFocusedWorkspaces(params);
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: register, list, info, reindex, merge, scan_ghosts, migrate, link, set_display_name, export_pending`
+        error: `Unknown action: ${action}. Valid actions: register, list, info, reindex, merge, scan_ghosts, migrate, link, set_display_name, export_pending, generate_focused_workspace, list_focused_workspaces`
       };
   }
 }
