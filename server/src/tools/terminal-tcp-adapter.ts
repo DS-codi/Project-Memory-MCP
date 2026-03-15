@@ -31,6 +31,9 @@ import {
   isOutputChunk,
   isReadOutputResponse,
   isKillSessionResponse,
+  isStartAgentSessionResponse,
+  type StartAgentSessionRequest,
+  type StartAgentSessionResponse,
 } from './terminal-ipc-protocol.js';
 
 export type { WorkspaceEntry };
@@ -508,6 +511,23 @@ export class TcpTerminalAdapter {
       request,
       requestId,
       isKillSessionResponse,
+      (msg) => msg.id,
+    );
+  }
+
+  // -----------------------------------------------------------------------
+  // Start Agent Session (StartAgentSessionRequest → StartAgentSessionResponse)
+  // -----------------------------------------------------------------------
+
+  /**
+   * Send a StartAgentSessionRequest and wait for the matching StartAgentSessionResponse.
+   * Throws on timeout, disconnect, or socket error.
+   */
+  async sendStartAgentSession(req: StartAgentSessionRequest): Promise<StartAgentSessionResponse> {
+    return this.sendAndAwaitTyped<StartAgentSessionRequest, StartAgentSessionResponse>(
+      req,
+      req.id,
+      isStartAgentSessionResponse,
       (msg) => msg.id,
     );
   }

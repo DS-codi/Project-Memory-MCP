@@ -2,6 +2,8 @@
  * Workspace Tools - MCP tools for workspace management
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import type { 
   RegisterWorkspaceParams, 
   GetWorkspacePlansParams,
@@ -103,6 +105,10 @@ export async function registerWorkspace(
     if (isFirstTime && profile) {
       await seedWorkspaceContext(meta.workspace_id, workspace_path, meta.name, profile);
     }
+
+    // Keep workspace-registry.json in sync so the interactive terminal can
+    // discover workspace paths at startup without waiting for a TCP push.
+    void syncWorkspaceRegistry();
     
     return {
       success: true,
@@ -138,6 +144,56 @@ export async function listWorkspaces(): Promise<ToolResponse<WorkspaceMeta[]>> {
       success: false,
       error: `Failed to list workspaces: ${(error as Error).message}`
     };
+  }
+}
+
+/**
+ * Write a `workspace-registry.json` companion file to the data root so the
+ * interactive terminal can discover registered workspace paths at startup,
+ * before the MCP server has had a chance to push them over the TCP socket.
+ *
+ * The file format matches the legacy flat-file registry that the interactive
+ * terminal's `registered_workspace_paths()` function already knows how to read:
+ *
+ *   {
+ *     "schema_version": "1.0.0",
+ *     "entries": { "<path>": "<workspace_id>", ... },
+ *     "updated_at": "<ISO timestamp>"
+ *   }
+ *
+ * Failures are intentionally non-fatal — the interactive terminal works fine
+ * without this file once the server connects and sends a WorkspaceListPush.
+ */
+export async function syncWorkspaceRegistry(): Promise<void> {
+  try {
+    const workspaces = await store.getAllWorkspaces();
+    const entries: Record<string, string> = {};
+
+    for (const ws of workspaces) {
+      const wsPath = ws.workspace_path ?? ws.path ?? '';
+      if (wsPath.trim()) {
+        // Normalise to forward-slash / lowercase so the interactive terminal's
+        // platform normalisation step produces consistent results.
+        const normalised = wsPath.replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '');
+        entries[normalised] = ws.workspace_id;
+      }
+    }
+
+    const registry = {
+      schema_version: '1.0.0',
+      entries,
+      updated_at: new Date().toISOString(),
+    };
+
+    const dataRoot = store.getDataRoot();
+    const registryPath = path.join(dataRoot, 'workspace-registry.json');
+    const tmpPath = `${registryPath}.${process.pid}.tmp`;
+
+    fs.mkdirSync(dataRoot, { recursive: true });
+    fs.writeFileSync(tmpPath, JSON.stringify(registry, null, 2), 'utf8');
+    fs.renameSync(tmpPath, registryPath);
+  } catch {
+    // Non-fatal — the interactive terminal falls back to the live WorkspaceListPush.
   }
 }
 

@@ -14,13 +14,15 @@ interface PhaseListViewProps {
   phases?: PlanPhase[];
   /** Expand all phase cards by default */
   defaultOpen?: boolean;
+  workspaceId?: string;
+  planId?: string;
 }
 
 // =============================================================================
 // Component
 // =============================================================================
 
-export function PhaseListView({ steps, phases, defaultOpen = false }: PhaseListViewProps) {
+export function PhaseListView({ steps, phases, defaultOpen = false, workspaceId, planId }: PhaseListViewProps) {
   const groups = groupStepsByPhase(steps, phases);
 
   const totalDone = steps.filter((s) => s.status === 'done').length;
@@ -62,6 +64,8 @@ export function PhaseListView({ steps, phases, defaultOpen = false }: PhaseListV
             steps={steps.filter((s) => (s.phase || 'Unphased') === group.phase)}
             phaseMeta={group.meta}
             defaultOpen={defaultOpen}
+            workspaceId={workspaceId}
+            planId={planId}
           />
         ))}
       </div>

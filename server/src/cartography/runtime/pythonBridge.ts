@@ -255,7 +255,10 @@ export async function invokePythonCore(
   request: PythonBridgeRequest,
   options?: PythonBridgeOptions
 ): Promise<PythonBridgeResponse> {
-  const pythonExecutable = options?.pythonExecutable?.trim() || 'python';
+  const pythonExecutable =
+    options?.pythonExecutable?.trim() ||
+    process.env.PM_CARTOGRAPHER_PYTHON_EXECUTABLE?.trim() ||
+    'python';
   const launch = resolvePythonLaunch(request, options, pythonExecutable);
 
   let child;

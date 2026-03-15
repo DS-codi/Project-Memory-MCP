@@ -204,6 +204,11 @@ _QUERY_REQUIRED_ARRAY_PATHS: dict[str, tuple[tuple[str, ...], ...]] = {
         ("filters",),
         ("available_types",),
     ),
+    "full_scan": (
+        ("files",),
+        ("symbols",),
+        ("references",),
+    ),
 }
 
 _SECTION_PARTIAL_KEYS: tuple[str, ...] = (

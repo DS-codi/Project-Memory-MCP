@@ -35,6 +35,21 @@ impl SavedCommandsRepository {
             };
         }
 
+        // Check platform app-data directory — matches the server's getDataRoot() logic.
+        // On Windows:  %APPDATA%\ProjectMemory\
+        // On macOS:    ~/Library/Application Support/ProjectMemory/
+        // On Linux:    $XDG_DATA_HOME/ProjectMemory/ or ~/.local/share/ProjectMemory/
+        //
+        // We accept this directory as data root if it already exists (i.e. the server
+        // has run at least once and created the directory), even if workspace-registry.json
+        // isn't there yet. That lets the interactive terminal write saved-commands into the
+        // right place and read the registry once the server writes it.
+        if let Some(appdata_root) = Self::platform_app_data_root() {
+            if appdata_root.is_dir() {
+                return Self { data_root: appdata_root };
+            }
+        }
+
         let local_data = current_dir.join("data");
         if local_data.exists() {
             return Self {
@@ -49,6 +64,64 @@ impl SavedCommandsRepository {
         Self {
             data_root: parent_data,
         }
+    }
+
+    /// Returns the platform-standard ProjectMemory data directory, which is the
+    /// same location the MCP server uses as its default data root.
+    ///
+    /// Windows:  %APPDATA%\ProjectMemory
+    /// macOS:    ~/Library/Application Support/ProjectMemory
+    /// Linux:    $XDG_DATA_HOME/ProjectMemory  (or ~/.local/share/ProjectMemory)
+    fn platform_app_data_root() -> Option<PathBuf> {
+        #[cfg(target_os = "windows")]
+        {
+            if let Ok(appdata) = std::env::var("APPDATA") {
+                if !appdata.trim().is_empty() {
+                    let candidate = PathBuf::from(&appdata).join("ProjectMemory");
+                    return Some(candidate);
+                }
+            }
+            // Fallback: USERPROFILE\AppData\Roaming\ProjectMemory
+            if let Ok(profile) = std::env::var("USERPROFILE") {
+                let candidate = PathBuf::from(profile)
+                    .join("AppData")
+                    .join("Roaming")
+                    .join("ProjectMemory");
+                return Some(candidate);
+            }
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            if let Ok(home) = std::env::var("HOME") {
+                return Some(
+                    PathBuf::from(home)
+                        .join("Library")
+                        .join("Application Support")
+                        .join("ProjectMemory"),
+                );
+            }
+        }
+
+        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+        {
+            // Linux / other POSIX
+            if let Ok(xdg) = std::env::var("XDG_DATA_HOME") {
+                if !xdg.trim().is_empty() {
+                    return Some(PathBuf::from(xdg).join("ProjectMemory"));
+                }
+            }
+            if let Ok(home) = std::env::var("HOME") {
+                return Some(
+                    PathBuf::from(home)
+                        .join(".local")
+                        .join("share")
+                        .join("ProjectMemory"),
+                );
+            }
+        }
+
+        None
     }
 
     fn resolve_explicit_data_root(candidate: &Path) -> Option<PathBuf> {

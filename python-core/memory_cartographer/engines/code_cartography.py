@@ -1541,6 +1541,14 @@ class CodeCartographyEngine:
     # ------------------------------------------------------------------
 
     _DISCOVER_DEADLINE_CHECK_INTERVAL = 200
+    # Hard cap on files returned by a single _discover_files call.  This
+    # prevents runaway scans on very large or slow (e.g. network-mounted)
+    # workspaces from consuming the full timeout budget.  Callers receive a
+    # partial result rather than a timeout-kill with no result at all.
+    # Override via PM_CARTOGRAPHER_FILE_COUNT_CAP env var (integer).
+    _DISCOVER_FILE_COUNT_CAP: int = int(
+        os.environ.get('PM_CARTOGRAPHER_FILE_COUNT_CAP', '10000') or '10000'
+    )
 
     def _discover_files(
         self,
@@ -1647,6 +1655,14 @@ class CodeCartographyEngine:
                         parse_error=False,
                     )
                 )
+
+                # Hard file-count cap — stop immediately once reached so that
+                # very large / slow workspaces always return a partial result
+                # instead of timing out with nothing.
+                if len(discovered) >= self._DISCOVER_FILE_COUNT_CAP:
+                    _deadline_hit = True
+                    dirs[:] = []
+                    break
 
                 # Periodic deadline check inside the file loop so a directory
                 # with thousands of files doesn't overrun the budget.

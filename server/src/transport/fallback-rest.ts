@@ -383,6 +383,21 @@ export function createFallbackRestApp(): Express {
     respondGuiProxyResult(res, result);
   });
 
+  app.get('/api/fallback/workspaces', async (_req: Request, res: ExpressResponse) => {
+    try {
+      const result = await memoryWorkspace({ action: 'list' });
+      respondToolResult(res, result);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        code: 'internal_error',
+        source: FALLBACK_SOURCE,
+        timestamp: nowIso(),
+      });
+    }
+  });
+
   app.post('/api/fallback/workspaces/register', async (req: Request, res: ExpressResponse) => {
     try {
       const workspacePath =

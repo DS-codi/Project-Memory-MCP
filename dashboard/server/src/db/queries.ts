@@ -23,6 +23,7 @@ import type {
   EventLogRow,
   BuildScriptRow,
   ProgramPlanRow,
+  AgentDefinitionRow,
 } from './types.js';
 
 // Re-export the types so routes only need to import from one place
@@ -40,6 +41,7 @@ export type {
   EventLogRow,
   BuildScriptRow,
   ProgramPlanRow,
+  AgentDefinitionRow,
 };
 
 // ============================================================
@@ -406,4 +408,33 @@ export function getWorkspaceMetrics(workspaceId: string): WorkspaceMetrics {
     activeSessions: sessionCounts.active ?? 0,
     totalKnowledge: knowledgeCount.total ?? 0,
   };
+}
+
+// ============================================================
+// AGENT DEFINITIONS  (agent_definitions table)
+// ============================================================
+
+export function listAgentsFromDb(): AgentDefinitionRow[] {
+  try {
+    return getDb()
+      .prepare(
+        'SELECT id, name, content, metadata, is_permanent, created_at, updated_at FROM agent_definitions ORDER BY is_permanent DESC, name ASC'
+      )
+      .all() as AgentDefinitionRow[];
+  } catch {
+    // Table may not exist in older DB versions
+    return [];
+  }
+}
+
+export function getAgentFromDb(name: string): AgentDefinitionRow | null {
+  try {
+    return (
+      (getDb()
+        .prepare('SELECT id, name, content, metadata, is_permanent, created_at, updated_at FROM agent_definitions WHERE name = ?')
+        .get(name) as AgentDefinitionRow | undefined) ?? null
+    );
+  } catch {
+    return null;
+  }
 }

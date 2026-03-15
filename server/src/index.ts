@@ -833,6 +833,10 @@ async function main() {
   // Initialize data root
   await store.initDataRoot();
 
+  // Write workspace-registry.json so the interactive terminal can discover
+  // registered workspace paths at startup without waiting for a TCP push.
+  void workspaceTools.syncWorkspaceRegistry();
+
   const { transport, port } = parseCliArgs();
   
   console.error('Project Memory MCP Server starting...');

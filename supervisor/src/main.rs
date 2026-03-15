@@ -9,7 +9,7 @@
 use clap::Parser;
 use cxx_qt::CxxQtType;
 use std::path::PathBuf;
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::sync::{Arc, RwLock, atomic::{AtomicBool, Ordering}};
 use std::time::Duration;
 use supervisor::config;
 use supervisor::config::{FormAppSummonabilityStatus, McpBackend, NodeRunnerConfig};
@@ -621,8 +621,19 @@ async fn supervisor_main() {
                 let fa_for_gui = Arc::clone(&form_apps);
                 let gui_port = cfg.gui_server.port;
                 let gui_bind = cfg.gui_server.bind_address.clone();
+                let config_path = supervisor::config::get_config_path(None);
+                let chatbot_sidecar = supervisor::config::chatbot_state_path(&config_path);
+                let mut chatbot_section = cfg.chatbot.clone();
+                if let Some(saved) = supervisor::config::load_chatbot_state(&chatbot_sidecar) {
+                    // Sidecar overrides TOML for runtime-mutable fields
+                    chatbot_section.api_key  = saved.api_key;
+                    chatbot_section.provider = saved.provider;
+                    chatbot_section.model    = saved.model;
+                }
+                let chatbot_cfg = Arc::new(RwLock::new(chatbot_section));
+                let mcp_url = format!("http://127.0.0.1:{}", cfg.mcp.port);
                 tokio::spawn(async move {
-                    if let Err(e) = supervisor::gui_server::start(&gui_bind, gui_port, fa_for_gui).await {
+                    if let Err(e) = supervisor::gui_server::start(&gui_bind, gui_port, fa_for_gui, chatbot_cfg, chatbot_sidecar, mcp_url).await {
                         eprintln!("[supervisor] GUI HTTP server error: {e}");
                     }
                 });

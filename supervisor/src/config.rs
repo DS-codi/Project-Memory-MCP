@@ -1,6 +1,6 @@
 //! Supervisor configuration — loaded from TOML, all sections optional with sensible defaults.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 use std::io;
@@ -86,6 +86,9 @@ pub struct SupervisorConfig {
 
     #[serde(default)]
     pub runtime_output: RuntimeOutputSection,
+
+    #[serde(default)]
+    pub chatbot: ChatbotSection,
 
     /// Zero or more managed server definitions.
     #[serde(default)]
@@ -861,6 +864,42 @@ impl Default for RuntimeOutputSection {
     }
 }
 
+// ---------------------------------------------------------------------------
+// ChatbotSection
+// ---------------------------------------------------------------------------
+
+/// Which AI provider to use for the chatbot.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ChatbotProvider {
+    #[default]
+    Gemini,
+    Copilot,
+}
+
+/// Configuration for the in-supervisor AI chatbot panel (`[chatbot]` section).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ChatbotSection {
+    pub enabled: bool,
+    pub provider: ChatbotProvider,
+    /// API key for the chosen provider (stored in plain text; redacted in logs).
+    pub api_key: String,
+    /// Model name override.  Empty = use defaults (gemini-2.0-flash / gpt-4o).
+    pub model: String,
+}
+
+impl Default for ChatbotSection {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            provider: ChatbotProvider::Gemini,
+            api_key: String::new(),
+            model: String::new(),
+        }
+    }
+}
+
 /// A single externally-managed server definition.
 #[derive(Debug, Deserialize, Default)]
 pub struct ServerDefinition {
@@ -967,6 +1006,31 @@ pub fn load(path: &PathBuf) -> Result<SupervisorConfig, ConfigError> {
             Ok(SupervisorConfig::default())
         }
         Err(e) => Err(ConfigError::Io(e)),
+    }
+}
+
+/// Path of the small JSON sidecar that persists only the chatbot runtime
+/// settings (api_key, provider, model).  Stored alongside `supervisor.toml`
+/// as `chatbot_state.json` so it survives TOML rewrites.
+pub fn chatbot_state_path(config_path: &PathBuf) -> PathBuf {
+    config_path
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new("."))
+        .join("chatbot_state.json")
+}
+
+/// Load the persisted chatbot state sidecar.  Returns `None` when the file
+/// does not exist (first run or file was deleted).
+pub fn load_chatbot_state(path: &PathBuf) -> Option<ChatbotSection> {
+    let text = std::fs::read_to_string(path).ok()?;
+    serde_json::from_str(&text).ok()
+}
+
+/// Persist the chatbot section to the sidecar JSON file.
+/// Silently ignores write errors (non-critical UX path).
+pub fn save_chatbot_state(path: &PathBuf, section: &ChatbotSection) {
+    if let Ok(json) = serde_json::to_string_pretty(section) {
+        let _ = std::fs::write(path, json);
     }
 }
 
