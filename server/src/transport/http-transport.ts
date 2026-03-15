@@ -424,15 +424,18 @@ export function createHttpApp(getServer: () => McpServer): Express {
     }
   });
 
-  // GET /admin/plans?workspace_id=xxx — active plans with step counts
+  // GET /admin/plans?workspace_id=xxx[&status=active|all] — plans with step counts
+  // Omitting status (or status=all) returns all non-archived plans.
   app.get('/admin/plans', (req: Request, res: Response) => {
-    const wsId = req.query.workspace_id as string | undefined;
+    const wsId         = req.query.workspace_id as string | undefined;
+    const statusFilter = req.query.status       as string | undefined;
     if (!wsId) {
       res.status(400).json({ error: 'workspace_id query parameter is required' });
       return;
     }
     try {
-      const plans = getPlansByWorkspace(wsId, { status: 'active' });
+      const opts = (!statusFilter || statusFilter === 'all') ? {} : { status: statusFilter };
+      const plans = getPlansByWorkspace(wsId, opts);
       const result = plans.map(plan => {
         const rows = queryAll<{ status: string; cnt: number }>(
           'SELECT status, COUNT(*) as cnt FROM steps WHERE plan_id = ? GROUP BY status',
@@ -440,6 +443,15 @@ export function createHttpApp(getServer: () => McpServer): Express {
         );
         const steps_total = rows.reduce((sum, r) => sum + Number(r.cnt), 0);
         const steps_done  = rows.filter(r => r.status === 'done').reduce((sum, r) => sum + Number(r.cnt), 0);
+        const nextStep = queryOne<{ task: string; phase: string; status: string; assignee: string | null }>(
+          `SELECT s.task, COALESCE(ph.name, '') AS phase, s.status, s.assignee
+           FROM steps s
+           LEFT JOIN phases ph ON ph.id = s.phase_id
+           WHERE s.plan_id = ? AND s.status IN ('active', 'pending')
+           ORDER BY CASE s.status WHEN 'active' THEN 0 ELSE 1 END, s.order_index ASC
+           LIMIT 1`,
+          [plan.id]
+        );
         return {
           id:                     plan.id,
           title:                  plan.title,
@@ -451,6 +463,10 @@ export function createHttpApp(getServer: () => McpServer): Express {
           workspace_id:           plan.workspace_id,
           steps_done,
           steps_total,
+          next_step_task:   nextStep?.task     ?? null,
+          next_step_phase:  nextStep?.phase    ?? null,
+          next_step_status: nextStep?.status   ?? null,
+          next_step_agent:  nextStep?.assignee ?? null,
         };
       });
       res.json({ plans: result });

@@ -101,7 +101,7 @@ async function buildToolCatalog(): Promise<CatalogTool[]> {
     {
       name: 'memory_workspace',
       description:
-        'Consolidated workspace management: register, list, info, reindex, merge, scan_ghosts, migrate, link, export_pending.',
+        'Consolidated workspace management: register, list, info, reindex, merge, scan_ghosts, migrate, link, export_pending, generate_focused_workspace, list_focused_workspaces.',
       actions: buildActions(ACTION_PARAM_SPECS['memory_workspace'] ?? {}),
     },
     {

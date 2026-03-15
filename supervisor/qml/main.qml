@@ -62,6 +62,18 @@ ApplicationWindow {
         }
     }
 
+    // Auto-widen the window when the Plans panel expands.
+    Connections {
+        target: plansPanel
+        function onExpandedChanged() {
+            var delta = plansPanel.expandedPanelWidth - 44
+            if (plansPanel.expanded)
+                root.width += delta
+            else
+                root.width = Math.max(640, root.width - delta)
+        }
+    }
+
     /// Returns a dot colour that reflects the current service state string.
     function statusColor(s) {
         if (s === "Running")                      return root.clrRunning
@@ -232,6 +244,14 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 0
+
+        PlansPanel {
+            id: plansPanel
+            Layout.fillHeight: true
+            mcpBaseUrl:  root.mcpBaseUrl
+            dashBaseUrl: root.dashBaseUrl
+            mcpPort:     supervisorGuiBridge.mcpPort
+        }
 
         Flickable {
             Layout.fillWidth: true

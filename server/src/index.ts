@@ -258,9 +258,9 @@ const DeployTelemetryContextSchema = z.object({
 
 server.tool(
   'memory_workspace',
-  'Consolidated workspace management tool. Actions: register (register a workspace directory), list (list all workspaces), info (get plans for a workspace), reindex (update codebase profile after changes), merge (merge a ghost/source workspace into a canonical target), scan_ghosts (scan for unregistered data-root directories), migrate (re-register workspace, find and merge all ghost/duplicate folders, recover plans, and clean up — use this when opening old workspaces), link (link/unlink parent-child workspace hierarchy), export_pending (export all unfinished steps from every plan to a .md file in the workspace).',
+  'Consolidated workspace management tool. Actions: register (register a workspace directory), list (list all workspaces), info (get plans for a workspace), reindex (update codebase profile after changes), merge (merge a ghost/source workspace into a canonical target), scan_ghosts (scan for unregistered data-root directories), migrate (re-register workspace, find and merge all ghost/duplicate folders, recover plans, and clean up — use this when opening old workspaces), link (link/unlink parent-child workspace hierarchy), export_pending (export all unfinished steps from every plan to a .md file in the workspace), generate_focused_workspace (generate a focused workspace scope definition), list_focused_workspaces (list all focused workspace scope definitions).',
   {
-    action: z.enum(['register', 'list', 'info', 'reindex', 'merge', 'scan_ghosts', 'migrate', 'link', 'export_pending']).describe('The action to perform'),
+    action: z.enum(['register', 'list', 'info', 'reindex', 'merge', 'scan_ghosts', 'migrate', 'link', 'export_pending', 'generate_focused_workspace', 'list_focused_workspaces']).describe('The action to perform'),
     workspace_id: z.string().optional().describe('Workspace ID (for info, reindex, link)'),
     workspace_path: z.string().optional().describe('Workspace path (for register, migrate)'),
     force: z.boolean().optional().describe('Force registration even if directory overlaps with existing workspace (for register)'),
@@ -270,7 +270,12 @@ server.tool(
     child_workspace_id: z.string().optional().describe('Child workspace ID (for link action)'),
     mode: z.enum(['link', 'unlink']).optional().describe('Link or unlink mode (for link action, defaults to link)'),
     hierarchical: z.boolean().optional().describe('When true, group child workspaces under parents in list results (for list action)'),
-    output_filename: z.string().optional().describe('Custom output filename for export_pending (defaults to pending-steps.md)')
+    output_filename: z.string().optional().describe('Custom output filename for export_pending (defaults to pending-steps.md)'),
+    plan_id: z.string().optional().describe('Plan ID (for generate_focused_workspace and list_focused_workspaces)'),
+    files_allowed: z.array(z.string()).optional().describe('Individual files to include in scope (for generate_focused_workspace)'),
+    directories_allowed: z.array(z.string()).optional().describe('Directories to include as workspace folders (for generate_focused_workspace)'),
+    base_workspace_path: z.string().optional().describe('Path to a base .code-workspace file to merge with the generated workspace (for generate_focused_workspace)'),
+    session_id: z.string().optional().describe('Session ID to update workspace_session_registry files_in_scope (for generate_focused_workspace)')
   },
   async (params) => {
     const result = await withLogging('memory_workspace', params, () =>
