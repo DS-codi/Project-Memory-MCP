@@ -1417,6 +1417,9 @@ async fn supervisor_main() {
                             let _fallback_uptime = fallback_started_at
                                 .map(|t| t.elapsed().as_secs() as i32)
                                 .unwrap_or(0);
+                            let _cli_mcp_uptime = cli_mcp_started_at
+                                .map(|t| t.elapsed().as_secs() as i32)
+                                .unwrap_or(0);
                             let term_port_val = cfg.interactive_terminal.port as i32;
                             let dash_port_val = cfg.dashboard.port as i32;
                             let mcp_port_val = cfg.mcp.port as i32;
@@ -1630,6 +1633,7 @@ fn push_qt_status(snapshot: &supervisor::control::protocol::HealthSnapshot) {
             obj.as_mut().set_terminal_status(cxx_qt_lib::QString::from(&terminal_status));
             obj.as_mut().set_dashboard_status(cxx_qt_lib::QString::from(&dashboard_status));
             obj.as_mut().set_fallback_status(cxx_qt_lib::QString::from(&fallback_status));
+            obj.as_mut().set_cli_mcp_status(cxx_qt_lib::QString::from(&cli_mcp_status));
         });
     }
 }

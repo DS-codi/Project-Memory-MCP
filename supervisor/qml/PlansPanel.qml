@@ -281,8 +281,8 @@ Rectangle {
                                     spacing: 6
 
                                     Label {
-                                        text: planCard.cardExpanded ? "▼" : "►"
-                                        font.pixelSize: 10; color: "#8b949e"
+                                        text: planCard.cardExpanded ? "-" : "+"
+                                        font.pixelSize: 11; color: "#8b949e"
                                         Layout.preferredWidth: 12
                                     }
                                     Label {
@@ -359,7 +359,7 @@ Rectangle {
                                     }
                                     Label {
                                         visible: planCard.recommendedAgent !== ""
-                                        text: "\u2192 " + planCard.recommendedAgent
+                                        text: planCard.recommendedAgent
                                         font.pixelSize: 10; color: "#8b949e"
                                         Layout.fillWidth: true
                                     }
@@ -374,7 +374,7 @@ Rectangle {
                                         spacing: 6
                                         Label {
                                             text: planCard.nextStepStatus === "active"
-                                                  ? "\u25CF IN PROGRESS" : "\u25BA NEXT STEP"
+                                                  ? "IN PROGRESS" : "NEXT STEP"
                                             font.pixelSize: 9; font.bold: true; font.letterSpacing: 0.6
                                             color: planCard.nextStepStatus === "active" ? "#3fb950" : "#d29922"
                                         }
@@ -395,14 +395,14 @@ Rectangle {
 
                                     Label {
                                         visible: planCard.nextStepAgent !== ""
-                                        text: "\u2192 " + planCard.nextStepAgent
+                                        text: planCard.nextStepAgent
                                         font.pixelSize: 10; color: "#58a6ff"
                                     }
                                 }
 
                                 Label {
                                     visible: planCard.nextStepTask === "" && planCard.stepsTotal > 0
-                                    text: "\u25BA  All steps complete"
+                                    text: "All steps complete"
                                     font.pixelSize: 11; color: "#3fb950"
                                 }
                                 Label {
@@ -431,7 +431,6 @@ Rectangle {
                                     }
                                     Row {
                                         anchors.centerIn: parent; spacing: 8
-                                        Label { text: "\u2197"; font.pixelSize: 14; color: "#79c0ff" }
                                         Label {
                                             text: "Open in Dashboard"
                                             font.pixelSize: 13; font.bold: true; color: "#c9d1d9"
@@ -528,10 +527,10 @@ Rectangle {
                                         }
                                         Label {
                                             anchors.centerIn: parent
-                                            text: launchRect.launchState === "sending" ? "Launching..."  :
-                                                  launchRect.launchState === "ok"      ? "\u25BA Launched" :
-                                                  launchRect.launchState === "error"   ? "Failed"         :
-                                                                                         "\u25BA Launch Agent"
+                                            text: launchRect.launchState === "sending" ? "Launching..." :
+                                                  launchRect.launchState === "ok"      ? "Launched"     :
+                                                  launchRect.launchState === "error"   ? "Failed"       :
+                                                                                         "Launch Agent"
                                             font.pixelSize: 12; font.bold: true
                                             color: launchRect.launchState === "ok"    ? "#3fb950" :
                                                    launchRect.launchState === "error" ? "#f85149" : "#a371f7"

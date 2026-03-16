@@ -35,6 +35,11 @@
 .PARAMETER IncludeInteractiveTerminal
     Enable Interactive Terminal startup (disabled by default).
 
+.PARAMETER NoCliMcp
+    Disable CLI MCP server startup (enabled by default).
+    The CLI MCP serves CLI agents on port 3466 and shares the same SQLite
+    database as the main MCP server.
+
 .PARAMETER AutoKillExisting
     Automatically kill detected running component processes (no prompt).
 
@@ -64,6 +69,7 @@ param(
     [switch]$NoBrainstormGui,
     [switch]$NoApprovalGui,
     [switch]$IncludeInteractiveTerminal,
+    [switch]$NoCliMcp,
     [switch]$AutoKillExisting,
     [switch]$SkipKillPrompt,
     [switch]$WriteConfigOnly
@@ -187,7 +193,8 @@ function New-SupervisorToml {
         [bool]$EnableDashboard          = $true,
         [bool]$EnableBrainstorm         = $true,
         [bool]$EnableApproval           = $true,
-        [bool]$EnableInteractiveTerminal = $false
+        [bool]$EnableInteractiveTerminal = $false,
+        [bool]$EnableCliMcp             = $true
     )
 
     $appDataDir = Join-Path $env:APPDATA 'ProjectMemory'
@@ -210,7 +217,8 @@ function New-SupervisorToml {
     $dashEnabled  = ($EnableDashboard).ToString().ToLower()
     $bsEnabled    = ($EnableBrainstorm).ToString().ToLower()
     $apprEnabled  = ($EnableApproval).ToString().ToLower()
-    $termEnabled  = ($EnableInteractiveTerminal).ToString().ToLower()
+    $termEnabled    = ($EnableInteractiveTerminal).ToString().ToLower()
+    $cliMcpEnabled  = ($EnableCliMcp).ToString().ToLower()
 
     # Paths use TOML single-quoted strings (no backslash escaping needed).
     # PowerShell expands $variables inside the @"..."@ heredoc, so $serverDir etc.
@@ -273,6 +281,13 @@ PORT               = "$dashboardPort"
 [approval]
 default_countdown_seconds = 60
 default_on_timeout        = "approve"
+
+[cli_mcp]
+enabled     = $cliMcpEnabled
+port        = 3466
+command     = "node"
+args        = ["dist/index-cli.js"]
+working_dir = '$serverDir'
 "@
 
     Set-Content -Path $configPath -Value $content -Encoding UTF8
@@ -296,6 +311,7 @@ $enableDashboard  = -not $NoDashboard
 $enableBrainstorm = -not $NoBrainstormGui
 $enableApproval   = -not $NoApprovalGui
 $enableInteractive = [bool]$IncludeInteractiveTerminal
+$enableCliMcp     = -not $NoCliMcp
 
 Write-Host 'Project Memory MCP — Launch Supervisor' -ForegroundColor Magenta
 
@@ -306,7 +322,8 @@ $configPath = New-SupervisorToml `
     -EnableDashboard $enableDashboard `
     -EnableBrainstorm $enableBrainstorm `
     -EnableApproval $enableApproval `
-    -EnableInteractiveTerminal $enableInteractive
+    -EnableInteractiveTerminal $enableInteractive `
+    -EnableCliMcp $enableCliMcp
 Write-Ok "Config written: $configPath"
 
 if ($WriteConfigOnly) {
@@ -325,7 +342,7 @@ Write-Host "  Dashboard          : $enableDashboard" -ForegroundColor DarkGray
 Write-Host "  Brainstorm GUI     : $enableBrainstorm" -ForegroundColor DarkGray
 Write-Host "  Approval GUI       : $enableApproval" -ForegroundColor DarkGray
 Write-Host "  InteractiveTerminal: $enableInteractive" -ForegroundColor DarkGray
-
+Write-Host "  CLI MCP            : $enableCliMcp" -ForegroundColor DarkGray
 $running = @(Get-RunningComponentProcesses -WorkspaceRoot $root)
 if ($running.Count -gt 0) {
     Write-Step 'Detected running component processes'
