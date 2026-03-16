@@ -22,6 +22,7 @@ Module {
         Property { name: "terminalStatus";           type: "QString"; isReadonly: false }
         Property { name: "dashboardStatus";          type: "QString"; isReadonly: false }
         Property { name: "fallbackStatus";           type: "QString"; isReadonly: false }
+        Property { name: "cliMcpStatus";            type: "QString"; isReadonly: false }
         Property { name: "dashboardUrl";             type: "QString"; isReadonly: false }
         Property { name: "terminalUrl";              type: "QString"; isReadonly: false }
         Property { name: "totalMcpConnections";      type: "int";     isReadonly: false }
@@ -54,6 +55,7 @@ Module {
         Signal { name: "terminalStatusChanged";          Parameter { type: "QString" } }
         Signal { name: "dashboardStatusChanged";         Parameter { type: "QString" } }
         Signal { name: "fallbackStatusChanged";          Parameter { type: "QString" } }
+        Signal { name: "cliMcpStatusChanged";           Parameter { type: "QString" } }
         Signal { name: "dashboardUrlChanged";            Parameter { type: "QString" } }
         Signal { name: "terminalUrlChanged";             Parameter { type: "QString" } }
         Signal { name: "totalMcpConnectionsChanged";     Parameter { type: "int" } }

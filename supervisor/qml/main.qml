@@ -158,7 +158,7 @@ ApplicationWindow {
             width: 360
 
             Label {
-                text: "This will stop all managed services (MCP Server, Dashboard,\nTerminal, Fallback API) and close the supervisor."
+                text: "This will stop all managed services (MCP Server, CLI MCP,\nDashboard, Terminal, Fallback API) and close the supervisor."
                 wrapMode: Text.WordWrap
                 Layout.fillWidth: true
                 color: "#c9d1d9"
@@ -266,9 +266,9 @@ ApplicationWindow {
                 width: parent.width
                 spacing: 8
 
-                // ── CORE SERVICES ──────────────────────────────────────────────
+                // ── MCP SERVERS ────────────────────────────────────────────
                 Label {
-                    text: "CORE SERVICES"
+                    text: "MCP SERVERS"
                     font.pixelSize: 10; font.letterSpacing: 1.0
                     color: root.textSecondary
                 }
@@ -278,7 +278,7 @@ ApplicationWindow {
                     columns: 2
                     rowSpacing: 8; columnSpacing: 8
 
-                    // ── MCP Server ────────────────────────────────────────────
+                    // ── MCP Server (VS Code proxy) ────────────────────────────
                     ServiceCard {
                         serviceName:  "MCP Server"
                         status:       supervisorGuiBridge.mcpStatus
@@ -307,6 +307,60 @@ ApplicationWindow {
                         onPrimaryActionClicked: supervisorGuiBridge.restartService("mcp")
                         secondaryActionLabel: "Manage"
                     }
+
+                    // ── CLI MCP Server ────────────────────────────────────────
+                    ServiceCard {
+                        serviceName:  "CLI MCP Server"
+                        status:       supervisorGuiBridge.cliMcpStatus
+                        accentColor:  "#26c6da"
+                        iconBgColor:  "#0a1e25"
+                        iconDelegate: Component {
+                            Canvas {
+                                anchors.fill: parent
+                                onPaint: {
+                                    var c = getContext("2d")
+                                    c.clearRect(0, 0, 32, 32)
+                                    c.save(); c.scale(32/512, 32/512)
+                                    // Chevron '>'
+                                    c.strokeStyle = "#26c6da"; c.lineWidth = 36
+                                    c.lineCap = "round"; c.lineJoin = "round"
+                                    c.beginPath()
+                                    c.moveTo(80, 140); c.lineTo(220, 256); c.lineTo(80, 372)
+                                    c.stroke()
+                                    // Underscore cursor '_'
+                                    c.beginPath()
+                                    c.moveTo(240, 372); c.lineTo(420, 372)
+                                    c.stroke()
+                                    // Small MCP bolt (top-right)
+                                    c.fillStyle = "#26c6da"; c.globalAlpha = 0.85
+                                    c.beginPath()
+                                    c.moveTo(370, 60); c.lineTo(300, 185); c.lineTo(345, 185)
+                                    c.lineTo(285, 320); c.lineTo(440, 175); c.lineTo(385, 175)
+                                    c.closePath(); c.fill()
+                                    c.restore()
+                                }
+                            }
+                        }
+                        infoLine1:  "Port: 3466"
+                        infoLine2:  "HTTP-only · CLI agents"
+                        infoAlways: supervisorGuiBridge.cliMcpStatus !== "Running" ? "http://127.0.0.1:3466/mcp" : ""
+                        primaryActionLabel: "Restart"
+                        onPrimaryActionClicked: supervisorGuiBridge.restartService("cli_mcp")
+                    }
+
+                } // end GridLayout (MCP servers)
+
+                // ── SERVICES ───────────────────────────────────────────────────
+                Label {
+                    text: "SERVICES"
+                    font.pixelSize: 10; font.letterSpacing: 1.0
+                    color: root.textSecondary
+                }
+
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: 2
+                    rowSpacing: 8; columnSpacing: 8
 
                     // ── Interactive Terminal ──────────────────────────────────
                     ServiceCard {
@@ -414,7 +468,7 @@ ApplicationWindow {
                         onPrimaryActionClicked: supervisorGuiBridge.restartService("fallback_api")
                     }
 
-                } // end GridLayout (service cards)
+                } // end GridLayout (services)
 
                 // ── ACTIVE SESSIONS + RECENT ACTIVITY ────────────────────────
                 RowLayout {

@@ -487,7 +487,7 @@ pub struct CliMcpSection {
 impl Default for CliMcpSection {
     fn default() -> Self {
         Self {
-            enabled: false,
+            enabled: true,
             port: 3466,
             command: "node".to_string(),
             args: vec!["dist/index-cli.js".to_string()],
