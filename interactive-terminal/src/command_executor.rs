@@ -782,11 +782,23 @@ fn parse_marker_exit_code(line: &str, marker: &str) -> Option<i32> {
 }
 
 fn escape_single_quoted_shell(input: &str) -> String {
-    input.replace('"', "\\\"").replace('\'', "'\\''")
+    // Newlines inside single-quoted shell args would break the compound one-liner;
+    // replace them with a space before applying the standard POSIX single-quote escape.
+    input
+        .replace('\r', "")
+        .replace('\n', " ")
+        .replace('"', "\\\"")
+        .replace('\'', "'\\''")
 }
 
 fn escape_powershell_single_quoted(input: &str) -> String {
-    input.replace('\'', "''")
+    // Single quotes are escaped by doubling them in PowerShell single-quoted strings.
+    // Embedded newlines would terminate the compound one-liner before the closing quote,
+    // causing the shell to misparse the rest of the command — replace them with a space.
+    input
+        .replace('\r', "")
+        .replace('\n', " ")
+        .replace('\'', "''")
 }
 
 fn resolve_working_directory(request: &CommandRequest) -> PathBuf {

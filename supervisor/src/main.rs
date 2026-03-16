@@ -9,7 +9,7 @@
 use clap::Parser;
 use cxx_qt::CxxQtType;
 use std::path::PathBuf;
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::sync::{Arc, RwLock, atomic::{AtomicBool, Ordering}};
 use std::time::Duration;
 use supervisor::config;
 use supervisor::config::{FormAppSummonabilityStatus, McpBackend, NodeRunnerConfig};
@@ -289,6 +289,8 @@ async fn supervisor_main() {
                     cfg.dashboard.port, cfg.dashboard.enabled);
                 eprintln!("[debug] fallback_api: port={}, enabled={}",
                     cfg.fallback_api.port, cfg.fallback_api.enabled);
+                eprintln!("[debug] cli_mcp: port={}, enabled={}",
+                    cfg.cli_mcp.port, cfg.cli_mcp.enabled);
                 eprintln!("[debug] runtime_output: enabled={}", cfg.runtime_output.enabled);
             }
 
@@ -380,6 +382,9 @@ async fn supervisor_main() {
                 if cfg.fallback_api.enabled {
                     ports_to_clear.push(cfg.fallback_api.port);
                 }
+                if cfg.cli_mcp.enabled {
+                    ports_to_clear.push(cfg.cli_mcp.port);
+                }
                 for i in 0..cfg.mcp.pool.max_instances {
                     ports_to_clear.push(cfg.mcp.pool.base_port + i);
                 }
@@ -449,11 +454,43 @@ async fn supervisor_main() {
                 "fallback_api",
             );
 
+            let mut cli_mcp_env = cfg.cli_mcp.env.clone();
+            cli_mcp_env
+                .entry("PM_CLI_MCP_HOST".to_string())
+                .or_insert_with(|| "127.0.0.1".to_string());
+            cli_mcp_env
+                .entry("PM_CLI_MCP_PORT".to_string())
+                .or_insert_with(|| cfg.cli_mcp.port.to_string());
+            // Inject so the IT process knows where to route CLI-MCP sessions.
+            cli_mcp_env
+                .entry("PM_CLI_MCP_SERVER_URL".to_string())
+                .or_insert_with(|| format!("http://127.0.0.1:{}/mcp", cfg.cli_mcp.port));
+
+            let cli_mcp_working_dir = cfg
+                .cli_mcp
+                .working_dir
+                .clone()
+                .or_else(|| cfg.mcp.node.working_dir.clone());
+
+            let cli_mcp_runner_cfg = NodeRunnerConfig {
+                command: cfg.cli_mcp.command.clone(),
+                args: cfg.cli_mcp.args.clone(),
+                working_dir: cli_mcp_working_dir,
+                env: cli_mcp_env,
+            };
+            let mut cli_mcp_runner = NodeRunner::new(
+                cli_mcp_runner_cfg,
+                cfg.mcp.health_timeout_ms,
+                cfg.cli_mcp.port,
+                "cli_mcp",
+            );
+
             // Start-time tracking for per-service uptime reporting.
             let mut mcp_started_at: Option<std::time::Instant> = None;
             let mut terminal_started_at: Option<std::time::Instant> = None;
             let mut dashboard_started_at: Option<std::time::Instant> = None;
             let mut fallback_started_at: Option<std::time::Instant> = None;
+            let mut cli_mcp_started_at: Option<std::time::Instant> = None;
 
             // ── Control-plane channel + transport ────────────────────────────
 
@@ -491,6 +528,14 @@ async fn supervisor_main() {
                     state: "Starting".to_string(),
                     backend: None,
                     endpoint: Some(format!("http://127.0.0.1:{}", cfg.fallback_api.port)),
+                });
+            }
+            if cfg.cli_mcp.enabled {
+                tray_services.push(supervisor::tray_tooltip::ServiceSummary {
+                    name: "CLI MCP".to_string(),
+                    state: "Starting".to_string(),
+                    backend: None,
+                    endpoint: Some(format!("http://127.0.0.1:{}", cfg.cli_mcp.port)),
                 });
             }
             let tray_tooltip = supervisor::tray_tooltip::build_tooltip(&tray_services, 0);
@@ -621,8 +666,19 @@ async fn supervisor_main() {
                 let fa_for_gui = Arc::clone(&form_apps);
                 let gui_port = cfg.gui_server.port;
                 let gui_bind = cfg.gui_server.bind_address.clone();
+                let config_path = supervisor::config::get_config_path(None);
+                let chatbot_sidecar = supervisor::config::chatbot_state_path(&config_path);
+                let mut chatbot_section = cfg.chatbot.clone();
+                if let Some(saved) = supervisor::config::load_chatbot_state(&chatbot_sidecar) {
+                    // Sidecar overrides TOML for runtime-mutable fields
+                    chatbot_section.api_key  = saved.api_key;
+                    chatbot_section.provider = saved.provider;
+                    chatbot_section.model    = saved.model;
+                }
+                let chatbot_cfg = Arc::new(RwLock::new(chatbot_section));
+                let mcp_url = format!("http://127.0.0.1:{}", cfg.mcp.port);
                 tokio::spawn(async move {
-                    if let Err(e) = supervisor::gui_server::start(&gui_bind, gui_port, fa_for_gui).await {
+                    if let Err(e) = supervisor::gui_server::start(&gui_bind, gui_port, fa_for_gui, chatbot_cfg, chatbot_sidecar, mcp_url).await {
                         eprintln!("[supervisor] GUI HTTP server error: {e}");
                     }
                 });
@@ -1117,6 +1173,54 @@ async fn supervisor_main() {
                 set_service_status(&registry, &mut tray, "fallback_api", ServiceStatus::Stopped).await;
             }
 
+            if cfg.cli_mcp.enabled {
+                println!("[supervisor] starting CLI MCP...");
+                set_service_status(&registry, &mut tray, "cli_mcp", ServiceStatus::Starting).await;
+                match cli_mcp_runner.start().await {
+                    Ok(()) => {
+                        set_service_status(&registry, &mut tray, "cli_mcp", ServiceStatus::Running).await;
+                        set_service_health_ok(&registry, &mut tray, "cli_mcp").await;
+                        println!("[supervisor] CLI MCP started.");
+                        cli_mcp_started_at = Some(std::time::Instant::now());
+                    }
+                    Err(e) => {
+                        set_service_status(&registry, &mut tray, "cli_mcp", ServiceStatus::Error(e.to_string())).await;
+                        set_service_error(&registry, &mut tray, "cli_mcp", e.to_string()).await;
+                        eprintln!("[supervisor] failed to start CLI MCP: {e}");
+                    }
+                }
+
+                {
+                    let restart_tx_cli_mcp = restart_tx.clone();
+                    let cli_mcp_port = cfg.cli_mcp.port;
+                    let health_timeout = cfg.mcp.health_timeout_ms;
+                    tokio::spawn(async move {
+                        tokio::time::sleep(Duration::from_secs(30)).await;
+                        let mut failures = 0u32;
+                        let mut interval = tokio::time::interval(Duration::from_secs(5));
+                        loop {
+                            interval.tick().await;
+                            if probe_http_health(cli_mcp_port, health_timeout).await {
+                                failures = 0;
+                            } else {
+                                failures += 1;
+                                eprintln!("[supervisor] CLI MCP health probe failed ({failures})");
+                                if failures >= 2 {
+                                    eprintln!("[supervisor] CLI MCP appears dead — requesting restart");
+                                    failures = 0;
+                                    let _ = restart_tx_cli_mcp.send("cli_mcp".to_string()).await;
+                                    tokio::time::sleep(Duration::from_secs(90)).await;
+                                    interval.reset();
+                                }
+                            }
+                        }
+                    });
+                }
+            } else {
+                println!("[supervisor] CLI MCP disabled — skipping.");
+                set_service_status(&registry, &mut tray, "cli_mcp", ServiceStatus::Stopped).await;
+            }
+
             // ── Wait for shutdown ─────────────────────────────────────────────
 
             println!("[supervisor] all services started. Press Ctrl-C to stop.");
@@ -1230,6 +1334,7 @@ async fn supervisor_main() {
                                 &mut terminal_runner,
                                 &mut dashboard_runner,
                                 &mut fallback_api_runner,
+                                &mut cli_mcp_runner,
                                 cfg.mcp.backend.clone(),
                                 mcp_subprocess_runtime.is_some(),
                                 mcp_pool_for_restart,
@@ -1271,6 +1376,11 @@ async fn supervisor_main() {
                                         fallback_started_at = Some(std::time::Instant::now());
                                     }
                                 }
+                                "cli_mcp" => {
+                                    if cli_mcp_runner.pid().is_some() {
+                                        cli_mcp_started_at = Some(std::time::Instant::now());
+                                    }
+                                }
                                 _ => {}
                             }
                         }
@@ -1305,6 +1415,9 @@ async fn supervisor_main() {
                                 .map(|t| t.elapsed().as_secs() as i32)
                                 .unwrap_or(0);
                             let _fallback_uptime = fallback_started_at
+                                .map(|t| t.elapsed().as_secs() as i32)
+                                .unwrap_or(0);
+                            let _cli_mcp_uptime = cli_mcp_started_at
                                 .map(|t| t.elapsed().as_secs() as i32)
                                 .unwrap_or(0);
                             let term_port_val = cfg.interactive_terminal.port as i32;
@@ -1352,6 +1465,18 @@ async fn supervisor_main() {
                 } else {
                     set_service_status(&registry, &mut tray, "fallback_api", ServiceStatus::Stopped).await;
                     println!("[supervisor] fallback API stopped.");
+                }
+            }
+
+            if cfg.cli_mcp.enabled {
+                set_service_status(&registry, &mut tray, "cli_mcp", ServiceStatus::Stopping).await;
+                if let Err(e) = cli_mcp_runner.stop().await {
+                    set_service_status(&registry, &mut tray, "cli_mcp", ServiceStatus::Error(e.to_string())).await;
+                    set_service_error(&registry, &mut tray, "cli_mcp", e.to_string()).await;
+                    eprintln!("[supervisor] error stopping CLI MCP: {e}");
+                } else {
+                    set_service_status(&registry, &mut tray, "cli_mcp", ServiceStatus::Stopped).await;
+                    println!("[supervisor] CLI MCP stopped.");
                 }
             }
 
@@ -1488,6 +1613,7 @@ fn push_qt_status(snapshot: &supervisor::control::protocol::HealthSnapshot) {
     let mut terminal_status = String::from("Stopped");
     let mut dashboard_status = String::from("Stopped");
     let mut fallback_status = String::from("Stopped");
+    let mut cli_mcp_status = String::from("Stopped");
     for child in &snapshot.children {
         let state = display_state_for_service(&child.status);
         match child.service_name.as_str() {
@@ -1495,6 +1621,7 @@ fn push_qt_status(snapshot: &supervisor::control::protocol::HealthSnapshot) {
             "interactive_terminal" => terminal_status = state,
             "dashboard" => dashboard_status = state,
             "fallback_api" => fallback_status = state,
+            "cli_mcp" => cli_mcp_status = state,
             _ => {}
         }
     }
@@ -1506,6 +1633,7 @@ fn push_qt_status(snapshot: &supervisor::control::protocol::HealthSnapshot) {
             obj.as_mut().set_terminal_status(cxx_qt_lib::QString::from(&terminal_status));
             obj.as_mut().set_dashboard_status(cxx_qt_lib::QString::from(&dashboard_status));
             obj.as_mut().set_fallback_status(cxx_qt_lib::QString::from(&fallback_status));
+            obj.as_mut().set_cli_mcp_status(cxx_qt_lib::QString::from(&cli_mcp_status));
         });
     }
 }
@@ -1582,6 +1710,7 @@ fn display_name_for_service(service_name: &str) -> &'static str {
         "interactive_terminal" => "Interactive Terminal",
         "dashboard" => "Dashboard",
         "fallback_api" => "Fallback API",
+        "cli_mcp" => "CLI MCP",
         _ => "Service",
     }
 }
@@ -1792,6 +1921,7 @@ async fn handle_restart_command(
     terminal_runner: &mut InteractiveTerminalRunner,
     dashboard_runner: &mut DashboardRunner,
     fallback_api_runner: &mut NodeRunner,
+    cli_mcp_runner: &mut NodeRunner,
     mcp_backend: McpBackend,
     mcp_subprocess_runtime_enabled: bool,
     mcp_pool_runtime: Option<Arc<tokio::sync::RwLock<supervisor::runner::mcp_pool::ManagedPool>>>,
@@ -1935,6 +2065,21 @@ async fn handle_restart_command(
                 Err(error) => {
                     set_service_status(registry, tray, "fallback_api", ServiceStatus::Error(error.to_string())).await;
                     set_service_error(registry, tray, "fallback_api", error.to_string()).await;
+                }
+            }
+        }
+        "cli_mcp" => {
+            set_service_status(registry, tray, "cli_mcp", ServiceStatus::Stopping).await;
+            let _ = cli_mcp_runner.stop().await;
+            set_service_status(registry, tray, "cli_mcp", ServiceStatus::Starting).await;
+            match cli_mcp_runner.start().await {
+                Ok(()) => {
+                    set_service_status(registry, tray, "cli_mcp", ServiceStatus::Running).await;
+                    set_service_health_ok(registry, tray, "cli_mcp").await;
+                }
+                Err(error) => {
+                    set_service_status(registry, tray, "cli_mcp", ServiceStatus::Error(error.to_string())).await;
+                    set_service_error(registry, tray, "cli_mcp", error.to_string()).await;
                 }
             }
         }

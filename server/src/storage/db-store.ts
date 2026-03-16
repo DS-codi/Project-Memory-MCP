@@ -582,6 +582,12 @@ export async function listProgramSearchArtifacts(workspaceId: string): Promise<P
 export function getProjectMemoryDir(workspacePath: string): string {
   return path.join(workspacePath, '.projectmemory');
 }
+export function getFocusedWorkspacesDir(workspacePath: string): string {
+  return path.join(getProjectMemoryDir(workspacePath), 'workspaces');
+}
+export function getFocusedWorkspacePath(workspacePath: string, planId: string, filename?: string): string {
+  return path.join(getFocusedWorkspacesDir(workspacePath), filename ?? `plan-${planId}.code-workspace`);
+}
 export function getActiveAgentsDir(workspacePath: string): string {
   return path.join(getProjectMemoryDir(workspacePath), 'active_agents');
 }
@@ -1299,7 +1305,14 @@ export async function createWorkspace(
     return { meta, migration, created: false };
   }
 
-  // New workspace
+  // New workspace — check for path containment overlaps before creating
+  if (!force) {
+    const overlaps = await detectOverlaps(resolvedPath);
+    if (overlaps.length > 0) {
+      return { meta: null as unknown as WorkspaceMeta, migration, created: false, overlap: overlaps };
+    }
+  }
+
   const { resolveCanonicalWorkspaceId } = await import('./workspace-identity.js');
   const workspaceId = await resolveCanonicalWorkspaceId(resolvedPath);
   migration.canonical_workspace_id = workspaceId;

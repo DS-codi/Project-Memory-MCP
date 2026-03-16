@@ -432,6 +432,24 @@ describe('fallback REST transport', () => {
     expect(body.code).toBe('invalid_request');
   });
 
+  it('lists workspaces via GET /api/fallback/workspaces', async () => {
+    memoryWorkspaceMock.mockResolvedValue({
+      success: true,
+      data: [
+        { workspace_id: 'ws_a', path: 'C:/projects/alpha', name: 'alpha' },
+        { workspace_id: 'ws_b', path: 'C:/projects/beta', name: 'beta' },
+      ],
+    } as any);
+
+    const { status, body } = await httpJsonRequest(`${baseUrl}/api/fallback/workspaces`, 'GET');
+
+    expect(status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data).toHaveLength(2);
+    expect(body.data[0]).toMatchObject({ workspace_id: 'ws_a', path: 'C:/projects/alpha' });
+    expect(memoryWorkspaceMock).toHaveBeenCalledWith({ action: 'list' });
+  });
+
   it('registers workspace via memory_workspace register action', async () => {
     memoryWorkspaceMock.mockResolvedValue({
       success: true,

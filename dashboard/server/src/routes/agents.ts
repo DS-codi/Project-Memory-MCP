@@ -10,8 +10,49 @@ import {
   deployAgentToWorkspaces,
   syncAgentToDeployments,
 } from '../services/agentScanner.js';
+import { listAgentsFromDb, getAgentFromDb } from '../db/queries.js';
 
 export const agentsRouter = Router();
+
+// GET /api/agents/db - List all agent definitions from the MCP database
+// Returns agents with their full content for direct deployment by the extension.
+// Hub/permanent agents are sorted first.
+agentsRouter.get('/db', (_req, res) => {
+  try {
+    const rows = listAgentsFromDb();
+    const agents = rows.map(row => ({
+      name: row.name,
+      content: row.content,
+      is_permanent: row.is_permanent === 1,
+      updated_at: row.updated_at,
+    }));
+    res.json({ agents, total: agents.length });
+  } catch (error) {
+    console.error('Error listing agents from DB:', error);
+    res.status(500).json({ error: 'Failed to list agents from database' });
+  }
+});
+
+// GET /api/agents/db/:agentName - Get a single agent from the database
+agentsRouter.get('/db/:agentName', (req, res) => {
+  try {
+    const row = getAgentFromDb(req.params.agentName);
+    if (!row) {
+      return res.status(404).json({ error: `Agent '${req.params.agentName}' not found in database` });
+    }
+    res.json({
+      agent: {
+        name: row.name,
+        content: row.content,
+        is_permanent: row.is_permanent === 1,
+        updated_at: row.updated_at,
+      }
+    });
+  } catch (error) {
+    console.error('Error getting agent from DB:', error);
+    res.status(500).json({ error: 'Failed to get agent from database' });
+  }
+});
 
 // GET /api/agents - List all agent templates
 agentsRouter.get('/', async (req, res) => {

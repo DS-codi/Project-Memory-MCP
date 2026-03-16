@@ -3,8 +3,10 @@ use crate::integration::agent_session_protocol::{
     ReadAgentSessionOutputRequest, StartAgentSessionRequest,
     StopAgentSessionRequest,
 };
-use crate::protocol::{CommandRequest, Message, TerminalProfile};
+use crate::launch_builder::{build_launch_command, LaunchOptions};
+use crate::protocol::{CommandRequest, ContextPack, Message, TerminalProfile};
 use serde_json::json;
+use std::collections::HashMap;
 
 #[derive(Debug)]
 struct StartContractError {
@@ -134,19 +136,76 @@ fn validate_specialized_start_request(
 
 pub fn start_request_to_command(req: &StartAgentSessionRequest) -> CommandRequest {
     let runtime_session_id = effective_runtime_session_id(req);
+
+    // Build a ContextPack from the prompt payload so the launch builder can
+    // inject --prompt-interactive, GEMINI_CONTEXT_FILE, GEMINI_API_KEY, etc.
+    let enriched_prompt = req.prompt_payload.enriched_prompt.trim().to_string();
+    let context_pack = ContextPack {
+        startup_prompt: if enriched_prompt.is_empty() {
+            None
+        } else {
+            Some(enriched_prompt)
+        },
+        plan_id: if req.plan_id.is_empty() {
+            None
+        } else {
+            Some(req.plan_id.clone())
+        },
+        session_id: if req.session_id.is_empty() {
+            None
+        } else {
+            Some(req.session_id.clone())
+        },
+        requesting_agent: if req.agent_type.is_empty() {
+            None
+        } else {
+            Some(req.agent_type.clone())
+        },
+        ..Default::default()
+    };
+
+    let options = LaunchOptions::default(); // session_mode="new", guided, no screen-reader
+    let (command, args, mut launch_env) = match build_launch_command(
+        &req.command,
+        Some(&context_pack),
+        "guided",
+        Some(&req.agent_type),
+        Some(&req.plan_id),
+        &options,
+    ) {
+        Ok(launch) => (launch.program, launch.args, launch.env),
+        Err(e) => {
+            eprintln!(
+                "[PM][hosted_session_adapter] build_launch_command failed: {e}; \
+                 falling back to raw command"
+            );
+            (req.command.clone(), req.args.clone(), HashMap::new())
+        }
+    };
+
+    // Overlay request env on top of the launch-builder env so that any
+    // caller-supplied PM_* vars override the defaults injected by the builder.
+    for (k, v) in &req.env {
+        launch_env.insert(k.clone(), v.clone());
+    }
+
     CommandRequest {
         id: runtime_session_id,
-        command: req.command.clone(),
+        command,
         working_directory: req.working_directory.clone(),
         context: req.context.clone(),
-        session_id: req.session_id.clone(),
-        terminal_profile: TerminalProfile::System,
+        // Leave session_id empty so hydrate_request_with_session_context fills it
+        // with the active terminal's selected_session_id.  This ensures exec_task
+        // routes via the existing ConPTY WS terminal instead of spawning a new
+        // pwsh.exe process (which fails with 0xc0000142 from a GUI parent).
+        session_id: String::new(),
+        terminal_profile: TerminalProfile::Pwsh,
         workspace_path: req.working_directory.clone(),
         venv_path: String::new(),
         activate_venv: false,
         timeout_seconds: req.timeout_seconds,
-        args: req.args.clone(),
-        env: req.env.clone(),
+        args,
+        env: launch_env,
         workspace_id: req.workspace_id.clone(),
         allowlisted: true,
     }

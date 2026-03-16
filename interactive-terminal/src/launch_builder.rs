@@ -112,6 +112,16 @@ pub struct LaunchOptions {
     /// (unchecked by default, i.e. opt-in) that sets this flag.
     /// Ignored for Copilot — see [`build_copilot_launch`] for details.
     pub screen_reader: bool,
+    /// When `true`, the launched agent session is routed to the CLI MCP server
+    /// (port 3466) instead of the main VS Code MCP server (port 3457).
+    ///
+    /// The supervisor injects `PM_CLI_MCP_SERVER_URL` into its own environment
+    /// when the CLI MCP is enabled; `launch_builder` reads that variable to
+    /// obtain the correct URL.  Falls back to `http://127.0.0.1:3466/mcp` when
+    /// the variable is absent.
+    ///
+    /// Defaults to `false` (use the standard MCP server).
+    pub use_cli_mcp: bool,
 }
 
 // ─── LaunchCommand ────────────────────────────────────────────────────────────
@@ -244,7 +254,7 @@ pub fn build_gemini_launch(
         context_pack
     };
 
-    inject_project_memory_mcp_env_defaults(&mut env, "gemini", resolved_pack);
+    inject_project_memory_mcp_env_defaults(&mut env, "gemini", resolved_pack, options);
 
     // ── Output format ────────────────────────────────────────────────────────
     // Gemini supports --output_format natively.
@@ -268,9 +278,13 @@ pub fn build_gemini_launch(
 
     // spawn_cli_session startup prompt: keep interactive mode while
     // pre-seeding the first user message.
+    // Strip embedded newlines before the value becomes a shell argument:
+    // the arg is wrapped in single quotes inside a compound PowerShell
+    // one-liner, and a literal newline would cause the shell to execute
+    // the command prematurely at that position.
     if let Some(startup_prompt) = startup_prompt_from_context_pack(resolved_pack) {
         args.push("--prompt-interactive".to_string());
-        args.push(startup_prompt);
+        args.push(startup_prompt.replace('\r', "").replace('\n', " "));
     }
 
     // Serialise context pack to a temp file if supplied
@@ -372,6 +386,8 @@ pub fn build_copilot_launch(
     eprintln!(
         "[PM][launch_builder] Copilot launch order: copilot.cmd -> copilot -> gh copilot suggest --target shell"
     );
+    // `args` is only mutated in the non-Windows startup-prompt path below.
+    #[cfg_attr(target_os = "windows", allow(unused_mut))]
     let mut args: Vec<String> = Vec::new();
     let mut env: HashMap<String, String> = HashMap::new();
     let mut context_pack_path: Option<PathBuf> = None;
@@ -416,7 +432,7 @@ pub fn build_copilot_launch(
         );
     }
 
-    inject_project_memory_mcp_env_defaults(&mut env, "copilot", context_pack);
+    inject_project_memory_mcp_env_defaults(&mut env, "copilot", context_pack, options);
 
     // ── Output format ────────────────────────────────────────────────────────
     // Copilot does not support structured output natively.
@@ -552,19 +568,31 @@ fn inject_project_memory_mcp_env_defaults(
     env: &mut HashMap<String, String>,
     provider: &str,
     context_pack: Option<&ContextPack>,
+    options: &LaunchOptions,
 ) {
-    const DEFAULT_PM_MCP_SERVER_URL: &str = "http://127.0.0.1:3467/mcp";
+    const DEFAULT_PM_MCP_SERVER_URL: &str = "http://127.0.0.1:3457/mcp";
+    const DEFAULT_CLI_MCP_SERVER_URL: &str = "http://127.0.0.1:3466/mcp";
     const DEFAULT_PM_MCP_TRANSPORT: &str = "streamable_http";
 
-    let resolved_server_url = env
-        .get("PM_MCP_SERVER_URL")
-        .cloned()
-        .or_else(|| env.get("PROJECT_MEMORY_MCP_SERVER_URL").cloned())
-        .or_else(|| std::env::var("PM_MCP_SERVER_URL").ok())
-        .or_else(|| std::env::var("PROJECT_MEMORY_MCP_SERVER_URL").ok())
-        .or_else(|| std::env::var("MBS_HOST_MCP_URL").ok())
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| DEFAULT_PM_MCP_SERVER_URL.to_string());
+    // When use_cli_mcp = true, route to the CLI MCP server instead of the main
+    // VS Code MCP server.  The supervisor injects PM_CLI_MCP_SERVER_URL into its
+    // own environment when the CLI MCP process is running, so the correct port is
+    // always visible here even if the config changed from the default.
+    let resolved_server_url = if options.use_cli_mcp {
+        std::env::var("PM_CLI_MCP_SERVER_URL")
+            .ok()
+            .filter(|v| !v.trim().is_empty())
+            .unwrap_or_else(|| DEFAULT_CLI_MCP_SERVER_URL.to_string())
+    } else {
+        env.get("PM_MCP_SERVER_URL")
+            .cloned()
+            .or_else(|| env.get("PROJECT_MEMORY_MCP_SERVER_URL").cloned())
+            .or_else(|| std::env::var("PM_MCP_SERVER_URL").ok())
+            .or_else(|| std::env::var("PROJECT_MEMORY_MCP_SERVER_URL").ok())
+            .or_else(|| std::env::var("MBS_HOST_MCP_URL").ok())
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| DEFAULT_PM_MCP_SERVER_URL.to_string())
+    };
 
     let resolved_transport = env
         .get("PM_MCP_TRANSPORT")
@@ -573,10 +601,19 @@ fn inject_project_memory_mcp_env_defaults(
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| DEFAULT_PM_MCP_TRANSPORT.to_string());
 
-    env.entry("PM_MCP_SERVER_URL".to_string())
-        .or_insert_with(|| resolved_server_url.clone());
-    env.entry("PROJECT_MEMORY_MCP_SERVER_URL".to_string())
-        .or_insert(resolved_server_url);
+    if options.use_cli_mcp {
+        // Force-insert: CLI MCP routing takes precedence over any caller-provided URL.
+        env.insert("PM_MCP_SERVER_URL".to_string(), resolved_server_url.clone());
+        env.insert(
+            "PROJECT_MEMORY_MCP_SERVER_URL".to_string(),
+            resolved_server_url,
+        );
+    } else {
+        env.entry("PM_MCP_SERVER_URL".to_string())
+            .or_insert_with(|| resolved_server_url.clone());
+        env.entry("PROJECT_MEMORY_MCP_SERVER_URL".to_string())
+            .or_insert(resolved_server_url);
+    }
     env.entry("PM_MCP_TRANSPORT".to_string())
         .or_insert(resolved_transport);
     env.entry("PM_CLI_SPAWN_SOURCE".to_string())

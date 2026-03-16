@@ -169,3 +169,14 @@ export interface ProgramPlanRow {
   plan_id:      string;
   created_at:   string;
 }
+
+export interface AgentDefinitionRow {
+  id:           string;
+  name:         string;
+  content:      string;
+  metadata:     string | null;
+  /** 0 | 1 */
+  is_permanent: number;
+  created_at:   string;
+  updated_at:   string;
+}
