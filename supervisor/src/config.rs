@@ -70,6 +70,9 @@ pub struct SupervisorConfig {
     pub fallback_api: FallbackApiSection,
 
     #[serde(default)]
+    pub cli_mcp: CliMcpSection,
+
+    #[serde(default)]
     pub approval: ApprovalSection,
 
     #[serde(default)]
@@ -455,6 +458,39 @@ impl Default for FallbackApiSection {
             port: 3465,
             command: "node".to_string(),
             args: vec!["dist/fallback-rest-main.js".to_string()],
+            working_dir: None,
+            env: HashMap::new(),
+            restart_policy: RestartPolicy::default(),
+        }
+    }
+}
+
+/// Configuration for the CLI MCP server (port 3466 — HTTP-only, for CLI agents).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct CliMcpSection {
+    pub enabled: bool,
+    pub port: u16,
+    /// Executable to invoke (default: "node").
+    pub command: String,
+    /// Arguments passed to the command (default: ["dist/index-cli.js"]).
+    pub args: Vec<String>,
+    /// Working directory for the CLI MCP process.
+    pub working_dir: Option<PathBuf>,
+    /// Extra environment variables injected into the CLI MCP process.
+    pub env: HashMap<String, String>,
+    /// Restart policy for the CLI MCP service.
+    #[serde(default)]
+    pub restart_policy: RestartPolicy,
+}
+
+impl Default for CliMcpSection {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            port: 3466,
+            command: "node".to_string(),
+            args: vec!["dist/index-cli.js".to_string()],
             working_dir: None,
             env: HashMap::new(),
             restart_policy: RestartPolicy::default(),
