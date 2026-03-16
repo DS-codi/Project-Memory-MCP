@@ -45,6 +45,7 @@ pub mod ffi {
         #[qproperty(QString, terminal_status, cxx_name = "terminalStatus")]
         #[qproperty(QString, dashboard_status, cxx_name = "dashboardStatus")]
         #[qproperty(QString, fallback_status, cxx_name = "fallbackStatus")]
+        #[qproperty(QString, cli_mcp_status, cxx_name = "cliMcpStatus")]
         #[qproperty(QString, dashboard_url, cxx_name = "dashboardUrl")]
         #[qproperty(QString, terminal_url, cxx_name = "terminalUrl")]
         #[qproperty(i32, total_mcp_connections, cxx_name = "totalMcpConnections")]
@@ -127,6 +128,29 @@ pub mod ffi {
         #[qinvokable]
         #[cxx_name = "saveConfigToml"]
         fn save_config_toml(self: Pin<&mut SupervisorGuiBridge>, content: &QString) -> bool;
+
+        /// Load supervisor.toml serialised as JSON for the structured settings panel.
+        #[qinvokable]
+        #[cxx_name = "loadSettingsJson"]
+        fn load_settings_json(self: Pin<&mut SupervisorGuiBridge>) -> QString;
+
+        /// Apply a JSON delta onto supervisor.toml, preserving any un-shown fields.
+        /// Returns `true` on success; sets `configEditorError` and returns `false` on failure.
+        #[qinvokable]
+        #[cxx_name = "saveSettingsJson"]
+        fn save_settings_json(self: Pin<&mut SupervisorGuiBridge>, json: &QString) -> bool;
+
+        /// Read VS Code user settings.json and return `projectMemory.*` / `supervisor.*`
+        /// keys as a flat JSON object.  Returns `"{}"` when VS Code is not detected.
+        #[qinvokable]
+        #[cxx_name = "loadVscodeSettingsJson"]
+        fn load_vscode_settings_json(self: Pin<&mut SupervisorGuiBridge>) -> QString;
+
+        /// Merge a flat JSON object into VS Code user settings.json.
+        /// Best-effort: returns `false` on hard I/O errors, sets `configEditorError`.
+        #[qinvokable]
+        #[cxx_name = "saveVscodeSettingsJson"]
+        fn save_vscode_settings_json(self: Pin<&mut SupervisorGuiBridge>, json: &QString) -> bool;
     }
 
     impl cxx_qt::Initialize for SupervisorGuiBridge {}
@@ -142,6 +166,7 @@ pub struct SupervisorGuiBridgeRust {
     pub terminal_status: QString,
     pub dashboard_status: QString,
     pub fallback_status: QString,
+    pub cli_mcp_status: QString,
     /// URLs pushed from main.rs after config loads.
     pub dashboard_url: QString,
     pub terminal_url: QString,
@@ -191,6 +216,7 @@ impl Default for SupervisorGuiBridgeRust {
             terminal_status: QString::from("Starting\u{2026}"),
             dashboard_status: QString::from("Starting\u{2026}"),
             fallback_status: QString::from("Starting\u{2026}"),
+            cli_mcp_status: QString::from("Starting\u{2026}"),
             dashboard_url: QString::default(),
             terminal_url: QString::default(),
             total_mcp_connections: 0,
@@ -219,6 +245,78 @@ impl Default for SupervisorGuiBridgeRust {
         }
     }
 }
+
+// ── Settings helpers ───────────────────────────────────────────────────────────
+
+/// Recursively merge JSON `source` delta onto `target` TOML value.
+/// Table entries in `source` overwrite matching keys; all other keys are preserved.
+fn merge_json_into_toml(target: &mut toml::Value, source: &serde_json::Value) {
+    match (target, source) {
+        (toml::Value::Table(t), serde_json::Value::Object(m)) => {
+            for (key, val) in m {
+                if let Some(existing) = t.get_mut(key) {
+                    merge_json_into_toml(existing, val);
+                } else if let Some(tv) = json_to_toml(val) {
+                    t.insert(key.clone(), tv);
+                }
+            }
+        }
+        (target, source) => {
+            if let Some(tv) = json_to_toml(source) {
+                *target = tv;
+            }
+        }
+    }
+}
+
+fn json_to_toml(v: &serde_json::Value) -> Option<toml::Value> {
+    match v {
+        serde_json::Value::Bool(b) => Some(toml::Value::Boolean(*b)),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                Some(toml::Value::Integer(i))
+            } else {
+                n.as_f64().map(toml::Value::Float)
+            }
+        }
+        serde_json::Value::String(s) => Some(toml::Value::String(s.clone())),
+        serde_json::Value::Array(a) => {
+            let items: Vec<toml::Value> = a.iter().filter_map(json_to_toml).collect();
+            Some(toml::Value::Array(items))
+        }
+        serde_json::Value::Object(m) => {
+            let mut table = toml::map::Map::new();
+            for (k, v) in m {
+                if let Some(tv) = json_to_toml(v) {
+                    table.insert(k.clone(), tv);
+                }
+            }
+            Some(toml::Value::Table(table))
+        }
+        serde_json::Value::Null => None,
+    }
+}
+
+/// Locate the VS Code user settings.json on Windows (checks both stable and Insiders).
+/// Returns the stable path even when it does not exist yet (so saves can create it).
+fn vscode_settings_path() -> Option<std::path::PathBuf> {
+    let appdata = std::env::var("APPDATA").ok()?;
+    let primary = std::path::PathBuf::from(&appdata)
+        .join("Code").join("User").join("settings.json");
+    if primary.exists() {
+        return Some(primary);
+    }
+    let insiders = std::path::PathBuf::from(&appdata)
+        .join("Code - Insiders").join("User").join("settings.json");
+    if insiders.exists() {
+        return Some(insiders);
+    }
+    // Return stable path so saves can create the file.
+    Some(std::path::PathBuf::from(&appdata)
+        .join("Code").join("User").join("settings.json"))
+}
+
+// ── Bridge implementation ───────────────────────────────────────────────────────
 
 impl ffi::SupervisorGuiBridge {
     pub fn show_window(mut self: Pin<&mut Self>) {
@@ -426,6 +524,177 @@ impl ffi::SupervisorGuiBridge {
                 self.as_mut().set_dashboard_uptime_secs(uptime_secs);
             }
             _ => {}
+        }
+    }
+
+    pub fn load_settings_json(mut self: Pin<&mut Self>) -> QString {
+        let path = match self.rust().config_path.clone() {
+            None => {
+                self.as_mut().set_config_editor_error(QString::from("Config path not set"));
+                return QString::default();
+            }
+            Some(p) => p,
+        };
+        let raw = match std::fs::read_to_string(&path) {
+            Ok(s) => s,
+            Err(e) => {
+                self.as_mut().set_config_editor_error(QString::from(&format!("Read error: {e}")));
+                return QString::default();
+            }
+        };
+        let val: toml::Value = match toml::from_str(&raw) {
+            Ok(v) => v,
+            Err(e) => {
+                self.as_mut().set_config_editor_error(QString::from(&format!("Parse error: {e}")));
+                return QString::default();
+            }
+        };
+        match serde_json::to_string(&val) {
+            Ok(json) => {
+                self.as_mut().set_config_editor_error(QString::default());
+                QString::from(&json)
+            }
+            Err(e) => {
+                self.as_mut().set_config_editor_error(QString::from(&format!("JSON error: {e}")));
+                QString::default()
+            }
+        }
+    }
+
+    pub fn save_settings_json(mut self: Pin<&mut Self>, json: &QString) -> bool {
+        let json_val: serde_json::Value = match serde_json::from_str(&json.to_string()) {
+            Ok(v) => v,
+            Err(e) => {
+                self.as_mut().set_config_editor_error(QString::from(&format!("JSON parse error: {e}")));
+                return false;
+            }
+        };
+        let path = match self.rust().config_path.clone() {
+            None => {
+                self.as_mut().set_config_editor_error(QString::from("Config path not set"));
+                return false;
+            }
+            Some(p) => p,
+        };
+        let existing = std::fs::read_to_string(&path).unwrap_or_default();
+        let mut toml_val: toml::Value = toml::from_str(&existing)
+            .unwrap_or_else(|_| toml::Value::Table(toml::map::Map::new()));
+        merge_json_into_toml(&mut toml_val, &json_val);
+        let new_toml = match toml::to_string_pretty(&toml_val) {
+            Ok(s) => s,
+            Err(e) => {
+                self.as_mut().set_config_editor_error(QString::from(&format!("Serialize error: {e}")));
+                return false;
+            }
+        };
+        if let Err(e) = toml::from_str::<crate::config::SupervisorConfig>(&new_toml) {
+            self.as_mut().set_config_editor_error(QString::from(&format!("Validation error: {e}")));
+            return false;
+        }
+        match std::fs::write(&path, &new_toml) {
+            Ok(()) => {
+                self.as_mut().set_config_editor_error(QString::default());
+                true
+            }
+            Err(e) => {
+                self.as_mut().set_config_editor_error(QString::from(&format!("Write error: {e}")));
+                false
+            }
+        }
+    }
+
+    pub fn load_vscode_settings_json(self: Pin<&mut Self>) -> QString {
+        let path = match vscode_settings_path() {
+            None => return QString::from("{}"),
+            Some(p) => p,
+        };
+        let raw = match std::fs::read_to_string(&path) {
+            Ok(s) => s,
+            Err(_) => return QString::from("{}"),
+        };
+        let all: serde_json::Value = match serde_json::from_str(&raw) {
+            Ok(v) => v,
+            Err(_) => return QString::from("{}"),
+        };
+        let known_keys = [
+            "projectMemory.mcpPort",
+            "projectMemory.serverPort",
+            "projectMemory.agentsRoot",
+            "projectMemory.skillsRoot",
+            "projectMemory.instructionsRoot",
+            "projectMemory.notifications.enabled",
+            "projectMemory.notifications.agentHandoffs",
+            "projectMemory.notifications.planComplete",
+            "projectMemory.notifications.stepBlocked",
+            "projectMemory.dashboard.enabled",
+            "projectMemory.autoDeployOnWorkspaceOpen",
+            "projectMemory.autoDeploySkills",
+            "projectMemory.containerMode",
+            "supervisor.startupMode",
+            "supervisor.launcherPath",
+            "supervisor.detectTimeoutMs",
+            "supervisor.startupTimeoutMs",
+        ];
+        let mut out = serde_json::Map::new();
+        if let serde_json::Value::Object(map) = &all {
+            for key in &known_keys {
+                if let Some(val) = map.get(*key) {
+                    out.insert((*key).to_string(), val.clone());
+                }
+            }
+        }
+        match serde_json::to_string(&serde_json::Value::Object(out)) {
+            Ok(s) => QString::from(&s),
+            Err(_) => QString::from("{}"),
+        }
+    }
+
+    pub fn save_vscode_settings_json(mut self: Pin<&mut Self>, json: &QString) -> bool {
+        let incoming: serde_json::Value = match serde_json::from_str(&json.to_string()) {
+            Ok(v) => v,
+            Err(e) => {
+                self.as_mut().set_config_editor_error(QString::from(&format!("JSON parse error: {e}")));
+                return false;
+            }
+        };
+        let path = match vscode_settings_path() {
+            None => {
+                self.as_mut().set_config_editor_error(QString::from("VS Code settings not found"));
+                return false;
+            }
+            Some(p) => p,
+        };
+        let raw = std::fs::read_to_string(&path).unwrap_or_default();
+        let mut existing: serde_json::Value = serde_json::from_str(&raw)
+            .unwrap_or_else(|_| serde_json::Value::Object(serde_json::Map::new()));
+        if let (
+            serde_json::Value::Object(eobj),
+            serde_json::Value::Object(iobj),
+        ) = (&mut existing, incoming)
+        {
+            for (k, v) in iobj {
+                eobj.insert(k, v);
+            }
+        }
+        let out = match serde_json::to_string_pretty(&existing) {
+            Ok(s) => s,
+            Err(e) => {
+                self.as_mut().set_config_editor_error(QString::from(&format!("Serialize error: {e}")));
+                return false;
+            }
+        };
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        match std::fs::write(&path, out) {
+            Ok(()) => {
+                self.as_mut().set_config_editor_error(QString::default());
+                true
+            }
+            Err(e) => {
+                self.as_mut().set_config_editor_error(QString::from(&format!("Write error: {e}")));
+                false
+            }
         }
     }
 }

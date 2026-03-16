@@ -17,7 +17,7 @@
 //! (`workspace_id`, `session_id`, `agent`) that is logged for observability
 //! but does not affect the underlying `launch_form_app` call.
 
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use axum::{
     Json, Router,
@@ -28,6 +28,8 @@ use axum::{
 use serde::Deserialize;
 use serde_json::json;
 
+use crate::chatbot::{ChatMessage, ChatRequest, chat_loop};
+use crate::config::{ChatbotProvider, ChatbotSection};
 use crate::control::handler::FormAppConfigs;
 use crate::control::protocol::FormAppResponse;
 use crate::runner::form_app::{continue_form_app, launch_form_app};
@@ -39,6 +41,9 @@ use crate::runner::form_app::{continue_form_app, launch_form_app};
 #[derive(Clone)]
 pub struct GuiServerState {
     pub form_apps: Arc<FormAppConfigs>,
+    pub chatbot_config: Arc<RwLock<ChatbotSection>>,
+    pub chatbot_state_path: std::path::PathBuf,
+    pub mcp_base_url: String,
 }
 
 // ---------------------------------------------------------------------------
@@ -245,9 +250,7 @@ async fn runtime_capture_set_handler(
 // Router
 // ---------------------------------------------------------------------------
 
-pub fn build_router(form_apps: Arc<FormAppConfigs>) -> Router {
-    let state = GuiServerState { form_apps };
-
+pub fn build_router(state: GuiServerState) -> Router {
     Router::new()
         .route("/gui/ping", get(ping_handler))
         .route("/gui/launch", post(launch_handler))
@@ -255,6 +258,8 @@ pub fn build_router(form_apps: Arc<FormAppConfigs>) -> Router {
         .route("/runtime/recent", get(runtime_recent_handler))
         .route("/runtime/capture", get(runtime_capture_get_handler))
         .route("/runtime/capture", post(runtime_capture_set_handler))
+        .route("/chatbot/chat", post(chatbot_chat_handler))
+        .route("/chatbot/config", get(chatbot_config_get_handler).post(chatbot_config_set_handler))
         .with_state(state)
 }
 
@@ -269,12 +274,90 @@ pub fn build_router(form_apps: Arc<FormAppConfigs>) -> Router {
 /// `"127.0.0.1"` to restrict to loopback only.
 ///
 /// This is a long-running future; spawn it with `tokio::spawn`.
-pub async fn start(bind_address: &str, port: u16, form_apps: Arc<FormAppConfigs>) -> anyhow::Result<()> {
+pub async fn start(
+    bind_address: &str,
+    port: u16,
+    form_apps: Arc<FormAppConfigs>,
+    chatbot_config: Arc<RwLock<ChatbotSection>>,
+    chatbot_state_path: std::path::PathBuf,
+    mcp_base_url: String,
+) -> anyhow::Result<()> {
     let addr = format!("{bind_address}:{port}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     eprintln!("[supervisor] GUI HTTP server listening on http://{addr}");
-    axum::serve(listener, build_router(form_apps)).await?;
+    let state = GuiServerState { form_apps, chatbot_config, chatbot_state_path, mcp_base_url };
+    axum::serve(listener, build_router(state)).await?;
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Chatbot handlers
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize)]
+struct ChatbotChatRequest {
+    pub messages: Vec<ChatMessage>,
+    #[serde(default)]
+    pub workspace_id: Option<String>,
+}
+
+async fn chatbot_chat_handler(
+    State(state): State<GuiServerState>,
+    Json(body): Json<ChatbotChatRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let config = state.chatbot_config.read().unwrap().clone();
+    let req = ChatRequest {
+        messages:     body.messages,
+        workspace_id: body.workspace_id,
+        mcp_base_url: state.mcp_base_url.clone(),
+        config,
+    };
+    match chat_loop(req).await {
+        Ok(resp)  => (StatusCode::OK, Json(serde_json::to_value(resp).unwrap_or(json!({})))),
+        Err(e)    => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e }))),
+    }
+}
+
+async fn chatbot_config_get_handler(
+    State(state): State<GuiServerState>,
+) -> Json<serde_json::Value> {
+    let cfg = state.chatbot_config.read().unwrap();
+    Json(json!({
+        "provider":       format!("{:?}", cfg.provider).to_lowercase(),
+        "model":          cfg.model,
+        "api_key":        cfg.api_key,
+        "key_configured": !cfg.api_key.is_empty()
+    }))
+}
+
+#[derive(Debug, Deserialize)]
+struct ChatbotConfigUpdate {
+    #[serde(default)]
+    provider: Option<String>,
+    #[serde(default)]
+    model: Option<String>,
+    #[serde(default)]
+    api_key: Option<String>,
+}
+
+async fn chatbot_config_set_handler(
+    State(state): State<GuiServerState>,
+    Json(body): Json<ChatbotConfigUpdate>,
+) -> Json<serde_json::Value> {
+    let mut cfg = state.chatbot_config.write().unwrap();
+    if let Some(p) = body.provider {
+        cfg.provider = match p.as_str() {
+            "copilot" => ChatbotProvider::Copilot,
+            _         => ChatbotProvider::Gemini,
+        };
+    }
+    if let Some(m) = body.model   { cfg.model   = m; }
+    if let Some(k) = body.api_key { cfg.api_key = k; }
+    let snapshot = cfg.clone();
+    let save_path = state.chatbot_state_path.clone();
+    drop(cfg); // release write lock before file I/O
+    crate::config::save_chatbot_state(&save_path, &snapshot);
+    Json(json!({ "ok": true, "key_configured": !snapshot.api_key.is_empty() }))
 }
 
 #[cfg(test)]
@@ -294,6 +377,15 @@ mod tests {
             form_apps.insert(name.to_string(), cfg);
         }
         Arc::new(form_apps)
+    }
+
+    fn make_state(form_apps: Arc<FormAppConfigs>) -> GuiServerState {
+        GuiServerState {
+            form_apps,
+            chatbot_config: Arc::new(RwLock::new(crate::config::ChatbotSection::default())),
+            chatbot_state_path: std::path::PathBuf::from(std::env::temp_dir()).join("chatbot_state_test.json"),
+            mcp_base_url: "http://127.0.0.1:3000".to_string(),
+        }
     }
 
     async fn response_json(response: axum::response::Response) -> serde_json::Value {
@@ -322,10 +414,10 @@ mod tests {
         let mut disabled = FormAppConfig::default();
         disabled.enabled = false;
 
-        let app = build_router(form_apps_with(vec![
+        let app = build_router(make_state(form_apps_with(vec![
             ("approval_gui", enabled),
             ("brainstorm_gui", disabled),
-        ]));
+        ])));
 
         let response = app
             .oneshot(
@@ -349,7 +441,7 @@ mod tests {
 
     #[tokio::test]
     async fn launch_unknown_app_returns_structured_not_found_error() {
-        let app = build_router(form_apps_with(vec![]));
+        let app = build_router(make_state(form_apps_with(vec![])));
 
         let response = app
             .oneshot(post_json(
@@ -379,7 +471,7 @@ mod tests {
         cfg.enabled = false;
         cfg.command = "echo".to_string();
 
-        let app = build_router(form_apps_with(vec![("approval_gui", cfg)]));
+        let app = build_router(make_state(form_apps_with(vec![("approval_gui", cfg)])));
         let response = app
             .oneshot(post_json(
                 "/gui/launch",
@@ -409,7 +501,7 @@ mod tests {
             ..FormAppConfig::default()
         };
 
-        let app = build_router(form_apps_with(vec![("approval_gui", cfg)]));
+        let app = build_router(make_state(form_apps_with(vec![("approval_gui", cfg)])));
         let response = app
             .oneshot(post_json(
                 "/gui/launch",
@@ -434,7 +526,7 @@ mod tests {
 
     #[tokio::test]
     async fn continue_unknown_session_returns_structured_internal_error() {
-        let app = build_router(form_apps_with(vec![]));
+        let app = build_router(make_state(form_apps_with(vec![])));
         let response = app
             .oneshot(post_json(
                 "/gui/continue",

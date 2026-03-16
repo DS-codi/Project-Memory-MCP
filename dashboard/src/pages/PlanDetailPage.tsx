@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Clock, GitBranch, ListChecks, FileText, Activity, BarChart, Info, AlertTriangle, MessageSquare, Target, Terminal, Database, FolderTree, Users, Layers, Shield, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Bot, Clock, GitBranch, ListChecks, FileText, Activity, BarChart, Info, AlertTriangle, MessageSquare, Target, Terminal, Database, FolderTree, Users, Layers, Shield, TrendingUp } from 'lucide-react';
 import { CopyButton } from '@/components/common/CopyButton';
 import { Badge } from '@/components/common/Badge';
 import { ProgressBar } from '@/components/common/ProgressBar';
@@ -23,6 +23,7 @@ import { HandoffStatsPanel } from '@/components/plan/HandoffStatsPanel';
 import { SkillMatchPanel } from '@/components/plan/SkillMatchPanel';
 import { CategorizationBadge } from '@/components/plan/CategorizationBadge';
 import { PausedPlanBanner } from '@/components/plan/PausedPlanBanner';
+import { LaunchAgentSessionDialog } from '@/components/plan/LaunchAgentSessionDialog';
 import { HandoffTimeline } from '@/components/timeline/HandoffTimeline';
 import { BallInCourt } from '@/components/timeline/BallInCourt';
 import { useBuildScripts, useAddBuildScript, useDeleteBuildScript, useRunBuildScript } from '@/hooks/useBuildScripts';
@@ -48,6 +49,7 @@ export function PlanDetailPage() {
   const location = useLocation();
   const [activeTab, setActiveTab] = useState<Tab>('timeline');
   const [stepView, setStepView] = useState<'bar' | 'kanban'>('bar');
+  const [launchDialogOpen, setLaunchDialogOpen] = useState(false);
 
   const validTabs: Tab[] = ['timeline', 'steps', 'phases', 'risk', 'stats', 'research', 'activity', 'goals', 'build-scripts'];
 
@@ -200,6 +202,14 @@ export function PlanDetailPage() {
           </div>
           <div className="text-right text-sm text-slate-400">
             <div className="flex items-center gap-2 justify-end mb-2">
+              <button
+                onClick={() => setLaunchDialogOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 rounded-lg text-sm transition-colors"
+                title="Launch agent session for this plan"
+              >
+                <Bot size={14} />
+                Launch Agent
+              </button>
               <ExportReport 
                 workspaceId={workspaceId!} 
                 planId={planId!} 
@@ -419,7 +429,7 @@ export function PlanDetailPage() {
         )}
         {activeTab === 'phases' && (
           <div className="space-y-6">
-            <PhaseListView steps={plan.steps || []} phases={plan.phases} defaultOpen />
+            <PhaseListView steps={plan.steps || []} phases={plan.phases} defaultOpen workspaceId={workspaceId} planId={planId} />
             {plan.matched_skills && plan.matched_skills.length > 0 && (
               <SkillMatchPanel matchedSkills={plan.matched_skills} phases={plan.phases} />
             )}
@@ -484,6 +494,15 @@ export function PlanDetailPage() {
           <AuditLogViewer workspaceId={workspaceId!} planId={planId!} />
         )}
       </div>
+
+      {workspaceId && planId && (
+        <LaunchAgentSessionDialog
+          open={launchDialogOpen}
+          onClose={() => setLaunchDialogOpen(false)}
+          workspaceId={workspaceId}
+          planId={planId}
+        />
+      )}
     </div>
   );
 }

@@ -138,6 +138,27 @@ working_dir = "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\server"
 # FALLBACK_API_HOST = "127.0.0.1"
 # FALLBACK_API_PORT = "3465"
 
+# ── CLI MCP server (standalone HTTP MCP for CLI agents) ──────────────────────
+
+[cli_mcp]
+# Set enabled = true to start the CLI MCP server on port 3466.
+# This is a standalone HTTP MCP server tailored for CLI agents running in
+# Interactive Terminal sessions. It shares the same SQLite database as the
+# main MCP server but omits VS Code-specific tools (memory_agent, memory_session,
+# memory_brainstorm, memory_terminal, memory_cartographer).
+enabled = false
+port    = 3466
+
+# Path to the server working directory containing dist/index-cli.js
+command     = "node"
+args        = ["dist/index-cli.js"]
+# working_dir = "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\server"
+
+# Optional environment variables injected into CLI MCP process.
+# [cli_mcp.env]
+# PM_CLI_MCP_HOST = "127.0.0.1"
+# PM_CLI_MCP_PORT = "3466"
+
 # ── Runtime output capture (subprocess stdout/stderr telemetry) ─────────────
 
 [runtime_output]

@@ -83,6 +83,29 @@ export const WORKSPACE_PARAMS: Record<string, ActionParamDef> = {
       { name: 'output_filename', type: 'string', description: 'Custom output filename' },
     ],
   },
+
+  generate_focused_workspace: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+      { name: 'plan_id', type: 'string', description: 'Plan ID' },
+    ],
+    optional: [
+      { name: 'files_allowed', type: 'string[]', description: 'Individual files to include in scope' },
+      { name: 'directories_allowed', type: 'string[]', description: 'Directories to include in scope' },
+      { name: 'base_workspace_path', type: 'string', description: 'Path to base .code-workspace to merge' },
+      { name: 'output_filename', type: 'string', description: 'Custom output filename' },
+      { name: 'session_id', type: 'string', description: 'Active session ID for scope registration' },
+    ],
+  },
+
+  list_focused_workspaces: {
+    required: [
+      { name: 'workspace_id', type: 'string', description: 'Workspace ID' },
+    ],
+    optional: [
+      { name: 'plan_id', type: 'string', description: 'Filter by plan ID' },
+    ],
+  },
 };
 
 // =============================================================================

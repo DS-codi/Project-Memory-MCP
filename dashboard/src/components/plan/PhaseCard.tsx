@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, CheckCircle2, Circle, Lock, ShieldCheck } from 'lucide-react';
+import { Bot, ChevronDown, ChevronRight, CheckCircle2, Circle, Lock, ShieldCheck } from 'lucide-react';
+import { LaunchAgentSessionDialog } from './LaunchAgentSessionDialog';
 import { cn } from '@/utils/cn';
 import { Badge } from '../common/Badge';
 import { ProgressBar } from '../common/ProgressBar';
@@ -36,14 +37,17 @@ interface PhaseCardProps {
   steps: PlanStep[];
   phaseMeta?: PlanPhase;
   defaultOpen?: boolean;
+  workspaceId?: string;
+  planId?: string;
 }
 
 // =============================================================================
 // Component
 // =============================================================================
 
-export function PhaseCard({ phaseName, steps, phaseMeta, defaultOpen = false }: PhaseCardProps) {
+export function PhaseCard({ phaseName, steps, phaseMeta, defaultOpen = false, workspaceId, planId }: PhaseCardProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [launchDialogOpen, setLaunchDialogOpen] = useState(false);
 
   const status = phaseMeta?.phase_status ?? computePhaseStatus(steps);
   const doneCount = steps.filter((s) => s.status === 'done').length;
@@ -51,36 +55,59 @@ export function PhaseCard({ phaseName, steps, phaseMeta, defaultOpen = false }: 
 
   return (
     <div className="border border-slate-700 rounded-lg overflow-hidden">
-      {/* Header */}
-      <button
-        type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-slate-900/60 hover:bg-slate-900/80 transition-colors text-left"
-      >
-        <div className="flex items-center gap-2 min-w-0">
-          {isOpen ? (
-            <ChevronDown size={16} className="text-slate-400 shrink-0" />
-          ) : (
-            <ChevronRight size={16} className="text-slate-400 shrink-0" />
-          )}
-          <h4 className="text-sm font-semibold text-white truncate">{phaseName}</h4>
-          <Badge variant={phaseStatusColors[status]}>
-            {phaseStatusIcons[status]} {status}
-          </Badge>
-        </div>
+      {/* Header row: expand-toggle button + optional launch button */}
+      <div className="flex items-stretch bg-slate-900/60 transition-colors">
+        <button
+          type="button"
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="flex-1 flex items-center justify-between gap-3 px-4 py-3 hover:bg-slate-900/80 transition-colors text-left"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            {isOpen ? (
+              <ChevronDown size={16} className="text-slate-400 shrink-0" />
+            ) : (
+              <ChevronRight size={16} className="text-slate-400 shrink-0" />
+            )}
+            <h4 className="text-sm font-semibold text-white truncate">{phaseName}</h4>
+            <Badge variant={phaseStatusColors[status]}>
+              {phaseStatusIcons[status]} {status}
+            </Badge>
+          </div>
 
-        <div className="flex items-center gap-3 shrink-0">
-          {/* Approval gate indicator */}
-          {phaseMeta?.approval_gate && (
-            <ApprovalGateIndicator gate={phaseMeta.approval_gate} />
-          )}
-          {/* Progress */}
-          <span className="text-xs text-slate-400">
-            {doneCount}/{totalCount}
-          </span>
-          <ProgressBar value={doneCount} max={totalCount} className="w-24" />
-        </div>
-      </button>
+          <div className="flex items-center gap-3 shrink-0">
+            {/* Approval gate indicator */}
+            {phaseMeta?.approval_gate && (
+              <ApprovalGateIndicator gate={phaseMeta.approval_gate} />
+            )}
+            {/* Progress */}
+            <span className="text-xs text-slate-400">
+              {doneCount}/{totalCount}
+            </span>
+            <ProgressBar value={doneCount} max={totalCount} className="w-24" />
+          </div>
+        </button>
+
+        {workspaceId && planId && (
+          <button
+            type="button"
+            onClick={() => setLaunchDialogOpen(true)}
+            className="px-3 border-l border-slate-700 text-slate-500 hover:text-emerald-400 hover:bg-slate-800 transition-colors"
+            title={`Launch agent session for phase: ${phaseName}`}
+          >
+            <Bot size={15} />
+          </button>
+        )}
+      </div>
+
+      {workspaceId && planId && (
+        <LaunchAgentSessionDialog
+          open={launchDialogOpen}
+          onClose={() => setLaunchDialogOpen(false)}
+          workspaceId={workspaceId}
+          planId={planId}
+          phase={phaseName}
+        />
+      )}
 
       {/* Expanded body */}
       {isOpen && (

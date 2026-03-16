@@ -1,5 +1,6 @@
 pub mod config;
 pub mod control;
+pub mod chatbot;
 pub mod cxxqt_bridge;
 pub mod events;
 pub mod gui_server;

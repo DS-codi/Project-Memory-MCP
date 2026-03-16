@@ -5,6 +5,11 @@ use crate::protocol::{CommandRequest, Message};
 use cxx_qt_lib::QString;
 use tokio::sync::mpsc::error::TrySendError;
 
+/// Maximum bytes to keep in the per-session display buffer.
+/// Once exceeded the oldest half is discarded to prevent unbounded heap growth
+/// (which causes RADAR_PRE_LEAK_64 → allocator failure → mutex-poison cascade → crash).
+const MAX_OUTPUT_BYTES: usize = 500_000;
+
 impl AppState {
     fn set_selected_session_lifecycle(&mut self) {
         for state in self.session_lifecycle_by_id.values_mut() {
@@ -277,6 +282,21 @@ impl AppState {
                 entry.push('\n');
             }
             entry.push_str(line);
+        }
+
+        // Cap the display buffer to prevent unbounded growth during long sessions.
+        if entry.len() > MAX_OUTPUT_BYTES {
+            let raw_offset = entry.len().saturating_sub(MAX_OUTPUT_BYTES / 2);
+            // Advance to the next UTF-8 char boundary so the slice never panics
+            // on multi-byte characters (emoji, Unicode arrows, etc.).
+            let keep_from = (raw_offset..=entry.len())
+                .find(|&i| entry.is_char_boundary(i))
+                .unwrap_or(entry.len());
+            let trimmed_start = entry[keep_from..]
+                .find('\n')
+                .map(|i| keep_from + i + 1)
+                .unwrap_or(entry.len());
+            *entry = format!("[...earlier output truncated...]\n{}", &entry[trimmed_start..]);
         }
 
         if self.selected_session_id == target {

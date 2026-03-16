@@ -39,7 +39,15 @@ export type EventType =
   | 'session_scope_conflict'
   | 'program_created'
   | 'program_updated'
-  | 'program_archived';
+  | 'program_archived'
+  | 'workspace_scope_changed';
+
+export interface WorkspaceScopeChangedPayload {
+  workspace_id: string;
+  plan_id: string;
+  file_path: string;
+  files_in_scope: string[];
+}
 
 export interface MCPEvent {
   id: string;
@@ -291,6 +299,15 @@ export const events = {
       type: 'program_archived',
       workspace_id: workspaceId,
       data: { program_id: programId },
+    });
+  },
+
+  workspaceScopeChanged: async (workspaceId: string, planId: string, payload: WorkspaceScopeChangedPayload) => {
+    await emitEvent({
+      type: 'workspace_scope_changed',
+      workspace_id: workspaceId,
+      plan_id: planId,
+      data: { file_path: payload.file_path, files_in_scope: payload.files_in_scope },
     });
   },
 };

@@ -788,6 +788,9 @@ impl ffi::TerminalApp {
                 // Pass --screen-reader only when explicitly enabled for Gemini.
                 // Copilot has no equivalent launch flag as of CLI v1.x.
                 screen_reader: provider == "gemini" && bridge_gemini_screen_reader,
+                // Route to CLI MCP server (port 3466) instead of the main VS Code
+                // MCP server (port 3457). No bridge property yet — defaults to false.
+                use_cli_mcp: false,
                 autonomy_budget: {
                     let cmds = if bridge_budget_max_commands > 0 {
                         Some(bridge_budget_max_commands)

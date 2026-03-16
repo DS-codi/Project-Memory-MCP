@@ -213,7 +213,8 @@ async fn ensure_ws_terminal_session(
         std::path::PathBuf::from(workspace_path)
     };
 
-    let session = spawn_conpty_raw_session("powershell.exe", &[], &cwd, &[], 200, 50)?;
+    let session = spawn_conpty_raw_session("pwsh.exe", &[], &cwd, &[], 200, 50)
+        .or_else(|_| spawn_conpty_raw_session("powershell.exe", &[], &cwd, &[], 200, 50))?;
     let (mut raw_rx, writer, master, child) = session.into_task_parts();
 
     {

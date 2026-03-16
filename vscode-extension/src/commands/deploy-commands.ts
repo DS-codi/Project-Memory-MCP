@@ -10,6 +10,14 @@ import { DefaultDeployer } from '../deployer/DefaultDeployer';
 import { notify } from '../utils/helpers';
 import { getDefaultAgentsRoot, getDefaultInstructionsRoot, getDefaultSkillsRoot } from '../utils/defaults';
 import { buildMissingSkillsSourceWarning, resolveSkillsSourceRoot } from '../utils/skillsSourceRoot';
+import { resolveDashboardPort } from '../utils/dashboard-port';
+
+interface DbAgentEntry {
+    name: string;
+    content: string;
+    is_permanent: boolean;
+    updated_at: string;
+}
 
 export function registerDeployCommands(
     context: vscode.ExtensionContext,
@@ -24,97 +32,126 @@ export function registerDeployCommands(
                 return;
             }
 
+            const workspacePath = workspaceFolders[0].uri.fsPath;
             const config = vscode.workspace.getConfiguration('projectMemory');
-            const configuredAgentsRoot = config.get<string>('agentsRoot');
-            const agentsRoot = configuredAgentsRoot || getDefaultAgentsRoot();
-            const instructionsRoot = config.get<string>('instructionsRoot') || getDefaultInstructionsRoot();
-            const defaultAgents = config.get<string[]>('defaultAgents') || [];
-            const defaultInstructions = config.get<string[]>('defaultInstructions') || [];
+            const dashboardPort = resolveDashboardPort(config);
 
-            if (!agentsRoot) {
-                vscode.window.showErrorMessage('Agents root not configured. Set projectMemory.agentsRoot in settings.');
+            // --- Attempt to load agents from the MCP database via the dashboard API ---
+            let dbAgents: DbAgentEntry[] = [];
+            try {
+                const response = await fetch(`http://localhost:${dashboardPort}/api/agents/db`);
+                if (response.ok) {
+                    const data = await response.json() as { agents: DbAgentEntry[] };
+                    dbAgents = data.agents ?? [];
+                }
+            } catch {
+                // Dashboard server not available — will fall back to filesystem
+            }
+
+            // --- Fallback: read .agent.md files from the configured agents root ---
+            if (dbAgents.length === 0) {
+                const configuredAgentsRoot = config.get<string>('agentsRoot');
+                const agentsRoot = configuredAgentsRoot || getDefaultAgentsRoot();
+                if (!agentsRoot) {
+                    vscode.window.showErrorMessage(
+                        'No agents found in database and agents root is not configured. Set projectMemory.agentsRoot in settings.'
+                    );
+                    return;
+                }
+                try {
+                    const allAgentFiles = fs.readdirSync(agentsRoot)
+                        .filter((f: string) => f.endsWith('.agent.md'));
+                    dbAgents = allAgentFiles.map((f: string) => ({
+                        name: f.replace('.agent.md', ''),
+                        content: fs.readFileSync(path.join(agentsRoot, f), 'utf-8'),
+                        is_permanent: false,
+                        updated_at: '',
+                    }));
+                } catch {
+                    vscode.window.showErrorMessage('Failed to load agents from the database or configured agents root.');
+                    return;
+                }
+            }
+
+            if (dbAgents.length === 0) {
+                vscode.window.showWarningMessage('No agents found to deploy.');
                 return;
             }
 
-            const workspacePath = workspaceFolders[0].uri.fsPath;
+            const defaultAgents = config.get<string[]>('defaultAgents') || [];
 
-            try {
-                const allAgentFiles = fs.readdirSync(agentsRoot)
-                    .filter((f: string) => f.endsWith('.agent.md'));
+            const items: vscode.QuickPickItem[] = dbAgents.map(a => {
+                // Extract description from YAML frontmatter if present
+                const descMatch = a.content.match(/^description:\s*['"]?(.+?)['"]?\s*$/m);
+                const description = descMatch
+                    ? descMatch[1].substring(0, 100)
+                    : (a.is_permanent ? 'Hub agent' : '');
+                return {
+                    label: a.name,
+                    description,
+                    detail: a.is_permanent ? '$(star-full) Permanent hub agent' : undefined,
+                    picked: defaultAgents.length === 0 || defaultAgents.includes(a.name) || a.is_permanent,
+                };
+            });
 
-                if (allAgentFiles.length === 0) {
-                    vscode.window.showWarningMessage('No agent files found in agents root');
-                    return;
-                }
+            const selectedItems = await vscode.window.showQuickPick(items, {
+                canPickMany: true,
+                placeHolder: 'Select agents to deploy to this workspace',
+                title: 'Deploy Hub Agents from Database',
+            });
 
-                const items: vscode.QuickPickItem[] = allAgentFiles.map((f: string) => {
-                    const name = f.replace('.agent.md', '');
-                    return {
-                        label: name,
-                        description: f,
-                        picked: defaultAgents.length === 0 || defaultAgents.includes(name)
-                    };
-                });
+            if (!selectedItems || selectedItems.length === 0) return;
 
-                const selectedItems = await vscode.window.showQuickPick(items, {
-                    canPickMany: true,
-                    placeHolder: 'Select agents to deploy',
-                    title: 'Deploy Agents'
-                });
+            const agentsTargetDir = path.join(workspacePath, '.github', 'agents');
+            fs.mkdirSync(agentsTargetDir, { recursive: true });
 
-                if (!selectedItems || selectedItems.length === 0) return;
-
-                const agentsTargetDir = path.join(workspacePath, '.github', 'agents');
-                fs.mkdirSync(agentsTargetDir, { recursive: true });
-
-                let agentsCopied = 0;
-                for (const item of selectedItems) {
-                    const file = `${item.label}.agent.md`;
-                    const sourcePath = path.join(agentsRoot, file);
-                    const targetPath = path.join(agentsTargetDir, file);
-                    fs.copyFileSync(sourcePath, targetPath);
-                    agentsCopied++;
-                }
-
-                let instructionsCopied = 0;
-                if (instructionsRoot && defaultInstructions.length > 0) {
-                    const instructionsTargetDir = path.join(workspacePath, '.github', 'instructions');
-                    fs.mkdirSync(instructionsTargetDir, { recursive: true });
-
-                    for (const instructionName of defaultInstructions) {
-                        const sourceFile = `${instructionName}.instructions.md`;
-                        const sourcePath = path.join(instructionsRoot, sourceFile);
-                        const targetPath = path.join(instructionsTargetDir, sourceFile);
-
-                        if (fs.existsSync(sourcePath)) {
-                            fs.copyFileSync(sourcePath, targetPath);
-                            instructionsCopied++;
-                        }
-                    }
-                }
-
-                dashboardProvider.postMessage({
-                    type: 'deploymentComplete',
-                    data: {
-                        type: 'agents',
-                        count: agentsCopied,
-                        instructionsCount: instructionsCopied,
-                        targetDir: agentsTargetDir
-                    }
-                });
-
-                const message = instructionsCopied > 0
-                    ? `Deployed ${agentsCopied} agent(s) and ${instructionsCopied} instruction(s)`
-                    : `Deployed ${agentsCopied} agent(s)`;
-
-                notify(message, 'Open Folder').then(selection => {
-                    if (selection === 'Open Folder') {
-                        vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(agentsTargetDir));
-                    }
-                });
-            } catch (error) {
-                vscode.window.showErrorMessage(`Failed to deploy agents: ${error}`);
+            let agentsCopied = 0;
+            for (const item of selectedItems) {
+                const agent = dbAgents.find(a => a.name === item.label);
+                if (!agent) continue;
+                const targetPath = path.join(agentsTargetDir, `${agent.name}.agent.md`);
+                fs.writeFileSync(targetPath, agent.content, 'utf-8');
+                agentsCopied++;
             }
+
+            // Also deploy any default instructions alongside hub agents
+            const instructionsRoot = config.get<string>('instructionsRoot') || getDefaultInstructionsRoot();
+            const defaultInstructions = config.get<string[]>('defaultInstructions') || [];
+            let instructionsCopied = 0;
+            if (instructionsRoot && defaultInstructions.length > 0) {
+                const instructionsTargetDir = path.join(workspacePath, '.github', 'instructions');
+                fs.mkdirSync(instructionsTargetDir, { recursive: true });
+                for (const instructionName of defaultInstructions) {
+                    const sourceFile = `${instructionName}.instructions.md`;
+                    const sourcePath = path.join(instructionsRoot, sourceFile);
+                    const targetPath = path.join(instructionsTargetDir, sourceFile);
+                    if (fs.existsSync(sourcePath)) {
+                        fs.copyFileSync(sourcePath, targetPath);
+                        instructionsCopied++;
+                    }
+                }
+            }
+
+            dashboardProvider.postMessage({
+                type: 'deploymentComplete',
+                data: {
+                    type: 'agents',
+                    count: agentsCopied,
+                    instructionsCount: instructionsCopied,
+                    targetDir: agentsTargetDir,
+                    source: 'database',
+                },
+            });
+
+            const message = instructionsCopied > 0
+                ? `Deployed ${agentsCopied} agent(s) and ${instructionsCopied} instruction(s) from database`
+                : `Deployed ${agentsCopied} agent(s) from database`;
+
+            notify(message, 'Open Folder').then(selection => {
+                if (selection === 'Open Folder') {
+                    vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(agentsTargetDir));
+                }
+            });
         }),
 
         vscode.commands.registerCommand('projectMemory.deploySkills', async () => {

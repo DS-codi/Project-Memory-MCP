@@ -25,13 +25,17 @@ import { InMemoryEventStore } from '@modelcontextprotocol/sdk/examples/shared/in
 import { getDataRoot, listDirs } from '../storage/db-store.js';
 import { isDataRootAccessible } from './data-root-liveness.js';
 import { listWorkspaces } from '../db/workspace-db.js';
+import { getPlansByWorkspace } from '../db/plan-db.js';
 import {
   handleMemoryCartographer,
   type CartographerAction,
   type MemoryCartographerParams,
-} from '../tools/memory_cartographer.js';
-import { storeContext } from '../db/context-db.js';
-import { run, queryOne, newId, nowIso } from '../db/query-helpers.js';
+} from '../tools/memory_cartographer.js';import { memoryWorkspace } from '../tools/consolidated/memory_workspace.js';
+import { memoryPlan } from '../tools/consolidated/memory_plan.js';
+import { memorySteps } from '../tools/consolidated/memory_steps.js';
+import { memoryContext } from '../tools/consolidated/memory_context.js';
+import { memoryAgent } from '../tools/consolidated/memory_agent.js';import { storeContext } from '../db/context-db.js';
+import { run, queryOne, queryAll, newId, nowIso } from '../db/query-helpers.js';
 import { getAllLiveSessions, getLiveSessionCount, getLiveSessionEntry, clearLiveSession } from '../tools/session-live-store.js';
 import { runMigrations, migrationStatus } from '../db/index.js';
 
@@ -420,6 +424,59 @@ export function createHttpApp(getServer: () => McpServer): Express {
     }
   });
 
+  // GET /admin/plans?workspace_id=xxx[&status=active|all] — plans with step counts
+  // Omitting status (or status=all) returns all non-archived plans.
+  app.get('/admin/plans', (req: Request, res: Response) => {
+    const wsId         = req.query.workspace_id as string | undefined;
+    const statusFilter = req.query.status       as string | undefined;
+    if (!wsId) {
+      res.status(400).json({ error: 'workspace_id query parameter is required' });
+      return;
+    }
+    try {
+      const opts = (!statusFilter || statusFilter === 'all') ? {} : { status: statusFilter };
+      const plans = getPlansByWorkspace(wsId, opts);
+      const result = plans.map(plan => {
+        const rows = queryAll<{ status: string; cnt: number }>(
+          'SELECT status, COUNT(*) as cnt FROM steps WHERE plan_id = ? GROUP BY status',
+          [plan.id]
+        );
+        const steps_total = rows.reduce((sum, r) => sum + Number(r.cnt), 0);
+        const steps_done  = rows.filter(r => r.status === 'done').reduce((sum, r) => sum + Number(r.cnt), 0);
+        const nextStep = queryOne<{ task: string; phase: string; status: string; assignee: string | null }>(
+          `SELECT s.task, COALESCE(ph.name, '') AS phase, s.status, s.assignee
+           FROM steps s
+           LEFT JOIN phases ph ON ph.id = s.phase_id
+           WHERE s.plan_id = ? AND s.status IN ('active', 'pending')
+           ORDER BY CASE s.status WHEN 'active' THEN 0 ELSE 1 END, s.order_index ASC
+           LIMIT 1`,
+          [plan.id]
+        );
+        return {
+          id:                     plan.id,
+          title:                  plan.title,
+          status:                 plan.status,
+          category:               plan.category,
+          priority:               plan.priority,
+          recommended_next_agent: plan.recommended_next_agent ?? null,
+          updated_at:             plan.updated_at,
+          workspace_id:           plan.workspace_id,
+          steps_done,
+          steps_total,
+          next_step_task:   nextStep?.task     ?? null,
+          next_step_phase:  nextStep?.phase    ?? null,
+          next_step_status: nextStep?.status   ?? null,
+          next_step_agent:  nextStep?.assignee ?? null,
+        };
+      });
+      res.json({ plans: result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[http] Error listing plans:', error);
+      res.status(500).json({ error: message });
+    }
+  });
+
   // ---- Admin: trigger memory_cartographer queries (for supervisor UI) ----
   app.post('/admin/memory_cartographer', async (req: Request, res: Response) => {
     const body = (req.body ?? {}) as Record<string, unknown>;
@@ -551,6 +608,49 @@ export function createHttpApp(getServer: () => McpServer): Express {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error('[http] Error running memory_cartographer:', error);
+      res.status(500).json({ error: message });
+    }
+  });
+
+  // ---- Admin: direct MCP tool call for chatbot (allowlisted tools only) ----
+  const CHATBOT_TOOL_ALLOWLIST = new Set([
+    'memory_workspace', 'memory_plan', 'memory_steps', 'memory_context', 'memory_agent',
+  ]);
+
+  app.post('/admin/mcp_call', async (req: Request, res: Response) => {
+    const body = req.body as { name?: string; arguments?: Record<string, unknown> };
+    const { name, arguments: args } = body;
+    if (!name || !CHATBOT_TOOL_ALLOWLIST.has(name)) {
+      res.status(400).json({ error: `Tool '${name ?? '(none)'}' not in chatbot allowlist` });
+      return;
+    }
+    try {
+      const params = (args ?? {}) as Record<string, unknown>;
+      let result: unknown;
+      switch (name) {
+        case 'memory_workspace':
+          result = await memoryWorkspace(params as unknown as Parameters<typeof memoryWorkspace>[0]);
+          break;
+        case 'memory_plan':
+          result = await memoryPlan(params as unknown as Parameters<typeof memoryPlan>[0]);
+          break;
+        case 'memory_steps':
+          result = await memorySteps(params as unknown as Parameters<typeof memorySteps>[0]);
+          break;
+        case 'memory_context':
+          result = await memoryContext(params as unknown as Parameters<typeof memoryContext>[0]);
+          break;
+        case 'memory_agent':
+          result = await memoryAgent(params as unknown as Parameters<typeof memoryAgent>[0]);
+          break;
+        default:
+          res.status(400).json({ error: `Tool '${name}' not in chatbot allowlist` });
+          return;
+      }
+      res.json({ result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[http] Error in /admin/mcp_call:', error);
       res.status(500).json({ error: message });
     }
   });
