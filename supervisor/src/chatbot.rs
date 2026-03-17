@@ -1,6 +1,9 @@
 //! AI chatbot module — handles communication with Gemini and GitHub Models,
 //! including MCP tool-calling loops for plan/workspace management.
 
+use std::error::Error as _;
+use std::time::Duration;
+
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -171,6 +174,36 @@ RULES:\n\
 - Be concise. Format plan reviews as bullet lists. Flag blockers with ⚠️.\n\
 - Step indices in plans are 0-based but displayed as 1-based to users.";
 
+fn build_chat_http_client() -> Result<Client, String> {
+    Client::builder()
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(60))
+        .user_agent("ProjectMemorySupervisor/0.1")
+        .build()
+        .map_err(|e| format!("Failed to create chatbot HTTP client: {e}"))
+}
+
+fn build_gemini_retry_client() -> Result<Client, String> {
+    Client::builder()
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(60))
+        .http1_only()
+        .user_agent("ProjectMemorySupervisor/0.1")
+        .build()
+        .map_err(|e| format!("Failed to create Gemini retry HTTP client: {e}"))
+}
+
+fn format_reqwest_error(prefix: &str, url: &str, error: &reqwest::Error) -> String {
+    let mut message = format!("{prefix} for url ({url}): {error}");
+    let mut source = error.source();
+    while let Some(err) = source {
+        message.push_str(": ");
+        message.push_str(&err.to_string());
+        source = err.source();
+    }
+    message
+}
+
 // ---------------------------------------------------------------------------
 // Provider implementations
 // ---------------------------------------------------------------------------
@@ -182,10 +215,11 @@ async fn call_gemini(
     messages: &[ChatMessage],
     tools: &[Value],
 ) -> Result<(String, Vec<(String, Value)>, Option<String>), String> {
-    let effective_model = if model.is_empty() { "gemini-2.0-flash" } else { model };
+    let effective_model = if model.trim().is_empty() { "gemini-2.0-flash" } else { model.trim() };
+    let trimmed_api_key = api_key.trim();
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
-        effective_model, api_key
+        effective_model, trimmed_api_key
     );
 
     let mut contents: Vec<Value> = Vec::new();
@@ -257,10 +291,32 @@ async fn call_gemini(
         body["systemInstruction"] = sys;
     }
 
-    let resp = client.post(&url).json(&body).send().await.map_err(|e| e.to_string())?;
+    let resp = match client.post(&url).json(&body).send().await {
+        Ok(resp) => resp,
+        Err(primary_error) => {
+            let retry_client = build_gemini_retry_client()?;
+            match retry_client.post(&url).json(&body).send().await {
+                Ok(resp) => resp,
+                Err(retry_error) => {
+                    return Err(format!(
+                        "Gemini request failed for model `{}`. Initial attempt: {}. Retry attempt: {}",
+                        effective_model,
+                        format_reqwest_error("error sending request", &url, &primary_error),
+                        format_reqwest_error("error sending request", &url, &retry_error),
+                    ));
+                }
+            }
+        }
+    };
     if !resp.status().is_success() {
+        let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
-        return Err(format!("Gemini API error: {text}"));
+        return Err(format!(
+            "Gemini API error for model `{}` ({}): {}",
+            effective_model,
+            status,
+            text,
+        ));
     }
     let json: Value = resp.json().await.map_err(|e| e.to_string())?;
 
@@ -375,11 +431,14 @@ async fn call_copilot(
 // ---------------------------------------------------------------------------
 
 pub async fn chat_loop(req: ChatRequest) -> Result<ChatResponse, String> {
-    if req.config.api_key.is_empty() {
+    let api_key = req.config.api_key.trim().to_string();
+    let model = req.config.model.trim().to_string();
+
+    if api_key.is_empty() {
         return Err("No API key configured. Please set an API key in the chatbot settings.".to_string());
     }
 
-    let client = Client::new();
+    let client = build_chat_http_client()?;
     let tools = tool_definitions();
     let mut tool_calls_made: Vec<String> = Vec::new();
 
@@ -405,8 +464,8 @@ pub async fn chat_loop(req: ChatRequest) -> Result<ChatResponse, String> {
 
     for _round in 0..8 {
         let (text, calls, raw_model_content) = match req.config.provider {
-            ChatbotProvider::Gemini  => call_gemini (&client, &req.config.api_key, &req.config.model, &messages, &tools).await?,
-            ChatbotProvider::Copilot => call_copilot(&client, &req.config.api_key, &req.config.model, &messages, &tools).await?,
+            ChatbotProvider::Gemini  => call_gemini (&client, &api_key, &model, &messages, &tools).await?,
+            ChatbotProvider::Copilot => call_copilot(&client, &api_key, &model, &messages, &tools).await?,
         };
 
         if calls.is_empty() {

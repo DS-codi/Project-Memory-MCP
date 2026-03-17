@@ -1097,6 +1097,31 @@ fn default_node_args() -> Vec<String> {
     vec!["dist/server.js".to_string()]
 }
 
+fn assign_working_dir_if_present(slot: &mut Option<PathBuf>, candidate: PathBuf, marker: &str) {
+    if slot.is_none() && candidate.join(marker).exists() {
+        *slot = Some(candidate);
+    }
+}
+
+/// Apply executable/workspace-relative defaults for managed subprocesses.
+///
+/// This lets the native supervisor launch directly without first depending on
+/// an external script to materialize every working directory into
+/// `supervisor.toml`.
+pub fn apply_workspace_relative_defaults(cfg: &mut SupervisorConfig, workspace_root: &Path) {
+    let server_dir = workspace_root.join("server");
+    assign_working_dir_if_present(&mut cfg.mcp.node.working_dir, server_dir.clone(), "dist/server.js");
+    assign_working_dir_if_present(
+        &mut cfg.fallback_api.working_dir,
+        server_dir.clone(),
+        "dist/fallback-rest-main.js",
+    );
+    assign_working_dir_if_present(&mut cfg.cli_mcp.working_dir, server_dir, "dist/index-cli.js");
+
+    let dashboard_dir = workspace_root.join("dashboard").join("server");
+    assign_working_dir_if_present(&mut cfg.dashboard.working_dir, dashboard_dir, "dist/index.js");
+}
+
 /// Fallback for %APPDATA% when the env var is absent (should rarely happen).
 #[cfg(target_os = "windows")]
 fn dirs_from_env() -> Option<String> {
@@ -1130,6 +1155,54 @@ mod tests {
         assert!(cfg.fallback_api.enabled, "fallback API should be enabled by default");
         assert_eq!(cfg.fallback_api.port, 3465);
         assert_eq!(cfg.fallback_api.args, vec!["dist/fallback-rest-main.js".to_string()]);
+    }
+
+    #[test]
+    fn workspace_relative_defaults_fill_missing_working_dirs() {
+        let dir = tempdir_like::TempDir::new().expect("temp dir");
+        let root = dir.path();
+        std::fs::create_dir_all(root.join("server").join("dist")).expect("mk server dist");
+        std::fs::create_dir_all(root.join("dashboard").join("server").join("dist"))
+            .expect("mk dashboard dist");
+        std::fs::write(root.join("server").join("dist").join("server.js"), "")
+            .expect("write server.js");
+        std::fs::write(
+            root.join("server").join("dist").join("fallback-rest-main.js"),
+            "",
+        )
+        .expect("write fallback-rest-main.js");
+        std::fs::write(root.join("server").join("dist").join("index-cli.js"), "")
+            .expect("write index-cli.js");
+        std::fs::write(
+            root.join("dashboard").join("server").join("dist").join("index.js"),
+            "",
+        )
+        .expect("write dashboard index.js");
+
+        let mut cfg = SupervisorConfig::default();
+        apply_workspace_relative_defaults(&mut cfg, root);
+
+        assert_eq!(cfg.mcp.node.working_dir, Some(root.join("server")));
+        assert_eq!(cfg.fallback_api.working_dir, Some(root.join("server")));
+        assert_eq!(cfg.cli_mcp.working_dir, Some(root.join("server")));
+        assert_eq!(
+            cfg.dashboard.working_dir,
+            Some(root.join("dashboard").join("server"))
+        );
+    }
+
+    #[test]
+    fn workspace_relative_defaults_preserve_explicit_working_dirs() {
+        let dir = tempdir_like::TempDir::new().expect("temp dir");
+        let root = dir.path();
+        let explicit = root.join("custom-server");
+
+        let mut cfg = SupervisorConfig::default();
+        cfg.cli_mcp.working_dir = Some(explicit.clone());
+
+        apply_workspace_relative_defaults(&mut cfg, root);
+
+        assert_eq!(cfg.cli_mcp.working_dir, Some(explicit));
     }
 
     #[test]
