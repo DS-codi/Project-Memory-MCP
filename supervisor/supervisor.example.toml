@@ -146,7 +146,7 @@ working_dir = "C:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP\\server"
 # Interactive Terminal sessions. It shares the same SQLite database as the
 # main MCP server but omits VS Code-specific tools (memory_agent, memory_session,
 # memory_brainstorm, memory_terminal, memory_cartographer).
-enabled = false
+enabled = true
 port    = 3466
 
 # Path to the server working directory containing dist/index-cli.js

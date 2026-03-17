@@ -351,8 +351,8 @@ async fn chatbot_config_set_handler(
             _         => ChatbotProvider::Gemini,
         };
     }
-    if let Some(m) = body.model   { cfg.model   = m; }
-    if let Some(k) = body.api_key { cfg.api_key = k; }
+    if let Some(m) = body.model   { cfg.model   = m.trim().to_string(); }
+    if let Some(k) = body.api_key { cfg.api_key = k.trim().to_string(); }
     let snapshot = cfg.clone();
     let save_path = state.chatbot_state_path.clone();
     drop(cfg); // release write lock before file I/O

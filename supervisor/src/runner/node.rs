@@ -6,6 +6,7 @@ use std::time::Duration;
 use anyhow::Context as _;
 use async_trait::async_trait;
 use tokio::process::Child;
+use tokio::time::{Instant, sleep};
 
 use crate::config::NodeRunnerConfig;
 use crate::control::registry::ServiceStatus;
@@ -55,6 +56,42 @@ impl NodeRunner {
         match self.state {
             RunnerInternalState::Running { pid, .. } => Some(pid),
             RunnerInternalState::Stopped => None,
+        }
+    }
+
+    async fn wait_for_startup_ready(&mut self) -> anyhow::Result<()> {
+        let deadline = Instant::now() + Duration::from_millis(self.health_timeout_ms.max(500));
+        let url = format!("http://127.0.0.1:{}/health", self.port);
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_millis(500))
+            .build()
+            .context("failed to build HTTP client for startup readiness")?;
+
+        loop {
+            match self.state {
+                RunnerInternalState::Running { ref mut child, .. } => {
+                    if let Some(status) = child.try_wait().context("failed to inspect child process during startup")? {
+                        self.state = RunnerInternalState::Stopped;
+                        anyhow::bail!(
+                            "process exited before becoming ready (code={:?}, success={})",
+                            status.code(),
+                            status.success()
+                        );
+                    }
+                }
+                RunnerInternalState::Stopped => anyhow::bail!("process stopped before becoming ready"),
+            }
+
+            match client.get(&url).send().await {
+                Ok(resp) if resp.status().is_success() => return Ok(()),
+                Ok(_) | Err(_) => {}
+            }
+
+            if Instant::now() >= deadline {
+                anyhow::bail!("service did not become ready on {} within {} ms", url, self.health_timeout_ms.max(500));
+            }
+
+            sleep(Duration::from_millis(100)).await;
         }
     }
 }
@@ -107,6 +144,21 @@ impl ServiceRunner for NodeRunner {
         crate::runner::job_object::adopt(pid);
 
         self.state = RunnerInternalState::Running { child, pid };
+        if let Err(error) = self.wait_for_startup_ready().await {
+            crate::runtime_output::emit(
+                &self.component_name,
+                "status",
+                format!("startup readiness failed: {error}"),
+            );
+            let _ = self.stop().await;
+            return Err(error);
+        }
+
+        crate::runtime_output::emit(
+            &self.component_name,
+            "status",
+            format!("startup ready on http://127.0.0.1:{}/health", self.port),
+        );
         Ok(())
     }
 

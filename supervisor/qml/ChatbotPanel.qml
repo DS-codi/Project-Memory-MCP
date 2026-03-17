@@ -21,6 +21,8 @@ Rectangle {
     property bool   keyConfigured: false
     property bool   showSettings:  false
 
+    readonly property int requestTimeoutMs: 20000
+
     readonly property var geminiModels:  ["gemini-3.1-pro-preview", "gemini-3-flash-preview", "gemini-3.1-flash-lite-preview", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-2.0-flash-lite"]
     readonly property var copilotModels: ["gpt-4o", "gpt-4.1", "gpt-4o-mini", "o3-mini", "claude-3.5-sonnet"]
 
@@ -46,8 +48,21 @@ Rectangle {
         }
     }
 
+    function appendAssistantMessage(text) {
+        messageModel.append({ role: "assistant", content: text, isToolCall: false })
+    }
+
+    function finishChatRequestWithError(text) {
+        panel.busy = false
+        appendAssistantMessage(text)
+        chatView.positionViewAtEnd()
+        if (chatWindow.visible)
+            popoutView.positionViewAtEnd()
+    }
+
     function fetchConfig() {
         var xhr = new XMLHttpRequest()
+        xhr.timeout = panel.requestTimeoutMs
         xhr.open("GET", panel.guiBaseUrl + "/chatbot/config")
         xhr.onreadystatechange = function() {
             if (xhr.readyState !== XMLHttpRequest.DONE || xhr.status !== 200) return
@@ -63,11 +78,18 @@ Rectangle {
                 modelCombo.currentIndex = modelIdx >= 0 ? modelIdx : (panel.provider === "gemini" ? 4 : 0)
             } catch(e) {}
         }
+        xhr.onerror = function() {
+            panel.keyConfigured = false
+        }
+        xhr.ontimeout = function() {
+            panel.keyConfigured = false
+        }
         xhr.send()
     }
 
     function fetchWorkspaces() {
         var xhr = new XMLHttpRequest()
+        xhr.timeout = panel.requestTimeoutMs
         xhr.open("GET", "http://127.0.0.1:3459/api/workspaces")
         xhr.onreadystatechange = function() {
             if (xhr.readyState !== XMLHttpRequest.DONE || xhr.status !== 200) return
@@ -83,6 +105,14 @@ Rectangle {
                 workspaceModel.clear()
                 workspaceModel.append({ id: "", name: "(no workspace)" })
             }
+        }
+        xhr.onerror = function() {
+            workspaceModel.clear()
+            workspaceModel.append({ id: "", name: "(no workspace)" })
+        }
+        xhr.ontimeout = function() {
+            workspaceModel.clear()
+            workspaceModel.append({ id: "", name: "(no workspace)" })
         }
         xhr.send()
     }
@@ -105,6 +135,7 @@ Rectangle {
         }
 
         var xhr = new XMLHttpRequest()
+        xhr.timeout = panel.requestTimeoutMs
         xhr.open("POST", panel.guiBaseUrl + "/chatbot/chat")
         xhr.setRequestHeader("Content-Type", "application/json")
         xhr.onreadystatechange = function() {
@@ -131,6 +162,14 @@ Rectangle {
                 }
             }
             chatView.positionViewAtEnd()
+            if (chatWindow.visible)
+                popoutView.positionViewAtEnd()
+        }
+        xhr.onerror = function() {
+            panel.finishChatRequestWithError("Chat request failed. The supervisor chatbot service may be unavailable.")
+        }
+        xhr.ontimeout = function() {
+            panel.finishChatRequestWithError("Chat request timed out. Please try again or restart the supervisor chatbot service.")
         }
         xhr.send(JSON.stringify({ messages: history, workspace_id: wsId === "" ? null : wsId }))
     }
@@ -142,6 +181,7 @@ Rectangle {
         if (apiKey !== "")   body.api_key  = apiKey
         if (Object.keys(body).length === 0) return
         var xhr = new XMLHttpRequest()
+        xhr.timeout = panel.requestTimeoutMs
         xhr.open("POST", panel.guiBaseUrl + "/chatbot/config")
         xhr.setRequestHeader("Content-Type", "application/json")
         xhr.onreadystatechange = function() {
@@ -153,6 +193,12 @@ Rectangle {
                     apiKeyField.text = ""
                 } catch(e) {}
             }
+        }
+        xhr.onerror = function() {
+            panel.keyConfigured = false
+        }
+        xhr.ontimeout = function() {
+            panel.keyConfigured = false
         }
         xhr.send(JSON.stringify(body))
     }

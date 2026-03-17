@@ -81,6 +81,35 @@ fn supervisor_mutex_name() -> String {
     format!("Local\\ProjectMemorySupervisor_{}", supervisor_instance_name())
 }
 
+fn is_workspace_root(path: &std::path::Path) -> bool {
+    path.join("server").join("dist").join("server.js").exists()
+        && path.join("server").join("dist").join("index-cli.js").exists()
+}
+
+fn detect_workspace_root() -> Option<PathBuf> {
+    let mut bases: Vec<PathBuf> = Vec::new();
+
+    if let Ok(current_exe) = std::env::current_exe() {
+        if let Some(parent) = current_exe.parent() {
+            bases.push(parent.to_path_buf());
+        }
+    }
+
+    if let Ok(current_dir) = std::env::current_dir() {
+        bases.push(current_dir);
+    }
+
+    for base in bases {
+        for candidate in base.ancestors() {
+            if is_workspace_root(candidate) {
+                return Some(candidate.to_path_buf());
+            }
+        }
+    }
+
+    None
+}
+
 // ── Entry points ────────────────────────────────────────────────────────────
 
 /// Supervisor entry point.  Qt owns the main thread; the entire async
@@ -274,6 +303,16 @@ async fn supervisor_main() {
 
     match config::load(&config_path) {
         Ok(mut cfg) => {
+            if let Some(workspace_root) = detect_workspace_root() {
+                config::apply_workspace_relative_defaults(&mut cfg, &workspace_root);
+                if cli.debug {
+                    eprintln!(
+                        "[debug] applied workspace-relative defaults from: {}",
+                        workspace_root.display()
+                    );
+                }
+            }
+
             println!("Supervisor starting...");
             if cli.debug {
                 eprintln!("[debug] resolved config: {cfg:#?}");

@@ -138,7 +138,7 @@ impl Registry {
     /// each initialised to [`ServiceStatus::Stopped`].
     pub fn new() -> Self {
         let mut services = HashMap::new();
-        for name in &["mcp", "interactive_terminal", "dashboard", "fallback_api"] {
+        for name in &["mcp", "interactive_terminal", "dashboard", "fallback_api", "cli_mcp"] {
             services.insert(
                 name.to_string(),
                 ServiceState {
@@ -517,7 +517,7 @@ mod tests {
     fn registry_starts_with_four_stopped_services() {
         let r = Registry::new();
         let states = r.service_states();
-        assert_eq!(states.len(), 4);
+        assert_eq!(states.len(), 5);
         for s in &states {
             assert!(matches!(s.status, ServiceStatus::Stopped), "expected Stopped for {}", s.name);
         }
@@ -536,7 +536,19 @@ mod tests {
         let mut r = Registry::new();
         r.set_service_status("unknown_service", ServiceStatus::Running);
         // Should not panic; registry still has all managed services.
-        assert_eq!(r.service_states().len(), 4);
+        assert_eq!(r.service_states().len(), 5);
+    }
+
+    #[test]
+    fn set_service_status_updates_cli_mcp_service() {
+        let mut r = Registry::new();
+        r.set_service_status("cli_mcp", ServiceStatus::Running);
+        let state = r
+            .service_states()
+            .into_iter()
+            .find(|s| s.name == "cli_mcp")
+            .unwrap();
+        assert!(matches!(state.status, ServiceStatus::Running));
     }
 
     #[test]
