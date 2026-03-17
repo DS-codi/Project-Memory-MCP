@@ -299,8 +299,12 @@ agentSessionRouter.post('/launch', async (req, res) => {
       });
       return;
     }
+    const resolvedSessionId = result.session_id || sessionId;
+    console.log(
+      `[agentSession] Session launched — id=${resolvedSessionId}, workspace=${workspaceId}, plan=${planId ?? 'none'}, provider=${provider}`
+    );
     res.json({
-      session_id: result.session_id || sessionId,
+      session_id: resolvedSessionId,
       accepted: true,
       state: result.state,
     });
