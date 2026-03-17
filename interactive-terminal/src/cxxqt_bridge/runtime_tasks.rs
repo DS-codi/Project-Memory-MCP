@@ -1345,6 +1345,13 @@ pub(crate) fn spawn_runtime_tasks(
                                                 &req_s.id, exit_code,
                                                 separated_stdout, separated_stderr,
                                             );
+                                            if s.agent_session_ids.contains(&req_s.session_id) {
+                                                crate::audit_log::emit_session_exited(
+                                                    &req_s.workspace_path,
+                                                    &req_s.session_id,
+                                                    exit_code,
+                                                );
+                                            }
                                         }
 
                                         match result {
@@ -1440,6 +1447,13 @@ pub(crate) fn spawn_runtime_tasks(
                                                 &req_s.id, Some(-1),
                                                 separated_stdout, separated_stderr,
                                             );
+                                            if s.agent_session_ids.contains(&req_s.session_id) {
+                                                crate::audit_log::emit_session_exited(
+                                                    &req_s.workspace_path,
+                                                    &req_s.session_id,
+                                                    Some(-1),
+                                                );
+                                            }
                                         }
                                         let persisted_path = match crate::output_persistence::write_command_output_file(
                                             &req_s,
@@ -1492,6 +1506,13 @@ pub(crate) fn spawn_runtime_tasks(
                                             &req.id, exit_code,
                                             separated_stdout, separated_stderr,
                                         );
+                                        if s.agent_session_ids.contains(&req.session_id) {
+                                            crate::audit_log::emit_session_exited(
+                                                &req.workspace_path,
+                                                &req.session_id,
+                                                exit_code,
+                                            );
+                                        }
                                     }
 
                                     match result {
@@ -1600,6 +1621,13 @@ pub(crate) fn spawn_runtime_tasks(
                                             &req.id, Some(-1),
                                             separated_stdout, separated_stderr,
                                         );
+                                        if s.agent_session_ids.contains(&req.session_id) {
+                                            crate::audit_log::emit_session_exited(
+                                                &req.workspace_path,
+                                                &req.session_id,
+                                                Some(-1),
+                                            );
+                                        }
                                     }
 
                                     // Persist output for killed process

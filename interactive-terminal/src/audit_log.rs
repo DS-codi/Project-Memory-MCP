@@ -46,6 +46,10 @@ pub enum LaunchEvent {
     LaunchDenied,
     LaunchCancelled,
     LaunchStarted,
+    /// Agent CLI session exited cleanly (exit_code == Some(0)).
+    SessionCompleted,
+    /// Agent CLI session exited with a non-zero code, was killed, or returned no exit code.
+    SessionExited,
 }
 
 /// A single structured audit entry.
@@ -82,6 +86,9 @@ pub struct AuditEntry {
     /// Human-readable denial reason, if applicable.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
+    /// Process exit code — only set for `session_completed` / `session_exited` events.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exit_code: Option<i32>,
 }
 
 // ─── Write helpers ────────────────────────────────────────────────────────────
@@ -201,6 +208,7 @@ pub fn emit_launch_requested(workspace_path: &str, context_json: &str, provider:
             terminal_session_id: None,
             risk_tier: None,
             reason: None,
+            exit_code: None,
         },
     );
 }
@@ -235,6 +243,7 @@ pub fn emit_launch_approved(
                 .filter(|s| !s.is_empty()),
             risk_tier: None,
             reason: None,
+            exit_code: None,
         },
     );
 }
@@ -262,6 +271,7 @@ pub fn emit_launch_started(
                 .filter(|s| !s.is_empty()),
             risk_tier: None,
             reason: None,
+            exit_code: None,
         },
     );
 }
@@ -292,6 +302,48 @@ pub fn emit_launch_denied(
             terminal_session_id: None,
             risk_tier: None,
             reason: reason.map(|s| s.to_string()).filter(|s| !s.is_empty()),
+            exit_code: None,
+        },
+    );
+}
+
+/// Emit a `session_completed` or `session_exited` event when a hosted agent CLI session ends.
+///
+/// Appends to the same `agent_launch_audit.jsonl` as the launch events, giving a
+/// full lifecycle record for every agent session in one file.
+///
+/// - `session_completed` — exit code 0 (clean exit)
+/// - `session_exited`    — any other outcome (non-zero, killed, or `None`)
+pub fn emit_session_exited(
+    workspace_path: &str,
+    session_id: &str,
+    exit_code: Option<i32>,
+) {
+    let event = if exit_code == Some(0) {
+        LaunchEvent::SessionCompleted
+    } else {
+        LaunchEvent::SessionExited
+    };
+    if exit_code != Some(0) {
+        eprintln!(
+            "[agent_session] session {session_id} exited — code: {exit_code:?}"
+        );
+    }
+    write_entry(
+        workspace_path,
+        &AuditEntry {
+            timestamp: iso_now(),
+            event,
+            provider: None,
+            autonomy_mode: None,
+            requesting_agent: None,
+            plan_id: None,
+            session_id: Some(session_id.to_string()),
+            context_pack_summary: None,
+            terminal_session_id: Some(session_id.to_string()),
+            risk_tier: None,
+            reason: None,
+            exit_code,
         },
     );
 }
@@ -322,6 +374,7 @@ pub fn emit_launch_cancelled(
             terminal_session_id: None,
             risk_tier: None,
             reason: None,
+            exit_code: None,
         },
     );
 }
