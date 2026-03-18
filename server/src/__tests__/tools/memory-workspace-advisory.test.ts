@@ -157,50 +157,18 @@ describe("memory_workspace 'info' — migration_advisories injection", () => {
 });
 
 // ===========================================================================
-// Tests: list action — migration_advisories injection
+// Tests: list action — no plan data in response
 // ===========================================================================
 
-describe("memory_workspace 'list' — migration_advisories injection", () => {
+describe("memory_workspace 'list' — no plan data or advisories in response", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('includes top-level migration_advisories when a workspace contains a legacy program plan', async () => {
+  it('never includes migration_advisories regardless of plan content', async () => {
     vi.spyOn(workspaceTools, 'listWorkspaces').mockResolvedValue({
       success: true,
       data: [makeWorkspaceMeta({ workspace_id: 'ws_list_1' }) as any],
-    });
-    vi.spyOn(workspaceTools, 'getWorkspacePlans').mockResolvedValue({
-      success: true,
-      data: [
-        makePlanState({
-          id: 'plan_legacy_list',
-          is_program: true,
-          schema_version: '1.0',
-          workspace_id: 'ws_list_1',
-        }) as any,
-      ],
-    });
-
-    const result = await memoryWorkspace({ action: 'list' });
-
-    expect(result.success).toBe(true);
-    if (result.data && result.data.action === 'list') {
-      const advisories = (result.data as any).migration_advisories;
-      expect(advisories).toBeDefined();
-      expect(advisories.length).toBeGreaterThan(0);
-      expect(advisories[0].plan_id).toBe('plan_legacy_list');
-    }
-  });
-
-  it('omits top-level migration_advisories key entirely when all plans are clean (no empty array)', async () => {
-    vi.spyOn(workspaceTools, 'listWorkspaces').mockResolvedValue({
-      success: true,
-      data: [makeWorkspaceMeta() as any],
-    });
-    vi.spyOn(workspaceTools, 'getWorkspacePlans').mockResolvedValue({
-      success: true,
-      data: [makePlanState() as any],
     });
 
     const result = await memoryWorkspace({ action: 'list' });
@@ -208,36 +176,6 @@ describe("memory_workspace 'list' — migration_advisories injection", () => {
     expect(result.success).toBe(true);
     if (result.data && result.data.action === 'list') {
       expect(result.data).not.toHaveProperty('migration_advisories');
-    }
-  });
-
-  it('aggregates advisories across multiple workspaces', async () => {
-    vi.spyOn(workspaceTools, 'listWorkspaces').mockResolvedValue({
-      success: true,
-      data: [
-        makeWorkspaceMeta({ workspace_id: 'ws_a' }) as any,
-        makeWorkspaceMeta({ workspace_id: 'ws_b' }) as any,
-      ],
-    });
-    // getWorkspacePlans is called once per workspace — alternate between legacy and clean
-    vi.spyOn(workspaceTools, 'getWorkspacePlans')
-      .mockResolvedValueOnce({
-        success: true,
-        data: [makePlanState({ id: 'plan_ws_a_legacy', is_program: true, schema_version: '1.0' }) as any],
-      })
-      .mockResolvedValueOnce({
-        success: true,
-        data: [makePlanState({ id: 'plan_ws_b_clean' }) as any],
-      });
-
-    const result = await memoryWorkspace({ action: 'list' });
-
-    expect(result.success).toBe(true);
-    if (result.data && result.data.action === 'list') {
-      const advisories = (result.data as any).migration_advisories;
-      expect(advisories).toBeDefined();
-      expect(advisories).toHaveLength(1);
-      expect(advisories[0].plan_id).toBe('plan_ws_a_legacy');
     }
   });
 });

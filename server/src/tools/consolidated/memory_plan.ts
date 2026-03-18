@@ -57,7 +57,7 @@ import type {
   DependencyType,
 } from '../../types/program-v2.types.js';
 
-export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate' | 'set_goals' | 'add_build_script' | 'list_build_scripts' | 'run_build_script' | 'delete_build_script' | 'create_from_template' | 'list_templates' | 'confirm' | 'summon_approval' | 'summon_cleanup_approval' | 'create_program' | 'add_plan_to_program' | 'upgrade_to_program' | 'list_program_plans' | 'export_plan' | 'link_to_program' | 'unlink_from_program' | 'set_plan_dependencies' | 'get_plan_dependencies' | 'set_plan_priority' | 'clone_plan' | 'merge_plans' | 'add_risk' | 'list_risks' | 'auto_detect_risks' | 'set_dependency' | 'get_dependencies' | 'migrate_programs' | 'pause_plan' | 'resume_plan' | 'set_workflow_mode' | 'get_workflow_mode';
+export type PlanAction = 'list' | 'get' | 'create' | 'update' | 'archive' | 'import' | 'find' | 'add_note' | 'delete' | 'consolidate' | 'set_goals' | 'add_build_script' | 'list_build_scripts' | 'run_build_script' | 'delete_build_script' | 'create_from_template' | 'list_templates' | 'confirm' | 'summon_approval' | 'summon_cleanup_approval' | 'create_program' | 'add_plan_to_program' | 'upgrade_to_program' | 'list_program_plans' | 'export_plan' | 'link_to_program' | 'unlink_from_program' | 'set_plan_dependencies' | 'get_plan_dependencies' | 'set_plan_priority' | 'clone_plan' | 'merge_plans' | 'add_risk' | 'list_risks' | 'auto_detect_risks' | 'set_dependency' | 'get_dependencies' | 'migrate_programs' | 'pause_plan' | 'resume_plan' | 'set_workflow_mode' | 'get_workflow_mode' | 'search';
 
 export interface MemoryPlanParams {
   action: PlanAction;
@@ -138,6 +138,13 @@ export interface MemoryPlanParams {
   target_plan_id_dep?: string;
   target_phase?: string;
   dependency_type?: DependencyType;
+  // Search params
+  query?: string;
+  search_entity_type?: 'program' | 'plan' | 'phase' | 'step';
+  search_status?: string;
+  search_phase?: string;
+  search_limit?: number;
+  search_include_archived?: boolean;
 }
 
 type PlanResult = 
@@ -220,7 +227,33 @@ type PlanResult =
   | { action: 'pause_plan'; data: { plan_id: string; status: string; paused_at_snapshot: import('../../types/plan.types.js').PausedAtSnapshot } }
   | { action: 'resume_plan'; data: { plan_id: string; status: string; step_index: number; phase: string } }
   | { action: 'set_workflow_mode'; data: planTools.SetWorkflowModeResult }
-  | { action: 'get_workflow_mode'; data: planTools.GetWorkflowModeResult };
+  | { action: 'get_workflow_mode'; data: planTools.GetWorkflowModeResult }
+  | { action: 'search'; data: PlanSearchResult };
+
+export interface PlanSearchHit {
+  entity_type: 'program' | 'plan' | 'phase' | 'step';
+  plan_id: string;
+  plan_title: string;
+  display: string;
+  snippet: string;
+  status?: string;
+  phase?: string;
+  assignee?: string;
+  step_index?: number;
+}
+
+export interface PlanSearchResult {
+  query: string;
+  workspace_id: string;
+  total_hits: number;
+  mode: 'summary' | 'detail';
+  detail_available?: boolean;
+  refine_hint?: string;
+  summary?: Array<{ entity_type: string; count: number; top_results: PlanSearchHit[] }>;
+  results?: PlanSearchHit[];
+  truncated?: boolean;
+  limit_applied?: number;
+}
 
 const PATH_LIKE_EXTENSIONS = new Set([
   '.ps1',
@@ -1795,10 +1828,186 @@ export async function memoryPlan(params: MemoryPlanParams): Promise<ToolResponse
       return { success: true, data: { action: 'get_workflow_mode', data: result.data! } };
     }
 
+    case 'search': {
+      if (!params.workspace_id) {
+        return { success: false, error: 'workspace_id is required for action: search' };
+      }
+      const query = (params.query ?? '').trim();
+      if (!query) {
+        return { success: false, error: 'query is required for action: search' };
+      }
+      const queryLower = query.toLowerCase();
+
+      const workspace = await fileStore.getWorkspace(params.workspace_id);
+      if (!workspace) {
+        return { success: false, error: `Workspace not found: ${params.workspace_id}` };
+      }
+
+      // Collect plan IDs to search
+      const planIds: string[] = [...workspace.active_plans];
+      if (params.search_include_archived) {
+        planIds.push(...(workspace.archived_plans ?? []));
+      }
+
+      function makeSnippet(text: string, q: string, maxLen = 120): string {
+        const idx = text.toLowerCase().indexOf(q);
+        if (idx < 0) return text.slice(0, maxLen) + (text.length > maxLen ? '…' : '');
+        const start = Math.max(0, idx - 30);
+        const end = Math.min(text.length, idx + q.length + 70);
+        return (start > 0 ? '…' : '') + text.slice(start, end) + (end < text.length ? '…' : '');
+      }
+
+      const hits: PlanSearchHit[] = [];
+
+      for (const planId of planIds) {
+        if (params.plan_id && planId !== params.plan_id) continue;
+        const state = await fileStore.getPlanState(params.workspace_id, planId);
+        if (!state) continue;
+
+        const entityType: 'program' | 'plan' = state.is_program ? 'program' : 'plan';
+
+        // Search plan/program-level fields
+        if (!params.search_entity_type || params.search_entity_type === entityType) {
+          const fields = [
+            state.title,
+            state.description,
+            ...(state.goals ?? []),
+            ...(state.success_criteria ?? []),
+            ...(state.pending_notes?.map(n => n.note) ?? []),
+          ].filter(Boolean) as string[];
+          const matchedField = fields.find(f => f.toLowerCase().includes(queryLower));
+          if (matchedField) {
+            hits.push({
+              entity_type: entityType,
+              plan_id: state.id,
+              plan_title: state.title,
+              display: state.title,
+              snippet: makeSnippet(matchedField, queryLower),
+              status: state.status,
+            });
+          }
+        }
+
+        // Search phases (distinct phase names derived from steps)
+        if (!params.search_entity_type || params.search_entity_type === 'phase') {
+          const seenPhases = new Set<string>();
+          for (const step of state.steps) {
+            if (seenPhases.has(step.phase)) continue;
+            seenPhases.add(step.phase);
+            if (!step.phase.toLowerCase().includes(queryLower)) continue;
+            if (params.search_phase && !step.phase.toLowerCase().includes(params.search_phase.toLowerCase())) continue;
+            hits.push({
+              entity_type: 'phase',
+              plan_id: state.id,
+              plan_title: state.title,
+              display: step.phase,
+              snippet: makeSnippet(step.phase, queryLower),
+              phase: step.phase,
+              status: state.status,
+            });
+          }
+        }
+
+        // Search individual steps
+        if (!params.search_entity_type || params.search_entity_type === 'step') {
+          for (const step of state.steps) {
+            if (params.search_status && step.status !== params.search_status) continue;
+            if (params.search_phase && !step.phase.toLowerCase().includes(params.search_phase.toLowerCase())) continue;
+            const fields = [step.task, step.notes ?? '', step.phase, step.assignee ?? ''].filter(Boolean);
+            const matchedField = fields.find(f => f.toLowerCase().includes(queryLower));
+            if (!matchedField) continue;
+            hits.push({
+              entity_type: 'step',
+              plan_id: state.id,
+              plan_title: state.title,
+              display: step.task,
+              snippet: makeSnippet(matchedField, queryLower),
+              status: step.status,
+              phase: step.phase,
+              assignee: step.assignee,
+              step_index: step.index,
+            });
+          }
+        }
+      }
+
+      const limit = Math.min(params.search_limit ?? 50, 200);
+      const isNarrowSearch = !!(params.search_entity_type || params.plan_id || params.search_status || params.search_phase);
+      const singleHit = hits.length === 1;
+
+      // Return detailed results when narrowed or auto-detail on single hit
+      if (isNarrowSearch || singleHit) {
+        const truncated = hits.length > limit;
+        return {
+          success: true,
+          data: {
+            action: 'search' as const,
+            data: {
+              query,
+              workspace_id: params.workspace_id,
+              total_hits: hits.length,
+              mode: 'detail' as const,
+              results: hits.slice(0, limit),
+              truncated,
+              limit_applied: limit,
+            } satisfies PlanSearchResult,
+          },
+        };
+      }
+
+      // Phase 1 summary — group by entity type and return top 3 per type
+      type EntityType = 'program' | 'plan' | 'phase' | 'step';
+      const byType = new Map<EntityType, PlanSearchHit[]>();
+      for (const h of hits) {
+        const arr = byType.get(h.entity_type) ?? [];
+        arr.push(h);
+        byType.set(h.entity_type, arr);
+      }
+
+      const summary = (Array.from(byType.entries()) as [EntityType, PlanSearchHit[]][]).map(
+        ([type, typeHits]) => ({ entity_type: type, count: typeHits.length, top_results: typeHits.slice(0, 3) })
+      );
+
+      const hintParts: string[] = [];
+      if (byType.has('plan') || byType.has('program')) {
+        hintParts.push('add search_entity_type:"plan" or "program" to see all matches of that type');
+      }
+      if (byType.has('step')) {
+        hintParts.push('add search_entity_type:"step" (optionally with search_status or search_phase) to see all step matches');
+      }
+      if (byType.has('phase')) {
+        hintParts.push('add search_entity_type:"phase" to see all phase matches');
+      }
+      const distinctPlanIds = [...new Set(hits.map(h => h.plan_id))];
+      if (distinctPlanIds.length === 1) {
+        hintParts.push(`add plan_id:"${distinctPlanIds[0]}" to scope to that plan`);
+      } else if (distinctPlanIds.length > 1) {
+        hintParts.push('add plan_id:"<id>" to scope to a specific plan');
+      }
+
+      return {
+        success: true,
+        data: {
+          action: 'search' as const,
+          data: {
+            query,
+            workspace_id: params.workspace_id,
+            total_hits: hits.length,
+            mode: 'summary' as const,
+            detail_available: hits.length > 0,
+            refine_hint: hintParts.length > 0
+              ? `To drill into results: ${hintParts.join('; or ')}.`
+              : 'No further refinement needed.',
+            summary,
+          } satisfies PlanSearchResult,
+        },
+      };
+    }
+
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, summon_approval, summon_cleanup_approval, create_program, add_plan_to_program, upgrade_to_program, list_program_plans, export_plan, link_to_program, unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans, add_risk, list_risks, auto_detect_risks, set_dependency, get_dependencies, migrate_programs, pause_plan, resume_plan, set_workflow_mode, get_workflow_mode`
+        error: `Unknown action: ${action}. Valid actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, summon_approval, summon_cleanup_approval, create_program, add_plan_to_program, upgrade_to_program, list_program_plans, export_plan, link_to_program, unlink_from_program, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans, add_risk, list_risks, auto_detect_risks, set_dependency, get_dependencies, migrate_programs, pause_plan, resume_plan, set_workflow_mode, get_workflow_mode, search`
       };
   }
 }

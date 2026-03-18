@@ -533,7 +533,7 @@ Rectangle {
                         Text {
                             id: chipLabel
                             anchors.centerIn: parent
-                            text: "\u2699 " + msgItem.content
+                            text: "\u25B8 " + msgItem.content
                             color: "#79c0ff"
                             font.pixelSize: 10
                         }
@@ -547,19 +547,26 @@ Rectangle {
                         anchors.left:       msgItem.role !== "user" ? parent.left        : undefined
                         anchors.rightMargin:  msgItem.role === "user" ? 4  : 0
                         anchors.leftMargin:   msgItem.role !== "user" ? 4  : 0
-                        width: Math.min(msgContent.implicitWidth + 16, (ListView.view ? ListView.view.width : 300) * 0.82)
-                        implicitHeight: msgContent.implicitHeight + 12
+                        width: Math.min((ListView.view ? ListView.view.width : 300) * 0.82,
+                                        msgItem.role === "user" ? msgContent.contentWidth + 32 : (ListView.view ? ListView.view.width : 300) * 0.82)
+                        implicitHeight: msgContent.contentHeight + 16
                         radius: 8
                         color: msgItem.role === "user" ? "#1f6feb" : "#21262d"
                         border.color: msgItem.role === "user" ? "#388bfd" : "#30363d"
 
-                        Text {
+                        TextEdit {
                             id: msgContent
                             anchors { fill: parent; margins: 8 }
                             text: msgItem.content
                             color: "#c9d1d9"
                             font.pixelSize: 12
-                            wrapMode: Text.Wrap
+                            wrapMode: TextEdit.Wrap
+                            readOnly: true
+                            selectByMouse: true
+                            selectedTextColor: "#0d1117"
+                            selectionColor: "#79c0ff"
+                            // Suppress the default white background the TextEdit control draws
+                            background: null
                         }
                     }
                 }
@@ -680,18 +687,24 @@ Rectangle {
                             anchors.left:       popoutMsg.role !== "user" ? parent.left        : undefined
                             anchors.rightMargin:  popoutMsg.role === "user" ? 4  : 0
                             anchors.leftMargin:   popoutMsg.role !== "user" ? 4  : 0
-                            width: Math.min(popoutText.implicitWidth + 16, (ListView.view ? ListView.view.width : 300) * 0.82)
-                            height: popoutText.implicitHeight + 12
+                            width: Math.min((ListView.view ? ListView.view.width : 300) * 0.82,
+                                            popoutMsg.role === "user" ? popoutText.contentWidth + 32 : (ListView.view ? ListView.view.width : 300) * 0.82)
+                            height: popoutText.contentHeight + 16
                             radius: 8
                             color: popoutMsg.role === "user" ? "#1f6feb" : "#21262d"
                             border.color: popoutMsg.role === "user" ? "#388bfd" : "#30363d"
-                            Text {
+                            TextEdit {
                                 id: popoutText
                                 anchors { fill: parent; margins: 8 }
                                 text: popoutMsg.content
                                 color: "#c9d1d9"
                                 font.pixelSize: 12
-                                wrapMode: Text.Wrap
+                                wrapMode: TextEdit.Wrap
+                                readOnly: true
+                                selectByMouse: true
+                                selectedTextColor: "#0d1117"
+                                selectionColor: "#79c0ff"
+                                background: null
                             }
                         }
                     }

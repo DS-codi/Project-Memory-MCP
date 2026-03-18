@@ -44,9 +44,19 @@ export interface MemoryWorkspaceParams {
   session_id?: string;               // for generate_focused_workspace (optional registry update)
 }
 
+interface PlanInfoSummary {
+  plan_id: string;
+  title: string;
+  status: string;
+  current_phase: string;
+  steps_done: number;
+  steps_total: number;
+  last_updated: string;
+}
+
 interface WorkspaceInfoResult {
   workspace: WorkspaceMeta;
-  plans: PlanState[];
+  plans: PlanInfoSummary[];
   active_plans: number;
   archived_plans: number;
   hierarchy?: WorkspaceHierarchyInfo;
@@ -57,7 +67,7 @@ type HierarchicalWorkspaceMeta = WorkspaceMeta & { children?: WorkspaceMeta[] };
 
 type WorkspaceResult = 
   | { action: 'register'; data: { workspace: WorkspaceMeta; first_time: boolean; indexed: boolean; profile?: WorkspaceProfile; overlap_detected?: boolean; overlaps?: WorkspaceOverlapInfo[]; message?: string } }
-  | { action: 'list'; data: WorkspaceMeta[] | HierarchicalWorkspaceMeta[]; migration_advisories?: MigrationAdvisory[] }
+  | { action: 'list'; data: WorkspaceMeta[] | HierarchicalWorkspaceMeta[] }
   | { action: 'info'; data: WorkspaceInfoResult }
   | { action: 'reindex'; data: { workspace_id: string; previous_profile?: WorkspaceProfile; new_profile: WorkspaceProfile; changes: object } }
   | { action: 'merge'; data: MergeResult }
@@ -252,13 +262,6 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
         }
       }
 
-      // Batch-load plans per workspace and detect migration advisories
-      const listPlanResults = await Promise.all(
-        result.data!.map(ws => workspaceTools.getWorkspacePlans({ workspace_id: ws.workspace_id }))
-      );
-      const listAllPlans = listPlanResults.flatMap(r => r && r.success && r.data ? r.data : []);
-      const listAdvisories = detectMigrationAdvisories(listAllPlans);
-
       // Hierarchical grouping: nest children under their parents
       if (params.hierarchical) {
         const allWorkspaces = result.data!;
@@ -295,7 +298,6 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
           data: {
             action: 'list',
             data: hierarchicalList,
-            ...(listAdvisories.length > 0 ? { migration_advisories: listAdvisories } : {})
           }
         };
       }
@@ -305,7 +307,6 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
         data: {
           action: 'list',
           data: result.data!,
-          ...(listAdvisories.length > 0 ? { migration_advisories: listAdvisories } : {})
         }
       };
     }
@@ -350,13 +351,22 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
       // Get hierarchy data (parent + children)
       const hierarchy = await getWorkspaceHierarchy(infoWorkspaceId);
 
+      const planSummaries: PlanInfoSummary[] = plans.map(p => ({
+        plan_id: p.id,
+        title: p.title,
+        status: p.status,
+        current_phase: p.current_phase,
+        steps_done: p.steps.filter((s: { status: string }) => s.status === 'done').length,
+        steps_total: p.steps.length,
+        last_updated: p.updated_at,
+      }));
       return {
         success: true,
         data: {
           action: 'info',
           data: {
             workspace,
-            plans,
+            plans: planSummaries,
             active_plans: activePlans.length,
             archived_plans: archivedPlans.length,
             hierarchy,
