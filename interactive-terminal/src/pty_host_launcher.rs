@@ -8,6 +8,7 @@
 /// Default IPC port used by both the pty-host server and the client connector.
 ///
 /// Must match what `pty-host` defaults to (`--ipc-port`).
+#[allow(dead_code)]
 pub const PTY_HOST_IPC_PORT: u16 = 9102;
 
 #[cfg(feature = "pty-host")]

@@ -72,7 +72,11 @@ export class TerminalWsService {
 
     this.onStatus?.("connecting");
 
-    const url = `ws://${cfg.host}:${cfg.wsPort}/ws`;
+    // In browser (not Capacitor native), route through Vite dev-server proxy
+    const isBrowser = !(window as any).Capacitor?.isNativePlatform?.();
+    const url = isBrowser
+      ? `ws://${window.location.host}/ws`
+      : `ws://${cfg.host}:${cfg.wsPort}/ws`;
     this.ws = new WebSocket(url);
 
     this.ws.onopen = () => {

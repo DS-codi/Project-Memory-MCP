@@ -5,7 +5,7 @@ const API_BASE = '/api';
 export interface LaunchAgentSessionParams {
   workspaceId: string;
   planId: string;
-  provider: 'gemini' | 'copilot';
+  provider: 'gemini' | 'copilot' | 'claude';
   phase?: string;
   stepIndex?: number;
   stepTask?: string;

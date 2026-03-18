@@ -12,6 +12,7 @@ Rectangle {
 
     property string mcpBaseUrl:  ""
     property string dashBaseUrl: ""
+    property string guiBaseUrl:  "http://127.0.0.1:3464"
     property int    mcpPort:     0
 
     property bool   expanded:   false
@@ -25,7 +26,12 @@ Rectangle {
     Layout.fillHeight: true
     implicitWidth: expanded ? expandedPanelWidth : 44
 
-    Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+    // Guard prevents the Behavior from animating the initial 0 → 44 transition
+    // that occurs during component construction, which caused a startup layout flash.
+    property bool _animReady: false
+    Component.onCompleted: _animReady = true
+
+    Behavior on implicitWidth { enabled: panel._animReady; NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
     Behavior on border.color  { ColorAnimation  { duration: 120 } }
 
     // ── Data ────────────────────────────────────────────────────────────────
@@ -534,6 +540,55 @@ Rectangle {
                                             font.pixelSize: 12; font.bold: true
                                             color: launchRect.launchState === "ok"    ? "#3fb950" :
                                                    launchRect.launchState === "error" ? "#f85149" : "#a371f7"
+                                        }
+                                    }
+
+                                    // ── Launch Claude CLI terminal session ──
+                                    Rectangle {
+                                        id: claudeLaunchRect
+                                        Layout.fillWidth: true; implicitHeight: 30; radius: 6
+                                        property string launchState: "idle"
+                                        color: claudeBtn.pressed       ? "#1c1008" :
+                                               claudeBtn.containsMouse ? "#251508" : "#160c00"
+                                        border.color: claudeLaunchRect.launchState === "ok"    ? "#3fb950" :
+                                                      claudeLaunchRect.launchState === "error" ? "#f85149" : "#d97706"
+                                        border.width: 1
+                                        Behavior on color        { ColorAnimation { duration: 80 } }
+                                        Behavior on border.color { ColorAnimation { duration: 120 } }
+                                        MouseArea {
+                                            id: claudeBtn
+                                            anchors.fill: parent
+                                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                            enabled: claudeLaunchRect.launchState !== "sending"
+                                            onClicked: {
+                                                claudeLaunchRect.launchState = "sending"
+                                                var xhr = new XMLHttpRequest()
+                                                xhr.open("POST", panel.guiBaseUrl + "/terminal/launch-claude")
+                                                xhr.setRequestHeader("Content-Type", "application/json")
+                                                xhr.onreadystatechange = function() {
+                                                    if (xhr.readyState !== XMLHttpRequest.DONE) return
+                                                    claudeLaunchRect.launchState = xhr.status === 200 ? "ok" : "error"
+                                                    claudeResetTimer.restart()
+                                                }
+                                                xhr.send(JSON.stringify({
+                                                    workspace_id: planCard.workspaceId,
+                                                    plan_id:      planCard.planId
+                                                }))
+                                            }
+                                        }
+                                        Timer {
+                                            id: claudeResetTimer; interval: 3000
+                                            onTriggered: claudeLaunchRect.launchState = "idle"
+                                        }
+                                        Label {
+                                            anchors.centerIn: parent
+                                            text: claudeLaunchRect.launchState === "sending" ? "Launching..." :
+                                                  claudeLaunchRect.launchState === "ok"      ? "Launched"     :
+                                                  claudeLaunchRect.launchState === "error"   ? "Failed"       :
+                                                                                               "Launch Claude CLI"
+                                            font.pixelSize: 12; font.bold: true
+                                            color: claudeLaunchRect.launchState === "ok"    ? "#3fb950" :
+                                                   claudeLaunchRect.launchState === "error" ? "#f85149" : "#d97706"
                                         }
                                     }
                                 }

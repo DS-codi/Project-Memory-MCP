@@ -84,7 +84,7 @@
 
 [CmdletBinding()]
 param(
-    [ValidateSet("Server", "FallbackServer", "Extension", "Container", "Supervisor", "InteractiveTerminal", "Dashboard", "GuiForms", "InstallWizard", "All", "--help")]
+    [ValidateSet("Server", "FallbackServer", "Extension", "Container", "Supervisor", "InteractiveTerminal", "Dashboard", "GuiForms", "InstallWizard", "Mobile", "All", "--help")]
     [string[]]$Component = @("All"),
 
     [switch]$InstallOnly,
@@ -327,7 +327,7 @@ $Root = $PSScriptRoot
 
 # Normalise component list
 if ($Component -contains "All") {
-    $Components = @("Supervisor", "GuiForms", "InteractiveTerminal", "Server", "Dashboard", "Extension")
+    $Components = @("Supervisor", "GuiForms", "InteractiveTerminal", "Server", "Dashboard", "Mobile", "Extension")
 } else {
     $Components = $Component
 }
@@ -776,6 +776,20 @@ function Install-Dashboard {
 # Container
 # ──────────────────────────────────────────────────────────────
 
+function Install-Mobile {
+    Set-CurrentComponent 'Mobile'
+    Write-Step "Mobile app (SolidJS + Capacitor)"
+    Invoke-CheckedCommand -Description 'install.ps1 -Component Mobile' `
+        -FilePath 'pwsh' `
+        -Arguments (@('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $CanonicalInstallScript, '-Component', 'Mobile') + (Get-InstallFlags)) `
+        -WorkingDirectory $Root
+    Write-Ok "Mobile app built → mobile/dist"
+}
+
+# ──────────────────────────────────────────────────────────────
+# Container
+# ──────────────────────────────────────────────────────────────
+
 function Install-Container {
     Set-CurrentComponent 'Container'
     Write-Step "Container (podman)"
@@ -810,6 +824,7 @@ foreach ($comp in $Components) {
         "Server"              { Install-Server }
         "FallbackServer"      { Install-FallbackServer }
         "Dashboard"           { Install-Dashboard }
+        "Mobile"              { Install-Mobile }
         "Extension"           { Install-Extension }
         "Container"           { Install-Container }
     }

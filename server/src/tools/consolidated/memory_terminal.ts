@@ -89,7 +89,7 @@ export interface SpawnCliSessionContext {
 }
 
 interface NormalizedSpawnCliSessionPayload {
-  provider: 'gemini' | 'copilot';
+  provider: 'gemini' | 'copilot' | 'claude';
   cwd: string;
   prompt?: string;
   context: SpawnCliSessionContext;
@@ -486,15 +486,15 @@ function normalizeSpawnCliSessionPayload(
   if (!params.provider || !params.provider.trim()) {
     return {
       error:
-        'provider is required for action: spawn_cli_session (expected gemini or copilot)',
+        'provider is required for action: spawn_cli_session (expected gemini, copilot, or claude)',
     };
   }
 
   const provider = normalizeProviderToken(params.provider);
-  if (provider !== 'gemini' && provider !== 'copilot') {
+  if (provider !== 'gemini' && provider !== 'copilot' && provider !== 'claude') {
     return {
       error:
-        `Invalid provider for spawn_cli_session: "${params.provider}". Use gemini or copilot.`,
+        `Invalid provider for spawn_cli_session: "${params.provider}". Use gemini, copilot, or claude.`,
     };
   }
 
@@ -532,7 +532,7 @@ function normalizeSpawnCliSessionPayload(
 
   return {
     payload: {
-      provider: provider as 'gemini' | 'copilot',
+      provider: provider as 'gemini' | 'copilot' | 'claude',
       cwd,
       prompt,
       context,

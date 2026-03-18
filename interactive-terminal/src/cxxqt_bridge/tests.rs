@@ -44,6 +44,7 @@ fn test_state() -> AppState {
         ws_terminal_tx: None,
         gemini_session_ids: HashSet::new(),
         copilot_session_ids: HashSet::new(),
+        claude_session_ids: HashSet::new(),
         agent_session_ids: HashSet::new(),
         agent_session_meta: HashMap::new(),
         allowlist_patterns: Vec::new(),
@@ -73,6 +74,7 @@ fn test_state_with_repo(repo_root: PathBuf) -> AppState {
         ws_terminal_tx: None,
         gemini_session_ids: HashSet::new(),
         copilot_session_ids: HashSet::new(),
+        claude_session_ids: HashSet::new(),
         agent_session_ids: HashSet::new(),
         agent_session_meta: HashMap::new(),
         allowlist_patterns: Vec::new(),
@@ -423,6 +425,7 @@ fn register_provider_session_normalizes_paths_and_skips_unknown_provider() {
     state.register_provider_session(&unknown_session_id, "claude");
     assert!(!state.gemini_session_ids.contains(&unknown_session_id));
     assert!(!state.copilot_session_ids.contains(&unknown_session_id));
+    assert!(state.claude_session_ids.contains(&unknown_session_id));
 }
 
 #[test]

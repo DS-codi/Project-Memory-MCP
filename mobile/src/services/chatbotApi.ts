@@ -8,6 +8,10 @@ export interface ChatRequest {
 }
 
 async function getBaseUrl(): Promise<string> {
+  // In browser (not Capacitor native) use relative URLs — Vite proxies to localhost:3464
+  if (!(window as any).Capacitor?.isNativePlatform?.()) {
+    return "";
+  }
   const cfg = await getServerConfig();
   if (!cfg) throw new Error("No server config");
   return `http://${cfg.host}:${cfg.httpPort}`;
@@ -20,26 +24,20 @@ async function buildHeaders(): Promise<Record<string, string>> {
   return h;
 }
 
-/** POST /chatbot/chat — 5-minute timeout */
-export async function sendMessage(req: ChatRequest): Promise<ChatResponse> {
+/** POST /chatbot/chat */
+export async function sendMessage(req: ChatRequest, signal?: AbortSignal): Promise<ChatResponse> {
   const [base, headers] = await Promise.all([getBaseUrl(), buildHeaders()]);
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000);
-  try {
-    const res = await fetch(`${base}/chatbot/chat`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(req),
-      signal: controller.signal,
-    });
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      throw new Error(`HTTP ${res.status}: ${body || res.statusText}`);
-    }
-    return res.json() as Promise<ChatResponse>;
-  } finally {
-    clearTimeout(timeout);
+  const res = await fetch(`${base}/chatbot/chat`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(req),
+    signal,
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status}: ${body || res.statusText}`);
   }
+  return res.json() as Promise<ChatResponse>;
 }
 
 /** GET /chatbot/status/:id */

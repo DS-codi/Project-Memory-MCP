@@ -19,6 +19,8 @@ Rectangle {
     property string workingDir: ""
     property string contextInfo: ""
     property string requestId: ""
+    property var terminalApp: null
+    property var declineDialog: null
 
     // --- appearance ----------------------------------------------------------
     color: "#2d2d2d"
@@ -117,7 +119,7 @@ Rectangle {
                     radius: 4
                 }
 
-                onClicked: terminalApp.approveCommand(card.requestId)
+                onClicked: card.terminalApp.approveCommand(card.requestId)
             }
 
             Button {
@@ -142,7 +144,7 @@ Rectangle {
                 }
 
                 onClicked: {
-                    declineDialog.open(card.requestId, card.commandText)
+                    card.declineDialog.open(card.requestId, card.commandText)
                 }
             }
         }

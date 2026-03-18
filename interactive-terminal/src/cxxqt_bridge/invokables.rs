@@ -30,6 +30,7 @@ fn normalize_provider_for_prefill(value: &str) -> &'static str {
     match normalized.as_str() {
         "gemini" | "gemini.cmd" => "gemini",
         "copilot" | "copilot.cmd" => "copilot",
+        "claude" | "claude.cmd" => "claude",
         _ => "",
     }
 }
@@ -87,6 +88,17 @@ fn copilot_tab_launch_command() -> &'static str {
 #[cfg(not(target_os = "windows"))]
 fn copilot_tab_launch_command() -> &'static str {
     "copilot"
+}
+
+#[cfg(target_os = "windows")]
+fn claude_tab_launch_command() -> &'static str {
+    // Prefer command-resolution through Get-Command so it works for npm-installed shims.
+    "if (Get-Command claude -ErrorAction SilentlyContinue) { claude } elseif (Get-Command claude.cmd -ErrorAction SilentlyContinue) { claude.cmd } else { Write-Error 'Claude CLI not found in PATH (expected claude from @anthropic-ai/claude-code).'; }"
+}
+
+#[cfg(not(target_os = "windows"))]
+fn claude_tab_launch_command() -> &'static str {
+    "claude"
 }
 
 impl ffi::TerminalApp {
@@ -1369,6 +1381,84 @@ impl ffi::TerminalApp {
         self.as_mut().set_run_commands_in_window(previous_run_in_window);
 
         launched
+    }
+
+    pub fn launch_claude_in_tab(mut self: Pin<&mut Self>) -> bool {
+        // Open Claude CLI (Anthropic) in a brand-new dedicated session.
+        // Injects ANTHROPIC_API_KEY if a stored key is available.
+        let state_arc = self.rust().state.clone();
+        let (session_id, count, json, tabs_json) = {
+            let mut state = state_arc.lock().unwrap();
+            let session_id = state.create_session();
+            state.register_provider_session(&session_id, "claude");
+            let count = state.selected_pending_count();
+            let json = state.pending_commands_to_json();
+            let tabs_json = state.session_tabs_to_json();
+            (session_id, count, json, tabs_json)
+        };
+        self.as_mut()
+            .set_current_session_id(QString::from(&session_id));
+        self.as_mut().set_pending_count(count);
+        self.as_mut().set_pending_commands_json(json);
+        self.as_mut().set_session_tabs_json(tabs_json);
+        Self::append_startup_banner(&mut self, &session_id);
+        Self::append_output_line(
+            &mut self,
+            "[claude] launching Claude CLI in the selected tab",
+        );
+
+        let previous_run_in_window = *self.as_ref().run_commands_in_window();
+        self.as_mut().set_run_commands_in_window(false);
+
+        // Inject ANTHROPIC_API_KEY if a stored key is available.
+        if let Some(stored_key) = crate::system_tray::load_claude_api_key() {
+            std::env::set_var("ANTHROPIC_API_KEY", &stored_key);
+        }
+
+        let launched = Self::run_command_impl(
+            self.as_mut(),
+            QString::from(claude_tab_launch_command()),
+            86400,
+        );
+        self.as_mut().set_run_commands_in_window(previous_run_in_window);
+
+        launched
+    }
+
+    pub fn set_claude_api_key(mut self: Pin<&mut Self>, api_key: QString) -> bool {
+        let api_key = api_key.to_string();
+        match crate::system_tray::save_claude_api_key(&api_key) {
+            Ok(()) => {
+                self.as_mut().set_claude_key_present(true);
+                self.as_mut().set_status_text(QString::from(
+                    "Claude API key saved to local settings",
+                ));
+                true
+            }
+            Err(error) => {
+                self.as_mut()
+                    .set_status_text(QString::from(&format!("Failed to save Claude API key: {error}")));
+                false
+            }
+        }
+    }
+
+    pub fn clear_claude_api_key(mut self: Pin<&mut Self>) -> bool {
+        match crate::system_tray::clear_claude_api_key() {
+            Ok(()) => {
+                self.as_mut().set_claude_key_present(false);
+                self.as_mut().set_status_text(QString::from(
+                    "Claude API key removed from local settings",
+                ));
+                true
+            }
+            Err(error) => {
+                self.as_mut().set_status_text(QString::from(&format!(
+                    "Failed to clear Claude API key: {error}"
+                )));
+                false
+            }
+        }
     }
 
     pub fn clear_output(mut self: Pin<&mut Self>) {

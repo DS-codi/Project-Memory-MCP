@@ -73,6 +73,10 @@ pub mod ffi {
         #[qproperty(QString, dashboard_runtime, cxx_name = "dashboardRuntime")]
         #[qproperty(i32, dashboard_pid, cxx_name = "dashboardPid")]
         #[qproperty(i32, dashboard_uptime_secs, cxx_name = "dashboardUptimeSecs")]
+        /// Supervisor GUI server auth key — passed to QML so the chatbot panel
+        /// can include `X-PM-API-Key` on its requests to `/chatbot/config` and
+        /// `/chatbot/chat` which are protected routes.
+        #[qproperty(QString, gui_auth_key, cxx_name = "guiAuthKey")]
         type SupervisorGuiBridge = super::SupervisorGuiBridgeRust;
 
         #[qinvokable]
@@ -207,6 +211,8 @@ pub struct SupervisorGuiBridgeRust {
     pub dashboard_runtime: QString,
     pub dashboard_pid: i32,
     pub dashboard_uptime_secs: i32,
+    /// GUI server auth key forwarded to QML for chatbot XHR authentication.
+    pub gui_auth_key: QString,
 }
 
 impl Default for SupervisorGuiBridgeRust {
@@ -245,6 +251,7 @@ impl Default for SupervisorGuiBridgeRust {
             dashboard_runtime: QString::from("Node"),
             dashboard_pid: 0,
             dashboard_uptime_secs: 0,
+            gui_auth_key: QString::default(),
         }
     }
 }

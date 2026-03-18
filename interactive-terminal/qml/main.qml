@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Controls.Material 2.15
@@ -15,7 +17,7 @@ ApplicationWindow {
     minimumWidth: 480
     minimumHeight: 400
     title: "Interactive Terminal"
-    color: "#1e1e1e"
+    color: "#090d14"
     Material.theme: Material.Dark
     Material.accent: Material.Blue
     property int uiControlFontPx: 11
@@ -36,8 +38,8 @@ ApplicationWindow {
     // ── Risk-aware approval policy (Steps 29–31) ─────────────────────────────
     // Risk tier computed reactively from autonomy mode + budget selections.
     // Tier 1 = Low (guided), Tier 2 = Medium (autonomous, capped), Tier 3 = High (autonomous, uncapped).
-    property int approvalRiskTier: approvalSelectedAutonomyMode === "autonomous"
-        ? (approvalBudgetMaxCommands > 0 || approvalBudgetMaxDurationSecs > 0 || approvalBudgetMaxFiles > 0 ? 2 : 3)
+    property int approvalRiskTier: root.approvalSelectedAutonomyMode === "autonomous"
+        ? (root.approvalBudgetMaxCommands > 0 || root.approvalBudgetMaxDurationSecs > 0 || root.approvalBudgetMaxFiles > 0 ? 2 : 3)
         : 1
     property bool approvalTrustedScopeConfirmed: false
     property int approvalBudgetMaxCommands: 0
@@ -49,11 +51,13 @@ ApplicationWindow {
     property bool approvalGeminiScreenReader: false
     property bool approvalCopilotMinimalUi: false
     property bool quitRequested: false
-    property bool popupOverlayVisible: geminiSettingsDialog.visible
+    property bool popupOverlayVisible: providerSettingsDialog.visible
         || approvalDialog.visible
         || savedCommandsDrawer.visible
         || allowlistDrawer.visible
     property bool hasActiveTerminalSession: (terminalApp.currentSessionId || "").trim().length > 0
+    // Selected provider for the Launch CLI split button ("gemini" or "copilot")
+    property string selectedCliProvider: "gemini"
 
     function syncSessionDisplayName() {
         const current = (terminalApp.currentSessionId || "").trim()
@@ -260,19 +264,19 @@ ApplicationWindow {
             return false
         }
 
-        if (approvalDialogRequest.providerSelectionRequired) {
-            if (!(approvalSelectedProvider || "").trim().length) {
+        if (root.approvalDialogRequest.providerSelectionRequired) {
+            if (!(root.approvalSelectedProvider || "").trim().length) {
                 return false
             }
         }
 
         // Resume requires a non-empty session ID
-        if (approvalSessionMode === "resume" && !(approvalResumeSessionId || "").trim().length) {
+        if (root.approvalSessionMode === "resume" && !(root.approvalResumeSessionId || "").trim().length) {
             return false
         }
 
         // Trusted-scope confirmation required for risk tier >= 2 (Step 30)
-        if (approvalRiskTier >= 2 && !approvalTrustedScopeConfirmed) {
+        if (root.approvalRiskTier >= 2 && !root.approvalTrustedScopeConfirmed) {
             return false
         }
 
@@ -307,17 +311,17 @@ ApplicationWindow {
     function syncApprovalDialog() {
         if (terminalApp.pendingCount <= 0 || !terminalApp.currentRequestId) {
             approvalDialog.close()
-            approvalDialogRequest = ({})
-            approvalSelectedAutonomyMode = "guided"
-            approvalSessionMode = "new"
-            approvalResumeSessionId = ""
-            approvalOutputFormat = "text"
-            approvalTrustedScopeConfirmed = false
-            approvalBudgetMaxCommands = 0
-            approvalBudgetMaxDurationSecs = 0
-            approvalBudgetMaxFiles = 0
-            approvalGeminiScreenReader = false
-            approvalCopilotMinimalUi = false
+            root.approvalDialogRequest = ({})
+            root.approvalSelectedAutonomyMode = "guided"
+            root.approvalSessionMode = "new"
+            root.approvalResumeSessionId = ""
+            root.approvalOutputFormat = "text"
+            root.approvalTrustedScopeConfirmed = false
+            root.approvalBudgetMaxCommands = 0
+            root.approvalBudgetMaxDurationSecs = 0
+            root.approvalBudgetMaxFiles = 0
+            root.approvalGeminiScreenReader = false
+            root.approvalCopilotMinimalUi = false
             return
         }
 
@@ -327,17 +331,17 @@ ApplicationWindow {
 
         if (terminalApp.currentAllowlisted) {
             approvalDialog.close()
-            approvalDialogRequest = ({})
-            approvalSelectedAutonomyMode = "guided"
-            approvalSessionMode = "new"
-            approvalResumeSessionId = ""
-            approvalOutputFormat = "text"
-            approvalTrustedScopeConfirmed = false
-            approvalBudgetMaxCommands = 0
-            approvalBudgetMaxDurationSecs = 0
-            approvalBudgetMaxFiles = 0
-            approvalGeminiScreenReader = false
-            approvalCopilotMinimalUi = false
+            root.approvalDialogRequest = ({})
+            root.approvalSelectedAutonomyMode = "guided"
+            root.approvalSessionMode = "new"
+            root.approvalResumeSessionId = ""
+            root.approvalOutputFormat = "text"
+            root.approvalTrustedScopeConfirmed = false
+            root.approvalBudgetMaxCommands = 0
+            root.approvalBudgetMaxDurationSecs = 0
+            root.approvalBudgetMaxFiles = 0
+            root.approvalGeminiScreenReader = false
+            root.approvalCopilotMinimalUi = false
             return
         }
 
@@ -371,21 +375,21 @@ ApplicationWindow {
         const providerPrefillSource = (prefillPolicy.provider_prefill_source || "none").toString()
         const providerChooserVisible = !!prefillPolicy.provider_chooser_visible
 
-        approvalSelectedProvider = prefilledProvider
-        approvalSelectedAutonomyMode = requestedAutonomyMode
+        root.approvalSelectedProvider = prefilledProvider
+        root.approvalSelectedAutonomyMode = requestedAutonomyMode
 
         // ── Pre-fill session lifecycle + output format from context JSON ──────
         const srcSessionMode = (source.session_mode || "new").toString().toLowerCase()
         const srcResumeSessionId = (source.resume_session_id || "").toString()
         const srcOutputFormat = (source.output_format || "text").toString().toLowerCase()
 
-        approvalSessionMode = (srcSessionMode === "resume") ? "resume" : "new"
-        approvalResumeSessionId = srcResumeSessionId
-        approvalOutputFormat = (srcOutputFormat === "json" || srcOutputFormat === "stream-json")
+        root.approvalSessionMode = (srcSessionMode === "resume") ? "resume" : "new"
+        root.approvalResumeSessionId = srcResumeSessionId
+        root.approvalOutputFormat = (srcOutputFormat === "json" || srcOutputFormat === "stream-json")
             ? srcOutputFormat
             : "text"
 
-        approvalDialogRequest = {
+        root.approvalDialogRequest = {
             command: commandText,
             args: Array.isArray(source.args) ? source.args : [],
             mode: source.mode || "interactive",
@@ -563,8 +567,8 @@ ApplicationWindow {
         // Header bar
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 48
-            color: "#252526"
+            Layout.preferredHeight: 36
+            color: "#0d1117"
 
             RowLayout {
                 anchors.fill: parent
@@ -573,41 +577,44 @@ ApplicationWindow {
 
                 // Connection/status indicator
                 Rectangle {
-                    width: 10; height: 10; radius: 5
+                    implicitWidth: 8; implicitHeight: 8; radius: 4
                     color: terminalApp.isConnected
-                        ? "#4caf50"
-                        : ((terminalApp.statusText || "").toLowerCase().indexOf("listening") >= 0 ? "#ff9800" : "#f44336")
+                        ? "#22c55e"
+                        : ((terminalApp.statusText || "").toLowerCase().indexOf("listening") >= 0 ? "#f97316" : "#ef4444")
+                    // Subtle glow effect via border
+                    border.color: terminalApp.isConnected ? "#16a34a60" : "#dc262660"
+                    border.width: 3
                 }
 
                 Text {
                     text: terminalApp.isConnected
                         ? "Connected"
                         : ((terminalApp.statusText || "").toLowerCase().indexOf("listening") >= 0 ? "Listening" : "Disconnected")
-                    color: "#808080"
-                    font.pixelSize: 12
+                    color: "#6b7280"
+                    font.pixelSize: 11
                 }
 
                 Text {
                     text: "CPU " + terminalApp.cpuUsagePercent.toFixed(1) + "% | RAM " + terminalApp.memoryUsageMb.toFixed(1) + " MB"
-                    color: "#808080"
-                    font.pixelSize: 12
+                    color: "#4b5563"
+                    font.pixelSize: 11
                 }
 
                 // PTY mode badge — compile-time indicator (pty-host vs in-process)
                 Rectangle {
                     visible: (terminalApp.terminalModeLabel || "").length > 0
-                    height: 18
+                    implicitHeight: 16
                     implicitWidth: modeLabelText.implicitWidth + 12
                     radius: 3
-                    color: (terminalApp.terminalModeLabel || "") === "pty-host" ? "#0e3a5e" : "#2d2d2d"
-                    border.color: (terminalApp.terminalModeLabel || "") === "pty-host" ? "#1e88e5" : "#555555"
+                    color: (terminalApp.terminalModeLabel || "") === "pty-host" ? "#0c2a47" : "#1a1f28"
+                    border.color: (terminalApp.terminalModeLabel || "") === "pty-host" ? "#1d4ed8" : "#374151"
                     border.width: 1
                     Text {
                         id: modeLabelText
                         anchors.centerIn: parent
                         text: "PTY: " + (terminalApp.terminalModeLabel || "")
-                        color: (terminalApp.terminalModeLabel || "") === "pty-host" ? "#64b5f6" : "#808080"
-                        font.pixelSize: 11
+                        color: (terminalApp.terminalModeLabel || "") === "pty-host" ? "#60a5fa" : "#6b7280"
+                        font.pixelSize: 10
                     }
                 }
 
@@ -615,8 +622,8 @@ ApplicationWindow {
 
                 Text {
                     text: "Interactive Terminal"
-                    color: "#d4d4d4"
-                    font.pixelSize: 16
+                    color: "#e5e7eb"
+                    font.pixelSize: 13
                     font.bold: true
                 }
 
@@ -625,13 +632,15 @@ ApplicationWindow {
                 // Pending count badge
                 Rectangle {
                     visible: terminalApp.pendingCount > 0
-                    width: 24; height: 24; radius: 12
-                    color: "#ff9800"
+                    implicitWidth: 20; implicitHeight: 20; radius: 10
+                    color: "#dc2626"
+                    border.color: "#ef4444"
+                    border.width: 1
                     Text {
                         anchors.centerIn: parent
                         text: terminalApp.pendingCount
                         color: "white"
-                        font.pixelSize: 12
+                        font.pixelSize: 10
                         font.bold: true
                     }
                 }
@@ -639,13 +648,13 @@ ApplicationWindow {
         }
 
         // Separator
-        Rectangle { Layout.fillWidth: true; height: 1; color: "#3c3c3c" }
+        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: "#1f2937" }
 
         // Session runtime controls
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: sessionControlsCol.implicitHeight + 16
-            color: "#252526"
+            implicitHeight: sessionControlsCol.implicitHeight + 14
+            color: "#161b27"
 
             ColumnLayout {
                 id: sessionControlsCol
@@ -659,12 +668,24 @@ ApplicationWindow {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: 6
 
-                    Text {
-                        text: "Session: " + ((terminalApp.currentSessionId || "").length > 0 ? terminalApp.currentSessionId : "(none)")
-                        color: "#d4d4d4"
-                        font.pixelSize: 12
+                    // Session badge
+                    Rectangle {
+                        implicitHeight: 18
+                        implicitWidth: sessionLabel.implicitWidth + 16
+                        radius: 9
+                        color: "#1e2a3a"
+                        border.color: "#2d3f55"
+                        border.width: 1
+                        visible: (terminalApp.currentSessionId || "").length > 0
+                        Text {
+                            id: sessionLabel
+                            anchors.centerIn: parent
+                            text: terminalApp.currentSessionId || ""
+                            color: "#93c5fd"
+                            font.pixelSize: 10
+                        }
                     }
 
                     Item { Layout.fillWidth: true }
@@ -676,7 +697,7 @@ ApplicationWindow {
 
                     Text {
                         text: "Working Dir"
-                        color: "#d4d4d4"
+                        color: "#6b7280"
                         font.pixelSize: root.uiInputFontPx
                     }
 
@@ -691,13 +712,16 @@ ApplicationWindow {
                         enabled: root.hasActiveTerminalSession
                         editText: terminalApp.currentWorkspacePath
                         onAccepted: terminalApp.setSessionWorkspacePath(editText)
-                        onActivated: {
+                        onActivated: function(index) {
                             const entry = root.workspaceSuggestionAt(index)
                             const selectedPath = (entry.path || currentText || "").toString()
                             editText = selectedPath
                             terminalApp.setSessionWorkspacePath(selectedPath)
                         }
                         delegate: ItemDelegate {
+                            id: workspacePathSuggestionDelegate
+                            required property int index
+                            required property var modelData
                             width: workspacePathField.width
                             implicitHeight: 42
                             highlighted: workspacePathField.highlightedIndex === index
@@ -706,14 +730,18 @@ ApplicationWindow {
                                 spacing: 1
 
                                 Text {
-                                    text: modelData && modelData.label ? modelData.label : ""
+                                    text: workspacePathSuggestionDelegate.modelData && workspacePathSuggestionDelegate.modelData.label
+                                        ? workspacePathSuggestionDelegate.modelData.label
+                                        : ""
                                     color: "#e8e8e8"
                                     font.pixelSize: root.uiInputFontPx
                                     elide: Text.ElideRight
                                 }
 
                                 Text {
-                                    text: modelData && modelData.subtitle ? modelData.subtitle : ""
+                                    text: workspacePathSuggestionDelegate.modelData && workspacePathSuggestionDelegate.modelData.subtitle
+                                        ? workspacePathSuggestionDelegate.modelData.subtitle
+                                        : ""
                                     color: "#8a8a8a"
                                     font.pixelSize: Math.max(9, root.uiInputFontPx - 1)
                                     elide: Text.ElideRight
@@ -728,7 +756,7 @@ ApplicationWindow {
 
                     Text {
                         text: "Venv"
-                        color: "#d4d4d4"
+                        color: "#6b7280"
                         font.pixelSize: root.uiInputFontPx
                         visible: activateVenvCheck.checked
                     }
@@ -745,13 +773,16 @@ ApplicationWindow {
                         enabled: root.hasActiveTerminalSession && activateVenvCheck.checked
                         editText: terminalApp.currentVenvPath
                         onAccepted: terminalApp.setSessionVenvPath(editText)
-                        onActivated: {
+                        onActivated: function(index) {
                             const entry = root.workspaceSuggestionAt(index)
                             const selectedPath = (entry.path || currentText || "").toString()
                             editText = selectedPath
                             terminalApp.setSessionVenvPath(selectedPath)
                         }
                         delegate: ItemDelegate {
+                            id: venvPathSuggestionDelegate
+                            required property int index
+                            required property var modelData
                             width: venvPathField.width
                             implicitHeight: 42
                             highlighted: venvPathField.highlightedIndex === index
@@ -760,14 +791,18 @@ ApplicationWindow {
                                 spacing: 1
 
                                 Text {
-                                    text: modelData && modelData.label ? modelData.label : ""
+                                    text: venvPathSuggestionDelegate.modelData && venvPathSuggestionDelegate.modelData.label
+                                        ? venvPathSuggestionDelegate.modelData.label
+                                        : ""
                                     color: "#e8e8e8"
                                     font.pixelSize: root.uiInputFontPx
                                     elide: Text.ElideRight
                                 }
 
                                 Text {
-                                    text: modelData && modelData.subtitle ? modelData.subtitle : ""
+                                    text: venvPathSuggestionDelegate.modelData && venvPathSuggestionDelegate.modelData.subtitle
+                                        ? venvPathSuggestionDelegate.modelData.subtitle
+                                        : ""
                                     color: "#8a8a8a"
                                     font.pixelSize: Math.max(9, root.uiInputFontPx - 1)
                                     elide: Text.ElideRight
@@ -798,41 +833,71 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         spacing: 8
 
-                        Button {
-                            id: geminiLaunchBtn
-                            text: "Launch Gemini CLI"
-                            font.pixelSize: root.uiControlFontPx
-                            enabled: true
-                            onClicked: {
-                                terminalApp.setSessionWorkspacePath(workspacePathField.editText || "")
-                                terminalApp.launchGeminiInTab()
-                                geminiSettingsDialog.close()
+                        // ── Split button: [Launch CLI] [▾ Provider] ──────────
+                        RowLayout {
+                            spacing: 0
+
+                            Button {
+                                id: launchCliBtn
+                                text: "Launch CLI"
+                                font.pixelSize: root.uiControlFontPx
+                                Layout.preferredHeight: 30
+                                highlighted: true
+                                onClicked: {
+                                    terminalApp.setSessionWorkspacePath(workspacePathField.editText || "")
+                                    if (root.selectedCliProvider === "copilot") {
+                                        terminalApp.launchCopilotInTab()
+                                    } else if (root.selectedCliProvider === "claude") {
+                                        terminalApp.launchClaudeInTab()
+                                    } else {
+                                        terminalApp.launchGeminiInTab()
+                                    }
+                                }
+                            }
+
+                            ComboBox {
+                                id: cliProviderCombo
+                                model: ["Gemini", "Copilot", "Claude"]
+                                implicitWidth: 110
+                                implicitHeight: 30
+                                font.pixelSize: root.uiControlFontPx
+                                Component.onCompleted: {
+                                    currentIndex = root.selectedCliProvider === "copilot" ? 1
+                                        : root.selectedCliProvider === "claude" ? 2 : 0
+                                    popup.popupType = Popup.Window
+                                    popup.z = 3000
+                                }
+                                onCurrentIndexChanged: {
+                                    if (currentIndex === 1) root.selectedCliProvider = "copilot"
+                                    else if (currentIndex === 2) root.selectedCliProvider = "claude"
+                                    else root.selectedCliProvider = "gemini"
+                                }
                             }
                         }
 
-                        Button {
-                            id: copilotLaunchBtn
-                            text: "Launch Copilot CLI"
-                            font.pixelSize: root.uiControlFontPx
-                            enabled: true
-                            visible: terminalApp.copilotKeyPresent
-                            onClicked: {
-                                terminalApp.setSessionWorkspacePath(workspacePathField.editText || "")
-                                terminalApp.launchCopilotInTab()
-                            }
-                        }
-
-                        Button {
-                            text: "Gemini \u2699"
-                            font.pixelSize: root.uiControlFontPx
-                            highlighted: terminalApp.geminiKeyPresent
-                            onClicked: geminiSettingsDialog.open()
-                        }
-
+                        // Key status for the selected provider
                         Text {
-                            text: terminalApp.geminiKeyPresent ? "Key: stored" : "Key: free tier"
-                            color: terminalApp.geminiKeyPresent ? "#4caf50" : "#ff9800"
+                            text: root.selectedCliProvider === "gemini"
+                                ? (terminalApp.geminiKeyPresent ? "\u2714 key" : "free tier")
+                                : root.selectedCliProvider === "claude"
+                                    ? (terminalApp.claudeKeyPresent ? "\u2714 key" : "not set")
+                                    : (terminalApp.copilotKeyPresent ? "\u2714 active" : "not set")
+                            color: (root.selectedCliProvider === "gemini"
+                                ? terminalApp.geminiKeyPresent
+                                : root.selectedCliProvider === "claude"
+                                    ? terminalApp.claudeKeyPresent
+                                    : terminalApp.copilotKeyPresent)
+                                ? "#22c55e" : "#f97316"
                             font.pixelSize: 11
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        // Provider settings
+                        Button {
+                            text: "Provider Settings"
+                            font.pixelSize: root.uiControlFontPx
+                            Layout.preferredHeight: 30
+                            onClicked: providerSettingsDialog.open()
                         }
 
                         Item { Layout.fillWidth: true }
@@ -921,49 +986,19 @@ ApplicationWindow {
                             }
                         }
 
-                        Button {
-                            text: "Restart"
-                            Layout.preferredWidth: 100
-                            Layout.preferredHeight: 30
-                            font.pixelSize: root.uiControlFontPx
-                            enabled: root.hasActiveTerminalSession
-                            onClicked: {
-                                if (root.hasActiveTerminalSession) {
-                                    terminalApp.switchSession(terminalApp.currentSessionId)
-                                }
-                            }
-                        }
-
-                        Button {
-                            text: "Copy All"
-                            Layout.preferredWidth: 90
-                            Layout.preferredHeight: 30
-                            font.pixelSize: root.uiControlFontPx
-                            onClicked: terminalApp.copyCurrentOutput()
-                        }
-
-                        Button {
-                            text: "Copy Last"
-                            Layout.preferredWidth: 115
-                            Layout.preferredHeight: 30
-                            font.pixelSize: root.uiControlFontPx
-                            enabled: root.hasActiveTerminalSession
-                            onClicked: terminalApp.copyLastCommandOutput()
-                        }
-
                         Item { Layout.fillWidth: true }
                     }
                 }
             }
         }
 
-        Rectangle { Layout.fillWidth: true; height: 1; color: "#3c3c3c" }
+        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: "#1f2937" }
 
         // Session tabs
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 40
-            color: "#2d2d30"
+            Layout.preferredHeight: 38
+            color: "#0d1117"
 
             RowLayout {
                 anchors.fill: parent
@@ -1005,26 +1040,41 @@ ApplicationWindow {
                         }
 
                         delegate: Rectangle {
+                            id: sessionTabDelegate
+                            required property var modelData
                             readonly property var tabData: modelData
                             readonly property int tabCount: Math.max(root.sessionTabs.length, 1)
                             readonly property real availablePerTab: (sessionTabsList.width - (sessionTabsList.spacing * Math.max(tabCount - 1, 0))) / tabCount
                             readonly property real minPreferred: tabText.implicitWidth + 46
-                            radius: 6
+                            radius: 4
                             color: tabData.isGemini
-                                ? (tabData.isActive ? "#2a1b3d" : "#1c1526")
-                                : (tabData.isActive ? "#3a3d41" : "#252526")
+                                ? (tabData.isActive ? "#1a1030" : "#110b20")
+                                : (tabData.isActive ? "#1a2234" : "#0d1117")
                             border.color: tabData.isGemini
-                                ? (tabData.isActive ? "#9c27b0" : "#6a1b9a")
-                                : (tabData.isActive ? "#569cd6" : "#3c3c3c")
+                                ? (tabData.isActive ? "#7c3aed" : "#3b1f6e")
+                                : (tabData.isActive ? "#1d4ed8" : "#1f2937")
                             border.width: 1
-                            height: 34
+                            height: 32
                             width: Math.max(118, Math.min(260, Math.max(minPreferred, availablePerTab)))
+
+                            // Active tab accent bar (bottom border)
+                            Rectangle {
+                                visible: sessionTabDelegate.tabData.isActive
+                                anchors.bottom: parent.bottom
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.leftMargin: 1
+                                anchors.rightMargin: 1
+                                height: 2
+                                color: sessionTabDelegate.tabData.isGemini ? "#a855f7" : "#3b82f6"
+                                radius: 1
+                            }
 
                             MouseArea {
                                 anchors.fill: parent
                                 anchors.rightMargin: closeArea.width + 10
                                 onClicked: {
-                                    terminalApp.switchSession(tabData.sessionId)
+                                    terminalApp.switchSession(sessionTabDelegate.tabData.sessionId)
                                     root.refreshSessionTabs()
                                 }
                             }
@@ -1032,17 +1082,21 @@ ApplicationWindow {
                             Text {
                                 id: tabText
                                 anchors.left: parent.left
-                                anchors.leftMargin: tabData.isGemini ? 8 : 10
+                                anchors.leftMargin: sessionTabDelegate.tabData.isGemini ? 8 : 10
                                 anchors.verticalCenter: parent.verticalCenter
                                 anchors.right: closeRect.left
                                 anchors.rightMargin: 4
                                 text: {
-                                    const base = tabData.isGemini ? "✦ " + tabData.label : tabData.label
-                                    return tabData.pendingCount > 0 ? base + " (" + tabData.pendingCount + ")" : base
+                                    const base = sessionTabDelegate.tabData.isGemini
+                                        ? "✦ " + sessionTabDelegate.tabData.label
+                                        : sessionTabDelegate.tabData.label
+                                    return sessionTabDelegate.tabData.pendingCount > 0
+                                        ? base + " (" + sessionTabDelegate.tabData.pendingCount + ")"
+                                        : base
                                 }
-                                color: tabData.isGemini
-                                    ? (tabData.isActive ? "#ce93d8" : "#ab47bc")
-                                    : "#d4d4d4"
+                                color: sessionTabDelegate.tabData.isGemini
+                                    ? (sessionTabDelegate.tabData.isActive ? "#c084fc" : "#7c3aed")
+                                    : (sessionTabDelegate.tabData.isActive ? "#e5e7eb" : "#6b7280")
                                 font.pixelSize: root.uiControlFontPx
                                 elide: Text.ElideRight
                                 horizontalAlignment: Text.AlignLeft
@@ -1057,11 +1111,11 @@ ApplicationWindow {
                                 width: 20
                                 height: 20
                                 radius: 4
-                                opacity: tabData.canClose ? 1.0 : 0.3
+                                opacity: sessionTabDelegate.tabData.canClose ? 1.0 : 0.3
                                 color: closeArea.pressed
-                                    ? "#9f3434"
-                                    : (closeArea.containsMouse ? "#5a3a3a" : "#3a3a3a")
-                                border.color: "#606060"
+                                    ? "#7f1d1d"
+                                    : (closeArea.containsMouse ? "#3b1515" : "transparent")
+                                border.color: closeArea.containsMouse ? "#6b7280" : "transparent"
                                 border.width: 1
 
                                 Text {
@@ -1077,10 +1131,10 @@ ApplicationWindow {
                                 MouseArea {
                                     id: closeArea
                                     anchors.fill: parent
-                                    enabled: tabData.canClose
+                                    enabled: sessionTabDelegate.tabData.canClose
                                     hoverEnabled: true
                                     onClicked: {
-                                        terminalApp.closeSession(tabData.sessionId)
+                                        terminalApp.closeSession(sessionTabDelegate.tabData.sessionId)
                                         root.refreshSessionTabs()
                                     }
                                 }
@@ -1091,30 +1145,85 @@ ApplicationWindow {
             }
         }
 
-        Rectangle { Layout.fillWidth: true; height: 1; color: "#3c3c3c" }
+        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: "#1f2937" }
 
+        // Main content: terminal view
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 36
-            color: "#252526"
+            Layout.fillHeight: true
+            color: "#090d14"
+
+            TerminalView {
+                anchors.fill: parent
+                terminalApp: terminalApp
+                hasActiveSession: root.hasActiveTerminalSession
+            }
+        }
+
+        // Bottom bar separator
+        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: "#1f2937" }
+
+        // Bottom action bar: copy + restart + profile selectors
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 34
+            color: "#0d1117"
 
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 12
-                anchors.rightMargin: 12
-                spacing: 8
+                anchors.leftMargin: 8
+                anchors.rightMargin: 8
+                spacing: 2
+
+                Button {
+                    text: "Copy All"
+                    font.pixelSize: root.uiControlFontPx
+                    Layout.preferredHeight: 28
+                    palette.buttonText: "#e5e7eb"
+                    onClicked: terminalApp.copyCurrentOutput()
+                }
+
+                Button {
+                    text: "Copy Last"
+                    font.pixelSize: root.uiControlFontPx
+                    Layout.preferredHeight: 28
+                    palette.buttonText: "#e5e7eb"
+                    enabled: root.hasActiveTerminalSession
+                    onClicked: terminalApp.copyLastCommandOutput()
+                }
+
+                Button {
+                    text: "Restart"
+                    font.pixelSize: root.uiControlFontPx
+                    Layout.preferredHeight: 28
+                    palette.buttonText: "#e5e7eb"
+                    enabled: root.hasActiveTerminalSession
+                    onClicked: {
+                        if (root.hasActiveTerminalSession) {
+                            terminalApp.switchSession(terminalApp.currentSessionId)
+                        }
+                    }
+                }
+
+                // Vertical divider
+                Rectangle {
+                    implicitWidth: 1; implicitHeight: 16
+                    color: "#1f2937"
+                }
+
+                Item { Layout.fillWidth: true }
 
                 Text {
-                    text: "Terminal Profile"
-                    color: "#808080"
-                    font.pixelSize: 11
+                    text: "Profile"
+                    color: "#4b5563"
+                    font.pixelSize: 10
                 }
 
                 ComboBox {
                     id: terminalProfileSelector
                     model: ["system", "powershell", "pwsh", "cmd", "bash"]
-                    implicitWidth: 130
-                    implicitHeight: 28
+                    implicitWidth: 118
+                    implicitHeight: 26
                     font.pixelSize: root.uiControlFontPx
                     enabled: root.hasActiveTerminalSession
 
@@ -1134,15 +1243,15 @@ ApplicationWindow {
 
                 Text {
                     text: "Default"
-                    color: "#808080"
-                    font.pixelSize: 11
+                    color: "#4b5563"
+                    font.pixelSize: 10
                 }
 
                 ComboBox {
                     id: defaultTerminalProfileSelector
                     model: ["system", "powershell", "pwsh", "cmd", "bash"]
-                    implicitWidth: 130
-                    implicitHeight: 28
+                    implicitWidth: 118
+                    implicitHeight: 26
                     font.pixelSize: root.uiControlFontPx
                     enabled: root.hasActiveTerminalSession
 
@@ -1159,32 +1268,17 @@ ApplicationWindow {
                         popup.z = 3000
                     }
                 }
-
-                Item { Layout.fillWidth: true }
-            }
-        }
-
-        // Main content: single terminal panel
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            color: "#1e1e1e"
-
-            TerminalView {
-                anchors.fill: parent
-                terminalApp: terminalApp
-                hasActiveSession: root.hasActiveTerminalSession
             }
         }
     }
 
     Dialog {
-        id: geminiSettingsDialog
+        id: providerSettingsDialog
         popupType: Popup.Window
         modal: true
         anchors.centerIn: Overlay.overlay
-        width: 480
-        title: "Gemini Settings"
+        width: 520
+        title: "Provider Settings"
         standardButtons: Dialog.Close
         padding: 0
         z: 4000
@@ -1194,16 +1288,61 @@ ApplicationWindow {
         }
 
         background: Rectangle {
-            color: "#1e1e1e"
-            border.color: "#3c3c3c"
+            color: "#111827"
+            border.color: "#1f2937"
             border.width: 1
             radius: 8
         }
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 16
-            spacing: 10
+            anchors.margins: 20
+            spacing: 16
+
+            // ── Default provider ──────────────────────────────────────────────
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
+
+                Text {
+                    text: "Default provider"
+                    color: "#9ca3af"
+                    font.pixelSize: root.uiControlFontPx
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                ComboBox {
+                    id: defaultProviderCombo
+                    model: ["Gemini", "Copilot", "Claude"]
+                    implicitWidth: 140
+                    implicitHeight: 30
+                    font.pixelSize: root.uiControlFontPx
+                    Component.onCompleted: {
+                        currentIndex = root.selectedCliProvider === "copilot" ? 1
+                            : root.selectedCliProvider === "claude" ? 2 : 0
+                        popup.popupType = Popup.Window
+                        popup.z = 5000
+                    }
+                    onCurrentIndexChanged: {
+                        if (currentIndex === 1) root.selectedCliProvider = "copilot"
+                        else if (currentIndex === 2) root.selectedCliProvider = "claude"
+                        else root.selectedCliProvider = "gemini"
+                    }
+                }
+
+                Item { Layout.fillWidth: true }
+            }
+
+            // ── Separator ─────────────────────────────────────────────────────
+            Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: "#1f2937" }
+
+            // ── Gemini section ────────────────────────────────────────────────
+            Text {
+                text: "Gemini"
+                color: "#e5e7eb"
+                font.pixelSize: root.uiControlFontPx
+                font.bold: true
+            }
 
             RowLayout {
                 Layout.fillWidth: true
@@ -1212,7 +1351,7 @@ ApplicationWindow {
                 TextField {
                     id: geminiApiKeyField
                     Layout.fillWidth: true
-                    placeholderText: "Gemini API key (stored locally)"
+                    placeholderText: "API key (stored locally)"
                     echoMode: TextInput.Password
                     font.pixelSize: root.uiInputFontPx
                 }
@@ -1220,6 +1359,7 @@ ApplicationWindow {
                 Button {
                     text: "Save"
                     font.pixelSize: root.uiControlFontPx
+                    Layout.preferredHeight: 30
                     onClicked: {
                         if (terminalApp.setGeminiApiKey(geminiApiKeyField.text)) {
                             geminiApiKeyField.text = ""
@@ -1230,23 +1370,25 @@ ApplicationWindow {
                 Button {
                     text: "Remove"
                     font.pixelSize: root.uiControlFontPx
+                    Layout.preferredHeight: 30
                     enabled: terminalApp.geminiKeyPresent
                     onClicked: terminalApp.clearGeminiApiKey()
                 }
             }
 
-            Text {
-                text: terminalApp.geminiKeyPresent ? "\u2713 API key stored" : "No API key set"
-                color: terminalApp.geminiKeyPresent ? "#4caf50" : "#808080"
-                font.pixelSize: 12
-            }
-
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: 16
+
+                Text {
+                    text: terminalApp.geminiKeyPresent ? "\u2713 API key stored" : "No API key set"
+                    color: terminalApp.geminiKeyPresent ? "#22c55e" : "#6b7280"
+                    font.pixelSize: 11
+                    verticalAlignment: Text.AlignVCenter
+                }
 
                 CheckBox {
-                    text: "Inject stored key into next run"
+                    text: "Inject key into next launch"
                     font.pixelSize: root.uiControlFontPx
                     enabled: terminalApp.geminiKeyPresent
                     checked: terminalApp.geminiInjectionRequested
@@ -1256,44 +1398,95 @@ ApplicationWindow {
                 Item { Layout.fillWidth: true }
             }
 
+            // ── Separator ─────────────────────────────────────────────────────
+            Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: "#1f2937" }
+
+            // ── Copilot section ───────────────────────────────────────────────
+            Text {
+                text: "GitHub Copilot"
+                color: "#e5e7eb"
+                font.pixelSize: root.uiControlFontPx
+                font.bold: true
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
+
+                Text {
+                    text: terminalApp.copilotKeyPresent ? "\u2714 Active" : "Not authenticated"
+                    color: terminalApp.copilotKeyPresent ? "#22c55e" : "#f97316"
+                    font.pixelSize: 11
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                Text {
+                    text: "Copilot uses GitHub OAuth \u2014 run \u2018gh auth login\u2019 in terminal to authenticate."
+                    color: "#6b7280"
+                    font.pixelSize: 10
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+            }
+
+            // ── Separator ─────────────────────────────────────────────────────
+            Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: "#1f2937" }
+
+            // ── Claude section ────────────────────────────────────────────────
+            Text {
+                text: "Claude (Anthropic)"
+                color: "#e5e7eb"
+                font.pixelSize: root.uiControlFontPx
+                font.bold: true
+            }
+
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
 
+                TextField {
+                    id: claudeApiKeyField
+                    Layout.fillWidth: true
+                    placeholderText: "ANTHROPIC_API_KEY (stored locally)"
+                    echoMode: TextInput.Password
+                    font.pixelSize: root.uiInputFontPx
+                }
+
                 Button {
-                    text: "Launch Gemini CLI"
+                    text: "Save"
                     font.pixelSize: root.uiControlFontPx
-                    enabled: terminalApp.geminiKeyPresent
+                    Layout.preferredHeight: 30
                     onClicked: {
-                        terminalApp.setSessionWorkspacePath(workspacePathField.editText || "")
-                        terminalApp.launchGeminiInTab()
-                        geminiSettingsDialog.close()
+                        if (terminalApp.setClaudeApiKey(claudeApiKeyField.text)) {
+                            claudeApiKeyField.text = ""
+                        }
                     }
                 }
 
                 Button {
-                    text: "Launch Gemini (Window)"
+                    text: "Remove"
                     font.pixelSize: root.uiControlFontPx
-                    enabled: terminalApp.geminiKeyPresent
-                    onClicked: {
-                        terminalApp.setSessionWorkspacePath(workspacePathField.editText || "")
-                        terminalApp.launchGeminiSession()
-                        geminiSettingsDialog.close()
-                    }
+                    Layout.preferredHeight: 30
+                    enabled: terminalApp.claudeKeyPresent
+                    onClicked: terminalApp.clearClaudeApiKey()
                 }
+            }
 
-                Button {
-                    text: "Launch Copilot CLI"
-                    font.pixelSize: root.uiControlFontPx
-                    onClicked: {
-                        terminalApp.setSessionWorkspacePath(workspacePathField.editText || "")
-                        terminalApp.runCommand("copilot")
-                        geminiSettingsDialog.close()
-                    }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 16
+
+                Text {
+                    text: terminalApp.claudeKeyPresent ? "\u2714 API key stored" : "No API key set"
+                    color: terminalApp.claudeKeyPresent ? "#22c55e" : "#6b7280"
+                    font.pixelSize: 11
+                    verticalAlignment: Text.AlignVCenter
                 }
 
                 Item { Layout.fillWidth: true }
             }
+
+            Item { Layout.fillHeight: true }
         }
     }
 
@@ -1321,8 +1514,8 @@ ApplicationWindow {
         }
 
         background: Rectangle {
-            color: "#1e1e1e"
-            border.color: "#3c3c3c"
+            color: "#111827"
+            border.color: "#1f2937"
             border.width: 1
             radius: 8
         }
@@ -1340,7 +1533,7 @@ ApplicationWindow {
             }
 
             Rectangle {
-                visible: (approvalDialogRequest.sessionId || "").trim().length > 0
+                visible: (root.approvalDialogRequest.sessionId || "").trim().length > 0
                 Layout.fillWidth: false
                 Layout.preferredHeight: 24
                 radius: 12
@@ -1364,7 +1557,7 @@ ApplicationWindow {
 
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: approvalDialogRequest.sessionId || ""
+                        text: root.approvalDialogRequest.sessionId || ""
                         color: "#9cdcfe"
                         font.pixelSize: 11
                     }
@@ -1379,15 +1572,15 @@ ApplicationWindow {
 
             // ── Risk tier badge (Step 29) ─────────────────────────────────────
             Rectangle {
-                visible: approvalDialogRequest.providerPolicyApplies
+                visible: root.approvalDialogRequest.providerPolicyApplies
                 Layout.fillWidth: false
                 Layout.preferredHeight: 26
                 radius: 13
-                color: approvalRiskTier === 3 ? "#4f1a1a"
-                    : approvalRiskTier === 2 ? "#3d2e00"
+                color: root.approvalRiskTier === 3 ? "#4f1a1a"
+                    : root.approvalRiskTier === 2 ? "#3d2e00"
                     : "#1a3a1a"
-                border.color: approvalRiskTier === 3 ? "#f87171"
-                    : approvalRiskTier === 2 ? "#fbbf24"
+                border.color: root.approvalRiskTier === 3 ? "#f87171"
+                    : root.approvalRiskTier === 2 ? "#fbbf24"
                     : "#4ade80"
                 border.width: 1
 
@@ -1399,20 +1592,20 @@ ApplicationWindow {
 
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: approvalRiskTier === 3 ? "\u26a0" : approvalRiskTier === 2 ? "\u25cf" : "\u2713"
-                        color: approvalRiskTier === 3 ? "#f87171"
-                            : approvalRiskTier === 2 ? "#fbbf24"
+                        text: root.approvalRiskTier === 3 ? "\u26a0" : root.approvalRiskTier === 2 ? "\u25cf" : "\u2713"
+                        color: root.approvalRiskTier === 3 ? "#f87171"
+                            : root.approvalRiskTier === 2 ? "#fbbf24"
                             : "#4ade80"
                         font.pixelSize: 13
                     }
 
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: approvalRiskTier === 3 ? "Risk: High \u2014 autonomous / unrestricted"
-                            : approvalRiskTier === 2 ? "Risk: Medium \u2014 autonomous / capped"
+                        text: root.approvalRiskTier === 3 ? "Risk: High \u2014 autonomous / unrestricted"
+                            : root.approvalRiskTier === 2 ? "Risk: Medium \u2014 autonomous / capped"
                             : "Risk: Low \u2014 guided mode"
-                        color: approvalRiskTier === 3 ? "#f87171"
-                            : approvalRiskTier === 2 ? "#fbbf24"
+                        color: root.approvalRiskTier === 3 ? "#f87171"
+                            : root.approvalRiskTier === 2 ? "#fbbf24"
                             : "#4ade80"
                         font.pixelSize: 12
                         font.bold: true
@@ -1431,97 +1624,97 @@ ApplicationWindow {
                     columnSpacing: 12
                     rowSpacing: 8
 
-                    Text { text: "Command"; color: "#808080"; font.pixelSize: 12 }
-                    Text { text: approvalDialogRequest.command || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+                    Text { text: "Command"; color: "#6b7280"; font.pixelSize: 12 }
+                    Text { text: root.approvalDialogRequest.command || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
 
-                    Text { text: "Args"; color: "#808080"; font.pixelSize: 12 }
+                    Text { text: "Args"; color: "#6b7280"; font.pixelSize: 12 }
                     Text {
-                        text: Array.isArray(approvalDialogRequest.args) && approvalDialogRequest.args.length
-                            ? approvalDialogRequest.args.join(" ")
+                        text: Array.isArray(root.approvalDialogRequest.args) && root.approvalDialogRequest.args.length
+                            ? root.approvalDialogRequest.args.join(" ")
                             : "(none)"
                         color: "#d4d4d4"
                         font.pixelSize: 12
                         wrapMode: Text.WrapAnywhere
                     }
 
-                    Text { text: "Mode"; color: "#808080"; font.pixelSize: 12 }
-                    Text { text: approvalDialogRequest.mode || "interactive"; color: "#d4d4d4"; font.pixelSize: 12 }
+                    Text { text: "Mode"; color: "#6b7280"; font.pixelSize: 12 }
+                    Text { text: root.approvalDialogRequest.mode || "interactive"; color: "#d4d4d4"; font.pixelSize: 12 }
 
-                    Text { text: "Workspace ID"; color: "#808080"; font.pixelSize: 12 }
-                    Text { text: approvalDialogRequest.workspaceId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+                    Text { text: "Workspace ID"; color: "#6b7280"; font.pixelSize: 12 }
+                    Text { text: root.approvalDialogRequest.workspaceId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
 
-                    Text { text: "Workspace Path"; color: "#808080"; font.pixelSize: 12 }
-                    Text { text: approvalDialogRequest.workspacePath || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+                    Text { text: "Workspace Path"; color: "#6b7280"; font.pixelSize: 12 }
+                    Text { text: root.approvalDialogRequest.workspacePath || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
 
-                    Text { text: "Working Directory"; color: "#808080"; font.pixelSize: 12 }
-                    Text { text: approvalDialogRequest.workingDirectory || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+                    Text { text: "Working Directory"; color: "#6b7280"; font.pixelSize: 12 }
+                    Text { text: root.approvalDialogRequest.workingDirectory || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
 
-                    Text { text: "Session ID"; color: "#808080"; font.pixelSize: 12 }
-                    Text { text: approvalDialogRequest.sessionId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+                    Text { text: "Session ID"; color: "#6b7280"; font.pixelSize: 12 }
+                    Text { text: root.approvalDialogRequest.sessionId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
 
-                    Text { text: "Request ID"; color: "#808080"; font.pixelSize: 12 }
-                    Text { text: approvalDialogRequest.requestId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+                    Text { text: "Request ID"; color: "#6b7280"; font.pixelSize: 12 }
+                    Text { text: root.approvalDialogRequest.requestId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
 
-                    Text { text: "Trace ID"; color: "#808080"; font.pixelSize: 12 }
-                    Text { text: approvalDialogRequest.traceId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+                    Text { text: "Trace ID"; color: "#6b7280"; font.pixelSize: 12 }
+                    Text { text: root.approvalDialogRequest.traceId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
 
-                    Text { text: "Client Request ID"; color: "#808080"; font.pixelSize: 12 }
-                    Text { text: approvalDialogRequest.clientRequestId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+                    Text { text: "Client Request ID"; color: "#6b7280"; font.pixelSize: 12 }
+                    Text { text: root.approvalDialogRequest.clientRequestId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
 
-                    Text { text: "Approval Context ID"; color: "#808080"; font.pixelSize: 12 }
-                    Text { text: approvalDialogRequest.contextId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
+                    Text { text: "Approval Context ID"; color: "#6b7280"; font.pixelSize: 12 }
+                    Text { text: root.approvalDialogRequest.contextId || ""; color: "#d4d4d4"; font.pixelSize: 12; wrapMode: Text.WrapAnywhere }
 
                     Text {
-                        visible: approvalDialogRequest.providerPolicyApplies
+                        visible: root.approvalDialogRequest.providerPolicyApplies
                         text: "CLI Provider"
-                        color: "#808080"
+                        color: "#6b7280"
                         font.pixelSize: 12
                     }
                     Text {
-                        visible: approvalDialogRequest.providerPolicyApplies
-                        text: approvalDialogRequest.prefilledProvider || "(manual selection required)"
+                        visible: root.approvalDialogRequest.providerPolicyApplies
+                        text: root.approvalDialogRequest.prefilledProvider || "(manual selection required)"
                         color: "#d4d4d4"
                         font.pixelSize: 12
                         wrapMode: Text.WrapAnywhere
                     }
 
                     Text {
-                        visible: approvalDialogRequest.providerPolicyApplies
+                        visible: root.approvalDialogRequest.providerPolicyApplies
                         text: "Provider Source"
-                        color: "#808080"
+                        color: "#6b7280"
                         font.pixelSize: 12
                     }
                     Text {
-                        visible: approvalDialogRequest.providerPolicyApplies
-                        text: approvalDialogRequest.providerPrefillSource || "none"
+                        visible: root.approvalDialogRequest.providerPolicyApplies
+                        text: root.approvalDialogRequest.providerPrefillSource || "none"
                         color: "#d4d4d4"
                         font.pixelSize: 12
                         wrapMode: Text.WrapAnywhere
                     }
 
                     Text {
-                        visible: approvalDialogRequest.providerPolicyApplies
+                        visible: root.approvalDialogRequest.providerPolicyApplies
                         text: "Provider Chooser"
-                        color: "#808080"
+                        color: "#6b7280"
                         font.pixelSize: 12
                     }
                     Text {
-                        visible: approvalDialogRequest.providerPolicyApplies
-                        text: approvalDialogRequest.providerChooserVisible ? "visible" : "hidden"
+                        visible: root.approvalDialogRequest.providerPolicyApplies
+                        text: root.approvalDialogRequest.providerChooserVisible ? "visible" : "hidden"
                         color: "#d4d4d4"
                         font.pixelSize: 12
                         wrapMode: Text.WrapAnywhere
                     }
 
                     Text {
-                        visible: approvalDialogRequest.providerPolicyApplies
+                        visible: root.approvalDialogRequest.providerPolicyApplies
                         text: "Autonomy Selector"
-                        color: "#808080"
+                        color: "#6b7280"
                         font.pixelSize: 12
                     }
                     Text {
-                        visible: approvalDialogRequest.providerPolicyApplies
-                        text: approvalDialogRequest.autonomySelectorVisible ? "visible" : "hidden"
+                        visible: root.approvalDialogRequest.providerPolicyApplies
+                        text: root.approvalDialogRequest.autonomySelectorVisible ? "visible" : "hidden"
                         color: "#d4d4d4"
                         font.pixelSize: 12
                         wrapMode: Text.WrapAnywhere
@@ -1529,34 +1722,34 @@ ApplicationWindow {
 
                     // ── Context-Pack rows (step 9) ──────────────────────────
                     Text {
-                        visible: !!(approvalDialogRequest.contextPack
-                            && approvalDialogRequest.contextPack.requesting_agent)
+                        visible: !!(root.approvalDialogRequest.contextPack
+                            && root.approvalDialogRequest.contextPack.requesting_agent)
                         text: "Requesting Agent"
-                        color: "#808080"
+                        color: "#6b7280"
                         font.pixelSize: 12
                     }
                     Text {
-                        visible: !!(approvalDialogRequest.contextPack
-                            && approvalDialogRequest.contextPack.requesting_agent)
-                        text: (approvalDialogRequest.contextPack
-                            && approvalDialogRequest.contextPack.requesting_agent) || ""
+                        visible: !!(root.approvalDialogRequest.contextPack
+                            && root.approvalDialogRequest.contextPack.requesting_agent)
+                        text: (root.approvalDialogRequest.contextPack
+                            && root.approvalDialogRequest.contextPack.requesting_agent) || ""
                         color: "#4ec9b0"
                         font.pixelSize: 12
                         wrapMode: Text.WrapAnywhere
                     }
 
                     Text {
-                        visible: !!(approvalDialogRequest.contextPack
-                            && approvalDialogRequest.contextPack.step_notes)
+                        visible: !!(root.approvalDialogRequest.contextPack
+                            && root.approvalDialogRequest.contextPack.step_notes)
                         text: "Step Notes"
-                        color: "#808080"
+                        color: "#6b7280"
                         font.pixelSize: 12
                     }
                     Text {
-                        visible: !!(approvalDialogRequest.contextPack
-                            && approvalDialogRequest.contextPack.step_notes)
-                        text: (approvalDialogRequest.contextPack
-                            && approvalDialogRequest.contextPack.step_notes) || ""
+                        visible: !!(root.approvalDialogRequest.contextPack
+                            && root.approvalDialogRequest.contextPack.step_notes)
+                        text: (root.approvalDialogRequest.contextPack
+                            && root.approvalDialogRequest.contextPack.step_notes) || ""
                         color: "#d4d4d4"
                         font.pixelSize: 12
                         wrapMode: Text.WordWrap
@@ -1565,20 +1758,20 @@ ApplicationWindow {
                     }
 
                     Text {
-                        visible: !!(approvalDialogRequest.contextPack
-                            && approvalDialogRequest.contextPack.relevant_files
-                            && approvalDialogRequest.contextPack.relevant_files.length > 0)
+                        visible: !!(root.approvalDialogRequest.contextPack
+                            && root.approvalDialogRequest.contextPack.relevant_files
+                            && root.approvalDialogRequest.contextPack.relevant_files.length > 0)
                         text: "Context Files"
-                        color: "#808080"
+                        color: "#6b7280"
                         font.pixelSize: 12
                     }
                     Text {
-                        visible: !!(approvalDialogRequest.contextPack
-                            && approvalDialogRequest.contextPack.relevant_files
-                            && approvalDialogRequest.contextPack.relevant_files.length > 0)
+                        visible: !!(root.approvalDialogRequest.contextPack
+                            && root.approvalDialogRequest.contextPack.relevant_files
+                            && root.approvalDialogRequest.contextPack.relevant_files.length > 0)
                         text: {
-                            const files = (approvalDialogRequest.contextPack
-                                && approvalDialogRequest.contextPack.relevant_files) || []
+                            const files = (root.approvalDialogRequest.contextPack
+                                && root.approvalDialogRequest.contextPack.relevant_files) || []
                             const names = files.slice(0, 3).map(function(f) { return f.path })
                             return files.length + " file(s): " + names.join(", ")
                                 + (files.length > 3 ? " …" : "")
@@ -1589,15 +1782,15 @@ ApplicationWindow {
                     }
 
                     Text {
-                        visible: !!(approvalDialogRequest.contextPack
-                            && approvalDialogRequest.contextPack.custom_instructions)
+                        visible: !!(root.approvalDialogRequest.contextPack
+                            && root.approvalDialogRequest.contextPack.custom_instructions)
                         text: "Custom Instructions"
-                        color: "#808080"
+                        color: "#6b7280"
                         font.pixelSize: 12
                     }
                     Text {
-                        visible: !!(approvalDialogRequest.contextPack
-                            && approvalDialogRequest.contextPack.custom_instructions)
+                        visible: !!(root.approvalDialogRequest.contextPack
+                            && root.approvalDialogRequest.contextPack.custom_instructions)
                         text: "\u2713 provided"
                         color: "#4ec9b0"
                         font.pixelSize: 12
@@ -1606,14 +1799,14 @@ ApplicationWindow {
             }
 
             Text {
-                visible: approvalDialogRequest.providerSelectionRequired
+                visible: root.approvalDialogRequest.providerSelectionRequired
                 text: "Provider selection is required before approval."
                 color: "#f48771"
                 font.pixelSize: 12
             }
 
             RowLayout {
-                visible: approvalDialogRequest.providerChooserVisible
+                visible: root.approvalDialogRequest.providerChooserVisible
                 spacing: 8
 
                 Label {
@@ -1626,7 +1819,7 @@ ApplicationWindow {
                     id: approvalProviderChooser
                     Layout.preferredWidth: 220
                     font.pixelSize: root.uiControlFontPx
-                    model: approvalDialogRequest.providerSelectionRequired
+                    model: root.approvalDialogRequest.providerSelectionRequired
                         ? [
                             "Select provider…",
                             "Gemini",
@@ -1637,30 +1830,30 @@ ApplicationWindow {
                             "Copilot"
                         ]
                     currentIndex: {
-                        const selected = (approvalSelectedProvider || "").toLowerCase()
+                        const selected = (root.approvalSelectedProvider || "").toLowerCase()
                         if (selected === "gemini") {
-                            return approvalDialogRequest.providerSelectionRequired ? 1 : 0
+                            return root.approvalDialogRequest.providerSelectionRequired ? 1 : 0
                         }
                         if (selected === "copilot") {
-                            return approvalDialogRequest.providerSelectionRequired ? 2 : 1
+                            return root.approvalDialogRequest.providerSelectionRequired ? 2 : 1
                         }
                         return 0
                     }
                     onActivated: {
                         const choice = (model[currentIndex] || "").toString().toLowerCase()
                         if (choice === "gemini") {
-                            approvalSelectedProvider = "gemini"
+                            root.approvalSelectedProvider = "gemini"
                         } else if (choice === "copilot") {
-                            approvalSelectedProvider = "copilot"
+                            root.approvalSelectedProvider = "copilot"
                         } else {
-                            approvalSelectedProvider = ""
+                            root.approvalSelectedProvider = ""
                         }
                     }
                 }
             }
 
             RowLayout {
-                visible: approvalDialogRequest.autonomySelectorVisible
+                visible: root.approvalDialogRequest.autonomySelectorVisible
                 spacing: 8
 
                 Label {
@@ -1674,17 +1867,17 @@ ApplicationWindow {
                     Layout.preferredWidth: 220
                     font.pixelSize: root.uiControlFontPx
                     model: ["Guided", "Autonomous"]
-                    currentIndex: (approvalSelectedAutonomyMode || "guided") === "autonomous" ? 1 : 0
+                    currentIndex: (root.approvalSelectedAutonomyMode || "guided") === "autonomous" ? 1 : 0
                     onActivated: {
                         const choice = (model[currentIndex] || "").toString().toLowerCase()
-                        approvalSelectedAutonomyMode = (choice === "autonomous") ? "autonomous" : "guided"
+                        root.approvalSelectedAutonomyMode = (choice === "autonomous") ? "autonomous" : "guided"
                     }
                 }
             }
 
             // ── Session lifecycle selector (Step 27) ─────────────────────────
             RowLayout {
-                visible: approvalDialogRequest.providerPolicyApplies
+                visible: root.approvalDialogRequest.providerPolicyApplies
                 spacing: 8
 
                 Label {
@@ -1698,28 +1891,28 @@ ApplicationWindow {
                     Layout.preferredWidth: 160
                     font.pixelSize: root.uiControlFontPx
                     model: ["New session", "Resume session"]
-                    currentIndex: approvalSessionMode === "resume" ? 1 : 0
+                    currentIndex: root.approvalSessionMode === "resume" ? 1 : 0
                     onActivated: {
                         const choice = (model[currentIndex] || "").toString().toLowerCase()
-                        approvalSessionMode = choice.indexOf("resume") >= 0 ? "resume" : "new"
+                        root.approvalSessionMode = choice.indexOf("resume") >= 0 ? "resume" : "new"
                     }
                 }
 
                 TextField {
                     id: approvalResumeSessionIdField
-                    visible: approvalSessionMode === "resume"
+                    visible: root.approvalSessionMode === "resume"
                     Layout.preferredWidth: 200
                     font.pixelSize: root.uiInputFontPx
                     placeholderText: "Session ID to resume"
-                    text: approvalResumeSessionId
-                    onTextChanged: approvalResumeSessionId = text
+                    text: root.approvalResumeSessionId
+                    onTextChanged: root.approvalResumeSessionId = text
                 }
             }
 
             Text {
-                visible: approvalDialogRequest.providerPolicyApplies
-                    && approvalSessionMode === "resume"
-                    && !(approvalResumeSessionId || "").trim().length
+                visible: root.approvalDialogRequest.providerPolicyApplies
+                    && root.approvalSessionMode === "resume"
+                    && !(root.approvalResumeSessionId || "").trim().length
                 text: "Resume requires a session ID."
                 color: "#f48771"
                 font.pixelSize: 12
@@ -1727,7 +1920,7 @@ ApplicationWindow {
 
             // ── Output format selector (Step 28) ─────────────────────────────
             RowLayout {
-                visible: approvalDialogRequest.providerPolicyApplies
+                visible: root.approvalDialogRequest.providerPolicyApplies
                 spacing: 8
 
                 Label {
@@ -1742,7 +1935,7 @@ ApplicationWindow {
                     font.pixelSize: root.uiControlFontPx
                     model: ["Text", "JSON", "Stream JSON"]
                     currentIndex: {
-                        const fmt = approvalOutputFormat || "text"
+                        const fmt = root.approvalOutputFormat || "text"
                         if (fmt === "json") return 1
                         if (fmt === "stream-json") return 2
                         return 0
@@ -1750,11 +1943,11 @@ ApplicationWindow {
                     onActivated: {
                         const choice = (model[currentIndex] || "").toString().toLowerCase()
                         if (choice === "json") {
-                            approvalOutputFormat = "json"
+                            root.approvalOutputFormat = "json"
                         } else if (choice === "stream json") {
-                            approvalOutputFormat = "stream-json"
+                            root.approvalOutputFormat = "stream-json"
                         } else {
-                            approvalOutputFormat = "text"
+                            root.approvalOutputFormat = "text"
                         }
                     }
                 }
@@ -1764,25 +1957,25 @@ ApplicationWindow {
             // Controls are opt-in: no load-reduction flags are injected unless
             // the approver explicitly enables them.
             ColumnLayout {
-                visible: approvalDialogRequest.providerPolicyApplies
+                visible: root.approvalDialogRequest.providerPolicyApplies
                 spacing: 2
 
                 CheckBox {
                     id: geminiScreenReaderCheckbox
                     // Only show when Gemini is the selected/prefilled provider
-                    visible: (approvalSelectedProvider || "").toLowerCase() === "gemini"
-                        || (approvalDialogRequest.prefilledProvider || "").toLowerCase() === "gemini"
+                    visible: (root.approvalSelectedProvider || "").toLowerCase() === "gemini"
+                        || (root.approvalDialogRequest.prefilledProvider || "").toLowerCase() === "gemini"
                     text: "Enable screen reader mode (--screen-reader)"
                     font.pixelSize: root.uiControlFontPx
-                    checked: approvalGeminiScreenReader
-                    onCheckedChanged: approvalGeminiScreenReader = checked
+                    checked: root.approvalGeminiScreenReader
+                    onCheckedChanged: root.approvalGeminiScreenReader = checked
                 }
 
                 Text {
                     // Show a plain note for Copilot so visible controls only map
                     // to launch flags that actually exist at runtime.
-                    visible: (approvalSelectedProvider || "").toLowerCase() === "copilot"
-                        || (approvalDialogRequest.prefilledProvider || "").toLowerCase() === "copilot"
+                    visible: (root.approvalSelectedProvider || "").toLowerCase() === "copilot"
+                        || (root.approvalDialogRequest.prefilledProvider || "").toLowerCase() === "copilot"
                     text: "Copilot CLI v1.x has no screen-reader/minimal-UI launch flag."
                     color: "#a0a7b4"
                     font.pixelSize: root.uiControlFontPx
@@ -1793,7 +1986,7 @@ ApplicationWindow {
 
             // ── Autonomy budget controls (Step 31) ───────────────────────────
             ColumnLayout {
-                visible: approvalSelectedAutonomyMode === "autonomous"
+                visible: root.approvalSelectedAutonomyMode === "autonomous"
                 spacing: 6
 
                 Rectangle {
@@ -1815,9 +2008,9 @@ ApplicationWindow {
                     SpinBox {
                         id: budgetMaxCommandsBox
                         from: 0; to: 99999
-                        value: approvalBudgetMaxCommands
+                        value: root.approvalBudgetMaxCommands
                         font.pixelSize: root.uiControlFontPx
-                        onValueModified: approvalBudgetMaxCommands = value
+                        onValueModified: root.approvalBudgetMaxCommands = value
                     }
                 }
 
@@ -1827,9 +2020,9 @@ ApplicationWindow {
                     SpinBox {
                         id: budgetMaxDurationSecsBox
                         from: 0; to: 99999
-                        value: approvalBudgetMaxDurationSecs
+                        value: root.approvalBudgetMaxDurationSecs
                         font.pixelSize: root.uiControlFontPx
-                        onValueModified: approvalBudgetMaxDurationSecs = value
+                        onValueModified: root.approvalBudgetMaxDurationSecs = value
                     }
                 }
 
@@ -1839,22 +2032,22 @@ ApplicationWindow {
                     SpinBox {
                         id: budgetMaxFilesBox
                         from: 0; to: 99999
-                        value: approvalBudgetMaxFiles
+                        value: root.approvalBudgetMaxFiles
                         font.pixelSize: root.uiControlFontPx
-                        onValueModified: approvalBudgetMaxFiles = value
+                        onValueModified: root.approvalBudgetMaxFiles = value
                     }
                 }
             }
 
             // ── Trusted-scope confirmation gate (Step 30) ────────────────────
             ColumnLayout {
-                visible: approvalRiskTier >= 2
+                visible: root.approvalRiskTier >= 2
                 spacing: 6
 
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 1
-                    color: approvalRiskTier === 3 ? "#f87171" : "#fbbf24"
+                    color: root.approvalRiskTier === 3 ? "#f87171" : "#fbbf24"
                     opacity: 0.6
                 }
 
@@ -1862,21 +2055,21 @@ ApplicationWindow {
                     spacing: 6
                     Text {
                         text: "\u26a0"
-                        color: approvalRiskTier === 3 ? "#f87171" : "#fbbf24"
+                        color: root.approvalRiskTier === 3 ? "#f87171" : "#fbbf24"
                         font.pixelSize: 14
                     }
                     Text {
-                        text: approvalRiskTier === 3
+                        text: root.approvalRiskTier === 3
                             ? "High-risk launch: autonomous mode, unrestricted scope"
                             : "Medium-risk launch: autonomous mode with budget limits"
-                        color: approvalRiskTier === 3 ? "#f87171" : "#fbbf24"
+                        color: root.approvalRiskTier === 3 ? "#f87171" : "#fbbf24"
                         font.pixelSize: 12
                         font.bold: true
                     }
                 }
 
                 Text {
-                    text: approvalRiskTier === 3
+                    text: root.approvalRiskTier === 3
                         ? "I confirm this autonomous agent may operate across the full workspace without command, time, or file restrictions."
                         : "I confirm this autonomous agent may access files and run commands within this workspace (within the stated budget limits)."
                     color: "#d4d4d4"
@@ -1889,8 +2082,8 @@ ApplicationWindow {
                     id: trustedScopeCheck
                     text: "I understand and accept the risk"
                     font.pixelSize: root.uiControlFontPx
-                    checked: approvalTrustedScopeConfirmed
-                    onCheckedChanged: approvalTrustedScopeConfirmed = checked
+                    checked: root.approvalTrustedScopeConfirmed
+                    onCheckedChanged: root.approvalTrustedScopeConfirmed = checked
                 }
             }
 
@@ -1913,21 +2106,21 @@ ApplicationWindow {
                     enabled: root.canSubmitApproval()
                     onClicked: {
                         // Sync approval-time selections to bridge before approving
-                        terminalApp.approvalSessionMode = approvalSessionMode
-                        terminalApp.approvalOutputFormat = approvalOutputFormat
-                        if (approvalSessionMode === "resume") {
-                            terminalApp.approvalResumeSessionId = approvalResumeSessionId
+                        terminalApp.approvalSessionMode = root.approvalSessionMode
+                        terminalApp.approvalOutputFormat = root.approvalOutputFormat
+                        if (root.approvalSessionMode === "resume") {
+                            terminalApp.approvalResumeSessionId = root.approvalResumeSessionId
                         }
                         // Sync risk/budget/trusted-scope (Steps 29–31)
-                        terminalApp.approvalRiskTier = approvalRiskTier
-                        terminalApp.approvalTrustedScopeConfirmed = approvalTrustedScopeConfirmed
-                        terminalApp.approvalBudgetMaxCommands = approvalBudgetMaxCommands
-                        terminalApp.approvalBudgetMaxDurationSecs = approvalBudgetMaxDurationSecs
-                        terminalApp.approvalBudgetMaxFiles = approvalBudgetMaxFiles
+                        terminalApp.approvalRiskTier = root.approvalRiskTier
+                        terminalApp.approvalTrustedScopeConfirmed = root.approvalTrustedScopeConfirmed
+                        terminalApp.approvalBudgetMaxCommands = root.approvalBudgetMaxCommands
+                        terminalApp.approvalBudgetMaxDurationSecs = root.approvalBudgetMaxDurationSecs
+                        terminalApp.approvalBudgetMaxFiles = root.approvalBudgetMaxFiles
                         // Sync CLI load-reduction flags (Phase 3)
-                        terminalApp.approvalGeminiScreenReader = approvalGeminiScreenReader
-                        terminalApp.approvalCopilotMinimalUi = approvalCopilotMinimalUi
-                        terminalApp.approveCommand(terminalApp.currentRequestId, approvalSelectedAutonomyMode)
+                        terminalApp.approvalGeminiScreenReader = root.approvalGeminiScreenReader
+                        terminalApp.approvalCopilotMinimalUi = root.approvalCopilotMinimalUi
+                        terminalApp.approveCommand(terminalApp.currentRequestId, root.approvalSelectedAutonomyMode)
                         approvalDialog.close()
                     }
                 }
@@ -1951,7 +2144,7 @@ ApplicationWindow {
         }
 
         background: Rectangle {
-            color: "#252526"
+            color: "#161b27"
             border.color: "#3c3c3c"
             border.width: 1
         }
@@ -1980,7 +2173,7 @@ ApplicationWindow {
 
             Text {
                 text: "Selected session: " + (terminalApp.currentSessionId || "default")
-                color: "#808080"
+                color: "#6b7280"
                 font.pixelSize: 11
             }
 
@@ -2070,6 +2263,8 @@ ApplicationWindow {
                 model: root.savedCommands
 
                 delegate: Rectangle {
+                    id: savedCommandDelegate
+                    required property var modelData
                     readonly property var entry: modelData
                     width: ListView.view.width
                     height: 58
@@ -2090,7 +2285,7 @@ ApplicationWindow {
                             spacing: 2
 
                             Text {
-                                text: entry.name
+                                text: savedCommandDelegate.entry.name
                                 color: "#d4d4d4"
                                 font.pixelSize: 12
                                 elide: Text.ElideRight
@@ -2098,7 +2293,7 @@ ApplicationWindow {
                             }
 
                             Text {
-                                text: entry.command
+                                text: savedCommandDelegate.entry.command
                                 color: "#9da0a6"
                                 font.pixelSize: 11
                                 elide: Text.ElideRight
@@ -2115,7 +2310,7 @@ ApplicationWindow {
                             anchors.verticalCenter: undefined
                             y: 8
                             onClicked: {
-                                terminalApp.deriveAllowlistPattern(entry.command)
+                                terminalApp.deriveAllowlistPattern(savedCommandDelegate.entry.command)
                             }
                         }
                     }
@@ -2123,7 +2318,7 @@ ApplicationWindow {
                     MouseArea {
                         anchors.fill: parent
                         anchors.rightMargin: addToAllowlistBtn.width + 10
-                        onClicked: root.selectedSavedCommandId = entry.id
+                        onClicked: root.selectedSavedCommandId = savedCommandDelegate.entry.id
                     }
                 }
             }
@@ -2153,7 +2348,7 @@ ApplicationWindow {
 
                     Text {
                         text: "From: " + (terminalApp.proposedFromCommand || "")
-                        color: "#808080"
+                        color: "#6b7280"
                         font.pixelSize: 10
                         elide: Text.ElideRight
                         Layout.fillWidth: true
@@ -2162,10 +2357,10 @@ ApplicationWindow {
                     // Option A: Exact (low risk)
                     Rectangle {
                         Layout.fillWidth: true
-                        height: 34
+                        implicitHeight: 34
                         radius: 3
                         color: (terminalApp.proposedAllowlistPattern === terminalApp.proposedExactPattern)
-                            ? "#1a3a1a" : "#252526"
+                            ? "#1a3a1a" : "#1a2234"
                         border.color: (terminalApp.proposedAllowlistPattern === terminalApp.proposedExactPattern)
                             ? "#4caf50" : "#3c3c3c"
                         border.width: 1
@@ -2184,7 +2379,7 @@ ApplicationWindow {
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: "Exact:"
-                                color: "#808080"
+                                color: "#6b7280"
                                 font.pixelSize: 10
                             }
 
@@ -2218,11 +2413,11 @@ ApplicationWindow {
                     // Option B: Generalized (medium/high risk) — only show when different
                     Rectangle {
                         Layout.fillWidth: true
-                        height: 34
+                        implicitHeight: 34
                         radius: 3
                         visible: (terminalApp.proposedGeneralPattern || "") !== (terminalApp.proposedExactPattern || "")
                         color: (terminalApp.proposedAllowlistPattern === terminalApp.proposedGeneralPattern)
-                            ? "#2a1a00" : "#252526"
+                            ? "#2a1a00" : "#1a2234"
                         border.color: (terminalApp.proposedAllowlistPattern === terminalApp.proposedGeneralPattern)
                             ? "#ff9800" : "#3c3c3c"
                         border.width: 1
@@ -2241,7 +2436,7 @@ ApplicationWindow {
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: "Wide:"
-                                color: "#808080"
+                                color: "#6b7280"
                                 font.pixelSize: 10
                             }
 
@@ -2333,7 +2528,7 @@ ApplicationWindow {
         }
 
         background: Rectangle {
-            color: "#252526"
+            color: "#161b27"
             border.color: "#3c3c3c"
             border.width: 1
         }
@@ -2357,7 +2552,7 @@ ApplicationWindow {
 
             Text {
                 text: (root.allowlistPatterns.length) + " pattern(s) loaded"
-                color: "#808080"
+                color: "#6b7280"
                 font.pixelSize: 11
             }
 
@@ -2433,6 +2628,8 @@ ApplicationWindow {
                 model: filteredPatterns
 
                 delegate: Rectangle {
+                    id: allowlistPatternDelegate
+                    required property var modelData
                     width: ListView.view.width
                     height: 34
                     radius: 3
@@ -2448,7 +2645,7 @@ ApplicationWindow {
 
                         Text {
                             Layout.fillWidth: true
-                            text: modelData
+                            text: allowlistPatternDelegate.modelData
                             color: "#d4d4d4"
                             font.pixelSize: 12
                             font.family: "Consolas,Courier New,monospace"
@@ -2457,8 +2654,8 @@ ApplicationWindow {
                         }
 
                         Rectangle {
-                            width: 22
-                            height: 22
+                            implicitWidth: 22
+                            implicitHeight: 22
                             radius: 4
                             color: removePatternArea.pressed ? "#9f3434"
                                 : (removePatternArea.containsMouse ? "#5a3a3a" : "#3a3a3a")
@@ -2477,7 +2674,7 @@ ApplicationWindow {
                                 id: removePatternArea
                                 anchors.fill: parent
                                 hoverEnabled: true
-                                onClicked: terminalApp.removeAllowlistPattern(modelData)
+                                onClicked: terminalApp.removeAllowlistPattern(allowlistPatternDelegate.modelData)
                             }
                         }
                     }
@@ -2489,7 +2686,7 @@ ApplicationWindow {
                 visible: (terminalApp.allowlistLastOp || "").length > 0
                     || (terminalApp.allowlistLastError || "").length > 0
                 Layout.fillWidth: true
-                height: 30
+                implicitHeight: 30
                 radius: 4
                 color: (terminalApp.allowlistLastOp === "error"
                     || terminalApp.allowlistLastOp === "duplicate"

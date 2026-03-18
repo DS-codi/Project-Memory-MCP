@@ -948,7 +948,7 @@ impl Default for MdnsSection {
 // ---------------------------------------------------------------------------
 
 /// Which AI provider to use for the chatbot.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum ChatbotProvider {
     #[default]

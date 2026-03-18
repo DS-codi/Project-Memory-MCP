@@ -45,6 +45,7 @@ pub mod ffi {
         #[qproperty(bool, run_commands_in_window, cxx_name = "runCommandsInWindow")]
         #[qproperty(bool, gemini_key_present, cxx_name = "geminiKeyPresent")]
         #[qproperty(bool, copilot_key_present, cxx_name = "copilotKeyPresent")]
+        #[qproperty(bool, claude_key_present, cxx_name = "claudeKeyPresent")]
         #[qproperty(bool, gemini_injection_requested, cxx_name = "geminiInjectionRequested")]
         #[qproperty(QString, preferred_cli_provider, cxx_name = "preferredCliProvider")]
         #[qproperty(bool, approval_provider_chooser_enabled, cxx_name = "approvalProviderChooserEnabled")]
@@ -200,6 +201,18 @@ pub mod ffi {
         #[qinvokable]
         #[cxx_name = "launchCopilotInTab"]
         fn launch_copilot_in_tab(self: Pin<&mut TerminalApp>) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "launchClaudeInTab"]
+        fn launch_claude_in_tab(self: Pin<&mut TerminalApp>) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "setClaudeApiKey"]
+        fn set_claude_api_key(self: Pin<&mut TerminalApp>, api_key: QString) -> bool;
+
+        #[qinvokable]
+        #[cxx_name = "clearClaudeApiKey"]
+        fn clear_claude_api_key(self: Pin<&mut TerminalApp>) -> bool;
 
         #[qinvokable]
         #[cxx_name = "openSavedCommands"]
