@@ -42,6 +42,7 @@ fn main() {
             "qml/SettingsPanel.qml",
             "qml/ChatbotPanel.qml",
             "qml/PlansPanel.qml",
+            "qml/PairingDialog.qml",
         ]),
     )
     .qrc_resources([
@@ -49,7 +50,8 @@ fn main() {
         "resources/app_icon.png",
         "resources/app_icon.svg",
     ])
-    .file("src/cxxqt_bridge/mod.rs");
+    .file("src/cxxqt_bridge/mod.rs")
+    .file("src/cxxqt_bridge/qr_bridge.rs");
 
     #[cfg(windows)]
     {

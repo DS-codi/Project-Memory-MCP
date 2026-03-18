@@ -213,3 +213,49 @@ enabled            = true   # set false to disable the channel entirely
 buffer_size        = 256    # tokio broadcast channel capacity
 heartbeat_interval = 30     # seconds between keep-alive pings to SSE clients
 replay_buffer_size = 100    # number of past events held for Last-Event-Id replay
+
+# ── API-key authentication ────────────────────────────────────────────────────
+# The supervisor GUI HTTP server requires an API key in the X-PM-API-Key header
+# for all requests except GET /gui/ping.
+# If api_key is absent the supervisor auto-generates a 64-character hex key on
+# first startup and appends it to this file so the key persists across restarts.
+
+[auth]
+# api_key = "your-secret-key-here"   # uncomment and set to pin a fixed key
+
+# ── AI Chatbot ───────────────────────────────────────────────────────────────
+# The in-supervisor chatbot panel supports three providers: gemini, copilot, claude.
+#
+# Credential resolution order (chatbot panel):
+#   gemini  → api_key > GEMINI_API_KEY env > GOOGLE_API_KEY env > gcloud auth print-access-token
+#   copilot → api_key > gh auth token
+#   claude  → api_key > ANTHROPIC_API_KEY env  (falls back to gemini, then copilot, if unavailable)
+#
+# Interactive terminal sessions always prefer account-based auth first:
+#   claude  → claude CLI OAuth (your claude.ai subscription, zero config)
+#   copilot → gh auth token
+#   gemini  → gcloud ADC
+# A configured api_key is used only when account auth is unavailable.
+
+[chatbot]
+enabled  = true
+provider = "gemini"   # "gemini" | "copilot" | "claude"
+
+# API key for the chosen provider.  Leave blank to use account-based auth
+# (gh auth token for copilot, gcloud ADC for gemini, ANTHROPIC_API_KEY for claude).
+api_key  = ""
+
+# Model override — empty = use sensible defaults per provider:
+#   gemini  → gemini-2.0-flash
+#   copilot → gpt-4o
+#   claude  → claude-sonnet-4-6
+model    = ""
+
+# ── mDNS service advertisement ────────────────────────────────────────────────
+# When enabled, supervisor advertises itself on the local network via mDNS-SD
+# (_projectmemory._tcp.local.) so the mobile app can discover it automatically
+# without needing a manually entered IP address.
+
+[mdns]
+enabled = true
+# instance_name = "ProjectMemory"   # default: "ProjectMemory"

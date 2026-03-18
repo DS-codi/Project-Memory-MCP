@@ -140,6 +140,11 @@ ApplicationWindow {
                 // loop before services are shut down.
                 onTriggered: supervisorGuiBridge.quitSupervisor()
             }
+            Platform.MenuSeparator {}
+            Platform.MenuItem {
+                text: "Show Pairing QR"
+                onTriggered: pairingDialog.open()
+            }
         }
     }
 
@@ -184,6 +189,11 @@ ApplicationWindow {
                 }
             }
         }
+    }
+
+    // ── Pairing QR dialog ────────────────────────────────────────────────────
+    PairingDialog {
+        id: pairingDialog
     }
 
     // ── Window content ───────────────────────────────────────────────────────

@@ -253,9 +253,11 @@ async fn runtime_capture_set_handler(
 // Router
 // ---------------------------------------------------------------------------
 
-pub fn build_router(state: GuiServerState) -> Router {
-    Router::new()
-        .route("/gui/ping", get(ping_handler))
+pub fn build_router(state: GuiServerState, api_key: Option<String>) -> Router {
+    let key_state = Arc::new(api_key);
+
+    // Protected routes — require X-PM-API-Key header.
+    let protected = Router::new()
         .route("/gui/launch", post(launch_handler))
         .route("/gui/continue", post(continue_handler))
         .route("/runtime/recent", get(runtime_recent_handler))
@@ -264,6 +266,15 @@ pub fn build_router(state: GuiServerState) -> Router {
         .route("/chatbot/chat", post(chatbot_chat_handler))
         .route("/chatbot/config", get(chatbot_config_get_handler).post(chatbot_config_set_handler))
         .route("/chatbot/status/:id", get(chatbot_status_handler))
+        .layer(axum::middleware::from_fn_with_state(
+            key_state,
+            crate::auth_middleware::require_api_key,
+        ));
+
+    // Public routes — no auth required.
+    Router::new()
+        .route("/gui/ping", get(ping_handler))
+        .merge(protected)
         .with_state(state)
 }
 
@@ -285,6 +296,7 @@ pub async fn start(
     chatbot_config: Arc<RwLock<ChatbotSection>>,
     chatbot_state_path: std::path::PathBuf,
     mcp_base_url: String,
+    api_key: Option<String>,
 ) -> anyhow::Result<()> {
     let addr = format!("{bind_address}:{port}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;
@@ -296,7 +308,7 @@ pub async fn start(
         mcp_base_url,
         chat_live_logs: Arc::new(RwLock::new(HashMap::new())),
     };
-    axum::serve(listener, build_router(state)).await?;
+    axum::serve(listener, build_router(state, api_key)).await?;
     Ok(())
 }
 

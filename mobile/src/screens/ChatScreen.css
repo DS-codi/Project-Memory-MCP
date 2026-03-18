@@ -1,0 +1,107 @@
+.chat-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 0 8px;
+}
+
+.chat-empty {
+  text-align: center;
+  padding: 40px 24px;
+  color: var(--color-on-surface-muted);
+  font-size: 0.9rem;
+}
+
+.chat-thinking {
+  margin: 4px 12px;
+  padding: 8px 14px;
+  background: var(--color-surface-variant);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  font-size: 0.8rem;
+  color: var(--color-on-surface-muted);
+  display: inline-block;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.chat-error {
+  margin: 8px 12px;
+  padding: 10px 12px;
+  background: rgba(243, 139, 168, 0.1);
+  border: 1px solid var(--color-error);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chat-error .error {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+/* Input bar */
+.chat-input-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px 12px;
+  padding-bottom: calc(8px + var(--safe-area-bottom));
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface-variant);
+}
+
+.chat-input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  background: var(--color-surface);
+  color: var(--color-on-surface);
+  font-size: 0.9rem;
+  resize: none;
+  max-height: 120px;
+  overflow-y: auto;
+  outline: none;
+  line-height: 1.4;
+  display: block;
+  width: 100%;
+}
+
+.chat-input:focus {
+  border-color: var(--color-primary);
+}
+
+.chat-send-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 1.1rem;
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-send-btn:disabled {
+  background: var(--color-surface-variant);
+  color: var(--color-on-surface-muted);
+  border: 1px solid var(--color-border);
+}

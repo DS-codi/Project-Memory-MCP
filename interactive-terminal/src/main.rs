@@ -42,6 +42,10 @@ const DEFAULT_HOST_BRIDGE_PORT: u16 = 45459;
 /// is constructed by the QML engine.
 pub static SERVER_PORT: OnceLock<u16> = OnceLock::new();
 
+/// Bind host for the WS/HTTP server (e.g. `"0.0.0.0"` or `"127.0.0.1"`).
+/// Set during startup from `--host` CLI arg or `TERMINAL_HOST` env var.
+pub static TERMINAL_HOST: OnceLock<String> = OnceLock::new();
+
 /// Pre-bound runtime listener to guarantee early port reservation at process startup.
 ///
 /// `TcpServer::start` consumes this listener when the bridge runtime initializes.
@@ -53,11 +57,16 @@ pub static HEARTBEAT_INTERVAL: OnceLock<u64> = OnceLock::new();
 /// Idle timeout in seconds, set from CLI args at startup.
 pub static IDLE_TIMEOUT: OnceLock<u64> = OnceLock::new();
 
+/// PTY session persistence timeout in seconds, set from CLI args at startup.
+/// After a WebSocket disconnect, the PTY process is kept alive for this duration
+/// so the mobile client can reconnect without losing shell state.
+pub static SESSION_TIMEOUT: OnceLock<u64> = OnceLock::new();
+
 /// Whether the GUI should be shown at startup instead of minimizing to tray.
 pub static START_VISIBLE: OnceLock<bool> = OnceLock::new();
 
-pub fn prebind_runtime_listener(port: u16) -> std::io::Result<()> {
-    let listener = TcpListener::bind(("127.0.0.1", port))?;
+pub fn prebind_runtime_listener(host: &str, port: u16) -> std::io::Result<()> {
+    let listener = TcpListener::bind((host, port))?;
     let storage = PREBOUND_RUNTIME_LISTENER.get_or_init(|| Mutex::new(None));
     let mut guard = storage.lock().unwrap();
     *guard = Some(listener);
@@ -87,6 +96,13 @@ struct Args {
     #[arg(long, default_value_t = DEFAULT_PORT)]
     port: u16,
 
+    /// Host address to bind the WS/HTTP server on.
+    /// Override with the `TERMINAL_HOST` environment variable.
+    /// Use `"0.0.0.0"` (default) to accept remote connections for mobile
+    /// companion access; use `"127.0.0.1"` to restrict to loopback only.
+    #[arg(long, default_value = "0.0.0.0")]
+    host: String,
+
     /// Heartbeat interval in seconds
     #[arg(long, default_value_t = 5)]
     heartbeat_interval: u64,
@@ -94,6 +110,12 @@ struct Args {
     /// Idle timeout in seconds (exit after no activity)
     #[arg(long, default_value_t = 300)]
     idle_timeout: u64,
+
+    /// PTY session persistence timeout in seconds.
+    /// After a WebSocket disconnect the PTY process is kept alive for this long,
+    /// allowing the mobile client to reconnect to the same shell session.
+    #[arg(long, default_value_t = 300)]
+    session_timeout: u64,
 
     /// Enable debug mode: allocates a console window (Windows) so stderr is visible
     #[arg(long)]
@@ -160,18 +182,30 @@ fn main() {
         .and_then(|s| s.parse::<u16>().ok())
         .unwrap_or(args.port);
 
+    // Allow TERMINAL_HOST env var to override the --host CLI default.
+    let host = std::env::var("TERMINAL_HOST")
+        .ok()
+        .unwrap_or(args.host);
+
     let host_bridge_port = std::env::var("PM_INTERACTIVE_TERMINAL_HOST_PORT")
         .ok()
         .and_then(|s| s.parse::<u16>().ok())
         .unwrap_or(DEFAULT_HOST_BRIDGE_PORT);
 
     SERVER_PORT.set(port).expect("SERVER_PORT already set");
+    TERMINAL_HOST
+        .set(host.clone())
+        .expect("TERMINAL_HOST already set");
     HEARTBEAT_INTERVAL
         .set(args.heartbeat_interval)
         .expect("HEARTBEAT_INTERVAL already set");
     IDLE_TIMEOUT
         .set(args.idle_timeout)
         .expect("IDLE_TIMEOUT already set");
+    SESSION_TIMEOUT
+        .set(args.session_timeout)
+        .expect("SESSION_TIMEOUT already set");
+
     let start_hidden = std::env::var("INTERACTIVE_TERMINAL_START_HIDDEN")
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false);
@@ -181,10 +215,10 @@ fn main() {
         .set(start_visible)
         .expect("START_VISIBLE already set");
 
-    prebind_runtime_listener(port)
-        .unwrap_or_else(|error| panic!("Failed to prebind 127.0.0.1:{port}: {error}"));
+    prebind_runtime_listener(&host, port)
+        .unwrap_or_else(|error| panic!("Failed to prebind {host}:{port}: {error}"));
 
-    eprintln!("Interactive Terminal listening on 127.0.0.1:{port}");
+    eprintln!("Interactive Terminal listening on {host}:{port}");
     host_bridge_listener::spawn(host_bridge_port, port);
 
     // Launch the out-of-process PTY host (pty-host feature only).

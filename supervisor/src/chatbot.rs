@@ -1,5 +1,5 @@
-//! AI chatbot module — handles communication with Gemini and GitHub Models,
-//! including MCP tool-calling loops for plan/workspace management.
+//! AI chatbot module — handles communication with Gemini, GitHub Models, and
+//! Anthropic Claude, including MCP tool-calling loops for plan/workspace management.
 
 use std::error::Error as _;
 use std::sync::{Arc, Mutex as StdMutex};

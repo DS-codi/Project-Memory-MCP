@@ -2,6 +2,9 @@ pub mod initialize;
 pub use initialize::SUPERVISOR_QT;
 pub use initialize::SHUTDOWN_TX;
 
+pub mod qr_bridge;
+pub use qr_bridge::set_pairing_config;
+
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
 use std::pin::Pin;

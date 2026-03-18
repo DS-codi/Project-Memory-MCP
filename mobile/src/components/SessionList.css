@@ -1,0 +1,64 @@
+.session-list {
+  background: var(--color-surface-variant);
+  border-top: 1px solid var(--color-border);
+  border-radius: 16px 16px 0 0;
+  overflow: hidden;
+}
+
+.session-list__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.session-list__header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.session-list__close {
+  background: transparent;
+  color: var(--color-on-surface-muted);
+  padding: 4px 8px;
+  font-size: 0.9rem;
+  margin: 0;
+  min-width: auto;
+}
+
+.session-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--color-border);
+  gap: 12px;
+}
+
+.session-list__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.session-list__msg {
+  display: block;
+  font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-list__time {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--color-on-surface-muted);
+  margin-top: 2px;
+}
+
+.session-list__join {
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  margin: 0;
+  flex-shrink: 0;
+}

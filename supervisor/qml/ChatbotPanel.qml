@@ -519,15 +519,16 @@ Rectangle {
                     required property bool   isToolCall
 
                     width: ListView.view ? ListView.view.width : 0
-                    height: msgBubble.implicitHeight + 4
+                    height: isToolCall ? 28 : (msgBubble.height + 4)
 
                     // Tool call chip
                     Rectangle {
                         visible: msgItem.isToolCall
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        implicitWidth: chipLabel.implicitWidth + 16
+                        anchors.centerIn: parent
+                        width: chipLabel.implicitWidth + 16
                         height: 20
                         radius: 10
+                        clip: true
                         color: "#21262d"
                         border.color: "#388bfd"
                         Text {
@@ -547,9 +548,8 @@ Rectangle {
                         anchors.left:       msgItem.role !== "user" ? parent.left        : undefined
                         anchors.rightMargin:  msgItem.role === "user" ? 4  : 0
                         anchors.leftMargin:   msgItem.role !== "user" ? 4  : 0
-                        width: Math.min((ListView.view ? ListView.view.width : 300) * 0.82,
-                                        msgItem.role === "user" ? msgContent.contentWidth + 32 : (ListView.view ? ListView.view.width : 300) * 0.82)
-                        implicitHeight: msgContent.contentHeight + 16
+                        width: (ListView.view ? ListView.view.width : 300) * 0.88
+                        height: msgContent.contentHeight + 16
                         radius: 8
                         color: msgItem.role === "user" ? "#1f6feb" : "#21262d"
                         border.color: msgItem.role === "user" ? "#388bfd" : "#30363d"
@@ -676,7 +676,26 @@ Rectangle {
                         required property bool   isToolCall
 
                         width: ListView.view ? ListView.view.width : 0
-                        height: popoutBubble.height + 4
+                        height: isToolCall ? 28 : (popoutBubble.height + 4)
+
+                        // Tool call chip
+                        Rectangle {
+                            visible: popoutMsg.isToolCall
+                            anchors.centerIn: parent
+                            width: popoutChipLabel.implicitWidth + 16
+                            height: 20
+                            radius: 10
+                            clip: true
+                            color: "#21262d"
+                            border.color: "#388bfd"
+                            Text {
+                                id: popoutChipLabel
+                                anchors.centerIn: parent
+                                text: "\u25B8 " + popoutMsg.content
+                                color: "#79c0ff"
+                                font.pixelSize: 10
+                            }
+                        }
 
                         Rectangle {
                             id: popoutBubble
@@ -685,8 +704,7 @@ Rectangle {
                             anchors.left:       popoutMsg.role !== "user" ? parent.left        : undefined
                             anchors.rightMargin:  popoutMsg.role === "user" ? 4  : 0
                             anchors.leftMargin:   popoutMsg.role !== "user" ? 4  : 0
-                            width: Math.min((ListView.view ? ListView.view.width : 300) * 0.82,
-                                            popoutMsg.role === "user" ? popoutText.contentWidth + 32 : (ListView.view ? ListView.view.width : 300) * 0.82)
+                            width: (ListView.view ? ListView.view.width : 300) * 0.88
                             height: popoutText.contentHeight + 16
                             radius: 8
                             color: popoutMsg.role === "user" ? "#1f6feb" : "#21262d"
