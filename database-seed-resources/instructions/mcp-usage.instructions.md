@@ -13,7 +13,7 @@ The MCP server exposes consolidated action-based tools, plus extension-side term
 | Tool | Actions |
 |------|--------|
 | `memory_workspace` | `register`, `info`, `list`, `reindex`, `merge`, `scan_ghosts`, `migrate` |
-| `memory_plan` | `list`, `get`, `create`, `update`, `archive`, `import`, `find`, `add_note`, `delete`, `consolidate`, `set_goals`, `add_build_script`, `list_build_scripts`, `run_build_script`, `delete_build_script`, `create_from_template`, `list_templates`, `confirm` |
+| `memory_plan` | `list`, `get`, `create`, `update`, `archive`, `import`, `find`, `add_note`, `delete`, `consolidate`, `set_goals`, `add_build_script`, `list_build_scripts`, `run_build_script`, `delete_build_script`, `create_from_template`, `list_templates`, `confirm`, `create_program`, `add_plan_to_program`, `upgrade_to_program`, `list_program_plans`, `pause_plan`, `resume_plan`, `search` |
 | `memory_steps` | `add`, `update`, `batch_update`, `insert`, `delete`, `reorder`, `move`, `sort`, `set_order`, `replace` |
 | `memory_session` | `prep`, `deploy_and_prep`, `list_sessions`, `get_session` *(session prep + deploy contract for native `runSubagent` launches)* |
 | `memory_agent` | `init`, `complete`, `handoff`, `validate`, `list`, `get_instructions`, `deploy`, `get_briefing`, `get_lineage` + **skill discovery**: `list_skills`, `get_skill`, `assign_skill`, `unassign_skill`, `list_workspace_skills` + **skill management**: `create_skill`, `delete_skill` + **instruction discovery**: `list_instructions`, `get_instruction`, `assign_instruction`, `unassign_instruction`, `list_workspace_instructions` + **instruction management**: `create_instruction`, `delete_instruction` |

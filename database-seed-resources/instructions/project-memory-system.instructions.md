@@ -120,7 +120,7 @@ Every agent MUST follow these steps when starting:
 | Tool | Actions | Purpose |
 |------|---------|---------|
 | `memory_workspace` | register, list, info, reindex | Manage workspace registration and profiles |
-| `memory_plan` | list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, create_program, add_plan_to_program, upgrade_to_program, list_program_plans | Full plan lifecycle and program management |
+| `memory_plan` | list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, create_program, add_plan_to_program, upgrade_to_program, list_program_plans, search | Full plan lifecycle and program management |
 | `memory_steps` | add, update, batch_update, insert, delete, reorder, move, sort, set_order, replace | Step-level operations |
 | `memory_agent` | init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage | Agent lifecycle and coordination |
 | `memory_context` | store, get, store_initial, list, list_research, append_research, generate_instructions, batch_store, workspace_get, workspace_set, workspace_update, workspace_delete, knowledge_store, knowledge_get, knowledge_list, knowledge_delete | Context, research, and knowledge management |
@@ -141,7 +141,7 @@ Actions: `register`, `list`, `info`, `reindex`
 
 See [mcp-tool-plan.instructions.md](./mcp-tool-plan.instructions.md) for full reference.
 
-Actions: `list`, `get`, `create`, `update`, `archive`, `import`, `find`, `add_note`, `delete`, `consolidate`, `set_goals`, `add_build_script`, `list_build_scripts`, `run_build_script`, `delete_build_script`, `create_from_template`, `list_templates`, `confirm`, `create_program`, `add_plan_to_program`, `upgrade_to_program`, `list_program_plans`
+Actions: `list`, `get`, `create`, `update`, `archive`, `import`, `find`, `add_note`, `delete`, `consolidate`, `set_goals`, `add_build_script`, `list_build_scripts`, `run_build_script`, `delete_build_script`, `create_from_template`, `list_templates`, `confirm`, `create_program`, `add_plan_to_program`, `upgrade_to_program`, `list_program_plans`, `search`
 
 ## memory_steps
 
