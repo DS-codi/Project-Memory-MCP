@@ -6,6 +6,7 @@
 //! terminals, and the dashboard.
 
 pub mod backoff;
+pub mod configured;
 pub mod container;
 pub mod dashboard;
 pub mod form_app;

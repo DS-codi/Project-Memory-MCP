@@ -8,13 +8,18 @@
 
 use clap::Parser;
 use cxx_qt::CxxQtType;
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock, atomic::{AtomicBool, Ordering}};
 use std::time::Duration;
 use supervisor::config;
-use supervisor::config::{FormAppSummonabilityStatus, McpBackend, NodeRunnerConfig};
+use supervisor::config::{
+    FormAppSummonabilityStatus, McpBackend, NodeRunnerConfig, RestartPolicy,
+    ServerDefinition,
+};
 use supervisor::control::registry::ServiceStatus;
 use supervisor::runner::ServiceRunner;
+use supervisor::runner::configured::ConfiguredProcessRunner;
 use supervisor::runner::container::ContainerRunner;
 use supervisor::runner::dashboard::DashboardRunner;
 use supervisor::runner::node::NodeRunner;
@@ -108,6 +113,245 @@ fn detect_workspace_root() -> Option<PathBuf> {
     }
 
     None
+}
+
+struct ManagedCustomService {
+    runner: ConfiguredProcessRunner,
+    started_at: Option<std::time::Instant>,
+    health_failures: u32,
+}
+
+impl ManagedCustomService {
+    fn new(definition: ServerDefinition) -> Self {
+        Self {
+            runner: ConfiguredProcessRunner::new(definition),
+            started_at: None,
+            health_failures: 0,
+        }
+    }
+
+    fn service_name(&self) -> &str {
+        self.runner.service_name()
+    }
+
+    fn port(&self) -> Option<u16> {
+        self.runner.port()
+    }
+
+    fn runtime_label(&self) -> &'static str {
+        self.runner.runtime_label()
+    }
+
+    fn restart_policy(&self) -> RestartPolicy {
+        self.runner.restart_policy()
+    }
+}
+
+fn is_builtin_service_key(service_name: &str) -> bool {
+    matches!(
+        service_name,
+        "mcp"
+            | "dashboard"
+            | "interactive_terminal"
+            | "terminal"
+            | "fallback_api"
+            | "fallback"
+            | "cli_mcp"
+    )
+}
+
+fn build_custom_services(definitions: &[ServerDefinition]) -> Vec<ManagedCustomService> {
+    let mut seen = HashSet::new();
+    let mut services = Vec::new();
+
+    for definition in definitions {
+        let trimmed_name = definition.name.trim();
+        if trimmed_name.is_empty() {
+            eprintln!("[supervisor] skipping configured service with empty name");
+            continue;
+        }
+
+        let key = trimmed_name.to_ascii_lowercase();
+        if is_builtin_service_key(&key) {
+            eprintln!(
+                "[supervisor] skipping configured service '{}' because it conflicts with a built-in service name",
+                trimmed_name
+            );
+            continue;
+        }
+
+        if !seen.insert(key) {
+            eprintln!(
+                "[supervisor] skipping duplicate configured service '{}'",
+                trimmed_name
+            );
+            continue;
+        }
+
+        let mut normalized = definition.clone();
+        normalized.name = trimmed_name.to_string();
+        services.push(ManagedCustomService::new(normalized));
+    }
+
+    services
+}
+
+fn find_custom_service_mut<'a>(
+    services: &'a mut [ManagedCustomService],
+    service_name: &str,
+) -> Option<&'a mut ManagedCustomService> {
+    let requested = service_name.trim();
+    services
+        .iter_mut()
+        .find(|service| service.service_name().eq_ignore_ascii_case(requested))
+}
+
+async fn start_custom_service(
+    service: &mut ManagedCustomService,
+    registry: &Arc<tokio::sync::Mutex<supervisor::control::registry::Registry>>,
+    tray: &mut supervisor::tray_tooltip::TrayLifecycle,
+) {
+    let service_name = service.service_name().to_string();
+    println!("[supervisor] starting configured service '{}'...", service_name);
+    set_service_status(registry, tray, &service_name, ServiceStatus::Starting).await;
+    match service.runner.start().await {
+        Ok(()) => {
+            service.started_at = Some(std::time::Instant::now());
+            service.health_failures = 0;
+            set_service_status(registry, tray, &service_name, ServiceStatus::Running).await;
+            set_service_health_ok(registry, tray, &service_name).await;
+        }
+        Err(error) => {
+            service.started_at = None;
+            service.health_failures = 0;
+            set_service_status(
+                registry,
+                tray,
+                &service_name,
+                ServiceStatus::Error(error.to_string()),
+            )
+            .await;
+            set_service_error(registry, tray, &service_name, error.to_string()).await;
+        }
+    }
+}
+
+async fn stop_custom_service(
+    service: &mut ManagedCustomService,
+    registry: &Arc<tokio::sync::Mutex<supervisor::control::registry::Registry>>,
+    tray: &mut supervisor::tray_tooltip::TrayLifecycle,
+) {
+    let service_name = service.service_name().to_string();
+    set_service_status(registry, tray, &service_name, ServiceStatus::Stopping).await;
+    match service.runner.stop().await {
+        Ok(()) => {
+            service.started_at = None;
+            service.health_failures = 0;
+            set_service_status(registry, tray, &service_name, ServiceStatus::Stopped).await;
+        }
+        Err(error) => {
+            service.started_at = None;
+            service.health_failures = 0;
+            set_service_status(
+                registry,
+                tray,
+                &service_name,
+                ServiceStatus::Error(error.to_string()),
+            )
+            .await;
+            set_service_error(registry, tray, &service_name, error.to_string()).await;
+        }
+    }
+}
+
+async fn restart_custom_service(
+    service: &mut ManagedCustomService,
+    registry: &Arc<tokio::sync::Mutex<supervisor::control::registry::Registry>>,
+    tray: &mut supervisor::tray_tooltip::TrayLifecycle,
+) {
+    let service_name = service.service_name().to_string();
+    set_service_status(registry, tray, &service_name, ServiceStatus::Stopping).await;
+    let _ = service.runner.stop().await;
+    set_service_status(registry, tray, &service_name, ServiceStatus::Starting).await;
+
+    match service.runner.start().await {
+        Ok(()) => {
+            service.started_at = Some(std::time::Instant::now());
+            service.health_failures = 0;
+            set_service_status(registry, tray, &service_name, ServiceStatus::Running).await;
+            set_service_health_ok(registry, tray, &service_name).await;
+        }
+        Err(error) => {
+            service.started_at = None;
+            service.health_failures = 0;
+            set_service_status(
+                registry,
+                tray,
+                &service_name,
+                ServiceStatus::Error(error.to_string()),
+            )
+            .await;
+            set_service_error(registry, tray, &service_name, error.to_string()).await;
+        }
+    }
+}
+
+async fn check_custom_service_health(
+    service: &mut ManagedCustomService,
+    registry: &Arc<tokio::sync::Mutex<supervisor::control::registry::Registry>>,
+    tray: &mut supervisor::tray_tooltip::TrayLifecycle,
+    restart_tx: &tokio::sync::mpsc::Sender<String>,
+) {
+    let Some(started_at) = service.started_at else {
+        service.health_failures = 0;
+        return;
+    };
+
+    if started_at.elapsed() < Duration::from_secs(30) {
+        return;
+    }
+
+    let service_name = service.service_name().to_string();
+    let health = if service.runner.is_process_dead() {
+        service.runner.mark_stopped();
+        supervisor::runner::HealthStatus::Unhealthy("process exited".to_string())
+    } else {
+        service.runner.health_probe().await
+    };
+
+    match health {
+        supervisor::runner::HealthStatus::Healthy => {
+            service.health_failures = 0;
+        }
+        supervisor::runner::HealthStatus::Unhealthy(reason) => {
+            service.health_failures += 1;
+            if service.health_failures < 2 {
+                return;
+            }
+
+            service.health_failures = 0;
+            match service.restart_policy() {
+                RestartPolicy::NeverRestart => {
+                    service.started_at = None;
+                    set_service_status(
+                        registry,
+                        tray,
+                        &service_name,
+                        ServiceStatus::Error(reason.clone()),
+                    )
+                    .await;
+                    set_service_error(registry, tray, &service_name, reason).await;
+                }
+                RestartPolicy::AlwaysRestart | RestartPolicy::RestartOnFailure => {
+                    eprintln!(
+                        "[supervisor] configured service '{}' failed health check twice — requesting restart",
+                        service_name
+                    );
+                    let _ = restart_tx.send(service_name).await;
+                }
+            }
+        }
+    }
 }
 
 // ── Entry points ────────────────────────────────────────────────────────────
@@ -313,6 +557,12 @@ async fn supervisor_main() {
                 }
             }
 
+            let mut custom_services = build_custom_services(&cfg.servers);
+            let custom_service_names: Vec<String> = custom_services
+                .iter()
+                .map(|service| service.service_name().to_string())
+                .collect();
+
             // Auto-generate API key if not present in config.
             if cfg.auth.api_key.is_none() {
                 let key_bytes = rand::random::<[u8; 32]>();
@@ -449,6 +699,11 @@ async fn supervisor_main() {
                 if cfg.cli_mcp.enabled {
                     ports_to_clear.push(cfg.cli_mcp.port);
                 }
+                for service in &custom_services {
+                    if let Some(port) = service.port() {
+                        ports_to_clear.push(port);
+                    }
+                }
                 for i in 0..cfg.mcp.pool.max_instances {
                     ports_to_clear.push(cfg.mcp.pool.base_port + i);
                 }
@@ -559,8 +814,9 @@ async fn supervisor_main() {
             // ── Control-plane channel + transport ────────────────────────────
 
             let registry = Arc::new(tokio::sync::Mutex::new(
-                supervisor::control::registry::Registry::with_backend(
+                supervisor::control::registry::Registry::with_backend_and_services(
                     cfg.mcp.backend.clone().into(),
+                    custom_service_names.iter().cloned(),
                 ),
             ));
 
@@ -600,6 +856,16 @@ async fn supervisor_main() {
                     state: "Starting".to_string(),
                     backend: None,
                     endpoint: Some(format!("http://127.0.0.1:{}", cfg.cli_mcp.port)),
+                });
+            }
+            for service in &custom_services {
+                tray_services.push(supervisor::tray_tooltip::ServiceSummary {
+                    name: display_name_for_service(service.service_name()),
+                    state: "Starting".to_string(),
+                    backend: Some(service.runtime_label().to_string()),
+                    endpoint: service
+                        .port()
+                        .map(|port| format!("tcp://127.0.0.1:{port}")),
                 });
             }
             let tray_tooltip = supervisor::tray_tooltip::build_tooltip(&tray_services, 0);
@@ -1311,6 +1577,10 @@ async fn supervisor_main() {
                 set_service_status(&registry, &mut tray, "cli_mcp", ServiceStatus::Stopped).await;
             }
 
+            for service in &mut custom_services {
+                start_custom_service(service, &registry, &mut tray).await;
+            }
+
             // ── Wait for shutdown ─────────────────────────────────────────────
 
             println!("[supervisor] all services started. Press Ctrl-C to stop.");
@@ -1322,6 +1592,7 @@ async fn supervisor_main() {
             }
             let mut tray_poll_tick = tokio::time::interval(Duration::from_millis(150));
             let mut uptime_interval = tokio::time::interval(Duration::from_secs(30));
+            let mut custom_health_interval = tokio::time::interval(Duration::from_secs(5));
             loop {
                 tokio::select! {
                     _ = tokio::signal::ctrl_c() => {
@@ -1377,6 +1648,8 @@ async fn supervisor_main() {
                                             set_service_error(&registry, &mut tray, "fallback_api", error.to_string()).await;
                                         }
                                     }
+                                } else if let Some(service) = find_custom_service_mut(&mut custom_services, &svc) {
+                                    stop_custom_service(service, &registry, &mut tray).await;
                                 }
                                 continue;
                             }
@@ -1412,7 +1685,13 @@ async fn supervisor_main() {
                                             set_service_error(&registry, &mut tray, "fallback_api", error.to_string()).await;
                                         }
                                     }
+                                } else if let Some(service) = find_custom_service_mut(&mut custom_services, &svc) {
+                                    start_custom_service(service, &registry, &mut tray).await;
                                 }
+                                continue;
+                            }
+                            if let Some(service) = find_custom_service_mut(&mut custom_services, &service_name) {
+                                restart_custom_service(service, &registry, &mut tray).await;
                                 continue;
                             }
                             let mcp_pool_for_restart = mcp_pool_runtime.as_ref().map(Arc::clone);
@@ -1473,6 +1752,11 @@ async fn supervisor_main() {
                                 }
                                 _ => {}
                             }
+                        }
+                    }
+                    _ = custom_health_interval.tick() => {
+                        for service in &mut custom_services {
+                            check_custom_service_health(service, &registry, &mut tray, &restart_tx).await;
                         }
                     }
                     mcp_health_signal = mcp_health_rx.recv() => {
@@ -1544,6 +1828,10 @@ async fn supervisor_main() {
                     set_service_status(&registry, &mut tray, "dashboard", ServiceStatus::Stopped).await;
                     println!("[supervisor] dashboard stopped.");
                 }
+            }
+
+            for service in &mut custom_services {
+                stop_custom_service(service, &registry, &mut tray).await;
             }
 
             if cfg.fallback_api.enabled {
@@ -1648,6 +1936,19 @@ fn write_ports_manifest(config_dir: &std::path::Path, cfg: &config::SupervisorCo
             .map(|d| d.as_secs())
             .unwrap_or(0)
     };
+    let custom_services: serde_json::Map<String, serde_json::Value> = cfg
+        .servers
+        .iter()
+        .filter_map(|server| {
+            let name = server.name.trim();
+            if name.is_empty() {
+                return None;
+            }
+            server
+                .port
+                .map(|port| (name.to_string(), serde_json::json!(port)))
+        })
+        .collect();
     let json = serde_json::json!({
         "schema_version": 1,
         "written_at_unix": now,
@@ -1659,7 +1960,8 @@ fn write_ports_manifest(config_dir: &std::path::Path, cfg: &config::SupervisorCo
             "dashboard": cfg.dashboard.port,
             "fallback_api": cfg.fallback_api.port,
             "gui_server": cfg.gui_server.port
-        }
+        },
+        "custom_services": custom_services
     });
     match std::fs::write(&path, json.to_string()) {
         Ok(()) => println!("[supervisor] ports manifest written: {}", path.display()),
@@ -1784,7 +2086,7 @@ fn build_runtime_tooltip(snapshot: &supervisor::control::protocol::HealthSnapsho
         .children
         .iter()
         .map(|child| ServiceSummary {
-            name: display_name_for_service(&child.service_name).to_string(),
+            name: display_name_for_service(&child.service_name),
             state: display_state_for_service(&child.status),
             backend: None,
             endpoint: None,
@@ -1794,14 +2096,30 @@ fn build_runtime_tooltip(snapshot: &supervisor::control::protocol::HealthSnapsho
     supervisor::tray_tooltip::build_tooltip(&services, 0)
 }
 
-fn display_name_for_service(service_name: &str) -> &'static str {
+fn display_name_for_service(service_name: &str) -> String {
     match service_name {
-        "mcp" => "MCP",
-        "interactive_terminal" => "Interactive Terminal",
-        "dashboard" => "Dashboard",
-        "fallback_api" => "Fallback API",
-        "cli_mcp" => "CLI MCP",
-        _ => "Service",
+        "mcp" => "MCP".to_string(),
+        "interactive_terminal" => "Interactive Terminal".to_string(),
+        "dashboard" => "Dashboard".to_string(),
+        "fallback_api" => "Fallback API".to_string(),
+        "cli_mcp" => "CLI MCP".to_string(),
+        _ => service_name
+            .split(['_', '-'])
+            .filter(|segment| !segment.is_empty())
+            .map(|segment| {
+                let mut chars = segment.chars();
+                match chars.next() {
+                    Some(first) => {
+                        let mut word = String::new();
+                        word.extend(first.to_uppercase());
+                        word.push_str(chars.as_str());
+                        word
+                    }
+                    None => String::new(),
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" "),
     }
 }
 

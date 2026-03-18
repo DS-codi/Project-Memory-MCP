@@ -134,21 +134,22 @@ pub struct Registry {
 }
 
 impl Registry {
+    fn default_service_state(name: String) -> ServiceState {
+        ServiceState {
+            name,
+            status: ServiceStatus::Stopped,
+            pid: None,
+            last_error: None,
+            last_health: None,
+        }
+    }
+
     /// Create a registry pre-populated with all known managed services,
     /// each initialised to [`ServiceStatus::Stopped`].
     pub fn new() -> Self {
         let mut services = HashMap::new();
         for name in &["mcp", "interactive_terminal", "dashboard", "fallback_api", "cli_mcp"] {
-            services.insert(
-                name.to_string(),
-                ServiceState {
-                    name: name.to_string(),
-                    status: ServiceStatus::Stopped,
-                    pid: None,
-                    last_error: None,
-                    last_health: None,
-                },
-            );
+            services.insert(name.to_string(), Self::default_service_state(name.to_string()));
         }
         Self {
             services,
@@ -168,6 +169,43 @@ impl Registry {
         let mut r = Self::new();
         r.active_backend = backend;
         r
+    }
+
+    /// Create a registry pre-populated with built-ins plus any configured
+    /// custom service names.
+    pub fn with_backend_and_services<I, S>(backend: BackendKind, services: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        let mut registry = Self::with_backend(backend);
+        registry.register_services(services);
+        registry
+    }
+
+    /// Register a single service name if it is not already tracked.
+    pub fn register_service<S>(&mut self, name: S)
+    where
+        S: Into<String>,
+    {
+        let name = name.into();
+        if name.trim().is_empty() {
+            return;
+        }
+        self.services
+            .entry(name.clone())
+            .or_insert_with(|| Self::default_service_state(name));
+    }
+
+    /// Register multiple service names.
+    pub fn register_services<I, S>(&mut self, services: I)
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        for name in services {
+            self.register_service(name);
+        }
     }
 
     /// Return a snapshot of all service states.

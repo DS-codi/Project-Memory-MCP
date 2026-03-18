@@ -984,7 +984,7 @@ impl Default for ChatbotSection {
 }
 
 /// A single externally-managed server definition.
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct ServerDefinition {
     /// Unique name for this server (used in logs and IPC).
     pub name: String,
@@ -993,9 +993,13 @@ pub struct ServerDefinition {
     /// Arguments passed to the command.
     #[serde(default)]
     pub args: Vec<String>,
+    /// Working directory for the process.
+    pub working_dir: Option<PathBuf>,
     /// Extra environment variables for the process.
     #[serde(default)]
     pub env: std::collections::HashMap<String, String>,
+    /// Optional port used for startup readiness and liveness probes.
+    pub port: Option<u16>,
     /// Restart policy for this server.
     #[serde(default)]
     pub restart_policy: RestartPolicy,
@@ -1294,6 +1298,8 @@ log_level = "debug"
 name = "mcp-local"
 command = "node"
 args = ["server.js", "--port", "3001"]
+working_dir = "server"
+port = 3001
 
 [[servers]]
 name = "dashboard"
@@ -1304,6 +1310,8 @@ restart_policy = "never_restart"
         let cfg: SupervisorConfig = toml::from_str(toml).expect("parse");
         assert_eq!(cfg.servers.len(), 2);
         assert_eq!(cfg.servers[0].name, "mcp-local");
+        assert_eq!(cfg.servers[0].working_dir, Some(PathBuf::from("server")));
+        assert_eq!(cfg.servers[0].port, Some(3001));
         assert!(matches!(cfg.servers[0].restart_policy, RestartPolicy::AlwaysRestart)); // default
         assert!(matches!(cfg.servers[1].restart_policy, RestartPolicy::NeverRestart));
     }
