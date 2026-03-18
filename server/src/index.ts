@@ -282,7 +282,7 @@ server.tool(
       consolidatedTools.memoryWorkspace(params as consolidatedTools.MemoryWorkspaceParams)
     );
     return {
-      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+      content: [{ type: 'text', text: JSON.stringify(result) }]
     };
   }
 );
@@ -357,7 +357,7 @@ server.tool(
       consolidatedTools.memoryPlan(params as consolidatedTools.MemoryPlanParams)
     );
     return {
-      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+      content: [{ type: 'text', text: JSON.stringify(result) }]
     };
   }
 );
@@ -426,7 +426,7 @@ server.tool(
       consolidatedTools.memorySteps(params as consolidatedTools.MemoryStepsParams)
     );
     return {
-      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+      content: [{ type: 'text', text: JSON.stringify(result) }]
     };
   }
 );
@@ -497,7 +497,7 @@ server.tool(
       consolidatedTools.memoryAgent(params as consolidatedTools.MemoryAgentParams)
     );
     return {
-      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+      content: [{ type: 'text', text: JSON.stringify(result) }]
     };
   }
 );
@@ -555,7 +555,7 @@ server.tool(
       consolidatedTools.memoryContext(params as consolidatedTools.MemoryContextParams)
     );
     return {
-      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+      content: [{ type: 'text', text: JSON.stringify(result) }]
     };
   }
 );
@@ -610,7 +610,7 @@ server.tool(
       consolidatedTools.memoryTerminal(params as consolidatedTools.MemoryTerminalParams, extra)
     );
     return {
-      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+      content: [{ type: 'text', text: JSON.stringify(result) }]
     };
   }
 );
@@ -647,7 +647,7 @@ server.tool(
       consolidatedTools.memoryFilesystem(params as consolidatedTools.MemoryFilesystemParams)
     );
     return {
-      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+      content: [{ type: 'text', text: JSON.stringify(result) }]
     };
   }
 );
@@ -707,7 +707,7 @@ server.tool(
       consolidatedTools.memorySession(params as consolidatedTools.MemorySessionParams)
     );
     return {
-      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+      content: [{ type: 'text', text: JSON.stringify(result) }]
     };
   }
 );
@@ -729,7 +729,7 @@ server.tool(
       consolidatedTools.memoryBrainstorm(params as consolidatedTools.MemoryBrainstormParams)
     );
     return {
-      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+      content: [{ type: 'text', text: JSON.stringify(result) }]
     };
   }
 );
@@ -797,7 +797,7 @@ server.tool(
       consolidatedTools.handleMemoryCartographer(params as consolidatedTools.MemoryCartographerParams)
     );
     return {
-      content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+      content: [{ type: 'text', text: JSON.stringify(result) }]
     };
   }
 );

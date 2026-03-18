@@ -2,6 +2,7 @@
 //! including MCP tool-calling loops for plan/workspace management.
 
 use std::error::Error as _;
+use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 
 use reqwest::Client;
@@ -30,6 +31,10 @@ pub struct ChatRequest {
     pub workspace_id: Option<String>,
     pub mcp_base_url: String,
     pub config:       ChatbotSection,
+    /// Shared live tool-call log; pushed to as each tool executes.
+    /// `None` when caller does not need progressive tracking.
+    #[serde(skip)]
+    pub live_log: Option<Arc<StdMutex<Vec<String>>>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -156,6 +161,106 @@ fn tool_definitions() -> Vec<Value> {
                 "required": ["workspace_id", "plan_id", "step_index", "status"]
             }
         }),
+        // ── Plan cleanup / consolidation tools ────────────────────────────
+        json!({
+            "name": "archive_plan",
+            "description": "Archive a completed or superseded plan. Prefer this over delete_plan for any plan with historical value (done work, replaced plans, finished goals).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "workspace_id": { "type": "string" },
+                    "plan_id":      { "type": "string" }
+                },
+                "required": ["workspace_id", "plan_id"]
+            }
+        }),
+        json!({
+            "name": "list_archived_plans",
+            "description": "List all archived plans in a workspace. Use during audits to understand historical work and spot superseded duplicates still marked active.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "workspace_id": { "type": "string" }
+                },
+                "required": ["workspace_id"]
+            }
+        }),
+        json!({
+            "name": "create_program",
+            "description": "Create an integrated program — a named container that groups multiple related plans together under a single overarching goal.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "workspace_id": { "type": "string" },
+                    "title":        { "type": "string", "description": "Short program title" },
+                    "description":  { "type": "string", "description": "What this program encompasses" }
+                },
+                "required": ["workspace_id", "title", "description"]
+            }
+        }),
+        json!({
+            "name": "add_plan_to_program",
+            "description": "Link an existing plan to a program as a child plan.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "workspace_id": { "type": "string" },
+                    "program_id":   { "type": "string", "description": "The program's plan ID" },
+                    "plan_id":      { "type": "string", "description": "The plan to add" }
+                },
+                "required": ["workspace_id", "program_id", "plan_id"]
+            }
+        }),
+        json!({
+            "name": "upgrade_to_program",
+            "description": "Upgrade an existing plan to an integrated program. The original plan becomes the first child plan. Use when a plan has grown to encompass multiple distinct sub-goals.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "workspace_id": { "type": "string" },
+                    "plan_id":      { "type": "string" }
+                },
+                "required": ["workspace_id", "plan_id"]
+            }
+        }),
+        json!({
+            "name": "list_program_plans",
+            "description": "List all child plans within a program.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "workspace_id": { "type": "string" },
+                    "program_id":   { "type": "string" }
+                },
+                "required": ["workspace_id", "program_id"]
+            }
+        }),
+        json!({
+            "name": "consolidate_steps",
+            "description": "Merge multiple adjacent steps in a plan into a single step. Use to simplify bloated or overly granular plans where steps share a logical unit of work.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "workspace_id":       { "type": "string" },
+                    "plan_id":            { "type": "string" },
+                    "step_indices":       { "type": "array", "items": { "type": "integer" }, "description": "0-based indices of the steps to merge" },
+                    "consolidated_task":  { "type": "string", "description": "New task description for the merged step" }
+                },
+                "required": ["workspace_id", "plan_id", "step_indices", "consolidated_task"]
+            }
+        }),
+        json!({
+            "name": "delete_plan",
+            "description": "Permanently delete a plan. Use ONLY for clearly erroneous, accidental duplicate, or empty placeholder plans. For completed or superseded work use archive_plan instead. Always confirm with the user before calling this.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "workspace_id": { "type": "string" },
+                    "plan_id":      { "type": "string" }
+                },
+                "required": ["workspace_id", "plan_id"]
+            }
+        }),
     ]
 }
 
@@ -166,13 +271,34 @@ CAPABILITIES:\n\
 1. MANAGE PLANS — query plans, update step statuses, add notes, set priority\n\
 2. DETERMINE PRIORITY — rank plans by urgency, blocked state, and goal alignment\n\
 3. REVIEW PLANS — summarise progress, highlight blockers, suggest next steps\n\
-4. REVIEW WORKSPACES — report workspace health, identify stale/abandoned plans\n\n\
+4. REVIEW WORKSPACES — report workspace health, identify stale/abandoned plans\n\
+5. CONSOLIDATE PLANS — merge related plans into programs, simplify bloated step lists\n\
+6. CLEAN UP WORKSPACES — archive superseded/completed plans, delete duplicates, group related plans into programs\n\n\
 RULES:\n\
-- Always call list_workspaces then list_plans before making recommendations about plans.\n\
+- For read actions: call list_workspaces and list_plans (plus list_archived_plans when auditing) before making recommendations.\n\
 - When ranking priority: consider the priority field, number of blocked steps, days since last activity, stated goals.\n\
-- For write actions (add_note, update_step_status, set_plan_priority): execute when clearly requested.\n\
+- For write actions (add_note, update_step_status, set_plan_priority, archive_plan, create_program, add_plan_to_program, consolidate_steps): execute when clearly requested.\n\
+- For destructive actions (delete_plan): always confirm the specific plan with the user BEFORE calling the tool.\n\
+- For bulk cleanup proposals: present the full proposal first, then execute each action after the user confirms.\n\
 - Be concise. Format plan reviews as bullet lists. Flag blockers with ⚠️.\n\
-- Step indices in plans are 0-based but displayed as 1-based to users.";
+- Step indices in plans are 0-based but displayed as 1-based to users.\n\n\
+CLEANUP WORKFLOW — when asked to clean up or audit a workspace:\n\
+1. Call list_plans + list_archived_plans to get the full picture.\n\
+2. For each active plan, call get_plan to read steps, goals, notes, and last activity.\n\
+3. Classify each plan into one of: ACTIVE (in-progress work), DONE (all steps done, not archived), STALE (no recent activity, goal unclear), SUPERSEDED (replaced by a newer plan), DUPLICATE (same goal as another plan), RELATED (shares goal with 1+ other plans → program candidate).\n\
+4. Present a prioritised cleanup proposal to the user listing every planned action before executing anything.\n\
+5. Execute confirmed actions in this order: archive_plan for DONE/SUPERSEDED → create_program/add_plan_to_program for RELATED groups → delete_plan for confirmed DUPLICATE/empty plans.\n\n\
+PROGRAM GROUPING RULES:\n\
+- Suggest grouping when 2+ active plans share a feature area, system component, or overarching goal.\n\
+- Use upgrade_to_program when one plan is the clear parent and others are sub-tasks of it.\n\
+- Use create_program + add_plan_to_program when there is no natural parent plan.\n\
+- After grouping, add a note to each child plan describing its relationship to the program.\n\n\
+ARCHIVE vs DELETE:\n\
+- archive_plan: completed work, replaced plans, historical milestones — anything with past value.\n\
+- delete_plan: accidental duplicates, empty placeholders with no steps, notes, or sessions. Always confirm before deleting.\n\n\
+STEP CONSOLIDATION:\n\
+- Use consolidate_steps when a plan has many fine-grained steps added incrementally that now appear redundant.\n\
+- Only consolidate steps that share a logical unit of work and the same assignee/phase.";
 
 fn build_chat_http_client() -> Result<Client, String> {
     Client::builder()
@@ -497,7 +623,7 @@ pub async fn chat_loop(req: ChatRequest) -> Result<ChatResponse, String> {
             let mut grouped: Vec<(String, String)> = Vec::new();
             for (tool_name, args) in calls {
                 tool_calls_made.push(tool_name.clone());
-                let result = execute_chatbot_tool(&client, &req.mcp_base_url, &tool_name, args).await
+                let result = execute_chatbot_tool(&client, &req.mcp_base_url, &tool_name, args, req.live_log.as_ref()).await
                     .unwrap_or_else(|e| json!({ "error": e }));
                 let result_json = serde_json::to_string(&result).unwrap_or_default();
                 grouped.push((tool_name, result_json));
@@ -519,7 +645,7 @@ pub async fn chat_loop(req: ChatRequest) -> Result<ChatResponse, String> {
                     tool_call_id: Some(format!("call_{}", &tool_name)),
                     name: Some(tool_name.clone()),
                 });
-                let result = execute_chatbot_tool(&client, &req.mcp_base_url, &tool_name, args).await
+                let result = execute_chatbot_tool(&client, &req.mcp_base_url, &tool_name, args, req.live_log.as_ref()).await
                     .unwrap_or_else(|e| json!({ "error": e }));
                 messages.push(ChatMessage {
                     role: "tool".to_string(),
@@ -534,12 +660,23 @@ pub async fn chat_loop(req: ChatRequest) -> Result<ChatResponse, String> {
     Err("Max tool-call rounds reached without a final response.".to_string())
 }
 
+/// Push a tool name to the live log if one is attached to this request.
+fn record_live_tool(log: Option<&Arc<StdMutex<Vec<String>>>>, name: &str) {
+    if let Some(log) = log {
+        if let Ok(mut v) = log.lock() {
+            v.push(name.to_string());
+        }
+    }
+}
+
 async fn execute_chatbot_tool(
     client: &Client,
     mcp_base_url: &str,
     tool_name: &str,
     args: Value,
+    live_log: Option<&Arc<StdMutex<Vec<String>>>>,
 ) -> Result<Value, String> {
+    record_live_tool(live_log, tool_name);
     match tool_name {
         "list_workspaces" => {
             execute_mcp_tool(client, mcp_base_url, "memory_workspace",
@@ -604,6 +741,62 @@ async fn execute_chatbot_tool(
                 step_args["notes"] = json!(notes);
             }
             execute_mcp_tool(client, mcp_base_url, "memory_steps", step_args).await
+        }
+        "archive_plan" => {
+            execute_mcp_tool(client, mcp_base_url, "memory_plan",
+                json!({ "action": "archive", "workspace_id": args["workspace_id"], "plan_id": args["plan_id"] })).await
+        }
+        "list_archived_plans" => {
+            let ws = args["workspace_id"].as_str().unwrap_or("");
+            execute_mcp_tool(client, mcp_base_url, "memory_plan",
+                json!({ "action": "list", "workspace_id": ws, "include_archived": true })).await
+        }
+        "create_program" => {
+            execute_mcp_tool(client, mcp_base_url, "memory_plan", json!({
+                "action":       "create_program",
+                "workspace_id": args["workspace_id"],
+                "title":        args["title"],
+                "description":  args["description"]
+            })).await
+        }
+        "add_plan_to_program" => {
+            execute_mcp_tool(client, mcp_base_url, "memory_plan", json!({
+                "action":       "add_plan_to_program",
+                "workspace_id": args["workspace_id"],
+                "program_id":   args["program_id"],
+                "plan_id":      args["plan_id"]
+            })).await
+        }
+        "upgrade_to_program" => {
+            execute_mcp_tool(client, mcp_base_url, "memory_plan", json!({
+                "action":       "upgrade_to_program",
+                "workspace_id": args["workspace_id"],
+                "plan_id":      args["plan_id"]
+            })).await
+        }
+        "list_program_plans" => {
+            execute_mcp_tool(client, mcp_base_url, "memory_plan", json!({
+                "action":       "list_program_plans",
+                "workspace_id": args["workspace_id"],
+                "program_id":   args["program_id"]
+            })).await
+        }
+        "consolidate_steps" => {
+            execute_mcp_tool(client, mcp_base_url, "memory_plan", json!({
+                "action":            "consolidate",
+                "workspace_id":      args["workspace_id"],
+                "plan_id":           args["plan_id"],
+                "step_indices":      args["step_indices"],
+                "consolidated_task": args["consolidated_task"]
+            })).await
+        }
+        "delete_plan" => {
+            execute_mcp_tool(client, mcp_base_url, "memory_plan", json!({
+                "action":       "delete",
+                "workspace_id": args["workspace_id"],
+                "plan_id":      args["plan_id"],
+                "confirm":      true
+            })).await
         }
         unknown => Err(format!("Unknown chatbot tool: {unknown}"))
     }

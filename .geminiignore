@@ -1,0 +1,57 @@
+# ── Build artifacts ────────────────────────────────────────────────────────────
+target/
+**/target/
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+build/
+out/
+
+# ── Lock files (large, rarely useful to read) ─────────────────────────────────
+*.lock
+package-lock.json
+**/package-lock.json
+
+# ── Project Memory data root (large JSON blobs, plan history, tool logs) ───────
+.projectmemory/
+**/.projectmemory/
+data/
+logs/
+
+# ── Backups / archives ─────────────────────────────────────────────────────────
+backup/
+_archive/
+archive/
+
+# ── Compiled / generated outputs ──────────────────────────────────────────────
+*.wasm
+*.d.ts.map
+*.js.map
+*.min.js
+*.min.css
+
+# ── Secrets ───────────────────────────────────────────────────────────────────
+secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+.env
+.env.*
+
+# ── Large binary / media assets ───────────────────────────────────────────────
+assets/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.ico
+*.mp4
+*.webm
+
+# ── Misc large or noisy files ─────────────────────────────────────────────────
+*.txt
+*.log
+Playwright Test Report.html
