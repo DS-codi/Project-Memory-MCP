@@ -267,7 +267,6 @@ agentSessionRouter.post('/launch', async (req, res) => {
     context: contextStr,
     args: [],
     env: {
-      PM_MCP_SERVER_URL: 'http://127.0.0.1:3457/mcp',
       PM_MCP_TRANSPORT: 'streamable_http',
       PM_CLI_SPAWN_SOURCE: 'dashboard_launch',
       PM_CLI_PROVIDER: provider,
