@@ -1,3 +1,4 @@
+pub mod auth_middleware;
 pub mod config;
 pub mod control;
 pub mod chatbot;
@@ -6,6 +7,7 @@ pub mod events;
 pub mod gui_server;
 pub mod lock;
 pub mod logging;
+pub mod mdns_broadcaster;
 pub mod proxy;
 pub mod registry;
 pub mod runtime_output;

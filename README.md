@@ -190,6 +190,37 @@ cd "C:\Users\<username>\Project-Memory-MCP\Project-Memory-MCP\target\release\"
 .\supervisor.exe
 ```
 
+## Mobile App Setup
+
+The Project Memory mobile app connects to the Supervisor over LAN. Before using it on the same network:
+
+### 1. Open Windows Firewall ports (run once as Administrator)
+
+```powershell
+.\scripts\setup-firewall-mobile.ps1
+```
+
+This opens inbound TCP ports **3464** (Supervisor HTTP) and **3458** (Terminal WebSocket) on Private and Domain network profiles.
+
+### 2. Pair the mobile app
+
+1. Right-click the Project Memory tray icon
+2. Click **"Show Pairing QR"**
+3. Open the Project Memory mobile app → tap **Scan QR Code**
+4. Point your camera at the QR code — the app connects and stores the API key automatically
+
+### 3. Manual pairing (if QR unavailable)
+
+1. In the Supervisor tray → **"Show Pairing QR"** → note the API key shown below the QR
+2. In the mobile app → tap **"Enter manually"** → enter your machine's local IP and the API key
+
+### Port reference
+
+| Component | Protocol | Port | Notes |
+|-----------|----------|------|-------|
+| Supervisor HTTP | TCP | 3464 | REST API, chatbot, runtime events |
+| Interactive Terminal | WebSocket | 3458 | PTY sessions |
+
 ## Build/test command map
 
 ### Server

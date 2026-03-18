@@ -1,0 +1,16 @@
+.terminal-view {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  /* xterm.js renders into this container; it must have a defined size. */
+  overflow: hidden;
+}
+
+/* Override xterm's default canvas background to match our theme. */
+.terminal-view .xterm {
+  height: 100%;
+}
+
+.terminal-view .xterm-viewport {
+  overflow-y: hidden !important;
+}

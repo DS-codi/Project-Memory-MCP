@@ -18,6 +18,10 @@
 .PARAMETER Verbose
     Pass --verbose to qmllint for detailed output even on passing files.
 
+.PARAMETER ShowWarnings
+    Surface qmllint Warning: lines on files that otherwise exit 0.
+    Without this flag warnings are silently swallowed (qmllint exits 0 for warnings).
+
 .EXAMPLE
     # Lint all files in ./qml/
     .\lint-qml.ps1
@@ -33,13 +37,20 @@
 
     # Single file with verbose qmllint output
     .\lint-qml.ps1 -File qml\PlansPanel.qml -Verbose
+
+    # Show warnings (qmllint exits 0 for warnings, so -ShowWarnings is needed to surface them)
+    .\lint-qml.ps1 -ShowWarnings
+
+    # Show warnings for a single file
+    .\lint-qml.ps1 -File qml\ChatbotPanel.qml -ShowWarnings
 #>
 param(
-    [string]$File     = "",
-    [string]$Dir      = "",
+    [string]$File         = "",
+    [string]$Dir          = "",
     [switch]$Recurse,
-    [string]$QtPath   = "C:\Qt\6.10.2\msvc2022_64\bin\qmllint.exe",
-    [switch]$Verbose
+    [string]$QtPath       = "C:\Qt\6.10.2\msvc2022_64\bin\qmllint.exe",
+    [switch]$Verbose,
+    [switch]$ShowWarnings
 )
 
 Set-StrictMode -Version Latest
@@ -104,6 +115,7 @@ if ($File) {
 
 # ── Run lint ──────────────────────────────────────────────────────────────────
 $passCount = 0
+$warnCount = 0
 $failCount = 0
 $lintArgs  = @()
 if ($Verbose) { $lintArgs += "--verbose" }
@@ -124,11 +136,23 @@ foreach ($f in $targets) {
     $output = & $QtPath @lintArgs $f 2>&1 | Out-String
 
     if ($LASTEXITCODE -eq 0) {
-        Write-Host ("  {0,-6} {1}" -f "PASS", $displayName) -ForegroundColor Green
-        if ($Verbose -and $output.Trim()) {
-            Write-Host $output.Trim() -ForegroundColor DarkGray
+        # qmllint exits 0 for warnings — scan output for Warning: lines when -ShowWarnings is set
+        $warnLines = @()
+        if ($ShowWarnings) {
+            $warnLines = @($output -split "`r?`n" | Where-Object { $_ -match 'Warning:' })
         }
-        $passCount++
+
+        if ($warnLines.Count -gt 0) {
+            Write-Host ("  {0,-6} {1}" -f "WARN", $displayName) -ForegroundColor Yellow
+            $warnLines | ForEach-Object { Write-Host "         $_" -ForegroundColor Yellow }
+            $warnCount++
+        } else {
+            Write-Host ("  {0,-6} {1}" -f "PASS", $displayName) -ForegroundColor Green
+            if ($Verbose -and $output.Trim()) {
+                Write-Host $output.Trim() -ForegroundColor DarkGray
+            }
+            $passCount++
+        }
     } else {
         Write-Host ("  {0,-6} {1}" -f "FAIL", $displayName) -ForegroundColor Red
         if ($output.Trim()) {
@@ -139,11 +163,13 @@ foreach ($f in $targets) {
 }
 
 Write-Host ("-" * 60)
-$summary = "$passCount passed, $failCount failed"
-if ($failCount -eq 0) {
-    Write-Host $summary -ForegroundColor Green
-} else {
+$summary = "$passCount passed, $warnCount warnings, $failCount failed"
+if ($failCount -gt 0) {
     Write-Host $summary -ForegroundColor Red
+} elseif ($warnCount -gt 0) {
+    Write-Host $summary -ForegroundColor Yellow
+} else {
+    Write-Host $summary -ForegroundColor Green
 }
 Write-Host ""
 

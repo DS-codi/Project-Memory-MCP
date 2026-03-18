@@ -313,6 +313,31 @@ async fn supervisor_main() {
                 }
             }
 
+            // Auto-generate API key if not present in config.
+            if cfg.auth.api_key.is_none() {
+                let key_bytes = rand::random::<[u8; 32]>();
+                let key: String = key_bytes.iter().map(|b| format!("{b:02x}")).collect();
+                cfg.auth.api_key = Some(key.clone());
+                eprintln!(
+                    "[supervisor] No api_key found in [auth]; generated a new key and writing \
+                     it to config. To use a fixed key, set api_key in [auth] in your \
+                     supervisor.toml."
+                );
+                // Append [auth] section to the config file so the key persists across restarts.
+                if let Ok(content) = std::fs::read_to_string(&config_path) {
+                    if !content.contains("[auth]") {
+                        let new_content = format!(
+                            "{}\n[auth]\napi_key = \"{}\"\n",
+                            content.trim_end(),
+                            key
+                        );
+                        if let Err(e) = std::fs::write(&config_path, new_content) {
+                            eprintln!("[supervisor] Warning: could not persist api_key to config: {e}");
+                        }
+                    }
+                }
+            }
+
             println!("Supervisor starting...");
             if cli.debug {
                 eprintln!("[debug] resolved config: {cfg:#?}");
@@ -716,11 +741,35 @@ async fn supervisor_main() {
                 }
                 let chatbot_cfg = Arc::new(RwLock::new(chatbot_section));
                 let mcp_url = format!("http://127.0.0.1:{}", cfg.mcp.port);
+                let gui_api_key = cfg.auth.api_key.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = supervisor::gui_server::start(&gui_bind, gui_port, fa_for_gui, chatbot_cfg, chatbot_sidecar, mcp_url).await {
+                    if let Err(e) = supervisor::gui_server::start(&gui_bind, gui_port, fa_for_gui, chatbot_cfg, chatbot_sidecar, mcp_url, gui_api_key).await {
                         eprintln!("[supervisor] GUI HTTP server error: {e}");
                     }
                 });
+            }
+
+            // ── mDNS service advertisement ────────────────────────────────────
+            // Advertise on the local network so the mobile app can discover
+            // this supervisor without a manually entered IP address.
+            if cfg.mdns.enabled {
+                let mdns_http_port = cfg.gui_server.port;
+                let mdns_ws_port = cfg.interactive_terminal.port;
+                tokio::spawn(async move {
+                    if let Err(e) = supervisor::mdns_broadcaster::start(mdns_http_port, mdns_ws_port).await {
+                        eprintln!("[supervisor] mDNS broadcast error: {e}");
+                    }
+                });
+            }
+
+            // ── QR pairing bridge config ──────────────────────────────────────
+            // Publish port/key data so QrPairingBridge can generate the QR when
+            // PairingDialog.qml is first instantiated by the QML engine.
+            {
+                let qr_http_port = cfg.gui_server.port;
+                let qr_ws_port = cfg.interactive_terminal.port;
+                let qr_api_key = cfg.auth.api_key.clone().unwrap_or_default();
+                supervisor::cxxqt_bridge::set_pairing_config(qr_http_port, qr_ws_port, qr_api_key);
             }
 
             // ── Events broadcast channel ─────────────────────────────────────

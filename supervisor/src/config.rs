@@ -93,6 +93,12 @@ pub struct SupervisorConfig {
     #[serde(default)]
     pub chatbot: ChatbotSection,
 
+    #[serde(default)]
+    pub auth: AuthSection,
+
+    #[serde(default)]
+    pub mdns: MdnsSection,
+
     /// Zero or more managed server definitions.
     #[serde(default)]
     pub servers: Vec<ServerDefinition>,
@@ -901,6 +907,43 @@ impl Default for RuntimeOutputSection {
 }
 
 // ---------------------------------------------------------------------------
+// AuthSection
+// ---------------------------------------------------------------------------
+
+/// API-key authentication for the GUI HTTP server (`[auth]` section).
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(default)]
+pub struct AuthSection {
+    /// Secret key expected in the `X-PM-API-Key` request header.
+    /// Auto-generated on first startup if not set; stored back to
+    /// `supervisor.toml` under `[auth] api_key`.
+    pub api_key: Option<String>,
+}
+
+// ---------------------------------------------------------------------------
+// MdnsSection
+// ---------------------------------------------------------------------------
+
+/// mDNS service advertisement configuration (`[mdns]` section).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct MdnsSection {
+    /// Whether to advertise the supervisor via mDNS-SD (default: `true`).
+    pub enabled: bool,
+    /// mDNS-SD service name (default: `"ProjectMemory"`).
+    pub instance_name: String,
+}
+
+impl Default for MdnsSection {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            instance_name: "ProjectMemory".to_string(),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // ChatbotSection
 // ---------------------------------------------------------------------------
 
@@ -911,6 +954,10 @@ pub enum ChatbotProvider {
     #[default]
     Gemini,
     Copilot,
+    /// Anthropic Claude via the Messages API.
+    /// Requires `api_key` or the `ANTHROPIC_API_KEY` environment variable.
+    /// Falls back to Gemini then Copilot when no key is available.
+    Claude,
 }
 
 /// Configuration for the in-supervisor AI chatbot panel (`[chatbot]` section).

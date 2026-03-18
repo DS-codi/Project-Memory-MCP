@@ -107,10 +107,12 @@ Direct launch after build:
 
 - CLI:
   - `--port` (default `9100`)
+  - `--host` (default `0.0.0.0`) — bind address for the WS/HTTP server
   - `--heartbeat-interval` (default `5`)
   - `--idle-timeout` (default `300`)
 - Environment overrides:
   - `TERMINAL_PORT` overrides `--port`
+  - `TERMINAL_HOST` overrides `--host` (e.g. `TERMINAL_HOST=0.0.0.0` for mobile access)
   - `PM_INTERACTIVE_TERMINAL_HOST_PORT` sets bridge listener port (default `45459`)
 
 ## MCP Integration Notes
