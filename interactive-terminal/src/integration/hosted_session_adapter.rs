@@ -164,7 +164,12 @@ pub fn start_request_to_command(req: &StartAgentSessionRequest) -> CommandReques
         ..Default::default()
     };
 
-    let options = LaunchOptions::default(); // session_mode="new", guided, no screen-reader
+    let options = LaunchOptions {
+        // Agent CLI sessions need the CLI MCP server (port 3466), not the
+        // main VS Code MCP proxy (port 3457).
+        use_cli_mcp: true,
+        ..LaunchOptions::default()
+    };
     let (command, args, mut launch_env) = match build_launch_command(
         &req.command,
         Some(&context_pack),

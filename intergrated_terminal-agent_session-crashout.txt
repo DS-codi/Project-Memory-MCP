@@ -1,0 +1,58 @@
+  ▝▜▄     Gemini CLI v0.33.0
+    ▝▜▄
+   ▗▟▀    Authenticated with gemini-api-key /auth
+  ▝▀
+
+
+Tips for getting started:
+1. /help for more information
+2. Ask coding questions, edit code or run commands
+3. Be specific for the best results
+
+⚠  Invalid configuration in C:\Users\codi.f\.gemini\settings.json:
+
+   Error in: mcpServers.project-memory
+       Unrecognized key(s) in object: 'transport'
+
+   Please fix the configuration.
+   See: https://geminicli.com/docs/reference/configuration/
+
+ℹ Waiting for MCP servers to initialize... Slash commands are still available and prompts will be queued.
+▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+ > Workspace: ds-render-api-3fd8ffd68b7c | Plan: plan_mml8dbec_e6f9d5c4 | Phase: Phase 4: Cache & File Naming | Task: Create       
+   ds-render-api/src/render_cache.rs: CacheEntry struct, SHA256 cache key computation (job_number + top_path + render_type +       
+   slab_index + layer_flags + dpi + format), check() stat-based miss/hit, record() sidecar JSON meta file write
+▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+✕ [API Error: exception TypeError: fetch failed sending request]
+
+
+ℹ This request failed. Press F12 for diagnostics, or run /settings and change "Error Verbosity" to full for full details.
+                                                                                                                   ? for shortcuts 
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ shift+tab to accept edits                                                                        1 GEMINI.md file | 2 MCP servers 
+
+╭─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Debug Console (F12 to close)                                                                                                    │
+│                                                                                                                                 │
+│    12859:24)                                                                                                                    │
+│        at async                                                                                                                 │
+│    file:///C:/Users/codi.f/AppData/Roaming/npm/node_modules/@google/gemini-cli/node_modules/@google/gemini-cli-core/dist/src/co │
+│    re/loggingContentGenerator.js:285:26                                                                                         │
+│        at async                                                                                                                 │
+│    file:///C:/Users/codi.f/AppData/Roaming/npm/node_modules/@google/gemini-cli/node_modules/@google/gemini-cli-core/dist/src/te │
+│    lemetry/trace.js:81:20                                                                                                       │
+│        at async retryWithBackoff                                                                                                │
+│    (file:///C:/Users/codi.f/AppData/Roaming/npm/node_modules/@google/gemini-cli/node_modules/@google/gemini-cli-core/dist/src/u │
+│    tils/retry.js:130:28)                                                                                                        │
+│        at async GeminiChat.makeApiCallAndProcessStream                                                                          │
+│    (file:///C:/Users/codi.f/AppData/Roaming/npm/node_modules/@google/gemini-cli/node_modules/@google/gemini-cli-core/dist/src/c │
+│    ore/geminiChat.js:445:32)                                                                                                    │
+│        at async GeminiChat.streamWithRetries                                                                                    │
+│    (file:///C:/Users/codi.f/AppData/Roaming/npm/node_modules/@google/gemini-cli/node_modules/@google/gemini-cli-core/dist/src/c │
+│    ore/geminiChat.js:265:40)                                                                                                    │
+│        at async Turn.run                                                                                                       ▄│
+│    (file:///C:/Users/codi.f/AppData/Roaming/npm/node_modules/@google/gemini-cli/node_modules/@google/gemini-cli-core/dist/src/c█│
+│    ore/turn.js:70:30)                                                                                                          █│
+│        at async GeminiClient.processTurn                                                                                       █│
+│    (file:///C:/Users/codi.f/AppData/Roaming/npm/node_modules/@google/gemini-cli/node_modules/@google/gemini-cli-core/dist/src/c█│
+│    ore/client.js:478:26)         

@@ -208,6 +208,12 @@ pub fn build_gemini_launch(
     // Always suppress NPM update notifier noise
     env.insert("NPM_CONFIG_UPDATE_NOTIFIER".to_string(), "false".to_string());
 
+    // Work around SSL-inspecting proxies that present untrusted leaf certs to
+    // Node.js (e.g. corporate firewalls).  Without this, Node's native fetch
+    // fails with UNABLE_TO_VERIFY_LEAF_SIGNATURE against Google's API.
+    env.entry("NODE_TLS_REJECT_UNAUTHORIZED".to_string())
+        .or_insert_with(|| "0".to_string());
+
     // Note autonomy mode for the CLI wrapper / log
     if !autonomy_mode.is_empty() {
         env.insert(
