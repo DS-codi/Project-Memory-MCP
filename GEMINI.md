@@ -45,3 +45,25 @@ If blocked:
   → memory_steps(action: "update", status: "blocked", notes: "<full error>")
   → STOP — do not continue to the next step
 ```
+
+## Context window management
+
+This is a large Rust + TypeScript monorepo. To avoid hitting the context
+window limit:
+
+- **Do NOT read the entire project tree** — read only the specific files
+  relevant to the current task.
+- **Avoid `@`-referencing directories** like `target/`, `node_modules/`,
+  `.projectmemory/`, `backup/`, `archive/`, or `data/` — these are excluded
+  via `.geminiignore` but explicit reads will still bloat context.
+- **Always pass `compact: true` and `context_budget: 80000` on every
+  `memory_agent(init)` call.** The server defaults to 80 KB when
+  `context_budget` is omitted, but being explicit keeps payloads
+  predictable across all surface areas.
+- **Use `/compress` when the conversation history grows long.** Run it
+  proactively before starting a large new task, not only when the warning
+  appears.
+- **Use `/clear` to start a fresh session** when switching to an unrelated
+  task — accumulated history from previous tasks wastes tokens.
+- When reading MCP tool responses, prefer targeted queries (a single plan or
+  step) over full workspace dumps.

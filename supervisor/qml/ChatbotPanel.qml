@@ -20,6 +20,9 @@ Rectangle {
     property string aiModel:    ""
     property bool   keyConfigured: false
     property bool   showSettings:  false
+    // Live tool-call tracking
+    property string currentRequestId:   ""
+    property int    shownToolCallCount: 0
 
     readonly property int requestTimeoutMs: 20000
 
@@ -39,6 +42,40 @@ Rectangle {
     // ── Data models ─────────────────────────────────────────────────────────
     ListModel { id: messageModel }
     ListModel { id: workspaceModel }
+
+    // ── Live tool-call polling ────────────────────────────────────────────────
+    Timer {
+        id: toolCallPollTimer
+        interval: 600
+        repeat: true
+        running: false
+        onTriggered: {
+            if (!panel.busy || panel.currentRequestId === "") {
+                running = false
+                return
+            }
+            var xhr = new XMLHttpRequest()
+            xhr.timeout = 4000
+            xhr.open("GET", panel.guiBaseUrl + "/chatbot/status/" + panel.currentRequestId)
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState !== XMLHttpRequest.DONE || xhr.status !== 200) return
+                try {
+                    var d = JSON.parse(xhr.responseText)
+                    var calls = d.tool_calls_so_far || []
+                    // Append only the new calls not yet shown
+                    for (var i = panel.shownToolCallCount; i < calls.length; i++) {
+                        messageModel.append({ role: "tool", content: calls[i], isToolCall: true })
+                        chatView.positionViewAtEnd()
+                        if (chatWindow.visible) popoutView.positionViewAtEnd()
+                    }
+                    panel.shownToolCallCount = calls.length
+                    // Stop if the server already cleaned up the log (in_progress: false)
+                    if (!d.in_progress) toolCallPollTimer.running = false
+                } catch(e) {}
+            }
+            xhr.send()
+        }
+    }
 
     // ── Fetch config on expand ───────────────────────────────────────────────
     onExpandedChanged: {
@@ -124,6 +161,12 @@ Rectangle {
         chatInput.text = ""
         chatView.positionViewAtEnd()
 
+        // Generate a request ID so the polling timer can track live tool calls.
+        var reqId = "req_" + Date.now() + "_" + Math.floor(Math.random() * 999999)
+        panel.currentRequestId   = reqId
+        panel.shownToolCallCount = 0
+        toolCallPollTimer.running = true
+
         var wsId = workspaceModel.count > 0 ? workspaceModel.get(workspaceCombo.currentIndex).id : ""
 
         var history = []
@@ -140,14 +183,15 @@ Rectangle {
         xhr.setRequestHeader("Content-Type", "application/json")
         xhr.onreadystatechange = function() {
             if (xhr.readyState !== XMLHttpRequest.DONE) return
+            toolCallPollTimer.running = false
             panel.busy = false
             if (xhr.status === 200) {
                 try {
                     var resp = JSON.parse(xhr.responseText)
-                    if (resp.tool_calls_made && resp.tool_calls_made.length > 0) {
-                        for (var t = 0; t < resp.tool_calls_made.length; t++) {
-                            messageModel.append({ role: "tool", content: resp.tool_calls_made[t], isToolCall: true })
-                        }
+                    // Append any tool calls not already shown by the polling timer
+                    var finalCalls = resp.tool_calls_made || []
+                    for (var t = panel.shownToolCallCount; t < finalCalls.length; t++) {
+                        messageModel.append({ role: "tool", content: finalCalls[t], isToolCall: true })
                     }
                     messageModel.append({ role: "assistant", content: resp.reply || "(no reply)", isToolCall: false })
                 } catch(e) {
@@ -166,12 +210,14 @@ Rectangle {
                 popoutView.positionViewAtEnd()
         }
         xhr.onerror = function() {
+            toolCallPollTimer.running = false
             panel.finishChatRequestWithError("Chat request failed. The supervisor chatbot service may be unavailable.")
         }
         xhr.ontimeout = function() {
+            toolCallPollTimer.running = false
             panel.finishChatRequestWithError("Chat request timed out. Please try again or restart the supervisor chatbot service.")
         }
-        xhr.send(JSON.stringify({ messages: history, workspace_id: wsId === "" ? null : wsId }))
+        xhr.send(JSON.stringify({ messages: history, workspace_id: wsId === "" ? null : wsId, request_id: reqId }))
     }
 
     function saveConfig(provider, model, apiKey) {

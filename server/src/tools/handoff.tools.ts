@@ -321,13 +321,17 @@ export async function initialiseAgent(
       // Stats init failure is non-fatal
     }
     
-    // Determine plan_state payload: compact (default) or full
+    // Determine plan_state payload: compact (default) or full.
+    // When compact mode is active we always use compactifyWithBudget so the
+    // payload is capped even when the caller does not supply context_budget.
+    // The default cap (80 KB) prevents large plans from bloating agent context
+    // on every init call regardless of which client is driving the session.
+    const DEFAULT_COMPACT_BUDGET = 80_000;
     const useCompact = params.compact !== false;
     let plan_state_payload: typeof state | ReturnType<typeof compactifyPlanState> = state;
     if (useCompact) {
-      plan_state_payload = params.context_budget
-        ? compactifyWithBudget(state, params.context_budget)
-        : compactifyPlanState(state);
+      const budget = params.context_budget ?? DEFAULT_COMPACT_BUDGET;
+      plan_state_payload = compactifyWithBudget(state, budget);
     }
 
     // Optionally load workspace context summary

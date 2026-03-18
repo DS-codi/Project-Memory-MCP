@@ -17,11 +17,12 @@
 //! (`workspace_id`, `session_id`, `agent`) that is logged for observability
 //! but does not affect the underlying `launch_form_app` call.
 
-use std::sync::{Arc, RwLock};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex as StdMutex, RwLock};
 
 use axum::{
     Json, Router,
-    extract::{Query, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     routing::{get, post},
 };
@@ -44,6 +45,8 @@ pub struct GuiServerState {
     pub chatbot_config: Arc<RwLock<ChatbotSection>>,
     pub chatbot_state_path: std::path::PathBuf,
     pub mcp_base_url: String,
+    /// Live per-request tool-call logs: request_id → growing list of tool names.
+    pub chat_live_logs: Arc<RwLock<HashMap<String, Arc<StdMutex<Vec<String>>>>>>,
 }
 
 // ---------------------------------------------------------------------------
@@ -260,6 +263,7 @@ pub fn build_router(state: GuiServerState) -> Router {
         .route("/runtime/capture", post(runtime_capture_set_handler))
         .route("/chatbot/chat", post(chatbot_chat_handler))
         .route("/chatbot/config", get(chatbot_config_get_handler).post(chatbot_config_set_handler))
+        .route("/chatbot/status/:id", get(chatbot_status_handler))
         .with_state(state)
 }
 
@@ -285,11 +289,18 @@ pub async fn start(
     let addr = format!("{bind_address}:{port}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     eprintln!("[supervisor] GUI HTTP server listening on http://{addr}");
-    let state = GuiServerState { form_apps, chatbot_config, chatbot_state_path, mcp_base_url };
+    let state = GuiServerState {
+        form_apps,
+        chatbot_config,
+        chatbot_state_path,
+        mcp_base_url,
+        chat_live_logs: Arc::new(RwLock::new(HashMap::new())),
+    };
     axum::serve(listener, build_router(state)).await?;
     Ok(())
 }
 
+// ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 // Chatbot handlers
 // ---------------------------------------------------------------------------
@@ -299,22 +310,65 @@ struct ChatbotChatRequest {
     pub messages: Vec<ChatMessage>,
     #[serde(default)]
     pub workspace_id: Option<String>,
+    /// Client-generated request ID used to poll `/chatbot/status/{id}` for
+    /// live tool-call progress while the request is in flight.
+    #[serde(default)]
+    pub request_id: Option<String>,
 }
 
 async fn chatbot_chat_handler(
     State(state): State<GuiServerState>,
     Json(body): Json<ChatbotChatRequest>,
 ) -> (StatusCode, Json<serde_json::Value>) {
+    use uuid::Uuid;
+
     let config = state.chatbot_config.read().unwrap().clone();
+    let request_id = body.request_id
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| Uuid::new_v4().to_string());
+
+    // Create a live log entry so the status endpoint can read it while in-flight.
+    let live_log = Arc::new(StdMutex::new(Vec::<String>::new()));
+    {
+        let mut store = state.chat_live_logs.write().unwrap();
+        store.insert(request_id.clone(), Arc::clone(&live_log));
+    }
+
     let req = ChatRequest {
         messages:     body.messages,
         workspace_id: body.workspace_id,
         mcp_base_url: state.mcp_base_url.clone(),
         config,
+        live_log:     Some(live_log),
     };
-    match chat_loop(req).await {
+    let result = chat_loop(req).await;
+
+    // Remove the live log now that the request is done.
+    {
+        let mut store = state.chat_live_logs.write().unwrap();
+        store.remove(&request_id);
+    }
+
+    match result {
         Ok(resp)  => (StatusCode::OK, Json(serde_json::to_value(resp).unwrap_or(json!({})))),
         Err(e)    => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e }))),
+    }
+}
+
+/// Returns the tool calls made so far for an in-flight chat request.
+/// Returns `in_progress: false` when the request has already completed
+/// (the log entry is removed on completion).
+async fn chatbot_status_handler(
+    Path(request_id): Path<String>,
+    State(state): State<GuiServerState>,
+) -> Json<serde_json::Value> {
+    let store = state.chat_live_logs.read().unwrap();
+    match store.get(&request_id) {
+        Some(log) => {
+            let calls = log.lock().unwrap().clone();
+            Json(json!({ "tool_calls_so_far": calls, "in_progress": true }))
+        }
+        None => Json(json!({ "tool_calls_so_far": [], "in_progress": false })),
     }
 }
 
