@@ -388,3 +388,31 @@ List all child plans within a program.
 **Returns:** Array of child plan summaries with progress information.
 
 **Used by:** Coordinator, Architect.
+
+---
+
+#### `search`
+Two-phase full-text search across programs, plans, phases, and steps.
+
+**Phase 1 — Summary (first call):** Without narrowing parameters, returns a grouped summary with hit counts and top 3 results per entity type, plus a `refine_hint` describing how to drill in.
+**Phase 2 — Detail (refined call):** When one or more narrowing parameters are supplied (`search_entity_type`, `plan_id`, `search_status`, `search_phase`), full results are returned. Single-hit queries automatically return detail mode.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✅ | `"search"` |
+| `workspace_id` | string | ✅ | The workspace ID |
+| `query` | string | ✅ | Full-text search query |
+| `search_entity_type` | string | ❌ | Narrow to `"program"`, `"plan"`, `"phase"`, or `"step"` |
+| `plan_id` | string | ❌ | Scope results to a specific plan |
+| `search_status` | string | ❌ | Filter step matches by status (e.g. `"blocked"`, `"pending"`) |
+| `search_phase` | string | ❌ | Filter matches to steps/phases whose phase name contains this substring |
+| `search_limit` | number | ❌ | Max results in detail mode (default 50, max 200) |
+| `search_include_archived` | boolean | ❌ | Include archived plans (default false) |
+
+**Returns (Phase 1 — summary mode):** `{ mode: "summary", total_hits, summary: [{ entity_type, count, top_results[] }], refine_hint, detail_available }`
+
+**Returns (Phase 2 — detail mode):** `{ mode: "detail", total_hits, results: PlanSearchHit[], truncated, limit_applied }`
+
+Each `PlanSearchHit` contains: `entity_type`, `plan_id`, `plan_title`, `display`, `snippet`, `status`, `phase`, `assignee`, `step_index`.
+
+**Used by:** Coordinator, any agent searching across the workspace.

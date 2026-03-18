@@ -565,8 +565,6 @@ Rectangle {
                             selectByMouse: true
                             selectedTextColor: "#0d1117"
                             selectionColor: "#79c0ff"
-                            // Suppress the default white background the TextEdit control draws
-                            background: null
                         }
                     }
                 }
@@ -704,7 +702,6 @@ Rectangle {
                                 selectByMouse: true
                                 selectedTextColor: "#0d1117"
                                 selectionColor: "#79c0ff"
-                                background: null
                             }
                         }
                     }
