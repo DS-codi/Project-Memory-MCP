@@ -178,7 +178,7 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
         };
       }
       const result = await contextTools.storeContext({
-        workspace_id,
+        workspace_id: resolvedWorkspaceId,
         plan_id,
         type: params.type,
         data: params.data
@@ -207,7 +207,7 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
         };
       }
       const result = await contextTools.getContext({
-        workspace_id,
+        workspace_id: resolvedWorkspaceId,
         plan_id,
         type: params.type
       });
@@ -235,7 +235,7 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
         };
       }
       const result = await contextTools.storeInitialContext({
-        workspace_id,
+        workspace_id: resolvedWorkspaceId,
         plan_id,
         user_request: params.user_request,
         files_mentioned: params.files_mentioned,
@@ -263,7 +263,7 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
         };
       }
       const result = await contextTools.listContext({
-        workspace_id,
+        workspace_id: resolvedWorkspaceId,
         plan_id
       });
       if (!result.success) {
@@ -283,7 +283,7 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
         };
       }
       const result = await contextTools.listResearchNotes({
-        workspace_id,
+        workspace_id: resolvedWorkspaceId,
         plan_id
       });
       if (!result.success) {
@@ -309,7 +309,7 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
         };
       }
       const result = await contextTools.appendResearch({
-        workspace_id,
+        workspace_id: resolvedWorkspaceId,
         plan_id,
         filename: params.filename,
         content: params.content
@@ -338,7 +338,7 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
         };
       }
       const result = await contextTools.generateAgentInstructions({
-        workspace_id,
+        workspace_id: resolvedWorkspaceId,
         plan_id,
         target_agent: params.target_agent,
         mission: params.mission,
@@ -376,7 +376,7 @@ export async function memoryContext(params: MemoryContextParams): Promise<ToolRe
       
       for (const item of params.items) {
         const result = await contextTools.storeContext({
-          workspace_id,
+          workspace_id: resolvedWorkspaceId,
           plan_id,
           type: item.type,
           data: item.data

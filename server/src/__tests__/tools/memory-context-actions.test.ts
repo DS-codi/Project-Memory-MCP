@@ -75,6 +75,36 @@ describe('MCP Tool: memory_context Actions', () => {
         expect(result.data.data.path).toContain('context');
       }
     });
+
+    it('should forward resolvedWorkspaceId (not raw workspace_id) to storeContext', async () => {
+      const legacyId = 'old-legacy-workspace-id';
+      const canonicalId = 'canonical-workspace-abc123';
+
+      vi.spyOn(validation, 'validateAndResolveWorkspaceId').mockResolvedValue({
+        success: true,
+        workspace_id: canonicalId,
+      } as any);
+
+      const storeContextSpy = vi.spyOn(contextTools, 'storeContext').mockResolvedValue({
+        success: true,
+        data: { path: '/tmp/context.json' }
+      });
+
+      await memoryContext({
+        action: 'store',
+        workspace_id: legacyId,
+        plan_id: mockPlanId,
+        type: 'decision',
+        data: { answer: 'yes' }
+      });
+
+      expect(storeContextSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ workspace_id: canonicalId })
+      );
+      expect(storeContextSpy).not.toHaveBeenCalledWith(
+        expect.objectContaining({ workspace_id: legacyId })
+      );
+    });
   });
 
   describe('get action', () => {
