@@ -6,6 +6,45 @@
   position: relative;
 }
 
+/* App bar */
+.terminal-appbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  padding: 0 12px;
+  background: rgba(30, 30, 46, 0.95);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+  z-index: 5;
+}
+
+.terminal-session-label {
+  font-size: 0.75rem;
+  color: var(--color-on-surface-muted, rgba(255, 255, 255, 0.5));
+  font-family: monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: calc(100% - 44px);
+}
+
+.terminal-menu-btn {
+  background: none;
+  border: none;
+  color: var(--color-on-surface, #fff);
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.terminal-menu-btn:active {
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .terminal-overlay {
   position: absolute;
   inset: 0;

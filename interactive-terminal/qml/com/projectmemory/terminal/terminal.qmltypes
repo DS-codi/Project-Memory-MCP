@@ -1,0 +1,332 @@
+import QtQuick.tooling 1.2
+
+// Stub type description for qmllint static analysis (pre-build).
+// Source of truth: interactive-terminal/src/cxxqt_bridge/mod.rs
+// At runtime the real types come from the compiled CxxQt plugin.
+// Keep in sync with #[qproperty] / #[qinvokable] declarations in mod.rs.
+
+Module {
+    dependencies: []
+    Component {
+        name: "TerminalApp"
+        accessSemantics: "reference"
+        prototype: "QObject"
+        exports: ["com.projectmemory.terminal/TerminalApp 1.0"]
+        exportMetaObjectRevisions: [256]
+
+        // ── Properties ──────────────────────────────────────────────────────
+        Property { name: "commandText";                      type: "QString"; isReadonly: false }
+        Property { name: "workingDirectory";                 type: "QString"; isReadonly: false }
+        Property { name: "contextInfo";                      type: "QString"; isReadonly: false }
+        Property { name: "statusText";                       type: "QString"; isReadonly: false }
+        Property { name: "outputText";                       type: "QString"; isReadonly: false }
+        Property { name: "isConnected";                      type: "bool";    isReadonly: false }
+        Property { name: "pendingCount";                     type: "int";     isReadonly: false }
+        Property { name: "currentRequestId";                 type: "QString"; isReadonly: false }
+        Property { name: "currentSessionId";                 type: "QString"; isReadonly: false }
+        Property { name: "currentTerminalProfile";           type: "QString"; isReadonly: false }
+        Property { name: "currentDefaultTerminalProfile";    type: "QString"; isReadonly: false }
+        Property { name: "currentWorkspacePath";             type: "QString"; isReadonly: false }
+        Property { name: "currentVenvPath";                  type: "QString"; isReadonly: false }
+        Property { name: "currentActivateVenv";              type: "bool";    isReadonly: false }
+        Property { name: "currentAllowlisted";               type: "bool";    isReadonly: false }
+        Property { name: "startWithWindows";                 type: "bool";    isReadonly: false }
+        Property { name: "startVisible";                     type: "bool";    isReadonly: false }
+        Property { name: "runCommandsInWindow";              type: "bool";    isReadonly: false }
+        Property { name: "geminiKeyPresent";                 type: "bool";    isReadonly: false }
+        Property { name: "copilotKeyPresent";                type: "bool";    isReadonly: false }
+        Property { name: "claudeKeyPresent";                 type: "bool";    isReadonly: false }
+        Property { name: "geminiInjectionRequested";         type: "bool";    isReadonly: false }
+        Property { name: "preferredCliProvider";             type: "QString"; isReadonly: false }
+        Property { name: "approvalProviderChooserEnabled";   type: "bool";    isReadonly: false }
+        Property { name: "autonomyModeSelectorVisible";      type: "bool";    isReadonly: false }
+        Property { name: "cpuUsagePercent";                  type: "double";  isReadonly: false }
+        Property { name: "memoryUsageMb";                    type: "double";  isReadonly: false }
+        Property { name: "pendingCommandsJson";              type: "QString"; isReadonly: false }
+        Property { name: "availableWorkspacesJson";          type: "QString"; isReadonly: false }
+        Property { name: "sessionTabsJson";                  type: "QString"; isReadonly: false }
+        Property { name: "trayIconUrl";                      type: "QString"; isReadonly: false }
+        Property { name: "terminalWsPort";                   type: "int";     isReadonly: false }
+        Property { name: "terminalModeLabel";                type: "QString"; isReadonly: false }
+        Property { name: "allowlistPatternsJson";            type: "QString"; isReadonly: false }
+        Property { name: "allowlistFilter";                  type: "QString"; isReadonly: false }
+        Property { name: "allowlistLastError";               type: "QString"; isReadonly: false }
+        Property { name: "allowlistLastOp";                  type: "QString"; isReadonly: false }
+        Property { name: "proposedAllowlistPattern";         type: "QString"; isReadonly: false }
+        Property { name: "proposedFromCommand";              type: "QString"; isReadonly: false }
+        Property { name: "proposedExactPattern";             type: "QString"; isReadonly: false }
+        Property { name: "proposedGeneralPattern";           type: "QString"; isReadonly: false }
+        Property { name: "proposedRiskHint";                 type: "QString"; isReadonly: false }
+        Property { name: "approvalSessionMode";              type: "QString"; isReadonly: false }
+        Property { name: "approvalResumeSessionId";          type: "QString"; isReadonly: false }
+        Property { name: "approvalOutputFormat";             type: "QString"; isReadonly: false }
+        Property { name: "approvalRiskTier";                 type: "uint";    isReadonly: false }
+        Property { name: "approvalTrustedScopeConfirmed";    type: "bool";    isReadonly: false }
+        Property { name: "approvalTrustedScopeText";         type: "QString"; isReadonly: false }
+        Property { name: "approvalBudgetMaxCommands";        type: "uint";    isReadonly: false }
+        Property { name: "approvalBudgetMaxDurationSecs";    type: "uint";    isReadonly: false }
+        Property { name: "approvalBudgetMaxFiles";           type: "uint";    isReadonly: false }
+        Property { name: "approvalGeminiScreenReader";       type: "bool";    isReadonly: false }
+        Property { name: "approvalCopilotMinimalUi";         type: "bool";    isReadonly: false }
+
+        // ── Property-change signals (auto-generated by CxxQt for every qproperty) ──
+        Signal { name: "commandTextChanged";                     Parameter { type: "QString" } }
+        Signal { name: "workingDirectoryChanged";                Parameter { type: "QString" } }
+        Signal { name: "contextInfoChanged";                     Parameter { type: "QString" } }
+        Signal { name: "statusTextChanged";                      Parameter { type: "QString" } }
+        Signal { name: "outputTextChanged";                      Parameter { type: "QString" } }
+        Signal { name: "isConnectedChanged";                     Parameter { type: "bool" } }
+        Signal { name: "pendingCountChanged";                    Parameter { type: "int" } }
+        Signal { name: "currentRequestIdChanged";                Parameter { type: "QString" } }
+        Signal { name: "currentSessionIdChanged";                Parameter { type: "QString" } }
+        Signal { name: "currentTerminalProfileChanged";          Parameter { type: "QString" } }
+        Signal { name: "currentDefaultTerminalProfileChanged";   Parameter { type: "QString" } }
+        Signal { name: "currentWorkspacePathChanged";            Parameter { type: "QString" } }
+        Signal { name: "currentVenvPathChanged";                 Parameter { type: "QString" } }
+        Signal { name: "currentActivateVenvChanged";             Parameter { type: "bool" } }
+        Signal { name: "currentAllowlistedChanged";              Parameter { type: "bool" } }
+        Signal { name: "startWithWindowsChanged";                Parameter { type: "bool" } }
+        Signal { name: "startVisibleChanged";                    Parameter { type: "bool" } }
+        Signal { name: "runCommandsInWindowChanged";             Parameter { type: "bool" } }
+        Signal { name: "geminiKeyPresentChanged";                Parameter { type: "bool" } }
+        Signal { name: "copilotKeyPresentChanged";               Parameter { type: "bool" } }
+        Signal { name: "claudeKeyPresentChanged";                Parameter { type: "bool" } }
+        Signal { name: "geminiInjectionRequestedChanged";        Parameter { type: "bool" } }
+        Signal { name: "preferredCliProviderChanged";            Parameter { type: "QString" } }
+        Signal { name: "approvalProviderChooserEnabledChanged";  Parameter { type: "bool" } }
+        Signal { name: "autonomyModeSelectorVisibleChanged";     Parameter { type: "bool" } }
+        Signal { name: "cpuUsagePercentChanged";                 Parameter { type: "double" } }
+        Signal { name: "memoryUsageMbChanged";                   Parameter { type: "double" } }
+        Signal { name: "pendingCommandsJsonChanged";             Parameter { type: "QString" } }
+        Signal { name: "availableWorkspacesJsonChanged";         Parameter { type: "QString" } }
+        Signal { name: "sessionTabsJsonChanged";                 Parameter { type: "QString" } }
+        Signal { name: "trayIconUrlChanged";                     Parameter { type: "QString" } }
+        Signal { name: "terminalWsPortChanged";                  Parameter { type: "int" } }
+        Signal { name: "terminalModeLabelChanged";               Parameter { type: "QString" } }
+        Signal { name: "allowlistPatternsJsonChanged";           Parameter { type: "QString" } }
+        Signal { name: "allowlistFilterChanged";                 Parameter { type: "QString" } }
+        Signal { name: "allowlistLastErrorChanged";              Parameter { type: "QString" } }
+        Signal { name: "allowlistLastOpChanged";                 Parameter { type: "QString" } }
+        Signal { name: "proposedAllowlistPatternChanged";        Parameter { type: "QString" } }
+        Signal { name: "proposedFromCommandChanged";             Parameter { type: "QString" } }
+        Signal { name: "proposedExactPatternChanged";            Parameter { type: "QString" } }
+        Signal { name: "proposedGeneralPatternChanged";          Parameter { type: "QString" } }
+        Signal { name: "proposedRiskHintChanged";                Parameter { type: "QString" } }
+        Signal { name: "approvalSessionModeChanged";             Parameter { type: "QString" } }
+        Signal { name: "approvalResumeSessionIdChanged";         Parameter { type: "QString" } }
+        Signal { name: "approvalOutputFormatChanged";            Parameter { type: "QString" } }
+        Signal { name: "approvalRiskTierChanged";                Parameter { type: "uint" } }
+        Signal { name: "approvalTrustedScopeConfirmedChanged";   Parameter { type: "bool" } }
+        Signal { name: "approvalTrustedScopeTextChanged";        Parameter { type: "QString" } }
+        Signal { name: "approvalBudgetMaxCommandsChanged";       Parameter { type: "uint" } }
+        Signal { name: "approvalBudgetMaxDurationSecsChanged";   Parameter { type: "uint" } }
+        Signal { name: "approvalBudgetMaxFilesChanged";          Parameter { type: "uint" } }
+        Signal { name: "approvalGeminiScreenReaderChanged";      Parameter { type: "bool" } }
+        Signal { name: "approvalCopilotMinimalUiChanged";        Parameter { type: "bool" } }
+
+        // ── Explicit qsignals ────────────────────────────────────────────────
+        Signal {
+            name: "commandReceived"
+            Parameter { name: "id"; type: "QString" }
+        }
+        Signal {
+            name: "commandCompleted"
+            Parameter { name: "id"; type: "QString" }
+            Parameter { name: "success"; type: "bool" }
+        }
+        Signal {
+            name: "connectionStatusChanged"
+            Parameter { name: "connected"; type: "bool" }
+        }
+        Signal {
+            name: "agentSessionLaunched"
+            Parameter { name: "session_id"; type: "QString" }
+            Parameter { name: "label"; type: "QString" }
+            Parameter { name: "provider"; type: "QString" }
+        }
+
+        // ── Invokable methods ────────────────────────────────────────────────
+        Method {
+            name: "approveCommand"
+            Parameter { name: "id"; type: "QString" }
+            Parameter { name: "autonomy_mode"; type: "QString" }
+        }
+        Method {
+            name: "declineCommand"
+            Parameter { name: "id"; type: "QString" }
+            Parameter { name: "reason"; type: "QString" }
+        }
+        Method { name: "clearOutput" }
+        Method {
+            name: "createSession"
+            type: "QString"
+        }
+        Method {
+            name: "switchSession"
+            type: "bool"
+            Parameter { name: "session_id"; type: "QString" }
+        }
+        Method {
+            name: "closeSession"
+            type: "bool"
+            Parameter { name: "session_id"; type: "QString" }
+        }
+        Method {
+            name: "renameSession"
+            type: "bool"
+            Parameter { name: "session_id"; type: "QString" }
+            Parameter { name: "display_name"; type: "QString" }
+        }
+        Method {
+            name: "setSessionTerminalProfile"
+            type: "bool"
+            Parameter { name: "profile"; type: "QString" }
+        }
+        Method {
+            name: "setDefaultTerminalProfile"
+            type: "bool"
+            Parameter { name: "profile"; type: "QString" }
+        }
+        Method {
+            name: "setSessionWorkspacePath"
+            Parameter { name: "workspace_path"; type: "QString" }
+        }
+        Method {
+            name: "setSessionVenvPath"
+            Parameter { name: "venv_path"; type: "QString" }
+        }
+        Method {
+            name: "setSessionActivateVenv"
+            Parameter { name: "activate"; type: "bool" }
+        }
+        Method {
+            name: "setStartWithWindowsEnabled"
+            type: "bool"
+            Parameter { name: "enabled"; type: "bool" }
+        }
+        Method {
+            name: "setGeminiApiKey"
+            type: "bool"
+            Parameter { name: "api_key"; type: "QString" }
+        }
+        Method {
+            name: "clearGeminiApiKey"
+            type: "bool"
+        }
+        Method {
+            name: "launchGeminiSession"
+            type: "bool"
+        }
+        Method {
+            name: "launchGeminiInTab"
+            type: "bool"
+        }
+        Method {
+            name: "launchCopilotInTab"
+            type: "bool"
+        }
+        Method {
+            name: "launchClaudeInTab"
+            type: "bool"
+        }
+        Method {
+            name: "setClaudeApiKey"
+            type: "bool"
+            Parameter { name: "api_key"; type: "QString" }
+        }
+        Method {
+            name: "clearClaudeApiKey"
+            type: "bool"
+        }
+        Method {
+            name: "openSavedCommands"
+            type: "bool"
+            Parameter { name: "workspace_id"; type: "QString" }
+        }
+        Method {
+            name: "savedCommandsJson"
+            type: "QString"
+        }
+        Method {
+            name: "savedCommandsWorkspaceId"
+            type: "QString"
+        }
+        Method {
+            name: "reopenSavedCommands"
+            type: "bool"
+        }
+        Method {
+            name: "saveSavedCommand"
+            type: "bool"
+            Parameter { name: "name"; type: "QString" }
+            Parameter { name: "command"; type: "QString" }
+        }
+        Method {
+            name: "deleteSavedCommand"
+            type: "bool"
+            Parameter { name: "command_id"; type: "QString" }
+        }
+        Method {
+            name: "executeSavedCommand"
+            type: "bool"
+            Parameter { name: "command_id"; type: "QString" }
+        }
+        Method {
+            name: "runCommand"
+            type: "bool"
+            Parameter { name: "command"; type: "QString" }
+        }
+        Method { name: "showSessionStartup" }
+        Method {
+            name: "exportOutputText"
+            type: "bool"
+            Parameter { name: "directory"; type: "QString" }
+        }
+        Method {
+            name: "exportOutputJson"
+            type: "bool"
+            Parameter { name: "directory"; type: "QString" }
+        }
+        Method {
+            name: "copyCurrentOutput"
+            type: "bool"
+        }
+        Method {
+            name: "copyLastCommandOutput"
+            type: "bool"
+        }
+        Method {
+            name: "approvalProviderPrefillPolicy"
+            type: "QString"
+            Parameter { name: "provider_policy_applies"; type: "bool" }
+            Parameter { name: "preferred_provider"; type: "QString" }
+        }
+        Method { name: "refreshAllowlist" }
+        Method {
+            name: "addAllowlistPattern"
+            type: "bool"
+            Parameter { name: "pattern"; type: "QString" }
+        }
+        Method {
+            name: "removeAllowlistPattern"
+            type: "bool"
+            Parameter { name: "pattern"; type: "QString" }
+        }
+        Method {
+            name: "deriveAllowlistPattern"
+            Parameter { name: "command"; type: "QString" }
+        }
+        Method {
+            name: "confirmAddProposedPattern"
+            type: "bool"
+        }
+        Method { name: "cancelProposedPattern" }
+        Method { name: "selectExactProposedPattern" }
+        Method { name: "selectGeneralProposedPattern" }
+        Method {
+            name: "computeApprovalRiskTier"
+            type: "uint"
+            Parameter { name: "autonomy_mode"; type: "QString" }
+        }
+    }
+}

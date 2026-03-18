@@ -274,6 +274,8 @@ pub fn build_router(state: GuiServerState, api_key: Option<String>) -> Router {
     // Public routes — no auth required.
     Router::new()
         .route("/gui/ping", get(ping_handler))
+        // Terminal launch routes are local-only (127.0.0.1) so no key needed.
+        .route("/terminal/launch-claude", post(terminal_launch_claude_handler))
         .merge(protected)
         .with_state(state)
 }
@@ -388,11 +390,20 @@ async fn chatbot_config_get_handler(
     State(state): State<GuiServerState>,
 ) -> Json<serde_json::Value> {
     let cfg = state.chatbot_config.read().unwrap();
+    // A key is "configured" if the user stored one, OR if a well-known env var
+    // provides credentials for the active provider (so the warning is suppressed).
+    let key_configured = !cfg.api_key.is_empty() || match cfg.provider {
+        ChatbotProvider::Gemini  => std::env::var("GEMINI_API_KEY").is_ok()
+                                 || std::env::var("GOOGLE_API_KEY").is_ok(),
+        ChatbotProvider::Copilot => std::env::var("GH_TOKEN").is_ok()
+                                 || std::env::var("GITHUB_TOKEN").is_ok(),
+        ChatbotProvider::Claude  => std::env::var("ANTHROPIC_API_KEY").is_ok(),
+    };
     Json(json!({
         "provider":       format!("{:?}", cfg.provider).to_lowercase(),
         "model":          cfg.model,
         "api_key":        cfg.api_key,
-        "key_configured": !cfg.api_key.is_empty()
+        "key_configured": key_configured
     }))
 }
 
@@ -414,6 +425,7 @@ async fn chatbot_config_set_handler(
     if let Some(p) = body.provider {
         cfg.provider = match p.as_str() {
             "copilot" => ChatbotProvider::Copilot,
+            "claude"  => ChatbotProvider::Claude,
             _         => ChatbotProvider::Gemini,
         };
     }
@@ -423,7 +435,92 @@ async fn chatbot_config_set_handler(
     let save_path = state.chatbot_state_path.clone();
     drop(cfg); // release write lock before file I/O
     crate::config::save_chatbot_state(&save_path, &snapshot);
-    Json(json!({ "ok": true, "key_configured": !snapshot.api_key.is_empty() }))
+    let key_configured = !snapshot.api_key.is_empty() || match snapshot.provider {
+        ChatbotProvider::Gemini  => std::env::var("GEMINI_API_KEY").is_ok()
+                                 || std::env::var("GOOGLE_API_KEY").is_ok(),
+        ChatbotProvider::Copilot => std::env::var("GH_TOKEN").is_ok()
+                                 || std::env::var("GITHUB_TOKEN").is_ok(),
+        ChatbotProvider::Claude  => std::env::var("ANTHROPIC_API_KEY").is_ok(),
+    };
+    Json(json!({ "ok": true, "key_configured": key_configured }))
+}
+
+// ---------------------------------------------------------------------------
+// Terminal CLI launch handler
+// ---------------------------------------------------------------------------
+
+/// Body for `POST /terminal/launch-claude`.
+#[derive(Debug, Deserialize)]
+struct TerminalLaunchClaudeRequest {
+    /// Workspace ID — used to look up the workspace path for `cwd`.
+    #[serde(default)]
+    pub workspace_id: Option<String>,
+    /// Optional plan ID passed as context to the session.
+    #[serde(default)]
+    pub plan_id: Option<String>,
+}
+
+/// Launch a Claude CLI interactive terminal session.
+///
+/// Forwards a `spawn_cli_session` request (provider = "claude") to the MCP
+/// server's `memory_terminal` tool.  The `claude` CLI authenticates via the
+/// user's local OAuth credentials — no API key is required.
+async fn terminal_launch_claude_handler(
+    State(state): State<GuiServerState>,
+    Json(body): Json<TerminalLaunchClaudeRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let client = match reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "ok": false, "error": format!("Failed to build HTTP client: {e}") })),
+            );
+        }
+    };
+
+    let mut tool_args = json!({
+        "action": "spawn_cli_session",
+        "provider": "claude"
+    });
+    if let Some(ws) = &body.workspace_id {
+        if !ws.is_empty() {
+            tool_args["workspace_id"] = json!(ws);
+        }
+    }
+    if let Some(plan) = &body.plan_id {
+        if !plan.is_empty() {
+            tool_args["context"] = json!({ "plan_id": plan });
+        }
+    }
+
+    let url = format!("{}/admin/mcp_call", state.mcp_base_url);
+    let resp = client
+        .post(&url)
+        .json(&json!({ "name": "memory_terminal", "arguments": tool_args }))
+        .send()
+        .await;
+
+    match resp {
+        Ok(r) if r.status().is_success() => {
+            (StatusCode::OK, Json(json!({ "ok": true })))
+        }
+        Ok(r) => {
+            let status = r.status();
+            let text = r.text().await.unwrap_or_default();
+            (
+                StatusCode::BAD_GATEWAY,
+                Json(json!({ "ok": false, "error": format!("MCP error ({status}): {text}") })),
+            )
+        }
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "ok": false, "error": format!("Failed to reach MCP server: {e}") })),
+        ),
+    }
 }
 
 #[cfg(test)]

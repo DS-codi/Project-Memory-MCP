@@ -1,0 +1,61 @@
+.mobile-keybar {
+  display: flex;
+  flex-direction: row;
+  overflow-x: auto;
+  overflow-y: hidden;
+  gap: 6px;
+  padding: 6px 8px;
+  background: #181825;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  /* Prevent the keybar from shrinking when the terminal fills space */
+  flex-shrink: 0;
+  /* Hide scrollbar on mobile while keeping swipe-scroll */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.mobile-keybar::-webkit-scrollbar {
+  display: none;
+}
+
+.key-btn {
+  flex-shrink: 0;
+  min-width: 44px;
+  height: 36px;
+  padding: 0 10px;
+  background: #313244;
+  color: #cdd6f4;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-family: "Cascadia Code", "Fira Code", monospace;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  /* Prevent native touch callout on long-press */
+  -webkit-touch-callout: none;
+  transition: background 0.1s, transform 0.05s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.key-btn:active {
+  background: #45475a;
+  transform: scale(0.95);
+}
+
+.ctrl-btn.active {
+  background: var(--color-primary, #6200ee);
+  color: #fff;
+  border-color: var(--color-primary, #6200ee);
+}
+
+.danger-btn {
+  color: #f38ba8;
+  border-color: rgba(243, 139, 168, 0.35);
+}
+
+.danger-btn:active {
+  background: rgba(243, 139, 168, 0.2);
+}

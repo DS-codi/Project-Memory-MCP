@@ -141,6 +141,7 @@ pub struct LaunchCommand {
     pub env: HashMap<String, String>,
     /// Path to a temporary context-pack JSON file, if written.
     /// The caller should schedule deletion after the process has started.
+    #[allow(dead_code)]
     pub context_pack_path: Option<PathBuf>,
     /// Human-readable label suitable for use as the session tab title.
     pub session_label: String,

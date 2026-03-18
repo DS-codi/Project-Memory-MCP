@@ -633,9 +633,11 @@ async fn supervisor_main() {
                 let dashboard_url = format!("http://127.0.0.1:{}", cfg.dashboard.port);
                 let terminal_url = format!("http://127.0.0.1:{}", cfg.interactive_terminal.port);
                 let resolved_config_path = config_path.to_string_lossy().into_owned();
+                let gui_auth_key_for_qt = cfg.auth.api_key.clone().unwrap_or_default();
                 let _ = qt.queue(move |mut obj| {
                     obj.as_mut().set_dashboard_url(cxx_qt_lib::QString::from(&dashboard_url));
                     obj.as_mut().set_terminal_url(cxx_qt_lib::QString::from(&terminal_url));
+                    obj.as_mut().set_gui_auth_key(cxx_qt_lib::QString::from(&gui_auth_key_for_qt));
                     obj.as_mut().rust_mut().restart_tx = Some(restart_tx_for_qt.clone());
                     obj.as_mut().rust_mut().config_path = Some(resolved_config_path.clone());
                 });

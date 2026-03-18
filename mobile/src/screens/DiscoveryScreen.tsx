@@ -1,6 +1,6 @@
 import { createSignal, onMount, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { setServerConfig } from "../services/storage";
+import { setServerConfig, setApiKey } from "../services/storage";
 
 interface DiscoveredHost {
   name: string;
@@ -18,6 +18,7 @@ export default function DiscoveryScreen() {
   const [manualHost, setManualHost] = createSignal("");
   const [manualHttp, setManualHttp] = createSignal("3464");
   const [manualWs, setManualWs] = createSignal("3458");
+  const [manualApiKey, setManualApiKey] = createSignal("");
   const [formError, setFormError] = createSignal("");
 
   const runMdnsScan = async () => {
@@ -71,6 +72,9 @@ export default function DiscoveryScreen() {
     if (isNaN(httpPort) || isNaN(wsPort)) {
       setFormError("Ports must be valid numbers");
       return;
+    }
+    if (manualApiKey().trim()) {
+      await setApiKey(manualApiKey().trim());
     }
     await connectTo({ host: manualHost().trim(), httpPort, wsPort });
   };
@@ -149,6 +153,14 @@ export default function DiscoveryScreen() {
           value={manualWs()}
           onInput={(e) => setManualWs(e.currentTarget.value)}
           inputmode="numeric"
+        />
+        <label class="field-label">API Key</label>
+        <input
+          type="password"
+          placeholder="Supervisor API key"
+          value={manualApiKey()}
+          onInput={(e) => setManualApiKey(e.currentTarget.value)}
+          autocomplete="off"
         />
         <button onClick={connectManual} style="width:100%;margin-top:8px">
           Connect Manually

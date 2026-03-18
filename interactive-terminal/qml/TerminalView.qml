@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtWebView
 
@@ -7,6 +9,7 @@ Item {
     // Must be provided by the parent (main.qml passes terminalApp).
     required property var terminalApp
     property bool hasActiveSession: true
+    readonly property int terminalWsPort: terminalApp ? terminalApp.terminalWsPort : 0
 
     Rectangle {
         anchors.fill: parent
@@ -23,8 +26,8 @@ Item {
 
             // Load the terminal page from the local Rust WebSocket server.
             // Port 0 means the server has not started yet — show a blank page.
-            url: terminalApp.terminalWsPort > 0
-                ? "http://127.0.0.1:" + terminalApp.terminalWsPort + "/"
+            url: terminalView.terminalWsPort > 0
+                ? "http://127.0.0.1:" + terminalView.terminalWsPort + "/"
                 : "about:blank"
         }
     }

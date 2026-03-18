@@ -2,6 +2,11 @@ import { getApiKey, getServerConfig } from "./storage";
 import type { PingResponse, RuntimeEvent, PlanSummary } from "../types/api";
 
 async function getBaseUrl(): Promise<string> {
+  // In a browser (not Capacitor native) the Vite dev server proxies /gui, /runtime,
+  // /chatbot to localhost:3464, so relative URLs avoid CORS entirely.
+  if (!(window as any).Capacitor?.isNativePlatform?.()) {
+    return "";
+  }
   const cfg = await getServerConfig();
   if (!cfg) throw new Error("No server config — connect to a server first");
   return `http://${cfg.host}:${cfg.httpPort}`;

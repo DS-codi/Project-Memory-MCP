@@ -80,7 +80,7 @@ fn create_pty_session() -> Result<PtyHandles, Box<dyn std::error::Error + Send +
         pixel_height: 0,
     })?;
 
-    let shell = std::env::var("TERMINAL_SHELL").unwrap_or_else(|_| "cmd.exe".into());
+    let shell = std::env::var("TERMINAL_SHELL").unwrap_or_else(|_| "powershell.exe".into());
     let cmd = CommandBuilder::new(&shell);
     let _child = pair.slave.spawn_command(cmd)?;
     drop(pair.slave);
@@ -135,6 +135,9 @@ pub struct TerminalWsServer {
     pub output_tx: broadcast::Sender<Vec<u8>>,
     /// Legacy input channel — keyboard bytes sent to external PTY (Pass 1 compat).
     pub input_tx: mpsc::Sender<Vec<u8>>,
+    /// Rolling scrollback buffer shared with all new WebSocket clients (capped ~8 KB).
+    /// Accumulated by a background subscriber started in `serve()`.
+    pub scrollback: Arc<Mutex<Vec<u8>>>,
 }
 
 impl TerminalWsServer {
@@ -152,6 +155,7 @@ impl TerminalWsServer {
             sessions: Arc::new(Mutex::new(HashMap::new())),
             output_tx: output_tx.clone(),
             input_tx,
+            scrollback: Arc::new(Mutex::new(Vec::new())),
         };
         (server, output_tx)
     }
@@ -178,6 +182,23 @@ impl TerminalWsServer {
         let sessions = self.sessions;
         let session_timeout = self.session_timeout;
 
+        // Accumulate PTY output into a rolling scrollback buffer so new WebSocket
+        // clients can receive output that was emitted before they connected.
+        let scrollback = self.scrollback.clone();
+        let mut sb_rx = output_tx.subscribe();
+        tokio::spawn(async move {
+            const MAX_SCROLLBACK: usize = 8192;
+            while let Ok(data) = sb_rx.recv().await {
+                let mut buf = scrollback.lock().await;
+                buf.extend_from_slice(&data);
+                if buf.len() > MAX_SCROLLBACK {
+                    let excess = buf.len() - MAX_SCROLLBACK;
+                    buf.drain(..excess);
+                }
+            }
+        });
+        let scrollback = self.scrollback.clone();
+
         loop {
             match listener.accept().await {
                 Ok((stream, _peer)) => {
@@ -188,6 +209,7 @@ impl TerminalWsServer {
                         api_key.clone(),
                         sessions.clone(),
                         session_timeout,
+                        scrollback.clone(),
                     ));
                 }
                 Err(e) => eprintln!("[TerminalWsServer] accept error: {e}"),
@@ -205,6 +227,7 @@ async fn handle_connection(
     api_key: Option<Arc<String>>,
     sessions: SessionRegistry,
     session_timeout: u64,
+    scrollback: Arc<Mutex<Vec<u8>>>,
 ) {
     let mut peek_buf = [0u8; 512];
     let n = match stream.peek(&mut peek_buf).await {
@@ -214,7 +237,7 @@ async fn handle_connection(
 
     let header = String::from_utf8_lossy(&peek_buf[..n]);
     if header.to_ascii_lowercase().contains("upgrade: websocket") {
-        handle_websocket(stream, output_tx, input_tx, api_key, sessions, session_timeout).await;
+        handle_websocket(stream, output_tx, input_tx, api_key, sessions, session_timeout, scrollback).await;
     } else {
         handle_http(stream).await;
     }
@@ -258,11 +281,12 @@ fn validate_key(expected: &Option<Arc<String>>, provided: &str) -> bool {
 
 async fn handle_websocket(
     stream: TcpStream,
-    _legacy_output_tx: Arc<broadcast::Sender<Vec<u8>>>,
-    _legacy_input_tx: Arc<mpsc::Sender<Vec<u8>>>,
+    legacy_output_tx: Arc<broadcast::Sender<Vec<u8>>>,
+    legacy_input_tx: Arc<mpsc::Sender<Vec<u8>>>,
     api_key: Option<Arc<String>>,
     sessions: SessionRegistry,
     session_timeout: u64,
+    scrollback: Arc<Mutex<Vec<u8>>>,
 ) {
     let ws_stream = match tokio_tungstenite::accept_async(stream).await {
         Ok(ws) => ws,
@@ -274,24 +298,118 @@ async fn handle_websocket(
 
     let (mut ws_sink, mut ws_source) = ws_stream.split();
 
-    // ── Auth: first message within 5 s ────────────────────────────────────────
+    // ── Local desktop connection (no api_key): legacy relay path ──────────────
+    // Route through the existing session management in runtime_tasks.rs instead
+    // of creating a new PTY. This preserves tab switching, output buffering,
+    // shell profile (pwsh/powershell), and all other session state.
+    if api_key.is_none() {
+        let ws_sink = Arc::new(Mutex::new(ws_sink));
 
-    let auth_result = tokio::time::timeout(
-        Duration::from_secs(AUTH_TIMEOUT_SECS),
-        ws_source.next(),
-    )
-    .await;
+        // Subscribe to live output BEFORE sending scrollback so we don't miss
+        // any bytes emitted between the replay and the task starting.
+        let mut output_rx = legacy_output_tx.subscribe();
 
-    let (authed, mut session_id) = match auth_result {
-        Ok(Some(Ok(Message::Text(text)))) => {
-            match serde_json::from_str::<WsMessage>(&text) {
-                Ok(WsMessage::Auth { key, session_id }) => {
-                    (validate_key(&api_key, &key), session_id)
-                }
-                _ => (false, String::new()),
+        // Replay buffered PTY output (initial shell banner, etc.) so the client
+        // sees output that was emitted before this WebSocket connection existed.
+        {
+            let sb = scrollback.lock().await;
+            if !sb.is_empty() {
+                let payload = B64.encode(&*sb);
+                let msg = encode_msg(&WsMessage::Data {
+                    session_id: String::new(),
+                    payload,
+                });
+                let _ = ws_sink.lock().await.send(msg).await;
             }
         }
-        _ => (false, String::new()),
+
+        // PTY output → WebSocket client
+        let output_sink = ws_sink.clone();
+        let output_task = tokio::spawn(async move {
+            while let Ok(data) = output_rx.recv().await {
+                let payload = B64.encode(&data);
+                let msg = encode_msg(&WsMessage::Data {
+                    session_id: String::new(),
+                    payload,
+                });
+                if output_sink.lock().await.send(msg).await.is_err() {
+                    break;
+                }
+            }
+        });
+
+        // Heartbeat
+        let hb_sink = ws_sink.clone();
+        let heartbeat_task = tokio::spawn(async move {
+            let mut interval =
+                tokio::time::interval(Duration::from_secs(HEARTBEAT_INTERVAL_SECS));
+            interval.tick().await; // skip immediate first tick
+            loop {
+                interval.tick().await;
+                if hb_sink
+                    .lock()
+                    .await
+                    .send(encode_msg(&WsMessage::Heartbeat))
+                    .await
+                    .is_err()
+                {
+                    break;
+                }
+            }
+        });
+
+        // WebSocket input → runtime_tasks.rs input pump
+        while let Some(Ok(msg)) = ws_source.next().await {
+            let text = match msg {
+                Message::Text(t) => t,
+                Message::Close(_) => break,
+                _ => continue,
+            };
+            let parsed = match serde_json::from_str::<WsMessage>(&text) {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+            match parsed {
+                WsMessage::Data { payload, .. } => {
+                    let bytes = match B64.decode(&payload) {
+                        Ok(b) => b,
+                        Err(_) => payload.into_bytes(),
+                    };
+                    let _ = legacy_input_tx.send(bytes).await;
+                }
+                WsMessage::Resize { .. } => {
+                    // Resize is handled by runtime_tasks.rs via AppState / PTY master.
+                }
+                WsMessage::Heartbeat => {}
+                _ => {}
+            }
+        }
+
+        output_task.abort();
+        heartbeat_task.abort();
+        return;
+    }
+
+    // ── External connection (api_key set): auth + managed PTY sessions ────────
+
+    let (authed, mut session_id) = {
+        let auth_result = tokio::time::timeout(
+            Duration::from_secs(AUTH_TIMEOUT_SECS),
+            ws_source.next(),
+        )
+        .await;
+
+        match auth_result {
+            Ok(Some(Ok(Message::Text(text)))) => {
+                match serde_json::from_str::<WsMessage>(&text) {
+                    Ok(WsMessage::Auth { key, session_id }) => {
+                        (validate_key(&api_key, &key), session_id)
+                    }
+                    _ => (false, String::new()),
+                }
+            }
+            _ => (false, String::new()),
+        }
     };
 
     if !authed {

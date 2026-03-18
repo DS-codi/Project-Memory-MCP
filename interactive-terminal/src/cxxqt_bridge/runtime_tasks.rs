@@ -440,7 +440,12 @@ pub(crate) fn spawn_runtime_tasks(
             let terminal_ws_port: u16 = 9101;
             let (input_tx, input_rx) = tokio::sync::mpsc::channel::<Vec<u8>>(64);
             let (ws_server, ws_output_tx) =
-                crate::terminal_core::ws_server::TerminalWsServer::new(terminal_ws_port, input_tx.clone());
+                crate::terminal_core::ws_server::TerminalWsServer::new(
+                    terminal_ws_port,
+                    None,
+                    crate::SESSION_TIMEOUT.get().copied().unwrap_or(300),
+                    input_tx.clone(),
+                );
             tokio::spawn(ws_server.serve());
             let _ = qt_thread_terminal.queue(move |mut obj| {
                 obj.as_mut().set_terminal_ws_port(terminal_ws_port as i32);
@@ -684,6 +689,7 @@ pub(crate) fn spawn_runtime_tasks(
                                     let s = state_for_monitor.lock().unwrap();
                                     s.gemini_session_ids.contains(&selected_session_id)
                                         || s.copilot_session_ids.contains(&selected_session_id)
+                                        || s.claude_session_ids.contains(&selected_session_id)
                                 };
 
                                 if is_tui_session {

@@ -14,10 +14,17 @@ export default function DashboardScreen() {
   const [showLog, setShowLog] = createSignal(false);
 
   async function probeWs(): Promise<boolean> {
-    const cfg = await getServerConfig();
-    if (!cfg) return false;
+    const isBrowser = !(window as any).Capacitor?.isNativePlatform?.();
+    let wsUrl: string;
+    if (isBrowser) {
+      wsUrl = `ws://${window.location.host}/ws`;
+    } else {
+      const cfg = await getServerConfig();
+      if (!cfg) return false;
+      wsUrl = `ws://${cfg.host}:${cfg.wsPort}`;
+    }
     return new Promise((resolve) => {
-      const ws = new WebSocket(`ws://${cfg.host}:${cfg.wsPort}`);
+      const ws = new WebSocket(wsUrl);
       const t = setTimeout(() => { ws.close(); resolve(false); }, 3000);
       ws.onopen = () => { clearTimeout(t); ws.close(); resolve(true); };
       ws.onerror = () => { clearTimeout(t); resolve(false); };

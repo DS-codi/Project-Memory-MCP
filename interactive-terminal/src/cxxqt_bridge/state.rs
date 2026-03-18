@@ -149,10 +149,17 @@ impl AppState {
             "gemini" => {
                 self.gemini_session_ids.insert(session_id.to_string());
                 self.copilot_session_ids.remove(session_id);
+                self.claude_session_ids.remove(session_id);
             }
             "copilot" => {
                 self.copilot_session_ids.insert(session_id.to_string());
                 self.gemini_session_ids.remove(session_id);
+                self.claude_session_ids.remove(session_id);
+            }
+            "claude" => {
+                self.claude_session_ids.insert(session_id.to_string());
+                self.gemini_session_ids.remove(session_id);
+                self.copilot_session_ids.remove(session_id);
             }
             _ => {}
         }
@@ -192,6 +199,7 @@ impl AppState {
         self.session_context_by_id.remove(target);
         self.gemini_session_ids.remove(target);
         self.copilot_session_ids.remove(target);
+        self.claude_session_ids.remove(target);
         self.session_lifecycle_by_id
             .insert(target.to_string(), SessionLifecycleState::Closed);
         self.session_lifecycle_by_id.remove(target);
@@ -307,7 +315,10 @@ impl AppState {
     }
 
     fn is_ai_cli_output_dedup_active(&self, session_id: &str) -> bool {
-        if self.gemini_session_ids.contains(session_id) || self.copilot_session_ids.contains(session_id) {
+        if self.gemini_session_ids.contains(session_id)
+            || self.copilot_session_ids.contains(session_id)
+            || self.claude_session_ids.contains(session_id)
+        {
             return true;
         }
 

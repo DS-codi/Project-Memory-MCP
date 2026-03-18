@@ -89,9 +89,26 @@
   var suggestionItems = [];
   var suggestionIndex = 0;
 
+  // Encode a string to base64 (UTF-8 safe).
+  function toBase64(str) {
+    var bytes = new TextEncoder().encode(str);
+    var binary = '';
+    for (var i = 0; i < bytes.length; i++) { binary += String.fromCharCode(bytes[i]); }
+    return btoa(binary);
+  }
+
+  // Decode a base64 string to a Uint8Array.
+  function fromBase64(b64) {
+    var binary = atob(b64);
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) { bytes[i] = binary.charCodeAt(i); }
+    return bytes;
+  }
+
+  // Send keyboard input to the PTY as a JSON Data frame.
   function wsSend(data) {
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(data);
+      ws.send(JSON.stringify({ type: 'data', session_id: '', payload: toBase64(data) }));
     }
   }
 
@@ -230,8 +247,22 @@
 
     ws.onmessage = function(evt) {
       if (evt.data instanceof ArrayBuffer) {
+        // Legacy binary frame — write directly.
         term.write(new Uint8Array(evt.data));
-      } else {
+        return;
+      }
+      // JSON envelope framing (Plan 4 protocol).
+      try {
+        var msg = JSON.parse(evt.data);
+        if (msg.type === 'data' && msg.payload) {
+          term.write(fromBase64(msg.payload));
+        } else if (msg.type === 'heartbeat') {
+          // Echo heartbeat back to keep the connection alive.
+          ws.send(JSON.stringify({ type: 'heartbeat' }));
+        }
+        // error / other types: ignore silently.
+      } catch (_) {
+        // Not JSON — write as-is (fallback for legacy plain-text frames).
         term.write(evt.data);
       }
     };

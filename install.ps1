@@ -81,7 +81,7 @@
 
 [CmdletBinding()]
 param(
-    [ValidateSet("Server", "FallbackServer", "Extension", "Container", "Supervisor", "InteractiveTerminal", "Dashboard", "GuiForms", "InstallWizard", "All", "--help")]
+    [ValidateSet("Server", "FallbackServer", "Extension", "Container", "Supervisor", "InteractiveTerminal", "Dashboard", "GuiForms", "InstallWizard", "Mobile", "All", "--help")]
     [string[]]$Component = @("All"),
 
     [switch]$InstallOnly,
@@ -109,7 +109,7 @@ function Show-InstallHelp {
     Write-Host "  .\install.ps1 [-Component <list>] [-InstallOnly] [-SkipInstall] [-Force] [-NoBuild] [-NewDatabase] [-SkipOutdatedAudit] [-ApplyOutdatedAuditFixes] [-h|-Help|--help]"
     Write-Host ""
     Write-Host "Components:" -ForegroundColor Cyan
-    Write-Host "  Supervisor, GuiForms, InteractiveTerminal, Server, FallbackServer, Dashboard, Extension, Container, All"
+    Write-Host "  Supervisor, GuiForms, InteractiveTerminal, Server, FallbackServer, Dashboard, Mobile, Extension, Container, All"
     Write-Host ""
     Write-Host "Flags:" -ForegroundColor Cyan
     Write-Host "  -InstallOnly   Extension only: install latest .vsix without rebuilding"
@@ -135,7 +135,7 @@ $Root = $PSScriptRoot
 
 # Normalise component list
 if ($Component -contains "All") {
-    $Components = @("Supervisor", "GuiForms", "InteractiveTerminal", "Server", "Dashboard", "Extension")
+    $Components = @("Supervisor", "GuiForms", "InteractiveTerminal", "Server", "Dashboard", "Mobile", "Extension")
 } else {
     $Components = $Component
 }
@@ -1524,6 +1524,54 @@ function Install-Dashboard {
 }
 
 # ──────────────────────────────────────────────────────────────
+# Mobile (SolidJS + Capacitor)
+# ──────────────────────────────────────────────────────────────
+
+function Install-Mobile {
+    Write-Step "Mobile app (SolidJS + Capacitor)"
+    $MobileDir = Join-Path $Root "mobile"
+
+    if (-not (Test-Path $MobileDir)) {
+        Write-Fail "mobile/ directory not found at $MobileDir"
+        exit 1
+    }
+
+    if (-not $Force) {
+        $mobileArtifact = Join-Path $MobileDir 'dist\index.html'
+        if (Test-ComponentUpToDate -Label 'Mobile' `
+                -ArtifactPath $mobileArtifact `
+                -SourceDirs   @((Join-Path $MobileDir 'src')) `
+                -SourceFiles  @((Join-Path $MobileDir 'package.json'), (Join-Path $MobileDir 'vite.config.ts'))) {
+            Write-Ok "Mobile app is up to date — skipping (use -Force to rebuild)"
+            return
+        }
+    }
+
+    Push-Location $MobileDir
+    try {
+        Invoke-NpmInstall "npm install (mobile)"
+        Invoke-Checked "npm run build (mobile)" { npm run build 2>&1 | Write-Host }
+        Write-Ok "Mobile app built → $MobileDir\dist"
+
+        # Sync to Android if the Android platform directory exists.
+        $AndroidDir = Join-Path $MobileDir "android"
+        if (Test-Path $AndroidDir) {
+            Write-Host "   › npx cap sync android" -ForegroundColor Gray
+            npx cap sync android 2>&1 | Write-Host
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "   ⚠ cap sync android exited $LASTEXITCODE (non-fatal — run manually if needed)" -ForegroundColor Yellow
+            } else {
+                Write-Ok "Capacitor synced → android/"
+            }
+        } else {
+            Write-Host "   ℹ android/ platform not initialised — run 'npx cap add android' in mobile/ to set up" -ForegroundColor DarkGray
+        }
+    } finally {
+        Pop-Location
+    }
+}
+
+# ──────────────────────────────────────────────────────────────
 # Container
 # ──────────────────────────────────────────────────────────────
 
@@ -1573,6 +1621,7 @@ foreach ($comp in $Components) {
         "Server"              { Install-Server }
         "FallbackServer"      { Install-FallbackServer }
         "Dashboard"           { Install-Dashboard }
+        "Mobile"              { Install-Mobile }
         "Extension"           { Install-Extension }
         "Container"           { Install-Container }
     }

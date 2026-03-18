@@ -95,8 +95,8 @@ Rectangle {
                     }
 
                         onClicked: {
-                            if (terminalApp) {
-                                terminalApp.copyCurrentOutput()
+                            if (outputRoot.terminalApp) {
+                                outputRoot.terminalApp.copyCurrentOutput()
                             } else {
                                 outputArea.selectAll()
                                 outputArea.copy()
@@ -128,8 +128,8 @@ Rectangle {
                     }
 
                         onClicked: {
-                            if (terminalApp) {
-                                terminalApp.exportOutputText(terminalApp.currentWorkspacePath || "")
+                            if (outputRoot.terminalApp) {
+                                outputRoot.terminalApp.exportOutputText(outputRoot.terminalApp.currentWorkspacePath || "")
                             }
                         }
                     }
@@ -157,8 +157,8 @@ Rectangle {
                     }
 
                         onClicked: {
-                            if (terminalApp) {
-                                terminalApp.exportOutputJson(terminalApp.currentWorkspacePath || "")
+                            if (outputRoot.terminalApp) {
+                                outputRoot.terminalApp.exportOutputJson(outputRoot.terminalApp.currentWorkspacePath || "")
                             }
                         }
                     }
@@ -186,8 +186,8 @@ Rectangle {
                     }
 
                         onClicked: {
-                            if (terminalApp) {
-                                terminalApp.clearOutput()
+                            if (outputRoot.terminalApp) {
+                                outputRoot.terminalApp.clearOutput()
                             }
                         }
                     }
@@ -195,8 +195,8 @@ Rectangle {
 
                 Text {
                     Layout.fillWidth: true
-                    text: terminalApp
-                        ? ((terminalApp.statusText || "") + (terminalApp.commandText ? " | Request: " + terminalApp.commandText : ""))
+                    text: outputRoot.terminalApp
+                        ? ((outputRoot.terminalApp.statusText || "") + (outputRoot.terminalApp.commandText ? " | Request: " + outputRoot.terminalApp.commandText : ""))
                         : ""
                     color: "#9da0a6"
                     font.pixelSize: 11
@@ -206,7 +206,7 @@ Rectangle {
         }
 
         // Separator
-        Rectangle { Layout.fillWidth: true; height: 1; color: "#3c3c3c" }
+        Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: "#3c3c3c" }
 
         // Scrollable output area
         ScrollView {
@@ -245,14 +245,14 @@ Rectangle {
         }
 
         // Separator between output and prompt
-        Rectangle { Layout.fillWidth: true; height: 1; color: "#2a2a2a" }
+        Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: "#2a2a2a" }
 
         // Fixed prompt bar — always visible at the bottom, outside the ScrollView
         // so mouse clicks are never intercepted by scroll handling
         Rectangle {
             id: promptBar
             Layout.fillWidth: true
-            height: terminalFontSize + 16
+            implicitHeight: terminalFontSize + 16
             color: "#111111"
 
             property int terminalFontSize: Math.max(10, Math.floor(outputRoot.width / 110))

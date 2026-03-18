@@ -35,6 +35,8 @@ pub struct TerminalAppRust {
     /// detecting the exact auth state requires calling external binaries, which
     /// is too slow for startup. Future: check ~/.config/gh/hosts.yml existence.
     pub(crate) copilot_key_present: bool,
+    /// Whether an Anthropic Claude API key is stored in local settings.
+    pub(crate) claude_key_present: bool,
     pub(crate) gemini_injection_requested: bool,
     pub(crate) preferred_cli_provider: QString,
     pub(crate) approval_provider_chooser_enabled: bool,
@@ -123,6 +125,8 @@ pub struct AppState {
     pub gemini_session_ids: HashSet<String>,
     /// Sessions that were started by the "Launch Copilot CLI" button.
     pub copilot_session_ids: HashSet<String>,
+    /// Sessions that were started by the "Launch Claude CLI" button.
+    pub claude_session_ids: HashSet<String>,
     // ─── Agent-session tracking (step 11) ──────────────────────────────────
     /// Session IDs that were started by an approved super-subagent launch.
     pub agent_session_ids: HashSet<String>,
@@ -235,6 +239,7 @@ impl Default for TerminalAppRust {
             ws_terminal_tx: None,
             gemini_session_ids: HashSet::new(),
             copilot_session_ids: HashSet::new(),
+            claude_session_ids: HashSet::new(),
             agent_session_ids: HashSet::new(),
             agent_session_meta: HashMap::new(),
             allowlist_patterns: Vec::new(),
@@ -282,6 +287,11 @@ impl Default for TerminalAppRust {
             // Copilot button is always shown; auth detection at startup would
             // require calling `gh auth status`, which is too slow.
             copilot_key_present: true,
+            claude_key_present: tray_settings
+                .claude_api_key
+                .as_ref()
+                .map(|value| !value.trim().is_empty())
+                .unwrap_or(false),
             gemini_injection_requested: false,
             preferred_cli_provider: QString::from(
                 tray_settings

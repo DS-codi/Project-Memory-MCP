@@ -10,6 +10,7 @@ const RUN_VALUE_NAME: &str = "InteractiveTerminal";
 pub enum PreferredCliProvider {
     Gemini,
     Copilot,
+    Claude,
 }
 
 impl PreferredCliProvider {
@@ -17,6 +18,7 @@ impl PreferredCliProvider {
         match self {
             Self::Gemini => "gemini",
             Self::Copilot => "copilot",
+            Self::Claude => "claude",
         }
     }
 }
@@ -25,6 +27,7 @@ pub fn parse_preferred_cli_provider(value: &str) -> Option<PreferredCliProvider>
     match value.trim().to_ascii_lowercase().as_str() {
         "gemini" => Some(PreferredCliProvider::Gemini),
         "copilot" => Some(PreferredCliProvider::Copilot),
+        "claude" => Some(PreferredCliProvider::Claude),
         _ => None,
     }
 }
@@ -34,6 +37,8 @@ pub struct TraySettings {
     pub start_with_windows: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub gemini_api_key: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claude_api_key: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub preferred_cli_provider: Option<PreferredCliProvider>,
     #[serde(default)]
@@ -47,6 +52,7 @@ impl Default for TraySettings {
         Self {
             start_with_windows: false,
             gemini_api_key: None,
+            claude_api_key: None,
             preferred_cli_provider: None,
             approval_provider_chooser_enabled: false,
             autonomy_mode_selector_visible: false,
@@ -121,6 +127,29 @@ pub fn save_gemini_api_key(api_key: &str) -> Result<(), String> {
 pub fn clear_gemini_api_key() -> Result<(), String> {
     let mut settings = load_settings();
     settings.gemini_api_key = None;
+    save_settings(&settings)
+}
+
+pub fn load_claude_api_key() -> Option<String> {
+    let settings = load_settings();
+    settings
+        .claude_api_key
+        .and_then(|value| if value.trim().is_empty() { None } else { Some(value) })
+}
+
+pub fn save_claude_api_key(api_key: &str) -> Result<(), String> {
+    let trimmed = api_key.trim();
+    if trimmed.is_empty() {
+        return Err("Claude API key cannot be empty".to_string());
+    }
+    let mut settings = load_settings();
+    settings.claude_api_key = Some(trimmed.to_string());
+    save_settings(&settings)
+}
+
+pub fn clear_claude_api_key() -> Result<(), String> {
+    let mut settings = load_settings();
+    settings.claude_api_key = None;
     save_settings(&settings)
 }
 

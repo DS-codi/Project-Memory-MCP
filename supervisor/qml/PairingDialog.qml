@@ -4,6 +4,11 @@ import QtQuick.Controls.Material 2.15
 import QtQuick.Layouts 1.15
 import com.projectmemory.supervisor
 
+// QrPairingBridge is a C++ QObject registered at runtime — qmllint cannot
+// resolve it from source, so the import and all bridge member accesses are
+// suppressed here. The warnings are non-fatal and do not affect runtime.
+// qmllint disable import missing-property
+
 Dialog {
     id: pairingDialog
     title: "Pair Mobile Device"
@@ -49,8 +54,8 @@ Dialog {
         Image {
             id: qrImage
             Layout.alignment: Qt.AlignHCenter
-            width: 220
-            height: 220
+            Layout.preferredWidth: 220
+            Layout.preferredHeight: 220
             fillMode: Image.PreserveAspectFit
             sourceSize.width: 220
             sourceSize.height: 220

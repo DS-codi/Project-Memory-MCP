@@ -23,7 +23,7 @@ export function LaunchAgentSessionDialog({
   stepIndex,
   stepTask,
 }: LaunchAgentSessionDialogProps) {
-  const [provider, setProvider] = useState<'gemini' | 'copilot'>('gemini');
+  const [provider, setProvider] = useState<'gemini' | 'copilot' | 'claude'>('gemini');
   const { mutate, isPending, isSuccess, isError, error, data, reset } = useLaunchAgentSession();
 
   if (!open) return null;
@@ -102,7 +102,23 @@ export function LaunchAgentSessionDialog({
                   <Bot size={14} />
                   Copilot CLI
                 </button>
+                <button
+                  onClick={() => setProvider('claude')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                    provider === 'claude'
+                      ? 'bg-amber-600/30 border-amber-500/60 text-amber-300'
+                      : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-slate-700'
+                  }`}
+                >
+                  <Terminal size={14} />
+                  Claude CLI
+                </button>
               </div>
+              {provider === 'claude' && (
+                <p className="text-xs text-amber-500/70 mt-1.5">
+                  Uses your claude.ai subscription — no API key required.
+                </p>
+              )}
             </div>
 
             {/* Error state */}

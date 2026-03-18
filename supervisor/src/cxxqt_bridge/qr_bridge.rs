@@ -78,11 +78,13 @@ fn generate_qr_svg(url: &str) -> String {
         Err(e) => {
             tracing::warn!("QR generation failed: {e}");
             // Return a minimal inline SVG error placeholder.
-            r#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
-  <rect width="200" height="200" fill="#1c2128"/>
-  <text x="100" y="100" fill="#f85149" font-size="12" text-anchor="middle">QR Error</text>
-</svg>"#
-                .to_string()
+            // Hex color literals (#rrggbb) confuse the cxx-qt proc-macro scanner
+            // when they appear inside raw string literals in bridge files.
+            // Use rgb() equivalents to avoid the false-positive parse error.
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"200\" height=\"200\">\
+  <rect width=\"200\" height=\"200\" fill=\"rgb(28,33,40)\"/>\
+  <text x=\"100\" y=\"100\" fill=\"rgb(248,81,73)\" font-size=\"12\" text-anchor=\"middle\">QR Error</text>\
+</svg>".to_string()
         }
     }
 }
@@ -110,7 +112,7 @@ pub mod ffi {
         /// TODO: also rotate the API key and persist it to supervisor.toml.
         #[qinvokable]
         #[cxx_name = "refreshPairingQr"]
-        fn refresh_pairing_qr(self: std::pin::Pin<&mut QrPairingBridge>);
+        fn refresh_pairing_qr(self: Pin<&mut QrPairingBridge>);
     }
 
     impl cxx_qt::Initialize for QrPairingBridge {}
@@ -130,6 +132,12 @@ impl Default for QrPairingBridgeRust {
             pairing_qr_svg: cxx_qt_lib::QString::from(svg.as_str()),
             api_key_text: cxx_qt_lib::QString::from(key.as_str()),
         }
+    }
+}
+
+impl cxx_qt::Initialize for ffi::QrPairingBridge {
+    fn initialize(self: std::pin::Pin<&mut Self>) {
+        // No additional initialization needed beyond the Default impl.
     }
 }
 

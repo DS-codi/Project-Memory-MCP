@@ -333,22 +333,161 @@ fn format_reqwest_error(prefix: &str, url: &str, error: &reqwest::Error) -> Stri
 }
 
 // ---------------------------------------------------------------------------
+// Credential resolution
+// ---------------------------------------------------------------------------
+
+/// Resolve the effective API key for GitHub Copilot (GitHub Models).
+/// Falls back to `gh auth token` when no key is configured.
+async fn resolve_copilot_key(configured_key: &str) -> Result<String, String> {
+    if !configured_key.trim().is_empty() {
+        return Ok(configured_key.trim().to_string());
+    }
+    let output = tokio::process::Command::new("gh")
+        .args(["auth", "token"])
+        .output()
+        .await
+        .map_err(|_| {
+            "Copilot: no api_key configured and the `gh` CLI was not found. \
+             Install GitHub CLI and run `gh auth login`."
+                .to_string()
+        })?;
+    if output.status.success() {
+        let token = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !token.is_empty() {
+            return Ok(token);
+        }
+    }
+    Err("Copilot: no api_key configured and `gh auth token` returned no token. \
+         Run `gh auth login` to authenticate."
+        .to_string())
+}
+
+/// Resolve the effective credential for Google Gemini.
+/// Returns `(credential, use_bearer)` — when `use_bearer` is true the caller
+/// must send `Authorization: Bearer <credential>` instead of a `?key=` param.
+async fn resolve_gemini_key(configured_key: &str) -> Result<(String, bool), String> {
+    if !configured_key.trim().is_empty() {
+        return Ok((configured_key.trim().to_string(), false));
+    }
+    for var in &["GEMINI_API_KEY", "GOOGLE_API_KEY"] {
+        if let Ok(v) = std::env::var(var) {
+            let v = v.trim().to_string();
+            if !v.is_empty() {
+                return Ok((v, false));
+            }
+        }
+    }
+    // Try Google Application Default Credentials via gcloud CLI
+    let output = tokio::process::Command::new("gcloud")
+        .args(["auth", "print-access-token"])
+        .output()
+        .await
+        .map_err(|_| {
+            "Gemini: no api_key configured, GEMINI_API_KEY/GOOGLE_API_KEY not set, \
+             and the `gcloud` CLI was not found. Install Google Cloud CLI and run \
+             `gcloud auth login`."
+                .to_string()
+        })?;
+    if output.status.success() {
+        let token = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !token.is_empty() {
+            return Ok((token, true));
+        }
+    }
+    Err("Gemini: no api_key configured, GEMINI_API_KEY/GOOGLE_API_KEY not set, \
+         and `gcloud auth print-access-token` failed. Run `gcloud auth login`."
+        .to_string())
+}
+
+/// Resolve the effective API key for Anthropic Claude.
+/// Checks `api_key` then the `ANTHROPIC_API_KEY` environment variable.
+/// Claude terminal sessions (spawning the `claude` CLI) do not need a key —
+/// this function is only used for direct API calls from the chatbot panel.
+fn resolve_claude_key(configured_key: &str) -> Result<String, String> {
+    if !configured_key.trim().is_empty() {
+        return Ok(configured_key.trim().to_string());
+    }
+    if let Ok(v) = std::env::var("ANTHROPIC_API_KEY") {
+        let v = v.trim().to_string();
+        if !v.is_empty() {
+            return Ok(v);
+        }
+    }
+    Err("Claude: no api_key configured and ANTHROPIC_API_KEY env var is not set. \
+         Set ANTHROPIC_API_KEY, or use the terminal CLI launch which uses your \
+         claude.ai subscription with no API key."
+        .to_string())
+}
+
+/// Resolve effective provider + credentials.
+/// When Claude is requested but no key is available, falls back to Gemini then Copilot.
+/// Returns `(effective_provider, credential, gemini_use_bearer)`.
+async fn resolve_credentials(
+    provider: &ChatbotProvider,
+    configured_key: &str,
+) -> Result<(ChatbotProvider, String, bool), String> {
+    match provider {
+        ChatbotProvider::Claude => match resolve_claude_key(configured_key) {
+            Ok(key) => Ok((ChatbotProvider::Claude, key, false)),
+            Err(claude_err) => {
+                tracing::warn!("Claude unavailable ({claude_err}); trying Gemini fallback");
+                match resolve_gemini_key("").await {
+                    Ok((key, bearer)) => {
+                        tracing::info!("Chatbot falling back to Gemini (account credentials)");
+                        Ok((ChatbotProvider::Gemini, key, bearer))
+                    }
+                    Err(_) => match resolve_copilot_key("").await {
+                        Ok(key) => {
+                            tracing::info!("Chatbot falling back to Copilot (gh auth token)");
+                            Ok((ChatbotProvider::Copilot, key, false))
+                        }
+                        Err(_) => Err(format!(
+                            "No AI provider available. {claude_err}. \
+                             Set ANTHROPIC_API_KEY, or install and authenticate \
+                             `gcloud` (Gemini fallback) or `gh` (Copilot fallback)."
+                        )),
+                    },
+                }
+            }
+        },
+        ChatbotProvider::Gemini => {
+            let (key, bearer) = resolve_gemini_key(configured_key).await?;
+            Ok((ChatbotProvider::Gemini, key, bearer))
+        }
+        ChatbotProvider::Copilot => {
+            let key = resolve_copilot_key(configured_key).await?;
+            Ok((ChatbotProvider::Copilot, key, false))
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Provider implementations
 // ---------------------------------------------------------------------------
 
 async fn call_gemini(
     client: &Client,
     api_key: &str,
+    use_bearer: bool,
     model: &str,
     messages: &[ChatMessage],
     tools: &[Value],
 ) -> Result<(String, Vec<(String, Value)>, Option<String>), String> {
     let effective_model = if model.trim().is_empty() { "gemini-2.0-flash" } else { model.trim() };
     let trimmed_api_key = api_key.trim();
-    let url = format!(
-        "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
-        effective_model, trimmed_api_key
-    );
+    // When using Google ADC (gcloud auth print-access-token) the token goes in
+    // the Authorization header; otherwise it's appended as a ?key= query param.
+    let url = if use_bearer {
+        format!(
+            "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent",
+            effective_model
+        )
+    } else {
+        format!(
+            "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
+            effective_model, trimmed_api_key
+        )
+    };
 
     let mut contents: Vec<Value> = Vec::new();
     let mut system_instruction: Option<Value> = None;
@@ -419,11 +558,16 @@ async fn call_gemini(
         body["systemInstruction"] = sys;
     }
 
-    let resp = match client.post(&url).json(&body).send().await {
+    let build_gemini_request = |c: &Client| {
+        let req = c.post(&url).json(&body);
+        if use_bearer { req.bearer_auth(trimmed_api_key) } else { req }
+    };
+
+    let resp = match build_gemini_request(&client).send().await {
         Ok(resp) => resp,
         Err(primary_error) => {
             let retry_client = build_gemini_retry_client()?;
-            match retry_client.post(&url).json(&body).send().await {
+            match build_gemini_request(&retry_client).send().await {
                 Ok(resp) => resp,
                 Err(retry_error) => {
                     return Err(format!(
@@ -554,17 +698,129 @@ async fn call_copilot(
     Ok((text, vec![], None))
 }
 
+async fn call_claude(
+    client: &Client,
+    api_key: &str,
+    model: &str,
+    messages: &[ChatMessage],
+    tools: &[Value],
+) -> Result<(String, Vec<(String, Value)>, Option<String>), String> {
+    let effective_model = if model.trim().is_empty() { "claude-sonnet-4-6" } else { model.trim() };
+    let url = "https://api.anthropic.com/v1/messages";
+
+    let mut system_prompt = String::new();
+    let mut api_messages: Vec<Value> = Vec::new();
+
+    for msg in messages {
+        match msg.role.as_str() {
+            "system" => {
+                system_prompt = msg.content.clone();
+            }
+            "user" => {
+                api_messages.push(json!({ "role": "user", "content": msg.content }));
+            }
+            "assistant" | "model" => {
+                api_messages.push(json!({ "role": "assistant", "content": msg.content }));
+            }
+            // Verbatim replay of the assistant turn — preserves tool_use content blocks
+            "claude_model_raw" => {
+                if let Ok(content) = serde_json::from_str::<Value>(&msg.content) {
+                    api_messages.push(json!({ "role": "assistant", "content": content }));
+                }
+            }
+            // All tool results for one round as a user turn with tool_result content blocks
+            "claude_tool_responses" => {
+                if let Ok(blocks) = serde_json::from_str::<Value>(&msg.content) {
+                    api_messages.push(json!({ "role": "user", "content": blocks }));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Claude uses `input_schema` where other providers use `parameters`
+    let claude_tools: Vec<Value> = tools
+        .iter()
+        .map(|t| {
+            json!({
+                "name":         t["name"],
+                "description":  t["description"],
+                "input_schema": t["parameters"]
+            })
+        })
+        .collect();
+
+    let mut body = json!({
+        "model":      effective_model,
+        "max_tokens": 8096,
+        "messages":   api_messages,
+        "tools":      claude_tools
+    });
+    if !system_prompt.is_empty() {
+        body["system"] = json!(system_prompt);
+    }
+
+    let resp = client
+        .post(url)
+        .header("x-api-key", api_key)
+        .header("anthropic-version", "2023-06-01")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("Claude request failed: {e}"))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        return Err(format!(
+            "Claude API error for model `{effective_model}` ({status}): {text}"
+        ));
+    }
+
+    let json: Value = resp.json().await.map_err(|e| e.to_string())?;
+    let stop_reason = json["stop_reason"].as_str().unwrap_or("");
+    let content_blocks = json["content"].as_array().cloned().unwrap_or_default();
+
+    let mut tool_calls: Vec<(String, Value)> = Vec::new();
+    let mut text_buf = String::new();
+
+    for block in &content_blocks {
+        match block["type"].as_str() {
+            Some("tool_use") => {
+                let name = block["name"].as_str().unwrap_or("").to_string();
+                let input = block["input"].clone();
+                tool_calls.push((name, input));
+            }
+            Some("text") => {
+                if let Some(t) = block["text"].as_str() {
+                    text_buf.push_str(t);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    if stop_reason == "tool_use" || !tool_calls.is_empty() {
+        // Serialize the full content array for verbatim assistant-turn replay
+        let raw = serde_json::to_string(&content_blocks).unwrap_or_default();
+        return Ok((String::new(), tool_calls, Some(raw)));
+    }
+
+    Ok((text_buf, vec![], None))
+}
+
 // ---------------------------------------------------------------------------
 // Main chat loop
 // ---------------------------------------------------------------------------
 
 pub async fn chat_loop(req: ChatRequest) -> Result<ChatResponse, String> {
-    let api_key = req.config.api_key.trim().to_string();
+    let configured_key = req.config.api_key.trim().to_string();
     let model = req.config.model.trim().to_string();
 
-    if api_key.is_empty() {
-        return Err("No API key configured. Please set an API key in the chatbot settings.".to_string());
-    }
+    // Resolve effective provider + credentials (applies account-based fallbacks and
+    // the Claude → Gemini → Copilot fallback chain when no Claude key is available).
+    let (provider, api_key, gemini_bearer) =
+        resolve_credentials(&req.config.provider, &configured_key).await?;
 
     let client = build_chat_http_client()?;
     let tools = tool_definitions();
@@ -580,20 +836,25 @@ pub async fn chat_loop(req: ChatRequest) -> Result<ChatResponse, String> {
         _ => SYSTEM_PROMPT.to_string(),
     };
 
-    let mut messages: Vec<ChatMessage> = vec![
-        ChatMessage {
-            role: "system".to_string(),
-            content: system_content,
-            tool_call_id: None,
-            name: None,
-        },
-    ];
+    let mut messages: Vec<ChatMessage> = vec![ChatMessage {
+        role: "system".to_string(),
+        content: system_content,
+        tool_call_id: None,
+        name: None,
+    }];
     messages.extend(req.messages.clone());
 
     for _round in 0..8 {
-        let (text, calls, raw_model_content) = match req.config.provider {
-            ChatbotProvider::Gemini  => call_gemini (&client, &api_key, &model, &messages, &tools).await?,
-            ChatbotProvider::Copilot => call_copilot(&client, &api_key, &model, &messages, &tools).await?,
+        let (text, calls, raw_model_content) = match provider {
+            ChatbotProvider::Gemini => {
+                call_gemini(&client, &api_key, gemini_bearer, &model, &messages, &tools).await?
+            }
+            ChatbotProvider::Copilot => {
+                call_copilot(&client, &api_key, &model, &messages, &tools).await?
+            }
+            ChatbotProvider::Claude => {
+                call_claude(&client, &api_key, &model, &messages, &tools).await?
+            }
         };
 
         if calls.is_empty() {
@@ -611,30 +872,87 @@ pub async fn chat_loop(req: ChatRequest) -> Result<ChatResponse, String> {
         }
 
         if let Some(raw) = raw_model_content {
-            // Gemini path: replay the exact model turn (preserves thought_signature)
-            messages.push(ChatMessage {
-                role: "gemini_model_raw".to_string(),
-                content: raw,
-                tool_call_id: None,
-                name: None,
-            });
+            match provider {
+                ChatbotProvider::Claude => {
+                    // Store verbatim assistant content blocks for exact replay.
+                    // Re-parse the raw content to extract tool_use_ids aligned with `calls`.
+                    let raw_blocks: Vec<Value> =
+                        serde_json::from_str(&raw).unwrap_or_default();
+                    let tool_use_ids: Vec<String> = raw_blocks
+                        .iter()
+                        .filter(|b| b["type"] == "tool_use")
+                        .map(|b| b["id"].as_str().unwrap_or("").to_string())
+                        .collect();
 
-            // Execute all tools and collect responses
-            let mut grouped: Vec<(String, String)> = Vec::new();
-            for (tool_name, args) in calls {
-                tool_calls_made.push(tool_name.clone());
-                let result = execute_chatbot_tool(&client, &req.mcp_base_url, &tool_name, args, req.live_log.as_ref()).await
-                    .unwrap_or_else(|e| json!({ "error": e }));
-                let result_json = serde_json::to_string(&result).unwrap_or_default();
-                grouped.push((tool_name, result_json));
+                    messages.push(ChatMessage {
+                        role: "claude_model_raw".to_string(),
+                        content: raw,
+                        tool_call_id: None,
+                        name: None,
+                    });
+
+                    // Execute tools and build tool_result content blocks
+                    let mut result_blocks: Vec<Value> = Vec::new();
+                    for (i, (tool_name, args)) in calls.into_iter().enumerate() {
+                        tool_calls_made.push(tool_name.clone());
+                        let result = execute_chatbot_tool(
+                            &client,
+                            &req.mcp_base_url,
+                            &tool_name,
+                            args,
+                            req.live_log.as_ref(),
+                        )
+                        .await
+                        .unwrap_or_else(|e| json!({ "error": e }));
+                        let tool_use_id = tool_use_ids
+                            .get(i)
+                            .cloned()
+                            .unwrap_or_else(|| format!("call_{tool_name}"));
+                        result_blocks.push(json!({
+                            "type":        "tool_result",
+                            "tool_use_id": tool_use_id,
+                            "content":     serde_json::to_string(&result).unwrap_or_default()
+                        }));
+                    }
+                    messages.push(ChatMessage {
+                        role: "claude_tool_responses".to_string(),
+                        content: serde_json::to_string(&result_blocks).unwrap_or_default(),
+                        tool_call_id: None,
+                        name: None,
+                    });
+                }
+                // Gemini path: replay the exact model turn (preserves thought_signature)
+                _ => {
+                    messages.push(ChatMessage {
+                        role: "gemini_model_raw".to_string(),
+                        content: raw,
+                        tool_call_id: None,
+                        name: None,
+                    });
+
+                    let mut grouped: Vec<(String, String)> = Vec::new();
+                    for (tool_name, args) in calls {
+                        tool_calls_made.push(tool_name.clone());
+                        let result = execute_chatbot_tool(
+                            &client,
+                            &req.mcp_base_url,
+                            &tool_name,
+                            args,
+                            req.live_log.as_ref(),
+                        )
+                        .await
+                        .unwrap_or_else(|e| json!({ "error": e }));
+                        let result_json = serde_json::to_string(&result).unwrap_or_default();
+                        grouped.push((tool_name, result_json));
+                    }
+                    messages.push(ChatMessage {
+                        role: "gemini_tool_responses".to_string(),
+                        content: serde_json::to_string(&grouped).unwrap_or_default(),
+                        tool_call_id: None,
+                        name: None,
+                    });
+                }
             }
-            // Push all responses as a single grouped user turn
-            messages.push(ChatMessage {
-                role: "gemini_tool_responses".to_string(),
-                content: serde_json::to_string(&grouped).unwrap_or_default(),
-                tool_call_id: None,
-                name: None,
-            });
         } else {
             // Copilot path: individual function_call + tool messages
             for (tool_name, args) in calls {
@@ -645,8 +963,15 @@ pub async fn chat_loop(req: ChatRequest) -> Result<ChatResponse, String> {
                     tool_call_id: Some(format!("call_{}", &tool_name)),
                     name: Some(tool_name.clone()),
                 });
-                let result = execute_chatbot_tool(&client, &req.mcp_base_url, &tool_name, args, req.live_log.as_ref()).await
-                    .unwrap_or_else(|e| json!({ "error": e }));
+                let result = execute_chatbot_tool(
+                    &client,
+                    &req.mcp_base_url,
+                    &tool_name,
+                    args,
+                    req.live_log.as_ref(),
+                )
+                .await
+                .unwrap_or_else(|e| json!({ "error": e }));
                 messages.push(ChatMessage {
                     role: "tool".to_string(),
                     content: serde_json::to_string(&result).unwrap_or_default(),

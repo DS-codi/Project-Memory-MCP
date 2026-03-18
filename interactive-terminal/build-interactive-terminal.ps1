@@ -463,7 +463,40 @@ if ($cargoExitCode -ne 0 -and -not $cargoFinishedMarker) {
         Write-Host 'To persist system-wide for your user profile:' -ForegroundColor Yellow
         Write-Host '  setx CARGO_HTTP_CHECK_REVOKE false' -ForegroundColor Yellow
     }
-    throw 'cargo build failed.'
+
+    $isLockedBuildError = $cargoText -match 'Access is denied|os error 5|failed to remove file'
+    if ($isLockedBuildError) {
+        Write-Host '' -ForegroundColor Yellow
+        Write-Host 'cargo build failed due to a locked binary (interactive-terminal.exe is still running).' -ForegroundColor Yellow
+        Write-Host 'Stopping interactive-terminal processes and retrying build...' -ForegroundColor Yellow
+        $stopped = Stop-InteractiveTerminalProcesses
+        if ($stopped -gt 0) {
+            Write-Host "Stopped $stopped process(es). Waiting for file lock release..." -ForegroundColor Yellow
+            Start-Sleep -Seconds 2
+        } else {
+            Write-Host 'No interactive-terminal process found; retrying anyway...' -ForegroundColor Yellow
+            Start-Sleep -Seconds 1
+        }
+        $cargoResult = Invoke-CargoBuildWithWarningProgress -Arguments $buildArgs -WorkingDirectory $scriptDir
+        foreach ($line in $cargoResult.StdErrLines) {
+            $trimmed = $line.Trim()
+            if ($trimmed -match '^warning[:\[]') {
+                [void]$capturedWarnings.Add($line)
+                Write-Host $line -ForegroundColor Yellow
+            } elseif ($trimmed -match '^error[:\[]') {
+                Write-Host $line -ForegroundColor Red
+            } else {
+                Write-Host $line
+            }
+        }
+        $cargoExitCode = if ($null -eq $cargoResult.ExitCode) { -1 } else { [int]$cargoResult.ExitCode }
+        $cargoFinishedMarker = @($cargoResult.AllLines | Where-Object { $_ -match '^\s*Finished\s+`?(debug|release)`?\s+profile\s+\[.*\]\s+target\(s\)\s+in\s+' }).Count -gt 0
+        if ($cargoExitCode -ne 0 -and -not $cargoFinishedMarker) {
+            throw 'cargo build failed.'
+        }
+    } else {
+        throw 'cargo build failed.'
+    }
 }
 
 $exeName = 'interactive-terminal.exe'

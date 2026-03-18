@@ -1,0 +1,114 @@
+.session-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+}
+
+.session-drawer {
+  width: 100%;
+  max-height: 60vh;
+  background: var(--color-surface, #1e1e2e);
+  border-radius: 16px 16px 0 0;
+  padding: 8px 0 calc(env(safe-area-inset-bottom) + 16px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.drawer-handle {
+  width: 40px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  margin: 0 auto 12px;
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.drawer-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--color-on-surface, #cdd6f4);
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-on-surface, #cdd6f4);
+  opacity: 0.6;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.drawer-muted {
+  color: var(--color-on-surface, #cdd6f4);
+  opacity: 0.5;
+  font-size: 0.875rem;
+  padding: 16px;
+  margin: 0;
+}
+
+.session-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.session-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.session-item:hover,
+.session-item:active {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.session-item.current {
+  background: rgba(98, 0, 238, 0.12);
+}
+
+.session-id {
+  flex: 1;
+  font-family: "Cascadia Code", "Fira Code", monospace;
+  font-size: 0.85rem;
+  color: var(--color-on-surface, #cdd6f4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-time {
+  font-size: 0.75rem;
+  color: var(--color-on-surface, #cdd6f4);
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.new-session-btn {
+  margin: 8px 16px 0;
+  padding: 12px;
+  background: var(--color-primary, #6200ee);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}

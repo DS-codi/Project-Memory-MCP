@@ -43,7 +43,7 @@ export default function ChatScreen() {
     const timeout = setTimeout(() => abortController?.abort(), 5 * 60 * 1000);
 
     try {
-      const res = await sendMessage(text, abortController.signal);
+      const res = await sendMessage({ messages: [...messages()] }, abortController.signal);
 
       // If tool-use in progress, poll for completion
       if (res.status === "tool_use") {

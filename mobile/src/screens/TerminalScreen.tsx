@@ -1,6 +1,8 @@
 import { createSignal, onMount, onCleanup, Show } from "solid-js";
 import { useParams } from "@solidjs/router";
 import TerminalView, { type TerminalHandle } from "../components/TerminalView";
+import MobileKeybar from "../components/MobileKeybar";
+import SessionDrawer from "../components/SessionDrawer";
 import { TerminalWsService, type ConnectStatus } from "../services/terminalWs";
 import "./TerminalScreen.css";
 
@@ -9,6 +11,7 @@ export default function TerminalScreen() {
   const sessionId = params.id ?? "main";
 
   const [status, setStatus] = createSignal<ConnectStatus>("connecting");
+  const [showDrawer, setShowDrawer] = createSignal(false);
   let termHandle: TerminalHandle | undefined;
 
   const ws = new TerminalWsService(sessionId);
@@ -19,7 +22,6 @@ export default function TerminalScreen() {
   ws.onStatus = (s) => {
     setStatus(s);
     if (s === "authenticated") {
-      // Allow xterm.js to settle before fitting to container.
       setTimeout(() => termHandle?.fit(), 100);
     }
   };
@@ -36,13 +38,26 @@ export default function TerminalScreen() {
 
   return (
     <div class="screen terminal-screen">
-      {/* xterm.js canvas fills all available space above the keybar */}
+      {/* App bar with session switcher hamburger */}
+      <div class="terminal-appbar">
+        <span class="terminal-session-label">{sessionId}</span>
+        <button
+          class="terminal-menu-btn"
+          aria-label="Switch session"
+          onClick={() => setShowDrawer(true)}
+        >
+          ☰
+        </button>
+      </div>
+
+      {/* xterm.js canvas */}
       <TerminalView
-        ref={(h) => {
-          termHandle = h;
-        }}
+        ref={(h) => { termHandle = h; }}
         onResize={(cols, rows) => ws.sendResize(cols, rows)}
       />
+
+      {/* Mobile key toolbar — sits above the software keyboard */}
+      <MobileKeybar onSend={(seq) => ws.sendData(seq)} />
 
       {/* Status overlay — shown until authenticated */}
       <Show when={status() !== "authenticated"}>
@@ -66,6 +81,14 @@ export default function TerminalScreen() {
             </div>
           </Show>
         </div>
+      </Show>
+
+      {/* Session switcher drawer — opened via hamburger button */}
+      <Show when={showDrawer()}>
+        <SessionDrawer
+          currentSessionId={sessionId}
+          onClose={() => setShowDrawer(false)}
+        />
       </Show>
     </div>
   );

@@ -17,6 +17,11 @@ ApplicationWindow {
     minimumHeight: 620
     title: "Project Memory Supervisor"
 
+    // Animate width changes so the window expands in sync with
+    // ChatbotPanel / PlansPanel's 200 ms implicitWidth animation.
+    // User-initiated resize drags bypass QML Behavior and are unaffected.
+    Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+
     Material.theme: Material.Dark
     Material.accent: Material.Blue
 
@@ -540,9 +545,10 @@ ApplicationWindow {
         ChatbotPanel {
             id: chatPanel
             Layout.fillHeight: true
-            mcpBaseUrl: root.mcpBaseUrl
-            guiBaseUrl: "http://127.0.0.1:3464"
-            mcpPort:    supervisorGuiBridge.mcpPort
+            mcpBaseUrl:  root.mcpBaseUrl
+            guiBaseUrl:  "http://127.0.0.1:3464"
+            mcpPort:     supervisorGuiBridge.mcpPort
+            guiAuthKey:  supervisorGuiBridge.guiAuthKey
         }
 
         } // end content+sidebar RowLayout
