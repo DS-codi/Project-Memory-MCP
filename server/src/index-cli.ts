@@ -103,7 +103,7 @@ function createCliMcpServer(): McpServer {
   // ---- memory_plan ------------------------------------------------------------
   server.tool(
     'memory_plan',
-    'Plan lifecycle management. Actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, create_program, add_plan_to_program, upgrade_to_program, list_program_plans, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans, pause_plan, resume_plan.',
+    'Plan lifecycle management. Actions: list, get, create, update, archive, import, find, add_note, delete, consolidate, set_goals, add_build_script, list_build_scripts, run_build_script, delete_build_script, create_from_template, list_templates, confirm, create_program, add_plan_to_program, upgrade_to_program, list_program_plans, set_plan_dependencies, get_plan_dependencies, set_plan_priority, clone_plan, merge_plans, pause_plan, resume_plan, search.',
     {
       action: z.enum([
         'list', 'get', 'create', 'update', 'archive', 'import', 'find',
@@ -113,7 +113,7 @@ function createCliMcpServer(): McpServer {
         'create_program', 'add_plan_to_program', 'upgrade_to_program', 'list_program_plans',
         'export_plan', 'link_to_program', 'unlink_from_program',
         'set_plan_dependencies', 'get_plan_dependencies', 'set_plan_priority',
-        'clone_plan', 'merge_plans', 'pause_plan', 'resume_plan',
+        'clone_plan', 'merge_plans', 'pause_plan', 'resume_plan', 'search',
       ]).describe('The action to perform'),
       workspace_id: z.string().optional(),
       workspace_path: z.string().optional(),
@@ -159,6 +159,12 @@ function createCliMcpServer(): McpServer {
       pause_step_index: z.number().optional(),
       pause_user_notes: z.string().optional(),
       pause_session_id: z.string().optional(),
+      query: z.string().optional(),
+      search_entity_type: z.enum(['program', 'plan', 'phase', 'step']).optional(),
+      search_status: z.string().optional(),
+      search_phase: z.string().optional(),
+      search_limit: z.number().int().positive().optional(),
+      search_include_archived: z.boolean().optional(),
     },
     async (params) => {
       const result = await consolidatedTools.memoryPlan(
