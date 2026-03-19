@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { handleSpawnAgentTool, type SpawnAgentInput } from '../../chat/tools/spawn-agent-tool';
+import { handleSpawnAgentTool, buildEnrichedPrompt, FOCUSED_WORKSPACE_TOOL_RESTRICTION, type SpawnAgentInput } from '../../chat/tools/spawn-agent-tool';
 
 function parseToolResult(result: vscode.LanguageModelToolResult): Record<string, unknown> {
     const part = result.content[0] as unknown as { value?: string; text?: string };
@@ -272,5 +272,84 @@ suite('SpawnAgentTool Test Suite', () => {
         const enrichedPrompt = String(prepConfig.enriched_prompt ?? '');
         assert.ok(enrichedPrompt.includes('STABILITY GUARDRAIL:'));
         assert.ok(enrichedPrompt.includes('Do NOT call git changed-files tools'));
+    });
+});
+
+suite('SpawnAgentTool — Focused Workspace Restriction', () => {
+    test('buildEnrichedPrompt includes restriction when isFocused is true', () => {
+        const prompt = buildEnrichedPrompt('Executor', 'Do something', '', true);
+        assert.ok(prompt.includes(FOCUSED_WORKSPACE_TOOL_RESTRICTION.trim()), 'Should include focused workspace restriction');
+        assert.ok(prompt.includes('Do NOT use grep_search'));
+        assert.ok(prompt.includes('Do NOT use file_search'));
+        assert.ok(prompt.includes('Do NOT use semantic_search'));
+    });
+
+    test('buildEnrichedPrompt does NOT include restriction when isFocused is false', () => {
+        const prompt = buildEnrichedPrompt('Executor', 'Do something', '', false);
+        assert.ok(!prompt.includes('FOCUSED WORKSPACE TOOL RESTRICTION'), 'Should not include focused workspace restriction');
+    });
+
+    test('buildEnrichedPrompt does NOT include restriction by default', () => {
+        const prompt = buildEnrichedPrompt('Executor', 'Do something', '');
+        assert.ok(!prompt.includes('FOCUSED WORKSPACE TOOL RESTRICTION'), 'Should not include focused workspace restriction by default');
+    });
+
+    test('handleSpawnAgentTool injects restriction when isFocusedWorkspaceMode returns true', async () => {
+        const token = new vscode.CancellationTokenSource().token;
+        const ctx = {
+            mcpBridge: { isConnected: () => false },
+            ensureWorkspace: async () => 'workspace-test',
+            setWorkspaceId: () => undefined,
+            isFocusedWorkspaceMode: () => true,
+        } as unknown as Parameters<typeof handleSpawnAgentTool>[2];
+
+        const result = await handleSpawnAgentTool(
+            {
+                input: {
+                    agent_name: 'Executor',
+                    prompt: 'Implement feature',
+                } as SpawnAgentInput,
+            } as vscode.LanguageModelToolInvocationOptions<SpawnAgentInput>,
+            token,
+            ctx
+        );
+
+        const part = result.content[0] as unknown as { value?: string; text?: string };
+        const parsed = JSON.parse(part.value ?? part.text ?? '{}') as Record<string, unknown>;
+        assert.strictEqual(parsed.success, true);
+
+        const prepConfig = parsed.prep_config as Record<string, unknown>;
+        const enrichedPrompt = String(prepConfig.enriched_prompt ?? '');
+        assert.ok(enrichedPrompt.includes('FOCUSED WORKSPACE TOOL RESTRICTION'));
+        assert.ok(enrichedPrompt.includes('Do NOT use grep_search'));
+    });
+
+    test('handleSpawnAgentTool does NOT inject restriction when isFocusedWorkspaceMode returns false', async () => {
+        const token = new vscode.CancellationTokenSource().token;
+        const ctx = {
+            mcpBridge: { isConnected: () => false },
+            ensureWorkspace: async () => 'workspace-test',
+            setWorkspaceId: () => undefined,
+            isFocusedWorkspaceMode: () => false,
+        } as unknown as Parameters<typeof handleSpawnAgentTool>[2];
+
+        const result = await handleSpawnAgentTool(
+            {
+                input: {
+                    agent_name: 'Executor',
+                    prompt: 'Implement feature',
+                } as SpawnAgentInput,
+            } as vscode.LanguageModelToolInvocationOptions<SpawnAgentInput>,
+            token,
+            ctx
+        );
+
+        const part = result.content[0] as unknown as { value?: string; text?: string };
+        const parsed = JSON.parse(part.value ?? part.text ?? '{}') as Record<string, unknown>;
+        assert.strictEqual(parsed.success, true);
+
+        const prepConfig = parsed.prep_config as Record<string, unknown>;
+        const enrichedPrompt = String(prepConfig.enriched_prompt ?? '');
+        assert.ok(!enrichedPrompt.includes('FOCUSED WORKSPACE TOOL RESTRICTION'));
     });
 });

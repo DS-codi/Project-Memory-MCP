@@ -30,6 +30,7 @@ import { notify } from './utils/helpers';
 import { getDefaultAgentsRoot, getDefaultInstructionsRoot, getDefaultSkillsRoot } from './utils/defaults';
 import { clearIdentityCache } from './utils/workspace-identity';
 import { registerServerCommands, registerDeployCommands, registerPlanCommands, registerWorkspaceCommands } from './commands';
+import { ToolRegistry } from './tool-registry';
 import { readSupervisorSettings } from './supervisor/settings';
 import { runSupervisorActivation } from './supervisor/activation';
 import { enterDegradedMode, exitDegradedMode } from './supervisor/degraded';
@@ -107,6 +108,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     statusBarManager = new StatusBarManager();
     context.subscriptions.push(statusBarManager);
+    statusBarManager.attachConnectionManager(connectionManager, context);
 
     // --- Event Subscription Service (live SSE feed from dashboard) ---
     eventSubscriptionService = new EventSubscriptionService(dashboardPort);
@@ -182,10 +184,13 @@ export function activate(context: vscode.ExtensionContext) {
         }),
     );
 
+    const toolRegistry = new ToolRegistry(connectionManager, context);
+    context.subscriptions.push(toolRegistry);
+
     registerServerCommands(context, connectionManager, dashboardProvider, getDashboardPort);
     registerDeployCommands(context, dashboardProvider, defaultDeployer);
     registerPlanCommands(context, dashboardProvider, getDashboardPort);
-    registerWorkspaceCommands(context, connectionManager, dashboardProvider);
+    registerWorkspaceCommands(context, connectionManager, dashboardProvider, toolRegistry);
     registerStoreChatDetailsParticipant(context);
 
     // --- Diagnostics service and command ---

@@ -2006,6 +2006,7 @@ fn push_qt_status(snapshot: &supervisor::control::protocol::HealthSnapshot) {
     let mut dashboard_status = String::from("Stopped");
     let mut fallback_status = String::from("Stopped");
     let mut cli_mcp_status = String::from("Stopped");
+    let mut custom_services_arr: Vec<serde_json::Value> = Vec::new();
     for child in &snapshot.children {
         let state = display_state_for_service(&child.status);
         match child.service_name.as_str() {
@@ -2014,9 +2015,19 @@ fn push_qt_status(snapshot: &supervisor::control::protocol::HealthSnapshot) {
             "dashboard" => dashboard_status = state,
             "fallback_api" => fallback_status = state,
             "cli_mcp" => cli_mcp_status = state,
-            _ => {}
+            _ => {
+                // Custom [[servers]] entry — collect for the JSON array.
+                let display = display_name_for_service(&child.service_name);
+                custom_services_arr.push(serde_json::json!({
+                    "name": child.service_name,
+                    "display": display,
+                    "status": child.status,
+                }));
+            }
         }
     }
+    let custom_json = serde_json::to_string(&custom_services_arr)
+        .unwrap_or_else(|_| "[]".to_string());
 
     if let Some(qt) = supervisor::cxxqt_bridge::SUPERVISOR_QT.get() {
         let _ = qt.queue(move |mut obj| {
@@ -2026,6 +2037,7 @@ fn push_qt_status(snapshot: &supervisor::control::protocol::HealthSnapshot) {
             obj.as_mut().set_dashboard_status(cxx_qt_lib::QString::from(&dashboard_status));
             obj.as_mut().set_fallback_status(cxx_qt_lib::QString::from(&fallback_status));
             obj.as_mut().set_cli_mcp_status(cxx_qt_lib::QString::from(&cli_mcp_status));
+            obj.as_mut().set_custom_services_json(cxx_qt_lib::QString::from(&custom_json));
         });
     }
 }

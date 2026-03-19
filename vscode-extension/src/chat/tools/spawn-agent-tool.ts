@@ -42,6 +42,7 @@ interface ToolContext {
     };
     ensureWorkspace: () => Promise<string>;
     setWorkspaceId: (id: string) => void;
+    isFocusedWorkspaceMode?: () => boolean;
 }
 
 interface PrepWarning {
@@ -50,6 +51,15 @@ interface PrepWarning {
 }
 
 const SPOKE_AGENTS = new Set(['Executor', 'Reviewer', 'Tester', 'Worker', 'Researcher', 'Architect', 'Revisionist', 'Brainstorm', 'Archivist', 'Cognition', 'SkillWriter', 'Builder', 'Migrator', 'PromptAnalyst']);
+
+export const FOCUSED_WORKSPACE_TOOL_RESTRICTION = `
+
+FOCUSED WORKSPACE TOOL RESTRICTION:
+You are operating in a focused workspace session. Do NOT use VS Code native search tools:
+- Do NOT use grep_search
+- Do NOT use file_search
+- Do NOT use semantic_search
+Use MCP-native tools (memory_workspace, memory_plan, memory_context, etc.) for all search, navigation, and file discovery tasks.`;
 
 const EXECUTION_CENTRIC_INPUT_KEYS = ['execution', 'orchestration', 'lane_policy', 'run_id'] as const;
 
@@ -144,8 +154,12 @@ STABILITY GUARDRAIL:
 - Do NOT run git diff/status scans unless the user explicitly asks`;
 }
 
-function buildEnrichedPrompt(agentName: string, basePrompt: string, scopeBlock: string): string {
-    return `${basePrompt}${scopeBlock}${buildAntiSpawningBlock(agentName)}${buildGuardrailBlock()}`;
+function buildFocusedRestrictionBlock(isFocused: boolean): string {
+    return isFocused ? FOCUSED_WORKSPACE_TOOL_RESTRICTION : '';
+}
+
+export function buildEnrichedPrompt(agentName: string, basePrompt: string, scopeBlock: string, isFocused: boolean = false): string {
+    return `${basePrompt}${scopeBlock}${buildAntiSpawningBlock(agentName)}${buildGuardrailBlock()}${buildFocusedRestrictionBlock(isFocused)}`;
 }
 
 async function callWorkspaceAndPlanIfConnected(input: SpawnAgentInput, ctx: ToolContext): Promise<void> {
@@ -212,7 +226,8 @@ async function handlePrep(
 
     const scopeBoundaries = resolveScopeBoundaries(input, warnings);
     const scopeBlock = buildScopeBlock(scopeBoundaries);
-    const enrichedPrompt = buildEnrichedPrompt(input.agent_name, input.prompt, scopeBlock);
+    const isFocused = ctx.isFocusedWorkspaceMode?.() ?? false;
+    const enrichedPrompt = buildEnrichedPrompt(input.agent_name, input.prompt, scopeBlock, isFocused);
 
     await callWorkspaceAndPlanIfConnected(input, ctx);
 

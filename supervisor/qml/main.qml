@@ -485,6 +485,75 @@ ApplicationWindow {
 
                 } // end GridLayout (services)
 
+                // ── CONFIGURED SERVERS ([[servers]] entries) ──────────────────
+                // Parsed from supervisorGuiBridge.customServicesJson each time it
+                // changes.  Hidden when there are no configured servers.
+                Loader {
+                    id: customServicesLoader
+                    Layout.fillWidth: true
+                    property var parsedServices: {
+                        try { return JSON.parse(supervisorGuiBridge.customServicesJson) }
+                        catch(e) { return [] }
+                    }
+                    active: parsedServices.length > 0
+                    sourceComponent: Component {
+                        ColumnLayout {
+                            spacing: 6
+
+                            Label {
+                                text: "CONFIGURED SERVERS"
+                                font.pixelSize: 10; font.letterSpacing: 1.0
+                                color: root.textSecondary
+                            }
+
+                            GridLayout {
+                                Layout.fillWidth: true
+                                columns: 2
+                                rowSpacing: 8; columnSpacing: 8
+
+                                Repeater {
+                                    model: customServicesLoader.parsedServices
+                                    ServiceCard {
+                                        required property var modelData
+                                        serviceName:  modelData.display || modelData.name
+                                        status:       modelData.status || "Stopped"
+                                        accentColor:  "#a8d8ea"
+                                        iconBgColor:  "#0d1e25"
+                                        iconDelegate: Component {
+                                            Canvas {
+                                                anchors.fill: parent
+                                                onPaint: {
+                                                    var c = getContext("2d")
+                                                    c.clearRect(0, 0, 28, 28)
+                                                    c.save(); c.scale(28/512, 28/512)
+                                                    // Generic "process" icon: three horizontal bars
+                                                    c.fillStyle = "#a8d8ea"
+                                                    c.fillRect(80, 120, 352, 48)
+                                                    c.fillRect(80, 232, 256, 48)
+                                                    c.fillRect(80, 344, 192, 48)
+                                                    c.restore()
+                                                }
+                                            }
+                                        }
+                                        infoLine1: modelData.port ? "Port: " + modelData.port : ""
+                                        infoLine2: ""
+                                        primaryActionLabel: modelData.status === "Running" ? "Stop" : "Start"
+                                        primaryActionEnabled: modelData.status !== "Starting" && modelData.status !== "Stopping"
+                                        onPrimaryActionClicked: {
+                                            if (modelData.status === "Running")
+                                                supervisorGuiBridge.stopService(modelData.name)
+                                            else
+                                                supervisorGuiBridge.startService(modelData.name)
+                                        }
+                                        secondaryActionLabel: "Restart"
+                                        onSecondaryActionClicked: supervisorGuiBridge.restartService(modelData.name)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // ── ACTIVE SESSIONS + RECENT ACTIVITY ────────────────────────
                 RowLayout {
                     Layout.fillWidth: true

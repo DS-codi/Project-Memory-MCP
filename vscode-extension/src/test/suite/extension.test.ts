@@ -114,6 +114,14 @@ suite('Commands Test Suite', () => {
         await vscode.commands.executeCommand('projectMemory.markStepActive', undefined, 0);
         await vscode.commands.executeCommand('projectMemory.markStepDone', 'plan_abc', 'not-a-number');
     });
+
+    test('memory.openFocusedWorkspace command should be registered', async () => {
+        const commands = await vscode.commands.getCommands();
+        assert.ok(
+            commands.includes('memory.openFocusedWorkspace'),
+            'memory.openFocusedWorkspace command should be registered'
+        );
+    });
 });
 
 suite('Chat Participant Contributions', () => {
