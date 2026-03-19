@@ -141,6 +141,11 @@
         "category": "Project Memory"
       },
       {
+        "command": "memory.openFocusedWorkspace",
+        "title": "Open Focused Workspace",
+        "category": "Memory"
+      },
+      {
         "command": "project-memory.startSupervisor",
         "title": "Start / Reconnect Supervisor",
         "category": "Project Memory"

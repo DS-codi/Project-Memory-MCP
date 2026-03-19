@@ -45,6 +45,11 @@ export class ConnectionManager implements vscode.Disposable {
     /** When true, polling is suspended until `resetCircuit()` is called. */
     private _circuitOpen = false;
 
+    // ── Focused workspace mode ─────────────────────────────────────────────
+    private _isFocusedWorkspaceMode = false;
+    private readonly _onDidChangeFocusedMode = new vscode.EventEmitter<boolean>();
+    readonly onDidChangeFocusedMode: vscode.Event<boolean> = this._onDidChangeFocusedMode.event;
+
     constructor(config: ConnectionConfig) {
         this.config = config;
         this.outputChannel = vscode.window.createOutputChannel('Project Memory Connection');
@@ -213,6 +218,28 @@ export class ConnectionManager implements vscode.Disposable {
     get isMcpConnected(): boolean { return this._isMcpConnected; }
     get isFullyConnected(): boolean { return this._isDashboardConnected && this._isMcpConnected; }
 
+    isFocusedWorkspaceMode(): boolean { return this._isFocusedWorkspaceMode; }
+
+    setFocusedWorkspaceMode(active: boolean): void {
+        if (this._isFocusedWorkspaceMode !== active) {
+            this._isFocusedWorkspaceMode = active;
+            this._onDidChangeFocusedMode.fire(active);
+        }
+    }
+
+    async callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
+        const url = `http://localhost:${this.config.mcpPort}/admin/mcp_call`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, arguments: args }),
+        });
+        if (!response.ok) {
+            throw new Error(`MCP call to '${name}' failed: ${response.status} ${response.statusText}`);
+        }
+        return response.json();
+    }
+
     // --- Configuration ---
 
     updateConfig(config: Partial<ConnectionConfig>): void {
@@ -276,6 +303,7 @@ export class ConnectionManager implements vscode.Disposable {
 
     dispose(): void {
         this.stopAutoDetection();
+        this._onDidChangeFocusedMode.dispose();
         this.outputChannel.dispose();
         this.statusBarItem.dispose();
     }}

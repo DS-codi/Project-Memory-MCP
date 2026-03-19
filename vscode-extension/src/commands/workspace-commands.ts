@@ -7,6 +7,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { ConnectionManager } from '../server/ConnectionManager';
 import { DashboardViewProvider } from '../providers/DashboardViewProvider';
+import { ToolRegistry } from '../tool-registry';
 import { notify } from '../utils/helpers';
 import { getDefaultAgentsRoot, getDefaultInstructionsRoot, getDefaultSkillsRoot } from '../utils/defaults';
 import { resolveSkillsSourceRoot, buildMissingSkillsSourceWarning } from '../utils/skillsSourceRoot';
@@ -14,7 +15,8 @@ import { resolveSkillsSourceRoot, buildMissingSkillsSourceWarning } from '../uti
 export function registerWorkspaceCommands(
     context: vscode.ExtensionContext,
     connectionManager: ConnectionManager,
-    dashboardProvider: DashboardViewProvider
+    dashboardProvider: DashboardViewProvider,
+    toolRegistry: ToolRegistry
 ): void {
     context.subscriptions.push(
         vscode.commands.registerCommand('projectMemory.migrateWorkspace', async () => {
@@ -221,6 +223,93 @@ export function registerWorkspaceCommands(
                 }
             } catch {
                 vscode.window.showErrorMessage(`Failed to open file: ${filePath}`);
+            }
+        }),
+
+        vscode.commands.registerCommand('memory.openFocusedWorkspace', async () => {
+            try {
+                const workspaceFolders = vscode.workspace.workspaceFolders;
+                if (!workspaceFolders?.length) {
+                    vscode.window.showErrorMessage('No workspace folder open');
+                    return;
+                }
+                const activeWorkspacePath = workspaceFolders[0].uri.fsPath;
+
+                if (!connectionManager.isMcpConnected) {
+                    vscode.window.showErrorMessage('Not connected to Project Memory MCP. Launch the Supervisor first.');
+                    return;
+                }
+
+                // Resolve workspace_id from server registry
+                const listResult = await connectionManager.callTool('memory_workspace', { action: 'list' }) as Record<string, unknown>;
+                const workspaces = (listResult?.result as Record<string, unknown>[]
+                    ?? (listResult?.data as Record<string, unknown>)?.data as Record<string, unknown>[]
+                    ?? []) as Array<Record<string, unknown>>;
+                const matched = workspaces.find(w =>
+                    String(w.path ?? '').toLowerCase() === activeWorkspacePath.toLowerCase()
+                );
+                if (!matched) {
+                    vscode.window.showErrorMessage('Current workspace is not registered with Project Memory. Register it via the MCP tools first.');
+                    return;
+                }
+                const activeWorkspaceId = String(matched.workspace_id ?? '');
+
+                // List active plans for this workspace
+                const plansResult = await connectionManager.callTool('memory_plan', { action: 'list', workspace_id: activeWorkspaceId }) as Record<string, unknown>;
+                const activePlans = ((plansResult?.result as Record<string, unknown>)?.active_plans
+                    ?? ((plansResult?.data as Record<string, unknown>)?.data as Record<string, unknown>)?.active_plans
+                    ?? []) as Array<Record<string, unknown>>;
+
+                if (!activePlans.length) {
+                    vscode.window.showInformationMessage('No active plans found for this workspace.');
+                    return;
+                }
+
+                const selected = await vscode.window.showQuickPick(
+                    activePlans.map(p => ({
+                        label: String(p.title ?? p.plan_id ?? ''),
+                        description: String(p.current_phase ?? ''),
+                        planId: String(p.plan_id ?? ''),
+                    })),
+                    { placeHolder: 'Select a plan to generate a focused workspace for' }
+                );
+                if (!selected) { return; }
+
+                // Checkpoint active session before window reload
+                try {
+                    await connectionManager.callTool('memory_agent', {
+                        action: 'handoff',
+                        from_agent: 'User',
+                        to_agent: 'Coordinator',
+                        reason: 'Opening focused workspace',
+                        workspace_id: activeWorkspaceId,
+                        plan_id: selected.planId,
+                    });
+                } catch {
+                    // Handoff is best-effort; proceed even if it fails
+                }
+
+                // Generate focused workspace
+                const genResult = await connectionManager.callTool('memory_workspace', {
+                    action: 'generate_focused_workspace',
+                    workspace_id: activeWorkspaceId,
+                    plan_id: selected.planId,
+                }) as Record<string, unknown>;
+                const filePath = String(
+                    (genResult?.result as Record<string, unknown>)?.file_path
+                    ?? ((genResult?.data as Record<string, unknown>)?.data as Record<string, unknown>)?.file_path
+                    ?? ''
+                );
+                if (!filePath) {
+                    vscode.window.showErrorMessage('Failed to generate focused workspace file.');
+                    return;
+                }
+
+                toolRegistry.setFocusedWorkspaceMode(true);
+                await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(filePath), { forceNewWindow: false });
+            } catch (error) {
+                const msg = error instanceof Error ? error.message : String(error);
+                vscode.window.showErrorMessage(`Failed to open focused workspace: ${msg}`);
             }
         })
     );

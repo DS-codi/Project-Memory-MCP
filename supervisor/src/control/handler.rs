@@ -142,45 +142,51 @@ pub async fn handle_request_with_runtime(
                 _ => requested_service.clone(),
             };
 
-            if canonical_service == "interactive_terminal" {
-                // Route to the same "start:<service>" dispatch contract used by
-                // the CxxQt bridge so this behaves like a true launch request.
-                if let Some(ref tx) = restart_tx {
-                    let dispatch = format!("start:{canonical_service}");
-                    match tx.send(dispatch).await {
-                        Ok(()) => {
-                            let mut reg = registry.lock().await;
-                            reg.set_service_status(&canonical_service, ServiceStatus::Starting);
-                            return ControlResponse::ok(
-                                json!({ "service": requested_service, "status": "starting" }),
-                            );
-                        }
-                        Err(e) => {
-                            return ControlResponse::err(format!(
-                                "on-demand launch dispatch failed: {e}"
-                            ));
-                        }
+            // Dispatch through restart_tx for all services so that custom
+            // [[servers]] entries and on-demand services are actually started.
+            if let Some(ref tx) = restart_tx {
+                let dispatch = format!("start:{canonical_service}");
+                match tx.send(dispatch).await {
+                    Ok(()) => {
+                        let mut reg = registry.lock().await;
+                        reg.set_service_status(&canonical_service, ServiceStatus::Starting);
+                        return ControlResponse::ok(
+                            json!({ "service": requested_service, "status": "starting" }),
+                        );
+                    }
+                    Err(e) => {
+                        return ControlResponse::err(format!("start dispatch failed: {e}"));
                     }
                 }
-
-                // No restart channel (e.g. unit-test context) — fall through to
-                // registry-only status update for compatibility.
-                let mut reg = registry.lock().await;
-                reg.set_service_status(&canonical_service, ServiceStatus::Starting);
-                return ControlResponse::ok(
-                    json!({ "service": requested_service, "status": "starting" }),
-                );
-            } else {
-                let mut reg = registry.lock().await;
-                reg.set_service_status(&canonical_service, ServiceStatus::Starting);
-                ControlResponse::ok(json!({ "service": requested_service, "status": "starting" }))
             }
+
+            // No restart channel (e.g. unit-test context) — registry-only fallback.
+            let mut reg = registry.lock().await;
+            reg.set_service_status(&canonical_service, ServiceStatus::Starting);
+            ControlResponse::ok(json!({ "service": requested_service, "status": "starting" }))
         }
 
         // ---------------------------------------------------------------
         // Stop
         // ---------------------------------------------------------------
         ControlRequest::Stop { service } => {
+            // Dispatch through restart_tx so custom [[servers]] entries and
+            // on-demand services are actually stopped, not just registry-marked.
+            if let Some(ref tx) = restart_tx {
+                let dispatch = format!("stop:{service}");
+                match tx.send(dispatch).await {
+                    Ok(()) => {
+                        let mut reg = registry.lock().await;
+                        reg.set_service_status(&service, ServiceStatus::Stopping);
+                        return ControlResponse::ok(json!({ "service": service, "status": "stopping" }));
+                    }
+                    Err(e) => {
+                        return ControlResponse::err(format!("stop dispatch failed: {e}"));
+                    }
+                }
+            }
+
+            // No restart channel (e.g. unit-test context) — registry-only fallback.
             let mut reg = registry.lock().await;
             reg.set_service_status(&service, ServiceStatus::Stopping);
             ControlResponse::ok(json!({ "service": service, "status": "stopping" }))

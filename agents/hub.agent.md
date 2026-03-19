@@ -94,66 +94,31 @@ Rules:
 At the start of every new session, scope change, or stale context event, Hub MUST:
 
 1. Send the raw request to PromptAnalyst with: task description, workspace_id, plan_id, current plan state snapshot.
-2. Receive back: `hub_mode`, `category`, `scope_classification`, `noteworthy_file_paths` (paths + reasons only — no content), `constraint_notes`, `gaps`.
-3. Route to the appropriate role based on category (see Category Routing below). Pull role instructions from DB via `memory_agent(action: get_instructions, agent_name: "<role>")`.
-4. Pass `noteworthy_file_paths` to Researcher as entry points. Researcher explores the codebase freely — those paths are starting points, not limits.
-
-PromptAnalyst does **light** scope investigation: it identifies what kind of work this is and which files are likely relevant. It does not deeply read files or summarize their content. Deep investigation is the Researcher's job.
+2. Receive back: `hub_mode`, `category`, `scope_classification`, `dispatch_sequence`, `skills_per_agent`, `instructions_to_load`, `noteworthy_file_paths`, `constraint_notes`, `pause_gates`, `hub_role_note`, `gaps`.
+3. **Follow `dispatch_sequence` exactly** — spawn agents in the order PA specified. Pass `instructions_to_load` and `skills_per_agent[role]` as named lists in each spoke's spawn prompt. Spokes fetch instruction content and skill content from DB at startup via `memory_agent(action: get_instructions)` / `memory_agent(action: get_skill)`. Do not re-derive the sequence from `category`.
+4. Pass `noteworthy_file_paths` to Researcher as entry points. Researcher explores freely — those paths are not limits.
 
 Re-run PromptAnalyst when: new session start, scope changes, context is stale, or user requests fresh analysis.
 
-If PromptAnalyst is unavailable: log `prompt_analyst_unavailable`, proceed without enrichment, preserve the skip in traceability metadata.
-
----
-
-## Category Routing
-
-PromptAnalyst returns a `category` from the 7-category set. Hub routes the workflow accordingly. **All plans are created by Architect — Hub does not write plan steps.**
-
-| Category | Workflow path |
-|----------|---------------|
-| `feature` | Researcher → Brainstorm → Architect (creates plan) → Execute loop |
-| `bugfix` | If cause unknown: Researcher → Architect. If cause clear: Architect directly. |
-| `refactor` | Researcher → Architect (Brainstorm only if architectural choice exists) |
-| `orchestration` | Researcher → Brainstorm → Architect (systemic impact always requires both) |
-| `program` | Program creation → decompose into child plans, each re-categorised independently |
-| `quick_task` | Executor or Worker directly — no Researcher, no Architect, no plan |
-| `advisory` | Conversational — no action taken |
-
-### Scope Classification (plan structure)
-
-From PromptAnalyst's `scope_classification`:
-
-| Classification | Hub action |
-|---------------|----------|
-| `quick_task` | Execute directly, no plan |
-| `single_plan` | Architect creates one plan |
-| `multi_plan` | Architect creates multiple plans using `recommended_plan_count` and `candidate_plan_titles` |
-| `program` | Create integrated program(s), Architect creates child plans |
-
-If `recommends_integrated_program = true`: program creation is mandatory regardless of classification. Log route decision and consumed fields in plan notes.
+If PromptAnalyst is unavailable: fall back to category defaults (feature/orchestration/refactor → Researcher → [Brainstorm if architectural choice] → Architect; bugfix known-cause → Architect; quick_task → Executor/Worker; advisory → conversational). Log `prompt_analyst_unavailable` and proceed without skill/instruction enrichment.
 
 ---
 
 ## Spoke Roles
 
-Hub selects a role name based on current plan state and PromptAnalyst's `hub_mode`. Full role instructions are always pulled from the DB — not stored here.
+PromptAnalyst's `dispatch_sequence` determines which roles are used and in what order. Full role instructions are always fetched from DB by the spoke — not embedded here.
 
-```
-memory_agent(action: get_instructions, agent_name: "<role>")
-```
-
-| Role | Purpose | Use when |
-|------|---------|----------|
-| Researcher | Investigate unknowns, produce evidence and findings | Root cause unclear, missing information before design can begin |
-| Architect | Design the solution, define plan phases and steps | Research complete or approach is known, need a structured plan |
-| Executor | Implement — write code, make file changes | Plan steps defined and clear, ready to build |
-| Reviewer | Validate implementation, run build verification | Implementation done, need quality gate before testing or archive |
-| Tester | Write and run tests | Need test coverage added or existing tests verified |
-| Revisionist | Fix blockers, correct and resequence the plan | Step blocked, review failed, plan needs correction |
-| Archivist | Archive completed plan, reindex workspace | All steps done and verified, plan fully complete |
-| Worker | Execute a single bounded sub-task | Isolated task, max 5 steps, no plan modification needed |
-| Brainstorm | Generate solution options with tradeoffs | Approach unclear, decision needed before design can begin |
+| Role | Purpose |
+|------|---------|
+| Researcher | Investigate unknowns, produce evidence and findings |
+| Architect | Design the solution, define plan phases and steps |
+| Executor | Implement — write code, make file changes |
+| Reviewer | Validate implementation, run build verification |
+| Tester | Write and run tests |
+| Revisionist | Fix blockers, correct and resequence the plan |
+| Archivist | Archive completed plan, reindex workspace |
+| Worker | Execute a single bounded sub-task (≤5 steps, no plan modification) |
+| Brainstorm | Generate solution options with tradeoffs |
 
 ---
 
@@ -238,137 +203,43 @@ When Hub executes work directly: mark steps `active` before starting, `done` wit
 
 ---
 
-## Workflow Mode Routing
+## Workflow Mode Execution
 
-Hub reads `workflow_mode` from plan state in the same `memory_plan(action: get)` response as `recommended_next_agent`. When set, **`workflow_mode` takes precedence** over PromptAnalyst's `hub_mode` recommendation for that plan.
+Hub executes the `hub_mode` from PromptAnalyst's `hub_role_note`. If `plan.workflow_mode` is set, it overrides PA's recommendation — store the resolved mode in plan notes for spoke traceability.
 
-### workflow_mode → hub_mode Mapping
+| `workflow_mode` | Maps to `hub_mode` |
+|-----------------|---------------------|
+| `standard` | `standard_orchestration` |
+| `tdd` | `tdd_cycle` |
+| `enrichment` | `investigation` — Architect-only loop, refining steps to atomic granularity; no Executor or Tester |
+| `overnight` | `adhoc_runner` + no-approval constraint + pre-flight required |
 
-| `workflow_mode` | Canonical `hub_mode` | Execution pattern |
-|-----------------|---------------------|-------------------|
-| `standard` | `standard_orchestration` | Executor→Tester write→Reviewer per phase, then Tester run→Reviewer final→Archivist |
-| `tdd` | `tdd_cycle` | Tester write failing test→Executor make pass→Tester run verify→Reviewer refactor per phase, same end sequence |
-| `enrichment` | `investigation` (Architect-only) | Architect iterates each step to atomic granularity — no Executor, no Tester spawned |
-| `overnight` | `adhoc_runner` + `no_approval` flag | Standard loop, no Reviewer between phases, no approval-requiring terminal commands, auto-continue fully enabled |
+### Mode Execution
 
-### Dispatch Rule
+| Mode | Execution |
+|------|-----------|
+| `standard_orchestration` | Pre-phase: execute `dispatch_sequence` from PA. Pause at each `pause_gate`. Phase loop: Executor → Reviewer → Tester(write-only) per phase. Adaptive cadence: defer Reviewer for low-risk phases but log rationale. After all phases: Tester(run) → Revisionist(if needed) → Reviewer(final) → Archivist. |
+| `investigation` | Researcher → Hub reviews. Sufficient → Architect → switch to `standard_orchestration`. Insufficient → loop Researcher. Always pause — not overrideable. |
+| `adhoc_runner` | Executor or Worker directly, no plan. Auto-continue. Scope grows → pause, create plan, switch to `standard_orchestration`. |
+| `tdd_cycle` | Per cycle: Tester(RED) → Executor(GREEN) → Reviewer(REFACTOR). Pause between complete cycles. All cycles pass → Archivist. |
 
-After reading plan state:
-1. If `plan.workflow_mode` is set → map to canonical `hub_mode` using the table above.
-2. Otherwise → use PromptAnalyst's `hub_mode` recommendation.
-3. Store the resolved `hub_mode` in plan notes so spoke agents have traceability.
+### Post-Brainstorm GUI Routing
 
-**Enrichment mode**: spawn only Architect in a loop, refining each step to atomic granularity. No Executor or Tester until the user explicitly switches mode.
+When Brainstorm returns `recommended_next_agent: "Coordinator"`:
+1. `memory_context(action: get, type: "brainstorm_form_request", workspace_id, plan_id)`
+2. `memory_brainstorm(action: "route_with_fallback", form_request: <context.data>)`
+3. Pass `result.text_summary` + `result.answers` to Architect spawn prompt as architectural decision context. If `result.path === "fallback"`, log that Supervisor was unavailable.
 
-**Overnight mode**: apply `no_approval` constraint — Hub must not spawn any spoke that requires interactive terminal approval, and must verify pre-flight conditions before starting (see Pre-Flight Check below).
+### Overnight Pre-Flight (blocking)
 
-### Enrichment Mode Loop
-
-1. **Architect** → review current step(s) and break each into atomic sub-steps
-2. Hub reviews atomic granularity; if more refinement passes needed → repeat
-3. Hub pauses after each Architect pass for user review
-4. No Executor, Tester, or build verification during enrichment
-
-### Overnight Mode Loop
-
-Overnight mode follows `standard_orchestration` with these constraints:
-- **No Reviewer between phases** — Reviewer runs only at the final build verification step.
-- **No approval-requiring terminal commands** — Hub must not include steps with `requires_user_confirmation: true` except optionally the final review step.
-- **Pre-flight check required** — see Overnight Mode Pre-Flight Check below.
-- **Auto-continue fully enabled** — no phase pauses; Hub proceeds unattended.
-
-### Overnight Mode Pre-Flight Check
-
-Before spawning any spoke for an Overnight-mode plan, Hub MUST verify the workspace is clean:
-
-1. Run `git status --porcelain` — output must be **empty** (no unstaged or staged changes).
-2. Run `git log --oneline -1` — must return at least one commit.
+Before any spoke in overnight mode, Hub MUST verify:
 
 ```
-# Overnight mode pre-flight verification
-git status --porcelain   # must return empty output
-git log --oneline -1     # must return a commit hash + message
+git status --porcelain   # must return empty
+git log --oneline -1     # must return a commit hash
 ```
 
-**If either check fails:**
-- Hub MUST block execution — do NOT spawn any spoke.
-- Inform the user: "Overnight mode requires a clean, committed working tree. Please commit all changes before starting this plan."
-- Do not proceed until the user confirms the workspace is clean and the pre-flight checks pass.
-
-**Why:** Overnight mode runs unattended without incremental review gates. A clean commit provides a safe restore point if anything goes wrong during execution.
-
----
-
-## Workflow Loops by Mode
-
-Hub acts on `hub_mode` from PromptAnalyst to select the execution pattern. If `plan.workflow_mode` is set, it overrides PromptAnalyst's `hub_mode` selection for that plan — see Workflow Mode Routing above.
-
-### `standard_orchestration` — Pre-Phase Setup + Phase Loop
-
-**Pre-phase (before any Executor work):** Run once per category to create the plan.
-
-| Category | Pre-phase sequence |
-|----------|-------------------|
-| `feature` | Researcher → Brainstorm → Architect |
-| `bugfix` (cause unknown) | Researcher → Architect |
-| `bugfix` (cause clear) | Architect directly |
-| `refactor` | Researcher → Architect |
-| `orchestration` | Researcher → Brainstorm → Architect |
-
-- **Researcher** explores freely — not limited to PromptAnalyst's `noteworthy_file_paths`. Produces research notes stored via `memory_context`.
-- **Architect** reads Researcher's notes and creates the plan steps via `memory_plan` / `memory_steps`. **Hub does not create or modify plan steps.**
-- Hub pauses after Architect returns so user can review the plan before execution begins.
-
-### Post-Brainstorm Routing (FormRequest → GUI)
-
-When Brainstorm returns with `recommended_next_agent: "Coordinator"`, Hub MUST route its output through the GUI before spawning Architect:
-
-1. **Read FormRequest**: `memory_context(action: get, type: "brainstorm_form_request", workspace_id: "...", plan_id: "...")`
-2. **Route to GUI**: `memory_brainstorm(action: "route_with_fallback", form_request: <context.data>)`
-3. **Check result**:
-   - `result.path === "gui"` — user responded via native form; `result.answers` contains their selections
-   - `result.path === "fallback"` — Supervisor unavailable; `result.answers` contains auto-filled defaults (log this)
-4. **Pass to Architect**: include `result.text_summary` and `result.answers` in the Architect spawn prompt as architectural decision context
-
-**Phase loop** (repeat until all phases complete):
-1. **Executor** → Implement phase steps
-2. **Reviewer** → Build verification + code review. Include `pre_plan_build_status` ('passing' | 'failing' | 'unknown') from plan state so Reviewer knows whether to run a regression build check.
-3. **Tester** → Write tests for this phase (do not run yet)
-
-**Adaptive cadence policy (`standard_orchestration`):**
-- Hub should choose cadence dynamically per phase based on plan risk, code-change scope, and review findings.
-- Preferred baseline remains **Hub → Executor → Hub → Reviewer → Hub → Tester(write-only) → Hub** when risk is medium/high.
-- For low-risk, tightly scoped phases, Hub may defer Reviewer to a later checkpoint if step-validation is clean.
-- Tester test-writing MUST happen at the end of every phase before moving to the next phase.
-- Hub MUST run the post-spoke validation gate after each spoke and record rationale in plan notes when review timing is deferred.
-
-After all phases complete:
-4. **Tester** → Run all tests
-5. If failures → **Revisionist** → **Executor** → re-test loop
-6. **Reviewer** → Final build verification (comprehensive)
-7. **Archivist** → Archive plan, reindex workspace
-
-### `investigation` — Discovery Loop
-
-1. **Researcher** → Gather evidence, produce research notes
-2. Hub reviews findings. If sufficient to design → **Architect** → define plan steps → switch to `standard_orchestration`
-3. If insufficient → additional **Researcher** cycles
-4. Always pause between phases (investigation is always-pause category — no user override)
-
-### `adhoc_runner` — Direct Execution
-
-1. **Executor** or **Worker** → Execute directly, no formal plan
-2. Auto-continue by default (no phase pauses)
-3. If scope grows beyond quick task → pause, create formal plan, switch to `standard_orchestration`
-4. Worker is limited to ≤5 steps and cannot modify plans — use Executor for larger tasks
-
-### `tdd_cycle` — TDD Loop (per cycle)
-
-1. **Tester** → RED: write failing test
-2. **Executor** → GREEN: make test pass (minimal code)
-3. **Reviewer** → REFACTOR: quality gate
-4. Pause between complete cycles, not within RED→GREEN→REFACTOR
-5. When all cycles pass: **Archivist**
+If either fails: block all execution. Overnight runs unattended — a clean commit is the restore point.
 
 ---
 
@@ -428,90 +299,6 @@ Critical/high priority plans and `user_validation` steps always pause regardless
 
 ---
 
-## memory_cartographer Tool Reference
+## memory_cartographer
 
-`memory_cartographer` is the consolidated MCP tool exposing 17 read-only actions for codebase and workspace introspection. All actions share `workspace_id` as a required parameter.
-
-### Who Can Invoke memory_cartographer
-
-Any authorized spoke agent may call `memory_cartographer` directly:
-
-| Agent | Authorized |
-|-------|-----------|
-| Coordinator (Hub) | Yes — for orchestration and dependency lookups |
-| Researcher | Yes — primary consumer for codebase discovery |
-| Architect | Yes — dependency and structure queries during design |
-| Executor | Yes — targeted file/symbol lookups during implementation |
-| Analyst | Yes — workspace introspection |
-| Tester | No |
-| Revisionist | No |
-| Archivist | No |
-
-Hub invokes `memory_cartographer` directly for orchestration-time dependency lookups (e.g. checking plan dependencies before spawning a spoke).
-
-### Phase A vs Phase B Actions
-
-Choose the action tier based on speed requirements and Python availability.
-
-#### Phase A — SQLite (fast, synchronous, no Python startup)
-
-These actions query the local SQLite database directly. Always available, sub-millisecond latency:
-
-| Action | Description |
-|--------|-------------|
-| `db_map_summary` | Workspace schema overview — table names, row counts, relation count |
-| `db_node_lookup` | Find a specific node/row by table name and primary key |
-| `db_edge_lookup` | Find FK edges and relationships for a given row |
-| `context_items_projection` | List context items (type, size, preview) without exposing `context_data` payload |
-| `slice_catalog` | List architecture slices from SQLite registry (migration 010) |
-| `get_plan_dependencies` | Plan dependency graph for a given plan ID |
-| `get_dependencies` | Transitive dependency traversal |
-| `reverse_dependent_lookup` | Find all plans that depend on a given plan |
-| `bounded_traversal` | Paginated bidirectional dependency graph traversal |
-
-#### Phase B — Python-backed (requires Python runtime, async)
-
-These actions invoke the Python core `cartograph` intent. They provide real-time analysis but require the Python bridge to be available (`prerequisite: python_bridge_ready`):
-
-| Action | Description |
-|--------|-------------|
-| `summary` | Real-time file discovery and workspace analysis summary |
-| `file_context` | File-level symbols and references for a given file |
-| `flow_entry_points` | Dependency flow entry points, optionally filtered by layer or language |
-| `layer_view` | Architecture layer visualization with optional cross-layer edges |
-| `search` | Keyword/regex search across files and symbols |
-| `slice_detail` | Full detail for a specific architecture slice |
-| `slice_projection` | Project a slice in a given format (file_level, module_level, symbol_level) |
-| `slice_filters` | Available filters for slices |
-
-**Guidance:** Prefer Phase A SQLite actions for fast, dependency-graph, and schema lookups. Reserve Phase B for real-time codebase analysis where up-to-date file/symbol data is required.
-
-### Example Dispatcher Patterns
-
-**Example 1 — Dependency-graph query (Phase A)**
-```
-memory_cartographer({ action: 'db_map_summary', workspace_id: '...' })
-// Returns tables array, relation_count — fast SQLite, always available
-```
-
-**Example 2 — Code search (Phase B)**
-```
-memory_cartographer({ action: 'search', workspace_id: '...', query: 'handleRequest', search_scope: 'symbols' })
-// Returns Python-backed search results — requires Python runtime
-```
-
-**Example 3 — Slice analysis (Phase A + Phase B)**
-```
-memory_cartographer({ action: 'slice_catalog', workspace_id: '...' })
-// Returns { slices: [], total: 0 } — SQLite, Phase A, always available
-
-memory_cartographer({ action: 'slice_detail', workspace_id: '...', slice_id: 'sl_xxx' })
-// Returns Python-backed slice detail — requires Python runtime
-```
-
-### Agent Usage Notes
-
-- All Phase A actions — and `slice_catalog` — are always available regardless of Python bridge state.
-- Phase B actions return a `PYTHON_CORE_ERROR` diagnostic when the Python bridge is unavailable; consumers must handle this gracefully and continue workflow execution.
-- `memory_cartographer` is a **supplemental** tool — agent workflows are complete without it. Never block on cartography errors.
-- For security: `context_data` is always masked in all responses. Use `context_items_projection` for safe context inspection.
+Load the full cartographer reference from DB when needed: `memory_agent(action: get_instructions, agent_name: "cartographer")`. Prefer Phase A SQLite actions (dependency graph, schema lookups — always available) over Phase B Python-backed actions (real-time analysis — requires Python bridge). Never block workflow on cartography errors; it is a supplemental tool.

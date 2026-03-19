@@ -14,6 +14,7 @@
 
 import * as vscode from 'vscode';
 import type { EventSubscriptionService, AgentEvent, StepEvent } from '../services/EventSubscriptionService';
+import type { ConnectionManager } from '../server/ConnectionManager';
 
 interface AgentState {
     agentType: string;
@@ -29,6 +30,7 @@ interface AgentState {
 
 export class StatusBarManager implements vscode.Disposable {
     private readonly _item: vscode.StatusBarItem;
+    private _focusedItem: vscode.StatusBarItem | null = null;
     private _state: AgentState | null = null;
     private _flashTimer: ReturnType<typeof setTimeout> | null = null;
     private _staleTimer: ReturnType<typeof setInterval> | null = null;
@@ -42,6 +44,32 @@ export class StatusBarManager implements vscode.Disposable {
         this._item.command = 'projectMemory.showDashboard';
         this._update();
         this._item.show();
+    }
+
+    // ── ConnectionManager wiring (focused workspace mode) ─────────────────
+
+    /**
+     * Attach ConnectionManager to subscribe to focused workspace mode changes.
+     * Call once during extension activation after StatusBarManager is constructed.
+     * Uses context.subscriptions so the item is cleaned up on deactivation.
+     */
+    attachConnectionManager(connectionManager: ConnectionManager, context: vscode.ExtensionContext): void {
+        const item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 98);
+        item.command = 'memory.openFocusedWorkspace';
+        item.text = '$(target) Focused';
+        item.tooltip = 'Focused workspace active — click to reopen';
+        item.hide();
+        this._focusedItem = item;
+
+        const subscription = connectionManager.onDidChangeFocusedMode(active => {
+            if (active) {
+                item.show();
+            } else {
+                item.hide();
+            }
+        });
+
+        context.subscriptions.push(item, subscription);
     }
 
     // ── EventSubscriptionService wiring ──────────────────────────────────────

@@ -77,6 +77,10 @@ pub mod ffi {
         /// can include `X-PM-API-Key` on its requests to `/chatbot/config` and
         /// `/chatbot/chat` which are protected routes.
         #[qproperty(QString, gui_auth_key, cxx_name = "guiAuthKey")]
+        /// JSON array of configured [[servers]] entries with live status.
+        /// Format: [{name, display, status, port}] — updated by push_qt_status
+        /// whenever the registry snapshot changes.
+        #[qproperty(QString, custom_services_json, cxx_name = "customServicesJson")]
         type SupervisorGuiBridge = super::SupervisorGuiBridgeRust;
 
         #[qinvokable]
@@ -213,6 +217,9 @@ pub struct SupervisorGuiBridgeRust {
     pub dashboard_uptime_secs: i32,
     /// GUI server auth key forwarded to QML for chatbot XHR authentication.
     pub gui_auth_key: QString,
+    /// JSON array of configured [[servers]] entries with live status.
+    /// Updated by main.rs push_qt_status on every registry snapshot push.
+    pub custom_services_json: QString,
 }
 
 impl Default for SupervisorGuiBridgeRust {
@@ -252,6 +259,7 @@ impl Default for SupervisorGuiBridgeRust {
             dashboard_pid: 0,
             dashboard_uptime_secs: 0,
             gui_auth_key: QString::default(),
+            custom_services_json: QString::from("[]"),
         }
     }
 }
