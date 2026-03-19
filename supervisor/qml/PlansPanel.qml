@@ -510,6 +510,7 @@ Rectangle {
                                                 xhr.setRequestHeader("Content-Type", "application/json")
                                                 xhr.onreadystatechange = function() {
                                                     if (xhr.readyState !== XMLHttpRequest.DONE) return
+                                                    if (!launchRect || !launchResetTimer) return
                                                     if (xhr.status === 200) {
                                                         launchRect.launchState = "ok"
                                                     } else {
