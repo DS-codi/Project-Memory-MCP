@@ -64,3 +64,8 @@ data.zip
 __pycache__/
 *.pyc
 *.pyo
+
+# API keys and secrets
+.dev-api-key
+*.dev-api-key
+secrets/
