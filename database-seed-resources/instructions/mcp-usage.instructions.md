@@ -20,6 +20,7 @@ The MCP server exposes consolidated action-based tools, plus extension-side term
 | `memory_context` | `get`, `store`, `store_initial`, `list`, `append_research`, `list_research`, `generate_instructions`, `workspace_get`, `workspace_set`, `workspace_update`, `workspace_delete`, `knowledge_store`, `knowledge_get`, `knowledge_list`, `knowledge_delete`, `search`, `pull`, `write_prompt`, `dump_context`, `batch_store` |
 | `memory_terminal` | `run`, `read_output`, `kill`, `get_allowlist`, `update_allowlist` |
 | `memory_filesystem` | `read`, `write`, `search`, `list`, `tree`, `delete`, `move`, `copy`, `append`, `exists` |
+| `memory_instructions` | `search` (keyword search — returns section excerpts, not full content), `get` (full content by filename), `get_section` (extract a single `##`/`###` section by heading), `list` (metadata only — no content), `list_workspace` (workspace-assigned instructions — metadata only) |
 | `memory_terminal_interactive` | `execute`, `read_output`, `terminate`, `list` *(canonical MCP contract; legacy aliases accepted with compatibility metadata)* |
 | `memory_terminal_vscode` | `create`, `send`, `close`, `list` *(extension-side, visible VS Code terminals)* |
 
@@ -295,6 +296,43 @@ When the Rust+QML Interactive Terminal gateway is in play, treat it as an orches
 - **Do not cross-copy action payloads between tools.** Keep parameters aligned to the selected surface contract for the current runtime.
 - **Do not treat the Rust+QML gateway as a third terminal executor.** It selects/routes; execution still happens on one terminal surface.
 - **If docs or prompts conflict, this section is canonical for surface selection.** Escalate unresolved contract ambiguity to Coordinator/Reviewer before execution.
+
+## Instruction Files (`memory_instructions`)
+
+`memory_instructions` is the dedicated read/search tool for instruction files stored in the DB. Use it instead of `memory_agent`'s `list_instructions`/`get_instruction` actions when you only need to read or search — it avoids loading full agent-lifecycle context.
+
+**Token efficiency rule:** Prefer `search` or `get_section` over `get`. A 4,000-token file costs nothing if you only pull the 200-token section you need.
+
+| Action | When to use |
+|--------|-------------|
+| `list` | Enumerate all instruction filenames (no content) |
+| `list_workspace` | Get instructions assigned to a workspace (no content) |
+| `search` | Discover which files contain a keyword — returns section excerpts, never full content |
+| `get_section` | Pull one `##` or `###` section by partial heading match |
+| `get` | Load full instruction content (only when you need the whole file) |
+
+### Common Patterns
+
+```
+memory_instructions (action: list_workspace) with
+  workspace_id: "..."
+```
+
+```
+memory_instructions (action: search) with
+  query: "handoff"
+```
+
+```
+memory_instructions (action: get_section) with
+  filename: "handoff-protocol.instructions.md",
+  heading: "return"
+```
+
+```
+memory_instructions (action: get) with
+  filename: "mcp-tool-plan.instructions.md"
+```
 
 ## Filesystem Safety Boundaries (`memory_filesystem`)
 

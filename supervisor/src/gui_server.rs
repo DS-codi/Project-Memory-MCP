@@ -543,11 +543,13 @@ mod tests {
     }
 
     fn make_state(form_apps: Arc<FormAppConfigs>) -> GuiServerState {
+        use std::collections::HashMap;
         GuiServerState {
             form_apps,
             chatbot_config: Arc::new(RwLock::new(crate::config::ChatbotSection::default())),
             chatbot_state_path: std::path::PathBuf::from(std::env::temp_dir()).join("chatbot_state_test.json"),
             mcp_base_url: "http://127.0.0.1:3000".to_string(),
+            chat_live_logs: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -580,7 +582,7 @@ mod tests {
         let app = build_router(make_state(form_apps_with(vec![
             ("approval_gui", enabled),
             ("brainstorm_gui", disabled),
-        ])));
+        ])), None);
 
         let response = app
             .oneshot(
@@ -604,7 +606,7 @@ mod tests {
 
     #[tokio::test]
     async fn launch_unknown_app_returns_structured_not_found_error() {
-        let app = build_router(make_state(form_apps_with(vec![])));
+        let app = build_router(make_state(form_apps_with(vec![])), None);
 
         let response = app
             .oneshot(post_json(
@@ -634,7 +636,7 @@ mod tests {
         cfg.enabled = false;
         cfg.command = "echo".to_string();
 
-        let app = build_router(make_state(form_apps_with(vec![("approval_gui", cfg)])));
+        let app = build_router(make_state(form_apps_with(vec![("approval_gui", cfg)])), None);
         let response = app
             .oneshot(post_json(
                 "/gui/launch",
@@ -664,7 +666,7 @@ mod tests {
             ..FormAppConfig::default()
         };
 
-        let app = build_router(make_state(form_apps_with(vec![("approval_gui", cfg)])));
+        let app = build_router(make_state(form_apps_with(vec![("approval_gui", cfg)])), None);
         let response = app
             .oneshot(post_json(
                 "/gui/launch",
@@ -689,7 +691,7 @@ mod tests {
 
     #[tokio::test]
     async fn continue_unknown_session_returns_structured_internal_error() {
-        let app = build_router(make_state(form_apps_with(vec![])));
+        let app = build_router(make_state(form_apps_with(vec![])), None);
         let response = app
             .oneshot(post_json(
                 "/gui/continue",

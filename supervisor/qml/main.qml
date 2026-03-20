@@ -491,10 +491,15 @@ ApplicationWindow {
                 Loader {
                     id: customServicesLoader
                     Layout.fillWidth: true
+                    // customServicesJson is declared as a CxxQt #[qproperty] (cxx_name =
+                    // "customServicesJson") in src/cxxqt_bridge/mod.rs.  Pre-build qmllint
+                    // cannot resolve CxxQt bridge properties from generated type-info.
+                    // qmllint disable missing-property
                     property var parsedServices: {
                         try { return JSON.parse(supervisorGuiBridge.customServicesJson) }
                         catch(e) { return [] }
                     }
+                    // qmllint enable missing-property
                     active: parsedServices.length > 0
                     sourceComponent: Component {
                         ColumnLayout {

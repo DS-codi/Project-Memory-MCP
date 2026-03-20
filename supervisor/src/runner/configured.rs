@@ -278,3 +278,113 @@ async fn probe_tcp(port: u16) -> bool {
     .map(|result| result.is_ok())
     .unwrap_or(false)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::{RestartPolicy, ServerDefinition};
+
+    fn make_runner(command: &str) -> ConfiguredProcessRunner {
+        ConfiguredProcessRunner::new(ServerDefinition {
+            name: "test-service".to_string(),
+            command: command.to_string(),
+            args: Vec::new(),
+            working_dir: None,
+            env: std::collections::HashMap::new(),
+            port: None,
+            restart_policy: RestartPolicy::AlwaysRestart,
+        })
+    }
+
+    #[test]
+    fn runtime_label_node_for_npm() {
+        let runner = make_runner("npm");
+        assert_eq!(runner.runtime_label(), "Node");
+    }
+
+    #[test]
+    fn runtime_label_node_for_npx() {
+        let runner = make_runner("npx");
+        assert_eq!(runner.runtime_label(), "Node");
+    }
+
+    #[test]
+    fn runtime_label_node_for_yarn() {
+        let runner = make_runner("yarn");
+        assert_eq!(runner.runtime_label(), "Node");
+    }
+
+    #[test]
+    fn runtime_label_process_for_python() {
+        let runner = make_runner("python");
+        assert_eq!(runner.runtime_label(), "Process");
+    }
+
+    #[test]
+    fn runtime_label_process_for_arbitrary_binary() {
+        let runner = make_runner("my-server-binary");
+        assert_eq!(runner.runtime_label(), "Process");
+    }
+
+    #[test]
+    fn runtime_label_node_for_full_path_npm() {
+        // runtime_label uses the file stem, so full paths should still resolve.
+        let runner = make_runner("/usr/local/bin/npm");
+        assert_eq!(runner.runtime_label(), "Node");
+    }
+
+    #[test]
+    fn pid_is_none_when_stopped() {
+        let runner = make_runner("npm");
+        assert!(runner.pid().is_none());
+    }
+
+    #[test]
+    fn is_process_dead_when_stopped() {
+        let mut runner = make_runner("npm");
+        assert!(runner.is_process_dead());
+    }
+
+    #[test]
+    fn mark_stopped_clears_state() {
+        let mut runner = make_runner("npm");
+        // Already stopped; mark_stopped should be a no-op and not panic.
+        runner.mark_stopped();
+        assert!(runner.pid().is_none());
+        assert!(runner.is_process_dead());
+    }
+
+    #[test]
+    fn service_name_reflects_trimmed_config_name() {
+        let runner = ConfiguredProcessRunner::new(ServerDefinition {
+            name: "  mobile-app  ".to_string(),
+            command: "npm".to_string(),
+            args: Vec::new(),
+            working_dir: None,
+            env: std::collections::HashMap::new(),
+            port: None,
+            restart_policy: RestartPolicy::AlwaysRestart,
+        });
+        assert_eq!(runner.service_name(), "mobile-app");
+    }
+
+    #[test]
+    fn port_is_accessible_from_config() {
+        let runner = ConfiguredProcessRunner::new(ServerDefinition {
+            name: "vite-app".to_string(),
+            command: "npm".to_string(),
+            args: vec!["run".to_string(), "dev".to_string()],
+            working_dir: None,
+            env: std::collections::HashMap::new(),
+            port: Some(5173),
+            restart_policy: RestartPolicy::AlwaysRestart,
+        });
+        assert_eq!(runner.port(), Some(5173));
+    }
+
+    #[test]
+    fn port_is_none_when_unset() {
+        let runner = make_runner("my-headless-server");
+        assert!(runner.port().is_none());
+    }
+}

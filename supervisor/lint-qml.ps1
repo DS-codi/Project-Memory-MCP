@@ -19,8 +19,15 @@
     Pass --verbose to qmllint for detailed output even on passing files.
 
 .PARAMETER ShowWarnings
-    Surface qmllint Warning: lines on files that otherwise exit 0.
-    Without this flag warnings are silently swallowed (qmllint exits 0 for warnings).
+    Print the Warning: detail lines emitted by qmllint for files that exit 0.
+    Warning counts are always shown in the summary regardless of this flag.
+
+.PARAMETER Auto
+    Lint all known QML components in the project automatically.
+    Scans: supervisor, interactive-terminal, pm-approval-gui, pm-brainstorm-gui,
+    pm-gui-forms, pm-install-gui.
+    Each component is shown as a separate section with its own pass/fail summary.
+    Combines with -ShowWarnings and -Verbose. Ignores -File, -Dir, -Recurse.
 
 .EXAMPLE
     # Lint all files in ./qml/
@@ -43,6 +50,12 @@
 
     # Show warnings for a single file
     .\lint-qml.ps1 -File qml\ChatbotPanel.qml -ShowWarnings
+
+    # Lint every QML component in the project
+    .\lint-qml.ps1 -Auto
+
+    # Lint every component and surface warnings
+    .\lint-qml.ps1 -Auto -ShowWarnings
 #>
 param(
     [string]$File         = "",
@@ -50,7 +63,8 @@ param(
     [switch]$Recurse,
     [string]$QtPath       = "C:\Qt\6.10.2\msvc2022_64\bin\qmllint.exe",
     [switch]$Verbose,
-    [switch]$ShowWarnings
+    [switch]$ShowWarnings,
+    [switch]$Auto
 )
 
 Set-StrictMode -Version Latest
@@ -71,7 +85,111 @@ if (-not (Test-Path $QtPath)) {
 }
 
 # ── Resolve target files ──────────────────────────────────────────────────────
-$scriptDir = Split-Path $MyInvocation.MyCommand.Path -Parent
+$scriptDir  = Split-Path $MyInvocation.MyCommand.Path -Parent
+$projectRoot = Split-Path $scriptDir -Parent   # one level up from supervisor/
+
+# Paths for --import-path so qmllint can resolve custom QML modules from the build
+# and Qt's own QML modules (e.g. QtWebEngine).
+$qmlModulesDir = Join-Path $projectRoot "target\cxxqt\qml_modules"
+$qtQmlDir      = Join-Path (Split-Path (Split-Path $QtPath)) "qml"
+
+# ── Auto mode — lint all known QML components ─────────────────────────────────
+if ($Auto) {
+    # Component name → qml directory (relative to project root)
+    $components = [ordered]@{
+        "supervisor"           = "supervisor\qml"
+        "interactive-terminal" = "interactive-terminal\qml"
+        "pm-approval-gui"      = "pm-approval-gui\qml"
+        "pm-brainstorm-gui"    = "pm-brainstorm-gui\qml"
+        "pm-gui-forms"         = "pm-gui-forms\qml"
+        "pm-install-gui"       = "pm-install-gui\qml"
+    }
+
+    $lintArgs = @()
+    if ($Verbose)                  { $lintArgs += "--verbose" }
+    if (Test-Path $qmlModulesDir)  { $lintArgs += "-I"; $lintArgs += $qmlModulesDir }
+    if (Test-Path $qtQmlDir)       { $lintArgs += "-I"; $lintArgs += $qtQmlDir }
+
+    $totalPass  = 0
+    $totalWarn  = 0
+    $totalFail  = 0
+    $anyMissing = $false
+
+    foreach ($entry in $components.GetEnumerator()) {
+        $compName = $entry.Key
+        $compDir  = Join-Path $projectRoot $entry.Value
+
+        if (-not (Test-Path $compDir -PathType Container)) {
+            Write-Host ""
+            Write-Host "  [skip] $compName  (directory not found: $compDir)" -ForegroundColor DarkGray
+            $anyMissing = $true
+            continue
+        }
+
+        $files = Get-ChildItem -Path $compDir -Filter "*.qml" |
+                 Sort-Object { $_.FullName } |
+                 Select-Object -ExpandProperty FullName
+
+        Write-Host ""
+        Write-Host "── $compName  ($($files.Count) file$(if ($files.Count -ne 1){'s'}))" -ForegroundColor Cyan
+        Write-Host ("-" * 60)
+
+        if ($files.Count -eq 0) {
+            Write-Host "  (no .qml files)" -ForegroundColor DarkGray
+            continue
+        }
+
+        $compPass = 0; $compWarn = 0; $compFail = 0
+
+        foreach ($f in $files) {
+            $displayName = Split-Path $f -Leaf
+            $output = & $QtPath @lintArgs $f 2>&1 | Out-String
+
+            if ($LASTEXITCODE -eq 0) {
+                # Always count warnings; display detail lines only when -ShowWarnings is set
+                $warnLines = @($output -split "`r?`n" | Where-Object { $_ -match 'Warning:' })
+                if ($warnLines.Count -gt 0) {
+                    Write-Host ("  {0,-6} {1}" -f "WARN", $displayName) -ForegroundColor Yellow
+                    if ($ShowWarnings) {
+                        $warnLines | ForEach-Object { Write-Host "         $_" -ForegroundColor Yellow }
+                    }
+                    $compWarn++
+                } else {
+                    Write-Host ("  {0,-6} {1}" -f "PASS", $displayName) -ForegroundColor Green
+                    if ($Verbose -and $output.Trim()) {
+                        Write-Host $output.Trim() -ForegroundColor DarkGray
+                    }
+                    $compPass++
+                }
+            } else {
+                Write-Host ("  {0,-6} {1}" -f "FAIL", $displayName) -ForegroundColor Red
+                if ($output.Trim()) {
+                    $output.Trim() -split "`n" | ForEach-Object { Write-Host "         $_" -ForegroundColor Yellow }
+                }
+                $compFail++
+            }
+        }
+
+        $compSummary = "$compPass passed, $compWarn warnings, $compFail failed"
+        if ($compFail -gt 0)      { Write-Host $compSummary -ForegroundColor Red    }
+        elseif ($compWarn -gt 0)  { Write-Host $compSummary -ForegroundColor Yellow }
+        else                      { Write-Host $compSummary -ForegroundColor Green  }
+
+        $totalPass += $compPass
+        $totalWarn += $compWarn
+        $totalFail += $compFail
+    }
+
+    Write-Host ""
+    Write-Host ("=" * 60)
+    $totalSummary = "TOTAL  $totalPass passed, $totalWarn warnings, $totalFail failed"
+    if ($totalFail -gt 0)      { Write-Host $totalSummary -ForegroundColor Red    }
+    elseif ($totalWarn -gt 0)  { Write-Host $totalSummary -ForegroundColor Yellow }
+    else                       { Write-Host $totalSummary -ForegroundColor Green  }
+    Write-Host ""
+
+    exit $totalFail
+}
 
 if ($File) {
     # Single-file mode — resolve against cwd first, then scriptDir/qml
@@ -118,7 +236,9 @@ $passCount = 0
 $warnCount = 0
 $failCount = 0
 $lintArgs  = @()
-if ($Verbose) { $lintArgs += "--verbose" }
+if ($Verbose)                  { $lintArgs += "--verbose" }
+if (Test-Path $qmlModulesDir)  { $lintArgs += "-I"; $lintArgs += $qmlModulesDir }
+if (Test-Path $qtQmlDir)       { $lintArgs += "-I"; $lintArgs += $qtQmlDir }
 
 $recurseNote = if ($Recurse -and -not $File) { " (recursive)" } else { "" }
 Write-Host ""
@@ -136,15 +256,14 @@ foreach ($f in $targets) {
     $output = & $QtPath @lintArgs $f 2>&1 | Out-String
 
     if ($LASTEXITCODE -eq 0) {
-        # qmllint exits 0 for warnings — scan output for Warning: lines when -ShowWarnings is set
-        $warnLines = @()
-        if ($ShowWarnings) {
-            $warnLines = @($output -split "`r?`n" | Where-Object { $_ -match 'Warning:' })
-        }
+        # Always count warnings; display detail lines only when -ShowWarnings is set
+        $warnLines = @($output -split "`r?`n" | Where-Object { $_ -match 'Warning:' })
 
         if ($warnLines.Count -gt 0) {
             Write-Host ("  {0,-6} {1}" -f "WARN", $displayName) -ForegroundColor Yellow
-            $warnLines | ForEach-Object { Write-Host "         $_" -ForegroundColor Yellow }
+            if ($ShowWarnings) {
+                $warnLines | ForEach-Object { Write-Host "         $_" -ForegroundColor Yellow }
+            }
             $warnCount++
         } else {
             Write-Host ("  {0,-6} {1}" -f "PASS", $displayName) -ForegroundColor Green
