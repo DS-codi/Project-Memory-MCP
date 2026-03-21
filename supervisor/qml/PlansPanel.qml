@@ -200,19 +200,18 @@ Rectangle {
             Layout.fillWidth: true
             Layout.leftMargin: 10
             Layout.rightMargin: 10
-            Layout.topMargin: 2
+            Layout.topMargin: 4
             spacing: 6
 
             Button {
                 text: "Open in IDE"
-                implicitHeight: 26
-                leftPadding: 10; rightPadding: 10
+                highlighted: true
+                implicitHeight: 28
+                leftPadding: 12; rightPadding: 12
                 font.pixelSize: 11
                 enabled: panel.bridge !== null
                          && workspacesModel.count > 0
                          && workspaceCombo.currentIndex >= 0
-                ToolTip.visible: hovered
-                ToolTip.text:    "Open selected workspace folder in VS Code"
                 onClicked: {
                     if (panel.bridge && workspacesModel.count > 0) {
                         panel.bridge.openInIde(
