@@ -510,6 +510,11 @@ fn main() {
 // ── Async supervisor logic ────────────────────────────────────────────────────
 
 async fn supervisor_main() {
+    // Store the Tokio runtime handle so QML invokables (running on the Qt main
+    // thread, which has no Tokio context) can spawn async tasks.
+    let _ = supervisor::cxxqt_bridge::initialize::TOKIO_HANDLE
+        .set(tokio::runtime::Handle::current());
+
     // Initialise the supervisor Job Object first — before any child processes
     // are spawned — so every Node.js process we create is automatically owned
     // by the supervisor and killed when it exits (even on a crash).

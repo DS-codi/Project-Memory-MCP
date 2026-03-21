@@ -266,6 +266,7 @@ ApplicationWindow {
             mcpBaseUrl:  root.mcpBaseUrl
             dashBaseUrl: root.dashBaseUrl
             mcpPort:     supervisorGuiBridge.mcpPort
+            bridge:      supervisorGuiBridge
         }
 
         Flickable {
@@ -451,7 +452,7 @@ ApplicationWindow {
                         onPrimaryActionClicked: supervisorGuiBridge.restartService("dashboard")
                         secondaryActionLabel:   "Visit"
                         secondaryActionEnabled: supervisorGuiBridge.dashboardUrl !== ""
-                        onSecondaryActionClicked: supervisorGuiBridge.openDashboard()
+                        onSecondaryActionClicked: Qt.openUrlExternally(supervisorGuiBridge.dashboardUrl)
                     }
 
                     // ── Fallback API ──────────────────────────────────────────

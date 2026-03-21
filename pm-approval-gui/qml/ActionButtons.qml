@@ -26,11 +26,11 @@ Rectangle {
             text: "⚡ Use All Recommendations"
             font.pixelSize: 12
             flat: true
-            enabled: formApp ? !formApp.formSubmitted : false
+            enabled: btnBar.formApp ? !btnBar.formApp.formSubmitted : false
             Material.foreground: "#4ec9b0"
 
             onClicked: {
-                if (formApp) formApp.useAllRecommendations();
+                if (btnBar.formApp) btnBar.formApp.useAllRecommendations();
             }
 
             ToolTip.text: "Auto-fill all unanswered questions with agent recommendations"
@@ -47,12 +47,12 @@ Rectangle {
             font.pixelSize: 12
             flat: true
             // Show when formApp exposes refinement support (refinementCount property exists)
-            visible: formApp && (typeof formApp.refinementCount !== "undefined")
-            enabled: formApp ? (!formApp.formSubmitted && !formApp.refinementPending) : false
+            visible: btnBar.formApp && (typeof btnBar.formApp.refinementCount !== "undefined")
+            enabled: btnBar.formApp ? (!btnBar.formApp.formSubmitted && !btnBar.formApp.refinementPending) : false
             Material.foreground: Material.Orange
 
             onClicked: {
-                if (formApp) formApp.requestRefinement();
+                if (btnBar.formApp) btnBar.formApp.requestRefinement();
             }
 
             ToolTip.text: "Ask the agent to regenerate options for marked questions"
@@ -66,11 +66,11 @@ Rectangle {
             text: "Cancel"
             font.pixelSize: 13
             flat: true
-            enabled: formApp ? !formApp.formSubmitted : false
+            enabled: btnBar.formApp ? !btnBar.formApp.formSubmitted : false
             Material.foreground: "#cccccc"
 
             onClicked: {
-                if (formApp) formApp.cancelForm();
+                if (btnBar.formApp) btnBar.formApp.cancelForm();
             }
 
             Shortcut {
@@ -85,12 +85,12 @@ Rectangle {
             text: "Submit"
             font.pixelSize: 13
             highlighted: true
-            enabled: formApp ? !formApp.formSubmitted : false
+            enabled: btnBar.formApp ? !btnBar.formApp.formSubmitted : false
             Material.background: Material.Blue
             Material.foreground: "#ffffff"
 
             onClicked: {
-                if (formApp) formApp.submitForm();
+                if (btnBar.formApp) btnBar.formApp.submitForm();
             }
 
             Shortcut {

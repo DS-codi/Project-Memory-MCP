@@ -1,6 +1,9 @@
 pub mod initialize;
 pub use initialize::SUPERVISOR_QT;
 pub use initialize::SHUTDOWN_TX;
+pub use initialize::TOKIO_HANDLE;
+
+pub mod plans_actions;
 
 pub mod qr_bridge;
 pub use qr_bridge::set_pairing_config;
@@ -162,6 +165,12 @@ pub mod ffi {
         #[qinvokable]
         #[cxx_name = "saveVscodeSettingsJson"]
         fn save_vscode_settings_json(self: Pin<&mut SupervisorGuiBridge>, json: &QString) -> bool;
+
+        /// Open the currently-selected workspace folder in VS Code.
+        /// Resolves the workspace path by querying the MCP admin API.
+        #[qinvokable]
+        #[cxx_name = "openInIde"]
+        fn open_in_ide(self: Pin<&mut SupervisorGuiBridge>, workspace_id: &QString);
     }
 
     impl cxx_qt::Initialize for SupervisorGuiBridge {}

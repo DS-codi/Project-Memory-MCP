@@ -1,35 +1,37 @@
+use cxx_qt::Threading;
 use cxx_qt_lib::QString;
 use std::pin::Pin;
 use crate::cxxqt_bridge::ffi;
+use crate::cxxqt_bridge::initialize::TOKIO_HANDLE;
 
 impl ffi::SupervisorGuiBridge {
     pub fn open_in_ide(self: Pin<&mut Self>, workspace_id: &QString) {
         let ws_id = workspace_id.to_string();
-        let mcp_port = self.mcp_port();
+        let mcp_port = *self.mcp_port();
 
-        // We need to resolve the workspace ID to a path by calling the MCP server.
-        // Since we are in a QML invokable (main thread), we should ideally do this
-        // async, but for simplicity we can use a blocking HTTP call or just
-        // let QML do the resolution if it already has the path.
-        //
-        // However, the user request says: "the workspace selected in the plan panel
-        // dropdown gets opened in VSCode". The dropdown has the workspace ID.
-        
-        let rt = tokio::runtime::Handle::current();
-        let ws_id_clone = ws_id.clone();
-        
-        tokio::spawn(async move {
+        let Some(handle) = TOKIO_HANDLE.get() else {
+            eprintln!("[supervisor] open_in_ide: Tokio handle not available");
+            return;
+        };
+
+        handle.spawn(async move {
             let client = reqwest::Client::new();
             let url = format!("http://127.0.0.1:{}/admin/workspaces", mcp_port);
-            
+
             if let Ok(resp) = client.get(&url).send().await {
                 if let Ok(json) = resp.json::<serde_json::Value>().await {
                     if let Some(workspaces) = json["workspaces"].as_array() {
-                        if let Some(ws) = workspaces.iter().find(|w| w["id"] == ws_id_clone) {
+                        if let Some(ws) = workspaces.iter().find(|w| w["id"] == ws_id) {
                             if let Some(path) = ws["path"].as_str() {
-                                let _ = std::process::Command::new("cmd")
-                                    .args(["/C", "code", path])
-                                    .spawn();
+                                let mut cmd = std::process::Command::new("cmd");
+                                cmd.args(["/C", "code", path]);
+                                #[cfg(windows)]
+                                {
+                                    use std::os::windows::process::CommandExt;
+                                    const CREATE_NO_WINDOW: u32 = 0x08000000;
+                                    cmd.creation_flags(CREATE_NO_WINDOW);
+                                }
+                                let _ = cmd.spawn();
                             }
                         }
                     }
@@ -41,14 +43,18 @@ impl ffi::SupervisorGuiBridge {
     pub fn backup_workspace_plans(mut self: Pin<&mut Self>, workspace_id: &QString, output_dir: &QString) {
         let ws_id = workspace_id.to_string();
         let out_dir = output_dir.to_string();
-        let mcp_port = self.mcp_port();
-        
+        let mcp_port = *self.mcp_port();
         let qt_thread = self.qt_thread();
 
-        tokio::spawn(async move {
+        let Some(handle) = TOKIO_HANDLE.get() else {
+            eprintln!("[supervisor] backup_workspace_plans: Tokio handle not available");
+            return;
+        };
+
+        handle.spawn(async move {
             let client = reqwest::Client::new();
             let list_url = format!("http://127.0.0.1:{}/admin/plans?workspace_id={}&status=all", mcp_port, ws_id);
-            
+
             if let Ok(resp) = client.get(&list_url).send().await {
                 if let Ok(json) = resp.json::<serde_json::Value>().await {
                     if let Some(plans) = json["plans"].as_array() {
@@ -68,7 +74,7 @@ impl ffi::SupervisorGuiBridge {
                                 }
                             }
                         }
-                        
+
                         let msg = format!("Backed up {} plans to {}", count, out_dir);
                         qt_thread.queue(move |mut app| {
                             app.as_mut().set_action_feedback(QString::from(&msg));
@@ -82,7 +88,6 @@ impl ffi::SupervisorGuiBridge {
     pub fn create_plan_from_prompt(mut self: Pin<&mut Self>, prompt: &QString, workspace_id: &QString) {
         let p = prompt.to_string();
         let ws_id = workspace_id.to_string();
-        let gui_url = self.terminal_url().to_string(); // We might use terminal to launch?
         
         // The user wants a "hidden cli agent session".
         // We can spawn the gemini-cli with a specific prompt.
@@ -110,10 +115,15 @@ impl ffi::SupervisorGuiBridge {
 
     pub fn register_workspace(mut self: Pin<&mut Self>, path: &QString) {
         let p = path.to_string();
-        let mcp_port = self.mcp_port();
+        let mcp_port = *self.mcp_port();
         let qt_thread = self.qt_thread();
 
-        tokio::spawn(async move {
+        let Some(handle) = TOKIO_HANDLE.get() else {
+            eprintln!("[supervisor] register_workspace: Tokio handle not available");
+            return;
+        };
+
+        handle.spawn(async move {
             let client = reqwest::Client::new();
             let url = format!("http://127.0.0.1:{}/admin/workspaces", mcp_port);
             

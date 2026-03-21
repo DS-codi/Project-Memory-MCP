@@ -14,6 +14,9 @@ Rectangle {
     property string dashBaseUrl: ""
     property string guiBaseUrl:  "http://127.0.0.1:3464"
     property int    mcpPort:     0
+    /// Bridge object passed from main.qml — used by toolbar actions that call
+    /// Rust invokables (e.g. openInIde).  Optional; buttons are disabled when null.
+    property var    bridge:      null
 
     property bool   expanded:   false
     property int    currentTab: 0   // 0 = Active, 1 = All Plans
@@ -190,6 +193,36 @@ Rectangle {
                 ToolTip.visible: hovered; ToolTip.text: "Close"
                 onClicked: panel.expanded = false
             }
+        }
+
+        // ── Toolbar ─────────────────────────────────────────────────────────
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: 10
+            Layout.rightMargin: 10
+            Layout.topMargin: 2
+            spacing: 6
+
+            Button {
+                text: "Open in IDE"
+                implicitHeight: 26
+                leftPadding: 10; rightPadding: 10
+                font.pixelSize: 11
+                enabled: panel.bridge !== null
+                         && workspacesModel.count > 0
+                         && workspaceCombo.currentIndex >= 0
+                ToolTip.visible: hovered
+                ToolTip.text:    "Open selected workspace folder in VS Code"
+                onClicked: {
+                    if (panel.bridge && workspacesModel.count > 0) {
+                        panel.bridge.openInIde(
+                            workspacesModel.get(workspaceCombo.currentIndex).wsId
+                        )
+                    }
+                }
+            }
+
+            Item { Layout.fillWidth: true }
         }
 
         // ── Tab bar ─────────────────────────────────────────────────────────
