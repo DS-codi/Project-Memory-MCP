@@ -1,4 +1,4 @@
-param(
+﻿param(
     [switch]$Clean,
     [switch]$Test,
     [switch]$Run,

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Detects outdated Project Memory settings and workspace files.
 
