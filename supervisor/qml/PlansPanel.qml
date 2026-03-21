@@ -17,6 +17,9 @@ Rectangle {
     /// Bridge object passed from main.qml — used by toolbar actions that call
     /// Rust invokables (e.g. openInIde).  Optional; buttons are disabled when null.
     property var    bridge:      null
+    /// Currently selected agent provider for per-plan "Launch Agent" button.
+    /// 0 = Gemini, 1 = Claude CLI
+    property int    selectedProvider: 0
 
     property bool   expanded:   false
     property int    currentTab: 0   // 0 = Active, 1 = All Plans
@@ -47,6 +50,147 @@ Rectangle {
         clipHelper.text = txt
         clipHelper.selectAll()
         clipHelper.copy()
+    }
+
+    // ── Register Workspace popup ─────────────────────────────────────────────
+    Popup {
+        id: registerWsPopup
+        x: 10; y: 50
+        width: panel.width - 20
+        padding: 16
+        modal: true
+        focus: true
+        Material.theme: Material.Dark
+        background: Rectangle { color: "#161b22"; border.color: "#30363d"; border.width: 1; radius: 6 }
+        ColumnLayout {
+            width: parent.width
+            spacing: 10
+            Label { text: "Register Workspace"; font.pixelSize: 13; font.bold: true; color: "#c9d1d9" }
+            Label { text: "Enter the full path to the workspace folder:"; font.pixelSize: 11; color: "#8b949e"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+            TextField {
+                id: registerWsPathField
+                Layout.fillWidth: true
+                placeholderText: "C:\\path\\to\\workspace"
+                font.pixelSize: 11
+                Material.theme: Material.Dark
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                Item { Layout.fillWidth: true }
+                Button {
+                    text: "Cancel"; font.pixelSize: 11; implicitHeight: 28; leftPadding: 12; rightPadding: 12
+                    onClicked: registerWsPopup.close()
+                }
+                Button {
+                    text: "Register"; highlighted: true; font.pixelSize: 11; implicitHeight: 28; leftPadding: 12; rightPadding: 12
+                    enabled: registerWsPathField.text.trim() !== ""
+                    onClicked: {
+                        if (panel.bridge) panel.bridge.registerWorkspace(registerWsPathField.text.trim())
+                        registerWsPopup.close()
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Backup Plans popup ───────────────────────────────────────────────────
+    Popup {
+        id: backupPlansPopup
+        x: 10; y: 50
+        width: panel.width - 20
+        padding: 16
+        modal: true
+        focus: true
+        Material.theme: Material.Dark
+        background: Rectangle { color: "#161b22"; border.color: "#30363d"; border.width: 1; radius: 6 }
+        ColumnLayout {
+            width: parent.width
+            spacing: 10
+            Label { text: "Backup Plans"; font.pixelSize: 13; font.bold: true; color: "#c9d1d9" }
+            Label { text: "Output directory for JSON backup files:"; font.pixelSize: 11; color: "#8b949e"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+            TextField {
+                id: backupDirField
+                Layout.fillWidth: true
+                text: ""
+                placeholderText: "C:\\Users\\User\\Desktop\\plans-backup"
+                font.pixelSize: 11
+                Material.theme: Material.Dark
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                Item { Layout.fillWidth: true }
+                Button {
+                    text: "Cancel"; font.pixelSize: 11; implicitHeight: 28; leftPadding: 12; rightPadding: 12
+                    onClicked: backupPlansPopup.close()
+                }
+                Button {
+                    text: "Backup"; highlighted: true; font.pixelSize: 11; implicitHeight: 28; leftPadding: 12; rightPadding: 12
+                    enabled: backupDirField.text.trim() !== "" && workspacesModel.count > 0
+                    onClicked: {
+                        if (panel.bridge && workspacesModel.count > 0) {
+                            panel.bridge.backupWorkspacePlans(
+                                workspacesModel.get(workspaceCombo.currentIndex).wsId,
+                                backupDirField.text.trim()
+                            )
+                        }
+                        backupPlansPopup.close()
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Create Plan from Prompt popup ────────────────────────────────────────
+    Popup {
+        id: createPlanPopup
+        x: 10; y: 50
+        width: panel.width - 20
+        padding: 16
+        modal: true
+        focus: true
+        Material.theme: Material.Dark
+        background: Rectangle { color: "#161b22"; border.color: "#30363d"; border.width: 1; radius: 6 }
+        ColumnLayout {
+            width: parent.width
+            spacing: 10
+            Label { text: "Create Plan from Prompt"; font.pixelSize: 13; font.bold: true; color: "#c9d1d9" }
+            Label { text: "Describe the feature or task for the AI agent to plan:"; font.pixelSize: 11; color: "#8b949e"; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+            TextArea {
+                id: createPlanPromptField
+                Layout.fillWidth: true
+                implicitHeight: 80
+                placeholderText: "e.g. Add a dark-mode toggle to the settings panel..."
+                font.pixelSize: 11
+                wrapMode: TextArea.Wrap
+                Material.theme: Material.Dark
+                background: Rectangle { color: "#0d1117"; border.color: "#30363d"; border.width: 1; radius: 4 }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                Item { Layout.fillWidth: true }
+                Button {
+                    text: "Cancel"; font.pixelSize: 11; implicitHeight: 28; leftPadding: 12; rightPadding: 12
+                    onClicked: createPlanPopup.close()
+                }
+                Button {
+                    text: "Start Agent"; highlighted: true; font.pixelSize: 11; implicitHeight: 28; leftPadding: 12; rightPadding: 12
+                    enabled: createPlanPromptField.text.trim() !== "" && workspacesModel.count > 0
+                    onClicked: {
+                        if (panel.bridge && workspacesModel.count > 0) {
+                            panel.bridge.createPlanFromPrompt(
+                                createPlanPromptField.text.trim(),
+                                workspacesModel.get(workspaceCombo.currentIndex).wsId
+                            )
+                        }
+                        createPlanPromptField.text = ""
+                        createPlanPopup.close()
+                    }
+                }
+            }
+        }
     }
 
     onExpandedChanged: {
@@ -201,17 +345,18 @@ Rectangle {
             Layout.leftMargin: 10
             Layout.rightMargin: 10
             Layout.topMargin: 4
-            spacing: 6
+            spacing: 5
 
             Button {
                 text: "Open in IDE"
                 highlighted: true
-                implicitHeight: 28
-                leftPadding: 12; rightPadding: 12
-                font.pixelSize: 11
+                implicitHeight: 26
+                leftPadding: 10; rightPadding: 10
+                font.pixelSize: 10
                 enabled: panel.bridge !== null
                          && workspacesModel.count > 0
                          && workspaceCombo.currentIndex >= 0
+                ToolTip.visible: hovered; ToolTip.text: "Open workspace in VS Code"
                 onClicked: {
                     if (panel.bridge && workspacesModel.count > 0) {
                         panel.bridge.openInIde(
@@ -220,8 +365,50 @@ Rectangle {
                     }
                 }
             }
+            Button {
+                text: "Register WS"
+                implicitHeight: 26
+                leftPadding: 10; rightPadding: 10
+                font.pixelSize: 10
+                enabled: panel.bridge !== null
+                ToolTip.visible: hovered; ToolTip.text: "Register a workspace with the MCP server"
+                onClicked: registerWsPopup.open()
+            }
+            Button {
+                text: "Backup"
+                implicitHeight: 26
+                leftPadding: 10; rightPadding: 10
+                font.pixelSize: 10
+                enabled: panel.bridge !== null
+                         && workspacesModel.count > 0
+                         && workspaceCombo.currentIndex >= 0
+                ToolTip.visible: hovered; ToolTip.text: "Backup all plans for this workspace to JSON"
+                onClicked: backupPlansPopup.open()
+            }
+            Button {
+                text: "Create Plan"
+                implicitHeight: 26
+                leftPadding: 10; rightPadding: 10
+                font.pixelSize: 10
+                enabled: panel.bridge !== null
+                         && workspacesModel.count > 0
+                         && workspaceCombo.currentIndex >= 0
+                ToolTip.visible: hovered; ToolTip.text: "Create a new plan from a prompt using an AI agent"
+                onClicked: createPlanPopup.open()
+            }
 
             Item { Layout.fillWidth: true }
+
+            // Provider selector for Launch Agent buttons
+            ComboBox {
+                id: providerCombo
+                model: ["Gemini", "Claude CLI"]
+                implicitHeight: 26
+                implicitWidth: 92
+                font.pixelSize: 10
+                ToolTip.visible: hovered; ToolTip.text: "Agent provider for Launch"
+                onCurrentIndexChanged: panel.selectedProvider = currentIndex
+            }
         }
 
         // ── Tab bar ─────────────────────────────────────────────────────────
@@ -531,33 +718,45 @@ Rectangle {
                                             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                             enabled: launchRect.launchState !== "sending"
                                             onClicked: {
-                                                if (panel.dashBaseUrl === "http://127.0.0.1:0" || panel.dashBaseUrl === "") {
-                                                    launchRect.launchState = "error"
-                                                    launchResetTimer.restart()
-                                                    return
-                                                }
                                                 launchRect.launchState = "sending"
                                                 var xhr = new XMLHttpRequest()
-                                                xhr.open("POST", panel.dashBaseUrl + "/api/agent-session/launch")
-                                                xhr.setRequestHeader("Content-Type", "application/json")
-                                                xhr.onreadystatechange = function() {
-                                                    if (xhr.readyState !== XMLHttpRequest.DONE) return
-                                                    if (!launchRect || !launchResetTimer) return
-                                                    if (xhr.status === 200) {
-                                                        launchRect.launchState = "ok"
-                                                    } else {
-                                                        launchRect.launchState = "error"
+                                                if (panel.selectedProvider === 1) {
+                                                    // Claude CLI via GUI server
+                                                    xhr.open("POST", panel.guiBaseUrl + "/terminal/launch-claude")
+                                                    xhr.setRequestHeader("Content-Type", "application/json")
+                                                    xhr.onreadystatechange = function() {
+                                                        if (xhr.readyState !== XMLHttpRequest.DONE) return
+                                                        if (!launchRect || !launchResetTimer) return
+                                                        launchRect.launchState = xhr.status === 200 ? "ok" : "error"
+                                                        launchResetTimer.restart()
                                                     }
-                                                    launchResetTimer.restart()
+                                                    xhr.send(JSON.stringify({
+                                                        workspace_id: planCard.workspaceId,
+                                                        plan_id:      planCard.planId
+                                                    }))
+                                                } else {
+                                                    // Gemini via dashboard API
+                                                    if (panel.dashBaseUrl === "http://127.0.0.1:0" || panel.dashBaseUrl === "") {
+                                                        launchRect.launchState = "error"
+                                                        launchResetTimer.restart()
+                                                        return
+                                                    }
+                                                    xhr.open("POST", panel.dashBaseUrl + "/api/agent-session/launch")
+                                                    xhr.setRequestHeader("Content-Type", "application/json")
+                                                    xhr.onreadystatechange = function() {
+                                                        if (xhr.readyState !== XMLHttpRequest.DONE) return
+                                                        if (!launchRect || !launchResetTimer) return
+                                                        launchRect.launchState = xhr.status === 200 ? "ok" : "error"
+                                                        launchResetTimer.restart()
+                                                    }
+                                                    xhr.send(JSON.stringify({
+                                                        workspaceId: planCard.workspaceId,
+                                                        planId:      planCard.planId,
+                                                        provider:    "gemini",
+                                                        phase:       planCard.nextStepPhase,
+                                                        stepTask:    planCard.nextStepTask
+                                                    }))
                                                 }
-                                                var body = JSON.stringify({
-                                                    workspaceId: planCard.workspaceId,
-                                                    planId:      planCard.planId,
-                                                    provider:    "gemini",
-                                                    phase:       planCard.nextStepPhase,
-                                                    stepTask:    planCard.nextStepTask
-                                                })
-                                                xhr.send(body)
                                             }
                                         }
                                         Timer {
@@ -569,59 +768,12 @@ Rectangle {
                                             text: launchRect.launchState === "sending" ? "Launching..." :
                                                   launchRect.launchState === "ok"      ? "Launched"     :
                                                   launchRect.launchState === "error"   ? "Failed"       :
-                                                                                         "Launch Agent"
+                                                  panel.selectedProvider === 1         ? "Launch Claude CLI"
+                                                                                       : "Launch Agent"
                                             font.pixelSize: 12; font.bold: true
                                             color: launchRect.launchState === "ok"    ? "#3fb950" :
-                                                   launchRect.launchState === "error" ? "#f85149" : "#a371f7"
-                                        }
-                                    }
-
-                                    // ── Launch Claude CLI terminal session ──
-                                    Rectangle {
-                                        id: claudeLaunchRect
-                                        Layout.fillWidth: true; implicitHeight: 30; radius: 6
-                                        property string launchState: "idle"
-                                        color: claudeBtn.pressed       ? "#1c1008" :
-                                               claudeBtn.containsMouse ? "#251508" : "#160c00"
-                                        border.color: claudeLaunchRect.launchState === "ok"    ? "#3fb950" :
-                                                      claudeLaunchRect.launchState === "error" ? "#f85149" : "#d97706"
-                                        border.width: 1
-                                        Behavior on color        { ColorAnimation { duration: 80 } }
-                                        Behavior on border.color { ColorAnimation { duration: 120 } }
-                                        MouseArea {
-                                            id: claudeBtn
-                                            anchors.fill: parent
-                                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                            enabled: claudeLaunchRect.launchState !== "sending"
-                                            onClicked: {
-                                                claudeLaunchRect.launchState = "sending"
-                                                var xhr = new XMLHttpRequest()
-                                                xhr.open("POST", panel.guiBaseUrl + "/terminal/launch-claude")
-                                                xhr.setRequestHeader("Content-Type", "application/json")
-                                                xhr.onreadystatechange = function() {
-                                                    if (xhr.readyState !== XMLHttpRequest.DONE) return
-                                                    claudeLaunchRect.launchState = xhr.status === 200 ? "ok" : "error"
-                                                    claudeResetTimer.restart()
-                                                }
-                                                xhr.send(JSON.stringify({
-                                                    workspace_id: planCard.workspaceId,
-                                                    plan_id:      planCard.planId
-                                                }))
-                                            }
-                                        }
-                                        Timer {
-                                            id: claudeResetTimer; interval: 3000
-                                            onTriggered: claudeLaunchRect.launchState = "idle"
-                                        }
-                                        Label {
-                                            anchors.centerIn: parent
-                                            text: claudeLaunchRect.launchState === "sending" ? "Launching..." :
-                                                  claudeLaunchRect.launchState === "ok"      ? "Launched"     :
-                                                  claudeLaunchRect.launchState === "error"   ? "Failed"       :
-                                                                                               "Launch Claude CLI"
-                                            font.pixelSize: 12; font.bold: true
-                                            color: claudeLaunchRect.launchState === "ok"    ? "#3fb950" :
-                                                   claudeLaunchRect.launchState === "error" ? "#f85149" : "#d97706"
+                                                   launchRect.launchState === "error" ? "#f85149" :
+                                                   panel.selectedProvider === 1       ? "#d97706" : "#a371f7"
                                         }
                                     }
                                 }
