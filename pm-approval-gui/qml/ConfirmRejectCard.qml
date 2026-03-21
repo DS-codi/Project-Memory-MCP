@@ -36,6 +36,9 @@ ColumnLayout {
         return "";
     }
 
+    // Tracks the current notes text without a forward-reference to notesField.
+    property string pendingNotes: ""
+
     RowLayout {
         Layout.fillWidth: true
         spacing: 12
@@ -43,7 +46,7 @@ ColumnLayout {
         // Approve button
         Button {
             id: approveBtn
-            text: question.approve_label || "Approve"
+            text: crRoot.question.approve_label || "Approve"
             font.pixelSize: 13
             flat: false
             Layout.fillWidth: true
@@ -53,14 +56,14 @@ ColumnLayout {
             Material.foreground: "#ffffff"
 
             onClicked: {
-                crRoot.emitAnswer("approve", notesField.text);
+                crRoot.emitAnswer("approve", crRoot.pendingNotes);
             }
         }
 
         // Reject button
         Button {
             id: rejectBtn
-            text: question.reject_label || "Reject"
+            text: crRoot.question.reject_label || "Reject"
             font.pixelSize: 13
             flat: false
             Layout.fillWidth: true
@@ -70,7 +73,7 @@ ColumnLayout {
             Material.foreground: "#ffffff"
 
             onClicked: {
-                crRoot.emitAnswer("reject", notesField.text);
+                crRoot.emitAnswer("reject", crRoot.pendingNotes);
             }
         }
     }
@@ -79,14 +82,15 @@ ColumnLayout {
     TextField {
         id: notesField
         Layout.fillWidth: true
-        visible: question.allow_notes !== false
-        placeholderText: question.notes_placeholder || "Optional notes..."
+        visible: crRoot.question.allow_notes !== false
+        placeholderText: crRoot.question.notes_placeholder || "Optional notes..."
         text: crRoot.notesValue
         font.pixelSize: 12
         color: "#ffffff"
         Material.accent: Material.Blue
 
         onTextChanged: {
+            crRoot.pendingNotes = text;
             if (crRoot.selectedAction) {
                 crRoot.emitAnswer(crRoot.selectedAction, text);
             }
@@ -94,11 +98,11 @@ ColumnLayout {
     }
 
     function emitAnswer(action, notes) {
-        if (!formApp || !question.id) return;
+        if (!crRoot.formApp || !crRoot.question.id) return;
         var answerObj = { "type": "confirm_reject_answer", "action": action };
         if (notes && notes.length > 0) {
             answerObj.notes = notes;
         }
-        formApp.setAnswer(question.id, JSON.stringify(answerObj));
+        crRoot.formApp.setAnswer(crRoot.question.id, JSON.stringify(answerObj));
     }
 }

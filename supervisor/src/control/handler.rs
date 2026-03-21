@@ -744,12 +744,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn status_returns_four_services() {
+    async fn status_returns_five_services() {
         let reg = make_registry();
         let resp = handle_request(ControlRequest::Status, reg, empty_form_apps(), shutdown_channel(), None, None, None, None).await;
         assert!(resp.ok);
         let arr = resp.data.as_array().expect("data should be array");
-        assert_eq!(arr.len(), 4);
+        assert_eq!(arr.len(), 5);
     }
 
     #[tokio::test]
@@ -1588,6 +1588,85 @@ mod tests {
         assert_eq!(whoami.data["client_version"], "1.2.3");
         assert!(service_health.data.is_object());
         assert_eq!(service_health.data["name"], "mcp");
+    }
+
+    // -----------------------------------------------------------------------
+    // Phase 5: custom service start/stop dispatch tests
+    // -----------------------------------------------------------------------
+
+    #[tokio::test]
+    async fn start_custom_service_dispatches_start_command() {
+        let reg = make_registry();
+        {
+            let mut locked = reg.lock().await;
+            locked.register_service("my-custom");
+        }
+
+        let (restart_tx, mut restart_rx) = tokio::sync::mpsc::channel::<String>(4);
+
+        let resp = handle_request(
+            ControlRequest::Start { service: "my-custom".to_string() },
+            Arc::clone(&reg),
+            empty_form_apps(),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            Some(restart_tx),
+        )
+        .await;
+
+        assert!(resp.ok);
+        assert_eq!(resp.data["status"], "starting");
+        assert_eq!(resp.data["service"], "my-custom");
+
+        let dispatched = tokio::time::timeout(
+            std::time::Duration::from_millis(200),
+            restart_rx.recv(),
+        )
+        .await
+        .expect("expected start dispatch within timeout")
+        .expect("restart channel must yield a message");
+
+        assert_eq!(dispatched, "start:my-custom");
+    }
+
+    #[tokio::test]
+    async fn stop_custom_service_dispatches_stop_command() {
+        let reg = make_registry();
+        {
+            let mut locked = reg.lock().await;
+            locked.register_service("my-custom");
+            locked.set_service_status("my-custom", ServiceStatus::Running);
+        }
+
+        let (restart_tx, mut restart_rx) = tokio::sync::mpsc::channel::<String>(4);
+
+        let resp = handle_request(
+            ControlRequest::Stop { service: "my-custom".to_string() },
+            Arc::clone(&reg),
+            empty_form_apps(),
+            shutdown_channel(),
+            None,
+            None,
+            None,
+            Some(restart_tx),
+        )
+        .await;
+
+        assert!(resp.ok);
+        assert_eq!(resp.data["status"], "stopping");
+        assert_eq!(resp.data["service"], "my-custom");
+
+        let dispatched = tokio::time::timeout(
+            std::time::Duration::from_millis(200),
+            restart_rx.recv(),
+        )
+        .await
+        .expect("expected stop dispatch within timeout")
+        .expect("restart channel must yield a message");
+
+        assert_eq!(dispatched, "stop:my-custom");
     }
 }
 

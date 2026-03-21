@@ -16,16 +16,17 @@
 6. [memory_steps](#memory_steps)
 7. [memory_agent](#memory_agent)
 8. [memory_context](#memory_context)
-9. [Agent Workflow Examples](#agent-workflow-examples)
-10. [Best Practices](#best-practices)
-11. [Anti-Patterns to Avoid](#anti-patterns-to-avoid)
-12. [Tips by Agent Role](#tips-by-agent-role)
+9. [memory_instructions](#memory_instructions)
+10. [Agent Workflow Examples](#agent-workflow-examples)
+11. [Best Practices](#best-practices)
+12. [Anti-Patterns to Avoid](#anti-patterns-to-avoid)
+13. [Tips by Agent Role](#tips-by-agent-role)
 
 ---
 
 ## Overview
 
-The Project Memory MCP system provides persistent memory and coordination for AI agents working on software development tasks. It consists of **5 consolidated tools** that replace the previous 20+ individual tools.
+The Project Memory MCP system provides persistent memory and coordination for AI agents working on software development tasks. It consists of **9 consolidated tools** that replace the previous 20+ individual tools.
 
 ### Core Concepts
 
@@ -124,6 +125,10 @@ Every agent MUST follow these steps when starting:
 | `memory_steps` | add, update, batch_update, insert, delete, reorder, move, sort, set_order, replace | Step-level operations |
 | `memory_agent` | init, complete, handoff, validate, list, get_instructions, deploy, get_briefing, get_lineage | Agent lifecycle and coordination |
 | `memory_context` | store, get, store_initial, list, list_research, append_research, generate_instructions, batch_store, workspace_get, workspace_set, workspace_update, workspace_delete, knowledge_store, knowledge_get, knowledge_list, knowledge_delete | Context, research, and knowledge management |
+| `memory_terminal` | run, read_output, kill, get_allowlist, update_allowlist | Headless server-side command execution with allowlist authorization |
+| `memory_filesystem` | read, write, search, list, tree, delete, move, copy, append, exists | Workspace-scoped filesystem operations with safety boundaries |
+| `memory_session` | prep, deploy_and_prep, list_sessions, get_session | Session ID minting and prompt enrichment for native subagent launches |
+| `memory_instructions` | search, get, get_section, list, list_workspace | Read and search instruction files — prefer over `memory_agent` instruction actions for read-only use |
 
 ---
 
@@ -160,6 +165,14 @@ Actions: `init`, `complete`, `handoff`, `validate`, `list`, `get_instructions`, 
 See [mcp-tool-context.instructions.md](./mcp-tool-context.instructions.md) for full reference.
 
 Actions: `store`, `get`, `store_initial`, `list`, `list_research`, `append_research`, `generate_instructions`, `batch_store`, `workspace_get`, `workspace_set`, `workspace_update`, `workspace_delete`, `knowledge_store`, `knowledge_get`, `knowledge_list`, `knowledge_delete`
+
+## memory_instructions
+
+`memory_instructions` is the dedicated read/search tool for instruction files. Prefer it over `memory_agent`'s `list_instructions`/`get_instruction` actions for read-only use — it loads only what you need and avoids agent-lifecycle overhead.
+
+Actions: `search`, `get`, `get_section`, `list`, `list_workspace`
+
+See [mcp-usage.instructions.md](./mcp-usage.instructions.md#instruction-files-memory_instructions) for usage patterns.
 
 ---
 

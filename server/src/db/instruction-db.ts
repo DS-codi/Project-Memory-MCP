@@ -81,6 +81,65 @@ export function getInstructionsForFile(filepath: string): InstructionFileRow[] {
   });
 }
 
+/**
+ * Full-text LIKE search across filename, content, and applies_to.
+ */
+export function searchInstructions(query: string): InstructionFileRow[] {
+  const like = `%${query}%`;
+  return queryAll<InstructionFileRow>(
+    `SELECT * FROM instruction_files
+     WHERE filename LIKE ? OR content LIKE ? OR applies_to LIKE ?
+     ORDER BY filename`,
+    [like, like, like]
+  );
+}
+
+/**
+ * Extract markdown ## / ### section snippets from `content` that contain `query`.
+ * Returns at most 500 chars per matching section.
+ */
+export function extractMatchingSections(content: string, query: string): string[] {
+  const lower = query.toLowerCase();
+  const sections: string[] = [];
+  // Split on level-2/3 headings while keeping the heading line
+  const parts = content.split(/^(?=#{2,3} )/m);
+  for (const part of parts) {
+    if (part.toLowerCase().includes(lower)) {
+      sections.push(part.slice(0, 500).trim());
+    }
+  }
+  return sections;
+}
+
+/**
+ * Return the text of the first ## or ### section whose heading contains `heading`
+ * (case-insensitive partial match).  Returns null if not found.
+ */
+export function getInstructionSection(filename: string, heading: string): string | null {
+  const row = getInstruction(filename);
+  if (!row) return null;
+
+  const lowerHeading = heading.toLowerCase();
+  const lines = row.content.split('\n');
+  let inSection = false;
+  const sectionLines: string[] = [];
+
+  for (const line of lines) {
+    const m = line.match(/^(#{2,3})\s+(.+)$/);
+    if (m) {
+      if (inSection) break;  // reached next heading — done
+      if (m[2].toLowerCase().includes(lowerHeading)) {
+        inSection = true;
+        sectionLines.push(line);
+      }
+    } else if (inSection) {
+      sectionLines.push(line);
+    }
+  }
+
+  return inSection ? sectionLines.join('\n').trim() : null;
+}
+
 // ---------------------------------------------------------------------------
 // Delete
 // ---------------------------------------------------------------------------

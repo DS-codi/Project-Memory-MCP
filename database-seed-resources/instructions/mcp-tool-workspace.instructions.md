@@ -160,3 +160,67 @@ Re-analyze the workspace to update the codebase profile.
 **When to use:** After significant changes to the project structure (new dependencies, language additions, etc.).
 
 **Used by:** Archivist, Coordinator.
+
+---
+
+#### `scan_ghosts`
+
+Scan for unregistered data-root directories — workspaces that have stored plan data but are not registered in the current workspace registry. Read-only; no changes made.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✅ | `"scan_ghosts"` |
+
+**Returns:** Array of ghost/unregistered directory entries with path and detected plan counts.
+
+**When to use:** Before running `merge` — discover what ghost folders exist so you can decide which to merge into canonical workspaces.
+
+**Used by:** Coordinator (workspace recovery flows).
+
+**Example:**
+```json
+{
+  "action": "scan_ghosts"
+}
+```
+
+---
+
+#### `merge`
+
+Merge a ghost or source workspace into a canonical target workspace, recovering plans, context, and sessions. Supports `dry_run` for safe previewing.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | ✅ | `"merge"` |
+| `source_workspace_id` | string | ✅ | Ghost/source workspace ID to merge from |
+| `target_workspace_id` | string | ✅ | Canonical workspace ID to merge into |
+| `dry_run` | boolean | — | If true (default), report what would be merged without making changes |
+
+**Returns:** List of plans/context/sessions that would be (or were) moved, plus any conflicts.
+
+**Rule:** Always run with `dry_run: true` first to verify the merge scope before executing.
+
+**When to use:** After `scan_ghosts` identifies an unregistered workspace that holds recoverable plan data, or when `migrate` detects ghost folders during workspace recovery.
+
+**Used by:** Coordinator (workspace recovery flows).
+
+**Example — preview first:**
+```json
+{
+  "action": "merge",
+  "source_workspace_id": "old-project-abc123",
+  "target_workspace_id": "my-project-652c624f8f59",
+  "dry_run": true
+}
+```
+
+**Example — execute after confirming preview:**
+```json
+{
+  "action": "merge",
+  "source_workspace_id": "old-project-abc123",
+  "target_workspace_id": "my-project-652c624f8f59",
+  "dry_run": false
+}
+```

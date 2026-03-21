@@ -238,6 +238,18 @@ export function createHttpApp(getServer: () => McpServer): Express {
           id: null,
         });
         return;
+      } else if (req.method === 'GET') {
+        // GET without a valid session ID — VS Code's MCP client sends this to open a
+        // standalone SSE notification stream before (or independently of) initialization.
+        // We use stateful per-session transports so standalone SSE isn't supported.
+        // Per MCP spec §6.3 the server MUST return 405 for unsupported standalone GET;
+        // returning 405 (not 400) tells the client to stop retrying this path.
+        res.status(405).set('Allow', 'POST, DELETE').json({
+          jsonrpc: '2.0',
+          error: { code: -32000, message: 'Method Not Allowed: GET requires a valid Mcp-Session-Id; use POST to initialize a session first' },
+          id: null,
+        });
+        return;
       } else {
         res.status(400).json({
           jsonrpc: '2.0',

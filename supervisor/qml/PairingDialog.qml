@@ -2,12 +2,11 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Controls.Material 2.15
 import QtQuick.Layouts 1.15
-import com.projectmemory.supervisor
-
 // QrPairingBridge is a C++ QObject registered at runtime — qmllint cannot
 // resolve it from source, so the import and all bridge member accesses are
 // suppressed here. The warnings are non-fatal and do not affect runtime.
-// qmllint disable import missing-property
+// qmllint disable unused-imports import missing-property
+import com.projectmemory.supervisor
 
 Dialog {
     id: pairingDialog

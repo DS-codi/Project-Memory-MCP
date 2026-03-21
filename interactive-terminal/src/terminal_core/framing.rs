@@ -29,6 +29,12 @@ pub enum WsMessage {
     /// Keep-alive ping sent by the server every 30 seconds.
     /// The client SHOULD echo back a `Heartbeat` to signal liveness.
     Heartbeat,
+
+    /// Thinking/reasoning content extracted from CLI `<thinking>` blocks (server → client).
+    /// `payload` is Base64-encoded raw bytes of the extracted thinking text.
+    /// Sent alongside normal `Data` frames so the client can display thinking
+    /// in a separate panel without polluting the main terminal output.
+    Thinking { session_id: String, payload: String },
 }
 
 // ─── Serde round-trip tests ───────────────────────────────────────────────────
@@ -110,6 +116,28 @@ mod tests {
         let json = serde_json::to_string(&msg).unwrap();
         assert!(
             json.contains("\"type\":\"heartbeat\""),
+            "unexpected json: {json}"
+        );
+    }
+
+    #[test]
+    fn thinking_round_trip() {
+        let msg = WsMessage::Thinking {
+            session_id: "sess_abc".into(),
+            payload: "dGhpbmtpbmcgdGV4dA==".into(),
+        };
+        assert_eq!(round_trip(&msg), msg);
+    }
+
+    #[test]
+    fn thinking_serializes_type_tag() {
+        let msg = WsMessage::Thinking {
+            session_id: "".into(),
+            payload: "dGhpbmtpbmc=".into(),
+        };
+        let json = serde_json::to_string(&msg).unwrap();
+        assert!(
+            json.contains("\"type\":\"thinking\""),
             "unexpected json: {json}"
         );
     }

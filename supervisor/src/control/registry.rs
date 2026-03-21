@@ -797,4 +797,60 @@ mod tests {
         r.set_upgrade_pending(false);
         assert!(!r.is_upgrade_pending());
     }
+
+    // -----------------------------------------------------------------------
+    // Phase 5: custom service registration tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn register_service_adds_and_is_idempotent() {
+        let mut r = Registry::new();
+        let before = r.service_states().len();
+        r.register_service("mobile-app");
+        assert_eq!(r.service_states().len(), before + 1);
+        // Second registration of the same name must not grow the map.
+        r.register_service("mobile-app");
+        assert_eq!(r.service_states().len(), before + 1);
+    }
+
+    #[test]
+    fn register_service_ignores_blank_name() {
+        let mut r = Registry::new();
+        let before = r.service_states().len();
+        r.register_service("");
+        r.register_service("   ");
+        assert_eq!(r.service_states().len(), before);
+    }
+
+    #[test]
+    fn register_services_batch_adds_all() {
+        let mut r = Registry::new();
+        let before = r.service_states().len();
+        r.register_services(["alpha", "beta", "gamma"]);
+        assert_eq!(r.service_states().len(), before + 3);
+    }
+
+    #[test]
+    fn with_backend_and_services_includes_custom() {
+        let r = Registry::with_backend_and_services(BackendKind::Node, ["mobile-app", "my-api"]);
+        let names: Vec<_> = r.service_states().iter().map(|s| s.name.clone()).collect();
+        assert!(names.contains(&"mobile-app".to_string()));
+        assert!(names.contains(&"my-api".to_string()));
+        // Built-ins should still be present.
+        assert!(names.contains(&"mcp".to_string()));
+        assert!(names.contains(&"dashboard".to_string()));
+    }
+
+    #[test]
+    fn set_service_status_updates_dynamically_registered_service() {
+        let mut r = Registry::new();
+        r.register_service("custom-svc");
+        r.set_service_status("custom-svc", ServiceStatus::Running);
+        let state = r
+            .service_states()
+            .into_iter()
+            .find(|s| s.name == "custom-svc")
+            .expect("service must be tracked");
+        assert!(matches!(state.status, ServiceStatus::Running));
+    }
 }

@@ -1317,6 +1317,50 @@ restart_policy = "never_restart"
     }
 
     #[test]
+    fn server_definition_with_env_vars_parses_correctly() {
+        let toml = r#"
+[[servers]]
+name = "mobile-vite"
+command = "npm"
+args = ["run", "dev"]
+working_dir = "mobile"
+port = 5173
+restart_policy = "always_restart"
+
+[servers.env]
+PORT = "5173"
+NODE_ENV = "development"
+"#;
+        let cfg: SupervisorConfig = toml::from_str(toml).expect("parse");
+        assert_eq!(cfg.servers.len(), 1);
+        let srv = &cfg.servers[0];
+        assert_eq!(srv.name, "mobile-vite");
+        assert_eq!(srv.command, "npm");
+        assert_eq!(srv.args, vec!["run", "dev"]);
+        assert_eq!(srv.working_dir, Some(PathBuf::from("mobile")));
+        assert_eq!(srv.port, Some(5173));
+        assert!(matches!(srv.restart_policy, RestartPolicy::AlwaysRestart));
+        assert_eq!(srv.env.get("PORT").map(String::as_str), Some("5173"));
+        assert_eq!(srv.env.get("NODE_ENV").map(String::as_str), Some("development"));
+    }
+
+    #[test]
+    fn server_definition_defaults_when_optional_fields_omitted() {
+        let toml = r#"
+[[servers]]
+name = "minimal"
+command = "my-binary"
+"#;
+        let cfg: SupervisorConfig = toml::from_str(toml).expect("parse");
+        let srv = &cfg.servers[0];
+        assert!(srv.args.is_empty());
+        assert!(srv.working_dir.is_none());
+        assert!(srv.port.is_none());
+        assert!(srv.env.is_empty());
+        assert!(matches!(srv.restart_policy, RestartPolicy::AlwaysRestart));
+    }
+
+    #[test]
     fn control_transport_named_pipe_serde() {
         let toml = "[supervisor]\ncontrol_transport = \"named_pipe\"\n";
         let cfg: SupervisorConfig = toml::from_str(toml).expect("parse");

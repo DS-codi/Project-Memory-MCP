@@ -17,6 +17,11 @@ pub static SUPERVISOR_QT: OnceLock<cxx_qt::CxxQtThread<ffi::SupervisorGuiBridge>
 /// the process exits.
 pub static SHUTDOWN_TX: OnceLock<tokio::sync::watch::Sender<bool>> = OnceLock::new();
 
+/// Handle to the background Tokio runtime.  Stored at the start of
+/// `supervisor_main()` so that QML invokables (running on the Qt main thread,
+/// which has no Tokio context) can spawn async tasks via `handle.spawn(...)`.
+pub static TOKIO_HANDLE: OnceLock<tokio::runtime::Handle> = OnceLock::new();
+
 /// Resolve a `file:///` URL for a supervisor tray icon, searching next to the
 /// running executable so the path is correct whether we are running from
 /// `target/release/` or an installed location.
