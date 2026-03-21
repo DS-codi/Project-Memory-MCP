@@ -29,7 +29,7 @@ pub(crate) fn spawn_conpty_shell(
     let pair = pty
         .openpty(PtySize {
             rows: 40,
-            cols: 160,
+            cols: 220,
             pixel_width: 0,
             pixel_height: 0,
         })
@@ -289,6 +289,97 @@ pub(crate) fn resize_conpty(
 }
 
 // ---------------------------------------------------------------------------
+// ThinkingTagFilter — streaming `<thinking>` / `</thinking>` extractor
+// ---------------------------------------------------------------------------
+
+/// Open and close tag byte sequences for Claude-style thinking blocks.
+const THINKING_OPEN: &[u8] = b"<thinking>";
+const THINKING_CLOSE: &[u8] = b"</thinking>";
+
+/// Streaming byte-level filter that extracts `<thinking>…</thinking>` blocks
+/// from raw PTY output.
+///
+/// Call [`ThinkingTagFilter::process`] once per read chunk.  It returns
+/// `(main_output, thinking_content)`:
+///
+/// - `main_output`      — bytes with all `<thinking>` content and tag
+///                        delimiters removed; safe to forward to xterm.js.
+/// - `thinking_content` — bytes extracted from inside the tags; send to the
+///                        side-panel channel.
+///
+/// Handles tags that are split across arbitrary chunk boundaries.
+pub struct ThinkingTagFilter {
+    inside: bool,
+    /// Bytes that form a valid prefix of the current target tag but have not
+    /// yet been matched completely.  Carried across `process()` calls.
+    pending: Vec<u8>,
+}
+
+impl ThinkingTagFilter {
+    pub fn new() -> Self {
+        Self {
+            inside: false,
+            pending: Vec::new(),
+        }
+    }
+
+    /// Process one raw PTY chunk.  Returns `(main_output, thinking_content)`.
+    pub fn process(&mut self, input: &[u8]) -> (Vec<u8>, Vec<u8>) {
+        let mut main_out = Vec::new();
+        let mut think_out = Vec::new();
+
+        // Prepend any bytes left over from the previous call.
+        let mut work = std::mem::take(&mut self.pending);
+        work.extend_from_slice(input);
+
+        let mut i = 0;
+        while i < work.len() {
+            let target = if self.inside { THINKING_CLOSE } else { THINKING_OPEN };
+            let rem = &work[i..];
+
+            // Count how many leading bytes of `rem` match the target tag.
+            let match_len = rem
+                .iter()
+                .zip(target.iter())
+                .take_while(|(a, b)| a == b)
+                .count();
+
+            if match_len == 0 {
+                // No match — emit this byte to the current stream and advance.
+                let byte = work[i];
+                if self.inside {
+                    think_out.push(byte);
+                } else {
+                    main_out.push(byte);
+                }
+                i += 1;
+            } else if match_len == target.len() {
+                // Full tag match — flip inside/outside state, consume the tag.
+                self.inside = !self.inside;
+                i += target.len();
+            } else if i + match_len == work.len() {
+                // Partial match that extends to the very end of `work` —
+                // save to pending and wait for the next chunk.
+                self.pending = rem.to_vec();
+                break;
+            } else {
+                // Partial prefix followed by a non-matching byte — emit
+                // the first byte only and re-scan from the next position.
+                let byte = work[i];
+                if self.inside {
+                    think_out.push(byte);
+                } else {
+                    main_out.push(byte);
+                }
+                i += 1;
+            }
+        }
+
+        (main_out, think_out)
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -338,5 +429,62 @@ mod tests {
         // If ConptyShellSession ceases to compile as a zero-field struct this
         // test will fail to build, catching the regression at compile time.
         let _session = ConptyShellSession {};
+    }
+
+    // ── ThinkingTagFilter tests ───────────────────────────────────────────
+
+    #[test]
+    fn thinking_filter_strips_tags_and_extracts_content() {
+        let mut f = ThinkingTagFilter::new();
+        let input = b"before<thinking>inner</thinking>after";
+        let (main, think) = f.process(input);
+        assert_eq!(main, b"beforeafter");
+        assert_eq!(think, b"inner");
+    }
+
+    #[test]
+    fn thinking_filter_handles_tag_split_across_chunks() {
+        let mut f = ThinkingTagFilter::new();
+        // Split "<thinking>" as "<think" + "ing>"
+        let (m1, t1) = f.process(b"hello<think");
+        let (m2, t2) = f.process(b"ing>content</thinking>end");
+        assert_eq!([m1, m2].concat(), b"helloend");
+        assert_eq!([t1, t2].concat(), b"content");
+    }
+
+    #[test]
+    fn thinking_filter_handles_close_tag_split_across_chunks() {
+        let mut f = ThinkingTagFilter::new();
+        // Open tag in one chunk, close tag split across two chunks.
+        let (m1, t1) = f.process(b"<thinking>abc</think");
+        let (m2, t2) = f.process(b"ing>tail");
+        assert_eq!([m1, m2].concat(), b"tail");
+        assert_eq!([t1, t2].concat(), b"abc");
+    }
+
+    #[test]
+    fn thinking_filter_passes_non_tag_content_unchanged() {
+        let mut f = ThinkingTagFilter::new();
+        let input = b"no tags here";
+        let (main, think) = f.process(input);
+        assert_eq!(main, b"no tags here");
+        assert!(think.is_empty());
+    }
+
+    #[test]
+    fn thinking_filter_false_open_tag_prefix_is_emitted() {
+        let mut f = ThinkingTagFilter::new();
+        // "<thinx" is not a valid opening tag and should be emitted as-is.
+        let (main, think) = f.process(b"<thinx>rest");
+        assert_eq!(main, b"<thinx>rest");
+        assert!(think.is_empty());
+    }
+
+    #[test]
+    fn thinking_filter_multiple_blocks() {
+        let mut f = ThinkingTagFilter::new();
+        let (main, think) = f.process(b"a<thinking>1</thinking>b<thinking>2</thinking>c");
+        assert_eq!(main, b"abc");
+        assert_eq!(think, b"12");
     }
 }

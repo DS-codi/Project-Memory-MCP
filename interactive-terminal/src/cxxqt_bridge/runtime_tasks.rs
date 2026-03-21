@@ -439,7 +439,7 @@ pub(crate) fn spawn_runtime_tasks(
             // ── Terminal WebSocket server + ConPTY bridge ─────────────────────────────
             let terminal_ws_port: u16 = 9101;
             let (input_tx, input_rx) = tokio::sync::mpsc::channel::<Vec<u8>>(64);
-            let (ws_server, ws_output_tx) =
+            let (ws_server, ws_output_tx, ws_thinking_tx) =
                 crate::terminal_core::ws_server::TerminalWsServer::new(
                     terminal_ws_port,
                     None,
@@ -514,16 +514,26 @@ pub(crate) fn spawn_runtime_tasks(
                 // and forward only active session output to the visible xterm client.
                 let state_for_output = state_for_msg.clone();
                 let ws_output_for_visible = ws_output_tx.clone();
+                let ws_thinking_for_output = ws_thinking_tx.clone();
                 let buffers_for_output = session_output_buffers.clone();
                 let spill_root_for_output = spill_root.clone();
                 tokio::spawn(async move {
+                    use crate::terminal_core::conpty_backend::ThinkingTagFilter;
+                    let mut thinking_filters: HashMap<String, ThinkingTagFilter> = HashMap::new();
                     while let Some((session_id, chunk)) = session_output_rx.recv().await {
+                        // Strip <thinking>…</thinking> blocks from the main stream and
+                        // route extracted content to the side-panel channel.
+                        let filter = thinking_filters
+                            .entry(session_id.clone())
+                            .or_insert_with(ThinkingTagFilter::new);
+                        let (main_chunk, thinking_chunk) = filter.process(&chunk);
+
                         let (spill_path, spilled_chunks) = {
                             let mut buffers = buffers_for_output.lock().await;
                             let buffer = buffers.entry(session_id.clone()).or_default();
 
                             let spilled_chunks = buffer.push_chunk_and_collect_spill(
-                                chunk.clone(),
+                                main_chunk.clone(),
                                 MAX_BUFFERED_CHUNKS_PER_SESSION,
                                 MAX_BUFFERED_BYTES_PER_SESSION,
                             );
@@ -570,7 +580,12 @@ pub(crate) fn spawn_runtime_tasks(
                             s.selected_session_id.clone()
                         };
                         if selected_session_id == session_id {
-                            let _ = ws_output_for_visible.send(chunk);
+                            if !thinking_chunk.is_empty() {
+                                let _ = ws_thinking_for_output.send(thinking_chunk);
+                            }
+                            if !main_chunk.is_empty() {
+                                let _ = ws_output_for_visible.send(main_chunk);
+                            }
                         }
                     }
                 });

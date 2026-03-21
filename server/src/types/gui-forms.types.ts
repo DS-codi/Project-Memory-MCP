@@ -207,6 +207,15 @@ export const APPROVAL_COMPATIBILITY_MATRIX: readonly ApprovalCompatibilityMatrix
 /** Result of a countdown timer question. */
 export type TimerResult = 'completed' | 'timed_out';
 
+/** A chat message exchanged between the user and the agent. */
+export interface GuiChatMessage {
+  type: 'chat_message';
+  role: 'user' | 'agent';
+  content: string;
+  /** ISO 8601 timestamp. */
+  timestamp: string;
+}
+
 // ── Config types ───────────────────────────────────────────────
 
 /** Timeout configuration for a form. */
@@ -490,6 +499,8 @@ export interface FormRequest {
   window: WindowConfig;
   /** Ordered list of questions to present. */
   questions: Question[];
+  /** Optional chat history for interactive refinement. */
+  chat_history?: GuiChatMessage[];
   /** Optional form-type-specific context (e.g. ApprovalStepContext for approval forms). */
   context?: ApprovalStepContext | ApprovalRequestContextV2 | Record<string, unknown>;
 }
@@ -510,6 +521,8 @@ export interface FormResponse {
   metadata: ResponseMetadata;
   /** User's answers. */
   answers: Answer[];
+  /** Optional chat history for interactive refinement. */
+  chat_history?: GuiChatMessage[];
   /** Only present when status === 'refinement_requested'. @default [] */
   refinement_requests?: RefinementRequestEntry[];
   /** Populated on final submission when one or more refinements occurred. */
@@ -542,6 +555,8 @@ export interface FormRefinementRequest {
   user_feedback: RefinementEntry[];
   /** Snapshot of all current answers at time of refinement request. */
   current_answers: Answer[];
+  /** Optional chat history for interactive refinement. */
+  chat_history?: GuiChatMessage[];
 }
 
 /** Response from Brainstorm agent with updated questions. */
@@ -556,6 +571,8 @@ export interface FormRefinementResponse {
   original_request_id: string;
   /** Replacement questions (only those that were refined). */
   updated_questions: Question[];
+  /** Optional chat history for interactive refinement. */
+  chat_history?: GuiChatMessage[];
 }
 
 // ── Refinement session tracking ────────────────────────────────

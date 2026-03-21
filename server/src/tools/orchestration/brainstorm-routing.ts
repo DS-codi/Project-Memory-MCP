@@ -199,6 +199,7 @@ export async function routeBrainstormWithRefinement(
         feedback: r.feedback ?? '',
       })),
       current_answers: guiPartial.answers,
+      chat_history: guiPartial.chat_history,
     };
 
     // Delegate to the caller (typically Brainstorm agent invocation).

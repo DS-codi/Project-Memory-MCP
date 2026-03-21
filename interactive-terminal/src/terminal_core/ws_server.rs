@@ -39,6 +39,10 @@ pub struct ActiveSession {
     /// Timer task that kills the PTY after `session_timeout` seconds.
     /// Stored so it can be aborted on reconnect.
     pub disconnect_timer: Option<JoinHandle<()>>,
+    /// Last applied resize dimensions — used to coalesce duplicate resize
+    /// events that arrive when xterm.js fires ResizeObserver and ws.onopen
+    /// in rapid succession.
+    pub last_resize: Option<(u16, u16)>,
 }
 
 type SessionRegistry = Arc<Mutex<HashMap<String, ActiveSession>>>;
@@ -74,8 +78,8 @@ fn create_pty_session() -> Result<PtyHandles, Box<dyn std::error::Error + Send +
 
     let pty_system = native_pty_system();
     let pair = pty_system.openpty(PtySize {
-        rows: 24,
-        cols: 80,
+        rows: 40,
+        cols: 220,
         pixel_width: 0,
         pixel_height: 0,
     })?;
@@ -138,6 +142,9 @@ pub struct TerminalWsServer {
     /// Rolling scrollback buffer shared with all new WebSocket clients (capped ~8 KB).
     /// Accumulated by a background subscriber started in `serve()`.
     pub scrollback: Arc<Mutex<Vec<u8>>>,
+    /// Broadcast channel for thinking/reasoning content extracted from CLI output.
+    /// Clients receive `{"type":"thinking","payload":"<base64>"}` frames on this channel.
+    pub thinking_tx: broadcast::Sender<Vec<u8>>,
 }
 
 impl TerminalWsServer {
@@ -146,8 +153,9 @@ impl TerminalWsServer {
         api_key: Option<String>,
         session_timeout: u64,
         input_tx: mpsc::Sender<Vec<u8>>,
-    ) -> (Self, broadcast::Sender<Vec<u8>>) {
+    ) -> (Self, broadcast::Sender<Vec<u8>>, broadcast::Sender<Vec<u8>>) {
         let (output_tx, _) = broadcast::channel(256);
+        let (thinking_tx, _) = broadcast::channel(256);
         let server = Self {
             port,
             api_key: api_key.map(Arc::new),
@@ -156,8 +164,9 @@ impl TerminalWsServer {
             output_tx: output_tx.clone(),
             input_tx,
             scrollback: Arc::new(Mutex::new(Vec::new())),
+            thinking_tx: thinking_tx.clone(),
         };
-        (server, output_tx)
+        (server, output_tx, thinking_tx)
     }
 
     pub async fn serve(self) {
@@ -181,6 +190,7 @@ impl TerminalWsServer {
         let api_key = self.api_key;
         let sessions = self.sessions;
         let session_timeout = self.session_timeout;
+        let thinking_tx = Arc::new(self.thinking_tx);
 
         // Accumulate PTY output into a rolling scrollback buffer so new WebSocket
         // clients can receive output that was emitted before they connected.
@@ -210,6 +220,7 @@ impl TerminalWsServer {
                         sessions.clone(),
                         session_timeout,
                         scrollback.clone(),
+                        thinking_tx.clone(),
                     ));
                 }
                 Err(e) => eprintln!("[TerminalWsServer] accept error: {e}"),
@@ -228,6 +239,7 @@ async fn handle_connection(
     sessions: SessionRegistry,
     session_timeout: u64,
     scrollback: Arc<Mutex<Vec<u8>>>,
+    thinking_tx: Arc<broadcast::Sender<Vec<u8>>>,
 ) {
     let mut peek_buf = [0u8; 512];
     let n = match stream.peek(&mut peek_buf).await {
@@ -237,7 +249,7 @@ async fn handle_connection(
 
     let header = String::from_utf8_lossy(&peek_buf[..n]);
     if header.to_ascii_lowercase().contains("upgrade: websocket") {
-        handle_websocket(stream, output_tx, input_tx, api_key, sessions, session_timeout, scrollback).await;
+        handle_websocket(stream, output_tx, input_tx, api_key, sessions, session_timeout, scrollback, thinking_tx).await;
     } else {
         handle_http(stream).await;
     }
@@ -287,6 +299,7 @@ async fn handle_websocket(
     sessions: SessionRegistry,
     session_timeout: u64,
     scrollback: Arc<Mutex<Vec<u8>>>,
+    legacy_thinking_tx: Arc<broadcast::Sender<Vec<u8>>>,
 ) {
     let ws_stream = match tokio_tungstenite::accept_async(stream).await {
         Ok(ws) => ws,
@@ -333,6 +346,22 @@ async fn handle_websocket(
                     payload,
                 });
                 if output_sink.lock().await.send(msg).await.is_err() {
+                    break;
+                }
+            }
+        });
+
+        // Thinking content → WebSocket client (side-panel frames)
+        let mut thinking_rx = legacy_thinking_tx.subscribe();
+        let thinking_sink = ws_sink.clone();
+        let thinking_task = tokio::spawn(async move {
+            while let Ok(data) = thinking_rx.recv().await {
+                let payload = B64.encode(&data);
+                let msg = encode_msg(&WsMessage::Thinking {
+                    session_id: String::new(),
+                    payload,
+                });
+                if thinking_sink.lock().await.send(msg).await.is_err() {
                     break;
                 }
             }
@@ -387,6 +416,7 @@ async fn handle_websocket(
 
         output_task.abort();
         heartbeat_task.abort();
+        thinking_task.abort();
         return;
     }
 
@@ -455,6 +485,7 @@ async fn handle_websocket(
                                 pty_master: handles.master,
                                 last_active: Instant::now(),
                                 disconnect_timer: None,
+                                last_resize: None,
                             },
                         );
                         eprintln!("[TerminalWsServer] Created new PTY session {session_id}");
@@ -563,16 +594,24 @@ async fn handle_websocket(
             WsMessage::Resize { cols, rows } => {
                 #[cfg(windows)]
                 {
-                    let registry = sessions.lock().await;
-                    if let Some(sess) = registry.get(&session_id) {
-                        let _ = sess.pty_master.resize(PtySize {
-                            rows,
-                            cols,
-                            pixel_width: 0,
-                            pixel_height: 0,
-                        });
+                    let mut registry = sessions.lock().await;
+                    if let Some(sess) = registry.get_mut(&session_id) {
+                        // Skip if dimensions haven't changed — prevents repeated TUI
+                        // redraws when xterm.js fires ResizeObserver and ws.onopen
+                        // in rapid succession with the same dimensions.
+                        if sess.last_resize != Some((cols, rows)) {
+                            let _ = sess.pty_master.resize(PtySize {
+                                rows,
+                                cols,
+                                pixel_width: 0,
+                                pixel_height: 0,
+                            });
+                            sess.last_resize = Some((cols, rows));
+                        }
+                        sess.last_active = Instant::now();
                     }
                 }
+                #[cfg(not(windows))]
                 if let Ok(mut registry) = sessions.try_lock() {
                     if let Some(sess) = registry.get_mut(&session_id) {
                         sess.last_active = Instant::now();
