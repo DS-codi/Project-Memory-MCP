@@ -19,6 +19,9 @@ vscode-extension/.replay-runs/
 *.swo
 .vscode/mcp.json
 
+# Claude CLI (worktrees, local settings)
+.claude/
+
 # OS files
 .DS_Store
 Thumbs.db

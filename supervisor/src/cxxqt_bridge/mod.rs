@@ -171,6 +171,24 @@ pub mod ffi {
         #[qinvokable]
         #[cxx_name = "openInIde"]
         fn open_in_ide(self: Pin<&mut SupervisorGuiBridge>, workspace_id: &QString);
+
+        /// Backup all plans for a workspace to JSON files in `output_dir`.
+        /// Posts `actionFeedback` with the count on completion.
+        #[qinvokable]
+        #[cxx_name = "backupWorkspacePlans"]
+        fn backup_workspace_plans(self: Pin<&mut SupervisorGuiBridge>, workspace_id: &QString, output_dir: &QString);
+
+        /// Spawn a hidden brainstorm-agent session to create a plan from `prompt`.
+        /// Posts `actionFeedback` with the result.
+        #[qinvokable]
+        #[cxx_name = "createPlanFromPrompt"]
+        fn create_plan_from_prompt(self: Pin<&mut SupervisorGuiBridge>, prompt: &QString, workspace_id: &QString);
+
+        /// Register a workspace path with the MCP server.
+        /// Posts `actionFeedback` with the result.
+        #[qinvokable]
+        #[cxx_name = "registerWorkspace"]
+        fn register_workspace(self: Pin<&mut SupervisorGuiBridge>, path: &QString);
     }
 
     impl cxx_qt::Initialize for SupervisorGuiBridge {}
