@@ -3,7 +3,7 @@ import QtQuick.Controls 2.15
 import QtQuick.Controls.Material 2.15
 import QtQuick.Layouts 1.15
 
-/// AI Assistant panel — horizontal sidebar chatbot backed by Gemini, GitHub Models, or Anthropic Claude.
+/// AI Assistant panel — horizontal sidebar chatbot backed by Gemini or GitHub Models.
 /// Expands/collapses from the right edge of the supervisor window.
 /// Communicates with the Rust gui_server at guiBaseUrl (/chatbot/chat, /chatbot/config).
 Rectangle {
@@ -20,8 +20,6 @@ Rectangle {
     property string aiModel:    ""
     property bool   keyConfigured: false
     property bool   showSettings:  false
-    /// Supervisor GUI server auth key — included in all /chatbot/* requests.
-    property string guiAuthKey: ""
     // Live tool-call tracking
     property string currentRequestId:   ""
     property int    shownToolCallCount: 0
@@ -30,37 +28,6 @@ Rectangle {
 
     readonly property var geminiModels:  ["gemini-3.1-pro-preview", "gemini-3-flash-preview", "gemini-3.1-flash-lite-preview", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-2.0-flash-lite"]
     readonly property var copilotModels: ["gpt-4o", "gpt-4.1", "gpt-4o-mini", "o3-mini", "claude-3.5-sonnet"]
-    readonly property var claudeModels:  ["claude-sonnet-4-6", "claude-opus-4-6", "claude-haiku-4-5-20251001", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022"]
-
-    function providerIndex(p) {
-        if (p === "copilot") return 1
-        if (p === "claude")  return 2
-        return 0
-    }
-    function providerFromIndex(idx) {
-        if (idx === 1) return "copilot"
-        if (idx === 2) return "claude"
-        return "gemini"
-    }
-    function modelsForProvider(p) {
-        if (p === "copilot") return copilotModels
-        if (p === "claude")  return claudeModels
-        return geminiModels
-    }
-    function defaultModelIndex(p) {
-        if (p === "gemini")  return 4   // gemini-2.5-flash
-        return 0
-    }
-    function providerColor(p) {
-        if (p === "copilot") return "#1f6feb"
-        if (p === "claude")  return "#d97706"
-        return "#388bfd"
-    }
-    function providerLabel(p) {
-        if (p === "copilot") return "Copilot"
-        if (p === "claude")  return "Claude"
-        return "Gemini"
-    }
 
     color:        "#161b22"
     radius:       0
@@ -69,12 +36,7 @@ Rectangle {
     Layout.fillHeight: true
     implicitWidth: expanded ? 380 : 44
 
-    // Guard prevents the Behavior from animating the initial 0 → 44 transition
-    // that occurs during component construction, which caused a startup layout flash.
-    property bool _animReady: false
-    Component.onCompleted: _animReady = true
-
-    Behavior on implicitWidth { enabled: panel._animReady; NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+    Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
     Behavior on border.color  { ColorAnimation  { duration: 120 } }
 
     // ── Data models ─────────────────────────────────────────────────────────
@@ -95,7 +57,6 @@ Rectangle {
             var xhr = new XMLHttpRequest()
             xhr.timeout = 4000
             xhr.open("GET", panel.guiBaseUrl + "/chatbot/status/" + panel.currentRequestId)
-            if (panel.guiAuthKey !== "") xhr.setRequestHeader("X-PM-API-Key", panel.guiAuthKey)
             xhr.onreadystatechange = function() {
                 if (xhr.readyState !== XMLHttpRequest.DONE || xhr.status !== 200) return
                 try {
@@ -140,7 +101,6 @@ Rectangle {
         var xhr = new XMLHttpRequest()
         xhr.timeout = panel.requestTimeoutMs
         xhr.open("GET", panel.guiBaseUrl + "/chatbot/config")
-        if (panel.guiAuthKey !== "") xhr.setRequestHeader("X-PM-API-Key", panel.guiAuthKey)
         xhr.onreadystatechange = function() {
             if (xhr.readyState !== XMLHttpRequest.DONE || xhr.status !== 200) return
             try {
@@ -149,10 +109,10 @@ Rectangle {
                 panel.aiModel       = d.model         || ""
                 panel.keyConfigured = d.key_configured || false
                 if (d.api_key && d.api_key !== "") apiKeyField.text = d.api_key
-                providerCombo.currentIndex = panel.providerIndex(panel.provider)
-                var modelList = panel.modelsForProvider(panel.provider)
+                providerCombo.currentIndex = (panel.provider === "copilot") ? 1 : 0
+                var modelList = panel.provider === "gemini" ? panel.geminiModels : panel.copilotModels
                 var modelIdx = modelList.indexOf(panel.aiModel)
-                modelCombo.currentIndex = modelIdx >= 0 ? modelIdx : panel.defaultModelIndex(panel.provider)
+                modelCombo.currentIndex = modelIdx >= 0 ? modelIdx : (panel.provider === "gemini" ? 4 : 0)
             } catch(e) {}
         }
         xhr.onerror = function() {
@@ -221,7 +181,6 @@ Rectangle {
         xhr.timeout = panel.requestTimeoutMs
         xhr.open("POST", panel.guiBaseUrl + "/chatbot/chat")
         xhr.setRequestHeader("Content-Type", "application/json")
-        if (panel.guiAuthKey !== "") xhr.setRequestHeader("X-PM-API-Key", panel.guiAuthKey)
         xhr.onreadystatechange = function() {
             if (xhr.readyState !== XMLHttpRequest.DONE) return
             toolCallPollTimer.running = false
@@ -271,7 +230,6 @@ Rectangle {
         xhr.timeout = panel.requestTimeoutMs
         xhr.open("POST", panel.guiBaseUrl + "/chatbot/config")
         xhr.setRequestHeader("Content-Type", "application/json")
-        if (panel.guiAuthKey !== "") xhr.setRequestHeader("X-PM-API-Key", panel.guiAuthKey)
         xhr.onreadystatechange = function() {
             if (xhr.readyState !== XMLHttpRequest.DONE) return
             if (xhr.status === 200) {
@@ -322,8 +280,8 @@ Rectangle {
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: 8; height: 8; radius: 4
-                color: panel.providerColor(panel.provider)
-                ToolTip.text: panel.providerLabel(panel.provider)
+                color: panel.provider === "copilot" ? "#1f6feb" : "#388bfd"
+                ToolTip.text: panel.provider === "copilot" ? "Copilot" : "Gemini"
                 ToolTip.visible: stripProviderHover.hovered
                 HoverHandler { id: stripProviderHover }
             }
@@ -373,11 +331,11 @@ Rectangle {
             Rectangle {
                 implicitWidth: expandedBadge.implicitWidth + 10
                 implicitHeight: 18; radius: 9
-                color: panel.providerColor(panel.provider)
+                color: panel.provider === "copilot" ? "#1f6feb" : "#388bfd"
                 Text {
                     id: expandedBadge
                     anchors.centerIn: parent
-                    text: panel.providerLabel(panel.provider)
+                    text: panel.provider === "copilot" ? "Copilot" : "Gemini"
                     color: "white"; font.pixelSize: 10
                 }
             }
@@ -442,7 +400,7 @@ Rectangle {
             ComboBox {
                 id: providerCombo
                 Layout.preferredWidth: 110
-                model: ["Gemini", "Copilot", "Claude"]
+                model: ["Gemini", "Copilot"]
                 font.pixelSize: 11
                 background: Rectangle { color: "#0d1117"; radius: 4; border.color: "#30363d" }
                 contentItem: Text {
@@ -453,11 +411,11 @@ Rectangle {
                     verticalAlignment: Text.AlignVCenter
                 }
                 onCurrentIndexChanged: {
-                    var p = panel.providerFromIndex(currentIndex)
+                    var p = currentIndex === 1 ? "copilot" : "gemini"
                     if (p !== panel.provider) {
                         panel.provider = p
                         panel.saveConfig(p, "", "")
-                        modelCombo.currentIndex = panel.defaultModelIndex(p)
+                        modelCombo.currentIndex = p === "gemini" ? 4 : 0
                     }
                 }
             }
@@ -514,7 +472,7 @@ Rectangle {
                     ComboBox {
                         id: modelCombo
                         Layout.fillWidth: true
-                        model: panel.modelsForProvider(panel.provider)
+                        model: panel.provider === "gemini" ? panel.geminiModels : panel.copilotModels
                         font.pixelSize: 11
                         background: Rectangle { color: "#161b22"; radius: 4; border.color: "#30363d" }
                         contentItem: Text {
@@ -525,8 +483,8 @@ Rectangle {
                             verticalAlignment: Text.AlignVCenter
                             elide: Text.ElideRight
                         }
-                        Component.onCompleted: currentIndex = panel.defaultModelIndex(panel.provider)
-                        onModelChanged: currentIndex = panel.defaultModelIndex(panel.provider)
+                        Component.onCompleted: currentIndex = panel.provider === "gemini" ? 4 : 0
+                        onModelChanged: currentIndex = panel.provider === "gemini" ? 4 : 0
                     }
                     Button {
                         text: "Save"
