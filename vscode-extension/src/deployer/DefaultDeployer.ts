@@ -9,6 +9,12 @@ export interface DeploymentConfig {
     defaultAgents: string[];
     defaultInstructions: string[];
     defaultSkills: string[];
+    /**
+     * Whether deployToWorkspace() auto-deploys skills.
+     * Defaults to false — skills are DB-only and should never be deployed
+     * to the workspace automatically. Set to true only in legacy test setups.
+     */
+    deploySkills?: boolean;
 }
 
 export class DefaultDeployer {
@@ -63,13 +69,17 @@ export class DefaultDeployer {
             }
         }
 
-        // Deploy skills
+        // Deploy skills (opt-in only — skills are DB-only by default)
+        if (this.config.deploySkills === true) {
         const skillsTargetDir = path.join(workspacePath, '.github', 'skills');
         try {
             const skills = await this.deployAllSkills(skillsTargetDir);
             deployedSkills.push(...skills);
         } catch (error) {
             this.log(`Failed to deploy skills: ${error}`);
+        }
+        } else {
+            this.log('Skills deployment skipped (deploySkills !== true — skills are DB-only)');
         }
 
         this.log(`Deployed ${deployedAgents.length} agents, ${deployedInstructions.length} instructions, ${deployedSkills.length} skills`);

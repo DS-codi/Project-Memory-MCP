@@ -21,7 +21,9 @@ Item {
         ProgressBar {
             id: progressBar
             width: parent.width
+            // qmllint disable unqualified
             value: wizard.progress / 100.0
+            // qmllint enable unqualified
             
             background: Rectangle {
                 implicitWidth: 200
@@ -59,14 +61,18 @@ Item {
         }
 
         Text {
+            // qmllint disable unqualified
             text: wizard.statusText
+            // qmllint enable unqualified
             font.pointSize: 12
             color: "white"
             anchors.horizontalCenter: parent.horizontalCenter
         }
 
         Text {
+            // qmllint disable unqualified
             text: Math.floor(wizard.progress) + "%"
+            // qmllint enable unqualified
             font.pointSize: 18
             font.weight: Font.Bold
             color: "#60a5fa"
@@ -75,26 +81,32 @@ Item {
     }
 
     Connections {
+        // qmllint disable unqualified
         target: wizard
         function onProgressChanged() {
             if (wizard.progress >= 100) {
                 timer.start()
             }
         }
+        // qmllint enable unqualified
     }
 
     Timer {
         id: simulationTimer
         interval: 100
+        // qmllint disable unqualified
         running: wizard.isInstalling && !wizard.isFinished
         repeat: true
         onTriggered: wizard.updateSimulation()
+        // qmllint enable unqualified
     }
 
     Timer {
         id: timer
         interval: 1500
+        // qmllint disable unqualified
         running: wizard.isFinished
+        // qmllint enable unqualified
         onTriggered: root.finished()
     }
 }

@@ -808,6 +808,40 @@ server.tool(
   }
 );
 
+  // ===========================================================================
+  // memory_instructions — read/search instruction files from DB
+  // ===========================================================================
+  server.tool(
+    'memory_instructions',
+    'Read and search instruction files from the Project Memory DB. ' +
+    'Actions: ' +
+    'search — LIKE keyword search; returns section_matches (heading + excerpt) per matching file, NOT full content — use this to discover relevant sections without loading whole files; ' +
+    'get — full content of one instruction by filename; ' +
+    'get_section — extract a specific ## or ### section by heading (partial case-insensitive match) — pull a 200-token slice from a 4000-token file; ' +
+    'list — all instructions, metadata only, no content; ' +
+    'list_workspace — workspace-assigned instructions, metadata only — spokes call this then fetch only what they need.',
+    {
+      action: z.enum(['search', 'get', 'get_section', 'list', 'list_workspace'])
+        .describe('Action to perform'),
+      query: z.string().optional()
+        .describe('Keyword to search for (required for: search)'),
+      filename: z.string().optional()
+        .describe('Instruction filename (required for: get, get_section)'),
+      heading: z.string().optional()
+        .describe('Section heading — partial case-insensitive ## or ### match (required for: get_section)'),
+      workspace_id: z.string().optional()
+        .describe('Workspace ID (required for: list_workspace)'),
+    },
+    async (params) => {
+      const result = await withLogging('memory_instructions', params, () =>
+        consolidatedTools.memoryInstructions(params as consolidatedTools.MemoryInstructionsParams)
+      );
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result) }]
+      };
+    }
+  );
+
   return server;
 }
 

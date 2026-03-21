@@ -8,467 +8,50 @@ This workspace uses the **Project Memory MCP** for tracking work across agent se
 
 ## Consolidated Tools (v2.0)
 
-The MCP server exposes consolidated action-based tools, plus extension-side terminal surfaces:
-
 | Tool | Actions |
 |------|--------|
 | `memory_workspace` | `register`, `info`, `list`, `reindex`, `merge`, `scan_ghosts`, `migrate` |
 | `memory_plan` | `list`, `get`, `create`, `update`, `archive`, `import`, `find`, `add_note`, `delete`, `consolidate`, `set_goals`, `add_build_script`, `list_build_scripts`, `run_build_script`, `delete_build_script`, `create_from_template`, `list_templates`, `confirm`, `create_program`, `add_plan_to_program`, `upgrade_to_program`, `list_program_plans`, `pause_plan`, `resume_plan`, `search` |
 | `memory_steps` | `add`, `update`, `batch_update`, `insert`, `delete`, `reorder`, `move`, `sort`, `set_order`, `replace` |
-| `memory_session` | `prep`, `deploy_and_prep`, `list_sessions`, `get_session` *(session prep + deploy contract for native `runSubagent` launches)* |
-| `memory_agent` | `init`, `complete`, `handoff`, `validate`, `list`, `get_instructions`, `deploy`, `get_briefing`, `get_lineage` + **skill discovery**: `list_skills`, `get_skill`, `assign_skill`, `unassign_skill`, `list_workspace_skills` + **skill management**: `create_skill`, `delete_skill` + **instruction discovery**: `list_instructions`, `get_instruction`, `assign_instruction`, `unassign_instruction`, `list_workspace_instructions` + **instruction management**: `create_instruction`, `delete_instruction` |
+| `memory_session` | `prep`, `deploy_and_prep`, `list_sessions`, `get_session` |
+| `memory_agent` | `init`, `complete`, `handoff`, `validate`, `list`, `get_instructions`, `deploy`, `get_briefing`, `get_lineage`; skill: `list_skills`, `get_skill`, `assign_skill`, `unassign_skill`, `list_workspace_skills`, `create_skill`, `delete_skill`; instruction: `list_instructions`, `get_instruction`, `assign_instruction`, `unassign_instruction`, `list_workspace_instructions`, `create_instruction`, `delete_instruction` |
 | `memory_context` | `get`, `store`, `store_initial`, `list`, `append_research`, `list_research`, `generate_instructions`, `workspace_get`, `workspace_set`, `workspace_update`, `workspace_delete`, `knowledge_store`, `knowledge_get`, `knowledge_list`, `knowledge_delete`, `search`, `pull`, `write_prompt`, `dump_context`, `batch_store` |
 | `memory_terminal` | `run`, `read_output`, `kill`, `get_allowlist`, `update_allowlist` |
 | `memory_filesystem` | `read`, `write`, `search`, `list`, `tree`, `delete`, `move`, `copy`, `append`, `exists` |
-| `memory_instructions` | `search` (keyword search — returns section excerpts, not full content), `get` (full content by filename), `get_section` (extract a single `##`/`###` section by heading), `list` (metadata only — no content), `list_workspace` (workspace-assigned instructions — metadata only) |
-| `memory_terminal_interactive` | `execute`, `read_output`, `terminate`, `list` *(canonical MCP contract; legacy aliases accepted with compatibility metadata)* |
-| `memory_terminal_vscode` | `create`, `send`, `close`, `list` *(extension-side, visible VS Code terminals)* |
-
-**Build script paths:** `list_build_scripts` includes `directory_path` and `command_path` when available so builders can run scripts directly in the terminal.
+| `memory_instructions` | `search` (keyword → excerpts, not full content), `get` (full content by filename), `get_section` (single `##`/`###` by partial heading), `list` (metadata only), `list_workspace` (workspace-assigned, metadata only) |
+| `memory_terminal_interactive` | `execute`, `read_output`, `terminate`, `list` |
+| `memory_terminal_vscode` | `create`, `send`, `close`, `list` *(extension-side visible VS Code terminals)* |
 
 ## Required Initialization
 
 Before doing any work, agents MUST:
 
-1. **Call `memory_agent` (action: init)** with your agent type and plan context
-2. **Call `memory_agent` (action: validate)** for your agent type
+1. **`memory_agent` (action: `init`)** — pass your agent type, `workspace_id`, `plan_id`
+2. **`memory_agent` (action: `validate`)** — confirm you are the correct agent for the current step
 3. **Set up your todo list** from the validation response
 
-If your workflow supports it, you may use `memory_agent` with `validation_mode: "init+validate"` to combine steps 1-2.
+## Workspace Identity
 
-## Tool Usage Patterns
-
-### Creating Plans
-```
-memory_plan (action: create) with
-  workspace_id: "...",
-  title: "Feature: ...",
-  description: "...",
-  category: "feature|bug|change|refactor|documentation",
-  priority: "low|medium|high|critical"
-```
-
-### Plan Templates
-Use templates when the user wants a standard plan structure.
-
-```
-memory_plan (action: list_templates)
-```
-
-```
-memory_plan (action: create_from_template) with
-  workspace_id: "...",
-  title: "...",
-  description: "...",
-  template: "feature|bugfix|refactor|documentation|analysis|investigation",
-  category: "feature|bug|change|analysis|debug|refactor|documentation",
-  priority: "low|medium|high|critical"
-```
-
-### Updating Step Progress
-```
-memory_steps (action: update) with
-  workspace_id: "...",
-  plan_id: "...",
-  step_index: 0,
-  status: "pending|active|done|blocked"
-```
-
-### Confirmation Gate (Phase/Step)
-Some plans require user confirmation before completing a phase or step. When the plan state indicates confirmation is needed, ask the user for approval and then call:
-
-```
-memory_plan (action: confirm) with
-  workspace_id: "...",
-  plan_id: "...",
-  confirmation_scope: "phase|step",
-  confirm_phase: "Phase Name",         # when scope = phase
-  confirm_step_index: 12,               # when scope = step
-  confirmed_by: "user"
-```
-
-### Step Ordering Rules
-- **Step indices in the MCP API are 0-based.** The dashboard displays them as 1-based (Step #1 = index 0). When referencing steps to users, use the 1-based display number. MCP tool responses include a `display_number` field on each step for this purpose.
-- Insert new steps with `memory_steps` (action: insert) using `at_index` to keep a sequential order.
-- Use `move` or `reorder` when changing order; do not manually edit indices or skip numbers.
-- If a new step belongs earlier in the plan, insert it instead of appending it.
-- Reindexing is required if indices are non-sequential or duplicated, or after multiple inserts/deletes.
-  - Use `set_order` with the full desired index order, or `sort` if phase ordering is acceptable.
-- Avoid marking steps done out of order unless you explicitly document why.
-
-### Recording Handoffs
-```
-memory_agent (action: handoff) with
-  workspace_id: "...",
-  plan_id: "...",
-  from_agent: "Executor",
-  to_agent: "Coordinator",
-  reason: "Implementation complete; recommend Reviewer"
-```
-
-### Workspace vs Plan Context
-- Use plan context (`memory_context` `get`/`store`) for plan-scoped work: research, architecture, reviews, and step execution logs.
-- Use workspace context (`memory_context` `workspace_get`/`workspace_update`) for shared notes that span plans, workspace-wide preferences, or audit/update logs.
-
-Example (workspace-scoped update):
-```
-memory_context (action: workspace_update) with
-  workspace_id: "...",
-  data: {
-    "notes": ["Workspace-wide context updated"]
-  }
-```
-
-### Completing Agent Sessions
-```
-memory_agent (action: complete) with
-  workspace_id: "...",
-  plan_id: "...",
-  agent_type: "Executor",
-  summary: "Completed all steps..."
-```
-
-## Workspace Identity Rules
-
-- **Always obtain `workspace_id` from the `memory_workspace` (action: register) response** — never compute or derive it yourself.
-- If you receive a `workspace_id` from a handoff, validate it by calling `memory_workspace` (action: info) before using it.
-- The `.projectmemory/identity.json` file in the workspace root is the canonical source of workspace identity. Do not modify it manually.
+- **Always obtain `workspace_id` from the `memory_workspace(action: register)` response** — never compute it yourself.
+- If you receive a `workspace_id` from a handoff, validate it with `memory_workspace(action: info)` before use.
 - Workspace IDs follow the format `{foldername}-{12-hex-sha256}`. Do not construct IDs by hand.
-- If a tool returns a "workspace not registered" error, call `memory_workspace` (action: register) with the workspace path first.
-- Legacy workspace IDs are transparently redirected to canonical IDs — if you see a redirect note in a response, update your stored `workspace_id`.
-- Use `memory_workspace` (action: scan_ghosts) to detect unregistered data-root directories.
-- Use `memory_workspace` (action: merge) with `dry_run: true` to preview merges before executing them.
-
-## Terminal Authorization Model (`memory_terminal`)
-
-`memory_terminal` is a **server-side, headless** terminal that runs commands inside the MCP server process (or container). It enforces a strict authorization model:
-
-| Authorization | Meaning | Agent Action |
-|---------------|---------|--------------|
-| `allowed` | Command matches the auto-approve allowlist | Executes immediately |
-| `blocked` | Destructive command (rm, del, format, etc.) | Rejected entirely |
-
-> **Note:** Since server terminal hardening, only allowlisted commands execute. Non-allowlisted commands are blocked (not queued for approval).
-
-### Sequential Execution Rule (Hard Rule)
-
-> ⛔ **You MUST wait for the response from each `run` call before issuing the next `run` call.**
-
-This is enforced at the MCP server level as a rate limiter:
-
-- Every `run` call acquires an **in-flight lock** on its target session.
-- If a second `run` targets the same session while it is still locked, the server **automatically redirects the command to a new terminal tab** (a fresh session ID) and includes a `rate_limit_note` in the response `data`.
-- The lock is released when the response is received (success, error, or timeout).
-
-**Agent behaviour rule:**
-- Always let `run` resolve completely before calling `run` again.
-- Never fire multiple `run` calls in parallel.
-- If you see `rate_limit_note` in a response, you violated this rule — add a sequential dependency before the next invocation.
-
-### Common Patterns
-```
-memory_terminal (action: run) with
-  command: "npm",
-  args: ["run", "build"],
-  cwd: "./server",
-  workspace_id: "..."
-```
-
-```
-memory_terminal (action: get_allowlist) with
-  workspace_id: "..."
-```
-
-```
-memory_terminal (action: update_allowlist) with
-  patterns: ["npm *", "npx vitest *"],
-  operation: "add",
-  workspace_id: "..."
-```
-
-## Interactive Terminal (`memory_terminal_interactive`)
-
-`memory_terminal_interactive` is the **canonical MCP interactive/headless terminal contract** used across server, extension, dashboard, and chat-button callers. It is not the VS Code terminal-management surface.
-
-Canonical actions:
-
-- **`execute`** — run command or open interactive session (based on `invocation.intent`)
-- **`read_output`** — read buffered output for `target.session_id` / `target.terminal_id`
-- **`terminate`** — terminate by `target.session_id` / `target.terminal_id`
-- **`list`** — list active terminal/session identities
-
-Canonical request fields:
-
-- `action`, `invocation`, `correlation`, `runtime`
-- Optional: `execution`, `target`, `compat`
-
-Legacy compatibility/deprecation behavior:
-
-- Accepted aliases: `run`, `kill`, `send`, `close`, `create`, `list`
-- Alias calls are normalized to canonical actions and reflected in `resolved.alias_applied` and `resolved.legacy_action`
-- Callers should migrate to canonical actions; aliases are compatibility-only and may be rejected in strict/deprecation phases
-
-Runtime adapter mode resolution (deterministic):
-
-1. `runtime.adapter_override`
-2. `PM_TERM_ADAPTER_MODE`
-3. `PM_RUNNING_IN_CONTAINER=true` => `container_bridge`
-4. Default `local`
-
-Container bridge preflight expectations:
-
-- Host alias resolution uses `PM_INTERACTIVE_TERMINAL_HOST_ALIAS` then fallback alias
-- TCP connectivity probe uses `PM_INTERACTIVE_TERMINAL_HOST_PORT` and `PM_INTERACTIVE_TERMINAL_CONNECT_TIMEOUT_MS`
-- Invalid bridge env returns `PM_TERM_INVALID_MODE`; unreachable bridge returns `PM_TERM_GUI_UNAVAILABLE`
-
-### Key Differences
-
-| Feature | `memory_terminal` | `memory_terminal_interactive` |
-|---------|-------------------|-------------------------------|
-| Runs where | Server/container (headless) | Canonical MCP contract (server-side orchestration; mode-aware interactive/headless behavior) |
-| Authorization | Allowlist-only (strict) | Destructive blocked; non-destructive allowed (warnings when applicable) |
-| Output capture | Buffered via `read_output` | Structured canonical response with `result` + deterministic error/fallback payloads |
-| Use case | Automated build/test in CI-like environment | Unified command lifecycle for MCP callers across surfaces |
-
-### Canonical Request Shape
-
-```json
-{
-  "action": "execute",
-  "invocation": { "mode": "interactive", "intent": "execute_command" },
-  "correlation": { "request_id": "req_...", "trace_id": "trace_..." },
-  "runtime": { "workspace_id": "...", "cwd": "...", "timeout_ms": 30000, "adapter_override": "auto" },
-  "execution": { "command": "npm", "args": ["run", "build"] },
-  "compat": { "caller_surface": "extension" }
-}
-```
-
-### Common Patterns
-```
-memory_terminal_interactive (action: execute) with
-  invocation: { mode: "interactive", intent: "execute_command" },
-  runtime: { workspace_id: "...", cwd: "./server", adapter_override: "auto" },
-  execution: { command: "npm", args: ["run", "build"] }
-```
-
-```
-memory_terminal_interactive (action: read_output) with
-  target: { session_id: "sess_..." }
-```
-
-```
-memory_terminal_interactive (action: terminate) with
-  target: { session_id: "sess_..." }
-```
-
-## VS Code Terminal Management (`memory_terminal_vscode`)
-
-`memory_terminal_vscode` is the extension-side visible terminal API. Use it when a workflow explicitly requires opening/managing real VS Code integrated terminals.
-
-Actions:
-
-- **`create`** — open terminal
-- **`send`** — send command to tracked terminal
-- **`close`** — close tracked terminal
-- **`list`** — list tracked terminals
-
-## Canonical Terminal Surface Selection
-
-Use this matrix as the single source of truth when choosing a terminal surface.
-
-| Surface | Choose when | Do not choose when | Execution environment | Approval/authorization model |
-|---------|-------------|--------------------|-----------------------|------------------------------|
-| `memory_terminal` | You need deterministic, automated, non-interactive command execution for build/lint/test style tasks | You need visible user-facing terminal interaction or host-only tooling | MCP server/container (headless) | Strict allowlist only; destructive commands blocked |
-| `memory_terminal_interactive` | You need canonical MCP interactive/headless command lifecycle with deterministic schema/error/fallback behavior | You only need direct VS Code terminal create/send/close/list UX | MCP server/container orchestration with runtime adapter selection (`local`, `bundled`, `container_bridge`) | Destructive commands blocked; non-destructive commands allowed with warnings when applicable |
-| `memory_terminal_vscode` | You need visible VS Code terminal lifecycle management on host | You need container/server-side deterministic MCP orchestration | User's VS Code host terminal (visible) | Destructive commands blocked; other commands allowed with warning/visibility |
-| Rust+QML Interactive Terminal gateway path | Workspace flows require GUI-mediated approval/queueing/event-driven terminal orchestration through the Rust+QML app (where this integration exists) | You only need direct MCP terminal execution with no GUI mediation | Rust+QML app + bridge layer, then routed to the selected terminal surface | Gateway-level approval and routing policy, plus downstream terminal contract |
-
-### Gateway Routing Rule (Rust+QML)
-
-When the Rust+QML Interactive Terminal gateway is in play, treat it as an orchestration and approval layer, not a replacement terminal API. After gateway approval/routing, execute via:
-- `memory_terminal` for strict allowlisted headless server/container jobs
-- `memory_terminal_interactive` for canonical MCP interactive/headless lifecycle calls
-- `memory_terminal_vscode` for visible host-terminal lifecycle management
-
-## Contract-Collision Warnings
-
-- **Do not mix terminal contracts in one flow.** `memory_terminal`, `memory_terminal_interactive`, and `memory_terminal_vscode` have different action semantics and runtime assumptions.
-- **Do not cross-copy action payloads between tools.** Keep parameters aligned to the selected surface contract for the current runtime.
-- **Do not treat the Rust+QML gateway as a third terminal executor.** It selects/routes; execution still happens on one terminal surface.
-- **If docs or prompts conflict, this section is canonical for surface selection.** Escalate unresolved contract ambiguity to Coordinator/Reviewer before execution.
-
-## Instruction Files (`memory_instructions`)
-
-`memory_instructions` is the dedicated read/search tool for instruction files stored in the DB. Use it instead of `memory_agent`'s `list_instructions`/`get_instruction` actions when you only need to read or search — it avoids loading full agent-lifecycle context.
-
-**Token efficiency rule:** Prefer `search` or `get_section` over `get`. A 4,000-token file costs nothing if you only pull the 200-token section you need.
-
-| Action | When to use |
-|--------|-------------|
-| `list` | Enumerate all instruction filenames (no content) |
-| `list_workspace` | Get instructions assigned to a workspace (no content) |
-| `search` | Discover which files contain a keyword — returns section excerpts, never full content |
-| `get_section` | Pull one `##` or `###` section by partial heading match |
-| `get` | Load full instruction content (only when you need the whole file) |
-
-### Common Patterns
-
-```
-memory_instructions (action: list_workspace) with
-  workspace_id: "..."
-```
-
-```
-memory_instructions (action: search) with
-  query: "handoff"
-```
-
-```
-memory_instructions (action: get_section) with
-  filename: "handoff-protocol.instructions.md",
-  heading: "return"
-```
-
-```
-memory_instructions (action: get) with
-  filename: "mcp-tool-plan.instructions.md"
-```
-
-## Filesystem Safety Boundaries (`memory_filesystem`)
-
-`memory_filesystem` provides workspace-scoped file operations with built-in safety:
-
-- **All paths are workspace-scoped** — relative to the registered workspace root
-- **Path traversal blocked** — `../` and absolute paths outside the workspace are rejected
-- **Sensitive files blocked** — `.env`, private keys, credentials files are inaccessible
-- **Destructive ops explicit** — `delete` requires `confirm: true`; `delete`/`move` support `dry_run` previews
-- **Symlink policy enforced** — symlink traversal is allowed only when final resolution stays inside workspace root
-- **Guardrails applied** — write/append payload limits and list/search/tree result limits prevent runaway operations
-- **1 MB read cap** — large files are truncated to prevent context overflow
-
-### Common Patterns
-```
-memory_filesystem (action: read) with
-  workspace_id: "...",
-  path: "src/index.ts"
-```
-
-```
-memory_filesystem (action: write) with
-  workspace_id: "...",
-  path: "src/new-module.ts",
-  content: "...",
-  create_dirs: true
-```
-
-```
-memory_filesystem (action: search) with
-  workspace_id: "...",
-  pattern: "**/*.test.ts"
-```
-
-```
-memory_filesystem (action: tree) with
-  workspace_id: "...",
-  path: "src",
-  max_depth: 3
-```
-
-## Filesystem Safety Model
-
-- **Destructive-op policy**
-  - Use `confirm: true` for `delete`; treat missing confirm as a hard error.
-  - Prefer `dry_run: true` first for `delete`/`move` when impact is uncertain.
-  - Expect structured audit metadata for destructive operation outcomes.
-
-- **Symlink policy**
-  - Symlinks are permitted only when every resolved target remains under workspace root.
-  - Symlink escapes and broken-link unsafe paths are denied.
-
-- **Guardrails**
-  - `write`/`append` enforce payload-size limits.
-  - `search`/`list`/`tree` enforce result-count limits and report truncation/limit metadata.
-
-- **Tool selection (`memory_filesystem` vs `memory_terminal`)**
-  - Use `memory_filesystem` for deterministic workspace file CRUD/search/tree operations with built-in boundary checks.
-  - Use `memory_terminal` for command execution workflows (build/test/lint), not direct file mutation APIs.
-  - Avoid emulating file operations through shell commands when `memory_filesystem` already provides the action.
-
-## .projectmemory Path — DO NOT CONFUSE WITH VS Code workspaceStorage
-
-> ⚠️ **Critical distinction for agents and tests:**
-
-| Location | What it is | Should agents use it? |
-|----------|-----------|----------------------|
-| `<workspace_root>/.projectmemory/` | Project Memory data root — plans, context, active agents, reviewed queue | ✅ YES — this is the canonical .projectmemory path |
-| `%APPDATA%\Code\User\workspaceStorage\...\GitHub.copilot-chat\chat-session-resources\` | VS Code's internal buffer for large MCP tool response payloads | ❌ NO — this is VS Code's internal cache, not project data |
-
-**Canonical resolution rule:** `.projectmemory` root = `workspace_path` (from `memory_workspace(action: register)` response) + `/.projectmemory`. Never use any AppData path.
-
-**Example for this workspace:** `.projectmemory` root = `C:\Users\<username>\Project-Memory-MCP\.projectmemory`
-
-### Tool-Response Mirroring (Session Recovery)
-
-The MCP server automatically mirrors tool response payloads to `.projectmemory` **during active agent sessions** for session recovery:
-
-```
-.projectmemory/
-  active_agents/
-    {agentName}/
-      tool_responses/           ← mirrored during active session
-        memory_plan_2026-02-22T10-00-00-000Z.json
-        memory_context_2026-02-22T10-00-01-000Z.json
-  reviewed_queue/
-    {planId}/
-      {agentName}_{timestamp}/  ← archived after handoff/complete
-        execution_notes/
-        tool_responses/
-```
-
-- Payloads > 100 KB are skipped (too large to be useful for recovery).
-- On agent `handoff` or `complete`, `tool_responses/` is moved to `reviewed_queue/` alongside `execution_notes/`.
-- VS Code's `workspaceStorage` buffer is independent and still created by VS Code — `.projectmemory/active_agents/{agent}/tool_responses/` is the project-owned copy.
-
-## Session Prep and Deployment (`memory_session`)
-
-`memory_session` prepares agent sessions and deployment context before native subagent execution. It does NOT execute subagent launches.
-
-Hub agents (Coordinator, Analyst, Runner, TDDDriver) call it before `runSubagent` to:
-1. Enrich prompts with workspace/plan context
-2. Inject scope boundaries and anti-spawning instructions for spoke targets
-3. Provision a `session_id` and return `prep_config` for launch
-
-Use `deploy_and_prep` when you need both deployment and prompt prep in one call. Use `prep` for prompt/session preparation without deployment.
-
-```
-memory_session (action: deploy_and_prep) with
-  agent_name: "Executor",
-  prompt: "Implement feature X...",
-  workspace_id: "...",
-  plan_id: "...",
-  compat_mode: "strict",
-  phase_name: "Implement",
-  step_indices: [3]
-```
-
-Then launch the agent natively:
-```
-runSubagent({
-  agentName: prepResult.prep_config.agent_name,
-  prompt: prepResult.prep_config.enriched_prompt
-})
-```
-
-**Key rules:**
-- `deploy_and_prep` and `prep` are prep-only — they never launch agents
-- `compat_mode: "strict"` returns canonical `prep_config`; `"legacy"` also includes deprecated `spawn_config` alias
-- Spoke agents MUST NOT use `memory_session` to spawn — use `memory_agent(action: handoff)` instead
-
-> **Migration note:** If you have code or documentation referencing `memory_spawn_agent`, migrate to `memory_session(action: deploy_and_prep)` and then call native `runSubagent`.
+- If a tool returns "workspace not registered", call `memory_workspace(action: register, workspace_path: "...")` first.
 
 ## Hub-and-Spoke Model
 
-- **Coordinator** is the hub - it spawns all other agents
-- Other agents are **spokes** - they complete tasks and return to Coordinator
-- Use `memory_agent` (action: handoff) to **recommend** the next agent (Coordinator decides)
-- Always call `memory_agent` (action: complete) when done
+- **Hub** is the orchestrator — it spawns all spoke agents via `runSubagent`
+- **Spokes** complete assigned tasks and return to Hub via `memory_agent(action: handoff, to_agent: "Coordinator")`
+- Always call `memory_agent(action: complete)` after handoff
+- Spokes MUST NOT call `runSubagent` — use `memory_agent(action: handoff)` to recommend the next agent
+
+## On-Demand Reference Docs
+
+Detailed tool patterns, workflow examples, and best practices are in the DB — pull them as needed:
+
+```
+memory_instructions(action: list)                              # see what's available
+memory_instructions(action: get, filename: "mcp-tool-agent.instructions.md")
+memory_instructions(action: get, filename: "mcp-tool-plan.instructions.md")
+memory_instructions(action: get, filename: "mcp-best-practices.instructions.md")
+memory_instructions(action: search, query: "terminal authorization")
+```

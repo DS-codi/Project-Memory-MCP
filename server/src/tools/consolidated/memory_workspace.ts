@@ -19,6 +19,7 @@ import { detectMigrationAdvisories } from '../program/index.js';
 import type { MigrationAdvisory } from '../program/index.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { checkWorkspaceContextHealth, type WorkspaceContextHealth } from '../workspace-context-manifest.js';
 import { getFocusedWorkspacesDir, getFocusedWorkspacePath } from '../../storage/db-store.js';
 import { events } from '../../events/event-emitter.js';
 
@@ -66,7 +67,7 @@ interface WorkspaceInfoResult {
 type HierarchicalWorkspaceMeta = WorkspaceMeta & { children?: WorkspaceMeta[] };
 
 type WorkspaceResult = 
-  | { action: 'register'; data: { workspace: WorkspaceMeta; first_time: boolean; indexed: boolean; profile?: WorkspaceProfile; overlap_detected?: boolean; overlaps?: WorkspaceOverlapInfo[]; message?: string } }
+  | { action: 'register'; data: { workspace: WorkspaceMeta; first_time: boolean; indexed: boolean; profile?: WorkspaceProfile; overlap_detected?: boolean; overlaps?: WorkspaceOverlapInfo[]; message?: string; context_health?: WorkspaceContextHealth } }
   | { action: 'list'; data: WorkspaceMeta[] | HierarchicalWorkspaceMeta[] }
   | { action: 'info'; data: WorkspaceInfoResult }
   | { action: 'reindex'; data: { workspace_id: string; previous_profile?: WorkspaceProfile; new_profile: WorkspaceProfile; changes: object } }
@@ -243,9 +244,10 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
       if (!result.success) {
         return { success: false, error: result.error };
       }
+      const context_health = checkWorkspaceContextHealth(params.workspace_path);
       return {
         success: true,
-        data: { action: 'register', data: result.data! }
+        data: { action: 'register', data: { ...result.data!, context_health } }
       };
     }
 

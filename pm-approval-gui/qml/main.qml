@@ -333,8 +333,8 @@ ApplicationWindow {
                     spacing: 8
 
                     Rectangle {
-                        width: urgencyLabel.implicitWidth + 16
-                        height: 22
+                        Layout.preferredWidth: urgencyLabel.implicitWidth + 16
+                        Layout.preferredHeight: 22
                         radius: 4
                         color: {
                             var u = approvalApp.urgency.toString();
@@ -440,13 +440,16 @@ ApplicationWindow {
                     model: root.choiceOptions
 
                     delegate: Rectangle {
+                        id: optDelegate
                         required property var modelData
 
                         Layout.fillWidth: true
                         implicitHeight: optionLayout.implicitHeight + 14
                         radius: 5
-                        color: approvalApp.selectedOptionId === (modelData.id || "") ? "#1a3a5c" : "#252526"
-                        border.color: approvalApp.selectedOptionId === (modelData.id || "") ? "#569cd6" : "#3e3e42"
+                        // qmllint disable unqualified
+                        color: approvalApp.selectedOptionId === (optDelegate.modelData.id || "") ? "#1a3a5c" : "#252526"
+                        border.color: approvalApp.selectedOptionId === (optDelegate.modelData.id || "") ? "#569cd6" : "#3e3e42"
+                        // qmllint enable unqualified
                         border.width: 1
 
                         ColumnLayout {
@@ -460,17 +463,21 @@ ApplicationWindow {
                                 spacing: 8
 
                                 RadioButton {
-                                    checked: approvalApp.selectedOptionId === (modelData.id || "")
-                                    text: modelData.label || ""
+                                    // qmllint disable unqualified
+                                    checked: approvalApp.selectedOptionId === (optDelegate.modelData.id || "")
+                                    // qmllint enable unqualified
+                                    text: optDelegate.modelData.label || ""
                                     font.pixelSize: 12
 
                                     onClicked: {
-                                        approvalApp.setSelectedOption(modelData.id || "");
+                                        // qmllint disable unqualified
+                                        approvalApp.setSelectedOption(optDelegate.modelData.id || "");
+                                        // qmllint enable unqualified
                                     }
                                 }
 
                                 Rectangle {
-                                    visible: modelData.recommended === true
+                                    visible: optDelegate.modelData.recommended === true
                                     radius: 3
                                     color: "#2e7d32"
                                     implicitWidth: recommendationLabel.implicitWidth + 10
@@ -490,7 +497,7 @@ ApplicationWindow {
                             Label {
                                 Layout.fillWidth: true
                                 Layout.leftMargin: 24
-                                text: modelData.description || ""
+                                text: optDelegate.modelData.description || ""
                                 font.pixelSize: 10
                                 color: "#bcbcbc"
                                 wrapMode: Text.WordWrap
@@ -501,7 +508,9 @@ ApplicationWindow {
                         MouseArea {
                             anchors.fill: parent
                             onClicked: {
-                                approvalApp.setSelectedOption(modelData.id || "");
+                                // qmllint disable unqualified
+                                approvalApp.setSelectedOption(optDelegate.modelData.id || "");
+                                // qmllint enable unqualified
                             }
                         }
                     }
@@ -605,13 +614,16 @@ ApplicationWindow {
                         model: root.currentItemOptions()
 
                         delegate: Rectangle {
+                            id: sessOptDelegate
                             required property var modelData
 
                             Layout.fillWidth: true
                             implicitHeight: sessionOptionLayout.implicitHeight + 14
                             radius: 5
-                            color: root.currentSelectedOption === (modelData.id || "") ? "#1a3a5c" : "#252526"
-                            border.color: root.currentSelectedOption === (modelData.id || "") ? "#569cd6" : "#3e3e42"
+                            // qmllint disable unqualified
+                            color: root.currentSelectedOption === (sessOptDelegate.modelData.id || "") ? "#1a3a5c" : "#252526"
+                            border.color: root.currentSelectedOption === (sessOptDelegate.modelData.id || "") ? "#569cd6" : "#3e3e42"
+                            // qmllint enable unqualified
                             border.width: 1
 
                             ColumnLayout {
@@ -625,18 +637,22 @@ ApplicationWindow {
                                     spacing: 8
 
                                     RadioButton {
-                                        checked: root.currentSelectedOption === (modelData.id || "")
-                                        text: modelData.label || ""
+                                        // qmllint disable unqualified
+                                        checked: root.currentSelectedOption === (sessOptDelegate.modelData.id || "")
+                                        // qmllint enable unqualified
+                                        text: sessOptDelegate.modelData.label || ""
                                         font.pixelSize: 12
 
                                         onClicked: {
-                                            root.currentSelectedOption = modelData.id || "";
+                                            // qmllint disable unqualified
+                                            root.currentSelectedOption = sessOptDelegate.modelData.id || "";
                                             root.validationMessage = "";
+                                            // qmllint enable unqualified
                                         }
                                     }
 
                                     Rectangle {
-                                        visible: modelData.recommended === true
+                                        visible: sessOptDelegate.modelData.recommended === true
                                         radius: 3
                                         color: "#2e7d32"
                                         implicitWidth: sessionRecLabel.implicitWidth + 10
@@ -656,7 +672,7 @@ ApplicationWindow {
                                 Label {
                                     Layout.fillWidth: true
                                     Layout.leftMargin: 24
-                                    text: modelData.description || ""
+                                    text: sessOptDelegate.modelData.description || ""
                                     font.pixelSize: 10
                                     color: "#bcbcbc"
                                     wrapMode: Text.WordWrap
@@ -667,8 +683,10 @@ ApplicationWindow {
                             MouseArea {
                                 anchors.fill: parent
                                 onClicked: {
-                                    root.currentSelectedOption = modelData.id || "";
+                                    // qmllint disable unqualified
+                                    root.currentSelectedOption = sessOptDelegate.modelData.id || "";
                                     root.validationMessage = "";
+                                    // qmllint enable unqualified
                                 }
                             }
                         }

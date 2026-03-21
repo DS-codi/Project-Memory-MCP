@@ -52,10 +52,11 @@ Item {
             spacing: 20
             
             Button {
+                id: cancelBtn
                 text: "CANCEL"
                 contentItem: Text {
-                    text: parent.text
-                    color: parent.hovered ? "#60a5fa" : "#94a3b8"
+                    text: cancelBtn.text
+                    color: cancelBtn.hovered ? "#60a5fa" : "#94a3b8"
                     font.weight: Font.Bold
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
@@ -64,7 +65,7 @@ Item {
                     implicitWidth: 120
                     implicitHeight: 45
                     color: "transparent"
-                    border.color: parent.hovered ? "#60a5fa" : "#334155"
+                    border.color: cancelBtn.hovered ? "#60a5fa" : "#334155"
                     border.width: 2
                     radius: 4
                 }
@@ -72,9 +73,10 @@ Item {
             }
 
             Button {
+                id: startBtn
                 text: "GET STARTED"
                 contentItem: Text {
-                    text: parent.text
+                    text: startBtn.text
                     color: "white"
                     font.weight: Font.Bold
                     horizontalAlignment: Text.AlignHCenter
@@ -88,7 +90,7 @@ Item {
                         GradientStop { position: 1.0; color: "#1e40af" }
                     }
                     radius: 4
-                    scale: parent.pressed ? 0.95 : (parent.hovered ? 1.05 : 1.0)
+                    scale: startBtn.pressed ? 0.95 : (startBtn.hovered ? 1.05 : 1.0)
                     Behavior on scale { NumberAnimation { duration: 100 } }
                 }
                 onClicked: root.next()

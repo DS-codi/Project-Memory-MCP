@@ -1,0 +1,109 @@
+{
+  "generated_at": "2026-03-21T15:29:32.255Z",
+  "workspace_id": "project-memory-mcp-40f6678f5a9b",
+  "language": "sql",
+  "partial": false,
+  "total": 10,
+  "symbols": [
+    {
+      "id": "server/src/db/migrations/001-initial-schema.sql::__module__",
+      "file": "server/src/db/migrations/001-initial-schema.sql",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "server/src/db/migrations/002-gap-closure.sql::__module__",
+      "file": "server/src/db/migrations/002-gap-closure.sql",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "server/src/db/migrations/003-program-extended.sql::__module__",
+      "file": "server/src/db/migrations/003-program-extended.sql",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "server/src/db/migrations/004-agent-deployments.sql::__module__",
+      "file": "server/src/db/migrations/004-agent-deployments.sql",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "server/src/db/migrations/005-instruction-skill-deployments.sql::__module__",
+      "file": "server/src/db/migrations/005-instruction-skill-deployments.sql",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "server/src/db/migrations/006-dynamic-hub-agent-model.sql::__module__",
+      "file": "server/src/db/migrations/006-dynamic-hub-agent-model.sql",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "server/src/db/migrations/007-deployable-workflow-definitions.sql::__module__",
+      "file": "server/src/db/migrations/007-deployable-workflow-definitions.sql",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "server/src/db/migrations/008-workspace-instruction-skill-assignments.sql::__module__",
+      "file": "server/src/db/migrations/008-workspace-instruction-skill-assignments.sql",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "server/src/db/migrations/009-workflow-mode.sql::__module__",
+      "file": "server/src/db/migrations/009-workflow-mode.sql",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "server/src/db/migrations/010-architecture-slices.sql::__module__",
+      "file": "server/src/db/migrations/010-architecture-slices.sql",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    }
+  ]
+}

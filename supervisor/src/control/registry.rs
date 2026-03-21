@@ -131,6 +131,8 @@ pub struct Registry {
     health_window_visible: bool,
     /// Active VS Code ↔ MCP HTTP sessions, keyed by MCP session UUID.
     mcp_connections: HashMap<String, McpConnectionEntry>,
+    /// Most recently generated focused workspace.
+    pub focused_workspace: Option<crate::tray_tooltip::FocusedWorkspaceState>,
 }
 
 impl Registry {
@@ -160,16 +162,18 @@ impl Registry {
             upgrade_pending: false,
             health_window_visible: true,
             mcp_connections: HashMap::new(),
-        }
-    }
+            focused_workspace: None,
+            }
+            }
 
-    /// Create a registry pre-populated with all known managed services and
-    /// the active backend pre-set from the loaded config.
-    pub fn with_backend(backend: BackendKind) -> Self {
-        let mut r = Self::new();
-        r.active_backend = backend;
-        r
-    }
+            /// Create a registry pre-populated with all known managed services and
+            /// the active backend pre-set from the loaded config.
+            pub fn with_backend(backend: BackendKind) -> Self {
+            let mut s = Self::new();
+            s.active_backend = backend;
+            s
+            }
+
 
     /// Create a registry pre-populated with built-ins plus any configured
     /// custom service names.

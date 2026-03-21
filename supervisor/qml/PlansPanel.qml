@@ -240,6 +240,11 @@ Rectangle {
             if (xhr.readyState !== XMLHttpRequest.DONE || xhr.status !== 200) return
             try {
                 var raw = JSON.parse(xhr.responseText)
+                var savedExpanded = {}
+                for (var j = 0; j < plansModel.count; j++) {
+                    var entry = plansModel.get(j)
+                    if (entry.expanded) savedExpanded[entry.planId] = true
+                }
                 plansModel.clear()
                 for (var i = 0; i < raw.plans.length; i++) {
                     var p = raw.plans[i]
@@ -255,7 +260,8 @@ Rectangle {
                         nextStepPhase:    p.next_step_phase       || "",
                         nextStepAgent:    p.next_step_agent       || "",
                         nextStepStatus:   p.next_step_status      || "",
-                        recommendedAgent: p.recommended_next_agent || ""
+                        recommendedAgent: p.recommended_next_agent || "",
+                        expanded:         !!savedExpanded[p.id]
                     })
                 }
             } catch(e) { console.error('[PlansPanel] fetchPlans failed:', e) }
@@ -350,7 +356,7 @@ Rectangle {
             Button {
                 text: "Open in IDE"
                 highlighted: true
-                implicitHeight: 26
+                topPadding: 4; bottomPadding: 4
                 leftPadding: 10; rightPadding: 10
                 font.pixelSize: 10
                 enabled: panel.bridge !== null
@@ -367,7 +373,7 @@ Rectangle {
             }
             Button {
                 text: "Register WS"
-                implicitHeight: 26
+                topPadding: 4; bottomPadding: 4
                 leftPadding: 10; rightPadding: 10
                 font.pixelSize: 10
                 enabled: panel.bridge !== null
@@ -376,7 +382,7 @@ Rectangle {
             }
             Button {
                 text: "Backup"
-                implicitHeight: 26
+                topPadding: 4; bottomPadding: 4
                 leftPadding: 10; rightPadding: 10
                 font.pixelSize: 10
                 enabled: panel.bridge !== null
@@ -387,7 +393,7 @@ Rectangle {
             }
             Button {
                 text: "Create Plan"
-                implicitHeight: 26
+                topPadding: 4; bottomPadding: 4
                 leftPadding: 10; rightPadding: 10
                 font.pixelSize: 10
                 enabled: panel.bridge !== null
@@ -471,15 +477,15 @@ Rectangle {
 
                         Layout.fillWidth: true
                         spacing: 0
-                        property bool cardExpanded: false
+                        property bool expanded: false
 
                         // ── Header strip (always 54 px — never zero) ───────
                         Rectangle {
                             Layout.fillWidth: true
                             implicitHeight: 54
-                            radius: planCard.cardExpanded ? 0 : 6
-                            color: planCard.cardExpanded ? "#1c2128" : "#0d1117"
-                            border.color: planCard.cardExpanded ? "#388bfd" : "#30363d"
+                            radius: planCard.expanded ? 0 : 6
+                            color: planCard.expanded ? "#1c2128" : "#0d1117"
+                            border.color: planCard.expanded ? "#388bfd" : "#30363d"
                             border.width: 1
                             clip: true
 
@@ -489,7 +495,7 @@ Rectangle {
                             MouseArea {
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: planCard.cardExpanded = !planCard.cardExpanded
+                                onClicked: planCard.expanded = !planCard.expanded
                             }
 
                             ColumnLayout {
@@ -506,7 +512,7 @@ Rectangle {
                                     spacing: 6
 
                                     Label {
-                                        text: planCard.cardExpanded ? "-" : "+"
+                                        text: planCard.expanded ? "-" : "+"
                                         font.pixelSize: 11; color: "#8b949e"
                                         Layout.preferredWidth: 12
                                     }
@@ -550,7 +556,7 @@ Rectangle {
                         // ── Expanded detail (animates height, starts at 0) ─
                         Rectangle {
                             Layout.fillWidth: true
-                            implicitHeight: planCard.cardExpanded
+                            implicitHeight: planCard.expanded
                                             ? (detailLayout.implicitHeight + 20) : 0
                             clip: true
                             color: "#1c2128"

@@ -39,3 +39,4 @@ export { memoryTerminal, type MemoryTerminalParams, type MemoryTerminalAction } 
 export { memorySession, type MemorySessionParams, type SessionAction } from './memory_session.js';
 export { memoryBrainstorm, type MemoryBrainstormParams, type BrainstormAction } from './memory_brainstorm.js';
 export { handleMemoryCartographer, type MemoryCartographerParams, type CartographerAction } from '../memory_cartographer.js';
+export { memoryInstructions, type MemoryInstructionsParams, type InstructionsAction } from './memory_instructions.js';

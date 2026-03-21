@@ -157,7 +157,7 @@
       <button id="thinking-clear" title="Clear thinking content">&#x2715;</button>
     </div>
     <div id="thinking-content">
-      <div id="thinking-empty">No thinking content yet.</div>
+      <div id="thinking-empty">Waiting for thinking content...<br><span style="font-size:10px;opacity:0.6">Gemini: shows reasoning status&nbsp;&nbsp;|&nbsp;&nbsp;Claude: shows extended thinking blocks</span></div>
     </div>
   </div>
 </div>
@@ -196,7 +196,6 @@
   var fitAddon = new FitAddon.FitAddon();
   term.loadAddon(fitAddon);
   term.open(document.getElementById('terminal'));
-  fitAddon.fit();
 
   // ── Thinking panel ──────────────────────────────────────────────────────
 
@@ -212,6 +211,12 @@
     thinkingPanel.classList.add('open');
     thinkingToggle.classList.add('panel-open');
   }
+
+  // Defer the initial fit to the next animation frame so the layout has
+  // settled after the thinking panel state is restored above.  This ensures
+  // fitAddon.fit() measures the correct terminal-wrap width (accounting for
+  // a pre-opened side panel) before the WebSocket sends its first resize.
+  requestAnimationFrame(function() { fitAddon.fit(); });
 
   function fitAfterTransition() {
     setTimeout(function() { fitAddon.fit(); sendResize(); }, 280);

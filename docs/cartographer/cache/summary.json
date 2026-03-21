@@ -1,0 +1,41 @@
+{
+  "generated_at": "2026-03-21T15:29:16.198Z",
+  "workspace_id": "project-memory-mcp-40f6678f5a9b",
+  "workspace_path": "c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP",
+  "elapsed_ms": 50301,
+  "engine": "code_cartography",
+  "file_count": 1359,
+  "module_count": 1072,
+  "symbol_count": 36164,
+  "dependency_edge_count": 1611,
+  "entry_point_count": 540,
+  "architecture_layers": [],
+  "has_cycles": true,
+  "language_count": 6,
+  "language_breakdown": [
+    {
+      "language": "javascript",
+      "file_count": 410
+    },
+    {
+      "language": "python",
+      "file_count": 23
+    },
+    {
+      "language": "rust",
+      "file_count": 131
+    },
+    {
+      "language": "shell",
+      "file_count": 76
+    },
+    {
+      "language": "sql",
+      "file_count": 10
+    },
+    {
+      "language": "typescript",
+      "file_count": 709
+    }
+  ]
+}

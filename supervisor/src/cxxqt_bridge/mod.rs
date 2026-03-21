@@ -60,6 +60,8 @@ pub mod ffi {
         #[qproperty(i32, event_subscriber_count, cxx_name = "eventSubscriberCount")]
         #[qproperty(bool, event_broadcast_enabled, cxx_name = "eventBroadcastEnabled")]
         #[qproperty(i32, events_total_emitted, cxx_name = "eventsTotalEmitted")]
+        #[qproperty(QString, tray_notification_text, cxx_name = "trayNotificationText")]
+        #[qproperty(QString, focused_workspace_path, cxx_name = "focusedWorkspacePath")]
         #[qproperty(QString, action_feedback, cxx_name = "actionFeedback")]
         #[qproperty(QString, config_editor_error, cxx_name = "configEditorError")]
         #[qproperty(bool, quitting)]
@@ -189,6 +191,10 @@ pub mod ffi {
         #[qinvokable]
         #[cxx_name = "registerWorkspace"]
         fn register_workspace(self: Pin<&mut SupervisorGuiBridge>, path: &QString);
+
+        #[qinvokable]
+        #[cxx_name = "openFocusedWorkspace"]
+        fn open_focused_workspace(self: Pin<&mut SupervisorGuiBridge>);
     }
 
     impl cxx_qt::Initialize for SupervisorGuiBridge {}
@@ -247,6 +253,11 @@ pub struct SupervisorGuiBridgeRust {
     /// JSON array of configured [[servers]] entries with live status.
     /// Updated by main.rs push_qt_status on every registry snapshot push.
     pub custom_services_json: QString,
+    /// Pending notification text for the system tray (balloon tooltip).
+    /// Pushed from runtime when a Focused Workspace is generated.
+    pub tray_notification_text: QString,
+    /// Path to the most recently generated .code-workspace file.
+    pub focused_workspace_path: QString,
 }
 
 impl Default for SupervisorGuiBridgeRust {
@@ -287,6 +298,8 @@ impl Default for SupervisorGuiBridgeRust {
             dashboard_uptime_secs: 0,
             gui_auth_key: QString::default(),
             custom_services_json: QString::from("[]"),
+            tray_notification_text: QString::default(),
+            focused_workspace_path: QString::default(),
         }
     }
 }
@@ -741,5 +754,14 @@ impl ffi::SupervisorGuiBridge {
                 false
             }
         }
-    }
-}
+        }
+
+        pub fn open_focused_workspace(self: Pin<&mut Self>) {
+        let path = self.focused_workspace_path().to_string();
+        if !path.is_empty() {
+            let _ = std::process::Command::new("cmd")
+                .args(["/C", "code", &path])
+                .spawn();
+        }
+        }
+        }

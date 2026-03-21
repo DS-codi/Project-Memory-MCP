@@ -45,9 +45,10 @@ ColumnLayout {
     ButtonGroup { id: radioGroup }
 
     Repeater {
-        model: question.options || []
+        model: radioRoot.question.options || []
 
         delegate: Rectangle {
+            id: optionDelegate
             required property var modelData
             required property int index
 
@@ -70,21 +71,25 @@ ColumnLayout {
 
                     RadioButton {
                         id: radioBtn
+                        // qmllint disable unqualified
                         ButtonGroup.group: radioGroup
-                        checked: modelData.id === radioRoot.selectedId
-                        text: modelData.label || ""
+                        checked: optionDelegate.modelData.id === radioRoot.selectedId
+                        // qmllint enable unqualified
+                        text: optionDelegate.modelData.label || ""
                         font.pixelSize: 13
 
                         onCheckedChanged: {
                             if (checked) {
-                                radioRoot.emitAnswer(modelData.id, radioRoot.freeTextValue);
+                                // qmllint disable unqualified
+                                radioRoot.emitAnswer(optionDelegate.modelData.id, radioRoot.freeTextValue);
+                                // qmllint enable unqualified
                             }
                         }
                     }
 
                     // Recommendation badge
                     Rectangle {
-                        visible: modelData.recommended === true
+                        visible: optionDelegate.modelData.recommended === true
                         radius: 3
                         color: "#2e7d32"
                         implicitWidth: recLabel.implicitWidth + 12
@@ -103,19 +108,20 @@ ColumnLayout {
 
                 // Description
                 Label {
-                    text: modelData.description || ""
+                    text: optionDelegate.modelData.description || ""
                     font.pixelSize: 11
                     color: "#bbbbbb"
                     wrapMode: Text.WordWrap
-                    visible: (modelData.description || "").length > 0
+                    visible: (optionDelegate.modelData.description || "").length > 0
                     Layout.fillWidth: true
                     Layout.leftMargin: 32
                 }
 
                 // Pros
                 Repeater {
-                    model: modelData.pros || []
+                    model: optionDelegate.modelData.pros || []
                     Label {
+                        id: proLabel
                         required property string modelData
                         text: "  ✓ " + modelData
                         font.pixelSize: 11
@@ -127,8 +133,9 @@ ColumnLayout {
 
                 // Cons
                 Repeater {
-                    model: modelData.cons || []
+                    model: optionDelegate.modelData.cons || []
                     Label {
+                        id: conLabel
                         required property string modelData
                         text: "  ✗ " + modelData
                         font.pixelSize: 11
@@ -151,8 +158,8 @@ ColumnLayout {
     TextField {
         id: freeTextField
         Layout.fillWidth: true
-        visible: question.allow_free_text !== false
-        placeholderText: question.free_text_placeholder || "Free-text override or annotation..."
+        visible: radioRoot.question.allow_free_text !== false
+        placeholderText: radioRoot.question.free_text_placeholder || "Free-text override or annotation..."
         text: radioRoot.freeTextValue
         font.pixelSize: 12
         color: "#ffffff"
@@ -167,11 +174,11 @@ ColumnLayout {
 
     // ── Helper to emit the answer ───────────────────────────────
     function emitAnswer(optionId, freeText) {
-        if (!formApp || !question.id) return;
+        if (!radioRoot.formApp || !radioRoot.question.id) return;
         var answerObj = { "type": "radio_select_answer", "selected": optionId };
         if (freeText && freeText.length > 0) {
             answerObj.free_text = freeText;
         }
-        formApp.setAnswer(question.id, JSON.stringify(answerObj));
+        radioRoot.formApp.setAnswer(radioRoot.question.id, JSON.stringify(answerObj));
     }
 }

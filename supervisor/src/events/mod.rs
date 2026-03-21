@@ -78,6 +78,11 @@ pub enum DataChangeEvent {
         session_id:   String,
     },
     WorkspaceChanged   { workspace_id: String },
+    FocusedWorkspaceGenerated {
+        workspace_id: String,
+        plan_id:      String,
+        file_path:    String,
+    },
     MetricsInvalidated { workspace_id: Option<String> },
     /// Raw pass-through for events ingested from the MCP / dashboard stream
     /// that don't match a known variant.  The full JSON payload (including the

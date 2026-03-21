@@ -14,19 +14,19 @@ Rectangle {
     property var messages: []
 
     onFormAppChanged: {
-        if (formApp) {
-            updateMessages()
+        if (chatPanel.formApp) {
+            chatPanel.updateMessages()
         }
     }
 
     Connections {
-        target: formApp
-        function onChatHistoryJsonChanged() { updateMessages() }
+        target: chatPanel.formApp
+        function onChatHistoryJsonChanged() { chatPanel.updateMessages() }
     }
 
     function updateMessages() {
         try {
-            messages = JSON.parse(formApp.chatHistoryJson)
+            chatPanel.messages = JSON.parse(chatPanel.formApp.chatHistoryJson)
         } catch (e) {
             console.error("Failed to parse chat history:", e)
         }
@@ -54,23 +54,25 @@ Rectangle {
                 model: chatPanel.messages
                 spacing: 8
                 delegate: ColumnLayout {
-                    width: chatList.width
+                    id: msgDelegate
+                    required property var modelData
+                    width: ListView.view ? ListView.view.width : 0
                     spacing: 4
 
                     Rectangle {
-                        Layout.alignment: modelData.role === "user" ? Qt.AlignRight : Qt.AlignLeft
+                        Layout.alignment: msgDelegate.modelData.role === "user" ? Qt.AlignRight : Qt.AlignLeft
                         Layout.maximumWidth: parent.width * 0.8
                         implicitWidth: msgText.implicitWidth + 20
                         implicitHeight: msgText.implicitHeight + 16
                         radius: 8
-                        color: modelData.role === "user" ? "#238636" : "#21262d"
-                        border.color: modelData.role === "user" ? "transparent" : "#30363d"
+                        color: msgDelegate.modelData.role === "user" ? "#238636" : "#21262d"
+                        border.color: msgDelegate.modelData.role === "user" ? "transparent" : "#30363d"
 
                         Label {
                             id: msgText
                             anchors.fill: parent
                             anchors.margins: 8
-                            text: modelData.content
+                            text: msgDelegate.modelData.content
                             wrapMode: Text.WordWrap
                             color: "#ffffff"
                             font.pixelSize: 12
@@ -78,8 +80,8 @@ Rectangle {
                     }
 
                     Label {
-                        Layout.alignment: modelData.role === "user" ? Qt.AlignRight : Qt.AlignLeft
-                        text: (modelData.role === "user" ? "You" : "Agent") + " • " + new Date(modelData.timestamp).toLocaleTimeString()
+                        Layout.alignment: msgDelegate.modelData.role === "user" ? Qt.AlignRight : Qt.AlignLeft
+                        text: (msgDelegate.modelData.role === "user" ? "You" : "Agent") + " • " + new Date(msgDelegate.modelData.timestamp).toLocaleTimeString()
                         font.pixelSize: 9
                         color: "#8b949e"
                     }
@@ -112,7 +114,7 @@ Rectangle {
                 highlighted: true
                 onClicked: {
                     if (chatInput.text.trim() !== "") {
-                        formApp.sendChatMessage(chatInput.text)
+                        chatPanel.formApp.sendChatMessage(chatInput.text)
                         chatInput.text = ""
                     }
                 }

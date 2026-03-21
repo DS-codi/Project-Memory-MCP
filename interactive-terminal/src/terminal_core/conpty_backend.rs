@@ -380,6 +380,107 @@ impl ThinkingTagFilter {
 }
 
 // ---------------------------------------------------------------------------
+// GeminiThinkingDetector — intercept Gemini CLI "Thinking..." status lines
+// ---------------------------------------------------------------------------
+
+/// Strip ANSI/VT escape sequences from a raw byte slice, returning plain text.
+/// Handles CSI (`ESC[…`), OSC (`ESC]…BEL`), and single-char escape sequences.
+pub fn strip_ansi_escapes(input: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(input.len());
+    let mut i = 0;
+    while i < input.len() {
+        if input[i] == 0x1b {
+            i += 1;
+            if i >= input.len() {
+                break;
+            }
+            match input[i] {
+                b'[' => {
+                    // CSI sequence: skip parameter + intermediate bytes, then the final byte (0x40–0x7e).
+                    i += 1;
+                    while i < input.len() && !(0x40..=0x7e).contains(&input[i]) {
+                        i += 1;
+                    }
+                    if i < input.len() {
+                        i += 1;
+                    }
+                }
+                b']' => {
+                    // OSC sequence: terminated by BEL (0x07) or ST (ESC \).
+                    i += 1;
+                    while i < input.len() {
+                        if input[i] == 0x07 {
+                            i += 1;
+                            break;
+                        }
+                        if input[i] == 0x1b && i + 1 < input.len() && input[i + 1] == b'\\' {
+                            i += 2;
+                            break;
+                        }
+                        i += 1;
+                    }
+                }
+                _ => {
+                    i += 1;
+                }
+            }
+        } else {
+            out.push(input[i]);
+            i += 1;
+        }
+    }
+    out
+}
+
+/// Detects Gemini CLI "Thinking... (esc to cancel, Xs)" status lines from raw
+/// PTY output and extracts them for the side-panel channel.
+///
+/// Unlike [`ThinkingTagFilter`], this detector does **not** strip the matched
+/// content from the main terminal stream — the progress indicator continues to
+/// appear in the terminal while also being mirrored to the thinking panel.
+///
+/// Consecutive identical thinking messages are deduplicated so only the first
+/// occurrence of each countdown value (e.g. "Thinking... (esc to cancel, 11s)")
+/// is forwarded to the channel.
+pub struct GeminiThinkingDetector {
+    last_sent: String,
+}
+
+impl GeminiThinkingDetector {
+    pub fn new() -> Self {
+        Self {
+            last_sent: String::new(),
+        }
+    }
+
+    /// Process one raw PTY chunk.
+    /// Returns extracted thinking text to route to the side panel, or empty.
+    pub fn process(&mut self, chunk: &[u8]) -> Vec<u8> {
+        let stripped = strip_ansi_escapes(chunk);
+        let text = String::from_utf8_lossy(&stripped);
+
+        if let Some(idx) = text.find("Thinking...") {
+            let thinking_part = &text[idx..];
+            let end = thinking_part
+                .find(|c: char| c == '\n' || c == '\r')
+                .unwrap_or(thinking_part.len().min(80));
+            let extracted = thinking_part[..end].trim().to_string();
+
+            // Only forward countdown entries — skip bare "Thinking..." spinner frames
+            // that appear between each countdown tick.  Never reset last_sent between
+            // chunks; deduplication must persist across chunk boundaries to prevent
+            // the same countdown value from being forwarded multiple times.
+            if extracted.contains("(esc to cancel,") && extracted != self.last_sent {
+                self.last_sent = extracted.clone();
+                return format!("{extracted}\n").into_bytes();
+            }
+        }
+
+        Vec::new()
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
