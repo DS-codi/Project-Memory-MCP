@@ -150,6 +150,26 @@ High-level codebase summary: languages, layers, entry points, module count.
 | `workspace_id` | string | ✅ | Workspace identifier |
 | `force_refresh` | boolean | — | Bypass cache (default: false) |
 
+**Response shape:**
+```json
+{
+  "data": {
+    "result": {
+      "summary": {
+        "file_count": 1373,
+        "symbol_count": 36148,
+        "language_breakdown": [{ "language": "typescript", "file_count": 710 }]
+      }
+    },
+    "elapsed_ms": 14303,
+    "diagnostics": { "markers": ["cache_hit"], "warnings": [], "errors": [] }
+  }
+}
+```
+- **Cache hit detection:** `result.diagnostics.markers.includes("cache_hit")` — NOT a boolean field
+- **File count field:** `result.data.result.summary.file_count` (not `files_total`)
+- **Symbol count field:** `result.data.result.summary.symbol_count` (not `symbols_total`)
+
 ---
 
 #### `file_context`
@@ -291,10 +311,10 @@ Set `CARTOGRAPHER_ENGINE=python` to force the Python bridge fallback.
 
 ## Cache and Rescan
 
-Pass `force_rescan: true` in the action args to bypass the SQLite cache and run a fresh scan.
+Pass `force_refresh: true` in the action args to bypass the SQLite cache and run a fresh scan.
 
 ```
-memory_cartographer(action: "summary", workspace_id: "<id>", force_rescan: true)
+memory_cartographer(action: "summary", workspace_id: "<id>", force_refresh: true)
 ```
 
-When `force_rescan` is omitted or false, results are served from the SQLite cache at `.projectmemory/cartographer/cache.db` if a valid entry exists for the current git HEAD. Cached reads return in < 50ms.
+When `force_refresh` is omitted or false, results are served from the SQLite cache at `.projectmemory/cartographer/cache.db` if a valid entry exists for the current git HEAD. Cached reads return in < 50ms.

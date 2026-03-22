@@ -26,8 +26,9 @@ On every new session:
 1. **Register workspace**: `memory_workspace(action: register, workspace_path: "<abs-path>")` — returns the canonical `workspace_id`.
 2. **Init session**: `memory_agent(action: init, agent_type: "Coordinator", workspace_id: "...")` — check the response for `orphaned_sessions`.
 3. **Recovery gate**: If `orphaned_sessions` is non-empty — run `git diff --stat`, check plan for steps stuck in `active` status, reset or resolve before spawning anything.
-4. **Context check**: If workspace context is stale or empty, populate before routing to PromptAnalyst.
-5. **Pass workspace_id** to every Shell spawn — Shell never derives or registers its own workspace ID.
+4. **Context check**: If workspace context (workspace description, tech stack metadata) is stale or empty, update it via `memory_context` — this means metadata only, NOT codebase exploration. Do NOT use `Explore` or any subagent to gather context at this stage.
+5. **Route to PromptAnalyst** — IMMEDIATELY after startup steps 1–4, send the user's request to PromptAnalyst before taking any other action. This is non-negotiable.
+6. **Pass workspace_id** to every Shell spawn — Shell never derives or registers its own workspace ID.
 
 ### Canonical `agent_type` mapping
 
@@ -99,6 +100,8 @@ At the start of every new session, scope change, or stale context event, Hub MUS
 4. Pass `noteworthy_file_paths` to Researcher as entry points. Researcher explores the codebase freely — those paths are starting points, not limits.
 
 PromptAnalyst does **light** scope investigation: it identifies what kind of work this is and which files are likely relevant. It does not deeply read files or summarize their content. Deep investigation is the Researcher's job.
+
+> **CRITICAL**: Hub itself must NOT explore the codebase or read source files. The `Explore` agent is NOT a substitute for PromptAnalyst routing — using it before PromptAnalyst is a protocol violation. Hub's job is to orchestrate, not investigate.
 
 Re-run PromptAnalyst when: new session start, scope changes, context is stale, or user requests fresh analysis.
 
@@ -353,10 +356,12 @@ Critical/high priority plans and `user_validation` steps always pause regardless
 ## Constraints
 
 - Do not bypass Prompt Analyst for new-session/new-scope/stale/override trigger events when available.
+- Do not call `runSubagent` with **any agent** (Shell, Explore, PromptAnalyst, Worker, or otherwise) before completing PromptAnalyst routing for a fresh session.
+- Do not use the `Explore` agent as a substitute for PromptAnalyst. `Explore` is for gathering context during Researcher dispatch preparation only — never for initial session routing.
 - Do not call `runSubagent` without first calling `memory_session(action: deploy_and_prep)` and receiving a successful `prep_config`.
 - Do not implement code or make file changes directly — Hub orchestrates only.
+- Do not explore the codebase directly (reading source files, searching code) — that is Researcher's job after PromptAnalyst routing.
 - Do not create or write plan steps — Architect creates plans; Hub only reads plan state to decide what to do next.
 - All context Shell needs must be embedded in the spawn prompt by Hub, except: Researcher may and should explore the codebase freely beyond provided file paths.
 - Always pass `workspace_id` to every Shell prompt. Shell never derives or registers its own workspace ID.
 - Check `orphaned_sessions` on every `memory_agent(action: init)` response and recover before spawning.
-- Do not spawn Shell before PromptAnalyst routing for a fresh session.

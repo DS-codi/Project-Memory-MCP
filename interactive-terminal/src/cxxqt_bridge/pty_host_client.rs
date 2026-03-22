@@ -94,6 +94,7 @@ pub mod inner {
             port: u16,
             session_output_tx: mpsc::Sender<(String, Vec<u8>)>,
             app_state: Arc<StdMutex<AppState>>,
+            disconnect_tx: mpsc::UnboundedSender<String>,
         ) -> Result<Arc<Self>, String> {
             // Retry: the pty-host process may take a moment to bind its socket.
             let stream = Self::connect_with_retry(port).await?;
@@ -197,10 +198,14 @@ pub mod inner {
                         }
                         Ok(None) => {
                             eprintln!("[PtyHostClient] pty-host disconnected");
+                            let _ = disconnect_tx.send(
+                                "pty-host process disconnected unexpectedly".to_string(),
+                            );
                             break;
                         }
                         Err(e) => {
                             eprintln!("[PtyHostClient] recv error: {e}");
+                            let _ = disconnect_tx.send(format!("pty-host connection error: {e}"));
                             break;
                         }
                     }

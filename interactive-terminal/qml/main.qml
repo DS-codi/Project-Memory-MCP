@@ -55,6 +55,9 @@ ApplicationWindow {
         || approvalDialog.visible
         || savedCommandsDrawer.visible
         || allowlistDrawer.visible
+        || crashAlertDialog.visible
+    property string crashAlertMessage: ""
+    property string crashAlertLogPath: ""
     property bool hasActiveTerminalSession: (terminalApp.currentSessionId || "").trim().length > 0
     // Selected provider for the Launch CLI split button ("gemini" or "copilot")
     property string selectedCliProvider: "gemini"
@@ -486,6 +489,13 @@ ApplicationWindow {
         function onAgentSessionLaunched(sessionId, label, provider) {
             root.syncSessionDisplayName()
             root.refreshSessionTabs()
+        }
+
+        function onCrashAlert(message, logPath) {
+            root.crashAlertMessage = message
+            root.crashAlertLogPath = logPath
+            root.showMainWindow()
+            crashAlertDialog.open()
         }
 
         function onAllowlistPatternsJsonChanged() {
@@ -2507,6 +2517,85 @@ ApplicationWindow {
                 }
 
                 Item { Layout.fillWidth: true }
+            }
+        }
+    }
+
+    // ── pty-host Crash Alert Dialog ──────────────────────────────────────
+    Dialog {
+        id: crashAlertDialog
+        popupType: Popup.Window
+        modal: true
+        anchors.centerIn: Overlay.overlay
+        width: 480
+        title: "\u26A0 Interactive Terminal — PTY Host Crashed"
+        standardButtons: Dialog.Ok
+        padding: 0
+        z: 5000
+
+        Overlay.modal: Rectangle {
+            color: "#80000000"
+        }
+
+        background: Rectangle {
+            color: "#1a1a2e"
+            border.color: "#ef4444"
+            border.width: 1
+            radius: 8
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 20
+            spacing: 12
+
+            Text {
+                Layout.fillWidth: true
+                text: root.crashAlertMessage || "The pty-host process has stopped."
+                color: "#f9fafb"
+                font.pixelSize: 13
+                wrapMode: Text.WordWrap
+            }
+
+            Text {
+                Layout.fillWidth: true
+                text: "Active terminal sessions are no longer running. " +
+                      "Restart the Interactive Terminal to reconnect."
+                color: "#9ca3af"
+                font.pixelSize: 11
+                wrapMode: Text.WordWrap
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: "#374151"
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                Text {
+                    text: "Log:"
+                    color: "#6b7280"
+                    font.pixelSize: 11
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: root.crashAlertLogPath || "(unavailable)"
+                    color: "#60a5fa"
+                    font.pixelSize: 11
+                    elide: Text.ElideLeft
+                    wrapMode: Text.NoWrap
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Qt.openUrlExternally("file:///" + root.crashAlertLogPath)
+                    }
+                }
             }
         }
     }

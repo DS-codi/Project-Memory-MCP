@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-03-21T15:29:32.255Z",
+  "generated_at": "2026-03-22T03:40:26.123Z",
   "workspace_id": "project-memory-mcp-40f6678f5a9b",
   "partial": false,
-  "total": 7399,
+  "total": 7453,
   "references": [
     {
       "from_file": ".tmp/DashboardViewProvider.head.ts",
@@ -65,6 +65,202 @@
       "from_line": 10,
       "to_symbol_id": "path::__unresolved__",
       "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/lib.rs",
+      "from_line": 1,
+      "to_symbol_id": "crates/cartographer-core/src/output/mod.rs::__module__",
+      "to_file": "crates/cartographer-core/src/output/mod.rs",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/lib.rs",
+      "from_line": 2,
+      "to_symbol_id": "crates/cartographer-core/src/parser/mod.rs::__module__",
+      "to_file": "crates/cartographer-core/src/parser/mod.rs",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/lib.rs",
+      "from_line": 3,
+      "to_symbol_id": "crates/cartographer-core/src/scanner/mod.rs::__module__",
+      "to_file": "crates/cartographer-core/src/scanner/mod.rs",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/parser/mod.rs",
+      "from_line": 1,
+      "to_symbol_id": "crates/cartographer-core/src/parser/python.rs::__module__",
+      "to_file": "crates/cartographer-core/src/parser/python.rs",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/parser/mod.rs",
+      "from_line": 2,
+      "to_symbol_id": "crates/cartographer-core/src/parser/rust_lang.rs::__module__",
+      "to_file": "crates/cartographer-core/src/parser/rust_lang.rs",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/parser/mod.rs",
+      "from_line": 3,
+      "to_symbol_id": "crates/cartographer-core/src/parser/sql.rs::__module__",
+      "to_file": "crates/cartographer-core/src/parser/sql.rs",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/parser/mod.rs",
+      "from_line": 4,
+      "to_symbol_id": "crates/cartographer-core/src/parser/typescript.rs::__module__",
+      "to_file": "crates/cartographer-core/src/parser/typescript.rs",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/parser/mod.rs",
+      "from_line": 6,
+      "to_symbol_id": "output/SymbolRecord::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/parser/mod.rs",
+      "from_line": 7,
+      "to_symbol_id": "scanner/lang/::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/parser/python.rs",
+      "from_line": 1,
+      "to_symbol_id": "output/SymbolRecord::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/parser/python.rs",
+      "from_line": 2,
+      "to_symbol_id": "scanner/lang/ScanMode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/parser/python.rs",
+      "from_line": 99,
+      "to_symbol_id": "scanner/lang/ScanMode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/parser/rust_lang.rs",
+      "from_line": 1,
+      "to_symbol_id": "output/SymbolRecord::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/parser/rust_lang.rs",
+      "from_line": 2,
+      "to_symbol_id": "scanner/lang/ScanMode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/parser/rust_lang.rs",
+      "from_line": 111,
+      "to_symbol_id": "scanner/lang/ScanMode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/parser/sql.rs",
+      "from_line": 1,
+      "to_symbol_id": "output/SymbolRecord::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/parser/sql.rs",
+      "from_line": 2,
+      "to_symbol_id": "scanner/lang/ScanMode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/parser/sql.rs",
+      "from_line": 50,
+      "to_symbol_id": "scanner/lang/ScanMode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/parser/typescript.rs",
+      "from_line": 1,
+      "to_symbol_id": "output/SymbolRecord::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/parser/typescript.rs",
+      "from_line": 2,
+      "to_symbol_id": "scanner/lang/ScanMode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/parser/typescript.rs",
+      "from_line": 109,
+      "to_symbol_id": "scanner/lang/ScanMode::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/scanner/engine.rs",
+      "from_line": 1,
+      "to_symbol_id": "output/::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/scanner/engine.rs",
+      "from_line": 2,
+      "to_symbol_id": "parser/parse_file::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/scanner/engine.rs",
+      "from_line": 3,
+      "to_symbol_id": "scanner/lang/::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/scanner/engine.rs",
+      "from_line": 4,
+      "to_symbol_id": "scanner/walker/walk::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/scanner/mod.rs",
+      "from_line": 1,
+      "to_symbol_id": "crates/cartographer-core/src/scanner/engine.rs::__module__",
+      "to_file": "crates/cartographer-core/src/scanner/engine.rs",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/scanner/mod.rs",
+      "from_line": 2,
+      "to_symbol_id": "crates/cartographer-core/src/scanner/lang.rs::__module__",
+      "to_file": "crates/cartographer-core/src/scanner/lang.rs",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "crates/cartographer-core/src/scanner/mod.rs",
+      "from_line": 3,
+      "to_symbol_id": "crates/cartographer-core/src/scanner/walker.rs::__module__",
+      "to_file": "crates/cartographer-core/src/scanner/walker.rs",
       "reference_kind": "import"
     },
     {
@@ -329,76 +525,83 @@
     {
       "from_file": "dashboard/server/src/index.ts",
       "from_line": 18,
+      "to_symbol_id": "dashboard/server/src/routes/skills.ts::__module__",
+      "to_file": "dashboard/server/src/routes/skills.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "dashboard/server/src/index.ts",
+      "from_line": 19,
       "to_symbol_id": "dashboard/server/src/routes/deploy.ts::__module__",
       "to_file": "dashboard/server/src/routes/deploy.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/server/src/index.ts",
-      "from_line": 19,
+      "from_line": 20,
       "to_symbol_id": "dashboard/server/src/routes/knowledge.ts::__module__",
       "to_file": "dashboard/server/src/routes/knowledge.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/server/src/index.ts",
-      "from_line": 20,
+      "from_line": 21,
       "to_symbol_id": "dashboard/server/src/routes/programs.ts::__module__",
       "to_file": "dashboard/server/src/routes/programs.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/server/src/index.ts",
-      "from_line": 21,
+      "from_line": 22,
       "to_symbol_id": "dashboard/server/src/routes/runtime.ts::__module__",
       "to_file": "dashboard/server/src/routes/runtime.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/server/src/index.ts",
-      "from_line": 22,
+      "from_line": 23,
       "to_symbol_id": "dashboard/server/src/routes/agentSession.ts::__module__",
       "to_file": "dashboard/server/src/routes/agentSession.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/server/src/index.ts",
-      "from_line": 23,
+      "from_line": 24,
       "to_symbol_id": "dashboard/server/src/storage/workspace-utils.ts::__module__",
       "to_file": "dashboard/server/src/storage/workspace-utils.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/server/src/index.ts",
-      "from_line": 24,
+      "from_line": 25,
       "to_symbol_id": "dashboard/server/src/events/eventBus.ts::__module__",
       "to_file": "dashboard/server/src/events/eventBus.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/server/src/index.ts",
-      "from_line": 25,
+      "from_line": 26,
       "to_symbol_id": "dashboard/server/src/db/connection.ts::__module__",
       "to_file": "dashboard/server/src/db/connection.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/server/src/index.ts",
-      "from_line": 26,
+      "from_line": 27,
       "to_symbol_id": "dashboard/server/src/services/mcpEventPoller.ts::__module__",
       "to_file": "dashboard/server/src/services/mcpEventPoller.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/server/src/index.ts",
-      "from_line": 27,
+      "from_line": 28,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/server/src/index.ts",
-      "from_line": 28,
+      "from_line": 29,
       "to_symbol_id": "fs/promises::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
@@ -454,28 +657,28 @@
     },
     {
       "from_file": "dashboard/server/src/routes/agents.ts",
-      "from_line": 228,
+      "from_line": 243,
       "to_symbol_id": "fs/promises::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/server/src/routes/agents.ts",
-      "from_line": 229,
+      "from_line": 244,
       "to_symbol_id": "crypto::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/server/src/routes/agents.ts",
-      "from_line": 346,
+      "from_line": 361,
       "to_symbol_id": "gray-matter::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/server/src/routes/agents.ts",
-      "from_line": 347,
+      "from_line": 362,
       "to_symbol_id": "fs/promises::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
@@ -653,6 +856,13 @@
       "from_line": 5,
       "to_symbol_id": "gray-matter::__unresolved__",
       "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "dashboard/server/src/routes/instructions.ts",
+      "from_line": 7,
+      "to_symbol_id": "dashboard/server/src/db/queries.ts::__module__",
+      "to_file": "dashboard/server/src/db/queries.ts",
       "reference_kind": "import"
     },
     {
@@ -943,6 +1153,20 @@
       "reference_kind": "import"
     },
     {
+      "from_file": "dashboard/server/src/routes/skills.ts",
+      "from_line": 1,
+      "to_symbol_id": "express::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "dashboard/server/src/routes/skills.ts",
+      "from_line": 2,
+      "to_symbol_id": "dashboard/server/src/db/queries.ts::__module__",
+      "to_file": "dashboard/server/src/db/queries.ts",
+      "reference_kind": "import"
+    },
+    {
       "from_file": "dashboard/server/src/routes/workspaces-display-name.test.ts",
       "from_line": 1,
       "to_symbol_id": "vitest::__unresolved__",
@@ -1134,76 +1358,90 @@
     {
       "from_file": "dashboard/src/App.tsx",
       "from_line": 8,
+      "to_symbol_id": "dashboard/src/pages/DbEntityEditorPage.tsx::__module__",
+      "to_file": "dashboard/src/pages/DbEntityEditorPage.tsx",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "dashboard/src/App.tsx",
+      "from_line": 9,
+      "to_symbol_id": "dashboard/src/pages/SkillsPage.tsx::__module__",
+      "to_file": "dashboard/src/pages/SkillsPage.tsx",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "dashboard/src/App.tsx",
+      "from_line": 10,
       "to_symbol_id": "dashboard/src/pages/MetricsPage.tsx::__module__",
       "to_file": "dashboard/src/pages/MetricsPage.tsx",
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/src/App.tsx",
-      "from_line": 9,
+      "from_line": 11,
       "to_symbol_id": "dashboard/src/pages/PromptsPage.tsx::__module__",
       "to_file": "dashboard/src/pages/PromptsPage.tsx",
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/src/App.tsx",
-      "from_line": 10,
+      "from_line": 12,
       "to_symbol_id": "dashboard/src/pages/InstructionsPage.tsx::__module__",
       "to_file": "dashboard/src/pages/InstructionsPage.tsx",
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/src/App.tsx",
-      "from_line": 11,
+      "from_line": 13,
       "to_symbol_id": "dashboard/src/pages/ContextFilesPage.tsx::__module__",
       "to_file": "dashboard/src/pages/ContextFilesPage.tsx",
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/src/App.tsx",
-      "from_line": 12,
+      "from_line": 14,
       "to_symbol_id": "dashboard/src/pages/DataRootPage.tsx::__module__",
       "to_file": "dashboard/src/pages/DataRootPage.tsx",
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/src/App.tsx",
-      "from_line": 13,
+      "from_line": 15,
       "to_symbol_id": "dashboard/src/pages/WorkspaceStatusPage.tsx::__module__",
       "to_file": "dashboard/src/pages/WorkspaceStatusPage.tsx",
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/src/App.tsx",
-      "from_line": 14,
+      "from_line": 16,
       "to_symbol_id": "dashboard/src/pages/PlanBuildScriptsPage.tsx::__module__",
       "to_file": "dashboard/src/pages/PlanBuildScriptsPage.tsx",
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/src/App.tsx",
-      "from_line": 15,
+      "from_line": 17,
       "to_symbol_id": "dashboard/src/pages/ProgramDetailPage.tsx::__module__",
       "to_file": "dashboard/src/pages/ProgramDetailPage.tsx",
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/src/App.tsx",
-      "from_line": 16,
+      "from_line": 18,
       "to_symbol_id": "dashboard/src/hooks/useMCPEvents.ts::__module__",
       "to_file": "dashboard/src/hooks/useMCPEvents.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/src/App.tsx",
-      "from_line": 17,
+      "from_line": 19,
       "to_symbol_id": "dashboard/src/components/common/Toast.tsx::__module__",
       "to_file": "dashboard/src/components/common/Toast.tsx",
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/src/App.tsx",
-      "from_line": 18,
+      "from_line": 20,
       "to_symbol_id": "dashboard/src/components/common/ErrorBoundary.tsx::__module__",
       "to_file": "dashboard/src/components/common/ErrorBoundary.tsx",
       "reference_kind": "import"
@@ -3233,21 +3471,21 @@
     },
     {
       "from_file": "dashboard/src/components/layout/Sidebar.tsx",
-      "from_line": 13,
+      "from_line": 14,
       "to_symbol_id": "@/utils/cn::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/src/components/layout/Sidebar.tsx",
-      "from_line": 14,
+      "from_line": 15,
       "to_symbol_id": "dashboard/src/components/workspace/HealthIndicator.tsx::__module__",
       "to_file": "dashboard/src/components/workspace/HealthIndicator.tsx",
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/src/components/layout/Sidebar.tsx",
-      "from_line": 15,
+      "from_line": 16,
       "to_symbol_id": "@/types::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
@@ -5676,49 +5914,42 @@
     },
     {
       "from_file": "dashboard/src/pages/AgentsPage.tsx",
-      "from_line": 4,
-      "to_symbol_id": "lucide-react::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "dashboard/src/pages/AgentsPage.tsx",
-      "from_line": 5,
+      "from_line": 17,
       "to_symbol_id": "@/components/common/Badge::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/src/pages/AgentsPage.tsx",
-      "from_line": 6,
+      "from_line": 18,
       "to_symbol_id": "@/components/agent/CreateAgentForm::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/src/pages/AgentsPage.tsx",
-      "from_line": 7,
+      "from_line": 19,
       "to_symbol_id": "@/utils/colors::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/src/pages/AgentsPage.tsx",
-      "from_line": 8,
+      "from_line": 20,
       "to_symbol_id": "@/utils/formatters::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/src/pages/AgentsPage.tsx",
-      "from_line": 9,
+      "from_line": 21,
       "to_symbol_id": "@/utils/cn::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/src/pages/AgentsPage.tsx",
-      "from_line": 10,
+      "from_line": 22,
       "to_symbol_id": "@/types::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
@@ -5815,6 +6046,34 @@
       "reference_kind": "import"
     },
     {
+      "from_file": "dashboard/src/pages/DbEntityEditorPage.tsx",
+      "from_line": 1,
+      "to_symbol_id": "react::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "dashboard/src/pages/DbEntityEditorPage.tsx",
+      "from_line": 2,
+      "to_symbol_id": "react-router-dom::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "dashboard/src/pages/DbEntityEditorPage.tsx",
+      "from_line": 3,
+      "to_symbol_id": "@tanstack/react-query::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "dashboard/src/pages/DbEntityEditorPage.tsx",
+      "from_line": 14,
+      "to_symbol_id": "@/utils/cn::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
       "from_file": "dashboard/src/pages/InstructionsPage.tsx",
       "from_line": 1,
       "to_symbol_id": "react::__unresolved__",
@@ -5831,27 +6090,27 @@
     {
       "from_file": "dashboard/src/pages/InstructionsPage.tsx",
       "from_line": 3,
-      "to_symbol_id": "lucide-react::__unresolved__",
+      "to_symbol_id": "react-router-dom::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/src/pages/InstructionsPage.tsx",
-      "from_line": 4,
+      "from_line": 16,
       "to_symbol_id": "@/components/common/Badge::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/src/pages/InstructionsPage.tsx",
-      "from_line": 5,
+      "from_line": 17,
       "to_symbol_id": "@/utils/cn::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "dashboard/src/pages/InstructionsPage.tsx",
-      "from_line": 6,
+      "from_line": 18,
       "to_symbol_id": "@/utils/formatters::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
@@ -6321,6 +6580,41 @@
     {
       "from_file": "dashboard/src/pages/PromptsPage.tsx",
       "from_line": 6,
+      "to_symbol_id": "@/utils/formatters::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "dashboard/src/pages/SkillsPage.tsx",
+      "from_line": 1,
+      "to_symbol_id": "react::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "dashboard/src/pages/SkillsPage.tsx",
+      "from_line": 2,
+      "to_symbol_id": "@tanstack/react-query::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "dashboard/src/pages/SkillsPage.tsx",
+      "from_line": 3,
+      "to_symbol_id": "react-router-dom::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "dashboard/src/pages/SkillsPage.tsx",
+      "from_line": 14,
+      "to_symbol_id": "@/components/common/Badge::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "dashboard/src/pages/SkillsPage.tsx",
+      "from_line": 15,
       "to_symbol_id": "@/utils/formatters::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
@@ -12717,6 +13011,55 @@
       "reference_kind": "import"
     },
     {
+      "from_file": "server/src/__tests__/tools/workspace-db-sync.test.ts",
+      "from_line": 1,
+      "to_symbol_id": "vitest::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/__tests__/tools/workspace-db-sync.test.ts",
+      "from_line": 2,
+      "to_symbol_id": "node:fs::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/__tests__/tools/workspace-db-sync.test.ts",
+      "from_line": 3,
+      "to_symbol_id": "node:path::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/__tests__/tools/workspace-db-sync.test.ts",
+      "from_line": 4,
+      "to_symbol_id": "node:os::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/__tests__/tools/workspace-db-sync.test.ts",
+      "from_line": 5,
+      "to_symbol_id": "server/src/tools/workspace-db-sync.ts::__module__",
+      "to_file": "server/src/tools/workspace-db-sync.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/__tests__/tools/workspace-db-sync.test.ts",
+      "from_line": 6,
+      "to_symbol_id": "server/src/db/agent-definition-db.ts::__module__",
+      "to_file": "server/src/db/agent-definition-db.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/__tests__/tools/workspace-db-sync.test.ts",
+      "from_line": 7,
+      "to_symbol_id": "server/src/db/instruction-db.ts::__module__",
+      "to_file": "server/src/db/instruction-db.ts",
+      "reference_kind": "import"
+    },
+    {
       "from_file": "server/src/__tests__/tools/workspace-link.test.ts",
       "from_line": 1,
       "to_symbol_id": "vitest::__unresolved__",
@@ -13221,6 +13564,62 @@
       "reference_kind": "import"
     },
     {
+      "from_file": "server/src/cartography/adapters/__tests__/rustBridge.parity.test.ts",
+      "from_line": 1,
+      "to_symbol_id": "node:fs::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/cartography/adapters/__tests__/rustBridge.parity.test.ts",
+      "from_line": 2,
+      "to_symbol_id": "vitest::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/cartography/adapters/__tests__/rustBridge.parity.test.ts",
+      "from_line": 3,
+      "to_symbol_id": "server/src/cartography/adapters/rustBridge.ts::__module__",
+      "to_file": "server/src/cartography/adapters/rustBridge.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/cartography/adapters/__tests__/scanCache.test.ts",
+      "from_line": 1,
+      "to_symbol_id": "vitest::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/cartography/adapters/__tests__/scanCache.test.ts",
+      "from_line": 2,
+      "to_symbol_id": "better-sqlite3::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/cartography/adapters/__tests__/scanCache.test.ts",
+      "from_line": 3,
+      "to_symbol_id": "server/src/cartography/adapters/scanCache.ts::__module__",
+      "to_file": "server/src/cartography/adapters/scanCache.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/cartography/adapters/bridgeFactory.ts",
+      "from_line": 1,
+      "to_symbol_id": "node:fs::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/cartography/adapters/bridgeFactory.ts",
+      "from_line": 2,
+      "to_symbol_id": "server/src/cartography/adapters/rustBridge.ts::__module__",
+      "to_file": "server/src/cartography/adapters/rustBridge.ts",
+      "reference_kind": "import"
+    },
+    {
       "from_file": "server/src/cartography/adapters/pythonCoreAdapter.ts",
       "from_line": 16,
       "to_symbol_id": "node:crypto::__unresolved__",
@@ -13229,9 +13628,121 @@
     },
     {
       "from_file": "server/src/cartography/adapters/pythonCoreAdapter.ts",
+      "from_line": 17,
+      "to_symbol_id": "node:child_process::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/cartography/adapters/pythonCoreAdapter.ts",
       "from_line": 18,
+      "to_symbol_id": "node:util::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/cartography/adapters/pythonCoreAdapter.ts",
+      "from_line": 20,
       "to_symbol_id": "server/src/cartography/runtime/pythonBridge.ts::__module__",
       "to_file": "server/src/cartography/runtime/pythonBridge.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/cartography/adapters/pythonCoreAdapter.ts",
+      "from_line": 21,
+      "to_symbol_id": "server/src/cartography/adapters/scanCache.ts::__module__",
+      "to_file": "server/src/cartography/adapters/scanCache.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/cartography/adapters/rustBridge.ts",
+      "from_line": 1,
+      "to_symbol_id": "node:child_process::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/cartography/adapters/rustBridge.ts",
+      "from_line": 2,
+      "to_symbol_id": "node:fs::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/cartography/adapters/rustBridge.ts",
+      "from_line": 3,
+      "to_symbol_id": "node:path::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/cartography/adapters/rustBridge.ts",
+      "from_line": 4,
+      "to_symbol_id": "node:url::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/cartography/adapters/scanCache.ts",
+      "from_line": 9,
+      "to_symbol_id": "better-sqlite3::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/cartography/adapters/scanCache.ts",
+      "from_line": 10,
+      "to_symbol_id": "node:fs::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/cartography/adapters/scanCache.ts",
+      "from_line": 11,
+      "to_symbol_id": "node:path::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/cartography/bench/cacheWarmBench.ts",
+      "from_line": 10,
+      "to_symbol_id": "node:fs::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/cartography/bench/cacheWarmBench.ts",
+      "from_line": 11,
+      "to_symbol_id": "node:path::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/cartography/bench/cacheWarmBench.ts",
+      "from_line": 12,
+      "to_symbol_id": "node:url::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/cartography/bench/cacheWarmBench.ts",
+      "from_line": 13,
+      "to_symbol_id": "better-sqlite3::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/cartography/bench/cacheWarmBench.ts",
+      "from_line": 14,
+      "to_symbol_id": "server/src/cartography/adapters/scanCache.ts::__module__",
+      "to_file": "server/src/cartography/adapters/scanCache.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/cartography/bench/cacheWarmBench.ts",
+      "from_line": 15,
+      "to_symbol_id": "server/src/cartography/adapters/rustBridge.ts::__module__",
+      "to_file": "server/src/cartography/adapters/rustBridge.ts",
       "reference_kind": "import"
     },
     {
@@ -14349,21 +14860,21 @@
     },
     {
       "from_file": "server/src/index.ts",
-      "from_line": 857,
+      "from_line": 858,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/index.ts",
-      "from_line": 865,
+      "from_line": 866,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/index.ts",
-      "from_line": 872,
+      "from_line": 873,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
@@ -16156,27 +16667,34 @@
     {
       "from_file": "server/src/tools/consolidated/memory_workspace.ts",
       "from_line": 23,
+      "to_symbol_id": "server/src/tools/workspace-db-sync.ts::__module__",
+      "to_file": "server/src/tools/workspace-db-sync.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/tools/consolidated/memory_workspace.ts",
+      "from_line": 24,
       "to_symbol_id": "server/src/storage/db-store.ts::__module__",
       "to_file": "server/src/storage/db-store.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_workspace.ts",
-      "from_line": 24,
+      "from_line": 25,
       "to_symbol_id": "server/src/events/event-emitter.ts::__module__",
       "to_file": "server/src/events/event-emitter.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_workspace.ts",
-      "from_line": 746,
+      "from_line": 748,
       "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/tools/consolidated/memory_workspace.ts",
-      "from_line": 747,
+      "from_line": 749,
       "to_symbol_id": "path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
@@ -17757,6 +18275,34 @@
       "reference_kind": "import"
     },
     {
+      "from_file": "server/src/tools/workspace-db-sync.ts",
+      "from_line": 17,
+      "to_symbol_id": "node:fs::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/tools/workspace-db-sync.ts",
+      "from_line": 18,
+      "to_symbol_id": "node:path::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/tools/workspace-db-sync.ts",
+      "from_line": 19,
+      "to_symbol_id": "server/src/db/agent-definition-db.ts::__module__",
+      "to_file": "server/src/db/agent-definition-db.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/tools/workspace-db-sync.ts",
+      "from_line": 20,
+      "to_symbol_id": "server/src/db/instruction-db.ts::__module__",
+      "to_file": "server/src/db/instruction-db.ts",
+      "reference_kind": "import"
+    },
+    {
       "from_file": "server/src/tools/workspace.tools.ts",
       "from_line": 5,
       "to_symbol_id": "node:fs::__unresolved__",
@@ -17990,20 +18536,27 @@
     {
       "from_file": "server/src/transport/http-transport.ts",
       "from_line": 38,
+      "to_symbol_id": "server/src/db/seed.ts::__module__",
+      "to_file": "server/src/db/seed.ts",
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "server/src/transport/http-transport.ts",
+      "from_line": 39,
       "to_symbol_id": "server/src/db/query-helpers.ts::__module__",
       "to_file": "server/src/db/query-helpers.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/transport/http-transport.ts",
-      "from_line": 39,
+      "from_line": 40,
       "to_symbol_id": "server/src/tools/session-live-store.ts::__module__",
       "to_file": "server/src/tools/session-live-store.ts",
       "reference_kind": "import"
     },
     {
       "from_file": "server/src/transport/http-transport.ts",
-      "from_line": 40,
+      "from_line": 41,
       "to_symbol_id": "server/src/db/index.ts::__module__",
       "to_file": "server/src/db/index.ts",
       "reference_kind": "import"
@@ -50160,55 +50713,6 @@
       "reference_kind": "import"
     },
     {
-      "from_file": "vscode-extension/src/test/chat/ChatContextCommands.test.ts",
-      "from_line": 1,
-      "to_symbol_id": "assert::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/chat/ChatContextCommands.test.ts",
-      "from_line": 59,
-      "to_symbol_id": "../../chat/ChatContextCommands::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/chat/ChatContextCommands.test.ts",
-      "from_line": 63,
-      "to_symbol_id": "../../chat/ChatContextCommands::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/chat/ChatMiscCommands.test.ts",
-      "from_line": 1,
-      "to_symbol_id": "assert::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/chat/ChatMiscCommands.test.ts",
-      "from_line": 48,
-      "to_symbol_id": "../../chat/ChatMiscCommands::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/chat/ChatMiscCommands.test.ts",
-      "from_line": 49,
-      "to_symbol_id": "../../chat/ChatMiscCommands::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/chat/ChatMiscCommands.test.ts",
-      "from_line": 53,
-      "to_symbol_id": "../../chat/ChatMiscCommands::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
       "from_file": "vscode-extension/src/test/chat/ChatParticipant.test.ts",
       "from_line": 8,
       "to_symbol_id": "assert::__unresolved__",
@@ -50227,97 +50731,6 @@
       "from_line": 21,
       "to_symbol_id": "vscode-extension/src/chat::__module__",
       "to_file": "vscode-extension/src/chat",
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/chat/ChatPlanCommands.test.ts",
-      "from_line": 1,
-      "to_symbol_id": "assert::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/chat/ChatPlanCommands.test.ts",
-      "from_line": 109,
-      "to_symbol_id": "../../chat/ChatPlanCommands::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/chat/ChatPlanCommands.test.ts",
-      "from_line": 113,
-      "to_symbol_id": "../../chat/ChatPlanCommands::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/chat/ChatResponseHelpers.test.ts",
-      "from_line": 1,
-      "to_symbol_id": "assert::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/chat/ChatResponseHelpers.test.ts",
-      "from_line": 2,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/chat/ContextToolForwarding.test.ts",
-      "from_line": 1,
-      "to_symbol_id": "vitest::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/chat/ContextToolForwarding.test.ts",
-      "from_line": 33,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/chat/ContextToolForwarding.test.ts",
-      "from_line": 34,
-      "to_symbol_id": "../../chat/tools/context-tool::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/chat/KnowledgeCommandHandler.test.ts",
-      "from_line": 11,
-      "to_symbol_id": "assert::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/chat/KnowledgeCommandHandler.test.ts",
-      "from_line": 56,
-      "to_symbol_id": "../../chat/KnowledgeCommandHandler::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/chat/KnowledgeCommandHandler.test.ts",
-      "from_line": 60,
-      "to_symbol_id": "../../chat/KnowledgeCommandHandler::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/chat/McpBridge.test.ts",
-      "from_line": 5,
-      "to_symbol_id": "assert::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/chat/McpBridge.test.ts",
-      "from_line": 6,
-      "to_symbol_id": "../../chat/McpBridge::__unresolved__",
-      "to_file": null,
       "reference_kind": "import"
     },
     {
@@ -50346,13 +50759,6 @@
       "from_line": 32,
       "to_symbol_id": "vscode-extension/src/chat::__module__",
       "to_file": "vscode-extension/src/chat",
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/chat/workspaceRegistration.test.ts",
-      "from_line": 1,
-      "to_symbol_id": "assert::__unresolved__",
-      "to_file": null,
       "reference_kind": "import"
     },
     {
@@ -50561,13 +50967,20 @@
     {
       "from_file": "vscode-extension/src/test/replay/core/MigrationResolver.ts",
       "from_line": 1,
-      "to_symbol_id": "fs/promises::__unresolved__",
+      "to_symbol_id": "fs::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
     },
     {
       "from_file": "vscode-extension/src/test/replay/core/MigrationResolver.ts",
       "from_line": 2,
+      "to_symbol_id": "fs/promises::__unresolved__",
+      "to_file": null,
+      "reference_kind": "import"
+    },
+    {
+      "from_file": "vscode-extension/src/test/replay/core/MigrationResolver.ts",
+      "from_line": 3,
       "to_symbol_id": "path::__unresolved__",
       "to_file": null,
       "reference_kind": "import"
@@ -50951,27 +51364,6 @@
       "reference_kind": "import"
     },
     {
-      "from_file": "vscode-extension/src/test/suite/chat-followups-host.test.ts",
-      "from_line": 1,
-      "to_symbol_id": "assert::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/suite/chat-followups-host.test.ts",
-      "from_line": 2,
-      "to_symbol_id": "vscode::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/suite/chat-followups-host.test.ts",
-      "from_line": 3,
-      "to_symbol_id": "vscode-extension/src/chat::__module__",
-      "to_file": "vscode-extension/src/chat",
-      "reference_kind": "import"
-    },
-    {
       "from_file": "vscode-extension/src/test/suite/chat-phase1-buttons.test.ts",
       "from_line": 1,
       "to_symbol_id": "../chat/ChatPlanCommands.test::__unresolved__",
@@ -51319,20 +51711,6 @@
       "from_line": 3,
       "to_symbol_id": "vscode-extension/src/chat/tools/spawn-agent-tool.ts::__module__",
       "to_file": "vscode-extension/src/chat/tools/spawn-agent-tool.ts",
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/suite/spawn-serialization.test.ts",
-      "from_line": 7,
-      "to_symbol_id": "assert::__unresolved__",
-      "to_file": null,
-      "reference_kind": "import"
-    },
-    {
-      "from_file": "vscode-extension/src/test/suite/spawn-serialization.test.ts",
-      "from_line": 17,
-      "to_symbol_id": "../../chat/orchestration/spawn-reason-codes::__unresolved__",
-      "to_file": null,
       "reference_kind": "import"
     },
     {

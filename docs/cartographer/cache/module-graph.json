@@ -1,11 +1,22 @@
 {
-  "generated_at": "2026-03-21T15:29:32.255Z",
+  "generated_at": "2026-03-22T03:40:26.123Z",
   "workspace_id": "project-memory-mcp-40f6678f5a9b",
   "partial": false,
   "nodes": [
     ".tmp/DashboardViewProvider.head.ts",
     "assets/droplet-animation2.jsx",
     "backup/DashboardViewProvider.before-restore.ts",
+    "crates/cartographer-core/src/lib.rs",
+    "crates/cartographer-core/src/output/mod.rs",
+    "crates/cartographer-core/src/parser/mod.rs",
+    "crates/cartographer-core/src/parser/python.rs",
+    "crates/cartographer-core/src/parser/rust_lang.rs",
+    "crates/cartographer-core/src/parser/sql.rs",
+    "crates/cartographer-core/src/parser/typescript.rs",
+    "crates/cartographer-core/src/scanner/engine.rs",
+    "crates/cartographer-core/src/scanner/lang.rs",
+    "crates/cartographer-core/src/scanner/mod.rs",
+    "crates/cartographer-core/src/scanner/walker.rs",
     "dashboard/e2e/agents.spec.ts",
     "dashboard/e2e/build-scripts.spec.ts",
     "dashboard/e2e/dashboard.spec.ts",
@@ -38,6 +49,7 @@
     "dashboard/server/src/routes/runtime.test.ts",
     "dashboard/server/src/routes/runtime.ts",
     "dashboard/server/src/routes/search.ts",
+    "dashboard/server/src/routes/skills.ts",
     "dashboard/server/src/routes/workspaces-display-name.test.ts",
     "dashboard/server/src/routes/workspaces.ts",
     "dashboard/server/src/services/agentScanner.ts",
@@ -175,12 +187,14 @@
     "dashboard/src/pages/ContextFilesPage.tsx",
     "dashboard/src/pages/DashboardPage.tsx",
     "dashboard/src/pages/DataRootPage.tsx",
+    "dashboard/src/pages/DbEntityEditorPage.tsx",
     "dashboard/src/pages/InstructionsPage.tsx",
     "dashboard/src/pages/MetricsPage.tsx",
     "dashboard/src/pages/PlanBuildScriptsPage.tsx",
     "dashboard/src/pages/PlanDetailPage.tsx",
     "dashboard/src/pages/ProgramDetailPage.tsx",
     "dashboard/src/pages/PromptsPage.tsx",
+    "dashboard/src/pages/SkillsPage.tsx",
     "dashboard/src/pages/WorkspacePage.tsx",
     "dashboard/src/pages/WorkspaceStatusPage.tsx",
     "dashboard/src/store/index.ts",
@@ -421,6 +435,7 @@
     "server/src/__tests__/tools/workspace-context-autowrap.test.ts",
     "server/src/__tests__/tools/workspace-context-crossmachine.test.ts",
     "server/src/__tests__/tools/workspace-context-seed.test.ts",
+    "server/src/__tests__/tools/workspace-db-sync.test.ts",
     "server/src/__tests__/tools/workspace-link.test.ts",
     "server/src/__tests__/tools/workspace-register-guard.test.ts",
     "server/src/__tests__/transport/container-alert-listener.test.ts",
@@ -436,7 +451,13 @@
     "server/src/__tests__/utils/compact-plan-state.test.ts",
     "server/src/__tests__/utils/important-response-context.test.ts",
     "server/src/__tests__/utils/workspace-context-summary.test.ts",
+    "server/src/cartography/adapters/__tests__/rustBridge.parity.test.ts",
+    "server/src/cartography/adapters/__tests__/scanCache.test.ts",
+    "server/src/cartography/adapters/bridgeFactory.ts",
     "server/src/cartography/adapters/pythonCoreAdapter.ts",
+    "server/src/cartography/adapters/rustBridge.ts",
+    "server/src/cartography/adapters/scanCache.ts",
+    "server/src/cartography/bench/cacheWarmBench.ts",
     "server/src/cartography/contracts/db-map-types.ts",
     "server/src/cartography/contracts/dependency-types.ts",
     "server/src/cartography/contracts/normalizer.ts",
@@ -597,6 +618,7 @@
     "server/src/tools/terminal.tools.ts",
     "server/src/tools/workspace-context-manifest.ts",
     "server/src/tools/workspace-context.tools.ts",
+    "server/src/tools/workspace-db-sync.ts",
     "server/src/tools/workspace.tools.ts",
     "server/src/transport/container-alert-listener.ts",
     "server/src/transport/container-startup-alert.ts",
@@ -1002,16 +1024,8 @@
     "vscode-extension/src/supervisor/ready.ts",
     "vscode-extension/src/supervisor/settings.ts",
     "vscode-extension/src/supervisor/window-id.ts",
-    "vscode-extension/src/test/chat/ChatContextCommands.test.ts",
-    "vscode-extension/src/test/chat/ChatMiscCommands.test.ts",
     "vscode-extension/src/test/chat/ChatParticipant.test.ts",
-    "vscode-extension/src/test/chat/ChatPlanCommands.test.ts",
-    "vscode-extension/src/test/chat/ChatResponseHelpers.test.ts",
-    "vscode-extension/src/test/chat/ContextToolForwarding.test.ts",
-    "vscode-extension/src/test/chat/KnowledgeCommandHandler.test.ts",
-    "vscode-extension/src/test/chat/McpBridge.test.ts",
     "vscode-extension/src/test/chat/ToolProvider.test.ts",
-    "vscode-extension/src/test/chat/workspaceRegistration.test.ts",
     "vscode-extension/src/test/replay/cli/replay-cli.ts",
     "vscode-extension/src/test/replay/core/BaselinePromotion.ts",
     "vscode-extension/src/test/replay/core/Comparator.ts",
@@ -1035,7 +1049,6 @@
     "vscode-extension/src/test/suite/DefaultDeployer.test.ts",
     "vscode-extension/src/test/suite/NotificationService.lifecycle.test.ts",
     "vscode-extension/src/test/suite/buildScriptCwd.test.ts",
-    "vscode-extension/src/test/suite/chat-followups-host.test.ts",
     "vscode-extension/src/test/suite/chat-phase1-buttons.test.ts",
     "vscode-extension/src/test/suite/dashboard-client-helpers.test.ts",
     "vscode-extension/src/test/suite/dashboard-plan-selection-routing.test.ts",
@@ -1048,7 +1061,6 @@
     "vscode-extension/src/test/suite/replay-harness-core.test.ts",
     "vscode-extension/src/test/suite/skillsSourceRoot.test.ts",
     "vscode-extension/src/test/suite/spawn-agent-tool.test.ts",
-    "vscode-extension/src/test/suite/spawn-serialization.test.ts",
     "vscode-extension/src/test/suite/store-chat-details-participant.test.ts",
     "vscode-extension/src/test/suite/workspace-identity.test.ts",
     "vscode-extension/src/test/supervisor/activation.test.ts",
@@ -1077,6 +1089,56 @@
     "vscode-extension/vitest.config.ts"
   ],
   "edges": [
+    {
+      "from": "crates/cartographer-core/src/lib.rs",
+      "to": "crates/cartographer-core/src/output/mod.rs",
+      "kind": "import"
+    },
+    {
+      "from": "crates/cartographer-core/src/lib.rs",
+      "to": "crates/cartographer-core/src/parser/mod.rs",
+      "kind": "import"
+    },
+    {
+      "from": "crates/cartographer-core/src/lib.rs",
+      "to": "crates/cartographer-core/src/scanner/mod.rs",
+      "kind": "import"
+    },
+    {
+      "from": "crates/cartographer-core/src/parser/mod.rs",
+      "to": "crates/cartographer-core/src/parser/python.rs",
+      "kind": "import"
+    },
+    {
+      "from": "crates/cartographer-core/src/parser/mod.rs",
+      "to": "crates/cartographer-core/src/parser/rust_lang.rs",
+      "kind": "import"
+    },
+    {
+      "from": "crates/cartographer-core/src/parser/mod.rs",
+      "to": "crates/cartographer-core/src/parser/sql.rs",
+      "kind": "import"
+    },
+    {
+      "from": "crates/cartographer-core/src/parser/mod.rs",
+      "to": "crates/cartographer-core/src/parser/typescript.rs",
+      "kind": "import"
+    },
+    {
+      "from": "crates/cartographer-core/src/scanner/mod.rs",
+      "to": "crates/cartographer-core/src/scanner/engine.rs",
+      "kind": "import"
+    },
+    {
+      "from": "crates/cartographer-core/src/scanner/mod.rs",
+      "to": "crates/cartographer-core/src/scanner/lang.rs",
+      "kind": "import"
+    },
+    {
+      "from": "crates/cartographer-core/src/scanner/mod.rs",
+      "to": "crates/cartographer-core/src/scanner/walker.rs",
+      "kind": "import"
+    },
     {
       "from": "dashboard/e2e/agents.spec.ts",
       "to": "dashboard/e2e/fixtures.ts",
@@ -1194,6 +1256,11 @@
     },
     {
       "from": "dashboard/server/src/index.ts",
+      "to": "dashboard/server/src/routes/skills.ts",
+      "kind": "import"
+    },
+    {
+      "from": "dashboard/server/src/index.ts",
       "to": "dashboard/server/src/routes/workspaces.ts",
       "kind": "import"
     },
@@ -1243,6 +1310,11 @@
       "kind": "import"
     },
     {
+      "from": "dashboard/server/src/routes/instructions.ts",
+      "to": "dashboard/server/src/db/queries.ts",
+      "kind": "import"
+    },
+    {
       "from": "dashboard/server/src/routes/knowledge.ts",
       "to": "dashboard/server/src/db/queries.ts",
       "kind": "import"
@@ -1279,6 +1351,11 @@
     },
     {
       "from": "dashboard/server/src/routes/search.ts",
+      "to": "dashboard/server/src/db/queries.ts",
+      "kind": "import"
+    },
+    {
+      "from": "dashboard/server/src/routes/skills.ts",
       "to": "dashboard/server/src/db/queries.ts",
       "kind": "import"
     },
@@ -1364,6 +1441,11 @@
     },
     {
       "from": "dashboard/src/App.tsx",
+      "to": "dashboard/src/pages/DbEntityEditorPage.tsx",
+      "kind": "import"
+    },
+    {
+      "from": "dashboard/src/App.tsx",
       "to": "dashboard/src/pages/InstructionsPage.tsx",
       "kind": "import"
     },
@@ -1390,6 +1472,11 @@
     {
       "from": "dashboard/src/App.tsx",
       "to": "dashboard/src/pages/PromptsPage.tsx",
+      "kind": "import"
+    },
+    {
+      "from": "dashboard/src/App.tsx",
+      "to": "dashboard/src/pages/SkillsPage.tsx",
       "kind": "import"
     },
     {
@@ -4323,6 +4410,21 @@
       "kind": "import"
     },
     {
+      "from": "server/src/__tests__/tools/workspace-db-sync.test.ts",
+      "to": "server/src/db/agent-definition-db.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/__tests__/tools/workspace-db-sync.test.ts",
+      "to": "server/src/db/instruction-db.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/__tests__/tools/workspace-db-sync.test.ts",
+      "to": "server/src/tools/workspace-db-sync.ts",
+      "kind": "import"
+    },
+    {
       "from": "server/src/__tests__/tools/workspace-link.test.ts",
       "to": "server/src/storage/db-store.ts",
       "kind": "import"
@@ -4533,8 +4635,38 @@
       "kind": "import"
     },
     {
+      "from": "server/src/cartography/adapters/__tests__/rustBridge.parity.test.ts",
+      "to": "server/src/cartography/adapters/rustBridge.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/cartography/adapters/__tests__/scanCache.test.ts",
+      "to": "server/src/cartography/adapters/scanCache.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/cartography/adapters/bridgeFactory.ts",
+      "to": "server/src/cartography/adapters/rustBridge.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/cartography/adapters/pythonCoreAdapter.ts",
+      "to": "server/src/cartography/adapters/scanCache.ts",
+      "kind": "import"
+    },
+    {
       "from": "server/src/cartography/adapters/pythonCoreAdapter.ts",
       "to": "server/src/cartography/runtime/pythonBridge.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/cartography/bench/cacheWarmBench.ts",
+      "to": "server/src/cartography/adapters/rustBridge.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/cartography/bench/cacheWarmBench.ts",
+      "to": "server/src/cartography/adapters/scanCache.ts",
       "kind": "import"
     },
     {
@@ -6144,6 +6276,11 @@
     },
     {
       "from": "server/src/tools/consolidated/memory_workspace.ts",
+      "to": "server/src/tools/workspace-db-sync.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/tools/consolidated/memory_workspace.ts",
       "to": "server/src/tools/workspace.tools.ts",
       "kind": "import"
     },
@@ -7003,6 +7140,16 @@
       "kind": "import"
     },
     {
+      "from": "server/src/tools/workspace-db-sync.ts",
+      "to": "server/src/db/agent-definition-db.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/tools/workspace-db-sync.ts",
+      "to": "server/src/db/instruction-db.ts",
+      "kind": "import"
+    },
+    {
       "from": "server/src/tools/workspace.tools.ts",
       "to": "server/src/indexing/workspace-indexer.ts",
       "kind": "import"
@@ -7065,6 +7212,11 @@
     {
       "from": "server/src/transport/http-transport.ts",
       "to": "server/src/db/query-helpers.ts",
+      "kind": "import"
+    },
+    {
+      "from": "server/src/transport/http-transport.ts",
+      "to": "server/src/db/seed.ts",
       "kind": "import"
     },
     {
@@ -8950,11 +9102,6 @@
     {
       "from": "vscode-extension/src/test/suite/buildScriptCwd.test.ts",
       "to": "vscode-extension/src/utils/buildScriptCwd.ts",
-      "kind": "import"
-    },
-    {
-      "from": "vscode-extension/src/test/suite/chat-followups-host.test.ts",
-      "to": "vscode-extension/src/chat",
       "kind": "import"
     },
     {

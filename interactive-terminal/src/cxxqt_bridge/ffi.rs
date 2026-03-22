@@ -60,6 +60,14 @@ pub mod ffi {
             provider: QString,
         );
 
+        /// Emitted when the pty-host process disconnects or crashes unexpectedly.
+        ///
+        /// `message` — human-readable reason (e.g. "pty-host process disconnected").
+        /// `log_path` — absolute path to the crash log file where the full event was written.
+        #[qsignal]
+        #[cxx_name = "crashAlert"]
+        fn crash_alert(self: Pin<&mut TerminalApp>, message: QString, log_path: QString);
+
         #[qinvokable]
         #[cxx_name = "approveCommand"]
         fn approve_command(self: Pin<&mut TerminalApp>, id: QString, autonomy_mode: QString);

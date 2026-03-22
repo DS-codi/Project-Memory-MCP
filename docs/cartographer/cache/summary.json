@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-03-21T15:29:16.198Z",
+  "generated_at": "2026-03-22T03:40:08.364Z",
   "workspace_id": "project-memory-mcp-40f6678f5a9b",
   "workspace_path": "c:\\Users\\User\\Project_Memory_MCP\\Project-Memory-MCP",
-  "elapsed_ms": 50301,
+  "elapsed_ms": 20770,
   "engine": "code_cartography",
-  "file_count": 1359,
-  "module_count": 1072,
-  "symbol_count": 36164,
-  "dependency_edge_count": 1611,
-  "entry_point_count": 540,
+  "file_count": 1373,
+  "module_count": 1084,
+  "symbol_count": 36148,
+  "dependency_edge_count": 1638,
+  "entry_point_count": 535,
   "architecture_layers": [],
   "has_cycles": true,
   "language_count": 6,
@@ -23,7 +23,7 @@
     },
     {
       "language": "rust",
-      "file_count": 131
+      "file_count": 144
     },
     {
       "language": "shell",
@@ -35,7 +35,7 @@
     },
     {
       "language": "typescript",
-      "file_count": 709
+      "file_count": 710
     }
   ]
 }

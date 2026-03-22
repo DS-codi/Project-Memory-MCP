@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-03-21T15:29:32.255Z",
+  "generated_at": "2026-03-22T03:40:26.123Z",
   "workspace_id": "project-memory-mcp-40f6678f5a9b",
   "partial": false,
-  "total": 1359,
+  "total": 1373,
   "files": [
     {
       "path": ".tmp/DashboardViewProvider.head.ts",
@@ -109,6 +109,110 @@
       "parse_error": false
     },
     {
+      "path": "crates/cartographer-core/src/lib.rs",
+      "language": "rust",
+      "size_bytes": 49,
+      "mtime_unix_ns": 1774137742072820200,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
+      "path": "crates/cartographer-core/src/main.rs",
+      "language": "rust",
+      "size_bytes": 2246,
+      "mtime_unix_ns": 1774139292466193000,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
+      "path": "crates/cartographer-core/src/output/mod.rs",
+      "language": "rust",
+      "size_bytes": 2628,
+      "mtime_unix_ns": 1774138123679780600,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
+      "path": "crates/cartographer-core/src/parser/mod.rs",
+      "language": "rust",
+      "size_bytes": 616,
+      "mtime_unix_ns": 1774139005853225200,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
+      "path": "crates/cartographer-core/src/parser/python.rs",
+      "language": "rust",
+      "size_bytes": 3535,
+      "mtime_unix_ns": 1774139141244254200,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
+      "path": "crates/cartographer-core/src/parser/rust_lang.rs",
+      "language": "rust",
+      "size_bytes": 4059,
+      "mtime_unix_ns": 1774139130623389700,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
+      "path": "crates/cartographer-core/src/parser/sql.rs",
+      "language": "rust",
+      "size_bytes": 2285,
+      "mtime_unix_ns": 1774139240861980000,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
+      "path": "crates/cartographer-core/src/parser/typescript.rs",
+      "language": "rust",
+      "size_bytes": 4611,
+      "mtime_unix_ns": 1774139024808413200,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
+      "path": "crates/cartographer-core/src/scanner/engine.rs",
+      "language": "rust",
+      "size_bytes": 2265,
+      "mtime_unix_ns": 1774139279757686000,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
+      "path": "crates/cartographer-core/src/scanner/lang.rs",
+      "language": "rust",
+      "size_bytes": 2446,
+      "mtime_unix_ns": 1774138797335370500,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
+      "path": "crates/cartographer-core/src/scanner/mod.rs",
+      "language": "rust",
+      "size_bytes": 46,
+      "mtime_unix_ns": 1774138786646449200,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
+      "path": "crates/cartographer-core/src/scanner/walker.rs",
+      "language": "rust",
+      "size_bytes": 2635,
+      "mtime_unix_ns": 1774138811490684000,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
+      "path": "crates/cartographer-core/tests/integration_test.rs",
+      "language": "rust",
+      "size_bytes": 3466,
+      "mtime_unix_ns": 1774139498043862000,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
       "path": "dashboard/dist-webview/webview.js",
       "language": "javascript",
       "size_bytes": 667627,
@@ -199,16 +303,16 @@
     {
       "path": "dashboard/server/src/db/queries.ts",
       "language": "typescript",
-      "size_bytes": 14489,
-      "mtime_unix_ns": 1773439326609988000,
+      "size_bytes": 17487,
+      "mtime_unix_ns": 1774144053521936400,
       "symbol_count": 0,
       "parse_error": false
     },
     {
       "path": "dashboard/server/src/db/types.ts",
       "language": "typescript",
-      "size_bytes": 4624,
-      "mtime_unix_ns": 1773439326609988000,
+      "size_bytes": 5247,
+      "mtime_unix_ns": 1774143988750441700,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -231,8 +335,8 @@
     {
       "path": "dashboard/server/src/index.ts",
       "language": "typescript",
-      "size_bytes": 7608,
-      "mtime_unix_ns": 1774094791025937700,
+      "size_bytes": 7699,
+      "mtime_unix_ns": 1774144137022489000,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -247,8 +351,8 @@
     {
       "path": "dashboard/server/src/routes/agents.ts",
       "language": "typescript",
-      "size_bytes": 15015,
-      "mtime_unix_ns": 1773439326609988000,
+      "size_bytes": 15648,
+      "mtime_unix_ns": 1774144083585451000,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -295,8 +399,8 @@
     {
       "path": "dashboard/server/src/routes/instructions.ts",
       "language": "typescript",
-      "size_bytes": 8911,
-      "mtime_unix_ns": 1769815873681735200,
+      "size_bytes": 10655,
+      "mtime_unix_ns": 1774144106211135700,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -389,6 +493,14 @@
       "parse_error": false
     },
     {
+      "path": "dashboard/server/src/routes/skills.ts",
+      "language": "typescript",
+      "size_bytes": 1645,
+      "mtime_unix_ns": 1774144115742192400,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
       "path": "dashboard/server/src/routes/workspaces-display-name.test.ts",
       "language": "typescript",
       "size_bytes": 3159,
@@ -431,8 +543,8 @@
     {
       "path": "dashboard/src/App.tsx",
       "language": "typescript",
-      "size_bytes": 2418,
-      "mtime_unix_ns": 1771915598553808100,
+      "size_bytes": 2985,
+      "mtime_unix_ns": 1774145282590138000,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -839,8 +951,8 @@
     {
       "path": "dashboard/src/components/common/components.test.tsx",
       "language": "typescript",
-      "size_bytes": 8152,
-      "mtime_unix_ns": 1772821116185039400,
+      "size_bytes": 8166,
+      "mtime_unix_ns": 1774145371125778700,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -871,8 +983,8 @@
     {
       "path": "dashboard/src/components/layout/Sidebar.tsx",
       "language": "typescript",
-      "size_bytes": 7010,
-      "mtime_unix_ns": 1769823958620830700,
+      "size_bytes": 7484,
+      "mtime_unix_ns": 1774145221643088000,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -1463,8 +1575,8 @@
     {
       "path": "dashboard/src/pages/AgentsPage.tsx",
       "language": "typescript",
-      "size_bytes": 15583,
-      "mtime_unix_ns": 1770011012086210000,
+      "size_bytes": 19540,
+      "mtime_unix_ns": 1774145152076165400,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -1493,10 +1605,18 @@
       "parse_error": false
     },
     {
+      "path": "dashboard/src/pages/DbEntityEditorPage.tsx",
+      "language": "typescript",
+      "size_bytes": 9333,
+      "mtime_unix_ns": 1774145314043996700,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
       "path": "dashboard/src/pages/InstructionsPage.tsx",
       "language": "typescript",
-      "size_bytes": 12659,
-      "mtime_unix_ns": 1769839882085195800,
+      "size_bytes": 17830,
+      "mtime_unix_ns": 1774145180310190000,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -1537,6 +1657,14 @@
       "language": "typescript",
       "size_bytes": 11592,
       "mtime_unix_ns": 1769818374009902800,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
+      "path": "dashboard/src/pages/SkillsPage.tsx",
+      "language": "typescript",
+      "size_bytes": 5972,
+      "mtime_unix_ns": 1774145325896769300,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -1719,8 +1847,8 @@
     {
       "path": "install.ps1",
       "language": "shell",
-      "size_bytes": 77734,
-      "mtime_unix_ns": 1774072306035581000,
+      "size_bytes": 78885,
+      "mtime_unix_ns": 1774150725910563600,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -2703,8 +2831,8 @@
     {
       "path": "run-tests.ps1",
       "language": "shell",
-      "size_bytes": 24231,
-      "mtime_unix_ns": 1774072306124084200,
+      "size_bytes": 25325,
+      "mtime_unix_ns": 1774150737840777200,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -2847,8 +2975,8 @@
     {
       "path": "scripts/preflight-machine.ps1",
       "language": "shell",
-      "size_bytes": 5516,
-      "mtime_unix_ns": 1772398425338199600,
+      "size_bytes": 6736,
+      "mtime_unix_ns": 1774150799647177200,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -3661,6 +3789,14 @@
       "parse_error": false
     },
     {
+      "path": "server/src/__tests__/tools/workspace-db-sync.test.ts",
+      "language": "typescript",
+      "size_bytes": 4730,
+      "mtime_unix_ns": 1774143024323069200,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
       "path": "server/src/__tests__/tools/workspace-link.test.ts",
       "language": "typescript",
       "size_bytes": 18109,
@@ -3751,8 +3887,8 @@
     {
       "path": "server/src/__tests__/utils/agent-loader.test.ts",
       "language": "typescript",
-      "size_bytes": 9511,
-      "mtime_unix_ns": 1771006989636338000,
+      "size_bytes": 9983,
+      "mtime_unix_ns": 1774143224310573000,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -3781,10 +3917,58 @@
       "parse_error": false
     },
     {
+      "path": "server/src/cartography/adapters/__tests__/rustBridge.parity.test.ts",
+      "language": "typescript",
+      "size_bytes": 1345,
+      "mtime_unix_ns": 1774143876397054700,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
+      "path": "server/src/cartography/adapters/__tests__/scanCache.test.ts",
+      "language": "typescript",
+      "size_bytes": 1601,
+      "mtime_unix_ns": 1774145154679101000,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
+      "path": "server/src/cartography/adapters/bridgeFactory.ts",
+      "language": "typescript",
+      "size_bytes": 513,
+      "mtime_unix_ns": 1774143876383555300,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
       "path": "server/src/cartography/adapters/pythonCoreAdapter.ts",
       "language": "typescript",
-      "size_bytes": 11016,
-      "mtime_unix_ns": 1774064883722300000,
+      "size_bytes": 13732,
+      "mtime_unix_ns": 1774144715379310000,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
+      "path": "server/src/cartography/adapters/rustBridge.ts",
+      "language": "typescript",
+      "size_bytes": 3998,
+      "mtime_unix_ns": 1774143876435075000,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
+      "path": "server/src/cartography/adapters/scanCache.ts",
+      "language": "typescript",
+      "size_bytes": 2673,
+      "mtime_unix_ns": 1774144715335297800,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
+      "path": "server/src/cartography/bench/cacheWarmBench.ts",
+      "language": "typescript",
+      "size_bytes": 3359,
+      "mtime_unix_ns": 1774145154754849300,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -3911,8 +4095,8 @@
     {
       "path": "server/src/db/agent-definition-db.ts",
       "language": "typescript",
-      "size_bytes": 6731,
-      "mtime_unix_ns": 1772198314043235300,
+      "size_bytes": 6752,
+      "mtime_unix_ns": 1774142944459335400,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -3967,8 +4151,8 @@
     {
       "path": "server/src/db/deployable-agent-profile-db.ts",
       "language": "typescript",
-      "size_bytes": 2543,
-      "mtime_unix_ns": 1772359099092750600,
+      "size_bytes": 2553,
+      "mtime_unix_ns": 1774141134321377800,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -4007,8 +4191,8 @@
     {
       "path": "server/src/db/instruction-db.ts",
       "language": "typescript",
-      "size_bytes": 7151,
-      "mtime_unix_ns": 1773956096300039200,
+      "size_bytes": 7172,
+      "mtime_unix_ns": 1774142951815877600,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -4103,8 +4287,8 @@
     {
       "path": "server/src/db/migrations/007-deployable-workflow-definitions.sql",
       "language": "sql",
-      "size_bytes": 2358,
-      "mtime_unix_ns": 1772359099102503400,
+      "size_bytes": 2367,
+      "mtime_unix_ns": 1774141012996358100,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -4207,8 +4391,8 @@
     {
       "path": "server/src/db/seed.ts",
       "language": "typescript",
-      "size_bytes": 25437,
-      "mtime_unix_ns": 1773555502208836000,
+      "size_bytes": 26201,
+      "mtime_unix_ns": 1774141395130640000,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -4319,8 +4503,8 @@
     {
       "path": "server/src/index.ts",
       "language": "typescript",
-      "size_bytes": 65930,
-      "mtime_unix_ns": 1774097856291937300,
+      "size_bytes": 66297,
+      "mtime_unix_ns": 1774142985225738200,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -4551,8 +4735,8 @@
     {
       "path": "server/src/tools/agent.tools.ts",
       "language": "typescript",
-      "size_bytes": 9290,
-      "mtime_unix_ns": 1772358308946207200,
+      "size_bytes": 10152,
+      "mtime_unix_ns": 1774143470470359800,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -4647,8 +4831,8 @@
     {
       "path": "server/src/tools/consolidated/memory_workspace.ts",
       "language": "typescript",
-      "size_bytes": 29839,
-      "mtime_unix_ns": 1774101428015668700,
+      "size_bytes": 30998,
+      "mtime_unix_ns": 1774135020450207000,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -5167,8 +5351,8 @@
     {
       "path": "server/src/tools/workspace-context-manifest.ts",
       "language": "typescript",
-      "size_bytes": 8136,
-      "mtime_unix_ns": 1774103138423480800,
+      "size_bytes": 11593,
+      "mtime_unix_ns": 1774135020449458000,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -5177,6 +5361,14 @@
       "language": "typescript",
       "size_bytes": 15325,
       "mtime_unix_ns": 1771885872157489400,
+      "symbol_count": 0,
+      "parse_error": false
+    },
+    {
+      "path": "server/src/tools/workspace-db-sync.ts",
+      "language": "typescript",
+      "size_bytes": 9491,
+      "mtime_unix_ns": 1774142968736032000,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -5223,8 +5415,8 @@
     {
       "path": "server/src/transport/http-transport.ts",
       "language": "typescript",
-      "size_bytes": 27407,
-      "mtime_unix_ns": 1773954577058438700,
+      "size_bytes": 29610,
+      "mtime_unix_ns": 1774146422768401400,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -5367,8 +5559,8 @@
     {
       "path": "server/src/utils/agent-loader.ts",
       "language": "typescript",
-      "size_bytes": 5112,
-      "mtime_unix_ns": 1771006288368264200,
+      "size_bytes": 5602,
+      "mtime_unix_ns": 1774143258744430000,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -5439,8 +5631,8 @@
     {
       "path": "supervisor/lint-qml.ps1",
       "language": "shell",
-      "size_bytes": 11677,
-      "mtime_unix_ns": 1774072362240468200,
+      "size_bytes": 13112,
+      "mtime_unix_ns": 1774150788329057800,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9415,8 +9607,8 @@
     {
       "path": "vscode-extension/out/extension.js",
       "language": "javascript",
-      "size_bytes": 304949,
-      "mtime_unix_ns": 1774103868042414300,
+      "size_bytes": 307776,
+      "mtime_unix_ns": 1774149128130934500,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9424,7 +9616,7 @@
       "path": "vscode-extension/out/test/runTest.js",
       "language": "javascript",
       "size_bytes": 270356,
-      "mtime_unix_ns": 1774103868041881000,
+      "mtime_unix_ns": 1774149128132277200,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9432,7 +9624,7 @@
       "path": "vscode-extension/out/test/suite/ContainerHealthService.test.js",
       "language": "javascript",
       "size_bytes": 8591,
-      "mtime_unix_ns": 1774103868042937900,
+      "mtime_unix_ns": 1774149128160216800,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9440,15 +9632,15 @@
       "path": "vscode-extension/out/test/suite/ContainerStatusBar.test.js",
       "language": "javascript",
       "size_bytes": 5494,
-      "mtime_unix_ns": 1774103868081760300,
+      "mtime_unix_ns": 1774149128160284700,
       "symbol_count": 0,
       "parse_error": false
     },
     {
       "path": "vscode-extension/out/test/suite/DefaultDeployer.test.js",
       "language": "javascript",
-      "size_bytes": 8571,
-      "mtime_unix_ns": 1774103868047440400,
+      "size_bytes": 13964,
+      "mtime_unix_ns": 1774149128187011300,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9456,7 +9648,7 @@
       "path": "vscode-extension/out/test/suite/NotificationService.lifecycle.test.js",
       "language": "javascript",
       "size_bytes": 4415,
-      "mtime_unix_ns": 1774103868043034000,
+      "mtime_unix_ns": 1774149128199436300,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9464,7 +9656,7 @@
       "path": "vscode-extension/out/test/suite/buildScriptCwd.test.js",
       "language": "javascript",
       "size_bytes": 3003,
-      "mtime_unix_ns": 1774103868047440400,
+      "mtime_unix_ns": 1774149128165294300,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9472,15 +9664,15 @@
       "path": "vscode-extension/out/test/suite/dashboard-client-helpers.test.js",
       "language": "javascript",
       "size_bytes": 76842,
-      "mtime_unix_ns": 1774103868078940000,
+      "mtime_unix_ns": 1774149128200188400,
       "symbol_count": 0,
       "parse_error": false
     },
     {
       "path": "vscode-extension/out/test/suite/dashboard-plan-selection-routing.test.js",
       "language": "javascript",
-      "size_bytes": 205147,
-      "mtime_unix_ns": 1774103868046101500,
+      "size_bytes": 205084,
+      "mtime_unix_ns": 1774149128198687000,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9488,7 +9680,7 @@
       "path": "vscode-extension/out/test/suite/dashboard-port.test.js",
       "language": "javascript",
       "size_bytes": 2258,
-      "mtime_unix_ns": 1774103868075224600,
+      "mtime_unix_ns": 1774149128159162000,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9496,7 +9688,7 @@
       "path": "vscode-extension/out/test/suite/dashboard-step-viewer-layout.test.js",
       "language": "javascript",
       "size_bytes": 44385,
-      "mtime_unix_ns": 1774103868074716000,
+      "mtime_unix_ns": 1774149128190758000,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9504,7 +9696,7 @@
       "path": "vscode-extension/out/test/suite/extension.test.js",
       "language": "javascript",
       "size_bytes": 7629,
-      "mtime_unix_ns": 1774103868079446800,
+      "mtime_unix_ns": 1774149128174039300,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9512,7 +9704,7 @@
       "path": "vscode-extension/out/test/suite/index.js",
       "language": "javascript",
       "size_bytes": 361813,
-      "mtime_unix_ns": 1774103868044183600,
+      "mtime_unix_ns": 1774149128142871600,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9520,7 +9712,7 @@
       "path": "vscode-extension/out/test/suite/integration/headless-activation-handshake.test.js",
       "language": "javascript",
       "size_bytes": 2814,
-      "mtime_unix_ns": 1774103868042414300,
+      "mtime_unix_ns": 1774149128130934500,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9528,7 +9720,7 @@
       "path": "vscode-extension/out/test/suite/notifications-settings.test.js",
       "language": "javascript",
       "size_bytes": 2131,
-      "mtime_unix_ns": 1774103868094616000,
+      "mtime_unix_ns": 1774149128200188400,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9536,7 +9728,7 @@
       "path": "vscode-extension/out/test/suite/replay-harness-core.test.js",
       "language": "javascript",
       "size_bytes": 71588,
-      "mtime_unix_ns": 1774103868081624600,
+      "mtime_unix_ns": 1774149128159162000,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9544,7 +9736,7 @@
       "path": "vscode-extension/out/test/suite/skillsSourceRoot.test.js",
       "language": "javascript",
       "size_bytes": 2974,
-      "mtime_unix_ns": 1774103868081760300,
+      "mtime_unix_ns": 1774149128187011300,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9552,7 +9744,7 @@
       "path": "vscode-extension/out/test/suite/spawn-agent-tool.test.js",
       "language": "javascript",
       "size_bytes": 11890,
-      "mtime_unix_ns": 1774103868074716000,
+      "mtime_unix_ns": 1774149128163544300,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9560,7 +9752,7 @@
       "path": "vscode-extension/out/test/suite/store-chat-details-participant.test.js",
       "language": "javascript",
       "size_bytes": 7322,
-      "mtime_unix_ns": 1774103868093864400,
+      "mtime_unix_ns": 1774149128160806400,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9568,7 +9760,7 @@
       "path": "vscode-extension/out/test/suite/workspace-identity.test.js",
       "language": "javascript",
       "size_bytes": 6709,
-      "mtime_unix_ns": 1774103868087526400,
+      "mtime_unix_ns": 1774149128190007300,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9576,7 +9768,7 @@
       "path": "vscode-extension/out/test/supervisor/activation.test.js",
       "language": "javascript",
       "size_bytes": 4004,
-      "mtime_unix_ns": 1774103868041881000,
+      "mtime_unix_ns": 1774149128130934500,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9584,7 +9776,7 @@
       "path": "vscode-extension/out/test/supervisor/degraded.test.js",
       "language": "javascript",
       "size_bytes": 3681,
-      "mtime_unix_ns": 1774103868044907300,
+      "mtime_unix_ns": 1774149128135151000,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9592,7 +9784,7 @@
       "path": "vscode-extension/out/test/supervisor/detect.test.js",
       "language": "javascript",
       "size_bytes": 2629,
-      "mtime_unix_ns": 1774103868042937900,
+      "mtime_unix_ns": 1774149128135151000,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9600,7 +9792,7 @@
       "path": "vscode-extension/out/test/supervisor/ready.test.js",
       "language": "javascript",
       "size_bytes": 3224,
-      "mtime_unix_ns": 1774103868041881000,
+      "mtime_unix_ns": 1774149128133554000,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9608,7 +9800,7 @@
       "path": "vscode-extension/out/test/supervisor/settings.test.js",
       "language": "javascript",
       "size_bytes": 2138,
-      "mtime_unix_ns": 1774103868043034000,
+      "mtime_unix_ns": 1774149128130934500,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9616,7 +9808,7 @@
       "path": "vscode-extension/out/test/supervisor/window-id.test.js",
       "language": "javascript",
       "size_bytes": 1374,
-      "mtime_unix_ns": 1774103868047440400,
+      "mtime_unix_ns": 1774149128133554000,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9624,7 +9816,7 @@
       "path": "vscode-extension/out/test/ui/DashboardPanel.test.js",
       "language": "javascript",
       "size_bytes": 7223,
-      "mtime_unix_ns": 1774103868041881000,
+      "mtime_unix_ns": 1774149128131594000,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9895,8 +10087,8 @@
     {
       "path": "vscode-extension/src/commands/deploy-commands.ts",
       "language": "typescript",
-      "size_bytes": 32120,
-      "mtime_unix_ns": 1773439326629488400,
+      "size_bytes": 32603,
+      "mtime_unix_ns": 1774141855785825000,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -9927,16 +10119,16 @@
     {
       "path": "vscode-extension/src/commands/workspace-commands.ts",
       "language": "typescript",
-      "size_bytes": 16205,
-      "mtime_unix_ns": 1773909802390988300,
+      "size_bytes": 17172,
+      "mtime_unix_ns": 1774141855788824300,
       "symbol_count": 0,
       "parse_error": false
     },
     {
       "path": "vscode-extension/src/deployer/DefaultDeployer.ts",
       "language": "typescript",
-      "size_bytes": 11830,
-      "mtime_unix_ns": 1774098746797829400,
+      "size_bytes": 17644,
+      "mtime_unix_ns": 1774142756043068200,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -10293,22 +10485,6 @@
       "parse_error": false
     },
     {
-      "path": "vscode-extension/src/test/chat/ChatContextCommands.test.ts",
-      "language": "typescript",
-      "size_bytes": 4113,
-      "mtime_unix_ns": 1771095788812059000,
-      "symbol_count": 0,
-      "parse_error": false
-    },
-    {
-      "path": "vscode-extension/src/test/chat/ChatMiscCommands.test.ts",
-      "language": "typescript",
-      "size_bytes": 4572,
-      "mtime_unix_ns": 1771138954443442000,
-      "symbol_count": 0,
-      "parse_error": false
-    },
-    {
       "path": "vscode-extension/src/test/chat/ChatParticipant.test.ts",
       "language": "typescript",
       "size_bytes": 1111,
@@ -10317,58 +10493,10 @@
       "parse_error": false
     },
     {
-      "path": "vscode-extension/src/test/chat/ChatPlanCommands.test.ts",
-      "language": "typescript",
-      "size_bytes": 33094,
-      "mtime_unix_ns": 1771135592823391700,
-      "symbol_count": 0,
-      "parse_error": false
-    },
-    {
-      "path": "vscode-extension/src/test/chat/ChatResponseHelpers.test.ts",
-      "language": "typescript",
-      "size_bytes": 5321,
-      "mtime_unix_ns": 1771096674477554000,
-      "symbol_count": 0,
-      "parse_error": false
-    },
-    {
-      "path": "vscode-extension/src/test/chat/ContextToolForwarding.test.ts",
-      "language": "typescript",
-      "size_bytes": 5028,
-      "mtime_unix_ns": 1771655336975828700,
-      "symbol_count": 0,
-      "parse_error": false
-    },
-    {
-      "path": "vscode-extension/src/test/chat/KnowledgeCommandHandler.test.ts",
-      "language": "typescript",
-      "size_bytes": 27989,
-      "mtime_unix_ns": 1771095788823060000,
-      "symbol_count": 0,
-      "parse_error": false
-    },
-    {
-      "path": "vscode-extension/src/test/chat/McpBridge.test.ts",
-      "language": "typescript",
-      "size_bytes": 4208,
-      "mtime_unix_ns": 1771115266506827500,
-      "symbol_count": 0,
-      "parse_error": false
-    },
-    {
       "path": "vscode-extension/src/test/chat/ToolProvider.test.ts",
       "language": "typescript",
       "size_bytes": 1544,
       "mtime_unix_ns": 1771137395641782000,
-      "symbol_count": 0,
-      "parse_error": false
-    },
-    {
-      "path": "vscode-extension/src/test/chat/workspaceRegistration.test.ts",
-      "language": "typescript",
-      "size_bytes": 4234,
-      "mtime_unix_ns": 1771108110213953800,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -10415,8 +10543,8 @@
     {
       "path": "vscode-extension/src/test/replay/core/MatrixContract.ts",
       "language": "typescript",
-      "size_bytes": 10779,
-      "mtime_unix_ns": 1771140701078141400,
+      "size_bytes": 10767,
+      "mtime_unix_ns": 1774142010901439500,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -10431,8 +10559,8 @@
     {
       "path": "vscode-extension/src/test/replay/core/MatrixScoring.ts",
       "language": "typescript",
-      "size_bytes": 6556,
-      "mtime_unix_ns": 1771140701078141400,
+      "size_bytes": 6544,
+      "mtime_unix_ns": 1774142149547085800,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -10440,7 +10568,7 @@
       "path": "vscode-extension/src/test/replay/core/MigrationResolver.ts",
       "language": "typescript",
       "size_bytes": 3947,
-      "mtime_unix_ns": 1771123620915271200,
+      "mtime_unix_ns": 1774142188089802200,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -10535,8 +10663,8 @@
     {
       "path": "vscode-extension/src/test/suite/DefaultDeployer.test.ts",
       "language": "typescript",
-      "size_bytes": 9300,
-      "mtime_unix_ns": 1771225141225921300,
+      "size_bytes": 15546,
+      "mtime_unix_ns": 1774142676626398700,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -10553,14 +10681,6 @@
       "language": "typescript",
       "size_bytes": 3005,
       "mtime_unix_ns": 1771100048421244000,
-      "symbol_count": 0,
-      "parse_error": false
-    },
-    {
-      "path": "vscode-extension/src/test/suite/chat-followups-host.test.ts",
-      "language": "typescript",
-      "size_bytes": 3233,
-      "mtime_unix_ns": 1771139330686635000,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -10583,8 +10703,8 @@
     {
       "path": "vscode-extension/src/test/suite/dashboard-plan-selection-routing.test.ts",
       "language": "typescript",
-      "size_bytes": 3914,
-      "mtime_unix_ns": 1772358812696679200,
+      "size_bytes": 3834,
+      "mtime_unix_ns": 1774142235458985500,
       "symbol_count": 0,
       "parse_error": false
     },
@@ -10657,14 +10777,6 @@
       "language": "typescript",
       "size_bytes": 15085,
       "mtime_unix_ns": 1773909965251605800,
-      "symbol_count": 0,
-      "parse_error": false
-    },
-    {
-      "path": "vscode-extension/src/test/suite/spawn-serialization.test.ts",
-      "language": "typescript",
-      "size_bytes": 19128,
-      "mtime_unix_ns": 1771090638909391000,
       "symbol_count": 0,
       "parse_error": false
     },

@@ -457,6 +457,7 @@ function Resolve-QtToolchain {
 
     $candidates = New-Object System.Collections.Generic.List[string]
 
+    # 1. Environment variables (highest priority)
     if ($env:QMAKE -and (Test-Path $env:QMAKE)) {
         $qmakeBin = Split-Path -Path $env:QMAKE -Parent
         $qtFromQmake = Split-Path -Path $qmakeBin -Parent
@@ -465,31 +466,58 @@ function Resolve-QtToolchain {
 
     if ($PreferredQtDir) { $candidates.Add($PreferredQtDir) }
     if ($env:QT_DIR) { $candidates.Add($env:QT_DIR) }
-    $candidates.Add('C:\Qt\6.10.2\msvc2022_64')
+    if ($env:QTDIR) { $candidates.Add($env:QTDIR) }
+    if ($env:Qt6_DIR) { $candidates.Add($env:Qt6_DIR) }
 
-    if (Test-Path 'C:\Qt') {
-        $discovered = Get-ChildItem -Path 'C:\Qt' -Directory -ErrorAction SilentlyContinue |
-            Sort-Object Name -Descending |
-            ForEach-Object {
-                Get-ChildItem -Path $_.FullName -Directory -Filter 'msvc*_64' -ErrorAction SilentlyContinue |
-                    ForEach-Object { $_.FullName }
+    # 2. Known common installation roots
+    $qtRoots = @('C:\Qt', 'D:\Qt', 'E:\Qt')
+    foreach ($root in $qtRoots) {
+        if (Test-Path $root) {
+            # Look for versions (e.g., 6.8.0, 6.10.2)
+            $versions = Get-ChildItem -Path $root -Directory -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -match '^\d+\.\d+\.\d+$' } |
+                Sort-Object Name -Descending
+
+            foreach ($v in $versions) {
+                # Look for 64-bit MSVC kits within each version
+                $kits = Get-ChildItem -Path $v.FullName -Directory -Filter 'msvc*_64' -ErrorAction SilentlyContinue
+                foreach ($kit in $kits) {
+                    $candidates.Add($kit.FullName)
+                }
             }
-        foreach ($dir in $discovered) {
-            $candidates.Add($dir)
         }
     }
 
-    foreach ($qtDir in ($candidates | Select-Object -Unique)) {
-        if (-not (Test-Path $qtDir)) { continue }
-        $qtBin = Join-Path $qtDir 'bin'
-        $qmake6 = Join-Path $qtBin 'qmake6.exe'
-        $qmake = Join-Path $qtBin 'qmake.exe'
+    # 3. Last resort: specific fallback (historical default)
+    $candidates.Add('C:\Qt\6.10.2\msvc2022_64')
 
-        if (Test-Path $qmake6) {
-            return [pscustomobject]@{ QtDir = $qtDir; QtBin = $qtBin; QmakePath = $qmake6 }
-        }
-        if (Test-Path $qmake) {
-            return [pscustomobject]@{ QtDir = $qtDir; QtBin = $qtBin; QmakePath = $qmake }
+    foreach ($qtDir in ($candidates | Select-Object -Unique)) {
+        if (-not $qtDir -or -not (Test-Path $qtDir)) { continue }
+        
+        # Some env vars might point to the 'bin' directory directly
+        $possibleBinDirs = @(
+            $qtDir,
+            (Join-Path $qtDir 'bin')
+        )
+
+        foreach ($binDir in $possibleBinDirs) {
+            $qmake6 = Join-Path $binDir 'qmake6.exe'
+            $qmake = Join-Path $binDir 'qmake.exe'
+
+            if (Test-Path $qmake6) {
+                return [pscustomobject]@{ 
+                    QtDir = if ($binDir -eq $qtDir) { Split-Path $binDir -Parent } else { $qtDir }; 
+                    QtBin = $binDir; 
+                    QmakePath = $qmake6 
+                }
+            }
+            if (Test-Path $qmake) {
+                return [pscustomobject]@{ 
+                    QtDir = if ($binDir -eq $qtDir) { Split-Path $binDir -Parent } else { $qtDir }; 
+                    QtBin = $binDir; 
+                    QmakePath = $qmake 
+                }
+            }
         }
     }
 

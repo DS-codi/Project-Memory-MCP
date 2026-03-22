@@ -1,10 +1,550 @@
 {
-  "generated_at": "2026-03-21T15:29:32.255Z",
+  "generated_at": "2026-03-22T03:40:26.123Z",
   "workspace_id": "project-memory-mcp-40f6678f5a9b",
   "language": "rust",
   "partial": false,
-  "total": 2496,
+  "total": 2550,
   "symbols": [
+    {
+      "id": "crates/cartographer-core/src/lib.rs::__module__",
+      "file": "crates/cartographer-core/src/lib.rs",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "crates/cartographer-core/src/main.rs::__module__",
+      "file": "crates/cartographer-core/src/main.rs",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "crates/cartographer-core/src/main.rs::ScanRequest",
+      "file": "crates/cartographer-core/src/main.rs",
+      "name": "ScanRequest",
+      "kind": "class",
+      "start_line": 10,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/src/main.rs::main",
+      "file": "crates/cartographer-core/src/main.rs",
+      "name": "main",
+      "kind": "function",
+      "start_line": 20,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/src/output/mod.rs::__module__",
+      "file": "crates/cartographer-core/src/output/mod.rs",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "crates/cartographer-core/src/output/mod.rs::SymbolRecord",
+      "file": "crates/cartographer-core/src/output/mod.rs",
+      "name": "SymbolRecord",
+      "kind": "class",
+      "start_line": 4,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": true
+    },
+    {
+      "id": "crates/cartographer-core/src/output/mod.rs::FileResult",
+      "file": "crates/cartographer-core/src/output/mod.rs",
+      "name": "FileResult",
+      "kind": "class",
+      "start_line": 26,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": true
+    },
+    {
+      "id": "crates/cartographer-core/src/output/mod.rs::DiagnosticsBlock",
+      "file": "crates/cartographer-core/src/output/mod.rs",
+      "name": "DiagnosticsBlock",
+      "kind": "class",
+      "start_line": 34,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": true
+    },
+    {
+      "id": "crates/cartographer-core/src/output/mod.rs::ScanResult",
+      "file": "crates/cartographer-core/src/output/mod.rs",
+      "name": "ScanResult",
+      "kind": "class",
+      "start_line": 43,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": true
+    },
+    {
+      "id": "crates/cartographer-core/src/output/mod.rs::ScanResponse",
+      "file": "crates/cartographer-core/src/output/mod.rs",
+      "name": "ScanResponse",
+      "kind": "class",
+      "start_line": 51,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": true
+    },
+    {
+      "id": "crates/cartographer-core/src/output/mod.rs::test_scan_response_serialization",
+      "file": "crates/cartographer-core/src/output/mod.rs",
+      "name": "test_scan_response_serialization",
+      "kind": "function",
+      "start_line": 64,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/src/parser/mod.rs::__module__",
+      "file": "crates/cartographer-core/src/parser/mod.rs",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "crates/cartographer-core/src/parser/mod.rs::parse_file",
+      "file": "crates/cartographer-core/src/parser/mod.rs",
+      "name": "parse_file",
+      "kind": "function",
+      "start_line": 10,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": true
+    },
+    {
+      "id": "crates/cartographer-core/src/parser/python.rs::__module__",
+      "file": "crates/cartographer-core/src/parser/python.rs",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "crates/cartographer-core/src/parser/python.rs::parse",
+      "file": "crates/cartographer-core/src/parser/python.rs",
+      "name": "parse",
+      "kind": "function",
+      "start_line": 5,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": true
+    },
+    {
+      "id": "crates/cartographer-core/src/parser/python.rs::visit",
+      "file": "crates/cartographer-core/src/parser/python.rs",
+      "name": "visit",
+      "kind": "function",
+      "start_line": 23,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/src/parser/python.rs::test_parse_python_function",
+      "file": "crates/cartographer-core/src/parser/python.rs",
+      "name": "test_parse_python_function",
+      "kind": "function",
+      "start_line": 102,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/src/parser/python.rs::test_summary_mode_empty",
+      "file": "crates/cartographer-core/src/parser/python.rs",
+      "name": "test_summary_mode_empty",
+      "kind": "function",
+      "start_line": 111,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/src/parser/rust_lang.rs::__module__",
+      "file": "crates/cartographer-core/src/parser/rust_lang.rs",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "crates/cartographer-core/src/parser/rust_lang.rs::parse",
+      "file": "crates/cartographer-core/src/parser/rust_lang.rs",
+      "name": "parse",
+      "kind": "function",
+      "start_line": 5,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": true
+    },
+    {
+      "id": "crates/cartographer-core/src/parser/rust_lang.rs::visit",
+      "file": "crates/cartographer-core/src/parser/rust_lang.rs",
+      "name": "visit",
+      "kind": "function",
+      "start_line": 23,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/src/parser/rust_lang.rs::test_parse_rust_function",
+      "file": "crates/cartographer-core/src/parser/rust_lang.rs",
+      "name": "test_parse_rust_function",
+      "kind": "function",
+      "start_line": 114,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/src/parser/rust_lang.rs::test_summary_mode_empty",
+      "file": "crates/cartographer-core/src/parser/rust_lang.rs",
+      "name": "test_summary_mode_empty",
+      "kind": "function",
+      "start_line": 124,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/src/parser/sql.rs::__module__",
+      "file": "crates/cartographer-core/src/parser/sql.rs",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "crates/cartographer-core/src/parser/sql.rs::parse",
+      "file": "crates/cartographer-core/src/parser/sql.rs",
+      "name": "parse",
+      "kind": "function",
+      "start_line": 5,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": true
+    },
+    {
+      "id": "crates/cartographer-core/src/parser/sql.rs::test_parse_sql_table",
+      "file": "crates/cartographer-core/src/parser/sql.rs",
+      "name": "test_parse_sql_table",
+      "kind": "function",
+      "start_line": 53,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/src/parser/sql.rs::test_summary_mode_empty",
+      "file": "crates/cartographer-core/src/parser/sql.rs",
+      "name": "test_summary_mode_empty",
+      "kind": "function",
+      "start_line": 62,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/src/parser/typescript.rs::__module__",
+      "file": "crates/cartographer-core/src/parser/typescript.rs",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "crates/cartographer-core/src/parser/typescript.rs::parse",
+      "file": "crates/cartographer-core/src/parser/typescript.rs",
+      "name": "parse",
+      "kind": "function",
+      "start_line": 5,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": true
+    },
+    {
+      "id": "crates/cartographer-core/src/parser/typescript.rs::node_name",
+      "file": "crates/cartographer-core/src/parser/typescript.rs",
+      "name": "node_name",
+      "kind": "function",
+      "start_line": 23,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/src/parser/typescript.rs::visit_node",
+      "file": "crates/cartographer-core/src/parser/typescript.rs",
+      "name": "visit_node",
+      "kind": "function",
+      "start_line": 37,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/src/parser/typescript.rs::test_parse_ts_function_and_class",
+      "file": "crates/cartographer-core/src/parser/typescript.rs",
+      "name": "test_parse_ts_function_and_class",
+      "kind": "function",
+      "start_line": 112,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/src/parser/typescript.rs::test_summary_mode_empty",
+      "file": "crates/cartographer-core/src/parser/typescript.rs",
+      "name": "test_summary_mode_empty",
+      "kind": "function",
+      "start_line": 129,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/src/parser/typescript.rs::test_full_mode_body_fragment",
+      "file": "crates/cartographer-core/src/parser/typescript.rs",
+      "name": "test_full_mode_body_fragment",
+      "kind": "function",
+      "start_line": 136,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/src/scanner/engine.rs::__module__",
+      "file": "crates/cartographer-core/src/scanner/engine.rs",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "crates/cartographer-core/src/scanner/engine.rs::scan",
+      "file": "crates/cartographer-core/src/scanner/engine.rs",
+      "name": "scan",
+      "kind": "function",
+      "start_line": 9,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": true
+    },
+    {
+      "id": "crates/cartographer-core/src/scanner/lang.rs::__module__",
+      "file": "crates/cartographer-core/src/scanner/lang.rs",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "crates/cartographer-core/src/scanner/lang.rs::Language",
+      "file": "crates/cartographer-core/src/scanner/lang.rs",
+      "name": "Language",
+      "kind": "enum",
+      "start_line": 5,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": true
+    },
+    {
+      "id": "crates/cartographer-core/src/scanner/lang.rs::as_str",
+      "file": "crates/cartographer-core/src/scanner/lang.rs",
+      "name": "as_str",
+      "kind": "function",
+      "start_line": 15,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": true
+    },
+    {
+      "id": "crates/cartographer-core/src/scanner/lang.rs::detect_language",
+      "file": "crates/cartographer-core/src/scanner/lang.rs",
+      "name": "detect_language",
+      "kind": "function",
+      "start_line": 27,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": true
+    },
+    {
+      "id": "crates/cartographer-core/src/scanner/lang.rs::ScanMode",
+      "file": "crates/cartographer-core/src/scanner/lang.rs",
+      "name": "ScanMode",
+      "kind": "enum",
+      "start_line": 39,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": true
+    },
+    {
+      "id": "crates/cartographer-core/src/scanner/lang.rs::from_str",
+      "file": "crates/cartographer-core/src/scanner/lang.rs",
+      "name": "from_str",
+      "kind": "function",
+      "start_line": 47,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/src/scanner/lang.rs::test_language_detection",
+      "file": "crates/cartographer-core/src/scanner/lang.rs",
+      "name": "test_language_detection",
+      "kind": "function",
+      "start_line": 63,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/src/scanner/lang.rs::test_scan_mode_parse",
+      "file": "crates/cartographer-core/src/scanner/lang.rs",
+      "name": "test_scan_mode_parse",
+      "kind": "function",
+      "start_line": 74,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/src/scanner/mod.rs::__module__",
+      "file": "crates/cartographer-core/src/scanner/mod.rs",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "crates/cartographer-core/src/scanner/walker.rs::__module__",
+      "file": "crates/cartographer-core/src/scanner/walker.rs",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "crates/cartographer-core/src/scanner/walker.rs::walk",
+      "file": "crates/cartographer-core/src/scanner/walker.rs",
+      "name": "walk",
+      "kind": "function",
+      "start_line": 17,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": true
+    },
+    {
+      "id": "crates/cartographer-core/src/scanner/walker.rs::test_excludes_node_modules",
+      "file": "crates/cartographer-core/src/scanner/walker.rs",
+      "name": "test_excludes_node_modules",
+      "kind": "function",
+      "start_line": 72,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/tests/integration_test.rs::__module__",
+      "file": "crates/cartographer-core/tests/integration_test.rs",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "crates/cartographer-core/tests/integration_test.rs::binary_path",
+      "file": "crates/cartographer-core/tests/integration_test.rs",
+      "name": "binary_path",
+      "kind": "function",
+      "start_line": 6,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/tests/integration_test.rs::run_scan",
+      "file": "crates/cartographer-core/tests/integration_test.rs",
+      "name": "run_scan",
+      "kind": "function",
+      "start_line": 20,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/tests/integration_test.rs::test_schema_contract_ok_and_required_fields",
+      "file": "crates/cartographer-core/tests/integration_test.rs",
+      "name": "test_schema_contract_ok_and_required_fields",
+      "kind": "function",
+      "start_line": 52,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/tests/integration_test.rs::test_summary_mode_symbols_empty",
+      "file": "crates/cartographer-core/tests/integration_test.rs",
+      "name": "test_summary_mode_symbols_empty",
+      "kind": "function",
+      "start_line": 64,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
+    {
+      "id": "crates/cartographer-core/tests/integration_test.rs::test_node_modules_excluded",
+      "file": "crates/cartographer-core/tests/integration_test.rs",
+      "name": "test_node_modules_excluded",
+      "kind": "function",
+      "start_line": 75,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": false
+    },
     {
       "id": "interactive-terminal/build.rs::__module__",
       "file": "interactive-terminal/build.rs",

@@ -21,6 +21,7 @@ This workspace uses the **Project Memory MCP** for tracking work across agent se
 | `memory_instructions` | `search` (keyword → excerpts, not full content), `get` (full content by filename), `get_section` (single `##`/`###` by partial heading), `list` (metadata only), `list_workspace` (workspace-assigned, metadata only) |
 | `memory_terminal_interactive` | `execute`, `read_output`, `terminate`, `list` |
 | `memory_terminal_vscode` | `create`, `send`, `close`, `list` *(extension-side visible VS Code terminals)* |
+| `memory_cartographer` | `summary`, `search`, `file_context`, `get_plan_dependencies`, `bounded_traversal`, `db_map_summary`, `db_node_lookup`, `db_edge_lookup`, `context_items_projection` — **codebase cartography and plan dependency graph**; fetch `mcp-tool-cartographer.instructions.md` for full API |
 
 ## Required Initialization
 
@@ -54,4 +55,5 @@ memory_instructions(action: get, filename: "mcp-tool-agent.instructions.md")
 memory_instructions(action: get, filename: "mcp-tool-plan.instructions.md")
 memory_instructions(action: get, filename: "mcp-best-practices.instructions.md")
 memory_instructions(action: search, query: "terminal authorization")
+memory_instructions(action: get, filename: "mcp-tool-cartographer.instructions.md")  # codebase scan, symbol search, plan deps
 ```

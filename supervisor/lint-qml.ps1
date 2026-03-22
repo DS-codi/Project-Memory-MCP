@@ -61,7 +61,7 @@ param(
     [string]$File         = "",
     [string]$Dir          = "",
     [switch]$Recurse,
-    [string]$QtPath       = "C:\Qt\6.10.2\msvc2022_64\bin\qmllint.exe",
+    [string]$QtPath       = "",
     [switch]$Verbose,
     [switch]$ShowWarnings,
     [switch]$Auto
@@ -70,19 +70,60 @@ param(
 Set-StrictMode -Version Latest
 
 # ── Locate qmllint ───────────────────────────────────────────────────────────
-if (-not (Test-Path $QtPath)) {
-    Write-Host "qmllint not found at '$QtPath', searching C:\Qt ..." -ForegroundColor Yellow
-    $found = Get-ChildItem "C:\Qt" -Filter "qmllint.exe" -Recurse -ErrorAction SilentlyContinue |
-             Where-Object { $_.FullName -match "msvc2022_64" } |
-             Select-Object -First 1
-    if ($found) {
-        $QtPath = $found.FullName
-        Write-Host "Found: $QtPath" -ForegroundColor Cyan
-    } else {
-        Write-Error "qmllint.exe not found. Use -QtPath to specify the location."
-        exit 1
+if ([string]::IsNullOrWhiteSpace($QtPath)) {
+    # Try environment variables first
+    $envQtDir = if ($env:QT_DIR) { $env:QT_DIR } elseif ($env:QTDIR) { $env:QTDIR } elseif ($env:Qt6_DIR) { $env:Qt6_DIR } else { $null }
+    
+    if ($envQtDir -and (Test-Path $envQtDir)) {
+        $possiblePaths = @(
+            (Join-Path $envQtDir "bin\qmllint.exe"),
+            (Join-Path $envQtDir "qmllint.exe")
+        )
+        foreach ($p in $possiblePaths) {
+            if (Test-Path $p) { $QtPath = $p; break }
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($QtPath) -and $env:QMAKE -and (Test-Path $env:QMAKE)) {
+        $qmakeBin = Split-Path -Path $env:QMAKE -Parent
+        $p = Join-Path $qmakeBin "qmllint.exe"
+        if (Test-Path $p) { $QtPath = $p }
+    }
+
+    # Search common roots
+    if ([string]::IsNullOrWhiteSpace($QtPath)) {
+        $qtRoots = @("C:\Qt", "D:\Qt", "E:\Qt")
+        foreach ($root in $qtRoots) {
+            if (Test-Path $root) {
+                # Look for versions (e.g., 6.8.0, 6.10.2)
+                $versions = Get-ChildItem -Path $root -Directory -ErrorAction SilentlyContinue |
+                    Where-Object { $_.Name -match '^\d+\.\d+\.\d+$' } |
+                    Sort-Object Name -Descending
+
+                foreach ($v in $versions) {
+                    $found = Get-ChildItem -Path $v.FullName -Filter "qmllint.exe" -Recurse -ErrorAction SilentlyContinue |
+                             Where-Object { $_.FullName -match "msvc.*_64" } |
+                             Select-Object -First 1
+                    if ($found) { $QtPath = $found.FullName; break }
+                }
+            }
+            if ($QtPath) { break }
+        }
+    }
+
+    # Last resort fallback
+    if ([string]::IsNullOrWhiteSpace($QtPath)) {
+        $QtPath = "C:\Qt\6.10.2\msvc2022_64\bin\qmllint.exe"
     }
 }
+
+if (-not (Test-Path $QtPath)) {
+    Write-Error "qmllint.exe not found. Use -QtPath to specify the location or set `$env:QT_DIR."
+    exit 1
+}
+
+Write-Host "Using qmllint: $QtPath" -ForegroundColor Cyan
+
 
 # ── Resolve target files ──────────────────────────────────────────────────────
 $scriptDir  = Split-Path $MyInvocation.MyCommand.Path -Parent

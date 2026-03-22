@@ -94,30 +94,66 @@ $checks.Add((Test-CommandVersion -Name 'rustc' -VersionCommand 'rustc --version'
 $checks.Add((Test-CommandVersion -Name 'cargo' -VersionCommand 'cargo --version' -MinMajor 1 -Hint 'Install rustup and Rust toolchain'))
 $checks.Add((Test-CommandVersion -Name 'code' -VersionCommand 'code --version' -MinMajor 1 -Optional -Hint 'Needed for extension install from script'))
 
-$qtHint = 'Set QT_DIR to a Qt 6 MSVC kit path (for example C:\Qt\6.10.2\msvc2022_64).'
-if ($env:QT_DIR -and (Test-Path $env:QT_DIR)) {
+$qtHint = 'Set QT_DIR to a Qt 6 MSVC kit path (example: C:\Qt\6.10.2\msvc2022_64).'
+$foundQt = $null
+$qtEnvVars = @('QT_DIR', 'QTDIR', 'Qt6_DIR')
+foreach ($var in $qtEnvVars) {
+    if ($env:$var -and (Test-Path $env:$var)) {
+        $foundQt = $env:$var
+        break
+    }
+}
+
+if ($foundQt) {
     $checks.Add([PSCustomObject]@{
-            Name = 'QT_DIR'
+            Name = 'Qt'
             IsHardFail = $false
             Passed = $true
-            Message = "QT_DIR set to '$($env:QT_DIR)'"
+            Message = "Qt kit found via environment variable: '$foundQt'"
         })
 } else {
-    $defaultQtPath = 'C:\Qt\6.10.2\msvc2022_64'
-    if (Test-Path $defaultQtPath) {
+    # Search common roots
+    $qtRoots = @('C:\Qt', 'D:\Qt', 'E:\Qt')
+    foreach ($root in $qtRoots) {
+        if (Test-Path $root) {
+            $versions = Get-ChildItem -Path $root -Directory -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -match '^\d+\.\d+\.\d+$' } |
+                Sort-Object Name -Descending
+
+            foreach ($v in $versions) {
+                $kit = Get-ChildItem -Path $v.FullName -Directory -Filter 'msvc*_64' -ErrorAction SilentlyContinue |
+                       Select-Object -First 1
+                if ($kit) { $foundQt = $kit.FullName; break }
+            }
+        }
+        if ($foundQt) { break }
+    }
+
+    if ($foundQt) {
         $checks.Add([PSCustomObject]@{
-                Name = 'QT_DIR'
+                Name = 'Qt'
                 IsHardFail = $false
                 Passed = $true
-                Message = "Default Qt path found at '$defaultQtPath'"
+                Message = "Qt kit discovered at '$foundQt'"
             })
     } else {
-        $checks.Add([PSCustomObject]@{
-                Name = 'QT_DIR'
-                IsHardFail = $false
-                Passed = $false
-                Message = "Qt kit not found. $qtHint"
-            })
+        # Last resort fallback check
+        $defaultQtPath = 'C:\Qt\6.10.2\msvc2022_64'
+        if (Test-Path $defaultQtPath) {
+            $checks.Add([PSCustomObject]@{
+                    Name = 'Qt'
+                    IsHardFail = $false
+                    Passed = $true
+                    Message = "Default Qt path found at '$defaultQtPath'"
+                })
+        } else {
+            $checks.Add([PSCustomObject]@{
+                    Name = 'Qt'
+                    IsHardFail = $false
+                    Passed = $false
+                    Message = "Qt kit not found. $qtHint"
+                })
+        }
     }
 }
 

@@ -684,19 +684,24 @@ export function createHttpApp(getServer: () => McpServer): Express {
     const row = rows.sort((a, b) => a.updated_at.localeCompare(b.updated_at)).pop()!;
     try {
       const parsed = JSON.parse(row.data) as Record<string, unknown>;
-      const inner = ((parsed?.data as Record<string, unknown> | undefined)?.data) as Record<string, unknown> | undefined;
+      // stored shape: { action, data: { result: { summary, ... }, elapsed_ms, diagnostics } }
+      const inner = (parsed?.data as Record<string, unknown> | undefined) ?? {};
       const result = (inner?.result as Record<string, unknown> | undefined) ?? {};
       const summary = (result.summary as Record<string, unknown> | undefined) ?? {};
       const diagnostics = (inner?.diagnostics as Record<string, unknown> | undefined) ?? {};
+      const markers = Array.isArray(diagnostics.markers) ? (diagnostics.markers as string[]) : [];
+      const cacheHit = markers.includes('cache_hit') || diagnostics.cache_hit === true ? true
+        : markers.length > 0 || 'cache_hit' in diagnostics ? false
+        : null;
       res.json({
         success: true,
         has_data: true,
         data: {
-          files_total: summary.files_total ?? null,
-          symbols_total: summary.symbols_total ?? null,
+          files_total: (summary.file_count ?? summary.files_total) ?? null,
+          symbols_total: (summary.symbol_count ?? summary.symbols_total) ?? null,
           language_breakdown: Array.isArray(summary.language_breakdown) ? summary.language_breakdown : [],
           elapsed_ms: inner?.elapsed_ms ?? null,
-          cache_hit: diagnostics.cache_hit ?? null,
+          cache_hit: cacheHit,
           scanned_at: row.updated_at,
         },
       });

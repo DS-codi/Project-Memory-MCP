@@ -7,12 +7,49 @@
     [int]$Port = 9100,
     [ValidateSet('debug', 'release')]
     [string]$Profile = 'release',
-    [string]$QtDir = $(if ($env:QT_DIR) { $env:QT_DIR } else { 'C:\Qt\6.10.2\msvc2022_64' })
+    [string]$QtDir = ""
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $PSNativeCommandUseErrorActionPreference = $false
+
+# ── Locate Qt ────────────────────────────────────────────────────────────────
+if ([string]::IsNullOrWhiteSpace($QtDir)) {
+    # Try environment variables first
+    $qtEnvVars = @('QT_DIR', 'QTDIR', 'Qt6_DIR')
+    foreach ($var in $qtEnvVars) {
+        if ($env:$var -and (Test-Path $env:$var)) {
+            $QtDir = $env:$var
+            break
+        }
+    }
+
+    # Search common roots
+    if ([string]::IsNullOrWhiteSpace($QtDir)) {
+        $qtRoots = @('C:\Qt', 'D:\Qt', 'E:\Qt')
+        foreach ($root in $qtRoots) {
+            if (Test-Path $root) {
+                $versions = Get-ChildItem -Path $root -Directory -ErrorAction SilentlyContinue |
+                    Where-Object { $_.Name -match '^\d+\.\d+\.\d+$' } |
+                    Sort-Object Name -Descending
+
+                foreach ($v in $versions) {
+                    $kit = Get-ChildItem -Path $v.FullName -Directory -Filter 'msvc*_64' -ErrorAction SilentlyContinue |
+                           Select-Object -First 1
+                    if ($kit) { $QtDir = $kit.FullName; break }
+                }
+            }
+            if ($QtDir) { break }
+        }
+    }
+
+    # Last resort fallback
+    if ([string]::IsNullOrWhiteSpace($QtDir)) {
+        $QtDir = 'C:\Qt\6.10.2\msvc2022_64'
+    }
+}
+
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $scriptDir

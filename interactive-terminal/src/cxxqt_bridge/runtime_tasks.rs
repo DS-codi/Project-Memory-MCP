@@ -481,7 +481,9 @@ pub(crate) fn spawn_runtime_tasks(
                     const PTY_HOST_IPC_PORT: u16 = 9102;
                     let app_state_for_client = state_for_msg.clone();
                     let session_output_for_client = session_output_tx.clone();
-                    match PtyHostClient::connect(PTY_HOST_IPC_PORT, session_output_for_client, app_state_for_client).await {
+                    let (crash_tx, mut crash_rx) =
+                        tokio::sync::mpsc::unbounded_channel::<String>();
+                    match PtyHostClient::connect(PTY_HOST_IPC_PORT, session_output_for_client, app_state_for_client, crash_tx).await {
                         Ok(client) => {
                             if PTY_HOST_CLIENT.set(client).is_err() {
                                 eprintln!("[WsTerminal] PtyHostClient already initialized");
@@ -491,6 +493,45 @@ pub(crate) fn spawn_runtime_tasks(
                             eprintln!("[WsTerminal] Failed to connect to pty-host: {e}");
                         }
                     }
+
+                    // Crash-alert task: when pty-host disconnects, append to a log file
+                    // and emit crashAlert to QML so the user gets a visible notification.
+                    let qt_crash = qt_thread_perf.clone();
+                    tokio::spawn(async move {
+                        while let Some(reason) = crash_rx.recv().await {
+                            // Build a timestamped log entry and append it to a known file.
+                            let log_path = std::env::temp_dir()
+                                .join("project-memory-mcp")
+                                .join("interactive-terminal")
+                                .join("crashes.log");
+                            let timestamp = {
+                                use std::time::{SystemTime, UNIX_EPOCH};
+                                SystemTime::now()
+                                    .duration_since(UNIX_EPOCH)
+                                    .map(|d| d.as_secs())
+                                    .unwrap_or(0)
+                            };
+                            if let Some(parent) = log_path.parent() {
+                                let _ = std::fs::create_dir_all(parent);
+                            }
+                            let entry = format!("[{timestamp}] {reason}\n");
+                            let _ = {
+                                use std::io::Write as _;
+                                std::fs::OpenOptions::new()
+                                    .create(true)
+                                    .append(true)
+                                    .open(&log_path)
+                                    .and_then(|mut f| f.write_all(entry.as_bytes()))
+                            };
+                            let log_str = log_path.to_string_lossy().to_string();
+                            let _ = qt_crash.queue(move |mut obj| {
+                                obj.as_mut().crash_alert(
+                                    QString::from(&*reason),
+                                    QString::from(&*log_str),
+                                );
+                            });
+                        }
+                    });
                 }
 
                 let initial_session_id = {
