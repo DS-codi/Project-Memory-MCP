@@ -198,7 +198,7 @@ export class DiagnosticsTreeProvider
 
         const description = sync.lastError
             ? 'check failed'
-            : sync.summary
+            : sync.status === 'ready' && sync.summary
                 ? `${sync.actionableFindings} actionable`
                 : sync.status;
 
@@ -217,7 +217,7 @@ export class DiagnosticsTreeProvider
         if (sync.lastError) {
             children.push(_detail('workspaceSync.error', 'Error', sync.lastError, 'error'));
         }
-        if (sync.summary) {
+        if (sync.status === 'ready' && sync.summary) {
             children.push(
                 _detail('workspaceSync.actionable', 'Actionable findings', String(sync.actionableFindings), sync.actionableFindings > 0 ? 'warning' : 'check'),
                 _detail('workspaceSync.protected', 'Protected drift', String(sync.summary.protected_drift), sync.summary.protected_drift > 0 ? 'warning' : 'check'),
@@ -229,9 +229,11 @@ export class DiagnosticsTreeProvider
                 _detail('workspaceSync.ignoredLocal', 'Ignored local', String(sync.summary.ignored_local), 'circle-slash'),
             );
         }
-        sync.sampleFindings.forEach((finding, index) => {
+        if (sync.status === 'ready') {
+            sync.sampleFindings.forEach((finding, index) => {
             children.push(_detail(`workspaceSync.sample.${index}`, `Finding ${index + 1}`, finding, 'warning'));
-        });
+            });
+        }
 
         return {
             kind: 'subsystem',

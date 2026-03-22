@@ -252,10 +252,11 @@ export function activate(context: vscode.ExtensionContext) {
 
     diagnosticsService.onHealthChange(report => {
         const icons: Record<string, string> = { green: '$(check)', yellow: '$(warning)', red: '$(error)' };
+        const workspaceSyncSummary = diagnosticsService.getWorkspaceSyncStatusSummary(report);
         diagnosticsStatusBar.text = `${icons[report.health]} PM`;
         diagnosticsStatusBar.tooltip = report.issues.length > 0
-            ? `Project Memory: ${report.issues.join('; ')}`
-            : 'Project Memory: All systems healthy';
+            ? `Project Memory: ${report.issues.join('; ')}\n${workspaceSyncSummary}`
+            : `Project Memory: All systems healthy\n${workspaceSyncSummary}`;
         // Update diagnostics tree view
         if (diagnosticsTreeProvider) {
             diagnosticsTreeProvider.update(report);

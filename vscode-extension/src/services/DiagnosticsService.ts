@@ -145,6 +145,7 @@ export class DiagnosticsService implements vscode.Disposable {
             status: 'checking',
             lastReason: reason,
             statusMessage: `Passive sync check running (${reason}).`,
+            lastError: undefined,
         };
         this.runCheck();
     }
@@ -156,6 +157,7 @@ export class DiagnosticsService implements vscode.Disposable {
             status: 'idle',
             lastReason: reason,
             statusMessage: message,
+            lastError: undefined,
         };
         this.runCheck();
     }
@@ -227,6 +229,7 @@ export class DiagnosticsService implements vscode.Disposable {
             issues,
         };
 
+        this.lastReport = report;
         this._onHealthChange.fire(report);
         return report;
     }
@@ -302,6 +305,35 @@ export class DiagnosticsService implements vscode.Disposable {
         return lines.join('\n');
     }
 
+    getWorkspaceSyncStatusSummary(report: DiagnosticsReport = this.getReport()): string {
+        const sync = report.workspaceSync;
+
+        if (sync.lastError) {
+            return `Workspace sync: failed (${sync.lastError})`;
+        }
+
+        if (sync.status === 'idle' || sync.status === 'checking') {
+            return `Workspace sync: ${sync.statusMessage ?? sync.status}`;
+        }
+
+        if (!sync.summary) {
+            return `Workspace sync: ${sync.statusMessage ?? 'No passive watcher report captured yet.'}`;
+        }
+
+        const fragments: string[] = [];
+        if (sync.summary.protected_drift > 0) fragments.push(`${sync.summary.protected_drift} protected drift`);
+        if (sync.summary.content_mismatch > 0) fragments.push(`${sync.summary.content_mismatch} mismatch`);
+        if (sync.summary.local_only > 0) fragments.push(`${sync.summary.local_only} local-only`);
+        if (sync.summary.db_only > 0) fragments.push(`${sync.summary.db_only} DB-only`);
+        if (sync.summary.import_candidate > 0) fragments.push(`${sync.summary.import_candidate} import candidate`);
+
+        if (fragments.length === 0) {
+            return 'Workspace sync: no actionable findings';
+        }
+
+        return `Workspace sync: ${sync.actionableFindings} actionable finding(s) (${fragments.join(', ')})`;
+    }
+
     dispose(): void {
         this.heartbeatSubscriptions.forEach(d => d.dispose());
         this.heartbeatSubscriptions = [];
@@ -317,6 +349,10 @@ export class DiagnosticsService implements vscode.Disposable {
     private buildWorkspaceSyncIssues(): string[] {
         if (this.workspaceSyncState.lastError) {
             return [`Workspace config sync check failed: ${this.workspaceSyncState.lastError}`];
+        }
+
+        if (this.workspaceSyncState.status !== 'ready') {
+            return [];
         }
 
         const summary = this.workspaceSyncState.summary;

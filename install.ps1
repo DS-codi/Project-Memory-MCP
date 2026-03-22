@@ -419,13 +419,15 @@ function Test-NpmSslBypassNeeded {
 
     Write-Host "   Checking npm registry SSL connectivity..." -ForegroundColor DarkGray
 
-    # Strip win-ca preload from NODE_OPTIONS if present — on machines where win-ca
-    # is not globally installed, Node crashes at preload before npm can run at all.
+    # Clear NODE_OPTIONS entirely for npm — win-ca and other preloads injected by
+    # VS Code or corporate proxy tools cause Node to crash at the preload phase on
+    # machines where those modules are not installed globally.
     $prevNodeOptions = $env:NODE_OPTIONS
-    if ($env:NODE_OPTIONS -match 'win-ca') {
-        Write-Host "   (note: win-ca detected in NODE_OPTIONS; stripping for npm invocations to prevent pre-execution crash)" -ForegroundColor DarkGray
-        $env:NODE_OPTIONS = ($env:NODE_OPTIONS -replace '--require[= ]\S*win-ca\S*', '' -replace '--experimental-loader[= ]\S*win-ca\S*', '').Trim()
-        if ([string]::IsNullOrWhiteSpace($env:NODE_OPTIONS)) { $env:NODE_OPTIONS = $null }
+    if ($env:NODE_OPTIONS) {
+        if ($env:NODE_OPTIONS -match 'win-ca') {
+            Write-Host "   (note: win-ca in NODE_OPTIONS — clearing for npm to prevent pre-execution crash)" -ForegroundColor DarkGray
+        }
+        $env:NODE_OPTIONS = $null
     }
 
     try {
@@ -456,14 +458,14 @@ function Test-NpmSslBypassNeeded {
 function Invoke-NpmInstall {
     param([string]$Label = "npm install")
 
-    # Strip win-ca preload from NODE_OPTIONS — if win-ca is not installed on this
-    # machine, Node crashes at the preload phase before npm can even start.
+    # Clear NODE_OPTIONS entirely for npm — win-ca and other preloads injected by
+    # VS Code or corporate proxy tools cause Node to crash at the preload phase on
+    # machines where those modules are not globally installed.
     $prevNodeOptions = $env:NODE_OPTIONS
     if ($env:NODE_OPTIONS -match 'win-ca') {
-        Write-Host "   (note: win-ca detected in NODE_OPTIONS; stripping for npm to prevent pre-execution crash)" -ForegroundColor DarkGray
-        $env:NODE_OPTIONS = ($env:NODE_OPTIONS -replace '--require[= ]\S*win-ca\S*', '' -replace '--experimental-loader[= ]\S*win-ca\S*', '').Trim()
-        if ([string]::IsNullOrWhiteSpace($env:NODE_OPTIONS)) { $env:NODE_OPTIONS = $null }
+        Write-Host "   (note: win-ca in NODE_OPTIONS — clearing for npm to prevent pre-execution crash)" -ForegroundColor DarkGray
     }
+    $env:NODE_OPTIONS = $null
 
     try {
         if (Test-NpmSslBypassNeeded) {
