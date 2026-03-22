@@ -418,6 +418,16 @@ function Test-NpmSslBypassNeeded {
     if ($null -ne $script:_NpmSslBypassNeeded) { return $script:_NpmSslBypassNeeded }
 
     Write-Host "   Checking npm registry SSL connectivity..." -ForegroundColor DarkGray
+
+    # Strip win-ca preload from NODE_OPTIONS if present — on machines where win-ca
+    # is not globally installed, Node crashes at preload before npm can run at all.
+    $prevNodeOptions = $env:NODE_OPTIONS
+    if ($env:NODE_OPTIONS -match 'win-ca') {
+        Write-Host "   (note: win-ca detected in NODE_OPTIONS; stripping for npm invocations to prevent pre-execution crash)" -ForegroundColor DarkGray
+        $env:NODE_OPTIONS = ($env:NODE_OPTIONS -replace '--require[= ]\S*win-ca\S*', '' -replace '--experimental-loader[= ]\S*win-ca\S*', '').Trim()
+        if ([string]::IsNullOrWhiteSpace($env:NODE_OPTIONS)) { $env:NODE_OPTIONS = $null }
+    }
+
     try {
         # Avoid 2>&1 | Out-String in PS 5.1 to prevent RemoteException noise.
         # Native output goes to console; we only care about $LASTEXITCODE.
@@ -431,14 +441,13 @@ function Test-NpmSslBypassNeeded {
         } else {
             # npm ping failed — likely TLS interception or cert issue
             Write-Warn "npm SSL check failed — enabling --strict-ssl=false for this install"
-            if ($env:NODE_OPTIONS -match 'win-ca') {
-                Write-Host "   (note: win-ca detected in NODE_OPTIONS; this often causes pre-execution failures in corporate Node.js setups)" -ForegroundColor DarkGray
-            }
             $script:_NpmSslBypassNeeded = $true
         }
     } catch {
         Write-Warn "npm SSL check errored — enabling --strict-ssl=false for this install"
         $script:_NpmSslBypassNeeded = $true
+    } finally {
+        $env:NODE_OPTIONS = $prevNodeOptions
     }
     return $script:_NpmSslBypassNeeded
 }
@@ -446,22 +455,27 @@ function Test-NpmSslBypassNeeded {
 # Run npm install with automatic SSL workaround when needed.
 function Invoke-NpmInstall {
     param([string]$Label = "npm install")
-    if (Test-NpmSslBypassNeeded) {
-        $prevTls = $env:NODE_TLS_REJECT_UNAUTHORIZED
-        $env:NODE_TLS_REJECT_UNAUTHORIZED = '0'
-        Invoke-Checked $Label { 
-            if ($env:NODE_OPTIONS -match 'win-ca') {
-                Write-Host "   (note: win-ca detected in NODE_OPTIONS)" -ForegroundColor DarkGray
-            }
-            npm install --strict-ssl=false 
+
+    # Strip win-ca preload from NODE_OPTIONS — if win-ca is not installed on this
+    # machine, Node crashes at the preload phase before npm can even start.
+    $prevNodeOptions = $env:NODE_OPTIONS
+    if ($env:NODE_OPTIONS -match 'win-ca') {
+        Write-Host "   (note: win-ca detected in NODE_OPTIONS; stripping for npm to prevent pre-execution crash)" -ForegroundColor DarkGray
+        $env:NODE_OPTIONS = ($env:NODE_OPTIONS -replace '--require[= ]\S*win-ca\S*', '' -replace '--experimental-loader[= ]\S*win-ca\S*', '').Trim()
+        if ([string]::IsNullOrWhiteSpace($env:NODE_OPTIONS)) { $env:NODE_OPTIONS = $null }
+    }
+
+    try {
+        if (Test-NpmSslBypassNeeded) {
+            $prevTls = $env:NODE_TLS_REJECT_UNAUTHORIZED
+            $env:NODE_TLS_REJECT_UNAUTHORIZED = '0'
+            Invoke-Checked $Label { npm install --strict-ssl=false }
+            $env:NODE_TLS_REJECT_UNAUTHORIZED = $prevTls
+        } else {
+            Invoke-Checked $Label { npm install }
         }
-    } else {
-        Invoke-Checked $Label { 
-            if ($env:NODE_OPTIONS -match 'win-ca') {
-                Write-Host "   (note: win-ca detected in NODE_OPTIONS)" -ForegroundColor DarkGray
-            }
-            npm install 
-        }
+    } finally {
+        $env:NODE_OPTIONS = $prevNodeOptions
     }
 }
 
