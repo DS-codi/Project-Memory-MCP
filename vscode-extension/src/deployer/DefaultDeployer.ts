@@ -135,7 +135,8 @@ export class DefaultDeployer {
         instructionName: string,
         targetDir: string,
         shortCode: string | null,
-        knownAgentNames: string[]
+        knownAgentNames: string[],
+        overwrite = false
     ): Promise<boolean> {
         const sourcePath = path.join(this.config.instructionsRoot, `${instructionName}.instructions.md`);
         if (!fs.existsSync(sourcePath)) {
@@ -148,7 +149,7 @@ export class DefaultDeployer {
             : `${instructionName}.instructions.md`;
         const targetPath = path.join(targetDir, targetFilename);
 
-        if (fs.existsSync(targetPath)) {
+        if (fs.existsSync(targetPath) && !overwrite) {
             this.log(`Target exists, skipping: ${targetPath}`);
             return false;
         }
@@ -295,11 +296,11 @@ export class DefaultDeployer {
                 const targetStats = fs.statSync(targetPath);
 
                 if (sourceStats.mtimeMs > targetStats.mtimeMs) {
-                    await this.copyFile(sourcePath, targetPath, true);
+                    await this.deployInstructionWithCode(instructionName, instructionsDir, shortCode, this.config.defaultAgents, true);
                     updated.push(instructionName);
                 }
             } else {
-                await this.copyFile(sourcePath, targetPath);
+                await this.deployInstructionWithCode(instructionName, instructionsDir, shortCode, this.config.defaultAgents);
                 added.push(instructionName);
             }
         }

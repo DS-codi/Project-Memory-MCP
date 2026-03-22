@@ -124,9 +124,10 @@ export function checkWorkspaceDbSync(workspacePath: string): WorkspaceDbSyncRepo
     const localPath = path.join(agentsDir, filename);
     const localContent = fs.readFileSync(localPath, 'utf-8');
     const canonName = canonicalAgentName(filename, localContent);
-    seenAgentNames.add(canonName.toLowerCase());
+    const canonNameLower = canonName.toLowerCase();
+    seenAgentNames.add(canonNameLower);
 
-    const dbRow = getAgent(canonName);
+    const dbRow = getAgent(canonNameLower);
 
     if (!dbRow) {
       agents.push({
@@ -158,8 +159,9 @@ export function checkWorkspaceDbSync(workspacePath: string): WorkspaceDbSyncRepo
   // Check mandatory agents that have a DB entry but are absent from workspace
   for (const mandatoryFile of MANDATORY_AGENTS) {
     const canonName = mandatoryFile.replace(/\.agent\.md$/, '');
-    if (!seenAgentNames.has(canonName.toLowerCase())) {
-      const dbRow = getAgent(canonName);
+    const canonNameLower = canonName.toLowerCase();
+    if (!seenAgentNames.has(canonNameLower)) {
+      const dbRow = getAgent(canonNameLower);
       if (dbRow) {
         agents.push({
           filename: mandatoryFile,
@@ -183,9 +185,10 @@ export function checkWorkspaceDbSync(workspacePath: string): WorkspaceDbSyncRepo
     const localPath = path.join(instructionsDir, filename);
     const localContent = fs.readFileSync(localPath, 'utf-8');
     const canonFilename = toCanonicalFilename(filename); // strips workspace code
-    seenInstructionFilenames.add(canonFilename);
+    const canonFilenameLower = canonFilename.toLowerCase();
+    seenInstructionFilenames.add(canonFilenameLower);
 
-    const dbRow = getInstruction(canonFilename);
+    const dbRow = getInstruction(canonFilenameLower);
 
     if (!dbRow) {
       instructions.push({
@@ -216,8 +219,9 @@ export function checkWorkspaceDbSync(workspacePath: string): WorkspaceDbSyncRepo
 
   // Check mandatory instructions that have a DB entry but are absent from workspace
   for (const mandatoryFile of MANDATORY_INSTRUCTIONS) {
-    if (!seenInstructionFilenames.has(mandatoryFile)) {
-      const dbRow = getInstruction(mandatoryFile);
+    const mandatoryFileLower = mandatoryFile.toLowerCase();
+    if (!seenInstructionFilenames.has(mandatoryFileLower)) {
+      const dbRow = getInstruction(mandatoryFileLower);
       if (dbRow) {
         instructions.push({
           filename: mandatoryFile,

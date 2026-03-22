@@ -49,19 +49,33 @@ export interface AgentLoadResult {
 }
 
 /**
- * Discover all agent files from the agents/ directory.
+ * Discover all agent files from the agents/ directory (recursive).
  * Returns only files matching the *.agent.md pattern.
  */
 export async function discoverAgents(): Promise<AgentFileInfo[]> {
   try {
-    const files = await fs.readdir(AGENTS_ROOT);
-    const agentFiles = files.filter(f => f.endsWith('.agent.md'));
+    const results: AgentFileInfo[] = [];
+    
+    async function scan(dir: string, relPath: string = '') {
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        const subRelPath = relPath ? path.join(relPath, entry.name) : entry.name;
+        
+        if (entry.isDirectory()) {
+          await scan(fullPath, subRelPath);
+        } else if (entry.isFile() && entry.name.endsWith('.agent.md')) {
+          results.push({
+            name: agentNameFromFilename(entry.name),
+            filename: subRelPath,
+            filepath: fullPath,
+          });
+        }
+      }
+    }
 
-    return agentFiles.map(filename => ({
-      name: agentNameFromFilename(filename),
-      filename,
-      filepath: path.join(AGENTS_ROOT, filename),
-    }));
+    await scan(AGENTS_ROOT);
+    return results;
   } catch (error) {
     throw new Error(`Failed to discover agents in ${AGENTS_ROOT}: ${(error as Error).message}`);
   }
