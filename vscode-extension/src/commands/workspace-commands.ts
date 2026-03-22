@@ -55,9 +55,12 @@ export function registerWorkspaceCommands(
                         vscode.window.showWarningMessage(`Agents root not found: ${agentsRoot}`);
                         return;
                     }
-                    const allAgentFiles = fs.readdirSync(agentsRoot)
-                        .filter((f: string) => f.endsWith('.agent.md'))
-                        .map((f: string) => f.replace('.agent.md', ''));
+                    const allAgentFiles = [
+                            ...(fs.existsSync(path.join(agentsRoot, 'core')) ? fs.readdirSync(path.join(agentsRoot, 'core')).filter((f: string) => f.endsWith('.agent.md')).map((f: string) => path.join('core', f)) : []),
+                            ...(fs.existsSync(path.join(agentsRoot, 'spoke')) ? fs.readdirSync(path.join(agentsRoot, 'spoke')).filter((f: string) => f.endsWith('.agent.md')).map((f: string) => path.join('spoke', f)) : []),
+                            ...fs.readdirSync(agentsRoot).filter((f: string) => f.endsWith('.agent.md'))
+                        ]
+                        .map((f: string) => path.basename(f, '.agent.md'));
 
                     const currentDefaults = config.get<string[]>('defaultAgents') || [];
 
@@ -163,8 +166,11 @@ export function registerWorkspaceCommands(
             }
 
             try {
-                const files = fs.readdirSync(agentsRoot)
-                    .filter((f: string) => f.endsWith('.agent.md'));
+                const files = [
+                            ...(fs.existsSync(path.join(agentsRoot, 'core')) ? fs.readdirSync(path.join(agentsRoot, 'core')).filter((f: string) => f.endsWith('.agent.md')).map((f: string) => path.join('core', f)) : []),
+                            ...(fs.existsSync(path.join(agentsRoot, 'spoke')) ? fs.readdirSync(path.join(agentsRoot, 'spoke')).filter((f: string) => f.endsWith('.agent.md')).map((f: string) => path.join('spoke', f)) : []),
+                            ...fs.readdirSync(agentsRoot).filter((f: string) => f.endsWith('.agent.md'))
+                        ];
 
                 const selected = await vscode.window.showQuickPick(files, {
                     placeHolder: 'Select an agent file to open'

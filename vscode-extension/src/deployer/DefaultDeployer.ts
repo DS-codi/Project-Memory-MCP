@@ -119,7 +119,9 @@ export class DefaultDeployer {
      * Falls back to hub.agent.md when shortCode is null.
      */
     private async deployAgentWithCode(agentName: string, targetDir: string, shortCode: string | null): Promise<boolean> {
-        const sourcePath = path.join(this.config.agentsRoot, `${agentName}.agent.md`);
+        let sourcePath = path.join(this.config.agentsRoot, 'core', `${agentName}.agent.md`);
+        if (!fs.existsSync(sourcePath)) { sourcePath = path.join(this.config.agentsRoot, 'spoke', `${agentName}.agent.md`); }
+        if (!fs.existsSync(sourcePath)) { sourcePath = path.join(this.config.agentsRoot, `${agentName}.agent.md`); }
         const targetFilename = shortCode ? `${agentName}.${shortCode}.agent.md` : `${agentName}.agent.md`;
         const targetPath = path.join(targetDir, targetFilename);
         return this.copyFile(sourcePath, targetPath);
@@ -178,7 +180,9 @@ export class DefaultDeployer {
      * Used by direct callers outside of deployToWorkspace.
      */
     async deployAgent(agentName: string, targetDir: string): Promise<boolean> {
-        const sourcePath = path.join(this.config.agentsRoot, `${agentName}.agent.md`);
+        let sourcePath = path.join(this.config.agentsRoot, 'core', `${agentName}.agent.md`);
+        if (!fs.existsSync(sourcePath)) { sourcePath = path.join(this.config.agentsRoot, 'spoke', `${agentName}.agent.md`); }
+        if (!fs.existsSync(sourcePath)) { sourcePath = path.join(this.config.agentsRoot, `${agentName}.agent.md`); }
         const targetPath = path.join(targetDir, `${agentName}.agent.md`);
 
         return this.copyFile(sourcePath, targetPath);
@@ -254,7 +258,9 @@ export class DefaultDeployer {
 
         // Update agents
         for (const agentName of this.config.defaultAgents) {
-            const sourcePath = path.join(this.config.agentsRoot, `${agentName}.agent.md`);
+            let sourcePath = path.join(this.config.agentsRoot, 'core', `${agentName}.agent.md`);
+        if (!fs.existsSync(sourcePath)) { sourcePath = path.join(this.config.agentsRoot, 'spoke', `${agentName}.agent.md`); }
+        if (!fs.existsSync(sourcePath)) { sourcePath = path.join(this.config.agentsRoot, `${agentName}.agent.md`); }
             const targetPath = path.join(agentsDir, `${agentName}.agent.md`);
 
             if (!fs.existsSync(sourcePath)) continue;
@@ -303,7 +309,9 @@ export class DefaultDeployer {
      */
     getDeploymentPlan(): { agents: string[]; instructions: string[]; skills: string[] } {
         const agents = this.config.defaultAgents.filter(name => {
-            const sourcePath = path.join(this.config.agentsRoot, `${name}.agent.md`);
+            let sourcePath = path.join(this.config.agentsRoot, 'core', `${name}.agent.md`);
+            if (!fs.existsSync(sourcePath)) { sourcePath = path.join(this.config.agentsRoot, 'spoke', `${name}.agent.md`); }
+            if (!fs.existsSync(sourcePath)) { sourcePath = path.join(this.config.agentsRoot, `${name}.agent.md`); }
             return fs.existsSync(sourcePath);
         });
 
