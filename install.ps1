@@ -454,6 +454,21 @@ function Test-NpmSslBypassNeeded {
     return $script:_NpmSslBypassNeeded
 }
 
+# Run any npm/npx command with NODE_OPTIONS cleared.
+# win-ca and other VS Code-injected preloads crash Node at the preload phase on
+# machines where those modules are not globally installed.  npm and npx don't
+# need NODE_OPTIONS, so it's safe to suppress it for the duration of the call.
+function Invoke-NpmRun {
+    param([string]$Label, [scriptblock]$ScriptBlock)
+    $prevNodeOptions = $env:NODE_OPTIONS
+    $env:NODE_OPTIONS = $null
+    try {
+        Invoke-Checked $Label $ScriptBlock
+    } finally {
+        $env:NODE_OPTIONS = $prevNodeOptions
+    }
+}
+
 # Run npm install with automatic SSL workaround when needed.
 function Invoke-NpmInstall {
     param([string]$Label = "npm install")
@@ -1416,7 +1431,7 @@ function Install-Server {
     Push-Location $ServerDir
     try {
         Invoke-NpmInstall "npm install (server)"
-        Invoke-Checked "npm run build" { npm run build }
+        Invoke-NpmRun "npm run build" { npm run build }
         Write-Ok "Server built → $ServerDir\dist"
 
         # Ensure fallback REST transport entrypoint is present in build output.
@@ -1435,7 +1450,7 @@ function Install-Server {
         # Initialise the SQLite database and seed static data (tools, agents,
         # instructions, skills). Idempotent — safe to run on every install.
         # When -NewDatabase is used, this creates the schema from scratch.
-        Invoke-Checked "node dist/db/seed.js (DB init + seed)" {
+        Invoke-NpmRun "node dist/db/seed.js (DB init + seed)" {
             node (Join-Path $ServerDir "dist\db\seed.js")
         }
 
@@ -1467,7 +1482,7 @@ function Install-FallbackServer {
     Push-Location $ServerDir
     try {
         Invoke-NpmInstall "npm install (server)"
-        Invoke-Checked "npm run build (fallback server)" { npm run build }
+        Invoke-NpmRun "npm run build (fallback server)" { npm run build }
 
         $fallbackEntry = Join-Path $ServerDir "dist\fallback-rest-main.js"
         if (-not (Test-Path $fallbackEntry)) {
@@ -1502,8 +1517,8 @@ function Install-Extension {
                 Write-Ok "Extension source unchanged — skipping compile and package (use -Force to rebuild)"
             } else {
                 Invoke-NpmInstall "npm install (extension)"
-                Invoke-Checked "npm run compile" { npm run compile }
-                Invoke-Checked "npm run package (vsce)" { npx @vscode/vsce package }
+                Invoke-NpmRun "npm run compile" { npm run compile }
+                Invoke-NpmRun "npm run package (vsce)" { npx @vscode/vsce package }
                 Write-Ok "Extension compiled and packaged"
             }
         } else {
@@ -1570,7 +1585,7 @@ function Install-Dashboard {
     Push-Location $DashDir
     try {
         Invoke-NpmInstall "npm install (dashboard)"
-        Invoke-Checked "npx vite build" { npx vite build }
+        Invoke-NpmRun "npx vite build" { npx vite build }
         Write-Ok "Dashboard frontend built → $DashDir\dist"
     } finally {
         Pop-Location
@@ -1581,7 +1596,7 @@ function Install-Dashboard {
     Push-Location $ServerDir
     try {
         Invoke-NpmInstall "npm install (dashboard server)"
-        Invoke-Checked "npm run build (dashboard server)" { npm run build }
+        Invoke-NpmRun "npm run build (dashboard server)" { npm run build }
         Write-Ok "Dashboard server built → $ServerDir\dist"
     } finally {
         Pop-Location
@@ -1615,7 +1630,7 @@ function Install-Mobile {
     Push-Location $MobileDir
     try {
         Invoke-NpmInstall "npm install (mobile)"
-        Invoke-Checked "npm run build (mobile)" { npm run build }
+        Invoke-NpmRun "npm run build (mobile)" { npm run build }
         Write-Ok "Mobile app built → $MobileDir\dist"
 
         # Sync to Android if the Android platform directory exists.
