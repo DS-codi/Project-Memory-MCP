@@ -12,7 +12,7 @@ use ratatui::{
     widgets::{Block, Borders, Cell, Gauge, Paragraph, Row, Table},
     Terminal,
 };
-use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::fs::OpenOptions;
 use std::io::{self, BufRead, BufReader, Write};
 use std::process::{Command, Stdio};
@@ -30,59 +30,77 @@ const BANNER: &[&str] = &[
     r"  Project Memory MCP — command line launcher",
 ];
 
-const PALETTE_DEFAULT: [Color; 6] = [
-    Color::White,
-    Color::Cyan,
-    Color::Blue,
-    Color::DarkGray,
-    Color::Green,
-    Color::LightGreen,
-];
+const PALETTE_DEFAULT: [Color; 6] = [Color::White, Color::Cyan, Color::Blue, Color::DarkGray, Color::Green, Color::LightGreen];
+const PALETTE_SUCCESS: [Color; 6] = [Color::Green, Color::LightGreen, Color::Cyan, Color::Green, Color::LightGreen, Color::White];
+const PALETTE_WARN:    [Color; 6] = [Color::Yellow, Color::LightYellow, Color::White, Color::Yellow, Color::LightYellow, Color::DarkGray];
+const PALETTE_ERROR:   [Color; 6] = [Color::Red, Color::LightRed, Color::Yellow, Color::Red, Color::LightRed, Color::DarkGray];
 
-const PALETTE_SUCCESS: [Color; 6] = [
-    Color::Green,
-    Color::LightGreen,
-    Color::Cyan,
-    Color::Green,
-    Color::LightGreen,
-    Color::White,
-];
+// ─── Animation Style ─────────────────────────────────────────────────────────
 
-const PALETTE_WARN: [Color; 6] = [
-    Color::Yellow,
-    Color::LightYellow,
-    Color::White,
-    Color::Yellow,
-    Color::LightYellow,
-    Color::DarkGray,
-];
+#[derive(Clone, Copy, PartialEq)]
+enum AnimStyle {
+    Wave,
+    Pulse,
+    Scan,
+    Sparkle,
+}
 
-const PALETTE_ERROR: [Color; 6] = [
-    Color::Red,
-    Color::LightRed,
-    Color::Yellow,
-    Color::Red,
-    Color::LightRed,
-    Color::DarkGray,
-];
+impl AnimStyle {
+    fn next(self) -> Self {
+        match self {
+            AnimStyle::Wave    => AnimStyle::Pulse,
+            AnimStyle::Pulse   => AnimStyle::Scan,
+            AnimStyle::Scan    => AnimStyle::Sparkle,
+            AnimStyle::Sparkle => AnimStyle::Wave,
+        }
+    }
+    fn prev(self) -> Self {
+        match self {
+            AnimStyle::Wave    => AnimStyle::Sparkle,
+            AnimStyle::Pulse   => AnimStyle::Wave,
+            AnimStyle::Scan    => AnimStyle::Pulse,
+            AnimStyle::Sparkle => AnimStyle::Scan,
+        }
+    }
+    fn name(self) -> &'static str {
+        match self {
+            AnimStyle::Wave    => "Wave",
+            AnimStyle::Pulse   => "Pulse",
+            AnimStyle::Scan    => "Scan",
+            AnimStyle::Sparkle => "Sparkle",
+        }
+    }
+}
 
-// ─── Layout constants ─────────────────────────────────────────────────────────
+/// Deterministic pseudo-random f64 in [0,1) from a u64 seed. No external crates needed.
+fn prng(seed: u64) -> f64 {
+    let mut x = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+    x ^= x >> 33;
+    x = x.wrapping_mul(0xff51afd7ed558ccd);
+    x ^= x >> 33;
+    x = x.wrapping_mul(0xc4ceb9fe1a85ec53);
+    x ^= x >> 33;
+    (x as f64) / (u64::MAX as f64)
+}
 
-const MENU_Y: u16 = 9; // banner rows (7) + 2 padding
-const STATUS_Y: u16 = 18; // MENU_Y + 6 items + 3 padding
+// ─── Layout constants ────────────────────────────────────────────────────────
 
-// ─── Menus ────────────────────────────────────────────────────────────────────
+const MENU_Y:   u16 = 9;
+const STATUS_Y: u16 = 18;
+
+// ─── Menu / Component definitions ────────────────────────────────────────────
 
 const MENU_ITEMS: &[&str] = &[
-    "Install All Components",
-    "Install Component...",
-    "Run Tests",
+    "Install Components",
+    "Test Components",
+    "Launch Application",
     "Lint QML Files",
-    "Launch Supervisor",
+    "Stream Command Output",
     "Quit",
 ];
 
 const COMPONENT_NAMES: &[&str] = &[
+    "All",
     "Supervisor",
     "GuiForms",
     "InteractiveTerminal",
@@ -91,13 +109,12 @@ const COMPONENT_NAMES: &[&str] = &[
     "Dashboard",
     "Extension",
     "Mobile",
-    "Back",
+    "Container",
 ];
 
 // ─── Terminal cleanup guard ───────────────────────────────────────────────────
 
 struct TerminalGuard;
-
 impl Drop for TerminalGuard {
     fn drop(&mut self) {
         let _ = terminal::disable_raw_mode();
@@ -115,7 +132,7 @@ fn main() -> io::Result<()> {
     let mut term = Terminal::new(backend)?;
     let _guard = TerminalGuard;
 
-    // Drain stale input events (the Enter key used to launch the exe)
+    // Drain the Enter that launched us (prevents double-fire on Windows)
     while event::poll(Duration::from_millis(50))? {
         let _ = event::read()?;
     }
@@ -123,10 +140,17 @@ fn main() -> io::Result<()> {
     run_app(&mut term)
 }
 
-// ─── Banner rendering ─────────────────────────────────────────────────────────
+// ─── Banner renderer ──────────────────────────────────────────────────────────
 
-fn render_banner_with_palette(f: &mut ratatui::Frame, tick: f64, palette: &[Color; 6]) {
-    let area = f.size();
+fn render_banner_with_palette(
+    f: &mut ratatui::Frame,
+    tick: f64,
+    palette: &[Color; 6],
+    style: AnimStyle,
+) {
+    let banner_rows = BANNER.len() as f64;
+    let tick_bin = tick as u64;
+
     let banner_lines: Vec<Line> = BANNER
         .iter()
         .enumerate()
@@ -135,37 +159,76 @@ fn render_banner_with_palette(f: &mut ratatui::Frame, tick: f64, palette: &[Colo
                 .chars()
                 .enumerate()
                 .map(|(col, ch)| {
-                    let v = (tick * 0.4 + col as f64 * 0.5 + row as f64 * 0.2).sin();
-                    let idx = (v * 2.0).round().abs() as usize;
-                    let color = palette[idx % palette.len()];
+                    let color = match style {
+                        AnimStyle::Wave => {
+                            // Slowed-down sine wave (tick 0.12, col 0.25, row 0.18)
+                            let v = (tick * 0.12 + col as f64 * 0.25 + row as f64 * 0.18).sin();
+                            let idx = (v * 2.0).round().abs() as usize;
+                            palette[idx % palette.len()]
+                        }
+                        AnimStyle::Pulse => {
+                            // Entire banner breathes together
+                            let brightness = (tick * 0.04).sin() * 0.5 + 0.5;
+                            let idx = (brightness * (palette.len() - 1) as f64).round() as usize;
+                            palette[idx.min(palette.len() - 1)]
+                        }
+                        AnimStyle::Scan => {
+                            // A bright scanline sweeps downward through the banner
+                            let period = banner_rows + 6.0;
+                            let scanline = (tick * 0.18) % period;
+                            let dist = (row as f64 - scanline).abs();
+                            if dist < 1.5 {
+                                Color::White
+                            } else {
+                                let v = (tick * 0.08 + col as f64 * 0.2 + row as f64 * 0.15).sin();
+                                let idx = (v * 2.0).round().abs() as usize;
+                                palette[idx % palette.len()]
+                            }
+                        }
+                        AnimStyle::Sparkle => {
+                            // Dim wave base with random character flares
+                            let v = (tick * 0.08 + col as f64 * 0.2 + row as f64 * 0.15).sin();
+                            let base_idx = ((v * 2.0).round().abs() as usize + 3) % palette.len();
+                            let seed = row as u64 * 997 + col as u64 + tick_bin * 137;
+                            if prng(seed) < 0.04 {
+                                Color::White
+                            } else {
+                                palette[base_idx]
+                            }
+                        }
+                    };
                     Span::styled(ch.to_string(), Style::default().fg(color))
                 })
                 .collect();
             Line::from(spans)
         })
         .collect();
-    let banner_widget = Paragraph::new(banner_lines);
+
+    let area = f.size();
     let banner_area = Rect::new(0, 0, area.width, area.height.min(BANNER.len() as u16));
-    f.render_widget(banner_widget, banner_area);
+    f.render_widget(Paragraph::new(banner_lines), banner_area);
 }
 
-fn render_animated_banner(f: &mut ratatui::Frame, tick: f64) {
-    render_banner_with_palette(f, tick, &PALETTE_DEFAULT);
+fn render_animated_banner(f: &mut ratatui::Frame, tick: f64, style: AnimStyle) {
+    render_banner_with_palette(f, tick, &PALETTE_DEFAULT, style);
 }
 
-// ─── Main menu loop ───────────────────────────────────────────────────────────
+// ─── Main application loop ────────────────────────────────────────────────────
 
 fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
     let mut tick: f64 = 0.0;
     let tick_rate = Duration::from_millis(40);
     let mut selected: usize = 0;
     let mut last_tick = Instant::now();
+    let mut anim_style = AnimStyle::Wave;
 
     loop {
+        let style = anim_style;
         terminal.draw(|f| {
-            render_animated_banner(f, tick);
+            render_animated_banner(f, tick, style);
             let area = f.size();
 
+            // Menu items
             if area.height > MENU_Y {
                 let menu_lines: Vec<Line> = MENU_ITEMS
                     .iter()
@@ -173,150 +236,278 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<
                     .map(|(i, &item)| {
                         if i == selected {
                             Line::from(Span::styled(
-                                format!("> [{}] {}", i + 1, item),
-                                Style::default()
-                                    .fg(Color::Yellow)
-                                    .add_modifier(Modifier::BOLD),
+                                format!("> {}", item),
+                                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
                             ))
                         } else {
-                            Line::from(Span::styled(
-                                format!("  [{}] {}", i + 1, item),
-                                Style::default().fg(Color::White),
-                            ))
+                            Line::from(format!("  {}", item))
                         }
                     })
                     .collect();
-                let menu_area = Rect::new(
-                    2,
-                    MENU_Y,
-                    area.width.saturating_sub(4),
-                    MENU_ITEMS.len() as u16,
+                f.render_widget(
+                    Paragraph::new(menu_lines),
+                    Rect::new(2, MENU_Y, area.width.saturating_sub(4), MENU_ITEMS.len() as u16),
                 );
-                f.render_widget(Paragraph::new(menu_lines), menu_area);
             }
 
+            // Help + anim style hint
             if area.height > STATUS_Y {
-                let status = Paragraph::new(
-                    "  \u{2191}\u{2193} or 1-6 to navigate  |  Enter to select  |  Q / Esc to quit",
-                )
-                .style(Style::default().fg(Color::DarkGray));
-                f.render_widget(status, Rect::new(0, STATUS_Y, area.width, 1));
+                let hint = format!(
+                    "  Arrows/1-{n} select · Enter confirm · Tab cycle anim [{anim}] · Q quit",
+                    n = MENU_ITEMS.len(),
+                    anim = style.name(),
+                );
+                f.render_widget(
+                    Paragraph::new(hint).style(Style::default().fg(Color::DarkGray)),
+                    Rect::new(0, STATUS_Y, area.width, 1),
+                );
             }
         })?;
 
         tick += 1.0;
 
-        let timeout = tick_rate
-            .checked_sub(last_tick.elapsed())
-            .unwrap_or(Duration::ZERO);
+        let timeout = tick_rate.checked_sub(last_tick.elapsed()).unwrap_or(Duration::ZERO);
         if event::poll(timeout)? {
-            if let Event::Key(KeyEvent {
-                code,
-                kind: KeyEventKind::Press,
-                ..
-            }) = event::read()?
-            {
+            if let Event::Key(KeyEvent { code, kind: KeyEventKind::Press, .. }) = event::read()? {
                 match code {
                     KeyCode::Up | KeyCode::Char('k') => {
-                        if selected > 0 {
-                            selected -= 1;
-                        } else {
-                            selected = MENU_ITEMS.len() - 1;
-                        }
+                        if selected > 0 { selected -= 1; } else { selected = MENU_ITEMS.len() - 1; }
                     }
                     KeyCode::Down | KeyCode::Char('j') => {
                         selected = (selected + 1) % MENU_ITEMS.len();
                     }
                     KeyCode::Char(c) if c.is_ascii_digit() => {
-                        let n = c as usize - '1' as usize;
-                        if n < MENU_ITEMS.len() {
-                            selected = n;
-                        }
+                        let n = c as usize - b'1' as usize;
+                        if n < MENU_ITEMS.len() { selected = n; }
                     }
+                    KeyCode::Tab => { anim_style = anim_style.next(); }
+                    KeyCode::BackTab => { anim_style = anim_style.prev(); }
                     KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => return Ok(()),
                     KeyCode::Enter => {
                         if selected == MENU_ITEMS.len() - 1 {
                             return Ok(());
                         }
-                        handle_action(terminal, selected)?;
+                        handle_action(terminal, selected, anim_style)?;
                     }
                     _ => {}
                 }
             }
         }
-
-        if last_tick.elapsed() >= tick_rate {
-            last_tick = Instant::now();
-        }
+        if last_tick.elapsed() >= tick_rate { last_tick = Instant::now(); }
     }
 }
 
-// ─── Action dispatch ──────────────────────────────────────────────────────────
+// ─── Action dispatcher ────────────────────────────────────────────────────────
 
 fn handle_action(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     action: usize,
+    anim_style: AnimStyle,
 ) -> io::Result<()> {
     match action {
-        0 => {
-            // Install All
-            run_build_component(terminal, "All")?;
-            show_warning_summary(terminal)?;
-        }
-        1 => show_install_submenu(terminal)?,
-        2 => run_streaming_command(
+        0 => show_install_submenu(terminal, anim_style)?,
+        1 => run_streaming_command(
             terminal,
             "Run Tests",
-            &["pwsh", "-NoProfile", "-File", "run-tests.ps1"],
+            &["pwsh", "-NoProfile", "-File", "scripts/test.ps1"],
+            anim_style,
         )?,
+        2 => show_launch_submenu(terminal, anim_style)?,
         3 => run_streaming_command(
             terminal,
-            "Lint QML Files",
+            "QML Lint",
             &["pwsh", "-NoProfile", "-File", "scripts/qmllint.ps1"],
+            anim_style,
         )?,
-        4 => show_launch_submenu(terminal)?,
+        4 => run_streaming_command(
+            terminal,
+            "Stream Output",
+            &["pwsh", "-NoProfile", "-Command", "echo 'Enter command manually in a shell'"],
+            anim_style,
+        )?,
         _ => {}
     }
     Ok(())
 }
 
-// ─── Build / install ──────────────────────────────────────────────────────────
+// ─── Install sub-menu ─────────────────────────────────────────────────────────
+
+fn show_install_submenu(
+    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    anim_style: AnimStyle,
+) -> io::Result<()> {
+    let mut selected: usize = 0;
+    let mut tick: f64 = 0.0;
+    let tick_rate = Duration::from_millis(40);
+    let mut last_tick = Instant::now();
+
+    loop {
+        let style = anim_style;
+        terminal.draw(|f| {
+            render_banner_with_palette(f, tick, &PALETTE_DEFAULT, style);
+            let area = f.size();
+
+            if area.height > MENU_Y {
+                let items: Vec<Line> = COMPONENT_NAMES
+                    .iter()
+                    .enumerate()
+                    .map(|(i, &name)| {
+                        if i == selected {
+                            Line::from(Span::styled(
+                                format!("> Install: {}", name),
+                                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                            ))
+                        } else {
+                            Line::from(format!("  Install: {}", name))
+                        }
+                    })
+                    .collect();
+                f.render_widget(
+                    Paragraph::new(items),
+                    Rect::new(2, MENU_Y, area.width.saturating_sub(4), COMPONENT_NAMES.len() as u16),
+                );
+            }
+            if area.height > STATUS_Y + 2 {
+                f.render_widget(
+                    Paragraph::new("  Arrows / Enter to install · Esc to go back")
+                        .style(Style::default().fg(Color::DarkGray)),
+                    Rect::new(0, STATUS_Y, area.width, 1),
+                );
+            }
+        })?;
+        tick += 1.0;
+
+        let timeout = tick_rate.checked_sub(last_tick.elapsed()).unwrap_or(Duration::ZERO);
+        if event::poll(timeout)? {
+            if let Event::Key(KeyEvent { code, kind: KeyEventKind::Press, .. }) = event::read()? {
+                match code {
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        if selected > 0 { selected -= 1; } else { selected = COMPONENT_NAMES.len() - 1; }
+                    }
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        selected = (selected + 1) % COMPONENT_NAMES.len();
+                    }
+                    KeyCode::Esc | KeyCode::Char('q') => return Ok(()),
+                    KeyCode::Enter => {
+                        let component = COMPONENT_NAMES[selected];
+                        run_build_component(terminal, component, anim_style)?;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        if last_tick.elapsed() >= tick_rate { last_tick = Instant::now(); }
+    }
+}
+
+// ─── Phase results (accumulated during a multi-phase build) ──────────────────
+
+struct PhaseResult {
+    component:  String,
+    phase:      String,
+    warn_count: usize,
+    err_count:  usize,
+}
+
+/// Map a component name to its ordered build phases: (phase_label, pwsh_args).
+/// Qt/Rust components get a QML lint phase then a cargo build phase.
+/// npm components get a single build phase.
+fn component_build_plan(component: &str) -> Vec<(String, Vec<String>)> {
+    fn ps(script: &str, extra: &[&str]) -> Vec<String> {
+        let mut v = vec![
+            "pwsh".to_string(),
+            "-NoProfile".to_string(),
+            "-File".to_string(),
+            script.to_string(),
+        ];
+        v.extend(extra.iter().map(|s| s.to_string()));
+        v
+    }
+    match component {
+        "Supervisor" => vec![
+            ("QML Lint".to_string(),  ps("scripts/cli-qmllint.ps1",                   &["-Component", "supervisor"])),
+            ("Rust Build".to_string(), ps("scripts/cli-build-supervisor.ps1",          &[])),
+        ],
+        "GuiForms" => vec![
+            ("QML Lint".to_string(),  ps("scripts/cli-qmllint.ps1",                   &["-Component", "guiforms"])),
+            ("Rust Build".to_string(), ps("scripts/cli-build-guiforms.ps1",            &[])),
+        ],
+        "InteractiveTerminal" => vec![
+            ("QML Lint".to_string(),  ps("scripts/cli-qmllint.ps1",                   &["-Component", "interactive-terminal"])),
+            ("Build".to_string(),     ps("scripts/cli-build-interactive-terminal.ps1", &[])),
+        ],
+        "Server" | "FallbackServer" => vec![
+            ("Build".to_string(), ps("scripts/cli-build-server.ps1",    &[])),
+        ],
+        "Dashboard" => vec![
+            ("Build".to_string(), ps("scripts/cli-build-dashboard.ps1", &[])),
+        ],
+        "Extension" => vec![
+            ("Build".to_string(), ps("scripts/cli-build-extension.ps1", &[])),
+        ],
+        "Mobile" => vec![
+            ("Build".to_string(), ps("scripts/cli-build-mobile.ps1",    &[])),
+        ],
+        "Container" => vec![
+            ("Build".to_string(), ps("scripts/cli-build-container.ps1", &[])),
+        ],
+        _ => vec![],
+    }
+}
+
+// ─── Build / install a component ─────────────────────────────────────────────
 
 fn run_build_component(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     component: &str,
+    anim_style: AnimStyle,
 ) -> io::Result<()> {
-    let label = if component == "All" {
-        "All Components".to_string()
+    // Truncate the warning log for a fresh build session.
+    let _ = std::fs::write("build_warnings.log", "");
+
+    let sub_components: Vec<&str> = if component == "All" {
+        vec!["Supervisor", "GuiForms", "InteractiveTerminal", "Server", "Dashboard", "Extension"]
     } else {
-        component.to_string()
+        vec![component]
     };
-    run_build_impl(terminal, &label, &[
-        "pwsh",
-        "-NoProfile",
-        "-File",
-        "scripts/build.ps1",
-        "-Include",
-        component,
-    ])
+
+    let mut results: Vec<PhaseResult> = Vec::new();
+
+    for comp in &sub_components {
+        let phases = component_build_plan(comp);
+        for (phase_label, args) in &phases {
+            let section_header = format!("{} - {}", comp, phase_label);
+            let (warns, errs) = run_build_phase(terminal, &section_header, args, anim_style)?;
+            results.push(PhaseResult {
+                component:  comp.to_string(),
+                phase:      phase_label.clone(),
+                warn_count: warns,
+                err_count:  errs,
+            });
+        }
+    }
+
+    show_warning_summary(terminal, &results, anim_style)?;
+    Ok(())
 }
 
-fn run_build_impl(
+fn run_build_phase(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
-    label: &str,
-    args: &[&str],
-) -> io::Result<()> {
-    // Truncate / create the warnings log for this run
+    section_header: &str,
+    args: &[String],
+    anim_style: AnimStyle,
+) -> io::Result<(usize, usize)> {
+    if args.is_empty() { return Ok((0, 0)); }
+
+    // Append section header to warning log so each phase is clearly delimited.
     let log_path = "build_warnings.log";
-    let mut log_file = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .truncate(true)
-        .open(log_path)?;
+    {
+        let mut lf = OpenOptions::new().create(true).append(true).open(log_path)?;
+        let _ = writeln!(lf, "\n=== {} ===", section_header);
+    }
+    let mut log_file = OpenOptions::new().create(true).append(true).open(log_path)?;
 
-    let label_owned = label.to_string();
-
-    let mut child = Command::new(args[0])
+    let mut child = Command::new(&args[0])
         .args(&args[1..])
         .current_dir(".")
         .stdout(Stdio::piped())
@@ -329,258 +520,297 @@ fn run_build_impl(
     let (tx, rx) = std::sync::mpsc::channel::<String>();
     let tx2 = tx.clone();
 
-    let _stdout_thread = std::thread::spawn(move || {
-        let Some(pipe) = stdout else { return };
-        for line in BufReader::new(pipe).lines().flatten() {
-            let _ = tx.send(line);
+    let _t1 = std::thread::spawn(move || {
+        if let Some(pipe) = stdout {
+            for line in BufReader::new(pipe).lines().flatten() { let _ = tx.send(line); }
         }
     });
-    let _stderr_thread = std::thread::spawn(move || {
-        let Some(pipe) = stderr else { return };
-        for line in BufReader::new(pipe).lines().flatten() {
-            let _ = tx2.send(line);
+    let _t2 = std::thread::spawn(move || {
+        if let Some(pipe) = stderr {
+            for line in BufReader::new(pipe).lines().flatten() { let _ = tx2.send(line); }
         }
     });
 
     let tick_rate = Duration::from_millis(40);
     let mut tick: f64 = 0.0;
+    let mut last_tick = Instant::now();
+    let start_time = Instant::now();
+
     let mut lines_read: u64 = 0;
-    let mut diag_count: usize = 0;
+    let mut warn_count: usize = 0;
+    let mut err_count: usize = 0;
+    let mut live_log: VecDeque<String> = VecDeque::new();
+    let mut current_phase = String::from("Initialising…");
+    let mut done = false;
+    let mut progress: u16 = 0;
 
     loop {
+        // Process one pending line per tick (keeps UI responsive)
         match rx.recv_timeout(tick_rate) {
             Ok(line) => {
                 lines_read += 1;
                 let lower = line.to_lowercase();
-                let is_diagnostic = lower.contains("warning")
-                    || lower.contains("error")
-                    || lower.starts_with("info:");
-                let is_false_positive = lower.contains("no warning")
-                    || lower.contains("0 warning")
-                    || lower.contains("no error");
-                if is_diagnostic && !is_false_positive {
-                    let _ = writeln!(log_file, "[{}] {}", label_owned, line);
-                    diag_count += 1;
+
+                // Phase detection — updates the sub-line shown under the header
+                let phase_keys = ["compiling", "installing", "building", "linking",
+                                   "packaging", "bundling", "generating", "running",
+                                   "finished", "info:"];
+                for key in &phase_keys {
+                    if lower.contains(key) {
+                        let trimmed = line.trim().chars().take(65).collect::<String>();
+                        if !trimmed.is_empty() { current_phase = trimmed; }
+                        break;
+                    }
                 }
+
+                // Diagnostic capture: only genuine rustc / cargo / qmllint diagnostics.
+                // starts_with guards prevent counting status messages that mention
+                // "warning" mid-sentence (e.g. install wrappers, progress lines).
+                let tl = line.trim().to_lowercase();
+                let is_diag = tl.starts_with("warning:")
+                    || tl.starts_with("warning[")
+                    || tl.starts_with("error:")
+                    || tl.starts_with("error[")
+                    || tl.starts_with("  --> ");  // source location context lines
+                let is_fp = tl.contains("no warning")
+                    || tl.contains("0 warning")
+                    || tl.contains("no error");
+                if is_diag && !is_fp {
+                    if tl.starts_with("error") { err_count += 1; }
+                    else if tl.starts_with("warning") { warn_count += 1; }
+                    let _ = writeln!(log_file, "{}", line.trim());
+                }
+
+                // Live output ring-buffer (6 lines)
+                let line_color_tag = if tl.starts_with("error") { "E" }
+                                     else if tl.starts_with("warning") { "W" }
+                                     else { " " };
+                let tagged = format!("{} {}", line_color_tag, line);
+                live_log.push_back(tagged);
+                if live_log.len() > 6 { live_log.pop_front(); }
+
+                // Smooth progress — estimate 300 lines per build
+                progress = ((lines_read.min(300) as f64 / 300.0) * 99.0) as u16;
             }
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => { done = true; }
             Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
-            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
         }
 
-        // Smooth progress estimate: ~500 lines per component
-        let progress = (lines_read.min(500) as f64 / 500.0 * 99.0) as u16;
+        // Render frame
+        let elapsed = start_time.elapsed();
+        let elapsed_str = format!("{:02}:{:02}", elapsed.as_secs() / 60, elapsed.as_secs() % 60);
+        let phase_snap = current_phase.clone();
+        let live_snap: Vec<String> = live_log.iter().cloned().collect();
+        let wc = warn_count;
+        let ec = err_count;
+        let lc = lines_read;
+        let prog = if done { 100 } else { progress };
+        let style = anim_style;
+        let hdr = format!("  \u{25b6} {}   \u{23f1} {}", section_header, elapsed_str);
 
         terminal.draw(|f| {
-            render_animated_banner(f, tick);
+            render_banner_with_palette(f, tick, &PALETTE_DEFAULT, style);
             let area = f.size();
+            let start_y = BANNER.len() as u16 + 1;
 
-            if area.height > MENU_Y {
-                let label_line =
-                    Paragraph::new(format!("  \u{25b6} Installing: {}", label_owned))
-                        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
-                f.render_widget(label_line, Rect::new(0, MENU_Y, area.width, 1));
-            }
-            if area.height > MENU_Y + 2 {
-                let diag_line =
-                    Paragraph::new(format!("  Diagnostics captured: {}", diag_count))
-                        .style(Style::default().fg(Color::DarkGray));
-                f.render_widget(diag_line, Rect::new(0, MENU_Y + 2, area.width, 1));
-            }
-            if area.height > MENU_Y + 4 {
-                let gauge = Gauge::default()
-                    .block(Block::default().borders(Borders::NONE))
-                    .gauge_style(Style::default().fg(Color::Cyan))
-                    .percent(progress);
+            // ── Header ──────────────────────────────────────────────
+            if area.height > start_y {
                 f.render_widget(
-                    gauge,
-                    Rect::new(2, MENU_Y + 4, area.width.saturating_sub(4), 1),
+                    Paragraph::new(hdr.clone()).style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                    Rect::new(0, start_y, area.width, 1),
                 );
+            }
+
+            // ── Current phase ────────────────────────────────────────
+            let phase_y = start_y + 1;
+            if area.height > phase_y {
+                f.render_widget(
+                    Paragraph::new(format!("  {}", phase_snap))
+                        .style(Style::default().fg(Color::White)),
+                    Rect::new(0, phase_y, area.width, 1),
+                );
+            }
+
+            // ── Live output box (6 rows + border = 8) ────────────────
+            let box_y = phase_y + 1;
+            let box_h: u16 = 8;
+            if area.height > box_y + box_h {
+                let log_lines: Vec<Line> = live_snap.iter().map(|l| {
+                    let color = if l.starts_with("E ") { Color::LightRed }
+                                else if l.starts_with("W ") { Color::Yellow }
+                                else { Color::DarkGray };
+                    let text = if l.len() > 2 { &l[2..] } else { l.as_str() };
+                    Line::from(Span::styled(text.to_string(), Style::default().fg(color)))
+                }).collect();
+                f.render_widget(
+                    Paragraph::new(log_lines).block(
+                        Block::default().title(" Live output ").borders(Borders::ALL)
+                    ),
+                    Rect::new(0, box_y, area.width, box_h),
+                );
+            }
+
+            // ── Counts row ───────────────────────────────────────────
+            let counts_y = box_y + box_h;
+            if area.height > counts_y {
+                let counts = format!("  Warnings: {}   Errors: {}   Lines read: {}", wc, ec, lc);
+                f.render_widget(
+                    Paragraph::new(counts).style(Style::default().fg(Color::DarkGray)),
+                    Rect::new(0, counts_y, area.width, 1),
+                );
+            }
+
+            // ── Progress gauge ───────────────────────────────────────
+            let gauge_y = counts_y + 1;
+            if area.height > gauge_y {
+                let gauge_color = if ec > 0 { Color::Red } else if wc > 0 { Color::Yellow } else { Color::Cyan };
+                let gauge_label = if done {
+                    format!("Done  warnings: {}  errors: {}", wc, ec)
+                } else {
+                    format!("{}%", prog)
+                };
+                let gauge = Gauge::default()
+                    .gauge_style(Style::default().fg(gauge_color))
+                    .percent(prog)
+                    .label(gauge_label);
+                f.render_widget(gauge, Rect::new(0, gauge_y, area.width, 1));
             }
         })?;
 
         tick += 1.0;
+        if last_tick.elapsed() >= tick_rate { last_tick = Instant::now(); }
+
+        if done { break; }
     }
 
     child.wait()?;
-
-    // Final frame: 100% + success palette
-    terminal.draw(|f| {
-        render_banner_with_palette(f, tick, &PALETTE_SUCCESS);
-        let area = f.size();
-        if area.height > MENU_Y {
-            let done = Paragraph::new(format!(
-                "  \u{2714} Done: {}  ({} diagnostic(s))",
-                label_owned, diag_count
-            ))
-            .style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD));
-            f.render_widget(done, Rect::new(0, MENU_Y, area.width, 1));
-        }
-        if area.height > MENU_Y + 4 {
-            let gauge = Gauge::default()
-                .block(Block::default().borders(Borders::NONE))
-                .gauge_style(Style::default().fg(Color::Green))
-                .percent(100);
-            f.render_widget(
-                gauge,
-                Rect::new(2, MENU_Y + 4, area.width.saturating_sub(4), 1),
-            );
-        }
-    })?;
-
-    std::thread::sleep(Duration::from_millis(700));
-    Ok(())
+    std::thread::sleep(Duration::from_millis(400));
+    Ok((warn_count, err_count))
 }
 
 // ─── Warning summary screen ───────────────────────────────────────────────────
 
 fn show_warning_summary(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    results: &[PhaseResult],
+    anim_style: AnimStyle,
 ) -> io::Result<()> {
-    let content = std::fs::read_to_string("build_warnings.log").unwrap_or_default();
+    if results.is_empty() { return Ok(()); }
 
-    let mut counts: HashMap<String, usize> = HashMap::new();
-    let mut warning_lines: Vec<String> = Vec::new();
-    for line in content.lines() {
-        if let Some(rest) = line.strip_prefix('[') {
-            if let Some(end) = rest.find(']') {
-                let component = rest[..end].to_string();
-                *counts.entry(component).or_insert(0) += 1;
-                warning_lines.push(line.to_string());
-            }
-        }
-    }
+    let has_error = results.iter().any(|r| r.err_count > 0);
+    let total: usize = results.iter().map(|r| r.warn_count + r.err_count).sum();
+    let warning_log = std::fs::read_to_string("build_warnings.log").unwrap_or_default();
+    let palette = if has_error { &PALETTE_ERROR } else if total > 0 { &PALETTE_WARN } else { &PALETTE_SUCCESS };
 
-    let total: usize = counts.values().sum();
-    let has_error = warning_lines
-        .iter()
-        .any(|l| l.to_lowercase().contains("error"));
-    let palette = if has_error {
-        &PALETTE_ERROR
-    } else if total > 0 {
-        &PALETTE_WARN
-    } else {
-        &PALETTE_SUCCESS
-    };
-
-    let mut scroll: usize = 0;
     let mut tick: f64 = 0.0;
+    let tick_rate = Duration::from_millis(40);
+    let mut last_tick = Instant::now();
 
     loop {
-        terminal.draw(|f| {
-            render_banner_with_palette(f, tick, palette);
-            let area = f.size();
+        let p = palette;
+        let style = anim_style;
 
-            if area.height > MENU_Y {
-                let header = if has_error {
-                    Paragraph::new("  \u{2716} Build finished \u{2014} ERRORS detected")
-                        .style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
-                } else if total > 0 {
-                    Paragraph::new(format!(
-                        "  \u{26a0} Build finished \u{2014} {} diagnostic(s)",
-                        total
-                    ))
-                    .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
-                } else {
-                    Paragraph::new("  \u{2714} Build finished \u{2014} Clean!")
-                        .style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
-                };
-                f.render_widget(header, Rect::new(0, MENU_Y, area.width, 1));
+        terminal.draw(|f| {
+            render_banner_with_palette(f, tick, p, style);
+            let area = f.size();
+            let start_y = BANNER.len() as u16 + 1;
+
+            let header_text = if has_error {
+                "  Build finished with ERRORS"
+            } else if total > 0 {
+                "  Build finished with warnings"
+            } else {
+                "  Build finished -- clean!"
+            };
+            let header_col = if has_error { Color::LightRed }
+                              else if total > 0 { Color::Yellow }
+                              else { Color::LightGreen };
+
+            if area.height > start_y {
+                f.render_widget(
+                    Paragraph::new(header_text)
+                        .style(Style::default().fg(header_col).add_modifier(Modifier::BOLD)),
+                    Rect::new(0, start_y, area.width, 1),
+                );
             }
 
-            if !counts.is_empty() && area.height > MENU_Y + 3 {
-                let mut sorted: Vec<(&String, &usize)> = counts.iter().collect();
-                sorted.sort_by_key(|(k, _)| k.as_str());
+            // 4-column table: Component | Phase | Warns | Errors
+            let table_y = start_y + 2;
+            if area.height > table_y + 2 {
+                let header_row = Row::new(vec![
+                    Cell::from("Component").style(Style::default().add_modifier(Modifier::BOLD)),
+                    Cell::from("Phase").style(Style::default().add_modifier(Modifier::BOLD)),
+                    Cell::from("Warns").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                    Cell::from("Errors").style(Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)),
+                ]).height(1);
 
-                let table_height = area.height.saturating_sub(MENU_Y + 6) as usize;
-                let rows: Vec<Row> = sorted
-                    .iter()
-                    .skip(scroll)
-                    .take(table_height)
-                    .map(|(comp, cnt)| {
-                        let has_err = warning_lines.iter().any(|l| {
-                            l.contains(comp.as_str()) && l.to_lowercase().contains("error")
-                        });
-                        let color = if has_err { Color::Red } else { Color::Yellow };
-                        Row::new(vec![
-                            Cell::from(comp.as_str()).style(Style::default().fg(Color::White)),
-                            Cell::from(cnt.to_string())
-                                .style(Style::default().fg(color)),
-                        ])
-                    })
-                    .collect();
+                let rows: Vec<Row> = results.iter().map(|r| {
+                    let ws = if r.warn_count > 0 { Style::default().fg(Color::Yellow) }
+                             else { Style::default().fg(Color::DarkGray) };
+                    let es = if r.err_count > 0 { Style::default().fg(Color::LightRed) }
+                             else { Style::default().fg(Color::DarkGray) };
+                    Row::new(vec![
+                        Cell::from(r.component.clone()),
+                        Cell::from(r.phase.clone()),
+                        Cell::from(r.warn_count.to_string()).style(ws),
+                        Cell::from(r.err_count.to_string()).style(es),
+                    ])
+                }).collect();
 
+                let table_h = (results.len() as u16 + 3).min(area.height.saturating_sub(table_y + 3));
                 let table = Table::new(
                     rows,
-                    [Constraint::Length(26), Constraint::Length(12)],
+                    [
+                        Constraint::Percentage(32),
+                        Constraint::Percentage(30),
+                        Constraint::Percentage(18),
+                        Constraint::Percentage(20),
+                    ],
                 )
-                .header(
-                    Row::new(vec!["Component", "Diagnostics"]).style(
-                        Style::default()
-                            .fg(Color::Cyan)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                );
+                .header(header_row)
+                .block(Block::default().title(" Build Summary ").borders(Borders::ALL));
 
-                let table_area = Rect::new(
-                    2,
-                    MENU_Y + 3,
-                    area.width.saturating_sub(4),
-                    table_height as u16,
-                );
-                f.render_widget(table, table_area);
+                f.render_widget(table, Rect::new(0, table_y, area.width, table_h));
             }
 
             let footer_y = area.height.saturating_sub(1);
-            let footer = Paragraph::new(
-                "  C = copy to clipboard  |  \u{2191}\u{2193} scroll  |  Esc / Enter = return",
-            )
-            .style(Style::default().fg(Color::DarkGray));
-            f.render_widget(footer, Rect::new(0, footer_y, area.width, 1));
+            f.render_widget(
+                Paragraph::new("  C copy diagnostic log  .  Esc / Enter return")
+                    .style(Style::default().fg(Color::DarkGray)),
+                Rect::new(0, footer_y, area.width, 1),
+            );
         })?;
 
         tick += 1.0;
+        if last_tick.elapsed() >= tick_rate { last_tick = Instant::now(); }
 
-        if event::poll(Duration::from_millis(40))? {
-            if let Event::Key(KeyEvent {
-                code,
-                kind: KeyEventKind::Press,
-                ..
-            }) = event::read()?
-            {
+        if event::poll(Duration::from_millis(5))? {
+            if let Event::Key(KeyEvent { code, kind: KeyEventKind::Press, .. }) = event::read()? {
                 match code {
                     KeyCode::Char('c') | KeyCode::Char('C') => {
-                        copy_to_clipboard(&warning_lines.join("\n"));
+                        let _ = copy_to_clipboard(&warning_log);
                     }
-                    KeyCode::Down | KeyCode::Char('j') => {
-                        if scroll + 1 < counts.len() {
-                            scroll += 1;
-                        }
-                    }
-                    KeyCode::Up | KeyCode::Char('k') => {
-                        if scroll > 0 {
-                            scroll -= 1;
-                        }
-                    }
-                    KeyCode::Esc | KeyCode::Enter => return Ok(()),
+                    KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') => return Ok(()),
                     _ => {}
                 }
             }
         }
     }
 }
-
 // ─── Scrollable command output viewer ────────────────────────────────────────
 
 fn run_streaming_command(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     title: &str,
     args: &[&str],
+    anim_style: AnimStyle,
 ) -> io::Result<()> {
     let output = Command::new(args[0])
         .args(&args[1..])
         .current_dir(".")
         .output()?;
 
+    let exit_ok = output.status.success();
     let stdout_str = String::from_utf8_lossy(&output.stdout);
     let stderr_str = String::from_utf8_lossy(&output.stderr);
     let lines: Vec<String> = stdout_str
@@ -589,400 +819,199 @@ fn run_streaming_command(
         .map(|l| l.to_string())
         .collect();
 
-    let title_owned = title.to_string();
+    let palette = if exit_ok { &PALETTE_SUCCESS } else { &PALETTE_ERROR };
+    let box_title = if exit_ok {
+        format!(" {} — OK ", title)
+    } else {
+        format!(" {} — FAILED ", title)
+    };
+
     let mut scroll: usize = 0;
-
-    loop {
-        terminal.draw(|f| {
-            let area = f.size();
-            let visible_height = area.height.saturating_sub(4) as usize;
-
-            let display_lines: Vec<Line> = lines
-                .iter()
-                .skip(scroll)
-                .take(visible_height)
-                .map(|l| Line::from(l.as_str()))
-                .collect();
-
-            let para = Paragraph::new(display_lines).block(
-                Block::default()
-                    .title(format!(" {} ", title_owned))
-                    .borders(Borders::ALL),
-            );
-            f.render_widget(
-                para,
-                Rect::new(0, 0, area.width, area.height.saturating_sub(2)),
-            );
-
-            let footer = Paragraph::new(
-                "  \u{2191}\u{2193} / j k  PgUp PgDn to scroll  |  C = copy  |  Esc / Enter = return",
-            )
-            .style(Style::default().fg(Color::DarkGray));
-            f.render_widget(
-                footer,
-                Rect::new(0, area.height.saturating_sub(1), area.width, 1),
-            );
-        })?;
-
-        if event::poll(Duration::from_millis(100))? {
-            if let Event::Key(KeyEvent {
-                code,
-                kind: KeyEventKind::Press,
-                ..
-            }) = event::read()?
-            {
-                match code {
-                    KeyCode::Down | KeyCode::Char('j') => {
-                        if scroll + 1 < lines.len() {
-                            scroll += 1;
-                        }
-                    }
-                    KeyCode::Up | KeyCode::Char('k') => {
-                        if scroll > 0 {
-                            scroll -= 1;
-                        }
-                    }
-                    KeyCode::PageDown => {
-                        scroll = (scroll + 20).min(lines.len().saturating_sub(1));
-                    }
-                    KeyCode::PageUp => {
-                        scroll = scroll.saturating_sub(20);
-                    }
-                    KeyCode::Char('c') | KeyCode::Char('C') => {
-                        copy_to_clipboard(&lines.join("\n"));
-                    }
-                    KeyCode::Esc
-                    | KeyCode::Enter
-                    | KeyCode::Char('r')
-                    | KeyCode::Char('R') => {
-                        return Ok(());
-                    }
-                    _ => {}
-                }
-            }
-        }
-    }
-}
-
-// ─── Install component sub-menu ───────────────────────────────────────────────
-
-fn show_install_submenu(
-    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
-) -> io::Result<()> {
-    let mut selected: usize = 0;
     let mut tick: f64 = 0.0;
     let tick_rate = Duration::from_millis(40);
     let mut last_tick = Instant::now();
 
     loop {
+        let p = palette;
+        let bt = box_title.clone();
+        let style = anim_style;
         terminal.draw(|f| {
-            render_animated_banner(f, tick);
             let area = f.size();
+            // Mini 4-row banner at top
+            let mini_rows = 4u16.min(area.height);
+            let mini_lines: Vec<Line> = BANNER[..mini_rows as usize]
+                .iter()
+                .enumerate()
+                .map(|(row, &line)| {
+                    Line::from(
+                        line.chars()
+                            .enumerate()
+                            .map(|(col, ch)| {
+                                let v = (tick * 0.12 + col as f64 * 0.25 + row as f64 * 0.18).sin();
+                                let idx = (v * 2.0).round().abs() as usize;
+                                let color = match style {
+                                    AnimStyle::Pulse => {
+                                        let b = (tick * 0.04).sin() * 0.5 + 0.5;
+                                        let i2 = (b * 5.0).round() as usize;
+                                        p[i2.min(5)]
+                                    }
+                                    _ => p[idx % p.len()],
+                                };
+                                Span::styled(ch.to_string(), Style::default().fg(color))
+                            })
+                            .collect::<Vec<_>>(),
+                    )
+                })
+                .collect();
+            f.render_widget(Paragraph::new(mini_lines), Rect::new(0, 0, area.width, mini_rows));
 
-            if area.height > MENU_Y {
-                let title =
-                    Paragraph::new("  Select component to install:").style(
-                        Style::default()
-                            .fg(Color::Cyan)
-                            .add_modifier(Modifier::BOLD),
-                    );
-                f.render_widget(
-                    title,
-                    Rect::new(0, MENU_Y.saturating_sub(2), area.width, 1),
-                );
-
-                let menu_lines: Vec<Line> = COMPONENT_NAMES
-                    .iter()
-                    .enumerate()
-                    .map(|(i, &item)| {
-                        let key = if i < 9 { (i + 1).to_string() } else { "0".to_string() };
-                        if i == selected {
-                            Line::from(Span::styled(
-                                format!("> [{}] {}", key, item),
-                                Style::default()
-                                    .fg(Color::Yellow)
-                                    .add_modifier(Modifier::BOLD),
-                            ))
-                        } else {
-                            Line::from(Span::styled(
-                                format!("  [{}] {}", key, item),
-                                Style::default().fg(Color::White),
-                            ))
-                        }
+            // Scrollable output box below mini banner
+            let box_y = mini_rows;
+            let box_h = area.height.saturating_sub(box_y + 2);
+            if area.height > box_y + 2 {
+                let visible_height = box_h.saturating_sub(2) as usize;
+                let display_lines: Vec<Line> = lines.iter()
+                    .skip(scroll)
+                    .take(visible_height)
+                    .map(|l| {
+                        let lower = l.to_lowercase();
+                        let color = if lower.contains("error") { Color::LightRed }
+                                    else if lower.contains("warning") { Color::Yellow }
+                                    else if lower.contains(" ok") || lower.contains("pass") || lower.starts_with("finished") { Color::LightGreen }
+                                    else { Color::Reset };
+                        Line::from(Span::styled(l.clone(), Style::default().fg(color)))
                     })
                     .collect();
-                let menu_area = Rect::new(
-                    2,
-                    MENU_Y,
-                    area.width.saturating_sub(4),
-                    COMPONENT_NAMES.len() as u16,
+                f.render_widget(
+                    Paragraph::new(display_lines)
+                        .block(Block::default().title(bt.clone()).borders(Borders::ALL)),
+                    Rect::new(0, box_y, area.width, box_h),
                 );
-                f.render_widget(Paragraph::new(menu_lines), menu_area);
             }
 
-            if area.height > STATUS_Y {
-                let status = Paragraph::new(
-                    "  \u{2191}\u{2193} or 1-9 to navigate  |  Enter to install  |  Esc = back",
-                )
-                .style(Style::default().fg(Color::DarkGray));
-                f.render_widget(status, Rect::new(0, STATUS_Y, area.width, 1));
-            }
+            // Footer
+            let footer_y = area.height.saturating_sub(1);
+            f.render_widget(
+                Paragraph::new("  j/k · Up/Down scroll · C copy · Esc/Enter return")
+                    .style(Style::default().fg(Color::DarkGray)),
+                Rect::new(0, footer_y, area.width, 1),
+            );
         })?;
 
         tick += 1.0;
+        if last_tick.elapsed() >= tick_rate { last_tick = Instant::now(); }
 
-        let timeout = tick_rate
-            .checked_sub(last_tick.elapsed())
-            .unwrap_or(Duration::ZERO);
-        if event::poll(timeout)? {
-            if let Event::Key(KeyEvent {
-                code,
-                kind: KeyEventKind::Press,
-                ..
-            }) = event::read()?
-            {
+        if event::poll(Duration::from_millis(5))? {
+            if let Event::Key(KeyEvent { code, kind: KeyEventKind::Press, .. }) = event::read()? {
                 match code {
-                    KeyCode::Up | KeyCode::Char('k') => {
-                        if selected > 0 {
-                            selected -= 1;
-                        } else {
-                            selected = COMPONENT_NAMES.len() - 1;
-                        }
-                    }
                     KeyCode::Down | KeyCode::Char('j') => {
-                        selected = (selected + 1) % COMPONENT_NAMES.len();
+                        if scroll + 1 < lines.len() { scroll += 1; }
                     }
-                    KeyCode::Char(c) if c.is_ascii_digit() => {
-                        let n = c as usize - '1' as usize;
-                        if n < COMPONENT_NAMES.len() {
-                            selected = n;
-                        }
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        if scroll > 0 { scroll -= 1; }
                     }
-                    KeyCode::Esc | KeyCode::Char('b') | KeyCode::Char('B') => return Ok(()),
-                    KeyCode::Enter => {
-                        // Last item is "Back"
-                        if selected == COMPONENT_NAMES.len() - 1 {
-                            return Ok(());
-                        }
-                        let component = COMPONENT_NAMES[selected];
-                        run_build_component(terminal, component)?;
-                        show_warning_summary(terminal)?;
+                    KeyCode::PageDown => { scroll = (scroll + 20).min(lines.len().saturating_sub(1)); }
+                    KeyCode::PageUp   => { scroll = scroll.saturating_sub(20); }
+                    KeyCode::Char('c') | KeyCode::Char('C') => {
+                        let _ = copy_to_clipboard(&lines.join("\n"));
+                    }
+                    KeyCode::Esc | KeyCode::Enter | KeyCode::Char('r') | KeyCode::Char('R') => {
                         return Ok(());
                     }
                     _ => {}
                 }
             }
         }
-
-        if last_tick.elapsed() >= tick_rate {
-            last_tick = Instant::now();
-        }
     }
 }
 
-// ─── Launch sub-menu ─────────────────────────────────────────────────────────
+// ─── Launch sub-menu ──────────────────────────────────────────────────────────
 
 fn show_launch_submenu(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    anim_style: AnimStyle,
 ) -> io::Result<()> {
-    const LAUNCH_ITEMS: &[&str] = &[
-        "Launch Supervisor (default)",
-        "Launch + auto-kill existing processes",
-        "Write config only (no launch)",
-        "Back",
-    ];
-
-    const LAUNCH_ARGS: &[&[&str]] = &[
-        &["pwsh", "-NoProfile", "-File", "launch-supervisor.ps1"],
-        &[
-            "pwsh",
-            "-NoProfile",
-            "-File",
-            "launch-supervisor.ps1",
-            "-AutoKillExisting",
-        ],
-        &[
-            "pwsh",
-            "-NoProfile",
-            "-File",
-            "launch-supervisor.ps1",
-            "-WriteConfigOnly",
-        ],
-        &[], // Back
-    ];
-
+    const LAUNCH_ITEMS: &[&str] = &["Launch Supervisor", "Back"];
     let mut selected: usize = 0;
     let mut tick: f64 = 0.0;
     let tick_rate = Duration::from_millis(40);
     let mut last_tick = Instant::now();
 
     loop {
+        let style = anim_style;
         terminal.draw(|f| {
-            render_animated_banner(f, tick);
+            render_animated_banner(f, tick, style);
             let area = f.size();
-
             if area.height > MENU_Y {
-                let title = Paragraph::new("  Launch Supervisor:").style(
-                    Style::default()
-                        .fg(Color::Cyan)
-                        .add_modifier(Modifier::BOLD),
-                );
-                f.render_widget(
-                    title,
-                    Rect::new(0, MENU_Y.saturating_sub(2), area.width, 1),
-                );
-
-                let menu_lines: Vec<Line> = LAUNCH_ITEMS
+                let items: Vec<Line> = LAUNCH_ITEMS
                     .iter()
                     .enumerate()
                     .map(|(i, &item)| {
                         if i == selected {
                             Line::from(Span::styled(
-                                format!("> [{}] {}", i + 1, item),
-                                Style::default()
-                                    .fg(Color::Yellow)
-                                    .add_modifier(Modifier::BOLD),
+                                format!("> {}", item),
+                                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
                             ))
                         } else {
-                            Line::from(Span::styled(
-                                format!("  [{}] {}", i + 1, item),
-                                Style::default().fg(Color::White),
-                            ))
+                            Line::from(format!("  {}", item))
                         }
                     })
                     .collect();
-                let menu_area = Rect::new(
-                    2,
-                    MENU_Y,
-                    area.width.saturating_sub(4),
-                    LAUNCH_ITEMS.len() as u16,
+                f.render_widget(
+                    Paragraph::new(items),
+                    Rect::new(2, MENU_Y, area.width.saturating_sub(4), LAUNCH_ITEMS.len() as u16),
                 );
-                f.render_widget(Paragraph::new(menu_lines), menu_area);
-            }
-
-            if area.height > STATUS_Y {
-                let status = Paragraph::new(
-                    "  \u{2191}\u{2193} or 1-4 to navigate  |  Enter to confirm  |  Esc = back",
-                )
-                .style(Style::default().fg(Color::DarkGray));
-                f.render_widget(status, Rect::new(0, STATUS_Y, area.width, 1));
             }
         })?;
-
         tick += 1.0;
 
-        let timeout = tick_rate
-            .checked_sub(last_tick.elapsed())
-            .unwrap_or(Duration::ZERO);
+        let timeout = tick_rate.checked_sub(last_tick.elapsed()).unwrap_or(Duration::ZERO);
         if event::poll(timeout)? {
-            if let Event::Key(KeyEvent {
-                code,
-                kind: KeyEventKind::Press,
-                ..
-            }) = event::read()?
-            {
+            if let Event::Key(KeyEvent { code, kind: KeyEventKind::Press, .. }) = event::read()? {
                 match code {
                     KeyCode::Up | KeyCode::Char('k') => {
-                        if selected > 0 {
-                            selected -= 1;
-                        } else {
-                            selected = LAUNCH_ITEMS.len() - 1;
-                        }
+                        if selected > 0 { selected -= 1; } else { selected = LAUNCH_ITEMS.len() - 1; }
                     }
                     KeyCode::Down | KeyCode::Char('j') => {
                         selected = (selected + 1) % LAUNCH_ITEMS.len();
                     }
-                    KeyCode::Char(c) if c.is_ascii_digit() => {
-                        let n = c as usize - '1' as usize;
-                        if n < LAUNCH_ITEMS.len() {
-                            selected = n;
-                        }
-                    }
-                    KeyCode::Esc | KeyCode::Char('b') | KeyCode::Char('B') => return Ok(()),
-                    KeyCode::Enter => {
-                        if selected == LAUNCH_ITEMS.len() - 1 {
-                            return Ok(());
-                        }
-                        let args = LAUNCH_ARGS[selected];
-                        if !args.is_empty() {
-                            run_detached(terminal, LAUNCH_ITEMS[selected], args)?;
-                        }
-                        return Ok(());
-                    }
+                    KeyCode::Esc | KeyCode::Char('q') => return Ok(()),
+                    KeyCode::Enter => match selected {
+                        0 => { run_detached(&["pwsh", "-NoProfile", "-File", "scripts/launch.ps1"]); return Ok(()); }
+                        _ => return Ok(()),
+                    },
                     _ => {}
                 }
             }
         }
-
-        if last_tick.elapsed() >= tick_rate {
-            last_tick = Instant::now();
-        }
+        if last_tick.elapsed() >= tick_rate { last_tick = Instant::now(); }
     }
 }
 
-/// Spawns a process detached (fire-and-forget) and shows a confirmation.
-fn run_detached(
-    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
-    label: &str,
-    args: &[&str],
-) -> io::Result<()> {
-    let _child = Command::new(args[0])
+// ─── Detached process launcher ────────────────────────────────────────────────
+
+fn run_detached(args: &[&str]) {
+    let _ = Command::new(args[0])
         .args(&args[1..])
         .current_dir(".")
+        .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .spawn()?;
-
-    let label_owned = label.to_string();
-    let mut tick: f64 = 0.0;
-    let deadline = Instant::now() + Duration::from_secs(2);
-
-    loop {
-        terminal.draw(|f| {
-            render_banner_with_palette(f, tick, &PALETTE_SUCCESS);
-            let area = f.size();
-            if area.height > MENU_Y {
-                let msg = Paragraph::new(format!("  \u{2714} Launched: {}", label_owned))
-                    .style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD));
-                f.render_widget(msg, Rect::new(0, MENU_Y, area.width, 1));
-
-                let hint = Paragraph::new("  Press any key to return to menu.")
-                    .style(Style::default().fg(Color::DarkGray));
-                f.render_widget(hint, Rect::new(0, MENU_Y + 2, area.width, 1));
-            }
-        })?;
-
-        tick += 1.0;
-
-        if Instant::now() >= deadline {
-            return Ok(());
-        }
-
-        if event::poll(Duration::from_millis(40))? {
-            if let Event::Key(KeyEvent {
-                kind: KeyEventKind::Press,
-                ..
-            }) = event::read()?
-            {
-                return Ok(());
-            }
-        }
-    }
+        .spawn();
 }
 
-// ─── Clipboard ───────────────────────────────────────────────────────────────
+// ─── Clipboard helper ─────────────────────────────────────────────────────────
 
-fn copy_to_clipboard(text: &str) {
-    let _ = Command::new("powershell")
+fn copy_to_clipboard(text: &str) -> io::Result<()> {
+    let mut child = Command::new("powershell")
         .args(["-NoProfile", "-Command", "$input | Set-Clipboard"])
         .stdin(Stdio::piped())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .spawn()
-        .and_then(|mut child| {
-            if let Some(ref mut stdin) = child.stdin {
-                let _ = stdin.write_all(text.as_bytes());
-            }
-            child.wait()
-        });
+        .spawn()?;
+    if let Some(mut stdin) = child.stdin.take() {
+        let _ = stdin.write_all(text.as_bytes());
+    }
+    let _ = child.wait();
+    Ok(())
 }

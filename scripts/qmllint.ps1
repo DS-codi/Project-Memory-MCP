@@ -78,14 +78,14 @@ function Invoke-ComponentLint {
     $qmllintExe = Join-Path $QtBin 'qmllint.exe'
 
     if (-not (Test-Path $QmlDir)) {
-        Write-Host "   ($Label: directory not found — skipping)" -ForegroundColor DarkGray
+        Write-Host "   ($($Label): directory not found - skipping)" -ForegroundColor DarkGray
         return @{ Errors = 0; Warnings = 0 }
     }
 
     $qmlFiles = @(Get-ChildItem $QmlDir -Filter '*.qml' -Recurse -File -ErrorAction SilentlyContinue |
                     Where-Object { $_.FullName -notmatch '\\tests?\\' })
     if ($qmlFiles.Count -eq 0) {
-        Write-Host "   ($Label: no .qml files found — skipping)" -ForegroundColor DarkGray
+        Write-Host "   ($($Label): no .qml files found - skipping)" -ForegroundColor DarkGray
         return @{ Errors = 0; Warnings = 0 }
     }
 
