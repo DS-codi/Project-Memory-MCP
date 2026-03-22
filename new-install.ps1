@@ -343,7 +343,7 @@ try {
             Write-Host "  -> node dist/migration/migrate.js --data-root `"$resolvedOldDataRoot`"" -ForegroundColor Gray
             & {
                 $ErrorActionPreference = 'Continue'
-                node (Join-Path $ServerDir 'dist\migration\migrate.js') --data-root $resolvedOldDataRoot 2>&1 | Write-Host
+                node (Join-Path $ServerDir 'dist\migration\migrate.js') --data-root $resolvedOldDataRoot
             }
             if ($LASTEXITCODE -ne 0) {
                 Write-Warn "Migration completed with errors (exit $LASTEXITCODE). Some plans may not have been migrated — see report above. Continuing install."
@@ -392,7 +392,7 @@ try {
                     Push-Location $ServerDir
                     try {
                         Invoke-Checked 'node dist/db/seed.js' {
-                            node (Join-Path $ServerDir 'dist\db\seed.js') 2>&1 | Write-Host
+                            node (Join-Path $ServerDir 'dist\db\seed.js')
                         }
                     } finally {
                         Pop-Location

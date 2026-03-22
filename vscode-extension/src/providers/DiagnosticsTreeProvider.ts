@@ -107,6 +107,7 @@ export class DiagnosticsTreeProvider
             { kind: 'subsystem', id: 'dashboard', label: 'Dashboard', icon: 'loading~spin', description: 'loading…' },
             { kind: 'subsystem', id: 'mcp', label: 'MCP Server', icon: 'loading~spin', description: 'loading…' },
             { kind: 'subsystem', id: 'supervisor', label: 'Supervisor', icon: 'loading~spin', description: 'loading…' },
+            { kind: 'subsystem', id: 'workspaceSync', label: 'Workspace Sync', icon: 'loading~spin', description: 'loading…' },
             { kind: 'subsystem', id: 'memory', label: 'Memory', icon: 'pulse', description: 'loading…' },
         ];
     }
@@ -116,6 +117,7 @@ export class DiagnosticsTreeProvider
             DiagnosticsTreeProvider._dashboardNode(r),
             DiagnosticsTreeProvider._mcpNode(r),
             DiagnosticsTreeProvider._supervisorNode(r),
+            DiagnosticsTreeProvider._workspaceSyncNode(r),
             DiagnosticsTreeProvider._memoryNode(r),
         ];
     }
@@ -182,6 +184,64 @@ export class DiagnosticsTreeProvider
                 _detail('supervisor.heartbeat', 'Heartbeat', alive ? `alive (${agoLabel})` : 'lost', alive ? 'check' : 'warning'),
                 _detail('supervisor.pool', 'Pool instances', String(r.mcp.poolInstances), 'server'),
             ],
+        };
+    }
+
+    private static _workspaceSyncNode(r: DiagnosticsReport): DiagNode {
+        const sync = r.workspaceSync;
+        const statusIcon: Record<DiagnosticsReport['workspaceSync']['status'], string> = {
+            idle: 'clock',
+            checking: 'loading~spin',
+            ready: sync.actionableFindings > 0 ? 'warning' : 'check',
+            error: 'error',
+        };
+
+        const description = sync.lastError
+            ? 'check failed'
+            : sync.summary
+                ? `${sync.actionableFindings} actionable`
+                : sync.status;
+
+        const children: DiagNode[] = [
+            _detail('workspaceSync.status', 'Status', sync.status, statusIcon[sync.status]),
+            _detail('workspaceSync.state', 'State', sync.statusMessage ?? 'No passive watcher report captured yet.', 'info'),
+            _detail('workspaceSync.trigger', 'Trigger', sync.lastReason ?? 'not yet scheduled', 'history'),
+        ];
+
+        if (sync.workspaceId) {
+            children.push(_detail('workspaceSync.workspaceId', 'Workspace ID', sync.workspaceId, 'folder-library'));
+        }
+        if (sync.lastCheckedAt) {
+            children.push(_detail('workspaceSync.lastCheckedAt', 'Last check', sync.lastCheckedAt, 'clock'));
+        }
+        if (sync.lastError) {
+            children.push(_detail('workspaceSync.error', 'Error', sync.lastError, 'error'));
+        }
+        if (sync.summary) {
+            children.push(
+                _detail('workspaceSync.actionable', 'Actionable findings', String(sync.actionableFindings), sync.actionableFindings > 0 ? 'warning' : 'check'),
+                _detail('workspaceSync.protected', 'Protected drift', String(sync.summary.protected_drift), sync.summary.protected_drift > 0 ? 'warning' : 'check'),
+                _detail('workspaceSync.mismatch', 'Content mismatch', String(sync.summary.content_mismatch), sync.summary.content_mismatch > 0 ? 'warning' : 'check'),
+                _detail('workspaceSync.localOnly', 'Local only', String(sync.summary.local_only), sync.summary.local_only > 0 ? 'warning' : 'check'),
+                _detail('workspaceSync.dbOnly', 'DB only', String(sync.summary.db_only), sync.summary.db_only > 0 ? 'warning' : 'check'),
+                _detail('workspaceSync.importCandidates', 'Import candidates', String(sync.summary.import_candidate), sync.summary.import_candidate > 0 ? 'warning' : 'check'),
+                _detail('workspaceSync.inSync', 'In sync', String(sync.summary.in_sync), 'check'),
+                _detail('workspaceSync.ignoredLocal', 'Ignored local', String(sync.summary.ignored_local), 'circle-slash'),
+            );
+        }
+        sync.sampleFindings.forEach((finding, index) => {
+            children.push(_detail(`workspaceSync.sample.${index}`, `Finding ${index + 1}`, finding, 'warning'));
+        });
+
+        return {
+            kind: 'subsystem',
+            id: 'workspaceSync',
+            label: 'Workspace Sync',
+            description,
+            tooltip: sync.statusMessage ?? 'Passive watcher diagnostics for workspace config sync.',
+            icon: statusIcon[sync.status],
+            contextValue: 'diagnosticsSubsystem',
+            children,
         };
     }
 

@@ -419,17 +419,21 @@ function Test-NpmSslBypassNeeded {
 
     Write-Host "   Checking npm registry SSL connectivity..." -ForegroundColor DarkGray
     try {
-        # Use child scope with ErrorActionPreference = Continue to avoid NativeCommandError in PS 5.1
-        $out = & {
+        # Avoid 2>&1 | Out-String in PS 5.1 to prevent RemoteException noise.
+        # Native output goes to console; we only care about $LASTEXITCODE.
+        & {
             $ErrorActionPreference = 'Continue'
-            npm ping --registry https://registry.npmjs.org 2>&1
-        } | Out-String
+            npm ping --registry https://registry.npmjs.org | Out-Null
+        }
         if ($LASTEXITCODE -eq 0) {
             Write-Host "   SSL OK — no workarounds needed" -ForegroundColor DarkGray
             $script:_NpmSslBypassNeeded = $false
         } else {
             # npm ping failed — likely TLS interception or cert issue
             Write-Warn "npm SSL check failed — enabling --strict-ssl=false for this install"
+            if ($env:NODE_OPTIONS -match 'win-ca') {
+                Write-Host "   (note: win-ca detected in NODE_OPTIONS; this often causes pre-execution failures in corporate Node.js setups)" -ForegroundColor DarkGray
+            }
             $script:_NpmSslBypassNeeded = $true
         }
     } catch {
@@ -445,13 +449,19 @@ function Invoke-NpmInstall {
     if (Test-NpmSslBypassNeeded) {
         $prevTls = $env:NODE_TLS_REJECT_UNAUTHORIZED
         $env:NODE_TLS_REJECT_UNAUTHORIZED = '0'
-        try {
-            Invoke-Checked $Label { npm install --strict-ssl=false 2>&1 | Write-Host }
-        } finally {
-            $env:NODE_TLS_REJECT_UNAUTHORIZED = $prevTls
+        Invoke-Checked $Label { 
+            if ($env:NODE_OPTIONS -match 'win-ca') {
+                Write-Host "   (note: win-ca detected in NODE_OPTIONS)" -ForegroundColor DarkGray
+            }
+            npm install --strict-ssl=false 
         }
     } else {
-        Invoke-Checked $Label { npm install 2>&1 | Write-Host }
+        Invoke-Checked $Label { 
+            if ($env:NODE_OPTIONS -match 'win-ca') {
+                Write-Host "   (note: win-ca detected in NODE_OPTIONS)" -ForegroundColor DarkGray
+            }
+            npm install 
+        }
     }
 }
 
@@ -1390,7 +1400,7 @@ function Install-Server {
     Push-Location $ServerDir
     try {
         Invoke-NpmInstall "npm install (server)"
-        Invoke-Checked "npm run build" { npm run build 2>&1 | Write-Host }
+        Invoke-Checked "npm run build" { npm run build }
         Write-Ok "Server built → $ServerDir\dist"
 
         # Ensure fallback REST transport entrypoint is present in build output.
@@ -1410,7 +1420,7 @@ function Install-Server {
         # instructions, skills). Idempotent — safe to run on every install.
         # When -NewDatabase is used, this creates the schema from scratch.
         Invoke-Checked "node dist/db/seed.js (DB init + seed)" {
-            node (Join-Path $ServerDir "dist\db\seed.js") 2>&1 | Write-Host
+            node (Join-Path $ServerDir "dist\db\seed.js")
         }
 
         if ($NewDatabase) {
@@ -1441,7 +1451,7 @@ function Install-FallbackServer {
     Push-Location $ServerDir
     try {
         Invoke-NpmInstall "npm install (server)"
-        Invoke-Checked "npm run build (fallback server)" { npm run build 2>&1 | Write-Host }
+        Invoke-Checked "npm run build (fallback server)" { npm run build }
 
         $fallbackEntry = Join-Path $ServerDir "dist\fallback-rest-main.js"
         if (-not (Test-Path $fallbackEntry)) {
@@ -1476,8 +1486,8 @@ function Install-Extension {
                 Write-Ok "Extension source unchanged — skipping compile and package (use -Force to rebuild)"
             } else {
                 Invoke-NpmInstall "npm install (extension)"
-                Invoke-Checked "npm run compile" { npm run compile 2>&1 | Write-Host }
-                Invoke-Checked "npm run package (vsce)" { npx @vscode/vsce package 2>&1 | Write-Host }
+                Invoke-Checked "npm run compile" { npm run compile }
+                Invoke-Checked "npm run package (vsce)" { npx @vscode/vsce package }
                 Write-Ok "Extension compiled and packaged"
             }
         } else {
@@ -1544,7 +1554,7 @@ function Install-Dashboard {
     Push-Location $DashDir
     try {
         Invoke-NpmInstall "npm install (dashboard)"
-        Invoke-Checked "npx vite build" { npx vite build 2>&1 | Write-Host }
+        Invoke-Checked "npx vite build" { npx vite build }
         Write-Ok "Dashboard frontend built → $DashDir\dist"
     } finally {
         Pop-Location
@@ -1555,7 +1565,7 @@ function Install-Dashboard {
     Push-Location $ServerDir
     try {
         Invoke-NpmInstall "npm install (dashboard server)"
-        Invoke-Checked "npm run build (dashboard server)" { npm run build 2>&1 | Write-Host }
+        Invoke-Checked "npm run build (dashboard server)" { npm run build }
         Write-Ok "Dashboard server built → $ServerDir\dist"
     } finally {
         Pop-Location
@@ -1589,7 +1599,7 @@ function Install-Mobile {
     Push-Location $MobileDir
     try {
         Invoke-NpmInstall "npm install (mobile)"
-        Invoke-Checked "npm run build (mobile)" { npm run build 2>&1 | Write-Host }
+        Invoke-Checked "npm run build (mobile)" { npm run build }
         Write-Ok "Mobile app built → $MobileDir\dist"
 
         # Sync to Android if the Android platform directory exists.
@@ -1598,7 +1608,7 @@ function Install-Mobile {
             Write-Host "   › npx cap sync android" -ForegroundColor Gray
             & {
                 $ErrorActionPreference = 'Continue'
-                npx cap sync android 2>&1 | Write-Host
+                npx cap sync android
             }
             if ($LASTEXITCODE -ne 0) {
                 Write-Host "   ⚠ cap sync android exited $LASTEXITCODE (non-fatal — run manually if needed)" -ForegroundColor Yellow

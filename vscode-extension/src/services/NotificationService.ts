@@ -174,15 +174,20 @@ export class NotificationService implements vscode.Disposable {
         this._lastWorkspaceSyncShownAt = now;
 
         const severeCount = report.summary.protected_drift + report.summary.content_mismatch;
+        const notableCount = severeCount + report.summary.import_candidate;
         const fragments: string[] = [];
         if (report.summary.protected_drift > 0) fragments.push(`${report.summary.protected_drift} protected drift`);
         if (report.summary.content_mismatch > 0) fragments.push(`${report.summary.content_mismatch} mismatch`);
         if (report.summary.import_candidate > 0) fragments.push(`${report.summary.import_candidate} import candidate`);
         if (report.summary.local_only > 0) fragments.push(`${report.summary.local_only} local-only`);
         if (report.summary.db_only > 0) fragments.push(`${report.summary.db_only} DB-only`);
+        const topFinding = actionable[0];
+        const topFindingSummary = topFinding
+            ? ` Top finding: ${topFinding.relative_path} (${topFinding.status}).`
+            : '';
 
-        const message = `Project Memory workspace sync: ${fragments.join(', ')}. Passive watcher made no changes.`;
-        const promise = severeCount > 0
+        const message = `Project Memory workspace sync: ${fragments.join(', ')}. Passive watcher made no changes.${topFindingSummary}`;
+        const promise = notableCount > 0
             ? vscode.window.showWarningMessage(message, 'Show Diagnostics', 'Mute for 1 hour')
             : vscode.window.showInformationMessage(message, 'Show Diagnostics', 'Mute for 1 hour');
 

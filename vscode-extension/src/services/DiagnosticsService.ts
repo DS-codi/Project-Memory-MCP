@@ -19,7 +19,10 @@ import { SupervisorHeartbeat, HeartbeatEvent } from '../supervisor/SupervisorHea
 
 interface WorkspaceSyncDiagnosticsState {
     workspaceId?: string;
+    status: 'idle' | 'checking' | 'ready' | 'error';
     lastCheckedAt: string | null;
+    lastReason: string | null;
+    statusMessage: string | null;
     actionableFindings: number;
     summary: WorkspaceConfigSyncReport['summary'] | null;
     sampleFindings: string[];
@@ -59,7 +62,10 @@ export class DiagnosticsService implements vscode.Disposable {
     private lastHeartbeat: HeartbeatEvent | null = null;
     private heartbeatAlive = false;
     private workspaceSyncState: WorkspaceSyncDiagnosticsState = {
+        status: 'idle',
         lastCheckedAt: null,
+        lastReason: null,
+        statusMessage: 'Passive watcher is waiting for its first report.',
         actionableFindings: 0,
         summary: null,
         sampleFindings: [],
@@ -174,26 +180,57 @@ export class DiagnosticsService implements vscode.Disposable {
             connection: {
                 dashboardConnected,
                 mcpConnected,
+
+            beginWorkspaceSyncCheck(reason: string, workspaceId?: string): void {
+                this.workspaceSyncState = {
+                    ...this.workspaceSyncState,
+                    workspaceId: workspaceId ?? this.workspaceSyncState.workspaceId,
+                    status: 'checking',
+                    lastReason: reason,
+                    statusMessage: `Passive sync check running (${reason}).`,
+                };
+                this.runCheck();
+            }
+
+            setWorkspaceSyncIdle(reason: string, message: string, workspaceId?: string): void {
+                this.workspaceSyncState = {
+                    ...this.workspaceSyncState,
+                    workspaceId: workspaceId ?? this.workspaceSyncState.workspaceId,
+                    status: 'idle',
+                    lastReason: reason,
+                    statusMessage: message,
+                };
+                this.runCheck();
+            }
                 dashboardPort: this.connectionManager.dashboardPort,
-                mcpPort: this.lastHeartbeat?.mcp_proxy_port ?? this.connectionManager.mcpPort,
+            updateWorkspaceSync(report: WorkspaceConfigSyncReport, reason?: string): void {
             },
             mcp: {
                 supervisorHeartbeat: this.heartbeatAlive,
+                    status: 'ready',
                 lastHeartbeatMs: this.lastHeartbeat?.timestamp_ms ?? null,
+                    lastReason: reason ?? this.workspaceSyncState.lastReason,
+                    statusMessage: actionableEntries.length > 0
+                        ? 'Passive sync check captured actionable findings.'
+                        : 'Passive sync check completed with no actionable findings.',
                 poolInstances: this.lastHeartbeat?.pool_instances ?? 0,
                 mcpProxyHealthy,
             },
             extension: { memoryMB, uptime: uptimeSeconds },
             workspaceSync: { ...this.workspaceSyncState },
+                    lastError: undefined,
             health,
             issues,
         };
 
-        this.lastReport = report;
+            setWorkspaceSyncError(message: string, workspaceId?: string, reason?: string): void {
         this._onHealthChange.fire(report);
         return report;
     }
+                    status: 'error',
 
+                    lastReason: reason ?? this.workspaceSyncState.lastReason,
+                    statusMessage: 'Passive sync check failed.',
     /** Get the most recent cached report (or run a fresh check). */
     getReport(): DiagnosticsReport {
         return this.lastReport ?? this.runCheck();
@@ -223,11 +260,17 @@ export class DiagnosticsService implements vscode.Disposable {
         ];
 
         if (report.workspaceSync.lastError) {
+            lines.push(`  Status: ${report.workspaceSync.status}`);
+            lines.push(`  Trigger: ${report.workspaceSync.lastReason ?? 'unknown'}`);
             lines.push(`  Last check: ${report.workspaceSync.lastCheckedAt ?? 'unknown'}`);
+            lines.push(`  State: ${report.workspaceSync.statusMessage ?? 'Passive watcher reported an error.'}`);
             lines.push(`  Error: ${report.workspaceSync.lastError}`);
         } else if (report.workspaceSync.summary) {
             const summary = report.workspaceSync.summary;
+            lines.push(`  Status: ${report.workspaceSync.status}`);
+            lines.push(`  Trigger: ${report.workspaceSync.lastReason ?? 'unknown'}`);
             lines.push(`  Last check: ${report.workspaceSync.lastCheckedAt ?? 'unknown'}`);
+            lines.push(`  State: ${report.workspaceSync.statusMessage ?? 'Passive watcher completed.'}`);
             lines.push(`  Actionable findings: ${report.workspaceSync.actionableFindings}`);
             lines.push(`  Protected drift: ${summary.protected_drift}`);
             lines.push(`  Content mismatch: ${summary.content_mismatch}`);
@@ -241,7 +284,9 @@ export class DiagnosticsService implements vscode.Disposable {
                 report.workspaceSync.sampleFindings.forEach((finding) => lines.push(`    - ${finding}`));
             }
         } else {
-            lines.push('  No passive watcher report captured yet.');
+            lines.push(`  Status: ${report.workspaceSync.status}`);
+            lines.push(`  Trigger: ${report.workspaceSync.lastReason ?? 'not yet scheduled'}`);
+            lines.push(`  State: ${report.workspaceSync.statusMessage ?? 'No passive watcher report captured yet.'}`);
         }
 
         lines.push('');

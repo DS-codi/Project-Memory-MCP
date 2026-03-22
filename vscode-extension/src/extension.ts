@@ -276,6 +276,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.window.registerTreeDataProvider('projectMemory.diagnosticsView', diagnosticsTreeProvider),
     );
+    diagnosticsTreeProvider.update(diagnosticsService.getReport());
 
     context.subscriptions.push(
         vscode.commands.registerCommand('projectMemory.showDiagnostics', () => {

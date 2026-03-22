@@ -42,6 +42,7 @@ Check your mode from the spawn prompt before doing anything else.
 | `memory_filesystem` | `write` | Write test files |
 | `memory_terminal` | `run` | Execute test suite (RUN mode only) |
 | `memory_terminal` | `read_output` | Read test output |
+| `memory_cartographer` | `summary`, `search`, `file_context` | Find symbols and file structure to write accurate tests |
 
 ---
 

@@ -158,6 +158,8 @@ const AUTHORIZED_AGENTS = new Set([
   'Reviewer',
   'Cognition',
   'Runner',
+  'Tester',
+  'Revisionist',
 ]);
 
 // =============================================================================

@@ -100,23 +100,27 @@ export class WorkspaceConfigWatcherService implements vscode.Disposable {
 
         try {
             if (!this.connectionManager.isMcpConnected) {
+                this.diagnosticsService.setWorkspaceSyncIdle(reason, 'Passive watcher is waiting for the MCP connection.');
                 this.log(`Skipping passive sync check (${reason}): MCP is not connected.`);
                 return;
             }
 
+            this.diagnosticsService.beginWorkspaceSyncCheck(reason);
             const workspaceId = await resolveActiveWorkspaceId(this.connectionManager);
             if (!workspaceId) {
+                this.diagnosticsService.setWorkspaceSyncIdle(reason, 'Passive watcher is waiting for workspace registration.');
                 this.log(`Skipping passive sync check (${reason}): workspace is not registered.`);
                 return;
             }
 
+            this.diagnosticsService.beginWorkspaceSyncCheck(reason, workspaceId);
             const report = await this.connectionManager.checkWorkspaceConfigSync(workspaceId);
-            this.diagnosticsService.updateWorkspaceSync(report);
+            this.diagnosticsService.updateWorkspaceSync(report, reason);
             this.notificationService.showWorkspaceSyncFindings(report);
             this.logSummary(reason, report);
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
-            this.diagnosticsService.setWorkspaceSyncError(message);
+            this.diagnosticsService.setWorkspaceSyncError(message, undefined, reason);
             this.log(`Passive sync check failed (${reason}): ${message}`);
         } finally {
             this.checkInFlight = false;

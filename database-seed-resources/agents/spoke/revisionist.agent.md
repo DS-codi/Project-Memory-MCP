@@ -41,6 +41,7 @@ Hub provides you with error context and execution notes from the failed agent. S
 | `memory_steps` | `move` | Move step to specific index |
 | `memory_filesystem` | `read` | Read relevant source files to diagnose the failure |
 | `memory_terminal` | `run` | Reproduce the failure to confirm diagnosis |
+| `memory_cartographer` | `summary`, `search`, `file_context` | Find symbols and trace code paths to diagnose failures |
 
 ## Workflow
 
