@@ -5,7 +5,9 @@
  *   1. Tool catalog  — MCP tools, actions, and their parameter specs
  *   2. Agent defs    — agent type descriptions from database-seed-resources/agents/
  *   3. Instructions  — instruction files from database-seed-resources/instructions/
- *   4. Skills        — skill definitions from database-seed-resources/skills/{name}/SKILL.md
+ *   4. Skills        — curated skill definitions from database-seed-resources/skills/{name}/SKILL.md
+ *                     plus mirrored workspace skills from database-seed-resources/external-skills/{name}/SKILL.md,
+ *                     with conflicts resolved by last-edited timestamp
  *
  * Can be called at server startup (via `runSeed()`) or directly as a CLI:
  *   npx tsx server/src/db/seed.ts
@@ -23,6 +25,7 @@ import { upsertDeployableAgentProfile } from './deployable-agent-profile-db.js';
 import { upsertCategoryWorkflowDefinition } from './category-workflow-db.js';
 import { storeInstruction } from './instruction-db.js';
 import { storeSkill } from './skill-db.js';
+import { addEventLog } from './event-log-db.js';
 import { seedGuiContract } from './gui-routing-contracts-db.js';
 import { CATEGORY_ROUTING } from '../types/category-routing.js';
 
@@ -421,6 +424,34 @@ interface SkillFrontmatter {
   framework_targets?: string[];
 }
 
+type SkillSeedSource = 'workspace' | 'workspace_mirror' | 'curated';
+
+interface SkillSeedCandidate {
+  skillSlug: string;
+  source: SkillSeedSource;
+  skillMdPath: string;
+  content: string;
+  modifiedAt: string;
+  modifiedMs: number;
+}
+
+interface SkillConflictDiffLine {
+  line: number;
+  status: 'same' | 'changed' | 'workspace_only' | 'curated_only';
+  workspace: string | null;
+  curated: string | null;
+}
+
+interface SkillConflictDiff {
+  summary: string;
+  first_difference_line: number | null;
+  workspace_line_count: number;
+  curated_line_count: number;
+  excerpt_start_line: number;
+  excerpt_end_line: number;
+  excerpt: SkillConflictDiffLine[];
+}
+
 function parseSkillFrontmatter(content: string): SkillFrontmatter {
   const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
   if (!fmMatch) return {};
@@ -457,31 +488,267 @@ function parseSkillFrontmatter(content: string): SkillFrontmatter {
   };
 }
 
-async function seedSkills(projectRoot: string): Promise<number> {
-  const skillsDir = resolveContentDir(
+function listSkillSlugs(skillsDir: string): string[] {
+  if (!fs.existsSync(skillsDir)) {
+    return [];
+  }
+
+  return fs.readdirSync(skillsDir, { withFileTypes: true })
+    .filter(entry => entry.isDirectory())
+    .map(entry => entry.name);
+}
+
+function getFileModifiedMetadata(filePath: string): { modifiedAt: string; modifiedMs: number } {
+  const stat = fs.statSync(filePath);
+  return {
+    modifiedAt: stat.mtime.toISOString(),
+    modifiedMs: stat.mtimeMs,
+  };
+}
+
+function loadSkillSeedCandidate(
+  skillSlug: string,
+  source: SkillSeedSource,
+  skillMdPath: string,
+): SkillSeedCandidate | null {
+  if (!fs.existsSync(skillMdPath)) {
+    return null;
+  }
+
+  const { modifiedAt, modifiedMs } = getFileModifiedMetadata(skillMdPath);
+
+  return {
+    skillSlug,
+    source,
+    skillMdPath,
+    content: fs.readFileSync(skillMdPath, 'utf-8'),
+    modifiedAt,
+    modifiedMs,
+  };
+}
+
+function buildSkillConflictDiff(workspaceContent: string, curatedContent: string): SkillConflictDiff {
+  const workspaceLines = workspaceContent.replace(/\r\n/g, '\n').split('\n');
+  const curatedLines = curatedContent.replace(/\r\n/g, '\n').split('\n');
+  const maxLines = Math.max(workspaceLines.length, curatedLines.length);
+
+  let firstDifferenceIndex = -1;
+  for (let index = 0; index < maxLines; index++) {
+    if ((workspaceLines[index] ?? null) !== (curatedLines[index] ?? null)) {
+      firstDifferenceIndex = index;
+      break;
+    }
+  }
+
+  const excerptCenter = firstDifferenceIndex >= 0 ? firstDifferenceIndex : maxLines;
+  const excerptStart = Math.max(0, excerptCenter - 2);
+  const excerptEnd = Math.min(maxLines, excerptCenter + 3);
+  const excerpt: SkillConflictDiffLine[] = [];
+
+  for (let index = excerptStart; index < excerptEnd; index++) {
+    const workspaceLine = workspaceLines[index] ?? null;
+    const curatedLine = curatedLines[index] ?? null;
+    let status: SkillConflictDiffLine['status'] = 'same';
+
+    if (workspaceLine === null) {
+      status = 'curated_only';
+    } else if (curatedLine === null) {
+      status = 'workspace_only';
+    } else if (workspaceLine !== curatedLine) {
+      status = 'changed';
+    }
+
+    excerpt.push({
+      line: index + 1,
+      status,
+      workspace: workspaceLine,
+      curated: curatedLine,
+    });
+  }
+
+  const firstDifferenceLine = firstDifferenceIndex >= 0 ? firstDifferenceIndex + 1 : null;
+  const summary = firstDifferenceLine === null
+    ? `Line-count mismatch only: workspace=${workspaceLines.length}, curated=${curatedLines.length}`
+    : `First difference at line ${firstDifferenceLine}; workspace=${workspaceLines.length} lines, curated=${curatedLines.length} lines`;
+
+  return {
+    summary,
+    first_difference_line: firstDifferenceLine,
+    workspace_line_count: workspaceLines.length,
+    curated_line_count: curatedLines.length,
+    excerpt_start_line: excerptStart + 1,
+    excerpt_end_line: excerptEnd,
+    excerpt,
+  };
+}
+
+function emitSkillConflictAudit(
+  projectRoot: string,
+  skillSlug: string,
+  winner: SkillSeedCandidate,
+  loser: SkillSeedCandidate,
+  diff: SkillConflictDiff,
+  resolutionReason: 'newer_timestamp' | 'timestamp_tie_curated_fallback',
+): void {
+  addEventLog('seed_skill_conflict_resolved', {
+    skill_slug: skillSlug,
+    resolution_basis: 'last_edited_timestamp',
+    resolution_reason: resolutionReason,
+    winner: {
+      source: winner.source,
+      path: path.relative(projectRoot, winner.skillMdPath),
+      modified_at: winner.modifiedAt,
+    },
+    loser: {
+      source: loser.source,
+      path: path.relative(projectRoot, loser.skillMdPath),
+      modified_at: loser.modifiedAt,
+    },
+    diff,
+  });
+}
+
+function resolveSkillSeedCandidate(
+  projectRoot: string,
+  skillSlug: string,
+  workspaceCandidate: SkillSeedCandidate | null,
+  curatedCandidate: SkillSeedCandidate | null,
+): SkillSeedCandidate | null {
+  if (!workspaceCandidate) {
+    return curatedCandidate;
+  }
+
+  if (!curatedCandidate) {
+    return workspaceCandidate;
+  }
+
+  if (workspaceCandidate.content === curatedCandidate.content) {
+    return workspaceCandidate.modifiedMs > curatedCandidate.modifiedMs
+      ? workspaceCandidate
+      : curatedCandidate;
+  }
+
+  const diff = buildSkillConflictDiff(workspaceCandidate.content, curatedCandidate.content);
+
+  if (workspaceCandidate.modifiedMs > curatedCandidate.modifiedMs) {
+    emitSkillConflictAudit(
+      projectRoot,
+      skillSlug,
+      workspaceCandidate,
+      curatedCandidate,
+      diff,
+      'newer_timestamp',
+    );
+    return workspaceCandidate;
+  }
+
+  emitSkillConflictAudit(
+    projectRoot,
+    skillSlug,
+    curatedCandidate,
+    workspaceCandidate,
+    diff,
+    workspaceCandidate.modifiedMs < curatedCandidate.modifiedMs
+      ? 'newer_timestamp'
+      : 'timestamp_tie_curated_fallback',
+  );
+  return curatedCandidate;
+}
+
+function mirrorWorkspaceSkillsToSeedResources(projectRoot: string): number {
+  const workspaceSkillsDir = resolveContentDir(
     projectRoot,
     [
-      ['database-seed-resources', 'skills'],
       ['.github', 'skills'],
     ],
-    process.env.MBS_SKILLS_ROOT,
   );
-  if (!skillsDir) {
-    console.warn('  [seed] skills directory not found (database-seed-resources/skills or .github/skills), skipping');
+  if (!workspaceSkillsDir) {
     return 0;
   }
 
-  const skillDirs = fs.readdirSync(skillsDir, { withFileTypes: true })
-    .filter(d => d.isDirectory())
-    .map(d => d.name);
+  const externalSkillsDir = path.join(projectRoot, 'database-seed-resources', 'external-skills');
+  let mirroredCount = 0;
+
+  for (const skillSlug of listSkillSlugs(workspaceSkillsDir)) {
+    const sourceSkillMdPath = path.join(workspaceSkillsDir, skillSlug, 'SKILL.md');
+    if (!fs.existsSync(sourceSkillMdPath)) {
+      continue;
+    }
+
+    const targetSkillDir = path.join(externalSkillsDir, skillSlug);
+    const targetSkillMdPath = path.join(targetSkillDir, 'SKILL.md');
+    const sourceContent = fs.readFileSync(sourceSkillMdPath, 'utf-8');
+    const sourceStat = fs.statSync(sourceSkillMdPath);
+    const existingContent = fs.existsSync(targetSkillMdPath)
+      ? fs.readFileSync(targetSkillMdPath, 'utf-8')
+      : null;
+    const timestampsMatch = fs.existsSync(targetSkillMdPath)
+      ? Math.abs(fs.statSync(targetSkillMdPath).mtimeMs - sourceStat.mtimeMs) < 1
+      : false;
+
+    if (existingContent === sourceContent && timestampsMatch) {
+      continue;
+    }
+
+    fs.mkdirSync(targetSkillDir, { recursive: true });
+    if (existingContent !== sourceContent) {
+      fs.writeFileSync(targetSkillMdPath, sourceContent, 'utf-8');
+    }
+    fs.utimesSync(targetSkillMdPath, sourceStat.atime, sourceStat.mtime);
+    mirroredCount++;
+  }
+
+  return mirroredCount;
+}
+
+async function seedSkills(projectRoot: string): Promise<number> {
+  const workspaceSkillsDir = resolveContentDir(
+    projectRoot,
+    [
+      ['.github', 'skills'],
+    ],
+  );
+  const curatedSkillsDir = resolveContentDir(
+    projectRoot,
+    [
+      ['database-seed-resources', 'skills'],
+    ],
+    process.env.MBS_SKILLS_ROOT,
+  );
+  const externalSkillsDir = path.join(projectRoot, 'database-seed-resources', 'external-skills');
+
+  const skillSlugs = new Set<string>([
+    ...(workspaceSkillsDir ? listSkillSlugs(workspaceSkillsDir) : []),
+    ...(fs.existsSync(externalSkillsDir) ? listSkillSlugs(externalSkillsDir) : []),
+    ...(curatedSkillsDir ? listSkillSlugs(curatedSkillsDir) : []),
+  ]);
+
+  if (skillSlugs.size === 0) {
+    console.warn('  [seed] skills directory not found (database-seed-resources/skills or database-seed-resources/external-skills), skipping');
+    return 0;
+  }
 
   let count = 0;
 
-  for (const skillSlug of skillDirs) {
-    const skillMdPath = path.join(skillsDir, skillSlug, 'SKILL.md');
-    if (!fs.existsSync(skillMdPath)) continue;
+  for (const skillSlug of skillSlugs) {
+    const workspaceCandidate = workspaceSkillsDir
+      ? loadSkillSeedCandidate(skillSlug, 'workspace', path.join(workspaceSkillsDir, skillSlug, 'SKILL.md'))
+      : loadSkillSeedCandidate(skillSlug, 'workspace_mirror', path.join(externalSkillsDir, skillSlug, 'SKILL.md'));
+    const curatedCandidate = curatedSkillsDir
+      ? loadSkillSeedCandidate(skillSlug, 'curated', path.join(curatedSkillsDir, skillSlug, 'SKILL.md'))
+      : null;
+    const selectedCandidate = resolveSkillSeedCandidate(
+      projectRoot,
+      skillSlug,
+      workspaceCandidate,
+      curatedCandidate,
+    ) ?? loadSkillSeedCandidate(skillSlug, 'workspace_mirror', path.join(externalSkillsDir, skillSlug, 'SKILL.md'));
 
-    const content = fs.readFileSync(skillMdPath, 'utf-8');
+    if (!selectedCandidate) {
+      continue;
+    }
+
+    const content = selectedCandidate.content;
     const fm = parseSkillFrontmatter(content);
 
     // Title: frontmatter name → first heading → slug
@@ -658,6 +925,10 @@ export async function runSeed(projectRoot?: string): Promise<SeedResult> {
   console.log('[seed] Seeding instruction files...');
   const instrCount = await seedInstructionFiles(root);
   console.log(`[seed]   ${instrCount} instruction files`);
+
+  console.log('[seed] Mirroring workspace skills into external seed resources...');
+  const mirroredSkillCount = mirrorWorkspaceSkillsToSeedResources(root);
+  console.log(`[seed]   ${mirroredSkillCount} mirrored skills updated`);
 
   console.log('[seed] Seeding skill definitions...');
   const skillCount = await seedSkills(root);
