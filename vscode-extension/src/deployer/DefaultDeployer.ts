@@ -253,6 +253,7 @@ export class DefaultDeployer {
         const updated: string[] = [];
         const added: string[] = [];
 
+        const shortCode = this.readWorkspaceShortCode(workspacePath);
         const agentsDir = path.join(workspacePath, '.github', 'agents');
         const instructionsDir = path.join(workspacePath, '.github', 'instructions');
 
@@ -261,7 +262,8 @@ export class DefaultDeployer {
             let sourcePath = path.join(this.config.agentsRoot, 'core', `${agentName}.agent.md`);
         if (!fs.existsSync(sourcePath)) { sourcePath = path.join(this.config.agentsRoot, 'spoke', `${agentName}.agent.md`); }
         if (!fs.existsSync(sourcePath)) { sourcePath = path.join(this.config.agentsRoot, `${agentName}.agent.md`); }
-            const targetPath = path.join(agentsDir, `${agentName}.agent.md`);
+            const targetFilename = shortCode ? `${agentName}.${shortCode}.agent.md` : `${agentName}.agent.md`;
+            const targetPath = path.join(agentsDir, targetFilename);
 
             if (!fs.existsSync(sourcePath)) continue;
 
@@ -283,7 +285,8 @@ export class DefaultDeployer {
         // Update instructions
         for (const instructionName of this.config.defaultInstructions) {
             const sourcePath = path.join(this.config.instructionsRoot, `${instructionName}.instructions.md`);
-            const targetPath = path.join(instructionsDir, `${instructionName}.instructions.md`);
+            const targetFilename = shortCode ? `${instructionName}.${shortCode}.instructions.md` : `${instructionName}.instructions.md`;
+            const targetPath = path.join(instructionsDir, targetFilename);
 
             if (!fs.existsSync(sourcePath)) continue;
 
