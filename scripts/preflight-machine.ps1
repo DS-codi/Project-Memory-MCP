@@ -53,7 +53,15 @@ function Test-CommandVersion {
 
     $versionText = ''
     try {
-        $versionText = (Invoke-Expression $VersionCommand | Select-Object -First 1).ToString()
+        # Use child scope with ErrorActionPreference = Continue to avoid NativeCommandError in PS 5.1
+        $output = & {
+            $ErrorActionPreference = 'Continue'
+            Invoke-Expression $VersionCommand
+        } | Select-Object -First 1
+        
+        if ($null -ne $output) {
+            $versionText = $output.ToString()
+        }
     } catch {
         $result.Message = "Could not read $Name version: $($_.Exception.Message)"
         return $result

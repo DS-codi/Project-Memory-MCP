@@ -63,7 +63,11 @@ function Write-Info([string]$Text) {
 
 function Invoke-Checked([string]$Description, [scriptblock]$Block) {
     Write-Host "  -> $Description" -ForegroundColor Gray
-    & $Block
+    # Use child scope with ErrorActionPreference = Continue to avoid NativeCommandError in PS 5.1
+    & {
+        $ErrorActionPreference = 'Continue'
+        & $Block
+    }
     if ($LASTEXITCODE -ne 0) {
         throw "$Description failed (exit $LASTEXITCODE)"
     }
@@ -337,7 +341,10 @@ try {
         Push-Location $ServerDir
         try {
             Write-Host "  -> node dist/migration/migrate.js --data-root `"$resolvedOldDataRoot`"" -ForegroundColor Gray
-            node (Join-Path $ServerDir 'dist\migration\migrate.js') --data-root $resolvedOldDataRoot 2>&1 | Write-Host
+            & {
+                $ErrorActionPreference = 'Continue'
+                node (Join-Path $ServerDir 'dist\migration\migrate.js') --data-root $resolvedOldDataRoot 2>&1 | Write-Host
+            }
             if ($LASTEXITCODE -ne 0) {
                 Write-Warn "Migration completed with errors (exit $LASTEXITCODE). Some plans may not have been migrated — see report above. Continuing install."
             } else {

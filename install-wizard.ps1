@@ -233,7 +233,10 @@ try {
             if (-not $NonInteractive) {
                 $ans = Read-Host "Install extension to VS Code now? (Y/n)"
                 if ($ans -notmatch '^(?i)n(?:o)?$') {
-                    code --install-extension $Vsix.FullName
+                    & {
+                        $ErrorActionPreference = 'Continue'
+                        code --install-extension $Vsix.FullName
+                    }
                     Write-Ok "Extension installed to VS Code."
                 }
             }

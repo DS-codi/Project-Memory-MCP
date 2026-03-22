@@ -160,7 +160,18 @@ function Try-MigrateLegacyApiPortKey {
     )
 
     try {
-        $parsed = $JsonText | ConvertFrom-Json -AsHashtable
+        if ($PSVersionTable.PSVersion.Major -ge 6) {
+            $parsed = $JsonText | ConvertFrom-Json -AsHashtable
+        } else {
+            # Fallback for PowerShell 5.1 where -AsHashtable is not available.
+            $obj = $JsonText | ConvertFrom-Json
+            $parsed = @{}
+            if ($obj) {
+                foreach ($prop in $obj.psobject.Properties) {
+                    $parsed[$prop.Name] = $prop.Value
+                }
+            }
+        }
     } catch {
         return [pscustomobject]@{
             Success        = $false
@@ -266,7 +277,10 @@ try {
 process.stdout.write(JSON.stringify(rows));
 "@
 
-    $json = & node -e $nodeScript 2>&1
+    $json = & {
+        $ErrorActionPreference = 'Continue'
+        & node -e $nodeScript 2>&1
+    }
     if ($LASTEXITCODE -ne 0) {
         throw "DB query failed: $json"
     }

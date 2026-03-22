@@ -368,7 +368,10 @@ Write-Host "Cargo git fetch via CLI: $env:CARGO_NET_GIT_FETCH_WITH_CLI" -Foregro
 $doDeploy = ($Profile -eq 'release') -or $Deploy.IsPresent
 Write-Host "Deploy:  $doDeploy" -ForegroundColor Gray
 
-& $env:QMAKE --version
+& {
+    $ErrorActionPreference = 'Continue'
+    & $env:QMAKE --version
+}
 if ($LASTEXITCODE -ne 0) {
     throw 'qmake version check failed.'
 }
@@ -380,7 +383,10 @@ if ($Clean) {
 
 if ($Test) {
     Write-Host 'Running tests...' -ForegroundColor Cyan
-    cargo test
+    & {
+        $ErrorActionPreference = 'Continue'
+        cargo test
+    }
     if ($LASTEXITCODE -ne 0) {
         throw 'cargo test failed.'
     }
@@ -1025,7 +1031,10 @@ if ($Run) {
     }
 
     Write-Host "Launching interactive-terminal on port $Port..." -ForegroundColor Cyan
-    & $exePath --port $Port
+    & {
+        $ErrorActionPreference = 'Continue'
+        & $exePath --port $Port
+    }
 }
 
 Write-Host 'Done.' -ForegroundColor Green

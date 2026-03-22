@@ -1,5 +1,4 @@
 ﻿#!/usr/bin/env pwsh
-#Requires -Version 7
 <#
 .SYNOPSIS
     Launches Project Memory Supervisor after writing a fresh config file.

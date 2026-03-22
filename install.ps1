@@ -1630,7 +1630,10 @@ function Install-Container {
 
         $NoCacheDisplay = if ($Force) { "--no-cache " } else { "" }
         Write-Host "   › podman build $($NoCacheDisplay)-t $Tag ." -ForegroundColor Gray
-        podman @BuildArgs
+        & {
+            $ErrorActionPreference = 'Continue'
+            podman @BuildArgs
+        }
         if ($LASTEXITCODE -ne 0) {
             Write-Fail "Container build failed (exit $LASTEXITCODE)"
             exit $LASTEXITCODE
