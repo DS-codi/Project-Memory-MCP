@@ -210,6 +210,21 @@
         "title": "Go to File",
         "icon": "$(go-to-file)",
         "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.showSyncReport",
+        "title": "Project Memory: Show Workspace Sync Report",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.importContextFile",
+        "title": "Project Memory: Import Context File to Database",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.redeployMandatoryFiles",
+        "title": "Project Memory: Redeploy Mandatory PM Files from Canonical Source",
+        "category": "Project Memory"
       }
     ],
     "chatParticipants": [

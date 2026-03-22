@@ -14,6 +14,9 @@ This guide walks you through setting up the Project Memory Dashboard VS Code ext
 - [Copilot Chat Integration](#copilot-chat-integration)
 - [Configuration](#configuration)
 - [Deploying Agents to Your Workspace](#deploying-agents-to-your-workspace)
+- [Workspace Sync Monitoring](#workspace-sync-monitoring)
+- [Protected Mandatory Files](#protected-mandatory-files)
+- [Frontmatter Metadata Contract](#frontmatter-metadata-contract)
 - [Verification & Testing](#verification--testing)
 - [Troubleshooting](#troubleshooting)
 
@@ -370,6 +373,98 @@ your-project/
 │       └── *.prompt.md
 └── ...
 ```
+
+### Manual Remediation Commands
+
+The following commands address sync issues reported by the passive watcher:
+
+| Command | When to use |
+|---------|-------------|
+| `Project Memory: Show Workspace Sync Report` | Display the full formatted sync report in the Output channel |
+| `Project Memory: Import Context File to Database` | Explicitly import a single `import_candidate` file (requires user confirmation) |
+| `Project Memory: Redeploy Mandatory PM Files from Canonical Source` | Restore `protected_drift` files from their canonical seed content |
+
+All commands are accessible via `Ctrl+Shift+P` → **"Project Memory: ..."**.
+
+---
+
+## Workspace Sync Monitoring
+
+The extension includes a **passive, read-only watcher** that monitors `.github/agents/` and `.github/instructions/` for file changes. On each change or MCP connection event, it calls `memory_workspace(action: check_context_sync)` — a read-only operation that compares local workspace files against the database.
+
+> **The watcher never writes to the database and never auto-deploys or auto-imports files.**
+
+### How It Appears
+
+- **Status bar**: A sync indicator shows the current state for the active workspace.
+- **Diagnostics tree view**: The Project Memory sidebar shows a sync report tree with per-file statuses.
+
+### Sync Report Statuses
+
+| Status | Meaning |
+|--------|--------|
+| `in_sync` | File matches the database record (and canonical seed for PM-controlled files) |
+| `ignored_local` | No frontmatter opt-in; the watcher ignores this file |
+| `local_only` | Opt-in file exists locally but has no database record; not import-eligible |
+| `db_only` | Database record exists but the workspace copy is missing |
+| `content_mismatch` | Local and database versions differ (non-PM-controlled file) |
+| `protected_drift` | A mandatory PM-controlled file is missing, out of sync with its DB record, or differs from the canonical seed |
+| `import_candidate` | File has `pm_import_mode: manual` and has no database record — eligible for explicit import |
+
+For a full guide, see [docs/workspace-config-sync.md](workspace-config-sync.md).
+
+---
+
+## Protected Mandatory Files
+
+Certain files are designated as **PM-controlled mandatory**. They are seeded from `database-seed-resources/` and must not be edited in workspace copies. If a mandatory file is missing or differs from the canonical seed, it appears as `protected_drift` in the sync report.
+
+**Mandatory agents** (`.github/agents/`):
+- `hub.agent.md`
+- `prompt-analyst.agent.md`
+- `shell.agent.md`
+
+**Mandatory instructions** (`.github/instructions/`):
+- `mcp-usage.instructions.md`
+- `hub.instructions.md`
+- `prompt-analyst.instructions.md`
+- `subagent-recovery.instructions.md`
+
+To fix a `protected_drift` entry, use **"Project Memory: Redeploy Mandatory PM Files from Canonical Source"** from the Command Palette. This restores the file to its canonical seed content.
+
+> Do not edit these files locally — local changes will be overwritten when mandatory files are redeployed from the canonical source.
+
+---
+
+## Frontmatter Metadata Contract
+
+Agent (`.agent.md`), instruction (`.instructions.md`), and skill (`SKILL.md`) files can include YAML frontmatter fields to control how the sync watcher treats them.
+
+### Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `pm_file_kind` | `agent \| instruction \| skill` | Derived from file extension | Explicitly declares the file type |
+| `pm_sync_managed` | `true \| false` | `false` | Opts the file into sync checks; unmanaged files show as `ignored_local` |
+| `pm_controlled` | `true \| false` | `false` | Marks as PM-controlled; workspace copy is report-only, not importable |
+| `pm_import_mode` | `never \| manual` | `never` | Set to `manual` to allow explicit import of unregistered files |
+| `pm_canonical_source` | `none \| database_seed_resources` | `none` | Required for PM-controlled files; names the authoritative seed source |
+| `pm_canonical_path` | string | — | Path relative to `database-seed-resources/`; required when `pm_controlled: true` |
+| `pm_required_workspace_copy` | `true \| false` | `false` | Marks bootstrap files that must exist on disk in the workspace |
+
+### Example: Custom File Opted into Sync
+
+```yaml
+---
+pm_file_kind: instruction
+pm_sync_managed: true
+pm_import_mode: manual
+---
+```
+
+With this frontmatter the file appears in the sync report and shows as `import_candidate` if it has no database record, allowing import via **"Project Memory: Import Context File to Database"**.
+
+For full details, see [docs/workspace-config-sync.md](workspace-config-sync.md).
 
 ---
 

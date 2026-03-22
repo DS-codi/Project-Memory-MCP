@@ -187,7 +187,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(toolRegistry);
 
     registerServerCommands(context, connectionManager, dashboardProvider, getDashboardPort);
-    registerDeployCommands(context, dashboardProvider, defaultDeployer);
+    registerDeployCommands(context, dashboardProvider, defaultDeployer, connectionManager);
     registerPlanCommands(context, dashboardProvider, getDashboardPort);
     registerWorkspaceCommands(context, connectionManager, dashboardProvider, toolRegistry);
     registerStoreChatDetailsParticipant(context);

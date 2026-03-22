@@ -7,6 +7,8 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { DashboardViewProvider } from '../providers/DashboardViewProvider';
 import { DefaultDeployer } from '../deployer/DefaultDeployer';
+import { ConnectionManager, WorkspaceConfigSyncEntry, WorkspaceConfigSyncReport } from '../server/ConnectionManager';
+import { resolveActiveWorkspaceId } from './workspace-commands';
 import { notify } from '../utils/helpers';
 import { getDefaultAgentsRoot, getDefaultInstructionsRoot, getDefaultSkillsRoot } from '../utils/defaults';
 import { buildMissingSkillsSourceWarning, resolveSkillsSourceRoot } from '../utils/skillsSourceRoot';
@@ -22,8 +24,10 @@ interface DbAgentEntry {
 export function registerDeployCommands(
     context: vscode.ExtensionContext,
     dashboardProvider: DashboardViewProvider,
-    defaultDeployer: DefaultDeployer
+    defaultDeployer: DefaultDeployer,
+    connectionManager: ConnectionManager
 ): void {
+    let syncReportChannel: vscode.OutputChannel | undefined;
     context.subscriptions.push(
         vscode.commands.registerCommand('projectMemory.deployAgents', async () => {
             const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -657,6 +661,196 @@ export function registerDeployCommands(
         }),
 
         // ── Deploy single agent file from explorer context menu ───────────────
+
+        // ── Manual Remediation UX commands ───────────────────────────────────
+
+        vscode.commands.registerCommand('projectMemory.showSyncReport', async () => {
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (!workspaceFolders) {
+                vscode.window.showErrorMessage('No workspace folder open');
+                return;
+            }
+
+            const workspacePath = workspaceFolders[0].uri.fsPath;
+            const workspaceId = await resolveActiveWorkspaceId(connectionManager);
+            if (!workspaceId) {
+                vscode.window.showErrorMessage('No registered workspace found. Ensure the MCP server is running.');
+                return;
+            }
+
+            let report: WorkspaceConfigSyncReport;
+            try {
+                report = await connectionManager.checkWorkspaceConfigSync(workspaceId);
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to fetch sync report: ${error}`);
+                return;
+            }
+
+            if (!syncReportChannel) {
+                syncReportChannel = vscode.window.createOutputChannel('Project Memory Workspace Sync');
+            }
+            syncReportChannel.clear();
+            syncReportChannel.appendLine('=== Project Memory Workspace Sync Report ===');
+            syncReportChannel.appendLine(`Workspace: ${workspacePath}`);
+            syncReportChannel.appendLine(`Mode: ${report.report_mode}`);
+            syncReportChannel.appendLine('');
+
+            const s = report.summary;
+            syncReportChannel.appendLine(
+                `Summary:  total=${s.total}  in_sync=${s.in_sync}  local_only=${s.local_only}` +
+                `  db_only=${s.db_only}  content_mismatch=${s.content_mismatch}` +
+                `  protected_drift=${s.protected_drift}  ignored_local=${s.ignored_local}` +
+                `  import_candidate=${s.import_candidate}`
+            );
+            syncReportChannel.appendLine('');
+
+            const allEntries: WorkspaceConfigSyncEntry[] = [...report.agents, ...report.instructions];
+            const groups: Partial<Record<WorkspaceConfigSyncEntry['status'], WorkspaceConfigSyncEntry[]>> = {};
+            for (const entry of allEntries) {
+                const list = groups[entry.status] ?? (groups[entry.status] = []);
+                list.push(entry);
+            }
+
+            const statusOrder: WorkspaceConfigSyncEntry['status'][] = [
+                'protected_drift', 'content_mismatch', 'db_only', 'local_only',
+                'import_candidate', 'in_sync', 'ignored_local',
+            ];
+            for (const status of statusOrder) {
+                const entries = groups[status];
+                if (!entries || entries.length === 0) { continue; }
+                syncReportChannel.appendLine(`--- ${status.toUpperCase()} (${entries.length}) ---`);
+                for (const entry of entries) {
+                    syncReportChannel.appendLine(`  [${entry.kind}] ${entry.filename}`);
+                    syncReportChannel.appendLine(`    Path:        ${entry.relative_path}`);
+                    syncReportChannel.appendLine(`    Remediation: ${entry.remediation}`);
+                }
+                syncReportChannel.appendLine('');
+            }
+
+            syncReportChannel.show();
+        }),
+
+        vscode.commands.registerCommand('projectMemory.importContextFile', async () => {
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (!workspaceFolders) {
+                vscode.window.showErrorMessage('No workspace folder open');
+                return;
+            }
+
+            const workspaceId = await resolveActiveWorkspaceId(connectionManager);
+            if (!workspaceId) {
+                vscode.window.showErrorMessage('No registered workspace found. Ensure the MCP server is running.');
+                return;
+            }
+
+            let report: WorkspaceConfigSyncReport;
+            try {
+                report = await connectionManager.checkWorkspaceConfigSync(workspaceId);
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to fetch sync report: ${error}`);
+                return;
+            }
+
+            const candidates = [...report.agents, ...report.instructions]
+                .filter((e): e is WorkspaceConfigSyncEntry => e.status === 'import_candidate');
+
+            if (candidates.length === 0) {
+                vscode.window.showInformationMessage('No import-eligible files found');
+                return;
+            }
+
+            const items: vscode.QuickPickItem[] = candidates.map(e => ({
+                label: e.filename,
+                detail: e.relative_path,
+                description: e.kind,
+            }));
+
+            const selected = await vscode.window.showQuickPick(items, {
+                placeHolder: 'Select a file to import into the database',
+                title: 'Import Context File to Database',
+            });
+            if (!selected) { return; }
+
+            const entry = candidates.find(
+                e => e.filename === selected.label && e.relative_path === selected.detail
+            );
+            if (!entry) { return; }
+
+            const confirmed = await vscode.window.showQuickPick(['Yes', 'No'], {
+                placeHolder: `Import ${entry.filename} to database?`,
+            });
+            if (confirmed !== 'Yes') { return; }
+
+            try {
+                await connectionManager.callTool('memory_workspace', {
+                    action: 'import_context_file',
+                    workspace_id: workspaceId,
+                    relative_path: entry.relative_path,
+                    confirm: true,
+                    expected_kind: entry.kind,
+                });
+                notify(`Imported ${entry.filename} into the database`);
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to import ${entry.filename}: ${error}`);
+            }
+        }),
+
+        vscode.commands.registerCommand('projectMemory.redeployMandatoryFiles', async () => {
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (!workspaceFolders) {
+                vscode.window.showErrorMessage('No workspace folder open');
+                return;
+            }
+
+            const workspacePath = workspaceFolders[0].uri.fsPath;
+            const workspaceId = await resolveActiveWorkspaceId(connectionManager);
+            if (!workspaceId) {
+                vscode.window.showErrorMessage('No registered workspace found. Ensure the MCP server is running.');
+                return;
+            }
+
+            let report: WorkspaceConfigSyncReport;
+            try {
+                report = await connectionManager.checkWorkspaceConfigSync(workspaceId);
+            } catch (error) {
+                vscode.window.showErrorMessage(`Failed to fetch sync report: ${error}`);
+                return;
+            }
+
+            const driftEntries = [...report.agents, ...report.instructions]
+                .filter((e): e is WorkspaceConfigSyncEntry => e.status === 'protected_drift');
+
+            if (driftEntries.length === 0) {
+                vscode.window.showInformationMessage('All mandatory PM-controlled files are in sync');
+                return;
+            }
+
+            const items: vscode.QuickPickItem[] = driftEntries.map(e => ({
+                label: e.filename,
+                detail: e.relative_path,
+                description: e.kind,
+                picked: true,
+            }));
+
+            const selected = await vscode.window.showQuickPick(items, {
+                canPickMany: true,
+                placeHolder: 'Select files to redeploy from canonical seed',
+                title: 'Redeploy Mandatory PM Files',
+            });
+            if (!selected || selected.length === 0) { return; }
+
+            const confirmed = await vscode.window.showQuickPick(['Yes', 'No'], {
+                placeHolder: 'Redeploy selected files from canonical seed?',
+            });
+            if (confirmed !== 'Yes') { return; }
+
+            const result = await defaultDeployer.updateWorkspace(workspacePath);
+            if (result.updated.length > 0 || result.added.length > 0) {
+                notify(`Redeployed: ${result.updated.length} updated, ${result.added.length} added`);
+            } else {
+                notify('Files redeployed successfully');
+            }
+        }),
 
         vscode.commands.registerCommand('projectMemory.deployAgentFileToWorkspace', async (uri?: vscode.Uri) => {
             const workspaceFolders = vscode.workspace.workspaceFolders;
