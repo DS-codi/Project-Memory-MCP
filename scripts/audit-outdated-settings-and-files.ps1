@@ -279,7 +279,15 @@ process.stdout.write(JSON.stringify(rows));
 
     $json = & {
         $ErrorActionPreference = 'Continue'
-        & node -e $nodeScript 2>&1
+        # Clear NODE_OPTIONS: win-ca and similar preloads injected by VS Code crash
+        # Node at startup on machines where those modules are not globally installed.
+        $prevNodeOptions = $env:NODE_OPTIONS
+        $env:NODE_OPTIONS = $null
+        try {
+            & node -e $nodeScript 2>&1
+        } finally {
+            $env:NODE_OPTIONS = $prevNodeOptions
+        }
     }
     if ($LASTEXITCODE -ne 0) {
         throw "DB query failed: $json"
