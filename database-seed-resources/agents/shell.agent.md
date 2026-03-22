@@ -1,7 +1,7 @@
 ---
 name: Shell
 description: 'Shell agent - Blank-slate spoke. Role, instructions, and context are fully provided by Hub at spawn time via the prompt. Tools cover all execution surfaces so Hub can assign any role without restriction.'
-tools: [vscode, execute, read, agent, edit, search, 'project-memory/*', todo]
+tools: [vscode, execute, read, agent, edit, search, project-memory/*, todo]
 ---
 
 # Shell Agent

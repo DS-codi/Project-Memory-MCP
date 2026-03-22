@@ -115,11 +115,74 @@ export interface WorkspaceContextHealth {
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
+// ---------------------------------------------------------------------------
+// Workspace short code
+// ---------------------------------------------------------------------------
+
+/**
+ * Derive a 6-character hex short code from a workspace ID.
+ * Workspace IDs have the format: `{foldername}-{12hexchars}`
+ * Short code = first 6 chars of the hex suffix.
+ * Example: "project_memory_mcp-50e04147a402" → "50e041"
+ */
+export function getWorkspaceShortCode(workspaceId: string): string {
+  const parts = workspaceId.split('-');
+  const hex = parts[parts.length - 1] ?? '';
+  return hex.substring(0, 6);
+}
+
+/**
+ * Read the workspace identity file and return the 6-char short code,
+ * or null if identity.json cannot be read.
+ */
+export function readWorkspaceShortCode(workspacePath: string): string | null {
+  const identityPath = path.join(workspacePath, '.projectmemory', 'identity.json');
+  try {
+    const raw = fs.readFileSync(identityPath, 'utf-8');
+    const identity = JSON.parse(raw) as { workspace_id?: string };
+    const id = identity.workspace_id;
+    if (!id) return null;
+    return getWorkspaceShortCode(id);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Given a bare agent name (e.g. "hub") and an optional workspace short code,
+ * return the deployed filename (e.g. "hub.50e041.agent.md" or "hub.agent.md").
+ */
+export function agentFilename(name: string, shortCode?: string | null): string {
+  return shortCode ? `${name}.${shortCode}.agent.md` : `${name}.agent.md`;
+}
+
+/**
+ * Given a bare instruction stem (e.g. "mcp-usage") and an optional workspace
+ * short code, return the deployed filename
+ * (e.g. "mcp-usage.50e041.instructions.md" or "mcp-usage.instructions.md").
+ */
+export function instructionFilename(stem: string, shortCode?: string | null): string {
+  return shortCode ? `${stem}.${shortCode}.instructions.md` : `${stem}.instructions.md`;
+}
+
+/**
+ * Strip a workspace short code from a deployed filename to get the canonical form.
+ * "hub.50e041.agent.md" → "hub.agent.md"
+ * "mcp-usage.50e041.instructions.md" → "mcp-usage.instructions.md"
+ * Canonical forms pass through unchanged.
+ */
+export function toCanonicalFilename(filename: string): string {
+  return filename
+    .replace(/^(.+)\.[a-f0-9]{6}(\.agent\.md)$/, '$1$2')
+    .replace(/^(.+)\.[a-f0-9]{6}(\.instructions\.md)$/, '$1$2');
+}
+
 /**
  * Inspect a workspace's .github/ directory and return a health report.
  * Does not modify any files — reporting only.
  */
-export function checkWorkspaceContextHealth(workspacePath: string): WorkspaceContextHealth {
+export function checkWorkspaceContextHealth(workspacePath: string, workspaceId?: string): WorkspaceContextHealth {
+  const shortCode = workspaceId ? getWorkspaceShortCode(workspaceId) : readWorkspaceShortCode(workspacePath);
   const githubDir = path.join(workspacePath, '.github');
   const agentsDir = path.join(githubDir, 'agents');
   const instructionsDir = path.join(githubDir, 'instructions');
@@ -130,14 +193,24 @@ export function checkWorkspaceContextHealth(workspacePath: string): WorkspaceCon
 
   // ── mandatory agents ────────────────────────────────────────────────────
   for (const filename of MANDATORY_AGENTS) {
-    if (!fs.existsSync(path.join(agentsDir, filename))) {
+    const canonical = path.join(agentsDir, filename);
+    // Also accept workspace-coded form: hub.50e041.agent.md
+    const coded = shortCode
+      ? path.join(agentsDir, agentFilename(filename.replace(/\.agent\.md$/, ''), shortCode))
+      : null;
+    if (!fs.existsSync(canonical) && !(coded && fs.existsSync(coded))) {
       mandatoryMissing.push(`agents/${filename}`);
     }
   }
 
   // ── mandatory instructions ───────────────────────────────────────────────
   for (const filename of MANDATORY_INSTRUCTIONS) {
-    if (!fs.existsSync(path.join(instructionsDir, filename))) {
+    const canonical = path.join(instructionsDir, filename);
+    const stem = filename.replace(/\.instructions\.md$/, '');
+    const coded = shortCode
+      ? path.join(instructionsDir, instructionFilename(stem, shortCode))
+      : null;
+    if (!fs.existsSync(canonical) && !(coded && fs.existsSync(coded))) {
       mandatoryMissing.push(`instructions/${filename}`);
     }
   }
@@ -146,8 +219,9 @@ export function checkWorkspaceContextHealth(workspacePath: string): WorkspaceCon
   if (fs.existsSync(agentsDir)) {
     const allAgents = fs.readdirSync(agentsDir).filter(f => f.endsWith('.agent.md'));
     for (const filename of allAgents) {
-      // cull anything not in the mandatory list
-      if (!MANDATORY_AGENTS.includes(filename)) {
+      // Resolve canonical form (strip workspace code if present) then compare against mandatory list
+      const canonical = toCanonicalFilename(filename);
+      if (!MANDATORY_AGENTS.includes(canonical)) {
         cullDetected.push(`agents/${filename}`);
       }
     }
@@ -155,7 +229,13 @@ export function checkWorkspaceContextHealth(workspacePath: string): WorkspaceCon
 
   // ── cull: named instruction files ────────────────────────────────────────
   for (const filename of CULL_INSTRUCTIONS) {
-    if (fs.existsSync(path.join(instructionsDir, filename))) {
+    // Check both canonical and workspace-coded forms
+    const stem = filename.replace(/\.instructions\.md$/, '');
+    const codedFilename = shortCode ? instructionFilename(stem, shortCode) : null;
+    if (
+      fs.existsSync(path.join(instructionsDir, filename)) ||
+      (codedFilename && fs.existsSync(path.join(instructionsDir, codedFilename)))
+    ) {
       cullDetected.push(`instructions/${filename}`);
     }
   }

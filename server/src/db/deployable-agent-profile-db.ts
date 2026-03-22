@@ -8,7 +8,7 @@
 import type { DeployableAgentProfileRow } from './types.js';
 import { queryOne, queryAll, run, newId, nowIso } from './query-helpers.js';
 
-export type DeployableAgentRole = 'hub' | 'prompt_analyst';
+export type DeployableAgentRole = 'hub' | 'prompt_analyst' | 'shell';
 
 export interface UpsertDeployableAgentProfileInput {
   role: DeployableAgentRole;

@@ -1,7 +1,7 @@
 ---
 name: PromptAnalyst
 description: 'Prompt Analyst agent - Investigation and routing spoke. Reads plan state and lightly scans the codebase to classify incoming requests and identify noteworthy file paths. Returns a structured RoutingDecision that Hub uses to select a mode, category, and starting files for the Researcher.'
-tools: ['vscode', 'read', 'search', 'project-memory/*', 'agent', 'todo']
+tools: ['vscode', 'read', 'search', project-memory/*, 'agent', 'todo']
 handoffs:
   - label: "Return routing decision to Hub"
     agent: Hub
