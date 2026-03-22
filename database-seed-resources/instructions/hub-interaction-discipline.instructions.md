@@ -1,5 +1,5 @@
 ---
-applyTo: "agents/hub.agent.md"
+applyTo: "agents/core/hub.agent.md"
 ---
 
 # Hub Interaction Discipline
