@@ -11,7 +11,6 @@ suite('Dashboard Plan Selection Routing', () => {
             dashboardUrl: 'http://localhost:5173',
             workspaceId: 'workspace-default',
             workspaceName: 'Workspace',
-            dataRoot: JSON.stringify('C:/tmp/data'),
             iconsJson: JSON.stringify(iconSvgs),
             iconSvgs,
         });
@@ -51,7 +50,7 @@ suite('Dashboard Plan Selection Routing', () => {
     });
 
     test('provider resolves explicit plan selection without QuickPick fallback', async () => {
-        const provider = new DashboardViewProvider(vscode.Uri.file('/tmp/ext'), '/tmp/data', '/tmp/agents') as any;
+        const provider = new DashboardViewProvider(vscode.Uri.file('/tmp/ext'), '/tmp/agents') as any;
 
         let pickPlanCalled = false;
         provider.pickPlan = async () => {
@@ -69,7 +68,7 @@ suite('Dashboard Plan Selection Routing', () => {
     });
 
     test('provider falls back to pickPlan when explicit selection is missing', async () => {
-        const provider = new DashboardViewProvider(vscode.Uri.file('/tmp/ext'), '/tmp/data', '/tmp/agents') as any;
+        const provider = new DashboardViewProvider(vscode.Uri.file('/tmp/ext'), '/tmp/agents') as any;
 
         let pickPlanCalled = false;
         provider.pickPlan = async () => {
