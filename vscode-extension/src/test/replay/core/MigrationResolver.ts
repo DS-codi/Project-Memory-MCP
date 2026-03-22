@@ -1,3 +1,4 @@
+import { Dirent } from 'fs';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -57,7 +58,7 @@ async function resolveLatestLegacyRun(
     legacyRunsRoot: string,
     kind: ReplayArtifactKind
 ): Promise<ResolvedReplayArtifact | null> {
-    let entries: Awaited<ReturnType<typeof fs.readdir>>;
+    let entries: Dirent[];
     try {
         entries = await fs.readdir(legacyRunsRoot, { withFileTypes: true });
     } catch {
