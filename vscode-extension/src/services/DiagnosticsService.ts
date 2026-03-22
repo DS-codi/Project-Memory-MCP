@@ -14,8 +14,17 @@
  */
 
 import * as vscode from 'vscode';
-import { ConnectionManager } from '../server/ConnectionManager';
+import { ConnectionManager, type WorkspaceConfigSyncReport, type WorkspaceConfigSyncEntry } from '../server/ConnectionManager';
 import { SupervisorHeartbeat, HeartbeatEvent } from '../supervisor/SupervisorHeartbeat';
+
+interface WorkspaceSyncDiagnosticsState {
+    workspaceId?: string;
+    lastCheckedAt: string | null;
+    actionableFindings: number;
+    summary: WorkspaceConfigSyncReport['summary'] | null;
+    sampleFindings: string[];
+    lastError?: string;
+}
 
 export interface DiagnosticsReport {
     timestamp: string;
@@ -35,6 +44,7 @@ export interface DiagnosticsReport {
         memoryMB: number;
         uptime: number;
     };
+    workspaceSync: WorkspaceSyncDiagnosticsState;
     health: 'green' | 'yellow' | 'red';
     issues: string[];
 }
@@ -48,6 +58,12 @@ export class DiagnosticsService implements vscode.Disposable {
     private heartbeatSubscriptions: vscode.Disposable[] = [];
     private lastHeartbeat: HeartbeatEvent | null = null;
     private heartbeatAlive = false;
+    private workspaceSyncState: WorkspaceSyncDiagnosticsState = {
+        lastCheckedAt: null,
+        actionableFindings: 0,
+        summary: null,
+        sampleFindings: [],
+    };
 
     constructor(
         private connectionManager: ConnectionManager
@@ -80,6 +96,30 @@ export class DiagnosticsService implements vscode.Disposable {
                 this.connectionManager.detectAndConnect().then(() => this.runCheck());
             }),
         );
+    }
+
+    updateWorkspaceSync(report: WorkspaceConfigSyncReport): void {
+        const actionableEntries = this.collectActionableEntries(report);
+        this.workspaceSyncState = {
+            workspaceId: report.workspace_id,
+            lastCheckedAt: new Date().toISOString(),
+            actionableFindings: actionableEntries.length,
+            summary: report.summary,
+            sampleFindings: actionableEntries
+                .slice(0, 3)
+                .map((entry) => `${entry.relative_path}: ${entry.status}`),
+        };
+        this.runCheck();
+    }
+
+    setWorkspaceSyncError(message: string, workspaceId?: string): void {
+        this.workspaceSyncState = {
+            ...this.workspaceSyncState,
+            workspaceId: workspaceId ?? this.workspaceSyncState.workspaceId,
+            lastCheckedAt: new Date().toISOString(),
+            lastError: message,
+        };
+        this.runCheck();
     }
 
     /** Run a diagnostics check and emit onHealthChange. */
@@ -116,6 +156,8 @@ export class DiagnosticsService implements vscode.Disposable {
             issues.push(`High memory usage: ${memoryMB} MB`);
         }
 
+        issues.push(...this.buildWorkspaceSyncIssues());
+
         const uptimeSeconds = Math.floor((Date.now() - this.extensionStartTime) / 1000);
 
         let health: 'green' | 'yellow' | 'red' = 'green';
@@ -142,6 +184,7 @@ export class DiagnosticsService implements vscode.Disposable {
                 mcpProxyHealthy,
             },
             extension: { memoryMB, uptime: uptimeSeconds },
+            workspaceSync: { ...this.workspaceSyncState },
             health,
             issues,
         };
@@ -176,7 +219,32 @@ export class DiagnosticsService implements vscode.Disposable {
             `  Memory: ${report.extension.memoryMB} MB`,
             `  Uptime: ${report.extension.uptime}s`,
             '',
+            '--- Workspace Config Sync ---',
         ];
+
+        if (report.workspaceSync.lastError) {
+            lines.push(`  Last check: ${report.workspaceSync.lastCheckedAt ?? 'unknown'}`);
+            lines.push(`  Error: ${report.workspaceSync.lastError}`);
+        } else if (report.workspaceSync.summary) {
+            const summary = report.workspaceSync.summary;
+            lines.push(`  Last check: ${report.workspaceSync.lastCheckedAt ?? 'unknown'}`);
+            lines.push(`  Actionable findings: ${report.workspaceSync.actionableFindings}`);
+            lines.push(`  Protected drift: ${summary.protected_drift}`);
+            lines.push(`  Content mismatch: ${summary.content_mismatch}`);
+            lines.push(`  Local only: ${summary.local_only}`);
+            lines.push(`  DB only: ${summary.db_only}`);
+            lines.push(`  Import candidates: ${summary.import_candidate}`);
+            lines.push(`  In sync: ${summary.in_sync}`);
+            lines.push(`  Ignored local: ${summary.ignored_local}`);
+            if (report.workspaceSync.sampleFindings.length > 0) {
+                lines.push('  Sample findings:');
+                report.workspaceSync.sampleFindings.forEach((finding) => lines.push(`    - ${finding}`));
+            }
+        } else {
+            lines.push('  No passive watcher report captured yet.');
+        }
+
+        lines.push('');
 
         if (report.issues.length > 0) {
             lines.push('--- Issues ---');
@@ -194,6 +262,42 @@ export class DiagnosticsService implements vscode.Disposable {
         this.heartbeatSubscriptions.forEach(d => d.dispose());
         this.heartbeatSubscriptions = [];
         this._onHealthChange.dispose();
+    }
+
+    private collectActionableEntries(report: WorkspaceConfigSyncReport): WorkspaceConfigSyncEntry[] {
+        return [...report.agents, ...report.instructions].filter((entry) => (
+            entry.status !== 'in_sync' && entry.status !== 'ignored_local'
+        ));
+    }
+
+    private buildWorkspaceSyncIssues(): string[] {
+        if (this.workspaceSyncState.lastError) {
+            return [`Workspace config sync check failed: ${this.workspaceSyncState.lastError}`];
+        }
+
+        const summary = this.workspaceSyncState.summary;
+        if (!summary) {
+            return [];
+        }
+
+        const issues: string[] = [];
+        if (summary.protected_drift > 0) {
+            issues.push(`Workspace config drift: ${summary.protected_drift} PM-controlled file(s) out of parity`);
+        }
+        if (summary.content_mismatch > 0) {
+            issues.push(`Workspace config drift: ${summary.content_mismatch} managed file mismatch(es)`);
+        }
+        if (summary.local_only > 0) {
+            issues.push(`Workspace config drift: ${summary.local_only} managed workspace-only file(s)`);
+        }
+        if (summary.db_only > 0) {
+            issues.push(`Workspace config drift: ${summary.db_only} DB-only file(s)`);
+        }
+        if (summary.import_candidate > 0) {
+            issues.push(`Workspace config drift: ${summary.import_candidate} manual import candidate(s)`);
+        }
+
+        return issues;
     }
 }
 

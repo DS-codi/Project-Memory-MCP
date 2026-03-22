@@ -19,12 +19,14 @@ import { detectMigrationAdvisories } from '../program/index.js';
 import type { MigrationAdvisory } from '../program/index.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { storeAgent } from '../../db/agent-definition-db.js';
+import { storeInstruction } from '../../db/instruction-db.js';
 import { checkWorkspaceContextHealth, type WorkspaceContextHealth } from '../workspace-context-manifest.js';
-import { checkWorkspaceDbSync, type WorkspaceDbSyncReport } from '../workspace-db-sync.js';
+import { checkWorkspaceDbSync, inspectWorkspaceSyncFile, normalizeWorkspaceSyncRelativePath, type SyncEntry, type WorkspaceDbSyncReport } from '../workspace-db-sync.js';
 import { getFocusedWorkspacesDir, getFocusedWorkspacePath } from '../../storage/db-store.js';
 import { events } from '../../events/event-emitter.js';
 
-export type WorkspaceAction = 'register' | 'list' | 'info' | 'reindex' | 'merge' | 'scan_ghosts' | 'migrate' | 'link' | 'set_display_name' | 'export_pending' | 'generate_focused_workspace' | 'list_focused_workspaces' | 'check_context_sync';
+export type WorkspaceAction = 'register' | 'list' | 'info' | 'reindex' | 'merge' | 'scan_ghosts' | 'migrate' | 'link' | 'set_display_name' | 'export_pending' | 'generate_focused_workspace' | 'list_focused_workspaces' | 'check_context_sync' | 'import_context_file';
 
 export interface MemoryWorkspaceParams {
   action: WorkspaceAction;
@@ -44,6 +46,20 @@ export interface MemoryWorkspaceParams {
   directories_allowed?: string[];    // for generate_focused_workspace (explicit directory scope)
   base_workspace_path?: string;      // for generate_focused_workspace (base .code-workspace to merge into)
   session_id?: string;               // for generate_focused_workspace (optional registry update)
+  relative_path?: string;            // for import_context_file (.github-relative path)
+  confirm?: boolean;                 // for import_context_file (explicit write gate)
+  expected_kind?: 'agent' | 'instruction'; // for import_context_file safety check
+}
+
+interface ImportContextFileResult {
+  workspace_id: string;
+  relative_path: string;
+  kind: 'agent' | 'instruction';
+  imported: boolean;
+  previous_status: SyncEntry['status'];
+  current_status: SyncEntry['status'];
+  preview: SyncEntry;
+  message: string;
 }
 
 interface PlanInfoSummary {
@@ -80,7 +96,161 @@ type WorkspaceResult =
   | { action: 'export_pending'; data: { workspace_id: string; file_path: string; plans_included: number; total_pending_steps: number } }
   | { action: 'generate_focused_workspace'; data: { file_path: string; files_in_scope: string[] } }
   | { action: 'list_focused_workspaces'; data: { workspaces: Array<{ plan_id: string; file_path: string; filename: string }> } }
-  | { action: 'check_context_sync'; data: WorkspaceDbSyncReport };
+  | { action: 'check_context_sync'; data: WorkspaceDbSyncReport }
+  | { action: 'import_context_file'; data: ImportContextFileResult };
+
+function extractYamlFrontmatter(content: string): string | null {
+  const match = content.match(/^---\s*\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  return match?.[1] ?? null;
+}
+
+function extractInstructionApplyTo(content: string): string {
+  const frontmatter = extractYamlFrontmatter(content);
+  if (!frontmatter) {
+    return '**/*';
+  }
+
+  const match = frontmatter.match(/^applyTo:\s*["']?([^"'\n]+)["']?\s*$/m);
+  return match?.[1]?.trim() || '**/*';
+}
+
+function getImportPolicyRejection(entry: SyncEntry): string | null {
+  if (entry.policy.cull_reason) {
+    return 'This file is DB-only by manifest policy and cannot be manually imported from the workspace.';
+  }
+  if (entry.policy.validation_errors.length > 0) {
+    return `This file has invalid PM metadata and cannot be imported: ${entry.policy.validation_errors.join(' | ')}`;
+  }
+  if (!entry.policy.sync_managed || entry.policy.controlled || entry.policy.import_mode !== 'manual') {
+    return 'This file is not an eligible manual-import candidate under the current PM policy.';
+  }
+  return null;
+}
+
+function buildImportContextFileError(entry: SyncEntry): string {
+  switch (entry.status) {
+    case 'protected_drift':
+      return 'PM-controlled files cannot be imported from the workspace. Use an explicit redeploy or reseed-from-canonical flow instead.';
+    case 'ignored_local':
+      return 'This file is outside PM sync management and is not eligible for manual DB import.';
+    case 'local_only':
+      return 'This file exists only in the workspace but is not marked as a manual import candidate.';
+    case 'db_only':
+      return 'This file already exists in the DB only; import_context_file only handles DB-missing local files.';
+    case 'content_mismatch':
+      return 'This file already has a DB row. Use an explicit update or redeploy workflow instead of import_context_file.';
+    case 'in_sync':
+      return 'This file is already in sync and does not need manual import.';
+    case 'import_candidate':
+      return 'Ready for manual import.';
+  }
+}
+
+async function handleImportContextFile(
+  params: MemoryWorkspaceParams,
+): Promise<ToolResponse<WorkspaceResult>> {
+  if (!params.workspace_id) {
+    return { success: false, error: 'workspace_id is required for action: import_context_file' };
+  }
+  if (!params.relative_path) {
+    return { success: false, error: 'relative_path is required for action: import_context_file' };
+  }
+
+  const validated = await validateAndResolveWorkspaceId(params.workspace_id);
+  if (!validated.success) return validated.error_response as ToolResponse<WorkspaceResult>;
+
+  const workspace = await store.getWorkspace(validated.workspace_id);
+  if (!workspace) {
+    return { success: false, error: `Workspace not found: ${validated.workspace_id}` };
+  }
+
+  const wsPath = workspace.workspace_path || (workspace as unknown as { path?: string }).path;
+  if (!wsPath) {
+    return { success: false, error: `Workspace has no filesystem path: ${validated.workspace_id}` };
+  }
+
+  const normalizedRelativePath = normalizeWorkspaceSyncRelativePath(params.relative_path);
+  const preview = inspectWorkspaceSyncFile(wsPath, normalizedRelativePath);
+  if (!preview) {
+    return {
+      success: false,
+      error: 'relative_path must reference an existing .github agent or instruction file under the workspace root',
+    };
+  }
+
+  if (params.expected_kind && preview.kind !== params.expected_kind) {
+    return {
+      success: false,
+      error: `expected_kind=${params.expected_kind} does not match detected file kind ${preview.kind}`,
+    };
+  }
+
+  const policyRejection = getImportPolicyRejection(preview.entry);
+  if (policyRejection) {
+    return { success: false, error: policyRejection };
+  }
+
+  if (preview.entry.status !== 'import_candidate') {
+    return { success: false, error: buildImportContextFileError(preview.entry) };
+  }
+
+  if (!params.confirm) {
+    return {
+      success: true,
+      data: {
+        action: 'import_context_file',
+        data: {
+          workspace_id: validated.workspace_id,
+          relative_path: preview.relative_path,
+          kind: preview.kind,
+          imported: false,
+          previous_status: preview.entry.status,
+          current_status: preview.entry.status,
+          preview: preview.entry,
+          message: 'Preview only. Re-run with confirm=true to import this manual-import candidate into the DB.',
+        },
+      },
+    };
+  }
+
+  if (preview.kind === 'agent') {
+    storeAgent(preview.local.canonical_name, preview.local.content, {
+      metadata: {
+        source: 'manual_import',
+        workspace_id: validated.workspace_id,
+        workspace_relative_path: preview.relative_path,
+        canonical_filename: preview.local.canonical_filename,
+        imported_at: new Date().toISOString(),
+      },
+    });
+  } else {
+    storeInstruction(
+      preview.local.canonical_filename,
+      extractInstructionApplyTo(preview.local.content),
+      preview.local.content,
+    );
+  }
+
+  const refreshed = inspectWorkspaceSyncFile(wsPath, normalizedRelativePath);
+  const currentEntry = refreshed?.entry ?? preview.entry;
+
+  return {
+    success: true,
+    data: {
+      action: 'import_context_file',
+      data: {
+        workspace_id: validated.workspace_id,
+        relative_path: preview.relative_path,
+        kind: preview.kind,
+        imported: true,
+        previous_status: preview.entry.status,
+        current_status: currentEntry.status,
+        preview: currentEntry,
+        message: 'Imported the manual-import candidate into the DB. Passive sync checks remain read-only.',
+      },
+    },
+  };
+}
 
 // Helper: generate a focused .code-workspace file scoped to a plan's directories
 async function handleGenerateFocusedWorkspace(
@@ -229,9 +399,11 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
   }
 
   // Preflight validation — catch missing required fields early
-  const preflight = preflightValidate('memory_workspace', action, params as unknown as Record<string, unknown>);
-  if (!preflight.valid) {
-    return { success: false, error: preflight.message, preflight_failure: preflight } as ToolResponse<WorkspaceResult>;
+  if (action !== 'import_context_file') {
+    const preflight = preflightValidate('memory_workspace', action, params as unknown as Record<string, unknown>);
+    if (!preflight.valid) {
+      return { success: false, error: preflight.message, preflight_failure: preflight } as ToolResponse<WorkspaceResult>;
+    }
   }
 
   switch (action) {
@@ -769,6 +941,8 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
       return await handleGenerateFocusedWorkspace(params);
     case 'list_focused_workspaces':
       return await handleListFocusedWorkspaces(params);
+    case 'import_context_file':
+      return await handleImportContextFile(params);
     case 'check_context_sync': {
       const wsId = params.workspace_id;
       if (!wsId) {
@@ -784,13 +958,13 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
       if (!wsPath) {
         return { success: false, error: `Workspace has no filesystem path: ${validated.workspace_id}` };
       }
-      const report = checkWorkspaceDbSync(wsPath);
+      const report = checkWorkspaceDbSync(wsPath, validated.workspace_id);
       return { success: true, data: { action: 'check_context_sync', data: report } };
     }
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: register, list, info, reindex, merge, scan_ghosts, migrate, link, set_display_name, export_pending, generate_focused_workspace, list_focused_workspaces, check_context_sync`
+        error: `Unknown action: ${action}. Valid actions: register, list, info, reindex, merge, scan_ghosts, migrate, link, set_display_name, export_pending, generate_focused_workspace, list_focused_workspaces, check_context_sync, import_context_file`
       };
   }
 }

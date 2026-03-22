@@ -293,7 +293,7 @@ List available filter options for a slice.
 
 ## Authorization
 
-Only these agent types may call `memory_cartographer`: **Researcher, Architect, Coordinator, Analyst, Executor**. Other agent types receive an authorization error.
+Only these agent types may call `memory_cartographer`: **Researcher, Architect, Executor, Reviewer, Cognition, Runner, Coordinator, Analyst**. Other agent types receive an authorization error.
 
 ---
 

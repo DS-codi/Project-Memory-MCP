@@ -23,6 +23,55 @@ export interface ConnectionConfig {
     mcpPort: number;
 }
 
+export interface WorkspaceConfigSyncEntryPolicy {
+    sync_managed: boolean;
+    controlled: boolean;
+    import_mode: 'never' | 'manual';
+    canonical_source: 'none' | 'database_seed_resources';
+    canonical_path: string | null;
+    required_workspace_copy: boolean;
+    legacy_mandatory: boolean;
+    cull_reason?: string;
+    validation_errors: string[];
+}
+
+export interface WorkspaceConfigSyncEntry {
+    kind: 'agent' | 'instruction';
+    filename: string;
+    relative_path: string;
+    canonical_name: string;
+    canonical_filename: string;
+    status: 'in_sync' | 'local_only' | 'db_only' | 'content_mismatch' | 'protected_drift' | 'ignored_local' | 'import_candidate';
+    remediation: string;
+    comparison_basis: 'ignored_local' | 'local_only' | 'db_only' | 'local_vs_db' | 'local_db_seed';
+    db_updated_at?: string;
+    local_size_bytes?: number;
+    canonical_seed_path?: string;
+    content_mismatch_hint?: string;
+    policy: WorkspaceConfigSyncEntryPolicy;
+}
+
+export interface WorkspaceConfigSyncReport {
+    workspace_id?: string;
+    workspace_path: string;
+    report_mode: 'read_only';
+    writes_performed: false;
+    github_agents_dir: string;
+    github_instructions_dir: string;
+    agents: WorkspaceConfigSyncEntry[];
+    instructions: WorkspaceConfigSyncEntry[];
+    summary: {
+        total: number;
+        in_sync: number;
+        local_only: number;
+        db_only: number;
+        content_mismatch: number;
+        protected_drift: number;
+        ignored_local: number;
+        import_candidate: number;
+    };
+}
+
 export class ConnectionManager implements vscode.Disposable {
     private outputChannel: vscode.OutputChannel;
     private statusBarItem: vscode.StatusBarItem;
@@ -240,6 +289,25 @@ export class ConnectionManager implements vscode.Disposable {
         return response.json();
     }
 
+    async checkWorkspaceConfigSync(workspaceId: string): Promise<WorkspaceConfigSyncReport> {
+        const response = await this.callTool('memory_workspace', {
+            action: 'check_context_sync',
+            workspace_id: workspaceId,
+        });
+
+        const errorMessage = this.extractToolError(response);
+        if (errorMessage) {
+            throw new Error(errorMessage);
+        }
+
+        const report = this.extractWorkspaceConfigSyncReport(response);
+        if (!report) {
+            throw new Error('Malformed response from memory_workspace(action: check_context_sync).');
+        }
+
+        return report;
+    }
+
     // --- Configuration ---
 
     updateConfig(config: Partial<ConnectionConfig>): void {
@@ -293,6 +361,84 @@ export class ConnectionManager implements vscode.Disposable {
         const timestamp = new Date().toISOString();
         const line = `[${timestamp}] ${message}`;
         this.outputChannel.appendLine(line);
+    }
+
+    private extractToolError(response: unknown): string | null {
+        for (const record of this.unwrapObjectChain(response)) {
+            if (record.success === false && typeof record.error === 'string') {
+                return record.error;
+            }
+        }
+
+        return null;
+    }
+
+    private extractWorkspaceConfigSyncReport(response: unknown): WorkspaceConfigSyncReport | null {
+        for (const record of this.unwrapObjectChain(response)) {
+            if (
+                record.report_mode === 'read_only'
+                && record.writes_performed === false
+                && Array.isArray(record.agents)
+                && Array.isArray(record.instructions)
+                && this.isWorkspaceConfigSummary(record.summary)
+            ) {
+                return record as unknown as WorkspaceConfigSyncReport;
+            }
+        }
+
+        return null;
+    }
+
+    private isWorkspaceConfigSummary(value: unknown): value is WorkspaceConfigSyncReport['summary'] {
+        if (!value || typeof value !== 'object') {
+            return false;
+        }
+
+        const summary = value as Record<string, unknown>;
+        return [
+            'total',
+            'in_sync',
+            'local_only',
+            'db_only',
+            'content_mismatch',
+            'protected_drift',
+            'ignored_local',
+            'import_candidate',
+        ].every((key) => typeof summary[key] === 'number');
+    }
+
+    private unwrapObjectChain(value: unknown): Array<Record<string, unknown>> {
+        const queue: unknown[] = [value];
+        const visited = new Set<unknown>();
+        const records: Array<Record<string, unknown>> = [];
+
+        while (queue.length > 0) {
+            const current = queue.shift();
+            if (!current || typeof current !== 'object' || visited.has(current)) {
+                continue;
+            }
+
+            visited.add(current);
+
+            if (Array.isArray(current)) {
+                queue.push(...current);
+                continue;
+            }
+
+            const record = current as Record<string, unknown>;
+            records.push(record);
+
+            const data = record.data;
+            const result = record.result;
+            if (data && typeof data === 'object') {
+                queue.push(data);
+            }
+            if (result && typeof result === 'object') {
+                queue.push(result);
+            }
+        }
+
+        return records;
     }
 
     showLogs(): void {

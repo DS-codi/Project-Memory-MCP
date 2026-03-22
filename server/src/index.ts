@@ -258,9 +258,9 @@ const DeployTelemetryContextSchema = z.object({
 
 server.tool(
   'memory_workspace',
-  'Consolidated workspace management tool. Actions: register (register a workspace directory), list (list all workspaces), info (get plans for a workspace), reindex (update codebase profile after changes), merge (merge a ghost/source workspace into a canonical target), scan_ghosts (scan for unregistered data-root directories), migrate (re-register workspace, find and merge all ghost/duplicate folders, recover plans, and clean up — use this when opening old workspaces), link (link/unlink parent-child workspace hierarchy), export_pending (export all unfinished steps from every plan to a .md file in the workspace), generate_focused_workspace (generate a focused workspace scope definition), list_focused_workspaces (list all focused workspace scope definitions), check_context_sync (compare .github/ agent and instruction files against DB — reports in_sync / local_only / db_only / content_mismatch per file so you can safely reconcile without data loss).',
+  'Consolidated workspace management tool. Actions: register (register a workspace directory), list (list all workspaces), info (get plans for a workspace), reindex (update codebase profile after changes), merge (merge a ghost/source workspace into a canonical target), scan_ghosts (scan for unregistered data-root directories), migrate (re-register workspace, find and merge all ghost/duplicate folders, recover plans, and clean up — use this when opening old workspaces), link (link/unlink parent-child workspace hierarchy), export_pending (export all unfinished steps from every plan to a .md file in the workspace), generate_focused_workspace (generate a focused workspace scope definition), list_focused_workspaces (list all focused workspace scope definitions), check_context_sync (compare .github/ agent and instruction files against DB — reports in_sync / local_only / db_only / content_mismatch per file so you can safely reconcile without data loss), import_context_file (explicitly preview or import an eligible DB-missing .github agent or instruction file; rejects PM-controlled, cull-policy, or metadata-invalid files and does not change watcher behavior).',
   {
-    action: z.enum(['register', 'list', 'info', 'reindex', 'merge', 'scan_ghosts', 'migrate', 'link', 'set_display_name', 'export_pending', 'generate_focused_workspace', 'list_focused_workspaces', 'check_context_sync']).describe('The action to perform'),
+    action: z.enum(['register', 'list', 'info', 'reindex', 'merge', 'scan_ghosts', 'migrate', 'link', 'set_display_name', 'export_pending', 'generate_focused_workspace', 'list_focused_workspaces', 'check_context_sync', 'import_context_file']).describe('The action to perform'),
     workspace_id: z.string().optional().describe('Workspace ID (for info, reindex, link, set_display_name)'),
     workspace_path: z.string().optional().describe('Workspace path (for register, migrate)'),
     force: z.boolean().optional().describe('Force registration even if directory overlaps with existing workspace (for register)'),
@@ -276,7 +276,10 @@ server.tool(
     files_allowed: z.array(z.string()).optional().describe('Individual files to include in scope (for generate_focused_workspace)'),
     directories_allowed: z.array(z.string()).optional().describe('Directories to include as workspace folders (for generate_focused_workspace)'),
     base_workspace_path: z.string().optional().describe('Path to a base .code-workspace file to merge with the generated workspace (for generate_focused_workspace)'),
-    session_id: z.string().optional().describe('Session ID to update workspace_session_registry files_in_scope (for generate_focused_workspace)')
+    session_id: z.string().optional().describe('Session ID to update workspace_session_registry files_in_scope (for generate_focused_workspace)'),
+    relative_path: z.string().optional().describe('Workspace-relative or .github-relative path for import_context_file'),
+    confirm: z.boolean().optional().describe('When true, performs the explicit import for import_context_file; otherwise returns a preview only for a metadata-valid eligible candidate'),
+    expected_kind: z.enum(['agent', 'instruction']).optional().describe('Optional safety check for import_context_file')
   },
   async (params) => {
     const result = await withLogging('memory_workspace', params, () =>

@@ -155,6 +155,9 @@ const AUTHORIZED_AGENTS = new Set([
   'Coordinator',
   'Analyst',
   'Executor',
+  'Reviewer',
+  'Cognition',
+  'Runner',
 ]);
 
 // =============================================================================

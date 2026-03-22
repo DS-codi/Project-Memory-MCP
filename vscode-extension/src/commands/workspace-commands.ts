@@ -12,6 +12,111 @@ import { notify } from '../utils/helpers';
 import { getDefaultAgentsRoot, getDefaultInstructionsRoot, getDefaultSkillsRoot } from '../utils/defaults';
 import { resolveSkillsSourceRoot, buildMissingSkillsSourceWarning } from '../utils/skillsSourceRoot';
 
+type JsonRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): JsonRecord | null {
+    return value && typeof value === 'object' && !Array.isArray(value)
+        ? value as JsonRecord
+        : null;
+}
+
+function unwrapObjectChain(value: unknown): JsonRecord[] {
+    const queue: unknown[] = [value];
+    const visited = new Set<unknown>();
+    const records: JsonRecord[] = [];
+
+    while (queue.length > 0) {
+        const current = queue.shift();
+        if (!current || typeof current !== 'object' || visited.has(current)) {
+            continue;
+        }
+
+        visited.add(current);
+
+        if (Array.isArray(current)) {
+            queue.push(...current);
+            continue;
+        }
+
+        const record = current as JsonRecord;
+        records.push(record);
+
+        if (record.result && typeof record.result === 'object') {
+            queue.push(record.result);
+        }
+        if (record.data && typeof record.data === 'object') {
+            queue.push(record.data);
+        }
+    }
+
+    return records;
+}
+
+function extractRecordArray(value: unknown): JsonRecord[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return value
+        .map((item) => asRecord(item))
+        .filter((item): item is JsonRecord => item !== null);
+}
+
+function extractFirstString(value: unknown, key: string): string | null {
+    for (const record of unwrapObjectChain(value)) {
+        const candidate = record[key];
+        if (typeof candidate === 'string' && candidate.trim().length > 0) {
+            return candidate;
+        }
+    }
+
+    return null;
+}
+
+function extractFirstRecordArray(value: unknown): JsonRecord[] {
+    for (const record of unwrapObjectChain(value)) {
+        const fromResult = extractRecordArray(record.result);
+        if (fromResult.length > 0) {
+            return fromResult;
+        }
+
+        const fromData = extractRecordArray(record.data);
+        if (fromData.length > 0) {
+            return fromData;
+        }
+    }
+
+    return [];
+}
+
+export async function resolveRegisteredWorkspaceId(
+    connectionManager: ConnectionManager,
+    workspacePath: string
+): Promise<string | null> {
+    const listResult = await connectionManager.callTool('memory_workspace', { action: 'list' });
+    const workspaces = extractFirstRecordArray(listResult);
+    const matched = workspaces.find((workspace) => {
+        const candidatePath = workspace.path ?? workspace.workspace_path;
+        return typeof candidatePath === 'string' && candidatePath.toLowerCase() === workspacePath.toLowerCase();
+    });
+
+    const workspaceId = matched?.workspace_id;
+    return typeof workspaceId === 'string' && workspaceId.trim().length > 0
+        ? workspaceId
+        : null;
+}
+
+export async function resolveActiveWorkspaceId(
+    connectionManager: ConnectionManager
+): Promise<string | null> {
+    const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!workspacePath) {
+        return null;
+    }
+
+    return resolveRegisteredWorkspaceId(connectionManager, workspacePath);
+}
+
 export function registerWorkspaceCommands(
     context: vscode.ExtensionContext,
     connectionManager: ConnectionManager,
@@ -246,25 +351,17 @@ export function registerWorkspaceCommands(
                     return;
                 }
 
-                // Resolve workspace_id from server registry
-                const listResult = await connectionManager.callTool('memory_workspace', { action: 'list' }) as Record<string, unknown>;
-                const workspaces = (listResult?.result as Record<string, unknown>[]
-                    ?? (listResult?.data as Record<string, unknown>)?.data as Record<string, unknown>[]
-                    ?? []) as Array<Record<string, unknown>>;
-                const matched = workspaces.find(w =>
-                    String(w.path ?? '').toLowerCase() === activeWorkspacePath.toLowerCase()
-                );
-                if (!matched) {
+                const activeWorkspaceId = await resolveRegisteredWorkspaceId(connectionManager, activeWorkspacePath);
+                if (!activeWorkspaceId) {
                     vscode.window.showErrorMessage('Current workspace is not registered with Project Memory. Register it via the MCP tools first.');
                     return;
                 }
-                const activeWorkspaceId = String(matched.workspace_id ?? '');
 
                 // List active plans for this workspace
-                const plansResult = await connectionManager.callTool('memory_plan', { action: 'list', workspace_id: activeWorkspaceId }) as Record<string, unknown>;
-                const activePlans = ((plansResult?.result as Record<string, unknown>)?.active_plans
-                    ?? ((plansResult?.data as Record<string, unknown>)?.data as Record<string, unknown>)?.active_plans
-                    ?? []) as Array<Record<string, unknown>>;
+                const plansResult = await connectionManager.callTool('memory_plan', { action: 'list', workspace_id: activeWorkspaceId });
+                const activePlans = unwrapObjectChain(plansResult)
+                    .map((record) => extractRecordArray(record.active_plans))
+                    .find((plans) => plans.length > 0) ?? [];
 
                 if (!activePlans.length) {
                     vscode.window.showInformationMessage('No active plans found for this workspace.');
@@ -300,12 +397,8 @@ export function registerWorkspaceCommands(
                     action: 'generate_focused_workspace',
                     workspace_id: activeWorkspaceId,
                     plan_id: selected.planId,
-                }) as Record<string, unknown>;
-                const filePath = String(
-                    (genResult?.result as Record<string, unknown>)?.file_path
-                    ?? ((genResult?.data as Record<string, unknown>)?.data as Record<string, unknown>)?.file_path
-                    ?? ''
-                );
+                });
+                const filePath = extractFirstString(genResult, 'file_path') ?? '';
                 if (!filePath) {
                     vscode.window.showErrorMessage('Failed to generate focused workspace file.');
                     return;

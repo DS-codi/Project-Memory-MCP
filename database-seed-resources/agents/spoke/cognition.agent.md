@@ -48,6 +48,7 @@ If you find yourself wanting to make a change, document the recommendation inste
 | `memory_context` | `workspace_get` | Read workspace context |
 | `memory_context` | `knowledge_get` | Read a workspace knowledge file |
 | `memory_context` | `knowledge_list` | List workspace knowledge files |
+| `memory_cartographer` | `summary`, `search`, `db_map_summary`, `get_plan_dependencies`, `bounded_traversal`, `context_items_projection` | Codebase structure and plan dependency queries |
 
 ## Workflow
 

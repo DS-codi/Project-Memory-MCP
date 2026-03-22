@@ -120,8 +120,9 @@ When editing any already-seeded file (e.g. fixing `hub.agent.md`):
 
 For skills specifically:
 
-- Copy into `database-seed-resources/skills/` when the skill should be the curated, collision-winning seed source.
+- Copy into `database-seed-resources/skills/` when the skill should exist as a curated seed source alongside the workspace copy.
 - Otherwise, let the seed pipeline mirror `.github/skills/<name>/SKILL.md` into `database-seed-resources/external-skills/<name>/SKILL.md` automatically.
+- If the workspace and curated copies diverge, the seed now picks whichever file has the newer last-edited timestamp. Ties fall back to the curated copy, and the full line-by-line conflict diff is recorded in the DB `event_log`.
 
 ```powershell
 # Example: syncing an edited hub.agent.md
@@ -139,6 +140,7 @@ node dist/db/seed.js 2>&1 | Select-String "agent|instruction"
 - **Always edit `.github/` first** — this is the working copy under version control.
 - **Never edit `database-seed-resources/skills/` directly** without also updating `.github/` — curated copies must stay identical.
 - **Treat `database-seed-resources/external-skills/` as generated mirror output** — it is refreshed by the seed pipeline from `.github/skills/`.
+- **Skill conflicts are timestamp-resolved** — when `.github/skills/` and `database-seed-resources/skills/` disagree, the newer file wins during seed; timestamp ties fall back to the curated copy and are audited in `event_log` with the full line-by-line diff payload.
 - **Never skip the seed step** — the live DB is what agents actually read at runtime.
 - **The seed is always safe to re-run** — it upserts agents, instructions, and skills; it does not touch plans, steps, sessions, or workspace context.
 - **File names must match exactly** between `.github/` and `database-seed-resources/`.

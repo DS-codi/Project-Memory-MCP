@@ -42,6 +42,7 @@ You are not limited to ≤5 steps like Worker, but you operate without the full 
 | `memory_filesystem` | `list` | List directory contents |
 | `memory_terminal` | `run` | Execute build, lint, test commands |
 | `memory_terminal` | `read_output` | Read terminal output |
+| `memory_cartographer` | `summary`, `search`, `file_context`, `db_map_summary` | Codebase overview and symbol search |
 | Web / fetch tools | — | Look up documentation or examples |
 
 ## Workflow

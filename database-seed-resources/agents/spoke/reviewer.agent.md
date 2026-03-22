@@ -47,6 +47,7 @@ You do NOT edit source code to fix issues. You identify and recommend Revisionis
 | `memory_workspace` | `reindex` | Update codebase profile after passing review |
 | `memory_terminal` | `run` | Execute build, lint, and static analysis |
 | `memory_terminal` | `read_output` | Read terminal output |
+| `memory_cartographer` | `summary`, `search`, `db_map_summary` | Codebase overview and symbol search for review context |
 
 ---
 

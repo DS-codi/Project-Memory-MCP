@@ -17,12 +17,13 @@
 
 import * as vscode from 'vscode';
 import type { EventSubscriptionService, AgentEvent, PlanEvent, StepEvent } from './EventSubscriptionService';
+import type { WorkspaceConfigSyncReport, WorkspaceConfigSyncEntry } from '../server/ConnectionManager';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 
-type NotificationCategory = 'handoff' | 'planComplete' | 'stepBlocked';
+type NotificationCategory = 'handoff' | 'planComplete' | 'stepBlocked' | 'workspaceSync';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Service
@@ -39,6 +40,9 @@ export class NotificationService implements vscode.Disposable {
     private _mutedUntilMs = 0;
 
     private readonly _debounceMs = 5_000;
+    private readonly _workspaceSyncDebounceMs = 15_000;
+    private _lastWorkspaceSyncSignature = '';
+    private _lastWorkspaceSyncShownAt = 0;
 
     constructor() {}
 
@@ -73,10 +77,12 @@ export class NotificationService implements vscode.Disposable {
     private _isEnabled(category: NotificationCategory): boolean {
         if (!this._cfg<boolean>('enabled', true)) return false;
         if (this._isMuted()) return false;
+        if (category === 'workspaceSync') return true;
         const keyMap: Record<NotificationCategory, string> = {
             handoff: 'agentHandoffs',
             planComplete: 'planComplete',
             stepBlocked: 'stepBlocked',
+            workspaceSync: 'enabled',
         };
         return this._cfg<boolean>(keyMap[category], true);
     }
@@ -146,7 +152,61 @@ export class NotificationService implements vscode.Disposable {
         this._show('warning', label, event.workspace_id, event.plan_id);
     }
 
+    showWorkspaceSyncFindings(report: WorkspaceConfigSyncReport): void {
+        if (!this._isEnabled('workspaceSync')) return;
+
+        const actionable = this._collectActionableEntries(report);
+        if (actionable.length === 0) return;
+
+        const signature = JSON.stringify({
+            summary: report.summary,
+            topFindings: actionable.slice(0, 4).map((entry) => `${entry.relative_path}:${entry.status}`),
+        });
+        const now = Date.now();
+        if (
+            signature === this._lastWorkspaceSyncSignature
+            && (now - this._lastWorkspaceSyncShownAt) < this._workspaceSyncDebounceMs
+        ) {
+            return;
+        }
+
+        this._lastWorkspaceSyncSignature = signature;
+        this._lastWorkspaceSyncShownAt = now;
+
+        const severeCount = report.summary.protected_drift + report.summary.content_mismatch;
+        const fragments: string[] = [];
+        if (report.summary.protected_drift > 0) fragments.push(`${report.summary.protected_drift} protected drift`);
+        if (report.summary.content_mismatch > 0) fragments.push(`${report.summary.content_mismatch} mismatch`);
+        if (report.summary.import_candidate > 0) fragments.push(`${report.summary.import_candidate} import candidate`);
+        if (report.summary.local_only > 0) fragments.push(`${report.summary.local_only} local-only`);
+        if (report.summary.db_only > 0) fragments.push(`${report.summary.db_only} DB-only`);
+
+        const message = `Project Memory workspace sync: ${fragments.join(', ')}. Passive watcher made no changes.`;
+        const promise = severeCount > 0
+            ? vscode.window.showWarningMessage(message, 'Show Diagnostics', 'Mute for 1 hour')
+            : vscode.window.showInformationMessage(message, 'Show Diagnostics', 'Mute for 1 hour');
+
+        promise.then((choice) => this._handleActionChoice(choice));
+    }
+
     // ── Show helpers ──────────────────────────────────────────────────────────
+
+    private _handleActionChoice(
+        choice: string | undefined,
+        workspaceId?: string,
+        planId?: string,
+    ): void {
+        if (choice === 'Open Plan') {
+            vscode.commands.executeCommand('projectMemory.openPlanInDashboard', workspaceId, planId);
+        } else if (choice === 'Show Diagnostics') {
+            vscode.commands.executeCommand('projectMemory.showDiagnostics');
+        } else if (choice === 'Mute for 1 hour') {
+            this._mutedUntilMs = Date.now() + 60 * 60 * 1_000;
+            vscode.window.showInformationMessage(
+                '$(bell-slash) Project Memory notifications muted for 1 hour.',
+            );
+        }
+    }
 
     private _show(
         level: 'information' | 'warning',
@@ -155,27 +215,23 @@ export class NotificationService implements vscode.Disposable {
         planId?: string,
     ): void {
         const hasOpenPlan = !!(workspaceId && planId);
-        const onChoice = (choice: string | undefined) => {
-            if (choice === 'Open Plan') {
-                vscode.commands.executeCommand('projectMemory.openPlanInDashboard', workspaceId, planId);
-            } else if (choice === 'Mute for 1 hour') {
-                this._mutedUntilMs = Date.now() + 60 * 60 * 1_000;
-                vscode.window.showInformationMessage(
-                    '$(bell-slash) Project Memory notifications muted for 1 hour.',
-                );
-            }
-        };
 
         if (level === 'warning') {
             const p = hasOpenPlan
                 ? vscode.window.showWarningMessage(message, 'Open Plan', 'Mute for 1 hour')
                 : vscode.window.showWarningMessage(message, 'Mute for 1 hour');
-            p.then(onChoice);
+            p.then((choice) => this._handleActionChoice(choice, workspaceId, planId));
         } else {
             const p = hasOpenPlan
                 ? vscode.window.showInformationMessage(message, 'Open Plan', 'Mute for 1 hour')
                 : vscode.window.showInformationMessage(message, 'Mute for 1 hour');
-            p.then(onChoice);
+            p.then((choice) => this._handleActionChoice(choice, workspaceId, planId));
         }
+    }
+
+    private _collectActionableEntries(report: WorkspaceConfigSyncReport): WorkspaceConfigSyncEntry[] {
+        return [...report.agents, ...report.instructions].filter((entry) => (
+            entry.status !== 'in_sync' && entry.status !== 'ignored_local'
+        ));
     }
 }

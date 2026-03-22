@@ -25,6 +25,7 @@ import { NotificationService } from './services/NotificationService';
 import { ConnectionManager } from './server/ConnectionManager';
 import { DefaultDeployer } from './deployer/DefaultDeployer';
 import { DiagnosticsService } from './services/DiagnosticsService';
+import { WorkspaceConfigWatcherService } from './services/WorkspaceConfigWatcherService';
 import { SupervisorHeartbeat } from './supervisor/SupervisorHeartbeat';
 import { notify } from './utils/helpers';
 import { getDefaultAgentsRoot, getDefaultInstructionsRoot, getDefaultSkillsRoot } from './utils/defaults';
@@ -52,6 +53,7 @@ let planTreeProvider: WorkspacePlanTreeProvider;
 let diagnosticsTreeProvider: DiagnosticsTreeProvider;
 let eventSubscriptionService: EventSubscriptionService;
 let notificationService: NotificationService;
+let workspaceConfigWatcherService: WorkspaceConfigWatcherService;
 
 // Supervisor control client -- registers this window with the pool manager.
 let supervisorClient: SupervisorControlClient | null = null;
@@ -94,10 +96,6 @@ export function activate(context: vscode.ExtensionContext) {
         dashboardPort,
         mcpPort,
     });
-    connectionManager.onConnected = () => {
-        exitDegradedMode();
-        void ensureSupervisorClientAttached(context);
-    };
     context.subscriptions.push(connectionManager);
 
     dashboardProvider = new DashboardViewProvider(context.extensionUri, agentsRoot);
@@ -197,6 +195,20 @@ export function activate(context: vscode.ExtensionContext) {
     // --- Diagnostics service and command ---
     diagnosticsService = new DiagnosticsService(connectionManager);
     context.subscriptions.push(diagnosticsService);
+
+    workspaceConfigWatcherService = new WorkspaceConfigWatcherService(
+        connectionManager,
+        diagnosticsService,
+        notificationService,
+    );
+    context.subscriptions.push(workspaceConfigWatcherService);
+    workspaceConfigWatcherService.start();
+
+    connectionManager.onConnected = () => {
+        exitDegradedMode();
+        void ensureSupervisorClientAttached(context);
+        workspaceConfigWatcherService?.scheduleCheck('connection-restored');
+    };
 
     // Replace the old 60-second poll with a single shared SSE heartbeat.
     // All VS Code windows subscribe to the supervisor's broadcast; no per-instance polling.
