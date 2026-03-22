@@ -6,7 +6,7 @@ import {
     type ReplayMatrixCellScore,
     type ReplayMatrixReport,
     type ReplayRiskTier,
-    type ReplayRiskTierSummary,
+    type ReplayMatrixRiskTierSummary,
     type ReplayMatrixRunContract,
     type ReplayOperatorBucket
 } from './types';
@@ -130,7 +130,7 @@ function aggregateAxis(
         });
 }
 
-function summarizeRiskTiers(cells: ReplayMatrixCellResult[]): ReplayRiskTierSummary[] {
+function summarizeRiskTiers(cells: ReplayMatrixCellResult[]): ReplayMatrixRiskTierSummary[] {
     const tiers: ReplayRiskTier[] = ['p0', 'p1', 'p2'];
 
     return tiers.map((tier) => {
