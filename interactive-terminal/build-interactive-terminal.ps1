@@ -19,8 +19,9 @@ if ([string]::IsNullOrWhiteSpace($QtDir)) {
     # Try environment variables first
     $qtEnvVars = @('QT_DIR', 'QTDIR', 'Qt6_DIR')
     foreach ($var in $qtEnvVars) {
-        if ($env:$var -and (Test-Path $env:$var)) {
-            $QtDir = $env:$var
+        $val = [System.Environment]::GetEnvironmentVariable($var)
+        if ($val -and (Test-Path $val)) {
+            $QtDir = $val
             break
         }
     }

@@ -106,8 +106,9 @@ $qtHint = 'Set QT_DIR to a Qt 6 MSVC kit path (example: C:\Qt\6.10.2\msvc2022_64
 $foundQt = $null
 $qtEnvVars = @('QT_DIR', 'QTDIR', 'Qt6_DIR')
 foreach ($var in $qtEnvVars) {
-    if ($env:$var -and (Test-Path $env:$var)) {
-        $foundQt = $env:$var
+    $val = [System.Environment]::GetEnvironmentVariable($var)
+    if ($val -and (Test-Path $val)) {
+        $foundQt = $val
         break
     }
 }
