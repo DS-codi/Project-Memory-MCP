@@ -104,9 +104,10 @@ export class DiagnosticsService implements vscode.Disposable {
         );
     }
 
-    updateWorkspaceSync(report: WorkspaceConfigSyncReport): void {
+    updateWorkspaceSync(report: WorkspaceConfigSyncReport, reason?: string): void {
         const actionableEntries = this.collectActionableEntries(report);
         this.workspaceSyncState = {
+            ...this.workspaceSyncState,
             workspaceId: report.workspace_id,
             lastCheckedAt: new Date().toISOString(),
             actionableFindings: actionableEntries.length,
@@ -114,16 +115,47 @@ export class DiagnosticsService implements vscode.Disposable {
             sampleFindings: actionableEntries
                 .slice(0, 3)
                 .map((entry) => `${entry.relative_path}: ${entry.status}`),
+            status: 'ready',
+            lastReason: reason ?? this.workspaceSyncState.lastReason,
+            statusMessage: actionableEntries.length > 0
+                ? 'Passive sync check captured actionable findings.'
+                : 'Passive sync check completed with no actionable findings.',
+            lastError: undefined,
         };
         this.runCheck();
     }
 
-    setWorkspaceSyncError(message: string, workspaceId?: string): void {
+    setWorkspaceSyncError(message: string, workspaceId?: string, reason?: string): void {
         this.workspaceSyncState = {
             ...this.workspaceSyncState,
             workspaceId: workspaceId ?? this.workspaceSyncState.workspaceId,
             lastCheckedAt: new Date().toISOString(),
+            status: 'error',
+            lastReason: reason ?? this.workspaceSyncState.lastReason,
+            statusMessage: 'Passive sync check failed.',
             lastError: message,
+        };
+        this.runCheck();
+    }
+
+    beginWorkspaceSyncCheck(reason: string, workspaceId?: string): void {
+        this.workspaceSyncState = {
+            ...this.workspaceSyncState,
+            workspaceId: workspaceId ?? this.workspaceSyncState.workspaceId,
+            status: 'checking',
+            lastReason: reason,
+            statusMessage: `Passive sync check running (${reason}).`,
+        };
+        this.runCheck();
+    }
+
+    setWorkspaceSyncIdle(reason: string, message: string, workspaceId?: string): void {
+        this.workspaceSyncState = {
+            ...this.workspaceSyncState,
+            workspaceId: workspaceId ?? this.workspaceSyncState.workspaceId,
+            status: 'idle',
+            lastReason: reason,
+            statusMessage: message,
         };
         this.runCheck();
     }
@@ -180,57 +212,24 @@ export class DiagnosticsService implements vscode.Disposable {
             connection: {
                 dashboardConnected,
                 mcpConnected,
-
-            beginWorkspaceSyncCheck(reason: string, workspaceId?: string): void {
-                this.workspaceSyncState = {
-                    ...this.workspaceSyncState,
-                    workspaceId: workspaceId ?? this.workspaceSyncState.workspaceId,
-                    status: 'checking',
-                    lastReason: reason,
-                    statusMessage: `Passive sync check running (${reason}).`,
-                };
-                this.runCheck();
-            }
-
-            setWorkspaceSyncIdle(reason: string, message: string, workspaceId?: string): void {
-                this.workspaceSyncState = {
-                    ...this.workspaceSyncState,
-                    workspaceId: workspaceId ?? this.workspaceSyncState.workspaceId,
-                    status: 'idle',
-                    lastReason: reason,
-                    statusMessage: message,
-                };
-                this.runCheck();
-            }
                 dashboardPort: this.connectionManager.dashboardPort,
-            updateWorkspaceSync(report: WorkspaceConfigSyncReport, reason?: string): void {
+                mcpPort: this.connectionManager.mcpPort,
             },
             mcp: {
                 supervisorHeartbeat: this.heartbeatAlive,
-                    status: 'ready',
                 lastHeartbeatMs: this.lastHeartbeat?.timestamp_ms ?? null,
-                    lastReason: reason ?? this.workspaceSyncState.lastReason,
-                    statusMessage: actionableEntries.length > 0
-                        ? 'Passive sync check captured actionable findings.'
-                        : 'Passive sync check completed with no actionable findings.',
                 poolInstances: this.lastHeartbeat?.pool_instances ?? 0,
                 mcpProxyHealthy,
             },
             extension: { memoryMB, uptime: uptimeSeconds },
             workspaceSync: { ...this.workspaceSyncState },
-                    lastError: undefined,
             health,
             issues,
         };
 
-            setWorkspaceSyncError(message: string, workspaceId?: string, reason?: string): void {
         this._onHealthChange.fire(report);
         return report;
     }
-                    status: 'error',
-
-                    lastReason: reason ?? this.workspaceSyncState.lastReason,
-                    statusMessage: 'Passive sync check failed.',
     /** Get the most recent cached report (or run a fresh check). */
     getReport(): DiagnosticsReport {
         return this.lastReport ?? this.runCheck();
