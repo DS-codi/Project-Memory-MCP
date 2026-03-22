@@ -1539,7 +1539,16 @@ function Install-Extension {
 
             $InstallArgs = @("--install-extension", $Vsix.FullName)
             if ($Force) { $InstallArgs += "--force" }
-            code @InstallArgs
+            # Clear NODE_OPTIONS: the VS Code CLI (Electron) also crashes at the
+            # preload phase when win-ca or similar modules are injected but not
+            # installed globally on the target machine.
+            $prevNodeOptionsVsce = $env:NODE_OPTIONS
+            $env:NODE_OPTIONS = $null
+            try {
+                code @InstallArgs
+            } finally {
+                $env:NODE_OPTIONS = $prevNodeOptionsVsce
+            }
             if ($LASTEXITCODE -ne 0) {
                 Write-Fail "code --install-extension failed (exit $LASTEXITCODE)"
                 exit $LASTEXITCODE
