@@ -26,7 +26,7 @@ This directory is intentionally manual/curated. Do not bulk-copy archived conten
 - Mirrored files preserve the workspace file's last-edited timestamp so conflict checks use the original workspace edit time.
 - When a workspace skill and a curated `skills/` entry share the same slug but have different content, `server/src/db/seed.ts` compares last-edited timestamps and seeds the newer file.
 - If those timestamps are equal, the curated `skills/` entry wins as a deterministic fallback.
-- Every content conflict writes a `seed_skill_conflict_resolved` audit record into the existing `event_log` table, including the winner, loser, and a structured diff excerpt.
+- Every content conflict writes a `seed_skill_conflict_resolved` audit record into the existing `event_log` table, including the winner, loser, and the full line-by-line diff payload for the conflicting files.
 
 ## Notes
 

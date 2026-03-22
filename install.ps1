@@ -162,6 +162,73 @@ function Write-Warn([string]$msg) {
     Write-Host "   ⚠ $msg" -ForegroundColor Yellow
 }
 
+function Invoke-Checked([string]$description, [scriptblock]$block) {
+    Write-Host "   › $description" -ForegroundColor Gray
+    # Use a child scope with ErrorActionPreference = Continue to avoid
+    # NativeCommandError in PowerShell 5.1 when native commands write to stderr.
+    & {
+        $ErrorActionPreference = 'Continue'
+        & $block
+    }
+    if ($LASTEXITCODE -ne 0) {
+        Write-Fail "$description failed (exit $LASTEXITCODE)"
+        exit $LASTEXITCODE
+    }
+}
+
+# Captures stdout+stderr from a native process without going through the
+# PowerShell pipeline (avoids RemoteException spam on stderr).
+function Invoke-NativeCommandCapture {
+    param(
+        [Parameter(Mandatory)][string]$FilePath,
+        [string[]]$Arguments = @(),
+        [string]$WorkingDirectory = $Root
+    )
+
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $FilePath
+    $psi.WorkingDirectory = $WorkingDirectory
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.CreateNoWindow = $true
+
+    $escapedArgs = $Arguments | ForEach-Object {
+        if ($_ -match '[\s"]') { '"' + ($_ -replace '"', '\"') + '"' } else { $_ }
+    }
+    $psi.Arguments = [string]::Join(' ', $escapedArgs)
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $psi
+    [void]$process.Start()
+
+    $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+    $stderrTask = $process.StandardError.ReadToEndAsync()
+    $process.WaitForExit()
+
+    $stdout = $stdoutTask.GetAwaiter().GetResult()
+    $stderr = $stderrTask.GetAwaiter().GetResult()
+    if ($null -eq $stdout) { $stdout = '' }
+    if ($null -eq $stderr) { $stderr = '' }
+
+    $stdoutLines = if (-not [string]::IsNullOrEmpty($stdout)) {
+        $stdout -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    } else { @() }
+
+    $stderrLines = if (-not [string]::IsNullOrEmpty($stderr)) {
+        $stderr -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    } else { @() }
+
+    return [PSCustomObject]@{
+        ExitCode    = $process.ExitCode
+        StdOut      = $stdout
+        StdErr      = $stderr
+        StdOutLines = $stdoutLines
+        StdErrLines = $stderrLines
+        AllLines    = @($stdoutLines + $stderrLines)
+    }
+}
+
 function Sync-VscodeProjectMemoryConfig {
     <#
     .SYNOPSIS
@@ -352,7 +419,11 @@ function Test-NpmSslBypassNeeded {
 
     Write-Host "   Checking npm registry SSL connectivity..." -ForegroundColor DarkGray
     try {
-        $out = npm ping --registry https://registry.npmjs.org 2>&1 | Out-String
+        # Use child scope with ErrorActionPreference = Continue to avoid NativeCommandError in PS 5.1
+        $out = & {
+            $ErrorActionPreference = 'Continue'
+            npm ping --registry https://registry.npmjs.org 2>&1
+        } | Out-String
         if ($LASTEXITCODE -eq 0) {
             Write-Host "   SSL OK — no workarounds needed" -ForegroundColor DarkGray
             $script:_NpmSslBypassNeeded = $false
@@ -522,68 +593,6 @@ function Resolve-QtToolchain {
     }
 
     throw "Qt/qmake not found. Set `$env:QT_DIR to your Qt kit path (example: C:\Qt\6.10.2\msvc2022_64) or set `$env:QMAKE to qmake6.exe."
-}
-
-function Invoke-Checked([string]$description, [scriptblock]$block) {
-    Write-Host "   › $description" -ForegroundColor Gray
-    & $block
-    if ($LASTEXITCODE -ne 0) {
-        Write-Fail "$description failed (exit $LASTEXITCODE)"
-        exit $LASTEXITCODE
-    }
-}
-
-# Captures stdout+stderr from a native process without going through the
-# PowerShell pipeline (avoids RemoteException spam on stderr).
-function Invoke-NativeCommandCapture {
-    param(
-        [Parameter(Mandatory)][string]$FilePath,
-        [string[]]$Arguments = @(),
-        [string]$WorkingDirectory = $Root
-    )
-
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = $FilePath
-    $psi.WorkingDirectory = $WorkingDirectory
-    $psi.UseShellExecute = $false
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError = $true
-    $psi.CreateNoWindow = $true
-
-    $escapedArgs = $Arguments | ForEach-Object {
-        if ($_ -match '[\s"]') { '"' + ($_ -replace '"', '\"') + '"' } else { $_ }
-    }
-    $psi.Arguments = [string]::Join(' ', $escapedArgs)
-
-    $process = New-Object System.Diagnostics.Process
-    $process.StartInfo = $psi
-    [void]$process.Start()
-
-    $stdoutTask = $process.StandardOutput.ReadToEndAsync()
-    $stderrTask = $process.StandardError.ReadToEndAsync()
-    $process.WaitForExit()
-
-    $stdout = $stdoutTask.GetAwaiter().GetResult()
-    $stderr = $stderrTask.GetAwaiter().GetResult()
-    if ($null -eq $stdout) { $stdout = '' }
-    if ($null -eq $stderr) { $stderr = '' }
-
-    $stdoutLines = if (-not [string]::IsNullOrEmpty($stdout)) {
-        $stdout -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
-    } else { @() }
-
-    $stderrLines = if (-not [string]::IsNullOrEmpty($stderr)) {
-        $stderr -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
-    } else { @() }
-
-    return [PSCustomObject]@{
-        ExitCode    = $process.ExitCode
-        StdOut      = $stdout
-        StdErr      = $stderr
-        StdOutLines = $stdoutLines
-        StdErrLines = $stderrLines
-        AllLines    = @($stdoutLines + $stderrLines)
-    }
 }
 
 # Runs windeployqt and collapses verbose QML import / plugin scanning lines
@@ -820,14 +829,16 @@ function Invoke-QmlLint {
     Write-Host "   › $displayLabel — $($qmlFiles.Count) file(s)" -ForegroundColor Gray
 
     $qtQmlRoot = Join-Path (Split-Path -Parent $QtBin) 'qml'
-    $output    = & $qmllintPath -I $qtQmlRoot -I $QmlDir ($qmlFiles.FullName) 2>&1
-    $exitCode  = $LASTEXITCODE
+    $lintArgs  = @("-I", $qtQmlRoot, "-I", $QmlDir) + $qmlFiles.FullName
+    $capture   = Invoke-NativeCommandCapture -FilePath $qmllintPath -Arguments $lintArgs
+    
+    $outputLines = $capture.AllLines
+    $exitCode    = $capture.ExitCode
 
     # qmllint warning/error formats vary by Qt version and codepath.
     # Handle both forms:
     #   - "Warning: file.qml:line:col: ..."
     #   - "file.qml:line:col: Warning: ..."
-    $outputLines    = @($output | ForEach-Object { "$_" })
     $errorPattern   = '^\s*Error:|:\s*Error\b'
     $warningPattern = '^\s*Warning:|:\s*Warning\b'
 
@@ -1585,7 +1596,10 @@ function Install-Mobile {
         $AndroidDir = Join-Path $MobileDir "android"
         if (Test-Path $AndroidDir) {
             Write-Host "   › npx cap sync android" -ForegroundColor Gray
-            npx cap sync android 2>&1 | Write-Host
+            & {
+                $ErrorActionPreference = 'Continue'
+                npx cap sync android 2>&1 | Write-Host
+            }
             if ($LASTEXITCODE -ne 0) {
                 Write-Host "   ⚠ cap sync android exited $LASTEXITCODE (non-fatal — run manually if needed)" -ForegroundColor Yellow
             } else {

@@ -447,9 +447,8 @@ interface SkillConflictDiff {
   first_difference_line: number | null;
   workspace_line_count: number;
   curated_line_count: number;
-  excerpt_start_line: number;
-  excerpt_end_line: number;
-  excerpt: SkillConflictDiffLine[];
+  diff_line_count: number;
+  lines: SkillConflictDiffLine[];
 }
 
 function parseSkillFrontmatter(content: string): SkillFrontmatter {
@@ -531,23 +530,15 @@ function buildSkillConflictDiff(workspaceContent: string, curatedContent: string
   const workspaceLines = workspaceContent.replace(/\r\n/g, '\n').split('\n');
   const curatedLines = curatedContent.replace(/\r\n/g, '\n').split('\n');
   const maxLines = Math.max(workspaceLines.length, curatedLines.length);
+  const lines: SkillConflictDiffLine[] = [];
 
   let firstDifferenceIndex = -1;
   for (let index = 0; index < maxLines; index++) {
-    if ((workspaceLines[index] ?? null) !== (curatedLines[index] ?? null)) {
-      firstDifferenceIndex = index;
-      break;
-    }
-  }
-
-  const excerptCenter = firstDifferenceIndex >= 0 ? firstDifferenceIndex : maxLines;
-  const excerptStart = Math.max(0, excerptCenter - 2);
-  const excerptEnd = Math.min(maxLines, excerptCenter + 3);
-  const excerpt: SkillConflictDiffLine[] = [];
-
-  for (let index = excerptStart; index < excerptEnd; index++) {
     const workspaceLine = workspaceLines[index] ?? null;
     const curatedLine = curatedLines[index] ?? null;
+    if (workspaceLine !== curatedLine && firstDifferenceIndex < 0) {
+      firstDifferenceIndex = index;
+    }
     let status: SkillConflictDiffLine['status'] = 'same';
 
     if (workspaceLine === null) {
@@ -558,7 +549,7 @@ function buildSkillConflictDiff(workspaceContent: string, curatedContent: string
       status = 'changed';
     }
 
-    excerpt.push({
+    lines.push({
       line: index + 1,
       status,
       workspace: workspaceLine,
@@ -568,17 +559,16 @@ function buildSkillConflictDiff(workspaceContent: string, curatedContent: string
 
   const firstDifferenceLine = firstDifferenceIndex >= 0 ? firstDifferenceIndex + 1 : null;
   const summary = firstDifferenceLine === null
-    ? `Line-count mismatch only: workspace=${workspaceLines.length}, curated=${curatedLines.length}`
-    : `First difference at line ${firstDifferenceLine}; workspace=${workspaceLines.length} lines, curated=${curatedLines.length} lines`;
+    ? `Full diff stored for ${maxLines} lines; workspace=${workspaceLines.length}, curated=${curatedLines.length}`
+    : `Full diff stored; first difference at line ${firstDifferenceLine}; workspace=${workspaceLines.length} lines, curated=${curatedLines.length} lines`;
 
   return {
     summary,
     first_difference_line: firstDifferenceLine,
     workspace_line_count: workspaceLines.length,
     curated_line_count: curatedLines.length,
-    excerpt_start_line: excerptStart + 1,
-    excerpt_end_line: excerptEnd,
-    excerpt,
+    diff_line_count: maxLines,
+    lines,
   };
 }
 
