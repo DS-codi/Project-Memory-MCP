@@ -274,3 +274,27 @@ List available filter options for a slice.
 ## Authorization
 
 Only these agent types may call `memory_cartographer`: **Researcher, Architect, Coordinator, Analyst, Executor**. Other agent types receive an authorization error.
+
+---
+
+## Engine Selection
+
+By default, the adapter uses the Rust engine (`cartographer-core` binary) when available.
+Set `CARTOGRAPHER_ENGINE=python` to force the Python bridge fallback.
+
+| Mode | Condition |
+|------|-----------|
+| Rust (default) | Binary present at `target/release/cartographer-core` |
+| Python fallback | `CARTOGRAPHER_ENGINE=python` or binary absent |
+
+---
+
+## Cache and Rescan
+
+Pass `force_rescan: true` in the action args to bypass the SQLite cache and run a fresh scan.
+
+```
+memory_cartographer(action: "summary", workspace_id: "<id>", force_rescan: true)
+```
+
+When `force_rescan` is omitted or false, results are served from the SQLite cache at `.projectmemory/cartographer/cache.db` if a valid entry exists for the current git HEAD. Cached reads return in < 50ms.

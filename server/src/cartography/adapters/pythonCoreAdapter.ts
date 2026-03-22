@@ -14,8 +14,13 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 
 import { invokePythonCore, type PythonBridgeOptions } from '../runtime/pythonBridge.js';
+import { openDb, getCached, setCached, evict, type CartographerDb } from './scanCache.js';
+
+const execFileAsync = promisify(execFile);
 import {
   ADAPTER_SCHEMA_VERSION,
   CartographyCompatibilityErrorCode,
@@ -115,6 +120,22 @@ export interface IPythonCoreAdapter {
   invoke(request: PythonCoreRequest, options?: PythonBridgeOptions): Promise<PythonCoreResponse>;
 }
 
+/**
+ * Returns the current git HEAD SHA (40 hex chars) or 'no-git' if not a git repo.
+ */
+async function getGitHead(workspacePath: string): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['-C', workspacePath, 'rev-parse', 'HEAD'],
+      { timeout: 5_000 }
+    );
+    return stdout.trim() || 'no-git';
+  } catch {
+    return 'no-git';
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Stub implementation
 // ---------------------------------------------------------------------------
@@ -129,6 +150,74 @@ export interface IPythonCoreAdapter {
  */
 export class PythonCoreAdapter implements IPythonCoreAdapter {
   private static readonly DEFAULT_TIMEOUT_MS = 15_000;
+  private db: CartographerDb | null = null;
+
+  private getDb(workspacePath: string): CartographerDb {
+    if (!this.db) {
+      this.db = openDb(workspacePath);
+    }
+    return this.db;
+  }
+
+  /**
+   * Cartograph a workspace with SQLite cache read-through.
+   * Cache key: (workspacePath, gitHead, scanMode).
+   */
+  async scanWorkspace(
+    workspacePath: string,
+    scanMode: string,
+    args: Record<string, unknown> = {},
+    options?: PythonBridgeOptions & { force_rescan?: boolean },
+  ): Promise<PythonCoreResponse> {
+    const db = this.getDb(workspacePath);
+    const forceRescan = options?.force_rescan === true;
+
+    if (!forceRescan) {
+      const gitHead = await getGitHead(workspacePath);
+      const cached = getCached(db, workspacePath, gitHead, scanMode);
+      if (cached) {
+        return this.wrapCachedResult(cached, gitHead);
+      }
+    }
+
+    // Cache miss — invoke Python core
+    const requestId = this.buildRequestId('cartograph');
+    const start = Date.now();
+    const response = await this.invoke({
+      schema_version: ADAPTER_SCHEMA_VERSION,
+      request_id: requestId,
+      action: 'cartograph',
+      args: { workspace_path: workspacePath, scan_mode: scanMode, ...args },
+      timeout_ms: PythonCoreAdapter.DEFAULT_TIMEOUT_MS,
+    }, options);
+
+    const elapsedMs = Date.now() - start;
+
+    if (response.status === 'ok' && response.result) {
+      const gitHead = await getGitHead(workspacePath);
+      const db2 = this.getDb(workspacePath);
+      setCached(db2, workspacePath, gitHead, scanMode, response.result as object, elapsedMs);
+      evict(db2);
+    }
+
+    return response;
+  }
+
+  private wrapCachedResult(result: object, gitHead: string): PythonCoreResponse {
+    return {
+      schema_version: ADAPTER_SCHEMA_VERSION,
+      request_id: `cache_hit_${gitHead.slice(0, 8)}`,
+      status: 'ok',
+      result,
+      diagnostics: {
+        warnings: [],
+        errors: [],
+        markers: ['cache_hit'],
+        skipped_paths: [],
+      },
+      elapsed_ms: 0,
+    };
+  }
 
   async probeCapabilities(): Promise<PythonCoreCapabilities> {
     const requestId = this.buildRequestId('probe_capabilities');

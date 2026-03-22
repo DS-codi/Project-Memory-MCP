@@ -8,7 +8,8 @@ import {
   Bot,
   BarChart3,
   FileText,
-  BookOpen
+  BookOpen,
+  Wand2
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { HealthIndicator } from '../workspace/HealthIndicator';
@@ -158,6 +159,18 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           >
             <BookOpen size={20} />
             {!collapsed && <span>Instructions</span>}
+          </Link>
+          <Link
+            to="/skills"
+            className={cn(
+              'flex items-center gap-3 px-4 py-2 mx-2 rounded-lg transition-colors',
+              location.pathname === '/skills'
+                ? 'bg-violet-500/20 text-violet-300'
+                : 'text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+            )}
+          >
+            <Wand2 size={20} />
+            {!collapsed && <span>Skills</span>}
           </Link>
         </div>
 

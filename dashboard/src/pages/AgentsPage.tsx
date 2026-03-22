@@ -1,7 +1,19 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, AlertCircle, XCircle, RefreshCw, ChevronDown, ChevronRight, Upload, Edit3, Plus } from 'lucide-react';
+import { 
+  CheckCircle, 
+  AlertCircle, 
+  XCircle, 
+  RefreshCw, 
+  ChevronDown, 
+  ChevronRight, 
+  Upload, 
+  Edit3, 
+  Plus,
+  Database,
+  FileCode
+} from 'lucide-react';
 import { Badge } from '@/components/common/Badge';
 import { CreateAgentForm } from '@/components/agent/CreateAgentForm';
 import { agentBgColors, agentIcons } from '@/utils/colors';
@@ -28,9 +40,22 @@ interface AgentWithDeployments extends AgentTemplate {
   deployments: AgentDeployment[];
 }
 
+interface DbAgent {
+  name: string;
+  content: string;
+  is_permanent: boolean;
+  updated_at: string;
+}
+
 async function fetchAgents(): Promise<{ agents: AgentTemplate[] }> {
   const res = await fetch('/api/agents');
   if (!res.ok) throw new Error('Failed to fetch agents');
+  return res.json();
+}
+
+async function fetchDbAgents(): Promise<{ agents: DbAgent[] }> {
+  const res = await fetch('/api/agents/db');
+  if (!res.ok) throw new Error('Failed to fetch DB agents');
   return res.json();
 }
 
@@ -61,18 +86,39 @@ const statusConfig = {
 };
 
 export function AgentsPage() {
+  const [viewMode, setViewViewMode] = useState<'templates' | 'database'>('templates');
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const navigate = useNavigate();
 
-  const { data: agents, isLoading, error, refetch } = useQuery({
+  const { 
+    data: agents, 
+    isLoading: isLoadingTemplates, 
+    error: templateError, 
+    refetch: refetchTemplates 
+  } = useQuery({
     queryKey: ['agents-with-deployments'],
     queryFn: fetchAllAgentsWithDeployments,
+    enabled: viewMode === 'templates',
+  });
+
+  const {
+    data: dbAgentsData,
+    isLoading: isLoadingDb,
+    error: dbError,
+    refetch: refetchDb
+  } = useQuery({
+    queryKey: ['agents-db'],
+    queryFn: fetchDbAgents,
+    enabled: viewMode === 'database',
   });
 
   const handleAgentCreated = (agentId: string) => {
     navigate(`/agents/${agentId}`);
   };
+
+  const error = viewMode === 'templates' ? templateError : dbError;
+  const isLoading = viewMode === 'templates' ? isLoadingTemplates : isLoadingDb;
 
   if (error) {
     return (
@@ -91,27 +137,57 @@ export function AgentsPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold mb-2">Agent Management</h1>
-          <p className="text-slate-400">Manage agent instruction files across workspaces</p>
+          <p className="text-slate-400">Manage agent instruction files across workspaces and the database</p>
         </div>
         <div className="flex items-center gap-3">
+          {viewMode === 'templates' && (
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition-colors flex items-center gap-2"
+            >
+              <Plus size={16} />
+              Create Template
+            </button>
+          )}
           <button
-            onClick={() => setShowCreateForm(true)}
-            className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition-colors flex items-center gap-2"
-          >
-            <Plus size={16} />
-            Create Agent
-          </button>
-          <button
-            onClick={() => refetch()}
+            onClick={() => viewMode === 'templates' ? refetchTemplates() : refetchDb()}
             className="px-4 py-2 bg-violet-500/20 text-violet-300 rounded-lg hover:bg-violet-500/30 transition-colors flex items-center gap-2"
           >
             <RefreshCw size={16} />
             Refresh
           </button>
         </div>
+      </div>
+
+      {/* View Toggle */}
+      <div className="flex p-1 bg-slate-800 rounded-lg w-fit">
+        <button
+          onClick={() => setViewViewMode('templates')}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 rounded-md transition-all",
+            viewMode === 'templates' 
+              ? "bg-slate-700 text-white shadow-sm" 
+              : "text-slate-400 hover:text-slate-200"
+          )}
+        >
+          <FileCode size={18} />
+          <span>Templates (Disk)</span>
+        </button>
+        <button
+          onClick={() => setViewViewMode('database')}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 rounded-md transition-all",
+            viewMode === 'database' 
+              ? "bg-slate-700 text-white shadow-sm" 
+              : "text-slate-400 hover:text-slate-200"
+          )}
+        >
+          <Database size={18} />
+          <span>Definitions (DB)</span>
+        </button>
       </div>
 
       {/* Create Agent Modal */}
@@ -122,7 +198,7 @@ export function AgentsPage() {
         />
       )}
 
-      {/* Agent Grid */}
+      {/* Agent Grid / List */}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
@@ -132,7 +208,7 @@ export function AgentsPage() {
             </div>
           ))}
         </div>
-      ) : (
+      ) : viewMode === 'templates' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {agents?.map((agent) => (
             <AgentCard
@@ -143,24 +219,66 @@ export function AgentsPage() {
             />
           ))}
         </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {dbAgentsData?.agents.map((agent) => (
+            <DbAgentCard key={agent.name} agent={agent} />
+          ))}
+        </div>
       )}
 
-      {/* Deployment Matrix */}
-      {agents && agents.length > 0 && workspaces.length > 0 && (
+      {/* Deployment Matrix (only for templates) */}
+      {viewMode === 'templates' && agents && agents.length > 0 && workspaces.length > 0 && (
         <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 overflow-x-auto">
           <h2 className="text-lg font-semibold mb-4">Deployment Matrix</h2>
           <DeploymentMatrix agents={agents} workspaces={workspaces} />
         </div>
       )}
 
-      {/* Selected Agent Details */}
-      {selectedAgent && agents && (
+      {/* Selected Agent Details (only for templates) */}
+      {viewMode === 'templates' && selectedAgent && agents && (
         <AgentDetails
           agent={agents.find((a) => a.agent_id === selectedAgent)!}
           onClose={() => setSelectedAgent(null)}
-          onRefresh={() => refetch()}
+          onRefresh={() => refetchTemplates()}
         />
       )}
+    </div>
+  );
+}
+
+function DbAgentCard({ agent }: { agent: DbAgent }) {
+  const navigate = useNavigate();
+  const agentType = agent.name;
+  const icon = agentIcons[agentType as AgentType] || '🤖';
+  const bgClass = agentBgColors[agentType as AgentType] || 'bg-slate-500/20 text-slate-300';
+
+  return (
+    <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 hover:border-violet-500/50 transition-colors">
+      <div className="flex items-center gap-3 mb-4">
+        <div className={cn('w-12 h-12 rounded-lg flex items-center justify-center text-2xl', bgClass.split(' ')[0])}>
+          {icon}
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold">{agentType}</h3>
+            {agent.is_permanent && (
+              <Badge variant="bg-violet-500/20 text-violet-400">permanent</Badge>
+            )}
+          </div>
+          <span className="text-xs text-slate-500">Updated {formatRelative(agent.updated_at)}</span>
+        </div>
+      </div>
+      
+      <div className="flex justify-end">
+        <button 
+          onClick={() => navigate(`/agents/db/${agent.name}`)}
+          className="px-3 py-1.5 bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors flex items-center gap-2 text-sm text-white"
+        >
+          <Edit3 size={14} />
+          Edit Definition
+        </button>
+      </div>
     </div>
   );
 }

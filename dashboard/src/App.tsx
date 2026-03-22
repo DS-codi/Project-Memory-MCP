@@ -5,6 +5,8 @@ import { WorkspacePage } from './pages/WorkspacePage';
 import { PlanDetailPage } from './pages/PlanDetailPage';
 import { AgentsPage } from './pages/AgentsPage';
 import { AgentEditorPage } from './pages/AgentEditorPage';
+import { DbEntityEditorPage } from './pages/DbEntityEditorPage';
+import { SkillsPage } from './pages/SkillsPage';
 import { MetricsPage } from './pages/MetricsPage';
 import { PromptsPage } from './pages/PromptsPage';
 import { InstructionsPage } from './pages/InstructionsPage';
@@ -33,10 +35,19 @@ function App() {
           <Route path="/workspace/:workspaceId/plan/:planId/context" element={<ContextFilesPage />} />
           <Route path="/workspace/:workspaceId/plan/:planId/build-scripts" element={<PlanBuildScriptsPage />} />
           <Route path="/workspace/:workspaceId/program/:programId" element={<ProgramDetailPage />} />
+          
           <Route path="/agents" element={<AgentsPage />} />
           <Route path="/agents/:agentId" element={<AgentEditorPage />} />
+          <Route path="/agents/db/:id" element={<DbEntityEditorPage type="agent" key="agent-db" />} />
+          
           <Route path="/prompts" element={<PromptsPage />} />
+          
           <Route path="/instructions" element={<InstructionsPage />} />
+          <Route path="/instructions/db/:id" element={<DbEntityEditorPage type="instruction" key="instruction-db" />} />
+          
+          <Route path="/skills" element={<SkillsPage />} />
+          <Route path="/skills/db/:id" element={<DbEntityEditorPage type="skill" key="skill-db" />} />
+          
           <Route path="/metrics" element={<MetricsPage />} />
         </Routes>
       </Layout>

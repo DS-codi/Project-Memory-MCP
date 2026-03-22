@@ -16,7 +16,7 @@ Rectangle {
     radius:       10
     border.color: "#30363d"
     Layout.fillWidth: true
-    implicitHeight: 185
+    implicitHeight: statsRow.visible ? 242 : 185
 
     // ── Internal state ───────────────────────────────────────────────────────
     ListModel { id: workspaceModel }
@@ -24,6 +24,38 @@ Rectangle {
 
     // Auto-load workspaces whenever the MCP port becomes available.
     onMcpPortChanged: if (mcpPort > 0) cartoPanel.loadWorkspaces()
+    onSelectedWorkspaceIdChanged: cartoPanel.loadSummary()
+
+    function loadSummary() {
+        if (cartoPanel.selectedWorkspaceId === "" || cartoPanel.mcpPort <= 0) {
+            statsRow.visible = false
+            return
+        }
+        var wsId = cartoPanel.selectedWorkspaceId
+        var xhr  = new XMLHttpRequest()
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState !== XMLHttpRequest.DONE || xhr.status !== 200) return
+            try {
+                var r = JSON.parse(xhr.responseText)
+                if (r.success && r.has_data && r.data) {
+                    var d = r.data
+                    var files   = d.files_total   !== null ? d.files_total   : "?"
+                    var elapsed = d.elapsed_ms     !== null ? d.elapsed_ms    : "?"
+                    var cached  = d.cache_hit === true ? " \u00b7 cached" : (d.cache_hit === false ? " \u00b7 fresh scan" : "")
+                    var when    = d.scanned_at ? d.scanned_at.substring(0, 16).replace("T", " ") : "\u2014"
+                    statsFilesLabel.text  = files + " files \u00b7 " + elapsed + "ms" + cached
+                    statsWhenLabel.text   = "Last scan: " + when
+                    statsRow.visible = true
+                } else {
+                    statsRow.visible = false
+                }
+            } catch(e) {
+                statsRow.visible = false
+            }
+        }
+        xhr.open("GET", cartoPanel.mcpBaseUrl + "/admin/cartographer_summary/" + wsId)
+        xhr.send()
+    }
 
     function loadWorkspaces() {
         if (cartoPanel.mcpPort <= 0) return
@@ -146,7 +178,8 @@ Rectangle {
                                 var summary = res.summary   || {}
                                 var files   = summary.files_total !== undefined ? summary.files_total : "?"
                                 var elapsed = inner.elapsed_ms    !== undefined ? inner.elapsed_ms    : "?"
-                                cartographerStatus.text = "Total: " + files + " files   Scan time: " + elapsed + "ms"
+                                cartographerStatus.text = "Scan complete"
+                                cartoPanel.loadSummary()
                             } else {
                                 cartographerStatus.text = "Error: " + (r.error || "scan failed")
                             }
@@ -168,10 +201,41 @@ Rectangle {
             id: cartographerStatus
             text: ""
             font.pixelSize: 11
-            color: text.startsWith("Total") ? "#3fb950"
+            color: text.startsWith("Scan") ? "#3fb950"
                  : (text.startsWith("Error") || text.startsWith("HTTP") ? "#f85149"
                  : "#8b949e")
             Layout.fillWidth: true; wrapMode: Text.WordWrap
+        }
+
+        // Stats section — auto-populated from stored scan data
+        ColumnLayout {
+            id: statsRow
+            Layout.fillWidth: true
+            visible: false
+            spacing: 2
+
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: 1
+                color: "#30363d"
+            }
+
+            Label {
+                id: statsFilesLabel
+                text: ""
+                font.pixelSize: 11
+                color: "#3fb950"
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+            }
+
+            Label {
+                id: statsWhenLabel
+                text: ""
+                font.pixelSize: 10
+                color: "#8b949e"
+                Layout.fillWidth: true
+            }
         }
     }
 }

@@ -113,7 +113,6 @@ if ($Auto) {
     $totalPass  = 0
     $totalWarn  = 0
     $totalFail  = 0
-    $anyMissing = $false
 
     foreach ($entry in $components.GetEnumerator()) {
         $compName = $entry.Key
@@ -122,7 +121,6 @@ if ($Auto) {
         if (-not (Test-Path $compDir -PathType Container)) {
             Write-Host ""
             Write-Host "  [skip] $compName  (directory not found: $compDir)" -ForegroundColor DarkGray
-            $anyMissing = $true
             continue
         }
 

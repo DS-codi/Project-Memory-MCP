@@ -24,6 +24,8 @@ import type {
   BuildScriptRow,
   ProgramPlanRow,
   AgentDefinitionRow,
+  InstructionFileRow,
+  SkillDefinitionRow,
 } from './types.js';
 
 // Re-export the types so routes only need to import from one place
@@ -42,6 +44,8 @@ export type {
   BuildScriptRow,
   ProgramPlanRow,
   AgentDefinitionRow,
+  InstructionFileRow,
+  SkillDefinitionRow,
 };
 
 // ============================================================
@@ -436,5 +440,96 @@ export function getAgentFromDb(name: string): AgentDefinitionRow | null {
     );
   } catch {
     return null;
+  }
+}
+
+export function updateAgentInDb(name: string, content: string, metadata?: string): void {
+  const now = new Date().toISOString();
+  if (metadata) {
+    getDb()
+      .prepare('UPDATE agent_definitions SET content = ?, metadata = ?, updated_at = ? WHERE name = ?')
+      .run(content, metadata, now, name);
+  } else {
+    getDb()
+      .prepare('UPDATE agent_definitions SET content = ?, updated_at = ? WHERE name = ?')
+      .run(content, now, name);
+  }
+}
+
+// ============================================================
+// INSTRUCTION FILES  (instruction_files table)
+// ============================================================
+
+export function listInstructionsFromDb(): InstructionFileRow[] {
+  try {
+    return getDb()
+      .prepare('SELECT * FROM instruction_files ORDER BY filename ASC')
+      .all() as InstructionFileRow[];
+  } catch {
+    return [];
+  }
+}
+
+export function getInstructionFromDb(filename: string): InstructionFileRow | null {
+  try {
+    return (
+      (getDb()
+        .prepare('SELECT * FROM instruction_files WHERE filename = ?')
+        .get(filename) as InstructionFileRow | undefined) ?? null
+    );
+  } catch {
+    return null;
+  }
+}
+
+export function updateInstructionInDb(filename: string, content: string, appliesTo?: string): void {
+  const now = new Date().toISOString();
+  if (appliesTo) {
+    getDb()
+      .prepare('UPDATE instruction_files SET content = ?, applies_to = ?, updated_at = ? WHERE filename = ?')
+      .run(content, appliesTo, now, filename);
+  } else {
+    getDb()
+      .prepare('UPDATE instruction_files SET content = ?, updated_at = ? WHERE filename = ?')
+      .run(content, now, filename);
+  }
+}
+
+// ============================================================
+// SKILL DEFINITIONS  (skill_definitions table)
+// ============================================================
+
+export function listSkillsFromDb(): SkillDefinitionRow[] {
+  try {
+    return getDb()
+      .prepare('SELECT * FROM skill_definitions ORDER BY name ASC')
+      .all() as SkillDefinitionRow[];
+  } catch {
+    return [];
+  }
+}
+
+export function getSkillFromDb(name: string): SkillDefinitionRow | null {
+  try {
+    return (
+      (getDb()
+        .prepare('SELECT * FROM skill_definitions WHERE name = ?')
+        .get(name) as SkillDefinitionRow | undefined) ?? null
+    );
+  } catch {
+    return null;
+  }
+}
+
+export function updateSkillInDb(name: string, content: string, description?: string): void {
+  const now = new Date().toISOString();
+  if (description) {
+    getDb()
+      .prepare('UPDATE skill_definitions SET content = ?, description = ?, updated_at = ? WHERE name = ?')
+      .run(content, description, now, name);
+  } else {
+    getDb()
+      .prepare('UPDATE skill_definitions SET content = ?, updated_at = ? WHERE name = ?')
+      .run(content, now, name);
   }
 }

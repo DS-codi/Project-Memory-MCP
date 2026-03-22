@@ -34,7 +34,8 @@ import {
 import { memoryPlan } from '../tools/consolidated/memory_plan.js';
 import { memorySteps } from '../tools/consolidated/memory_steps.js';
 import { memoryContext } from '../tools/consolidated/memory_context.js';
-import { memoryAgent } from '../tools/consolidated/memory_agent.js';import { storeContext } from '../db/context-db.js';
+import { memoryAgent } from '../tools/consolidated/memory_agent.js';import { storeContext, getContext } from '../db/context-db.js';
+import { runSeed } from '../db/seed.js';
 import { run, queryOne, queryAll, newId, nowIso } from '../db/query-helpers.js';
 import { getAllLiveSessions, getLiveSessionCount, getLiveSessionEntry, clearLiveSession } from '../tools/session-live-store.js';
 import { runMigrations, migrationStatus } from '../db/index.js';
@@ -663,6 +664,55 @@ export function createHttpApp(getServer: () => McpServer): Express {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error('[http] Error in /admin/mcp_call:', error);
+      res.status(500).json({ error: message });
+    }
+  });
+
+  // ---- Admin: get last stored cartographer summary for a workspace ----
+  app.get('/admin/cartographer_summary/:workspace_id', (req: Request, res: Response) => {
+    const { workspace_id } = req.params;
+    if (!workspace_id) {
+      res.status(400).json({ error: 'workspace_id is required' });
+      return;
+    }
+    const rows = getContext('workspace', workspace_id, 'cartographer_summary');
+    if (rows.length === 0) {
+      res.json({ success: true, has_data: false, data: null });
+      return;
+    }
+    // Most recent by updated_at
+    const row = rows.sort((a, b) => a.updated_at.localeCompare(b.updated_at)).pop()!;
+    try {
+      const parsed = JSON.parse(row.data) as Record<string, unknown>;
+      const inner = ((parsed?.data as Record<string, unknown> | undefined)?.data) as Record<string, unknown> | undefined;
+      const result = (inner?.result as Record<string, unknown> | undefined) ?? {};
+      const summary = (result.summary as Record<string, unknown> | undefined) ?? {};
+      const diagnostics = (inner?.diagnostics as Record<string, unknown> | undefined) ?? {};
+      res.json({
+        success: true,
+        has_data: true,
+        data: {
+          files_total: summary.files_total ?? null,
+          symbols_total: summary.symbols_total ?? null,
+          language_breakdown: Array.isArray(summary.language_breakdown) ? summary.language_breakdown : [],
+          elapsed_ms: inner?.elapsed_ms ?? null,
+          cache_hit: diagnostics.cache_hit ?? null,
+          scanned_at: row.updated_at,
+        },
+      });
+    } catch {
+      res.json({ success: true, has_data: false, data: null });
+    }
+  });
+
+  // ---- Admin: re-seed agent defs + instructions from disk (idempotent) ----
+  app.post('/admin/reseed', async (_req: Request, res: Response) => {
+    try {
+      const result = await runSeed();
+      res.json({ success: true, result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[http] Error running reseed:', error);
       res.status(500).json({ error: message });
     }
   });

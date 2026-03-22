@@ -1586,7 +1586,8 @@ function Install-Container {
         $BuildArgs = @("build", "-t", $Tag, ".")
         if ($Force) { $BuildArgs = @("build", "--no-cache", "-t", $Tag, ".") }
 
-        Write-Host "   › podman build $($Force ? '--no-cache ' : '')-t $Tag ." -ForegroundColor Gray
+        $NoCacheDisplay = if ($Force) { "--no-cache " } else { "" }
+        Write-Host "   › podman build $($NoCacheDisplay)-t $Tag ." -ForegroundColor Gray
         podman @BuildArgs
         if ($LASTEXITCODE -ne 0) {
             Write-Fail "Container build failed (exit $LASTEXITCODE)"

@@ -4,7 +4,49 @@ import * as path from 'path';
 import { existsSync } from 'fs';
 import matter from 'gray-matter';
 
+import { listInstructionsFromDb, getInstructionFromDb, updateInstructionInDb } from '../db/queries.js';
+
 export const instructionsRouter = Router();
+
+// GET /api/instructions/db - List all instruction files from the MCP database
+instructionsRouter.get('/db', (_req, res) => {
+  try {
+    const rows = listInstructionsFromDb();
+    res.json({ instructions: rows, total: rows.length });
+  } catch (error) {
+    console.error('Error listing instructions from DB:', error);
+    res.status(500).json({ error: 'Failed to list instructions from database' });
+  }
+});
+
+// GET /api/instructions/db/:filename - Get a single instruction from the database
+instructionsRouter.get('/db/:filename', (req, res) => {
+  try {
+    const row = getInstructionFromDb(req.params.filename);
+    if (!row) {
+      return res.status(404).json({ error: `Instruction '${req.params.filename}' not found in database` });
+    }
+    res.json({ instruction: row });
+  } catch (error) {
+    console.error('Error getting instruction from DB:', error);
+    res.status(500).json({ error: 'Failed to get instruction from database' });
+  }
+});
+
+// PUT /api/instructions/db/:filename - Update an instruction in the database
+instructionsRouter.put('/db/:filename', (req, res) => {
+  try {
+    const { content, applies_to } = req.body;
+    if (!content || typeof content !== 'string') {
+      return res.status(400).json({ error: 'content is required and must be a string' });
+    }
+    updateInstructionInDb(req.params.filename, content, applies_to);
+    res.json({ success: true, filename: req.params.filename });
+  } catch (error) {
+    console.error('Error updating instruction in DB:', error);
+    res.status(500).json({ error: 'Failed to update instruction in database' });
+  }
+});
 
 // Path to instructions directory
 const getInstructionsRoot = () => globalThis.MBS_INSTRUCTIONS_ROOT || path.join(process.cwd(), '..', 'instructions');

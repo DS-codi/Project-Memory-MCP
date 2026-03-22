@@ -49,7 +49,7 @@ describe('CopilotStatusPanel', () => {
   });
 
   it('should render status panel with correct counts', () => {
-    render(<CopilotStatusPanel status={mockCopilotStatus} />);
+    render(<CopilotStatusPanel status={mockCopilotStatus as any} />);
 
     // Check that the component renders status items
     expect(screen.getByText(/Agents/i)).toBeInTheDocument();
@@ -58,7 +58,7 @@ describe('CopilotStatusPanel', () => {
 
   it('should show deploy button when onDeploy is provided', () => {
     const handleDeploy = vi.fn();
-    render(<CopilotStatusPanel status={mockCopilotStatus} onDeploy={handleDeploy} />);
+    render(<CopilotStatusPanel status={mockCopilotStatus as any} onDeploy={handleDeploy} />);
 
     const deployButton = screen.getByRole('button', { name: /Deploy/i });
     expect(deployButton).toBeInTheDocument();

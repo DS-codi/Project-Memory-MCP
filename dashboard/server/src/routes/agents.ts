@@ -10,7 +10,7 @@ import {
   deployAgentToWorkspaces,
   syncAgentToDeployments,
 } from '../services/agentScanner.js';
-import { listAgentsFromDb, getAgentFromDb } from '../db/queries.js';
+import { listAgentsFromDb, getAgentFromDb, updateAgentInDb } from '../db/queries.js';
 
 export const agentsRouter = Router();
 
@@ -51,6 +51,21 @@ agentsRouter.get('/db/:agentName', (req, res) => {
   } catch (error) {
     console.error('Error getting agent from DB:', error);
     res.status(500).json({ error: 'Failed to get agent from database' });
+  }
+});
+
+// PUT /api/agents/db/:agentName - Update an agent in the database
+agentsRouter.put('/db/:agentName', (req, res) => {
+  try {
+    const { content, metadata } = req.body;
+    if (!content || typeof content !== 'string') {
+      return res.status(400).json({ error: 'content is required and must be a string' });
+    }
+    updateAgentInDb(req.params.agentName, content, metadata);
+    res.json({ success: true, name: req.params.agentName });
+  } catch (error) {
+    console.error('Error updating agent in DB:', error);
+    res.status(500).json({ error: 'Failed to update agent in database' });
   }
 });
 

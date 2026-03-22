@@ -180,3 +180,28 @@ export interface AgentDefinitionRow {
   created_at:   string;
   updated_at:   string;
 }
+
+export interface InstructionFileRow {
+  id:          string;
+  filename:    string;
+  applies_to:  string;
+  content:     string;
+  created_at:  string;
+  updated_at:  string;
+}
+
+export interface SkillDefinitionRow {
+  id:                string;
+  name:              string;
+  category:          string;
+  /** JSON array */
+  tags:              string | null;
+  /** JSON array */
+  language_targets:  string | null;
+  /** JSON array */
+  framework_targets: string | null;
+  content:           string;
+  description:       string | null;
+  created_at:        string;
+  updated_at:        string;
+}
