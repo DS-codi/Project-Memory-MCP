@@ -219,6 +219,8 @@ export class DiagnosticsTreeProvider
         }
         if (sync.status === 'ready' && sync.summary) {
             children.push(
+                _detail('workspaceSync.mode', 'Mode', sync.reportMode ?? 'unknown', 'eye'),
+                _detail('workspaceSync.writesPerformed', 'Writes performed', sync.writesPerformed ? 'yes' : 'no', sync.writesPerformed ? 'warning' : 'check'),
                 _detail('workspaceSync.actionable', 'Actionable findings', String(sync.actionableFindings), sync.actionableFindings > 0 ? 'warning' : 'check'),
                 _detail('workspaceSync.protected', 'Protected drift', String(sync.summary.protected_drift), sync.summary.protected_drift > 0 ? 'warning' : 'check'),
                 _detail('workspaceSync.mismatch', 'Content mismatch', String(sync.summary.content_mismatch), sync.summary.content_mismatch > 0 ? 'warning' : 'check'),
@@ -228,6 +230,12 @@ export class DiagnosticsTreeProvider
                 _detail('workspaceSync.inSync', 'In sync', String(sync.summary.in_sync), 'check'),
                 _detail('workspaceSync.ignoredLocal', 'Ignored local', String(sync.summary.ignored_local), 'circle-slash'),
             );
+            if (sync.githubAgentsDir) {
+                children.push(_detail('workspaceSync.githubAgentsDir', 'Agents dir', sync.githubAgentsDir, 'folder-library'));
+            }
+            if (sync.githubInstructionsDir) {
+                children.push(_detail('workspaceSync.githubInstructionsDir', 'Instructions dir', sync.githubInstructionsDir, 'folder-library'));
+            }
         }
         if (sync.status === 'ready') {
             sync.sampleFindings.forEach((finding, index) => {

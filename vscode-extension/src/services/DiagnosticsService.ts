@@ -24,6 +24,10 @@ interface WorkspaceSyncDiagnosticsState {
     lastReason: string | null;
     statusMessage: string | null;
     actionableFindings: number;
+    reportMode: WorkspaceConfigSyncReport['report_mode'] | null;
+    writesPerformed: boolean | null;
+    githubAgentsDir: string | null;
+    githubInstructionsDir: string | null;
     summary: WorkspaceConfigSyncReport['summary'] | null;
     sampleFindings: string[];
     lastError?: string;
@@ -67,6 +71,10 @@ export class DiagnosticsService implements vscode.Disposable {
         lastReason: null,
         statusMessage: 'Passive watcher is waiting for its first report.',
         actionableFindings: 0,
+        reportMode: null,
+        writesPerformed: null,
+        githubAgentsDir: null,
+        githubInstructionsDir: null,
         summary: null,
         sampleFindings: [],
     };
@@ -111,6 +119,10 @@ export class DiagnosticsService implements vscode.Disposable {
             workspaceId: report.workspace_id,
             lastCheckedAt: new Date().toISOString(),
             actionableFindings: actionableEntries.length,
+            reportMode: report.report_mode,
+            writesPerformed: report.writes_performed,
+            githubAgentsDir: report.github_agents_dir,
+            githubInstructionsDir: report.github_instructions_dir,
             summary: report.summary,
             sampleFindings: actionableEntries
                 .slice(0, 3)
@@ -266,6 +278,12 @@ export class DiagnosticsService implements vscode.Disposable {
             lines.push(`  Trigger: ${report.workspaceSync.lastReason ?? 'unknown'}`);
             lines.push(`  Last check: ${report.workspaceSync.lastCheckedAt ?? 'unknown'}`);
             lines.push(`  State: ${report.workspaceSync.statusMessage ?? 'Passive watcher reported an error.'}`);
+            if (report.workspaceSync.reportMode) {
+                lines.push(`  Mode: ${report.workspaceSync.reportMode}`);
+            }
+            if (report.workspaceSync.writesPerformed != null) {
+                lines.push(`  Writes performed: ${report.workspaceSync.writesPerformed ? 'yes' : 'no'}`);
+            }
             lines.push(`  Error: ${report.workspaceSync.lastError}`);
         } else if (report.workspaceSync.summary) {
             const summary = report.workspaceSync.summary;
@@ -273,6 +291,14 @@ export class DiagnosticsService implements vscode.Disposable {
             lines.push(`  Trigger: ${report.workspaceSync.lastReason ?? 'unknown'}`);
             lines.push(`  Last check: ${report.workspaceSync.lastCheckedAt ?? 'unknown'}`);
             lines.push(`  State: ${report.workspaceSync.statusMessage ?? 'Passive watcher completed.'}`);
+            lines.push(`  Mode: ${report.workspaceSync.reportMode ?? 'unknown'}`);
+            lines.push(`  Writes performed: ${report.workspaceSync.writesPerformed ? 'yes' : 'no'}`);
+            if (report.workspaceSync.githubAgentsDir) {
+                lines.push(`  Agents dir: ${report.workspaceSync.githubAgentsDir}`);
+            }
+            if (report.workspaceSync.githubInstructionsDir) {
+                lines.push(`  Instructions dir: ${report.workspaceSync.githubInstructionsDir}`);
+            }
             lines.push(`  Actionable findings: ${report.workspaceSync.actionableFindings}`);
             lines.push(`  Protected drift: ${summary.protected_drift}`);
             lines.push(`  Content mismatch: ${summary.content_mismatch}`);
@@ -320,6 +346,8 @@ export class DiagnosticsService implements vscode.Disposable {
             return `Workspace sync: ${sync.statusMessage ?? 'No passive watcher report captured yet.'}`;
         }
 
+        const modeSuffix = sync.reportMode ? ` [${sync.reportMode}]` : '';
+
         const fragments: string[] = [];
         if (sync.summary.protected_drift > 0) fragments.push(`${sync.summary.protected_drift} protected drift`);
         if (sync.summary.content_mismatch > 0) fragments.push(`${sync.summary.content_mismatch} mismatch`);
@@ -328,10 +356,10 @@ export class DiagnosticsService implements vscode.Disposable {
         if (sync.summary.import_candidate > 0) fragments.push(`${sync.summary.import_candidate} import candidate`);
 
         if (fragments.length === 0) {
-            return 'Workspace sync: no actionable findings';
+            return `Workspace sync: no actionable findings${modeSuffix}`;
         }
 
-        return `Workspace sync: ${sync.actionableFindings} actionable finding(s) (${fragments.join(', ')})`;
+        return `Workspace sync: ${sync.actionableFindings} actionable finding(s) (${fragments.join(', ')})${modeSuffix}`;
     }
 
     dispose(): void {

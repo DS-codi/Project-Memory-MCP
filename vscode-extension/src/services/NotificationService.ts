@@ -186,7 +186,7 @@ export class NotificationService implements vscode.Disposable {
             ? ` Top finding: ${topFinding.relative_path} (${topFinding.status}).`
             : '';
 
-        const message = `Project Memory workspace sync: ${fragments.join(', ')}. Passive watcher made no changes.${topFindingSummary}`;
+        const message = `Project Memory workspace sync (${report.report_mode}): ${fragments.join(', ')}. Passive watcher made no changes.${topFindingSummary}`;
         const promise = notableCount > 0
             ? vscode.window.showWarningMessage(message, 'Show Diagnostics', 'Mute for 1 hour')
             : vscode.window.showInformationMessage(message, 'Show Diagnostics', 'Mute for 1 hour');
