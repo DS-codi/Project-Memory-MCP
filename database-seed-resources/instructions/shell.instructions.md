@@ -1,5 +1,5 @@
 ---
-applyTo: "agents/shell.agent.md"
+applyTo: "agents/core/shell.agent.md"
 ---
 
 # Shell Agent — Bootstrap Instructions

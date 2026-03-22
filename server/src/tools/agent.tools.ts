@@ -2,7 +2,7 @@
  * Agent Tools - MCP tools for deploying agent instruction files to workspaces.
  */
 
-import { promises as fs } from 'fs';
+import { promises as fs, existsSync } from 'fs';
 import path from 'path';
 import type { ToolResponse } from '../types/index.js';
 import { appendWorkspaceFileUpdate } from '../logging/workspace-update-log.js';
@@ -14,6 +14,35 @@ import { listAgents as listDbAgents } from '../db/agent-definition-db.js';
 export const AGENTS_ROOT = process.env.MBS_AGENTS_ROOT || path.join(process.cwd(), '..', 'agents');
 const PROMPTS_ROOT = process.env.MBS_PROMPTS_ROOT || path.join(process.cwd(), '..', 'prompts');
 export const INSTRUCTIONS_ROOT = process.env.MBS_INSTRUCTIONS_ROOT || path.join(process.cwd(), '..', 'instructions');
+
+/**
+ * Discover all agent files from the agents/ directory (recursive).
+ */
+async function discoverAgentFiles(rootDir: string): Promise<{ filename: string; fullPath: string }[]> {
+  const results: { filename: string; fullPath: string }[] = [];
+  
+  async function scan(dir: string, relPath: string = '') {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      const subRelPath = relPath ? path.join(relPath, entry.name) : entry.name;
+      
+      if (entry.isDirectory()) {
+        await scan(fullPath, subRelPath);
+      } else if (entry.isFile() && entry.name.endsWith('.agent.md')) {
+        results.push({
+          filename: subRelPath,
+          fullPath,
+        });
+      }
+    }
+  }
+
+  if (existsSync(rootDir)) {
+    await scan(rootDir);
+  }
+  return results;
+}
 
 /**
  * List available agent instruction files
@@ -30,12 +59,11 @@ export async function listAgents(): Promise<ToolResponse<string[]>> {
     }
 
     // Filesystem fallback
-    const files = await fs.readdir(AGENTS_ROOT);
-    const agentFiles = files.filter(f => f.endsWith('.agent.md'));
+    const agentFiles = await discoverAgentFiles(AGENTS_ROOT);
 
     return {
       success: true,
-      data: agentFiles,
+      data: agentFiles.map(f => f.filename),
     };
   } catch (error) {
     return {
@@ -83,12 +111,11 @@ export async function deployAgentsToWorkspace(
     await fs.mkdir(agentsDir, { recursive: true });
 
     // Get list of agent files to deploy (filesystem source for materialized files)
-    const allAgentFiles = await fs.readdir(AGENTS_ROOT);
-    const agentFiles = allAgentFiles.filter(f => f.endsWith('.agent.md'));
+    const agentFiles = await discoverAgentFiles(AGENTS_ROOT);
 
     // Filter to specific agents if requested
     const filesToDeploy = agents
-      ? agentFiles.filter(f => agents.some(a => f.toLowerCase().includes(a.toLowerCase())))
+      ? agentFiles.filter(f => agents.some(a => f.filename.toLowerCase().includes(a.toLowerCase())))
       : agentFiles;
 
     if (filesToDeploy.length === 0) {
@@ -101,18 +128,18 @@ export async function deployAgentsToWorkspace(
     // Copy each agent file
     const deployed: string[] = [];
     for (const file of filesToDeploy) {
-      const sourcePath = path.join(AGENTS_ROOT, file);
-      const targetPath = path.join(agentsDir, file);
+      const targetFilename = path.basename(file.filename);
+      const targetPath = path.join(agentsDir, targetFilename);
 
-      const content = await fs.readFile(sourcePath, 'utf-8');
+      const content = await fs.readFile(file.fullPath, 'utf-8');
       await fs.writeFile(targetPath, content, 'utf-8');
       await appendWorkspaceFileUpdate({
         workspace_path,
         file_path: targetPath,
-        summary: `Deployed agent file ${file}`,
+        summary: `Deployed agent file ${targetFilename}`,
         action: 'deploy_agent_file',
       });
-      deployed.push(file);
+      deployed.push(targetFilename);
     }
 
     // Deploy prompts if requested and directory exists
@@ -256,10 +283,9 @@ export async function getAgentInstructions(
     }
 
     // Filesystem fallback
-    const files = await fs.readdir(AGENTS_ROOT);
-    const agentFile = files.find(f =>
-      f.endsWith('.agent.md') &&
-      f.toLowerCase().includes(agent_name.toLowerCase())
+    const agentFiles = await discoverAgentFiles(AGENTS_ROOT);
+    const agentFile = agentFiles.find(f =>
+      f.filename.toLowerCase().includes(agent_name.toLowerCase())
     );
 
     if (!agentFile) {
@@ -269,12 +295,12 @@ export async function getAgentInstructions(
       };
     }
 
-    const content = await fs.readFile(path.join(AGENTS_ROOT, agentFile), 'utf-8');
+    const content = await fs.readFile(agentFile.fullPath, 'utf-8');
 
     return {
       success: true,
       data: {
-        filename: agentFile,
+        filename: path.basename(agentFile.filename),
         content,
       },
     };

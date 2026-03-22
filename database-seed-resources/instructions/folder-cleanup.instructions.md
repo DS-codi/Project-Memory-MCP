@@ -1,5 +1,5 @@
 ---
-applyTo: "agents/folder-cleanup-shell.agent.md"
+applyTo: "agents/spoke/folder-cleanup-shell.agent.md"
 ---
 
 # Folder Cleanup Instruction Pack

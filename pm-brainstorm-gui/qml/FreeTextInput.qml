@@ -35,7 +35,7 @@ ColumnLayout {
         TextArea {
             id: textArea
             text: freeTextRoot.currentValue
-            placeholderText: question.placeholder || "Enter your response..."
+            placeholderText: freeTextRoot.question.placeholder || "Enter your response..."
             font.pixelSize: 13
             color: "#ffffff"
             wrapMode: TextArea.Wrap
@@ -47,9 +47,9 @@ ColumnLayout {
                     text = text.substring(0, freeTextRoot.maxLength);
                 }
 
-                if (formApp && question.id) {
+                if (freeTextRoot.formApp && freeTextRoot.question.id) {
                     var answerObj = { "type": "free_text_answer", "value": text };
-                    formApp.setAnswer(question.id, JSON.stringify(answerObj));
+                    freeTextRoot.formApp.setAnswer(freeTextRoot.question.id, JSON.stringify(answerObj));
                 }
             }
         }

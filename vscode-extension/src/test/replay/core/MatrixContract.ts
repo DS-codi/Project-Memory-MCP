@@ -6,7 +6,7 @@ import {
     type ReplayMatrixComparatorProfileVariant,
     type ReplayMatrixModelVariant,
     type ReplayMatrixNormalizationProfile,
-    type ReplayMatrixRiskTier,
+    type ReplayRiskTier,
     type ReplayMatrixRunContract,
     type ReplayMatrixScenarioSlice,
     type ReplayNormalizationConfig,
@@ -59,7 +59,7 @@ function parseComparatorProfiles(value: unknown): ReplayMatrixComparatorProfileV
     });
 }
 
-function parseRiskTier(value: unknown, context: string): ReplayMatrixRiskTier {
+function parseRiskTier(value: unknown, context: string): ReplayRiskTier {
     if (value === 'p0' || value === 'p1' || value === 'p2') {
         return value;
     }

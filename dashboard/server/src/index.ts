@@ -22,7 +22,8 @@ import { runtimeRouter } from './routes/runtime.js';
 import { agentSessionRouter } from './routes/agentSession.js';
 import { getDataRoot } from './storage/workspace-utils.js';
 import { eventBus } from './events/eventBus.js';
-import { getDb } from './db/connection.js';
+import { getDb, closeDb } from './db/connection.js';
+import { startMcpEventPoller, stopMcpEventPoller } from './services/mcpEventPoller.js';
 import * as fs from 'fs';
 import * as fsAsync from 'fs/promises';
 
@@ -183,6 +184,7 @@ httpServer.listen(PORT, () => {
   // Open DB connection eagerly so first request is fast
   try {
     getDb();
+    startMcpEventPoller();
   } catch (err) {
     console.warn('[db] Could not open project-memory.db on startup (will retry on first request):', err);
   }
@@ -196,3 +198,14 @@ httpServer.listen(PORT, () => {
     console.log('[eventBus] SUPERVISOR_EVENTS_URL not set — supervisor SSE disabled');
   }
 });
+
+// Graceful shutdown
+function shutdown(signal: string) {
+  console.log(`[dashboard] Received ${signal} — shutting down…`);
+  stopMcpEventPoller();
+  closeDb();
+  process.exit(0);
+}
+
+process.on('SIGINT',  () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));

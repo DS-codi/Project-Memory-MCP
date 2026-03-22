@@ -5,7 +5,7 @@ import {
     type ReplayMatrixCellResult,
     type ReplayMatrixCellScore,
     type ReplayMatrixReport,
-    type ReplayMatrixRiskTier,
+    type ReplayRiskTier,
     type ReplayMatrixRiskTierSummary,
     type ReplayMatrixRunContract,
     type ReplayOperatorBucket
@@ -131,7 +131,7 @@ function aggregateAxis(
 }
 
 function summarizeRiskTiers(cells: ReplayMatrixCellResult[]): ReplayMatrixRiskTierSummary[] {
-    const tiers: ReplayMatrixRiskTier[] = ['p0', 'p1', 'p2'];
+    const tiers: ReplayRiskTier[] = ['p0', 'p1', 'p2'];
 
     return tiers.map((tier) => {
         const inTier = cells.filter((cell) => cell.axes.scenario_slice.risk_tier === tier);

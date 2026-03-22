@@ -518,15 +518,27 @@ pub(crate) fn spawn_runtime_tasks(
                 let buffers_for_output = session_output_buffers.clone();
                 let spill_root_for_output = spill_root.clone();
                 tokio::spawn(async move {
-                    use crate::terminal_core::conpty_backend::ThinkingTagFilter;
+                    use crate::terminal_core::conpty_backend::{GeminiThinkingDetector, ThinkingTagFilter};
                     let mut thinking_filters: HashMap<String, ThinkingTagFilter> = HashMap::new();
+                    let mut gemini_detectors: HashMap<String, GeminiThinkingDetector> = HashMap::new();
                     while let Some((session_id, chunk)) = session_output_rx.recv().await {
                         // Strip <thinking>…</thinking> blocks from the main stream and
                         // route extracted content to the side-panel channel.
                         let filter = thinking_filters
                             .entry(session_id.clone())
                             .or_insert_with(ThinkingTagFilter::new);
-                        let (main_chunk, thinking_chunk) = filter.process(&chunk);
+                        let (main_chunk, mut thinking_chunk) = filter.process(&chunk);
+
+                        // Also detect Gemini CLI "Thinking... (esc to cancel, Xs)" status
+                        // lines and mirror them to the side panel (without stripping them
+                        // from the main stream so the terminal TUI remains intact).
+                        let gemini_detector = gemini_detectors
+                            .entry(session_id.clone())
+                            .or_insert_with(GeminiThinkingDetector::new);
+                        let gemini_thinking = gemini_detector.process(&main_chunk);
+                        if !gemini_thinking.is_empty() {
+                            thinking_chunk.extend_from_slice(&gemini_thinking);
+                        }
 
                         let (spill_path, spilled_chunks) = {
                             let mut buffers = buffers_for_output.lock().await;

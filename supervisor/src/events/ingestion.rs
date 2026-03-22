@@ -203,9 +203,21 @@ async fn process_sse_message(message: &str, handle: &EventsHandle) {
             DataChangeEvent::WorkspaceChanged { workspace_id }
         }
 
-        _ => DataChangeEvent::Raw {
-            payload,
-        },
+        "workspace_scope_changed" => {
+            let file_path = payload
+                .get("data")
+                .and_then(|d| d.get("file_path"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            DataChangeEvent::FocusedWorkspaceGenerated {
+                workspace_id,
+                plan_id,
+                file_path,
+            }
+        }
+
+        _ => DataChangeEvent::Raw { payload },
     };
 
     handle.emit(dce).await;

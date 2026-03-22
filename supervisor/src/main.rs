@@ -24,7 +24,9 @@ use supervisor::runner::container::ContainerRunner;
 use supervisor::runner::dashboard::DashboardRunner;
 use supervisor::runner::node::NodeRunner;
 use supervisor::runner::terminal::InteractiveTerminalRunner;
-use supervisor::tray_tooltip::{ServiceSummary, TrayAction, TrayComponent, TrayComponentAction};
+use supervisor::tray_tooltip::{ServiceSummary, TrayAction, TrayComponent,
+    TrayComponentAction,
+};
 
 /// Project Memory MCP Supervisor
 #[derive(Parser, Debug)]
@@ -873,7 +875,7 @@ async fn supervisor_main() {
                         .map(|port| format!("tcp://127.0.0.1:{port}")),
                 });
             }
-            let tray_tooltip = supervisor::tray_tooltip::build_tooltip(&tray_services, 0);
+            let tray_tooltip = supervisor::tray_tooltip::build_tooltip(&tray_services, 0, None);
             if cli.debug {
                 eprintln!("[debug] installing tray lifecycle...");
             }
@@ -893,6 +895,9 @@ async fn supervisor_main() {
             let _ = supervisor::cxxqt_bridge::SHUTDOWN_TX.set(shutdown_tx.clone());
 
             let (restart_tx, mut restart_rx) = tokio::sync::mpsc::channel::<String>(32);
+            let (fw_tx, mut fw_rx) = tokio::sync::mpsc::channel::<supervisor::tray_tooltip::FocusedWorkspaceState>(16);
+            let mut focused_workspace_state: Option<supervisor::tray_tooltip::FocusedWorkspaceState> = None;
+
             let (mcp_health_tx, mut mcp_health_rx) =
                 tokio::sync::mpsc::channel::<McpHealthSignal>(16);
             // Shared flag driven by McpHealthSignal so the heartbeat ticker
@@ -1586,6 +1591,43 @@ async fn supervisor_main() {
                 start_custom_service(service, &registry, &mut tray).await;
             }
 
+            // ── Event listener for tray notifications ───────────────────────
+            let mut event_rx = events_handle.tx.subscribe();
+            let fw_tx_clone = fw_tx.clone();
+            tokio::spawn(async move {
+                while let Ok(event) = event_rx.recv().await {
+                    if let supervisor::events::DataChangeEvent::FocusedWorkspaceGenerated {
+                        plan_id,
+                        file_path,
+                        ..
+                    } = event.data
+                    {
+                        // 1. Update the native tray tooltip state via the main loop channel
+                        let _ = fw_tx_clone
+                            .send(supervisor::tray_tooltip::FocusedWorkspaceState {
+                                plan_id: plan_id.clone(),
+                                file_path: file_path.clone(),
+                            })
+                            .await;
+
+                        // 2. Update the Qt GUI properties directly
+                        if let Some(qt) = supervisor::cxxqt_bridge::SUPERVISOR_QT.get() {
+                            let msg = format!("Focused workspace for '{}' is ready.", plan_id);
+                            let path = file_path.clone();
+                            let _ = qt.queue(move |mut obj| {
+                                obj.as_mut()
+                                    .set_focused_workspace_path(cxx_qt_lib::QString::from(&path));
+                                obj.as_mut()
+                                    .set_tray_notification_text(cxx_qt_lib::QString::from(&msg));
+                                // Clear notification text after push so it can be re-triggered
+                                obj.as_mut()
+                                    .set_tray_notification_text(cxx_qt_lib::QString::from(""));
+                            });
+                        }
+                    }
+                }
+            });
+
             // ── Wait for shutdown ─────────────────────────────────────────────
 
             println!("[supervisor] all services started. Press Ctrl-C to stop.");
@@ -1759,6 +1801,19 @@ async fn supervisor_main() {
                             }
                         }
                     }
+                    fw_state = fw_rx.recv() => {
+                        if let Some(new_state) = fw_state {
+                            focused_workspace_state = Some(new_state.clone());
+                            // Update shared registry so other tasks see the current workspace
+                            {
+                                let mut reg = registry.lock().await;
+                                reg.focused_workspace = Some(new_state);
+                                let snapshot = reg.health_snapshot();
+                                let tooltip = build_runtime_tooltip_with_workspace(&snapshot, focused_workspace_state.as_ref());
+                                tray.update_tooltip_text(&tooltip);
+                            }
+                        }
+                    }
                     _ = custom_health_interval.tick() => {
                         for service in &mut custom_services {
                             check_custom_service_health(service, &registry, &mut tray, &restart_tx).await;
@@ -1815,6 +1870,15 @@ async fn supervisor_main() {
                                     }
                                 });
                             }
+                        }
+                        // Rebuild tray tooltip so it reflects the current focused-workspace
+                        // state on every uptime tick (uses the initial None until the first
+                        // fw_state event fires, then the persisted state thereafter).
+                        {
+                            let reg = registry.lock().await;
+                            let snapshot = reg.health_snapshot();
+                            let tooltip = build_runtime_tooltip_with_workspace(&snapshot, focused_workspace_state.as_ref());
+                            tray.update_tooltip_text(&tooltip);
                         }
                     }
                 }
@@ -2036,7 +2100,18 @@ fn push_qt_status(snapshot: &supervisor::control::protocol::HealthSnapshot) {
 
     if let Some(qt) = supervisor::cxxqt_bridge::SUPERVISOR_QT.get() {
         let _ = qt.queue(move |mut obj| {
-            obj.as_mut().set_status_text(cxx_qt_lib::QString::from(&text));
+            let ws_path = obj.focused_workspace_path().to_string();
+            let display_text = if ws_path.is_empty() {
+                text
+            } else {
+                let filename = std::path::Path::new(&ws_path)
+                    .file_name()
+                    .and_then(|f| f.to_str())
+                    .unwrap_or("workspace");
+                format!("{}  ·  Workspace: {}", text, filename)
+            };
+
+            obj.as_mut().set_status_text(cxx_qt_lib::QString::from(&display_text));
             obj.as_mut().set_mcp_status(cxx_qt_lib::QString::from(&mcp_status));
             obj.as_mut().set_terminal_status(cxx_qt_lib::QString::from(&terminal_status));
             obj.as_mut().set_dashboard_status(cxx_qt_lib::QString::from(&dashboard_status));
@@ -2054,12 +2129,12 @@ async fn set_service_status(
     service: &str,
     status: ServiceStatus,
 ) {
-    let snapshot = {
+    let (snapshot, focused_ws) = {
         let mut reg = registry.lock().await;
         reg.set_service_status(service, status);
-        reg.health_snapshot()
+        (reg.health_snapshot(), reg.focused_workspace.clone())
     };
-    let tooltip = build_runtime_tooltip(&snapshot);
+    let tooltip = build_runtime_tooltip(&snapshot, focused_ws.as_ref());
     tray.update_tooltip_text(&tooltip);
     tray.update_icon_for_health_snapshot(&snapshot);
     push_qt_status(&snapshot);
@@ -2071,12 +2146,12 @@ async fn set_service_error(
     service: &str,
     error: String,
 ) {
-    let snapshot = {
+    let (snapshot, focused_ws) = {
         let mut reg = registry.lock().await;
         reg.set_service_error(service, error);
-        reg.health_snapshot()
+        (reg.health_snapshot(), reg.focused_workspace.clone())
     };
-    let tooltip = build_runtime_tooltip(&snapshot);
+    let tooltip = build_runtime_tooltip(&snapshot, focused_ws.as_ref());
     tray.update_tooltip_text(&tooltip);
     tray.update_icon_for_health_snapshot(&snapshot);
     push_qt_status(&snapshot);
@@ -2087,18 +2162,21 @@ async fn set_service_health_ok(
     tray: &mut supervisor::tray_tooltip::TrayLifecycle,
     service: &str,
 ) {
-    let snapshot = {
+    let (snapshot, focused_ws) = {
         let mut reg = registry.lock().await;
         reg.set_service_health_ok(service);
-        reg.health_snapshot()
+        (reg.health_snapshot(), reg.focused_workspace.clone())
     };
-    let tooltip = build_runtime_tooltip(&snapshot);
+    let tooltip = build_runtime_tooltip(&snapshot, focused_ws.as_ref());
     tray.update_tooltip_text(&tooltip);
     tray.update_icon_for_health_snapshot(&snapshot);
     push_qt_status(&snapshot);
 }
 
-fn build_runtime_tooltip(snapshot: &supervisor::control::protocol::HealthSnapshot) -> String {
+fn build_runtime_tooltip(
+    snapshot: &supervisor::control::protocol::HealthSnapshot,
+    focused_ws: Option<&supervisor::tray_tooltip::FocusedWorkspaceState>,
+) -> String {
     let mut services: Vec<ServiceSummary> = snapshot
         .children
         .iter()
@@ -2110,7 +2188,14 @@ fn build_runtime_tooltip(snapshot: &supervisor::control::protocol::HealthSnapsho
         })
         .collect();
     services.sort_by(|a, b| a.name.cmp(&b.name));
-    supervisor::tray_tooltip::build_tooltip(&services, 0)
+    supervisor::tray_tooltip::build_tooltip(&services, 0, focused_ws)
+}
+
+fn build_runtime_tooltip_with_workspace(
+    snapshot: &supervisor::control::protocol::HealthSnapshot,
+    focused_ws: Option<&supervisor::tray_tooltip::FocusedWorkspaceState>,
+) -> String {
+    build_runtime_tooltip(snapshot, focused_ws)
 }
 
 fn display_name_for_service(service_name: &str) -> String {
@@ -2175,12 +2260,12 @@ async fn handle_tray_action(
                     obj.as_mut().set_window_visible(true);
                 });
             }
-            let snapshot = {
+            let (snapshot, focused_ws) = {
                 let mut reg = registry.lock().await;
                 reg.set_health_window_visible(true);
-                reg.health_snapshot()
+                (reg.health_snapshot(), reg.focused_workspace.clone())
             };
-            let tooltip = build_runtime_tooltip(&snapshot);
+            let tooltip = build_runtime_tooltip(&snapshot, focused_ws.as_ref());
             tray.update_tooltip_text(&tooltip);
             println!("[supervisor] tray action: show supervisor GUI");
         }
@@ -2190,12 +2275,12 @@ async fn handle_tray_action(
                     obj.as_mut().set_window_visible(false);
                 });
             }
-            let snapshot = {
+            let (snapshot, focused_ws) = {
                 let mut reg = registry.lock().await;
                 reg.set_health_window_visible(false);
-                reg.health_snapshot()
+                (reg.health_snapshot(), reg.focused_workspace.clone())
             };
-            let tooltip = build_runtime_tooltip(&snapshot);
+            let tooltip = build_runtime_tooltip(&snapshot, focused_ws.as_ref());
             tray.update_tooltip_text(&tooltip);
             println!("[supervisor] tray action: hide supervisor GUI");
         }

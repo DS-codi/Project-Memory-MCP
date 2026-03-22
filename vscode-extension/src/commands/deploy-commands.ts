@@ -59,10 +59,13 @@ export function registerDeployCommands(
                     return;
                 }
                 try {
-                    const allAgentFiles = fs.readdirSync(agentsRoot)
-                        .filter((f: string) => f.endsWith('.agent.md'));
+                    const allAgentFiles = [
+                            ...(fs.existsSync(path.join(agentsRoot, 'core')) ? fs.readdirSync(path.join(agentsRoot, 'core')).filter((f: string) => f.endsWith('.agent.md')).map((f: string) => path.join('core', f)) : []),
+                            ...(fs.existsSync(path.join(agentsRoot, 'spoke')) ? fs.readdirSync(path.join(agentsRoot, 'spoke')).filter((f: string) => f.endsWith('.agent.md')).map((f: string) => path.join('spoke', f)) : []),
+                            ...fs.readdirSync(agentsRoot).filter((f: string) => f.endsWith('.agent.md'))
+                        ];
                     dbAgents = allAgentFiles.map((f: string) => ({
-                        name: f.replace('.agent.md', ''),
+                        name: path.basename(f, '.agent.md'),
                         content: fs.readFileSync(path.join(agentsRoot, f), 'utf-8'),
                         is_permanent: false,
                         updated_at: '',

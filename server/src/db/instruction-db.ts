@@ -37,8 +37,8 @@ export function storeInstruction(
 
 export function getInstruction(filename: string): InstructionFileRow | null {
   return queryOne<InstructionFileRow>(
-    'SELECT * FROM instruction_files WHERE filename = ?',
-    [filename]
+    'SELECT * FROM instruction_files WHERE LOWER(filename) = ?',
+    [filename.toLowerCase()]
   ) ?? null;
 }
 

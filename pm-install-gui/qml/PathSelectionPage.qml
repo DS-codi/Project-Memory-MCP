@@ -7,8 +7,10 @@ Item {
     signal back()
 
     Component.onCompleted: {
+        // qmllint disable unqualified
         installPathInput.text = "C:\\Users\\" + "User" + "\\AppData\\Local\\ProjectMemory"
         dataPathInput.text = "C:\\Users\\" + "User" + "\\AppData\\Roaming\\ProjectMemory"
+        // qmllint enable unqualified
     }
 
     Column {
@@ -39,33 +41,11 @@ Item {
                     background: Rectangle { color: "#22000000"; border.color: "#3360a5fa"; radius: 4; height: 40 }
                 }
                 Button {
+                    id: browseBtnInstall
                     text: "BROWSE"
                     width: 100
                     background: Rectangle { color: "#1e3a8a"; radius: 4; height: 40 }
-                    contentItem: Text { text: parent.text; color: "white"; font.pointSize: 9; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                }
-            }
-        }
-
-        Column {
-            width: parent.width
-            spacing: 8
-            Text { text: "DATA ROOT (DATABASE & LOGS)"; color: "#94a3b8"; font.pointSize: 10; font.weight: Font.Bold }
-            Row {
-                width: parent.width
-                spacing: 10
-                TextField {
-                    id: dataPathInput
-                    width: parent.width - 110
-                    color: "white"
-                    placeholderText: "Select data directory..."
-                    background: Rectangle { color: "#22000000"; border.color: "#3360a5fa"; radius: 4; height: 40 }
-                }
-                Button {
-                    text: "BROWSE"
-                    width: 100
-                    background: Rectangle { color: "#1e3a8a"; radius: 4; height: 40 }
-                    contentItem: Text { text: parent.text; color: "white"; font.pointSize: 9; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                    contentItem: Text { text: browseBtnInstall.text; color: "white"; font.pointSize: 9; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                 }
             }
         }
@@ -75,17 +55,21 @@ Item {
             spacing: 20
             
             Button {
+                id: backPathBtn
                 text: "BACK"
                 onClicked: root.back()
                 background: Rectangle { implicitWidth: 100; implicitHeight: 40; color: "transparent"; border.color: "#334155"; radius: 4 }
-                contentItem: Text { text: parent.text; color: "#94a3b8"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                contentItem: Text { text: backPathBtn.text; color: "#94a3b8"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
             }
 
             Button {
+                id: continueBtn
                 text: "CONTINUE"
                 onClicked: {
+                    // qmllint disable unqualified
                     wizard.installPath = installPathInput.text
                     wizard.dataPath = dataPathInput.text
+                    // qmllint enable unqualified
                     root.next()
                 }
                 background: Rectangle { 
@@ -96,7 +80,7 @@ Item {
                     }
                     radius: 4 
                 }
-                contentItem: Text { text: parent.text; color: "white"; font.weight: Font.Bold; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                contentItem: Text { text: continueBtn.text; color: "white"; font.weight: Font.Bold; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
             }
         }
     }

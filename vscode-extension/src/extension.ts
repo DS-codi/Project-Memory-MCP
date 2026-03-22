@@ -87,6 +87,7 @@ export function activate(context: vscode.ExtensionContext) {
         defaultAgents,
         defaultInstructions,
         defaultSkills: config.get<string[]>('defaultSkills') || [],
+        deploySkills: false, // skills are DB-only; never auto-deploy to workspace
     });
 
     connectionManager = new ConnectionManager({
@@ -296,16 +297,8 @@ export function activate(context: vscode.ExtensionContext) {
                 notify(`Deployed ${result.agents.length} agents, ${result.instructions.length} instructions, and ${result.skills.length} skills`);
             }
         });
-    } else if (autoDeploySkills && !autoDeployOnWorkspaceOpen && vscode.workspace.workspaceFolders?.[0]) {
-        // Skills-only auto-deploy when full auto-deploy is disabled
-        const workspacePath = vscode.workspace.workspaceFolders[0].uri.fsPath;
-        const skillsTargetDir = require('path').join(workspacePath, '.github', 'skills');
-        defaultDeployer.deployAllSkills(skillsTargetDir).then((skills: string[]) => {
-            if (skills.length > 0) {
-                notify(`Auto-deployed ${skills.length} skill${skills.length !== 1 ? 's' : ''}`);
-            }
-        });
-    }
+    } // autoDeploySkills is intentionally suppressed — skills are DB-only; use memory_agent(action: list_skills) to discover them
+    
 
     // Respect the 'dashboard.enabled' setting before attempting connection.
     // When disabled, the extension loads normally but skips auto-detection.

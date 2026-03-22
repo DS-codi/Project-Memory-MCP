@@ -25,17 +25,17 @@ Rectangle {
 
     // Detect when a pending global refinement completes and reset local state.
     Connections {
-        target: formApp
+        target: card.formApp
         function onRefinementPendingChanged() {
-            if (formApp && !formApp.refinementPending && card.refining) {
+            if (card.formApp && !card.formApp.refinementPending && card.refining) {
                 card.refining = false;
             }
         }
         function onRefinedQuestionsJsonChanged() {
-            if (!formApp || !question.id) return;
+            if (!card.formApp || !card.question.id) return;
             try {
-                var refined = JSON.parse(formApp.refinedQuestionsJson);
-                if (Array.isArray(refined) && refined.some(function(q) { return q.id === question.id; })) {
+                var refined = JSON.parse(card.formApp.refinedQuestionsJson);
+                if (Array.isArray(refined) && refined.some(function(q) { return q.id === card.question.id; })) {
                     card.hasBeenRefined = true;
                 }
             } catch(e) {}
@@ -60,14 +60,14 @@ Rectangle {
             spacing: 6
 
             Label {
-                text: (questionIndex + 1) + "."
+                text: (card.questionIndex + 1) + "."
                 font.pixelSize: 14
                 font.bold: true
                 color: "#569cd6"
             }
 
             Label {
-                text: question.label || ""
+                text: card.question.label || ""
                 font.pixelSize: 14
                 font.bold: true
                 color: "#ffffff"
@@ -97,17 +97,17 @@ Rectangle {
                 font.pixelSize: 16
                 font.bold: true
                 color: Material.accent
-                visible: question.required !== false
+                visible: card.question.required !== false
             }
         }
 
         // ── Description ─────────────────────────────────────────
         Label {
-            text: question.description || ""
+            text: card.question.description || ""
             font.pixelSize: 12
             color: "#aaaaaa"
             wrapMode: Text.WordWrap
-            visible: (question.description || "").length > 0
+            visible: (card.question.description || "").length > 0
             Layout.fillWidth: true
         }
 
@@ -117,7 +117,7 @@ Rectangle {
             Layout.fillWidth: true
 
             sourceComponent: {
-                var t = question.type || "";
+                var t = card.question.type || "";
                 if (t === "radio_select") return radioComponent;
                 if (t === "free_text") return freeTextComponent;
                 if (t === "confirm_reject") return confirmRejectComponent;
@@ -128,7 +128,7 @@ Rectangle {
         // ── Refinement section (brainstorm forms only) ──────────
         // Only shown for radio_select and free_text questions.
         ColumnLayout {
-            visible: question.type === "radio_select" || question.type === "free_text"
+            visible: card.question.type === "radio_select" || card.question.type === "free_text"
             Layout.fillWidth: true
             spacing: 4
 
@@ -141,9 +141,9 @@ Rectangle {
                 checked: false
 
                 onCheckedChanged: {
-                    if (formApp && question.id) {
-                        formApp.toggleRefinement(question.id);
-                        if (!checked) formApp.setRefinementFeedback(question.id, "");
+                    if (card.formApp && card.question.id) {
+                        card.formApp.toggleRefinement(card.question.id);
+                        if (!checked) card.formApp.setRefinementFeedback(card.question.id, "");
                     }
                 }
             }
@@ -164,8 +164,8 @@ Rectangle {
                     radius: 4
                 }
                 onTextChanged: {
-                    if (formApp && question.id) {
-                        formApp.setRefinementFeedback(question.id, text);
+                    if (card.formApp && card.question.id) {
+                        card.formApp.setRefinementFeedback(card.question.id, text);
                     }
                 }
             }
@@ -180,16 +180,16 @@ Rectangle {
                     text: card.refining ? "Refining…" : "↻ Refine This"
                     font.pixelSize: 11
                     flat: true
-                    enabled: formApp
-                            ? !formApp.formSubmitted && !formApp.refinementPending
+                    enabled: card.formApp
+                            ? !card.formApp.formSubmitted && !card.formApp.refinementPending
                             : false
                     Material.foreground: "#4ec9b0"
 
                     onClicked: {
-                        if (!formApp || !question.id) return;
+                        if (!card.formApp || !card.question.id) return;
                         card.refining = true;
                         var fb = refinementFeedback.visible ? refinementFeedback.text : "";
-                        formApp.requestRefinementForQuestion(question.id, fb);
+                        card.formApp.requestRefinementForQuestion(card.question.id, fb);
                     }
 
                     ToolTip.text: "Ask the agent to regenerate options for this question only"
@@ -199,10 +199,10 @@ Rectangle {
 
                 // Per-question spinner — visible only while THIS card triggered the refinement.
                 BusyIndicator {
-                    visible: card.refining && formApp && formApp.refinementPending
+                    visible: card.refining && card.formApp && card.formApp.refinementPending
                     running: visible
-                    width: 20
-                    height: 20
+                    Layout.preferredWidth: 20
+                    Layout.preferredHeight: 20
                     Material.accent: "#4ec9b0"
                 }
 
@@ -216,27 +216,33 @@ Rectangle {
     Component {
         id: radioComponent
         RadioSelector {
+            // qmllint disable unqualified
             question: card.question
             answer: card.answer
             formApp: card.formApp
+            // qmllint enable unqualified
         }
     }
 
     Component {
         id: freeTextComponent
         FreeTextInput {
+            // qmllint disable unqualified
             question: card.question
             answer: card.answer
             formApp: card.formApp
+            // qmllint enable unqualified
         }
     }
 
     Component {
         id: confirmRejectComponent
         ConfirmRejectCard {
+            // qmllint disable unqualified
             question: card.question
             answer: card.answer
             formApp: card.formApp
+            // qmllint enable unqualified
         }
     }
 }

@@ -13,6 +13,7 @@ Rectangle {
     property string mcpBaseUrl: ""
     property string guiBaseUrl: "http://127.0.0.1:3464"
     property int    mcpPort:    0
+    property string guiAuthKey: ""
 
     property bool   expanded:   false
     property bool   busy:       false
@@ -57,6 +58,7 @@ Rectangle {
             var xhr = new XMLHttpRequest()
             xhr.timeout = 4000
             xhr.open("GET", panel.guiBaseUrl + "/chatbot/status/" + panel.currentRequestId)
+            if (panel.guiAuthKey !== "") xhr.setRequestHeader("X-PM-API-Key", panel.guiAuthKey)
             xhr.onreadystatechange = function() {
                 if (xhr.readyState !== XMLHttpRequest.DONE || xhr.status !== 200) return
                 try {
@@ -101,6 +103,7 @@ Rectangle {
         var xhr = new XMLHttpRequest()
         xhr.timeout = panel.requestTimeoutMs
         xhr.open("GET", panel.guiBaseUrl + "/chatbot/config")
+        if (panel.guiAuthKey !== "") xhr.setRequestHeader("X-PM-API-Key", panel.guiAuthKey)
         xhr.onreadystatechange = function() {
             if (xhr.readyState !== XMLHttpRequest.DONE || xhr.status !== 200) return
             try {
@@ -181,6 +184,7 @@ Rectangle {
         xhr.timeout = panel.requestTimeoutMs
         xhr.open("POST", panel.guiBaseUrl + "/chatbot/chat")
         xhr.setRequestHeader("Content-Type", "application/json")
+        if (panel.guiAuthKey !== "") xhr.setRequestHeader("X-PM-API-Key", panel.guiAuthKey)
         xhr.onreadystatechange = function() {
             if (xhr.readyState !== XMLHttpRequest.DONE) return
             toolCallPollTimer.running = false
@@ -230,6 +234,7 @@ Rectangle {
         xhr.timeout = panel.requestTimeoutMs
         xhr.open("POST", panel.guiBaseUrl + "/chatbot/config")
         xhr.setRequestHeader("Content-Type", "application/json")
+        if (panel.guiAuthKey !== "") xhr.setRequestHeader("X-PM-API-Key", panel.guiAuthKey)
         xhr.onreadystatechange = function() {
             if (xhr.readyState !== XMLHttpRequest.DONE) return
             if (xhr.status === 200) {

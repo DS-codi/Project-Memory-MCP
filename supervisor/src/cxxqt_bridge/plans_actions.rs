@@ -40,7 +40,7 @@ impl ffi::SupervisorGuiBridge {
         });
     }
 
-    pub fn backup_workspace_plans(mut self: Pin<&mut Self>, workspace_id: &QString, output_dir: &QString) {
+    pub fn backup_workspace_plans(self: Pin<&mut Self>, workspace_id: &QString, output_dir: &QString) {
         let ws_id = workspace_id.to_string();
         let out_dir = output_dir.to_string();
         let mcp_port = *self.mcp_port();
@@ -113,7 +113,7 @@ impl ffi::SupervisorGuiBridge {
         }
     }
 
-    pub fn register_workspace(mut self: Pin<&mut Self>, path: &QString) {
+    pub fn register_workspace(self: Pin<&mut Self>, path: &QString) {
         let p = path.to_string();
         let mcp_port = *self.mcp_port();
         let qt_thread = self.qt_thread();

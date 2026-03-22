@@ -406,8 +406,14 @@ async fn handle_websocket(
                     };
                     let _ = legacy_input_tx.send(bytes).await;
                 }
-                WsMessage::Resize { .. } => {
-                    // Resize is handled by runtime_tasks.rs via AppState / PTY master.
+                WsMessage::Resize { cols, rows } => {
+                    // Forward resize to runtime_tasks.rs input pump so try_parse_resize_json
+                    // can apply it to the ConPTY master.  Without this, the PTY keeps its
+                    // initial dimensions and TUI apps (e.g. Gemini CLI) render at wrong
+                    // column/row counts, producing invisible-text "black block" artifacts.
+                    let resize_json =
+                        format!("{{\"type\":\"resize\",\"cols\":{cols},\"rows\":{rows}}}");
+                    let _ = legacy_input_tx.send(resize_json.into_bytes()).await;
                 }
                 WsMessage::Heartbeat => {}
                 _ => {}

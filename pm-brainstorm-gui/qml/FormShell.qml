@@ -22,9 +22,9 @@ Item {
 
     // Re-parse questions when the JSON changes.
     Connections {
-        target: formApp
-        function onQuestionsJsonChanged() { shell.questions = parseJson(formApp.questionsJson, []); }
-        function onAnswersJsonChanged()   { shell.answers   = parseJson(formApp.answersJson, {}); }
+        target: shell.formApp
+        function onQuestionsJsonChanged() { shell.questions = shell.parseJson(shell.formApp.questionsJson, []); }
+        function onAnswersJsonChanged()   { shell.answers   = shell.parseJson(shell.formApp.answersJson, {}); }
     }
 
     function parseJson(str, fallback) {
@@ -36,36 +36,6 @@ Item {
         anchors.fill: parent
         anchors.margins: 0
         spacing: 0
-
-    // ── Refinement loading overlay ───────────────────────────────
-    // This Rectangle sits on top of the ColumnLayout in z-order.
-    // Declared here so it anchors to `shell` (the root Item).
-    Rectangle {
-        id: refinementOverlay
-        anchors.fill: shell
-        z: 10
-        color: "#cc1e1e1e"
-        visible: formApp ? formApp.refinementPending : false
-        radius: 0
-
-        Column {
-            anchors.centerIn: parent
-            spacing: 16
-
-            BusyIndicator {
-                anchors.horizontalCenter: parent.horizontalCenter
-                running: refinementOverlay.visible
-                Material.accent: Material.Orange
-            }
-
-            Label {
-                anchors.horizontalCenter: parent.horizontalCenter
-                text: "Regenerating options\u2026"
-                font.pixelSize: 16
-                color: "#ffffff"
-            }
-        }
-    }
 
         // ── Header ──────────────────────────────────────────────
         Rectangle {
@@ -80,7 +50,7 @@ Item {
                 spacing: 4
 
                 Label {
-                    text: formApp ? formApp.title : ""
+                    text: shell.formApp ? shell.formApp.title : ""
                     font.pixelSize: 22
                     font.bold: true
                     color: "#ffffff"
@@ -88,7 +58,7 @@ Item {
                 }
 
                 Label {
-                    text: formApp ? formApp.description : ""
+                    text: shell.formApp ? shell.formApp.description : ""
                     font.pixelSize: 13
                     color: "#aaaaaa"
                     wrapMode: Text.WordWrap
@@ -101,9 +71,9 @@ Item {
         // ── Countdown bar ───────────────────────────────────────
         CountdownBar {
             Layout.fillWidth: true
-            remainingSeconds: formApp ? formApp.remainingSeconds : 0
-            totalSeconds: formApp ? formApp.totalSeconds : 300
-            paused: formApp ? formApp.timerPaused : false
+            remainingSeconds: shell.formApp ? shell.formApp.remainingSeconds : 0
+            totalSeconds: shell.formApp ? shell.formApp.totalSeconds : 300
+            paused: shell.formApp ? shell.formApp.timerPaused : false
         }
 
         // ── Scrollable question list ────────────────────────────
@@ -132,10 +102,14 @@ Item {
                         question: modelData
                         questionIndex: index
                         answer: {
-                            var qid = modelData.id || "";
-                            return shell.answers[qid] || null;
-                        }
-                        formApp: shell.formApp
+                                // qmllint disable unqualified
+                                var qid = modelData.id || "";
+                                return shell.answers[qid] || null;
+                                // qmllint enable unqualified
+                            }
+                            // qmllint disable unqualified
+                            formApp: shell.formApp
+                            // qmllint enable unqualified
                     }
                 }
 
@@ -147,6 +121,34 @@ Item {
         ActionButtons {
             Layout.fillWidth: true
             formApp: shell.formApp
+        }
+    }
+
+    // ── Refinement loading overlay ───────────────────────────────
+    Rectangle {
+        id: refinementOverlay
+        anchors.fill: parent
+        z: 10
+        color: "#cc1e1e1e"
+        visible: shell.formApp ? shell.formApp.refinementPending : false
+        radius: 0
+
+        Column {
+            anchors.centerIn: parent
+            spacing: 16
+
+            BusyIndicator {
+                anchors.horizontalCenter: parent.horizontalCenter
+                running: refinementOverlay.visible
+                Material.accent: Material.Orange
+            }
+
+            Label {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "Regenerating options\u2026"
+                font.pixelSize: 16
+                color: "#ffffff"
+            }
         }
     }
 }

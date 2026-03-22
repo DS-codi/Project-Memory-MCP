@@ -19,10 +19,12 @@ import { detectMigrationAdvisories } from '../program/index.js';
 import type { MigrationAdvisory } from '../program/index.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { checkWorkspaceContextHealth, type WorkspaceContextHealth } from '../workspace-context-manifest.js';
+import { checkWorkspaceDbSync, type WorkspaceDbSyncReport } from '../workspace-db-sync.js';
 import { getFocusedWorkspacesDir, getFocusedWorkspacePath } from '../../storage/db-store.js';
 import { events } from '../../events/event-emitter.js';
 
-export type WorkspaceAction = 'register' | 'list' | 'info' | 'reindex' | 'merge' | 'scan_ghosts' | 'migrate' | 'link' | 'set_display_name' | 'export_pending' | 'generate_focused_workspace' | 'list_focused_workspaces';
+export type WorkspaceAction = 'register' | 'list' | 'info' | 'reindex' | 'merge' | 'scan_ghosts' | 'migrate' | 'link' | 'set_display_name' | 'export_pending' | 'generate_focused_workspace' | 'list_focused_workspaces' | 'check_context_sync';
 
 export interface MemoryWorkspaceParams {
   action: WorkspaceAction;
@@ -66,7 +68,7 @@ interface WorkspaceInfoResult {
 type HierarchicalWorkspaceMeta = WorkspaceMeta & { children?: WorkspaceMeta[] };
 
 type WorkspaceResult = 
-  | { action: 'register'; data: { workspace: WorkspaceMeta; first_time: boolean; indexed: boolean; profile?: WorkspaceProfile; overlap_detected?: boolean; overlaps?: WorkspaceOverlapInfo[]; message?: string } }
+  | { action: 'register'; data: { workspace: WorkspaceMeta; first_time: boolean; indexed: boolean; profile?: WorkspaceProfile; overlap_detected?: boolean; overlaps?: WorkspaceOverlapInfo[]; message?: string; context_health?: WorkspaceContextHealth } }
   | { action: 'list'; data: WorkspaceMeta[] | HierarchicalWorkspaceMeta[] }
   | { action: 'info'; data: WorkspaceInfoResult }
   | { action: 'reindex'; data: { workspace_id: string; previous_profile?: WorkspaceProfile; new_profile: WorkspaceProfile; changes: object } }
@@ -77,7 +79,8 @@ type WorkspaceResult =
   | { action: 'set_display_name'; data: { workspace: WorkspaceMeta } }
   | { action: 'export_pending'; data: { workspace_id: string; file_path: string; plans_included: number; total_pending_steps: number } }
   | { action: 'generate_focused_workspace'; data: { file_path: string; files_in_scope: string[] } }
-  | { action: 'list_focused_workspaces'; data: { workspaces: Array<{ plan_id: string; file_path: string; filename: string }> } };
+  | { action: 'list_focused_workspaces'; data: { workspaces: Array<{ plan_id: string; file_path: string; filename: string }> } }
+  | { action: 'check_context_sync'; data: WorkspaceDbSyncReport };
 
 // Helper: generate a focused .code-workspace file scoped to a plan's directories
 async function handleGenerateFocusedWorkspace(
@@ -243,9 +246,10 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
       if (!result.success) {
         return { success: false, error: result.error };
       }
+      const context_health = checkWorkspaceContextHealth(params.workspace_path);
       return {
         success: true,
-        data: { action: 'register', data: result.data! }
+        data: { action: 'register', data: { ...result.data!, context_health } }
       };
     }
 
@@ -765,10 +769,28 @@ export async function memoryWorkspace(params: MemoryWorkspaceParams): Promise<To
       return await handleGenerateFocusedWorkspace(params);
     case 'list_focused_workspaces':
       return await handleListFocusedWorkspaces(params);
+    case 'check_context_sync': {
+      const wsId = params.workspace_id;
+      if (!wsId) {
+        return { success: false, error: 'workspace_id is required for action: check_context_sync' };
+      }
+      const validated = await validateAndResolveWorkspaceId(wsId);
+      if (!validated.success) return validated.error_response as ToolResponse<WorkspaceResult>;
+      const workspace = await store.getWorkspace(validated.workspace_id);
+      if (!workspace) {
+        return { success: false, error: `Workspace not found: ${validated.workspace_id}` };
+      }
+      const wsPath = workspace.workspace_path || (workspace as unknown as { path?: string }).path;
+      if (!wsPath) {
+        return { success: false, error: `Workspace has no filesystem path: ${validated.workspace_id}` };
+      }
+      const report = checkWorkspaceDbSync(wsPath);
+      return { success: true, data: { action: 'check_context_sync', data: report } };
+    }
     default:
       return {
         success: false,
-        error: `Unknown action: ${action}. Valid actions: register, list, info, reindex, merge, scan_ghosts, migrate, link, set_display_name, export_pending, generate_focused_workspace, list_focused_workspaces`
+        error: `Unknown action: ${action}. Valid actions: register, list, info, reindex, merge, scan_ghosts, migrate, link, set_display_name, export_pending, generate_focused_workspace, list_focused_workspaces, check_context_sync`
       };
   }
 }

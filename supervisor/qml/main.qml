@@ -91,6 +91,21 @@ ApplicationWindow {
         id: supervisorGuiBridge
     }
 
+    // trayNotificationText and focusedWorkspacePath are CxxQt #[qproperty] declarations
+    // in src/cxxqt_bridge/mod.rs.  Pre-build qmllint cannot resolve bridge-generated
+    // properties from source, so suppress missing-property for these accesses.
+    // qmllint disable missing-property
+    Connections {
+        target: supervisorGuiBridge
+        function onTrayNotificationTextChanged() {
+            var msg = supervisorGuiBridge.trayNotificationText
+            if (msg !== "") {
+                trayIcon.showMessage("Focused Workspace Generated", msg, Platform.SystemTrayIcon.Information, 5000)
+            }
+        }
+    }
+    // qmllint enable missing-property
+
     // ── Base URLs (passed to child panels) ────────────────────────────────────
     property string mcpBaseUrl:  "http://127.0.0.1:" + supervisorGuiBridge.mcpPort
     property string dashBaseUrl: "http://127.0.0.1:" + supervisorGuiBridge.dashboardPort
@@ -100,7 +115,11 @@ ApplicationWindow {
         id: trayIcon
         visible: !supervisorGuiBridge.quitting
         icon.source: supervisorGuiBridge.trayIconUrl
+        // qmllint disable missing-property
         tooltip: "Project Memory Supervisor\n" + supervisorGuiBridge.statusText
+            + (supervisorGuiBridge.focusedWorkspacePath !== ""
+                ? "\nWorkspace: " + supervisorGuiBridge.focusedWorkspacePath.split(/[\\\/]/).pop()
+                : "")
             + (supervisorGuiBridge.eventBroadcastEnabled
                 ? "\nEvents: [on] " + supervisorGuiBridge.eventsTotalEmitted + " relayed"
                 : "\nEvents: [off]")
@@ -119,6 +138,12 @@ ApplicationWindow {
                     supervisorGuiBridge.showWindow()
                 }
             }
+            Platform.MenuItem {
+                text: "Open Focused Workspace in VS Code"
+                visible: supervisorGuiBridge.focusedWorkspacePath !== ""
+                onTriggered: supervisorGuiBridge.openFocusedWorkspace()
+            }
+            // qmllint enable missing-property
             Platform.MenuSeparator {}
             Platform.MenuItem {
                 text: "MCP Server — Restart"

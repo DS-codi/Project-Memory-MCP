@@ -242,7 +242,11 @@ async function seedAgentDefinitions(projectRoot: string): Promise<number> {
     return 0;
   }
 
-  const files = fs.readdirSync(agentsDir).filter(f => f.endsWith('.agent.md'));
+  const files = [
+    ...(fs.existsSync(path.join(agentsDir, 'core')) ? fs.readdirSync(path.join(agentsDir, 'core')).filter(f => f.endsWith('.agent.md')).map(f => path.join('core', f)) : []),
+    ...(fs.existsSync(path.join(agentsDir, 'spoke')) ? fs.readdirSync(path.join(agentsDir, 'spoke')).filter(f => f.endsWith('.agent.md')).map(f => path.join('spoke', f)) : []),
+    ...fs.readdirSync(agentsDir).filter(f => f.endsWith('.agent.md'))
+  ];
   let count = 0;
 
   for (const file of files) {
@@ -277,6 +281,7 @@ async function seedAgentDefinitions(projectRoot: string): Promise<number> {
 function seedDeployableAgentProfiles(): number {
   const hub = getAgent('Hub');
   const promptAnalyst = getAgent('PromptAnalyst');
+  const shell = getAgent('Shell');
   let count = 0;
 
   if (hub) {
@@ -305,6 +310,20 @@ function seedDeployableAgentProfiles(): number {
     count++;
   } else {
     console.warn('  [seed] PromptAnalyst agent definition not found in DB; skipping prompt_analyst deployable profile');
+  }
+
+  if (shell) {
+    upsertDeployableAgentProfile('Shell', {
+      role: 'shell',
+      enabled: true,
+      metadata: {
+        permanence: 'permanent',
+        dispatch_mode: 'interactive_shell',
+      },
+    });
+    count++;
+  } else {
+    console.warn('  [seed] Shell agent definition not found in DB; skipping shell deployable profile');
   }
 
   return count;

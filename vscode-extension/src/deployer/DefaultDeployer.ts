@@ -9,6 +9,12 @@ export interface DeploymentConfig {
     defaultAgents: string[];
     defaultInstructions: string[];
     defaultSkills: string[];
+    /**
+     * Whether deployToWorkspace() auto-deploys skills.
+     * Defaults to false — skills are DB-only and should never be deployed
+     * to the workspace automatically. Set to true only in legacy test setups.
+     */
+    deploySkills?: boolean;
 }
 
 export class DefaultDeployer {
@@ -28,20 +34,46 @@ export class DefaultDeployer {
     }
 
     /**
-     * Deploy default agents and instructions to a workspace
+     * Read the workspace identity file and derive the 6-char hex short code.
+     * Returns null if .projectmemory/identity.json does not exist or is unreadable.
+     *
+     * Example: workspace_id "project_memory_mcp-50e04147a402" → "50e041"
+     */
+    private readWorkspaceShortCode(workspacePath: string): string | null {
+        const identityPath = path.join(workspacePath, '.projectmemory', 'identity.json');
+        try {
+            const raw = fs.readFileSync(identityPath, 'utf-8');
+            const identity = JSON.parse(raw) as { workspace_id?: string };
+            const id = identity.workspace_id;
+            if (!id) return null;
+            const parts = id.split('-');
+            const hex = parts[parts.length - 1] ?? '';
+            return hex.substring(0, 6) || null;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Deploy default agents and instructions to a workspace.
+     * If a workspace identity file exists, agent and instruction files are deployed
+     * with a 6-char workspace short code in the filename (e.g. hub.50e041.agent.md).
+     * The applyTo frontmatter field in instruction files is updated to reference
+     * the workspace-coded agent filenames so VS Code continues to match them.
      */
     async deployToWorkspace(workspacePath: string): Promise<{ agents: string[]; instructions: string[]; skills: string[] }> {
         const deployedAgents: string[] = [];
         const deployedInstructions: string[] = [];
         const deployedSkills: string[] = [];
 
-        this.log(`Deploying defaults to workspace: ${workspacePath}`);
+        const shortCode = this.readWorkspaceShortCode(workspacePath);
+        this.log(`Deploying defaults to workspace: ${workspacePath} (short code: ${shortCode ?? 'none'})`);
 
         // Deploy agents
         const agentsTargetDir = path.join(workspacePath, '.github', 'agents');
         for (const agentName of this.config.defaultAgents) {
             try {
-                const deployed = await this.deployAgent(agentName, agentsTargetDir);
+                const deployed = await this.deployAgentWithCode(agentName, agentsTargetDir, shortCode);
                 if (deployed) {
                     deployedAgents.push(agentName);
                 }
@@ -54,7 +86,7 @@ export class DefaultDeployer {
         const instructionsTargetDir = path.join(workspacePath, '.github', 'instructions');
         for (const instructionName of this.getInstructionNamesToDeploy()) {
             try {
-                const deployed = await this.deployInstruction(instructionName, instructionsTargetDir);
+                const deployed = await this.deployInstructionWithCode(instructionName, instructionsTargetDir, shortCode, this.config.defaultAgents);
                 if (deployed) {
                     deployedInstructions.push(instructionName);
                 }
@@ -63,13 +95,17 @@ export class DefaultDeployer {
             }
         }
 
-        // Deploy skills
+        // Deploy skills (opt-in only — skills are DB-only by default)
+        if (this.config.deploySkills === true) {
         const skillsTargetDir = path.join(workspacePath, '.github', 'skills');
         try {
             const skills = await this.deployAllSkills(skillsTargetDir);
             deployedSkills.push(...skills);
         } catch (error) {
             this.log(`Failed to deploy skills: ${error}`);
+        }
+        } else {
+            this.log('Skills deployment skipped (deploySkills !== true — skills are DB-only)');
         }
 
         this.log(`Deployed ${deployedAgents.length} agents, ${deployedInstructions.length} instructions, ${deployedSkills.length} skills`);
@@ -78,17 +114,84 @@ export class DefaultDeployer {
     }
 
     /**
-     * Deploy a single agent file
+     * Deploy a single agent file, adding a workspace short code to the filename
+     * if one is provided (e.g. hub.50e041.agent.md).
+     * Falls back to hub.agent.md when shortCode is null.
+     */
+    private async deployAgentWithCode(agentName: string, targetDir: string, shortCode: string | null): Promise<boolean> {
+        let sourcePath = path.join(this.config.agentsRoot, 'core', `${agentName}.agent.md`);
+        if (!fs.existsSync(sourcePath)) { sourcePath = path.join(this.config.agentsRoot, 'spoke', `${agentName}.agent.md`); }
+        if (!fs.existsSync(sourcePath)) { sourcePath = path.join(this.config.agentsRoot, `${agentName}.agent.md`); }
+        const targetFilename = shortCode ? `${agentName}.${shortCode}.agent.md` : `${agentName}.agent.md`;
+        const targetPath = path.join(targetDir, targetFilename);
+        return this.copyFile(sourcePath, targetPath);
+    }
+
+    /**
+     * Deploy a single instruction file, adding a workspace short code to the filename
+     * and rewriting any applyTo: "agents/hub.agent.md" references to the workspace-coded form.
+     */
+    private async deployInstructionWithCode(
+        instructionName: string,
+        targetDir: string,
+        shortCode: string | null,
+        knownAgentNames: string[],
+        overwrite = false
+    ): Promise<boolean> {
+        const sourcePath = path.join(this.config.instructionsRoot, `${instructionName}.instructions.md`);
+        if (!fs.existsSync(sourcePath)) {
+            this.log(`Source instruction not found: ${sourcePath}`);
+            return false;
+        }
+
+        const targetFilename = shortCode
+            ? `${instructionName}.${shortCode}.instructions.md`
+            : `${instructionName}.instructions.md`;
+        const targetPath = path.join(targetDir, targetFilename);
+
+        if (fs.existsSync(targetPath) && !overwrite) {
+            this.log(`Target exists, skipping: ${targetPath}`);
+            return false;
+        }
+
+        // Ensure target directory exists
+        const targetDirPath = path.dirname(targetPath);
+        if (!fs.existsSync(targetDirPath)) {
+            fs.mkdirSync(targetDirPath, { recursive: true });
+        }
+
+        let content = fs.readFileSync(sourcePath, 'utf-8');
+
+        // Rewrite applyTo references to use workspace-coded agent filenames
+        if (shortCode) {
+            for (const agentName of knownAgentNames) {
+                const canonical = `agents/${agentName}.agent.md`;
+                const coded = `agents/${agentName}.${shortCode}.agent.md`;
+                content = content.replace(new RegExp(escapeRegex(canonical), 'g'), coded);
+            }
+        }
+
+        fs.writeFileSync(targetPath, content, 'utf-8');
+        this.log(`Deployed (with workspace code): ${sourcePath} -> ${targetPath}`);
+        return true;
+    }
+
+    /**
+     * Deploy a single agent file (canonical filename, no workspace code).
+     * Used by direct callers outside of deployToWorkspace.
      */
     async deployAgent(agentName: string, targetDir: string): Promise<boolean> {
-        const sourcePath = path.join(this.config.agentsRoot, `${agentName}.agent.md`);
+        let sourcePath = path.join(this.config.agentsRoot, 'core', `${agentName}.agent.md`);
+        if (!fs.existsSync(sourcePath)) { sourcePath = path.join(this.config.agentsRoot, 'spoke', `${agentName}.agent.md`); }
+        if (!fs.existsSync(sourcePath)) { sourcePath = path.join(this.config.agentsRoot, `${agentName}.agent.md`); }
         const targetPath = path.join(targetDir, `${agentName}.agent.md`);
 
         return this.copyFile(sourcePath, targetPath);
     }
 
     /**
-     * Deploy a single instruction file
+     * Deploy a single instruction file (canonical filename, no workspace code).
+     * Used by direct callers outside of deployToWorkspace.
      */
     async deployInstruction(instructionName: string, targetDir: string): Promise<boolean> {
         const sourcePath = path.join(this.config.instructionsRoot, `${instructionName}.instructions.md`);
@@ -151,13 +254,17 @@ export class DefaultDeployer {
         const updated: string[] = [];
         const added: string[] = [];
 
+        const shortCode = this.readWorkspaceShortCode(workspacePath);
         const agentsDir = path.join(workspacePath, '.github', 'agents');
         const instructionsDir = path.join(workspacePath, '.github', 'instructions');
 
         // Update agents
         for (const agentName of this.config.defaultAgents) {
-            const sourcePath = path.join(this.config.agentsRoot, `${agentName}.agent.md`);
-            const targetPath = path.join(agentsDir, `${agentName}.agent.md`);
+            let sourcePath = path.join(this.config.agentsRoot, 'core', `${agentName}.agent.md`);
+        if (!fs.existsSync(sourcePath)) { sourcePath = path.join(this.config.agentsRoot, 'spoke', `${agentName}.agent.md`); }
+        if (!fs.existsSync(sourcePath)) { sourcePath = path.join(this.config.agentsRoot, `${agentName}.agent.md`); }
+            const targetFilename = shortCode ? `${agentName}.${shortCode}.agent.md` : `${agentName}.agent.md`;
+            const targetPath = path.join(agentsDir, targetFilename);
 
             if (!fs.existsSync(sourcePath)) continue;
 
@@ -179,7 +286,8 @@ export class DefaultDeployer {
         // Update instructions
         for (const instructionName of this.config.defaultInstructions) {
             const sourcePath = path.join(this.config.instructionsRoot, `${instructionName}.instructions.md`);
-            const targetPath = path.join(instructionsDir, `${instructionName}.instructions.md`);
+            const targetFilename = shortCode ? `${instructionName}.${shortCode}.instructions.md` : `${instructionName}.instructions.md`;
+            const targetPath = path.join(instructionsDir, targetFilename);
 
             if (!fs.existsSync(sourcePath)) continue;
 
@@ -188,11 +296,11 @@ export class DefaultDeployer {
                 const targetStats = fs.statSync(targetPath);
 
                 if (sourceStats.mtimeMs > targetStats.mtimeMs) {
-                    await this.copyFile(sourcePath, targetPath, true);
+                    await this.deployInstructionWithCode(instructionName, instructionsDir, shortCode, this.config.defaultAgents, true);
                     updated.push(instructionName);
                 }
             } else {
-                await this.copyFile(sourcePath, targetPath);
+                await this.deployInstructionWithCode(instructionName, instructionsDir, shortCode, this.config.defaultAgents);
                 added.push(instructionName);
             }
         }
@@ -205,7 +313,9 @@ export class DefaultDeployer {
      */
     getDeploymentPlan(): { agents: string[]; instructions: string[]; skills: string[] } {
         const agents = this.config.defaultAgents.filter(name => {
-            const sourcePath = path.join(this.config.agentsRoot, `${name}.agent.md`);
+            let sourcePath = path.join(this.config.agentsRoot, 'core', `${name}.agent.md`);
+            if (!fs.existsSync(sourcePath)) { sourcePath = path.join(this.config.agentsRoot, 'spoke', `${name}.agent.md`); }
+            if (!fs.existsSync(sourcePath)) { sourcePath = path.join(this.config.agentsRoot, `${name}.agent.md`); }
             return fs.existsSync(sourcePath);
         });
 
@@ -294,4 +404,9 @@ export class DefaultDeployer {
 
         return this.outputChannel;
     }
+}
+
+/** Escape a string for safe use inside a RegExp pattern. */
+function escapeRegex(s: string): string {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

@@ -1,0 +1,3639 @@
+{
+  "generated_at": "2026-03-21T15:29:32.255Z",
+  "workspace_id": "project-memory-mcp-40f6678f5a9b",
+  "language": "python",
+  "partial": false,
+  "total": 363,
+  "symbols": [
+    {
+      "id": "python-core/memory_cartographer/__init__.py::__module__",
+      "file": "python-core/memory_cartographer/__init__.py",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/__init__.py::__module__",
+      "file": "python-core/memory_cartographer/contracts/__init__.py",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/normalization.py::__module__",
+      "file": "python-core/memory_cartographer/contracts/normalization.py",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/normalization.py::DiagnosticCode",
+      "file": "python-core/memory_cartographer/contracts/normalization.py",
+      "name": "DiagnosticCode",
+      "kind": "class",
+      "start_line": 38,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/normalization.py::NormalizationConfig",
+      "file": "python-core/memory_cartographer/contracts/normalization.py",
+      "name": "NormalizationConfig",
+      "kind": "class",
+      "start_line": 107,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/normalization.py::_normalize_query_kind",
+      "file": "python-core/memory_cartographer/contracts/normalization.py",
+      "name": "_normalize_query_kind",
+      "kind": "function",
+      "start_line": 222,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/normalization.py::_coerce_sort_value",
+      "file": "python-core/memory_cartographer/contracts/normalization.py",
+      "name": "_coerce_sort_value",
+      "kind": "function",
+      "start_line": 229,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/normalization.py::_get_path",
+      "file": "python-core/memory_cartographer/contracts/normalization.py",
+      "name": "_get_path",
+      "kind": "function",
+      "start_line": 242,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/normalization.py::_ensure_array_path",
+      "file": "python-core/memory_cartographer/contracts/normalization.py",
+      "name": "_ensure_array_path",
+      "kind": "function",
+      "start_line": 251,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/normalization.py::_ensure_section_array_paths",
+      "file": "python-core/memory_cartographer/contracts/normalization.py",
+      "name": "_ensure_section_array_paths",
+      "kind": "function",
+      "start_line": 285,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/normalization.py::_sort_array_path",
+      "file": "python-core/memory_cartographer/contracts/normalization.py",
+      "name": "_sort_array_path",
+      "kind": "function",
+      "start_line": 298,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/normalization.py::_sort_nested_array_members",
+      "file": "python-core/memory_cartographer/contracts/normalization.py",
+      "name": "_sort_nested_array_members",
+      "kind": "function",
+      "start_line": 325,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/normalization.py::_enforce_code_ordering",
+      "file": "python-core/memory_cartographer/contracts/normalization.py",
+      "name": "_enforce_code_ordering",
+      "kind": "function",
+      "start_line": 335,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/normalization.py::_enforce_database_ordering",
+      "file": "python-core/memory_cartographer/contracts/normalization.py",
+      "name": "_enforce_database_ordering",
+      "kind": "function",
+      "start_line": 347,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/normalization.py::_is_valid_symbol_identity",
+      "file": "python-core/memory_cartographer/contracts/normalization.py",
+      "name": "_is_valid_symbol_identity",
+      "kind": "function",
+      "start_line": 357,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/normalization.py::_new_identity_warning",
+      "file": "python-core/memory_cartographer/contracts/normalization.py",
+      "name": "_new_identity_warning",
+      "kind": "function",
+      "start_line": 371,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/normalization.py::_collect_symbol_identity_warnings",
+      "file": "python-core/memory_cartographer/contracts/normalization.py",
+      "name": "_collect_symbol_identity_warnings",
+      "kind": "function",
+      "start_line": 381,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/normalization.py::_collect_reference_identity_warnings",
+      "file": "python-core/memory_cartographer/contracts/normalization.py",
+      "name": "_collect_reference_identity_warnings",
+      "kind": "function",
+      "start_line": 415,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/normalization.py::normalize",
+      "file": "python-core/memory_cartographer/contracts/normalization.py",
+      "name": "normalize",
+      "kind": "function",
+      "start_line": 453,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/normalization.py::_enforce_empty_arrays",
+      "file": "python-core/memory_cartographer/contracts/normalization.py",
+      "name": "_enforce_empty_arrays",
+      "kind": "function",
+      "start_line": 520,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/normalization.py::_propagate_partial_flag",
+      "file": "python-core/memory_cartographer/contracts/normalization.py",
+      "name": "_propagate_partial_flag",
+      "kind": "function",
+      "start_line": 539,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/normalization.py::_enforce_ordering",
+      "file": "python-core/memory_cartographer/contracts/normalization.py",
+      "name": "_enforce_ordering",
+      "kind": "function",
+      "start_line": 569,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/normalization.py::_validate_identity_keys",
+      "file": "python-core/memory_cartographer/contracts/normalization.py",
+      "name": "_validate_identity_keys",
+      "kind": "function",
+      "start_line": 618,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/version.py::__module__",
+      "file": "python-core/memory_cartographer/contracts/version.py",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/version.py::FeatureFlags",
+      "file": "python-core/memory_cartographer/contracts/version.py",
+      "name": "FeatureFlags",
+      "kind": "class",
+      "start_line": 39,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/version.py::to_dict",
+      "file": "python-core/memory_cartographer/contracts/version.py",
+      "name": "to_dict",
+      "kind": "method",
+      "start_line": 50,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/version.py::CapabilityAdvertisement",
+      "file": "python-core/memory_cartographer/contracts/version.py",
+      "name": "CapabilityAdvertisement",
+      "kind": "class",
+      "start_line": 59,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/version.py::to_dict_method_82",
+      "file": "python-core/memory_cartographer/contracts/version.py",
+      "name": "to_dict",
+      "kind": "method",
+      "start_line": 82,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/version.py::parse_semver",
+      "file": "python-core/memory_cartographer/contracts/version.py",
+      "name": "parse_semver",
+      "kind": "function",
+      "start_line": 95,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/contracts/version.py::current_version_tuple",
+      "file": "python-core/memory_cartographer/contracts/version.py",
+      "name": "current_version_tuple",
+      "kind": "function",
+      "start_line": 110,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/__init__.py::__module__",
+      "file": "python-core/memory_cartographer/engines/__init__.py",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::__module__",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::CodeFile",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "CodeFile",
+      "kind": "class",
+      "start_line": 53,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::Symbol",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "Symbol",
+      "kind": "class",
+      "start_line": 80,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::Reference",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "Reference",
+      "kind": "class",
+      "start_line": 115,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::CodeCartographyEngine",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "CodeCartographyEngine",
+      "kind": "class",
+      "start_line": 159,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::scan",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "scan",
+      "kind": "method",
+      "start_line": 178,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::build_summary",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "build_summary",
+      "kind": "method",
+      "start_line": 245,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::build_runtime_summary_result",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "build_runtime_summary_result",
+      "kind": "method",
+      "start_line": 295,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::get_file_context",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "get_file_context",
+      "kind": "method",
+      "start_line": 334,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::get_flow_entry_points",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "get_flow_entry_points",
+      "kind": "method",
+      "start_line": 366,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::get_layer_view",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "get_layer_view",
+      "kind": "method",
+      "start_line": 395,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::get_search",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "get_search",
+      "kind": "method",
+      "start_line": 452,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::get_slice_detail",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "get_slice_detail",
+      "kind": "method",
+      "start_line": 498,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_extract_slice_metadata",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_extract_slice_metadata",
+      "kind": "method",
+      "start_line": 621,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_extract_slice_graph_inputs",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_extract_slice_graph_inputs",
+      "kind": "method",
+      "start_line": 628,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_first_list_value",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_first_list_value",
+      "kind": "method",
+      "start_line": 662,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_coerce_text",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_coerce_text",
+      "kind": "method",
+      "start_line": 669,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_normalize_path_value",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_normalize_path_value",
+      "kind": "method",
+      "start_line": 677,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_layer_tag_from_path",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_layer_tag_from_path",
+      "kind": "method",
+      "start_line": 693,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_module_id_from_path",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_module_id_from_path",
+      "kind": "method",
+      "start_line": 699,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_normalize_slice_scope",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_normalize_slice_scope",
+      "kind": "method",
+      "start_line": 709,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_normalize_slice_filters",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_normalize_slice_filters",
+      "kind": "method",
+      "start_line": 747,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_normalize_slice_files",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_normalize_slice_files",
+      "kind": "method",
+      "start_line": 787,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_normalize_slice_symbols",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_normalize_slice_symbols",
+      "kind": "method",
+      "start_line": 827,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_normalize_slice_references",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_normalize_slice_references",
+      "kind": "method",
+      "start_line": 882,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_select_slice_scope_paths",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_select_slice_scope_paths",
+      "kind": "method",
+      "start_line": 926,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_build_slice_edges",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_build_slice_edges",
+      "kind": "method",
+      "start_line": 1008,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_count_symbols_in_scope",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_count_symbols_in_scope",
+      "kind": "method",
+      "start_line": 1043,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::get_slice_projection",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "get_slice_projection",
+      "kind": "method",
+      "start_line": 1065,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_matches_file_filters",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_matches_file_filters",
+      "kind": "method",
+      "start_line": 1143,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_matches_symbol_filters",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_matches_symbol_filters",
+      "kind": "method",
+      "start_line": 1190,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::get_slice_filters",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "get_slice_filters",
+      "kind": "method",
+      "start_line": 1369,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_discover_files",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_discover_files",
+      "kind": "method",
+      "start_line": 1553,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_extract_symbols",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_extract_symbols",
+      "kind": "method",
+      "start_line": 1688,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_extract_ts_symbols",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_extract_ts_symbols",
+      "kind": "method",
+      "start_line": 1765,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_extract_python_symbols",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_extract_python_symbols",
+      "kind": "method",
+      "start_line": 1809,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_extract_rust_symbols",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_extract_rust_symbols",
+      "kind": "method",
+      "start_line": 1838,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_extract_go_symbols",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_extract_go_symbols",
+      "kind": "method",
+      "start_line": 1871,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_extract_csharp_symbols",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_extract_csharp_symbols",
+      "kind": "method",
+      "start_line": 1892,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_extract_cpp_symbols",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_extract_cpp_symbols",
+      "kind": "method",
+      "start_line": 1913,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_extract_java_symbols",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_extract_java_symbols",
+      "kind": "method",
+      "start_line": 1931,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_extract_shell_symbols",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_extract_shell_symbols",
+      "kind": "method",
+      "start_line": 1952,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_extract_ahk_symbols",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_extract_ahk_symbols",
+      "kind": "method",
+      "start_line": 1972,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_resolve_references",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_resolve_references",
+      "kind": "method",
+      "start_line": 1992,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_parse_rust_imports",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_parse_rust_imports",
+      "kind": "method",
+      "start_line": 2044,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_parse_python_imports",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_parse_python_imports",
+      "kind": "method",
+      "start_line": 2111,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_parse_ts_imports",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_parse_ts_imports",
+      "kind": "method",
+      "start_line": 2162,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_resolve_import_path",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_resolve_import_path",
+      "kind": "method",
+      "start_line": 2205,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_parse_go_imports",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_parse_go_imports",
+      "kind": "method",
+      "start_line": 2232,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_parse_csharp_imports",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_parse_csharp_imports",
+      "kind": "method",
+      "start_line": 2296,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_parse_cpp_includes",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_parse_cpp_includes",
+      "kind": "method",
+      "start_line": 2308,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_parse_java_imports",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_parse_java_imports",
+      "kind": "method",
+      "start_line": 2344,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_parse_shell_imports",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_parse_shell_imports",
+      "kind": "method",
+      "start_line": 2362,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_parse_ahk_imports",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_parse_ahk_imports",
+      "kind": "method",
+      "start_line": 2399,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_build_module_graph",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_build_module_graph",
+      "kind": "method",
+      "start_line": 2425,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_detect_architecture_edges",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_detect_architecture_edges",
+      "kind": "method",
+      "start_line": 2450,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_compute_dependency_flow",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_compute_dependency_flow",
+      "kind": "method",
+      "start_line": 2458,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::dfs_component",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "dfs_component",
+      "kind": "method",
+      "start_line": 2524,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_coerce_non_negative_int",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_coerce_non_negative_int",
+      "kind": "method",
+      "start_line": 2549,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_normalize_patterns",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_normalize_patterns",
+      "kind": "method",
+      "start_line": 2557,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_normalize_language_filters",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_normalize_language_filters",
+      "kind": "method",
+      "start_line": 2569,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_matches_pattern",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_matches_pattern",
+      "kind": "method",
+      "start_line": 2587,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_is_path_in_scope",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_is_path_in_scope",
+      "kind": "method",
+      "start_line": 2601,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/code_cartography.py::_detect_language",
+      "file": "python-core/memory_cartographer/engines/code_cartography.py",
+      "name": "_detect_language",
+      "kind": "method",
+      "start_line": 2625,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::__module__",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::DbKind",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "DbKind",
+      "kind": "class",
+      "start_line": 58,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::ConnectionSpec",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "ConnectionSpec",
+      "kind": "class",
+      "start_line": 67,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::default_port",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "default_port",
+      "kind": "method",
+      "start_line": 88,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::effective_port",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "effective_port",
+      "kind": "method",
+      "start_line": 98,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::DataSource",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "DataSource",
+      "kind": "class",
+      "start_line": 107,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::SchemaEntry",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "SchemaEntry",
+      "kind": "class",
+      "start_line": 119,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::Table",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "Table",
+      "kind": "class",
+      "start_line": 126,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::Column",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "Column",
+      "kind": "class",
+      "start_line": 138,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::Constraint",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "Constraint",
+      "kind": "class",
+      "start_line": 154,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::Relation",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "Relation",
+      "kind": "class",
+      "start_line": 165,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::Index",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "Index",
+      "kind": "class",
+      "start_line": 178,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::ProgrammabilityObject",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "ProgrammabilityObject",
+      "kind": "class",
+      "start_line": 191,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::Trigger",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "Trigger",
+      "kind": "class",
+      "start_line": 202,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::ConnectionVerifier",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "ConnectionVerifier",
+      "kind": "class",
+      "start_line": 217,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::verify",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "verify",
+      "kind": "method",
+      "start_line": 266,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::_connect",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "_connect",
+      "kind": "method",
+      "start_line": 313,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::_connect_mssql",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "_connect_mssql",
+      "kind": "method",
+      "start_line": 325,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::_detect_mssql_driver",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "_detect_mssql_driver",
+      "kind": "method",
+      "start_line": 348,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::_connect_postgresql",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "_connect_postgresql",
+      "kind": "method",
+      "start_line": 367,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::_connect_mysql",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "_connect_mysql",
+      "kind": "method",
+      "start_line": 382,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::_connect_sqlite",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "_connect_sqlite",
+      "kind": "method",
+      "start_line": 397,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::SchemaDiscoverer",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "SchemaDiscoverer",
+      "kind": "class",
+      "start_line": 406,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::__init__",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "__init__",
+      "kind": "method",
+      "start_line": 413,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::_q",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "_q",
+      "kind": "method",
+      "start_line": 417,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::get_schemas",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "get_schemas",
+      "kind": "method",
+      "start_line": 426,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::get_tables",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "get_tables",
+      "kind": "method",
+      "start_line": 449,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::get_columns",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "get_columns",
+      "kind": "method",
+      "start_line": 506,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::_get_columns_mssql",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "_get_columns_mssql",
+      "kind": "method",
+      "start_line": 514,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::_get_columns_information_schema",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "_get_columns_information_schema",
+      "kind": "method",
+      "start_line": 561,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::_get_columns_sqlite",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "_get_columns_sqlite",
+      "kind": "method",
+      "start_line": 594,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::get_constraints",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "get_constraints",
+      "kind": "method",
+      "start_line": 614,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::_get_constraints_mssql",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "_get_constraints_mssql",
+      "kind": "method",
+      "start_line": 625,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::_get_constraints_information_schema",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "_get_constraints_information_schema",
+      "kind": "method",
+      "start_line": 722,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::_get_constraints_sqlite",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "_get_constraints_sqlite",
+      "kind": "method",
+      "start_line": 789,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::get_indexes",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "get_indexes",
+      "kind": "method",
+      "start_line": 826,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::_get_indexes_mssql",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "_get_indexes_mssql",
+      "kind": "method",
+      "start_line": 837,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::_get_indexes_postgresql",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "_get_indexes_postgresql",
+      "kind": "method",
+      "start_line": 879,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::_get_indexes_mysql",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "_get_indexes_mysql",
+      "kind": "method",
+      "start_line": 911,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::_get_indexes_sqlite",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "_get_indexes_sqlite",
+      "kind": "method",
+      "start_line": 936,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::get_programmability",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "get_programmability",
+      "kind": "method",
+      "start_line": 954,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::_get_programmability_mssql",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "_get_programmability_mssql",
+      "kind": "method",
+      "start_line": 966,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::_get_programmability_postgresql",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "_get_programmability_postgresql",
+      "kind": "method",
+      "start_line": 1034,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::_get_programmability_mysql",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "_get_programmability_mysql",
+      "kind": "method",
+      "start_line": 1074,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::CsvExporter",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "CsvExporter",
+      "kind": "class",
+      "start_line": 1116,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::__init___method_1119",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "__init__",
+      "kind": "method",
+      "start_line": 1119,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::_write",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "_write",
+      "kind": "method",
+      "start_line": 1123,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::export_all",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "export_all",
+      "kind": "method",
+      "start_line": 1131,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::DatabaseCartographyEngine",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "DatabaseCartographyEngine",
+      "kind": "class",
+      "start_line": 1226,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::run",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "run",
+      "kind": "method",
+      "start_line": 1251,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/engines/database_cartography.py::scan",
+      "file": "python-core/memory_cartographer/engines/database_cartography.py",
+      "name": "scan",
+      "kind": "method",
+      "start_line": 1381,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/guardrails/__init__.py::__module__",
+      "file": "python-core/memory_cartographer/guardrails/__init__.py",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/guardrails/perf_budget.py::__module__",
+      "file": "python-core/memory_cartographer/guardrails/perf_budget.py",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/guardrails/perf_budget.py::PerfConfig",
+      "file": "python-core/memory_cartographer/guardrails/perf_budget.py",
+      "name": "PerfConfig",
+      "kind": "class",
+      "start_line": 16,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/guardrails/perf_budget.py::PerfTracker",
+      "file": "python-core/memory_cartographer/guardrails/perf_budget.py",
+      "name": "PerfTracker",
+      "kind": "class",
+      "start_line": 44,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/guardrails/perf_budget.py::__init__",
+      "file": "python-core/memory_cartographer/guardrails/perf_budget.py",
+      "name": "__init__",
+      "kind": "method",
+      "start_line": 58,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/guardrails/perf_budget.py::start",
+      "file": "python-core/memory_cartographer/guardrails/perf_budget.py",
+      "name": "start",
+      "kind": "method",
+      "start_line": 66,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/guardrails/perf_budget.py::elapsed_s",
+      "file": "python-core/memory_cartographer/guardrails/perf_budget.py",
+      "name": "elapsed_s",
+      "kind": "method",
+      "start_line": 71,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/guardrails/perf_budget.py::check_time",
+      "file": "python-core/memory_cartographer/guardrails/perf_budget.py",
+      "name": "check_time",
+      "kind": "method",
+      "start_line": 75,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/guardrails/perf_budget.py::check_memory",
+      "file": "python-core/memory_cartographer/guardrails/perf_budget.py",
+      "name": "check_memory",
+      "kind": "method",
+      "start_line": 84,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/guardrails/perf_budget.py::should_cancel",
+      "file": "python-core/memory_cartographer/guardrails/perf_budget.py",
+      "name": "should_cancel",
+      "kind": "method",
+      "start_line": 98,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/guardrails/perf_budget.py::on_batch_complete",
+      "file": "python-core/memory_cartographer/guardrails/perf_budget.py",
+      "name": "on_batch_complete",
+      "kind": "method",
+      "start_line": 114,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/guardrails/safety.py::__module__",
+      "file": "python-core/memory_cartographer/guardrails/safety.py",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/guardrails/safety.py::SafetyPolicy",
+      "file": "python-core/memory_cartographer/guardrails/safety.py",
+      "name": "SafetyPolicy",
+      "kind": "class",
+      "start_line": 32,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/guardrails/safety.py::is_path_safe",
+      "file": "python-core/memory_cartographer/guardrails/safety.py",
+      "name": "is_path_safe",
+      "kind": "function",
+      "start_line": 46,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/guardrails/safety.py::mask_secrets",
+      "file": "python-core/memory_cartographer/guardrails/safety.py",
+      "name": "mask_secrets",
+      "kind": "function",
+      "start_line": 69,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/guardrails/safety.py::is_binary",
+      "file": "python-core/memory_cartographer/guardrails/safety.py",
+      "name": "is_binary",
+      "kind": "function",
+      "start_line": 86,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/guardrails/safety.py::should_skip_file",
+      "file": "python-core/memory_cartographer/guardrails/safety.py",
+      "name": "should_skip_file",
+      "kind": "function",
+      "start_line": 97,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/guardrails/scope_limits.py::__module__",
+      "file": "python-core/memory_cartographer/guardrails/scope_limits.py",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/guardrails/scope_limits.py::ScopeConfig",
+      "file": "python-core/memory_cartographer/guardrails/scope_limits.py",
+      "name": "ScopeConfig",
+      "kind": "class",
+      "start_line": 31,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/guardrails/scope_limits.py::_match_glob",
+      "file": "python-core/memory_cartographer/guardrails/scope_limits.py",
+      "name": "_match_glob",
+      "kind": "function",
+      "start_line": 62,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/guardrails/scope_limits.py::is_path_allowed",
+      "file": "python-core/memory_cartographer/guardrails/scope_limits.py",
+      "name": "is_path_allowed",
+      "kind": "function",
+      "start_line": 76,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/__init__.py::__module__",
+      "file": "python-core/memory_cartographer/runtime/__init__.py",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::__module__",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_build_response",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_build_response",
+      "kind": "function",
+      "start_line": 66,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_empty_diagnostics",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_empty_diagnostics",
+      "kind": "function",
+      "start_line": 84,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_normalize_query_kind",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_normalize_query_kind",
+      "kind": "function",
+      "start_line": 88,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_resolve_cartograph_query_kind",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_resolve_cartograph_query_kind",
+      "kind": "function",
+      "start_line": 105,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_build_minimal_summary_result",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_build_minimal_summary_result",
+      "kind": "function",
+      "start_line": 120,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_attach_query_to_result",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_attach_query_to_result",
+      "kind": "function",
+      "start_line": 151,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_coerce_int",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_coerce_int",
+      "kind": "function",
+      "start_line": 161,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_append_unique",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_append_unique",
+      "kind": "function",
+      "start_line": 172,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_marker_token",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_marker_token",
+      "kind": "function",
+      "start_line": 177,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_build_partial_query_result",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_build_partial_query_result",
+      "kind": "function",
+      "start_line": 185,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_merge_normalization_diagnostics",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_merge_normalization_diagnostics",
+      "kind": "function",
+      "start_line": 278,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_normalize_cartograph_result",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_normalize_cartograph_result",
+      "kind": "function",
+      "start_line": 307,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_handle_summary_query",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_handle_summary_query",
+      "kind": "function",
+      "start_line": 344,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_handle_file_context_query",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_handle_file_context_query",
+      "kind": "function",
+      "start_line": 363,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_handle_flow_entry_points_query",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_handle_flow_entry_points_query",
+      "kind": "function",
+      "start_line": 379,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_handle_layer_view_query",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_handle_layer_view_query",
+      "kind": "function",
+      "start_line": 393,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_handle_search_query",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_handle_search_query",
+      "kind": "function",
+      "start_line": 409,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_handle_slice_detail_query",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_handle_slice_detail_query",
+      "kind": "function",
+      "start_line": 425,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_handle_slice_projection_query",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_handle_slice_projection_query",
+      "kind": "function",
+      "start_line": 436,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_handle_slice_filters_query",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_handle_slice_filters_query",
+      "kind": "function",
+      "start_line": 448,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_handle_full_scan_query",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_handle_full_scan_query",
+      "kind": "function",
+      "start_line": 459,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_write_response",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_write_response",
+      "kind": "function",
+      "start_line": 555,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_write_error",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_write_error",
+      "kind": "function",
+      "start_line": 561,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::_dispatch",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "_dispatch",
+      "kind": "function",
+      "start_line": 571,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/memory_cartographer/runtime/entrypoint.py::main",
+      "file": "python-core/memory_cartographer/runtime/entrypoint.py",
+      "name": "main",
+      "kind": "function",
+      "start_line": 652,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/__init__.py::__module__",
+      "file": "python-core/tests/__init__.py",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::__module__",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::TestResolveImportPath",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "TestResolveImportPath",
+      "kind": "class",
+      "start_line": 30,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_bare_package_returns_none",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_bare_package_returns_none",
+      "kind": "method",
+      "start_line": 31,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_resolves_ts_extension",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_resolves_ts_extension",
+      "kind": "method",
+      "start_line": 36,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_path_traversal_blocked",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_path_traversal_blocked",
+      "kind": "method",
+      "start_line": 44,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_tsx_extension_fallback",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_tsx_extension_fallback",
+      "kind": "method",
+      "start_line": 50,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::TestImportParsers",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "TestImportParsers",
+      "kind": "class",
+      "start_line": 64,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_ts_static_import_relative",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_ts_static_import_relative",
+      "kind": "method",
+      "start_line": 65,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_ts_bare_package_unresolved",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_ts_bare_package_unresolved",
+      "kind": "method",
+      "start_line": 76,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_python_relative_import",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_python_relative_import",
+      "kind": "method",
+      "start_line": 84,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_rust_mod_declaration",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_rust_mod_declaration",
+      "kind": "method",
+      "start_line": 92,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_rust_stdlib_unresolved",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_rust_stdlib_unresolved",
+      "kind": "method",
+      "start_line": 100,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::TestSymbolExtraction",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "TestSymbolExtraction",
+      "kind": "class",
+      "start_line": 112,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::_make_file",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "_make_file",
+      "kind": "method",
+      "start_line": 113,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::_F",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "_F",
+      "kind": "class",
+      "start_line": 119,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::__init__",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "__init__",
+      "kind": "method",
+      "start_line": 120,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_module_sentinel_always_present",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_module_sentinel_always_present",
+      "kind": "function",
+      "start_line": 125,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_python_function_extracted",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_python_function_extracted",
+      "kind": "function",
+      "start_line": 137,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_ts_class_extracted",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_ts_class_extracted",
+      "kind": "function",
+      "start_line": 145,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_id_collision_disambiguated",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_id_collision_disambiguated",
+      "kind": "function",
+      "start_line": 153,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::TestTopologicalSort",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "TestTopologicalSort",
+      "kind": "class",
+      "start_line": 168,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_empty_graph",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_empty_graph",
+      "kind": "method",
+      "start_line": 169,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_simple_chain",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_simple_chain",
+      "kind": "method",
+      "start_line": 176,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_cycle_detected",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_cycle_detected",
+      "kind": "method",
+      "start_line": 192,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::TestSliceEngineBehavior",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "TestSliceEngineBehavior",
+      "kind": "class",
+      "start_line": 211,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::_graph_inputs",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "_graph_inputs",
+      "kind": "method",
+      "start_line": 213,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::_domain_scope",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "_domain_scope",
+      "kind": "method",
+      "start_line": 310,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_slice_detail_returns_scoped_graph_with_deterministic_ordering",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_slice_detail_returns_scoped_graph_with_deterministic_ordering",
+      "kind": "method",
+      "start_line": 318,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_slice_detail_is_stable_when_input_order_changes",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_slice_detail_is_stable_when_input_order_changes",
+      "kind": "method",
+      "start_line": 380,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_slice_projection_module_level_enforces_stable_limit_and_counts",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_slice_projection_module_level_enforces_stable_limit_and_counts",
+      "kind": "method",
+      "start_line": 407,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_slice_projection_symbol_level_applies_visibility_and_kind_filters",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_slice_projection_symbol_level_applies_visibility_and_kind_filters",
+      "kind": "method",
+      "start_line": 451,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_slice_filters_returns_sorted_available_dimensions_and_types",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_slice_filters_returns_sorted_available_dimensions_and_types",
+      "kind": "method",
+      "start_line": 480,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_slice_detail_with_empty_scope_returns_empty_graph",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_slice_detail_with_empty_scope_returns_empty_graph",
+      "kind": "method",
+      "start_line": 521,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_slice_projection_with_empty_scope_returns_empty_projection",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_slice_projection_with_empty_scope_returns_empty_projection",
+      "kind": "method",
+      "start_line": 548,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_code_cartography.py::test_slice_filters_with_empty_scope_returns_empty_dimensions",
+      "file": "python-core/tests/test_code_cartography.py",
+      "name": "test_slice_filters_with_empty_scope_returns_empty_dimensions",
+      "kind": "method",
+      "start_line": 573,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::__module__",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::TestScopeGuardrails",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "TestScopeGuardrails",
+      "kind": "class",
+      "start_line": 38,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_includes_typescript",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_includes_typescript",
+      "kind": "method",
+      "start_line": 39,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_includes_python",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_includes_python",
+      "kind": "method",
+      "start_line": 42,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_excludes_node_modules",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_excludes_node_modules",
+      "kind": "method",
+      "start_line": 45,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_excludes_git",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_excludes_git",
+      "kind": "method",
+      "start_line": 48,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_excludes_pycache",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_excludes_pycache",
+      "kind": "method",
+      "start_line": 51,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_excludes_dist",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_excludes_dist",
+      "kind": "method",
+      "start_line": 54,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_allow_override_beats_deny",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_allow_override_beats_deny",
+      "kind": "method",
+      "start_line": 57,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_exclude_language_rust",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_exclude_language_rust",
+      "kind": "method",
+      "start_line": 61,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_unknown_extension_excluded",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_unknown_extension_excluded",
+      "kind": "method",
+      "start_line": 65,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::TestSafetyGuardrails",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "TestSafetyGuardrails",
+      "kind": "class",
+      "start_line": 73,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_rejects_path_traversal",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_rejects_path_traversal",
+      "kind": "method",
+      "start_line": 74,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_rejects_relative_traversal",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_rejects_relative_traversal",
+      "kind": "method",
+      "start_line": 77,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_accepts_safe_child_path",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_accepts_safe_child_path",
+      "kind": "method",
+      "start_line": 80,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_mask_password",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_mask_password",
+      "kind": "method",
+      "start_line": 86,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_mask_token",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_mask_token",
+      "kind": "method",
+      "start_line": 91,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_mask_api_key",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_mask_api_key",
+      "kind": "method",
+      "start_line": 95,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_mask_nested_secret",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_mask_nested_secret",
+      "kind": "method",
+      "start_line": 99,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_preserves_non_sensitive",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_preserves_non_sensitive",
+      "kind": "method",
+      "start_line": 103,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_is_binary_detects_null_bytes",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_is_binary_detects_null_bytes",
+      "kind": "method",
+      "start_line": 108,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_is_binary_text_file",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_is_binary_text_file",
+      "kind": "method",
+      "start_line": 113,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_is_binary_empty_file",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_is_binary_empty_file",
+      "kind": "method",
+      "start_line": 118,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_should_skip_binary",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_should_skip_binary",
+      "kind": "method",
+      "start_line": 123,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_should_skip_large_file",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_should_skip_large_file",
+      "kind": "method",
+      "start_line": 129,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_should_skip_traversal",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_should_skip_traversal",
+      "kind": "method",
+      "start_line": 136,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_no_skip_for_normal_file",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_no_skip_for_normal_file",
+      "kind": "method",
+      "start_line": 140,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::TestPerfGuardrails",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "TestPerfGuardrails",
+      "kind": "class",
+      "start_line": 152,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_should_cancel_hard_timeout",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_should_cancel_hard_timeout",
+      "kind": "method",
+      "start_line": 153,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_no_cancel_within_budget",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_no_cancel_within_budget",
+      "kind": "method",
+      "start_line": 162,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_batch_counter_increments",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_batch_counter_increments",
+      "kind": "method",
+      "start_line": 168,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::TestNormalizationContractGolden",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "TestNormalizationContractGolden",
+      "kind": "class",
+      "start_line": 181,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_required_arrays_are_materialized_for_summary_and_sections",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_required_arrays_are_materialized_for_summary_and_sections",
+      "kind": "method",
+      "start_line": 182,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_slice_projection_ordering_is_deterministic_across_input_permutations",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_slice_projection_ordering_is_deterministic_across_input_permutations",
+      "kind": "method",
+      "start_line": 222,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_partial_flag_propagates_from_generation_metadata_to_sections",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_partial_flag_propagates_from_generation_metadata_to_sections",
+      "kind": "method",
+      "start_line": 310,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_contract_golden.py::test_identity_key_diagnostics_are_emitted_and_deduplicated",
+      "file": "python-core/tests/test_contract_golden.py",
+      "name": "test_identity_key_diagnostics_are_emitted_and_deduplicated",
+      "kind": "method",
+      "start_line": 326,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_runtime_entrypoint.py::__module__",
+      "file": "python-core/tests/test_runtime_entrypoint.py",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_runtime_entrypoint.py::_run_ndjson_request",
+      "file": "python-core/tests/test_runtime_entrypoint.py",
+      "name": "_run_ndjson_request",
+      "kind": "function",
+      "start_line": 24,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_runtime_entrypoint.py::_assert_common_response_envelope",
+      "file": "python-core/tests/test_runtime_entrypoint.py",
+      "name": "_assert_common_response_envelope",
+      "kind": "function",
+      "start_line": 67,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_runtime_entrypoint.py::test_probe_capabilities_ndjson_request_handling",
+      "file": "python-core/tests/test_runtime_entrypoint.py",
+      "name": "test_probe_capabilities_ndjson_request_handling",
+      "kind": "function",
+      "start_line": 87,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_runtime_entrypoint.py::test_health_check_ndjson_request_handling",
+      "file": "python-core/tests/test_runtime_entrypoint.py",
+      "name": "test_health_check_ndjson_request_handling",
+      "kind": "function",
+      "start_line": 106,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_runtime_entrypoint.py::test_cartograph_summary_response_envelope",
+      "file": "python-core/tests/test_runtime_entrypoint.py",
+      "name": "test_cartograph_summary_response_envelope",
+      "kind": "function",
+      "start_line": 124,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_runtime_entrypoint.py::test_cartograph_non_summary_query_response_envelopes",
+      "file": "python-core/tests/test_runtime_entrypoint.py",
+      "name": "test_cartograph_non_summary_query_response_envelopes",
+      "kind": "function",
+      "start_line": 223,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_runtime_entrypoint.py::test_cartograph_unknown_query_returns_error_envelope",
+      "file": "python-core/tests/test_runtime_entrypoint.py",
+      "name": "test_cartograph_unknown_query_returns_error_envelope",
+      "kind": "function",
+      "start_line": 251,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_runtime_entrypoint.py::test_cartograph_file_context_handler_failure_returns_partial_with_diagnostics",
+      "file": "python-core/tests/test_runtime_entrypoint.py",
+      "name": "test_cartograph_file_context_handler_failure_returns_partial_with_diagnostics",
+      "kind": "function",
+      "start_line": 272,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "python-core/tests/test_runtime_entrypoint.py::test_unknown_action_returns_error_envelope",
+      "file": "python-core/tests/test_runtime_entrypoint.py",
+      "name": "test_unknown_action_returns_error_envelope",
+      "kind": "function",
+      "start_line": 304,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/audit_cleanup.py::__module__",
+      "file": "scripts/folder_cleanup/audit_cleanup.py",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/audit_cleanup.py::parse_args",
+      "file": "scripts/folder_cleanup/audit_cleanup.py",
+      "name": "parse_args",
+      "kind": "function",
+      "start_line": 9,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/audit_cleanup.py::_default_config_path",
+      "file": "scripts/folder_cleanup/audit_cleanup.py",
+      "name": "_default_config_path",
+      "kind": "function",
+      "start_line": 40,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/audit_cleanup.py::_print_summary",
+      "file": "scripts/folder_cleanup/audit_cleanup.py",
+      "name": "_print_summary",
+      "kind": "function",
+      "start_line": 44,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/audit_cleanup.py::main",
+      "file": "scripts/folder_cleanup/audit_cleanup.py",
+      "name": "main",
+      "kind": "function",
+      "start_line": 70,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::__module__",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::CleanupPaths",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "CleanupPaths",
+      "kind": "class",
+      "start_line": 20,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::now_utc",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "now_utc",
+      "kind": "function",
+      "start_line": 29,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::iso_utc",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "iso_utc",
+      "kind": "function",
+      "start_line": 33,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::relpath_posix",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "relpath_posix",
+      "kind": "function",
+      "start_line": 37,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::cleanup_paths",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "cleanup_paths",
+      "kind": "function",
+      "start_line": 41,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::ensure_staging_directories",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "ensure_staging_directories",
+      "kind": "function",
+      "start_line": 53,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::load_json_file",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "load_json_file",
+      "kind": "function",
+      "start_line": 62,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::save_json_file",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "save_json_file",
+      "kind": "function",
+      "start_line": 67,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::deep_merge",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "deep_merge",
+      "kind": "function",
+      "start_line": 74,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::default_config",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "default_config",
+      "kind": "function",
+      "start_line": 84,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::load_config",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "load_config",
+      "kind": "function",
+      "start_line": 162,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::find_latest_report",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "find_latest_report",
+      "kind": "function",
+      "start_line": 172,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::_ignore_name_set",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "_ignore_name_set",
+      "kind": "function",
+      "start_line": 182,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::iter_files",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "iter_files",
+      "kind": "function",
+      "start_line": 186,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::_matches_patterns",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "_matches_patterns",
+      "kind": "function",
+      "start_line": 201,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::_score_patterns",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "_score_patterns",
+      "kind": "function",
+      "start_line": 215,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::classify_category",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "classify_category",
+      "kind": "function",
+      "start_line": 226,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::is_doc_file",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "is_doc_file",
+      "kind": "function",
+      "start_line": 238,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::is_script_file",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "is_script_file",
+      "kind": "function",
+      "start_line": 242,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::read_head",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "read_head",
+      "kind": "function",
+      "start_line": 246,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::is_cleanup_candidate_path",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "is_cleanup_candidate_path",
+      "kind": "function",
+      "start_line": 251,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::detect_one_time_script",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "detect_one_time_script",
+      "kind": "function",
+      "start_line": 255,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::is_worthwhile_script",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "is_worthwhile_script",
+      "kind": "function",
+      "start_line": 266,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::_age_days",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "_age_days",
+      "kind": "function",
+      "start_line": 275,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::_build_organization_proposal",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "_build_organization_proposal",
+      "kind": "function",
+      "start_line": 281,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::analyze_workspace",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "analyze_workspace",
+      "kind": "function",
+      "start_line": 325,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::default_report_path",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "default_report_path",
+      "kind": "function",
+      "start_line": 417,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::stage_run_id",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "stage_run_id",
+      "kind": "function",
+      "start_line": 422,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::_extract_signatures",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "_extract_signatures",
+      "kind": "function",
+      "start_line": 426,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::extract_reference_material",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "extract_reference_material",
+      "kind": "function",
+      "start_line": 437,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::_append_reference_extract",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "_append_reference_extract",
+      "kind": "function",
+      "start_line": 490,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::stage_candidates_from_report",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "stage_candidates_from_report",
+      "kind": "function",
+      "start_line": 513,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/cleanup_common.py::apply_organization_from_report",
+      "file": "scripts/folder_cleanup/cleanup_common.py",
+      "name": "apply_organization_from_report",
+      "kind": "function",
+      "start_line": 584,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/organize_by_category.py::__module__",
+      "file": "scripts/folder_cleanup/organize_by_category.py",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/organize_by_category.py::parse_args",
+      "file": "scripts/folder_cleanup/organize_by_category.py",
+      "name": "parse_args",
+      "kind": "function",
+      "start_line": 9,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/organize_by_category.py::main",
+      "file": "scripts/folder_cleanup/organize_by_category.py",
+      "name": "main",
+      "kind": "function",
+      "start_line": 39,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::__module__",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::parse_args",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "parse_args",
+      "kind": "function",
+      "start_line": 44,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::normalize_plan_id",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "normalize_plan_id",
+      "kind": "function",
+      "start_line": 112,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::looks_like_plan",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "looks_like_plan",
+      "kind": "function",
+      "start_line": 123,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::_platform_data_root",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "_platform_data_root",
+      "kind": "function",
+      "start_line": 129,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::resolve_db_path",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "resolve_db_path",
+      "kind": "function",
+      "start_line": 137,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::_table_exists",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "_table_exists",
+      "kind": "function",
+      "start_line": 154,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::_parse_json_list",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "_parse_json_list",
+      "kind": "function",
+      "start_line": 162,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::_fetch_db_plans",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "_fetch_db_plans",
+      "kind": "function",
+      "start_line": 176,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::load_plans_from_db",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "load_plans_from_db",
+      "kind": "function",
+      "start_line": 265,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::parse_dt",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "parse_dt",
+      "kind": "function",
+      "start_line": 300,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::_collect_candidate_plan_lists",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "_collect_candidate_plan_lists",
+      "kind": "function",
+      "start_line": 321,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::extract_plans",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "extract_plans",
+      "kind": "function",
+      "start_line": 335,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::normalize_plans",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "normalize_plans",
+      "kind": "function",
+      "start_line": 349,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::tokenize_text",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "tokenize_text",
+      "kind": "function",
+      "start_line": 393,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::plan_tokens",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "plan_tokens",
+      "kind": "function",
+      "start_line": 398,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::jaccard",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "jaccard",
+      "kind": "function",
+      "start_line": 412,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::classify_plan",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "classify_plan",
+      "kind": "function",
+      "start_line": 422,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::plan_sort_key",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "plan_sort_key",
+      "kind": "function",
+      "start_line": 476,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::connected_components",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "connected_components",
+      "kind": "function",
+      "start_line": 490,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::theme_for_group",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "theme_for_group",
+      "kind": "function",
+      "start_line": 519,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::_workspace_hint",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "_workspace_hint",
+      "kind": "function",
+      "start_line": 531,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::_pause_stale_plan_params",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "_pause_stale_plan_params",
+      "kind": "function",
+      "start_line": 542,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::build_stale_active_approval_gui_batch",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "build_stale_active_approval_gui_batch",
+      "kind": "function",
+      "start_line": 563,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::build_report",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "build_report",
+      "kind": "function",
+      "start_line": 684,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::action_sort_key",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "action_sort_key",
+      "kind": "function",
+      "start_line": 955,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::default_output_path",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "default_output_path",
+      "kind": "function",
+      "start_line": 1065,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::print_summary",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "print_summary",
+      "kind": "function",
+      "start_line": 1070,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/plan_cleanup_audit.py::main",
+      "file": "scripts/folder_cleanup/plan_cleanup_audit.py",
+      "name": "main",
+      "kind": "function",
+      "start_line": 1106,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/stage_cleanup.py::__module__",
+      "file": "scripts/folder_cleanup/stage_cleanup.py",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/stage_cleanup.py::parse_args",
+      "file": "scripts/folder_cleanup/stage_cleanup.py",
+      "name": "parse_args",
+      "kind": "function",
+      "start_line": 15,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/folder_cleanup/stage_cleanup.py::main",
+      "file": "scripts/folder_cleanup/stage_cleanup.py",
+      "name": "main",
+      "kind": "function",
+      "start_line": 40,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/supervisor_upgrade.py::__module__",
+      "file": "scripts/supervisor_upgrade.py",
+      "name": "__module__",
+      "kind": "module",
+      "start_line": 1,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/supervisor_upgrade.py::now_iso",
+      "file": "scripts/supervisor_upgrade.py",
+      "name": "now_iso",
+      "kind": "function",
+      "start_line": 50,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/supervisor_upgrade.py::now_ms",
+      "file": "scripts/supervisor_upgrade.py",
+      "name": "now_ms",
+      "kind": "function",
+      "start_line": 53,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/supervisor_upgrade.py::log",
+      "file": "scripts/supervisor_upgrade.py",
+      "name": "log",
+      "kind": "function",
+      "start_line": 56,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/supervisor_upgrade.py::send_supervisor_request",
+      "file": "scripts/supervisor_upgrade.py",
+      "name": "send_supervisor_request",
+      "kind": "function",
+      "start_line": 64,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/supervisor_upgrade.py::http_get_ok",
+      "file": "scripts/supervisor_upgrade.py",
+      "name": "http_get_ok",
+      "kind": "function",
+      "start_line": 82,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/supervisor_upgrade.py::wait_for_http",
+      "file": "scripts/supervisor_upgrade.py",
+      "name": "wait_for_http",
+      "kind": "function",
+      "start_line": 93,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/supervisor_upgrade.py::wait_for_file",
+      "file": "scripts/supervisor_upgrade.py",
+      "name": "wait_for_file",
+      "kind": "function",
+      "start_line": 102,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/supervisor_upgrade.py::make_step",
+      "file": "scripts/supervisor_upgrade.py",
+      "name": "make_step",
+      "kind": "function",
+      "start_line": 111,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/supervisor_upgrade.py::finish_step",
+      "file": "scripts/supervisor_upgrade.py",
+      "name": "finish_step",
+      "kind": "function",
+      "start_line": 115,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/supervisor_upgrade.py::run",
+      "file": "scripts/supervisor_upgrade.py",
+      "name": "run",
+      "kind": "function",
+      "start_line": 123,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/supervisor_upgrade.py::_write_report",
+      "file": "scripts/supervisor_upgrade.py",
+      "name": "_write_report",
+      "kind": "function",
+      "start_line": 310,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    },
+    {
+      "id": "scripts/supervisor_upgrade.py::main",
+      "file": "scripts/supervisor_upgrade.py",
+      "name": "main",
+      "kind": "function",
+      "start_line": 371,
+      "qualified_name": null,
+      "end_line": null,
+      "exported": null
+    }
+  ]
+}

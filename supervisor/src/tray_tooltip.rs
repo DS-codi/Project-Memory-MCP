@@ -5,13 +5,23 @@
 //! system-tray icon tooltip.
 
 pub struct ServiceSummary {
-    pub name: String,
-    pub state: String,
-    pub backend: Option<String>,
+    pub name:     String,
+    pub state:    String,
+    pub backend:  Option<String>,
     pub endpoint: Option<String>,
 }
 
-pub fn build_tooltip(services: &[ServiceSummary], client_count: usize) -> String {
+#[derive(Debug, Clone)]
+pub struct FocusedWorkspaceState {
+    pub plan_id:   String,
+    pub file_path: String,
+}
+
+pub fn build_tooltip(
+    services: &[ServiceSummary],
+    client_count: usize,
+    focused_ws: Option<&FocusedWorkspaceState>,
+) -> String {
     let mut lines: Vec<String> = services.iter().map(format_service_line).collect();
 
     let client_line = match client_count {
@@ -19,6 +29,10 @@ pub fn build_tooltip(services: &[ServiceSummary], client_count: usize) -> String
         n => format!("Clients: {} attached", n),
     };
     lines.push(client_line);
+
+    if let Some(ws) = focused_ws {
+        lines.push(format!("Workspace: {} — {}", ws.plan_id, ws.file_path));
+    }
 
     lines.join("\n")
 }
@@ -95,7 +109,7 @@ mod tests {
     #[test]
     fn format_backend_and_endpoint() {
         let services = [svc("MCP", "Connected", Some("node"), Some("tcp://localhost:3000"))];
-        let tt = build_tooltip(&services, 2);
+        let tt = build_tooltip(&services, 2, None);
         let lines: Vec<&str> = tt.lines().collect();
         assert_eq!(lines[0], "MCP: Connected (node) @ tcp://localhost:3000");
     }
@@ -103,7 +117,7 @@ mod tests {
     #[test]
     fn format_backend_only() {
         let services = [svc("MCP", "Connected", Some("container"), None)];
-        let tt = build_tooltip(&services, 0);
+        let tt = build_tooltip(&services, 0, None);
         let lines: Vec<&str> = tt.lines().collect();
         assert_eq!(lines[0], "MCP: Connected (container)");
     }
@@ -111,7 +125,7 @@ mod tests {
     #[test]
     fn format_endpoint_only() {
         let services = [svc("Terminal", "Connected", None, Some("tcp://localhost:4000"))];
-        let tt = build_tooltip(&services, 0);
+        let tt = build_tooltip(&services, 0, None);
         let lines: Vec<&str> = tt.lines().collect();
         assert_eq!(lines[0], "Terminal: Connected @ tcp://localhost:4000");
     }
@@ -119,7 +133,7 @@ mod tests {
     #[test]
     fn format_neither_backend_nor_endpoint() {
         let services = [svc("Dashboard", "Disconnected", None, None)];
-        let tt = build_tooltip(&services, 0);
+        let tt = build_tooltip(&services, 0, None);
         let lines: Vec<&str> = tt.lines().collect();
         assert_eq!(lines[0], "Dashboard: Disconnected");
     }
@@ -127,21 +141,21 @@ mod tests {
     #[test]
     fn pluralisation_zero_clients() {
         let services = [svc("MCP", "Connected", None, None)];
-        let tt = build_tooltip(&services, 0);
+        let tt = build_tooltip(&services, 0, None);
         assert!(tt.ends_with("Clients: 0 attached"), "got: {tt}");
     }
 
     #[test]
     fn pluralisation_one_client() {
         let services = [svc("MCP", "Connected", None, None)];
-        let tt = build_tooltip(&services, 1);
+        let tt = build_tooltip(&services, 1, None);
         assert!(tt.ends_with("Client: 1 attached"), "got: {tt}");
     }
 
     #[test]
     fn pluralisation_many_clients() {
         let services = [svc("MCP", "Connected", None, None)];
-        let tt = build_tooltip(&services, 5);
+        let tt = build_tooltip(&services, 5, None);
         assert!(tt.ends_with("Clients: 5 attached"), "got: {tt}");
     }
 
@@ -152,7 +166,7 @@ mod tests {
             svc("Terminal", "Connected", None, None),
             svc("Dashboard", "Disconnected", None, None),
         ];
-        let tt = build_tooltip(&services, 2);
+        let tt = build_tooltip(&services, 2, None);
         let lines: Vec<&str> = tt.lines().collect();
         assert_eq!(lines.len(), 4);
         assert_eq!(lines[0], "MCP: Connected (node) @ tcp://localhost:3000");
@@ -168,8 +182,21 @@ mod tests {
             svc("Terminal", "Connected", None, None),
             svc("Dashboard", "Disconnected", None, None),
         ];
-        let tt = build_tooltip(&services, 2);
+        let tt = build_tooltip(&services, 2, None);
         let expected = "MCP: Connected (node) @ tcp://localhost:3000\nTerminal: Connected\nDashboard: Disconnected\nClients: 2 attached";
         assert_eq!(tt, expected);
+    }
+
+    #[test]
+    fn focused_workspace_line() {
+        let services = [svc("MCP", "Connected", None, None)];
+        let ws = FocusedWorkspaceState {
+            plan_id:   "plan-123".into(),
+            file_path: "C:\\test.code-workspace".into(),
+        };
+        let tt = build_tooltip(&services, 1, Some(&ws));
+        let lines: Vec<&str> = tt.lines().collect();
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[2], "Workspace: plan-123 — C:\\test.code-workspace");
     }
 }

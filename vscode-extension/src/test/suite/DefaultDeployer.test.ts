@@ -238,3 +238,141 @@ suite('DefaultDeployer — defaultSkills filtering', () => {
         deployer.dispose();
     });
 });
+
+suite('DefaultDeployer — workspace short code', () => {
+    let agentsSourceDir: string;
+    let instructionsSourceDir: string;
+    let workspaceRoot: string;
+
+    setup(() => {
+        tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'pm-deployer-shortcode-test-'));
+        agentsSourceDir = path.join(tempRoot, 'agents-source');
+        instructionsSourceDir = path.join(tempRoot, 'instructions-source');
+        workspaceRoot = path.join(tempRoot, 'workspace');
+
+        fs.mkdirSync(path.join(agentsSourceDir, 'core'), { recursive: true });
+        fs.mkdirSync(path.join(agentsSourceDir, 'spoke'), { recursive: true });
+        fs.mkdirSync(instructionsSourceDir, { recursive: true });
+        fs.mkdirSync(workspaceRoot, { recursive: true });
+
+        // Seed mock agents
+        fs.writeFileSync(path.join(agentsSourceDir, 'core', 'hub.agent.md'), 'Hub content');
+        fs.writeFileSync(path.join(agentsSourceDir, 'spoke', 'researcher.agent.md'), 'Researcher content');
+
+        // Seed mock instruction
+        fs.writeFileSync(
+            path.join(instructionsSourceDir, 'test.instructions.md'),
+            '---\napplyTo: "agents/hub.agent.md"\n---\nTest instruction content'
+        );
+    });
+
+    teardown(() => {
+        fs.rmSync(tempRoot, { recursive: true, force: true });
+    });
+
+    function createIdentity(workspaceId: string): void {
+        const pmDir = path.join(workspaceRoot, '.projectmemory');
+        fs.mkdirSync(pmDir, { recursive: true });
+        fs.writeFileSync(
+            path.join(pmDir, 'identity.json'),
+            JSON.stringify({ workspace_id: workspaceId }),
+            'utf-8'
+        );
+    }
+
+    test('deployToWorkspace with identity.json present uses short-code segment', async () => {
+        createIdentity('project_memory_mcp-50e04147a402');
+        const deployer = new DefaultDeployer(makeConfig({
+            agentsRoot: agentsSourceDir,
+            instructionsRoot: instructionsSourceDir,
+            defaultAgents: ['hub', 'researcher'],
+            defaultInstructions: ['test']
+        }));
+
+        await deployer.deployToWorkspace(workspaceRoot);
+
+        const agentsDir = path.join(workspaceRoot, '.github', 'agents');
+        const instructionsDir = path.join(workspaceRoot, '.github', 'instructions');
+
+        assert.ok(fs.existsSync(path.join(agentsDir, 'hub.50e041.agent.md')), 'hub should have short code');
+        assert.ok(fs.existsSync(path.join(agentsDir, 'researcher.50e041.agent.md')), 'researcher should have short code');
+        assert.ok(fs.existsSync(path.join(instructionsDir, 'test.50e041.instructions.md')), 'instruction should have short code');
+
+        deployer.dispose();
+    });
+
+    test('deployToWorkspace without identity.json uses canonical names', async () => {
+        const deployer = new DefaultDeployer(makeConfig({
+            agentsRoot: agentsSourceDir,
+            instructionsRoot: instructionsSourceDir,
+            defaultAgents: ['hub'],
+            defaultInstructions: ['test']
+        }));
+
+        await deployer.deployToWorkspace(workspaceRoot);
+
+        const agentsDir = path.join(workspaceRoot, '.github', 'agents');
+        assert.ok(fs.existsSync(path.join(agentsDir, 'hub.agent.md')), 'hub should be canonical');
+
+        deployer.dispose();
+    });
+
+    test('deployInstructionWithCode rewrites applyTo frontmatter', async () => {
+        createIdentity('project_memory_mcp-50e04147a402');
+        const deployer = new DefaultDeployer(makeConfig({
+            agentsRoot: agentsSourceDir,
+            instructionsRoot: instructionsSourceDir,
+            defaultAgents: ['hub'],
+            defaultInstructions: ['test']
+        }));
+
+        await deployer.deployToWorkspace(workspaceRoot);
+
+        const instructionPath = path.join(workspaceRoot, '.github', 'instructions', 'test.50e041.instructions.md');
+        const content = fs.readFileSync(instructionPath, 'utf-8');
+
+        assert.ok(content.includes('applyTo: "agents/hub.50e041.agent.md"'), 'applyTo should be rewritten with short code');
+
+        deployer.dispose();
+    });
+
+    test('updateWorkspace with identity.json updates short-coded filename', async () => {
+        createIdentity('project_memory_mcp-50e04147a402');
+        const deployer = new DefaultDeployer(makeConfig({
+            agentsRoot: agentsSourceDir,
+            instructionsRoot: instructionsSourceDir,
+            defaultAgents: ['hub'],
+            defaultInstructions: ['test']
+        }));
+
+        // Initial deploy
+        await deployer.deployToWorkspace(workspaceRoot);
+
+        const agentPath = path.join(workspaceRoot, '.github', 'agents', 'hub.50e041.agent.md');
+        const instructionPath = path.join(workspaceRoot, '.github', 'instructions', 'test.50e041.instructions.md');
+
+        // Modify source to be newer
+        const now = Date.now();
+        const sourceAgentPath = path.join(agentsSourceDir, 'core', 'hub.agent.md');
+        fs.writeFileSync(sourceAgentPath, 'Updated Hub content');
+        fs.utimesSync(sourceAgentPath, new Date(now + 10000), new Date(now + 10000));
+
+        const sourceInstructionPath = path.join(instructionsSourceDir, 'test.instructions.md');
+        fs.writeFileSync(sourceInstructionPath, '---\napplyTo: "agents/hub.agent.md"\n---\nUpdated Test instruction');
+        fs.utimesSync(sourceInstructionPath, new Date(now + 10000), new Date(now + 10000));
+
+        const result = await deployer.updateWorkspace(workspaceRoot);
+
+        assert.ok(result.updated.includes('hub'), 'hub agent should be updated');
+        assert.ok(result.updated.includes('test'), 'test instruction should be updated');
+
+        const updatedAgentContent = fs.readFileSync(agentPath, 'utf-8');
+        assert.strictEqual(updatedAgentContent, 'Updated Hub content');
+
+        const updatedInstructionContent = fs.readFileSync(instructionPath, 'utf-8');
+        assert.ok(updatedInstructionContent.includes('Updated Test instruction'));
+        assert.ok(updatedInstructionContent.includes('applyTo: "agents/hub.50e041.agent.md"'), 'applyTo should be rewritten in update');
+
+        deployer.dispose();
+    });
+});

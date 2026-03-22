@@ -132,8 +132,8 @@ export function setAgentSurfaceConfig(name: string, config: AgentSurfaceConfig):
 
 export function getAgent(name: string): AgentDefinitionRow | null {
   return queryOne<AgentDefinitionRow>(
-    'SELECT * FROM agent_definitions WHERE name = ?',
-    [name]
+    'SELECT * FROM agent_definitions WHERE LOWER(name) = ?',
+    [name.toLowerCase()]
   ) ?? null;
 }
 

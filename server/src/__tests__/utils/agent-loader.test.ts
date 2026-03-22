@@ -55,13 +55,21 @@ const ALL_AGENT_FILES = [
 // Tests
 // ---------------------------------------------------------------------------
 
+function makeDirents(names: string[]): any {
+  return names.map(name => ({
+    name,
+    isDirectory: () => false,
+    isFile: () => true
+  }));
+}
+
 describe('agent-loader — discoverAgents', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('discovers all expected agent files', async () => {
-    vi.mocked(fs.readdir).mockResolvedValue(ALL_AGENT_FILES as any);
+    vi.mocked(fs.readdir).mockResolvedValue(makeDirents(ALL_AGENT_FILES));
 
     const agents = await discoverAgents();
 
@@ -73,7 +81,7 @@ describe('agent-loader — discoverAgents', () => {
   });
 
   it('returns correct AgentFileInfo shape for each agent', async () => {
-    vi.mocked(fs.readdir).mockResolvedValue(['executor.agent.md'] as any);
+    vi.mocked(fs.readdir).mockResolvedValue(makeDirents(['executor.agent.md']));
 
     const agents = await discoverAgents();
 
@@ -89,11 +97,11 @@ describe('agent-loader — discoverAgents', () => {
 
   it('filters out non-agent files in the directory', async () => {
     vi.mocked(fs.readdir).mockResolvedValue([
-      'executor.agent.md',
-      'README.md',
-      'config.json',
-      '.gitkeep',
-      'tester.agent.md',
+      { name: 'executor.agent.md', isDirectory: () => false, isFile: () => true },
+      { name: 'README.md', isDirectory: () => false, isFile: () => true },
+      { name: 'config.json', isDirectory: () => false, isFile: () => true },
+      { name: '.gitkeep', isDirectory: () => false, isFile: () => true },
+      { name: 'tester.agent.md', isDirectory: () => false, isFile: () => true },
     ] as any);
 
     const agents = await discoverAgents();
@@ -106,7 +114,7 @@ describe('agent-loader — discoverAgents', () => {
   });
 
   it('handles special naming: tdd-driver → TDDDriver', async () => {
-    vi.mocked(fs.readdir).mockResolvedValue(['tdd-driver.agent.md'] as any);
+    vi.mocked(fs.readdir).mockResolvedValue(makeDirents(['tdd-driver.agent.md']));
 
     const agents = await discoverAgents();
 
@@ -114,7 +122,7 @@ describe('agent-loader — discoverAgents', () => {
   });
 
   it('handles special naming: skill-writer → SkillWriter', async () => {
-    vi.mocked(fs.readdir).mockResolvedValue(['skill-writer.agent.md'] as any);
+    vi.mocked(fs.readdir).mockResolvedValue(makeDirents(['skill-writer.agent.md']));
 
     const agents = await discoverAgents();
 
@@ -130,7 +138,7 @@ describe('agent-loader — discoverAgents', () => {
   });
 
   it('returns empty array when directory exists but has no agent files', async () => {
-    vi.mocked(fs.readdir).mockResolvedValue(['README.md', '.gitkeep'] as any);
+    vi.mocked(fs.readdir).mockResolvedValue(makeDirents(['README.md', '.gitkeep']));
 
     const agents = await discoverAgents();
 
@@ -205,7 +213,7 @@ describe('agent-loader — validateAgentExists', () => {
 
   it('falls back to filesystem discovery for agents not in canonical map', async () => {
     // Agent not in AGENT_FILE_MAP but found via discoverAgents
-    vi.mocked(fs.readdir).mockResolvedValue(['custom.agent.md'] as any);
+    vi.mocked(fs.readdir).mockResolvedValue(makeDirents(['custom.agent.md']));
 
     const result = await validateAgentExists('custom');
 

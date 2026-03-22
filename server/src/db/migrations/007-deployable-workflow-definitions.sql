@@ -5,7 +5,7 @@
 CREATE TABLE IF NOT EXISTS deployable_agent_profiles (
   id          TEXT PRIMARY KEY,
   agent_name  TEXT NOT NULL UNIQUE REFERENCES agent_definitions(name) ON DELETE CASCADE,
-  role        TEXT NOT NULL UNIQUE CHECK(role IN ('hub', 'prompt_analyst')),
+  role        TEXT NOT NULL UNIQUE CHECK(role IN ('hub', 'prompt_analyst', 'shell')),
   enabled     INTEGER NOT NULL DEFAULT 1,
   metadata    TEXT, -- JSON
   created_at  TEXT NOT NULL DEFAULT (datetime('now')),

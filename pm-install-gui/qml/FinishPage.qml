@@ -46,10 +46,11 @@ Item {
         }
 
         Button {
+            id: launchBtn
             text: "LAUNCH SYSTEM"
             anchors.horizontalCenter: parent.horizontalCenter
             contentItem: Text {
-                text: parent.text
+                text: launchBtn.text
                 color: "white"
                 font.weight: Font.Black
                 horizontalAlignment: Text.AlignHCenter
@@ -64,7 +65,7 @@ Item {
                 }
                 radius: 4
                 border.color: "#ffffff"
-                border.width: parent.hovered ? 2 : 0
+                border.width: launchBtn.hovered ? 2 : 0
             }
             onClicked: root.close()
         }

@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Window 2.15
+// qmllint disable import
 import QtWebEngine 1.10
 
 import com.projectmemory.installer 1.0
@@ -11,7 +12,9 @@ ApplicationWindow {
     height: 600
     visible: true
     title: "Project Memory Installer"
+    // qmllint disable unresolved-type missing-property unqualified
     icon.source: "qrc:/qt/qml/com/projectmemory/installer/resources/app_icon.png"
+    // qmllint enable unresolved-type missing-property unqualified
     flags: Qt.Window | Qt.FramelessWindowHint
     color: "#010103"
 
@@ -24,8 +27,8 @@ ApplicationWindow {
         id: dragArea
         anchors.fill: parent
         property point lastMousePos: Qt.point(0, 0)
-        onPressed: lastMousePos = Qt.point(mouse.x, mouse.y)
-        onPositionChanged: {
+        onPressed: function(mouse) { lastMousePos = Qt.point(mouse.x, mouse.y) }
+        onPositionChanged: function(mouse) {
             var delta = Qt.point(mouse.x - lastMousePos.x, mouse.y - lastMousePos.y)
             window.x += delta.x
             window.y += delta.y
@@ -34,6 +37,7 @@ ApplicationWindow {
 
     // The Background Animation Layer
     // Note: We use WebEngineView to host the HTML/SVG animation.
+    // qmllint disable unresolved-type missing-property unqualified
     WebEngineView {
         id: backgroundAnimation
         anchors.fill: parent
@@ -43,6 +47,7 @@ ApplicationWindow {
         backgroundColor: "transparent"
         opacity: 0.6
     }
+    // qmllint enable unresolved-type missing-property unqualified
 
     // Glassmorphism Overlay
     Rectangle {
@@ -74,16 +79,20 @@ ApplicationWindow {
     Component {
         id: welcomePage
         WelcomePage {
+            // qmllint disable unqualified
             onNext: stackView.push(pathSelectionPage)
             onClose: window.close()
+            // qmllint enable unqualified
         }
     }
 
     Component {
         id: pathSelectionPage
         PathSelectionPage {
+            // qmllint disable unqualified
             onNext: stackView.push(componentSelectionPage)
             onBack: stackView.pop()
+            // qmllint enable unqualified
         }
     }
 
@@ -91,24 +100,32 @@ ApplicationWindow {
         id: componentSelectionPage
         ComponentSelectionPage {
             onNext: {
+                // qmllint disable unqualified
                 wizard.startInstall()
                 stackView.push(progressPage)
+                // qmllint enable unqualified
             }
+            // qmllint disable unqualified
             onBack: stackView.pop()
+            // qmllint enable unqualified
         }
     }
 
     Component {
         id: progressPage
         ProgressPage {
+            // qmllint disable unqualified
             onFinished: stackView.push(finishPage)
+            // qmllint enable unqualified
         }
     }
 
     Component {
         id: finishPage
         FinishPage {
+            // qmllint disable unqualified
             onClose: window.close()
+            // qmllint enable unqualified
         }
     }
 }

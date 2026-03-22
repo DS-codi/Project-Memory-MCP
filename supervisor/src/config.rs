@@ -1114,9 +1114,13 @@ pub fn load_chatbot_state(path: &PathBuf) -> Option<ChatbotSection> {
 }
 
 /// Persist the chatbot section to the sidecar JSON file.
+/// Creates the parent directory if it does not exist.
 /// Silently ignores write errors (non-critical UX path).
 pub fn save_chatbot_state(path: &PathBuf, section: &ChatbotSection) {
     if let Ok(json) = serde_json::to_string_pretty(section) {
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
         let _ = std::fs::write(path, json);
     }
 }

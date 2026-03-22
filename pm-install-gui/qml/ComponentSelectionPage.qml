@@ -37,6 +37,11 @@ Item {
             clip: true
             spacing: 5
             delegate: Rectangle {
+                id: compDelegate
+                // qmllint disable unqualified
+                required property string name
+                required property string desc
+                required property bool selected
                 width: parent.width
                 height: 45
                 color: "#22000000"
@@ -49,15 +54,16 @@ Item {
                     spacing: 15
                     CheckBox {
                         anchors.verticalCenter: parent.verticalCenter
-                        checked: model.selected
-                        onToggled: model.selected = checked
+                        checked: compDelegate.selected
+                        onToggled: compDelegate.selected = checked
                     }
                     Column {
                         anchors.verticalCenter: parent.verticalCenter
-                        Text { text: model.name; color: "white"; font.weight: Font.Bold; font.pointSize: 11 }
-                        Text { text: model.desc; color: "#94a3b8"; font.pointSize: 9 }
+                        Text { text: compDelegate.name; color: "white"; font.weight: Font.Bold; font.pointSize: 11 }
+                        Text { text: compDelegate.desc; color: "#94a3b8"; font.pointSize: 9 }
                     }
                 }
+                // qmllint enable unqualified
             }
         }
 
@@ -66,13 +72,15 @@ Item {
             spacing: 20
             
             Button {
+                id: backBtn
                 text: "BACK"
                 onClicked: root.back()
                 background: Rectangle { implicitWidth: 100; implicitHeight: 40; color: "transparent"; border.color: "#334155"; radius: 4 }
-                contentItem: Text { text: parent.text; color: "#94a3b8"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                contentItem: Text { text: backBtn.text; color: "#94a3b8"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
             }
 
             Button {
+                id: installBtn
                 text: "INSTALL NOW"
                 onClicked: root.next()
                 background: Rectangle { 
@@ -83,9 +91,9 @@ Item {
                     }
                     radius: 4 
                     border.color: "#ffffff"
-                    border.width: parent.hovered ? 2 : 0
+                    border.width: installBtn.hovered ? 2 : 0
                 }
-                contentItem: Text { text: parent.text; color: "white"; font.weight: Font.Black; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                contentItem: Text { text: installBtn.text; color: "white"; font.weight: Font.Black; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
             }
         }
     }
