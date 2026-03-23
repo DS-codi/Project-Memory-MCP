@@ -276,14 +276,16 @@ Delete a knowledge file.
 ---
 
 #### `append_research`
-Add content to a research note file.
+Append content to a named research note. Research notes are stored in the **database only** — agents must not treat them as filesystem files.
+
+The `filename` parameter is a **logical key/slug** used to identify and group research notes under a plan. It is not a filesystem path. The `path` field that appears in the response is an internal DB artefact — ignore it.
 
 | Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
+|-----------|------|----------|--------------|
 | `action` | string | ✅ | `"append_research"` |
 | `workspace_id` | string | ✅ | The workspace ID |
 | `plan_id` | string | ✅ | The plan ID |
-| `filename` | string | ✅ | Research file name (e.g., "api-analysis.md") |
+| `filename` | string | ✅ | Logical note key/slug (e.g., `"api-analysis.md"`) — DB key only, not a file path |
 | `content` | string | ✅ | Content to append |
 
 **Example:**
@@ -293,9 +295,11 @@ Add content to a research note file.
   "workspace_id": "my-project-652c624f8f59",
   "plan_id": "plan_abc123_def456",
   "filename": "api-analysis.md",
-  "content": "## Existing Endpoints\\n\\n- GET /users - List all users\\n- POST /users - Create user\\n"
+  "content": "## Existing Endpoints\n\n- GET /users - List all users\n- POST /users - Create user\n"
 }
 ```
+
+**Response note:** The response includes a `path` field — this is an internal DB artefact and does NOT indicate a file was written to disk. Storage is DB-only.
 
 **Security:** Content is sanitized for potential injection attempts.
 

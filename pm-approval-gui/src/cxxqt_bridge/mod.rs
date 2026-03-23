@@ -6,10 +6,6 @@
 mod initialize;
 mod invokables;
 
-use cxx_qt_lib::QString;
-use std::pin::Pin;
-use std::sync::{Arc, Mutex};
-
 pub(crate) use approval_state::ApprovalAppRust;
 
 /// Render modes supported by the standalone approval GUI.

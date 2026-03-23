@@ -1,6 +1,17 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import {
+    MANDATORY_AGENTS,
+    MANDATORY_INSTRUCTIONS,
+    SKILLS_ARE_DB_ONLY,
+    ManifestHealthReport,
+    isMandatoryAgent,
+    isMandatoryInstruction,
+    isDbOnlyAgent,
+    isDbOnlyInstruction,
+    isImportedFile,
+} from './workspace-context-manifest';
 
 export interface DeploymentConfig {
     agentsRoot: string;
@@ -372,6 +383,192 @@ export class DefaultDeployer {
         fs.copyFileSync(sourcePath, targetPath);
         this.log(`Copied: ${sourcePath} -> ${targetPath}`);
         return true;
+    }
+
+    // ── Manifest-driven enforcement ─────────────────────────────────────────
+
+    /**
+     * Inspect a workspace's `.github/` directory against the manifest.
+     * Reports missing mandatory files, files that should be culled, and
+     * workspace-specific files (left alone).
+     */
+    healthCheck(workspacePath: string): ManifestHealthReport {
+        const report: ManifestHealthReport = {
+            missingMandatory: [],
+            cullTargets: [],
+            workspaceSpecific: [],
+            healthy: true,
+        };
+
+        const shortCode = this.readWorkspaceShortCode(workspacePath);
+        const agentsDir = path.join(workspacePath, '.github', 'agents');
+        const instructionsDir = path.join(workspacePath, '.github', 'instructions');
+        const skillsDir = path.join(workspacePath, '.github', 'skills');
+
+        // ── Check mandatory agents ──────────────────────────────────────
+        for (const name of MANDATORY_AGENTS) {
+            if (!this.findDeployedFile(agentsDir, name, 'agent', shortCode)) {
+                report.missingMandatory.push({ kind: 'agent', name });
+            }
+        }
+
+        // ── Check mandatory instructions ────────────────────────────────
+        for (const name of MANDATORY_INSTRUCTIONS) {
+            if (!this.findDeployedFile(instructionsDir, name, 'instructions', shortCode)) {
+                report.missingMandatory.push({ kind: 'instruction', name });
+            }
+        }
+
+        // ── Scan agents for cull targets / workspace-specific ───────────
+        if (fs.existsSync(agentsDir)) {
+            for (const file of fs.readdirSync(agentsDir)) {
+                if (!file.endsWith('.agent.md')) continue;
+                const baseName = this.extractBaseName(file, 'agent');
+                if (isMandatoryAgent(baseName)) continue;
+                if (isDbOnlyAgent(baseName) || isImportedFile(file)) {
+                    report.cullTargets.push({
+                        kind: isImportedFile(file) ? 'imported' : 'agent',
+                        path: path.join(agentsDir, file),
+                        name: baseName,
+                    });
+                } else {
+                    report.workspaceSpecific.push({
+                        kind: 'agent',
+                        path: path.join(agentsDir, file),
+                        name: baseName,
+                    });
+                }
+            }
+        }
+
+        // ── Scan instructions for cull targets / workspace-specific ─────
+        if (fs.existsSync(instructionsDir)) {
+            for (const file of fs.readdirSync(instructionsDir)) {
+                if (!file.endsWith('.instructions.md')) continue;
+                const baseName = this.extractBaseName(file, 'instructions');
+                if (isMandatoryInstruction(baseName)) continue;
+                if (isDbOnlyInstruction(baseName) || isImportedFile(file)) {
+                    report.cullTargets.push({
+                        kind: isImportedFile(file) ? 'imported' : 'instruction',
+                        path: path.join(instructionsDir, file),
+                        name: baseName,
+                    });
+                } else {
+                    report.workspaceSpecific.push({
+                        kind: 'instruction',
+                        path: path.join(instructionsDir, file),
+                        name: baseName,
+                    });
+                }
+            }
+        }
+
+        // ── Scan skills directory (all skills are DB-only) ──────────────
+        if (SKILLS_ARE_DB_ONLY && fs.existsSync(skillsDir)) {
+            for (const entry of fs.readdirSync(skillsDir)) {
+                const entryPath = path.join(skillsDir, entry);
+                if (fs.statSync(entryPath).isDirectory()) {
+                    report.cullTargets.push({ kind: 'skill', path: entryPath, name: entry });
+                }
+            }
+        }
+
+        report.healthy = report.missingMandatory.length === 0 && report.cullTargets.length === 0;
+        return report;
+    }
+
+    /**
+     * Enforce the manifest on a workspace:
+     *   1. Deploy any missing mandatory files
+     *   2. Remove all cull targets (DB-only, imported, skills)
+     *
+     * Returns a summary of actions taken.
+     */
+    async enforceManifest(workspacePath: string): Promise<{
+        deployed: string[];
+        culled: string[];
+        workspaceSpecific: string[];
+    }> {
+        const report = this.healthCheck(workspacePath);
+        const deployed: string[] = [];
+        const culled: string[] = [];
+
+        const shortCode = this.readWorkspaceShortCode(workspacePath);
+
+        // ── Deploy missing mandatory agents ─────────────────────────────
+        const agentsDir = path.join(workspacePath, '.github', 'agents');
+        const instructionsDir = path.join(workspacePath, '.github', 'instructions');
+
+        for (const missing of report.missingMandatory) {
+            if (missing.kind === 'agent') {
+                const ok = await this.deployAgentWithCode(missing.name, agentsDir, shortCode);
+                if (ok) deployed.push(`agent:${missing.name}`);
+            } else {
+                const ok = await this.deployInstructionWithCode(
+                    missing.name, instructionsDir, shortCode, [...MANDATORY_AGENTS], true
+                );
+                if (ok) deployed.push(`instruction:${missing.name}`);
+            }
+        }
+
+        // ── Cull DB-only / imported / skill files ───────────────────────
+        for (const target of report.cullTargets) {
+            try {
+                if (target.kind === 'skill') {
+                    fs.rmSync(target.path, { recursive: true, force: true });
+                } else {
+                    fs.unlinkSync(target.path);
+                }
+                culled.push(`${target.kind}:${target.name}`);
+                this.log(`Culled ${target.kind}: ${target.path}`);
+            } catch (error) {
+                this.log(`Failed to cull ${target.path}: ${error}`);
+            }
+        }
+
+        // ── Clean up empty skills directory after culling ────────────────
+        const skillsDir = path.join(workspacePath, '.github', 'skills');
+        if (fs.existsSync(skillsDir)) {
+            try {
+                const remaining = fs.readdirSync(skillsDir);
+                if (remaining.length === 0) {
+                    fs.rmdirSync(skillsDir);
+                    this.log('Removed empty .github/skills/ directory');
+                }
+            } catch { /* ignore */ }
+        }
+
+        return {
+            deployed,
+            culled,
+            workspaceSpecific: report.workspaceSpecific.map(ws => `${ws.kind}:${ws.name}`),
+        };
+    }
+
+    /**
+     * Find a deployed file that may have a workspace short code embedded.
+     * Matches: `{name}.agent.md` or `{name}.{shortCode}.agent.md`
+     */
+    private findDeployedFile(dir: string, name: string, suffix: string, shortCode: string | null): boolean {
+        if (!fs.existsSync(dir)) return false;
+        const canonical = `${name}.${suffix}.md`;
+        const coded = shortCode ? `${name}.${shortCode}.${suffix}.md` : null;
+        for (const file of fs.readdirSync(dir)) {
+            if (file === canonical || (coded && file === coded)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Extract the base name from a deployed filename, stripping any workspace
+     * short code.  e.g. `hub.50e041.agent.md` → `hub`, `mcp-usage.instructions.md` → `mcp-usage`
+     */
+    private extractBaseName(filename: string, suffix: string): string {
+        // Pattern: {name}.{6-hex-chars}.{suffix}.md  OR  {name}.{suffix}.md
+        const codedPattern = new RegExp(`^(.+)\\.[0-9a-f]{6}\\.${escapeRegex(suffix)}\\.md$`);
+        const codedMatch = filename.match(codedPattern);
+        if (codedMatch) return codedMatch[1];
+        return filename.replace(`.${suffix}.md`, '');
     }
 
     private log(message: string): void {

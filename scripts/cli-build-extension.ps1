@@ -41,7 +41,7 @@ try {
         $env:NODE_OPTIONS = $null
         code --install-extension $vsix.FullName
         if ($LASTEXITCODE -ne 0) {
-            Write-Host "warning: code --install-extension returned $LASTEXITCODE (extension may be installed but VS Code is closed)"
+            Write-Host "note: code --install-extension returned $LASTEXITCODE (extension may be installed but VS Code is closed)"
         } else {
             Write-Host "Extension installed. Reload VS Code: Ctrl+Shift+P -> Developer: Reload Window"
         }

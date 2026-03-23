@@ -72,3 +72,7 @@ __pycache__/
 .dev-api-key
 *.dev-api-key
 secrets/
+_archive/
+database-seed-resources/external-skills/imported-NotionArchive-test-environment/SKILL.md
+_archive/instructions/imported-NotionArchive-notion-deletion-safety.instructions.md
+database-seed-resources/external-skills/imported-NotionArchive-test-environment/SKILL.md

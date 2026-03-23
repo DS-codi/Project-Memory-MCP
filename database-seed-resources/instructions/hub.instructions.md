@@ -1,5 +1,5 @@
 ---
-applyTo: "agents/core/hub.agent.md"
+applyTo: "agents/hub.agent.md"
 ---
 
 # Hub Agent — Supplemental MCP Reference
@@ -154,6 +154,17 @@ Shell agents call `get_skill` / `get_instruction` on their own init using the `s
 // Delete an instruction
 { "action": "delete_instruction", "instruction_filename": "my-workspace.instructions.md" }
 ```
+
+---
+
+## Spawn Pre-Condition Gate (PA Routing Decision Required)
+
+Before calling `deploy_and_prep` or `runSubagent` for **any** spoke, Hub MUST verify that a PromptAnalyst routing decision exists for this session.
+
+- If PromptAnalyst has not been run: run it now before proceeding.
+- If PromptAnalyst is unavailable: synthesise a minimal routing decision and store it via `memory_context(action: store, type: "hub_decision", ...)` with `prompt_analyst_unavailable: true`. Do NOT skip this store — `deploy_and_prep` requires a stored routing decision and will fail without one.
+
+**This gate blocks step 1 of the Spawn Protocol. Never reach `deploy_and_prep` without a stored routing decision.**
 
 ---
 

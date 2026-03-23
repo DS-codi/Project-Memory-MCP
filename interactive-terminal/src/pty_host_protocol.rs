@@ -1,6 +1,9 @@
+#[cfg(any(test, feature = "pty-host"))]
 use serde::{Deserialize, Serialize};
+#[cfg(any(test, feature = "pty-host"))]
 use std::collections::HashMap;
 
+#[cfg(any(test, feature = "pty-host"))]
 /// IPC message protocol between the interactive-terminal UI process
 /// and the out-of-process `pty-host` binary.
 ///
@@ -30,6 +33,7 @@ pub enum PtyHostMessage {
     Heartbeat(Heartbeat),
 }
 
+#[cfg(any(test, feature = "pty-host"))]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SessionCreate {
     pub session_id: String,
@@ -43,17 +47,20 @@ pub struct SessionCreate {
     pub rows: u16,
 }
 
+#[cfg(any(test, feature = "pty-host"))]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SessionCreated {
     pub session_id: String,
 }
 
+#[cfg(any(test, feature = "pty-host"))]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SessionCreateFailed {
     pub session_id: String,
     pub error: String,
 }
 
+#[cfg(any(test, feature = "pty-host"))]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SessionInput {
     pub session_id: String,
@@ -61,6 +68,7 @@ pub struct SessionInput {
     pub data: String,
 }
 
+#[cfg(any(test, feature = "pty-host"))]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SessionResize {
     pub session_id: String,
@@ -68,6 +76,7 @@ pub struct SessionResize {
     pub rows: u16,
 }
 
+#[cfg(any(test, feature = "pty-host"))]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SessionOutput {
     pub session_id: String,
@@ -75,17 +84,20 @@ pub struct SessionOutput {
     pub data: String,
 }
 
+#[cfg(any(test, feature = "pty-host"))]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SessionExited {
     pub session_id: String,
     pub exit_code: Option<i32>,
 }
 
+#[cfg(any(test, feature = "pty-host"))]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SessionKill {
     pub session_id: String,
 }
 
+#[cfg(any(test, feature = "pty-host"))]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Heartbeat {
     pub ts: u64,

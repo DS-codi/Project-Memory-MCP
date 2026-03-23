@@ -6,10 +6,7 @@
 mod initialize;
 mod invokables;
 
-use cxx_qt_lib::QString;
 use std::collections::HashMap;
-use std::pin::Pin;
-use std::sync::{Arc, Mutex};
 
 pub(crate) use form_state::FormAppRust;
 
@@ -27,8 +24,6 @@ pub(crate) struct AppState {
     pub refinement_count: u32,
     /// Whether the timer is currently paused.
     pub timer_paused: bool,
-    /// Handle to cancel the countdown timer task.
-    pub timer_cancel: Option<tokio::sync::oneshot::Sender<()>>,
     /// Shared transport (held alive across refinement round-trips).
     pub transport: Option<std::sync::Arc<tokio::sync::Mutex<pm_gui_forms::transport::StdioTransport>>>,
     /// Per-question diffs accumulated across all refinement round-trips.
@@ -49,7 +44,6 @@ impl Default for AppState {
             original_questions_snapshot: String::new(),
             refinement_count: 0,
             timer_paused: false,
-            timer_cancel: None,
             transport: None,
             refinement_diffs: Vec::new(),
             refinement_started_at: None,

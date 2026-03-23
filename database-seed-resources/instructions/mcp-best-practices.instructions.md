@@ -101,7 +101,7 @@ Store execution logs and research:
   "data": { "files_created": [...], "commands_run": [...] }
 }
 
-// Researcher documents findings
+// Researcher documents findings — filename is a logical key, storage is DB-only
 {
   "action": "append_research",
   "filename": "codebase-analysis.md",

@@ -3,7 +3,7 @@
 //! This module provides the logic; the QML `CountdownBar` component drives
 //! the visual representation in consumer binaries.
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use tokio::sync::mpsc;
 use tokio::time;

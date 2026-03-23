@@ -8,7 +8,7 @@ use cxx_qt_lib::QString;
 use std::pin::Pin;
 
 impl cxx_qt::Initialize for ffi::FormApp {
-    fn initialize(mut self: Pin<&mut Self>) {
+    fn initialize(self: Pin<&mut Self>) {
         // Spawn async initialization on the CxxQt threading runtime.
         let qt_thread = self.qt_thread();
         let state_arc = self.rust().state.clone();

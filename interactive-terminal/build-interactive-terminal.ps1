@@ -1,8 +1,9 @@
-﻿param(
+param(
     [switch]$Clean,
     [switch]$Test,
     [switch]$Run,
     [switch]$Deploy,
+    [switch]$NoWebEnginePlugin,
     [string]$WarningsImportsLogPath = '',
     [int]$Port = 9100,
     [ValidateSet('debug', 'release')]
@@ -344,7 +345,60 @@ if (-not (Test-Path $qmakePath)) {
 }
 
 $env:QMAKE = $qmakePath
-$env:PATH = "$qtBin;$env:PATH"
+
+function Find-WindowsSdkX64Dir {
+    $kitsBase = 'C:\Program Files (x86)\Windows Kits\10\bin'
+    if (-not (Test-Path $kitsBase)) { return $null }
+    $sdkVersions = Get-ChildItem $kitsBase -Directory |
+        Where-Object { $_.Name -match '^\d+\.\d+\.\d+\.\d+$' } |
+        Sort-Object { [Version]$_.Name } -Descending
+    foreach ($ver in $sdkVersions) {
+        $x64Dir = Join-Path $ver.FullName 'x64'
+        if (Test-Path (Join-Path $x64Dir 'dxcompiler.dll')) {
+            return $x64Dir
+        }
+    }
+    return $null
+}
+
+$vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+if (-not $env:VCINSTALLDIR -and (Test-Path $vswhere)) {
+    $vsInstallPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null
+    if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($vsInstallPath)) {
+        $vcInstallDir = Join-Path $vsInstallPath 'VC'
+        if (Test-Path $vcInstallDir) {
+            if (-not $vcInstallDir.EndsWith('\')) { $vcInstallDir += '\' }
+            $env:VCINSTALLDIR = $vcInstallDir
+        }
+    }
+}
+
+if (-not $env:WindowsSdkDir) {
+    $sdkRoot = 'C:\Program Files (x86)\Windows Kits\10'
+    if (Test-Path $sdkRoot) {
+        $env:WindowsSdkDir = "$sdkRoot\"
+    }
+}
+
+if (-not $env:WindowsSDKVersion) {
+    $kitsBase = 'C:\Program Files (x86)\Windows Kits\10\bin'
+    if (Test-Path $kitsBase) {
+        $latestSdk = Get-ChildItem $kitsBase -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '^\d+\.\d+\.\d+\.\d+$' } |
+            Sort-Object { [Version]$_.Name } -Descending |
+            Select-Object -First 1
+        if ($latestSdk) {
+            $env:WindowsSDKVersion = "$($latestSdk.Name)\"
+        }
+    }
+}
+
+$sdkX64Dir = Find-WindowsSdkX64Dir
+if ($sdkX64Dir) {
+    $env:PATH = "$qtBin;$sdkX64Dir;$env:PATH"
+} else {
+    $env:PATH = "$qtBin;$env:PATH"
+}
 
 # Cargo network stability defaults for Windows environments where certificate
 # revocation checks are blocked by corporate/firewall policy.
@@ -581,7 +635,11 @@ if ($doDeploy) {
         } else {
             $deployArgs += '--debug'
         }
-        $deployArgs += @('--qmldir', $scriptDir, $exePath)
+        $deployArgs += @('--qmldir', $scriptDir)
+        if ($NoWebEnginePlugin) {
+            $deployArgs += @('--exclude-plugins', 'qtwebview_webengine')
+        }
+        $deployArgs += $exePath
 
         $deployResult = Invoke-NativeCommandCapture -FilePath $deployTool -Arguments $deployArgs -WorkingDirectory $scriptDir
 
@@ -700,22 +758,6 @@ if ($doDeploy) {
         # windeployqt cannot find these on its own; resolve from Windows SDK.
         # Required by Qt 6 Quick's Direct3D 12 render backend.
         # ---------------------------------------------------------------
-        function Find-WindowsSdkX64Dir {
-            $kitsBase = 'C:\Program Files (x86)\Windows Kits\10\bin'
-            if (-not (Test-Path $kitsBase)) { return $null }
-            # Pick the highest version that has dxcompiler.dll
-            $sdkVersions = Get-ChildItem $kitsBase -Directory |
-                Where-Object { $_.Name -match '^\d+\.\d+\.\d+\.\d+$' } |
-                Sort-Object { [Version]$_.Name } -Descending
-            foreach ($ver in $sdkVersions) {
-                $x64Dir = Join-Path $ver.FullName 'x64'
-                if (Test-Path (Join-Path $x64Dir 'dxcompiler.dll')) {
-                    return $x64Dir
-                }
-            }
-            return $null
-        }
-
         $dxShaderDlls = @('dxcompiler.dll', 'dxil.dll')
         $sdkX64Dir = Find-WindowsSdkX64Dir
         if ($sdkX64Dir) {

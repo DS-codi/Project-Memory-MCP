@@ -1,0 +1,222 @@
+PowerShell 7.5.4
+
+   A new PowerShell stable release is available: v7.6.0
+   Upgrade now, or check out the release page at:
+     https://aka.ms/PowerShell-Release?tag=v7.6.0
+
+PS C:\Users\codi.f> cd Project-Memory-MCP
+PS C:\Users\codi.f\Project-Memory-MCP> cd Project-Memory-MCP
+PS C:\Users\codi.f\Project-Memory-MCP\Project-Memory-MCP> .\target\release\supervisor.exe
+[job] SetInformationJobObject failed — orphans may survive supervisor exit
+[supervisor] No api_key found in [auth]; generated a new key and writing it to config. To use a fixed key, set api_key in [auth] in your supervisor.toml.
+Supervisor starting...
+[supervisor] runtime output capture: enabled
+[supervisor] MCP subprocess runtime control available (disabled by policy; use SetMcpRuntimePolicy to enable in-process)
+[supervisor] clearing orphan processes on ports: [3457, 3459, 3458, 3465, 3466, 3460, 3461, 3462, 3463]
+[supervisor] approval_gui summonability: enabled (resolved_command="\\?\C:\Users\codi.f\Project-Memory-MCP\Project-Memory-MCP\target\release\pm-approval-gui.exe")
+Supervisor control API started.
+[supervisor] MCP subprocess runtime control available (use McpRuntimeExec / SetMcpRuntimePolicy).
+[supervisor] starting MCP pool + proxy (Node backend)...
+[supervisor] mDNS broadcast error: Hostname must end with '.local.': DS-WS06.
+[supervisor] GUI HTTP server listening on http://0.0.0.0:3464
+[pool] failed to start MCP instance on port 3460: service did not become ready on http://127.0.0.1:3460/health within 1500 ms
+[supervisor] MCP pool initialised (1 instance(s) on port(s) 3460+)
+[supervisor] interactive terminal disabled — skipping.
+[supervisor] starting dashboard...
+[proxy] MCP proxy listening on 127.0.0.1:3457 → dispatch base_port=3460
+[pool] all 0 instances at capacity (5 conns each) — spawning new instance on port 3460
+[supervisor] dashboard started.
+[supervisor] starting fallback API...
+[events/ingestion] connected to http://127.0.0.1:3459/api/events/stream
+[pool] MCP instance started on port 3460
+[pool] scaled up to 1 instance(s)
+[supervisor] fallback API started.
+[supervisor] starting CLI MCP...
+[supervisor] CLI MCP started.
+[supervisor] all services started. Press Ctrl-C to stop.
+[supervisor] ports manifest written: C:\Users\codi.f\AppData\Roaming\ProjectMemory\ports.json
+[migrations] Could not verify migration status (non-fatal): failed to deserialise response from http://127.0.0.1:3460/admin/migrations
+[supervisor] CLI MCP health probe failed (1)
+[supervisor] CLI MCP health probe failed (2)
+[supervisor] CLI MCP appears dead — requesting restart
+[poll] failed to fetch connections from :3460: GET http://127.0.0.1:3460/admin/connections failed
+[supervisor] CLI MCP health probe failed (1)
+[supervisor] CLI MCP health probe failed (2)
+[supervisor] CLI MCP appears dead — requesting restart
+[supervisor] ctrl-c received.
+[supervisor] shutting down...
+[events/ingestion] stream error: reading SSE chunk: error decoding response body: error reading a body from connection: An existing connection was forcibly closed by the remote host. (os error 10054) — reconnecting in 1s
+[supervisor] dashboard stopped.
+[supervisor] fallback API stopped.
+[supervisor] CLI MCP stopped.
+[supervisor] MCP server stopped.
+Supervisor stopped.
+QDxgiVSyncService not destroyed in time
+PS C:\Users\codi.f\Project-Memory-MCP\Project-Memory-MCP> git status
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+        database-seed-resources/external-skills/imported-DS-Program-Hotkeys-2-embedded-python-launcher/
+        database-seed-resources/external-skills/imported-DS-Program-Hotkeys-2-job-search-module/
+        database-seed-resources/external-skills/imported-DS-Program-Hotkeys-2-pyside6-qml-architecture/
+        database-seed-resources/external-skills/imported-DS-Program-Hotkeys-2-pyside6-qml-bridge/
+        database-seed-resources/external-skills/imported-DS-Program-Hotkeys-2-pyside6-qml-models-services/
+        database-seed-resources/external-skills/imported-DS-Program-Hotkeys-2-pyside6-qml-views/
+        database-seed-resources/external-skills/imported-NotionArchive-bugfix/
+        database-seed-resources/external-skills/imported-NotionArchive-copilot-sdk/
+        database-seed-resources/external-skills/imported-NotionArchive-cross-datasource-mapping/
+        database-seed-resources/external-skills/imported-NotionArchive-cxxqt-rust-gui/
+        database-seed-resources/external-skills/imported-NotionArchive-datasource-notion-api/
+        database-seed-resources/external-skills/imported-NotionArchive-datasource-notionarchive-mssql/
+        database-seed-resources/external-skills/imported-NotionArchive-datasource-stonepro-firebird/
+        database-seed-resources/external-skills/imported-NotionArchive-message-broker/
+        database-seed-resources/external-skills/imported-NotionArchive-mvc-architecture/
+        database-seed-resources/external-skills/imported-NotionArchive-notion-api-connection/
+        database-seed-resources/external-skills/imported-NotionArchive-notion-archive-container-mcp/
+        database-seed-resources/external-skills/imported-NotionArchive-notion-custom-mcp/
+        database-seed-resources/external-skills/imported-NotionArchive-pyside6-mvc/
+        database-seed-resources/external-skills/imported-NotionArchive-qml-build-deploy/
+        database-seed-resources/external-skills/imported-NotionArchive-react-components/
+        database-seed-resources/external-skills/imported-NotionArchive-refactor/
+        database-seed-resources/external-skills/imported-NotionArchive-test-environment/
+        database-seed-resources/external-skills/imported-NotionArchive-vscode-chat-response-stream/
+        database-seed-resources/external-skills/imported-vscode_ModularAgenticProcedureSystem-monolith-cleanup/
+        database-seed-resources/external-skills/imported-vscode_ModularAgenticProcedureSystem-monolith-refactor/
+
+nothing added to commit but untracked files present (use "git add" to track)
+PS C:\Users\codi.f\Project-Memory-MCP\Project-Memory-MCP> git pull origin main
+remote: Enumerating objects: 101, done.
+remote: Counting objects: 100% (101/101), done.
+remote: Compressing objects: 100% (31/31), done.
+remote: Total 73 (delta 42), reused 68 (delta 37), pack-reused 0 (from 0)
+Unpacking objects: 100% (73/73), 512.17 KiB | 2.05 MiB/s, done.
+From https://github.com/DS-codi/Project-Memory-MCP
+ * branch            main       -> FETCH_HEAD
+   56a02ca..c27bbec  main       -> origin/main
+Updating 56a02ca..c27bbec
+Fast-forward
+ Cargo.lock                                         |  269 +++++-
+ Cargo.toml                                         |    2 +-
+ build-cli.ps1                                      |   13 +
+ .../powershell-animated-cli/SKILL.md               |  752 +++++++++++++++
+ .../external-skills/rust-animated-cli/SKILL.md     |  727 ++++++++++++++
+ .../skills/powershell-animated-cli/SKILL.md        |  752 +++++++++++++++
+ .../skills/rust-animated-cli/SKILL.md              |  723 ++++++++++++++
+ docs/VSCODE_EXTENSION_SETUP.md                     |   95 ++
+ docs/workspace-config-sync.md                      |  136 +++
+ pm-cli.exe                                         |  Bin 0 -> 714240 bytes
+ pm-cli/Cargo.toml                                  |   13 +
+ pm-cli/src/main.rs                                 | 1017 ++++++++++++++++++++
+ scripts/audit-outdated-settings-and-files.ps1      |   10 +-
+ scripts/build.ps1                                  |   60 ++
+ scripts/cli-build-dashboard.ps1                    |   53 +
+ scripts/cli-build-extension.ps1                    |   54 ++
+ scripts/cli-build-guiforms.ps1                     |   65 ++
+ scripts/cli-build-interactive-terminal.ps1         |   38 +
+ scripts/cli-build-mobile.ps1                       |   34 +
+ scripts/cli-build-server.ps1                       |   50 +
+ scripts/cli-build-supervisor.ps1                   |   58 ++
+ scripts/cli-qmllint.ps1                            |  101 ++
+ scripts/cli-qt-resolve.ps1                         |   57 ++
+ scripts/launch.ps1                                 |   29 +
+ scripts/qmllint.ps1                                |  170 ++++
+ scripts/test.ps1                                   |   17 +
+ .../src/__tests__/tools/workspace-db-sync.test.ts  |  205 +++-
+ vscode-extension/package.json                      |   15 +
+ vscode-extension/src/commands/deploy-commands.ts   |  196 +++-
+ vscode-extension/src/extension.ts                  |    2 +-
+ .../src/providers/DiagnosticsTreeProvider.ts       |    8 +
+ .../src/services/DiagnosticsService.ts             |   32 +-
+ .../src/services/NotificationService.ts            |    2 +-
+ .../suite/WorkspaceConfigWatcherService.test.ts    |  331 +++++++
+ 34 files changed, 6041 insertions(+), 45 deletions(-)
+ create mode 100644 build-cli.ps1
+ create mode 100644 database-seed-resources/external-skills/powershell-animated-cli/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/rust-animated-cli/SKILL.md
+ create mode 100644 database-seed-resources/skills/powershell-animated-cli/SKILL.md
+ create mode 100644 database-seed-resources/skills/rust-animated-cli/SKILL.md
+ create mode 100644 docs/workspace-config-sync.md
+ create mode 100644 pm-cli.exe
+ create mode 100644 pm-cli/Cargo.toml
+ create mode 100644 pm-cli/src/main.rs
+ create mode 100644 scripts/build.ps1
+ create mode 100644 scripts/cli-build-dashboard.ps1
+ create mode 100644 scripts/cli-build-extension.ps1
+ create mode 100644 scripts/cli-build-guiforms.ps1
+ create mode 100644 scripts/cli-build-interactive-terminal.ps1
+ create mode 100644 scripts/cli-build-mobile.ps1
+ create mode 100644 scripts/cli-build-server.ps1
+ create mode 100644 scripts/cli-build-supervisor.ps1
+ create mode 100644 scripts/cli-qmllint.ps1
+ create mode 100644 scripts/cli-qt-resolve.ps1
+ create mode 100644 scripts/launch.ps1
+ create mode 100644 scripts/qmllint.ps1
+ create mode 100644 scripts/test.ps1
+ create mode 100644 vscode-extension/src/test/suite/WorkspaceConfigWatcherService.test.ts
+PS C:\Users\codi.f\Project-Memory-MCP\Project-Memory-MCP> git add -A; git commit -m "new seed resources"
+[main a48e103] new seed resources
+ 26 files changed, 8424 insertions(+)
+ create mode 100644 database-seed-resources/external-skills/imported-DS-Program-Hotkeys-2-embedded-python-launcher/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-DS-Program-Hotkeys-2-job-search-module/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-DS-Program-Hotkeys-2-pyside6-qml-architecture/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-DS-Program-Hotkeys-2-pyside6-qml-bridge/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-DS-Program-Hotkeys-2-pyside6-qml-models-services/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-DS-Program-Hotkeys-2-pyside6-qml-views/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-NotionArchive-bugfix/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-NotionArchive-copilot-sdk/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-NotionArchive-cross-datasource-mapping/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-NotionArchive-cxxqt-rust-gui/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-NotionArchive-datasource-notion-api/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-NotionArchive-datasource-notionarchive-mssql/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-NotionArchive-datasource-stonepro-firebird/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-NotionArchive-message-broker/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-NotionArchive-mvc-architecture/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-NotionArchive-notion-api-connection/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-NotionArchive-notion-archive-container-mcp/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-NotionArchive-notion-custom-mcp/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-NotionArchive-pyside6-mvc/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-NotionArchive-qml-build-deploy/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-NotionArchive-react-components/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-NotionArchive-refactor/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-NotionArchive-test-environment/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-NotionArchive-vscode-chat-response-stream/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-vscode_ModularAgenticProcedureSystem-monolith-cleanup/SKILL.md
+ create mode 100644 database-seed-resources/external-skills/imported-vscode_ModularAgenticProcedureSystem-monolith-refactor/SKILL.md
+PS C:\Users\codi.f\Project-Memory-MCP\Project-Memory-MCP> git push origin main
+Enumerating objects: 59, done.
+Counting objects: 100% (59/59), done.
+Delta compression using up to 12 threads
+Compressing objects: 100% (30/30), done.
+Writing objects: 100% (56/56), 88.00 KiB | 12.57 MiB/s, done.
+Total 56 (delta 2), reused 38 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (2/2), completed with 2 local objects.
+remote: error: GH013: Repository rule violations found for refs/heads/main.
+remote:
+remote: - GITHUB PUSH PROTECTION
+remote:   —————————————————————————————————————————
+remote:     Resolve the following violations before pushing again
+remote:
+remote:     - Push cannot contain secrets
+remote:
+remote:
+remote:      (?) Learn how to resolve a blocked push
+remote:      https://docs.github.com/code-security/secret-scanning/working-with-secret-scanning-and-push-protection/working-with-push-protection-from-the-command-line#resolving-a-blocked-push
+remote:
+remote:
+remote:       —— Notion API Token ——————————————————————————————————
+remote:        locations:
+remote:          - commit: a48e10399b1915c6ef9d0384cf61bd88672e91d6
+remote:            path: database-seed-resources/external-skills/imported-NotionArchive-test-environment/SKILL.md:94
+remote:          - commit: a48e10399b1915c6ef9d0384cf61bd88672e91d6
+remote:            path: database-seed-resources/external-skills/imported-NotionArchive-test-environment/SKILL.md:160
+remote:
+remote:        (?) To push, remove secret from commit(s) or follow this URL to allow the secret.
+remote:        https://github.com/DS-codi/Project-Memory-MCP/security/secret-scanning/unblock-secret/3BJh1qUzXPLa5BQTQT2oYaEw1tK
+remote:
+remote:
+remote:
+To https://github.com/DS-codi/Project-Memory-MCP.git
+ ! [remote rejected] main -> main (push declined due to repository rule violations)
+error: failed to push some refs to 'https://github.com/DS-codi/Project-Memory-MCP.git'

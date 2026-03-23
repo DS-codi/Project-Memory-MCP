@@ -1,5 +1,5 @@
 ---
-applyTo: "agents/core/hub.agent.md"
+applyTo: "agents/hub.agent.md"
 ---
 
 # Subagent Recovery & Scope Guardrails

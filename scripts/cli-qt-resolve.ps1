@@ -55,3 +55,68 @@ function Find-QmakePath {
     if (Test-Path $q)  { return $q }
     return $null
 }
+
+function Find-WindowsSdkX64Bin {
+    $kitsBase = 'C:\Program Files (x86)\Windows Kits\10\bin'
+    if (-not (Test-Path $kitsBase)) { return $null }
+
+    $sdkVersions = Get-ChildItem $kitsBase -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '^\d+\.\d+\.\d+\.\d+$' } |
+        Sort-Object { [Version]$_.Name } -Descending
+
+    foreach ($ver in $sdkVersions) {
+        $x64Dir = Join-Path $ver.FullName 'x64'
+        if (Test-Path (Join-Path $x64Dir 'dxcompiler.dll')) {
+            return $x64Dir
+        }
+    }
+
+    return $null
+}
+
+function Initialize-WinDeployQtEnvironment {
+    param(
+        [string]$QtBin
+    )
+
+    $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+    if (-not $env:VCINSTALLDIR -and (Test-Path $vswhere)) {
+        $vsInstallPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null
+        if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($vsInstallPath)) {
+            $vcInstallDir = Join-Path $vsInstallPath 'VC'
+            if (Test-Path $vcInstallDir) {
+                if (-not $vcInstallDir.EndsWith('\')) { $vcInstallDir += '\' }
+                $env:VCINSTALLDIR = $vcInstallDir
+            }
+        }
+    }
+
+    if (-not $env:WindowsSdkDir) {
+        $sdkRoot = 'C:\Program Files (x86)\Windows Kits\10'
+        if (Test-Path $sdkRoot) {
+            $env:WindowsSdkDir = "$sdkRoot\"
+        }
+    }
+
+    if (-not $env:WindowsSDKVersion) {
+        $kitsBase = 'C:\Program Files (x86)\Windows Kits\10\bin'
+        if (Test-Path $kitsBase) {
+            $latestSdk = Get-ChildItem $kitsBase -Directory -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -match '^\d+\.\d+\.\d+\.\d+$' } |
+                Sort-Object { [Version]$_.Name } -Descending |
+                Select-Object -First 1
+            if ($latestSdk) {
+                $env:WindowsSDKVersion = "$($latestSdk.Name)\"
+            }
+        }
+    }
+
+    $sdkX64 = Find-WindowsSdkX64Bin
+    if ($sdkX64 -and ($env:PATH -notlike "$sdkX64*")) {
+        $env:PATH = "$sdkX64;$env:PATH"
+    }
+
+    if ($QtBin -and (Test-Path $QtBin) -and ($env:PATH -notlike "$QtBin*")) {
+        $env:PATH = "$QtBin;$env:PATH"
+    }
+}

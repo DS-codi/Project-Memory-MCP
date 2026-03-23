@@ -79,6 +79,7 @@ export function activate(context: vscode.ExtensionContext) {
     const defaultInstructions = config.get<string[]>('defaultInstructions') || [];
     const autoDeployOnWorkspaceOpen = config.get<boolean>('autoDeployOnWorkspaceOpen') ?? false;
     const autoDeploySkills = config.get<boolean>('autoDeploySkills') ?? false;
+    const autoEnforceManifest = config.get<boolean>('autoEnforceManifest') ?? true;
 
     // --- Initialize core services (lightweight, no I/O) ---
 
@@ -312,6 +313,17 @@ export function activate(context: vscode.ExtensionContext) {
             }
         });
     } // autoDeploySkills is intentionally suppressed — skills are DB-only; use memory_agent(action: list_skills) to discover them
+
+    // Auto-enforce manifest on workspace open (if enabled)
+    if (autoEnforceManifest && vscode.workspace.workspaceFolders?.[0]) {
+        const workspacePath = vscode.workspace.workspaceFolders[0].uri.fsPath;
+        defaultDeployer.enforceManifest(workspacePath).then(result => {
+            const actions = result.deployed.length + result.culled.length;
+            if (actions > 0) {
+                notify(`Manifest enforced: deployed ${result.deployed.length}, culled ${result.culled.length}`);
+            }
+        });
+    }
     
 
     // Respect the 'dashboard.enabled' setting before attempting connection.

@@ -9,7 +9,7 @@ use ratatui::{
     layout::{Constraint, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Cell, Gauge, Paragraph, Row, Table},
+    widgets::{Block, Borders, Cell, Clear, Gauge, Paragraph, Row, Table},
     Terminal,
 };
 use std::collections::VecDeque;
@@ -108,6 +108,7 @@ const COMPONENT_NAMES: &[&str] = &[
     "FallbackServer",
     "Dashboard",
     "Extension",
+    "Cartographer",
     "Mobile",
     "Container",
 ];
@@ -225,6 +226,7 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<
     loop {
         let style = anim_style;
         terminal.draw(|f| {
+            f.render_widget(Clear, f.size());
             render_animated_banner(f, tick, style);
             let area = f.size();
 
@@ -344,6 +346,7 @@ fn show_install_submenu(
     loop {
         let style = anim_style;
         terminal.draw(|f| {
+            f.render_widget(Clear, f.size());
             render_banner_with_palette(f, tick, &PALETTE_DEFAULT, style);
             let area = f.size();
 
@@ -434,7 +437,7 @@ fn component_build_plan(component: &str) -> Vec<(String, Vec<String>)> {
         ],
         "InteractiveTerminal" => vec![
             ("QML Lint".to_string(),  ps("scripts/cli-qmllint.ps1",                   &["-Component", "interactive-terminal"])),
-            ("Build".to_string(),     ps("scripts/cli-build-interactive-terminal.ps1", &[])),
+            ("Build".to_string(),     ps("scripts/cli-build-interactive-terminal.ps1", &["-NoWebEnginePlugin"])),
         ],
         "Server" | "FallbackServer" => vec![
             ("Build".to_string(), ps("scripts/cli-build-server.ps1",    &[])),
@@ -451,6 +454,9 @@ fn component_build_plan(component: &str) -> Vec<(String, Vec<String>)> {
         "Container" => vec![
             ("Build".to_string(), ps("scripts/cli-build-container.ps1", &[])),
         ],
+        "Cartographer" => vec![
+            ("Rust Build".to_string(), ps("scripts/cli-build-cartographer.ps1", &[])),
+        ],
         _ => vec![],
     }
 }
@@ -466,7 +472,7 @@ fn run_build_component(
     let _ = std::fs::write("build_warnings.log", "");
 
     let sub_components: Vec<&str> = if component == "All" {
-        vec!["Supervisor", "GuiForms", "InteractiveTerminal", "Server", "Dashboard", "Extension"]
+        vec!["Supervisor", "GuiForms", "InteractiveTerminal", "Server", "Dashboard", "Extension", "Cartographer"]
     } else {
         vec![component]
     };
@@ -542,6 +548,7 @@ fn run_build_phase(
     let mut live_log: VecDeque<String> = VecDeque::new();
     let mut current_phase = String::from("Initialising…");
     let mut done = false;
+    let mut cancelled = false;
     let mut progress: u16 = 0;
 
     loop {
@@ -563,37 +570,51 @@ fn run_build_phase(
                     }
                 }
 
-                // Diagnostic capture: only genuine rustc / cargo / qmllint diagnostics.
+                // Diagnostic capture: rustc / cargo / qmllint / tsc / TypeScript diagnostics.
                 // starts_with guards prevent counting status messages that mention
                 // "warning" mid-sentence (e.g. install wrappers, progress lines).
+                // tsc format:  src/file.ts(10,5): error TS2304: ...
+                //             src/file.ts(10,5): warning TS6133: ...
                 let tl = line.trim().to_lowercase();
+                let is_tsc_err  = tl.contains("): error ts");
+                let is_tsc_warn = tl.contains("): warning ts");
                 let is_diag = tl.starts_with("warning:")
                     || tl.starts_with("warning[")
                     || tl.starts_with("error:")
                     || tl.starts_with("error[")
-                    || tl.starts_with("  --> ");  // source location context lines
+                    || tl.starts_with("-->")    // rustc source location context (trimmed from "  --> ")
+                    || is_tsc_err
+                    || is_tsc_warn;
                 let is_fp = tl.contains("no warning")
                     || tl.contains("0 warning")
                     || tl.contains("no error");
                 if is_diag && !is_fp {
-                    if tl.starts_with("error") { err_count += 1; }
-                    else if tl.starts_with("warning") { warn_count += 1; }
+                    if tl.starts_with("error") || is_tsc_err { err_count += 1; }
+                    else if tl.starts_with("warning") || is_tsc_warn { warn_count += 1; }
                     let _ = writeln!(log_file, "{}", line.trim());
                 }
 
                 // Live output ring-buffer (6 lines)
-                let line_color_tag = if tl.starts_with("error") { "E" }
-                                     else if tl.starts_with("warning") { "W" }
+                let line_color_tag = if tl.starts_with("error") || is_tsc_err { "E" }
+                                     else if tl.starts_with("warning") || is_tsc_warn { "W" }
                                      else { " " };
                 let tagged = format!("{} {}", line_color_tag, line);
                 live_log.push_back(tagged);
                 if live_log.len() > 6 { live_log.pop_front(); }
 
-                // Smooth progress — estimate 300 lines per build
-                progress = ((lines_read.min(300) as f64 / 300.0) * 99.0) as u16;
+                // Progress updated below after the match (time-based fallback)
             }
             Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => { done = true; }
             Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
+        }
+
+        // Progress: max(line-based, time-based) so long linking phases don't stall at ~4%.
+        // Line estimate: ~200 lines per phase. Time estimate: ~300 s per phase.
+        if !done {
+            let elapsed_secs = start_time.elapsed().as_secs();
+            let line_pct = ((lines_read.min(200) as f64 / 200.0) * 99.0) as u16;
+            let time_pct = (elapsed_secs.min(300) as f64 / 300.0 * 99.0) as u16;
+            progress = line_pct.max(time_pct);
         }
 
         // Render frame
@@ -606,9 +627,11 @@ fn run_build_phase(
         let lc = lines_read;
         let prog = if done { 100 } else { progress };
         let style = anim_style;
+        let is_cancelled = cancelled;
         let hdr = format!("  \u{25b6} {}   \u{23f1} {}", section_header, elapsed_str);
 
         terminal.draw(|f| {
+            f.render_widget(Clear, f.size());
             render_banner_with_palette(f, tick, &PALETTE_DEFAULT, style);
             let area = f.size();
             let start_y = BANNER.len() as u16 + 1;
@@ -663,27 +686,61 @@ fn run_build_phase(
             // ── Progress gauge ───────────────────────────────────────
             let gauge_y = counts_y + 1;
             if area.height > gauge_y {
-                let gauge_color = if ec > 0 { Color::Red } else if wc > 0 { Color::Yellow } else { Color::Cyan };
-                let gauge_label = if done {
+                let gauge_color = if is_cancelled { Color::DarkGray }
+                                  else if ec > 0 { Color::Red }
+                                  else if wc > 0 { Color::Yellow }
+                                  else { Color::Cyan };
+                let gauge_label = if is_cancelled {
+                    String::from("Cancelled")
+                } else if done {
                     format!("Done  warnings: {}  errors: {}", wc, ec)
                 } else {
                     format!("{}%", prog)
                 };
-                let gauge = Gauge::default()
-                    .gauge_style(Style::default().fg(gauge_color))
-                    .percent(prog)
-                    .label(gauge_label);
-                f.render_widget(gauge, Rect::new(0, gauge_y, area.width, 1));
+                f.render_widget(
+                    Gauge::default()
+                        .gauge_style(Style::default().fg(gauge_color))
+                        .percent(prog)
+                        .label(gauge_label),
+                    Rect::new(0, gauge_y, area.width, 1),
+                );
+            }
+
+            // ── Cancel hint ──────────────────────────────────────────
+            let hint_y = counts_y + 2;
+            if area.height > hint_y {
+                f.render_widget(
+                    Paragraph::new("  Esc / Q  cancel build")
+                        .style(Style::default().fg(Color::DarkGray)),
+                    Rect::new(0, hint_y, area.width, 1),
+                );
             }
         })?;
 
         tick += 1.0;
         if last_tick.elapsed() >= tick_rate { last_tick = Instant::now(); }
 
+        // Check for cancel keypress (non-blocking)
+        if !done {
+            if event::poll(Duration::ZERO)? {
+                if let Event::Key(KeyEvent { code, kind: KeyEventKind::Press, .. }) = event::read()? {
+                    if matches!(code, KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q')) {
+                        let _ = child.kill();
+                        cancelled = true;
+                        done = true;
+                    }
+                }
+            }
+        }
+
         if done { break; }
     }
 
-    child.wait()?;
+    let _ = child.wait(); // may already be dead (cancelled or finished)
+    if cancelled {
+        std::thread::sleep(Duration::from_millis(200));
+        return Ok((warn_count, err_count));
+    }
     std::thread::sleep(Duration::from_millis(400));
     Ok((warn_count, err_count))
 }
@@ -711,6 +768,7 @@ fn show_warning_summary(
         let style = anim_style;
 
         terminal.draw(|f| {
+            f.render_widget(Clear, f.size());
             render_banner_with_palette(f, tick, p, style);
             let area = f.size();
             let start_y = BANNER.len() as u16 + 1;
@@ -836,6 +894,7 @@ fn run_streaming_command(
         let bt = box_title.clone();
         let style = anim_style;
         terminal.draw(|f| {
+            f.render_widget(Clear, f.size());
             let area = f.size();
             // Mini 4-row banner at top
             let mini_rows = 4u16.min(area.height);
@@ -940,6 +999,7 @@ fn show_launch_submenu(
     loop {
         let style = anim_style;
         terminal.draw(|f| {
+            f.render_widget(Clear, f.size());
             render_animated_banner(f, tick, style);
             let area = f.size();
             if area.height > MENU_Y {

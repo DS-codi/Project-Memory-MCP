@@ -5,7 +5,10 @@
     Delegates to the component's own build-interactive-terminal.ps1 script.
     No prompts, no interaction.
 #>
-param([switch]$Force)
+param(
+    [switch]$Force,
+    [switch]$NoWebEnginePlugin
+)
 
 $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent $PSScriptRoot
@@ -29,7 +32,11 @@ if (-not (Test-Path $BuildScript)) {
 Write-Host "Qt dir: $QtDir"
 Write-Host "Delegating to build-interactive-terminal.ps1 ..."
 
-& $BuildScript -Profile release -QtDir $QtDir
+if ($NoWebEnginePlugin) {
+    & $BuildScript -Profile release -QtDir $QtDir -NoWebEnginePlugin
+} else {
+    & $BuildScript -Profile release -QtDir $QtDir
+}
 if ($LASTEXITCODE -ne 0) {
     Write-Host "error: build-interactive-terminal.ps1 failed (exit $LASTEXITCODE)"
     exit $LASTEXITCODE

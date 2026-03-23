@@ -1,0 +1,126 @@
+---
+applyTo: "**/*"
+---
+
+# Notion Docs
+
+## Docs
+
+- [Audit log events](https://developers.notion.com/compliance/audit-log-events.md): A comprehensive list of events tracked in the Notion audit log for compliance and security monitoring.
+- [Compliance](https://developers.notion.com/compliance/overview.md): Enterprise-grade security and compliance features for tracking and auditing workspace activity in Notion.
+- [SIEM events](https://developers.notion.com/compliance/siem-events.md): A comprehensive list of webhook events available in your SIEM platform once you set up the Notion SIEM connection.
+- [Creating pages from templates](https://developers.notion.com/guides/data-apis/creating-pages-from-templates.md): Learn how to apply data source templates to pages created in the Notion API.
+- [Importing external files](https://developers.notion.com/guides/data-apis/importing-external-files.md): Learn how to migrate files from an external URL to Notion.
+- [Retrieving existing files](https://developers.notion.com/guides/data-apis/retrieving-files.md): Learn how to get a download link for files in the Notion API.
+- [Uploading larger files](https://developers.notion.com/guides/data-apis/sending-larger-files.md): Learn how to send files larger than 20 MB in multiple parts.
+- [Uploading small files](https://developers.notion.com/guides/data-apis/uploading-small-files.md): Learn how to send and attach files up to 20 MB using the Notion API.
+- [Working with comments](https://developers.notion.com/guides/data-apis/working-with-comments.md): Learn how to add and retrieve comments with the Notion API.
+- [Working with databases](https://developers.notion.com/guides/data-apis/working-with-databases.md): Learn about database schemas, querying databases, and more.
+- [Working with files and media](https://developers.notion.com/guides/data-apis/working-with-files-and-media.md): Learn how to add or retrieve files and media from Notion pages.
+- [Working with page content](https://developers.notion.com/guides/data-apis/working-with-page-content.md): Learn about page content and how to add or retrieve it with the Notion API.
+- [Authorization](https://developers.notion.com/guides/get-started/authorization.md): This guide describes the authorization flows for internal and public Notion integrations.
+- [Build your first integration](https://developers.notion.com/guides/get-started/create-a-notion-integration.md): Make your first request to the Notion API.
+- [Notion API Overview](https://developers.notion.com/guides/get-started/getting-started.md): Discover how to leverage Notion's Public API to build integrations.
+- [Publishing to Notion’s Integration Gallery](https://developers.notion.com/guides/get-started/publishing-integrations-to-notions-integration-gallery.md)
+- [FAQs: Version 2025-09-03](https://developers.notion.com/guides/get-started/upgrade-faqs-2025-09-03.md): Commonly asked questions about data sources and how to migrate to Notion's API version 2025-09-03
+- [Upgrading to Version 2025-09-03](https://developers.notion.com/guides/get-started/upgrade-guide-2025-09-03.md): Learn how to upgrade your Notion API integrations to the latest API version
+- [Build a Link Preview integration](https://developers.notion.com/guides/link-previews/build-a-link-preview-integration.md): Follow this step-by-step guide to create your first Link Preview.
+- [Introduction](https://developers.notion.com/guides/link-previews/link-previews.md): This guide introduces Link Previews, how they work, and what you need to build them.
+- [Integrating your own MCP client](https://developers.notion.com/guides/mcp/build-mcp-client.md): Learn how your custom AI tool can connect to Notion MCP.
+- [Common MCP clients](https://developers.notion.com/guides/mcp/common-mcp-clients.md)
+- [Connecting to Notion MCP](https://developers.notion.com/guides/mcp/get-started-with-mcp.md): Learn how to connect your AI tool to Notion using MCP.
+- [Hosting a local MCP server](https://developers.notion.com/guides/mcp/hosting-open-source-mcp.md): Learn how and when to use the open-source Notion MCP server.
+- [Notion MCP](https://developers.notion.com/guides/mcp/mcp.md): Learn how to connect AI agents to your Notion workspace.
+- [Security best practices](https://developers.notion.com/guides/mcp/mcp-security-best-practices.md): Learn how to keep your workspace secure when using Notion MCP.
+- [Supported tools](https://developers.notion.com/guides/mcp/mcp-supported-tools.md): Learn what you can do with Notion MCP tools.
+- [Best practices for handling API keys](https://developers.notion.com/guides/resources/best-practices-for-handling-api-keys.md): Learn how to manage and secure your Notion API tokens.
+- [Example code](https://developers.notion.com/guides/resources/examples.md)
+- [Historical changelog](https://developers.notion.com/guides/resources/historical-changelog.md): View an archive of Notion Developers updates prior to September 2023
+- [Postman workspace](https://developers.notion.com/guides/resources/notion-s-api-workspace.md)
+- [Notion Docs](https://developers.notion.com/index.md)
+- [Changelog](https://developers.notion.com/page/changelog.md)
+- [Examples](https://developers.notion.com/page/examples.md)
+- [Trash a page](https://developers.notion.com/reference/archive-a-page.md)
+- [Authentication](https://developers.notion.com/reference/authentication.md): Learn how to authenticate your integration requests using bearer tokens.
+- [Block](https://developers.notion.com/reference/block.md): A block object represents a piece of content within Notion. The API translates the headings, toggles, paragraphs, lists, media, and more that you can interact with in the Notion UI as different [block type objects](/reference/block#block-type-objects).
+- [Integration capabilities](https://developers.notion.com/reference/capabilities.md): Learn about the capabilities that control what an integration can do and see in a Notion workspace.
+- [Changes by version](https://developers.notion.com/reference/changes-by-version.md)
+- [Comment attachment](https://developers.notion.com/reference/comment-attachment.md): The Comment Attachment object represents [files](/reference/file-object) that have been attached to a [Comment](/reference/comment-object).
+- [Comment display name](https://developers.notion.com/reference/comment-display-name.md): The Comment Display Name object represents the author name that shows up for a comment. This overrides the default author name when specified.
+- [Comment](https://developers.notion.com/reference/comment-object.md): The Comment object represents a comment on a Notion page or block. Comments can be viewed or created by an integration that has access to the page/block and the correct capabilities. Please see the [Capabilities guide](/reference/capabilities) for more information on setting up your integration's capabilities.
+- [Complete a file upload](https://developers.notion.com/reference/complete-a-file-upload.md): Use this API to finalize a `mode=multi_part` [file upload](/reference/file-upload) after all of the parts have been sent successfully.
+- [Create comment](https://developers.notion.com/reference/create-a-comment.md): Creates a comment in a page, block or existing discussion thread.
+- [Create a data source](https://developers.notion.com/reference/create-a-data-source.md)
+- [Create a database](https://developers.notion.com/reference/create-a-database.md)
+- [Create a file upload](https://developers.notion.com/reference/create-a-file-upload.md): Use this API to initiate the process of [uploading a file](/guides/data-apis/working-with-files-and-media) to your Notion workspace.
+- [Create a token](https://developers.notion.com/reference/create-a-token.md): Creates an access token that a third-party service can use to authenticate with Notion.
+- [Data source](https://developers.notion.com/reference/data-source.md): Learn more about Notion's data source object.
+- [Database](https://developers.notion.com/reference/database.md): Learn more about Notion's database object.
+- [Create a database](https://developers.notion.com/reference/database-create.md): Create a database and its initial data source.
+- [Retrieve a database](https://developers.notion.com/reference/database-retrieve.md)
+- [Update a database](https://developers.notion.com/reference/database-update.md): Updates the attributes — the title, description, icon, or cover, etc. — of a specified database.
+- [Delete a block](https://developers.notion.com/reference/delete-a-block.md): Sets a [Block object](/reference/block), including page blocks, to `archived: true` using the ID specified. Note: in the Notion UI application, this moves the block to the "Trash" where it can still be accessed and restored.
+- [Emoji](https://developers.notion.com/reference/emoji-object.md): An emoji object contains information about an emoji character. It is most often used to represent an emoji that is rendered as a page icon in the Notion UI.
+- [File](https://developers.notion.com/reference/file-object.md): Files, images, and other media bring Notion pages to life — from rich visuals in image blocks to downloadable attachments in databases, or branded page icons and covers.
+- [File Upload](https://developers.notion.com/reference/file-upload.md): The [File Upload object](#object-properties) tracks the lifecycle of a file uploaded to Notion in the API.
+- [Filter data source entries](https://developers.notion.com/reference/filter-data-source-entries.md): When you [query a data source](/reference/query-a-data-source), you can send a `filter` object in the body of the request that limits the returned entries based on the specified criteria.
+- [Retrieve block children](https://developers.notion.com/reference/get-block-children.md): Returns a paginated array of child [block objects](/reference/block) contained in the block using the ID specified. In order to receive a complete representation of a block, you may need to recursively retrieve the block children of child blocks.
+- [null](https://developers.notion.com/reference/get-databases.md)
+- [Retrieve your token's bot user](https://developers.notion.com/reference/get-self.md): Retrieves the bot [User](/reference/user) associated with the API token provided in the authorization header. The bot will have an `owner` field with information about the person who authorized the integration.
+- [Retrieve a user](https://developers.notion.com/reference/get-user.md): Retrieves a [User](/reference/user) using the ID specified.
+- [List all users](https://developers.notion.com/reference/get-users.md): Returns a paginated list of [Users](/reference/user) for the workspace. The response may contain fewer than `page_size` of results.
+- [Introduction](https://developers.notion.com/reference/intro.md): The reference is your key to a comprehensive understanding of the Notion API.
+- [Introspect a token](https://developers.notion.com/reference/introspect-token.md): Get a token's active status, scope, and issued time.
+- [List comments](https://developers.notion.com/reference/list-comments.md): Retrieves a list of un-resolved [Comment objects](/reference/comment-object) from a page or block.
+- [List data source templates](https://developers.notion.com/reference/list-data-source-templates.md): Use this API to retrieve details of all page templates available for a data source.
+- [List file uploads](https://developers.notion.com/reference/list-file-uploads.md): Use this API to retrieve [file uploads](/reference/file-upload) for the current bot integration, sorted by most recent first.
+- [Move a page](https://developers.notion.com/reference/move-page.md): Use this API to move an existing Notion page to a new parent.
+- [Page](https://developers.notion.com/reference/page.md): The Page object contains the [page property values](/reference/page-property-values) of a single Notion page.
+- [Page properties](https://developers.notion.com/reference/page-property-values.md)
+- [Parent](https://developers.notion.com/reference/parent-object.md): Learn more about different parent objects that link together a workspace's entities in Notion's API.
+- [Append block children](https://developers.notion.com/reference/patch-block-children.md): Creates and appends new children blocks to the parent `block_id` specified. Blocks can be parented by other blocks, pages, or databases.
+- [Update page properties](https://developers.notion.com/reference/patch-page.md): Use this API to modify attributes of a Notion page, such as its properties, icon, or cover.
+- [null](https://developers.notion.com/reference/post-database-query.md)
+- [Filter database entries](https://developers.notion.com/reference/post-database-query-filter.md)
+- [Sort database entries](https://developers.notion.com/reference/post-database-query-sort.md)
+- [Create a page](https://developers.notion.com/reference/post-page.md): Use this API to create a new [page](/reference/page) as a child of an existing page or [data source](/reference/data-source).
+- [Search by title](https://developers.notion.com/reference/post-search.md): Searches all parent or child pages and data_sources that have been shared with an integration.
+- [Page property items](https://developers.notion.com/reference/property-item-object.md)
+- [Data source properties](https://developers.notion.com/reference/property-object.md): Data source property objects are rendered in the Notion UI as data columns.
+- [Query a data source](https://developers.notion.com/reference/query-a-data-source.md)
+- [Refresh a token](https://developers.notion.com/reference/refresh-a-token.md): Refreshes an access token, generating a new access token and new refresh token
+- [Request limits](https://developers.notion.com/reference/request-limits.md): To ensure a consistent developer experience for all API users, the Notion API is rate limited and basic size limits apply to request parameters.
+- [Retrieve a block](https://developers.notion.com/reference/retrieve-a-block.md): Retrieves a [Block object](/reference/block) using the ID specified.
+- [Retrieve a data source](https://developers.notion.com/reference/retrieve-a-data-source.md)
+- [Retrieve a database](https://developers.notion.com/reference/retrieve-a-database.md)
+- [Retrieve a file upload](https://developers.notion.com/reference/retrieve-a-file-upload.md): Use this API to get the details of a [File Upload](/reference/file-upload) object.
+- [Retrieve a page](https://developers.notion.com/reference/retrieve-a-page.md)
+- [Retrieve a page property item](https://developers.notion.com/reference/retrieve-a-page-property.md)
+- [Retrieve a comment](https://developers.notion.com/reference/retrieve-comment.md): Retrieves a [Comment object](/reference/comment-object) from its `comment_id`.
+- [Revoke a token](https://developers.notion.com/reference/revoke-token.md): Revoke an access token.
+- [Rich text](https://developers.notion.com/reference/rich-text.md): Notion uses rich text to allow users to customize their content. Rich text refers to a type of document where content can be styled and formatted in a variety of customizable ways. This includes styling decisions, such as the use of italics, font size, and font color, as well as formatting, such as the use of hyperlinks or code blocks.
+- [Search optimizations and limitations](https://developers.notion.com/reference/search-optimizations-and-limitations.md)
+- [Send a file upload](https://developers.notion.com/reference/send-a-file-upload.md): Use this API to transmit file contents to Notion for a [file upload](/reference/file-upload).
+- [Sort data source entries](https://developers.notion.com/reference/sort-data-source-entries.md): A sort is a condition used to order the entries returned from a data source query.
+- [Status codes](https://developers.notion.com/reference/status-codes.md): Responses from the API use HTTP response codes to indicate general classes of success and error.
+- [Unfurl attribute (Link Previews)](https://developers.notion.com/reference/unfurl-attribute-object.md): A Link Preview is created from an array of unfurl attribute objects.
+- [Update a block](https://developers.notion.com/reference/update-a-block.md)
+- [Update a data source](https://developers.notion.com/reference/update-a-data-source.md)
+- [Update a database](https://developers.notion.com/reference/update-a-database.md)
+- [Update data source properties](https://developers.notion.com/reference/update-data-source-properties.md): The API represents columns of a data source in the Notion app UI as data source **properties**.
+- [Update database properties](https://developers.notion.com/reference/update-property-schema-object.md)
+- [User](https://developers.notion.com/reference/user.md): The User object represents a user in a Notion workspace. Users include full workspace members, guests, and integrations. You can find more information about members and guests in [this guide](https://www.notion.so/help/add-members-admins-guests-and-groups).
+- [Versioning](https://developers.notion.com/reference/versioning.md): Learn about API change management and how to set the appropriate version in your integration.
+- [Webhooks](https://developers.notion.com/reference/webhooks.md): Learn how your integration can automatically respond to workspace activity in real-time.
+- [Event types & delivery](https://developers.notion.com/reference/webhooks-events-delivery.md): Learn about the different event types and how they are delivered to your integration.
+
+## OpenAPI Specs
+
+- [openapi-undocumented](https://developers.notion.com/openapi-undocumented.json)
+- [openapi](https://developers.notion.com/openapi.json)
+
+## Optional
+
+- [Status](https://www.notion-status.com/)
+- [Community](https://www.notion.com/community)
+- [Blog](https://www.notion.com/blog)

@@ -225,6 +225,16 @@
         "command": "projectMemory.redeployMandatoryFiles",
         "title": "Project Memory: Redeploy Mandatory PM Files from Canonical Source",
         "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.enforceManifest",
+        "title": "Project Memory: Enforce Context Manifest (deploy mandatory, cull DB-only)",
+        "category": "Project Memory"
+      },
+      {
+        "command": "projectMemory.manifestHealthCheck",
+        "title": "Project Memory: Context Manifest Health Check",
+        "category": "Project Memory"
       }
     ],
     "chatParticipants": [
@@ -370,6 +380,11 @@
           "type": "boolean",
           "default": false,
           "description": "Automatically deploy skills to workspace on open (even if full auto-deploy is off)"
+        },
+        "projectMemory.autoEnforceManifest": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically enforce the context manifest when opening a workspace (deploy missing mandatory files, cull DB-only files)"
         },
         "projectMemory.deployProfiles": {
           "type": "array",

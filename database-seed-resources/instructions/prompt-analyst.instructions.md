@@ -1,5 +1,5 @@
 ---
-applyTo: "agents/core/prompt-analyst.agent.md"
+applyTo: "agents/prompt-analyst.agent.md"
 ---
 
 # PromptAnalyst Agent — Bootstrap Instructions

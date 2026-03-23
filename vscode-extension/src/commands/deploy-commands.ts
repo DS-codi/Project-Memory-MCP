@@ -852,6 +852,102 @@ export function registerDeployCommands(
             }
         }),
 
+        // ── Manifest enforcement: health check + cull + deploy mandatory ──
+
+        vscode.commands.registerCommand('projectMemory.enforceManifest', async () => {
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (!workspaceFolders) {
+                vscode.window.showErrorMessage('No workspace folder open');
+                return;
+            }
+
+            const workspacePath = workspaceFolders[0].uri.fsPath;
+            const report = defaultDeployer.healthCheck(workspacePath);
+
+            if (report.healthy) {
+                notify('Workspace is fully compliant with the context manifest');
+                return;
+            }
+
+            // Build a human-readable summary
+            const parts: string[] = [];
+            if (report.missingMandatory.length > 0) {
+                parts.push(`${report.missingMandatory.length} mandatory file(s) missing`);
+            }
+            if (report.cullTargets.length > 0) {
+                parts.push(`${report.cullTargets.length} DB-only file(s) to cull`);
+            }
+            if (report.workspaceSpecific.length > 0) {
+                parts.push(`${report.workspaceSpecific.length} workspace-specific file(s) preserved`);
+            }
+
+            const confirm = await vscode.window.showQuickPick(['Yes', 'No'], {
+                placeHolder: `Enforce manifest? ${parts.join(', ')}`,
+                title: 'Enforce Workspace Context Manifest',
+            });
+            if (confirm !== 'Yes') return;
+
+            const result = await defaultDeployer.enforceManifest(workspacePath);
+
+            const summary: string[] = [];
+            if (result.deployed.length > 0) {
+                summary.push(`deployed ${result.deployed.length}`);
+            }
+            if (result.culled.length > 0) {
+                summary.push(`culled ${result.culled.length}`);
+            }
+            if (result.workspaceSpecific.length > 0) {
+                summary.push(`${result.workspaceSpecific.length} workspace-specific preserved`);
+            }
+            notify(`Manifest enforced: ${summary.join(', ')}`);
+        }),
+
+        vscode.commands.registerCommand('projectMemory.manifestHealthCheck', async () => {
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (!workspaceFolders) {
+                vscode.window.showErrorMessage('No workspace folder open');
+                return;
+            }
+
+            const workspacePath = workspaceFolders[0].uri.fsPath;
+            const report = defaultDeployer.healthCheck(workspacePath);
+
+            if (!syncReportChannel) {
+                syncReportChannel = vscode.window.createOutputChannel('Project Memory Workspace Sync');
+            }
+            syncReportChannel.clear();
+            syncReportChannel.appendLine('=== Context Manifest Health Check ===');
+            syncReportChannel.appendLine(`Workspace: ${workspacePath}`);
+            syncReportChannel.appendLine(`Status: ${report.healthy ? 'HEALTHY' : 'ACTION REQUIRED'}`);
+            syncReportChannel.appendLine('');
+
+            if (report.missingMandatory.length > 0) {
+                syncReportChannel.appendLine(`--- MISSING MANDATORY (${report.missingMandatory.length}) ---`);
+                for (const m of report.missingMandatory) {
+                    syncReportChannel.appendLine(`  [${m.kind}] ${m.name}`);
+                }
+                syncReportChannel.appendLine('');
+            }
+
+            if (report.cullTargets.length > 0) {
+                syncReportChannel.appendLine(`--- CULL TARGETS (${report.cullTargets.length}) ---`);
+                for (const c of report.cullTargets) {
+                    syncReportChannel.appendLine(`  [${c.kind}] ${c.name}  →  ${c.path}`);
+                }
+                syncReportChannel.appendLine('');
+            }
+
+            if (report.workspaceSpecific.length > 0) {
+                syncReportChannel.appendLine(`--- WORKSPACE-SPECIFIC (preserved) (${report.workspaceSpecific.length}) ---`);
+                for (const ws of report.workspaceSpecific) {
+                    syncReportChannel.appendLine(`  [${ws.kind}] ${ws.name}  →  ${ws.path}`);
+                }
+                syncReportChannel.appendLine('');
+            }
+
+            syncReportChannel.show();
+        }),
+
         vscode.commands.registerCommand('projectMemory.deployAgentFileToWorkspace', async (uri?: vscode.Uri) => {
             const workspaceFolders = vscode.workspace.workspaceFolders;
             if (!workspaceFolders) {

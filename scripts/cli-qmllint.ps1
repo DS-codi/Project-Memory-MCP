@@ -48,6 +48,7 @@ switch ($Component) {
 
 $totalErrors   = 0
 $totalWarnings = 0
+$qmlModulesPath = Join-Path $Root 'target\cxxqt\qml_modules'
 
 foreach ($qmlDir in $qmlDirs) {
     if (-not (Test-Path $qmlDir)) {
@@ -66,7 +67,11 @@ foreach ($qmlDir in $qmlDirs) {
     $dirLabel = Split-Path -Leaf $qmlDir
     Write-Host "  qmllint $dirLabel -- $($qmlFiles.Count) file(s)"
 
-    $lintArgs = @('-I', $qtQmlRoot, '-I', $qmlDir) + $qmlFiles.FullName
+    $lintArgs = @('-I', $qtQmlRoot)
+    if (Test-Path $qmlModulesPath) {
+        $lintArgs += @('-I', $qmlModulesPath)
+    }
+    $lintArgs += @('-I', $qmlDir) + $qmlFiles.FullName
 
     # Capture all qmllint output and reprint to stdout.
     # qmllint warning lines look like:  Warning: file.qml:N:M: message

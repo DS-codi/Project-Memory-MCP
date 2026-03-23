@@ -100,7 +100,7 @@ At the start of every new session, scope change, or stale context event, Hub MUS
 
 Re-run PromptAnalyst when: new session start, scope changes, context is stale, or user requests fresh analysis.
 
-If PromptAnalyst is unavailable: fall back to category defaults (feature/orchestration/refactor → Researcher → [Brainstorm if architectural choice] → Architect; bugfix known-cause → Architect; quick_task → Executor/Worker; advisory → conversational). Log `prompt_analyst_unavailable` and proceed without skill/instruction enrichment.
+If PromptAnalyst is unavailable: **do NOT skip storing a routing decision** — `deploy_and_prep` requires one and will fail without it. Instead, synthesise a minimal routing decision yourself and store it via `memory_context(action: store, type: "hub_decision", workspace_id, plan_id, data: { hub_mode: "<inferred>", category: "<inferred>", noteworthy_file_paths: [], constraint_notes: [], gaps: [], prompt_analyst_unavailable: true })`, then log `prompt_analyst_unavailable` in plan notes and continue.
 
 ---
 
@@ -148,6 +148,11 @@ A spoke prompt missing any of these is a Hub defect.
 ### Spawn Protocol (Mandatory)
 
 Before every `runSubagent` call:
+
+**Pre-condition gate — PA routing decision MUST exist before step 1:**
+- Check: has PromptAnalyst been run this session and returned a routing decision?
+- If NO: run PromptAnalyst now (or synthesise + store a minimal `hub_decision` if PA is unavailable — see PA Routing Contract above).
+- Do NOT proceed to step 1 without a routing decision stored. `deploy_and_prep` will fail without it.
 
 1. Pull role instructions: `memory_agent(action: get_instructions, agent_name: "<Role>")`
 2. Select relevant skills/instructions using metadata only:

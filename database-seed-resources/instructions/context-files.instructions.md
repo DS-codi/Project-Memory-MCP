@@ -78,7 +78,7 @@ Used by Coordinator at the start of a new plan. Accepts structured fields direct
 }
 ```
 
-### Research notes (markdown, plan-scoped)
+### Research notes (DB-only, plan-scoped)
 
 ```json
 { "action": "append_research", "workspace_id": "...", "plan_id": "...", "filename": "api-analysis.md", "content": "## Finding\n..." }
@@ -88,9 +88,10 @@ Used by Coordinator at the start of a new plan. Accepts structured fields direct
 { "action": "list_research", "workspace_id": "...", "plan_id": "..." }
 ```
 
-- `filename` must end in `.md`.
-- `append_research` appends to the file each call — it does not replace.
-- List returns filenames only; read content with `get` using the filename as the type, or via `pull`.
+- `filename` is a **logical key/slug** only — it is NOT a filesystem path. Storage is DB-only.
+- The `path` field returned in the response is an internal DB artefact — agents MUST ignore it and must not attempt to read the path as a file.
+- `append_research` appends to the note each call — it does not replace.
+- List returns slugs only; read content with `get` using the slug as the type, or via `pull`.
 
 ---
 

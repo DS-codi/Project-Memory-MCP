@@ -29,7 +29,7 @@ Write-Host "Qt bin: $QtBin"
 Write-Host "QMAKE:  $qmakePath"
 
 $env:QMAKE = $qmakePath
-$env:PATH  = "$QtBin;$env:PATH"
+Initialize-WinDeployQtEnvironment -QtBin $QtBin
 
 Set-Location $Root
 $windeployqt = Join-Path $QtBin 'windeployqt.exe'

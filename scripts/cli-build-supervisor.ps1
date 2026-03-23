@@ -29,9 +29,18 @@ Write-Host "Qt bin: $QtBin"
 Write-Host "QMAKE:  $qmakePath"
 
 $env:QMAKE = $qmakePath
-$env:PATH  = "$QtBin;$env:PATH"
+Initialize-WinDeployQtEnvironment -QtBin $QtBin
 
 Set-Location $Root
+
+foreach ($proc in @(Get-Process -Name 'supervisor' -ErrorAction SilentlyContinue)) {
+    try {
+        Stop-Process -Id $proc.Id -Force -ErrorAction Stop
+        Write-Host "Stopped running supervisor (PID $($proc.Id))"
+    } catch {
+        Write-Host "note: could not stop supervisor (PID $($proc.Id)): $($_.Exception.Message)"
+    }
+}
 
 Write-Host "Building supervisor..."
 cargo build --release -p supervisor
